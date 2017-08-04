@@ -28,138 +28,96 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.reflect.ClassTag
 import scala.util.Try
 
-class IterantBuilders[F[_]] extends SharedDocs {
+class IterantBuilders[F[_]] {
   /** Given a list of elements build a stream out of it. */
   def of[A](elems: A*)(implicit F: Applicative[F]): Iterant[F,A] =
     Iterant.fromSeq(elems)(F)
 
-  /** $builderNow */
+  /** Aliased builder, see documentation for [[Iterant.now]]. */
   def now[A](a: A): Iterant[F,A] =
     Iterant.now(a)
 
-  /** Alias for [[now]]. */
+  /** Aliased builder, see documentation for [[Iterant.pure]]. */
   def pure[A](a: A): Iterant[F,A] =
     Iterant.pure(a)
 
-  /** $builderEval */
+  /** Aliased builder, see documentation for [[Iterant.eval]]. */
   def eval[A](a: => A)(implicit F: Sync[F]): Iterant[F,A] =
     Iterant.eval(a)(F)
 
-  /** $nextSDesc
-    *
-    * @param item $headParamDesc
-    * @param rest $restParamDesc
-    * @param stop $stopParamDesc
-    */
+  /** Aliased builder, see documentation for [[Iterant.nextS]]. */
   def nextS[A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Iterant.nextS(item, rest, stop)
 
-  /** $nextCursorSDesc
-    *
-    * @param cursor $cursorParamDesc
-    * @param rest $restParamDesc
-    * @param stop $stopParamDesc
-    */
+  /** Aliased builder, see documentation for [[Iterant.nextCursorS]]. */
   def nextCursorS[A](cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Iterant.nextCursorS(cursor, rest, stop)
 
-  /** $nextBatchSDesc
-    *
-    * @param batch $generatorParamDesc
-    * @param rest $restParamDesc
-    * @param stop $stopParamDesc
-    */
+  /** Aliased builder, see documentation for [[Iterant.nextBatchS]]. */
   def nextBatchS[A](batch: Batch[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Iterant.nextBatchS(batch, rest, stop)
 
-  /** $suspendSDesc
-    *
-    * @param rest $restParamDesc
-    * @param stop $stopParamDesc
-    */
+  /** Aliased builder, see documentation for [[Iterant.suspendS]]. */
   def suspendS[A](rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Iterant.suspendS(rest, stop)
 
-  /** $lastSDesc
-    *
-    * @param item $lastParamDesc
-    */
+  /** Aliased builder, see documentation for [[Iterant.lastS]]. */
   def lastS[A](item: A): Iterant[F, A] =
     Iterant.lastS(item)
 
-  /** $haltSDesc
-    *
-    * @param e $exParamDesc
-    */
+  /** Aliased builder, see documentation for [[Iterant.haltS]]. */
   def haltS[A](e: Option[Throwable]): Iterant[F, A] =
     Iterant.haltS(e)
 
-  /** $builderSuspendByName
-    *
-    * @param fa $suspendByNameParam
-    */
+  /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](fa* Iterant.suspend]]. */
   def suspend[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     Iterant.suspend(fa)(F)
 
-  /** Alias for [[suspend[A](fa* suspend]].
-    *
-    * $builderSuspendByName
-    *
-    * @param fa $suspendByNameParam
-    */
+  /** Aliased builder, see documentation for [[Iterant.defer]]. */
   def defer[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     Iterant.defer(fa)(F)
 
-  /** $builderSuspendByF
-    *
-    * @param rest $restParamDesc
-    */
+  /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](rest* Iterant.suspend]]. */
   def suspend[A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.suspend(rest)(F)
 
-  /** $builderEmpty */
+  /** Aliased builder, see documentation for [[Iterant.empty]]. */
   def empty[A]: Iterant[F, A] =
     Iterant.empty
 
-  /** $builderRaiseError */
+  /** Aliased builder, see documentation for [[Iterant.raiseError]]. */
   def raiseError[A](ex: Throwable): Iterant[F, A] =
     Iterant.raiseError(ex)
 
-  /** $builderTailRecM */
+  /** Aliased builder, see documentation for [[Iterant.tailRecM]]. */
   def tailRecM[A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Sync[F]): Iterant[F, B] =
     Iterant.tailRecM(a)(f)(F)
 
-  /** $builderFromArray */
+  /** Aliased builder, see documentation for [[Iterant.fromArray]]. */
   def fromArray[A : ClassTag](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromArray(xs)
 
-  /** $builderFromList */
+  /** Aliased builder, see documentation for [[Iterant.fromList]]. */
   def fromList[A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromList(xs)(F)
 
-  /** $builderFromIndexedSeq */
+  /** Aliased builder, see documentation for [[Iterant.fromIndexedSeq]]. */
   def fromIndexedSeq[A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromIndexedSeq(xs)(F)
 
-  /** $builderFromSeq */
+  /** Aliased builder, see documentation for [[Iterant.fromSeq]]. */
   def fromSeq[A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromSeq(xs)(F)
 
-  /** $builderFromIterable */
+  /** Aliased builder, see documentation for [[Iterant.fromIterable]]. */
   def fromIterable[A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromIterable(xs)(F)
 
-  /** $builderFromIterator */
+  /** Aliased builder, see documentation for [[Iterant.fromIterator]]. */
   def fromIterator[A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromIterator(xs)(F)
 
-  /** $builderRange
-    *
-    * @param from $rangeFromParam
-    * @param until $rangeUntilParam
-    * @param step $rangeStepParam
-    * @return $rangeReturnDesc
-    */
+  /** Aliased builder, see documentation for [[Iterant.range]]. */
   def range(from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
     Iterant.range(from, until, step)(F)
 }
@@ -195,16 +153,16 @@ object IterantBuilders {
     * [[monix.eval.Task Task]].
     */
   object FromTask extends From[Task] {
-    type Builders = IterantTask.type
-    def instance: Builders = IterantTask
+    type Builders = IterantOfTask.type
+    def instance: Builders = IterantOfTask
   }
 
   /** For building [[Iterant]] instances powered by
     * [[monix.eval.Coeval Coeval]].
     */
   object FromCoeval extends From[Coeval] {
-    type Builders = IterantCoeval.type
-    def instance: Builders = IterantCoeval
+    type Builders = IterantOfCoeval.type
+    def instance: Builders = IterantOfCoeval
   }
 
   /** For building generic [[Iterant]] instances. */
@@ -229,7 +187,7 @@ object IterantBuilders {
 /** Defines builders for [[Iterant]] instances powered by
   * [[monix.eval.Coeval Coeval]].
   */
-object IterantCoeval extends IterantBuilders[Coeval]
+object IterantOfCoeval extends IterantBuilders[Coeval]
 
 /** Defines builders for [[Iterant]] instances powered by
   * [[monix.eval.Task Task]].
@@ -241,7 +199,7 @@ object IterantCoeval extends IterantBuilders[Coeval]
   *         `period` of time. The given `period` of time acts as a
   *         fixed delay between successive events.
   */
-object IterantTask extends IterantBuilders[Task] {
+object IterantOfTask extends IterantBuilders[Task] {
   /** $intervalWithFixedDelayDesc
     *
     * Without having an initial delay specified, this overload

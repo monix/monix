@@ -738,8 +738,91 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     (self zipMap rhs)((a, b) => (a, b))
 }
 
-/** Defines the standard [[Iterant]] builders. */
-object Iterant extends IterantInstances with SharedDocs {
+/** Defines the standard [[Iterant]] builders.
+  *
+  * @define NextDesc The [[monix.tail.Iterant.Next Next]] state
+  *         of the [[Iterant]] represents a `head` / `rest`
+  *         cons pair, where the `head` is a strict value.
+  *
+  *         Note the `head` being a strict value means that it is
+  *         already known, whereas the `rest` is meant to be lazy and
+  *         can have asynchronous behavior as well, depending on the `F`
+  *         type used.
+  *
+  *         See [[monix.tail.Iterant.NextCursor NextCursor]]
+  *         for a state where the head is a strict immutable list.
+  *
+  * @define NextCursorDesc The [[monix.tail.Iterant.NextCursor NextCursor]] state
+  *         of the [[Iterant]] represents an `batch` / `rest` cons pair,
+  *         where `batch` is an [[scala.collection.Iterator Iterator]]
+  *         type that can generate a whole batch of elements.
+  *
+  *         Useful for doing buffering, or by giving it an empty iterator,
+  *         useful to postpone the evaluation of the next element.
+  *
+  * @define NextBatchDesc The [[monix.tail.Iterant.NextBatch NextBatch]] state
+  *         of the [[Iterant]] represents an `batch` / `rest` cons pair,
+  *         where `batch` is an [[scala.collection.Iterable Iterable]]
+  *         type that can generate a whole batch of elements.
+  *
+  * @define SuspendDesc The [[monix.tail.Iterant.Suspend Suspend]] state
+  *         of the [[Iterant]] represents a suspended stream to be
+  *         evaluated in the `F` context. It is useful to delay the
+  *         evaluation of a stream by deferring to `F`.
+  *
+  * @define LastDesc The [[monix.tail.Iterant.Last Last]] state of the
+  *         [[Iterant]] represents a completion state as an alternative to
+  *         [[monix.tail.Iterant.Halt Halt(None)]], describing one
+  *         last element.
+  *
+  *         It is introduced as an optimization, being equivalent to
+  *         `Next(item, F.pure(Halt(None)), F.unit)`, to avoid extra processing
+  *         in the monadic `F[_]` and to short-circuit operations such as
+  *         concatenation and `flatMap`.
+  *
+  * @define HaltDesc The [[monix.tail.Iterant.Halt Halt]] state
+  *         of the [[Iterant]] represents the completion state
+  *         of a stream, with an optional exception if an error
+  *         happened.
+  *
+  *         `Halt` is received as a final state in the iteration process.
+  *         This state cannot be followed by any other element and
+  *         represents the end of the stream.
+  *
+  *         @see [[Iterant.Last]] for an alternative that signals one
+  *              last item, as an optimisation
+  *
+  * @define builderSuspendByName Promote a non-strict value representing a
+  *         stream to a stream of the same type, effectively delaying
+  *         its initialisation.
+  *
+  * @define headParamDesc is the current element to be signaled
+  *
+  * @define lastParamDesc is the last element being signaled, after which
+  *         the consumer can stop the iteration
+  *
+  * @define cursorParamDesc is an [[scala.collection.Iterator Iterator]] type
+  *         that can generate elements by traversing a collection, a standard
+  *         array or any `Iterator`
+  *
+  * @define generatorParamDesc is a [[scala.collection.Iterable Iterable]]
+  *         type that can generate elements by traversing a collection,
+  *         a standard array or any `Iterable`
+  *
+  * @define restParamDesc is the next state in the sequence that
+  *         will produce the rest of the stream when evaluated
+  *
+  * @define stopParamDesc is a computation to be executed in case
+  *         streaming is stopped prematurely, giving it a chance
+  *         to do resource cleanup (e.g. close file handles)
+  *
+  * @define exParamDesc is an error to signal at the end of the stream,
+  *        or `None` in case the stream has completed normally
+  *
+  * @define suspendByNameParam is the by-name parameter that will generate
+  *         the stream when evaluated
+  */
+object Iterant extends IterantInstances {
   /** Returns an [[IterantBuilders]] instance for the specified `F`
     * monadic type that can be used to build [[Iterant]] instances.
     *
@@ -754,22 +837,30 @@ object Iterant extends IterantInstances with SharedDocs {
   def pure[F[_], A](a: A): Iterant[F, A] =
     now[F, A](a)
 
-  /** $builderNow */
+  /** Lifts a strict value into the stream context, returning a
+    * stream of one element.
+    */
   def now[F[_], A](a: A): Iterant[F, A] =
     lastS(a)
 
-  /** $lastSDesc
+  /** Builds a stream state equivalent with [[Iterant.Last]].
+    *
+    * $LastDesc
     *
     * @param item $lastParamDesc
     */
   def lastS[F[_], A](item: A): Iterant[F, A] =
     Last(item)
 
-  /** $builderEval */
+  /** Lifts a non-strict value into the stream context, returning a
+    * stream of one element that is lazily evaluated.
+    */
   def eval[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
     Suspend(F.delay(nextS[F, A](a, F.pure(Halt(None)), F.unit)), F.unit)
 
-  /** $nextSDesc
+  /** Builds a stream state equivalent with [[Iterant.Next]].
+    *
+    * $NextDesc
     *
     * @param item $headParamDesc
     * @param rest $restParamDesc
@@ -778,7 +869,9 @@ object Iterant extends IterantInstances with SharedDocs {
   def nextS[F[_], A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Next[F, A](item, rest, stop)
 
-  /** $nextCursorSDesc
+  /** Builds a stream state equivalent with [[Iterant.NextCursor]].
+    *
+    * $NextCursorDesc
     *
     * @param items $cursorParamDesc
     * @param rest $restParamDesc
@@ -787,7 +880,9 @@ object Iterant extends IterantInstances with SharedDocs {
   def nextCursorS[F[_], A](items: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     NextCursor[F, A](items, rest, stop)
 
-  /** $nextBatchSDesc
+  /** Builds a stream state equivalent with [[Iterant.NextBatch]].
+    *
+    * $NextBatchDesc
     *
     * @param items $generatorParamDesc
     * @param rest $restParamDesc
@@ -796,7 +891,9 @@ object Iterant extends IterantInstances with SharedDocs {
   def nextBatchS[F[_], A](items: Batch[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     NextBatch[F, A](items, rest, stop)
 
-  /** $haltSDesc
+  /** Builds a stream state equivalent with [[Iterant.Halt]].
+    *
+    * $HaltDesc
     *
     * @param e $exParamDesc
     */
@@ -819,14 +916,20 @@ object Iterant extends IterantInstances with SharedDocs {
   def suspend[F[_], A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     suspend[F, A](F.delay(fa))
 
-  /** $builderSuspendByF
+  /** Defers the stream generation to the underlying evaluation
+    * context (e.g. `Task`, `Coeval`, `IO`, etc), building a reference
+    * equivalent with [[Iterant.Suspend]].
+    *
+    * $SuspendDesc
     *
     * @param rest $restParamDesc
     */
   def suspend[F[_], A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] =
     suspendS[F, A](rest, F.unit)
 
-  /** $suspendSDesc
+  /** Builds a stream state equivalent with [[Iterant.NextCursor]].
+    *
+    * $SuspendDesc
     *
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
@@ -834,19 +937,26 @@ object Iterant extends IterantInstances with SharedDocs {
   def suspendS[F[_], A](rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Suspend[F, A](rest, stop)
 
-  /** $builderRaiseError */
+  /** Returns an empty stream that ends with an error. */
   def raiseError[F[_], A](ex: Throwable): Iterant[F, A] =
     Halt[F, A](Some(ex))
 
-  /** $builderTailRecM */
+  /** Keeps calling `f` and concatenating the resulting iterants for
+    * each `scala.util.Left` event emitted by the source,
+    * concatenating the resulting iterants and generating
+    * events out of `scala.util.Right[B]` values.
+    *
+    * Based on Phil Freeman's
+    * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
+    */
   def tailRecM[F[_], A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.tailRecM(a)(f)
 
-  /** $builderFromArray */
+  /** Converts any standard `Array` into a stream. */
   def fromArray[F[_], A : ClassTag](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextBatch(Batch.fromArray(xs), F.pure(empty[F, A]), F.unit)
 
-  /** $builderFromSeq */
+  /** Converts any `scala.collection.Seq` into a stream. */
   def fromSeq[F[_], A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     xs match {
       case ref: LinearSeq[_] =>
@@ -857,37 +967,44 @@ object Iterant extends IterantInstances with SharedDocs {
         fromIterable(xs)(F)
     }
 
-  /** $builderFromList */
+  /** Converts any Scala `collection.immutable.LinearSeq` into
+    * a stream.
+    */
   def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextBatch(Batch.fromSeq(xs), F.pure(empty[F, A]), F.unit)
 
-  /** $builderFromIndexedSeq */
+  /** Converts any Scala `collection.IndexedSeq` into a stream
+    * (e.g. `Vector`).
+    */
   def fromIndexedSeq[F[_], A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextBatch(Batch.fromIndexedSeq(xs), F.pure(empty[F, A]), F.unit)
 
-  /** $builderFromIterable */
+  /** Converts a `scala.collection.Iterable` into a stream. */
   def fromIterable[F[_], A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F, A] = {
     val bs = if (xs.hasDefiniteSize) batches.defaultBatchSize else 1
     NextBatch(Batch.fromIterable(xs, bs), F.pure(empty[F, A]), F.unit)
   }
 
-  /** $builderFromIterator */
+  /** Converts a `scala.collection.Iterator` into a stream. */
   def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] = {
     val bs = if (xs.hasDefiniteSize) batches.defaultBatchSize else 1
     NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty), F.unit)
   }
 
-  /** $builderRange
+  /** Builds a stream that on evaluation will produce equally spaced
+    * values in some integer interval.
     *
-    * @param from $rangeFromParam
-    * @param until $rangeUntilParam
-    * @param step $rangeStepParam
-    * @return $rangeReturnDesc
+    * @param from the start value of the stream
+    * @param until the end value of the stream (exclusive from the stream)
+    * @param step the increment value of the tail (must be positive or negative)
+    *
+    * @return the tail producing values `from, from + step, ...` up
+    *         to, but excluding `until`
     */
   def range[F[_]](from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
     NextBatch(Batch.range(from, until, step), F.pure(empty[F, Int]), F.unit)
 
-  /** $builderEmpty */
+  /** Returns an empty stream. */
   def empty[F[_], A]: Iterant[F, A] =
     Halt[F, A](None)
 
@@ -950,7 +1067,9 @@ object Iterant extends IterantInstances with SharedDocs {
       stop
   }
 
-  /** $SuspendDesc
+  /** Builds a stream state equivalent with [[Iterant.NextCursor]].
+    *
+    * $SuspendDesc
     *
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
@@ -977,67 +1096,66 @@ object Iterant extends IterantInstances with SharedDocs {
 }
 
 private[tail] trait IterantInstances extends IterantInstances1 {
-  /** Provides type-class instances for `Iterant[Task, +A]`, based
+  /** Provides type-class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
     * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
-  implicit def iterantTaskInstances(implicit F: CatsAsyncInstances[Task]): IterantTaskInstances = {
+  implicit def iterantTaskInstances(implicit F: CatsAsyncInstances[Task]): CatsInstances[Task] = {
     import CatsAsyncInstances.{ForParallelTask, ForTask}
     // Avoiding the creation of junk, because it is expensive
     F match {
       case ForTask => defaultIterantTaskRef
       case ForParallelTask => nondetIterantTaskRef
-      case _ => new IterantTaskInstances()(F)
+      case _ => new CatsTaskInstances()(F)
     }
   }
 
   /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
-  private[this] final val defaultIterantTaskRef =
-    new IterantTaskInstances()(CatsAsyncInstances.ForTask)
+  private[this] final val defaultIterantTaskRef: CatsInstances[Task] =
+    new CatsTaskInstances()(CatsAsyncInstances.ForTask)
 
-  /** Provides type-class instances for `Iterant[Coeval, +A]`, based on
+  /** Provides type-class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
     * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
     */
-  implicit def iterantCoevalInstances(implicit F: CatsSyncInstances[Coeval]): IterantCoevalInstances = {
+  implicit def iterantCoevalInstances(implicit F: CatsSyncInstances[Coeval]): CatsInstances[Coeval] = {
     import CatsSyncInstances.ForCoeval
     // Avoiding the creation of junk, because it is expensive
     F match {
       case `ForCoeval` => defaultIterantCoevalRef
-      case _ => new IterantCoevalInstances()(F)
+      case _ => new CatsCoevalInstances()(F)
     }
   }
 
   /** Reusable instance for `Iterant[Coeval, A]`, avoids creating junk. */
   private[this] final val defaultIterantCoevalRef =
-    new IterantCoevalInstances()(CatsSyncInstances.ForCoeval)
+    new CatsCoevalInstances()(CatsSyncInstances.ForCoeval)
   /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
   private[this] val nondetIterantTaskRef =
-    new IterantTaskInstances()(CatsAsyncInstances.ForParallelTask)
+    new CatsTaskInstances()(CatsAsyncInstances.ForParallelTask)
 
-  /** Provides type-class instances for `Iterant[Task, +A]`, based
+  /** Provides type-class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
     * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
-  class IterantTaskInstances(implicit F: CatsAsyncInstances[Task])
-    extends MonadInstance[Task]()(F)
+  private final class CatsTaskInstances(implicit F: CatsAsyncInstances[Task])
+    extends CatsInstances[Task]()(F)
 
-  /** Provides type-class instances for `Iterant[Coeval, +A]`, based on
+  /** Provides type-class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
     * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
     */
-  class IterantCoevalInstances(implicit F: CatsSyncInstances[Coeval])
-    extends MonadInstance[Coeval]()(F)
-
+  private final class CatsCoevalInstances(implicit F: CatsSyncInstances[Coeval])
+    extends CatsInstances[Coeval]()(F)
 }
 
 private[tail] trait IterantInstances1 {
-  /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
-  implicit def monadInstance[F[_] : Sync]: MonadInstance[F] =
-    new MonadInstance[F]()
+  /** Provides a Cats type class instances for [[Iterant]]. */
+  implicit def catsInstances[F[_] : Sync]: CatsInstances[F] =
+    new CatsInstances[F]()
 
   /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
-  class MonadInstance[F[_]](implicit F: Sync[F])
+  class CatsInstances[F[_]](implicit F: Sync[F])
     extends Sync[({type λ[α] = Iterant[F, α]})#λ]
     with MonoidK[({type λ[α] = Iterant[F, α]})#λ] {
 
