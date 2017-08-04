@@ -17,7 +17,10 @@
 
 package monix.tail
 
+import cats.effect.IO
 import monix.eval.{Coeval, Task}
+import monix.execution.exceptions.DummyException
+import scala.util.{Failure, Success}
 
 object IterantBasicSuite extends BaseTestSuite {
   test("arbitraryListToTaskStream works") { implicit s =>
@@ -33,5 +36,43 @@ object IterantBasicSuite extends BaseTestSuite {
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(i % 4))
       stream.toListL <-> Coeval.now(list)
     }
+  }
+
+  test("Iterant.pure") { implicit s =>
+    val iter = Iterant[IO].pure(10)
+    val f = iter.headOptionL.unsafeToFuture()
+    assertEquals(f.value, Some(Success(Some(10))))
+  }
+
+  test("Iterant.eval") { implicit s =>
+    var effect = 0
+    val iter = Iterant[IO].eval { effect += 1; effect }
+    val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Iterant.defer") { implicit s =>
+    var effect = 0
+    val iter = Iterant[IO].defer { effect += 1; Iterant[IO].pure(effect) }
+    val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("tailRecM basic usage") { implicit s =>
+    val fa = Iterant[Coeval].tailRecM(0) { (a: Int) =>
+      if (a < 10)
+        Iterant[Coeval].of[Either[Int, Int]](Right(a), Left(a + 1))
+      else
+        Iterant[Coeval].now[Either[Int, Int]](Right(a))
+    }
+
+    val list = fa.toListL.value
+    assertEquals(list, (0 to 10).toList)
+  }
+
+  test("tailRecM should protect against user error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val fa = Iterant[Coeval].tailRecM(0) { _ => throw dummy }
+    assertEquals(fa.completeL.runTry, Failure(dummy))
   }
 }
