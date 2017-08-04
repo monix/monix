@@ -147,7 +147,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     if (Platform.isJVM)
       assertEquals(received, 28 + (2000 to 2004).sum + 2000)
     else
-      assertEquals(received, 28 + (2002 to 2004).sum + 2002)
+      assertEquals(received, 28 + (1995 to 2004).sum + 1995)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")

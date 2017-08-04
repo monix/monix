@@ -128,7 +128,7 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
 
     promise.success(Continue); s.tick()
     // Different queue implementations :-(
-    val first = if (Platform.isJVM) 993 else 994
+    val first = if (Platform.isJVM) 993 else 986
     assertEquals(received, (first to 1000).sum + 28)
 
     buffer.onComplete(); s.tick()
