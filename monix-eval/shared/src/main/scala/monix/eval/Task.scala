@@ -1261,13 +1261,13 @@ object Task extends TaskInstances {
       * [[monix.execution.ExecutionModel ExecutionModel]]
       * specified by the [[scheduler]].
       */
-    @inline def executionModel: ExecutionModel =
+    def executionModel: ExecutionModel =
       scheduler.executionModel
 
     /** Helper that returns `true` if the current `Task` run-loop
       * should be canceled or `false` otherwise.
       */
-    @inline def shouldCancel: Boolean =
+    def shouldCancel: Boolean =
       options.autoCancelableRunLoops &&
       connection.isCanceled
   }
@@ -1473,16 +1473,13 @@ private[eval] trait TaskInstances extends TaskInstances2 {
     *
     * @param as $strategyParamDesc
     */
-  @inline implicit def catsAsync
-    (implicit as: ApplicativeStrategy[Task]): CatsAsyncInstances[Task] = {
-
+  implicit def catsAsync(implicit as: ApplicativeStrategy[Task]): CatsAsyncInstances[Task] =
     as match {
       case ApplicativeStrategy.Sequential =>
         CatsAsyncInstances.ForTask
       case ApplicativeStrategy.Parallel =>
         CatsAsyncInstances.ForParallelTask
     }
-  }
 }
 
 /** @define strategyNote In order to determine the returned instance to do
@@ -1503,16 +1500,13 @@ private[eval] trait TaskInstances2 extends TaskInstances1 {
     * @param as $strategyParamDesc
     * @param s is the `Scheduler` to use when executing `Effect#runAsync`
     */
-  @inline implicit def catsEffect
-    (implicit as: ApplicativeStrategy[Task], s: Scheduler): CatsEffectInstances[Task] = {
-
+  implicit def catsEffect(implicit as: ApplicativeStrategy[Task], s: Scheduler): CatsEffectInstances[Task] =
     as match {
       case ApplicativeStrategy.Sequential =>
         new CatsEffectInstances.ForTask()(s)
       case ApplicativeStrategy.Parallel =>
         new CatsEffectInstances.ForParallelTask()(s)
     }
-  }
 }
 
 /** @define nondeterminismSample
@@ -1541,7 +1535,7 @@ private[eval] trait TaskInstances1 extends TaskInstances0 {
     * @see [[Task.nondeterminism]] for picking a strategy for applicative
     *      that does unordered effects and thus capable of parallelism
     */
-  @inline implicit def determinism: ApplicativeStrategy[Task] =
+  implicit def determinism: ApplicativeStrategy[Task] =
     ApplicativeStrategy.Sequential
 }
 
@@ -1572,6 +1566,6 @@ private[eval] trait TaskInstances0 {
     *
     * $nondeterminismSample
     */
-  @inline implicit def nondeterminism: ApplicativeStrategy[Task] =
+  implicit def nondeterminism: ApplicativeStrategy[Task] =
     ApplicativeStrategy.Parallel
 }

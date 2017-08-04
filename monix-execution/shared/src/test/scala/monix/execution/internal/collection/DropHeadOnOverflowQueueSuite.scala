@@ -17,10 +17,7 @@
 
 package monix.execution.internal.collection
 
-import java.util.ConcurrentModificationException
-
 import minitest.SimpleTestSuite
-
 import scala.collection.mutable.ListBuffer
 
 object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
@@ -38,7 +35,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q2 = DropHeadOnOverflowQueue[Int](600)
     assertEquals(q2.capacity, 1023)
 
-    val q3 = DropHeadOnOverflowQueue[Int](1024)
+    val q3 = DropHeadOnOverflowQueue[Int](1023)
     assertEquals(q3.capacity, 1023)
 
     val q4 = DropHeadOnOverflowQueue[Int](1025)
@@ -148,28 +145,6 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     }
   }
 
-  test("throw ConcurrentModificationException after poll") {
-    val q = DropHeadOnOverflowQueue[Int](7)
-    q.offerMany(1,2,3,4)
-    val iterator = q.iterator
-
-    q.poll()
-    intercept[ConcurrentModificationException] {
-      iterator.hasNext
-    }
-  }
-
-  test("throw ConcurrentModificationException after offer") {
-    val q = DropHeadOnOverflowQueue[Int](7)
-    q.offerMany(1,2,3,4)
-    val iterator = q.iterator
-
-    q.offer(1)
-    intercept[ConcurrentModificationException] {
-      iterator.hasNext
-    }
-  }
-
   test("isEmpty && nonEmpty && head && headOption") {
     val q = DropHeadOnOverflowQueue[Int](8)
     assert(q.isEmpty)
@@ -194,7 +169,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
   }
 
   test("iterable") {
-    val q = DropHeadOnOverflowQueue[Int](128)
+    val q = DropHeadOnOverflowQueue[Int](127)
     assertEquals(q.capacity, 127)
 
     q.offerMany(0 until 200:_*)
@@ -218,5 +193,34 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.length, 1)
     assertEquals(q.poll(), 29)
     assertEquals(q.length, 0)
+  }
+
+  test("should iterate with fixed capacity") {
+    val q = DropHeadOnOverflowQueue[Int](10)
+    q.offerMany(0 to 200:_*)
+
+    val list1 = q.iterator(exactSize = false).toList
+    assertEquals(list1.length, 15)
+    assertEquals(list1, (186 to 200).toList)
+
+    val list2 = q.iterator(exactSize = true).toList
+    assertEquals(list2.length, 10)
+    assertEquals(list2, (191 to 200).toList)
+  }
+
+  test("should have at least the recommended capacity") {
+    val q1 = DropHeadOnOverflowQueue[Int](16)
+    assertEquals(q1.length, 0)
+    assertEquals(q1.capacity, 31)
+
+    val q2 = DropHeadOnOverflowQueue[Int](15)
+    assertEquals(q2.length, 0)
+    assertEquals(q2.capacity, 15)
+  }
+
+  test("should box") {
+    val q = DropHeadOnOverflowQueue.boxed[Int](10)
+    q.offerMany(0 until 15:_*)
+    assertEquals(q.toList, (0 until 15).toList)
   }
 }

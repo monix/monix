@@ -26,7 +26,6 @@ import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.DropOldAndSignal
 import monix.execution.exceptions.DummyException
-
 import scala.concurrent.{Future, Promise}
 
 object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
@@ -146,8 +145,8 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     promise.success(Continue); s.tick()
 
     // Different queue implementations :-(
-    val first = if (Platform.isJVM) 1093 else 1094
-    val dropped = if (Platform.isJVM) 993 else 994
+    val first = if (Platform.isJVM) 1093 else 1086
+    val dropped = if (Platform.isJVM) 993 else 986
 
     assertEquals(received, (first to 1100).sum + 28 + dropped)
 
@@ -187,9 +186,8 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     promise.success(Continue); s.tick()
 
     // Different queue implementations :-(
-    // Different queue implementations :-(
-    val first = if (Platform.isJVM) 1093 else 1094
-    val dropped = if (Platform.isJVM) 993 else 994
+    val first = if (Platform.isJVM) 1093 else 1086
+    val dropped = if (Platform.isJVM) 993 else 986
 
     assertEquals(received, (first to 1100).sum + 28)
     assertEquals(log.get, dropped)
