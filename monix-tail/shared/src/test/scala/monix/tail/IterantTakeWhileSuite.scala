@@ -66,6 +66,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
     check2 { (list: List[Int], idx: Int) =>
       val cancelable = BooleanCancelable()
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1)
+        .onErrorIgnore
         .doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
       stream.takeWhile(_ => false).toListL.value == Nil &&
@@ -77,7 +78,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter ++ suffix
+      val stream = iter.onErrorIgnore ++ suffix
       val received = stream.takeWhile(_ => true)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -87,7 +88,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter ++ suffix
+      val stream = iter.onErrorIgnore ++ suffix
       val received = stream.takeWhile(_ => true)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -96,7 +97,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
   test("Iterant.takeWhile protects against user code") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val stream = 1 +: iter
+      val stream = 1 +: iter.onErrorIgnore
 
       stream.takeWhile(_ => throw dummy) <-> Iterant[Task].raiseError[Int](dummy)
     }
@@ -107,7 +108,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
-      val stream = (iter ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
+      val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
       intercept[DummyException] { stream.takeWhile(_ => true).toListL.value }
       cancelable.isCanceled

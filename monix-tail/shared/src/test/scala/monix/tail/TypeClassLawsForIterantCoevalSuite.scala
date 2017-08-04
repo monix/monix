@@ -17,7 +17,9 @@
 
 package monix.tail
 
-import cats.laws.discipline.{CartesianTests, MonadTests, MonoidKTests}
+import cats.Eq
+import cats.data.EitherT
+import cats.laws.discipline.{CartesianTests, MonadErrorTests, MonoidKTests}
 import monix.eval.Coeval
 
 object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
@@ -27,8 +29,13 @@ object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
   implicit val iso: CartesianTests.Isomorphisms[F] =
     CartesianTests.Isomorphisms.invariant
 
-  checkAllAsync("Monad[Iterant[Coeval]]") { implicit ec =>
-    MonadTests[F].monad[Int, Int, Int]
+  // Explicit instance, since Scala can't figure it out below :-(
+  val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
+    implicitly[Eq[EitherT[F, Throwable, Int]]]
+
+  checkAllAsync("MonadError[Iterant[Coeval]]") { implicit ec =>
+    implicit val eqE = eqEitherT
+    MonadErrorTests[F, Throwable].monadError[Int, Int, Int]
   }
 
   checkAllAsync("MonoidK[Iterant[Coeval]]") { implicit ec =>

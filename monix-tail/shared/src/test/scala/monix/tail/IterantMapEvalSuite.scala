@@ -124,7 +124,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
-      val stream = (prefix ++ error).mapEval(x => Task.now(x))
+      val stream = (prefix.onErrorIgnore ++ error).mapEval(x => Task.now(x))
       stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
@@ -134,7 +134,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionBatch(dummy)
       val error = Iterant[Task].nextBatchS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
-      val stream = (prefix ++ error).mapEval(x => Task.now(x))
+      val stream = (prefix.onErrorIgnore ++ error).mapEval(x => Task.now(x))
       stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
@@ -268,7 +268,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant.mapEval suspends the evaluation for Next") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]), Task.unit)
-    val state = iter.mapEval { x => (throw dummy): Task[Int] }
+    val state = iter.mapEval { _ => (throw dummy): Task[Int] }
 
     assert(state.isInstanceOf[Suspend[Task, Int]], "state.isInstanceOf[Suspend[Int]]")
     assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
@@ -277,7 +277,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant.mapEval suspends the evaluation for Last") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Task].lastS(1)
-    val state = iter.mapEval { x => (throw dummy): Task[Int] }
+    val state = iter.mapEval { _ => (throw dummy): Task[Int] }
 
     assert(state.isInstanceOf[Suspend[Task, Int]])
     assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
@@ -290,7 +290,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     assertEquals(state1, iter1)
 
     val iter2: Iterant[Task, Int] = Iterant[Task].haltS(None)
-    val state2 = iter2.mapEval { x => (throw dummy) : Task[Int] }
+    val state2 = iter2.mapEval { _ => (throw dummy) : Task[Int] }
     assertEquals(state2, iter2)
   }
 

@@ -36,7 +36,7 @@ object IterantTakeSuite extends BaseTestSuite {
 
   test("Iterant[Task].take equivalence with List.take") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
-      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
+      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1).onErrorIgnore
       val length = list.length
       val n =
         if (nr == 0) 0
@@ -51,6 +51,7 @@ object IterantTakeSuite extends BaseTestSuite {
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val cancelable = BooleanCancelable()
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1)
+        .onErrorIgnore
         .doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
       val length = list.length
@@ -68,7 +69,7 @@ object IterantTakeSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter ++ suffix
+      val stream = iter.onErrorIgnore ++ suffix
       val received = stream.take(Int.MaxValue)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -78,7 +79,7 @@ object IterantTakeSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter ++ suffix
+      val stream = iter.onErrorIgnore ++ suffix
       val received = stream.take(Int.MaxValue)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -89,7 +90,7 @@ object IterantTakeSuite extends BaseTestSuite {
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
-      val stream = (iter ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
+      val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
       intercept[DummyException] { stream.take(Int.MaxValue).toListL.value }
       cancelable.isCanceled

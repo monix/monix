@@ -25,15 +25,14 @@ import scala.util.{Failure, Success}
 object IterantBasicSuite extends BaseTestSuite {
   test("arbitraryListToTaskStream works") { implicit s =>
     check2 { (list: List[Int], i: Int) =>
-      Iterant[Task].of(1, 2)
-      val stream = arbitraryListToIterant[Task, Int](list, math.abs(i % 4))
+      val stream = arbitraryListToIterant[Task, Int](list, math.abs(i % 4)).onErrorIgnore
       stream.toListL <-> Task.now(list)
     }
   }
 
   test("arbitraryListToCoevalStream") { implicit s =>
     check2 { (list: List[Int], i: Int) =>
-      val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(i % 4))
+      val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(i % 4)).onErrorIgnore
       stream.toListL <-> Coeval.now(list)
     }
   }

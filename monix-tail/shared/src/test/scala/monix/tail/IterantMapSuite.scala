@@ -75,7 +75,7 @@ object IterantMapSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
-      val stream = (prefix ++ error).map(x => x)
+      val stream = (prefix.onErrorIgnore ++ error).map(x => x)
       stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
@@ -85,7 +85,7 @@ object IterantMapSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionBatch(dummy)
       val error = Iterant[Task].nextBatchS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
-      val stream = (prefix ++ error).map(x => x)
+      val stream = (prefix.onErrorIgnore ++ error).map(x => x)
       stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }

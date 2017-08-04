@@ -20,6 +20,7 @@ package monix.tail
 import cats.Eq
 import cats.effect.{IO, Sync}
 import monix.eval.{Coeval, Task}
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.Arbitrary
@@ -29,31 +30,34 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
     def loop(list: List[A], idx: Int): Iterant[F, A] =
       list match {
         case Nil =>
-          Iterant[F].haltS(None)
-        case x :: Nil if idx % 2 == 1 =>
+          if (math.abs(idx % 4) != 0)
+            Iterant[F].haltS(None)
+          else
+            Iterant[F].haltS(Some(DummyException("arbitrary")))
+
+        case x :: Nil if math.abs(idx % 2) == 1 =>
           Iterant[F].lastS(x)
+
         case ns =>
-          if (idx % 6 == 0)
-            Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx+1)), F.unit)
-          else if (idx % 6 == 1)
-            Iterant[F].suspend(F.delay(loop(list, idx+1)))
-          else  if (idx % 6 == 2) {
-            val (headSeq, tail) = list.splitAt(3)
-            val bs = if (idx % 7 < 3) 1 else 3
-            val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, bs)
-            Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx+1)), F.unit)
-          }
-          else if (idx % 6 == 3) {
-            Iterant[F].suspendS(F.delay(loop(ns, idx + 1)), F.unit)
-          }
-          else if (idx % 6 == 4) {
-            val (headSeq, tail) = list.splitAt(3)
-            val bs = if (idx % 7 < 3) 1 else 3
-            val batch = Batch.fromSeq(headSeq.toVector, bs)
-            Iterant[F].nextBatchS(batch, F.delay(loop(tail, idx+1)), F.unit)
-          }
-          else {
-            Iterant[F].nextBatchS(Batch.empty, F.delay(loop(ns, idx + 1)), F.unit)
+          math.abs(idx % 6) match {
+            case 0 =>
+              Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx+1)), F.unit)
+            case 1 =>
+              Iterant[F].suspend(F.delay(loop(list, idx+1)))
+            case 2 =>
+              val (headSeq, tail) = list.splitAt(3)
+              val bs = if (idx % 7 < 3) 1 else 3
+              val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, bs)
+              Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx+1)), F.unit)
+            case 3 =>
+              Iterant[F].suspendS(F.delay(loop(ns, idx + 1)), F.unit)
+            case 4 =>
+              val (headSeq, tail) = list.splitAt(3)
+              val bs = if (idx % 7 < 3) 1 else 3
+              val batch = Batch.fromSeq(headSeq.toVector, bs)
+              Iterant[F].nextBatchS(batch, F.delay(loop(tail, idx+1)), F.unit)
+            case 5 =>
+              Iterant[F].nextBatchS(Batch.empty, F.delay(loop(ns, idx + 1)), F.unit)
           }
       }
 

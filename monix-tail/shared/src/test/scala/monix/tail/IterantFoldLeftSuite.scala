@@ -100,7 +100,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
-      val result = (prefix ++ error).foldLeftL(0)(_+_)
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
       result <-> Task.raiseError[Int](dummy)
     }
   }
@@ -110,7 +110,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val generator = new ThrowExceptionBatch(dummy)
       val error = Iterant[Task].nextBatchS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
-      val result = (prefix ++ error).foldLeftL(0)(_+_)
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
       result <-> Task.raiseError[Int](dummy)
     }
   }
@@ -197,7 +197,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
       val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-      val result = (prefix ++ error).foldLeftL(0)(_+_)
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
       result <-> Coeval.raiseError[Int](dummy)
     }
   }
@@ -207,7 +207,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val generator: Batch[Int] = new ThrowExceptionBatch(dummy)
       val error = Iterant[Coeval].nextBatchS(generator, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-      val result = (prefix ++ error).foldLeftL(0)(_+_)
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
       result <-> Coeval.raiseError[Int](dummy)
     }
   }

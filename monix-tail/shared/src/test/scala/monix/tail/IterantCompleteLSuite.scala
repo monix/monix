@@ -26,7 +26,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
   test("completeL works") { implicit s =>
     check1 { (iter: Iterant[Coeval, Int]) =>
       var effect = 0
-      val trigger = iter ++ Iterant[Coeval].suspend {
+      val trigger = iter.onErrorIgnore ++ Iterant[Coeval].suspend {
         effect += 1
         Iterant[Coeval].empty[Int]
       }

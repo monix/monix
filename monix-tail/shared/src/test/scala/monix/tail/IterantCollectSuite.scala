@@ -36,7 +36,7 @@ object IterantCollectSuite extends BaseTestSuite {
   test("Iterant.collect protects against user error") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val received = (stream ++ Iterant[Task].now(1)).collect[Int] { case _ => throw dummy }
+      val received = (stream.onErrorIgnore ++ Iterant[Task].now(1)).collect[Int] { case _ => throw dummy }
       received <-> Iterant[Task].raiseError(dummy)
     }
   }

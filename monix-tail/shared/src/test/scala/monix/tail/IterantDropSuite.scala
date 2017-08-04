@@ -44,7 +44,7 @@ object IterantDropSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter ++ suffix
+      val stream = iter.onErrorIgnore ++ suffix
       val received = stream.drop(Int.MaxValue)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -54,7 +54,7 @@ object IterantDropSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter ++ suffix
+      val stream = iter.onErrorIgnore ++ suffix
       val received = stream.drop(Int.MaxValue)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }

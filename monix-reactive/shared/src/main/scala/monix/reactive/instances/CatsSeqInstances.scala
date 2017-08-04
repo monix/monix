@@ -61,8 +61,6 @@ object CatsObservableInstances {
       fa.onErrorRecoverWith(pf)
     override def empty[A]: Observable[A] =
       Observable.empty[A]
-
-    override def adaptError[A](fa: Observable[A])(pf: PartialFunction[Throwable, Throwable]): Observable[A] = super.adaptError(fa)(pf)
   }
 
   /** Reusable instance of [[ForObservable]]. */

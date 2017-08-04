@@ -160,7 +160,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
-      val stream = (prefix ++ error).flatMap(x => Iterant[Task].now(x))
+      val stream = (prefix.onErrorIgnore ++ error).flatMap(x => Iterant[Task].now(x))
       stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
@@ -170,7 +170,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val generator = new ThrowExceptionBatch(dummy)
       val error = Iterant[Task].nextBatchS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
-      val stream = (prefix ++ error).flatMap(x => Iterant[Task].now(x))
+      val stream = (prefix.onErrorIgnore ++ error).flatMap(x => Iterant[Task].now(x))
       stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
@@ -275,7 +275,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToIterant[Coeval, Int](list, idx)
+      val source = arbitraryListToIterant[Coeval, Int](list, idx).onErrorIgnore
       val received = source.flatMap(_ => Iterant[Coeval].raiseError[Int](dummy))
       received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -285,7 +285,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToIterant[Coeval, Int](list, idx)
+      val source = arbitraryListToIterant[Coeval, Int](list, idx).onErrorIgnore
       val received = source.flatMap[Int](_ => throw dummy)
       received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -296,7 +296,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-      val stream = (prefix ++ error).flatMap(x => Iterant[Coeval].now(x))
+      val stream = (prefix.onErrorIgnore ++ error).flatMap(x => Iterant[Coeval].now(x))
       stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }

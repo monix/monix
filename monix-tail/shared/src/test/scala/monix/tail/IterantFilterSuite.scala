@@ -36,7 +36,7 @@ object IterantFilterSuite extends BaseTestSuite {
   test("Iterant.filter protects against user error") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val received = (stream ++ Iterant[Task].now(1)).filter(_ => throw dummy)
+      val received = (stream.onErrorIgnore ++ Iterant[Task].now(1)).filter(_ => throw dummy)
       received <-> Iterant[Task].raiseError(dummy)
     }
   }

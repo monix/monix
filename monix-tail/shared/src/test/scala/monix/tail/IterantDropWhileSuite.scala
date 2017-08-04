@@ -46,8 +46,7 @@ object IterantDropWhileSuite extends BaseTestSuite {
 
   test("Iterant.dropWhile equivalence with List.dropWhile") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
-      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
-      val length = list.length
+      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1).onErrorIgnore
       stream.dropWhile(p).toListL <-> stream.toListL.map(dropFromList(p))
     }
   }
@@ -56,7 +55,7 @@ object IterantDropWhileSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter ++ suffix
+      val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropWhile(_ => true)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -66,7 +65,7 @@ object IterantDropWhileSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter ++ suffix
+      val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropWhile(_ => true)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -76,7 +75,7 @@ object IterantDropWhileSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](BatchCursor(1,2,3), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter ++ suffix
+      val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropWhile(_ => throw dummy)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }

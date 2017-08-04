@@ -44,10 +44,10 @@ object IterantZipMapSuite extends BaseTestSuite {
   test("Iterant.zipMap protects against user error") { implicit s =>
     check2{ (s1: Iterant[Task, Int], s2: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val f = (x: Int, y: Int) => (throw dummy) : Long
+      val f = (_: Int, _: Int) => (throw dummy) : Long
       val suffix = Iterant[Task].now(1)
-      val stream1 = s1 ++ suffix
-      val stream2 = s2 ++ suffix
+      val stream1 = s1.onErrorIgnore ++ suffix
+      val stream2 = s2.onErrorIgnore ++ suffix
       val received = stream1.zipMap(stream2)(f).toListL
       received <-> Task.raiseError(dummy)
     }
@@ -65,9 +65,9 @@ object IterantZipMapSuite extends BaseTestSuite {
       }
 
       val c1 = BooleanCancelable()
-      val stream1 = (s1 ++ suffix).doOnEarlyStop(Task.eval(c1.cancel()))
+      val stream1 = (s1.onErrorIgnore ++ suffix).doOnEarlyStop(Task.eval(c1.cancel()))
       val c2 = BooleanCancelable()
-      val stream2 = (s2 ++ suffix).doOnEarlyStop(Task.eval(c2.cancel()))
+      val stream2 = (s2.onErrorIgnore ++ suffix).doOnEarlyStop(Task.eval(c2.cancel()))
 
       stream1.zipMap(stream2)(f).toListL.runAsync
       s.tick()
