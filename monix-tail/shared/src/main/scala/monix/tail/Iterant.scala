@@ -322,7 +322,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example: {{{
     *   // Prints all elements, each one on a different line
     *   Iterant[Task].of(1, 2, 3).foreachL { elem =>
-    *     println(s"Elem: ${elem}")
+    *     println("Elem: " + elem.toString)
     *   }
     * }}}
     *
@@ -371,7 +371,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * {{{
     *   Iterant[Task].of(1, 2, 3, 4).mapEval { elem =>
     *     Task.eval {
-    *       println(s"Received: ${elem}")
+    *       println("Received: " + elem.toString)
     *       elem * 2
     *     }
     *   }
