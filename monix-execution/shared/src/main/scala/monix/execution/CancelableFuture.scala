@@ -17,10 +17,14 @@
 
 package monix.execution
 
+import cats.{CoflatMap, Eval, Monad, MonadError, StackSafeMonad}
+
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
+import scala.util.control.NonFatal
+
 
 /** Represents an asynchronous computation that can be canceled
   * as long as it isn't complete.
@@ -162,4 +166,22 @@ object CancelableFuture {
     override def cancel(): Unit =
       cancelable.cancel()
   }
+
+  implicit def catsInstances(implicit ec: ExecutionContext): Monad[CancelableFuture] =
+    new Monad[CancelableFuture] with StackSafeMonad[CancelableFuture] with CoflatMap[CancelableFuture] with MonadError[CancelableFuture, Throwable] {
+      def pure[A](x: A) = CancelableFuture.successful(x)
+      override def map[A, B](fa: CancelableFuture[A])(f: A => B) = fa.map(f)
+      def flatMap[A, B](fa: CancelableFuture[A])(f: A => CancelableFuture[B]) = fa.flatMap(f)
+      def coflatMap[A, B](fa: CancelableFuture[A])(f: CancelableFuture[A] => B): CancelableFuture[B] = CancelableFuture(Future(f(fa)), fa)
+      def handleErrorWith[A](fa: CancelableFuture[A])(f: Throwable => CancelableFuture[A]) = fa.recoverWith { case t => f(t) }
+      def raiseError[A](e: Throwable) = CancelableFuture.failed(e)
+      override def handleError[A](fea: CancelableFuture[A])(f: Throwable => A) = fea.recover { case t => f(t) }
+      override def attempt[A](fa: CancelableFuture[A]) =
+        (fa.map(a => Right[Throwable, A](a))) recover { case NonFatal(t) => Left(t) }
+      override def recover[A](fa: CancelableFuture[A])(pf: PartialFunction[Throwable, A]) = fa.recover(pf)
+      override def recoverWith[A](fa: CancelableFuture[A])(pf: PartialFunction[Throwable, CancelableFuture[A]]) = fa.recoverWith(pf)
+      override def catchNonFatal[A](a: => A)(implicit ev: Throwable <:< Throwable) = CancelableFuture(Future(a), Cancelable.empty)
+      override def catchNonFatalEval[A](a: Eval[A])(implicit ev: Throwable <:< Throwable) = CancelableFuture(Future(a.value), Cancelable.empty)
+    }
+
 }
