@@ -275,7 +275,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToIterant[Coeval, Int](list, idx).onErrorIgnore
+      val source = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       val received = source.flatMap(_ => Iterant[Coeval].raiseError[Int](dummy))
       received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }

@@ -19,10 +19,10 @@ package monix.tail.internal
 
 import cats.syntax.all._
 import cats.effect.Sync
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.internal.IterantUtils._
-import scala.util.control.NonFatal
 
 private[tail] object IterantFilter {
   /**

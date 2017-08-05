@@ -22,7 +22,7 @@ import cats.syntax.all._
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import scala.collection.mutable
-import scala.util.control.NonFatal
+import monix.execution.misc.NonFatal
 
 private[tail] object IterantFoldLeftL {
   /**
