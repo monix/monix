@@ -228,7 +228,7 @@ Issues addressed:
 - [Issue #239](https://github.com/monix/monix/issues/239):  
   `Task.flatMap` loops should not be auto-cancelable by default
 - [Issue #240](https://github.com/monix/monix/pull/240):
-  Change type-class encoding, provide optimal `Observable.tailRecM`,
+  Change type class encoding, provide optimal `Observable.tailRecM`,
   upgrade Cats to `0.8.x` 
 - [Issue #251](https://github.com/monix/monix/issues/251):
   Provide instances for Scalaz `Catchable`
@@ -295,7 +295,7 @@ Issues addressed:
 ## Version 2.0.0 (Aug 31, 2016)
 
 - [Issue #216](https://github.com/monix/monix/pull/216):
-  Change type-class design in `monix.types` to an encoding
+  Change type class design in `monix.types` to an encoding
   inspired by the [Scato](https://github.com/aloiscochard/scato) and
   [Scalaz 8](https://github.com/scalaz/scalaz/tree/series/8.0.x),
   cleaning up the available types; also enable 2.12.0-M5 support, 
@@ -416,17 +416,17 @@ Issue #210 changes for the `monix-eval` sub-project:
 Issue #210 changes for the `monix-types` sub-project:
 
 - moved all shims to `monix.types.shims`, in order to differentiate
-  them from type-classes that are not shims  
-- added the `Deferrable` type-class, to express lazy evaluation
+  them from type classes that are not shims  
+- added the `Deferrable` type class, to express lazy evaluation
   concerns (e.g. `evalOnce`, `evalAlways`, `defer`, `memoize`)
-- added the `Evaluable` type-class, for computations that will
+- added the `Evaluable` type class, for computations that will
   eventually produce a value
 
 Issue #210 changes for the `monix-reactive` project:
 
 - for `foldLeft` methods, make the seed be just a normal
   by-name parameter instead of a `Coeval`, because otherwise
-  it isn't compatible with other type-classes / interfaces
+  it isn't compatible with other type classes / interfaces
 - affected methods are `foldLeft`, `foldLeftAsync`
 - rename `zipWith` to `zipMap`
 - rename `combineLatestWith` to `combineLatestMap`
@@ -502,7 +502,7 @@ New Features:
   `onNextAll` extension for both `Observer` and `Subscriber` which can push
   a whole collection of events
 - [Issue #187](https://github.com/monix/monix/issues/187): integrates
-  the `MonadCombine` type-class from [Cats](http://typelevel.org/cats/),
+  the `MonadCombine` type class from [Cats](http://typelevel.org/cats/),
   being similar to the Scalaz `MonadPlus`, as somehow this was missed in
   the initial integration
 - [Issue #177](https://github.com/monix/monix/issues/177) reviews exposed
@@ -675,11 +675,11 @@ List of changes:
    New operator `Observable.switchIfEmpty`
 - [Issue #136](https://github.com/monix/monix/issues/136):
    Clarify reactive streams, initiated `monix.execution.rstreams` for
-   reusable subscription types and added the `ReactivePublisher` type-class
+   reusable subscription types and added the `ReactivePublisher` type class
    for things that can be converted to `org.reactivestreams.Publisher`
    (both Observable and Task are instances)
 - [Issue #140](https://github.com/monix/monix/issues/140):
-   Add type-class hierarchy, to be integrated with both Cats and Scalaz
+   Add type class hierarchy, to be integrated with both Cats and Scalaz
 - [Issue #141](https://github.com/monix/monix/issues/141): reimplement Task
   from scratch, introduce Coeval, introduce Scheduler.executionModel
 

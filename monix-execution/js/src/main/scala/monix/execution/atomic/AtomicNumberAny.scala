@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 /** Atomic references wrapping any values implementing
-  * Scala's `Numeric` type-class.
+  * Scala's `Numeric` type class.
   *
   * Note that the equality test in `compareAndSet` is reference based.
   * This is because we are storing `AnyRef` references and on top

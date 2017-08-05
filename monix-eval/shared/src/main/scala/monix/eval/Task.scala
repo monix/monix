@@ -1473,7 +1473,7 @@ private[eval] trait TaskInstances extends TaskInstances2 {
     *
     * @param as $strategyParamDesc
     */
-  implicit def catsAsync(implicit as: ApplicativeStrategy[Task]): CatsAsyncInstances[Task] =
+  implicit def catsInstances(implicit as: ApplicativeStrategy[Task]): CatsAsyncInstances[Task] =
     as match {
       case ApplicativeStrategy.Sequential =>
         CatsAsyncInstances.ForTask
@@ -1500,7 +1500,7 @@ private[eval] trait TaskInstances2 extends TaskInstances1 {
     * @param as $strategyParamDesc
     * @param s is the `Scheduler` to use when executing `Effect#runAsync`
     */
-  implicit def catsEffect(implicit as: ApplicativeStrategy[Task], s: Scheduler): CatsEffectInstances[Task] =
+  implicit def catsEffectInstances(implicit as: ApplicativeStrategy[Task], s: Scheduler): CatsEffectInstances[Task] =
     as match {
       case ApplicativeStrategy.Sequential =>
         new CatsEffectInstances.ForTask()(s)

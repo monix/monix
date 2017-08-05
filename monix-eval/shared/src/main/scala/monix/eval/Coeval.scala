@@ -677,6 +677,6 @@ object Coeval {
   }
 
   /** Type class instances of [[Coeval]] for Cats. */
-  implicit def catsSync: CatsSyncInstances[Coeval] =
+  implicit def catsInstances: CatsSyncInstances[Coeval] =
     CatsSyncInstances.ForCoeval
 }

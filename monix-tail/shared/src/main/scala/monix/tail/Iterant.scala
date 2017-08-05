@@ -1131,9 +1131,9 @@ object Iterant extends IterantInstances {
 }
 
 private[tail] trait IterantInstances extends IterantInstances1 {
-  /** Provides type-class instances for `Iterant[Task, A]`, based
+  /** Provides type class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
-    * [[monix.eval.Task.catsAsync Task.catsAsync]].
+    * [[monix.eval.Task.catsInstances Task.catsInstances]].
     */
   implicit def iterantTaskInstances(implicit F: CatsAsyncInstances[Task]): CatsInstances[Task] = {
     import CatsAsyncInstances.{ForParallelTask, ForTask}
@@ -1149,9 +1149,9 @@ private[tail] trait IterantInstances extends IterantInstances1 {
   private[this] final val defaultIterantTaskRef: CatsInstances[Task] =
     new CatsTaskInstances()(CatsAsyncInstances.ForTask)
 
-  /** Provides type-class instances for `Iterant[Coeval, A]`, based on
+  /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
-    * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
+    * [[monix.eval.Coeval.catsInstances Coeval.catsSync]].
     */
   implicit def iterantCoevalInstances(implicit F: CatsSyncInstances[Coeval]): CatsInstances[Coeval] = {
     import CatsSyncInstances.ForCoeval
@@ -1169,16 +1169,16 @@ private[tail] trait IterantInstances extends IterantInstances1 {
   private[this] val nondetIterantTaskRef =
     new CatsTaskInstances()(CatsAsyncInstances.ForParallelTask)
 
-  /** Provides type-class instances for `Iterant[Task, A]`, based
+  /** Provides type class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
-    * [[monix.eval.Task.catsAsync Task.catsAsync]].
+    * [[monix.eval.Task.catsInstances Task.catsInstances]].
     */
   private final class CatsTaskInstances(implicit F: CatsAsyncInstances[Task])
     extends CatsInstances[Task]()(F)
 
-  /** Provides type-class instances for `Iterant[Coeval, A]`, based on
+  /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
-    * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
+    * [[monix.eval.Coeval.catsInstances Coeval.catsSync]].
     */
   private final class CatsCoevalInstances(implicit F: CatsSyncInstances[Coeval])
     extends CatsInstances[Coeval]()(F)
@@ -1196,25 +1196,18 @@ private[tail] trait IterantInstances1 {
 
     override def pure[A](a: A): Iterant[F, A] =
       Iterant.pure(a)
-
     override def map[A, B](fa: Iterant[F, A])(f: (A) => B): Iterant[F, B] =
       fa.map(f)(F)
-
     override def flatMap[A, B](fa: Iterant[F, A])(f: (A) => Iterant[F, B]): Iterant[F, B] =
       fa.flatMap(f)
-
     override def map2[A, B, Z](fa: Iterant[F, A], fb: Iterant[F, B])(f: (A, B) => Z): Iterant[F, Z] =
       fa.flatMap(a => fb.map(b => f(a, b))(F))
-
     override def ap[A, B](ff: Iterant[F, (A) => B])(fa: Iterant[F, A]): Iterant[F, B] =
       ff.flatMap(f => fa.map(a => f(a))(F))
-
     override def tailRecM[A, B](a: A)(f: (A) => Iterant[F, Either[A, B]]): Iterant[F, B] =
       Iterant.tailRecM(a)(f)(F)
-
     override def empty[A]: Iterant[F, A] =
       Iterant.empty
-
     override def combineK[A](x: Iterant[F, A], y: Iterant[F, A]): Iterant[F, A] =
       x.++(y)(F)
 
