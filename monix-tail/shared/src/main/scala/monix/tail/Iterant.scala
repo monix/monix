@@ -1133,7 +1133,7 @@ object Iterant extends IterantInstances {
 private[tail] trait IterantInstances extends IterantInstances1 {
   /** Provides type class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
-    * [[monix.eval.Task.catsAsync Task.catsAsync]].
+    * [[monix.eval.Task.catsInstances Task.catsInstances]].
     */
   implicit def iterantTaskInstances(implicit F: CatsAsyncInstances[Task]): CatsInstances[Task] = {
     import CatsAsyncInstances.{ForParallelTask, ForTask}
@@ -1171,7 +1171,7 @@ private[tail] trait IterantInstances extends IterantInstances1 {
 
   /** Provides type class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
-    * [[monix.eval.Task.catsAsync Task.catsAsync]].
+    * [[monix.eval.Task.catsInstances Task.catsInstances]].
     */
   private final class CatsTaskInstances(implicit F: CatsAsyncInstances[Task])
     extends CatsInstances[Task]()(F)
