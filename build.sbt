@@ -292,7 +292,8 @@ lazy val coreJS = project.in(file("monix/js"))
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
   name := "monix-execution",
   // Filtering out breaking changes from 3.0.0
-  mimaBinaryIssueFilters ++= MimaFilters.execChangesFor_3_0_0
+  mimaBinaryIssueFilters ++= MimaFilters.execChangesFor_3_0_0,
+  libraryDependencies += "org.typelevel" %%% "cats-core" % catsVersion
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))

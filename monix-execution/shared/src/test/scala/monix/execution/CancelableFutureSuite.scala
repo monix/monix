@@ -18,6 +18,7 @@
 package monix.execution
 
 import minitest.TestSuite
+import cats.Monad
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import scala.concurrent.duration._
@@ -469,5 +470,14 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     f.cancel()
     s.tick()
     assert(c.isCompleted, "!c.isCompleted")
+  }
+
+  test("flatMap should be stack safe") { implicit s =>
+    val n = 100000
+    val M = Monad[CancelableFuture]
+    val f = M.tailRecM(0)(i => M.pure(if (i < n) Left(i + 1) else Right(i)))
+    s.tick()
+    assert(f.isCompleted, "!f.isCompleted")
+    assertEquals(f.value, Some(Success(n)))
   }
 }
