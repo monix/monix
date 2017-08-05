@@ -18,7 +18,7 @@
 package monix.tail
 
 import cats.data.EitherT
-import cats.laws.discipline.{CartesianTests, MonadErrorTests, MonoidKTests}
+import cats.laws.discipline.{CartesianTests, CoflatMapTests, MonadErrorTests, MonoidKTests}
 import cats.{Eq, Monad}
 import monix.eval.Task
 import monix.eval.Task.nondeterminism
@@ -59,5 +59,9 @@ object TypeClassLawsForIterantTaskNondeterminismSuite extends BaseLawsSuite {
     assert(ref1 == ref2)
     assert(ref2 != ref3)
     assert(ref3 == ref4)
+  }
+
+  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
+    CoflatMapTests[F].coflatMap[Int, Int, Int]
   }
 }

@@ -69,6 +69,10 @@ object CatsAsyncInstances {
       Task.fromTry(t)
     override def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): Task[A] =
       Task.unsafeCreate { (_, cb) => k(r => cb(r)) }
+    override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
+      Task.now(f(fa))
+    override def coflatten[A](fa: Task[A]): Task[Task[A]] =
+      Task.now(fa)
   }
 
   /** Reusable reference of [[ForTask]]. */

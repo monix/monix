@@ -20,6 +20,7 @@ package monix.eval
 import cats.Applicative
 import cats.effect.Effect
 import cats.effect.laws.discipline.{AsyncTests, EffectTests}
+import cats.laws.discipline.CoflatMapTests
 import monix.eval.Task.nondeterminism
 import monix.eval.instances.{CatsAsyncInstances, CatsEffectInstances}
 import monix.execution.schedulers.TestScheduler
@@ -37,7 +38,11 @@ object TypeClassLawsForNondetTaskSuite extends BaseLawsSuite {
     assert(inst.isInstanceOf[CatsEffectInstances.ForParallelTask])
   }
 
-  checkAllAsync("Async[Task[Int]]") { implicit ec =>
+  checkAllAsync("CoflatMap[Task]") { implicit ec =>
+    CoflatMapTests[Task].coflatMap[Int,Int,Int]
+  }
+
+  checkAllAsync("Async[Task]") { implicit ec =>
     AsyncTests[Task].async[Int,Int,Int]
   }
 
