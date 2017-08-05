@@ -18,12 +18,8 @@
 package monix.eval
 
 import cats.effect.laws.discipline.SyncTests
-import cats.laws.discipline.ComonadTests
 
 object TypeClassLawsForCoevalSuite extends BaseLawsSuite {
   checkAll("Sync[Coeval[Int]]",
     SyncTests[Coeval].sync[Int,Int,Int])
-
-  checkAll("Comonad[Coeval[Int]]",
-    ComonadTests[Coeval].comonad[Int,Int,Int])
 }

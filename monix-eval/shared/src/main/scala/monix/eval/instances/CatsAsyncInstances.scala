@@ -19,14 +19,13 @@ package monix.eval
 package instances
 
 import cats.Eval
+import cats.effect.Async
 import scala.util.Try
-import _root_.cats.CoflatMap
-import _root_.cats.effect.Async
 
 /** Specification for Cats type classes, to be implemented by
   * types that can execute asynchronous computations (e.g. [[Task]]).
   */
-trait CatsAsyncInstances[F[_]] extends Async[F] with CoflatMap[F]
+trait CatsAsyncInstances[F[_]] extends CatsSyncInstances[F] with Async[F]
 
 object CatsAsyncInstances {
   /** Cats type class instances for [[Task]]. */
@@ -42,10 +41,6 @@ object CatsAsyncInstances {
       ffa.flatten
     override def tailRecM[A, B](a: A)(f: (A) => Task[Either[A, B]]): Task[B] =
       Task.tailRecM(a)(f)
-    override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
-      Task.eval(f(fa))
-    override def coflatten[A](fa: Task[A]): Task[Task[A]] =
-      Task.now(fa)
     override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =
       for (f <- ff; a <- fa) yield f(a)
     override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =

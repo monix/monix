@@ -18,13 +18,12 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
-
+import cats.{CoflatMap, MonadError, MonoidK}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.reactive.instances.{CatsSeqInstances, CatsObservableInstances}
 import monix.reactive.internal.builders
 import monix.reactive.internal.subscribers.ForeachSubscriber
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
@@ -32,7 +31,6 @@ import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
-
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
@@ -1444,7 +1442,45 @@ object Observable {
   def firstStartedOf[A](source: Observable[A]*): Observable[A] =
     new builders.FirstStartedObservable(source: _*)
 
-  /** Implicit type-class instances for [[Observable]]. */
-  @inline implicit def catsAsyncSeq: CatsSeqInstances[Observable] =
-    CatsObservableInstances.ForObservable
+  /** Implicit type class instances for [[Observable]]. */
+  implicit val catsInstances: CatsInstances =
+    new CatsInstances
+
+  /** Cats instances for [[Observable]]. */
+  class CatsInstances extends MonadError[Observable, Throwable]
+    with MonoidK[Observable]
+    with CoflatMap[Observable] {
+
+    override def pure[A](a: A): Observable[A] = Observable.now(a)
+    override val unit: Observable[Unit] = Observable.now(())
+
+    override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
+      x ++ y
+    override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
+      fa.flatMap(f)
+    override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
+      ffa.flatten
+    override def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
+      Observable.tailRecM(a)(f)
+    override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
+      Observable.eval(f(fa))
+    override def ap[A, B](ff: Observable[(A) => B])(fa: Observable[A]): Observable[B] =
+      for (f <- ff; a <- fa) yield f(a)
+    override def map2[A, B, Z](fa: Observable[A], fb: Observable[B])(f: (A, B) => Z): Observable[Z] =
+      for (a <- fa; b <- fb) yield f(a,b)
+    override def map[A, B](fa: Observable[A])(f: (A) => B): Observable[B] =
+      fa.map(f)
+    override def raiseError[A](e: Throwable): Observable[A] =
+      Observable.raiseError(e)
+    override def handleError[A](fa: Observable[A])(f: (Throwable) => A): Observable[A] =
+      fa.onErrorHandle(f)
+    override def handleErrorWith[A](fa: Observable[A])(f: (Throwable) => Observable[A]): Observable[A] =
+      fa.onErrorHandleWith(f)
+    override def recover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
+      fa.onErrorRecover(pf)
+    override def recoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
+      fa.onErrorRecoverWith(pf)
+    override def empty[A]: Observable[A] =
+      Observable.empty[A]
+  }
 }
