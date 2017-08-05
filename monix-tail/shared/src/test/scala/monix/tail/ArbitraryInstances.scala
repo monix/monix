@@ -23,7 +23,7 @@ import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.tail.batches.{Batch, BatchCursor}
-import org.scalacheck.Arbitrary
+import org.scalacheck.{Arbitrary, Cogen}
 
 trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
   def arbitraryListToIterant[F[_], A](list: List[A], idx: Int, allowErrors: Boolean = true)
@@ -117,4 +117,7 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
         equalityIO[List[A]].eqv(lh.toListL, rh.toListL)
       }
     }
+
+  implicit def cogenForIterant[F[_], A]: Cogen[Iterant[F, A]] =
+    Cogen[Unit].contramap(_ => ())
 }

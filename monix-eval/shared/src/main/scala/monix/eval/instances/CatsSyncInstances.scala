@@ -18,7 +18,7 @@
 package monix.eval
 package instances
 
-import cats.Eval
+import cats.{CoflatMap, Eval}
 import cats.effect.Sync
 import monix.eval.Coeval
 import scala.util.Try
@@ -26,7 +26,7 @@ import scala.util.Try
 /** Specification for Cats type classes, to be implemented by
   * types that can execute synchronous computations (e.g. [[Coeval]]).
   */
-trait CatsSyncInstances[F[_]] extends Sync[F]
+trait CatsSyncInstances[F[_]] extends Sync[F] with CoflatMap[F]
 
 object CatsSyncInstances {
   /** Cats type class instances for [[Coeval]]. */
@@ -66,6 +66,10 @@ object CatsSyncInstances {
       Coeval.eval(a.value)
     override def fromTry[A](t: Try[A])(implicit ev: <:<[Throwable, Throwable]): Coeval[A] =
       Coeval.fromTry(t)
+    override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
+      Coeval.now(f(fa))
+    override def coflatten[A](fa: Coeval[A]): Coeval[Coeval[A]] =
+      Coeval.now(fa)
   }
 
   /** Reusable reference for [[ForCoeval]]. */

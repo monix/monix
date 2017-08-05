@@ -18,11 +18,12 @@
 package monix.tail
 
 import cats.effect.Sync
-import cats.{Applicative, MonoidK}
+import cats.{Applicative, CoflatMap, MonoidK}
 import monix.eval.instances.{CatsAsyncInstances, CatsSyncInstances}
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
+
 import scala.collection.immutable.LinearSeq
 import scala.reflect.ClassTag
 
@@ -1135,52 +1136,52 @@ private[tail] trait IterantInstances extends IterantInstances1 {
     * on the default instances provided by
     * [[monix.eval.Task.catsInstances Task.catsInstances]].
     */
-  implicit def iterantTaskInstances(implicit F: CatsAsyncInstances[Task]): CatsInstances[Task] = {
+  implicit def catsInstancesForTask(implicit F: CatsAsyncInstances[Task]): CatsInstances[Task] = {
     import CatsAsyncInstances.{ForParallelTask, ForTask}
     // Avoiding the creation of junk, because it is expensive
     F match {
       case ForTask => defaultIterantTaskRef
       case ForParallelTask => nondetIterantTaskRef
-      case _ => new CatsTaskInstances()(F)
+      case _ => new CatsInstancesForTask()(F)
     }
   }
 
   /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
   private[this] final val defaultIterantTaskRef: CatsInstances[Task] =
-    new CatsTaskInstances()(CatsAsyncInstances.ForTask)
+    new CatsInstancesForTask()(CatsAsyncInstances.ForTask)
 
   /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
     * [[monix.eval.Coeval.catsInstances Coeval.catsSync]].
     */
-  implicit def iterantCoevalInstances(implicit F: CatsSyncInstances[Coeval]): CatsInstances[Coeval] = {
+  implicit def catsInstancesForCoeval(implicit F: CatsSyncInstances[Coeval]): CatsInstances[Coeval] = {
     import CatsSyncInstances.ForCoeval
     // Avoiding the creation of junk, because it is expensive
     F match {
       case `ForCoeval` => defaultIterantCoevalRef
-      case _ => new CatsCoevalInstances()(F)
+      case _ => new CatsInstancesForCoeval()(F)
     }
   }
 
   /** Reusable instance for `Iterant[Coeval, A]`, avoids creating junk. */
   private[this] final val defaultIterantCoevalRef =
-    new CatsCoevalInstances()(CatsSyncInstances.ForCoeval)
+    new CatsInstancesForCoeval()(CatsSyncInstances.ForCoeval)
   /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
   private[this] val nondetIterantTaskRef =
-    new CatsTaskInstances()(CatsAsyncInstances.ForParallelTask)
+    new CatsInstancesForTask()(CatsAsyncInstances.ForParallelTask)
 
   /** Provides type class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
     * [[monix.eval.Task.catsInstances Task.catsInstances]].
     */
-  private final class CatsTaskInstances(implicit F: CatsAsyncInstances[Task])
+  private final class CatsInstancesForTask(implicit F: CatsAsyncInstances[Task])
     extends CatsInstances[Task]()(F)
 
   /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
     * [[monix.eval.Coeval.catsInstances Coeval.catsSync]].
     */
-  private final class CatsCoevalInstances(implicit F: CatsSyncInstances[Coeval])
+  private final class CatsInstancesForCoeval(implicit F: CatsSyncInstances[Coeval])
     extends CatsInstances[Coeval]()(F)
 }
 
@@ -1192,7 +1193,8 @@ private[tail] trait IterantInstances1 {
   /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
   class CatsInstances[F[_]](implicit F: Sync[F])
     extends Sync[({type λ[α] = Iterant[F, α]})#λ]
-    with MonoidK[({type λ[α] = Iterant[F, α]})#λ] {
+    with MonoidK[({type λ[α] = Iterant[F, α]})#λ]
+    with CoflatMap[({type λ[α] = Iterant[F, α]})#λ] {
 
     override def pure[A](a: A): Iterant[F, A] =
       Iterant.pure(a)
@@ -1210,6 +1212,10 @@ private[tail] trait IterantInstances1 {
       Iterant.empty
     override def combineK[A](x: Iterant[F, A], y: Iterant[F, A]): Iterant[F, A] =
       x.++(y)(F)
+    override def coflatMap[A, B](fa: Iterant[F, A])(f: (Iterant[F, A]) => B): Iterant[F, B] =
+      Iterant.pure[F, B](f(fa))
+    override def coflatten[A](fa: Iterant[F, A]): Iterant[F, Iterant[F, A]] =
+      Iterant.pure(fa)
 
     // Sync && MonadError
     override def suspend[A](thunk: =>Iterant[F, A]): Iterant[F, A] =
