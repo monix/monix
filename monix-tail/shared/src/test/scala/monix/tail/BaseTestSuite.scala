@@ -17,7 +17,16 @@
 
 package monix.tail
 
+import monix.execution.internal.Platform
+import org.scalacheck.Test.Parameters
+
 /** Just a marker for what we need to extend in the tests
   * of `monix-tail`.
   */
-trait BaseTestSuite extends monix.eval.BaseTestSuite with ArbitraryInstances
+trait BaseTestSuite extends monix.eval.BaseTestSuite with ArbitraryInstances {
+  override lazy val checkConfig: Parameters =
+    Parameters.default
+      .withMinSuccessfulTests(if (Platform.isJVM) 200 else 20)
+      .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
+      .withMaxSize(24)
+}

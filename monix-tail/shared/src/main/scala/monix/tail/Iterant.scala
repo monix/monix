@@ -670,6 +670,41 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def tail(implicit F: Sync[F]): Iterant[F, A] =
     IterantTail(self)(F)
 
+  /** Applies a binary operator to a start value and all elements of
+    * this `Iterant`, going left to right and returns a new
+    * `Iterant` that emits on each step the result of the applied
+    * function.
+    *
+    * Similar to [[foldLeftL]], but emits the state on each
+    * step. Useful for modeling finite state machines.
+    *
+    * Example showing how state can be evolved and acted upon:
+    * {{{
+    *   sealed trait State[+A] { def count: Int }
+    *   case object Init extends State[Nothing] { def count = 0 }
+    *   case class Current[A](current: A, count: Int) extends State[A]
+    *
+    *   val scanned = source.scan(Init : State[A]) { (acc, a) =>
+    *     acc match {
+    *       case Init => Current(a, 1)
+    *       case Current(_, count) => Current(a, count + 1)
+    *     }
+    *   }
+    *
+    *   scanned
+    *     .takeWhile(_.count < 10)
+    *     .collect { case Current(a, _) => a }
+    * }}}
+    *
+    * @param initial is the initial state
+    * @param f is the function that evolves the current state
+    *
+    * @return a new iterant that emits all intermediate states being
+    *         resulted from applying function `f`
+    */
+  final def scan[S](initial: =>S)(f: (S, A) => S)(implicit F: Sync[F]): Iterant[F, S] =
+    IterantScan(self, initial, f)
+
   /** Skips over [[Iterant.Suspend]] states, along with
     * [[Iterant.NextCursor]] and [[Iterant.NextBatch]] states that
     * signal empty collections.
