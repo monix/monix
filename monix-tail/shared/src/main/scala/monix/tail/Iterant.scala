@@ -17,6 +17,7 @@
 
 package monix.tail
 
+import cats.arrow.FunctionK
 import cats.effect.Sync
 import cats.{Applicative, CoflatMap, MonoidK}
 import monix.eval.instances.{CatsAsyncInstances, CatsSyncInstances}
@@ -443,6 +444,67 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def foldLeftL[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): F[S] =
     IterantFoldLeftL(self, seed)(op)(F)
+
+  /** Given mapping functions from `F` to `G`, lifts the source into
+    * an iterant that is going to use the resulting `G` for evaluation.
+    *
+    * This can be used for replacing the underlying `F` type into
+    * something else. For example say we have an iterant that uses
+    * [[monix.eval.Coeval Coeval]], but we want to convert it into
+    * one that uses [[monix.eval.Task Task]] for evaluation:
+    *
+    * {{{
+    *   // Source is using Coeval for evaluation
+    *   val source = Iterant[Coeval].of(1, 2, 3, 4)
+    *
+    *   // Transformation to an iterant based on Task
+    *   source.liftMap(_.toTask, _.toTask)
+    * }}}
+    *
+    * @param f1 is the functor transformation used for transforming
+    *          `rest` references
+    * @param f2 is the mapping function for early `stop` references
+    *
+    * @tparam G is the data type that is going to drive the evaluation
+    *           of the resulting iterant
+    */
+  final def liftMap[G[_]](f1: F[Iterant[F, A]] => G[Iterant[F, A]], f2: F[Unit] => G[Unit])
+    (implicit F: Applicative[F], G: Sync[G]): Iterant[G, A] =
+    IterantLiftMap(self, f1, f2)(F, G)
+
+  /** Given a functor transformation from `F` to `G`, lifts the source
+    * into an iterant that is going to use the resulting `G` for
+    * evaluation.
+    *
+    * This can be used for replacing the underlying `F` type into
+    * something else. For example say we have an iterant that uses
+    * [[monix.eval.Coeval Coeval]], but we want to convert it into
+    * one that uses [[monix.eval.Task Task]] for evaluation:
+    *
+    * {{{
+    *   import cats.~>
+    *
+    *   // Source is using Coeval for evaluation
+    *   val source = Iterant[Coeval].of(1, 2, 3, 4)
+    *
+    *   // Transformation to an iterant based on Task
+    *   source.liftMapK(new (Coeval ~> Task) {
+    *     def apply[A](fa: Coeval[A]): Task[A] =
+    *       fa.task
+    *   })
+    * }}}
+    *
+    * This operator can be used for more than transforming the `F`
+    * type into something else.
+    *
+    * @param f is the functor transformation that's used to transform
+    *          the source into an iterant that uses `G` for evaluation
+    *
+    * @tparam G is the data type that is going to drive the evaluation
+    *           of the resulting iterant
+    */
+  final def liftMapK[G[_]](f: FunctionK[F, G])(implicit G: Sync[G]): Iterant[G, A] =
+    IterantLiftMap(self, f)(G)
 
   /** Returns an `Iterant` that mirrors the behavior of the source,
     * unless the source is terminated with an error, in which

@@ -343,7 +343,6 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * @param selector is the observable that triggers the
     *        signaling of the current buffer
     */
-
   def bufferWithSelector[S](selector: Observable[S]): Self[Seq[A]] =
     self.transform(source => new BufferWithSelectorObservable[A,S](source, selector, 0))
 
@@ -613,7 +612,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     self.liftByOperator(new DistinctOperator[A])
 
   /** Given a function that returns a key for each element emitted by
-    * the source Observable, suppress duplicates items.
+    * the source Observable, suppress duplicate items.
     *
     * WARNING: this requires unbounded buffering.
     */
