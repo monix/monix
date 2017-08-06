@@ -166,8 +166,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     self.asInstanceOf[Coeval[Try[B]]].flatMap(Eager.fromTry)
 
   /** Converts the source [[Coeval]] into a [[Task]]. */
-  def task: Task[A] =
-    Task.coeval(self)
+  def toTask: Task[A] = Task.coeval(self)
 
   /** Converts the source [[Coeval]] into a `cats.Eval`. */
   def toEval: Eval[A] =
