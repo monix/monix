@@ -445,6 +445,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def foldLeftL[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): F[S] =
     IterantFoldLeftL(self, seed)(op)(F)
 
+  /**
+    * Lazily fold the stream to a single value from the right.
+    */
+  def foldRightL[B](b: F[B])(f: (A, F[B]) => F[B])(implicit F: Sync[F]): F[B] =
+    IterantFoldRightL(self, b, f)(F)
+
   /** Given mapping functions from `F` to `G`, lifts the source into
     * an iterant that is going to use the resulting `G` for evaluation.
     *
