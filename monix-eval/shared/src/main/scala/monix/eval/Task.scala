@@ -783,7 +783,7 @@ object Task extends TaskInstances {
 
   /** Builds a [[Task]] instance out of a `cats.Eval`. */
   def fromEval[A](a: cats.Eval[A]): Task[A] =
-    Coeval.fromEval(a).toTask
+    Coeval.fromEval(a).task
 
   /** Builds a [[Task]] instance out of a `cats.effect.IO`. */
   def fromIO[A](a: IO[A]): Task[A] =
