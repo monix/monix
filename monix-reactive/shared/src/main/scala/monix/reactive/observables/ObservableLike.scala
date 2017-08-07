@@ -1147,18 +1147,44 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * being called with an operator always returning `true` as the first
     * member of its result.
     *
-    * @param initial is the initial state, specified as a possibly lazy value;
+    * Example: {{{
+    *   // Sums first 10 items
+    *   Observable.range(0, 1000).foldWhileLeftF((0, 0)) {
+    *     case ((sum, count), e) =>
+    *       val next = (sum + e, count + 1)
+    *       if (count + 1 < 10) Left(next) else Right(next)
+    *   }
+    *
+    *   // Implements exists(predicate)
+    *   Observable(1, 2, 3, 4, 5).foldWhileLeftF(false) {
+    *     (default, e) =>
+    *       if (e == 3) Right(true) else Left(default)
+    *   }
+    *
+    *   // Implements forall(predicate)
+    *   Observable(1, 2, 3, 4, 5).foldWhileLeftF(true) {
+    *     (default, e) =>
+    *       if (e != 3) Right(false) else Left(default)
+    *   }
+    * }}}
+    *
+    * @param seed is the initial state, specified as a possibly lazy value;
     *        it gets evaluated when the subscription happens and if it
     *        triggers an error then the subscriber will get immediately
     *        terminated with an error
     *
-    * @param op is an operator that will fold the signals of the source
-    *        observable, returning either a new state along with a boolean
-    *        that should become false in case the folding must be
-    *        interrupted.
+    * @param op is the binary operator returning either `Left`,
+    *        signaling that the state should be evolved or a `Right`,
+    *        signaling that the process can be short-circuited and
+    *        the result returned immediately
+    *
+    * @return the result of inserting `op` between consecutive
+    *         elements of this observable, going from left to right with
+    *         the `seed` as the start value, or `seed` if the observable
+    *         is empty
     */
-  def foldWhileF[R](initial: => R)(op: (R,A) => (Boolean, R)): Self[R] =
-    self.transform(source => new FoldWhileObservable[A,R](source, initial _, op))
+  def foldWhileLeftF[S](seed: => S)(op: (S, A) => Either[S, S]): Self[S] =
+    self.transform(source => new FoldWhileLeftObservable[A,S](source, seed _, op))
 
   /** Returns an Observable that emits a single boolean, either true, in
     * case the given predicate holds for all the items emitted by the

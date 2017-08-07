@@ -25,15 +25,14 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive] final
-class FoldWhileObservable[A,R](
-  source: Observable[A], initial: () => R, f: (R,A) => (Boolean, R))
-  extends Observable[R] {
+private[reactive] final class FoldWhileLeftObservable[A, S](
+  source: Observable[A], seed: () => S, op: (S, A) => Either[S, S])
+  extends Observable[S] {
 
-  def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
+  def unsafeSubscribeFn(out: Subscriber[S]): Cancelable = {
     var streamErrors = true
     try {
-      val initialState = initial()
+      val initialState = seed()
       streamErrors = false
 
       source.unsafeSubscribeFn(
@@ -47,13 +46,16 @@ class FoldWhileObservable[A,R](
             // as a matter of contract.
             var streamErrors = true
             try {
-              val (continue, nextState) = f(state, elem)
-              streamErrors = false
-              state = nextState
+              op(state, elem) match {
+                case Left(s) =>
+                  state = s
+                  Continue
 
-              if (continue) Continue else {
-                onComplete()
-                Stop
+                case Right(s) =>
+                  state = s
+                  streamErrors = false
+                  onComplete()
+                  Stop
               }
             } catch {
               case NonFatal(ex) if streamErrors =>
