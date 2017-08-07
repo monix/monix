@@ -24,22 +24,22 @@ import scala.util.{Failure, Success}
 
 object IterantUntilRightSuite extends BaseTestSuite {
   def exists(fa: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
-    fa.foldUntilRightL(false) { (default, e) =>
+    fa.foldWhileLeftL(false) { (default, e) =>
       if (p(e)) Right(true) else Left(default)
     }
 
   def existsEval(fa: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
-    fa.foldUntilRightEvalL(Coeval(false)) { (default, e) =>
+    fa.foldWhileLeftEvalL(Coeval(false)) { (default, e) =>
       Coeval(if (p(e)) Right(true) else Left(default))
     }
 
   def forall(ref: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
-    ref.foldUntilRightL(true) { (default, e) =>
+    ref.foldWhileLeftL(true) { (default, e) =>
       if (!p(e)) Right(false) else Left(default)
     }
 
   def forallEval(ref: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
-    ref.foldUntilRightEvalL(Coeval(true)) { (default, e) =>
+    ref.foldWhileLeftEvalL(Coeval(true)) { (default, e) =>
       Coeval { if (!p(e)) Right(false) else Left(default) }
     }
 
@@ -104,7 +104,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     val ref = Iterant[Coeval].of(1, 2, 3)
       .map { x => effect += 1; x }
       .doOnEarlyStop(Coeval { effect += 1 })
-      .foldUntilRightL((throw dummy) : Int)((acc, i) => Left(acc + i))
+      .foldWhileLeftL((throw dummy) : Int)((acc, i) => Left(acc + i))
 
     assertEquals(ref.runTry, Failure(dummy))
     assertEquals(effect, 0)
@@ -116,7 +116,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
 
     val ref = Iterant[Coeval].of(1, 2, 3)
       .doOnEarlyStop(Coeval { effect += 1 })
-      .foldUntilRightL(0)((_, _) => throw dummy)
+      .foldWhileLeftL(0)((_, _) => throw dummy)
 
     assertEquals(effect, 0)
     assertEquals(ref.runTry, Failure(dummy))
@@ -129,7 +129,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
 
     val ref = Iterant[Coeval].nextCursorS(ThrowExceptionCursor[Int](dummy), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
       .doOnEarlyStop(Coeval { effect += 1 })
-      .foldUntilRightL(0)((a, e) => Left(a + e))
+      .foldWhileLeftL(0)((a, e) => Left(a + e))
 
     assertEquals(effect, 0)
     assertEquals(ref.runTry, Failure(dummy))
@@ -142,7 +142,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
 
     val ref = Iterant[Coeval].nextBatchS(ThrowExceptionBatch[Int](dummy), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
       .doOnEarlyStop(Coeval { effect += 1 })
-      .foldUntilRightL(0)((a, e) => Left(a + e))
+      .foldWhileLeftL(0)((a, e) => Left(a + e))
 
     assertEquals(effect, 0)
     assertEquals(ref.runTry, Failure(dummy))
@@ -156,7 +156,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     val ref = Iterant[Coeval].of(1, 2, 3)
       .map { x => effect += 1; x }
       .doOnEarlyStop(Coeval { effect += 1 })
-      .foldUntilRightEvalL(Coeval.raiseError[Int](dummy))((acc, i) => Coeval(Left(acc + i)))
+      .foldWhileLeftEvalL(Coeval.raiseError[Int](dummy))((acc, i) => Coeval(Left(acc + i)))
 
     assertEquals(ref.runTry, Failure(dummy))
     assertEquals(effect, 0)
@@ -168,7 +168,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
 
     val ref = Iterant[Coeval].of(1, 2, 3)
       .doOnEarlyStop(Coeval { effect += 1 })
-      .foldUntilRightEvalL(Coeval(0))((_, _) => throw dummy)
+      .foldWhileLeftEvalL(Coeval(0))((_, _) => throw dummy)
 
     assertEquals(effect, 0)
     assertEquals(ref.runTry, Failure(dummy))
@@ -181,7 +181,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
 
     val ref = Iterant[Coeval].of(1, 2, 3)
       .doOnEarlyStop(Coeval { effect += 1 })
-      .foldUntilRightEvalL(Coeval(0))((_, _) => Coeval.raiseError(dummy))
+      .foldWhileLeftEvalL(Coeval(0))((_, _) => Coeval.raiseError(dummy))
 
     assertEquals(effect, 0)
     assertEquals(ref.runTry, Failure(dummy))
@@ -194,7 +194,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
 
     val ref = Iterant[Coeval].nextCursorS(ThrowExceptionCursor[Int](dummy), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
       .doOnEarlyStop(Coeval { effect += 1 })
-      .foldUntilRightEvalL(Coeval(0))((a, e) => Coeval(Left(a + e)))
+      .foldWhileLeftEvalL(Coeval(0))((a, e) => Coeval(Left(a + e)))
 
     assertEquals(effect, 0)
     assertEquals(ref.runTry, Failure(dummy))
@@ -207,7 +207,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
 
     val ref = Iterant[Coeval].nextBatchS(ThrowExceptionBatch[Int](dummy), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
       .doOnEarlyStop(Coeval { effect += 1 })
-      .foldUntilRightEvalL(Coeval(0))((a, e) => Coeval(Left(a + e)))
+      .foldWhileLeftEvalL(Coeval(0))((a, e) => Coeval(Left(a + e)))
 
     assertEquals(effect, 0)
     assertEquals(ref.runTry, Failure(dummy))

@@ -455,41 +455,39 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * Example: {{{
     *   // Sums first 10 items
-    *   Iterant[Task].range(0, 1000).foldUntilRightL((0, 0)) {
+    *   Iterant[Task].range(0, 1000).foldWhileLeftL((0, 0)) {
     *     case ((sum, count), e) =>
     *       val next = (sum + e, count + 1)
     *       if (count + 1 < 10) Left(next) else Right(next)
     *   }
     *
     *   // Implements exists(predicate)
-    *   Iterant[Task].of(1, 2, 3, 4, 5).foldUntilRightL(false) {
+    *   Iterant[Task].of(1, 2, 3, 4, 5).foldWhileLeftL(false) {
     *     (default, e) =>
     *       if (e == 3) Right(true) else Left(default)
     *   }
     *
     *   // Implements forall(predicate)
-    *   Iterant[Task].of(1, 2, 3, 4, 5).foldUntilRightL(true) {
+    *   Iterant[Task].of(1, 2, 3, 4, 5).foldWhileLeftL(true) {
     *     (default, e) =>
     *       if (e != 3) Right(false) else Left(default)
     *   }
     * }}}
     *
-    * @see [[Iterant.foldUntilRightL]] for the lazy, potentially
-    *     asynchronous version.
-    *
+    * @see [[Iterant.foldWhileLeftL]] for the lazy, potentially
+    *      asynchronous version.
     * @param seed is the start value
     * @param op is the binary operator returning either `Left`,
     *        signaling that the state should be evolved or a `Right`,
     *        signaling that the process can be short-circuited and
     *        the result returned immediately
-    *
     * @return the result of inserting `op` between consecutive
     *         elements of this iterant, going from left to right with
     *         the `seed` as the start value, or `seed` if the iterant
     *         is empty
     */
-  final def foldUntilRightL[S](seed: => S)(op: (S, A) => Either[S, S])(implicit F: Sync[F]): F[S] =
-    IterantFoldUntilRight.strict(self, seed, op)
+  final def foldWhileLeftL[S](seed: => S)(op: (S, A) => Either[S, S])(implicit F: Sync[F]): F[S] =
+    IterantFoldWhileLeft.strict(self, seed, op)
 
   /** Left associative fold using the function `op` that can be
     * short-circuited.
@@ -505,7 +503,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * Example using `cats.effect.IO`: {{{
     *   // Sums first 10 items
-    *   Iterant[IO].range(0, 1000).foldUntilRightEvalL(IO((0, 0))) {
+    *   Iterant[IO].range(0, 1000).foldWhileLeftEvalL(IO((0, 0))) {
     *     case ((sum, count), e) =>
     *       IO {
     *         val next = (sum + e, count + 1)
@@ -514,33 +512,31 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   }
     *
     *   // Implements exists(predicate)
-    *   Iterant[IO].of(1, 2, 3, 4, 5).foldUntilRightEvalL(IO(false)) {
+    *   Iterant[IO].of(1, 2, 3, 4, 5).foldWhileLeftEvalL(IO(false)) {
     *     (default, e) =>
     *       IO { if (e == 3) Right(true) else Left(default) }
     *   }
     *
     *   // Implements forall(predicate)
-    *   Iterant[IO].of(1, 2, 3, 4, 5).foldUntilRightEvalL(IO(true)) {
+    *   Iterant[IO].of(1, 2, 3, 4, 5).foldWhileLeftEvalL(IO(true)) {
     *     (default, e) =>
     *       IO { if (e != 3) Right(false) else Left(default) }
     *   }
     * }}}
     *
-    * @see [[Iterant.foldUntilRightL]] for the strict version.
-    *
+    * @see [[Iterant.foldWhileLeftL]] for the strict version.
     * @param seed is the start value
     * @param op is the binary operator returning either `Left`,
     *        signaling that the state should be evolved or a `Right`,
     *        signaling that the process can be short-circuited and
     *        the result returned immediately
-    *
     * @return the result of inserting `op` between consecutive
     *         elements of this iterant, going from left to right with
     *         the `seed` as the start value, or `seed` if the iterant
     *         is empty
     */
-  final def foldUntilRightEvalL[S](seed: F[S])(op: (S, A) => F[Either[S, S]])(implicit F: Sync[F]): F[S] =
-    IterantFoldUntilRight.eval(self, seed, op)
+  final def foldWhileLeftEvalL[S](seed: F[S])(op: (S, A) => F[Either[S, S]])(implicit F: Sync[F]): F[S] =
+    IterantFoldWhileLeft.eval(self, seed, op)
 
   /** Given mapping functions from `F` to `G`, lifts the source into
     * an iterant that is going to use the resulting `G` for evaluation.
