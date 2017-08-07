@@ -604,8 +604,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * `f` is different from other implementations, receiving the
     * current `earlyStop: F[Unit]` as a third parameter.
     *
-    * Here's for example how [[existsL]] and [[forallL]] could be
-    * expressed in terms of `foldRightL`:
+    * Here's for example how [[existsL]], [[forallL]] and [[++]] could
+    * be expressed in terms of `foldRightL`:
     *
     * {{{
     *   def exists[F[_], A](fa: Iterant[F, A], p: A => Boolean)
@@ -621,6 +621,16 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     *     fa.foldRightL(F.pure(true)) { (a, next, stop) =>
     *       if (!p(a)) stop.map(_ => false) else next
+    *     }
+    *   }
+    *
+    *   def concat[F[_], A](lh: Iterant[F, A], rh: Iterant[F, A])
+    *     (implicit F: Sync[F]): Iterant[F, A] = {
+
+    *     Iterant.suspend[F, A] {
+    *       lh.foldRightL(F.pure(rh)) { (a, rest, stop) =>
+    *         F.pure(Iterant.nextS(a, rest, stop))
+    *       }
     *     }
     *   }
     * }}}
@@ -648,6 +658,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * This is in contrast with all operators (unless explicitly
     * mentioned otherwise).
+    *
+    * See the examples provided above, as they are correct in their
+    * handling of `stop`.
     *
     * @see [[foldWhileLeftL]] and [[foldWhileLeftEvalL]] for safer
     *     alternatives in most cases
