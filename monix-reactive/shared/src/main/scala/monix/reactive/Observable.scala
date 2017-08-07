@@ -328,16 +328,15 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * process by returning `false`.
     *
     * Note that a call to [[foldLeftL]] is equivalent to this function
-    * being called with an operator always returning `true` as the first
-    * member of its result.
+    * being called with an operator always returning `Left` results.
     *
     * @param op is an operator that will fold the signals of the source
-    *           observable, returning either a new state along with a boolean
-    *           that should become false in case the folding must be
-    *           interrupted.
+    *        observable, returning either a new state along with a
+    *        boolean that should become false in case the folding must
+    *        be interrupted.
     */
-  def foldWhileL[R](initial: => R)(op: (R,A) => (Boolean, R)): Task[R] =
-    foldWhileF(initial)(op).headL
+  def foldWhileLeftL[S](seed: => S)(op: (S, A) => Either[S, S]): Task[S] =
+    foldWhileLeftF(seed)(op).headL
 
   /** Returns a `Task` that emits a single boolean, either true, in
     * case the given predicate holds for all the items emitted by the

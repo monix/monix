@@ -301,6 +301,32 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   def earlyStop(implicit F: Applicative[F]): F[Unit]
 
+  /** Returns `true` in case the given predicate is satisfied by any
+    * of the emitted items, or `false` in case the end of the stream
+    * has been reached with no items satisfying the given predicate.
+    *
+    * Example: {{{
+    *   val source = Iterant[Coeval].of(1, 2, 3, 4)
+    *
+    *   // Yields true
+    *   source.existsL(_ % 2 == 0)
+    *
+    *   // Yields false
+    *   source.existsL(_ % 7 == 0)
+    * }}}
+    *
+    * @param p is a predicate function that's going to test each item
+    *        emitted by the source until we get a positive match for
+    *        one of them or until the stream ends
+    *
+    * @return `true` if any of the items satisfies the given predicate
+    *        or `false` if none of them do
+    */
+  final def existsL(p: A => Boolean)(implicit F: Sync[F]): F[Boolean] = {
+    val next = Left(false)
+    foldWhileLeftL(false)((_, e) => if (p(e)) Right(true) else next)
+  }
+
   /** Filters the iterant by the given predicate function, returning
     * only those elements that match.
     *
@@ -317,6 +343,32 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def filter(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantFilter(this, p)(F)
+
+  /** Returns `true` in case the given predicate is satisfied by all
+    * of the emitted items, or `false` in case the given predicate
+    * fails for any of those items.
+    *
+    * Example: {{{
+    *   val source = Iterant[Coeval].of(1, 2, 3, 4)
+    *
+    *   // Yields false
+    *   source.forallL(_ % 2 == 0)
+    *
+    *   // Yields true
+    *   source.existsL(_ < 10)
+    * }}}
+    *
+    * @param p is a predicate function that's going to test each item
+    *        emitted by the source until we get a negative match for
+    *        one of them or until the stream ends
+    *
+    * @return `true` if all of the items satisfy the given predicate
+    *        or `false` if any of them don't
+    */
+  final def forallL(p: A => Boolean)(implicit F: Sync[F]): F[Boolean] = {
+    val next = Left(true)
+    foldWhileLeftL(true)((_, e) => if (!p(e)) Right(false) else next)
+  }
 
   /** Consumes the source iterable, executing the given callback for
     * each element.
@@ -476,11 +528,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * @see [[Iterant.foldWhileLeftL]] for the lazy, potentially
     *      asynchronous version.
+    *
     * @param seed is the start value
     * @param op is the binary operator returning either `Left`,
     *        signaling that the state should be evolved or a `Right`,
     *        signaling that the process can be short-circuited and
     *        the result returned immediately
+    *
     * @return the result of inserting `op` between consecutive
     *         elements of this iterant, going from left to right with
     *         the `seed` as the start value, or `seed` if the iterant
@@ -525,11 +579,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * }}}
     *
     * @see [[Iterant.foldWhileLeftL]] for the strict version.
+    *
     * @param seed is the start value
     * @param op is the binary operator returning either `Left`,
     *        signaling that the state should be evolved or a `Right`,
     *        signaling that the process can be short-circuited and
     *        the result returned immediately
+    *
     * @return the result of inserting `op` between consecutive
     *         elements of this iterant, going from left to right with
     *         the `seed` as the start value, or `seed` if the iterant
