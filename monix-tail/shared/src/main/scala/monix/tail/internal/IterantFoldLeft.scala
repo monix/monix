@@ -24,7 +24,7 @@ import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import scala.collection.mutable
 import monix.execution.misc.NonFatal
 
-private[tail] object IterantFoldLeftL {
+private[tail] object IterantFoldLeft {
   /**
     * Implementation for `Iterant#foldLeftL`
     */
@@ -73,7 +73,7 @@ private[tail] object IterantFoldLeftL {
     * Implementation for `Iterant#toListL`
     */
   def toListL[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[List[A]] = {
-    val buffer = IterantFoldLeftL(source, mutable.ListBuffer.empty[A])((acc, a) => acc += a)
+    val buffer = IterantFoldLeft(source, mutable.ListBuffer.empty[A])((acc, a) => acc += a)
     buffer.map(_.toList)
   }
 }
