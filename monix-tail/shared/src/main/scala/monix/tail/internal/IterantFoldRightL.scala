@@ -22,26 +22,22 @@ import cats.syntax.all._
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.internal.IterantUtils.signalError
 
 private[tail] object IterantFoldRightL {
   /** Implementation for `Iterant.foldRightL`. */
-  def apply[F[_], A, B](self: Iterant[F, A], b: F[B], f: (A, F[B]) => F[B])
+  def apply[F[_], A, B](self: Iterant[F, A], b: F[B], f: (A, F[B], F[Unit]) => F[B])
     (implicit F: Sync[F]): F[B] = {
 
-    def loop(iter: Iterant[F, A]): F[B] = {
-      try iter match {
+    def loop(self: Iterant[F, A]): F[B] = {
+      try self match {
         case Next(a, rest, stop) =>
-          val fb = f(a, rest.flatMap(loop))
-          F.handleErrorWith(fb)(signalError(stop))
+          f(a, rest.flatMap(loop), stop)
 
         case NextCursor(ref, rest, stop) =>
           if (!ref.hasNext())
             rest.flatMap(loop)
-          else {
-            val fb = f(ref.next(), F.suspend(loop(iter)))
-            F.handleErrorWith(fb)(signalError(stop))
-          }
+          else
+            f(ref.next(), F.suspend(loop(self)), stop)
 
         case NextBatch(ref, rest, stop) =>
           loop(NextCursor(ref.cursor(), rest, stop))
@@ -50,7 +46,7 @@ private[tail] object IterantFoldRightL {
           rest.flatMap(loop)
 
         case Last(a) =>
-          f(a, b)
+          f(a, b, F.unit)
 
         case Halt(opt) =>
           opt match {
@@ -60,7 +56,7 @@ private[tail] object IterantFoldRightL {
 
       } catch {
         case NonFatal(e) =>
-          iter.earlyStop.flatMap(_ => F.raiseError(e))
+          self.earlyStop.flatMap(_ => F.raiseError(e))
       }
     }
 

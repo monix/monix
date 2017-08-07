@@ -596,8 +596,73 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
   /**
     * Lazily fold the stream to a single value from the right.
+    *
+    * This is the common `foldr` operation from Haskell's `Foldable`,
+    * or `foldRight` from Scala's collections, however it has a twist:
+    * the user is responsible for invoking early `stop` in case the
+    * processing is short-circuited, hence the signature of function
+    * `f` is different from other implementations, receiving the
+    * current `earlyStop: F[Unit]` as a third parameter.
+    *
+    * Here's for example how [[existsL]] and [[forallL]] could be
+    * expressed in terms of `foldRightL`:
+    *
+    * {{{
+    *   def exists[F[_], A](fa: Iterant[F, A], p: A => Boolean)
+    *     (implicit F: Sync[F]): F[Boolean] = {
+    *
+    *     fa.foldRightL(F.pure(false)) { (a, next, stop) =>
+    *       if (p(a)) stop.map(_ => true) else next
+    *     }
+    *   }
+    *
+    *   def forall[F[_], A](fa: Iterant[F, A], p: A => Boolean)
+    *     (implicit F: Sync[F]): F[Boolean] = {
+    *
+    *     fa.foldRightL(F.pure(true)) { (a, next, stop) =>
+    *       if (!p(a)) stop.map(_ => false) else next
+    *     }
+    *   }
+    * }}}
+    *
+    * In this example we are short-circuiting the processing in case
+    * we find the one element that we are looking for, otherwise we
+    * keep traversing the stream until the end, finally returning
+    * the default value in case we haven't found what we were looking
+    * for.
+    *
+    * ==WARNING==
+    *
+    * The implementation cannot ensure resource safety
+    * automatically, therefore it falls on the user to chain the
+    * `stop` reference in the processing, in case the right parameter
+    * isn't factored in.
+    *
+    * In other words:
+    *
+    * - in case the processing fails in any way with exceptions,
+    *   it is the user's responsibility to chain `stop`
+    * - in case the processing is short-circuited by not using the
+    *   `F[B]` right param, it is the user responsibility to chain
+    *   `stop`
+    *
+    * This is in contrast with all operators (unless explicitly
+    * mentioned otherwise).
+    *
+    * @see [[foldWhileLeftL]] and [[foldWhileLeftEvalL]] for safer
+    *     alternatives in most cases
+    *
+    * @param b is the starting value; in case `f` is a binary operator,
+    *        this is typically its left-identity (zero)
+    *
+    * @param f is the function to be called that folds the list,
+    *        receiving the current element being iterated on
+    *        (first param), the (lazy) result from recursively
+    *        combining the rest of the list (second param) and
+    *        the `earlyStop` routine, to chain in case
+    *        short-circuiting should happen (third param)
     */
-  def foldRightL[B](b: F[B])(f: (A, F[B]) => F[B])(implicit F: Sync[F]): F[B] =
+  def foldRightL[B](b: F[B])(f: (A, F[B], F[Unit]) => F[B])(implicit F: Sync[F]): F[B] =
     IterantFoldRightL(self, b, f)(F)
 
   /** Given mapping functions from `F` to `G`, lifts the source into
