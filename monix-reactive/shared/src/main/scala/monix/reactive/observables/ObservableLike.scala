@@ -604,7 +604,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def dematerialize[B](implicit ev: A <:< Notification[B]): Self[B] =
     self.asInstanceOf[Self[Notification[B]]].liftByOperator(new DematerializeOperator[B])
 
-  /** Suppress the duplicate elements emitted by the source Observable.
+  /** Suppress the duplicate elements emitted by the source, using
+    * universal equality.
     *
     * WARNING: this requires unbounded buffering.
     */
@@ -612,21 +613,25 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     self.liftByOperator(new DistinctOperator[A])
 
   /** Given a function that returns a key for each element emitted by
-    * the source Observable, suppress duplicate items.
+    * the source, suppress duplicate items.
+    *
+    * The generated keys are compared using universal equality.
     *
     * WARNING: this requires unbounded buffering.
     */
   def distinctByKey[K](key: A => K): Self[A] =
     self.liftByOperator(new DistinctByKeyOperator(key))
 
-  /** Suppress duplicate consecutive items emitted by the source
-    * Observable
+  /** Suppress duplicate consecutive items emitted by the source,
+    * using universal equality.
     */
   def distinctUntilChanged: Self[A] =
     self.liftByOperator(new DistinctUntilChangedOperator[A])
 
-  /** Suppress duplicate consecutive items emitted by the source
-    * Observable
+  /** Given a function that returns a key for each element emitted by
+    * the source, suppress consecutive duplicate items.
+    *
+    * The generated keys are compared using universal equality.
     */
   def distinctUntilChangedByKey[K](key: A => K): Self[A] =
     self.liftByOperator(new DistinctUntilChangedByKeyOperator(key))

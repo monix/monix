@@ -18,6 +18,7 @@
 package monix.tail.internal
 
 import cats.Functor
+import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
 import monix.tail.Iterant._
@@ -42,5 +43,12 @@ private[tail] object IterantUtils {
       case Last(_) | Halt(_) =>
         halt
     }
+  }
+
+  /** Internal utility for signaling errors. */
+  def signalError[F[_], A](stop: F[Unit])(implicit F: Sync[F]):
+    (Throwable => F[A]) = {
+
+    ex => stop.flatMap(_ => F.raiseError(ex))
   }
 }
