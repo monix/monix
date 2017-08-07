@@ -33,17 +33,15 @@ object IterantFoldRightSuite extends BaseTestSuite {
       if (!p(e)) stop >> Coeval(false) else next
     }
 
-  test("foldRightL can express exists") { implicit s =>
-    check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
-      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
-      exists(stream, p) <-> Coeval(list.exists(p))
+  test("foldRightL can express existsL") { implicit s =>
+    check2 { (stream: Iterant[Coeval, Int], p: Int => Boolean) =>
+      exists(stream, p) <-> stream.existsL(p)
     }
   }
 
-  test("foldRightL can express forall") { implicit s =>
-    check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
-      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
-      forall(stream, p) <-> Coeval(list.forall(p))
+  test("foldRightL can express forallL") { implicit s =>
+    check2 { (stream: Iterant[Coeval, Int], p: Int => Boolean) =>
+      forall(stream, p) <-> stream.forallL(p)
     }
   }
 
@@ -67,6 +65,32 @@ object IterantFoldRightSuite extends BaseTestSuite {
     val ref = Iterant[Coeval].of(1, 2, 3)
       .doOnEarlyStop(Coeval { effect += 1 })
       .foldRightL(Coeval(0))((_, _, _) => throw dummy)
+
+    assertEquals(effect, 0)
+    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(effect, 1)
+  }
+
+  test("foldRightL protects against broken cursors") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val ref = Iterant[Coeval].nextCursorS(ThrowExceptionCursor[Int](dummy), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
+      .doOnEarlyStop(Coeval { effect += 1 })
+      .foldRightL(Coeval(0))((a, acc, _) => acc.map(_ + a))
+
+    assertEquals(effect, 0)
+    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(effect, 1)
+  }
+
+  test("foldRightL protects against broken batches") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val ref = Iterant[Coeval].nextBatchS(ThrowExceptionBatch[Int](dummy), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
+      .doOnEarlyStop(Coeval { effect += 1 })
+      .foldRightL(Coeval(0))((a, acc, _) => acc.map(_ + a))
 
     assertEquals(effect, 0)
     assertEquals(ref.runTry, Failure(dummy))

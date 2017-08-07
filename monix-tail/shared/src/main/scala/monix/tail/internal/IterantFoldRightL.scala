@@ -60,6 +60,8 @@ private[tail] object IterantFoldRightL {
       }
     }
 
-    loop(self)
+    // Processing NextBatch/NextCursor might break
+    // referential transparency, so suspending
+    F.suspend(loop(self))
   }
 }
