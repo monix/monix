@@ -19,10 +19,9 @@ package monix.tail
 
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success}
 
-object IterantUntilRightSuite extends BaseTestSuite {
+object IterantFoldWhileLeftSuite extends BaseTestSuite {
   def exists(fa: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
     fa.foldWhileLeftL(false) { (default, e) =>
       if (p(e)) Right(true) else Left(default)
@@ -43,35 +42,48 @@ object IterantUntilRightSuite extends BaseTestSuite {
       Coeval { if (!p(e)) Right(false) else Left(default) }
     }
 
-  test("foldUntilRightL can express exists") { implicit s =>
+  test("foldWhileLeftL is consistent with foldLeftL") { implicit s =>
+    check3 { (stream: Iterant[Coeval, Int], seed: Long, op: (Long, Int) => Long) =>
+      stream.foldWhileLeftL(seed)((s, e) => Left(op(s, e))) <-> stream.foldLeftL(seed)(op)
+    }
+  }
+
+  test("foldWhileLeftEvalL is consistent with foldLeftL") { implicit s =>
+    check3 { (stream: Iterant[Coeval, Int], seed: Long, op: (Long, Int) => Long) =>
+      stream.foldWhileLeftEvalL(Coeval(seed))((s, e) => Coeval(Left(op(s, e)))) <->
+        stream.foldLeftL(seed)(op)
+    }
+  }
+
+  test("foldWhileLeftL can express exists") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
       val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       exists(fa, p) <-> Coeval(list.exists(p))
     }
   }
 
-  test("foldUntilRightEvalL can express exists") { implicit s =>
+  test("foldWhileLeftEvalL can express exists") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
       val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       existsEval(fa, p) <-> Coeval(list.exists(p))
     }
   }
 
-  test("foldUntilRightL can express forall") { implicit s =>
+  test("foldWhileLeftL can express forall") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
       val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       forall(fa, p) <-> Coeval(list.forall(p))
     }
   }
 
-  test("foldUntilRightEvalL can express forall") { implicit s =>
+  test("foldWhileLeftEvalL can express forall") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
       val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       forallEval(fa, p) <-> Coeval(list.forall(p))
     }
   }
 
-  test("foldUntilRightL can short-circuit") { implicit s =>
+  test("foldWhileLeftL can short-circuit") { implicit s =>
     var effect = 0
     val ref = Iterant[Coeval].of(1, 2, 3, 4).doOnEarlyStop(Coeval { effect += 1 })
 
@@ -84,7 +96,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldUntilRightEvalL can short-circuit") { implicit s =>
+  test("foldWhileLeftEvalL can short-circuit") { implicit s =>
     var effect = 0
     val ref = Iterant[Coeval].of(1, 2, 3, 4).doOnEarlyStop(Coeval { effect += 1 })
 
@@ -97,7 +109,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldUntilRightL protects against broken seed") { implicit s =>
+  test("foldWhileLeftL protects against broken seed") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -110,7 +122,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     assertEquals(effect, 0)
   }
 
-  test("foldUntilRightL protects against broken op") { implicit s =>
+  test("foldWhileLeftL protects against broken op") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -123,7 +135,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldUntilRightL protects against broken cursors") { implicit s =>
+  test("foldWhileLeftL protects against broken cursors") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -136,7 +148,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldUntilRightL protects against broken batches") { implicit s =>
+  test("foldWhileLeftL protects against broken batches") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -149,7 +161,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
   
-  test("foldUntilRightEvalL protects against broken seed") { implicit s =>
+  test("foldWhileLeftEvalL protects against broken seed") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -162,7 +174,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     assertEquals(effect, 0)
   }
 
-  test("foldUntilRightEvalL protects against broken op") { implicit s =>
+  test("foldWhileLeftEvalL protects against broken op") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -175,7 +187,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldUntilRightEvalL protects against op signaling failure") { implicit s =>
+  test("foldWhileLeftEvalL protects against op signaling failure") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -188,7 +200,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldUntilRightEvalL protects against broken cursors") { implicit s =>
+  test("foldWhileLeftEvalL protects against broken cursors") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -201,7 +213,7 @@ object IterantUntilRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldUntilRightEvalL protects against broken batches") { implicit s =>
+  test("foldWhileLeftEvalL protects against broken batches") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -211,6 +223,83 @@ object IterantUntilRightSuite extends BaseTestSuite {
 
     assertEquals(effect, 0)
     assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(effect, 1)
+  }
+
+  test("existsL is consistent with List.exists") { implicit s =>
+    check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
+      val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      fa.existsL(p) <-> Coeval(list.exists(p))
+    }
+  }
+
+  test("existsL executes early stop on short-circuit") { implicit s =>
+    var effect = 0
+
+    val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
+    val r = ref.existsL(_ == 2).runTry
+
+    assertEquals(r, Success(true))
+    assertEquals(effect, 1)
+  }
+
+
+  test("existsL does not execute early stop when full stream is processed") { implicit s =>
+    var effect = 0
+
+    val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
+    val r = ref.existsL(_ == 10).runTry
+
+    assertEquals(r, Success(false))
+    assertEquals(effect, 0)
+  }
+
+  test("existsL protects against user errors") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val ref = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
+    val r = ref.existsL(_ => throw dummy).runTry
+
+    assertEquals(r, Failure(dummy))
+    assertEquals(effect, 1)
+  }
+
+  test("forallL is consistent with List.forall") { implicit s =>
+    check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
+      val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      fa.forallL(p) <-> Coeval(list.forall(p))
+    }
+  }
+
+  test("forallL executes early stop on short-circuit") { implicit s =>
+    var effect = 0
+
+    val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
+    val r = ref.forallL(_ == 1).runTry
+
+    assertEquals(r, Success(false))
+    assertEquals(effect, 1)
+  }
+
+  test("forallL does not execute early stop when full stream is processed") { implicit s =>
+    var effect = 0
+
+    val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
+    val r = ref.forallL(_ < 10).runTry
+
+    assertEquals(r, Success(true))
+    assertEquals(effect, 0)
+  }
+
+  test("forallL protects against user errors") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val ref = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
+    val r = ref.forallL(_ => throw dummy).runTry
+
+    assertEquals(r, Failure(dummy))
     assertEquals(effect, 1)
   }
 }
