@@ -302,4 +302,43 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     assertEquals(r, Failure(dummy))
     assertEquals(effect, 1)
   }
+  
+  test("findL is consistent with List.find") { implicit s =>
+    check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
+      val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      fa.findL(p) <-> Coeval(list.find(p))
+    }
+  }
+
+  test("findL executes early stop on short-circuit") { implicit s =>
+    var effect = 0
+
+    val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
+    val r = ref.findL(_ == 2).runTry
+
+    assertEquals(r, Success(Some(2)))
+    assertEquals(effect, 1)
+  }
+
+
+  test("findL does not execute early stop when full stream is processed") { implicit s =>
+    var effect = 0
+
+    val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
+    val r = ref.findL(_ == 10).runTry
+
+    assertEquals(r, Success(None))
+    assertEquals(effect, 0)
+  }
+
+  test("findL protects against user errors") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val ref = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
+    val r = ref.findL(_ => throw dummy).runTry
+
+    assertEquals(r, Failure(dummy))
+    assertEquals(effect, 1)
+  }
 }
