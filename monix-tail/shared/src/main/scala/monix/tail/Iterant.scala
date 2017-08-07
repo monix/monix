@@ -423,7 +423,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def flatten[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
     flatMap(x => x)(F)
 
-  /** Left associative fold using the function `f`.
+  /** Left associative fold using the function `op`.
     *
     * On execution the stream will be traversed from left to right,
     * and the given function will be called with the prior result,
@@ -443,7 +443,100 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *         is empty.
     */
   final def foldLeftL[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): F[S] =
-    IterantFoldLeftL(self, seed)(op)(F)
+    IterantFoldLeft(self, seed)(op)(F)
+
+  /** Left associative fold using the function `op` that can be
+    * short-circuited.
+    *
+    * On execution the stream will be traversed from left to right,
+    * and the given function will be called with the prior result,
+    * accumulating state either until the end, or until `op` returns
+    * a `Right` result, when the summary is returned.
+    *
+    * Example: {{{
+    *   // Sums first 10 items
+    *   Iterant[Task].range(0, 1000).foldWhileLeftL((0, 0)) {
+    *     case ((sum, count), e) =>
+    *       val next = (sum + e, count + 1)
+    *       if (count + 1 < 10) Left(next) else Right(next)
+    *   }
+    *
+    *   // Implements exists(predicate)
+    *   Iterant[Task].of(1, 2, 3, 4, 5).foldWhileLeftL(false) {
+    *     (default, e) =>
+    *       if (e == 3) Right(true) else Left(default)
+    *   }
+    *
+    *   // Implements forall(predicate)
+    *   Iterant[Task].of(1, 2, 3, 4, 5).foldWhileLeftL(true) {
+    *     (default, e) =>
+    *       if (e != 3) Right(false) else Left(default)
+    *   }
+    * }}}
+    *
+    * @see [[Iterant.foldWhileLeftL]] for the lazy, potentially
+    *      asynchronous version.
+    * @param seed is the start value
+    * @param op is the binary operator returning either `Left`,
+    *        signaling that the state should be evolved or a `Right`,
+    *        signaling that the process can be short-circuited and
+    *        the result returned immediately
+    * @return the result of inserting `op` between consecutive
+    *         elements of this iterant, going from left to right with
+    *         the `seed` as the start value, or `seed` if the iterant
+    *         is empty
+    */
+  final def foldWhileLeftL[S](seed: => S)(op: (S, A) => Either[S, S])(implicit F: Sync[F]): F[S] =
+    IterantFoldWhileLeft.strict(self, seed, op)
+
+  /** Left associative fold using the function `op` that can be
+    * short-circuited.
+    *
+    * On execution the stream will be traversed from left to right,
+    * and the given function will be called with the prior result,
+    * accumulating state either until the end, or until `op` returns
+    * a `Right` result, when the summary is returned.
+    *
+    * The results are returned in the `F[_]` functor context, meaning
+    * that we can have lazy or asynchronous processing and we can
+    * suspend side effects, depending on the `F` data type being used.
+    *
+    * Example using `cats.effect.IO`: {{{
+    *   // Sums first 10 items
+    *   Iterant[IO].range(0, 1000).foldWhileLeftEvalL(IO((0, 0))) {
+    *     case ((sum, count), e) =>
+    *       IO {
+    *         val next = (sum + e, count + 1)
+    *         if (count + 1 < 10) Left(next) else Right(next)
+    *       }
+    *   }
+    *
+    *   // Implements exists(predicate)
+    *   Iterant[IO].of(1, 2, 3, 4, 5).foldWhileLeftEvalL(IO(false)) {
+    *     (default, e) =>
+    *       IO { if (e == 3) Right(true) else Left(default) }
+    *   }
+    *
+    *   // Implements forall(predicate)
+    *   Iterant[IO].of(1, 2, 3, 4, 5).foldWhileLeftEvalL(IO(true)) {
+    *     (default, e) =>
+    *       IO { if (e != 3) Right(false) else Left(default) }
+    *   }
+    * }}}
+    *
+    * @see [[Iterant.foldWhileLeftL]] for the strict version.
+    * @param seed is the start value
+    * @param op is the binary operator returning either `Left`,
+    *        signaling that the state should be evolved or a `Right`,
+    *        signaling that the process can be short-circuited and
+    *        the result returned immediately
+    * @return the result of inserting `op` between consecutive
+    *         elements of this iterant, going from left to right with
+    *         the `seed` as the start value, or `seed` if the iterant
+    *         is empty
+    */
+  final def foldWhileLeftEvalL[S](seed: F[S])(op: (S, A) => F[Either[S, S]])(implicit F: Sync[F]): F[S] =
+    IterantFoldWhileLeft.eval(self, seed, op)
 
   /** Given mapping functions from `F` to `G`, lifts the source into
     * an iterant that is going to use the resulting `G` for evaluation.
@@ -790,7 +883,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * probably blowing up with an out of memory error sooner or later.
     */
   final def toListL(implicit F: Sync[F]): F[List[A]] =
-    IterantFoldLeftL.toListL(self)(F)
+    IterantFoldLeft.toListL(self)(F)
 
   /** Lazily zip two iterants together, using the given function `f` to
     * produce output values.
