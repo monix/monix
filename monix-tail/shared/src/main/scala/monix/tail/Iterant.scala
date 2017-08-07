@@ -664,7 +664,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * `f` is different from other implementations, receiving the
     * current `earlyStop: F[Unit]` as a third parameter.
     *
-    * Here's for example how [[existsL]], [[forallL]] and [[++]] could
+    * Here's for example how [[existsL]], [[forallL]] and `++` could
     * be expressed in terms of `foldRightL`:
     *
     * {{{
