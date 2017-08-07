@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.arrow.FunctionK
 import cats.effect.Sync
-import cats.{Applicative, CoflatMap, MonoidK}
+import cats.{Applicative, CoflatMap, Monoid, MonoidK, Order}
 import monix.eval.instances.{CatsAsyncInstances, CatsSyncInstances}
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
@@ -463,6 +463,33 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def flatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.flatMap(this, f)(F)
 
+  /** Given a predicate, finds the first item that satisfies it,
+    * returning `Some(a)` if available, or `None` otherwise.
+    *
+    * {{{
+    *   // Yields Some(2)
+    *   Iterant[Coeval].of(1, 2, 3, 4).findL(_ % 2 == 0)
+    *
+    *   // Yields None
+    *   Iterant[Coeval].of(1, 2, 3, 4).findL(_ > 10)
+    * }}}
+    *
+    * The stream is traversed from beginning to end, the process
+    * being interrupted as soon as it finds one element matching
+    * the predicate, or until the stream ends.
+    *
+    * @param p is the function to test the elements of the source
+    *
+    * @return either `Some(value)` in case `value` is an element
+    *         emitted by the source, found to satisfy the predicate,
+    *         or `None` otherwise
+    */
+  def findL(p: A => Boolean)(implicit F: Sync[F]): F[Option[A]] = {
+    val init = Option.empty[A]
+    val next = Left(init)
+    foldWhileLeftL(init) { (_, a) => if (p(a)) Right(Some(a)) else next }
+  }
+
   /** Alias for [[concat]]. */
   final def concat[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
     flatten(ev, F)
@@ -474,6 +501,39 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def flatten[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
     flatMap(x => x)(F)
+
+  /** Given evidence that type `A` has a `cats.Monoid` implementation,
+    * folds the stream with the provided monoid definition.
+    *
+    * For streams emitting numbers, this effectively sums them up.
+    * For strings, this concatenates them.
+    *
+    * Example:
+    *
+    * {{{
+    *   // Yields 10
+    *   Iterant[Task].of(1, 2, 3, 4).foldL
+    *
+    *   // Yields "1234"
+    *   Iterant[Task].of("1", "2", "3", "4").foldL
+    * }}}
+    *
+    * Note, in case you don't have a `Monoid` instance in scope,
+    * but you feel like you should, try this import:
+    *
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * @param A is the `cats.Monoid` type class instance that's needed
+    *          in scope for folding the source
+    *
+    * @return the result of combining all elements of the source,
+    *         or the defined `Monoid.empty` element in case the
+    *         stream is empty
+    */
+  final def foldL(implicit F: Sync[F], A: Monoid[A]): F[A] =
+    foldLeftL(A.empty)(A.combine)
 
   /** Left associative fold using the function `op`.
     *
@@ -675,7 +735,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        the `earlyStop` routine, to chain in case
     *        short-circuiting should happen (third param)
     */
-  def foldRightL[B](b: F[B])(f: (A, F[B], F[Unit]) => F[B])(implicit F: Sync[F]): F[B] =
+  final def foldRightL[B](b: F[B])(f: (A, F[B], F[Unit]) => F[B])(implicit F: Sync[F]): F[B] =
     IterantFoldRightL(self, b, f)(F)
 
   /** Given mapping functions from `F` to `G`, lifts the source into
@@ -738,6 +798,48 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def liftMapK[G[_]](f: FunctionK[F, G])(implicit G: Sync[G]): Iterant[G, A] =
     IterantLiftMap(self, f)(G)
+
+  /** Given a `cats.Order` over the stream's elements, returns the
+    * maximum element in the stream.
+    *
+    * Example:
+    * {{{
+    *   // Yields Some(20)
+    *   Iterant[Coeval].of(1, 10, 7, 6, 8, 20, 3, 5).maxL
+    *
+    *   // Yields None
+    *   Iterant[Coeval].empty[Int].maxL
+    * }}}
+    *
+    * @param A is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the maximum element of the source stream, relative
+    *         to the defined `Order`
+    */
+  final def maxL(implicit F: Sync[F], A: Order[A]): F[Option[A]] =
+    reduceL((max, a) => if (A.compare(max, a) < 0) a else max)
+
+  /** Given a `cats.Order` over the stream's elements, returns the
+    * minimum element in the stream.
+    *
+    * Example:
+    * {{{
+    *   // Yields Some(3)
+    *   Iterant[Coeval].of(10, 7, 6, 8, 20, 3, 5).minL
+    *
+    *   // Yields None
+    *   Iterant[Coeval].empty[Int].minL
+    * }}}
+    *
+    * @param A is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the minimum element of the source stream, relative
+    *         to the defined `Order`
+    */
+  final def minL(implicit F: Sync[F], A: Order[A]): F[Option[A]] =
+    reduceL((max, a) => if (A.compare(max, a) > 0) a else max)
 
   /** Returns an `Iterant` that mirrors the behavior of the source,
     * unless the source is terminated with an error, in which
@@ -860,6 +962,31 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def onErrorIgnore(implicit F: Sync[F]): Iterant[F, A] =
     onErrorHandleWith(_ => Iterant.empty[F, A])
+
+  /** Reduces the elements of the source using the specified
+    * associative binary operator, going from left to right, start to
+    * finish.
+    *
+    * Example:
+    *
+    * {{{
+    *   // Yields Some(10)
+    *   Iterant[Coeval].of(1, 2, 3, 4).reduceL(_ + _)
+    *
+    *   // Yields None
+    *   Iterant[Coeval].empty[Int].reduceL(_ + _)
+    * }}}
+    *
+    * @param op is an associative binary operation that's going
+    *           to be used to reduce the source to a single value
+    *
+    * @return either `Some(value)` in case the stream is not empty,
+    *         `value` being the result of inserting `op` between
+    *         consecutive elements of this iterant, going from left
+    *         to right, or `None` in case the stream is empty
+    */
+  final def reduceL(op: (A, A) => A)(implicit F: Sync[F]): F[Option[A]] =
+    IterantReduce(self, op)
 
   /** Applies the function to the elements of the source and
     * concatenates the results.
