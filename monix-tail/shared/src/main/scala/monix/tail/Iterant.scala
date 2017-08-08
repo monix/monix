@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.arrow.FunctionK
 import cats.effect.Sync
-import cats.{Applicative, CoflatMap, Monoid, MonoidK, Order}
+import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order}
 import monix.eval.instances.{CatsAsyncInstances, CatsSyncInstances}
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
@@ -29,7 +29,7 @@ import scala.collection.immutable.LinearSeq
 import scala.reflect.ClassTag
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
-  * streaming of elements.
+  * streaming of elements using a pull-based protocol.
   *
   * It is similar somewhat in spirit to Scala's own
   * `collection.immutable.Stream` and with Java's `Iterable`, except
@@ -169,6 +169,18 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def +:[B >: A](head: B)(implicit F: Applicative[F]): Iterant[F, B] =
     Next(head, F.pure(self.upcast[B]), earlyStop)
 
+  /** Appends the right hand side element to the end of this iterant.
+    *
+    * Example: {{{
+    *   // Yields 1, 2, 3, 4
+    *   Iterant[Task].of(1, 2, 3) :+ 4
+    * }}}
+    *
+    * @param elem is the element to append at the end
+    */
+  final def :+[B >: A](elem: B)(implicit F: Applicative[F]): Iterant[F, B] =
+    ++(Next[F, B](elem, F.pure(Halt[F, B](None)), F.unit))(F)
+
   /** Converts the source `Iterant` that emits `A` elements into an
     * iterant that emits `Either[Throwable, A]`, thus materializing
     * whatever error that might interrupt the stream.
@@ -183,7 +195,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *     Iterant[Task].raiseError(DummyException())).attempt
     * }}}
     */
-  def attempt(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] =
+  final def attempt(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] =
     IterantOnError.attempt(self)
 
   /** Builds a new iterant by applying a partial function to all
@@ -218,9 +230,105 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def completeL(implicit F: Sync[F]): F[Unit] =
     IterantCompleteL(this)(F)
 
+  /** Alias for [[concat]]. */
+  final def concat[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
+    flatten(ev, F)
+
   /** Alias for [[flatMap]]. */
   final def concatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     flatMap(f)
+
+  /** Counts the total number of elements emitted by the source.
+    *
+    * Example:
+    *
+    * {{{
+    *   // Yields 100
+    *   Iterant[IO].range(0, 100).countL
+    *
+    *   // Yields 1
+    *   Iterant[IO].pure(1).countL
+    *
+    *   // Yields 0
+    *   Iterant[IO].empty[Int].countL
+    * }}}
+    */
+  final def countL(implicit F: Sync[F]): F[Long] =
+    foldLeftL(0L)((c, _) => c + 1)
+
+  /** Suppress duplicate consecutive items emitted by the source.
+    *
+    * Example:
+    * {{{
+    *   // Yields 1, 2, 1, 3, 2, 4
+    *   Iterant[Coeval].of(1, 1, 1, 2, 2, 1, 1, 3, 3, 3, 2, 2, 4, 4, 4)
+    *     .distinctUntilChanged
+    * }}}
+    *
+    * Duplication is detected by using the equality relationship
+    * provided by the `cats.Eq` type class. This allows one to
+    * override the equality operation being used (e.g. maybe the
+    * default `.equals` is badly defined, or maybe you want reference
+    * equality, so depending on use case).
+    *
+    * In case type `A` is a primitive type and an `Eq[A]` instance
+    * is not in scope, then you probably need this import:
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * Or in case your type `A` does not have an `Eq[A]` instance
+    * defined for it, then you can quickly define one like this:
+    * {{{
+    *   import cats.Eq
+    *
+    *   implicit val eqA = Eq.fromUniversalEquals[A]
+    * }}}
+    *
+    * @param A is the `cats.Eq` instance that defines equality for `A`
+    */
+  final def distinctUntilChanged(implicit F: Sync[F], A: Eq[A]): Iterant[F, A] =
+    distinctUntilChangedByKey(identity)(F, A)
+
+  /** Given a function that returns a key for each element emitted by
+    * the source, suppress consecutive duplicate items.
+    *
+    * Example:
+    *
+    * {{{
+    *   // Yields 1, 2, 3, 4
+    *   Iterant[Coeval].of(1, 3, 2, 4, 2, 3, 5, 7, 4)
+    *     .distinctUntilChangedBy(_ % 2)
+    * }}}
+    *
+    * Duplication is detected by using the equality relationship
+    * provided by the `cats.Eq` type class. This allows one to
+    * override the equality operation being used (e.g. maybe the
+    * default `.equals` is badly defined, or maybe you want reference
+    * equality, so depending on use case).
+    *
+    * In case type `K` is a primitive type and an `Eq[K]` instance
+    * is not in scope, then you probably need this import:
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * Or in case your type `K` does not have an `Eq[K]` instance
+    * defined for it, then you can quickly define one like this:
+    * {{{
+    *   import cats.Eq
+    *
+    *   implicit val eqK = Eq.fromUniversalEquals[K]
+    * }}}
+    *
+    * @param f is a function that returns a `K` key for each element,
+    *        a value that's then used to do the deduplication
+    *
+    * @param K is the `cats.Eq` instance that defines equality for
+    *        the key type `K`
+    */
+  final def distinctUntilChangedByKey[K](f: A => K)(implicit F: Sync[F], K: Eq[K]): Iterant[F, A] =
+    IterantDistinctUntilChanged(self, f)(F, K)
 
   /** Given a routine make sure to execute it whenever
     * the consumer executes the current `stop` action.
@@ -490,10 +598,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     foldWhileLeftL(init) { (_, a) => if (p(a)) Right(Some(a)) else next }
   }
 
-  /** Alias for [[concat]]. */
-  final def concat[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
-    flatten(ev, F)
-
   /** Given an `Iterant` that generates `Iterant` elements, concatenates
     * all the generated iterants.
     *
@@ -710,11 +814,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * In other words:
     *
-    * - in case the processing fails in any way with exceptions,
-    *   it is the user's responsibility to chain `stop`
-    * - in case the processing is short-circuited by not using the
-    *   `F[B]` right param, it is the user responsibility to chain
-    *   `stop`
+    *  - in case the processing fails in any way with exceptions,
+    *    it is the user's responsibility to chain `stop`
+    *  - in case the processing is short-circuited by not using the
+    *    `F[B]` right param, it is the user responsibility to chain
+    *    `stop`
     *
     * This is in contrast with all operators (unless explicitly
     * mentioned otherwise).
@@ -1364,7 +1468,7 @@ object Iterant extends IterantInstances {
     *
     * @param fa $suspendByNameParam
     */
-  def defer[F[_] : Sync, A](fa: => Iterant[F, A]): Iterant[F, A] =
+  def defer[F[_], A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     suspend(fa)
 
   /** $builderSuspendByName
@@ -1609,7 +1713,7 @@ private[tail] trait IterantInstances extends IterantInstances1 {
 
 private[tail] trait IterantInstances1 {
   /** Provides a Cats type class instances for [[Iterant]]. */
-  implicit def catsInstances[F[_] : Sync]: CatsInstances[F] =
+  implicit def catsInstances[F[_]](implicit F: Sync[F]): CatsInstances[F] =
     new CatsInstances[F]()
 
   /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
