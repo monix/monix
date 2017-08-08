@@ -17,14 +17,17 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.Continue
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import cats.Eq
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.misc.NonFatal
+import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
 
 private[reactive] final
-class DistinctUntilChangedOperator[A] extends Operator[A,A] {
+class DistinctUntilChangedOperator[A](implicit A: Eq[A])
+  extends Operator[A,A] {
 
+  /** Implementation for `Observable.distinctUntilChanged`. */
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
@@ -32,20 +35,35 @@ class DistinctUntilChangedOperator[A] extends Operator[A,A] {
       private[this] var lastElem: A = _
 
       def onNext(elem: A) = {
-        if (isFirst) {
-          lastElem = elem
-          isFirst = false
-          out.onNext(elem)
+        // Protects calls to user code from within the operator and
+        // stream the error downstream if it happens, but if the
+        // error happens because of calls to `onNext` or other
+        // protocol calls, then the behavior should be undefined.
+        var streamErrors = true
+        try {
+          if (isFirst) {
+            lastElem = elem
+            isFirst = false
+            out.onNext(elem)
+          }
+          else if (A.neqv(lastElem, elem)) {
+            lastElem = elem
+            streamErrors = false
+            out.onNext(elem)
+          }
+          else {
+            Continue
+          }
+        } catch {
+          case NonFatal(ex) if streamErrors =>
+            onError(ex)
+            Stop
         }
-        else if (lastElem != elem) {
-          lastElem = elem
-          out.onNext(elem)
-        }
-        else
-          Continue
       }
 
-      def onError(ex: Throwable): Unit = out.onError(ex)
-      def onComplete(): Unit = out.onComplete()
+      def onError(ex: Throwable): Unit =
+        out.onError(ex)
+      def onComplete(): Unit =
+        out.onComplete()
     }
 }

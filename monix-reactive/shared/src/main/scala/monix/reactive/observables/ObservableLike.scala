@@ -18,6 +18,8 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
+
+import cats.Eq
 import monix.eval.Task
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.UpstreamTimeoutException
@@ -29,6 +31,7 @@ import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
+
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
@@ -604,37 +607,83 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def dematerialize[B](implicit ev: A <:< Notification[B]): Self[B] =
     self.asInstanceOf[Self[Notification[B]]].liftByOperator(new DematerializeOperator[B])
 
-  /** Suppress the duplicate elements emitted by the source, using
-    * universal equality.
+  /** Suppress duplicate consecutive items emitted by the source.
     *
-    * WARNING: this requires unbounded buffering.
-    */
-  def distinct: Self[A] =
-    self.liftByOperator(new DistinctOperator[A])
-
-  /** Given a function that returns a key for each element emitted by
-    * the source, suppress duplicate items.
+    * Example:
+    * {{{
+    *   // Yields 1, 2, 1, 3, 2, 4
+    *   Observable(1, 1, 1, 2, 2, 1, 1, 3, 3, 3, 2, 2, 4, 4, 4)
+    *     .distinctUntilChanged
+    * }}}
     *
-    * The generated keys are compared using universal equality.
+    * Duplication is detected by using the equality relationship
+    * provided by the `cats.Eq` type class. This allows one to
+    * override the equality operation being used (e.g. maybe the
+    * default `.equals` is badly defined, or maybe you want reference
+    * equality, so depending on use case).
     *
-    * WARNING: this requires unbounded buffering.
+    * In case type `A` is a primitive type and an `Eq[A]` instance
+    * is not in scope, then you probably need this import:
+    *
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * Or in case your type `A` does not have an `Eq[A]` instance
+    * defined for it, then you can quickly define one like this:
+    * {{{
+    *   import cats.Eq
+    *
+    *   implicit val eqA = Eq.fromUniversalEquals[A]
+    * }}}
+    *
+    * @param A is the `cats.Eq` instance that defines equality
+    *        for the elements emitted by the source
     */
-  def distinctByKey[K](key: A => K): Self[A] =
-    self.liftByOperator(new DistinctByKeyOperator(key))
-
-  /** Suppress duplicate consecutive items emitted by the source,
-    * using universal equality.
-    */
-  def distinctUntilChanged: Self[A] =
-    self.liftByOperator(new DistinctUntilChangedOperator[A])
+  def distinctUntilChanged[AA >: A](implicit A: Eq[AA]): Self[AA] =
+    self.liftByOperator(new DistinctUntilChangedOperator()(A))
 
   /** Given a function that returns a key for each element emitted by
     * the source, suppress consecutive duplicate items.
     *
-    * The generated keys are compared using universal equality.
+    * Example:
+    *
+    * {{{
+    *   // Yields 1, 2, 3, 4
+    *   Observable(1, 3, 2, 4, 2, 3, 5, 7, 4)
+    *     .distinctUntilChangedBy(_ % 2)
+    * }}}
+    *
+    * Duplication is detected by using the equality relationship
+    * provided by the `cats.Eq` type class. This allows one to
+    * override the equality operation being used (e.g. maybe the
+    * default `.equals` is badly defined, or maybe you want reference
+    * equality, so depending on use case).
+    *
+    * In case type `K` is a primitive type and an `Eq[K]` instance
+    * is not in scope, then you probably need this import:
+    *
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * Or in case your type `K` does not have an `Eq[K]` instance
+    * defined for it, then you can quickly define one like this:
+    *
+    * {{{
+    *   import cats.Eq
+    *
+    *   implicit val eqK = Eq.fromUniversalEquals[K]
+    * }}}
+    *
+    * @param key is a function that returns a `K` key for each element,
+    *        a value that's then used to do the deduplication
+    *
+    * @param K is the `cats.Eq` instance that defines equality for
+    *        the key type `K`
     */
-  def distinctUntilChangedByKey[K](key: A => K): Self[A] =
-    self.liftByOperator(new DistinctUntilChangedByKeyOperator(key))
+  def distinctUntilChangedByKey[K](key: A => K)(implicit K: Eq[K]): Self[A] =
+    self.liftByOperator(new DistinctUntilChangedByKeyOperator(key)(K))
 
   /** Executes the given callback when the streaming is stopped
     * due to a downstream [[monix.execution.Ack.Stop Stop]] signal

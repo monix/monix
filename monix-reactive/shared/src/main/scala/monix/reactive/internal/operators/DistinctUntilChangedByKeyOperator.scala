@@ -17,17 +17,17 @@
 
 package monix.reactive.internal.operators
 
+import cats.Eq
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.reactive.observables.ObservableLike.Operator
 import monix.execution.misc.NonFatal
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
 
 private[reactive] final
-class DistinctUntilChangedByKeyOperator[A,K](key: A => K) extends Operator[A,A] {
+class DistinctUntilChangedByKeyOperator[A,K](key: A => K)(implicit K: Eq[K])
+  extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -42,24 +42,26 @@ class DistinctUntilChangedByKeyOperator[A,K](key: A => K) extends Operator[A,A] 
         // stream the error downstream if it happens, but if the
         // error happens because of calls to `onNext` or other
         // protocol calls, then the behavior should be undefined.
-        var streamError = true
+        var streamErrors = true
         try {
           val k = key(elem)
-          streamError = false
 
           if (isFirst) {
             lastKey = k
             isFirst = false
+            streamErrors = false
             out.onNext(elem)
           }
-          else if (lastKey != k) {
+          else if (K.neqv(lastKey, k)) {
             lastKey = k
+            streamErrors = false
             out.onNext(elem)
           }
-          else
+          else {
             Continue
+          }
         } catch {
-          case NonFatal(ex) if streamError =>
+          case NonFatal(ex) if streamErrors =>
             onError(ex)
             Stop
         }

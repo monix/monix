@@ -321,14 +321,14 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   implicit val eqK = Eq.fromUniversalEquals[K]
     * }}}
     *
-    * @param f is a function that returns a `K` key for each element,
+    * @param key is a function that returns a `K` key for each element,
     *        a value that's then used to do the deduplication
     *
     * @param K is the `cats.Eq` instance that defines equality for
     *        the key type `K`
     */
-  final def distinctUntilChangedByKey[K](f: A => K)(implicit F: Sync[F], K: Eq[K]): Iterant[F, A] =
-    IterantDistinctUntilChanged(self, f)(F, K)
+  final def distinctUntilChangedByKey[K](key: A => K)(implicit F: Sync[F], K: Eq[K]): Iterant[F, A] =
+    IterantDistinctUntilChanged(self, key)(F, K)
 
   /** Given a routine make sure to execute it whenever
     * the consumer executes the current `stop` action.
