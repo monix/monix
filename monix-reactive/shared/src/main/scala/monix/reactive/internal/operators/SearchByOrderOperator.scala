@@ -17,31 +17,42 @@
 
 package monix.reactive.internal.operators
 
+import cats.Order
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.misc.NonFatal
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] final
-class MinOperator[A : Ordering] extends Operator[A,A] {
+/**
+  * Common implementation for `minF`, `minByF`, `maxF`, `maxByF`.
+  */
+private[reactive] abstract class SearchByOrderOperator[A, K]
+  (key: A => K)(implicit B: Order[K]) extends Operator[A,A] {
 
-  def apply(out: Subscriber[A]): Subscriber.Sync[A] =
+  def shouldCollect(key: K, current: K): Boolean
+  
+  final def apply(out: Subscriber[A]): Subscriber.Sync[A] =
     new Subscriber.Sync[A] {
       implicit val scheduler = out.scheduler
-      private[this] val ev = implicitly[Ordering[A]]
+
       private[this] var isDone = false
       private[this] var minValue: A = _
+      private[this] var minValueU: K = _
       private[this] var hasValue = false
 
-      def onNext(elem: A): Ack =
+      def onNext(elem: A): Ack = {
         try {
           if (!hasValue) {
             hasValue = true
             minValue = elem
-          }
-          else if (ev.compare(elem, minValue) < 0) {
-            minValue = elem
+            minValueU = key(elem)
+          } else {
+            val m = key(elem)
+            if (shouldCollect(m, minValueU)) {
+              minValue = elem
+              minValueU = m
+            }
           }
 
           Continue
@@ -50,6 +61,7 @@ class MinOperator[A : Ordering] extends Operator[A,A] {
             onError(ex)
             Stop
         }
+      }
 
       def onError(ex: Throwable): Unit =
         if (!isDone) {
@@ -68,4 +80,34 @@ class MinOperator[A : Ordering] extends Operator[A,A] {
           }
         }
     }
+}
+
+private[reactive] final class MinOperator[A](implicit A: Order[A])
+  extends SearchByOrderOperator[A,A](identity)(A) {
+  
+  def shouldCollect(key: A, current: A): Boolean =
+    A.compare(key, current) < 0
+}
+
+private[reactive] final class MinByOperator[A, K](f: A => K)
+  (implicit K: Order[K])
+  extends SearchByOrderOperator[A, K](f)(K) {
+
+  def shouldCollect(key: K, current: K): Boolean =
+    K.compare(key, current) < 0
+}
+
+private[reactive] final class MaxOperator[A](implicit A: Order[A])
+  extends SearchByOrderOperator[A,A](identity)(A) {
+
+  def shouldCollect(key: A, current: A): Boolean =
+    A.compare(key, current) > 0
+}
+
+private[reactive] final class MaxByOperator[A, K](f: A => K)
+  (implicit K: Order[K])
+  extends SearchByOrderOperator[A, K](f)(K) {
+
+  def shouldCollect(key: K, current: K): Boolean =
+    K.compare(key, current) > 0
 }

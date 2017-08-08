@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import cats.Order
 import monix.execution.Ack.Continue
 import monix.reactive.{Observable, Observer}
 
@@ -37,7 +38,7 @@ object MaxSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample] = {
-    val ord = new Ordering[Long] {
+    val ord = new Order[Long] {
       def compare(x: Long, y: Long): Int = throw ex
     }
 

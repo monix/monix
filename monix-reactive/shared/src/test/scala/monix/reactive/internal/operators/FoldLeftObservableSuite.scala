@@ -49,4 +49,16 @@ object FoldLeftObservableSuite extends BaseOperatorSuite {
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
+
+  test("foldL is consistent with foldLeftL") { implicit s =>
+    check1 { (stream: Observable[Int]) =>
+      stream.foldL <-> stream.foldLeftL(0)(_ + _)
+    }
+  }
+
+  test("foldL is consistent with sumL") { implicit s =>
+    check1 { (stream: Observable[Int]) =>
+      stream.foldL <-> stream.sumL
+    }
+  }
 }

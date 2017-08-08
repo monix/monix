@@ -18,6 +18,8 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
+
+import cats.{Eq, Monoid, Order}
 import monix.eval.Task
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.UpstreamTimeoutException
@@ -29,6 +31,7 @@ import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
+
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
@@ -166,6 +169,24 @@ import scala.concurrent.duration.FiniteDuration
   *         signaled downstream. If the source triggers an error then the
   *         current buffer is being dropped and the error gets propagated
   *         immediately.
+  *
+  * @define catsOrderDesc In case type `A` is a primitive type and an
+  *         `Order[A]` instance is not in scope, then you probably
+  *         need this import:
+  *
+  *         {{{
+  *           import cats.instances.all._
+  *         }}}
+  *
+  *         Or in case your type `A` does not have an `Order[A]`
+  *         instance defined for it, but it does have a Scala
+  *         `Ordering` defined, then you can define one like this:
+  *
+  *         {{{
+  *           import cats.Order
+  *
+  *           implicit val orderA = Order.fromOrdering[A]
+  *         }}}
   */
 trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   extends Serializable { self: Self[A] =>
@@ -604,37 +625,83 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def dematerialize[B](implicit ev: A <:< Notification[B]): Self[B] =
     self.asInstanceOf[Self[Notification[B]]].liftByOperator(new DematerializeOperator[B])
 
-  /** Suppress the duplicate elements emitted by the source, using
-    * universal equality.
+  /** Suppress duplicate consecutive items emitted by the source.
     *
-    * WARNING: this requires unbounded buffering.
-    */
-  def distinct: Self[A] =
-    self.liftByOperator(new DistinctOperator[A])
-
-  /** Given a function that returns a key for each element emitted by
-    * the source, suppress duplicate items.
+    * Example:
+    * {{{
+    *   // Yields 1, 2, 1, 3, 2, 4
+    *   Observable(1, 1, 1, 2, 2, 1, 1, 3, 3, 3, 2, 2, 4, 4, 4)
+    *     .distinctUntilChanged
+    * }}}
     *
-    * The generated keys are compared using universal equality.
+    * Duplication is detected by using the equality relationship
+    * provided by the `cats.Eq` type class. This allows one to
+    * override the equality operation being used (e.g. maybe the
+    * default `.equals` is badly defined, or maybe you want reference
+    * equality, so depending on use case).
     *
-    * WARNING: this requires unbounded buffering.
+    * In case type `A` is a primitive type and an `Eq[A]` instance
+    * is not in scope, then you probably need this import:
+    *
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * Or in case your type `A` does not have an `Eq[A]` instance
+    * defined for it, then you can quickly define one like this:
+    * {{{
+    *   import cats.Eq
+    *
+    *   implicit val eqA = Eq.fromUniversalEquals[A]
+    * }}}
+    *
+    * @param A is the `cats.Eq` instance that defines equality
+    *        for the elements emitted by the source
     */
-  def distinctByKey[K](key: A => K): Self[A] =
-    self.liftByOperator(new DistinctByKeyOperator(key))
-
-  /** Suppress duplicate consecutive items emitted by the source,
-    * using universal equality.
-    */
-  def distinctUntilChanged: Self[A] =
-    self.liftByOperator(new DistinctUntilChangedOperator[A])
+  def distinctUntilChanged[AA >: A](implicit A: Eq[AA]): Self[AA] =
+    self.liftByOperator(new DistinctUntilChangedOperator()(A))
 
   /** Given a function that returns a key for each element emitted by
     * the source, suppress consecutive duplicate items.
     *
-    * The generated keys are compared using universal equality.
+    * Example:
+    *
+    * {{{
+    *   // Yields 1, 2, 3, 4
+    *   Observable(1, 3, 2, 4, 2, 3, 5, 7, 4)
+    *     .distinctUntilChangedBy(_ % 2)
+    * }}}
+    *
+    * Duplication is detected by using the equality relationship
+    * provided by the `cats.Eq` type class. This allows one to
+    * override the equality operation being used (e.g. maybe the
+    * default `.equals` is badly defined, or maybe you want reference
+    * equality, so depending on use case).
+    *
+    * In case type `K` is a primitive type and an `Eq[K]` instance
+    * is not in scope, then you probably need this import:
+    *
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * Or in case your type `K` does not have an `Eq[K]` instance
+    * defined for it, then you can quickly define one like this:
+    *
+    * {{{
+    *   import cats.Eq
+    *
+    *   implicit val eqK = Eq.fromUniversalEquals[K]
+    * }}}
+    *
+    * @param key is a function that returns a `K` key for each element,
+    *        a value that's then used to do the deduplication
+    *
+    * @param K is the `cats.Eq` instance that defines equality for
+    *        the key type `K`
     */
-  def distinctUntilChangedByKey[K](key: A => K): Self[A] =
-    self.liftByOperator(new DistinctUntilChangedByKeyOperator(key))
+  def distinctUntilChangedByKey[K](key: A => K)(implicit K: Eq[K]): Self[A] =
+    self.liftByOperator(new DistinctUntilChangedByKeyOperator(key)(K))
 
   /** Executes the given callback when the streaming is stopped
     * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
@@ -1124,6 +1191,42 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def flattenLatest[B](implicit ev: A <:< Observable[B]): Self[B] =
     self.switch
 
+  /** Given evidence that type `A` has a `cats.Monoid` implementation,
+    * folds the stream with the provided monoid definition.
+    *
+    * For streams emitting numbers, this effectively sums them up.
+    * For strings, this concatenates them.
+    *
+    * Example:
+    *
+    * {{{
+    *   // Yields 10
+    *   Observable(1, 2, 3, 4).foldF
+    *
+    *   // Yields "1234"
+    *   Observable("1", "2", "3", "4").foldF
+    * }}}
+    *
+    * Note, in case you don't have a `Monoid` instance in scope,
+    * but you feel like you should, try this import:
+    *
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * @see [[Observable.foldL foldL]] for the version that returns a
+    *      task instead of an observable.
+    *
+    * @param A is the `cats.Monoid` type class instance that's needed
+    *          in scope for folding the source
+    *
+    * @return the result of combining all elements of the source,
+    *         or the defined `Monoid.empty` element in case the
+    *         stream is empty
+    */
+  def foldF[AA >: A](implicit A: Monoid[AA]): Self[AA] =
+    foldLeftF(A.empty)(A.combine)
+
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
     * Observable that emits only one item before `onComplete`.
@@ -1167,6 +1270,9 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *       if (e != 3) Right(false) else Left(default)
     *   }
     * }}}
+    *
+    * @see [[Observable.foldWhileLeftL foldWhileLeftL]] for a version
+    *      that returns a task instead of an observable.
     *
     * @param seed is the initial state, specified as a possibly lazy value;
     *        it gets evaluated when the subscription happens and if it
@@ -1356,18 +1462,62 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def materialize: Self[Notification[A]] =
     self.liftByOperator(new MaterializeOperator[A])
 
-  /** Takes the elements of the source Observable and emits the maximum
-    * value, after the source has completed.
+  /** Given a `cats.Order` over the stream's elements, returns the
+    * maximum element in the stream.
+    *
+    * Example:
+    * {{{
+    *   // Yields Observable(20)
+    *   Observable(10, 7, 6, 8, 20, 3, 5).maxF
+    *
+    *   // Yields Observable.empty
+    *   Observable.empty.maxF
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @see [[Observable.maxL maxL]] for the version that returns a
+    *      [[monix.eval.Task Task]] instead of an observable.
+    *
+    * @param A is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the maximum element of the source stream, relative
+    *         to the defined `Order`
     */
-  def maxF[B >: A](implicit ev: Ordering[B]): Self[B] =
-    self.liftByOperator(new MaxOperator[B])
+  def maxF[AA >: A](implicit A: Order[AA]): Self[AA] =
+    self.liftByOperator(new MaxOperator[AA]()(A))
 
-  /** Takes the elements of the source Observable and emits the element
-    * that has the maximum key value, where the key is generated by
-    * the given function `f`.
+  /** Takes the elements of the source observable and emits the
+    * element that has the maximum key value, where the key is
+    * generated by the given function.
+    *
+    * Example:
+    * {{{
+    *   case class Person(name: String, age: Int)
+    *
+    *   // Yields Observable(Person("Alex", 34))
+    *   Observable(Person("Alex", 34), Person("Alice", 27))
+    *     .maxByF(_.age)
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @see [[Observable.maxByL maxByL]] for the version that returns a
+    *      [[monix.eval.Task Task]] instead of an observable.
+    *
+    * @param key is the function that returns the key for which the
+    *        given ordering is defined
+    *
+    * @param K is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the maximum element of the source stream, relative
+    *         to its key generated by the given function and the
+    *         given ordering
     */
-  def maxByF[B](f: A => B)(implicit ev: Ordering[B]): Self[A] =
-    self.liftByOperator(new MaxByOperator[A,B](f))
+  def maxByF[K](key: A => K)(implicit K: Order[K]): Self[A] =
+    self.liftByOperator(new MaxByOperator[A,K](key)(K))
 
   /** $mergeDescription
     *
@@ -1409,18 +1559,59 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     (implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Self[B] =
     self.transform(self => new MergeMapObservable[A,B](self, f, os, delayErrors = true))
 
-  /** Takes the elements of the source Observable and emits the minimum
-    * value, after the source has completed.
+  /** Given a `cats.Order` over the stream's elements, returns the
+    * minimum element in the stream.
+    *
+    * Example:
+    * {{{
+    *   // Yields Observable(3)
+    *   Observable(10, 7, 6, 8, 20, 3, 5).minF
+    *
+    *   // Yields Observable.empty
+    *   Observable.empty.minF
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @see [[Observable.minL minL]] for the version that returns a
+    *      [[monix.eval.Task Task]] instead of an observable.
+    *
+    * @param A is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the minimum element of the source stream, relative
+    *         to the defined `Order`
     */
-  def minF[B >: A](implicit ev: Ordering[B]): Self[B] =
-    self.liftByOperator(new MinOperator[B]()(ev))
+  def minF[AA >: A](implicit A: Order[AA]): Self[AA] =
+    self.liftByOperator(new MinOperator()(A))
 
-  /** Takes the elements of the source Observable and emits the element
-    * that has the minimum key value, where the key is generated by
-    * the given function `f`.
+  /** Takes the elements of the source observable and emits the
+    * element that has the minimum key value, where the key is
+    * generated by the given function.
+    *
+    * Example:
+    * {{{
+    *   case class Person(name: String, age: Int)
+    *
+    *   // Yields Observable(Person("Alice", 27))
+    *   Observable(Person("Alex", 34), Person("Alice", 27))
+    *     .minByF(_.age)
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @param key is the function that returns the key for which the
+    *        given ordering is defined
+    *
+    * @param K is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the minimum element of the source stream, relative
+    *         to its key generated by the given function and the
+    *         given ordering
     */
-  def minByF[B](f: A => B)(implicit ev: Ordering[B]): Self[A] =
-    self.liftByOperator(new MinByOperator[A,B](f))
+  def minByF[K](key: A => K)(implicit K: Order[K]): Self[A] =
+    self.liftByOperator(new MinByOperator[A,K](key))
 
   /** Returns an Observable that emits false if the source Observable is
     * empty, otherwise true.
@@ -1862,8 +2053,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   /** Given a source that emits numeric values, the `sum` operator sums
     * up all values and at onComplete it emits the total.
     */
-  def sumF[B >: A : Numeric]: Self[B] =
-    self.liftByOperator(new SumOperator[B])
+  def sumF[AA >: A](implicit A: Numeric[AA]): Self[AA] =
+    foldLeftF(A.zero)(A.plus)
 
   /** $switchDescription */
   def switch[B](implicit ev: A <:< Observable[B]): Self[B] =
