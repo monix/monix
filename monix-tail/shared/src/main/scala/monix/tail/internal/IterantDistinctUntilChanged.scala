@@ -28,7 +28,7 @@ import monix.tail.internal.IterantUtils.signalError
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantDistinctUntilChanged {
-  /** Implementation for `distinctUntilChanged`. */
+  /** Implementation for `distinctUntilChangedByKey`. */
   def apply[F[_], A, K](self: Iterant[F, A], f: A => K)
     (implicit F: Sync[F], K: Eq[K]): Iterant[F, A] = {
 
@@ -87,6 +87,7 @@ private[tail] object IterantDistinctUntilChanged {
           processCursor(prev, node)
         case NextBatch(ref, rest, stop) =>
           processCursor(prev, NextCursor(ref.cursor(), rest, stop))
+
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop(prev)), stop)
         case Last(a) =>
@@ -99,6 +100,8 @@ private[tail] object IterantDistinctUntilChanged {
       }
     }
 
+    // Starting function, needed because we don't have a start
+    // and I'd hate to use `null` for `prev` or box it in `Option`
     def start(self: Iterant[F, A]): Iterant[F, A] = {
       try self match {
         case Next(a, rest, stop) =>

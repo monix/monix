@@ -29,7 +29,7 @@ import scala.collection.immutable.LinearSeq
 import scala.reflect.ClassTag
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
-  * streaming of elements.
+  * streaming of elements using a pull-based protocol.
   *
   * It is similar somewhat in spirit to Scala's own
   * `collection.immutable.Stream` and with Java's `Iterable`, except
@@ -814,11 +814,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * In other words:
     *
-    * - in case the processing fails in any way with exceptions,
-    *   it is the user's responsibility to chain `stop`
-    * - in case the processing is short-circuited by not using the
-    *   `F[B]` right param, it is the user responsibility to chain
-    *   `stop`
+    *  - in case the processing fails in any way with exceptions,
+    *    it is the user's responsibility to chain `stop`
+    *  - in case the processing is short-circuited by not using the
+    *    `F[B]` right param, it is the user responsibility to chain
+    *    `stop`
     *
     * This is in contrast with all operators (unless explicitly
     * mentioned otherwise).
@@ -1468,7 +1468,7 @@ object Iterant extends IterantInstances {
     *
     * @param fa $suspendByNameParam
     */
-  def defer[F[_] : Sync, A](fa: => Iterant[F, A]): Iterant[F, A] =
+  def defer[F[_], A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     suspend(fa)
 
   /** $builderSuspendByName
@@ -1713,7 +1713,7 @@ private[tail] trait IterantInstances extends IterantInstances1 {
 
 private[tail] trait IterantInstances1 {
   /** Provides a Cats type class instances for [[Iterant]]. */
-  implicit def catsInstances[F[_] : Sync]: CatsInstances[F] =
+  implicit def catsInstances[F[_]](implicit F: Sync[F]): CatsInstances[F] =
     new CatsInstances[F]()
 
   /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */

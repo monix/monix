@@ -24,7 +24,7 @@ import monix.execution.misc.NonFatal
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
 
-object IterantFoldWhileLeft {
+private[tail] object IterantFoldWhileLeft {
   /** Implementation for `Iterant.foldWhileLeftL`. */
   def strict[F[_], A, S](self: Iterant[F, A], seed: => S, f: (S, A) => Either[S, S])
     (implicit F: Sync[F]): F[S] = {
