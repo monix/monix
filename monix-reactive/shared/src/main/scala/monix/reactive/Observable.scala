@@ -18,7 +18,8 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
-import cats.{CoflatMap, MonadError, MonoidK}
+
+import cats.{CoflatMap, MonadError, Monoid, MonoidK, Order}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
@@ -31,6 +32,7 @@ import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
+
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
@@ -316,6 +318,42 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   def findL(p: A => Boolean): Task[Option[A]] =
     findF(p).headOptionL
 
+  /** Given evidence that type `A` has a `cats.Monoid` implementation,
+    * folds the stream with the provided monoid definition.
+    *
+    * For streams emitting numbers, this effectively sums them up.
+    * For strings, this concatenates them.
+    *
+    * Example:
+    *
+    * {{{
+    *   // Yields 10
+    *   Observable(1, 2, 3, 4).foldL
+    *
+    *   // Yields "1234"
+    *   Observable("1", "2", "3", "4").foldL
+    * }}}
+    *
+    * Note, in case you don't have a `Monoid` instance in scope,
+    * but you feel like you should, try this import:
+    *
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * @see [[foldF]] for the version that returns an observable
+    *      instead of a task.
+    *
+    * @param A is the `cats.Monoid` type class instance that's needed
+    *          in scope for folding the source
+    *
+    * @return the result of combining all elements of the source,
+    *         or the defined `Monoid.empty` element in case the
+    *         stream is empty
+    */
+  def foldL[AA >: A](implicit A: Monoid[AA]): Task[AA] =
+    foldF(A).headL
+
   /** Applies a binary operator to a start value and all elements of
     * the source, going left to right and returns a new `Task` that
     * upon evaluation will eventually emit the final result.
@@ -330,10 +368,44 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * Note that a call to [[foldLeftL]] is equivalent to this function
     * being called with an operator always returning `Left` results.
     *
-    * @param op is an operator that will fold the signals of the source
-    *        observable, returning either a new state along with a
-    *        boolean that should become false in case the folding must
-    *        be interrupted.
+    * Example: {{{
+    *   // Sums first 10 items
+    *   Observable.range(0, 1000).foldWhileLeftL((0, 0)) {
+    *     case ((sum, count), e) =>
+    *       val next = (sum + e, count + 1)
+    *       if (count + 1 < 10) Left(next) else Right(next)
+    *   }
+    *
+    *   // Implements exists(predicate)
+    *   Observable(1, 2, 3, 4, 5).foldWhileLeftL(false) {
+    *     (default, e) =>
+    *       if (e == 3) Right(true) else Left(default)
+    *   }
+    *
+    *   // Implements forall(predicate)
+    *   Observable(1, 2, 3, 4, 5).foldWhileLeftL(true) {
+    *     (default, e) =>
+    *       if (e != 3) Right(false) else Left(default)
+    *   }
+    * }}}
+    *
+    * @see [[foldWhileLeftF]] for a version that returns an observable
+    *      instead of a task.
+    *
+    * @param seed is the initial state, specified as a possibly lazy value;
+    *        it gets evaluated when the subscription happens and if it
+    *        triggers an error then the subscriber will get immediately
+    *        terminated with an error
+    *
+    * @param op is the binary operator returning either `Left`,
+    *        signaling that the state should be evolved or a `Right`,
+    *        signaling that the process can be short-circuited and
+    *        the result returned immediately
+    *
+    * @return the result of inserting `op` between consecutive
+    *         elements of this observable, going from left to right with
+    *         the `seed` as the start value, or `seed` if the observable
+    *         is empty
     */
   def foldWhileLeftL[S](seed: => S)(op: (S, A) => Either[S, S]): Task[S] =
     foldWhileLeftF(seed)(op).headL
@@ -480,31 +552,116 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       })
     }
 
-  /** Takes the elements of the source and emits the maximum
-    * value, after the source has completed.
+  /** Given a `cats.Order` over the stream's elements, returns the
+    * maximum element in the stream.
+    *
+    * Example:
+    * {{{
+    *   // Yields Some(20)
+    *   Observable(10, 7, 6, 8, 20, 3, 5).maxL
+    *
+    *   // Yields Observable.empty
+    *   Observable.empty.maxL
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @see [[Observable.maxF maxF]] for the version that returns an
+    *      observable instead of a `Task`.
+    *
+    * @param A is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the maximum element of the source stream, relative
+    *         to the defined `Order`
     */
-  def maxL[B >: A](implicit ev: Ordering[B]): Task[Option[B]] =
-    maxF(ev).headOptionL
+  def maxL[AA >: A](implicit A: Order[AA]): Task[Option[AA]] =
+    maxF(A).headOptionL
 
-  /** Takes the elements of the source and emits the element
-    * that has the maximum key value, where the key is generated by
-    * the given function `f`.
+  /** Takes the elements of the source observable and emits the
+    * element that has the maximum key value, where the key is
+    * generated by the given function.
+    *
+    * Example:
+    * {{{
+    *   case class Person(name: String, age: Int)
+    *
+    *   // Yields Some(Person("Alex", 34))
+    *   Observable(Person("Alex", 34), Person("Alice", 27))
+    *     .maxByL(_.age)
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @see [[Observable.maxByF maxByF]] for the version that returns an
+    *      observable instead of a `Task`.
+    *
+    * @param key is the function that returns the key for which the
+    *        given ordering is defined
+    *
+    * @param K is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the maximum element of the source stream, relative
+    *         to its key generated by the given function and the
+    *         given ordering
     */
-  def maxByL[B](f: A => B)(implicit ev: Ordering[B]): Task[Option[A]] =
-    maxByF(f)(ev).headOptionL
+  def maxByL[K](key: A => K)(implicit K: Order[K]): Task[Option[A]] =
+    maxByF(key)(K).headOptionL
 
-  /** Takes the elements of the source and emits the minimum
-    * value, after the source has completed.
+  /** Given a `cats.Order` over the stream's elements, returns the
+    * minimum element in the stream.
+    *
+    * Example:
+    * {{{
+    *   // Yields Some(3)
+    *   Observable(10, 7, 6, 8, 20, 3, 5).minL
+    *
+    *   // Yields None
+    *   Observable.empty.minL
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @see [[Observable.minF minF]] for the version that returns an
+    *      observable instead of a `Task`.
+    *
+    * @param A is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the minimum element of the source stream, relative
+    *         to the defined `Order`
     */
-  def minL[B >: A](implicit ev: Ordering[B]): Task[Option[B]] =
-    minF(ev).headOptionL
+  def minL[AA >: A](implicit A: Order[AA]): Task[Option[AA]] =
+    minF(A).headOptionL
 
-  /** Takes the elements of the source and emits the element
-    * that has the minimum key value, where the key is generated by
-    * the given function `f`.
+  /** Takes the elements of the source observable and emits the
+    * element that has the minimum key value, where the key is
+    * generated by the given function.
+    *
+    * Example:
+    * {{{
+    *   case class Person(name: String, age: Int)
+    *
+    *   // Yields Some(Person("Alice", 27))
+    *   Observable(Person("Alex", 34), Person("Alice", 27))
+    *     .minByL(_.age)
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @param key is the function that returns the key for which the
+    *        given ordering is defined
+    *
+    * @param K is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the minimum element of the source stream, relative
+    *         to its key generated by the given function and the
+    *         given ordering
     */
-  def minByL[B](f: A => B)(implicit ev: Ordering[B]): Task[Option[A]] =
-    minByF(f)(ev).headOptionL
+  def minByL[K](key: A => K)(implicit K: Order[K]): Task[Option[A]] =
+    minByF(key)(K).headOptionL
 
   /** Returns a task that emits `false` if the source observable is
     * empty, otherwise `true`.
