@@ -26,10 +26,10 @@ private[tail] object IterantUtils {
   /** Internal utility for signaling an error, while
     * suspending `stop` before that.
     */
-  def signalError[F[_], A, B](source: Iterant[F, A], ex: Throwable)
+  def signalError[F[_], A, B](source: Iterant[F, A], e: Throwable)
     (implicit F: Functor[F]): Iterant[F,B] = {
 
-    val halt = Iterant.haltS[F,B](Some(ex))
+    val halt = Iterant.haltS[F,B](Some(e))
     source match {
       case Next(_,_,stop) =>
         Suspend(stop.map(_ => halt), stop)
