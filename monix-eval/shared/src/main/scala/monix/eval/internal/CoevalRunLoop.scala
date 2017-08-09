@@ -100,7 +100,7 @@ private[eval] object CoevalRunLoop {
     else if (bRest ne null) {
       var cursor: Bind = null
       do { cursor = bRest.pop() }
-      while(cursor != null && cursor.isInstanceOf[Transformation.OnError[_,_]])
+      while (cursor != null && cursor.isInstanceOf[Transformation.OnError[_,_]])
       cursor
     } else {
       null

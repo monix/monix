@@ -80,13 +80,14 @@ private[eval] object TaskRunLoop {
     result
   }
 
+
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
     if ((bFirst ne null) && !bFirst.isInstanceOf[Transformation.OnError[_,_]])
       bFirst
     else if (bRest ne null) {
       var cursor: Bind = null
       do { cursor = bRest.pop() }
-      while(cursor != null && cursor.isInstanceOf[Transformation.OnError[_,_]])
+      while (cursor != null && cursor.isInstanceOf[Transformation.OnError[_,_]])
       cursor
     } else {
       null
