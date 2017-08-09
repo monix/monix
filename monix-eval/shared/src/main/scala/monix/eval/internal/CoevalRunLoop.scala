@@ -77,7 +77,7 @@ private[eval] object CoevalRunLoop {
   /** Logic for finding the next `Transformation` reference,
     * meant for handling errors in the run-loop.
     */
-  def findErrorHandler(bFirst: Bind, bRest: CallStack): Transformation[Any, Coeval[Any]] = {
+  private def findErrorHandler(bFirst: Bind, bRest: CallStack): Transformation[Any, Coeval[Any]] = {
     var result: Transformation[Any, Coeval[Any]] = null
     var cursor = bFirst
     var continue = true
@@ -94,10 +94,17 @@ private[eval] object CoevalRunLoop {
     result
   }
 
-  @inline def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if (bFirst ne null) bFirst
-    else if (bRest ne null) bRest.pop()
-    else null
+  private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
+    if ((bFirst ne null) && !bFirst.isInstanceOf[Transformation.OnError[_,_]])
+      bFirst
+    else if (bRest ne null) {
+      var cursor: Bind = null
+      do { cursor = bRest.pop() }
+      while(cursor != null && cursor.isInstanceOf[Transformation.OnError[_,_]])
+      cursor
+    } else {
+      null
+    }
   }
 
   /** Creates a new [[CallStack]]. */

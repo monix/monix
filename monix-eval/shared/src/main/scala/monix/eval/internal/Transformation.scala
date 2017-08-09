@@ -45,10 +45,22 @@ private[eval] object Transformation {
   def apply[A, R](fa: A => R, fe: Throwable => R): Transformation[A, R] =
     new Fold(fa, fe)
 
-  private final class Fold[A, R](fa: A => R, fe: Throwable => R)
+  /** Builds a [[Transformation]] instance that only handles errors,
+    * otherwise mirroring the value on `success`.
+    */
+  def onError[A, R](fa: A => R, fe: Throwable => R): Transformation[A, R] =
+    new OnError(fa, fe)
+
+  /** [[Transformation]] reference that's only handles errors,
+    * useful for quick filtering of `onErrorHandleWith` frames.
+    */
+  final class OnError[-A, +R](fa: A => R, fe: Throwable => R)
+    extends Fold[A, R](fa, fe)
+
+  class Fold[-A, +R](fa: A => R, fe: Throwable => R)
     extends Transformation[A, R] {
 
-    override def success(a: A): R = fa(a)
-    override def error(e: Throwable): R = fe(e)
+    final override def success(a: A): R = fa(a)
+    final override def error(e: Throwable): R = fe(e)
   }
 }

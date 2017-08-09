@@ -73,12 +73,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return a [[monix.execution.Cancelable Cancelable]] that can
     *         be used to cancel a running task
     */
-  def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
-    val context = Context(s)
-    val frameStart = TaskRunLoop.frameStart(s.executionModel)
-    TaskRunLoop.startWithCallback(self, context, Callback.safe(cb), null, null, frameStart)
-    context.connection
-  }
+  def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
+    TaskRunLoop.startLightWithCallback(self, s, cb)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
@@ -460,7 +456,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
-    self.transformWith(Task.Now.apply, f)
+    FlatMap(this, Transformation.onError[A, Task[B]](Task.Now.apply, f))
 
   /** Creates a new task that in case of error will fallback to the
     * given backup task.
@@ -500,7 +496,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorRecover]] for the version that takes a partial function.
     */
   def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
-    transform(a => a, f)
+    onErrorHandleWith(f.andThen(Task.Now.apply))
 
   /** Creates a new task that on error will try to map the error
     * to another value using the provided partial function.

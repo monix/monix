@@ -229,7 +229,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   def onErrorHandleWith[B >: A](f: Throwable => Coeval[B]): Coeval[B] =
-    self.transformWith(Coeval.Now.apply, f)
+    FlatMap(this, Transformation.onError[A, Coeval[B]](Coeval.Now.apply, f))
 
   /** Creates a new coeval that in case of error will fallback to the
     * given backup coeval.
@@ -263,7 +263,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * See [[onErrorRecover]] for the version that takes a partial function.
     */
   def onErrorHandle[U >: A](f: Throwable => U): Coeval[U] =
-    transform(a => a, f)
+    onErrorHandleWith(f.andThen(Coeval.pure))
 
   /** Creates a new coeval that on error will try to map the error
     * to another value using the provided partial function.
@@ -584,6 +584,12 @@ object Coeval {
   final case class Now[+A](override val value: A) extends Eager[A] {
     override def apply(): A = value
     override def runToEager: Now[A] = this
+
+    // Overrides for strict evaluation
+    override def onErrorHandleWith[B >: A](f: (Throwable) => Coeval[B]): Coeval[B] =
+      this
+    override def onErrorHandle[U >: A](f: (Throwable) => U): Coeval[U] =
+      this
   }
 
   /** Constructs an eager [[Coeval]] instance for
@@ -592,6 +598,12 @@ object Coeval {
   final case class Error(ex: Throwable) extends Eager[Nothing] {
     override def apply(): Nothing = throw ex
     override def runToEager: Error = this
+
+    // Overrides for strict evaluation
+    override def map[B](f: (Nothing) => B): Coeval[B] =
+      this
+    override def flatMap[B](f: (Nothing) => Coeval[B]): Coeval[B] =
+      this
   }
 
   /** Constructs a lazy [[Coeval]] instance that gets evaluated

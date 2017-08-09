@@ -63,10 +63,17 @@ object IterantMapSuite extends BaseTestSuite {
   test("Iterant[Task].map should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
+      var effect = 0
+
       val list = if (l.isEmpty) List(1) else l
       val iterant = arbitraryListToIterant[Task, Int](list, idx)
-      val received = (iterant ++ Iterant[Task].now(1)).map[Int](_ => throw dummy)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      val received = (iterant ++ Iterant[Task].of(1, 2))
+        .doOnEarlyStop(Task.eval { effect += 1 })
+        .map[Int](_ => throw dummy)
+        .completeL.map(_ => 0)
+        .onErrorRecover { case _: DummyException => effect }
+
+      received <-> Task.pure(1)
     }
   }
 
