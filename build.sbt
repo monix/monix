@@ -376,6 +376,24 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 
+lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
+  .configure(profile)
+  .enablePlugins(JmhPlugin)
+  .settings(crossSettings)
+  .settings(sharedSettings)
+  .settings(doNotPublishArtifact)
+  .settings(
+    libraryDependencies += "io.monix" %% "monix-reactive" % "2.3.0"
+  )
+
+lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
+  .configure(profile)
+  .dependsOn(coreJVM)
+  .enablePlugins(JmhPlugin)
+  .settings(crossSettings)
+  .settings(sharedSettings)
+  .settings(doNotPublishArtifact)
+
 //------------- For Release
 
 useGpg := false
