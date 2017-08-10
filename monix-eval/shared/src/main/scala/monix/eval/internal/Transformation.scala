@@ -25,16 +25,13 @@ package monix.eval.internal
 private[eval] abstract class Transformation[-A, +R]
   extends (A => R) { self =>
 
-  final override def apply(a: A): R =
-    success(a)
-
-  def success(a: A): R
+  def apply(a: A): R
   def error(e: Throwable): R
 
   override def andThen[X](g: (R) => X): Transformation[A, X] =
     new Transformation[A, X] {
-      def success(a: A): X =
-        g(self.success(a))
+      def apply(a: A): X =
+        g(self(a))
       def error(e: Throwable): X =
         g(self.error(e))
     }
@@ -48,19 +45,22 @@ private[eval] object Transformation {
   /** Builds a [[Transformation]] instance that only handles errors,
     * otherwise mirroring the value on `success`.
     */
-  def onError[A, R](fa: A => R, fe: Throwable => R): Transformation[A, R] =
-    new OnError(fa, fe)
+  def onError[R](fe: Throwable => R): Transformation[Any, R] =
+    new OnError(fe)
 
-  /** [[Transformation]] reference that's only handles errors,
+  /** [[Transformation]] reference that only handles errors,
     * useful for quick filtering of `onErrorHandleWith` frames.
     */
-  final class OnError[-A, +R](fa: A => R, fe: Throwable => R)
-    extends Fold[A, R](fa, fe)
+  final class OnError[+R](fe: Throwable => R) extends Transformation[Any, R] {
+    def error(e: Throwable): R = fe(e)
+    def apply(a: Any): R =
+      throw new NotImplementedError("Transformation.OnError.success")
+  }
 
-  class Fold[-A, +R](fa: A => R, fe: Throwable => R)
+  private final class Fold[-A, +R](fa: A => R, fe: Throwable => R)
     extends Transformation[A, R] {
 
-    final override def success(a: A): R = fa(a)
-    final override def error(e: Throwable): R = fe(e)
+    def apply(a: A): R = fa(a)
+    def error(e: Throwable): R = fe(e)
   }
 }

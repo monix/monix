@@ -82,12 +82,12 @@ private[eval] object TaskRunLoop {
 
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if ((bFirst ne null) && !bFirst.isInstanceOf[Transformation.OnError[_,_]])
+    if ((bFirst ne null) && !bFirst.isInstanceOf[Transformation.OnError[_]])
       bFirst
     else if (bRest ne null) {
       var cursor: Bind = null
       do { cursor = bRest.pop() }
-      while (cursor != null && cursor.isInstanceOf[Transformation.OnError[_,_]])
+      while (cursor != null && cursor.isInstanceOf[Transformation.OnError[_]])
       cursor
     } else {
       null
@@ -213,9 +213,9 @@ private[eval] object TaskRunLoop {
             loop(nextState, em, cb, rcb, nextBFirst, bRest, nextFrame)
           }
 
-        case FlatMap(fa, f) =>
+        case ref @ FlatMap(fa, _, _) =>
           var callStack: CallStack = bRest
-          val bindNext = f.asInstanceOf[Bind]
+          val bindNext = ref.bind()
           if (bFirst ne null) {
             if (callStack eq null) callStack = createCallStack()
             callStack.push(bFirst)
@@ -336,9 +336,9 @@ private[eval] object TaskRunLoop {
             loop(nextState, em, cb, nextBFirst, bRest, nextFrame)
           }
 
-        case FlatMap(fa, f) =>
+        case ref @ FlatMap(fa, _, _) =>
           var callStack: CallStack = bRest
-          val bind = f.asInstanceOf[Bind]
+          val bind = ref.bind()
           if (bFirst ne null) {
             if (callStack eq null) callStack = createCallStack()
             callStack.push(bFirst)
@@ -425,9 +425,9 @@ private[eval] object TaskRunLoop {
       frameIndex: Int): CancelableFuture[Any] = {
 
       if (frameIndex != 0) source match {
-        case FlatMap(fa, f) =>
+        case ref @ FlatMap(fa, _, _) =>
           var callStack: CallStack = bRest
-          val bind = f.asInstanceOf[Bind]
+          val bind = ref.bind()
           if (bFirst ne null) {
             if (callStack eq null) callStack = createCallStack()
             callStack.push(bFirst)

@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.Scheduler
-//import monix.execution.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import org.openjdk.jmh.annotations._
 
 /** To do comparative benchmarks between Monix versions:
@@ -46,23 +46,22 @@ class TaskRecoverBenchmark {
 
   @Param(Array("10000"))
   var size: Int = _
-//
-//  @Benchmark
-//  def justFlatMap(): Int = {
-//    import monix.eval.Task
-//
-//    def loop(i: Int): Task[Int] =
-//      if (i < size)
-//        Task.now(i + 1).flatMap(loop)
-//      else
-//        Task.now(i)
-//
-//    Task.now(0).flatMap(loop)
-//      .runSyncMaybe.right.get
-//  }
 
   @Benchmark
-  def happyPath(): Int = {
+  def justFlatMap() = {
+    import monix.eval.Task
+
+    def loop(i: Int): Task[Int] =
+      if (i < size)
+        Task.now(i + 1).flatMap(loop)
+      else
+        Task.now(i)
+
+    Task.now(0).flatMap(loop).runAsync.value
+  }
+
+  @Benchmark
+  def happyPath() = {
     import monix.eval.Task
 
     def loop(i: Int): Task[Int] =
@@ -73,27 +72,24 @@ class TaskRecoverBenchmark {
       else
         Task.now(i)
 
-    Task.now(0).flatMap(loop)
-      .runSyncMaybe.right.get
+    Task.now(0).flatMap(loop).runAsync.value
   }
-//
-//  @Benchmark
-//  def handleError(): Int = {
-//    import monix.eval.Task
-//    val dummy = DummyException("dummy")
-//
-//    def loop(i: Int): Task[Int] =
-//      if (i < size)
-//        Task.raiseError(dummy)
-//          .onErrorHandleWith(_ => Task.now(i + 1))
-//          .flatMap(loop)
-//      else
-//        Task.now(i)
-//
-//    Task.now(0)
-//      .flatMap(loop)
-//      .runSyncMaybe.right.get
-//  }
+
+  @Benchmark
+  def handleError() = {
+    import monix.eval.Task
+    val dummy = DummyException("dummy")
+
+    def loop(i: Int): Task[Int] =
+      if (i < size)
+        Task.raiseError(dummy)
+          .onErrorHandleWith(_ => Task.now(i + 1))
+          .flatMap(loop)
+      else
+        Task.now(i)
+
+    Task.now(0).flatMap(loop).runAsync.value
+  }
 }
 
 object TaskRecoverBenchmark {
