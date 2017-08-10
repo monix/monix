@@ -1,0 +1,201 @@
+# JMH version: 1.19
+# VM version: JDK 1.8.0_131, VM 25.131-b11
+# VM invoker: /Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home/jre/bin/java
+# VM options: <none>
+# Warmup: 10 iterations, 1 s each
+# Measurement: 10 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: monix.benchmarks.TaskRecoverBenchmark.handleError
+# Parameters: (size = 10000)
+
+# Run progress: 0.00% complete, ETA 00:02:00
+# Fork: 1 of 2
+# Warmup Iteration   1: 983.673 ops/s
+# Warmup Iteration   2: 2110.519 ops/s
+# Warmup Iteration   3: 2086.127 ops/s
+# Warmup Iteration   4: 2513.385 ops/s
+# Warmup Iteration   5: 2511.414 ops/s
+# Warmup Iteration   6: 2487.709 ops/s
+# Warmup Iteration   7: 2507.320 ops/s
+# Warmup Iteration   8: 2470.749 ops/s
+# Warmup Iteration   9: 2458.794 ops/s
+# Warmup Iteration  10: 2508.736 ops/s
+Iteration   1: 2521.467 ops/s
+Iteration   2: 2522.868 ops/s
+Iteration   3: 2522.737 ops/s
+Iteration   4: 2551.156 ops/s
+Iteration   5: 2537.575 ops/s
+Iteration   6: 2534.630 ops/s
+Iteration   7: 2533.712 ops/s
+Iteration   8: 2546.374 ops/s
+Iteration   9: 2550.123 ops/s
+Iteration  10: 2528.484 ops/s
+
+# Run progress: 16.67% complete, ETA 00:01:43
+# Fork: 2 of 2
+# Warmup Iteration   1: 1016.713 ops/s
+# Warmup Iteration   2: 2125.654 ops/s
+# Warmup Iteration   3: 2141.535 ops/s
+# Warmup Iteration   4: 2640.822 ops/s
+# Warmup Iteration   5: 2567.207 ops/s
+# Warmup Iteration   6: 2607.972 ops/s
+# Warmup Iteration   7: 2571.048 ops/s
+# Warmup Iteration   8: 2562.012 ops/s
+# Warmup Iteration   9: 2588.123 ops/s
+# Warmup Iteration  10: 2547.994 ops/s
+Iteration   1: 2538.946 ops/s
+Iteration   2: 2574.585 ops/s
+Iteration   3: 2531.619 ops/s
+Iteration   4: 2565.281 ops/s
+Iteration   5: 2555.213 ops/s
+Iteration   6: 2543.433 ops/s
+Iteration   7: 2566.983 ops/s
+Iteration   8: 2552.299 ops/s
+Iteration   9: 2563.438 ops/s
+Iteration  10: 2561.438 ops/s
+
+
+Result "monix.benchmarks.TaskRecoverBenchmark.handleError":
+  2545.118 ±(99.9%) 13.979 ops/s [Average]
+  (min, avg, max) = (2521.467, 2545.118, 2574.585), stdev = 16.098
+  CI (99.9%): [2531.139, 2559.097] (assumes normal distribution)
+
+
+# JMH version: 1.19
+# VM version: JDK 1.8.0_131, VM 25.131-b11
+# VM invoker: /Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home/jre/bin/java
+# VM options: <none>
+# Warmup: 10 iterations, 1 s each
+# Measurement: 10 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: monix.benchmarks.TaskRecoverBenchmark.happyPath
+# Parameters: (size = 10000)
+
+# Run progress: 33.33% complete, ETA 00:01:22
+# Fork: 1 of 2
+# Warmup Iteration   1: 1141.609 ops/s
+# Warmup Iteration   2: 2338.492 ops/s
+# Warmup Iteration   3: 2283.228 ops/s
+# Warmup Iteration   4: 2830.108 ops/s
+# Warmup Iteration   5: 2809.219 ops/s
+# Warmup Iteration   6: 2811.841 ops/s
+# Warmup Iteration   7: 2778.752 ops/s
+# Warmup Iteration   8: 2817.930 ops/s
+# Warmup Iteration   9: 2772.511 ops/s
+# Warmup Iteration  10: 2780.903 ops/s
+Iteration   1: 2727.845 ops/s
+Iteration   2: 2754.935 ops/s
+Iteration   3: 2760.923 ops/s
+Iteration   4: 2709.445 ops/s
+Iteration   5: 2723.204 ops/s
+Iteration   6: 2758.880 ops/s
+Iteration   7: 2761.997 ops/s
+Iteration   8: 2794.241 ops/s
+Iteration   9: 2736.755 ops/s
+Iteration  10: 2757.921 ops/s
+
+# Run progress: 50.00% complete, ETA 00:01:01
+# Fork: 2 of 2
+# Warmup Iteration   1: 1156.571 ops/s
+# Warmup Iteration   2: 2395.840 ops/s
+# Warmup Iteration   3: 2284.640 ops/s
+# Warmup Iteration   4: 2781.665 ops/s
+# Warmup Iteration   5: 2819.198 ops/s
+# Warmup Iteration   6: 2752.608 ops/s
+# Warmup Iteration   7: 2753.178 ops/s
+# Warmup Iteration   8: 2823.217 ops/s
+# Warmup Iteration   9: 2742.103 ops/s
+# Warmup Iteration  10: 2732.516 ops/s
+Iteration   1: 2731.527 ops/s
+Iteration   2: 2755.667 ops/s
+Iteration   3: 2719.479 ops/s
+Iteration   4: 2730.556 ops/s
+Iteration   5: 2753.092 ops/s
+Iteration   6: 2752.514 ops/s
+Iteration   7: 2758.303 ops/s
+Iteration   8: 2742.661 ops/s
+Iteration   9: 2760.123 ops/s
+Iteration  10: 2776.656 ops/s
+
+
+Result "monix.benchmarks.TaskRecoverBenchmark.happyPath":
+  2748.336 ±(99.9%) 17.812 ops/s [Average]
+  (min, avg, max) = (2709.445, 2748.336, 2794.241), stdev = 20.513
+  CI (99.9%): [2730.524, 2766.149] (assumes normal distribution)
+
+
+# JMH version: 1.19
+# VM version: JDK 1.8.0_131, VM 25.131-b11
+# VM invoker: /Library/Java/JavaVirtualMachines/jdk1.8.0_131.jdk/Contents/Home/jre/bin/java
+# VM options: <none>
+# Warmup: 10 iterations, 1 s each
+# Measurement: 10 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+# Benchmark: monix.benchmarks.TaskRecoverBenchmark.justFlatMap
+# Parameters: (size = 10000)
+
+# Run progress: 66.67% complete, ETA 00:00:41
+# Fork: 1 of 2
+# Warmup Iteration   1: 2608.928 ops/s
+# Warmup Iteration   2: 4591.190 ops/s
+# Warmup Iteration   3: 6414.291 ops/s
+# Warmup Iteration   4: 6476.048 ops/s
+# Warmup Iteration   5: 6548.594 ops/s
+# Warmup Iteration   6: 6521.173 ops/s
+# Warmup Iteration   7: 6466.837 ops/s
+# Warmup Iteration   8: 6409.682 ops/s
+# Warmup Iteration   9: 6587.930 ops/s
+# Warmup Iteration  10: 6435.742 ops/s
+Iteration   1: 6439.063 ops/s
+Iteration   2: 6521.699 ops/s
+Iteration   3: 6507.862 ops/s
+Iteration   4: 6475.977 ops/s
+Iteration   5: 6513.287 ops/s
+Iteration   6: 6501.134 ops/s
+Iteration   7: 6417.217 ops/s
+Iteration   8: 6508.631 ops/s
+Iteration   9: 6482.473 ops/s
+Iteration  10: 6559.641 ops/s
+
+# Run progress: 83.33% complete, ETA 00:00:20
+# Fork: 2 of 2
+# Warmup Iteration   1: 2504.044 ops/s
+# Warmup Iteration   2: 4616.805 ops/s
+# Warmup Iteration   3: 6273.259 ops/s
+# Warmup Iteration   4: 6305.096 ops/s
+# Warmup Iteration   5: 6695.437 ops/s
+# Warmup Iteration   6: 6556.031 ops/s
+# Warmup Iteration   7: 6568.871 ops/s
+# Warmup Iteration   8: 6558.012 ops/s
+# Warmup Iteration   9: 6475.709 ops/s
+# Warmup Iteration  10: 6475.671 ops/s
+Iteration   1: 6447.993 ops/s
+Iteration   2: 6443.681 ops/s
+Iteration   3: 6509.307 ops/s
+Iteration   4: 6452.094 ops/s
+Iteration   5: 6394.314 ops/s
+Iteration   6: 6413.264 ops/s
+Iteration   7: 6392.952 ops/s
+Iteration   8: 6468.893 ops/s
+Iteration   9: 6438.256 ops/s
+Iteration  10: 6485.748 ops/s
+
+
+Result "monix.benchmarks.TaskRecoverBenchmark.justFlatMap":
+  6468.674 ±(99.9%) 39.623 ops/s [Average]
+  (min, avg, max) = (6392.952, 6468.674, 6559.641), stdev = 45.630
+  CI (99.9%): [6429.051, 6508.297] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:02:03
+
+Benchmark                         (size)   Mode  Cnt     Score    Error  Units
+TaskRecoverBenchmark.handleError   10000  thrpt   20  2545.118 ± 13.979  ops/s
+TaskRecoverBenchmark.happyPath     10000  thrpt   20  2748.336 ± 17.812  ops/s
+TaskRecoverBenchmark.justFlatMap   10000  thrpt   20  6468.674 ± 39.623  ops/s

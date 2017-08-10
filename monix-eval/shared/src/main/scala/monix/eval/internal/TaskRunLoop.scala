@@ -177,6 +177,16 @@ private[eval] object TaskRunLoop {
       frameIndex: FrameIndex): Unit = {
 
       if (frameIndex != 0) source match {
+        case ref @ FlatMap(fa, _, _) =>
+          var callStack: CallStack = bRest
+          val bindNext = ref.bind()
+          if (bFirst ne null) {
+            if (callStack eq null) callStack = createCallStack()
+            callStack.push(bFirst)
+          }
+          // Next iteration please
+          loop(fa, em, cb, rcb, bindNext, callStack, frameIndex)
+
         case Now(value) =>
           popNextBind(bFirst, bRest) match {
             case null => cb.onSuccess(value)
@@ -213,20 +223,21 @@ private[eval] object TaskRunLoop {
             loop(nextState, em, cb, rcb, nextBFirst, bRest, nextFrame)
           }
 
-        case ref @ FlatMap(fa, _, _) =>
-          var callStack: CallStack = bRest
-          val bindNext = ref.bind()
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          // Next iteration please
-          loop(fa, em, cb, rcb, bindNext, callStack, frameIndex)
-
         case Suspend(thunk) =>
           // Next iteration please
           val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
           loop(fa, em, cb, rcb, bFirst, bRest, frameIndex)
+
+        case Error(ex) =>
+          findErrorHandler(bFirst, bRest) match {
+            case null => cb.onError(ex)
+            case bind =>
+              val fa = try bind.error(ex) catch { case NonFatal(e) => Error(e) }
+              // Given a flatMap evaluation just happened, must increment the index
+              val nextFrame = em.nextFrameIndex(frameIndex)
+              // Next cycle please
+              loop(fa, em, cb, rcb, null, bRest, nextFrame)
+          }
 
         case Async(onFinish) =>
           executeOnFinish(em, cb, rcb, bFirst, bRest, onFinish, frameIndex)
@@ -243,17 +254,6 @@ private[eval] object TaskRunLoop {
               val isSuccess = startMemoization(anyRef, context, cb, bFirst, bRest, frameIndex)
               // Next iteration please
               if (!isSuccess) loop(ref, em, cb, rcb, bFirst, bRest, frameIndex)
-          }
-
-        case Error(ex) =>
-          findErrorHandler(bFirst, bRest) match {
-            case null => cb.onError(ex)
-            case bind =>
-              val fa = try bind.error(ex) catch { case NonFatal(e) => Error(e) }
-              // Given a flatMap evaluation just happened, must increment the index
-              val nextFrame = em.nextFrameIndex(frameIndex)
-              // Next cycle please
-              loop(fa, em, cb, rcb, null, bRest, nextFrame)
           }
       }
       else {
@@ -299,6 +299,16 @@ private[eval] object TaskRunLoop {
       frameIndex: Int): Cancelable = {
 
       if (frameIndex != 0) source match {
+        case ref @ FlatMap(fa, _, _) =>
+          var callStack: CallStack = bRest
+          val bind = ref.bind()
+          if (bFirst ne null) {
+            if (callStack eq null) callStack = createCallStack()
+            callStack.push(bFirst)
+          }
+          // Next iteration please
+          loop(fa, em, cb, bind, callStack, frameIndex)
+
         case Now(value) =>
           popNextBind(bFirst, bRest) match {
             case null =>
@@ -336,30 +346,9 @@ private[eval] object TaskRunLoop {
             loop(nextState, em, cb, nextBFirst, bRest, nextFrame)
           }
 
-        case ref @ FlatMap(fa, _, _) =>
-          var callStack: CallStack = bRest
-          val bind = ref.bind()
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          // Next iteration please
-          loop(fa, em, cb, bind, callStack, frameIndex)
-
         case Suspend(thunk) =>
           val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
           loop(fa, em, cb, bFirst, bRest, frameIndex)
-
-        case ref: MemoizeSuspend[_] =>
-          ref.asInstanceOf[MemoizeSuspend[A]].value match {
-            case Some(materialized) =>
-              loop(fromTry(materialized), em, cb, bFirst, bRest, frameIndex)
-            case None =>
-              goAsync(source, bFirst, bRest, frameIndex, forceAsync = false)
-          }
-
-        case async @ Async(_) =>
-          goAsync(async, bFirst, bRest, frameIndex, forceAsync = false)
 
         case Error(ex) =>
           findErrorHandler(bFirst, bRest) match {
@@ -373,6 +362,17 @@ private[eval] object TaskRunLoop {
               // Next cycle please
               loop(fa, em, cb, null, bRest, nextFrame)
           }
+
+        case ref: MemoizeSuspend[_] =>
+          ref.asInstanceOf[MemoizeSuspend[A]].value match {
+            case Some(materialized) =>
+              loop(fromTry(materialized), em, cb, bFirst, bRest, frameIndex)
+            case None =>
+              goAsync(source, bFirst, bRest, frameIndex, forceAsync = false)
+          }
+
+        case async @ Async(_) =>
+          goAsync(async, bFirst, bRest, frameIndex, forceAsync = false)
       }
       else {
         // Asynchronous boundary is forced
@@ -476,17 +476,6 @@ private[eval] object TaskRunLoop {
           val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
           loop(fa, em, bFirst, bRest, frameIndex)
 
-        case ref: MemoizeSuspend[_] =>
-          ref.asInstanceOf[MemoizeSuspend[A]].value match {
-            case Some(materialized) =>
-              loop(fromTry(materialized), em, bFirst, bRest, frameIndex)
-            case None =>
-              goAsync(source, bFirst, bRest, frameIndex, forceAsync = false)
-          }
-
-        case async @ Async(_) =>
-          goAsync(async, bFirst, bRest, frameIndex, forceAsync = false)
-
         case Error(ex) =>
           findErrorHandler(bFirst, bRest) match {
             case null => CancelableFuture.failed(ex)
@@ -496,6 +485,17 @@ private[eval] object TaskRunLoop {
               val nextFrame = em.nextFrameIndex(frameIndex)
               // Next cycle please
               loop(fa, em, null, bRest, nextFrame)
+          }
+
+        case async @ Async(_) =>
+          goAsync(async, bFirst, bRest, frameIndex, forceAsync = false)
+
+        case ref: MemoizeSuspend[_] =>
+          ref.asInstanceOf[MemoizeSuspend[A]].value match {
+            case Some(materialized) =>
+              loop(fromTry(materialized), em, bFirst, bRest, frameIndex)
+            case None =>
+              goAsync(source, bFirst, bRest, frameIndex, forceAsync = false)
           }
       }
       else {
