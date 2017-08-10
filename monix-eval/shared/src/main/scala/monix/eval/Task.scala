@@ -73,12 +73,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return a [[monix.execution.Cancelable Cancelable]] that can
     *         be used to cancel a running task
     */
-  def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
-    val context = Context(s)
-    val frameStart = TaskRunLoop.frameStart(s.executionModel)
-    TaskRunLoop.startWithCallback(self, context, Callback.safe(cb), null, null, frameStart)
-    context.connection
-  }
+  def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
+    TaskRunLoop.startLightWithCallback(self, s, cb)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
@@ -139,7 +135,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * from the source.
     */
   def attempt: Task[Either[Throwable, A]] =
-    FlatMap(this, AttemptTask.asInstanceOf[Transformation[A, Task[Either[Throwable, A]]]])
+    FlatMap(this, AttemptTask.asInstanceOf[Transformation[A, Task[Either[Throwable, A]]]], null)
 
   /** Transforms a [[Task]] into a [[Coeval]] that tries to execute the
     * source synchronously, returning either `Right(value)` in case a
@@ -164,7 +160,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * of the function.
     */
   def flatMap[B](f: A => Task[B]): Task[B] =
-    FlatMap(this, f)
+    FlatMap(this, f, null)
 
   /** Given a source Task that emits another Task, this function
     * flattens the result, returning a Task equivalent to the emitted
@@ -440,7 +436,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * the source.
     */
   def materialize: Task[Try[A]] =
-    FlatMap(this, MaterializeTask.asInstanceOf[Transformation[A, Task[Try[A]]]])
+    FlatMap(this, MaterializeTask.asInstanceOf[Transformation[A, Task[Try[A]]]], null)
 
   /** Dematerializes the source's result from a `Try`. */
   def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
@@ -452,7 +448,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorHandleWith]] for the version that takes a total function.
     */
   def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Task[B]]): Task[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, raiseError))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, raiseConstructor))
 
   /** Creates a new task that will handle any matching throwable that
     * this task might emit by executing another task.
@@ -460,7 +456,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
-    self.transformWith(Task.Now.apply, f)
+    FlatMap(this, null, f)
 
   /** Creates a new task that in case of error will fallback to the
     * given backup task.
@@ -500,7 +496,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorRecover]] for the version that takes a partial function.
     */
   def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
-    transform(a => a, f)
+    onErrorHandleWith(f.andThen(nowConstructor))
 
   /** Creates a new task that on error will try to map the error
     * to another value using the provided partial function.
@@ -604,7 +600,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param fe function that transforms an error of the receiver
     */
   def transform[R](fa: A => R, fe: Throwable => R): Task[R] =
-    FlatMap(this, Transformation(fa, fe).andThen(Task.now))
+    transformWith(fa.andThen(nowConstructor), fe.andThen(nowConstructor))
 
   /** Creates a new `Task` by applying the 'fa' function to the successful result of
     * this future, or the 'fe' function to the potential errors that might happen.
@@ -616,7 +612,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param fe function that transforms an error of the receiver
     */
   def transformWith[R](fa: A => Task[R], fe: Throwable => Task[R]): Task[R] =
-    FlatMap(this, Transformation(fa, fe))
+    FlatMap(this, fa, fe)
 
   /** Zips the values of `this` and `that` task, and creates a new task
     * that will emit the tuple of their results.
@@ -1329,7 +1325,16 @@ object Task extends TaskInstances {
   }
 
   /** Internal [[Task]] state that is the result of applying `flatMap`. */
-  private[eval] final case class FlatMap[A, B](source: Task[A], f: A => Task[B]) extends Task[B] {
+  private[eval] final case class FlatMap[A, B](
+    source: Task[A], f: A => Task[B], g: Throwable => Task[B])
+    extends Task[B] {
+
+    def bind(): A => Task[B] = {
+      if (g eq null) f
+      else if (f eq null) Transformation.onError(g)
+      else Transformation(f, g)
+    }
+
     override def toString: String =
       s"Task.FlatMap(Task@${System.identityHashCode(source)}, $f)"
   }
@@ -1449,20 +1454,27 @@ object Task extends TaskInstances {
       context.scheduler.executeAsync(() => cb.onSuccess(()))
     }
 
+  /** Internal, reusable reference. */
+  private final val nowConstructor: (Any => Task[Nothing]) =
+    ((a: Any) => new Now(a)).asInstanceOf[Any => Task[Nothing]]
+  /** Internal, reusable reference. */
+  private final val raiseConstructor: (Throwable => Task[Nothing]) =
+    e => new Error(e)
+
   /** Used as optimization by [[Task.attempt]]. */
   private object AttemptTask extends Transformation[Any, Task[Either[Throwable, Any]]] {
-    override def success(a: Any): Task[Either[Throwable, Any]] =
-      Task.now(Right(a))
+    override def apply(a: Any): Task[Either[Throwable, Any]] =
+      new Now(Right(a))
     override def error(e: Throwable): Task[Either[Throwable, Any]] =
-      Task.now(Left(e))
+      new Now(Left(e))
   }
 
   /** Used as optimization by [[Task.materialize]]. */
   private object MaterializeTask extends Transformation[Any, Task[Try[Any]]] {
-    override def success(a: Any): Task[Try[Any]] =
-      Task.now(Success(a))
+    override def apply(a: Any): Task[Try[Any]] =
+      new Now(Success(a))
     override def error(e: Throwable): Task[Try[Any]] =
-      Task.now(Failure(e))
+      new Now(Failure(e))
   }
 }
 

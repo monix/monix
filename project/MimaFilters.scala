@@ -135,7 +135,23 @@ object MimaFilters {
     exclude[MissingTypesProblem]("monix.eval.Coeval$Now"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#Now.runAttempt"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval.typeClassInstances"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.internal.CoevalRunLoop.start")
+    exclude[IncompatibleResultTypeProblem]("monix.eval.internal.CoevalRunLoop.start"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.success"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.success"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#AttemptCoeval.success"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#FlatMap.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#FlatMap.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#AttemptTask.success"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#FlatMap.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.Transformation#Fold.success"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalRunLoop.findErrorHandler"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalRunLoop.popNextBind"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.Transformation.success"),
+    exclude[DirectAbstractMethodProblem]("monix.eval.internal.Transformation.apply"),
+    exclude[ReversedAbstractMethodProblem]("monix.eval.internal.Transformation.apply")
   )
 
   /** `monix-react` 3.0.0 */
