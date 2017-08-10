@@ -448,7 +448,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorHandleWith]] for the version that takes a total function.
     */
   def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Task[B]]): Task[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, raiseError))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, raiseConstructor))
 
   /** Creates a new task that will handle any matching throwable that
     * this task might emit by executing another task.
@@ -456,7 +456,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
-    FlatMap(this, Transformation.onError[A, Task[B]](Task.Now.apply, f))
+    FlatMap(this, Transformation.onError[A, Task[B]](nowConstructor, f))
 
   /** Creates a new task that in case of error will fallback to the
     * given backup task.
@@ -496,7 +496,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorRecover]] for the version that takes a partial function.
     */
   def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
-    onErrorHandleWith(f.andThen(Task.Now.apply))
+    onErrorHandleWith(f.andThen(nowConstructor))
 
   /** Creates a new task that on error will try to map the error
     * to another value using the provided partial function.
@@ -1444,6 +1444,13 @@ object Task extends TaskInstances {
     Async[Unit] { (context, cb) =>
       context.scheduler.executeAsync(() => cb.onSuccess(()))
     }
+
+  /** Internal, reusable reference. */
+  private final val nowConstructor: (Any => Task[Nothing]) =
+    ((a: Any) => new Now(a)).asInstanceOf[Any => Task[Nothing]]
+  /** Internal, reusable reference. */
+  private final val raiseConstructor: (Throwable => Task[Nothing]) =
+    e => new Error(e)
 
   /** Used as optimization by [[Task.attempt]]. */
   private object AttemptTask extends Transformation[Any, Task[Either[Throwable, Any]]] {

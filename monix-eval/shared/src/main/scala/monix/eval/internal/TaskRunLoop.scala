@@ -425,6 +425,16 @@ private[eval] object TaskRunLoop {
       frameIndex: Int): CancelableFuture[Any] = {
 
       if (frameIndex != 0) source match {
+        case FlatMap(fa, f) =>
+          var callStack: CallStack = bRest
+          val bind = f.asInstanceOf[Bind]
+          if (bFirst ne null) {
+            if (callStack eq null) callStack = createCallStack()
+            callStack.push(bFirst)
+          }
+          // Next iteration please
+          loop(fa, em, bind, callStack, frameIndex)
+
         case Now(value) =>
           popNextBind(bFirst, bRest) match {
             case null =>
@@ -461,16 +471,6 @@ private[eval] object TaskRunLoop {
             // Next iteration please
             loop(nextState, em, nextBFirst, bRest, nextFrame)
           }
-
-        case FlatMap(fa, f) =>
-          var callStack: CallStack = bRest
-          val bind = f.asInstanceOf[Bind]
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          // Next iteration please
-          loop(fa, em, bind, callStack, frameIndex)
 
         case Suspend(thunk) =>
           val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
