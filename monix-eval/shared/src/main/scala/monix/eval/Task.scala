@@ -147,14 +147,14 @@ sealed abstract class Task[+A] extends Serializable { self =>
 
   /** Returns a failed projection of this task.
     *
-    * The failed projection is a `Task` holding a value of type `Throwable`, 
+    * The failed projection is a `Task` holding a value of type `Throwable`,
     * emitting the error yielded by the source, in case the source fails,
-    * otherwise if the source succeeds the result will fail with a 
+    * otherwise if the source succeeds the result will fail with a
     * `NoSuchElementException`.
     */
   def failed: Task[Throwable] =
     transformWith(_ => Error(new NoSuchElementException("failed")), e => Now(e))
-  
+
   /** Creates a new Task by applying a function to the successful result
     * of the source Task, and returns a task equivalent to the result
     * of the function.
@@ -372,7 +372,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def asyncBoundary(s: Scheduler): Task[A] =
     self.flatMap(r => Task.forkedUnit.executeOn(s).map(_ => r))
-  
+
   /** Returns a new task that upon evaluation will execute the given
     * function for the generated element, transforming the source into
     * a `Task[Unit]`.
@@ -1241,11 +1241,11 @@ object Task extends TaskInstances {
     *
     * @param scheduler is the [[monix.execution.Scheduler Scheduler]]
     *        in charge of evaluation on `runAsync`.
-    * 
+    *
     * @param connection is the
-    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]] 
+    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
     *        that handles the cancellation on `runAsync`
-    * 
+    *
     * @param frameRef is a thread-local counter that keeps track
     *        of the current frame index of the run-loop. The run-loop
     *        is supposed to force an asynchronous boundary upon
@@ -1581,7 +1581,7 @@ private[eval] trait TaskInstances1 extends TaskInstances0 {
   *         }}}
   */
 private[eval] trait TaskInstances0 {
-  /** An [[monix.eval.instances.ApplicativeStrategy ApplicativeStrategy]] 
+  /** An [[monix.eval.instances.ApplicativeStrategy ApplicativeStrategy]]
     * instance that, when imported in scope, will determine the
     * generated type class instances for `Task` to do parallel
     * processing in their applicative.

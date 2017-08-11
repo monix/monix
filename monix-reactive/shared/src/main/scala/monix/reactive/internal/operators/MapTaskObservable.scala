@@ -277,7 +277,9 @@ private[reactive] final class MapTaskObservable[A,B]
 
         case WaitActiveTask =>
           // Something is screwed up in our state machine :-(
+          // $COVERAGE-OFF$
           reportInvalidState(WaitActiveTask, "signalFinish")
+          // $COVERAGE-ON$
       }
     }
 
@@ -286,6 +288,7 @@ private[reactive] final class MapTaskObservable[A,B]
     def onError(ex: Throwable): Unit =
       signalFinish(Some(ex))
 
+    // $COVERAGE-OFF$
     private def reportInvalidState(state: MapTaskState, method: String): Unit = {
       scheduler.reportFailure(
         new IllegalStateException(
@@ -294,6 +297,7 @@ private[reactive] final class MapTaskObservable[A,B]
           "please open an issue, see: https://monix.io"
         ))
     }
+    // $COVERAGE-ON$
   }
 }
 

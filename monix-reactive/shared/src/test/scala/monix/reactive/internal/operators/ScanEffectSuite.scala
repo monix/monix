@@ -51,7 +51,7 @@ object ScanEffectSuite extends BaseOperatorSuite {
       .scanEval(IO.pure(0L)) { (s, i) =>
         if (i == sourceCount-1)
           throw ex
-        else 
+        else
           IO(s + i)
       }
 

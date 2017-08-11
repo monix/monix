@@ -19,10 +19,9 @@ package monix.eval
 
 import cats.effect.{Effect, IO}
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success}
 
-object TaskCatsConversions extends BaseTestSuite {
+object TaskConversionsSuite extends BaseTestSuite {
   test("Task.fromIO(task.toIO) == task") { implicit s =>
     check1 { (task: Task[Int]) =>
       Task.fromIO(task.toIO) <-> task
@@ -108,6 +107,10 @@ object TaskCatsConversions extends BaseTestSuite {
     val f2 = Task.fromEffect(io2).runAsync
     assertEquals(f2.value, None); s.tick()
     assertEquals(f2.value, Some(Success(1)))
+
+    val dummy = DummyException("dummy")
+    val f3 = Task.fromEffect(IO.raiseError(dummy)).runAsync
+    assertEquals(f3.value, Some(Failure(dummy)))
   }
 
   test("Task.fromEffect(io) with broken Effect") { implicit s =>
