@@ -22,71 +22,71 @@ import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseTestSuite, Consumer, Observable}
 import scala.util.Failure
 
-object MapAsyncConsumerSuite extends BaseTestSuite {
-  test("consumer.mapAsync equivalence with task.map") { implicit s =>
+object MapTaskConsumerSuite extends BaseTestSuite {
+  test("consumer.mapTask equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
-      val t1 = obs.consumeWith(consumer.mapAsync(x => Task(x + 100)))
+      val t1 = obs.consumeWith(consumer.mapTask(x => Task(x + 100)))
       val t2 = obs.consumeWith(consumer).map(_ + 100)
       t1 <-> t2
     }
   }
 
-  test("consumer.mapAsync streams error") { implicit s =>
+  test("consumer.mapTask streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
 
-      val t1 = withError.consumeWith(consumer.mapAsync(x => Task(x + 100)))
+      val t1 = withError.consumeWith(consumer.mapTask(x => Task(x + 100)))
       val t2 = withError.consumeWith(consumer).map(_+100)
       t1 <-> t2
     }
   }
 
-  test("consumer.mapAsync handles task errors") { implicit s =>
+  test("consumer.mapTask handles task errors") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
-      .consumeWith(Consumer.head[Int].mapAsync(_ => Task(throw ex)))
+      .consumeWith(Consumer.head[Int].mapTask(_ => Task(throw ex)))
       .runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("consumer.mapAsync protects against user code") { implicit s =>
+  test("consumer.mapTask protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
-      .consumeWith(Consumer.head[Int].mapAsync(_ => throw ex))
+      .consumeWith(Consumer.head[Int].mapTask(_ => throw ex))
       .runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("consumer.mapAsync(sync) equivalence with task.map") { implicit s =>
+  test("consumer.mapTask(sync) equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
-      val t1 = obs.consumeWith(consumer.mapAsync(x => Task.eval(x + 100)))
+      val t1 = obs.consumeWith(consumer.mapTask(x => Task.eval(x + 100)))
       val t2 = obs.consumeWith(consumer).map(_ + 100)
       t1 <-> t2
     }
   }
 
-  test("consumer.mapAsync(sync) streams error") { implicit s =>
+  test("consumer.mapTask(sync) streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
 
-      val t1 = withError.consumeWith(consumer.mapAsync(x => Task.eval(x + 100)))
+      val t1 = withError.consumeWith(consumer.mapTask(x => Task.eval(x + 100)))
       val t2 = withError.consumeWith(consumer).map(_+100)
       t1 <-> t2
     }
   }
 
-  test("consumer.mapAsync(sync) protects against user code") { implicit s =>
+  test("consumer.mapTask(sync) protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
-      .consumeWith(Consumer.head[Int].mapAsync(_ => Task.eval(throw ex)))
+      .consumeWith(Consumer.head[Int].mapTask(_ => Task.eval(throw ex)))
       .runAsync
 
     s.tick()

@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect.IO
+import cats.effect.{Effect, IO}
 import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -558,7 +558,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
 
   /** Converts the source `Task` to a `cats.effect.IO` value. */
   def toIO(implicit s: Scheduler): IO[A] =
-    TaskIOConversions.taskToIO(this)(s)
+    TaskConversions.toIO(this)(s)
 
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
     * emits a single item on success, or just the error on failure.
@@ -706,7 +706,7 @@ object Task extends TaskInstances {
   def deferFuture[A](fa: => Future[A]): Task[A] =
     defer(fromFuture(fa))
 
-  /** Wraps calls that generate `Future` results into [[Task]], provided 
+  /** Wraps calls that generate `Future` results into [[Task]], provided
     * a callback with an injected [[monix.execution.Scheduler Scheduler]]
     * to act as the necessary `ExecutionContext`.
     *
@@ -783,7 +783,20 @@ object Task extends TaskInstances {
 
   /** Builds a [[Task]] instance out of a `cats.effect.IO`. */
   def fromIO[A](a: IO[A]): Task[A] =
-    TaskIOConversions.taskFromIO(a)
+    TaskConversions.fromIO(a)
+
+  /** Builds a [[Task]] instance out of any `F[_]` data type
+    * that implements the `cats.effect.Effect` type class.
+    *
+    * Example that works out of the box:
+    * {{{
+    *   import cats.effect.IO
+    *
+    *   Task.fromEffect(IO("Hello!"))
+    * }}}
+    */
+  def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
+    TaskConversions.fromEffect(fa)(F)
 
   /** Builds a [[Task]] instance out of a Scala `Try`. */
   def fromTry[A](a: Try[A]): Task[A] =

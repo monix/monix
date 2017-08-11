@@ -17,71 +17,60 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.Task
+import monix.eval.{Callback, Task}
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
+import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
-/** Implementation for `Observable.mapTask`.
+/** Implementation for `Observable.scanTask`.
   *
-  * Example of what we want to achieve:
-  * {{{
-  *   observable.mapTask(x => Task(x + 1))
-  * }}}
+  * Implementation is based on [[ScanTaskObservable]].
   *
-  * This is basically equivalent with:
-  * {{{
-  *   observable.concatMap(x => Observable.fromTask(Task(x + 1)))
-  * }}}
-  *
-  * The implementation has to be faster than `concatMap`.
-  * The challenges are:
-  *
-  *  - keeping track of the `Cancelable` for the active task
-  *
-  *  - dealing with the concurrency between the last `onNext` and the
-  *    final `onComplete` or `onError`, because with the `Observer`
-  *    contract we are allowed to send a final event after the last
-  *    `onNext` is called, but before its `Future[Ack]` is finished
-  *
-  * This implementation is fast because:
-  *
-  *  - the state is stored and synchronized using an atomic reference
-  *    that is padded to avoid false sharing
-  *
-  *  - in order to evolve the state we are NOT using intrinsic
-  *    monitors (`synchronize`), or `compareAndSet`, but plain writes,
-  *    along with `getAndSet`
-  *
-  *  - currently for each `onNext` we are doing 2 `getAndSet`
-  *    operations per `onNext` call, which is awesome because on top
-  *    of Java 8 `getAndSet` operations are cheaper than
-  *    `compareAndSet`. It is more of a problem on Java 7 and below,
-  *    however it's OK-ish, since these CAS operations are not going
-  *    to be contended
+  * Tricky concurrency handling within, here be dragons!
+  * See the description on [[ScanTaskObservable]] for details.
   */
-private[reactive] final class MapTaskObservable[A,B]
-  (source: Observable[A], f: A => Task[B])
-  extends Observable[B] {
+private[reactive] final class ScanTaskObservable[A, S]
+  (source: Observable[A], seed: Task[S], op: (S, A) => Task[S])
+  extends ChainedObservable[S] {
 
-  def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
-    val subscriber = new MapAsyncSubscriber(out)
-    val mainSubscription = source.unsafeSubscribeFn(subscriber)
+  def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[S]): Unit = {
+    val order = conn.currentOrder
+    val cb = new Callback[S] {
+      def onSuccess(initial: S): Unit = {
+        val subscriber = new MapAsyncSubscriber(out, initial)
+        val mainSubscription = source.unsafeSubscribeFn(subscriber)
 
-    Cancelable { () =>
-      try mainSubscription.cancel()
-      finally subscriber.cancel()
+        val c = Cancelable { () =>
+          try mainSubscription.cancel()
+          finally subscriber.cancel()
+        }
+
+        conn.orderedUpdate(c, order + 2)
+      }
+
+      def onError(ex: Throwable): Unit =
+        out.onError(ex)
     }
+
+    conn.orderedUpdate(seed.runAsync(cb)(out.scheduler), order + 1)
   }
 
-  private final class MapAsyncSubscriber(out: Subscriber[B])
+  def unsafeSubscribeFn(out: Subscriber[S]): Cancelable = {
+    val conn = MultiAssignmentCancelable()
+    unsafeSubscribeFn(conn, out)
+    conn
+  }
+
+  private final class MapAsyncSubscriber(out: Subscriber[S], initial: S)
     extends Subscriber[A] with Cancelable { self =>
 
     import MapTaskObservable.MapTaskState
@@ -93,11 +82,14 @@ private[reactive] final class MapTaskObservable[A,B]
     private[this] val stateRef =
       Atomic.withPadding(WaitOnNext : MapTaskState, LeftRight128)
 
+    // Current state, keeps getting updated by the task in `onNext`
+    private[this] var currentS = initial
+
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
       * cancellation only happens once.
       */
-    @tailrec def cancel(): Unit =
+    @tailrec def cancel(): Unit = {
       stateRef.get match {
         case current @ Active(ref) =>
           if (stateRef.compareAndSet(current, Cancelled))
@@ -117,6 +109,7 @@ private[reactive] final class MapTaskObservable[A,B]
         case Cancelled =>
           () // do nothing else
       }
+    }
 
     def onNext(elem: A): Future[Ack] = {
       // For protecting against user code, without violating the
@@ -124,8 +117,12 @@ private[reactive] final class MapTaskObservable[A,B]
       // we can no longer stream errors downstream
       var streamErrors = true
       try {
-        val task = f(elem).transformWith(
+        val task = op(currentS, elem).transformWith(
           value => {
+            // Updating mutable shared state, no need for synchronization
+            // because `onNext` operations are ordered
+            currentS = value
+
             // Shoot first, ask questions later :-)
             val next = out.onNext(value)
 
@@ -289,77 +286,10 @@ private[reactive] final class MapTaskObservable[A,B]
     private def reportInvalidState(state: MapTaskState, method: String): Unit = {
       scheduler.reportFailure(
         new IllegalStateException(
-          s"State $state in the Monix MapTask.$method implementation is invalid, " +
+          s"State $state in the Monix ScanAsync.$method implementation is invalid, " +
           "due to either a broken Subscriber implementation, or a bug, " +
           "please open an issue, see: https://monix.io"
         ))
     }
-  }
-}
-
-private[reactive] object MapTaskObservable {
-  /** Internal, private state for the [[MapTaskObservable]]
-    * implementation, modeling its state machine for managing
-    * the active task.
-    */
-  private[internal] sealed abstract class MapTaskState
-
-  private[internal] object MapTaskState {
-    /** The initial state of our internal atomic in [[MapTaskObservable]].
-      *
-      * This state is being set in `onNext` and when it is observed it
-      * means that no task is currently being executed. If during this
-      * state the `onComplete` or `onError` final events are signaled
-      * by the source observable, then we are free to signal these
-      * events downstream directly. Because otherwise, if we have an
-      * active task, it becomes the responsibility of that active task
-      * to signal these events.
-      */
-    case object WaitOnNext extends MapTaskState
-
-    /** A state that when observed it means that an `onNext` call is
-      * currently in progress, but its corresponding task wasn't
-      * executed yet.
-      *
-      * This state is meant to detect synchronous execution in
-      * `onNext`, and it can never be seen outside `onNext`. This
-      * means that if it is observed in `onComplete` or `onError`,
-      * then it's a bug.
-      */
-    case object WaitActiveTask extends MapTaskState
-
-    /** A state that happens after the user cancelled his subscription.
-      *
-      * Handling of this state is not accurate, meaning that we could
-      * have logic being executed and states being evolved after a
-      * cancel took place, but if we observe a cancel took place prior
-      * to one of our `getAndSet` calls, then we trigger the `cancel`
-      * again within a safe compare-and-set loop.
-      */
-    case object Cancelled extends MapTaskState
-
-    /** This state is triggered by `onComplete` or `onError` while there
-      * is an active task being executed.
-      *
-      * The contract of `Observer` allows for `onComplete` and
-      * `onError` events to be sent before the `Future[Ack]` of the
-      * last `onNext` call is complete. But at the same time we can
-      * never send an `onNext` event after an `onComplete` or an
-      * `onError`. So while a task is being processed, but before the
-      * `onNext` event is sent, if a complete event happens it becomes
-      * the responsibility of the active task (initialized in
-      * `onNext`) to send this final event.
-      */
-    final case class WaitComplete(ex: Option[Throwable], ref: Cancelable) extends MapTaskState
-
-    /** State that happens after a task has been executed, but before the
-      * following `onNext` call on the downstream subscriber.
-      *
-      * Tasks are cancelable and the reference kept when in this state
-      * can be used to cancel it, the final cancelable triggering a
-      * cancellation on both the source and the active task when
-      * possible.
-      */
-    final case class Active(ref: Cancelable) extends MapTaskState
   }
 }

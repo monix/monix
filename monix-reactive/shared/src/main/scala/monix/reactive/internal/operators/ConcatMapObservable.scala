@@ -337,7 +337,9 @@ private[reactive] final class ConcatMapObservable[A, B]
       scheduler.reportFailure(
         new IllegalStateException(
           s"State $state in the Monix ConcatMap.$method implementation is invalid, " +
-            s"please send a bug report! See https://monix.io"))
+          "due to either a broken Subscriber implementation, or a bug, " +
+          "please open an issue, see: https://monix.io"
+        ))
     }
   }
 }

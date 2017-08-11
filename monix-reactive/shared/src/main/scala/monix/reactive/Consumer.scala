@@ -17,6 +17,7 @@
 
 package monix.reactive
 
+import cats.effect.Effect
 import monix.eval.{Callback, Task}
 import monix.execution.cancelables.AssignableCancelable
 import monix.execution.{Cancelable, Scheduler}
@@ -102,11 +103,26 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * mapping of the result, it's probably better to `map`
     * the resulting `Task` on [[Observable.consumeWith]].
     *
-    * @see [[mapAsync]] for a variant that can map the output
-    *     to a `Task` that can be processed asynchronously.
+    * @see [[mapTask]] for a variant that can map the output
+    *      to a `Task` that can be processed asynchronously.
     */
   def map[R2](f: R => R2): Consumer[In, R2] =
     new MapConsumer[In,R,R2](self, f)
+
+  /** Given a mapping function, when consuming a stream,
+    * applies the mapping function to the final result,
+    * thus modifying the output of the source consumer.
+    *
+    * The mapping function returns results using a generic `F[_]`
+    * data type that must implement the `cats.effect.Effect` type
+    * class. Examples of such classes are `cats.effect.IO` and
+    * [[monix.eval.Task]], thus being able to do asynchronous
+    * processing.
+    *
+    * See [[mapTask]] for the version that's specialized on `Task`.
+    */
+  def mapEval[F[_], R2](f: R => F[R2])(implicit F: Effect[F]): Consumer[In, R2] =
+    new MapAsyncConsumer[In,R,R2](self, r => Task.fromEffect(f(r))(F))
 
   /** Given a mapping function, when consuming a stream,
     * applies the mapping function to the final result,
@@ -120,8 +136,11 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * trigger a stack overflow exception. For more efficient
     * mapping of the result, it's probably better to `map`
     * the resulting `Task` on [[Observable.consumeWith]].
+    *
+    * See [[mapEval]] for the version that can work with any
+    * data type that implements `cats.effect.Effect`.
     */
-  def mapAsync[R2](f: R => Task[R2]): Consumer[In, R2] =
+  def mapTask[R2](f: R => Task[R2]): Consumer[In, R2] =
     new MapAsyncConsumer[In,R,R2](self, f)
 }
 

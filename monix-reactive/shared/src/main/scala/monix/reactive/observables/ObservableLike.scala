@@ -18,7 +18,7 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
-
+import cats.effect.Effect
 import cats.{Eq, Monoid, Order}
 import monix.eval.Task
 import monix.execution.cancelables.BooleanCancelable
@@ -31,7 +31,6 @@ import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
-
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
@@ -1151,8 +1150,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *
     * It's the combination between [[scan]] and [[flatMap]].
     */
-  def flatScan[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
-    self.transform(self => new FlatScanObservable[A,R](self, initial _, op, delayErrors = false))
+  def flatScan[R](seed: => R)(op: (R, A) => Observable[R]): Self[R] =
+    self.transform(self => new FlatScanObservable[A,R](self, seed _, op, delayErrors = false))
 
   /** Applies a binary operator to a start value and to elements
     * produced by the source observable, going from left to right,
@@ -1385,35 +1384,23 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def map[B](f: A => B): Self[B] =
     self.liftByOperator(new MapOperator(f))
 
-  /** Alias for [[mapTask]]. */
-  def mapAsync[B](f: A => Task[B]): Self[B] =
-    mapTask(f)
-
-  /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
-    * applies it in parallel on the source, but with a specified
-    * `parallelism`, which indicates the maximum number of tasks that
-    * can be executed in parallel.
+  /** Maps elements from the source using a function that can do
+    * lazy or asynchronous processing by means of any `F[_]` data
+    * type that implements `cats.effect.Effect` (e.g. `Task`, `IO`).
     *
-    * Similar in spirit with
-    * [[monix.reactive.Consumer.loadBalance[A,R](parallelism* Consumer.loadBalance]],
-    * but expressed as an operator that executes [[monix.eval.Task Task]]
-    * instances in parallel.
+    * Given a source observable, this function is basically the
+    * equivalent of doing:
     *
-    * Note that when the specified `parallelism` is 1, it has the same
-    * behavior as [[mapTask]].
+    * {{{
+    *   observable.mapTask(a => Task.fromEffect(f(a)))
+    * }}}
     *
-    * @param parallelism is the maximum number of tasks that can be executed
-    *        in parallel, over which the source starts being
-    *        back-pressured
-    *
-    * @param f is the mapping function that produces tasks to execute
-    *        in parallel, which will eventually produce events for the
-    *        resulting observable stream
-    *
-    * @see [[mapTask]] for serial execution
+    * @see [[mapTask]] for a version specialized for
+    *      [[monix.eval.Task Task]] and [[mapFuture]] for the version
+    *      that can work with `scala.concurrent.Future`
     */
-  def mapAsync[B](parallelism: Int)(f: A => Task[B]): Self[B] =
-    self.transform(source => new MapAsyncParallelObservable[A,B](source, parallelism, f))
+  def mapEval[F[_], B](f: A => F[B])(implicit F: Effect[F]): Self[B] =
+    mapTask(a => Task.fromEffect(f(a))(F))
 
   /** Maps elements from the source using a function that can do
     * asynchronous processing by means of `scala.concurrent.Future`.
@@ -1455,6 +1442,32 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     */
   def mapTask[B](f: A => Task[B]): Self[B] =
     self.transform(source => new MapTaskObservable[A,B](source, f))
+
+  /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
+    * applies it in parallel on the source, but with a specified
+    * `parallelism`, which indicates the maximum number of tasks that
+    * can be executed in parallel.
+    *
+    * Similar in spirit with
+    * [[monix.reactive.Consumer.loadBalance[A,R](parallelism* Consumer.loadBalance]],
+    * but expressed as an operator that executes [[monix.eval.Task Task]]
+    * instances in parallel.
+    *
+    * Note that when the specified `parallelism` is 1, it has the same
+    * behavior as [[mapTask]].
+    *
+    * @param parallelism is the maximum number of tasks that can be executed
+    *        in parallel, over which the source starts being
+    *        back-pressured
+    *
+    * @param f is the mapping function that produces tasks to execute
+    *        in parallel, which will eventually produce events for the
+    *        resulting observable stream
+    *
+    * @see [[mapTask]] for serial execution
+    */
+  def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B]): Self[B] =
+    self.transform(source => new MapParallelObservable[A,B](source, parallelism, f))
 
   /** Converts the source Observable that emits `A` into an Observable
     * that emits `Notification[A]`.
@@ -2035,11 +2048,125 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * Similar to [[foldLeftF]], but emits the state on each
     * step. Useful for modeling finite state machines.
     */
-  def scan[R](seed: => R)(op: (R, A) => R): Self[R] =
-    self.transform(source => new ScanObservable[A,R](source, seed _, op))
+  def scan[S](seed: => S)(op: (S, A) => S): Self[S] =
+    self.transform(source => new ScanObservable[A,S](source, seed _, op))
 
-  /** Creates a new Observable that emits the given elements and then it
-    * also emits the events of the source (prepend operation).
+  /** Applies a binary operator to a start value and all elements of
+    * this stream, going left to right and returns a new stream that
+    * emits on each step the result of the applied function.
+    *
+    * Similar with [[scan]], but this can suspend and evaluate
+    * side effects with an `F[_]` data type that implements the
+    * `cats.effect.Effect` type class, thus allowing for lazy or
+    * asynchronous data processing.
+    *
+    * Similar to [[foldLeftF]] and [[foldWhileLeftF]], but emits the
+    * state on each step. Useful for modeling finite state machines.
+    *
+    * Example showing how state can be evolved and acted upon:
+    *
+    * {{{
+    *   // Using cats.effect.IO for evaluating our side effects
+    *   import cats.effect.IO
+    *
+    *   sealed trait State[+A] { def count: Int }
+    *   case object Init extends State[Nothing] { def count = 0 }
+    *   case class Current[A](current: Option[A], count: Int)
+    *     extends State[A]
+    *
+    *   case class Person(id: Int, name: String)
+    *
+    *   // Initial state
+    *   val seed = IO.pure(Init : State[Person])
+    *
+    *   val scanned = source.scanEval(seed) { (state, id) =>
+    *     requestPersonDetails(id).map { person =>
+    *       state match {
+    *         case Init =>
+    *           Current(person, 1)
+    *         case Current(_, count) =>
+    *           Current(person, count + 1)
+    *       }
+    *     }
+    *   }
+    *
+    *   scanned
+    *     .takeWhile(_.count < 10)
+    *     .collect { case Current(a, _) => a }
+    * }}}
+    *
+    * @see [[scan]] for the synchronous, non-lazy version, or
+    *      [[scanTask]] for the [[monix.eval.Task Task]]-specialized
+    *      version.
+    *
+    * @param seed is the initial state
+    * @param op is the function that evolves the current state
+    *
+    * @param F is the `cats.effect.Effect` type class implementation
+    *        for type `F`, which controls the evaluation. `F` can be
+    *        a data type such as [[monix.eval.Task]] or `cats.effect.IO`,
+    *        which implement `Effect`.
+    *
+    * @return a new observable that emits all intermediate states being
+    *         resulted from applying the given function
+    */
+  def scanEval[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: Effect[F]): Self[S] =
+    scanTask(Task.fromEffect(seed)(F))((s, a) => Task.fromEffect(op(s, a))(F))
+
+  /** Applies a binary operator to a start value and all elements of
+    * this stream, going left to right and returns a new stream that
+    * emits on each step the result of the applied function.
+    *
+    * Similar with [[scan]], but this can suspend and evaluate
+    * side effects with [[monix.eval.Task Task]], thus allowing for
+    * asynchronous data processing.
+    *
+    * Similar to [[foldLeftF]] and [[foldWhileLeftF]], but emits the
+    * state on each step. Useful for modeling finite state machines.
+    *
+    * Example showing how state can be evolved and acted upon:
+    *
+    * {{{
+    *   sealed trait State[+A] { def count: Int }
+    *   case object Init extends State[Nothing] { def count = 0 }
+    *   case class Current[A](current: Option[A], count: Int)
+    *     extends State[A]
+    *
+    *   case class Person(id: Int, name: String)
+    *
+    *   // Initial state
+    *   val seed = Task.now(Init : State[Person])
+    *
+    *   val scanned = source.scanTask(seed) { (state, id) =>
+    *     requestPersonDetails(id).map { person =>
+    *       state match {
+    *         case Init =>
+    *           Current(person, 1)
+    *         case Current(_, count) =>
+    *           Current(person, count + 1)
+    *       }
+    *     }
+    *   }
+    *
+    *   scanned
+    *     .takeWhile(_.count < 10)
+    *     .collect { case Current(a, _) => a }
+    * }}}
+    *
+    * @see [[scan]] for the version that does not require using `Task`
+    *      in the provided operator
+    *
+    * @param seed is the initial state
+    * @param op is the function that evolves the current state
+    *
+    * @return a new observable that emits all intermediate states being
+    *         resulted from applying the given function
+    */
+  def scanTask[S](seed: Task[S])(op: (S, A) => Task[S]): Self[S] =
+    self.transform(source => new ScanTaskObservable(source, seed, op))
+
+  /** Creates a new Observable that emits the given elements and then
+    * it also emits the events of the source (prepend operation).
     */
   def startWith[B >: A](elems: Seq[B]): Self[B] =
     self.transform(self => Observable.fromIterable(elems) ++ self)

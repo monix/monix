@@ -20,15 +20,15 @@ package monix.reactive.internal.operators
 import monix.eval.Task
 import monix.reactive.{BaseConcurrencySuite, Observable}
 
-object MapAsyncParallelismConcurrencySuite extends BaseConcurrencySuite {
-  test("mapAsync works concurrently") { implicit s =>
+object MapParallelUnorderedConcurrencySuite extends BaseConcurrencySuite {
+  test("mapParallelUnordered works concurrently") { implicit s =>
     check2 { (list: List[Int], rnd: Int) =>
       val parallelism = {
         val abs = math.abs(rnd)
         if (abs <= 0) 1 else (abs % 20) + 1
       }
 
-      val task1 = Observable.fromIterable(list).mapAsync(parallelism)(x => Task(x)).sumL
+      val task1 = Observable.fromIterable(list).mapParallelUnordered(parallelism)(x => Task(x)).sumL
       val task2 = Task.eval(list.sum)
       task1 <-> task2
     }
