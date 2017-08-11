@@ -41,7 +41,7 @@ import scala.util.{Failure, Success}
   *  - to ensure the required parallelism factor, we are using an
   *    [[monix.execution.misc.AsyncSemaphore]]
   */
-private[reactive] final class MapParallelObservable[A,B]
+private[reactive] final class MapParallelUnorderedObservable[A,B]
   (source: Observable[A], parallelism: Int, f: A => Task[B])
   extends Observable[B] {
 

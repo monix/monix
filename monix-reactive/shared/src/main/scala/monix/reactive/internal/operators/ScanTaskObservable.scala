@@ -46,7 +46,7 @@ private[reactive] final class ScanTaskObservable[A, S]
     val order = conn.currentOrder
     val cb = new Callback[S] {
       def onSuccess(initial: S): Unit = {
-        val subscriber = new MapAsyncSubscriber(out, initial)
+        val subscriber = new ScanTaskSubscriber(out, initial)
         val mainSubscription = source.unsafeSubscribeFn(subscriber)
 
         val c = Cancelable { () =>
@@ -70,7 +70,7 @@ private[reactive] final class ScanTaskObservable[A, S]
     conn
   }
 
-  private final class MapAsyncSubscriber(out: Subscriber[S], initial: S)
+  private final class ScanTaskSubscriber(out: Subscriber[S], initial: S)
     extends Subscriber[A] with Cancelable { self =>
 
     import MapTaskObservable.MapTaskState

@@ -17,25 +17,18 @@
 
 package monix.reactive.consumers
 
-import minitest.TestSuite
+import cats.effect.IO
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Consumer, Observable}
+import monix.reactive.{BaseTestSuite, Consumer, Observable}
 import scala.util.{Failure, Success}
 
-object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
-  }
-
+object FoldLeftTaskConsumerSuite extends BaseTestSuite {
   test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
     val f = obs.consumeWith(Consumer
-      .foldLeftAsync(0L)((s,a) => Task(s+a)))
+      .foldLeftTask(0L)((s,a) => Task(s+a)))
       .runAsync
 
     s.tick()
@@ -46,7 +39,7 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     val f = obs.consumeWith(Consumer
-      .foldLeftAsync(0L)((s,a) => Task(s+a)))
+      .foldLeftTask(0L)((s,a) => Task(s+a)))
       .runAsync
 
     s.tick()
@@ -56,7 +49,7 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
   test("should protect against user simple error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.now(1)
-      .consumeWith(Consumer.foldLeftAsync(0L)((s,a) => throw ex))
+      .consumeWith(Consumer.foldLeftTask(0L)((s,a) => throw ex))
       .runAsync
 
     s.tick()
@@ -66,10 +59,18 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
   test("should protect against user task error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.now(1)
-      .consumeWith(Consumer.foldLeftAsync(0L)((s,a) => Task.raiseError(ex)))
+      .consumeWith(Consumer.foldLeftTask(0L)((s,a) => Task.raiseError(ex)))
       .runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("foldLeftTask <-> foldLeftEval") { implicit s =>
+    check1 { (source: Observable[Int]) =>
+      val fa1 = source.consumeWith(Consumer.foldLeftTask(0L)((s,a) => Task(s+a)))
+      val fa2 = source.consumeWith(Consumer.foldLeftEval(0L)((s,a) => IO(s + a)))
+      fa1 <-> fa2
+    }
   }
 }

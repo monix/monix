@@ -1467,7 +1467,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * @see [[mapTask]] for serial execution
     */
   def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B]): Self[B] =
-    self.transform(source => new MapParallelObservable[A,B](source, parallelism, f))
+    self.transform(source => new MapParallelUnorderedObservable[A,B](source, parallelism, f))
 
   /** Converts the source Observable that emits `A` into an Observable
     * that emits `Notification[A]`.

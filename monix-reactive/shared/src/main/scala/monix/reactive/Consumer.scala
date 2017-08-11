@@ -122,7 +122,7 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * See [[mapTask]] for the version that's specialized on `Task`.
     */
   def mapEval[F[_], R2](f: R => F[R2])(implicit F: Effect[F]): Consumer[In, R2] =
-    new MapAsyncConsumer[In,R,R2](self, r => Task.fromEffect(f(r))(F))
+    new MapTaskConsumer[In,R,R2](self, r => Task.fromEffect(f(r))(F))
 
   /** Given a mapping function, when consuming a stream,
     * applies the mapping function to the final result,
@@ -141,7 +141,7 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * data type that implements `cats.effect.Effect`.
     */
   def mapTask[R2](f: R => Task[R2]): Consumer[In, R2] =
-    new MapAsyncConsumer[In,R,R2](self, f)
+    new MapTaskConsumer[In,R,R2](self, f)
 }
 
 /** The companion object of [[Consumer]], defines consumer builders.
@@ -242,6 +242,26 @@ object Consumer {
     * fold function to every element of the stream and finally signaling
     * the accumulated value.
     *
+    * The given fold function returns an `F[A]` value, where `F` is
+    * any data type that implements `cats.effect.Effect` (e.g. `Task`,
+    * `Coeval`), thus able to do asynchronous processing, with
+    * ordering of calls being guaranteed.
+    *
+    * @param initial is a lazy value that will be fed at first
+    *        in the fold function as the initial state.
+    *
+    * @param f is the function that calculates a new state on each
+    *        emitted value by the stream, for accumulating state,
+    *        returning a `F[A]` capable of lazy or asynchronous
+    *        execution.
+    */
+  def foldLeftEval[F[_], S, A](initial: => S)(f: (S, A) => F[S])(implicit F: Effect[F]): Consumer[A, S] =
+    new FoldLeftTaskConsumer[A,S](initial _, (s, a) => Task.fromEffect(f(s, a))(F))
+
+  /** Given a fold function and an initial state value, applies the
+    * fold function to every element of the stream and finally signaling
+    * the accumulated value.
+    *
     * The given fold function returns a `Task` that can execute an
     * asynchronous operation, with ordering of calls being guaranteed.
     *
@@ -251,8 +271,8 @@ object Consumer {
     *        emitted value by the stream, for accumulating state,
     *        returning a `Task` capable of asynchronous execution.
     */
-  def foldLeftAsync[S,A](initial: => S)(f: (S,A) => Task[S]): Consumer[A,S] =
-    new FoldLeftAsyncConsumer[A,S](initial _, f)
+  def foldLeftTask[S,A](initial: => S)(f: (S,A) => Task[S]): Consumer[A,S] =
+    new FoldLeftTaskConsumer[A,S](initial _, f)
 
   /** A consumer that will produce the first streamed value on
     * `onNext` after which the streaming gets cancelled.

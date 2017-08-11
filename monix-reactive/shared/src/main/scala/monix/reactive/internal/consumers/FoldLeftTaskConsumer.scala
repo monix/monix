@@ -26,9 +26,9 @@ import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-/** Implementation for [[monix.reactive.Consumer.foldLeftAsync]]. */
+/** Implementation for [[monix.reactive.Consumer.foldLeftTask]]. */
 private[reactive]
-final class FoldLeftAsyncConsumer[A,R](initial: () => R, f: (R,A) => Task[R])
+final class FoldLeftTaskConsumer[A,R](initial: () => R, f: (R,A) => Task[R])
   extends Consumer[A,R] {
 
   def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
