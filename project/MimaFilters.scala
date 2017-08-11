@@ -1567,6 +1567,15 @@ object MimaFilters {
     exclude[ReversedMissingMethodProblem]("monix.reactive.observables.ObservableLike.maxByF"),
     exclude[ReversedMissingMethodProblem]("monix.reactive.observables.ObservableLike.maxF"),
     exclude[ReversedMissingMethodProblem]("monix.reactive.observables.ObservableLike.minByF"),
-    exclude[ReversedMissingMethodProblem]("monix.reactive.observables.ObservableLike.minF")
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observables.ObservableLike.minF"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$Active"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitActiveTask$"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitOnNext$"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$Active$"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitComplete$"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitComplete"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$Cancelled$"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$")
   )
 }
