@@ -277,7 +277,9 @@ private[reactive] final class MapTaskObservable[A,B]
 
         case WaitActiveTask =>
           // Something is screwed up in our state machine :-(
+          // $COVERAGE-OFF$
           reportInvalidState(WaitActiveTask, "signalFinish")
+          // $COVERAGE-ON$
       }
     }
 
