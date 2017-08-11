@@ -1223,14 +1223,68 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *     .collect { case Current(a, _) => a }
     * }}}
     *
-    * @param initial is the initial state
-    * @param f is the function that evolves the current state
+    * @param seed is the initial state
+    * @param op is the function that evolves the current state
     *
     * @return a new iterant that emits all intermediate states being
-    *         resulted from applying function `f`
+    *         resulted from applying function `op`
     */
-  final def scan[S](initial: =>S)(f: (S, A) => S)(implicit F: Sync[F]): Iterant[F, S] =
-    IterantScan(self, initial, f)
+  final def scan[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): Iterant[F, S] =
+    IterantScan(self, seed, op)
+
+  /** Applies a binary operator to a start value and all elements of
+    * this `Iterant`, going left to right and returns a new
+    * `Iterant` that emits on each step the result of the applied
+    * function.
+    *
+    * Similar with [[scan]], but this can suspend and evaluate
+    * side effects in the `F[_]` context, thus allowing for
+    * asynchronous data processing.
+    *
+    * Similar to [[foldLeftL]] and [[foldWhileLeftEvalL]], but
+    * emits the state on each step. Useful for modeling finite
+    * state machines.
+    *
+    * Example showing how state can be evolved and acted upon:
+    *
+    * {{{
+    *   sealed trait State[+A] { def count: Int }
+    *   case object Init extends State[Nothing] { def count = 0 }
+    *   case class Current[A](current: Option[A], count: Int)
+    *     extends State[A]
+    *
+    *   case class Person(id: Int, name: String)
+    *
+    *   // Initial state
+    *   val seed = Task.now(Init : State[Person])
+    *
+    *   val scanned = source.scanEval(seed) { (state, id) =>
+    *     requestPersonDetails(id).map { person =>
+    *       state match {
+    *         case Init =>
+    *           Current(person, 1)
+    *         case Current(_, count) =>
+    *           Current(person, count + 1)
+    *       }
+    *     }
+    *   }
+    *
+    *   scanned
+    *     .takeWhile(_.count < 10)
+    *     .collect { case Current(a, _) => a }
+    * }}}
+    *
+    * @see [[scan]] for the version that does not require using `F[_]`
+    *      in the provided operator
+    *
+    * @param seed is the initial state
+    * @param op is the function that evolves the current state
+    *
+    * @return a new iterant that emits all intermediate states being
+    *         resulted from applying the given function
+    */
+  final def scanEval[S](seed: F[S])(op: (S, A) => F[S])(implicit F: Sync[F]): Iterant[F, S] =
+    IterantScanEval(self, seed, op)
 
   /** Skips over [[Iterant.Suspend]] states, along with
     * [[Iterant.NextCursor]] and [[Iterant.NextBatch]] states that

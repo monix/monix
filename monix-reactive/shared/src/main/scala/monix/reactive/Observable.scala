@@ -358,8 +358,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * the source, going left to right and returns a new `Task` that
     * upon evaluation will eventually emit the final result.
     */
-  def foldLeftL[R](initial: => R)(op: (R, A) => R): Task[R] =
-    foldLeftF(initial)(op).headL
+  def foldLeftL[R](seed: => R)(op: (R, A) => R): Task[R] =
+    foldLeftF(seed)(op).headL
 
   /** Folds the source observable, from start to finish, until the
     * source completes, or until the operator short-circuits the

@@ -1231,7 +1231,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * this Observable, going left to right and returns a new
     * Observable that emits only one item before `onComplete`.
     *
-    * @param initial is the initial state, specified as a possibly lazy value;
+    * @param seed is the initial state, specified as a possibly lazy value;
     *        it gets evaluated when the subscription happens and if it triggers
     *        an error then the subscriber will get immediately terminated
     *        with an error
@@ -1239,8 +1239,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * @param op is an operator that will fold the signals of the source
     *        observable, returning the next state
     */
-  def foldLeftF[R](initial: => R)(op: (R, A) => R): Self[R] =
-    self.transform(source => new FoldLeftObservable[A,R](source, initial _, op))
+  def foldLeftF[R](seed: => R)(op: (R, A) => R): Self[R] =
+    self.transform(source => new FoldLeftObservable[A,R](source, seed _, op))
 
   /** Folds the source observable, from start to finish, until the
     * source completes, or until the operator short-circuits the
@@ -2035,8 +2035,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * Similar to [[foldLeftF]], but emits the state on each
     * step. Useful for modeling finite state machines.
     */
-  def scan[R](initial: => R)(f: (R, A) => R): Self[R] =
-    self.transform(source => new ScanObservable[A,R](source, initial _, f))
+  def scan[R](seed: => R)(op: (R, A) => R): Self[R] =
+    self.transform(source => new ScanObservable[A,R](source, seed _, op))
 
   /** Creates a new Observable that emits the given elements and then it
     * also emits the events of the source (prepend operation).
