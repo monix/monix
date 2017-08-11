@@ -43,4 +43,9 @@ private[tail] object IterantUtils {
         halt
     }
   }
+
+  /** Internal utility for signaling an error. */
+  def signalError[F[_], A](stop: F[Unit])(e: Throwable)
+    (implicit F: Functor[F]): F[Iterant[F, A]] =
+    stop.map(_ => Halt[F, A](Some(e)))
 }
