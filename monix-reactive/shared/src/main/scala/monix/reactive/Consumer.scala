@@ -367,7 +367,7 @@ object Consumer {
     * @param parallelism is the maximum number of (logical) threads to use
     * @param cb is the function that will be called for each element
     */
-  def foreachParallelAsync[A](parallelism: Int)(cb: A => Task[Unit]): Consumer[A, Unit] =
+  def foreachParallelTask[A](parallelism: Int)(cb: A => Task[Unit]): Consumer[A, Unit] =
     loadBalance(parallelism, foreachTask(cb)).map(_ => ())
 
   /** $loadBalanceDesc

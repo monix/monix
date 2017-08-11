@@ -2276,6 +2276,7 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.reactive.subjects.Subject.doOnNextAckEval"),
     exclude[DirectMissingMethodProblem]("monix.reactive.subjects.Subject.doOnNextEval"),
     exclude[DirectMissingMethodProblem]("monix.reactive.subjects.Subject.doOnTerminateEval"),
-    exclude[DirectMissingMethodProblem]("monix.reactive.Consumer.foreachAsync")
+    exclude[DirectMissingMethodProblem]("monix.reactive.Consumer.foreachAsync"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.Consumer.foreachParallelAsync")
   )
 }
