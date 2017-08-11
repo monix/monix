@@ -27,7 +27,7 @@ import monix.execution.misc.NonFatal
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-private[monix] object TaskGatherUnordered {
+private[eval] object TaskGatherUnordered {
   /**
     * Implementation for `Task.gatherUnordered`
     */

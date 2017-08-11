@@ -325,12 +325,25 @@ object Consumer {
   /** Builds a consumer that will consume the stream, applying the given
     * function to each element and then finally signaling its completion.
     *
+    * The given callback function returns a `F[A]` value that can
+    * execute an asynchronous operation, with ordering of calls being
+    * guaranteed, given that the `F[_]` data type is any type that
+    * implements `cats.effect.Effect` (e.g. `Task`, `IO`).
+    *
+    * @param cb is the function that will be called for each element
+    */
+  def foreachEval[F[_], A](cb: A => F[Unit])(implicit F: Effect[F]): Consumer[A, Unit] =
+    foreachTask(a => Task.fromEffect(cb(a))(F))
+
+  /** Builds a consumer that will consume the stream, applying the given
+    * function to each element and then finally signaling its completion.
+    *
     * The given callback function returns a `Task` that can execute an
     * asynchronous operation, with ordering of calls being guaranteed.
     *
     * @param cb is the function that will be called for each element
     */
-  def foreachAsync[A](cb: A => Task[Unit]): Consumer[A, Unit] =
+  def foreachTask[A](cb: A => Task[Unit]): Consumer[A, Unit] =
     new ForeachAsyncConsumer[A](cb)
 
   /** Builds a consumer that will consume the stream, applying the given
@@ -355,7 +368,7 @@ object Consumer {
     * @param cb is the function that will be called for each element
     */
   def foreachParallelAsync[A](parallelism: Int)(cb: A => Task[Unit]): Consumer[A, Unit] =
-    loadBalance(parallelism, foreachAsync(cb)).map(_ => ())
+    loadBalance(parallelism, foreachTask(cb)).map(_ => ())
 
   /** $loadBalanceDesc
     *

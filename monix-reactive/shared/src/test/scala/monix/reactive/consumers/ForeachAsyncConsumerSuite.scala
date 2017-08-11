@@ -17,11 +17,13 @@
 
 package monix.reactive.consumers
 
+import cats.effect.IO
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Consumer, Observable}
+
 import scala.util.{Failure, Success}
 
 object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
@@ -31,12 +33,25 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
+  test("should sum a cats.effect.IO stream") { implicit s =>
+    val count = 10000L
+    val obs = Observable.range(0, count)
+    var sum = 0L
+    val f = obs.consumeWith(Consumer
+      .foreachEval(x => IO(sum += x)))
+      .runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Success(())))
+    assertEquals(sum, count * (count - 1) / 2)
+  }
+
   test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
     var sum = 0L
     val f = obs.consumeWith(Consumer
-      .foreachAsync(x => Task(sum += x)))
+      .foreachTask(x => Task(sum += x)))
       .runAsync
 
     s.tick()
@@ -49,7 +64,7 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val obs = Observable.range(0, 10000).endWithError(ex)
     var sum = 0L
     val f = obs.consumeWith(Consumer
-      .foreachAsync(x => Task(sum += x)))
+      .foreachTask(x => Task(sum += x)))
       .runAsync
 
     s.tick()
@@ -59,7 +74,7 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
   test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.now(1)
-      .consumeWith(Consumer.foreachAsync(_ => throw ex))
+      .consumeWith(Consumer.foreachTask(_ => throw ex))
       .runAsync
 
     s.tick()

@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import cats.effect.IO
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
@@ -37,11 +38,27 @@ object EvalOnErrorSuite extends TestSuite[TestScheduler] {
 
   val dummy = DummyException("ex")
 
+  test("should work for cats.effect.IO") { implicit s =>
+    var wasTriggered: Throwable = null
+    var wasCompleted = 0
+
+    Observable.now(1).endWithError(dummy).doOnErrorEval(ex => IO { wasTriggered = ex })
+      .unsafeSubscribeFn(new Subscriber[Int] {
+        val scheduler = s
+        def onNext(elem: Int) = Continue
+        def onError(ex: Throwable): Unit = wasCompleted += 1
+        def onComplete(): Unit = ()
+      })
+
+    assertEquals(wasCompleted, 1)
+    assertEquals(wasTriggered, dummy)
+  }
+
   test("should work for synchronous subscribers") { implicit s =>
     var wasTriggered: Throwable = null
     var wasCompleted = 0
 
-    Observable.now(1).endWithError(dummy).doOnErrorEval(ex => Task.eval { wasTriggered = ex })
+    Observable.now(1).endWithError(dummy).doOnErrorTask(ex => Task.eval { wasTriggered = ex })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -57,7 +74,7 @@ object EvalOnErrorSuite extends TestSuite[TestScheduler] {
     var wasTriggered: Throwable = null
     var wasCompleted = 0
 
-    Observable.now(1).endWithError(dummy).doOnErrorEval(ex => Task.eval { wasTriggered = ex })
+    Observable.now(1).endWithError(dummy).doOnErrorTask(ex => Task.eval { wasTriggered = ex })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Future(Continue)
@@ -74,7 +91,7 @@ object EvalOnErrorSuite extends TestSuite[TestScheduler] {
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.range(0,10).doOnErrorEval(_ => Task.eval { wasTriggered += 1 })
+    Observable.range(0,10).doOnErrorTask(_ => Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Continue] =
@@ -95,7 +112,7 @@ object EvalOnErrorSuite extends TestSuite[TestScheduler] {
     val cancelable = Observable.now(1)
       .delayOnNext(1.second)
       .endWithError(dummy)
-      .doOnErrorEval(ex => Task.eval { wasTriggered += 1 })
+      .doOnErrorTask(ex => Task.eval { wasTriggered += 1 })
       .subscribe()
 
     s.tick()
@@ -110,7 +127,7 @@ object EvalOnErrorSuite extends TestSuite[TestScheduler] {
     val dummy2 = DummyException("dummy2")
     var errorThrown: Throwable = null
 
-    Observable.now(1).endWithError(dummy2).doOnErrorEval(_ => Task.eval { throw dummy1 })
+    Observable.now(1).endWithError(dummy2).doOnErrorTask(_ => Task.eval { throw dummy1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
 
