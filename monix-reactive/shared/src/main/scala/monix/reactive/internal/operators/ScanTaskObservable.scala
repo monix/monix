@@ -94,18 +94,24 @@ private[reactive] final class ScanTaskObservable[A, S]
         case current @ Active(ref) =>
           if (stateRef.compareAndSet(current, Cancelled))
             ref.cancel()
+          // $COVERAGE-OFF$
           else
             cancel() // retry
+          // $COVERAGE-ON$
         case current @ WaitComplete(_, ref) =>
           if (ref != null) {
             if (stateRef.compareAndSet(current, Cancelled))
               ref.cancel()
+            // $COVERAGE-OFF$
             else
               cancel() // retry
+            // $COVERAGE-ON$
           }
         case current @ (WaitOnNext | WaitActiveTask) =>
           if (!stateRef.compareAndSet(current, Cancelled))
+            // $COVERAGE-OFF$
             cancel() // retry
+            // $COVERAGE-ON$
         case Cancelled =>
           () // do nothing else
       }
@@ -217,10 +223,12 @@ private[reactive] final class ScanTaskObservable[A, S]
             Stop
 
           case state @ Active(_) =>
+            // $COVERAGE-OFF$
             // This should never, ever happen!
             // Something is screwed up in our state machine :-(
             reportInvalidState(state, "onNext")
             Stop
+            // $COVERAGE-ON$
         }
       } catch {
         case NonFatal(ex) =>
@@ -228,8 +236,10 @@ private[reactive] final class ScanTaskObservable[A, S]
             onError(ex)
             Stop
           } else {
+            // $COVERAGE-OFF$
             scheduler.reportFailure(ex)
             Stop
+            // $COVERAGE-ON$
           }
       }
     }
@@ -283,6 +293,7 @@ private[reactive] final class ScanTaskObservable[A, S]
     def onError(ex: Throwable): Unit =
       signalFinish(Some(ex))
 
+    // $COVERAGE-OFF$
     private def reportInvalidState(state: MapTaskState, method: String): Unit = {
       scheduler.reportFailure(
         new IllegalStateException(
@@ -291,5 +302,6 @@ private[reactive] final class ScanTaskObservable[A, S]
           "please open an issue, see: https://monix.io"
         ))
     }
+    // $COVERAGE-ON$
   }
 }

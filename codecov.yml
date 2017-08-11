@@ -4,7 +4,7 @@ codecov:
 comment:
   behavior: default
   layout: header, diff
-  require_changes: false
+  require_changes: true
 coverage:
   precision: 2
   range:

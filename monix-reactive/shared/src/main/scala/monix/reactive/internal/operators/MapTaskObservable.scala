@@ -286,6 +286,7 @@ private[reactive] final class MapTaskObservable[A,B]
     def onError(ex: Throwable): Unit =
       signalFinish(Some(ex))
 
+    // $COVERAGE-OFF$
     private def reportInvalidState(state: MapTaskState, method: String): Unit = {
       scheduler.reportFailure(
         new IllegalStateException(
@@ -294,6 +295,7 @@ private[reactive] final class MapTaskObservable[A,B]
           "please open an issue, see: https://monix.io"
         ))
     }
+    // $COVERAGE-ON$
   }
 }
 
