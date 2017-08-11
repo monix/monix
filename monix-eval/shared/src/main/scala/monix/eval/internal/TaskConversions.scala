@@ -17,14 +17,17 @@
 
 package monix.eval.internal
 
-import cats.effect.IO
+import cats.effect.{Effect, IO}
 import monix.eval.Task
+import monix.eval.instances.CatsAsyncInstances
 import monix.execution.Scheduler
+import monix.execution.misc.NonFatal
+
 import scala.util.{Failure, Success}
 
-private[monix] object TaskIOConversions {
+private[monix] object TaskConversions {
   /** Implementation for `Task#toIO`. */
-  def taskToIO[A](source: Task[A])(implicit s: Scheduler): IO[A] =
+  def toIO[A](source: Task[A])(implicit s: Scheduler): IO[A] =
     source match {
       case Task.Now(v) => IO.pure(v)
       case Task.Error(e) => IO.raiseError(e)
@@ -47,6 +50,34 @@ private[monix] object TaskIOConversions {
     }
 
   /** Implementation for `Task#fromIO`. */
-  def taskFromIO[A](io: IO[A]): Task[A] =
+  def fromIO[A](io: IO[A]): Task[A] =
     io.to[Task]
+
+  /** Implementation for `Task#fromEffect`. */
+  def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
+    import IO.ioEffect
+    F match {
+      case _: CatsAsyncInstances.ForTask =>
+        fa.asInstanceOf[Task[A]]
+      case `ioEffect` =>
+        fromIO(fa.asInstanceOf[IO[A]])
+      case _ =>
+        Task.unsafeCreate { (ctx, cb) =>
+          try {
+            val io = F.runAsync(fa) {
+              case Right(a) => cb.onSuccess(a); IO.unit
+              case Left(e) => cb.onError(e); IO.unit
+            }
+            io.unsafeRunAsync(unitCb)
+          } catch {
+            case NonFatal(e) =>
+              ctx.scheduler.reportFailure(e)
+          }
+        }
+    }
+  }
+
+  // Reusable instance to avoid extra allocations
+  private final val unitCb: (Either[Throwable, Unit] => Unit) =
+    _ => ()
 }

@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect.IO
+import cats.effect.{Effect, IO}
 import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -147,14 +147,14 @@ sealed abstract class Task[+A] extends Serializable { self =>
 
   /** Returns a failed projection of this task.
     *
-    * The failed projection is a `Task` holding a value of type `Throwable`, 
+    * The failed projection is a `Task` holding a value of type `Throwable`,
     * emitting the error yielded by the source, in case the source fails,
-    * otherwise if the source succeeds the result will fail with a 
+    * otherwise if the source succeeds the result will fail with a
     * `NoSuchElementException`.
     */
   def failed: Task[Throwable] =
     transformWith(_ => Error(new NoSuchElementException("failed")), e => Now(e))
-  
+
   /** Creates a new Task by applying a function to the successful result
     * of the source Task, and returns a task equivalent to the result
     * of the function.
@@ -372,7 +372,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def asyncBoundary(s: Scheduler): Task[A] =
     self.flatMap(r => Task.forkedUnit.executeOn(s).map(_ => r))
-  
+
   /** Returns a new task that upon evaluation will execute the given
     * function for the generated element, transforming the source into
     * a `Task[Unit]`.
@@ -558,7 +558,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
 
   /** Converts the source `Task` to a `cats.effect.IO` value. */
   def toIO(implicit s: Scheduler): IO[A] =
-    TaskIOConversions.taskToIO(this)(s)
+    TaskConversions.toIO(this)(s)
 
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
     * emits a single item on success, or just the error on failure.
@@ -706,7 +706,7 @@ object Task extends TaskInstances {
   def deferFuture[A](fa: => Future[A]): Task[A] =
     defer(fromFuture(fa))
 
-  /** Wraps calls that generate `Future` results into [[Task]], provided 
+  /** Wraps calls that generate `Future` results into [[Task]], provided
     * a callback with an injected [[monix.execution.Scheduler Scheduler]]
     * to act as the necessary `ExecutionContext`.
     *
@@ -783,7 +783,20 @@ object Task extends TaskInstances {
 
   /** Builds a [[Task]] instance out of a `cats.effect.IO`. */
   def fromIO[A](a: IO[A]): Task[A] =
-    TaskIOConversions.taskFromIO(a)
+    TaskConversions.fromIO(a)
+
+  /** Builds a [[Task]] instance out of any `F[_]` data type
+    * that implements the `cats.effect.Effect` type class.
+    *
+    * Example that works out of the box:
+    * {{{
+    *   import cats.effect.IO
+    *
+    *   Task.fromEffect(IO("Hello!"))
+    * }}}
+    */
+  def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
+    TaskConversions.fromEffect(fa)(F)
 
   /** Builds a [[Task]] instance out of a Scala `Try`. */
   def fromTry[A](a: Try[A]): Task[A] =
@@ -1228,11 +1241,11 @@ object Task extends TaskInstances {
     *
     * @param scheduler is the [[monix.execution.Scheduler Scheduler]]
     *        in charge of evaluation on `runAsync`.
-    * 
+    *
     * @param connection is the
-    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]] 
+    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
     *        that handles the cancellation on `runAsync`
-    * 
+    *
     * @param frameRef is a thread-local counter that keeps track
     *        of the current frame index of the run-loop. The run-loop
     *        is supposed to force an asynchronous boundary upon
@@ -1568,7 +1581,7 @@ private[eval] trait TaskInstances1 extends TaskInstances0 {
   *         }}}
   */
 private[eval] trait TaskInstances0 {
-  /** An [[monix.eval.instances.ApplicativeStrategy ApplicativeStrategy]] 
+  /** An [[monix.eval.instances.ApplicativeStrategy ApplicativeStrategy]]
     * instance that, when imported in scope, will determine the
     * generated type class instances for `Task` to do parallel
     * processing in their applicative.

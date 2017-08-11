@@ -17,12 +17,11 @@
 
 package monix.eval
 
-import cats.effect.IO
+import cats.effect.{Effect, IO}
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success}
 
-object TaskCatsConversions extends BaseTestSuite {
+object TaskConversionsSuite extends BaseTestSuite {
   test("Task.fromIO(task.toIO) == task") { implicit s =>
     check1 { (task: Task[Int]) =>
       Task.fromIO(task.toIO) <-> task
@@ -75,5 +74,73 @@ object TaskCatsConversions extends BaseTestSuite {
 
     assertEquals(f.value, None); s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
+  }
+
+  test("Task.fromEffect(task) == task") { implicit s =>
+    val ref = Task(1)
+    assertEquals(Task.fromEffect(ref), ref)
+  }
+
+  test("Task.fromEffect(parallelTask) == parallelTask") { implicit s =>
+    import Task.nondeterminism
+    val ref = Task(1)
+    assertEquals(Task.fromEffect(ref), ref)
+  }
+
+  test("Task.fromEffect(io)") { implicit s =>
+    val f = Task.fromEffect(IO(1)).runAsync
+    assertEquals(f.value, Some(Success(1)))
+
+    val io2 = for (_ <- IO.shift; a <- IO(1)) yield a
+    val f2 = Task.fromEffect(io2).runAsync
+    assertEquals(f2.value, None); s.tick()
+    assertEquals(f2.value, Some(Success(1)))
+  }
+
+  test("Task.fromEffect(io) with custom Effect") { implicit s =>
+    implicit val ioEffect: Effect[IO] = new CustomIOEffect
+
+    val f = Task.fromEffect(IO(1)).runAsync
+    assertEquals(f.value, Some(Success(1)))
+
+    val io2 = for (_ <- IO.shift; a <- IO(1)) yield a
+    val f2 = Task.fromEffect(io2).runAsync
+    assertEquals(f2.value, None); s.tick()
+    assertEquals(f2.value, Some(Success(1)))
+  }
+
+  test("Task.fromEffect(io) with broken Effect") { implicit s =>
+    val dummy = DummyException("dummy")
+    implicit val ioEffect: Effect[IO] = new CustomIOEffect {
+      override def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+        throw dummy
+    }
+
+    val f = Task.fromEffect(IO(1)).runAsync
+    assertEquals(f.value, None); s.tick()
+    assertEquals(f.value, None)
+
+    assertEquals(s.state.lastReportedError, dummy)
+  }
+
+  class CustomIOEffect extends Effect[IO] {
+    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+      fa.runAsync(cb)
+    def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
+      IO.async(k)
+    def suspend[A](thunk: => IO[A]): IO[A] =
+      IO.suspend(thunk)
+    def flatMap[A, B](fa: IO[A])(f: (A) => IO[B]): IO[B] =
+      fa.flatMap(f)
+    def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
+      IO.ioEffect.tailRecM(a)(f)
+    def raiseError[A](e: Throwable): IO[A] =
+      IO.raiseError(e)
+    def handleErrorWith[A](fa: IO[A])(f: (Throwable) => IO[A]): IO[A] =
+      IO.ioEffect.handleErrorWith(fa)(f)
+    def pure[A](x: A): IO[A] =
+      IO.pure(x)
+    override def liftIO[A](ioa: IO[A]): IO[A] =
+      ioa
   }
 }
