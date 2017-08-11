@@ -23,7 +23,7 @@ import monix.execution.{Cancelable, Scheduler}
 
 import scala.concurrent.Future
 
-private[monix] object TaskFromFuture {
+private[eval] object TaskFromFuture {
   /** Implementation for `Task.fromFuture`. */
   def strict[A](f: Future[A]): Task[A] = {
     if (f.isCompleted) {

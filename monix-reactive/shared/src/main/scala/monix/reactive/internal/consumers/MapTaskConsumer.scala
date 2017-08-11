@@ -24,9 +24,9 @@ import monix.execution.misc.NonFatal
 import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 
-/** Implementation for [[monix.reactive.Consumer.mapAsync]]. */
+/** Implementation for [[monix.reactive.Consumer.mapTask]]. */
 private[reactive]
-final class MapAsyncConsumer[In, R, R2](source: Consumer[In,R], f: R => Task[R2])
+final class MapTaskConsumer[In, R, R2](source: Consumer[In,R], f: R => Task[R2])
   extends Consumer[In, R2] {
 
   def createSubscriber(cb: Callback[R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {

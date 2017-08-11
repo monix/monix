@@ -20,7 +20,7 @@ package monix.eval.internal
 import monix.eval.{Callback, Task}
 import monix.execution.Cancelable
 
-private[monix] object TaskDoOnCancel {
+private[eval] object TaskDoOnCancel {
   /**
     * Implementation for `Task.doOnCancel`
     */

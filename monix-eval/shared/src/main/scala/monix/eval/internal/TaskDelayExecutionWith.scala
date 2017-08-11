@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import monix.eval.{Callback, Task}
 
-private[monix] object TaskDelayExecutionWith {
+private[eval] object TaskDelayExecutionWith {
   /**
     * Implementation for `Task.delayExecutionWith`
     */

@@ -23,7 +23,7 @@ import monix.execution.atomic.Atomic
 import monix.execution.cancelables._
 import scala.concurrent.Promise
 
-private[monix] object TaskChooseFirstOf {
+private[eval] object TaskChooseFirstOf {
   /**
     * Implementation for `Task.chooseFirstOf`.
     */

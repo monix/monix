@@ -23,7 +23,7 @@ import monix.execution.cancelables.StackedCancelable
 import monix.execution.rstreams.Subscription
 import org.reactivestreams.Subscriber
 
-private[monix] object TaskToReactivePublisher {
+private[eval] object TaskToReactivePublisher {
   /**
     * Implementation for `Task.toReactivePublisher`
     */

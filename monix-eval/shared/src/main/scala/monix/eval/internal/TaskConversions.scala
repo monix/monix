@@ -25,7 +25,7 @@ import monix.execution.misc.NonFatal
 
 import scala.util.{Failure, Success}
 
-private[monix] object TaskConversions {
+private[eval] object TaskConversions {
   /** Implementation for `Task#toIO`. */
   def toIO[A](source: Task[A])(implicit s: Scheduler): IO[A] =
     source match {

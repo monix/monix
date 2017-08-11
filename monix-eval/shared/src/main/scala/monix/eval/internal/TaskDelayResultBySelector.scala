@@ -20,7 +20,7 @@ package monix.eval.internal
 import monix.eval.{Callback, Task}
 import monix.execution.misc.NonFatal
 
-private[monix] object TaskDelayResultBySelector {
+private[eval] object TaskDelayResultBySelector {
   /**
     * Implementation for `Task.delayResultBySelector`
     */

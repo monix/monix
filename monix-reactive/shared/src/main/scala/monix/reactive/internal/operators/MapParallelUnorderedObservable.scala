@@ -29,8 +29,8 @@ import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-/** Implementation for a `mapAsync` operator that can execute multiple tasks
-  * in parallel. Similar with
+/** Implementation for a `mapTask`-like operator that can execute
+  * multiple tasks in parallel. Similar with
   * [[monix.reactive.Consumer.loadBalance(parallelism* Consumer.loadBalance]],
   * but expressed as an operator.
   *
@@ -41,7 +41,7 @@ import scala.util.{Failure, Success}
   *  - to ensure the required parallelism factor, we are using an
   *    [[monix.execution.misc.AsyncSemaphore]]
   */
-private[reactive] final class MapAsyncParallelObservable[A,B]
+private[reactive] final class MapParallelUnorderedObservable[A,B]
   (source: Observable[A], parallelism: Int, f: A => Task[B])
   extends Observable[B] {
 

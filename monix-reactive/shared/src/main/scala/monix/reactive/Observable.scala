@@ -358,8 +358,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * the source, going left to right and returns a new `Task` that
     * upon evaluation will eventually emit the final result.
     */
-  def foldLeftL[R](initial: => R)(op: (R, A) => R): Task[R] =
-    foldLeftF(initial)(op).headL
+  def foldLeftL[R](seed: => R)(op: (R, A) => R): Task[R] =
+    foldLeftF(seed)(op).headL
 
   /** Folds the source observable, from start to finish, until the
     * source completes, or until the operator short-circuits the
@@ -1187,16 +1187,16 @@ object Observable {
     * observable that keeps generating elements produced by our
     * generator function.
     */
-  def fromStateAction[S, A](f: S => (A, S))(initialState: => S): Observable[A] =
-    new builders.StateActionObservable(initialState, f)
+  def fromStateAction[S, A](f: S => (A, S))(seed: => S): Observable[A] =
+    new builders.StateActionObservable(seed, f)
 
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
     * observable that keeps generating elements produced by our
     * generator function.
     */
-  def fromAsyncStateAction[S, A](f: S => Task[(A, S)])(initialState: => S): Observable[A] =
-    new builders.AsyncStateActionObservable(initialState, f)
+  def fromAsyncStateAction[S, A](f: S => Task[(A, S)])(seed: => S): Observable[A] =
+    new builders.AsyncStateActionObservable(seed, f)
 
   /** Wraps this Observable into a `org.reactivestreams.Publisher`.
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]

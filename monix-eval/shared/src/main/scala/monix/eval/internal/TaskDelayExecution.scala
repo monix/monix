@@ -21,7 +21,7 @@ import monix.eval.{Callback, Task}
 import monix.execution.cancelables.SingleAssignmentCancelable
 import scala.concurrent.duration.FiniteDuration
 
-private[monix] object TaskDelayExecution {
+private[eval] object TaskDelayExecution {
   /**
     * Implementation for `Task.delayExecution`
     */

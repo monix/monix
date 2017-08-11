@@ -22,7 +22,7 @@ import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 import monix.execution.misc.NonFatal
 
-private[monix] object TaskExecuteWithModel {
+private[eval] object TaskExecuteWithModel {
   /**
     * Implementation for `Task.executeWithModel`
     */
