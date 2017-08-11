@@ -1320,11 +1320,12 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * producing and concatenating observables along the way.
     *
     * This version of [[flatScan]] delays all errors until `onComplete`,
-    * when it will finally emit a [[monix.execution.exceptions.CompositeException CompositeException]].
+    * when it will finally emit a
+    * [[monix.execution.exceptions.CompositeException CompositeException]].
     * It's the combination between [[scan]] and [[flatMapDelayErrors]].
     */
-  def flatScanDelayErrors[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
-    self.transform(self => new FlatScanObservable[A,R](self, initial _, op, delayErrors = true))
+  def flatScanDelayErrors[R](seed: => R)(op: (R, A) => Observable[R]): Self[R] =
+    self.transform(self => new FlatScanObservable[A,R](self, seed _, op, delayErrors = true))
 
   /** $concatDescription
     *
