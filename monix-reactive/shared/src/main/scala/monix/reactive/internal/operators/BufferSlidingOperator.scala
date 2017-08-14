@@ -35,7 +35,7 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
       implicit val scheduler = out.scheduler
 
       private[this] var isDone = false
-      private[this] var ack: Future[Ack] = null
+      private[this] var ack: Future[Ack] = _
 
       private[this] val toDrop = if (count > skip) 0 else skip - count
       private[this] val toRepeat = if (skip > count) 0 else count - skip
