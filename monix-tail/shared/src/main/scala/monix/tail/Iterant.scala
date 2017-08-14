@@ -198,6 +198,96 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def attempt(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] =
     IterantOnError.attempt(self)
 
+  /** Optimizes the access to the source by periodically gathering
+    * items emitted into batches of the specified size and emitting
+    * [[monix.tail.Iterant.NextBatch NextBatch]] nodes.
+    *
+    * For this operation we have this law:
+    *
+    * {{{
+    *   source.batched(16) <-> source
+    * }}}
+    *
+    * This means that the result will emit exactly what the source
+    * emits, however the underlying representation will be different,
+    * the emitted notes being of type `NextBatch`, wrapping arrays
+    * with the length equal to the given `count`.
+    *
+    * Very similar in behavior with [[bufferTumbling]], however the
+    * batches are implicit, not explicit. Useful for optimization.
+    */
+  def batched(count: Int)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantBuffer.batched(self, count)(F)
+
+  /** Periodically gather items emitted by an iterant into bundles
+    * and emit these bundles rather than emitting the items one at a
+    * time. This version of `buffer` is emitting items once the
+    * internal buffer has reached the given count.
+    *
+    * If the source iterant completes, then the current buffer gets
+    * signaled downstream. If the source triggers an error then the
+    * current buffer is being dropped and the error gets propagated
+    * immediately.
+    *
+    * {{{
+    *   // Yields Seq(1, 2, 3), Seq(4, 5, 6), Seq(7)
+    *   Iterant[Coeval].of(1, 2, 3, 4, 5, 6, 7).bufferTumbling(3)
+    * }}}
+    *
+    * @see [[bufferSliding]] for the more flexible version that allows
+    *      to specify a `skip` argument.
+    *
+    * @param count the maximum size of each buffer before it should
+    *        be emitted
+    */
+  def bufferTumbling(count: Int)(implicit F: Sync[F]): Iterant[F, Seq[A]] =
+    bufferSliding(count, count)
+  
+  /** Returns an iterant that emits buffers of items it collects from
+    * the source iterant. The resulting iterant emits buffers
+    * every `skip` items, each containing `count` items.
+    *
+    * If the source iterant completes, then the current buffer gets
+    * signaled downstream. If the source triggers an error then the
+    * current buffer is being dropped and the error gets propagated
+    * immediately.
+    *
+    * For `count` and `skip` there are 3 possibilities:
+    *
+    *  1. in case `skip == count`, then there are no items dropped and
+    *     no overlap, the call being equivalent to `buffer(count)`
+    *  1. in case `skip < count`, then overlap between buffers
+    *     happens, with the number of elements being repeated being
+    *     `count - skip`
+    *  1. in case `skip > count`, then `skip - count` elements start
+    *     getting dropped between windows
+    *
+    * Example:
+    *
+    * {{{
+    *   val source = Iterant[Coeval].of(1, 2, 3, 4, 5, 6, 7)
+    *
+    *   // Yields Seq(1, 2, 3), Seq(4, 5, 6), Seq(7)
+    *   source.bufferSliding(3, 3)
+    *
+    *   // Yields Seq(1, 2, 3), Seq(5, 6, 7)
+    *   source.bufferSliding(3, 4)
+    *
+    *   // Yields Seq(1, 2, 3), Seq(3, 4, 5), Seq(5, 6, 7)
+    *   source.bufferSliding(3, 2)
+    * }}}
+    *
+    * @param count the maximum size of each buffer before it should
+    *        be emitted
+    *
+    * @param skip how many items emitted by the source iterant should
+    *        be skipped before starting a new buffer. Note that when
+    *        skip and count are equal, this is the same operation as
+    *        `bufferTumbling(count)`
+    */
+  final def bufferSliding(count: Int, skip: Int)(implicit F: Sync[F]): Iterant[F, Seq[A]] =
+    IterantBuffer.sliding(self, count, skip)
+
   /** Builds a new iterant by applying a partial function to all
     * elements of the source on which the function is defined.
     *
