@@ -32,6 +32,12 @@ final class AtomicBoolean private (private[this] val ref: BoxedInt) extends Atom
   def set(update: Boolean): Unit =
     ref.volatileSet(if (update) 1 else 0)
 
+  /** Convenience method that expects the current value to be not the provided value.
+    * Equivalent to `compareAndSet(!update, update)`.
+    */
+  def flip(update: Boolean): Boolean =
+    ref.compareAndSet(if (update) 0 else 1, if (update) 1 else 0)
+
   def compareAndSet(expect: Boolean, update: Boolean): Boolean =
     ref.compareAndSet(if (expect) 1 else 0, if (update) 1 else 0)
 
