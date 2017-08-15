@@ -272,7 +272,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 lazy val monix = project.in(file("."))
   .enablePlugins(ScalaUnidocPlugin)
   .configure(profile)
-  .aggregate(coreJVM, coreJS, reactiveTests)
+  .aggregate(coreJVM, coreJS)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
