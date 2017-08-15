@@ -141,9 +141,60 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   override def transform[B](transformer: Transformer[A, B]): Observable[B] =
     transformer(this)
 
-  /** Wraps this Observable into a `org.reactivestreams.Publisher`.
+  /** Converts this `Observable` into an `org.reactivestreams.Publisher`.
+    *
+    * Meant for interoperability with other Reactive Streams
+    * implementations.
+    *
+    * Usage sample:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *   import monix.execution.rstreams.SingleAssignmentSubscription
+    *   import org.reactivestreams.{Publisher, Subscriber, Subscription}
+    *
+    *   def sum(source: Publisher[Int], requestSize: Int): Task[Long] =
+    *     Task.create { (_, cb) =>
+    *       val sub = SingleAssignmentSubscription()
+    *
+    *       source.subscribe(new Subscriber[Int] {
+    *         private[this] var requested = 0L
+    *         private[this] var sum = 0L
+    *
+    *         def onSubscribe(s: Subscription): Unit = {
+    *           sub := s
+    *           requested = requestSize
+    *           s.request(requestSize)
+    *         }
+    *
+    *         def onNext(t: Int): Unit = {
+    *           sum += t
+    *           if (requestSize != Long.MaxValue) requested -= 1
+    *
+    *           if (requested <= 0) {
+    *             requested = requestSize
+    *             sub.request(request)
+    *           }
+    *         }
+    *
+    *         def onError(t: Throwable): Unit =
+    *           cb.onError(t)
+    *         def onComplete(): Unit =
+    *           cb.onSuccess(sum)
+    *       })
+    *
+    *       // Cancelable that can be used by Task
+    *       sub
+    *     }
+    *
+    *   val pub = Observable(1, 2, 3, 4).toReactivePublisher
+    *
+    *   // Yields 10
+    *   sum(pub, requestSize = 128)
+    * }}}
+    *
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]
-    * protocol that Monix implements.
+    * protocol for details.
     */
   def toReactivePublisher[B >: A](implicit s: Scheduler): RPublisher[B] =
     new RPublisher[B] {

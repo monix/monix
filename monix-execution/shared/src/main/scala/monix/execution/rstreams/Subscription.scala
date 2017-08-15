@@ -67,4 +67,13 @@ object Subscription {
           def cancel(): Unit = ref.cancel()
         }
     }
+
+  /** Returns an reusable, empty [[Subscription]] object that doesn't
+    * do anything on `request(n)` or `cancel()`.
+    */
+  val empty: Subscription =
+    new Subscription {
+      def request(n: Long): Unit = ()
+      def cancel(): Unit = ()
+    }
 }
