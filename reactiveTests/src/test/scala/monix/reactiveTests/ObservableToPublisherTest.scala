@@ -24,7 +24,7 @@ import org.reactivestreams.tck.PublisherVerification
 import org.scalatest.testng.TestNGSuiteLike
 import scala.util.Random
 
-class ObservableAsPublisherTest extends PublisherVerification[Long](env())
+class ObservableToPublisherTest extends PublisherVerification[Long](env())
   with TestNGSuiteLike {
 
   def eval[A](x: A): Observable[A] = {

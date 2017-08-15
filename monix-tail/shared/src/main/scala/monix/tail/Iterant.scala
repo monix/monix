@@ -18,12 +18,14 @@
 package monix.tail
 
 import cats.arrow.FunctionK
-import cats.effect.Sync
+import cats.effect.{Effect, Sync}
 import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order}
 import monix.eval.instances.{CatsAsyncInstances, CatsSyncInstances}
 import monix.eval.{Coeval, Task}
+import monix.execution.Scheduler
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
+import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
 import scala.reflect.ClassTag
@@ -1286,6 +1288,66 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def tail(implicit F: Sync[F]): Iterant[F, A] =
     IterantTail(self)(F)
+
+  /** Converts this `Iterant` into an `org.reactivestreams.Publisher`.
+    *
+    * Meant for interoperability with other Reactive Streams
+    * implementations. Also useful because it turns the `Iterant`
+    * into another data type with a push-based communication protocol
+    * with back-pressure.
+    *
+    * Usage sample:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *   import monix.execution.rstreams.SingleAssignmentSubscription
+    *   import org.reactivestreams.{Publisher, Subscriber, Subscription}
+    *
+    *   def sum(source: Publisher[Int], requestSize: Int): Task[Long] =
+    *     Task.create { (_, cb) =>
+    *       val sub = SingleAssignmentSubscription()
+    *
+    *       source.subscribe(new Subscriber[Int] {
+    *         private[this] var requested = 0L
+    *         private[this] var sum = 0L
+    *
+    *         def onSubscribe(s: Subscription): Unit = {
+    *           sub := s
+    *           requested = requestSize
+    *           s.request(requestSize)
+    *         }
+    *
+    *         def onNext(t: Int): Unit = {
+    *           sum += t
+    *           if (requestSize != Long.MaxValue) requested -= 1
+    *
+    *           if (requested <= 0) {
+    *             requested = requestSize
+    *             sub.request(request)
+    *           }
+    *         }
+    *
+    *         def onError(t: Throwable): Unit =
+    *           cb.onError(t)
+    *         def onComplete(): Unit =
+    *           cb.onSuccess(sum)
+    *       })
+    *
+    *       // Cancelable that can be used by Task
+    *       sub
+    *     }
+    *
+    *   val pub = Iterant[Task].of(1, 2, 3, 4).toReactivePublisher
+    *
+    *   // Yields 10
+    *   sum(pub, requestSize = 128)
+    * }}}
+    *
+    * See the [[http://www.reactive-streams.org/ Reactive Streams]]
+    * for details.
+    */
+  final def toReactivePublisher(implicit F: Effect[F], ec: Scheduler): Publisher[A] =
+    IterantToReactivePublisher(self)(F, ec)
 
   /** Applies a binary operator to a start value and all elements of
     * this `Iterant`, going left to right and returns a new
