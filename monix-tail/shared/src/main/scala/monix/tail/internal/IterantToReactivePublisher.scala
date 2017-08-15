@@ -22,10 +22,11 @@ import cats.effect.{Effect, IO}
 import cats.syntax.all._
 import monix.eval.instances.CatsAsyncInstances
 import monix.eval.{Callback, Task}
-import monix.execution.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.internal.Platform
 import monix.execution.misc.NonFatal
 import monix.execution.rstreams.Subscription
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
@@ -44,9 +45,15 @@ private[tail] object IterantToReactivePublisher {
     extends Publisher[A] {
 
     override def subscribe(out: Subscriber[_ >: A]): Unit = {
+      // Reactive Streams requirement
       if (out == null) throw null
 
-      runAsync(reduceToNext(source, out), new Callback[Iterant[F, A]] {
+      // The `reduceToNext` call evaluates the source Iterant until
+      // we hit an element to stream. Useful because we want to stream
+      // `onComplete` for empty streams or `onError` for empty streams
+      // that complete in error, without the subscriber having to
+      // call `request(n)` (since we shouldn't back-pressure end events)
+      runAsync(reduceToNext(out)(source), new Callback[Iterant[F, A]] {
         def onSuccess(start: Iterant[F, A]): Unit =
           if (start ne null) {
             val sub: Subscription = new IterantSubscription[F, A](start, out)
@@ -58,18 +65,34 @@ private[tail] object IterantToReactivePublisher {
       })
     }
 
-    private def reduceToNext(source: Iterant[F, A], out: Subscriber[_ >: A]): F[Iterant[F, A]] =
-      source match {
+    // Evaluates the given `Iterant`, getting rid of any `Suspend`
+    // states until we hit one of the states with an element to
+    // stream (e.g. `Next`, `NextBatch`, `NextCursor` or `Last`),
+    // or until we hit the end of the stream.
+    private def reduceToNext(out: Subscriber[_ >: A])(self: Iterant[F, A]): F[Iterant[F, A]] =
+      self match {
         case Suspend(rest, _) =>
-          rest
+          rest.flatMap(reduceToNext(out))
+
         case Halt(opt) =>
           out.onSubscribe(Subscription.empty)
-          opt.fold(out.onComplete())(out.onError)
+          opt match {
+            case None => out.onComplete()
+            case Some(e) => out.onError(e)
+          }
+
+          // Returning `null` means that we've already signaled an
+          // end event and thus there's nothing left to do
           F.pure(null)
+
         case other =>
+          // We know we have an element to stream
           F.pure(other)
       }
 
+    // Function for starting the run-loop of `F[_]`. This is a small
+    // optimization, to avoid going through `Effect` for `Task` and
+    // `IO` and thus avoid some boxing.
     private val runAsync: (F[Iterant[F, A]], Callback[Iterant[F, A]]) => Unit = {
       import cats.effect.IO.ioEffect
 
@@ -92,12 +115,26 @@ private[tail] object IterantToReactivePublisher {
 
     // Keeps track of the currently requested items
     private[this] val requested = Atomic.withPadding(0L, LeftRight128)
-    // MUST BE set before `requested` gets decremented
+
+    // Reference to what remains to be processed on the next
+    // `Subscription.request(n)` call, being fed in the `loop`.
+    //
+    // MUST BE set before `requested` gets decremented!
+    // (happens-before relationship for addressing multi-threading)
     private[this] var cursor: F[Iterant[F, A]] = F.pure(source)
 
-    private[this] val concurrentEndSignal =
-      Atomic.withPadding(null : Option[Throwable], LeftRight128)
+    // For as long as this reference is `null`, the stream is still
+    // active (i.e. it wasn't cancelled by means of the `Subscription`).
+    // Otherwise it can contain a `Throwable` reference that can be
+    // signaled downstream, when the change is observed in the `loop`.
+    //
+    // MUST BE set before `requested` gets incremented!
+    // (happens-before relationship for addressing multi-threading)
+    private[this] var concurrentEndSignal: Option[Throwable] = _
 
+    // Function for starting the run-loop of `F[_]`. This is a small
+    // optimization, to avoid going through `Effect` for `Task` and
+    // `IO` and thus avoid some boxing.
     private val runAsync: F[Unit] => Unit = {
       import cats.effect.IO.ioEffect
 
@@ -106,9 +143,11 @@ private[tail] object IterantToReactivePublisher {
           val cb = Callback.empty[Unit]
           val ecb: Either[Throwable, Unit] => Unit = r => cb(r)
           fa => fa.asInstanceOf[IO[Unit]].unsafeRunAsync(ecb)
+
         case _: CatsAsyncInstances.ForTask =>
           val cb = Callback.empty[Unit]
           fa => fa.asInstanceOf[Task[Unit]].runAsync(cb)
+
         case _ =>
           val cb = Callback.empty[Unit]
           val ecbIO: Either[Throwable, Unit] => IO[Unit] = r => { cb(r); IO.unit }
@@ -132,17 +171,21 @@ private[tail] object IterantToReactivePublisher {
 
         // In case of zero, the loop needs to stop
         // due to no more requests from downstream
-        if (n2 != 0)
+        if (n2 > 0)
           rest.flatMap(loop(n2, 0))
         else
-          F.unit
+          F.unit // pauses loop until next request
       }
     }
 
+    /** Processes the elements of a `BatchCursor`.
+      *
+      * Invariant: requested > processed!
+      */
     private def processCursor(source: NextCursor[F, A], requested: Long, processed: Int): F[Unit] = {
       val NextCursor(ref, rest, stop) = source
       val toTake = math.min(ref.recommendedBatchSize, requested - processed).toInt
-      val modulus = ec.executionModel.batchedExecutionModulus
+      val modulus = math.min(ec.executionModel.batchedExecutionModulus, Platform.recommendedBatchSize - 1)
       var isActive = true
       var i = 0
 
@@ -152,30 +195,27 @@ private[tail] object IterantToReactivePublisher {
         out.onNext(a)
 
         // Check if still active, but in batches, because reading
-        // from a volatile is an expensive operation
-        if ((i & modulus) == 0) isActive = this.concurrentEndSignal.get ne null
+        // from this shared variable can be an expensive operation
+        if ((i & modulus) == 0) isActive = this.concurrentEndSignal ne null
       }
 
       val next = if (ref.hasNext()) F.pure(source : Iterant[F, A]) else rest
       goNext(next, stop, requested, processed + i)
     }
 
+    /** Run-loop.
+      *
+      * Invariant: requested > processed!
+      */
     private def loop(requested: Long, processed: Int)(source: Iterant[F, A]): F[Unit] = {
-      val concurrentEndSignal = this.concurrentEndSignal.get
+      // Checking `concurrentEndSignal` immediately, as due to the
+      // way `cancel()` works, we might end up pushing an extra
+      // element downstream, violating the protocol; but this value
+      // should be visible due to it being set before incrementing
+      // the requested counter (happens-before relationship)
+      val cancelSignal = this.concurrentEndSignal
 
-      if (concurrentEndSignal != null) {
-        // Subscription was cancelled, triggering early stop
-        cursor = F.pure(Halt(concurrentEndSignal))
-        this.requested.set(0)
-        val next = source.earlyStop
-
-        concurrentEndSignal match {
-          case None => next
-          case Some(e) =>
-            source.earlyStop.map(_ => out.onError(e))
-        }
-      }
-      else if (requested > processed) {
+      if (cancelSignal eq null) {
         // Guard for protocol violations. In case we've sent a final
         // `onComplete` or `onError`, then we can no longer stream
         // errors by means of `onError`, since that would violate
@@ -217,40 +257,60 @@ private[tail] object IterantToReactivePublisher {
             }
         }
       } else {
-        // Retry
-        goNext(F.pure(source), source.earlyStop, requested, processed)
+        // Subscription was cancelled, triggering early stop
+        cursor = F.pure(Halt(cancelSignal))
+        this.requested.set(0)
+        val next = source.earlyStop
+
+        cancelSignal match {
+          case None => next
+          case Some(e) =>
+            next.map(_ => out.onError(e))
+        }
       }
     }
 
     private val startLoop: (Long => Unit) =
       ec.executionModel match {
-        case AlwaysAsyncExecution =>
-          n => ec.executeAsync(() => runAsync(cursor.flatMap(loop(n, 0))))
-        case _ =>
+        case SynchronousExecution =>
           n => ec.executeTrampolined(() => runAsync(cursor.flatMap(loop(n, 0))))
+        case _ =>
+          n => ec.executeAsync(() => runAsync(cursor.flatMap(loop(n, 0))))
       }
 
     def request(n: Long): Unit = {
       if (n <= 0) {
-        stopWithSignal(Some(
+        cancelWithSignal(Some(
           new IllegalArgumentException(
             "n must be strictly positive, according to " +
             "the Reactive Streams contract, rule 3.9"
           )))
       }
       else {
-        val prev = requested.getAndTransform { nr => if (nr < 0) nr else nr + n }
+        // Incrementing the current request count w/ overflow check
+        val prev = requested.getAndTransform { nr =>
+          val n2 = nr + n
+          // Checking for overflow
+          if (nr > 0 && n2 < 0) Long.MaxValue else n2
+        }
+
         if (prev == 0) startLoop(n)
       }
     }
 
     def cancel(): Unit = {
-      stopWithSignal(None)
+      cancelWithSignal(None)
     }
 
-    private def stopWithSignal(e: Option[Throwable]): Unit = {
-      concurrentEndSignal.compareAndSet(null, e)
-      startLoop(0)
+    private def cancelWithSignal(e: Option[Throwable]): Unit = {
+      // Must be set before incrementing `requests` in `startLoop`
+      // (happens-before relationship)
+      concurrentEndSignal = e
+
+      // Faking a `request(1)` is fine because we check the
+      // `concurrentEndSignal` after we notice that we have
+      // new requests (the combo of `goNext` + `loop`)
+      startLoop(1)
     }
   }
 }
