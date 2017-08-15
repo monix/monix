@@ -96,7 +96,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
 
     Iterant[Task].range(0, count)
       .doOnEarlyStop(Task { wasStopped += 1 })
-      .mapEval(_ => Task.eval { emitted += 1; 1 })
+      .mapEval(x => Task.eval { emitted += 1; x })
       .toReactivePublisher
       .subscribe(new Subscriber[Int] {
         def onSubscribe(s: Subscription): Unit =
@@ -110,15 +110,16 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       })
 
     s.tick()
-    assertEquals(emitted, 0)
+    assertEquals(emitted, 1)
+    assertEquals(received, 0)
 
     subscription.request(10)
     s.tick()
 
-    assertEquals(emitted, 10)
     assertEquals(wasStopped, 0)
     assert(!wasCompleted, "!wasCompleted")
-    assertEquals(received, 10)
+    assertEquals(emitted, 10)
+    assertEquals(received, 5 * 9)
 
     for (i <- 0 until 4) {
       if (i % 2 == 0) subscription.cancel()
@@ -127,8 +128,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       s.tick()
       assertEquals(wasStopped, 1)
       assert(!wasCompleted, "!wasCompleted")
-      assertEquals(emitted, 10)
-      assertEquals(received, 10)
+      assertEquals(received, 5 * 9)
     }
   }
 
@@ -205,7 +205,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       })
 
     s.tick()
-    assertEquals(emitted, 0)
+    assertEquals(emitted, 1)
 
     subscription.request(10)
     s.tick()
