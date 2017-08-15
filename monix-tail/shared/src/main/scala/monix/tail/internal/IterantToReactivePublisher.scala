@@ -26,6 +26,7 @@ import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.internal.Platform
 import monix.execution.misc.NonFatal
 import monix.execution.rstreams.Subscription
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
@@ -184,7 +185,7 @@ private[tail] object IterantToReactivePublisher {
     private def processCursor(source: NextCursor[F, A], requested: Long, processed: Int): F[Unit] = {
       val NextCursor(ref, rest, stop) = source
       val toTake = math.min(ref.recommendedBatchSize, requested - processed).toInt
-      val modulus = ec.executionModel.batchedExecutionModulus
+      val modulus = math.min(ec.executionModel.batchedExecutionModulus, Platform.recommendedBatchSize - 1)
       var isActive = true
       var i = 0
 
