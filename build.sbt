@@ -4,7 +4,7 @@ import sbt.Keys.version
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;reactiveTests/test:compile ;coreJVM/test ;reactiveTests/test ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+publishSigned ;sonatypeReleaseAll")
