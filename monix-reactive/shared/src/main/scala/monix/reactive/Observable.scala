@@ -1131,7 +1131,7 @@ object Observable {
   def suspend[A](fa: => Observable[A]): Observable[A] = defer(fa)
 
   /** Builds a new observable from a strict `head` and a lazily
-    * evaluated head.
+    * evaluated tail.
     */
   def cons[A](head: A, tail: Observable[A]): Observable[A] =
     new builders.ConsObservable[A](head, tail)
