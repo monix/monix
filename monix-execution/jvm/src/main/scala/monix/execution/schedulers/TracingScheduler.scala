@@ -5,21 +5,28 @@ import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter, Execut
 import scala.concurrent.ExecutionContext
 import scala.util.DynamicVariable
 
-case class TracingScheduler[T] private (
+final class TracingScheduler private (
    scheduler: ScheduledExecutorService,
    ec: ExecutionContext,
    r: UncaughtExceptionReporter,
-   executionModel: ExecModel)(implicit dv: DynamicVariable[T])
-  extends ReferenceScheduler { self =>
+   val executionModel: ExecModel)
+  extends ReferenceScheduler with BatchingScheduler { self =>
 
-  def executeAsync(r: Runnable): Unit =
-    ec.execute(r)
+  override def executeAsync(r: Runnable): Unit =
+    executeWithTrace(r)
 
-  override def withExecutionModel(em: ExecModel): Scheduler = super.withExecutionModel(em)
-
-  /** Reports that an asynchronous computation failed. */
-  override def reportFailure(t: Throwable): Unit =
-    r.reportFailure(t)
+  /** Executes the given task with tracing.
+    *
+    * @param r is the callback to be executed
+    */
+  def executeWithTrace(r: Runnable): Unit = {
+    val oldContext = TracingScheduler.TracingContext.value
+    ec.execute(new Runnable {
+      override def run = {
+        TracingScheduler.TracingContext.withValue(oldContext)(r.run())
+      }
+    })
+  }
 
   /** Schedules a task to run in the future, after `initialDelay`.
     *
@@ -42,33 +49,43 @@ case class TracingScheduler[T] private (
     */
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     if (initialDelay <= 0) {
-      ec.execute(r)
+      executeWithTrace(r)
       Cancelable.empty
     } else {
       val deferred = new Runnable {
-        override def run(): Unit = ec.execute(r)
+        override def run(): Unit = executeWithTrace(r)
       }
       val task = scheduler.schedule(deferred, initialDelay, unit)
       Cancelable(() => task.cancel(true))
     }
   }
 
-  private[this] val trampoline =
-    TrampolineExecutionContext(new ExecutionContext {
-      def execute(runnable: Runnable): Unit =
-        self.executeAsync(runnable)
-      def reportFailure(cause: Throwable): Unit =
-        self.reportFailure(cause)
-    })
+  /** Reports that an asynchronous computation failed. */
+  override def reportFailure(t: Throwable): Unit =
+    r.reportFailure(t)
 
-  override final def execute(runnable: Runnable): Unit = {
+  override def withExecutionModel(em: ExecModel): TracingScheduler =
+    new TracingScheduler(scheduler, ec, r, em)
+}
 
-    runnable match {
-      case r: TrampolinedRunnable =>
-        trampoline.execute(r)
-      case _ =>
-        // No local execution, forwards to underlying context
-        executeAsync(runnable)
-    }
+object TracingScheduler {
+
+  object TracingContext extends DynamicVariable[Map[String, String]](Map.empty[String, String])
+
+  object Implicits {
+    implicit lazy val traced: Scheduler =
+      new TracingScheduler(
+        Scheduler.DefaultScheduledExecutor,
+        ExecutionContext.Implicits.global,
+        UncaughtExceptionReporter.LogExceptionsToStandardErr,
+        ExecModel.Default
+      )
   }
+
+  def apply(
+     schedulerService: ScheduledExecutorService,
+     ec: ExecutionContext,
+     reporter: UncaughtExceptionReporter,
+     executionModel: ExecModel): TracingScheduler =
+    new TracingScheduler(schedulerService, ec, reporter, executionModel)
 }
