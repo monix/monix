@@ -22,7 +22,7 @@ import monix.execution.cancelables.{SingleAssignmentCancelable, StackedCancelabl
 import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, Scheduler}
 
-private[monix] object TaskCreate {
+private[eval] object TaskCreate {
   /**
     * Implementation for `Task.create`
     */

@@ -30,7 +30,7 @@ import scala.util.{Failure, Random}
 
 object MapTaskSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).mapAsync(x => Task(x))
+    val o = Observable.range(0, sourceCount).mapTask(x => Task(x))
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
@@ -86,7 +86,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var received = 0
     var total = 0L
 
-    val obs = Observable.range(0, sourceCount).mapAsync(x => Task.now(x))
+    val obs = Observable.range(0, sourceCount).mapTask(x => Task.now(x))
     obs.unsafeSubscribeFn(new Observer[Long] {
       private[this] var sum = 0L
 
@@ -109,7 +109,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var received = 0
     var total = 0L
 
-    val obs = Observable.range(0, sourceCount).mapAsync(x => Task(x))
+    val obs = Observable.range(0, sourceCount).mapTask(x => Task(x))
     obs.unsafeSubscribeFn(new Observer[Long] {
       private[this] var sum = 0L
 

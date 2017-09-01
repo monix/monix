@@ -55,6 +55,16 @@ final class MultiAssignmentCancelable private (initial: Cancelable)
       case _ => false
     }
 
+  /** Returns the current order index, useful for working with
+    * [[orderedUpdate]] in instances where the [[MultiAssignmentCancelable]]
+    * reference is shared.
+    */
+  def currentOrder: Long =
+    state.get match {
+      case Cancelled => 0
+      case Active(_, order) => order
+    }
+
   override def cancel(): Unit = {
     // Using getAndSet, which on Java 8 should be faster than
     // a compare-and-set.
@@ -69,7 +79,7 @@ final class MultiAssignmentCancelable private (initial: Cancelable)
         value.cancel()
         this
 
-      case current @ Active(s, currentOrder) =>
+      case current @ Active(_, currentOrder) =>
         if (!state.compareAndSet(current, Active(value, currentOrder)))
           :=(value) // retry
         else
@@ -82,7 +92,7 @@ final class MultiAssignmentCancelable private (initial: Cancelable)
         value.cancel()
         this
 
-      case current @ Active(s, currentOrder) =>
+      case current @ Active(_, currentOrder) =>
         val sameSign = (currentOrder < 0) ^ (order >= 0)
         val isOrdered =
           (sameSign && currentOrder <= order) ||

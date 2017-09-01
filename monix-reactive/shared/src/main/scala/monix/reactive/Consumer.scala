@@ -17,6 +17,7 @@
 
 package monix.reactive
 
+import cats.effect.Effect
 import monix.eval.{Callback, Task}
 import monix.execution.cancelables.AssignableCancelable
 import monix.execution.{Cancelable, Scheduler}
@@ -102,11 +103,26 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * mapping of the result, it's probably better to `map`
     * the resulting `Task` on [[Observable.consumeWith]].
     *
-    * @see [[mapAsync]] for a variant that can map the output
-    *     to a `Task` that can be processed asynchronously.
+    * @see [[mapTask]] for a variant that can map the output
+    *      to a `Task` that can be processed asynchronously.
     */
   def map[R2](f: R => R2): Consumer[In, R2] =
     new MapConsumer[In,R,R2](self, f)
+
+  /** Given a mapping function, when consuming a stream,
+    * applies the mapping function to the final result,
+    * thus modifying the output of the source consumer.
+    *
+    * The mapping function returns results using a generic `F[_]`
+    * data type that must implement the `cats.effect.Effect` type
+    * class. Examples of such classes are `cats.effect.IO` and
+    * [[monix.eval.Task]], thus being able to do asynchronous
+    * processing.
+    *
+    * See [[mapTask]] for the version that's specialized on `Task`.
+    */
+  def mapEval[F[_], R2](f: R => F[R2])(implicit F: Effect[F]): Consumer[In, R2] =
+    new MapTaskConsumer[In,R,R2](self, r => Task.fromEffect(f(r))(F))
 
   /** Given a mapping function, when consuming a stream,
     * applies the mapping function to the final result,
@@ -120,9 +136,12 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * trigger a stack overflow exception. For more efficient
     * mapping of the result, it's probably better to `map`
     * the resulting `Task` on [[Observable.consumeWith]].
+    *
+    * See [[mapEval]] for the version that can work with any
+    * data type that implements `cats.effect.Effect`.
     */
-  def mapAsync[R2](f: R => Task[R2]): Consumer[In, R2] =
-    new MapAsyncConsumer[In,R,R2](self, f)
+  def mapTask[R2](f: R => Task[R2]): Consumer[In, R2] =
+    new MapTaskConsumer[In,R,R2](self, f)
 }
 
 /** The companion object of [[Consumer]], defines consumer builders.
@@ -223,6 +242,26 @@ object Consumer {
     * fold function to every element of the stream and finally signaling
     * the accumulated value.
     *
+    * The given fold function returns an `F[A]` value, where `F` is
+    * any data type that implements `cats.effect.Effect` (e.g. `Task`,
+    * `Coeval`), thus able to do asynchronous processing, with
+    * ordering of calls being guaranteed.
+    *
+    * @param initial is a lazy value that will be fed at first
+    *        in the fold function as the initial state.
+    *
+    * @param f is the function that calculates a new state on each
+    *        emitted value by the stream, for accumulating state,
+    *        returning a `F[A]` capable of lazy or asynchronous
+    *        execution.
+    */
+  def foldLeftEval[F[_], S, A](initial: => S)(f: (S, A) => F[S])(implicit F: Effect[F]): Consumer[A, S] =
+    new FoldLeftTaskConsumer[A,S](initial _, (s, a) => Task.fromEffect(f(s, a))(F))
+
+  /** Given a fold function and an initial state value, applies the
+    * fold function to every element of the stream and finally signaling
+    * the accumulated value.
+    *
     * The given fold function returns a `Task` that can execute an
     * asynchronous operation, with ordering of calls being guaranteed.
     *
@@ -232,8 +271,8 @@ object Consumer {
     *        emitted value by the stream, for accumulating state,
     *        returning a `Task` capable of asynchronous execution.
     */
-  def foldLeftAsync[S,A](initial: => S)(f: (S,A) => Task[S]): Consumer[A,S] =
-    new FoldLeftAsyncConsumer[A,S](initial _, f)
+  def foldLeftTask[S,A](initial: => S)(f: (S,A) => Task[S]): Consumer[A,S] =
+    new FoldLeftTaskConsumer[A,S](initial _, f)
 
   /** A consumer that will produce the first streamed value on
     * `onNext` after which the streaming gets cancelled.
@@ -286,12 +325,25 @@ object Consumer {
   /** Builds a consumer that will consume the stream, applying the given
     * function to each element and then finally signaling its completion.
     *
+    * The given callback function returns a `F[A]` value that can
+    * execute an asynchronous operation, with ordering of calls being
+    * guaranteed, given that the `F[_]` data type is any type that
+    * implements `cats.effect.Effect` (e.g. `Task`, `IO`).
+    *
+    * @param cb is the function that will be called for each element
+    */
+  def foreachEval[F[_], A](cb: A => F[Unit])(implicit F: Effect[F]): Consumer[A, Unit] =
+    foreachTask(a => Task.fromEffect(cb(a))(F))
+
+  /** Builds a consumer that will consume the stream, applying the given
+    * function to each element and then finally signaling its completion.
+    *
     * The given callback function returns a `Task` that can execute an
     * asynchronous operation, with ordering of calls being guaranteed.
     *
     * @param cb is the function that will be called for each element
     */
-  def foreachAsync[A](cb: A => Task[Unit]): Consumer[A, Unit] =
+  def foreachTask[A](cb: A => Task[Unit]): Consumer[A, Unit] =
     new ForeachAsyncConsumer[A](cb)
 
   /** Builds a consumer that will consume the stream, applying the given
@@ -315,8 +367,8 @@ object Consumer {
     * @param parallelism is the maximum number of (logical) threads to use
     * @param cb is the function that will be called for each element
     */
-  def foreachParallelAsync[A](parallelism: Int)(cb: A => Task[Unit]): Consumer[A, Unit] =
-    loadBalance(parallelism, foreachAsync(cb)).map(_ => ())
+  def foreachParallelTask[A](parallelism: Int)(cb: A => Task[Unit]): Consumer[A, Unit] =
+    loadBalance(parallelism, foreachTask(cb)).map(_ => ())
 
   /** $loadBalanceDesc
     *

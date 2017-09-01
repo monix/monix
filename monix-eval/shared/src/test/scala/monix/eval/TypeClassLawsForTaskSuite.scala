@@ -37,15 +37,15 @@ object TypeClassLawsForTaskSuite extends BaseLawsSuite {
     assert(!inst.isInstanceOf[CatsEffectInstances.ForParallelTask])
   }
 
-  checkAllAsync("Async[Task[Int]]") { implicit ec =>
+  checkAllAsync("CoflatMap[Task]") { implicit ec =>
+    CoflatMapTests[Task].coflatMap[Int,Int,Int]
+  }
+
+  checkAllAsync("Async[Task]") { implicit ec =>
     AsyncTests[Task].async[Int,Int,Int]
   }
 
-  checkAllAsync("Effect[Task[Int]]") { implicit ec =>
+  checkAllAsync("Effect[Task]") { implicit ec =>
     EffectTests[Task].effect[Int,Int,Int]
-  }
-
-  checkAllAsync("CoflatMap[Task[Int]]") { implicit ec =>
-    CoflatMapTests[Task].coflatMap[Int,Int,Int]
   }
 }

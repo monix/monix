@@ -60,14 +60,36 @@ abstract class ConcurrentAtomicSuite[A, R <: Atomic[A]](
   }
 }
 
+abstract class ConcurrentAtomicBooleanSuite(strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean = true)
+  extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](Atomic.builderFor(true),
+    strategy, x => if (x == 1) true else false, x => if (x) 1 else 0, allowPlatformIntrinsics) {
+
+  test("should flip to true when false") {
+    val r = Atomic(false)
+    val futures = for (_ <- 0 until 5) yield Future {
+      r.flip(true)
+    }
+    val result = Await.result(Future.sequence(futures), 10.seconds)
+    assert(result.count(_ == true) == 1)
+    assert(r.get)
+  }
+
+  test("should not flip to true when already true") {
+    val r = Atomic(true)
+    val futures = for (_ <- 0 until 5) yield Future {
+      r.flip(true)
+    }
+    val result = Await.result(Future.sequence(futures), 10.seconds)
+    assert(result.forall(_ == false))
+  }
+}
+
 // -- NoPadding (Java 8)
 
 object ConcurrentAtomicAnyNoPaddingSuite extends ConcurrentAtomicSuite[String, AtomicAny[String]](
   Atomic.builderFor(""), NoPadding, x => x.toString, x => x.toInt, allowPlatformIntrinsics = true)
 
-object ConcurrentAtomicBooleanNoPaddingSuite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), NoPadding, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = true)
+object ConcurrentAtomicBooleanNoPaddingSuite extends  ConcurrentAtomicBooleanSuite(NoPadding)
 
 object ConcurrentAtomicNumberAnyNoPaddingSuite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), NoPadding, x => BigInt(x), x => x.toInt,
@@ -107,9 +129,7 @@ object ConcurrentAtomicAnyLeft64Suite extends ConcurrentAtomicSuite[String, Atom
   Atomic.builderFor(""), Left64, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = true)
 
-object ConcurrentAtomicBooleanLeft64Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), Left64, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = true)
+object ConcurrentAtomicBooleanLeft64Suite extends ConcurrentAtomicBooleanSuite(Left64)
 
 object ConcurrentAtomicNumberAnyLeft64Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), Left64, x => BigInt(x), x => x.toInt,
@@ -149,9 +169,7 @@ object ConcurrentAtomicAnyRight64Suite extends ConcurrentAtomicSuite[String, Ato
   Atomic.builderFor(""), Right64, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = true)
 
-object ConcurrentAtomicBooleanRight64Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), Right64, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = true)
+object ConcurrentAtomicBooleanRight64Suite extends ConcurrentAtomicBooleanSuite(Right64)
 
 object ConcurrentAtomicNumberAnyRight64Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), Right64, x => BigInt(x), x => x.toInt,
@@ -191,9 +209,7 @@ object ConcurrentAtomicAnyLeftRight128Suite extends ConcurrentAtomicSuite[String
   Atomic.builderFor(""), LeftRight128, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = true)
 
-object ConcurrentAtomicBooleanLeftRight128Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), LeftRight128, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = true)
+object ConcurrentAtomicBooleanLeftRight128Suite extends ConcurrentAtomicBooleanSuite(LeftRight128)
 
 object ConcurrentAtomicNumberAnyLeftRight128Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), LeftRight128, x => BigInt(x), x => x.toInt,
@@ -233,9 +249,7 @@ object ConcurrentAtomicAnyLeft128Suite extends ConcurrentAtomicSuite[String, Ato
   Atomic.builderFor(""), Left128, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = true)
 
-object ConcurrentAtomicBooleanLeft128Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), Left128, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = true)
+object ConcurrentAtomicBooleanLeft128Suite extends ConcurrentAtomicBooleanSuite(Left128)
 
 object ConcurrentAtomicNumberAnyLeft128Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), Left128, x => BigInt(x), x => x.toInt,
@@ -275,9 +289,7 @@ object ConcurrentAtomicAnyRight128Suite extends ConcurrentAtomicSuite[String, At
   Atomic.builderFor(""), Right128, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = true)
 
-object ConcurrentAtomicBooleanRight128Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), Right128, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = true)
+object ConcurrentAtomicBooleanRight128Suite extends ConcurrentAtomicBooleanSuite(Right128)
 
 object ConcurrentAtomicNumberAnyRight128Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), Right128, x => BigInt(x), x => x.toInt,
@@ -317,9 +329,7 @@ object ConcurrentAtomicAnyLeftRight256Suite extends ConcurrentAtomicSuite[String
   Atomic.builderFor(""), LeftRight256, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = true)
 
-object ConcurrentAtomicBooleanLeftRight256Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), LeftRight256, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = true)
+object ConcurrentAtomicBooleanLeftRight256Suite extends ConcurrentAtomicBooleanSuite(LeftRight256)
 
 object ConcurrentAtomicNumberAnyLeftRight256Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), LeftRight256, x => BigInt(x), x => x.toInt,
@@ -360,9 +370,8 @@ object ConcurrentAtomicLongLeftRight256Suite extends ConcurrentAtomicSuite[Long,
 object ConcurrentAtomicAnyNoPaddingJava7Suite extends ConcurrentAtomicSuite[String, AtomicAny[String]](
   Atomic.builderFor(""), NoPadding, x => x.toString, x => x.toInt, allowPlatformIntrinsics = false)
 
-object ConcurrentAtomicBooleanNoPaddingJava7Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), NoPadding, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = false)
+object ConcurrentAtomicBooleanNoPaddingJava7Suite extends  ConcurrentAtomicBooleanSuite(
+  NoPadding, allowPlatformIntrinsics = false)
 
 object ConcurrentAtomicNumberAnyNoPaddingJava7Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), NoPadding, x => BigInt(x), x => x.toInt,
@@ -402,9 +411,8 @@ object ConcurrentAtomicAnyLeft64Java7Suite extends ConcurrentAtomicSuite[String,
   Atomic.builderFor(""), Left64, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = false)
 
-object ConcurrentAtomicBooleanLeft64Java7Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), Left64, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = false)
+object ConcurrentAtomicBooleanLeft64Java7Suite extends  ConcurrentAtomicBooleanSuite(
+  Left64, allowPlatformIntrinsics = false)
 
 object ConcurrentAtomicNumberAnyLeft64Java7Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), Left64, x => BigInt(x), x => x.toInt,
@@ -444,9 +452,8 @@ object ConcurrentAtomicAnyRight64Java7Suite extends ConcurrentAtomicSuite[String
   Atomic.builderFor(""), Right64, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = false)
 
-object ConcurrentAtomicBooleanRight64Java7Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), Right64, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = false)
+object ConcurrentAtomicBooleanRight64Java7Suite extends ConcurrentAtomicBooleanSuite(
+  Right64, allowPlatformIntrinsics = false)
 
 object ConcurrentAtomicNumberAnyRight64Java7Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), Right64, x => BigInt(x), x => x.toInt,
@@ -486,9 +493,8 @@ object ConcurrentAtomicAnyLeftRight128Java7Suite extends ConcurrentAtomicSuite[S
   Atomic.builderFor(""), LeftRight128, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = false)
 
-object ConcurrentAtomicBooleanLeftRight128Java7Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), LeftRight128, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = false)
+object ConcurrentAtomicBooleanLeftRight128Java7Suite extends ConcurrentAtomicBooleanSuite(
+  LeftRight128, allowPlatformIntrinsics = false)
 
 object ConcurrentAtomicNumberAnyLeftRight128Java7Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), LeftRight128, x => BigInt(x), x => x.toInt,
@@ -528,9 +534,8 @@ object ConcurrentAtomicAnyLeft128Java7Suite extends ConcurrentAtomicSuite[String
   Atomic.builderFor(""), Left128, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = false)
 
-object ConcurrentAtomicBooleanLeft128Java7Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), Left128, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = false)
+object ConcurrentAtomicBooleanLeft128Java7Suite extends ConcurrentAtomicBooleanSuite(
+  Left128, allowPlatformIntrinsics = false)
 
 object ConcurrentAtomicNumberAnyLeft128Java7Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), Left128, x => BigInt(x), x => x.toInt,
@@ -570,9 +575,8 @@ object ConcurrentAtomicAnyRight128Java7Suite extends ConcurrentAtomicSuite[Strin
   Atomic.builderFor(""), Right128, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = false)
 
-object ConcurrentAtomicBooleanRight128Java7Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), Right128, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = false)
+object ConcurrentAtomicBooleanRight128Java7Suite extends ConcurrentAtomicBooleanSuite(
+  Right128, allowPlatformIntrinsics = false)
 
 object ConcurrentAtomicNumberAnyRight128Java7Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), Right128, x => BigInt(x), x => x.toInt,
@@ -612,9 +616,8 @@ object ConcurrentAtomicAnyLeftRight256Java7Suite extends ConcurrentAtomicSuite[S
   Atomic.builderFor(""), LeftRight256, x => x.toString, x => x.toInt,
   allowPlatformIntrinsics = false)
 
-object ConcurrentAtomicBooleanLeftRight256Java7Suite extends ConcurrentAtomicSuite[Boolean, AtomicBoolean](
-  Atomic.builderFor(true), LeftRight256, x => if (x == 1) true else false, x => if (x) 1 else 0,
-  allowPlatformIntrinsics = false)
+object ConcurrentAtomicBooleanLeftRight256Java7Suite extends ConcurrentAtomicBooleanSuite(
+  LeftRight256, allowPlatformIntrinsics = false)
 
 object ConcurrentAtomicNumberAnyLeftRight256Java7Suite extends ConcurrentAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
   Atomic.builderFor(BigInt(0)), LeftRight256, x => BigInt(x), x => x.toInt,

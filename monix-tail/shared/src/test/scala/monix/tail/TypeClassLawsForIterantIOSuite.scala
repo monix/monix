@@ -20,7 +20,7 @@ package monix.tail
 import cats.Eq
 import cats.data.EitherT
 import cats.effect.IO
-import cats.laws.discipline.{CartesianTests, MonadErrorTests, MonoidKTests}
+import cats.laws.discipline.{CartesianTests, CoflatMapTests, MonadErrorTests, MonoidKTests}
 
 object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
   type F[α] = Iterant[IO, α]
@@ -40,5 +40,9 @@ object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
 
   checkAllAsync("MonoidK[Iterant[IO]]") { implicit ec =>
     MonoidKTests[F].monoidK[Int]
+  }
+
+  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
+    CoflatMapTests[F].coflatMap[Int, Int, Int]
   }
 }

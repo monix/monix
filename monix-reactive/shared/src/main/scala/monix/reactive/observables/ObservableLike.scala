@@ -18,6 +18,9 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
+
+import cats.effect.Effect
+import cats.{Eq, Monoid, Order}
 import monix.eval.Task
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.UpstreamTimeoutException
@@ -29,6 +32,7 @@ import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
+
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
@@ -166,6 +170,24 @@ import scala.concurrent.duration.FiniteDuration
   *         signaled downstream. If the source triggers an error then the
   *         current buffer is being dropped and the error gets propagated
   *         immediately.
+  *
+  * @define catsOrderDesc In case type `A` is a primitive type and an
+  *         `Order[A]` instance is not in scope, then you probably
+  *         need this import:
+  *
+  *         {{{
+  *           import cats.instances.all._
+  *         }}}
+  *
+  *         Or in case your type `A` does not have an `Order[A]`
+  *         instance defined for it, but it does have a Scala
+  *         `Ordering` defined, then you can define one like this:
+  *
+  *         {{{
+  *           import cats.Order
+  *
+  *           implicit val orderA = Order.fromOrdering[A]
+  *         }}}
   */
 trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   extends Serializable { self: Self[A] =>
@@ -343,7 +365,6 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * @param selector is the observable that triggers the
     *        signaling of the current buffer
     */
-
   def bufferWithSelector[S](selector: Observable[S]): Self[Seq[A]] =
     self.transform(source => new BufferWithSelectorObservable[A,S](source, selector, 0))
 
@@ -605,39 +626,92 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def dematerialize[B](implicit ev: A <:< Notification[B]): Self[B] =
     self.asInstanceOf[Self[Notification[B]]].liftByOperator(new DematerializeOperator[B])
 
-  /** Suppress the duplicate elements emitted by the source Observable.
+  /** Suppress duplicate consecutive items emitted by the source.
     *
-    * WARNING: this requires unbounded buffering.
+    * Example:
+    * {{{
+    *   // Yields 1, 2, 1, 3, 2, 4
+    *   Observable(1, 1, 1, 2, 2, 1, 1, 3, 3, 3, 2, 2, 4, 4, 4)
+    *     .distinctUntilChanged
+    * }}}
+    *
+    * Duplication is detected by using the equality relationship
+    * provided by the `cats.Eq` type class. This allows one to
+    * override the equality operation being used (e.g. maybe the
+    * default `.equals` is badly defined, or maybe you want reference
+    * equality, so depending on use case).
+    *
+    * In case type `A` is a primitive type and an `Eq[A]` instance
+    * is not in scope, then you probably need this import:
+    *
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * Or in case your type `A` does not have an `Eq[A]` instance
+    * defined for it, then you can quickly define one like this:
+    * {{{
+    *   import cats.Eq
+    *
+    *   implicit val eqA = Eq.fromUniversalEquals[A]
+    * }}}
+    *
+    * @param A is the `cats.Eq` instance that defines equality
+    *        for the elements emitted by the source
     */
-  def distinct: Self[A] =
-    self.liftByOperator(new DistinctOperator[A])
+  def distinctUntilChanged[AA >: A](implicit A: Eq[AA]): Self[AA] =
+    self.liftByOperator(new DistinctUntilChangedOperator()(A))
 
   /** Given a function that returns a key for each element emitted by
-    * the source Observable, suppress duplicates items.
+    * the source, suppress consecutive duplicate items.
     *
-    * WARNING: this requires unbounded buffering.
+    * Example:
+    *
+    * {{{
+    *   // Yields 1, 2, 3, 4
+    *   Observable(1, 3, 2, 4, 2, 3, 5, 7, 4)
+    *     .distinctUntilChangedBy(_ % 2)
+    * }}}
+    *
+    * Duplication is detected by using the equality relationship
+    * provided by the `cats.Eq` type class. This allows one to
+    * override the equality operation being used (e.g. maybe the
+    * default `.equals` is badly defined, or maybe you want reference
+    * equality, so depending on use case).
+    *
+    * In case type `K` is a primitive type and an `Eq[K]` instance
+    * is not in scope, then you probably need this import:
+    *
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * Or in case your type `K` does not have an `Eq[K]` instance
+    * defined for it, then you can quickly define one like this:
+    *
+    * {{{
+    *   import cats.Eq
+    *
+    *   implicit val eqK = Eq.fromUniversalEquals[K]
+    * }}}
+    *
+    * @param key is a function that returns a `K` key for each element,
+    *        a value that's then used to do the deduplication
+    *
+    * @param K is the `cats.Eq` instance that defines equality for
+    *        the key type `K`
     */
-  def distinctByKey[K](key: A => K): Self[A] =
-    self.liftByOperator(new DistinctByKeyOperator(key))
-
-  /** Suppress duplicate consecutive items emitted by the source
-    * Observable
-    */
-  def distinctUntilChanged: Self[A] =
-    self.liftByOperator(new DistinctUntilChangedOperator[A])
-
-  /** Suppress duplicate consecutive items emitted by the source
-    * Observable
-    */
-  def distinctUntilChangedByKey[K](key: A => K): Self[A] =
-    self.liftByOperator(new DistinctUntilChangedByKeyOperator(key))
+  def distinctUntilChangedByKey[K](key: A => K)(implicit K: Eq[K]): Self[A] =
+    self.liftByOperator(new DistinctUntilChangedByKeyOperator(key)(K))
 
   /** Executes the given callback when the streaming is stopped
     * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
     * returned by [[monix.reactive.Observer.onNext onNext]].
     *
-    * @see [[doOnEarlyStopEval]] for a version that allows for asynchronous
-    *     evaluation by means of [[monix.eval.Task Task]].
+    * @see [[doOnEarlyStopTask]] for a version that allows for
+    *      asynchronous evaluation by means of [[monix.eval.Task Task]],
+    *      or [[doOnEarlyStopEval]] that allows using other data types
+    *      for dealing with evaluation and side effects.
     */
   def doOnEarlyStop(cb: () => Unit): Self[A] =
     self.liftByOperator(new DoOnEarlyStopOperator[A](cb))
@@ -646,13 +720,30 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
     * returned by [[monix.reactive.Observer.onNext onNext]].
     *
+    * The given `effect` gets evaluated *before* the upstream
+    * receives the `Stop` event (is back-pressured). This
+    * version of [[doOnEarlyStop]] is using any `F[_]` data type
+    * that implements `cats.effect.Effect` (e.g. `Task`, `IO`, etc).
+    *
+    * @see [[doOnEarlyStop]] for a simpler version, or
+    *      [[doOnEarlyStopTask]] for a version that's specialized for
+    *      [[monix.eval.Task Task]].
+    */
+  def doOnEarlyStopEval[F[_]](effect: F[Unit])(implicit F: Effect[F]): Self[A] =
+    doOnEarlyStopTask(Task.fromEffect(effect))
+
+  /** Executes the given task when the streaming is stopped
+    * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
+    * returned by [[monix.reactive.Observer.onNext onNext]].
+    *
     * The given `task` gets evaluated *before* the upstream
     * receives the `Stop` event (is back-pressured).
     *
-    * @see [[doOnEarlyStop]] for a simpler version that doesn't
-    *     do asynchronous execution
+    * @see [[doOnEarlyStop]] for a simpler version, or
+    *      [[doOnEarlyStopEval]] for a version that can use any
+    *      data type that implements `cats.effect.Effect`.
     */
-  def doOnEarlyStopEval(task: Task[Unit]): Self[A] =
+  def doOnEarlyStopTask(task: Task[Unit]): Self[A] =
     self.liftByOperator(new EvalOnEarlyStopOperator[A](task))
 
   /** Executes the given callback when the connection is being
@@ -670,12 +761,36 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *
     * @param cb the callback to execute when the `onComplete`
     *        event gets emitted
-    *
-    * @see [[doOnCompleteEval]] for a version that allows for asynchronous
-    *     evaluation by means of [[monix.eval.Task Task]].
+    * @see [[doOnCompleteTask]] for a version that allows for asynchronous
+    *      evaluation by means of [[monix.eval.Task Task]].
     */
   def doOnComplete(cb: () => Unit): Self[A] =
     self.liftByOperator(new DoOnCompleteOperator[A](cb))
+
+  /** Evaluates the given `effect` when the stream has ended with an
+    * `onComplete` event, but before the complete event is emitted.
+    *
+    * The `effect` gets evaluated and is finished *before* the
+    * `onComplete` signal gets sent downstream.
+    *
+    * This version of [[doOnComplete]] evaluates the given side
+    * effects using the specified `F[_]` data type, which should
+    * implement `cats.effect.Effect`.
+    *
+    * Unless you know what you're doing, you probably want to use
+    * [[doOnTerminateTask]] and [[doOnSubscriptionCancel]] for proper
+    * disposal of resources on completion.
+    *
+    * @param effect the action to execute when the `onComplete`
+    *        event gets emitted, its type being one that implements
+    *        `cats.effect.Effect` and thus capable of delayed and
+    *        asynchronous evaluation
+    * @see [[doOnComplete]] for a simpler version that doesn't
+    *     do asynchronous execution, or [[doOnCompleteTask]] for
+    *     a version specialized for [[monix.eval.Task Task]]
+    */
+  def doOnCompleteEval[F[_]](effect: F[Unit])(implicit F: Effect[F]): Self[A] =
+    doOnCompleteTask(Task.fromEffect(effect))
 
   /** Evaluates the given task when the stream has ended with an
     * `onComplete` event, but before the complete event is emitted.
@@ -684,16 +799,17 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * signal gets sent downstream.
     *
     * Unless you know what you're doing, you probably want to use
-    * [[doOnTerminateEval]] and [[doOnSubscriptionCancel]] for proper
+    * [[doOnTerminateTask]] and [[doOnSubscriptionCancel]] for proper
     * disposal of resources on completion.
     *
+    * @see [[doOnComplete]] for a simpler version that doesn't
+    *      do asynchronous execution, or [[doOnCompleteEval]] for
+    *      a version that can work with any data type implementing
+    *      `cats.effect.Effect`.
     * @param task the task to execute when the `onComplete`
     *        event gets emitted
-    *
-    * @see [[doOnComplete]] for a simpler version that doesn't
-    *     do asynchronous execution
     */
-  def doOnCompleteEval(task: Task[Unit]): Self[A] =
+  def doOnCompleteTask(task: Task[Unit]): Self[A] =
     self.liftByOperator(new EvalOnCompleteOperator[A](task))
 
   /** Executes the given callback when the stream is interrupted with an
@@ -704,12 +820,33 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * the original exception and otherwise the behavior is undefined.
     *
     * @see [[doOnTerminate]] and [[doOnSubscriptionCancel]] for
-    *     handling resource disposal, also see [[doOnErrorEval]] for
-    *     a version that does asynchronous evaluation by means of
-    *     [[monix.eval.Task Task]].
+    *      handling resource disposal, also see [[doOnErrorTask]] for
+    *      a version that does asynchronous evaluation by means of
+    *      [[monix.eval.Task Task]].
     */
   def doOnError(cb: Throwable => Unit): Self[A] =
     self.liftByOperator(new DoOnErrorOperator[A](cb))
+
+  /** Executes the given `cb` when the stream is interrupted with an
+    * error, before the `onError` event is emitted downstream.
+    *
+    * This version of [[doOnError]] evaluates the given side
+    * effects using the specified `F[_]` data type, which should
+    * implement `cats.effect.Effect`, thus being able of asynchronous
+    * execution.
+    *
+    * NOTE: should protect the code in this callback, because if it
+    * throws an exception the `onError` event will prefer signaling
+    * the original exception and otherwise the behavior is undefined.
+    *
+    * @see [[doOnTerminateTask]] and [[doOnSubscriptionCancel]] for
+    *      handling resource disposal, also see [[doOnError]] for a
+    *      simpler version that doesn't do asynchronous execution,
+    *      or [[doOnErrorTask]] for a version specialized on
+    *      [[monix.eval.Task Task]].
+    */
+  def doOnErrorEval[F[_]](cb: Throwable => F[Unit])(implicit F: Effect[F]): Self[A] =
+    doOnErrorTask(e => Task.fromEffect(cb(e))(F))
 
   /** Executes the given task when the stream is interrupted with an
     * error, before the `onError` event is emitted downstream.
@@ -718,11 +855,13 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * throws an exception the `onError` event will prefer signaling
     * the original exception and otherwise the behavior is undefined.
     *
-    * @see [[doOnTerminateEval]] and [[doOnSubscriptionCancel]] for handling
-    *     resource disposal, also see [[doOnError]] for a simpler version
-    *     that doesn't do asynchronous execution.
+    * @see [[doOnTerminateTask]] and [[doOnSubscriptionCancel]] for
+    *      handling resource disposal, also see [[doOnError]] for a
+    *      simpler version that doesn't do asynchronous execution,
+    *      or [[doOnErrorEval]] for a version that can use any
+    *      `Effect` data type.
     */
-  def doOnErrorEval(cb: Throwable => Task[Unit]): Self[A] =
+  def doOnErrorTask(cb: Throwable => Task[Unit]): Self[A] =
     self.liftByOperator(new EvalOnErrorOperator[A](cb))
 
   /** Executes the given callback right before the streaming is ended either
@@ -738,33 +877,63 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * This differs from [[doAfterTerminate]] in that this happens *before*
     * the `onComplete` or `onError` notification.
     *
-    * @see [[doOnTerminateEval]] for a version that allows for asynchronous
-    *     evaluation by means of [[monix.eval.Task Task]].
+    * @see [[doOnTerminateTask]] for a version that allows for asynchronous
+    *      evaluation by means of [[monix.eval.Task Task]].
     */
   def doOnTerminate(cb: Option[Throwable] => Unit): Self[A] =
     self.liftByOperator(new DoOnTerminateOperator[A](cb, happensBefore=true))
 
-  /** Evaluates the task generated by the given callback right before the streaming
-    * is ended either with an `onComplete` or `onError` event, or when the streaming
-    * stops by a downstream `Stop` being signaled.
+  /** Evaluates the callback right before the streaming is ended
+    * either with an `onComplete` or `onError` event, or when the
+    * streaming stops by a downstream `Stop` being signaled.
     *
-    * The callback-generated [[monix.eval.Task Task]] will back-pressure the source
-    * when applied for `Stop` events returned by `onNext` and thus the upstream source
-    * will receive the `Stop` result only after the task has finished executing.
+    * The callback-generated `F[_]` is a data type that should
+    * implement `cats.effect.Effect` and is thus capable of
+    * asynchronous evaluation, back-pressuring the source
+    * when applied for `Stop` events returned by `onNext` and thus
+    * the upstream source will receive the `Stop` result only after
+    * the task has finished executing.
     *
     * It is the equivalent of calling:
     *
-    *   - [[doOnCompleteEval]]
-    *   - [[doOnErrorEval]]
-    *   - [[doOnEarlyStopEval]]
+    *   - [[doOnCompleteTask]]
+    *   - [[doOnErrorTask]]
+    *   - [[doOnEarlyStopTask]]
     *
-    * This differs from [[doAfterTerminateEval]] in that this happens *before*
-    * the `onComplete` or `onError` notification.
+    * This differs from [[doAfterTerminateTask]] in that this happens
+    * *before* the `onComplete` or `onError` notification.
     *
     * @see [[doOnTerminate]] for a simpler version that doesn't allow
-    *     asynchronous execution.
+    *     asynchronous execution, or [[doOnTerminateTask]] for a
+    *     version that's specialized on [[monix.eval.Task Task]].
     */
-  def doOnTerminateEval(cb: Option[Throwable] => Task[Unit]): Self[A] =
+  def doOnTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: Effect[F]): Self[A] =
+    doOnTerminateTask(opt => Task.fromEffect(cb(opt))(F))
+
+  /** Evaluates the task generated by the given callback right before
+    * the streaming is ended either with an `onComplete` or `onError`
+    * event, or when the streaming stops by a downstream `Stop` being
+    * signaled.
+    *
+    * The callback-generated [[monix.eval.Task Task]] will
+    * back-pressure the source when applied for `Stop` events returned
+    * by `onNext` and thus the upstream source will receive the `Stop`
+    * result only after the task has finished executing.
+    *
+    * It is the equivalent of calling:
+    *
+    *   - [[doOnCompleteTask]]
+    *   - [[doOnErrorTask]]
+    *   - [[doOnEarlyStopTask]]
+    *
+    * This differs from [[doAfterTerminateTask]] in that this happens
+    * *before* the `onComplete` or `onError` notification.
+    *
+    * @see [[doOnTerminate]] for a simpler version that doesn't allow
+    *     asynchronous execution, or [[doOnTerminateEval]] for a
+    *     version that can work with any `cats.effect.Effect` type.
+    */
+  def doOnTerminateTask(cb: Option[Throwable] => Task[Unit]): Self[A] =
     self.liftByOperator(new EvalOnTerminateOperator[A](cb, happensBefore=true))
 
   /** Executes the given callback after the stream has ended either with
@@ -774,28 +943,53 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * This differs from [[doOnTerminate]] in that this happens *after*
     * the `onComplete` or `onError` notification.
     *
-    * @see [[doAfterTerminateEval]] for a version that allows for asynchronous
-    *     evaluation by means of [[monix.eval.Task Task]].
+    * @see [[doAfterTerminateTask]] for a version that allows for asynchronous
+    *      evaluation by means of [[monix.eval.Task Task]].
     */
   def doAfterTerminate(cb: Option[Throwable] => Unit): Self[A] =
     self.liftByOperator(new DoOnTerminateOperator[A](cb, happensBefore=false))
 
-  /** Evaluates the task generated by the given callback after the stream has
-    * ended either with an `onComplete` or `onError` event, or when the streaming
-    * stops by a downstream `Stop` being signaled.
+  /** Evaluates the effect generated by the given callback after the
+    * stream has ended either with an `onComplete` or `onError` event,
+    * or when the streaming stops by a downstream `Stop` being signaled.
     *
-    * This operation subsumes [[doOnEarlyStopEval]] and the callback-generated
-    * [[monix.eval.Task Task]] will back-pressure the source when applied for
-    * `Stop` events returned by `onNext` and thus the upstream source will receive
-    * the `Stop` result only after the task has finished executing.
+    * This operation subsumes [[doOnEarlyStopEval]] and the
+    * callback-generated value will back-pressure the source when
+    * applied for `Stop` events returned by `onNext` and thus the
+    * upstream source will receive the `Stop` result only after the
+    * task has finished executing.
     *
-    * This differs from [[doOnTerminateEval]] in that this happens *after*
-    * the `onComplete` or `onError` notification.
+    * The callback-generated `F[_]` is a data type that should
+    * implement `cats.effect.Effect` and is thus capable of
+    * asynchronous evaluation (e.g. `Task`, `IO`, etc).
+    *
+    * This differs from [[doOnTerminateEval]] in that this happens
+    * *after* the `onComplete` or `onError` notification.
+    *
+    * @see [[doAfterTerminate]] for a simpler version that doesn't
+    *     allow asynchronous execution, or [[doAfterTerminateTask]]
+    *     for a version that's specialized for [[monix.eval.Task Task]].
+    */
+  def doAfterTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: Effect[F]): Self[A] =
+    doAfterTerminateTask(opt => Task.fromEffect(cb(opt))(F))
+
+  /** Evaluates the task generated by the given callback after the
+    * stream has ended either with an `onComplete` or `onError` event,
+    * or when the streaming stops by a downstream `Stop` being signaled.
+    *
+    * This operation subsumes [[doOnEarlyStopTask]] and the
+    * callback-generated [[monix.eval.Task Task]] will back-pressure
+    * the source when applied for `Stop` events returned by `onNext`
+    * and thus the upstream source will receive the `Stop` result only
+    * after the task has finished executing.
+    *
+    * This differs from [[doOnTerminateTask]] in that this happens
+    * *after* the `onComplete` or `onError` notification.
     *
     * @see [[doAfterTerminate]] for a simpler version that doesn't allow
     *     asynchronous execution.
     */
-  def doAfterTerminateEval(cb: Option[Throwable] => Task[Unit]): Self[A] =
+  def doAfterTerminateTask(cb: Option[Throwable] => Task[Unit]): Self[A] =
     self.liftByOperator(new EvalOnTerminateOperator[A](cb, happensBefore=false))
 
   /** Executes the given callback for each element generated by the
@@ -803,12 +997,27 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *
     * @return a new Observable that executes the specified
     *         callback for each element
-    *
-    * @see [[doOnNextEval]] for a version that allows for asynchronous
-    *     evaluation by means of [[monix.eval.Task Task]].
+    * @see [[doOnNextTask]] for a version that allows for asynchronous
+    *      evaluation by means of [[monix.eval.Task Task]].
     */
   def doOnNext(cb: A => Unit): Self[A] =
     self.map { a => cb(a); a }
+
+  /** Evaluates the given callback for each element generated by the
+    * source Observable, useful for triggering async side-effects.
+    *
+    * This version of [[doOnNext]] evaluates side effects with any
+    * data type that implements `cats.effect.Effect` (e.g. `Task`, `IO`).
+    *
+    * @return a new Observable that executes the specified
+    *         callback for each element
+    *
+    * @see [[doOnNext]] for a simpler version that doesn't allow
+    *     asynchronous execution, or [[doOnNextTask]] for a version
+    *     that's specialized on [[monix.eval.Task Task]].
+    */
+  def doOnNextEval[F[_]](cb: A => F[Unit])(implicit F: Effect[F]): Self[A] =
+    doOnNextTask(a => Task.fromEffect(cb(a))(F))
 
   /** Evaluates the given callback for each element generated by the
     * source Observable, useful for triggering async side-effects.
@@ -819,7 +1028,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * @see [[doOnNext]] for a simpler version that doesn't allow
     *     asynchronous execution.
     */
-  def doOnNextEval(cb: A => Task[Unit]): Self[A] =
+  def doOnNextTask(cb: A => Task[Unit]): Self[A] =
     self.mapTask(a => cb(a).map(_ => a))
 
   /** Executes the given callback on each acknowledgement
@@ -831,11 +1040,33 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * needs to be sent after each message in order to mark it
     * as processed.
     *
-    * @see [[doOnNextAckEval]] for a version that allows for asynchronous
-    *     evaluation by means of [[monix.eval.Task Task]].
+    * @see [[doOnNextAckTask]] for a version that allows for asynchronous
+    *      evaluation by means of [[monix.eval.Task Task]], or
+    *      [[doOnNextEval]] for a version that can do evaluation with
+    *      any data type implementing `cats.effect.Effect`.
     */
   def doOnNextAck(cb: (A, Ack) => Unit): Self[A] =
     self.liftByOperator(new DoOnNextAckOperator[A](cb))
+
+  /** Executes the given callback on each acknowledgement received
+    * from the downstream subscriber, executing a generated
+    * effect and back-pressuring until it is done executing.
+    *
+    * This method helps in executing logic after messages get
+    * processed, for example when messages are polled from
+    * some distributed message queue and an acknowledgement
+    * needs to be sent after each message in order to mark it
+    * as processed.
+    *
+    * This version of [[doOnNext]] evaluates side effects with any
+    * data type that implements `cats.effect.Effect` (e.g. `Task`, `IO`).
+    *
+    * @see [[doOnNextAck]] for a simpler version that doesn't allow
+    *     asynchronous execution, or [[doOnNextAckTask]] for a version
+    *     that's specialized on [[monix.eval.Task Task]].
+    */
+  def doOnNextAckEval[F[_]](cb: (A, Ack) => F[Unit])(implicit F: Effect[F]): Self[A] =
+    doOnNextAckTask((a, ack) => Task.fromEffect(cb(a, ack))(F))
 
   /** Executes the given callback on each acknowledgement received from
     * the downstream subscriber, executing a generated
@@ -849,9 +1080,10 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * as processed.
     *
     * @see [[doOnNextAck]] for a simpler version that doesn't allow
-    *     asynchronous execution.
+    *     asynchronous execution, or [[doOnNextAckTask]] for a version
+    *     that's specialized on [[monix.eval.Task Task]].
     */
-  def doOnNextAckEval(cb: (A, Ack) => Task[Unit]): Self[A] =
+  def doOnNextAckTask(cb: (A, Ack) => Task[Unit]): Self[A] =
     self.liftByOperator(new EvalOnNextAckOperator[A](cb))
 
   /** Executes the given callback only for the first element generated
@@ -1080,19 +1312,20 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *
     * It's the combination between [[scan]] and [[flatMap]].
     */
-  def flatScan[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
-    self.transform(self => new FlatScanObservable[A,R](self, initial _, op, delayErrors = false))
+  def flatScan[R](seed: => R)(op: (R, A) => Observable[R]): Self[R] =
+    self.transform(self => new FlatScanObservable[A,R](self, seed _, op, delayErrors = false))
 
   /** Applies a binary operator to a start value and to elements
     * produced by the source observable, going from left to right,
     * producing and concatenating observables along the way.
     *
     * This version of [[flatScan]] delays all errors until `onComplete`,
-    * when it will finally emit a [[monix.execution.exceptions.CompositeException CompositeException]].
+    * when it will finally emit a
+    * [[monix.execution.exceptions.CompositeException CompositeException]].
     * It's the combination between [[scan]] and [[flatMapDelayErrors]].
     */
-  def flatScanDelayErrors[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
-    self.transform(self => new FlatScanObservable[A,R](self, initial _, op, delayErrors = true))
+  def flatScanDelayErrors[R](seed: => R)(op: (R, A) => Observable[R]): Self[R] =
+    self.transform(self => new FlatScanObservable[A,R](self, seed _, op, delayErrors = true))
 
   /** $concatDescription
     *
@@ -1120,11 +1353,47 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def flattenLatest[B](implicit ev: A <:< Observable[B]): Self[B] =
     self.switch
 
+  /** Given evidence that type `A` has a `cats.Monoid` implementation,
+    * folds the stream with the provided monoid definition.
+    *
+    * For streams emitting numbers, this effectively sums them up.
+    * For strings, this concatenates them.
+    *
+    * Example:
+    *
+    * {{{
+    *   // Yields 10
+    *   Observable(1, 2, 3, 4).foldF
+    *
+    *   // Yields "1234"
+    *   Observable("1", "2", "3", "4").foldF
+    * }}}
+    *
+    * Note, in case you don't have a `Monoid` instance in scope,
+    * but you feel like you should, try this import:
+    *
+    * {{{
+    *   import cats.instances.all._
+    * }}}
+    *
+    * @see [[Observable.foldL foldL]] for the version that returns a
+    *      task instead of an observable.
+    *
+    * @param A is the `cats.Monoid` type class instance that's needed
+    *          in scope for folding the source
+    *
+    * @return the result of combining all elements of the source,
+    *         or the defined `Monoid.empty` element in case the
+    *         stream is empty
+    */
+  def foldF[AA >: A](implicit A: Monoid[AA]): Self[AA] =
+    foldLeftF(A.empty)(A.combine)
+
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
     * Observable that emits only one item before `onComplete`.
     *
-    * @param initial is the initial state, specified as a possibly lazy value;
+    * @param seed is the initial state, specified as a possibly lazy value;
     *        it gets evaluated when the subscription happens and if it triggers
     *        an error then the subscriber will get immediately terminated
     *        with an error
@@ -1132,8 +1401,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * @param op is an operator that will fold the signals of the source
     *        observable, returning the next state
     */
-  def foldLeftF[R](initial: => R)(op: (R, A) => R): Self[R] =
-    self.transform(source => new FoldLeftObservable[A,R](source, initial _, op))
+  def foldLeftF[R](seed: => R)(op: (R, A) => R): Self[R] =
+    self.transform(source => new FoldLeftObservable[A,R](source, seed _, op))
 
   /** Folds the source observable, from start to finish, until the
     * source completes, or until the operator short-circuits the
@@ -1143,18 +1412,47 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * being called with an operator always returning `true` as the first
     * member of its result.
     *
-    * @param initial is the initial state, specified as a possibly lazy value;
+    * Example: {{{
+    *   // Sums first 10 items
+    *   Observable.range(0, 1000).foldWhileLeftF((0, 0)) {
+    *     case ((sum, count), e) =>
+    *       val next = (sum + e, count + 1)
+    *       if (count + 1 < 10) Left(next) else Right(next)
+    *   }
+    *
+    *   // Implements exists(predicate)
+    *   Observable(1, 2, 3, 4, 5).foldWhileLeftF(false) {
+    *     (default, e) =>
+    *       if (e == 3) Right(true) else Left(default)
+    *   }
+    *
+    *   // Implements forall(predicate)
+    *   Observable(1, 2, 3, 4, 5).foldWhileLeftF(true) {
+    *     (default, e) =>
+    *       if (e != 3) Right(false) else Left(default)
+    *   }
+    * }}}
+    *
+    * @see [[Observable.foldWhileLeftL foldWhileLeftL]] for a version
+    *      that returns a task instead of an observable.
+    *
+    * @param seed is the initial state, specified as a possibly lazy value;
     *        it gets evaluated when the subscription happens and if it
     *        triggers an error then the subscriber will get immediately
     *        terminated with an error
     *
-    * @param op is an operator that will fold the signals of the source
-    *        observable, returning either a new state along with a boolean
-    *        that should become false in case the folding must be
-    *        interrupted.
+    * @param op is the binary operator returning either `Left`,
+    *        signaling that the state should be evolved or a `Right`,
+    *        signaling that the process can be short-circuited and
+    *        the result returned immediately
+    *
+    * @return the result of inserting `op` between consecutive
+    *         elements of this observable, going from left to right with
+    *         the `seed` as the start value, or `seed` if the observable
+    *         is empty
     */
-  def foldWhileF[R](initial: => R)(op: (R,A) => (Boolean, R)): Self[R] =
-    self.transform(source => new FoldWhileObservable[A,R](source, initial _, op))
+  def foldWhileLeftF[S](seed: => S)(op: (S, A) => Either[S, S]): Self[S] =
+    self.transform(source => new FoldWhileLeftObservable[A,S](source, seed _, op))
 
   /** Returns an Observable that emits a single boolean, either true, in
     * case the given predicate holds for all the items emitted by the
@@ -1249,35 +1547,23 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def map[B](f: A => B): Self[B] =
     self.liftByOperator(new MapOperator(f))
 
-  /** Alias for [[mapTask]]. */
-  def mapAsync[B](f: A => Task[B]): Self[B] =
-    mapTask(f)
-
-  /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
-    * applies it in parallel on the source, but with a specified
-    * `parallelism`, which indicates the maximum number of tasks that
-    * can be executed in parallel.
+  /** Maps elements from the source using a function that can do
+    * lazy or asynchronous processing by means of any `F[_]` data
+    * type that implements `cats.effect.Effect` (e.g. `Task`, `IO`).
     *
-    * Similar in spirit with
-    * [[monix.reactive.Consumer.loadBalance[A,R](parallelism* Consumer.loadBalance]],
-    * but expressed as an operator that executes [[monix.eval.Task Task]]
-    * instances in parallel.
+    * Given a source observable, this function is basically the
+    * equivalent of doing:
     *
-    * Note that when the specified `parallelism` is 1, it has the same
-    * behavior as [[mapTask]].
+    * {{{
+    *   observable.mapTask(a => Task.fromEffect(f(a)))
+    * }}}
     *
-    * @param parallelism is the maximum number of tasks that can be executed
-    *        in parallel, over which the source starts being
-    *        back-pressured
-    *
-    * @param f is the mapping function that produces tasks to execute
-    *        in parallel, which will eventually produce events for the
-    *        resulting observable stream
-    *
-    * @see [[mapTask]] for serial execution
+    * @see [[mapTask]] for a version specialized for
+    *      [[monix.eval.Task Task]] and [[mapFuture]] for the version
+    *      that can work with `scala.concurrent.Future`
     */
-  def mapAsync[B](parallelism: Int)(f: A => Task[B]): Self[B] =
-    self.transform(source => new MapAsyncParallelObservable[A,B](source, parallelism, f))
+  def mapEval[F[_], B](f: A => F[B])(implicit F: Effect[F]): Self[B] =
+    mapTask(a => Task.fromEffect(f(a))(F))
 
   /** Maps elements from the source using a function that can do
     * asynchronous processing by means of `scala.concurrent.Future`.
@@ -1320,24 +1606,94 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def mapTask[B](f: A => Task[B]): Self[B] =
     self.transform(source => new MapTaskObservable[A,B](source, f))
 
+  /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
+    * applies it in parallel on the source, but with a specified
+    * `parallelism`, which indicates the maximum number of tasks that
+    * can be executed in parallel.
+    *
+    * Similar in spirit with
+    * [[monix.reactive.Consumer.loadBalance[A,R](parallelism* Consumer.loadBalance]],
+    * but expressed as an operator that executes [[monix.eval.Task Task]]
+    * instances in parallel.
+    *
+    * Note that when the specified `parallelism` is 1, it has the same
+    * behavior as [[mapTask]].
+    *
+    * @param parallelism is the maximum number of tasks that can be executed
+    *        in parallel, over which the source starts being
+    *        back-pressured
+    *
+    * @param f is the mapping function that produces tasks to execute
+    *        in parallel, which will eventually produce events for the
+    *        resulting observable stream
+    *
+    * @see [[mapTask]] for serial execution
+    */
+  def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B]): Self[B] =
+    self.transform(source => new MapParallelUnorderedObservable[A,B](source, parallelism, f))
+
   /** Converts the source Observable that emits `A` into an Observable
     * that emits `Notification[A]`.
     */
   def materialize: Self[Notification[A]] =
     self.liftByOperator(new MaterializeOperator[A])
 
-  /** Takes the elements of the source Observable and emits the maximum
-    * value, after the source has completed.
+  /** Given a `cats.Order` over the stream's elements, returns the
+    * maximum element in the stream.
+    *
+    * Example:
+    * {{{
+    *   // Yields Observable(20)
+    *   Observable(10, 7, 6, 8, 20, 3, 5).maxF
+    *
+    *   // Yields Observable.empty
+    *   Observable.empty.maxF
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @see [[Observable.maxL maxL]] for the version that returns a
+    *      [[monix.eval.Task Task]] instead of an observable.
+    *
+    * @param A is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the maximum element of the source stream, relative
+    *         to the defined `Order`
     */
-  def maxF[B >: A](implicit ev: Ordering[B]): Self[B] =
-    self.liftByOperator(new MaxOperator[B])
+  def maxF[AA >: A](implicit A: Order[AA]): Self[AA] =
+    self.liftByOperator(new MaxOperator[AA]()(A))
 
-  /** Takes the elements of the source Observable and emits the element
-    * that has the maximum key value, where the key is generated by
-    * the given function `f`.
+  /** Takes the elements of the source observable and emits the
+    * element that has the maximum key value, where the key is
+    * generated by the given function.
+    *
+    * Example:
+    * {{{
+    *   case class Person(name: String, age: Int)
+    *
+    *   // Yields Observable(Person("Alex", 34))
+    *   Observable(Person("Alex", 34), Person("Alice", 27))
+    *     .maxByF(_.age)
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @see [[Observable.maxByL maxByL]] for the version that returns a
+    *      [[monix.eval.Task Task]] instead of an observable.
+    *
+    * @param key is the function that returns the key for which the
+    *        given ordering is defined
+    *
+    * @param K is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the maximum element of the source stream, relative
+    *         to its key generated by the given function and the
+    *         given ordering
     */
-  def maxByF[B](f: A => B)(implicit ev: Ordering[B]): Self[A] =
-    self.liftByOperator(new MaxByOperator[A,B](f))
+  def maxByF[K](key: A => K)(implicit K: Order[K]): Self[A] =
+    self.liftByOperator(new MaxByOperator[A,K](key)(K))
 
   /** $mergeDescription
     *
@@ -1379,18 +1735,59 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     (implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Self[B] =
     self.transform(self => new MergeMapObservable[A,B](self, f, os, delayErrors = true))
 
-  /** Takes the elements of the source Observable and emits the minimum
-    * value, after the source has completed.
+  /** Given a `cats.Order` over the stream's elements, returns the
+    * minimum element in the stream.
+    *
+    * Example:
+    * {{{
+    *   // Yields Observable(3)
+    *   Observable(10, 7, 6, 8, 20, 3, 5).minF
+    *
+    *   // Yields Observable.empty
+    *   Observable.empty.minF
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @see [[Observable.minL minL]] for the version that returns a
+    *      [[monix.eval.Task Task]] instead of an observable.
+    *
+    * @param A is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the minimum element of the source stream, relative
+    *         to the defined `Order`
     */
-  def minF[B >: A](implicit ev: Ordering[B]): Self[B] =
-    self.liftByOperator(new MinOperator[B]()(ev))
+  def minF[AA >: A](implicit A: Order[AA]): Self[AA] =
+    self.liftByOperator(new MinOperator()(A))
 
-  /** Takes the elements of the source Observable and emits the element
-    * that has the minimum key value, where the key is generated by
-    * the given function `f`.
+  /** Takes the elements of the source observable and emits the
+    * element that has the minimum key value, where the key is
+    * generated by the given function.
+    *
+    * Example:
+    * {{{
+    *   case class Person(name: String, age: Int)
+    *
+    *   // Yields Observable(Person("Alice", 27))
+    *   Observable(Person("Alex", 34), Person("Alice", 27))
+    *     .minByF(_.age)
+    * }}}
+    *
+    * $catsOrderDesc
+    *
+    * @param key is the function that returns the key for which the
+    *        given ordering is defined
+    *
+    * @param K is the `cats.Order` type class instance that's going
+    *          to be used for comparing elements
+    *
+    * @return the minimum element of the source stream, relative
+    *         to its key generated by the given function and the
+    *         given ordering
     */
-  def minByF[B](f: A => B)(implicit ev: Ordering[B]): Self[A] =
-    self.liftByOperator(new MinByOperator[A,B](f))
+  def minByF[K](key: A => K)(implicit K: Order[K]): Self[A] =
+    self.liftByOperator(new MinByOperator[A,K](key))
 
   /** Returns an Observable that emits false if the source Observable is
     * empty, otherwise true.
@@ -1814,11 +2211,125 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * Similar to [[foldLeftF]], but emits the state on each
     * step. Useful for modeling finite state machines.
     */
-  def scan[R](initial: => R)(f: (R, A) => R): Self[R] =
-    self.transform(source => new ScanObservable[A,R](source, initial _, f))
+  def scan[S](seed: => S)(op: (S, A) => S): Self[S] =
+    self.transform(source => new ScanObservable[A,S](source, seed _, op))
 
-  /** Creates a new Observable that emits the given elements and then it
-    * also emits the events of the source (prepend operation).
+  /** Applies a binary operator to a start value and all elements of
+    * this stream, going left to right and returns a new stream that
+    * emits on each step the result of the applied function.
+    *
+    * Similar with [[scan]], but this can suspend and evaluate
+    * side effects with an `F[_]` data type that implements the
+    * `cats.effect.Effect` type class, thus allowing for lazy or
+    * asynchronous data processing.
+    *
+    * Similar to [[foldLeftF]] and [[foldWhileLeftF]], but emits the
+    * state on each step. Useful for modeling finite state machines.
+    *
+    * Example showing how state can be evolved and acted upon:
+    *
+    * {{{
+    *   // Using cats.effect.IO for evaluating our side effects
+    *   import cats.effect.IO
+    *
+    *   sealed trait State[+A] { def count: Int }
+    *   case object Init extends State[Nothing] { def count = 0 }
+    *   case class Current[A](current: Option[A], count: Int)
+    *     extends State[A]
+    *
+    *   case class Person(id: Int, name: String)
+    *
+    *   // Initial state
+    *   val seed = IO.pure(Init : State[Person])
+    *
+    *   val scanned = source.scanEval(seed) { (state, id) =>
+    *     requestPersonDetails(id).map { person =>
+    *       state match {
+    *         case Init =>
+    *           Current(person, 1)
+    *         case Current(_, count) =>
+    *           Current(person, count + 1)
+    *       }
+    *     }
+    *   }
+    *
+    *   scanned
+    *     .takeWhile(_.count < 10)
+    *     .collect { case Current(a, _) => a }
+    * }}}
+    *
+    * @see [[scan]] for the synchronous, non-lazy version, or
+    *      [[scanTask]] for the [[monix.eval.Task Task]]-specialized
+    *      version.
+    *
+    * @param seed is the initial state
+    * @param op is the function that evolves the current state
+    *
+    * @param F is the `cats.effect.Effect` type class implementation
+    *        for type `F`, which controls the evaluation. `F` can be
+    *        a data type such as [[monix.eval.Task]] or `cats.effect.IO`,
+    *        which implement `Effect`.
+    *
+    * @return a new observable that emits all intermediate states being
+    *         resulted from applying the given function
+    */
+  def scanEval[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: Effect[F]): Self[S] =
+    scanTask(Task.fromEffect(seed)(F))((s, a) => Task.fromEffect(op(s, a))(F))
+
+  /** Applies a binary operator to a start value and all elements of
+    * this stream, going left to right and returns a new stream that
+    * emits on each step the result of the applied function.
+    *
+    * Similar with [[scan]], but this can suspend and evaluate
+    * side effects with [[monix.eval.Task Task]], thus allowing for
+    * asynchronous data processing.
+    *
+    * Similar to [[foldLeftF]] and [[foldWhileLeftF]], but emits the
+    * state on each step. Useful for modeling finite state machines.
+    *
+    * Example showing how state can be evolved and acted upon:
+    *
+    * {{{
+    *   sealed trait State[+A] { def count: Int }
+    *   case object Init extends State[Nothing] { def count = 0 }
+    *   case class Current[A](current: Option[A], count: Int)
+    *     extends State[A]
+    *
+    *   case class Person(id: Int, name: String)
+    *
+    *   // Initial state
+    *   val seed = Task.now(Init : State[Person])
+    *
+    *   val scanned = source.scanTask(seed) { (state, id) =>
+    *     requestPersonDetails(id).map { person =>
+    *       state match {
+    *         case Init =>
+    *           Current(person, 1)
+    *         case Current(_, count) =>
+    *           Current(person, count + 1)
+    *       }
+    *     }
+    *   }
+    *
+    *   scanned
+    *     .takeWhile(_.count < 10)
+    *     .collect { case Current(a, _) => a }
+    * }}}
+    *
+    * @see [[scan]] for the version that does not require using `Task`
+    *      in the provided operator
+    *
+    * @param seed is the initial state
+    * @param op is the function that evolves the current state
+    *
+    * @return a new observable that emits all intermediate states being
+    *         resulted from applying the given function
+    */
+  def scanTask[S](seed: Task[S])(op: (S, A) => Task[S]): Self[S] =
+    self.transform(source => new ScanTaskObservable(source, seed, op))
+
+  /** Creates a new Observable that emits the given elements and then
+    * it also emits the events of the source (prepend operation).
     */
   def startWith[B >: A](elems: Seq[B]): Self[B] =
     self.transform(self => Observable.fromIterable(elems) ++ self)
@@ -1832,8 +2343,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   /** Given a source that emits numeric values, the `sum` operator sums
     * up all values and at onComplete it emits the total.
     */
-  def sumF[B >: A : Numeric]: Self[B] =
-    self.liftByOperator(new SumOperator[B])
+  def sumF[AA >: A](implicit A: Numeric[AA]): Self[AA] =
+    foldLeftF(A.zero)(A.plus)
 
   /** $switchDescription */
   def switch[B](implicit ev: A <:< Observable[B]): Self[B] =

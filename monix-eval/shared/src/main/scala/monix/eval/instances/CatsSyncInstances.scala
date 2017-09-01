@@ -18,15 +18,15 @@
 package monix.eval
 package instances
 
+import cats.{CoflatMap, Eval}
 import cats.effect.Sync
-import cats.{Comonad, Eval}
 import monix.eval.Coeval
 import scala.util.Try
 
 /** Specification for Cats type classes, to be implemented by
   * types that can execute synchronous computations (e.g. [[Coeval]]).
   */
-trait CatsSyncInstances[F[_]] extends Sync[F] with Comonad[F]
+trait CatsSyncInstances[F[_]] extends Sync[F] with CoflatMap[F]
 
 object CatsSyncInstances {
   /** Cats type class instances for [[Coeval]]. */
@@ -36,18 +36,12 @@ object CatsSyncInstances {
     override def suspend[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
     override val unit: Coeval[Unit] = Coeval.now(())
 
-    override def extract[A](x: Coeval[A]): A =
-      x.value
     override def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] =
       fa.flatMap(f)
     override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
       ffa.flatten
     override def tailRecM[A, B](a: A)(f: (A) => Coeval[Either[A, B]]): Coeval[B] =
       Coeval.tailRecM(a)(f)
-    override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
-      Coeval.eval(f(fa))
-    override def coflatten[A](fa: Coeval[A]): Coeval[Coeval[A]] =
-      Coeval.now(fa)
     override def ap[A, B](ff: Coeval[(A) => B])(fa: Coeval[A]): Coeval[B] =
       for (f <- ff; a <- fa) yield f(a)
     override def map2[A, B, Z](fa: Coeval[A], fb: Coeval[B])(f: (A, B) => Z): Coeval[Z] =
@@ -72,6 +66,10 @@ object CatsSyncInstances {
       Coeval.eval(a.value)
     override def fromTry[A](t: Try[A])(implicit ev: <:<[Throwable, Throwable]): Coeval[A] =
       Coeval.fromTry(t)
+    override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
+      Coeval.now(f(fa))
+    override def coflatten[A](fa: Coeval[A]): Coeval[Coeval[A]] =
+      Coeval.now(fa)
   }
 
   /** Reusable reference for [[ForCoeval]]. */

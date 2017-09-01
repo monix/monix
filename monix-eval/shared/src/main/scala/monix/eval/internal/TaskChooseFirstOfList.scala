@@ -22,7 +22,7 @@ import monix.execution.Cancelable
 import monix.execution.atomic.{Atomic, PaddingStrategy}
 import monix.execution.cancelables.StackedCancelable
 
-private[monix] object TaskChooseFirstOfList {
+private[eval] object TaskChooseFirstOfList {
   /**
     * Implementation for `Task.chooseFirstOfList`
     */

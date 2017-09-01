@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 
+import cats.effect.IO
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
@@ -33,11 +34,28 @@ object EvalOnNextAckSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
+  test("should work for cats.effect.IO") { implicit s =>
+    var sum = 0L
+    var wasCompleted = 0
+
+    Observable.range(0, 20).doOnNextAckEval((x,_) => IO(sum += x))
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onError(ex: Throwable): Unit = ()
+        def onNext(elem: Long) = Continue
+        def onComplete(): Unit = wasCompleted += 1
+      })
+
+    s.tick()
+    assertEquals(sum, 190)
+    assertEquals(wasCompleted, 1)
+  }
+
   test("should work for Observable.range asynchronously") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNextAckEval((x,_) => Task(sum += x))
+    Observable.range(0, 20).doOnNextAckTask((x,_) => Task(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -54,7 +72,7 @@ object EvalOnNextAckSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNextAckEval((x,_) => Task.now(sum += x))
+    Observable.range(0, 20).doOnNextAckTask((x,_) => Task.now(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -70,7 +88,7 @@ object EvalOnNextAckSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.now(10L).doOnNextAckEval((x,_) => Task(sum += x))
+    Observable.now(10L).doOnNextAckTask((x,_) => Task(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -87,7 +105,7 @@ object EvalOnNextAckSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.now(10L).doOnNextAckEval((x,_) => Task.now(sum += x))
+    Observable.now(10L).doOnNextAckTask((x,_) => Task.now(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -105,7 +123,7 @@ object EvalOnNextAckSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0L
     var errorThrown: Throwable = null
 
-    Observable.now(10L).doOnNextAckEval((x,ack) => throw dummy)
+    Observable.now(10L).doOnNextAckTask((x,ack) => throw dummy)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = errorThrown = ex
@@ -124,7 +142,7 @@ object EvalOnNextAckSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0L
     var errorThrown: Throwable = null
 
-    Observable.range(1,10).doOnNextAckEval((x,ack) => throw dummy)
+    Observable.range(1,10).doOnNextAckTask((x,ack) => throw dummy)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = errorThrown = ex

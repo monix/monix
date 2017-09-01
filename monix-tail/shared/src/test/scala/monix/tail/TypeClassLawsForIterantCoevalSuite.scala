@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.Eq
 import cats.data.EitherT
-import cats.laws.discipline.{CartesianTests, MonadErrorTests, MonoidKTests}
+import cats.laws.discipline.{CartesianTests, CoflatMapTests, MonadErrorTests, MonoidKTests}
 import monix.eval.Coeval
 
 object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
@@ -40,5 +40,9 @@ object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
 
   checkAllAsync("MonoidK[Iterant[Coeval]]") { implicit ec =>
     MonoidKTests[F].monoidK[Int]
+  }
+
+  checkAllAsync("CoflatMap[Iterant[Coeval]]") { implicit ec =>
+    CoflatMapTests[F].coflatMap[Int, Int, Int]
   }
 }

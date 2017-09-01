@@ -25,7 +25,7 @@ import monix.execution.misc.NonFatal
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-private[monix] object TaskGather {
+private[eval] object TaskGather {
   /**
     * Implementation for `Task.gather`
     */

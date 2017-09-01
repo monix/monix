@@ -24,7 +24,7 @@ import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
 import monix.tail.internal.IterantUtils.signalError
-import scala.util.control.NonFatal
+import monix.execution.misc.NonFatal
 
 private[tail] object IterantConcat {
   /**

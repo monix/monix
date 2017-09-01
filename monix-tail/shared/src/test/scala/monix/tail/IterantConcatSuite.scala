@@ -17,7 +17,7 @@
 
 package monix.tail
 
-import monix.eval.Task
+import monix.eval.{Coeval, Task}
 
 object IterantConcatSuite extends BaseTestSuite {
   test("Iterant.prepend") { implicit s =>
@@ -31,9 +31,9 @@ object IterantConcatSuite extends BaseTestSuite {
 
   test("Iterant ++ Iterant") { implicit s =>
     check2 { (list1: List[Int], list2: List[Int]) =>
-      val iter1 = Iterant[Task].fromList(list1)
-      val iter2 = Iterant[Task].fromList(list2)
-      val received = iter1 ++ iter2
+      val i1 = Iterant[Task].fromList(list1)
+      val i2 = Iterant[Task].fromList(list2)
+      val received = i1 ++ i2
       val expected = Iterant[Task].fromList(list1 ::: list2)
       received <-> expected
     }
@@ -41,11 +41,17 @@ object IterantConcatSuite extends BaseTestSuite {
 
   test("Iterant ++ F(Iterant)") { implicit s =>
     check2 { (list1: List[Int], list2: List[Int]) =>
-      val iter1 = Iterant[Task].fromList(list1)
-      val iter2 = Iterant[Task].fromList(list2)
-      val received = iter1 ++ Task.eval(iter2)
+      val i1 = Iterant[Task].fromList(list1)
+      val i2 = Iterant[Task].fromList(list2)
+      val received = i1 ++ Task.eval(i2)
       val expected = Iterant[Task].fromList(list1 ::: list2)
       received <-> expected
+    }
+  }
+
+  test("Iterant :+ is consistent with ++") { implicit s =>
+    check2 { (i: Iterant[Coeval, Int], e: Int) =>
+      (i :+ e) <-> (i ++ Iterant[Coeval].pure(e))
     }
   }
 }

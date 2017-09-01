@@ -29,15 +29,25 @@ private[tail] object IterantMapEval {
   /**
     * Implementation for `Iterant#mapEval`
     */
-  def apply[F[_], A, B](source: Iterant[F, A], f: A => F[B])
+  def apply[F[_], A, B](source: Iterant[F, A], ff: A => F[B])
     (implicit F: Sync[F]): Iterant[F, B] = {
+
+    def protectedF(a: A, stop: F[Unit]): F[B] = {
+      try {
+        val fb = ff(a)
+        fb.handleErrorWith(e => stop >> F.raiseError(e))
+      } catch {
+        case NonFatal(e) =>
+          stop >> F.raiseError(e)
+      }
+    }
 
     def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
       if (!cursor.hasNext)
         Suspend[F, B](rest.map(loop), stop)
       else {
         val head = cursor.next()
-        val fa = f(head)
+        val fa = protectedF(head, stop)
         // If the iterator is empty, then we can skip a beat
         val tail = if (cursor.hasNext()) F.pure(ref: Iterant[F, A]) else rest
         val suspended = fa.map(h => nextS(h, tail.map(loop), stop))
@@ -48,7 +58,7 @@ private[tail] object IterantMapEval {
     def loop(source: Iterant[F, A]): Iterant[F, B] =
       try source match {
         case Next(head, tail, stop) =>
-          val fa = f(head)
+          val fa = protectedF(head, stop)
           val rest = fa.map(h => nextS(h, tail.map(loop), stop))
           Suspend(rest, stop)
         case ref @ NextCursor(cursor, rest, stop) =>
@@ -60,7 +70,7 @@ private[tail] object IterantMapEval {
         case Suspend(rest, stop) =>
           Suspend[F,B](rest.map(loop), stop)
         case Last(item) =>
-          val fa = f(item)
+          val fa = ff(item)
           Suspend(fa.map(h => lastS[F,B](h)), F.unit)
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]

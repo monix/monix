@@ -27,7 +27,7 @@ import monix.execution.{Cancelable, Scheduler}
 
 import scala.annotation.tailrec
 
-private[monix] object TaskMapBoth {
+private[eval] object TaskMapBoth {
   /**
     * Implementation for `Task.mapBoth`.
     */

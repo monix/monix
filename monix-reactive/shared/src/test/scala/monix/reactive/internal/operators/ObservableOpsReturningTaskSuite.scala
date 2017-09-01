@@ -115,7 +115,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val sum1 = obs.foldLeftL(0)(_+_)
-      val sum2 = obs.foldWhileL(0)((acc,e) => (true, acc+e))
+      val sum2 = obs.foldWhileLeftL(0)((acc,e) => Left(acc + e))
       sum1 <-> sum2
     }
   }

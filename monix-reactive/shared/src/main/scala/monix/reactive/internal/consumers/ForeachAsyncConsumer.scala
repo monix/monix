@@ -26,7 +26,7 @@ import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-/** Implementation for [[monix.reactive.Consumer.foreachAsync]]. */
+/** Implementation for [[monix.reactive.Consumer.foreachTask]]. */
 private[reactive]
 final class ForeachAsyncConsumer[A](f: A => Task[Unit])
   extends Consumer[A, Unit] {

@@ -11,6 +11,10 @@ addCommandAlias("release",    ";project monix ;+publishSigned ;sonatypeReleaseAl
 
 val catsVersion = "1.0.0-MF"
 val catsEffectVersion = "0.4"
+val jcToolsVersion = "2.0.2"
+val reactiveStreamsVersion = "1.0.1"
+val scalaTestVersion = "3.0.3"
+val minitestVersion = "1.1.1"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -142,8 +146,8 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   credentials += Credentials(
     "Sonatype Nexus Repository Manager",
     "oss.sonatype.org",
-    sys.env.get("SONATYPE_USER").getOrElse(""),
-    sys.env.get("SONATYPE_PASS").getOrElse("")
+    sys.env.getOrElse("SONATYPE_USER", ""),
+    sys.env.getOrElse("SONATYPE_PASS", "")
   ),
 
   publishMavenStyle := true,
@@ -243,7 +247,7 @@ lazy val unidocSettings = Seq(
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies ++= Seq(
-    "io.monix" %%% "minitest-laws" % "1.1.1" % Test,
+    "io.monix" %%% "minitest-laws" % minitestVersion % Test,
     "org.typelevel" %%% "cats-laws" % catsVersion % Test,
     "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion % Test
   )
@@ -292,7 +296,8 @@ lazy val coreJS = project.in(file("monix/js"))
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
   name := "monix-execution",
   // Filtering out breaking changes from 3.0.0
-  mimaBinaryIssueFilters ++= MimaFilters.execChangesFor_3_0_0
+  mimaBinaryIssueFilters ++= MimaFilters.execChangesFor_3_0_0,
+  libraryDependencies += "org.typelevel" %%% "cats-core" % catsVersion
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
@@ -301,7 +306,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(testSettings)
   .settings(requiredMacroDeps)
   .settings(executionCommon)
-  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
+  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % reactiveStreamsVersion)
   .settings(mimaSettings("monix-execution"))
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -363,17 +368,46 @@ lazy val reactiveCommon =
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM, evalJVM % "compile->compile; test->test", tailJVM)
+  .dependsOn(executionJVM, evalJVM % "compile->compile; test->test")
   .settings(reactiveCommon)
-  .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0.2")
+  .settings(libraryDependencies += "org.jctools" % "jctools-core" % jcToolsVersion)
   .settings(mimaSettings("monix-reactive"))
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(executionJS, evalJS % "compile->compile; test->test", tailJS)
+  .dependsOn(executionJS, evalJS % "compile->compile; test->test")
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
+
+lazy val reactiveTests = project.in(file("reactiveTests"))
+  .configure(profile)
+  .dependsOn(coreJVM)
+  .settings(sharedSettings)
+  .settings(doNotPublishArtifact)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.reactivestreams" % "reactive-streams-tck" % reactiveStreamsVersion % Test,
+      "org.scalatest" %% "scalatest" % scalaTestVersion % Test
+    ))
+
+lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
+  .configure(profile)
+  .enablePlugins(JmhPlugin)
+  .settings(crossSettings)
+  .settings(sharedSettings)
+  .settings(doNotPublishArtifact)
+  .settings(
+    libraryDependencies += "io.monix" %% "monix-reactive" % "2.3.0"
+  )
+
+lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
+  .configure(profile)
+  .dependsOn(coreJVM)
+  .enablePlugins(JmhPlugin)
+  .settings(crossSettings)
+  .settings(sharedSettings)
+  .settings(doNotPublishArtifact)
 
 //------------- For Release
 

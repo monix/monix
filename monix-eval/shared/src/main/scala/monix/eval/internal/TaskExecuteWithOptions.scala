@@ -21,7 +21,7 @@ import monix.eval.{Callback, Task}
 import monix.eval.Task.Options
 import monix.execution.misc.NonFatal
 
-private[monix] object TaskExecuteWithOptions {
+private[eval] object TaskExecuteWithOptions {
   /**
     * Implementation for `Task.executeWithOptions`
     */

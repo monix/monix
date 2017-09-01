@@ -211,4 +211,17 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       result <-> Coeval.raiseError[Int](dummy)
     }
   }
+
+  test("Iterant[Coeval, Int].foldL is consistent with foldLeftL") { implicit s =>
+    check1 { (stream: Iterant[Coeval, Int]) =>
+      stream.foldL <-> stream.foldLeftL(0)(_ + _)
+    }
+  }
+
+  test("Iterant.countL consistent with List.length") { implicit s =>
+    check2 { (list: List[Int], idx: Int) =>
+      val i = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      i.countL <-> Coeval(list.length)
+    }
+  }
 }

@@ -23,14 +23,16 @@ import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.tail.batches.{Batch, BatchCursor}
-import org.scalacheck.Arbitrary
+import org.scalacheck.{Arbitrary, Cogen}
 
 trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
-  def arbitraryListToIterant[F[_], A](list: List[A], idx: Int)(implicit F: Sync[F]): Iterant[F, A] = {
+  def arbitraryListToIterant[F[_], A](list: List[A], idx: Int, allowErrors: Boolean = true)
+    (implicit F: Sync[F]): Iterant[F, A] = {
+
     def loop(list: List[A], idx: Int): Iterant[F, A] =
       list match {
         case Nil =>
-          if (math.abs(idx % 4) != 0)
+          if (!allowErrors || math.abs(idx % 4) != 0)
             Iterant[F].haltS(None)
           else
             Iterant[F].haltS(Some(DummyException("arbitrary")))
@@ -39,24 +41,22 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
           Iterant[F].lastS(x)
 
         case ns =>
-          math.abs(idx % 6) match {
-            case 0 =>
+          math.abs(idx % 14) match {
+            case 0 | 1 =>
               Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx+1)), F.unit)
-            case 1 =>
+            case 2 | 3 =>
               Iterant[F].suspend(F.delay(loop(list, idx+1)))
-            case 2 =>
-              val (headSeq, tail) = list.splitAt(3)
-              val bs = if (idx % 7 < 3) 1 else 3
-              val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, bs)
-              Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx+1)), F.unit)
-            case 3 =>
+            case 4 | 5 =>
               Iterant[F].suspendS(F.delay(loop(ns, idx + 1)), F.unit)
-            case 4 =>
+            case n @ (6 | 7 | 8) =>
               val (headSeq, tail) = list.splitAt(3)
-              val bs = if (idx % 7 < 3) 1 else 3
-              val batch = Batch.fromSeq(headSeq.toVector, bs)
-              Iterant[F].nextBatchS(batch, F.delay(loop(tail, idx+1)), F.unit)
-            case 5 =>
+              val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, n - 5)
+              Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx+1)), F.unit)
+            case n @ (9 | 10 | 11) =>
+              val (headSeq, tail) = list.splitAt(3)
+              val batch = Batch.fromSeq(headSeq.toVector, n - 8)
+              Iterant[F].nextBatchS(batch, F.delay(loop(tail, idx + 1)), F.unit)
+            case 12 | 13 =>
               Iterant[F].nextBatchS(Batch.empty, F.delay(loop(ns, idx + 1)), F.unit)
           }
       }
@@ -117,4 +117,7 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
         equalityIO[List[A]].eqv(lh.toListL, rh.toListL)
       }
     }
+
+  implicit def cogenForIterant[F[_], A]: Cogen[Iterant[F, A]] =
+    Cogen[Unit].contramap(_ => ())
 }

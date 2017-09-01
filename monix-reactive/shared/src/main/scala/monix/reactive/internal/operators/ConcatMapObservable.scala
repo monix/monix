@@ -258,9 +258,11 @@ private[reactive] final class ConcatMapObservable[A, B]
           case state @ Active(_) =>
             // This should never, ever happen!
             // Something is screwed up in our state machine :-(
+            // $COVERAGE-OFF$
             reportInvalidState(state, "onNext")
             cancellable.cancel()
             Stop
+            // $COVERAGE-ON$
         }
       }
       catch { case NonFatal(ex) =>
@@ -312,7 +314,9 @@ private[reactive] final class ConcatMapObservable[A, B]
 
         case WaitOnActiveChild =>
           // Something is screwed up in our state machine :-(
+          // $COVERAGE-OFF$
           reportInvalidState(WaitOnActiveChild, "signalFinish")
+          // $COVERAGE-ON$
       }
     }
 
@@ -334,10 +338,14 @@ private[reactive] final class ConcatMapObservable[A, B]
     }
 
     private def reportInvalidState(state: FlatMapState, method: String): Unit = {
+      // $COVERAGE-OFF$
       scheduler.reportFailure(
         new IllegalStateException(
           s"State $state in the Monix ConcatMap.$method implementation is invalid, " +
-            s"please send a bug report! See https://monix.io"))
+          "due to either a broken Subscriber implementation, or a bug, " +
+          "please open an issue, see: https://monix.io"
+        ))
+      // $COVERAGE-ON$
     }
   }
 }

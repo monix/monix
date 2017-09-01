@@ -34,9 +34,12 @@ object IterantZipMapSuite extends BaseTestSuite {
   }
 
   test("Iterant.zipMap equivalence with List.zip") { implicit s =>
-    check3 { (stream1: Iterant[Task, Int], stream2: Iterant[Task, Int], f: (Int, Int) => Long) =>
+    check5 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int, f: (Int, Int) => Long) =>
+      val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
+      val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
+
       val received = stream1.zipMap(stream2)(f).toListL
-      val expected = Task.zipMap2(stream1.toListL, stream2.toListL)((l1, l2) => l1.zip(l2).map { case (a,b) => f(a,b) })
+      val expected = Coeval(list1.zip(list2).map { case (a,b) => f(a,b) })
       received <-> expected
     }
   }

@@ -104,7 +104,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * from the source.
     */
   def attempt: Coeval[Either[Throwable, A]] =
-    FlatMap(this, AttemptCoeval.asInstanceOf[Transformation[A, Coeval[Either[Throwable, A]]]])
+    FlatMap(this, AttemptCoeval.asInstanceOf[Transformation[A, Coeval[Either[Throwable, A]]]], null)
 
   /** Returns a failed projection of this coeval.
     *
@@ -121,7 +121,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * to the result of the function.
     */
   def flatMap[B](f: A => Coeval[B]): Coeval[B] =
-    FlatMap(this, f)
+    FlatMap(this, f, null)
 
   /** Given a source Coeval that emits another Coeval, this function
     * flattens the result, returning a Coeval equivalent to the emitted
@@ -159,15 +159,14 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * the source.
     */
   def materialize: Coeval[Try[A]] =
-    FlatMap(this, MaterializeCoeval.asInstanceOf[Transformation[A, Coeval[Try[A]]]])
+    FlatMap(this, MaterializeCoeval.asInstanceOf[Transformation[A, Coeval[Try[A]]]], null)
 
   /** Dematerializes the source's result from a `Try`. */
   def dematerialize[B](implicit ev: A <:< Try[B]): Coeval[B] =
     self.asInstanceOf[Coeval[Try[B]]].flatMap(Eager.fromTry)
 
   /** Converts the source [[Coeval]] into a [[Task]]. */
-  def task: Task[A] =
-    Task.coeval(self)
+  def task: Task[A] = Task.coeval(self)
 
   /** Converts the source [[Coeval]] into a `cats.Eval`. */
   def toEval: Eval[A] =
@@ -196,7 +195,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * @param fe function that transforms an error of the receiver
     */
   def transform[R](fa: A => R, fe: Throwable => R): Coeval[R] =
-    FlatMap(this, Transformation(fa, fe).andThen(Coeval.now))
+    transformWith(fa.andThen(nowConstructor), fe.andThen(nowConstructor))
 
   /** Creates a new `Coeval` by applying the 'fa' function to the successful result of
     * this future, or the 'fe' function to the potential errors that might happen.
@@ -208,7 +207,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * @param fe function that transforms an error of the receiver
     */
   def transformWith[R](fa: A => Coeval[R], fe: Throwable => Coeval[R]): Coeval[R] =
-    FlatMap(this, Transformation(fa, fe))
+    FlatMap(this, fa, fe)
 
   /** Given a predicate function, keep retrying the
     * coeval until the function returns true.
@@ -222,7 +221,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * See [[onErrorHandleWith]] for the version that takes a total function.
     */
   def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Coeval[B]]): Coeval[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, Coeval.raiseError))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, raiseConstructor))
 
   /** Creates a new coeval that will handle any matching throwable that
     * this coeval might emit by executing another coeval.
@@ -230,7 +229,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   def onErrorHandleWith[B >: A](f: Throwable => Coeval[B]): Coeval[B] =
-    self.transformWith(Coeval.Now.apply, f)
+    FlatMap(this, null, f)
 
   /** Creates a new coeval that in case of error will fallback to the
     * given backup coeval.
@@ -264,7 +263,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * See [[onErrorRecover]] for the version that takes a partial function.
     */
   def onErrorHandle[U >: A](f: Throwable => U): Coeval[U] =
-    transform(a => a, f)
+    onErrorHandleWith(f.andThen(nowConstructor))
 
   /** Creates a new coeval that on error will try to map the error
     * to another value using the provided partial function.
@@ -272,7 +271,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * See [[onErrorHandle]] for the version that takes a total function.
     */
   def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Coeval[U] =
-    onErrorRecoverWith(pf.andThen(Coeval.now))
+    onErrorRecoverWith(pf.andThen(nowConstructor))
 
   /** Memoizes (caches) the result of the source and reuses it on
     * subsequent invocations of `value`.
@@ -585,6 +584,12 @@ object Coeval {
   final case class Now[+A](override val value: A) extends Eager[A] {
     override def apply(): A = value
     override def runToEager: Now[A] = this
+
+    // Overrides for strict evaluation
+    override def onErrorHandleWith[B >: A](f: (Throwable) => Coeval[B]): Coeval[B] =
+      this
+    override def onErrorHandle[U >: A](f: (Throwable) => U): Coeval[U] =
+      this
   }
 
   /** Constructs an eager [[Coeval]] instance for
@@ -593,6 +598,12 @@ object Coeval {
   final case class Error(ex: Throwable) extends Eager[Nothing] {
     override def apply(): Nothing = throw ex
     override def runToEager: Error = this
+
+    // Overrides for strict evaluation
+    override def map[B](f: (Nothing) => B): Coeval[B] =
+      this
+    override def flatMap[B](f: (Nothing) => Coeval[B]): Coeval[B] =
+      this
   }
 
   /** Constructs a lazy [[Coeval]] instance that gets evaluated
@@ -657,26 +668,39 @@ object Coeval {
     extends Coeval[A]
 
   /** Internal [[Coeval]] state that is the result of applying `flatMap`. */
-  private[eval] final case class FlatMap[A, B](source: Coeval[A], f: A => Coeval[B])
-    extends Coeval[B]
+  private[eval] final case class FlatMap[A, B](
+    source: Coeval[A], f: A => Coeval[B], g: Throwable => Coeval[B])
+    extends Coeval[B] {
+
+    def bind(): A => Coeval[B] = {
+      if (g eq null) f
+      else if (f eq null) Transformation.onError(g)
+      else Transformation(f, g)
+    }
+  }
+
+  private final val nowConstructor: (Any => Coeval[Nothing]) =
+    ((a: Any) => new Now(a)).asInstanceOf[Any => Coeval[Nothing]]
+  private final val raiseConstructor: (Throwable => Coeval[Nothing]) =
+    (e: Throwable) => new Error(e)
 
   /** Used as optimization by [[Coeval.attempt]]. */
   private object AttemptCoeval extends Transformation[Any, Coeval[Either[Throwable, Any]]] {
-    override def success(a: Any): Coeval[Either[Throwable, Any]] =
-      Coeval.now(Right(a))
+    override def apply(a: Any): Coeval[Either[Throwable, Any]] =
+      new Now(Right(a))
     override def error(e: Throwable): Coeval[Either[Throwable, Any]] =
-      Coeval.now(Left(e))
+      new Now(Left(e))
   }
 
   /** Used as optimization by [[Coeval.materialize]]. */
   private object MaterializeCoeval extends Transformation[Any, Coeval[Try[Any]]] {
-    override def success(a: Any): Coeval[Try[Any]] =
-      Coeval.now(Success(a))
+    override def apply(a: Any): Coeval[Try[Any]] =
+      new Now(Success(a))
     override def error(e: Throwable): Coeval[Try[Any]] =
-      Coeval.now(Failure(e))
+      new Now(Failure(e))
   }
 
   /** Type class instances of [[Coeval]] for Cats. */
-  implicit def catsSync: CatsSyncInstances[Coeval] =
+  implicit def catsInstances: CatsSyncInstances[Coeval] =
     CatsSyncInstances.ForCoeval
 }

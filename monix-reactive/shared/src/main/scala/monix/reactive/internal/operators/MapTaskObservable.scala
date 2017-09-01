@@ -84,14 +84,14 @@ private[reactive] final class MapTaskObservable[A,B]
   private final class MapAsyncSubscriber(out: Subscriber[B])
     extends Subscriber[A] with Cancelable { self =>
 
-    import MapTaskObservable.FlatMapState
-    import MapTaskObservable.FlatMapState._
+    import MapTaskObservable.MapTaskState
+    import MapTaskObservable.MapTaskState._
 
     implicit val scheduler = out.scheduler
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
     private[this] val stateRef =
-      Atomic.withPadding(WaitOnNext : FlatMapState, LeftRight128)
+      Atomic.withPadding(WaitOnNext : MapTaskState, LeftRight128)
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
@@ -277,7 +277,9 @@ private[reactive] final class MapTaskObservable[A,B]
 
         case WaitActiveTask =>
           // Something is screwed up in our state machine :-(
+          // $COVERAGE-OFF$
           reportInvalidState(WaitActiveTask, "signalFinish")
+          // $COVERAGE-ON$
       }
     }
 
@@ -286,13 +288,16 @@ private[reactive] final class MapTaskObservable[A,B]
     def onError(ex: Throwable): Unit =
       signalFinish(Some(ex))
 
-    private def reportInvalidState(state: FlatMapState, method: String): Unit = {
+    // $COVERAGE-OFF$
+    private def reportInvalidState(state: MapTaskState, method: String): Unit = {
       scheduler.reportFailure(
         new IllegalStateException(
           s"State $state in the Monix MapTask.$method implementation is invalid, " +
-          s"please send a bug report! See https://monix.io"
+          "due to either a broken Subscriber implementation, or a bug, " +
+          "please open an issue, see: https://monix.io"
         ))
     }
+    // $COVERAGE-ON$
   }
 }
 
@@ -301,9 +306,9 @@ private[reactive] object MapTaskObservable {
     * implementation, modeling its state machine for managing
     * the active task.
     */
-  private sealed abstract class FlatMapState
+  private[internal] sealed abstract class MapTaskState
 
-  private object FlatMapState {
+  private[internal] object MapTaskState {
     /** The initial state of our internal atomic in [[MapTaskObservable]].
       *
       * This state is being set in `onNext` and when it is observed it
@@ -314,7 +319,7 @@ private[reactive] object MapTaskObservable {
       * active task, it becomes the responsibility of that active task
       * to signal these events.
       */
-    case object WaitOnNext extends FlatMapState
+    case object WaitOnNext extends MapTaskState
 
     /** A state that when observed it means that an `onNext` call is
       * currently in progress, but its corresponding task wasn't
@@ -325,7 +330,7 @@ private[reactive] object MapTaskObservable {
       * means that if it is observed in `onComplete` or `onError`,
       * then it's a bug.
       */
-    case object WaitActiveTask extends FlatMapState
+    case object WaitActiveTask extends MapTaskState
 
     /** A state that happens after the user cancelled his subscription.
       *
@@ -335,7 +340,7 @@ private[reactive] object MapTaskObservable {
       * to one of our `getAndSet` calls, then we trigger the `cancel`
       * again within a safe compare-and-set loop.
       */
-    case object Cancelled extends FlatMapState
+    case object Cancelled extends MapTaskState
 
     /** This state is triggered by `onComplete` or `onError` while there
       * is an active task being executed.
@@ -349,7 +354,7 @@ private[reactive] object MapTaskObservable {
       * the responsibility of the active task (initialized in
       * `onNext`) to send this final event.
       */
-    final case class WaitComplete(ex: Option[Throwable], ref: Cancelable) extends FlatMapState
+    final case class WaitComplete(ex: Option[Throwable], ref: Cancelable) extends MapTaskState
 
     /** State that happens after a task has been executed, but before the
       * following `onNext` call on the downstream subscriber.
@@ -359,6 +364,6 @@ private[reactive] object MapTaskObservable {
       * cancellation on both the source and the active task when
       * possible.
       */
-    final case class Active(ref: Cancelable) extends FlatMapState
+    final case class Active(ref: Cancelable) extends MapTaskState
   }
 }
