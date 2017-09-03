@@ -1,9 +1,9 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
+import monix.execution.misc.LocalContext
 import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
-import scala.util.DynamicVariable
 
 final class TracingScheduler private (
    scheduler: ScheduledExecutorService,
@@ -20,10 +20,10 @@ final class TracingScheduler private (
     * @param r is the callback to be executed
     */
   def executeWithTrace(r: Runnable): Unit = {
-    val oldContext = TracingScheduler.TracingContext.value
+    val oldContext = LocalContext.getContext()
     ec.execute(new Runnable {
       override def run = {
-        TracingScheduler.TracingContext.withValue(oldContext)(r.run())
+        LocalContext.withContext(oldContext)(r.run())
       }
     })
   }
@@ -69,8 +69,6 @@ final class TracingScheduler private (
 }
 
 object TracingScheduler {
-
-  object TracingContext extends DynamicVariable[Map[String, String]](Map.empty[String, String])
 
   object Implicits {
     implicit lazy val traced: Scheduler =
