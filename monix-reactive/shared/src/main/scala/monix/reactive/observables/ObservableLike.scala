@@ -1820,7 +1820,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * meaning that the subscription logic itself will start on
     * the provided scheduler if `forceAsync = true` (the default).
     *
-    * Also see [[observeOn]] and [[subscribeOn]].
+    * @see [[observeOn(s:monix\.execution\.Scheduler)* observeOn]]
+    *      and [[subscribeOn]].
     *
     * @param s is the [[monix.execution.Scheduler Scheduler]] to use
     *        for overriding the default scheduler and for forcing
