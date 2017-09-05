@@ -1795,8 +1795,15 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def nonEmptyF: Self[Boolean] =
     self.liftByOperator(IsEmptyOperator).map(b => !b)
 
-  /** Specify an override for the [[monix.execution.Scheduler Scheduler]]
-    * that will be used for subscribing and for observing the source.
+  /** Overrides the default [[monix.execution.Scheduler Scheduler]],
+    * possibly forcing an asynchronous boundary on subscription
+    * (if `forceAsync` is set to `true`, the default).
+    *
+    * When an `Observable` is subscribed with
+    * [[Observable.subscribe(subscriber* subscribe]],
+    * it needs a `Scheduler`, which is going to be injected in the
+    * processing pipeline, to be used for managing asynchronous
+    * boundaries, scheduling execution with delay, etc.
     *
     * Normally the [[monix.execution.Scheduler Scheduler]] gets injected
     * implicitly when doing `subscribe`, but this operator overrides
@@ -1809,24 +1816,27 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * not the producer that specifies the scheduler and this operator
     * allows for a different behavior.
     *
-    * This operator also includes the effects of [[subscribeOn]],
+    * This operator also subsumes the effects of [[subscribeOn]],
     * meaning that the subscription logic itself will start on
-    * the provided scheduler.
+    * the provided scheduler if `forceAsync = true` (the default).
     *
-    * IMPORTANT: This operator is a replacement for the
-    * [[http://reactivex.io/documentation/operators/observeon.html observeOn operator]]
-    * from ReactiveX, but does not work in the same way. The `observeOn`
-    * operator forces the signaling to happen on a given `Scheduler`, but
-    * `executeOn` is more relaxed, usage is not forced, the source just
-    * gets injected with a different scheduler and it's up to the source
-    * to actually use it. This also means the effects are more far reaching,
-    * because the whole chain until the call of this operator is affected.
+    * Also see [[observeOn]] and [[subscribeOn]].
     *
-    * Alias for
-    * [[Observable.fork[A](fa:monix\.reactive\.Observable[A],scheduler* Observable.fork(fa, scheduler)]].
+    * @param s is the [[monix.execution.Scheduler Scheduler]] to use
+    *        for overriding the default scheduler and for forcing
+    *        an asynchronous boundary if `forceAsync` is `true`
+    *
+    * @param forceAsync indicates whether an asynchronous boundary
+    *        should be forced right before the subscription of the
+    *        source `Observable`, managed by the provided `Scheduler`
+    *
+    * @return a new `Observable` that mirrors the source on subscription,
+    *         but that uses the provided scheduler for overriding
+    *         the default and possibly force an extra asynchronous
+    *         boundary on execution
     */
-  def executeOn(scheduler: Scheduler): Self[A] =
-    self.transform(source => new ExecuteOnObservable[A](source, scheduler))
+  def executeOn(s: Scheduler, forceAsync: Boolean = true): Self[A] =
+    self.transform(source => new ExecuteOnObservable[A](source, s, forceAsync))
 
   /** Mirrors the source observable, but upon subscription ensure
     * that the evaluation forks into a separate (logical) thread.
