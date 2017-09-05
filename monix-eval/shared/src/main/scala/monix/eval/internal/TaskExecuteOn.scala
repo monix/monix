@@ -15,17 +15,24 @@
  * limitations under the License.
  */
 
-package monix.execution.schedulers
+package monix.eval.internal
 
-import scala.concurrent.OnCompleteRunnable
+import monix.eval.{Callback, Task}
+import monix.eval.Task.Async
+import monix.execution.Scheduler
 
-/** A marker for callbacks that can be batched and executed
-  * locally (on the current thread) by means of a trampoline
-  * (if the execution context / scheduler allows it).
-  *
-  * Idea was taken from the `scala.concurrent.Future`
-  * implementation. Credit should be given where due.
-  *
-  * DO NOT use unless you know what you're doing.
-  */
-trait TrampolinedRunnable extends Runnable with OnCompleteRunnable
+private[eval] object TaskExecuteOn {
+  /**
+    * Implementation for `Task.executeOn`.
+    */
+  def apply[A](source: Task[A], s: Scheduler, forceAsync: Boolean): Task[A] =
+    Async { (ctx, cb) =>
+      val ctx2 = ctx.copy(scheduler = s)
+      val cb2 = Callback.async(cb)(s)
+
+      if (forceAsync)
+        Task.unsafeStartAsync(source, ctx2, cb2)
+      else
+        Task.unsafeStartTrampolined(source, ctx2, cb2)
+    }
+}

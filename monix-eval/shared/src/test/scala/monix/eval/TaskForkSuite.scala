@@ -32,7 +32,7 @@ object TaskForkSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.now.executeOn should execute async") { implicit s =>
+  test("Task.now.executeOn should execute async if forceAsync = true") { implicit s =>
     val s2 = TestScheduler()
     val t = Task.now(10).executeOn(s2)
     val f = t.runAsync
@@ -41,6 +41,14 @@ object TaskForkSuite extends BaseTestSuite {
     s.tick()
     assertEquals(f.value, None)
     s2.tick()
+    assertEquals(f.value, Some(Success(10)))
+  }
+
+  test("Task.now.executeOn should not execute async if forceAsync = false") { implicit s =>
+    val s2 = TestScheduler()
+    val t = Task.now(10).executeOn(s2, forceAsync = false)
+    val f = t.runAsync
+
     assertEquals(f.value, Some(Success(10)))
   }
 

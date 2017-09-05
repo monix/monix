@@ -18,7 +18,9 @@
 package monix.eval
 
 import monix.execution.atomic.{Atomic, AtomicInt}
+import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+
 import scala.util.{Failure, Success, Try}
 
 object TaskFlatMapSuite extends BaseTestSuite {
@@ -89,5 +91,31 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(atomic.get, expected)
+  }
+
+  test("transformWith equivalence with flatMap") { implicit s =>
+    check2 { (fa: Task[Int], f: Int => Task[Int]) =>
+      fa.transformWith(f, Task.raiseError) <-> fa.flatMap(f)
+    }
+  }
+
+  test("transform equivalence with map") { implicit s =>
+    check2 { (fa: Task[Int], f: Int => Int) =>
+      fa.transform(f, ex => throw ex) <-> fa.map(f)
+    }
+  }
+
+  test("transformWith can recover") { implicit s =>
+    val dummy = new DummyException("dummy")
+    val task = Task.raiseError[Int](dummy).transformWith(Task.now, _ => Task.now(1))
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("transform can recover") { implicit s =>
+    val dummy = new DummyException("dummy")
+    val task = Task.raiseError[Int](dummy).transform(identity, _ => 1)
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(1)))
   }
 }
