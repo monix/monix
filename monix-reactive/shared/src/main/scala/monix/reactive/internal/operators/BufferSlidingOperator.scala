@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
-import monix.reactive.observables.ObservableLike.Operator
+import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.collection.mutable.WrappedArray

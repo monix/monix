@@ -21,8 +21,7 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.reactive.Notification
 import monix.reactive.Notification.{OnComplete, OnError, OnNext}
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 

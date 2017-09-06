@@ -23,7 +23,7 @@ import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.exceptions.CompositeException
 import monix.reactive.observables.GroupedObservable
-import monix.reactive.observables.ObservableLike.Operator
+import monix.reactive.Observable.Operator
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observer, OverflowStrategy}
 import scala.annotation.tailrec
