@@ -79,7 +79,6 @@ object LocalContext {
 }
 
 final class LocalContext[T <: LocalContext.TracingContext] {
-  //import LocalContext._
   private[this] val id: String = LocalContext.register()
 
   def update(value: T): Unit =
@@ -91,10 +90,6 @@ final class LocalContext[T <: LocalContext.TracingContext] {
   def apply(): Option[T] =
     LocalContext.get(id).asInstanceOf[Option[T]]
 
-  /**
-    * Execute a block with a TracingContext, restoring the current state
-    * upon completion.
-    */
   def withContext[U](value: T)(f: => U): U = {
     val saved = apply()
     set(Some(value))
@@ -109,5 +104,6 @@ final class LocalContext[T <: LocalContext.TracingContext] {
     finally set(saved)
   }
 
-  def clear(): Unit = LocalContext.clear(id)
+  def clear(): Unit =
+     LocalContext.clear(id)
 }

@@ -20,29 +20,26 @@ object LocalContextSuite extends SimpleTestSuite {
   }
 
   test("LocalContext should be different in separate thread") {
-    println(s"========Thread ${Thread.currentThread.getName}")
     val local = new LocalContext[TestTracingContext]
-    var threadValue: Option[TestTracingContext] = null
-    import java.util.concurrent.Executors
-    val ec = Executors.newSingleThreadExecutor()
+
+    import scala.concurrent.ExecutionContext.Implicits.global
+    import scala.concurrent.duration._
+    import scala.concurrent.{Await, Future}
 
     local() = TestTracingContext("0000")
 
-    ec.execute {
-      new Runnable {
-        override def run() = {
-          assert(local().isEmpty)
-          local() = TestTracingContext("1111")
-          threadValue = local()
-        }
-      }
+    val res: Future[Option[TestTracingContext]] = Future {
+      assert(local().isEmpty)
+      local() = TestTracingContext("1111")
+      local()
     }
+
+    val v = Await.result(res, 10.seconds)
     assert(local().exists(_.id == "0000"))
-    assert(threadValue.exists(_.id == "1111"))
+    assert(v.exists(_.id == "1111"))
   }
 
   test("LocalContext should keep values when other locals change") {
-    println(s"========Thread ${Thread.currentThread.getName}")
     val l0 = new LocalContext[TestTracingContext]
     l0() = TestTracingContext("1234")
     val ctx0 = LocalContext.getContext()
