@@ -4,7 +4,7 @@ import java.util.UUID
 
 object LocalContext {
 
-  type Context = scala.collection.mutable.Map[String, TracingContext]
+  type Context = scala.collection.immutable.Map[String, TracingContext]
 
   trait TracingContext
   object TracingContext {
@@ -13,12 +13,13 @@ object LocalContext {
   }
 
   private[this] def context(k: String, v: TracingContext): Context =
-    scala.collection.mutable.Map(k -> v)
+    scala.collection.immutable.Map(k -> v)
 
   private[this] val localContext = ThreadLocal[Context]
 
-  private def register(): String =
+  private def register(): String = synchronized {
     UUID.randomUUID().toString
+  }
 
 
   /**
@@ -59,7 +60,7 @@ object LocalContext {
   private def save(id: String, tctx: TracingContext): Unit = {
     val newCtx = Option(localContext.get) match {
       case Some(ctx) =>
-        ctx += (id -> tctx)
+        ctx + (id -> tctx)
       case None =>
         context(id, tctx)
     }
@@ -71,22 +72,24 @@ object LocalContext {
   }
 
   private def clear(id: String): Unit =
-    Option(localContext.get).foreach(_ -= id)
+    Option(localContext.get).foreach { m =>
+      localContext.set(m - id)
+    }
 
 }
 
 final class LocalContext[T <: LocalContext.TracingContext] {
-  import LocalContext._
+  //import LocalContext._
   private[this] val id: String = LocalContext.register()
 
   def update(value: T): Unit =
     set(Some(value))
 
   private def set(value: Option[T]): Unit =
-    value.foreach(save(id, _))
+    value.foreach(LocalContext.save(id, _))
 
   def apply(): Option[T] =
-    get(id).asInstanceOf[Option[T]]
+    LocalContext.get(id).asInstanceOf[Option[T]]
 
   /**
     * Execute a block with a TracingContext, restoring the current state
@@ -98,4 +101,13 @@ final class LocalContext[T <: LocalContext.TracingContext] {
     try f
     finally set(saved)
   }
+
+  def withClearContext[U](f: => U): U = {
+    val saved = apply()
+    clear()
+    try f
+    finally set(saved)
+  }
+
+  def clear(): Unit = LocalContext.clear(id)
 }
