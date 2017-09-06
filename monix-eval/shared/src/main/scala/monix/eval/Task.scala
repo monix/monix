@@ -1271,6 +1271,16 @@ object Task extends TaskInstances {
   def fromFuture[A](f: Future[A]): Task[A] =
     TaskFromFuture.strict(f)
 
+  /** Aquires a `Closeable` and closes it after the `Task` has been run.
+    */
+  def bracket[R <: java.io.Closeable](aquire: => R): Task[R] =
+    Coeval.bracket(aquire).task
+
+  /** Aquires a resource and closes it after the `Task` has been run.
+    */
+  def bracket[R](aquire: => R, close: R => Unit): Task[R] =
+    Coeval.bracket(aquire, close).task
+
   /** Creates a `Task` that upon execution will execute both given tasks
     * (possibly in parallel in case the tasks are asynchronous) and will
     * return the result of the task that manages to complete first,
