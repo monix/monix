@@ -19,8 +19,7 @@ package monix.reactive.observables
 
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observable, OverflowStrategy}
-
+import monix.reactive.Observable
 import scala.util.Success
 
 object ChainedObservableSuite extends TestSuite[TestScheduler] {
@@ -29,33 +28,30 @@ object ChainedObservableSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  def testLoop(f: Observable[Int] => Observable[Int])
-    (implicit s: TestScheduler): Unit = {
-
-    def loop[A](n: Int, f: Observable[Int] => Observable[Int]): Observable[Int] =
+  test("plain suspend") { implicit s =>
+    def loop[A](n: Int): Observable[Int] =
       Observable.suspend {
-        if (n > 0) f(loop(n - 1, f))
-        else Observable.now(111)
+        if (n > 0) loop(n - 1) else Observable.now(111)
       }
 
-    val f = loop(10000, identity).runAsyncGetLast
+    val f = loop(100000).runAsyncGetLast
+
     s.tick()
     assertEquals(f.value, Some(Success(Some(111))))
   }
 
-  test("plain suspend") { implicit s =>
-    testLoop(identity)
-  }
+  test("concat") { implicit s =>
+    def loop[A](n: Long): Observable[Long] =
+      Observable.now(n) ++ Observable.suspend {
+        if (n <= 0) Observable.empty
+        else if (n == 1) Observable.now(0)
+        else loop(n - 1)
+      }
 
-  test("asyncBoundary") { implicit s =>
-    testLoop(_.asyncBoundary(OverflowStrategy.Default))
-  }
+    val count = 100000L
+    val f = loop(count).sumL.runAsync
 
-  test("bufferTumbling + map") { implicit s =>
-    testLoop(_.bufferTumbling(2).map(_.sum))
-  }
-
-  test("filter") { implicit s =>
-    testLoop(_.filter(_ % 2 == 1))
+    s.tick()
+    assertEquals(f.value, Some(Success(count * (count + 1) / 2)))
   }
 }

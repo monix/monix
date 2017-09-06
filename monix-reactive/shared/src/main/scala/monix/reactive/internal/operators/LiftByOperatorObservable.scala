@@ -18,20 +18,13 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.reactive.Observable
-import monix.reactive.observables.ChainedObservable
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 private[reactive] final class LiftByOperatorObservable[A, B](
   self: Observable[A], operator: Operator[A, B])
-  extends ChainedObservable[B] {
-
-  def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[B]): Unit = {
-    val sb = operator(out)
-    ChainedObservable.subscribe(self, conn, sb)
-  }
+  extends Observable[B] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[B]): Cancelable = {
     val sb = operator(subscriber)

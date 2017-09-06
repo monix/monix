@@ -17,42 +17,29 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.cancelables.{AssignableCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{AssignableCancelable, SingleAssignmentCancelable}
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
-import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 private[reactive] final
 class ExecuteOnObservable[+A](source: Observable[A], s: Scheduler, forceAsync: Boolean)
-  extends ChainedObservable[A] {
-
-  def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[A]): Unit = {
-    executeAsync(conn, out, source.isInstanceOf[ChainedObservable[_]])
-  }
+  extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val isChained = source.isInstanceOf[ChainedObservable[_]]
-    val conn =
-      if (isChained) MultiAssignmentCancelable()
-      else SingleAssignmentCancelable()
-
-    executeAsync(conn, out, isChained)
+    val conn = SingleAssignmentCancelable()
+    if (forceAsync) s.execute(new Thunk(conn, out))
+    else s.execute(new TrampolinedThunk(conn, out))
     conn
   }
 
-  private def executeAsync(conn: AssignableCancelable, out: Subscriber[A], isChained: Boolean): Unit = {
-    if (forceAsync) s.execute(new Thunk(conn, out, isChained))
-    else s.execute(new TrampolinedThunk(conn, out, isChained))
-  }
-
   private final class TrampolinedThunk
-    (conn: AssignableCancelable, out: Subscriber[A], isChained: Boolean)
-    extends Thunk(conn, out, isChained) with TrampolinedRunnable
+    (conn: AssignableCancelable, out: Subscriber[A])
+    extends Thunk(conn, out) with TrampolinedRunnable
 
-  private class Thunk(conn: AssignableCancelable, out: Subscriber[A], isChained: Boolean)
+  private class Thunk(conn: AssignableCancelable, out: Subscriber[A])
     extends Runnable {
 
     final def run(): Unit = {
@@ -66,13 +53,7 @@ class ExecuteOnObservable[+A](source: Observable[A], s: Scheduler, forceAsync: B
           out.onNext(elem)
       }
 
-      if (isChained) {
-        source.asInstanceOf[ChainedObservable[A]].unsafeSubscribeFn(
-          conn.asInstanceOf[MultiAssignmentCancelable],
-          out2)
-      } else {
-        conn := source.unsafeSubscribeFn(out2)
-      }
+      conn := source.unsafeSubscribeFn(out2)
     }
   }
 }

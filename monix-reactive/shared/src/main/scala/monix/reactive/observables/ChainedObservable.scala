@@ -17,6 +17,7 @@
 
 package monix.reactive.observables
 
+import monix.execution.Cancelable
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -29,14 +30,31 @@ import monix.reactive.observers.Subscriber
   * implementation. The problem with recursive operators is that they
   * are leaving work behind due to the need to return a `Cancelable`
   * and thus leak memory.
+  *
+  * As a general rule of thumb, not all observables can be chain-able.
+  * For example if the received `Subscriber` gets wrapped in another
+  * subscriber instance, then chaining will not be safe unless
+  * the `onNext`, `onError` and `onComplete` events introduce
+  * asynchronous boundaries as well, which is overkill.
   */
 abstract class ChainedObservable[+A] extends Observable[A] {
   /** Alternative subscription method, that gets injected a stacked
     * cancelable, in order to preserve memory safety.
+    *
+    * @param conn is a multi-assign cancelable that is passed around
+    *        between `ChainedObservable` instances, being updated with
+    *        the references of the current cancelable
+    *
+    * @param subscriber is the subscriber that will receive all events
+    *        from the source
     */
-  def unsafeSubscribeFn(
-    conn: MultiAssignmentCancelable,
-    subscriber: Subscriber[A]): Unit
+  def unsafeSubscribeFn(conn: MultiAssignmentCancelable, subscriber: Subscriber[A]): Unit
+
+  override def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    val conn = MultiAssignmentCancelable()
+    unsafeSubscribeFn(conn, subscriber)
+    conn
+  }
 }
 
 object ChainedObservable {
@@ -45,12 +63,12 @@ object ChainedObservable {
     * otherwise it subscribes
     */
   def subscribe[A](source: Observable[A], conn: MultiAssignmentCancelable, out: Subscriber[A]): Unit =
-    out.scheduler.executeTrampolined { () =>
-      source match {
-        case _: ChainedObservable[_] =>
+    source match {
+      case _: ChainedObservable[_] =>
+        out.scheduler.executeTrampolined { () =>
           source.asInstanceOf[ChainedObservable[A]].unsafeSubscribeFn(conn, out)
-        case _ =>
-          conn := source.unsafeSubscribeFn(out)
-      }
+        }
+      case _ =>
+        conn := source.unsafeSubscribeFn(out)
     }
 }

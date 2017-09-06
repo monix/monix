@@ -27,15 +27,15 @@ private[reactive] final class DelaySubscriptionByTimespanObservable[A]
   (source: Observable[A], timespan: FiniteDuration)
   extends Observable[A] { self =>
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val cancelable = MultiAssignmentCancelable()
-    val main = subscriber.scheduler.scheduleOnce(
+  def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
+    val conn = MultiAssignmentCancelable()
+    val main = out.scheduler.scheduleOnce(
       timespan.length, timespan.unit,
       new Runnable {
         def run(): Unit =
-          cancelable.orderedUpdate(source.unsafeSubscribeFn(subscriber), order=2)
+          conn.orderedUpdate(source.unsafeSubscribeFn(out), order = 2)
       })
 
-    cancelable.orderedUpdate(main, order=1)
+    conn.orderedUpdate(main, order = 1)
   }
 }

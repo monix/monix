@@ -43,7 +43,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
 
-/** The Observable type that implements the Reactive Pattern.
+/** The `Observable` type that implements the Reactive Pattern.
   *
   * Provides methods of subscribing to the Observable and operators
   * for combining observable sources, filtering, modifying,
@@ -205,19 +205,38 @@ import scala.concurrent.{Future, Promise}
 abstract class Observable[+A] { self =>
   /** Characteristic function for an `Observable` instance, that creates
     * the subscription and that eventually starts the streaming of
-    * events to the given [[Observer]], being meant to be provided.
+    * events to the given [[Observer]], to be provided by observable
+    * implementations.
     *
-    * This function is "unsafe" to call because it does not protect
-    * the calls to the given [[Observer]] implementation in regards to
-    * unexpected exceptions that violate the contract, therefore the
-    * given instance must respect its contract and not throw any
-    * exceptions when the observable calls `onNext`, `onComplete` and
-    * `onError`. If it does, then the behavior is undefined.
+    * WARNING: This function is "unsafe" to call because it does not
+    * protect the calls to the given [[Observer]] implementation in
+    * regards to unexpected exceptions that violate the contract,
+    * therefore the given instance must respect its contract and not
+    * throw any exceptions when the observable calls `onNext`,
+    * `onComplete` and `onError`. If it does, then the behavior is
+    * undefined.
     *
-    * @see [[Observable.subscribe(observer* subscribe]].
+    * Prefer normal [[Observable.subscribe(subscriber* subscribe]]
+    * when consuming a stream, these unsafe subscription methods
+    * being useful when building operators and for testing purposes.
     */
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable
 
+  /** Given an [[monix.reactive.Observer observer]] and a
+    * [[monix.execution.Scheduler scheduler]] for managing async
+    * boundaries, subscribes to this observable for events.
+    *
+    * Helper for calling the
+    * [[Observable.unsafeSubscribeFn(subscriber* abstract method]].
+    *
+    * WARNING: this method is unsafe for calling directly because
+    * subscriber instances aren't automatically wrapped in
+    * [[monix.reactive.observers.SafeSubscriber SafeSubscriber]].
+    *
+    * Prefer normal [[Observable.subscribe(observer* subscribe]]
+    * when consuming a stream, these unsafe subscription methods
+    * being useful when building operators and for testing purposes.
+    */
   final def unsafeSubscribeFn(observer: Observer[A])(implicit s: Scheduler): Cancelable =
     unsafeSubscribeFn(Subscriber(observer, s))
 
@@ -234,9 +253,8 @@ abstract class Observable[+A] { self =>
     * @return a subscription that can be used to cancel the streaming.
     * @see [[consumeWith]] for another way of consuming observables
     */
-  final def subscribe(subscriber: Subscriber[A]): Cancelable = {
+  final def subscribe(subscriber: Subscriber[A]): Cancelable =
     unsafeSubscribeFn(SafeSubscriber[A](subscriber))
-  }
 
   /** Subscribes to the stream.
     *

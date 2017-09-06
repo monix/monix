@@ -29,10 +29,7 @@ private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A])
 
   def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[A]): Unit = {
     import out.{scheduler => s}
-    out.onNext(head).syncOnContinue {
-      // Should provide light async boundary
-      chain(tail, conn, out)
-    }(s)
+    out.onNext(head).syncOnContinue(chain(tail, conn, out))(s)
   }
 
   private def simpleSubscribe(conn: SingleAssignmentCancelable, out: Subscriber[A]): Unit = {
@@ -42,7 +39,7 @@ private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A])
     }(s)
   }
 
-  def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
+  override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     if (!tail.isInstanceOf[ChainedObservable[_]]) {
       val conn = SingleAssignmentCancelable()
       simpleSubscribe(conn, out)
