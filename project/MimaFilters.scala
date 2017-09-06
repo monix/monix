@@ -154,7 +154,8 @@ object MimaFilters {
     exclude[MissingTypesProblem]("monix.eval.Coeval$Error"),
     exclude[MissingTypesProblem]("monix.eval.Coeval$Now"),
     exclude[ReversedAbstractMethodProblem]("monix.eval.internal.Transformation.apply"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.TaskInstances.catsInstances")
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskInstances.catsInstances"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.onFinish")
   )
 
   /** `monix-react` 3.0.0 */
