@@ -18,10 +18,8 @@
 package monix.reactive
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
-
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
