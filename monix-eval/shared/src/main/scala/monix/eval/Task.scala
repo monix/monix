@@ -1255,13 +1255,13 @@ object Task extends TaskInstances {
     *    execution (e.g. `asyncOnSuccess` and `asyncOnError`)
     *
     * **WARNING:** note that not only is this builder unsafe, but also
-    * unstable, as the [[OnFinish]] callback type is exposing volatile
-    * internal implementation details. This builder is meant to create
+    * unstable, as the callback type is exposing volatile internal
+    * implementation details. This builder is meant to create
     * optimized asynchronous tasks, but for normal usage prefer
     * [[Task.create]].
     */
-  def unsafeCreate[A](onFinish: OnFinish[A]): Task[A] =
-    Async(onFinish)
+  def unsafeCreate[A](register: (Context, Callback[A]) => Unit): Task[A] =
+    Async(register)
 
   /** Converts the given Scala `Future` into a `Task`.
     *
@@ -1506,11 +1506,6 @@ object Task extends TaskInstances {
     */
   type FrameIndex = Int
 
-  /** Type alias representing callbacks for
-    * [[unsafeCreate asynchronous]] tasks.
-    */
-  type OnFinish[+A] = (Context, Callback[A]) => Unit
-
   /** Set of options for customizing the task's behavior.
     *
     * @param autoCancelableRunLoops should be set to `true` in
@@ -1754,9 +1749,12 @@ object Task extends TaskInstances {
     * Unsafe to build directly, only use if you know what you're doing.
     * For building `Async` instances safely, see [[create]].
     */
-  private[eval] final case class Async[+A](onFinish: OnFinish[A]) extends Task[A] {
+  private[eval] final case class Async[+A](
+    register: (Context, Callback[A]) => Unit)
+    extends Task[A] {
+
     override def toString: String =
-      s"Task.Async($onFinish)"
+      s"Task.Async($register)"
   }
 
   /** Internal [[Task]] state that defers the evaluation of the
