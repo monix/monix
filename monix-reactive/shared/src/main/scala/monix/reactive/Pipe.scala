@@ -28,7 +28,7 @@ import monix.reactive.subjects._
 /** Represents a factory for an input/output channel for
   * broadcasting input to multiple subscribers.
   */
-abstract class Pipe[I, +O] {
+abstract class Pipe[I, +O] extends Serializable {
   /** Returns an input/output pair that can be used to
     * push input to a single subscriber.
     *

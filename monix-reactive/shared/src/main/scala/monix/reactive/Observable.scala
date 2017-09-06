@@ -18,7 +18,6 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
-
 import cats.effect.Effect
 import cats.{CoflatMap, Eq, MonadError, Monoid, MonoidK, Order}
 import monix.eval.Coeval.Eager
@@ -38,7 +37,6 @@ import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
-
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
@@ -202,7 +200,7 @@ import scala.concurrent.{Future, Promise}
   *           implicit val orderA = Order.fromOrdering[A]
   *         }}}
   */
-abstract class Observable[+A] { self =>
+abstract class Observable[+A] extends Serializable { self =>
   /** Characteristic function for an `Observable` instance, that creates
     * the subscription and that eventually starts the streaming of
     * events to the given [[Observer]], to be provided by observable
