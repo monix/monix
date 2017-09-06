@@ -84,22 +84,4 @@ object ExecuteOnObservableSuite extends TestSuite[TestScheduler] {
     s2.tick()
     assertEquals(f.value, Some(Success(10)))
   }
-
-
-  test("executeOn works in a chain") { implicit s =>
-    val s2 = TestScheduler()
-
-    def loop(n: Int): Observable[Int] =
-      Observable.suspend {
-        if (n > 0) loop(n - 1).executeOn(s2)
-        else Observable.now(n)
-      }
-
-    val f = loop(10000).runAsyncGetLast(s)
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, None)
-    s2.tick()
-    assertEquals(f.value, Some(Success(Some(0))))
-  }
 }
