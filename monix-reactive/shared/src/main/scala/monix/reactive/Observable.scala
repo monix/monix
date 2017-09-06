@@ -202,7 +202,7 @@ import scala.concurrent.{Future, Promise}
   *           implicit val orderA = Order.fromOrdering[A]
   *         }}}
   */
-abstract class Observable[+A] { self =>
+abstract class Observable[+A] extends Serializable { self =>
   /** Characteristic function for an `Observable` instance, that creates
     * the subscription and that eventually starts the streaming of
     * events to the given [[Observer]], to be provided by observable
