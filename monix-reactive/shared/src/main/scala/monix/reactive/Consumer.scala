@@ -30,7 +30,7 @@ import monix.reactive.observers.Subscriber
   * being effectively a way to transform observables into
   * [[monix.eval.Task tasks]] for less error prone consuming of streams.
   */
-trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
+abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
   with Serializable { self =>
 
   /** Builds a new [[monix.reactive.observers.Subscriber Subscriber]]
@@ -64,7 +64,7 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
   /** Given a source [[Observable]], convert it into a [[monix.eval.Task Task]]
     * by piggybacking on [[createSubscriber]].
     */
-  def apply(source: Observable[In]): Task[R] =
+  final def apply(source: Observable[In]): Task[R] =
     Task.create[R] { (scheduler, cb) =>
       val (out, consumerSubscription) = createSubscriber(cb, scheduler)
       // Start consuming the stream
@@ -83,14 +83,14 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
   /** Given a contravariant mapping function, transform
     * the source consumer by transforming the input.
     */
-  def contramap[In2](f: In2 => In): Consumer[In2, R] =
+  final def contramap[In2](f: In2 => In): Consumer[In2, R] =
     new ContraMapConsumer[In2,In,R](self, f)
 
   /** Given a function that transforms the input stream, uses it
     * to transform the source consumer into one that accepts events
     * of the type specified by the transformation function.
     */
-  def transformInput[In2](f: Observable[In2] => Observable[In]): Consumer[In2, R] =
+  final def transformInput[In2](f: Observable[In2] => Observable[In]): Consumer[In2, R] =
     new TransformInputConsumer[In2,In,R](self, f)
 
   /** Given a mapping function, when consuming a stream,
@@ -106,7 +106,7 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * @see [[mapTask]] for a variant that can map the output
     *      to a `Task` that can be processed asynchronously.
     */
-  def map[R2](f: R => R2): Consumer[In, R2] =
+  final def map[R2](f: R => R2): Consumer[In, R2] =
     new MapConsumer[In,R,R2](self, f)
 
   /** Given a mapping function, when consuming a stream,
@@ -121,7 +121,7 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     *
     * See [[mapTask]] for the version that's specialized on `Task`.
     */
-  def mapEval[F[_], R2](f: R => F[R2])(implicit F: Effect[F]): Consumer[In, R2] =
+  final def mapEval[F[_], R2](f: R => F[R2])(implicit F: Effect[F]): Consumer[In, R2] =
     new MapTaskConsumer[In,R,R2](self, r => Task.fromEffect(f(r))(F))
 
   /** Given a mapping function, when consuming a stream,
@@ -140,7 +140,7 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * See [[mapEval]] for the version that can work with any
     * data type that implements `cats.effect.Effect`.
     */
-  def mapTask[R2](f: R => Task[R2]): Consumer[In, R2] =
+  final def mapTask[R2](f: R => Task[R2]): Consumer[In, R2] =
     new MapTaskConsumer[In,R,R2](self, f)
 }
 
