@@ -17,34 +17,24 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.Stop
+import monix.execution.Cancelable
+import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.reactive.Observable
+import monix.reactive.observables.ChainedObservable
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] object IsEmptyOperator extends Operator[Any,Boolean] {
-  def apply(out: Subscriber[Boolean]): Subscriber[Any] =
-    new Subscriber[Any] {
-      implicit val scheduler = out.scheduler
-      private[this] var isDone = false
-      private[this] var isEmpty = true
+private[reactive] final class LiftByOperatorObservable[A, B](
+  self: Observable[A], operator: Operator[A, B])
+  extends ChainedObservable[B] {
 
-      def onNext(elem: Any): Stop = {
-        isEmpty = false
-        onComplete()
-        Stop
-      }
+  def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[B]): Unit = {
+    val sb = operator(out)
+    ChainedObservable.subscribe(self, conn, sb)
+  }
 
-      def onError(ex: Throwable): Unit =
-        if (!isDone) {
-          isDone = true
-          out.onError(ex)
-        }
-
-      def onComplete(): Unit =
-        if (!isDone) {
-          isDone = true
-          out.onNext(isEmpty)
-          out.onComplete()
-        }
-    }
+  def unsafeSubscribeFn(subscriber: Subscriber[B]): Cancelable = {
+    val sb = operator(subscriber)
+    self.unsafeSubscribeFn(sb)
+  }
 }

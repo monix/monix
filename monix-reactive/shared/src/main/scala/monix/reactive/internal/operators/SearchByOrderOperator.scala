@@ -21,7 +21,7 @@ import cats.Order
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.misc.NonFatal
-import monix.reactive.observables.ObservableLike.Operator
+import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 /**

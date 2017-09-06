@@ -30,11 +30,13 @@ import monix.reactive.observers.Subscriber
   * are leaving work behind due to the need to return a `Cancelable`
   * and thus leak memory.
   */
-trait ChainedObservable[+A] extends Observable[A] {
+abstract class ChainedObservable[+A] extends Observable[A] {
   /** Alternative subscription method, that gets injected a stacked
     * cancelable, in order to preserve memory safety.
     */
-  def unsafeSubscribeFn(conn: MultiAssignmentCancelable, subscriber: Subscriber[A]): Unit
+  def unsafeSubscribeFn(
+    conn: MultiAssignmentCancelable,
+    subscriber: Subscriber[A]): Unit
 }
 
 object ChainedObservable {
