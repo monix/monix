@@ -19,15 +19,12 @@ package monix.reactive.internal.builders
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.AtomicBoolean
-import monix.execution.cancelables.{MultiAssignmentCancelable, SingleAssignmentCancelable, StackedCancelable}
+import monix.execution.cancelables.{SingleAssignmentCancelable, StackedCancelable}
 import monix.execution.misc.NonFatal
-import monix.execution.{Ack, Cancelable}
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
+import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
-import monix.reactive.observables.ChainedObservable
-import monix.reactive.observables.ChainedObservable.{subscribe => chain}
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
@@ -152,18 +149,9 @@ private[monix] final class TailRecMObservable[A,B](seed: A, f: A => Observable[E
         }
       }
 
-      // In case we are dealing with a `ChainedObservable`, we eliminate waste by
-      // building the needed MultiAssignmentCancelable, if not, then a
-      // SingleAssignmentCancelable is more efficient
-      if (!next.isInstanceOf[ChainedObservable[_]]) {
-        val c = SingleAssignmentCancelable()
-        conn.push(c)
-        c := next.unsafeSubscribeFn(loopSubscriber)
-      } else {
-        val c = MultiAssignmentCancelable()
-        conn.push(c)
-        chain(next.asInstanceOf[ChainedObservable[Either[A, B]]], c, loopSubscriber)
-      }
+      val c = SingleAssignmentCancelable()
+      conn.push(c)
+      c := next.unsafeSubscribeFn(loopSubscriber)
     } catch {
       case NonFatal(ex) =>
         if (streamErrors) callback.success(Future.failed(ex))

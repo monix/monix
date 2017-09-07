@@ -30,7 +30,7 @@ object TaskAppSuite extends SimpleTestSuite {
       override def runc = Task { wasExecuted = true }
     }
 
-    app.main(); testS.tick()
+    app.main(Array.empty); testS.tick()
     assertEquals(wasExecuted, true)
   }
 }

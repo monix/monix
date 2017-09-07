@@ -145,7 +145,7 @@ object TaskAsyncSuite extends BaseTestSuite {
   test("Task.apply.fromFuture should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
     var result = Task(1).runAsync
-    for (i <- 0 until count) result = Task.fromFuture(result).runAsync
+    for (_ <- 0 until count) result = Task.fromFuture(result).runAsync
 
     assertEquals(result.value, None)
     s.tick()
@@ -155,13 +155,25 @@ object TaskAsyncSuite extends BaseTestSuite {
   test("Task.now.fromFuture should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
     var result = Task.now(1).runAsync
-    for (i <- 0 until count) result = Task.fromFuture(result).runAsync
+    for (_ <- 0 until count) result = Task.fromFuture(result).runAsync
     assertEquals(result.value, Some(Success(1)))
+  }
+
+  test("Task.async should alias Task.create") { implicit s =>
+    val task = Task.async[Int] { (ec, cb) =>
+      ec.executeAsync { () => cb.onSuccess(1) }
+      Cancelable.empty
+    }
+
+    val f = task.runAsync(s)
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.async should log errors") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task.create[Int]((_,_) => throw ex)
+    val task = Task.async[Int]((_,_) => throw ex)
     val result = task.runAsync; s.tick()
     assertEquals(result.value, None)
     assertEquals(s.state.lastReportedError, ex)

@@ -29,7 +29,7 @@ object PipeThroughSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val pipe = Pipe.publishToOne[Long].map(_ * 2)
+      val pipe = Pipe.publishToOne[Long].transform(_.map(_ * 2))
 
       val o = if (sourceCount == 1)
         Observable.now(1L).pipeThrough(pipe)
@@ -44,7 +44,7 @@ object PipeThroughSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val pipe = Pipe.publishToOne[Long].map(_ * 2)
+      val pipe = Pipe.publishToOne[Long].transform(_.map(_ * 2))
 
       val o = if (sourceCount == 1)
         createObservableEndingInError(Observable.now(1L), ex)
@@ -60,7 +60,7 @@ object PipeThroughSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables(): Seq[Sample] = {
-    val pipe = Pipe.publishToOne[Long].map(_ + 1)
+    val pipe = Pipe.publishToOne[Long].transform(_.map(_ + 1))
     val obs = Observable.range(0, 1000).delayOnNext(1.second).pipeThrough(pipe)
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }

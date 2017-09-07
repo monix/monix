@@ -101,4 +101,17 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     val task: Task[Int] = Task.eval(1).flatMap(_ => throw ex)
     assertEquals(task.coeval.runToEager, Coeval.Error(ex))
   }
+
+  test("Task.delay is an alias for Task.eval") { implicit s =>
+    var effect = 0
+    val ts = Task.delay { effect += 1; effect }
+
+    assertEquals(ts.runAsync(s).value, Some(Success(1)))
+    assertEquals(ts.runAsync(s).value, Some(Success(2)))
+    assertEquals(ts.runAsync(s).value, Some(Success(3)))
+
+    val dummy = new DummyException("dummy")
+    val te = Task.delay { throw dummy }
+    assertEquals(te.runAsync(s).value, Some(Failure(dummy)))
+  }
 }

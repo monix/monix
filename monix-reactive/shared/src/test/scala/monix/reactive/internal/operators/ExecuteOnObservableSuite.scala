@@ -15,27 +15,26 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.builders
+package monix.reactive.internal.operators
 
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Stop
-import monix.execution.internal.Platform
-import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
-object ExecuteWithForkObservableSuite extends TestSuite[TestScheduler]  {
+object ExecuteOnObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty,
       "TestScheduler should be left with no pending tasks")
   }
 
-  test("Observable.now.executeWithFork should execute async") { implicit s =>
-    val obs = Observable.now(10).executeWithFork
+  test("executeOn must execute async if forceAsync=true") { implicit s =>
+    val s2 = TestScheduler()
+    val obs = Observable.now(10).executeOn(s2)
     val p = Promise[Int]()
 
     obs.subscribe(new Observer[Int] {
@@ -47,15 +46,42 @@ object ExecuteWithForkObservableSuite extends TestSuite[TestScheduler]  {
     val f = p.future
     assertEquals(f.value, None)
     s.tick()
+    assertEquals(f.value, None)
+    s2.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Observer.executeWithModel should work") { implicit s =>
-    val count = Platform.recommendedBatchSize * 4
-    val obs = Observable.range(0, count).executeWithModel(SynchronousExecution)
-    val sum = obs.sumL.runAsync
+  test("executeOn should not force async if forceAsync=false") { implicit s =>
+    val s2 = TestScheduler()
+    val obs = Observable.now(10).executeOn(s2, forceAsync = false)
+    val p = Promise[Int]()
 
-    s.tickOne()
-    assertEquals(sum.value, Some(Success(count * (count - 1) / 2)))
+    obs.subscribe(new Observer[Int] {
+      def onError(ex: Throwable): Unit = p.failure(ex)
+      def onComplete(): Unit = ()
+      def onNext(elem: Int): Future[Ack] = { p.success(elem); Stop }
+    })
+
+    val f = p.future
+    assertEquals(f.value, Some(Success(10)))
+  }
+
+  test("executeOn should inject scheduler") { implicit s =>
+    val s2 = TestScheduler()
+    val obs = Observable.now(10).executeWithFork.executeOn(s2, forceAsync = false)
+    val p = Promise[Int]()
+
+    obs.subscribe(new Observer[Int] {
+      def onError(ex: Throwable): Unit = p.failure(ex)
+      def onComplete(): Unit = ()
+      def onNext(elem: Int): Future[Ack] = { p.success(elem); Stop }
+    })
+
+    val f = p.future
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, None)
+    s2.tick()
+    assertEquals(f.value, Some(Success(10)))
   }
 }

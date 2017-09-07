@@ -19,15 +19,13 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
-private[reactive] final
-class ThrottleFirstOperator[A](interval: FiniteDuration)
+private[reactive] final class ThrottleFirstOperator[A](interval: FiniteDuration)
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =

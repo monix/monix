@@ -15,21 +15,24 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.operators
+package monix.eval.internal
 
-import monix.execution.Ack.Continue
-import monix.reactive.Observable.Operator
-import monix.reactive.observers.Subscriber
+import monix.eval.{Callback, Task}
+import monix.eval.Task.Async
+import monix.execution.Scheduler
 
-private[reactive] object FailedOperator extends Operator[Any,Throwable] {
-  def apply(out: Subscriber[Throwable]): Subscriber[Any] =
-    new Subscriber.Sync[Any] {
-      implicit val scheduler = out.scheduler
-      def onNext(elem: Any) = Continue
-      def onComplete(): Unit = out.onComplete()
-      def onError(ex: Throwable): Unit = {
-        out.onNext(ex)
-        out.onComplete()
-      }
+private[eval] object TaskExecuteOn {
+  /**
+    * Implementation for `Task.executeOn`.
+    */
+  def apply[A](source: Task[A], s: Scheduler, forceAsync: Boolean): Task[A] =
+    Async { (ctx, cb) =>
+      val ctx2 = ctx.copy(scheduler = s)
+      val cb2 = Callback.async(cb)(s)
+
+      if (forceAsync)
+        Task.unsafeStartAsync(source, ctx2, cb2)
+      else
+        Task.unsafeStartTrampolined(source, ctx2, cb2)
     }
 }

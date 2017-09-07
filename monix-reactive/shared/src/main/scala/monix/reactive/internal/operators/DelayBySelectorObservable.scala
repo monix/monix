@@ -40,7 +40,7 @@ class DelayBySelectorObservable[A,S](source: Observable[A], selector: A => Obser
       private[this] var completeTriggered = false
       private[this] var isDone = false
       private[this] var currentElem: A = _
-      private[this] var ack: Promise[Ack] = null
+      private[this] var ack: Promise[Ack] = _
 
       private[this] val trigger = new Subscriber.Sync[Any] {
         implicit val scheduler = out.scheduler

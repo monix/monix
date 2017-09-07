@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Stop
-import monix.reactive.observables.ObservableLike.Operator
+import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 private[reactive] final class TakeLeftOperator[A](n: Long)

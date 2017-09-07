@@ -33,7 +33,7 @@ import scala.concurrent.Future
   * - supports a single subscriber, throwing `IllegalStateException`
   *   if you attempt multiple subscriptions
   */
-trait GroupedObservable[K, +V] extends Observable[V] { self =>
+abstract class GroupedObservable[K, +V] extends Observable[V] { self =>
   /** Returns the key associated with this grouped observable. */
   def key: K
 }

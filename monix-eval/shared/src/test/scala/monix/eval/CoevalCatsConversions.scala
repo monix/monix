@@ -21,6 +21,8 @@ import cats.Eval
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 
+import scala.util.Failure
+
 object CoevalCatsConversions extends BaseTestSuite {
   test("Coeval.now(value).toEval") { _ =>
     assertEquals(Coeval.now(10).toEval.value, 10)
@@ -93,5 +95,11 @@ object CoevalCatsConversions extends BaseTestSuite {
 
     assertEquals(eval.value, 1)
     assertEquals(eval.value, 1)
+  }
+
+  test("Coeval.fromEval protects against user error") { implicit s =>
+    val dummy = new DummyException("dummy")
+    val eval = Coeval.fromEval(Eval.always { throw dummy })
+    assertEquals(eval.runTry, Failure(dummy))
   }
 }

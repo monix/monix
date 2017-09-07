@@ -29,7 +29,7 @@ import monix.reactive.{Observable, Pipe}
   * Represents a hot observable (an observable that shares its data-source
   * to multiple subscribers).
   */
-trait ConnectableObservable[+A] extends Observable[A] { self =>
+abstract class ConnectableObservable[+A] extends Observable[A] { self =>
   /** Starts emitting events to subscribers. */
   def connect(): Cancelable
 
@@ -37,7 +37,7 @@ trait ConnectableObservable[+A] extends Observable[A] { self =>
     * `ConnectableObservable` as long as there is at least one
     * subscription that is active.
     */
-  def refCount: Observable[A] = {
+  final def refCount: Observable[A] = {
     RefCountObservable(self)
   }
 }
