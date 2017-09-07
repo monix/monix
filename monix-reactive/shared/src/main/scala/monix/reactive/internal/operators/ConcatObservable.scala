@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.reactive.Observable
@@ -29,12 +29,6 @@ import scala.concurrent.Future
 /** Implementation for observable concatenation `++`. */
 private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: Observable[A])
   extends ChainedObservable[A] {
-
-  def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val conn = MultiAssignmentCancelable()
-    unsafeSubscribeFn(conn, out)
-    conn
-  }
 
   def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[A]): Unit = {
     chain(lh, conn, new Subscriber[A] {

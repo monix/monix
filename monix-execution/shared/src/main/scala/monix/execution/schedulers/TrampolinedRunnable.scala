@@ -28,5 +28,4 @@ import scala.concurrent.OnCompleteRunnable
   *
   * DO NOT use unless you know what you're doing.
   */
-abstract class TrampolinedRunnable
-  extends Runnable with OnCompleteRunnable
+trait TrampolinedRunnable extends Runnable with OnCompleteRunnable

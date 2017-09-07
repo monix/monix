@@ -17,33 +17,43 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.{AssignableCancelable, SingleAssignmentCancelable}
+import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 private[reactive] final
-class ExecuteOnObservable[+A](source: Observable[A], s: Scheduler)
+class ExecuteOnObservable[+A](source: Observable[A], s: Scheduler, forceAsync: Boolean)
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val subscription = SingleAssignmentCancelable()
-    // Forced async boundary is in the contract
-    s.executeAsync { () =>
-      subscription := source.unsafeSubscribeFn(
-        // Overriding scheduler to the one provided
-        new Subscriber[A] {
-          val scheduler: Scheduler = s
-          def onError(ex: Throwable): Unit =
-            out.onError(ex)
-          def onComplete(): Unit =
-            out.onComplete()
-          def onNext(elem: A): Future[Ack] =
-            out.onNext(elem)
-        })
-    }
+    val conn = SingleAssignmentCancelable()
+    if (forceAsync) s.execute(new Thunk(conn, out))
+    else s.execute(new TrampolinedThunk(conn, out))
+    conn
+  }
 
-    subscription
+  private final class TrampolinedThunk
+    (conn: AssignableCancelable, out: Subscriber[A])
+    extends Thunk(conn, out) with TrampolinedRunnable
+
+  private class Thunk(conn: AssignableCancelable, out: Subscriber[A])
+    extends Runnable {
+
+    final def run(): Unit = {
+      val out2 = new Subscriber[A] {
+        val scheduler: Scheduler = s
+        def onError(ex: Throwable): Unit =
+          out.onError(ex)
+        def onComplete(): Unit =
+          out.onComplete()
+        def onNext(elem: A): Future[Ack] =
+          out.onNext(elem)
+      }
+
+      conn := source.unsafeSubscribeFn(out2)
+    }
   }
 }

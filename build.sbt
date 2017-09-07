@@ -18,7 +18,7 @@ val minitestVersion = "1.1.1"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "2.3.0"
+val monixSeries = "3.0.0"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -261,7 +261,7 @@ lazy val cmdlineProfile =
   sys.env.getOrElse("SBT_PROFILE", "")
 
 def mimaSettings(projectName: String) = Seq(
-  mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
+  // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
 )
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
@@ -296,7 +296,6 @@ lazy val coreJS = project.in(file("monix/js"))
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
   name := "monix-execution",
   // Filtering out breaking changes from 3.0.0
-  mimaBinaryIssueFilters ++= MimaFilters.execChangesFor_3_0_0,
   libraryDependencies += "org.typelevel" %%% "cats-core" % catsVersion
 )
 
@@ -322,7 +321,6 @@ lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
     // Filtering out breaking changes from 3.0.0
-    mimaBinaryIssueFilters ++= MimaFilters.evalChangesFor_3_0_0,
     libraryDependencies +=
       "org.typelevel" %%% "cats-effect" % catsEffectVersion
   )
@@ -361,9 +359,7 @@ lazy val tailJS = project.in(file("monix-tail/js"))
 
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-reactive",
-    // Filtering out breaking changes from 3.0.0
-    mimaBinaryIssueFilters ++= MimaFilters.reactiveChangesFor_3_0_0
+    name := "monix-reactive"
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))

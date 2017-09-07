@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import cats.Eq
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
-import monix.reactive.observables.ObservableLike.Operator
+import monix.reactive.Observable.Operator
 import monix.execution.misc.NonFatal
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
