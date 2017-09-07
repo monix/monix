@@ -15,7 +15,7 @@ object LocalContext {
   private[this] def context(k: String, v: TracingContext): Context =
     scala.collection.immutable.Map(k -> v)
 
-  private[this] val localContext = ThreadLocal[Context]
+  private[this] val localContext = ThreadLocal[Context]()
 
   private def register(): String = synchronized {
     UUID.randomUUID().toString
@@ -38,7 +38,7 @@ object LocalContext {
     * Clear the LocalTracing state.
     */
   def clearContext(): Unit =
-    localContext.reset()
+    localContext.set(null)
 
   /**
     * Execute a block of code using the specified state of LocalTracing
