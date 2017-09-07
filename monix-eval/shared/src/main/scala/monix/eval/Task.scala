@@ -25,7 +25,7 @@ import monix.execution._
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
-import monix.execution.misc.{NonFatal, ThreadLocal}
+import monix.execution.misc.{LocalContext, NonFatal, ThreadLocal}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
@@ -107,6 +107,21 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def runAsync(implicit s: Scheduler): CancelableFuture[A] =
     TaskRunLoop.startAsFuture(this, s)
+
+  /** run the Task with LocalContext propagation.
+    *
+    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
+    *        that gets used whenever asynchronous boundaries are needed
+    *        when evaluating the task
+    *
+    * @return a [[monix.execution.CancelableFuture CancelableFuture]]
+    *         that can be used to extract the result or to cancel
+    *         a running task.
+    */
+  def runAsyncTraced(implicit s: Scheduler): CancelableFuture[A] = {
+    val lc = LocalContext.getContext()
+    TaskTracedRunLoop.startAsFuture(this, s, lc)
+  }
 
   /** Tries to execute the source synchronously.
     *
