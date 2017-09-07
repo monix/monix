@@ -2,7 +2,7 @@ package monix.eval.internal
 
 import monix.eval.{Callback, Task}
 import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, MemoizeSuspend, Now, OnFinish, Suspend, fromTry}
-import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
+import monix.execution.{CancelableFuture, ExecutionModel, Scheduler}
 import monix.execution.atomic.AtomicAny
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.collection.ArrayStack
