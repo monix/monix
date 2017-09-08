@@ -78,6 +78,7 @@ object CorrelationIdSuite extends SimpleTestSuite {
         CorrelationId.current.map(_.id)
       }
       val res = Await.result(f, 10.seconds)
+      println(s"Tick ID $res")
       assert(res.contains("1111"))
     }
   }
