@@ -4,10 +4,9 @@ import minitest.SimpleTestSuite
 import monix.eval.Task
 import monix.execution.schedulers.TracingScheduler.Implicits.traced
 
-import scala.concurrent.Future
-import scala.util.Success
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.util.Success
 
 object CorrelationIdSuite extends SimpleTestSuite {
 
