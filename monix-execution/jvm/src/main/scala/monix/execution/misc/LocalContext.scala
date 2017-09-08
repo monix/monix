@@ -4,7 +4,7 @@ import java.util.UUID
 
 object LocalContext {
 
-  type Context = scala.collection.immutable.Map[String, TracingContext]
+  type Context = scala.collection.immutable.Map[String, Option[TracingContext]]
 
   trait TracingContext
   object TracingContext {
@@ -12,7 +12,7 @@ object LocalContext {
     case object Empty extends TracingContext
   }
 
-  private[this] def context(k: String, v: TracingContext): Context =
+  private[this] def context(k: String, v: Option[TracingContext]): Context =
     scala.collection.immutable.Map(k -> v)
 
   private[this] val localContext = ThreadLocal[Context]()
@@ -57,7 +57,7 @@ object LocalContext {
     */
   def withClearContext[T](f: => T): T = withContext(null)(f)
 
-  private def save(id: String, tctx: TracingContext): Unit = {
+  private def save(id: String, tctx: Option[TracingContext]): Unit = {
     val newCtx = Option(localContext.get) match {
       case Some(ctx) =>
         ctx + (id -> tctx)
@@ -68,7 +68,7 @@ object LocalContext {
   }
 
   private def get(id: String): Option[_ <: TracingContext] = {
-    Option(localContext.get).flatMap(_.get(id))
+    Option(localContext.get).flatMap(_.get(id).flatten)
   }
 
   private def clear(id: String): Unit =
@@ -85,7 +85,7 @@ final class LocalContext[T <: LocalContext.TracingContext] {
     set(Some(value))
 
   private def set(value: Option[T]): Unit =
-    value.foreach(LocalContext.save(id, _))
+    LocalContext.save(id, value)
 
   def apply(): Option[T] =
     LocalContext.get(id).asInstanceOf[Option[T]]
