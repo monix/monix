@@ -108,17 +108,22 @@ private[eval] object TaskTracedRunLoop {
       }
 
       def onSuccess(value: Any): Unit =
-        if (canCall) {
-          canCall = false
-          loop(Now(value), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
+        LocalContext.withContext(local) {
+          // This is where finally the local gets propagated when executing
+          if (canCall) {
+            canCall = false
+            loop(Now(value), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
+          }
         }
 
       def onError(ex: Throwable): Unit =
-        if (canCall) {
-          canCall = false
-          loop(Error(ex), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
-        } else {
-          context.scheduler.reportFailure(ex)
+        LocalContext.withContext(local) {
+          if (canCall) {
+            canCall = false
+            loop(Error(ex), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
+          } else {
+            context.scheduler.reportFailure(ex)
+          }
         }
 
       override def toString(): String =
@@ -148,10 +153,8 @@ private[eval] object TaskTracedRunLoop {
 
         // rcb reference might be null, so initializing
         val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
-        LocalContext.withContext(local) {
-          restartCallback.prepare(bFirst, bRest)
-          register(context, restartCallback)
-        }
+        restartCallback.prepare(bFirst, bRest)
+        register(context, restartCallback)
 
       }
     }
@@ -390,8 +393,14 @@ private[eval] object TaskTracedRunLoop {
 
       val p = Promise[Any]()
       val cb: Callback[Any] = new Callback[Any] {
-        def onSuccess(value: Any): Unit = p.trySuccess(value)
-        def onError(ex: Throwable): Unit = p.tryFailure(ex)
+        def onSuccess(value: Any): Unit =
+          LocalContext.withContext(local) {
+            p.trySuccess(value)
+          }
+        def onError(ex: Throwable): Unit =
+          LocalContext.withContext(local) {
+            p.tryFailure(ex)
+          }
       }
 
       val context = Context(scheduler)
