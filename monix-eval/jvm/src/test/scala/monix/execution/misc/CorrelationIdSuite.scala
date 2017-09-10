@@ -11,11 +11,21 @@ import scala.util.Success
 object CorrelationIdSuite extends SimpleTestSuite {
 
 
+  case class Log(value: Int, message: String)
+
+  def composed(implicit sc: Scheduler): Task[Log] = {
+    for {
+      a <- Task.fromFuture(Future(1))
+      b <- Task.now(1)
+      c <- Task.deferFuture(Future(1))
+    } yield Log(a + b + c, CorrelationId.current.fold("")(x => s"Log this map ${x.id}"))
+  }
+
   def taskFlatMap(implicit sc: Scheduler): Task[(Int, Option[CorrelationId])] = {
     for {
-      a <- Task.fromFuture(Future(1234))
-      b <- Task.fromFuture(Future(1234))
-      c <- Task.fromFuture(Future(1234))
+      a <- Task.fromFuture(Future(1))
+      b <- Task.fromFuture(Future(1))
+      c <- Task.fromFuture(Future(1))
       d <- Task.pure(CorrelationId.current)
     } yield (a + b + c, d)
   }
@@ -29,10 +39,6 @@ object CorrelationIdSuite extends SimpleTestSuite {
 
   def pure: Task[Option[CorrelationId]] = {
     Task.pure(CorrelationId.current)
-  }
-
-  def logTask: Task[Unit] = {
-    Task.delay(println(s"Log this map ${CorrelationId.current}"))
   }
 
   val tick: Task[Unit] = Task.unsafeCreate { (ctx, cb) =>
@@ -51,74 +57,130 @@ object CorrelationIdSuite extends SimpleTestSuite {
   test("should get CorrelarionId with flatmapped Task with async boundary") {
     // Works with the TracingScheduler given a Task.fromFuture
     import monix.execution.schedulers.TracingScheduler.Implicits.traced
-    val t = CorrelationId("5678").asCurrent {
+
+    val t1 = CorrelationId("0000").asCurrent {
       taskFlatMap.runAsync.map {
         case (x, v) =>
           (x, CorrelationId.current)
       }
     }
-    val f = t
-    val (_, cid) = Await.result(f, 10.seconds)
-    assert(cid.contains(CorrelationId("5678")))
-  }
+    val (_, cid1) = Await.result(t1, 10.seconds)
+    assert(cid1.contains(CorrelationId("0000")))
 
-  test("should NOT get CorrelarionId with flatmapped Task with async boundary") {
-    // Does not work without TracingScheduler
-    import monix.execution.Scheduler.Implicits.global
-    val t = CorrelationId("5678").asCurrent {
+    val t2 = CorrelationId("0000").asCurrent {
       taskFlatMap.runAsyncTraced.map {
         case (x, v) =>
           (x, CorrelationId.current)
       }
     }
-    val f = t
-    val (_, cid) = Await.result(f, 10.seconds)
-    assert(cid.isEmpty)
+    val (_, cid2) = Await.result(t2, 10.seconds)
+    assert(cid2.contains(CorrelationId("0000")))
   }
 
-  test("should get CorrelationId with no async boundary") {
-    // Works without the TracingScheduler
-    import monix.execution.Scheduler.Implicits.global
+  test("should NOT get CorrelarionId with flatmapped Task with async boundary") {
+    // Does not work without TracingScheduler
+    // Meaning that when mapping an executed Task, the future will always
+    // need the TracingScheduler to propagate the CorrelationId
 
-    val t = CorrelationId("1111").asCurrent {
-      sampleTracedTaskTick.runAsyncTraced
+    val t1 = CorrelationId("0000").asCurrent {
+      import monix.execution.Scheduler.Implicits.global
+      taskFlatMap.runAsyncTraced.map {
+        case (x, v) =>
+          (x, CorrelationId.current)
+      }
     }
-    val res = Await.result(t, 10.seconds)
-    assert(res.contains(CorrelationId("1111")))
+    val (_, cid1) = Await.result(t1, 10.seconds)
+    assert(cid1.isEmpty)
+
+    val t2 = CorrelationId("0000").asCurrent {
+      import monix.execution.Scheduler.Implicits.global
+      taskFlatMap.runAsync.map {
+        case (x, v) =>
+          (x, CorrelationId.current)
+      }
+    }
+    val (_, cid2) = Await.result(t2, 10.seconds)
+    assert(cid2.isEmpty)
+  }
+
+  test("should get CorrelarionId with flatmapped Task with no async boundary") {
+
+    val t1 = CorrelationId("1111").asCurrent {
+      import monix.execution.Scheduler.Implicits.global
+      // Works with normal AsyncScheduler and runAsyncTraced
+      taskFlatMap.runAsyncTraced
+    }
+    val (_, cid1) = Await.result(t1, 10.seconds)
+    assert(cid1.contains(CorrelationId("1111")))
+
+    val t2 = CorrelationId("1111").asCurrent {
+      import monix.execution.schedulers.TracingScheduler.Implicits.traced
+      // Works with TracingScheduler and runAsync
+      taskFlatMap.runAsync
+    }
+    val (_, cid2) = Await.result(t2, 10.seconds)
+    assert(cid2.contains(CorrelationId("1111")))
+
+    val t3 = CorrelationId("1111").asCurrent {
+      import monix.execution.schedulers.TracingScheduler.Implicits.traced
+      // Works with TracingScheduler and runAsync
+      taskFlatMap.runAsyncTraced
+    }
+    val (_, cid3) = Await.result(t3, 10.seconds)
+    assert(cid3.contains(CorrelationId("1111")))
   }
 
   test("should NOT get CorrelationId with no async boundary") {
     // Even though we are using TrancingScheduler
     import monix.execution.schedulers.TracingScheduler.Implicits.traced
 
-    val t = CorrelationId("2222").asCurrent {
+    val t = CorrelationId("1111").asCurrent {
       sampleTracedTaskTick.runAsync
     }
     val res = Await.result(t, 10.seconds)
     assert(res.isEmpty)
   }
 
-  test("should get CorrelationId with a delayed Task") {
-    import monix.execution.schedulers.TracingScheduler.Implicits.traced
-
-    val f = CorrelationId("3333").asCurrent {
-      logTask.runAsync.map { _ =>
-        CorrelationId.current.map(_.id)
-      }
-    }
-    val res = Await.result(f, 10.seconds)
-    assert(res.contains("3333"))
-  }
-
-  test("should NOT get CorrelationId with a delayed Task") {
+  test("should get CorrelationId with a composed Task executed inside current context") {
     import monix.execution.Scheduler.Implicits.global
 
-    val f = CorrelationId("3333").asCurrent {
-      logTask.runAsync.map { _ =>
-        CorrelationId.current.map(_.id)
-      }
+    val t1 = CorrelationId("3333").asCurrent {
+      //import monix.execution.Scheduler.Implicits.global
+      val x = for {
+        a <- Task.fromFuture(Future(1))
+        b <- Task.now(1)
+        c <- Task.deferFuture(Future(1))
+        i <- composed
+      } yield i.copy(value = i.value + a + b + c)
+      x.runAsyncTraced
     }
-    val res = Await.result(f, 10.seconds)
-    assert(res.isEmpty)
+    val res1 = Await.result(t1, 10.seconds)
+    assert(res1.message contains "3333")
+
+    val t2 = CorrelationId("3333").asCurrent {
+      composed.runAsyncTraced
+    }
+    val res2 = Await.result(t2, 10.seconds)
+    assert(res2.message contains "3333")
+  }
+
+  test("should NOT get CorrelationId with a composed Task executed outside current context") {
+    //import monix.execution.Scheduler.Implicits.global
+    import monix.execution.schedulers.TracingScheduler.Implicits.traced
+
+    val t1 = composed.runAsyncTraced
+    t1.map(x => assert(x.message.isEmpty))
+
+    val t2 = CorrelationId("3333").asCurrent(composed).runAsyncTraced
+    t2.map(x => assert(x.message.isEmpty))
+
+    val t3 = CorrelationId("3333").asCurrent {
+      for {
+        a <- Task.fromFuture(Future(1))
+        b <- Task.now(1)
+        c <- Task.deferFuture(Future(1))
+      } yield Log(a + b + c, CorrelationId.current.fold("")(_.id))
+    }.runAsyncTraced
+    t3.map(x => assert(x.message.isEmpty))
   }
 }
