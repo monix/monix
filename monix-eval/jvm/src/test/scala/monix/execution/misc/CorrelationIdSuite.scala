@@ -131,9 +131,6 @@ object CorrelationIdSuite extends SimpleTestSuite {
   }
 
   test("should get CorrelationId with no async boundary") {
-    // Even though we are using TrancingScheduler does not work
-    // because we did not get into an async boundary. It needs the
-    // runAsyncTraced
     import monix.execution.Scheduler.Implicits.global
 
     val t = CorrelationId("1111").asCurrent {
