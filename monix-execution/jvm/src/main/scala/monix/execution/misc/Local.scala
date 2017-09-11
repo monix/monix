@@ -4,11 +4,11 @@ import java.util.UUID
 
 object Local {
 
-  type Context = scala.collection.immutable.Map[String, Option[TracingContext]]
+  type Context = scala.collection.immutable.Map[String, Option[LocalContext]]
 
-  trait TracingContext
+  trait LocalContext
 
-  private[this] def context(k: String, v: Option[TracingContext]): Context =
+  private[this] def context(k: String, v: Option[LocalContext]): Context =
     scala.collection.immutable.Map(k -> v)
 
   private[this] val localContext = ThreadLocal[Context]()
@@ -52,7 +52,7 @@ object Local {
     */
   def withClearContext[T](f: => T): T = withContext(null)(f)
 
-  private def save(id: String, tctx: Option[TracingContext]): Unit = {
+  private def save(id: String, tctx: Option[LocalContext]): Unit = {
     val newCtx = Option(localContext.get) match {
       case Some(ctx) =>
         ctx + (id -> tctx)
@@ -62,7 +62,7 @@ object Local {
     localContext.set(newCtx)
   }
 
-  private def get(id: String): Option[_ <: TracingContext] = {
+  private def get(id: String): Option[_ <: LocalContext] = {
     Option(localContext.get).flatMap(_.get(id).flatten)
   }
 
@@ -73,7 +73,7 @@ object Local {
 
 }
 
-final class Local[T <: Local.TracingContext] {
+final class Local[T <: Local.LocalContext] {
   private[this] val id: String = Local.register()
 
   def update(value: T): Unit =
