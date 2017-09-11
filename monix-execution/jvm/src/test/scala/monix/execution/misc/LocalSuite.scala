@@ -1,36 +1,36 @@
 package monix.execution.misc
 
 import minitest.SimpleTestSuite
-import Local.TracingContext
+import Local.LocalContext
 
 object LocalSuite extends SimpleTestSuite {
 
-  case class TestTracingContext(id: String) extends TracingContext
+  case class TestLocalContext(id: String) extends LocalContext
 
   test("Local should start None") {
-    val local = new Local[TestTracingContext]
+    val local = new Local[TestLocalContext]
     assert(local().isEmpty)
   }
 
   test("Local should store context") {
-    val tc = TestTracingContext("aaaa")
-    val local = new Local[TestTracingContext]
+    val tc = TestLocalContext("aaaa")
+    val local = new Local[TestLocalContext]
     local() = tc
     assert(local().contains(tc))
   }
 
   test("Local should be different in separate thread") {
-    val local = new Local[TestTracingContext]
+    val local = new Local[TestLocalContext]
 
     import scala.concurrent.ExecutionContext.Implicits.global
     import scala.concurrent.duration._
     import scala.concurrent.{Await, Future}
 
-    local() = TestTracingContext("0000")
+    local() = TestLocalContext("0000")
 
-    val res: Future[Option[TestTracingContext]] = Future {
+    val res: Future[Option[TestLocalContext]] = Future {
       assert(local().isEmpty)
-      local() = TestTracingContext("1111")
+      local() = TestLocalContext("1111")
       local()
     }
 
@@ -40,13 +40,13 @@ object LocalSuite extends SimpleTestSuite {
   }
 
   test("Local should keep values when other locals change") {
-    val l0 = new Local[TestTracingContext]
-    l0() = TestTracingContext("1234")
+    val l0 = new Local[TestLocalContext]
+    l0() = TestLocalContext("1234")
     val ctx0 = Local.getContext()
 
-    val l1 = new Local[TestTracingContext]
+    val l1 = new Local[TestLocalContext]
     assert(l0().exists(_.id == "1234"))
-    l1() = TestTracingContext("5678")
+    l1() = TestLocalContext("5678")
     assert(l1().exists(_.id == "5678"))
 
     val ctx1 = Local.getContext()
@@ -60,23 +60,23 @@ object LocalSuite extends SimpleTestSuite {
   }
 
   test("setContext should set saved values") {
-    val local = new Local[TestTracingContext]
-    local() = TestTracingContext("1234")
+    val local = new Local[TestLocalContext]
+    local() = TestLocalContext("1234")
     val saved = Local.getContext()
-    local() = TestTracingContext("5678")
+    local() = TestLocalContext("5678")
 
     Local.setContext(saved)
     assert(local().exists(_.id == "1234"))
   }
 
   test("withContext should set locals and restore previous value") {
-    val l1 = new Local[TestTracingContext]
-    val l2 = new Local[TestTracingContext]
-    l1() = TestTracingContext("x")
-    l2() = TestTracingContext("y")
+    val l1 = new Local[TestLocalContext]
+    val l2 = new Local[TestLocalContext]
+    l1() = TestLocalContext("x")
+    l2() = TestLocalContext("y")
     val ctx = Local.getContext()
-    l1() = TestTracingContext("a")
-    l2() = TestTracingContext("b")
+    l1() = TestLocalContext("a")
+    l2() = TestLocalContext("b")
 
     val done = Local.withContext(ctx) {
       assert(l1().exists(_.id == "x"))
@@ -90,10 +90,10 @@ object LocalSuite extends SimpleTestSuite {
   }
 
   test("withClearContext should clear all locals and restore previous value") {
-    val l1 = new Local[TestTracingContext]
-    val l2 = new Local[TestTracingContext]
-    l1() = TestTracingContext("1")
-    l2() = TestTracingContext("2")
+    val l1 = new Local[TestLocalContext]
+    val l2 = new Local[TestLocalContext]
+    l1() = TestLocalContext("1")
+    l2() = TestLocalContext("2")
 
     Local.withClearContext {
       assert(l1().isEmpty)
@@ -105,18 +105,18 @@ object LocalSuite extends SimpleTestSuite {
   }
 
   test("setContext should unset undefined variables when restoring") {
-    val local = new Local[TestTracingContext]
+    val local = new Local[TestLocalContext]
     val saved = Local.getContext()
-    local() = TestTracingContext("0")
+    local() = TestLocalContext("0")
     Local.setContext(saved)
 
     assert(local().isEmpty)
   }
 
   test("setContext should not restore cleared variables") {
-    val local = new Local[TestTracingContext]
+    val local = new Local[TestLocalContext]
 
-    local() = TestTracingContext("z")
+    local() = TestLocalContext("z")
     Local.getContext()
     local.clear()
     Local.setContext(Local.getContext())
@@ -124,17 +124,17 @@ object LocalSuite extends SimpleTestSuite {
   }
 
   test("withContext should scope with a value and restore previous value") {
-    val local = new Local[TestTracingContext]
-    local() = TestTracingContext("a1")
-    local.withContext(TestTracingContext("b2")) {
+    val local = new Local[TestLocalContext]
+    local() = TestLocalContext("a1")
+    local.withContext(TestLocalContext("b2")) {
       assert(local().exists(_.id == "b2"))
     }
     assert(local().exists(_.id == "a1"))
   }
 
   test("withClearContext should clear Local and restore previous value") {
-    val local = new Local[TestTracingContext]
-    local() = TestTracingContext("00")
+    val local = new Local[TestLocalContext]
+    local() = TestLocalContext("00")
     local.withClearContext {
       assert(local().isEmpty)
     }
@@ -142,8 +142,8 @@ object LocalSuite extends SimpleTestSuite {
   }
 
   test("clear should make a copy when clearing") {
-    val l = new Local[TestTracingContext]
-    l() = TestTracingContext("11")
+    val l = new Local[TestLocalContext]
+    l() = TestLocalContext("11")
     val ctx0 = Local.getContext()
     l.clear()
     assert(l().isEmpty)
