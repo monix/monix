@@ -1,6 +1,6 @@
 package monix.execution.tracing
 
-import monix.execution.misc.{TracingContext, LocalContextCompanion}
+import monix.execution.misc.{TracingContext, TracingContextCompanion}
 
 /**
   * A tracing context that allows to propagate a correlation id
@@ -13,4 +13,4 @@ case class CorrelationId(id: String) extends TracingContext {
 }
 
 
-object CorrelationId extends LocalContextCompanion[CorrelationId]
+object CorrelationId extends TracingContextCompanion[CorrelationId]
