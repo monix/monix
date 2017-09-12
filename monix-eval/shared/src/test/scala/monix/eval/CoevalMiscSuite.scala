@@ -18,7 +18,7 @@
 package monix.eval
 
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Random, Success}
+import scala.util.{Failure, Success}
 
 object CoevalMiscSuite extends BaseTestSuite {
   test("Coeval.now.attempt should succeed") { implicit s =>
@@ -64,12 +64,22 @@ object CoevalMiscSuite extends BaseTestSuite {
   }
 
   test("Coeval.restartUntil") { implicit s =>
-    val r = Coeval(Random.nextInt()).restartUntil(_ % 2 == 0).value
-    assert(r % 2 == 0, "should be divisible with 2")
+    var i = 0
+    val r = Coeval { i += 1; i }.restartUntil(_ > 10).value
+    assertEquals(r, 11)
   }
 
   test("Coeval.pure is an alias of now") { implicit s =>
     assertEquals(Coeval.pure(1), Coeval.now(1))
+  }
+
+  test("Coeval.delay is an alias of eval") { _ =>
+    var i = 0
+    val fa = Coeval.delay { i += 1; i }
+
+    assertEquals(fa.value, 1)
+    assertEquals(fa.value, 2)
+    assertEquals(fa.value, 3)
   }
 
   test("Coeval.flatten is equivalent with flatMap") { implicit s =>
