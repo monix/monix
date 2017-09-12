@@ -326,16 +326,15 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *
     * {{{
     *   try task.runSyncMaybe match {
-    *     case Right(a) => println(s"Success: $a")
+    *     case Right(a) => println("Success: " + a)
     *     case Left(future) =>
     *       future.onComplete {
-    *         case Success(a) => println(s"Async success: $a")
-    *         case Failure(e) => println(s"Async error: $e")
+    *         case Success(a) => println("Async success: " + a)
+    *         case Failure(e) => println("Async error: " + e)
     *       }
-    *   }
-    *   catch {
+    *   } catch {
     *     case NonFatal(e) =>
-    *       println(s"Error: $e")
+    *       println("Error: " + e)
     *   }
     * }}}
     *
@@ -1468,59 +1467,367 @@ object Task extends TaskInstances {
     r.map(_.toList)
   }
 
-  /** Pairs two [[Task]] instances. */
+  /** Pairs 2 `Task` values, applying the given mapping function.
+    *
+    * Returns a new `Task` reference that completes with the result
+    * of mapping that function to their successful results, or in
+    * failure in case either of them fails.
+    *
+    * This is a specialized [[Task.sequence]] operation and as such
+    * the tasks are evaluated in order, one after another, the
+    * operation being described in terms of [[Task.flatMap .flatMap]].
+    *
+    * {{{
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *
+    *   // Yields Success(3)
+    *   Task.map2(fa1, fa2) { (a, b) =>
+    *     a + b
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Task.map2(fa1, Task.raiseError(e)) { (a, b) =>
+    *     a + b
+    *   }
+    * }}}
+    *
+    * See [[Task.parMap2]] for parallel processing.
+    */
+  def map2[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] =
+    fa1.zipMap(fa2)(f)
+
+  /** Pairs 3 `Task` values, applying the given mapping function.
+    *
+    * Returns a new `Task` reference that completes with the result
+    * of mapping that function to their successful results, or in
+    * failure in case either of them fails.
+    *
+    * This is a specialized [[Task.sequence]] operation and as such
+    * the tasks are evaluated in order, one after another, the
+    * operation being described in terms of [[Task.flatMap .flatMap]].
+    *
+    * {{{
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *
+    *   // Yields Success(6)
+    *   Task.map3(fa1, fa2, fa3) { (a, b, c) =>
+    *     a + b + c
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Task.map3(fa1, Task.raiseError(e), fa3) { (a, b, c) =>
+    *     a + b + c
+    *   }
+    * }}}
+    *
+    * See [[Task.parMap3]] for parallel processing.
+    */
+  def map3[A1, A2, A3, R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])
+    (f: (A1, A2, A3) => R): Task[R] = {
+
+    for (a1 <- fa1; a2 <- fa2; a3 <- fa3)
+      yield f(a1, a2, a3)
+  }
+
+  /** Pairs 4 `Task` values, applying the given mapping function.
+    *
+    * Returns a new `Task` reference that completes with the result
+    * of mapping that function to their successful results, or in
+    * failure in case either of them fails.
+    *
+    * This is a specialized [[Task.sequence]] operation and as such
+    * the tasks are evaluated in order, one after another, the
+    * operation being described in terms of [[Task.flatMap .flatMap]].
+    *
+    * {{{
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
+    *
+    *   // Yields Success(10)
+    *   Task.map4(fa1, fa2, fa3, fa4) { (a, b, c, d) =>
+    *     a + b + c + d
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Task.map4(fa1, Task.raiseError(e), fa3, fa4) {
+    *     (a, b, c, d) => a + b + c + d
+    *   }
+    * }}}
+    *
+    * See [[Task.parMap4]] for parallel processing.
+    */
+  def map4[A1, A2, A3, A4, R]
+    (fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])
+    (f: (A1, A2, A3, A4) => R): Task[R] = {
+
+    for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4)
+      yield f(a1, a2, a3, a4)
+  }
+
+  /** Pairs 5 `Task` values, applying the given mapping function.
+    *
+    * Returns a new `Task` reference that completes with the result
+    * of mapping that function to their successful results, or in
+    * failure in case either of them fails.
+    *
+    * This is a specialized [[Task.sequence]] operation and as such
+    * the tasks are evaluated in order, one after another, the
+    * operation being described in terms of [[Task.flatMap .flatMap]].
+    *
+    * {{{
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
+    *   val fa5 = Task(5)
+    *
+    *   // Yields Success(15)
+    *   Task.map5(fa1, fa2, fa3, fa4, fa5) { (a, b, c, d, e) =>
+    *     a + b + c + d + e
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Task.map5(fa1, Task.raiseError(e), fa3, fa4, fa5) {
+    *     (a, b, c, d, e) => a + b + c + d + e
+    *   }
+    * }}}
+    *
+    * See [[Task.parMap5]] for parallel processing.
+    */
+  def map5[A1, A2, A3, A4, A5, R]
+    (fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])
+    (f: (A1, A2, A3, A4, A5) => R): Task[R] = {
+
+    for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4; a5 <- fa5)
+      yield f(a1, a2, a3, a4, a5)
+  }
+
+  /** Pairs 6 `Task` values, applying the given mapping function.
+    *
+    * Returns a new `Task` reference that completes with the result
+    * of mapping that function to their successful results, or in
+    * failure in case either of them fails.
+    *
+    * This is a specialized [[Task.sequence]] operation and as such
+    * the tasks are evaluated in order, one after another, the
+    * operation being described in terms of [[Task.flatMap .flatMap]].
+    *
+    * {{{
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
+    *   val fa5 = Task(5)
+    *   val fa6 = Task(6)
+    *
+    *   // Yields Success(21)
+    *   Task.map6(fa1, fa2, fa3, fa4, fa5, fa6) { (a, b, c, d, e, f) =>
+    *     a + b + c + d + e + f
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Task.map6(fa1, Task.raiseError(e), fa3, fa4, fa5, fa6) {
+    *     (a, b, c, d, e, f) => a + b + c + d + e + f
+    *   }
+    * }}}
+    *
+    * See [[Task.parMap6]] for parallel processing.
+    */
+  def map6[A1, A2, A3, A4, A5, A6, R]
+    (fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6])
+    (f: (A1, A2, A3, A4, A5, A6) => R): Task[R] = {
+
+    for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4; a5 <- fa5; a6 <- fa6)
+      yield f(a1, a2, a3, a4, a5, a6)
+  }
+
+  /** Pairs 2 `Task` values, applying the given mapping function,
+    * ordering the results, but not the side effects, the evaluation
+    * being done in parallel if the tasks are async.
+    *
+    * This is a specialized [[Task.gather]] operation and as such
+    * the tasks are evaluated in parallel, ordering the results.
+    * In case one of the tasks fails, then all other tasks get
+    * cancelled and the final result will be a failure.
+    *
+    * {{{
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *
+    *   // Yields Success(3)
+    *   Task.parMap2(fa1, fa2) { (a, b) =>
+    *     a + b
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Task.parMap2(fa1, Task.raiseError(e)) { (a, b) =>
+    *     a + b
+    *   }
+    * }}}
+    *
+    * See [[Task.map2]] for sequential processing.
+    */
+  def parMap2[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
+    Task.mapBoth(fa1, fa2)(f)
+
+  /** Pairs 3 `Task` values, applying the given mapping function,
+    * ordering the results, but not the side effects, the evaluation
+    * being done in parallel if the tasks are async.
+    *
+    * This is a specialized [[Task.gather]] operation and as such
+    * the tasks are evaluated in parallel, ordering the results.
+    * In case one of the tasks fails, then all other tasks get
+    * cancelled and the final result will be a failure.
+    *
+    * {{{
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *
+    *   // Yields Success(6)
+    *   Task.parMap3(fa1, fa2, fa3) { (a, b, c) =>
+    *     a + b + c
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Task.parMap3(fa1, Task.raiseError(e), fa3) { (a, b, c) =>
+    *     a + b + c
+    *   }
+    * }}}
+    *
+    * See [[Task.map3]] for sequential processing.
+    */
+  def parMap3[A1,A2,A3,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])(f: (A1,A2,A3) => R): Task[R] = {
+    val fa12 = zip2(fa1, fa2)
+    parMap2(fa12, fa3) { case ((a1,a2), a3) => f(a1,a2,a3) }
+  }
+
+  /** Pairs 4 `Task` values, applying the given mapping function,
+    * ordering the results, but not the side effects, the evaluation
+    * being done in parallel if the tasks are async.
+    *
+    * This is a specialized [[Task.gather]] operation and as such
+    * the tasks are evaluated in parallel, ordering the results.
+    * In case one of the tasks fails, then all other tasks get
+    * cancelled and the final result will be a failure.
+    *
+    * {{{
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
+    *
+    *   // Yields Success(10)
+    *   Task.parMap4(fa1, fa2, fa3, fa4) { (a, b, c, d) =>
+    *     a + b + c + d
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Task.parMap4(fa1, Task.raiseError(e), fa3, fa4) {
+    *     (a, b, c, d) => a + b + c + d
+    *   }
+    * }}}
+    *
+    * See [[Task.map4]] for sequential processing.
+    */
+  def parMap4[A1,A2,A3,A4,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])(f: (A1,A2,A3,A4) => R): Task[R] = {
+    val fa123 = zip3(fa1, fa2, fa3)
+    parMap2(fa123, fa4) { case ((a1,a2,a3), a4) => f(a1,a2,a3,a4) }
+  }
+
+  /** Pairs 5 `Task` values, applying the given mapping function,
+    * ordering the results, but not the side effects, the evaluation
+    * being done in parallel if the tasks are async.
+    *
+    * This is a specialized [[Task.gather]] operation and as such
+    * the tasks are evaluated in parallel, ordering the results.
+    * In case one of the tasks fails, then all other tasks get
+    * cancelled and the final result will be a failure.
+    *
+    * {{{
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
+    *   val fa5 = Task(5)
+    *
+    *   // Yields Success(15)
+    *   Task.parMap5(fa1, fa2, fa3, fa4, fa5) { (a, b, c, d, e) =>
+    *     a + b + c + d + e
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Task.parMap5(fa1, Task.raiseError(e), fa3, fa4, fa5) {
+    *     (a, b, c, d, e) => a + b + c + d + e
+    *   }
+    * }}}
+    *
+    * See [[Task.map5]] for sequential processing.
+    */
+  def parMap5[A1,A2,A3,A4,A5,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])(f: (A1,A2,A3,A4,A5) => R): Task[R] = {
+    val fa1234 = zip4(fa1, fa2, fa3, fa4)
+    parMap2(fa1234, fa5) { case ((a1,a2,a3,a4), a5) => f(a1,a2,a3,a4,a5) }
+  }
+
+  /** Pairs 6 `Task` values, applying the given mapping function,
+    * ordering the results, but not the side effects, the evaluation
+    * being done in parallel if the tasks are async.
+    *
+    * This is a specialized [[Task.gather]] operation and as such
+    * the tasks are evaluated in parallel, ordering the results.
+    * In case one of the tasks fails, then all other tasks get
+    * cancelled and the final result will be a failure.
+    *
+    * {{{
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
+    *   val fa5 = Task(5)
+    *   val fa6 = Task(6)
+    *
+    *   // Yields Success(21)
+    *   Task.parMap6(fa1, fa2, fa3, fa4, fa5, fa6) { (a, b, c, d, e, f) =>
+    *     a + b + c + d + e + f
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Task.parMap6(fa1, Task.raiseError(e), fa3, fa4, fa5, fa6) {
+    *     (a, b, c, d, e, f) => a + b + c + d + e + f
+    *   }
+    * }}}
+    *
+    * See [[Task.map6]] for sequential processing.
+    */
+  def parMap6[A1,A2,A3,A4,A5,A6,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Task[R] = {
+    val fa12345 = zip5(fa1, fa2, fa3, fa4, fa5)
+    parMap2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
+  }
+
+  /** Pairs two [[Task]] instances using [[parMap2]]. */
   def zip2[A1,A2,R](fa1: Task[A1], fa2: Task[A2]): Task[(A1,A2)] =
     Task.mapBoth(fa1, fa2)((_,_))
 
-  /** Pairs two [[Task]] instances, creating a new instance that will apply
-    * the given mapping function to the resulting pair. */
-  def zipMap2[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
-    Task.mapBoth(fa1, fa2)(f)
-
-  /** Pairs three [[Task]] instances. */
+  /** Pairs three [[Task]] instances using [[parMap3]]. */
   def zip3[A1,A2,A3](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3]): Task[(A1,A2,A3)] =
-    zipMap3(fa1,fa2,fa3)((a1,a2,a3) => (a1,a2,a3))
-  /** Pairs four [[Task]] instances. */
+    parMap3(fa1,fa2,fa3)((a1,a2,a3) => (a1,a2,a3))
+
+  /** Pairs four [[Task]] instances using [[parMap4]]. */
   def zip4[A1,A2,A3,A4](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4]): Task[(A1,A2,A3,A4)] =
-    zipMap4(fa1,fa2,fa3,fa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
-  /** Pairs five [[Task]] instances. */
+    parMap4(fa1,fa2,fa3,fa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
+
+  /** Pairs five [[Task]] instances using [[parMap5]]. */
   def zip5[A1,A2,A3,A4,A5](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5]): Task[(A1,A2,A3,A4,A5)] =
-    zipMap5(fa1,fa2,fa3,fa4,fa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
-  /** Pairs six [[Task]] instances. */
+    parMap5(fa1,fa2,fa3,fa4,fa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
+
+  /** Pairs six [[Task]] instances using [[parMap6]]. */
   def zip6[A1,A2,A3,A4,A5,A6](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6]): Task[(A1,A2,A3,A4,A5,A6)] =
-    zipMap6(fa1,fa2,fa3,fa4,fa5,fa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
-
-  /** Pairs three [[Task]] instances,
-    * applying the given mapping function to the result.
-    */
-  def zipMap3[A1,A2,A3,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])(f: (A1,A2,A3) => R): Task[R] = {
-    val fa12 = zip2(fa1, fa2)
-    zipMap2(fa12, fa3) { case ((a1,a2), a3) => f(a1,a2,a3) }
-  }
-
-  /** Pairs four [[Task]] instances,
-    * applying the given mapping function to the result.
-    */
-  def zipMap4[A1,A2,A3,A4,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])(f: (A1,A2,A3,A4) => R): Task[R] = {
-    val fa123 = zip3(fa1, fa2, fa3)
-    zipMap2(fa123, fa4) { case ((a1,a2,a3), a4) => f(a1,a2,a3,a4) }
-  }
-
-  /** Pairs five [[Task]] instances,
-    * applying the given mapping function to the result.
-    */
-  def zipMap5[A1,A2,A3,A4,A5,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])(f: (A1,A2,A3,A4,A5) => R): Task[R] = {
-    val fa1234 = zip4(fa1, fa2, fa3, fa4)
-    zipMap2(fa1234, fa5) { case ((a1,a2,a3,a4), a5) => f(a1,a2,a3,a4,a5) }
-  }
-
-  /** Pairs six [[Task]] instances,
-    * applying the given mapping function to the result.
-    */
-  def zipMap6[A1,A2,A3,A4,A5,A6,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Task[R] = {
-    val fa12345 = zip5(fa1, fa2, fa3, fa4, fa5)
-    zipMap2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
-  }
+    parMap6(fa1,fa2,fa3,fa4,fa5,fa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
 
   /** A run-loop frame index is a number representing the current run-loop
     * cycle, being incremented whenever a `flatMap` evaluation happens.

@@ -113,11 +113,34 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(f1.value.get, f2.value.get)
   }
 
-  test("Task#zipWith2 should protect against user code") { implicit s =>
+  test("Task.map2 works") { implicit s =>
+    val fa = Task.map2(Task(1), Task(2))(_ + _).runAsync
+    s.tick()
+    assertEquals(fa.value, Some(Success(3)))
+  }
+
+  test("Task#map2 should protect against user code") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(1.second)
-    val task = Task.zipMap2(ta, tb)((a,b) => (throw dummy) : Int)
+    val task = Task.map2(ta, tb)((_, _) => (throw dummy) : Int)
+
+    val f = task.runAsync
+    s.tick(2.seconds)
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
+
+  test("Task.parMap2 works") { implicit s =>
+    val fa = Task.parMap2(Task(1), Task(2))(_ + _).runAsync
+    s.tick()
+    assertEquals(fa.value, Some(Success(3)))
+  }
+
+  test("Task#parMap2 should protect against user code") { implicit s =>
+    val dummy = DummyException("dummy")
+    val ta = Task.now(10).delayExecution(1.second)
+    val tb = Task.now(20).delayExecution(1.second)
+    val task = Task.parMap2(ta, tb)((_, _) => (throw dummy) : Int)
 
     val f = task.runAsync
     s.tick(1.second)
@@ -132,9 +155,19 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(r.value, Some(Success((1,2,3))))
   }
 
-  test("Task#zipMap3 works") { implicit s =>
+  test("Task#map3 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(n.seconds)
+    val t = Task.map3(n(1),n(2),n(3))((_,_,_))
+    val r = t.runAsync
+    s.tick(3.seconds)
+    assertEquals(r.value, None)
+    s.tick(3.seconds)
+    assertEquals(r.value, Some(Success((1,2,3))))
+  }
+
+  test("Task#parMap3 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.zipMap3(n(1),n(2),n(3))((_,_,_))
+    val t = Task.parMap3(n(1),n(2),n(3))((_,_,_))
     val r = t.runAsync
     s.tick(3.seconds)
     assertEquals(r.value, Some(Success((1,2,3))))
@@ -148,9 +181,19 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(r.value, Some(Success((1,2,3,4))))
   }
 
-  test("Task#zipMap4 works") { implicit s =>
+  test("Task#map4 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(n.seconds)
+    val t = Task.map4(n(1),n(2),n(3),n(4))((_,_,_,_))
+    val r = t.runAsync
+    s.tick(6.seconds)
+    assertEquals(r.value, None)
+    s.tick(4.second)
+    assertEquals(r.value, Some(Success((1,2,3,4))))
+  }
+
+  test("Task#parMap4 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.zipMap4(n(1),n(2),n(3),n(4))((_,_,_,_))
+    val t = Task.parMap4(n(1),n(2),n(3),n(4))((_,_,_,_))
     val r = t.runAsync
     s.tick(4.seconds)
     assertEquals(r.value, Some(Success((1,2,3,4))))
@@ -164,9 +207,19 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(r.value, Some(Success((1,2,3,4,5))))
   }
 
-  test("Task#zipMap5 works") { implicit s =>
+  test("Task#map5 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(n.seconds)
+    val t = Task.map5(n(1),n(2),n(3),n(4),n(5))((_,_,_,_,_))
+    val r = t.runAsync
+    s.tick(10.seconds)
+    assertEquals(r.value, None)
+    s.tick(5.seconds)
+    assertEquals(r.value, Some(Success((1,2,3,4,5))))
+  }
+
+  test("Task#parMap5 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.zipMap5(n(1),n(2),n(3),n(4),n(5))((_,_,_,_,_))
+    val t = Task.parMap5(n(1),n(2),n(3),n(4),n(5))((_,_,_,_,_))
     val r = t.runAsync
     s.tick(5.seconds)
     assertEquals(r.value, Some(Success((1,2,3,4,5))))
@@ -180,9 +233,19 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(r.value, Some(Success((1,2,3,4,5,6))))
   }
 
-  test("Task#zipMap6 works") { implicit s =>
+  test("Task#map6 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(n.seconds)
+    val t = Task.map6(n(1),n(2),n(3),n(4),n(5),n(6))((_,_,_,_,_,_))
+    val r = t.runAsync
+    s.tick(20.seconds)
+    assertEquals(r.value, None)
+    s.tick(1.second)
+    assertEquals(r.value, Some(Success((1,2,3,4,5,6))))
+  }
+
+  test("Task#parMap6 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.zipMap6(n(1),n(2),n(3),n(4),n(5),n(6))((_,_,_,_,_,_))
+    val t = Task.parMap6(n(1),n(2),n(3),n(4),n(5),n(6))((_,_,_,_,_,_))
     val r = t.runAsync
     s.tick(6.seconds)
     assertEquals(r.value, Some(Success((1,2,3,4,5,6))))

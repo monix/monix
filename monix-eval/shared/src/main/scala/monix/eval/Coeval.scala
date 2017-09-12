@@ -164,7 +164,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     *   fa.run match {
     *     case Coeval.Now(value) =>
-    *       println(s"Success: $value")
+    *       println("Success: " + value)
     *     case Coeval.Error(e) =>
     *       e.printStackTrace()
     *   }
@@ -187,7 +187,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     *   fa.runAttempt match {
     *     case Right(value) =>
-    *       println(s"Success: $value")
+    *       println("Success: " + value)
     *     case Left(e) =>
     *       e.printStackTrace()
     *   }
@@ -212,7 +212,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     *   fa.runTry match {
     *     case Success(value) =>
-    *       println(s"Success: $value")
+    *       println("Success: " + value)
     *     case Failure(e) =>
     *       e.printStackTrace()
     *   }
@@ -662,72 +662,174 @@ object Coeval {
     r.map(_.toList)
   }
 
+  /** Pairs 2 `Coeval` values, applying the given mapping function.
+    *
+    * Returns a new `Coeval` reference that completes with the result
+    * of mapping that function to their successful results, or in
+    * failure in case either of them fails.
+    *
+    * {{{
+    *   val fa1 = Coeval(1)
+    *   val fa2 = Coeval(2)
+    *
+    *   // Yields Success(3)
+    *   Coeval.map2(fa1, fa2) { (a, b) =>
+    *     a + b
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Coeval.map2(fa1, Coeval.raiseError(e)) { (a, b) =>
+    *     a + b
+    *   }
+    * }}}
+    */
+  def map2[A1, A2, R](fa1: Coeval[A1], fa2: Coeval[A2])(f: (A1, A2) => R): Coeval[R] =
+    fa1.zipMap(fa2)(f)
+
+  /** Pairs 3 `Coeval` values, applying the given mapping function.
+    *
+    * Returns a new `Coeval` reference that completes with the result
+    * of mapping that function to their successful results, or in
+    * failure in case either of them fails.
+    *
+    * {{{
+    *   val fa1 = Coeval(1)
+    *   val fa2 = Coeval(2)
+    *   val fa3 = Coeval(3)
+    *
+    *   // Yields Success(6)
+    *   Coeval.map3(fa1, fa2, fa3) { (a, b, c) =>
+    *     a + b + c
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Coeval.map3(fa1, Coeval.raiseError(e), fa3) { (a, b, c) =>
+    *     a + b + c
+    *   }
+    * }}}
+    */
+  def map3[A1, A2, A3, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3])
+    (f: (A1, A2, A3) => R): Coeval[R] = {
+
+    for (a1 <- fa1; a2 <- fa2; a3 <- fa3)
+      yield f(a1, a2, a3)
+  }
+
+  /** Pairs 4 `Coeval` values, applying the given mapping function.
+    *
+    * Returns a new `Coeval` reference that completes with the result
+    * of mapping that function to their successful results, or in
+    * failure in case either of them fails.
+    *
+    * {{{
+    *   val fa1 = Coeval(1)
+    *   val fa2 = Coeval(2)
+    *   val fa3 = Coeval(3)
+    *   val fa4 = Coeval(4)
+    *
+    *   // Yields Success(10)
+    *   Coeval.map4(fa1, fa2, fa3, fa4) { (a, b, c, d) =>
+    *     a + b + c + d
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Coeval.map4(fa1, Coeval.raiseError(e), fa3, fa4) {
+    *     (a, b, c, d) => a + b + c + d
+    *   }
+    * }}}
+    */
+  def map4[A1, A2, A3, A4, R]
+    (fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4])
+    (f: (A1, A2, A3, A4) => R): Coeval[R] = {
+
+    for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4)
+      yield f(a1, a2, a3, a4)
+  }
+
+  /** Pairs 5 `Coeval` values, applying the given mapping function.
+    *
+    * Returns a new `Coeval` reference that completes with the result
+    * of mapping that function to their successful results, or in
+    * failure in case either of them fails.
+    *
+    * {{{
+    *   val fa1 = Coeval(1)
+    *   val fa2 = Coeval(2)
+    *   val fa3 = Coeval(3)
+    *   val fa4 = Coeval(4)
+    *   val fa5 = Coeval(5)
+    *
+    *   // Yields Success(15)
+    *   Coeval.map5(fa1, fa2, fa3, fa4, fa5) { (a, b, c, d, e) =>
+    *     a + b + c + d + e
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Coeval.map5(fa1, Coeval.raiseError(e), fa3, fa4, fa5) {
+    *     (a, b, c, d, e) => a + b + c + d + e
+    *   }
+    * }}}
+    */
+  def map5[A1, A2, A3, A4, A5, R]
+    (fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5])
+    (f: (A1, A2, A3, A4, A5) => R): Coeval[R] = {
+
+    for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4; a5 <- fa5)
+      yield f(a1, a2, a3, a4, a5)
+  }
+
+  /** Pairs 6 `Coeval` values, applying the given mapping function.
+    *
+    * Returns a new `Coeval` reference that completes with the result
+    * of mapping that function to their successful results, or in
+    * failure in case either of them fails.
+    *
+    * {{{
+    *   val fa1 = Coeval(1)
+    *   val fa2 = Coeval(2)
+    *   val fa3 = Coeval(3)
+    *   val fa4 = Coeval(4)
+    *   val fa5 = Coeval(5)
+    *   val fa6 = Coeval(6)
+    *
+    *   // Yields Success(21)
+    *   Coeval.map6(fa1, fa2, fa3, fa4, fa5, fa6) { (a, b, c, d, e, f) =>
+    *     a + b + c + d + e + f
+    *   }
+    *
+    *   // Yields Failure(e), because the second arg is a failure
+    *   Coeval.map6(fa1, Coeval.raiseError(e), fa3, fa4, fa5, fa6) {
+    *     (a, b, c, d, e, f) => a + b + c + d + e + f
+    *   }
+    * }}}
+    */
+  def map6[A1, A2, A3, A4, A5, A6, R]
+    (fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6])
+    (f: (A1, A2, A3, A4, A5, A6) => R): Coeval[R] = {
+
+    for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4; a5 <- fa5; a6 <- fa6)
+      yield f(a1, a2, a3, a4, a5, a6)
+  }
+
   /** Pairs two [[Coeval]] instances. */
   def zip2[A1, A2, R](fa1: Coeval[A1], fa2: Coeval[A2]): Coeval[(A1, A2)] =
     fa1.zipMap(fa2)((_, _))
 
-  /** Pairs two [[Coeval]] instances, creating a new instance that will apply
-    * the given mapping function to the resulting pair.
-    *
-    */
-  def zipMap2[A1, A2, R](fa1: Coeval[A1], fa2: Coeval[A2])(f: (A1, A2) => R): Coeval[R] =
-    fa1.zipMap(fa2)(f)
-
   /** Pairs three [[Coeval]] instances. */
   def zip3[A1, A2, A3](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3]): Coeval[(A1, A2, A3)] =
-    zipMap3(fa1, fa2, fa3)((a1, a2, a3) => (a1, a2, a3))
+    map3(fa1, fa2, fa3)((a1, a2, a3) => (a1, a2, a3))
 
   /** Pairs four [[Coeval]] instances. */
   def zip4[A1, A2, A3, A4](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4]): Coeval[(A1, A2, A3, A4)] =
-    zipMap4(fa1, fa2, fa3, fa4)((a1, a2, a3, a4) => (a1, a2, a3, a4))
+    map4(fa1, fa2, fa3, fa4)((a1, a2, a3, a4) => (a1, a2, a3, a4))
 
   /** Pairs five [[Coeval]] instances. */
   def zip5[A1, A2, A3, A4, A5](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5]): Coeval[(A1, A2, A3, A4, A5)] =
-    zipMap5(fa1, fa2, fa3, fa4, fa5)((a1, a2, a3, a4, a5) => (a1, a2, a3, a4, a5))
+    map5(fa1, fa2, fa3, fa4, fa5)((a1, a2, a3, a4, a5) => (a1, a2, a3, a4, a5))
 
   /** Pairs six [[Coeval]] instances. */
   def zip6[A1, A2, A3, A4, A5, A6](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6]): Coeval[(A1, A2, A3, A4, A5, A6)] =
-    zipMap6(fa1, fa2, fa3, fa4, fa5, fa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
-
-  /** Pairs three [[Coeval]] instances, applying the given mapping
-    * function to the result.
-    */
-  def zipMap3[A1, A2, A3, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3])
-    (f: (A1, A2, A3) => R): Coeval[R] = {
-
-    val fa12 = zip2(fa1, fa2)
-    zipMap2(fa12, fa3) { case ((a1, a2), a3) => f(a1, a2, a3) }
-  }
-
-  /** Pairs four [[Coeval]] instances,
-    * applying the given mapping function to the result.
-    */
-  def zipMap4[A1, A2, A3, A4, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4])
-    (f: (A1, A2, A3, A4) => R): Coeval[R] = {
-
-    val fa123 = zip3(fa1, fa2, fa3)
-    zipMap2(fa123, fa4) { case ((a1, a2, a3), a4) => f(a1, a2, a3, a4) }
-  }
-
-  /** Pairs five [[Coeval]] instances,
-    * applying the given mapping function to the result.
-    */
-  def zipMap5[A1, A2, A3, A4, A5, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5])
-    (f: (A1, A2, A3, A4, A5) => R): Coeval[R] = {
-
-    val fa1234 = zip4(fa1, fa2, fa3, fa4)
-    zipMap2(fa1234, fa5) { case ((a1, a2, a3, a4), a5) => f(a1, a2, a3, a4, a5) }
-  }
-
-  /** Pairs six [[Coeval]] instances,
-    * applying the given mapping function to the result.
-    */
-  def zipMap6[A1, A2, A3, A4, A5, A6, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6])
-    (f: (A1, A2, A3, A4, A5, A6) => R): Coeval[R] = {
-
-    val fa12345 = zip5(fa1, fa2, fa3, fa4, fa5)
-    zipMap2(fa12345, fa6) { case ((a1, a2, a3, a4, a5), a6) => f(a1, a2, a3, a4, a5, a6) }
-  }
+    map6(fa1, fa2, fa3, fa4, fa5, fa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
 
   /** The `Eager` type represents a strict, already evaluated result
     * of a [[Coeval]] that either resulted in success, wrapped in a
