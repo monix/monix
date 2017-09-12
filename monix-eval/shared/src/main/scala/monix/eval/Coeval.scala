@@ -94,7 +94,7 @@ import scala.util.{Failure, Success, Try}
   *
   * {{{
   *   var i = 0
-  *   val fa = Coeval.eval { i += 1; i }
+  *   val fa = Coeval.evalOnce { i += 1; i }
   *
   *   fa.value //=> 1
   *   fa.value //=> 1
