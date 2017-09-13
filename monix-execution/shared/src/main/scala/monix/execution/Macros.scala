@@ -40,9 +40,9 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
         q"""($selfExpr eq $Ack.Continue) || ($selfExpr eq $Ack.Stop)"""
       else
         q"""
-          val $self = $selfExpr
-          ($self eq $Ack.Continue) || ($self eq $Ack.Stop)
-          """
+        val $self = $selfExpr
+        ($self eq $Ack.Continue) || ($self eq $Ack.Stop)
+        """
 
     inlineAndReset[Boolean](tree)
   }
