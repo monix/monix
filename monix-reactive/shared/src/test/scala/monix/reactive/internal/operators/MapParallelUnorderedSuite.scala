@@ -278,7 +278,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     var initiated = 0
     var received = 0
     var isComplete = false
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     val totalCount = Platform.recommendedBatchSize * 4
 
     Observable.range(0, totalCount)

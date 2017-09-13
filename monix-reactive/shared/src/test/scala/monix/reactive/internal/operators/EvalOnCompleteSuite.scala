@@ -20,6 +20,7 @@ package monix.reactive.internal.operators
 import cats.effect.IO
 import minitest.TestSuite
 import monix.eval.Task
+import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
@@ -94,7 +95,7 @@ object EvalOnCompleteSuite extends TestSuite[TestScheduler] {
     Observable.raiseError(dummy).doOnCompleteTask(Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
-        def onNext(elem: Long): Future[Continue] =
+        def onNext(elem: Long): Future[Ack] =
           if (elem % 2 == 0) Continue else Future(Continue)
 
         def onError(ex: Throwable): Unit =

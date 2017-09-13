@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.eval.Task
+import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
 import monix.execution.Scheduler
@@ -90,7 +91,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     obs.unsafeSubscribeFn(new Observer[Long] {
       private[this] var sum = 0L
 
-      def onNext(elem: Long): Continue = {
+      def onNext(elem: Long): Ack = {
         received += 1
         sum += elem
         Continue
@@ -113,7 +114,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     obs.unsafeSubscribeFn(new Observer[Long] {
       private[this] var sum = 0L
 
-      def onNext(elem: Long): Continue = {
+      def onNext(elem: Long): Ack = {
         received += 1
         sum += elem
         Continue
@@ -282,7 +283,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var onErrorReceived = 0
 
     obs.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long): Continue = {
+      def onNext(elem: Long): Ack = {
         received += 1
         Continue
       }
@@ -315,7 +316,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var onErrorReceived = 0
 
     obs.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long): Continue = {
+      def onNext(elem: Long): Ack = {
         received += 1
         Continue
       }
@@ -348,7 +349,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var onErrorReceived = 0
 
     obs.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long): Continue = {
+      def onNext(elem: Long): Ack = {
         received += 1
         Continue
       }

@@ -80,7 +80,7 @@ private[reactive] final class SwitchMapObservable[A,B](
         }
       }
 
-      def cancelFromDownstream(): Stop = self.synchronized {
+      def cancelFromDownstream(): Ack = self.synchronized {
         if (upstreamIsDone) Stop else {
           upstreamIsDone = true
           activeChildIndex = -1

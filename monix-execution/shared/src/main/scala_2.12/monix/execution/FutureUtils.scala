@@ -18,10 +18,6 @@
 package monix.execution
 
 import java.util.concurrent.TimeoutException
-
-import monix.execution.cancelables.MultiAssignmentCancelable
-import monix.execution.misc.NonFatal
-
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -102,43 +98,16 @@ object FutureUtils {
     *
     * Similar to `Future.transform` from Scala 2.12.
     */
-  def transform[A,B](source: Future[A], f: Try[A] => Try[B])(implicit ec: ExecutionContext): Future[B] = {
-    val p = Promise[B]()
-    source.onComplete { result =>
-      val b = try f(result) catch { case NonFatal(t) => Failure(t) }
-      p.complete(b)
-    }
-    p.future
-  }
+  def transform[A,B](source: Future[A], f: Try[A] => Try[B])(implicit ec: ExecutionContext): Future[B] =
+    source.transform(f)
 
   /** Given a mapping functions that operates on successful results
     * as well as errors, transforms the source by applying it.
     *
     * Similar to `Future.transformWith` from Scala 2.12.
     */
-  def transformWith[A,B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): CancelableFuture[B] = {
-    val p = Promise[B]()
-
-    val cancelable = source match {
-      case c: Cancelable => MultiAssignmentCancelable(c)
-      case _ => MultiAssignmentCancelable()
-    }
-
-    source.onComplete { result =>
-      val fb = try f(result) catch { case NonFatal(t) => Future.failed(t) }
-      fb match {
-        case c: Cancelable => cancelable := c
-        case _ =>
-      }
-      if (fb eq source)
-        p.complete(result.asInstanceOf[Try[B]])
-      else fb.value match {
-        case Some(value) => p.complete(value)
-        case None => p.completeWith(fb)
-      }
-    }
-    CancelableFuture(p.future, cancelable)
-  }
+  def transformWith[A,B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): Future[B] =
+    source.transformWith(f)
 
   /** Utility that transforms a `Future[Try[A]]` into a `Future[A]`,
     * hiding errors, being the opposite of [[materialize]].
@@ -192,10 +161,6 @@ object FutureUtils {
       /** [[FutureUtils.dematerialize]] exposed as an extension method. */
       def dematerialize[U](implicit ev: A <:< Try[U], ec: ExecutionContext): Future[U] =
         FutureUtils.dematerialize(source.asInstanceOf[Future[Try[U]]])
-
-      /** [[FutureUtils.transformWith]] exposed as an extension method. */
-      def transformWith[S](f: Try[A] => Future[S])(implicit ec: ExecutionContext): Future[S] =
-        FutureUtils.transformWith(source, f)
     }
 
     /** Provides utility methods for Scala's `concurrent.Future` companion object. */
