@@ -18,6 +18,8 @@
 package monix.execution
 
 import cats.Eq
+import cats.laws.IsEq
+import cats.kernel.laws._
 import minitest.SimpleTestSuite
 import minitest.laws.Checkers
 import monix.execution.exceptions.DummyException
@@ -65,11 +67,25 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
 }
 
 trait ArbitraryInstances extends ArbitraryInstancesBase {
+  /** Syntax for equivalence in tests. */
+  implicit final class IsEqArrow[A](val lhs: A) {
+    def <->(rhs: A): IsEq[A] = IsEq(lhs, rhs)
+  }
+
+  implicit def isEqToProp[A](isEq: IsEq[A])(implicit A: Eq[A]): Prop =
+    isEq.lhs ?== isEq.rhs
+
+  implicit def isEqListToProp[A](list: List[IsEq[A]])(implicit A: Eq[A]): Prop =
+    Prop(list.forall(isEq => A.eqv(isEq.lhs, isEq.rhs)))
+
   implicit def equalityCancelableFuture[A](implicit A: Eq[A], ec: TestScheduler): Eq[CancelableFuture[A]] =
     new Eq[CancelableFuture[A]] {
       val inst = equalityFuture[A]
-      def eqv(x: CancelableFuture[A], y: CancelableFuture[A]) =
-        inst.eqv(x, y)
+      def eqv(x: CancelableFuture[A], y: CancelableFuture[A]) = {
+        val r = inst.eqv(x, y)
+        if (!r) { println(s"${x.value} !== ${y.value} ($x !== $y)") }
+        r
+      }
     }
 
   implicit def arbitraryCancelableFuture[A]
@@ -84,6 +100,12 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
           CancelableFuture.async[A](cb => { cb(Failure(DummyException(a.toString))); Cancelable.empty }),
           CancelableFuture.pure(a).flatMap(CancelableFuture.pure))
       } yield future
+    }
+
+  implicit def arbitraryThrowable: Arbitrary[Throwable] =
+    Arbitrary {
+      val msg = implicitly[Arbitrary[Int]]
+      for (a <- msg.arbitrary) yield DummyException(a.toString)
     }
 
   implicit def cogenForCancelableFuture[A]: Cogen[CancelableFuture[A]] =
@@ -120,7 +142,7 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
     override def eqv(x: Throwable, y: Throwable): Boolean = {
       val ex1 = extractEx(x)
       val ex2 = extractEx(y)
-      ex1.getMessage == ex2.getMessage
+      ex1.getClass == ex2.getClass && ex1.getMessage == ex2.getMessage
     }
 
     // Unwraps exceptions that got caught by Future's implementation

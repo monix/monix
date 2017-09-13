@@ -19,12 +19,10 @@ package monix.eval
 
 import cats.Eq
 import cats.effect.IO
-import cats.kernel.laws._
-import cats.laws.IsEq
 import monix.execution.Cancelable
 import monix.execution.schedulers.TestScheduler
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 trait BaseLawsSuite extends monix.execution.BaseLawsSuite with ArbitraryInstances
 
@@ -43,17 +41,6 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
 }
 
 trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
-  /** Syntax for equivalence in tests. */
-  implicit final class IsEqArrow[A](val lhs: A) {
-    def <->(rhs: A): IsEq[A] = IsEq(lhs, rhs)
-  }
-
-  implicit def isEqToProp[A](isEq: IsEq[A])(implicit A: Eq[A]): Prop =
-    isEq.lhs ?== isEq.rhs
-
-  implicit def isEqListToProp[A](list: List[IsEq[A]])(implicit A: Eq[A]): Prop =
-    Prop(list.forall(isEq => A.eqv(isEq.lhs, isEq.rhs)))
-
   implicit def arbitraryCoeval[A](implicit A: Arbitrary[A]): Arbitrary[Coeval[A]] =
     Arbitrary {
       for {
