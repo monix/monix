@@ -72,7 +72,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     Observable.range(0,10).doOnEarlyStop(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
-        def onNext(elem: Long): Future[Continue] =
+        def onNext(elem: Long): Future[Ack] =
           if (elem % 2 == 0) Continue else Future(Continue)
 
         def onError(ex: Throwable): Unit = ()
@@ -93,7 +93,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     Observable.raiseError(dummy).doOnEarlyStop(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
-        def onNext(elem: Long): Future[Continue] =
+        def onNext(elem: Long): Future[Ack] =
           if (elem % 2 == 0) Continue else Future(Continue)
 
         def onError(ex: Throwable): Unit =

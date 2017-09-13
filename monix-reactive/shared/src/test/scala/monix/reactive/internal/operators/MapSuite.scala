@@ -86,7 +86,7 @@ object MapSuite extends BaseOperatorSuite {
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
+          def onNext(elem: Long): Future[Ack] = { onNextReceived = true; p.future }
           def onError(ex: Throwable): Unit = throw new IllegalStateException()
           def onComplete(): Unit = wasCompleted = true
         })

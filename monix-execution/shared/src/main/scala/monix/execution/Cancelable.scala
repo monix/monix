@@ -20,7 +20,6 @@ package monix.execution
 import monix.execution.atomic.AtomicAny
 import monix.execution.exceptions.CompositeException
 import monix.execution.misc.NonFatal
-
 import scala.collection.immutable.Queue
 
 /** Represents a one-time idempotent action that can be used
@@ -30,7 +29,7 @@ import scala.collection.immutable.Queue
   * It is equivalent to `java.io.Closeable`, but without the I/O focus, or
   * to `IDisposable` in Microsoft .NET, or to `akka.actor.Cancellable`.
   */
-trait Cancelable extends Any with Serializable {
+trait Cancelable extends Serializable {
   /** Cancels the unit of work represented by this reference.
     *
     * Guaranteed idempotency - calling it multiple times should have the

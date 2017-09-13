@@ -125,18 +125,18 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
 
     val dummy = new RuntimeException("dummy")
     val source2 = Future[Int](throw dummy)
-    val result2 = FutureUtils.transform(source2, (x: Try[Int]) => Success(2))
+    val result2 = FutureUtils.transform(source2, (_: Try[Int]) => Success(2))
     s.tick(); assertEquals(result2.value, Some(Success(2)))
   }
 
   test("transformWith backport") { implicit s =>
     val source1 = Future(1)
-    val result1 = source1.transformWith((x: Try[Int]) => Future(x.map(_.toString).get))
+    val result1 = FutureUtils.transformWith(source1, (x: Try[Int]) => Future(x.map(_.toString).get))
     s.tick(); assertEquals(result1.value, Some(Success("1")))
 
     val dummy = new RuntimeException("dummy")
     val source2 = Future[Int](throw dummy)
-    val result2 = source2.transformWith((x: Try[Int]) => Future.successful(2))
+    val result2 = FutureUtils.transformWith(source2, (_: Try[Int]) => Future.successful(2))
     s.tick(); assertEquals(result2.value, Some(Success(2)))
 
     val source3 = Future(1)
@@ -144,7 +144,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     s.tick(); assertEquals(result3.value, Some(Success("1")))
 
     val source4 = Future[Int](throw dummy)
-    val result4 = FutureUtils.transformWith(source4, (x: Try[Int]) => Future.successful(2))
+    val result4 = FutureUtils.transformWith(source4, (_: Try[Int]) => Future.successful(2))
     s.tick(); assertEquals(result4.value, Some(Success(2)))
   }
 }

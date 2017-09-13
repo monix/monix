@@ -168,7 +168,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Future[Continue] = {
+          def onNext(elem: Long): Future[Ack] = {
             received += 1
             p.future
           }
@@ -268,7 +268,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
         var received = 0
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Future[Continue] = {
+          def onNext(elem: Long): Future[Ack] = {
             received += 1
             Future(Continue)
           }

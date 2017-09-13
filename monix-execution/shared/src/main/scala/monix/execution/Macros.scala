@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import monix.execution.Ack.{AckExtensions, Continue, Stop}
+import monix.execution.Ack.AckExtensions
 import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
 import monix.execution.schedulers.{StartAsyncBatchRunnable, TrampolinedRunnable}
 import scala.concurrent.Future
@@ -33,16 +33,15 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
   def isSynchronous[Self <: Future[Ack] : c.WeakTypeTag]: c.Expr[Boolean] = {
     val selfExpr = sourceFromAck[Self](c.prefix.tree)
     val self = util.name("source")
-    val ContinueSymbol = symbolOf[Continue].companion
-    val StopSymbol = symbolOf[Stop].companion
+    val Ack = symbolOf[Ack].companion
 
     val tree =
       if (util.isClean(selfExpr))
-        q"""($selfExpr eq $ContinueSymbol) || ($selfExpr eq $StopSymbol)"""
+        q"""($selfExpr eq $Ack.Continue) || ($selfExpr eq $Ack.Stop)"""
       else
         q"""
           val $self = $selfExpr
-          ($self eq $ContinueSymbol) || ($self eq $StopSymbol)
+          ($self eq $Ack.Continue) || ($self eq $Ack.Stop)
           """
 
     inlineAndReset[Boolean](tree)
@@ -54,15 +53,14 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
     val scheduler = c.Expr[Scheduler](s)
 
     val execute = c.Expr[Unit](callback)
-    val ContinueSymbol = symbolOf[Continue].companion
-    val StopSymbol = symbolOf[Stop].companion
-    val AckSymbol = symbolOf[Ack]
+    val AckType = symbolOf[Ack]
+    val Ack = symbolOf[Ack].companion
     val FutureSymbol = symbolOf[Future[_]]
 
     val tree =
       q"""
         val $self = $selfExpr
-        if ($self eq $ContinueSymbol)
+        if ($self eq $Ack.Continue)
           try { $execute } catch {
             case ex: Throwable =>
               if (_root_.monix.execution.misc.NonFatal(ex))
@@ -70,9 +68,9 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
               else
                 throw ex
           }
-        else if (($self : $FutureSymbol[$AckSymbol]) != $StopSymbol) {
+        else if (($self : $FutureSymbol[$AckType]) != $Ack.Stop) {
           $self.onComplete { result =>
-            if (result.isSuccess && (result.get eq $ContinueSymbol)) { $execute }
+            if (result.isSuccess && (result.get eq $Ack.Continue)) { $execute }
           }($scheduler)
         }
 
@@ -88,15 +86,14 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
     val scheduler = c.Expr[Scheduler](s)
 
     val execute = c.Expr[Option[Throwable] => Unit](callback)
-    val ContinueSymbol = symbolOf[Continue].companion
-    val StopSymbol = symbolOf[Stop].companion
-    val AckSymbol = symbolOf[Ack]
+    val AckType = symbolOf[Ack]
+    val Ack = symbolOf[Ack].companion
     val FutureSymbol = symbolOf[Future[_]]
 
     val tree =
       q"""
         val $self = $selfExpr
-        if ($self eq $StopSymbol)
+        if ($self eq $Ack.Stop)
           try { $execute(_root_.scala.None) } catch {
             case ex: _root_.scala.Throwable =>
               if (_root_.monix.execution.misc.NonFatal(ex))
@@ -104,12 +101,12 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
               else
                 throw ex
           }
-        else if (($self : $FutureSymbol[$AckSymbol]) != $ContinueSymbol) {
+        else if (($self : $FutureSymbol[$AckType]) != $Ack.Continue) {
           $self.onComplete { result =>
             if (result.isFailure) {
               $execute(_root_.scala.Some(result.failed.get))
             }
-            else if (result.get eq $StopSymbol) {
+            else if (result.get eq $Ack.Stop) {
               $execute(_root_.scala.None)
             }
           }($scheduler)
@@ -126,24 +123,22 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
     val schedulerExpr = s
     val self = util.name("source")
     val fn = util.name("fn")
-
-    val ContinueSymbol = symbolOf[Continue].companion
-    val StopSymbol = symbolOf[Stop].companion
-    val AckSymbol = symbolOf[Ack]
+    val AckType = symbolOf[Ack]
+    val Ack = symbolOf[Ack].companion
 
     val tree =
       if (util.isClean(f)) {
         q"""
           val $self = $selfExpr
 
-          if (($self eq $ContinueSymbol) || ($self eq $StopSymbol)) {
+          if (($self eq $Ack.Continue) || ($self eq $Ack.Stop)) {
             try {
-              $f($self.asInstanceOf[$AckSymbol]) : $AckSymbol
+              $f($self.asInstanceOf[$AckType]) : $AckType
             } catch {
               case ex: _root_.java.lang.Throwable =>
                 if (_root_.monix.execution.misc.NonFatal(ex)) {
                   $schedulerExpr.reportFailure(ex)
-                  $StopSymbol
+                  $Ack.Stop
                 } else {
                   throw ex
                 }
@@ -155,16 +150,16 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
       } else {
         q"""
           val $self = $selfExpr
-          val $fn: _root_.scala.Function1[$AckSymbol,$AckSymbol] = $f
+          val $fn: _root_.scala.Function1[$AckType,$AckType] = $f
 
-          if (($self eq $ContinueSymbol) || ($self eq $StopSymbol))
+          if (($self eq $Ack.Continue) || ($self eq $Ack.Stop))
             try {
-              $fn($self.asInstanceOf[$AckSymbol]) : $AckSymbol
+              $fn($self.asInstanceOf[$AckType]) : $AckType
             } catch {
               case ex: Throwable =>
                 if (_root_.monix.execution.misc.NonFatal(ex)) {
                   $schedulerExpr.reportFailure(ex)
-                  $StopSymbol
+                  $Ack.Stop
                 } else {
                   throw ex
                 }
@@ -183,9 +178,8 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
     val schedulerExpr = s
     val self = util.name("source")
 
-    val ContinueSymbol = symbolOf[Continue].companion
-    val StopSymbol = symbolOf[Stop].companion
-    val AckSymbol = symbolOf[Ack]
+    val AckType = symbolOf[Ack]
+    val Ack = symbolOf[Ack].companion
     val FutureSymbol = symbolOf[Future[_]]
 
     val tree =
@@ -193,14 +187,14 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
         q"""
           val $self = $selfExpr
 
-          if (($self eq $ContinueSymbol) || ($self eq $StopSymbol))
+          if (($self eq $Ack.Continue) || ($self eq $Ack.Stop))
             try {
-              $f($self.asInstanceOf[$AckSymbol]) : $FutureSymbol[$AckSymbol]
+              $f($self.asInstanceOf[$AckType]) : $FutureSymbol[$AckType]
             } catch {
               case ex: Throwable =>
                 if (_root_.monix.execution.misc.NonFatal(ex)) {
                   $schedulerExpr.reportFailure(ex)
-                  $StopSymbol
+                  $Ack.Stop
                 } else {
                   throw ex
                 }
@@ -213,16 +207,16 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
         val fn = util.name("fn")
         q"""
           val $self = $selfExpr
-          val $fn: _root_.scala.Function1[$AckSymbol,$AckSymbol] = $f
+          val $fn: _root_.scala.Function1[$AckType,$AckType] = $f
 
-          if (($self eq $ContinueSymbol) || ($self eq $StopSymbol))
+          if (($self eq $Ack.Continue) || ($self eq $Ack.Stop))
             try {
-              $fn($self.asInstanceOf[$AckSymbol]) : $FutureSymbol[$AckSymbol]
+              $fn($self.asInstanceOf[$AckType]) : $FutureSymbol[$AckType]
             } catch {
               case ex: Throwable =>
                 if (_root_.monix.execution.misc.NonFatal(ex)) {
                   $schedulerExpr.reportFailure(ex)
-                  $StopSymbol
+                  $Ack.Stop
                 } else {
                   throw ex
                 }
@@ -243,10 +237,10 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
     val schedulerExpr = s
     val self = util.name("source")
 
+    val Ack = symbolOf[Ack].companion
+    val AckType = symbolOf[Ack]
+
     val SuccessObject = symbolOf[scala.util.Success[_]].companion
-    val ContinueObject = symbolOf[Continue].companion
-    val StopObject = symbolOf[Stop].companion
-    val AckSymbol = symbolOf[Ack]
     val TrySymbol = symbolOf[scala.util.Try[_]]
     val UnitSymbol = symbolOf[Unit]
     val FutureSymbol = symbolOf[Future[_]]
@@ -254,11 +248,11 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
     val tree =
       if (util.isClean(f))
         q"""
-          val $self: $FutureSymbol[$AckSymbol] = $selfExpr
+          val $self: $FutureSymbol[$AckType] = $selfExpr
 
-          if (($self eq $ContinueObject) || ($self eq $StopObject))
+          if (($self eq $Ack.Continue) || ($self eq $Ack.Stop))
             try {
-              $f($SuccessObject($self.asInstanceOf[$AckSymbol]) : $TrySymbol[$AckSymbol])
+              $f($SuccessObject($self.asInstanceOf[$AckType]) : $TrySymbol[$AckType])
               ()
             } catch {
               case ex: Throwable =>
@@ -275,12 +269,12 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
       else {
         val fn = util.name("fn")
         q"""
-          val $self: $FutureSymbol[$AckSymbol]  = $selfExpr
-          val $fn: _root_.scala.Function1[$TrySymbol[$AckSymbol],$UnitSymbol] = $f
+          val $self: $FutureSymbol[$AckType]  = $selfExpr
+          val $fn: _root_.scala.Function1[$TrySymbol[$AckType],$UnitSymbol] = $f
 
-          if (($self eq $ContinueObject) || ($self eq $StopObject))
+          if (($self eq $Ack.Continue) || ($self eq $Ack.Stop))
             try {
-              $fn($SuccessObject($self.asInstanceOf[$AckSymbol]))
+              $fn($SuccessObject($self.asInstanceOf[$AckType]))
               ()
             } catch {
               case ex: Throwable =>

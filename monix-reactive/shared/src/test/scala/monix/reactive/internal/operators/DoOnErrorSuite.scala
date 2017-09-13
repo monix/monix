@@ -75,7 +75,7 @@ object DoOnErrorSuite extends TestSuite[TestScheduler] {
     Observable.range(0,10).doOnError(_ => wasTriggered += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
-        def onNext(elem: Long): Future[Continue] =
+        def onNext(elem: Long): Future[Ack] =
           if (elem % 2 == 0) Continue else Future(Continue)
 
         def onError(ex: Throwable): Unit = ()

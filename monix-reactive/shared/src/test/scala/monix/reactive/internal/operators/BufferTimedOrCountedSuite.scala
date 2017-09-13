@@ -118,7 +118,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Future[Continue] = {
+          def onNext(elem: Long): Future[Ack] = {
             onNextReceived = true; p.future
           }
 

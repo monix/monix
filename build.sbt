@@ -327,14 +327,14 @@ lazy val evalCommon =
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM)
+  .dependsOn(executionJVM % "compile->compile; test->test")
   .settings(evalCommon)
   .settings(mimaSettings("monix-eval"))
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(executionJS)
+  .dependsOn(executionJS % "compile->compile; test->test")
   .settings(scalaJSSettings)
   .settings(evalCommon)
 
