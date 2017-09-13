@@ -95,12 +95,6 @@ trait ArbitraryInstancesBase extends monix.eval.ArbitraryInstancesBase {
         .map(Observable.fromIterable)
     }
 
-  implicit lazy val arbitraryThrowable: Arbitrary[Throwable] =
-    Arbitrary {
-      implicitly[Arbitrary[Int]].arbitrary
-        .map(number => new RuntimeException(number.toString))
-    }
-
   implicit def cogenForObservable[A]: Cogen[Observable[A]] =
     Cogen[Unit].contramap(_ => ())
 }
