@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.reactive.{Observable, Observer}
@@ -110,7 +111,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
   }
 
   test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     var wasCompleted = false
 
     createObservable(1) match {

@@ -17,9 +17,11 @@
 
 package monix.reactive.internal.operators
 
+import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.{Future, Promise}
@@ -83,11 +85,11 @@ object FilterSuite extends BaseOperatorSuite {
   }
 
   test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     var wasCompleted = false
 
     createObservable(1) match {
-      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, _, _, waitForFirst, waitForNext)) =>
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {

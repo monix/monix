@@ -91,7 +91,7 @@ object Observer {
     */
   def empty[A](implicit r: UncaughtExceptionReporter): Observer.Sync[A] =
     new Observer.Sync[A] {
-      def onNext(elem: A): Continue = Continue
+      def onNext(elem: A): Ack = Continue
       def onError(ex: Throwable): Unit = r.reportFailure(ex)
       def onComplete(): Unit = ()
     }
@@ -104,7 +104,7 @@ object Observer {
   // Reusable reference
   private[this] val stoppedRef: Observer.Sync[Any] =
     new Observer.Sync[Any] {
-      def onNext(elem: Any): Stop = Stop
+      def onNext(elem: Any): Ack = Stop
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = ()
     }

@@ -176,7 +176,7 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
   }
 
   test("on asynchronous cancel should block further signals") { implicit s =>
-    val p = Promise[Stop]()
+    val p = Promise[Stop.type]()
     var received = 0
 
     val observer = SafeSubscriber(new Subscriber[Int] {

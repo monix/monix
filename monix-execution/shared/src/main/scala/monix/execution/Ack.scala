@@ -82,7 +82,7 @@ object Ack {
       * `Continue` or `Stop`, `false` otherwise.
       */
     def isSynchronous: Boolean =
-       macro Macros.isSynchronous[Self]
+      source.value.isDefined
 
     /** Executes the given `callback` on `Continue`.
       *

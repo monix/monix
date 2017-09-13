@@ -104,7 +104,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
         obs.unsafeSubscribeFn(new Observer[Long] {
           private[this] var sum = 0L
 
-          def onNext(elem: Long): Continue = {
+          def onNext(elem: Long): Ack = {
             received += 1
             sum += elem
             Continue
@@ -160,7 +160,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
 
   test("should back-pressure all the way") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
-    var p = Promise[Continue]()
+    var p = Promise[Continue.type]()
     var wasCompleted = false
     var received = 0
 
@@ -210,7 +210,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
         var onCompleteReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Continue = {
+          def onNext(elem: Long): Ack = {
             received += 1
             receivedSum += elem
             Continue
@@ -240,7 +240,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
         var onCompleteReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Continue = {
+          def onNext(elem: Long): Ack = {
             received += 1
             Continue
           }
@@ -287,7 +287,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
         var received = 0
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Continue = {
+          def onNext(elem: Long): Ack = {
             received += 1
             Continue
           }
@@ -316,7 +316,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
         var received = 0
 
         o.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Stop = {
+          def onNext(elem: Long): Ack = {
             received += 1
             Stop
           }
