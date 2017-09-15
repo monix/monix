@@ -21,7 +21,7 @@ Typelevel Cats integration:
   on Cats-related naming, removes `Coeval`'s `Comonad` implementation
 - [PR #398](https://github.com/monix/monix/pull/398): re-adds
   instances for `CoflatMap`
-- [PR #427](https://github.com/monix/monix/pull/427): Adds
+- [PR #427](https://github.com/monix/monix/pull/427): adds
   conversions from Cats to Observable
   
 New `monix-tail` sub-project, exposing `monix.tail.Iterant[F[_], A]`:
@@ -44,7 +44,7 @@ New `monix-tail` sub-project, exposing `monix.tail.Iterant[F[_], A]`:
   adds `Iterant` ops - `countL`, `distinctUntilChanged`, 
   `distinctUntilChangedByKey`
 - [PR #412](https://github.com/monix/monix/pull/412):
-  add `scanEval` on both `Iterant` and `Observable`
+  adds `scanEval` on both `Iterant` and `Observable`
 - [PR #411](https://github.com/monix/monix/pull/411):
   another naming consistency change between `Observable` 
   and `Iterant`
@@ -54,7 +54,6 @@ New `monix-tail` sub-project, exposing `monix.tail.Iterant[F[_], A]`:
 - [PR #417](https://github.com/monix/monix/pull/417) and
   [PR #418](https://github.com/monix/monix/pull/418):
   Reactive Streams implementation for `Iterant`
-  
   
 Improvements for `monix-execution` and `CancelableFuture`:
 
@@ -76,21 +75,20 @@ Improvements for `monix-execution` and `CancelableFuture`:
 Improvements for `monix-reactive` and `Observable`:
 
 - [PR #391](https://github.com/monix/monix/pull/391):
-  Makes Observable concatenation (++) stack safe
+  makes Observable concatenation (++) stack safe
 - [PR #408](https://github.com/monix/monix/pull/408):
-  Changes for `Iterant` and Cats consistency (make use of `Eq` and
+  changes for `Iterant` and Cats consistency (make use of `Eq` and
   `Order` type classes, add `foldF` and `foldL`, remove `distinct`
   and `distinctByKey`)
-- [PR #368](https://github.com/monix/monix/pull/368): Added 
+- [PR #368](https://github.com/monix/monix/pull/368): added 
   the `Observable.intersperse` operator (thanks to 
   [@omainegra](https://github.com/omainegra))
-- [PR #384](https://github.com/monix/monix/pull/384): Added contramap 
+- [PR #384](https://github.com/monix/monix/pull/384): added `contramap` 
   method to Callback (thanks to [@Wogan](https://github.com/Wogan))  
-- [PR #425](https://github.com/monix/monix/pull/425): Gets rid of 
+- [PR #425](https://github.com/monix/monix/pull/425): gets rid of 
   `ObservableLike`, makes `Observable` an `abstract class` where
   the operators are final, `Pipe` no longer has `Observable`'s 
   operators, just `transform`
-  
   
 Improvements for `monix-eval`, `Task` and `Coeval`:
 
@@ -108,14 +106,14 @@ Improvements for `monix-eval`, `Task` and `Coeval`:
 
 Administrative and build changes:
 
-- [PR #372](https://github.com/monix/monix/pull/372): Configured
+- [PR #372](https://github.com/monix/monix/pull/372): configured
   project for Git hash versioning (for enabling automatic releases)
 - [PR #378](https://github.com/monix/monix/pull/378):
   dropped Scala 2.10 support
-- Enabled automatic deployments through Travis-ci, wrote a blog post
+- enabled automatic deployments through Travis-ci, wrote a blog post
   documenting the necessarily steps, see 
   [Automatic Releases to Maven Central with Travis and SBT](https://alexn.org/blog/2017/08/16/automatic-releases-sbt-travis.html)
-- [PR #423](https://github.com/monix/monix/pull/423): Updates Scala.js
+- [PR #423](https://github.com/monix/monix/pull/423): updates Scala.js
   to 0.6.20, the final in the series before 1.0.0
 
 ## Version 2.3.0 (May 3, 2017)
