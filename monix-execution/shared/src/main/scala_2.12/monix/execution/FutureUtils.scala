@@ -18,6 +18,7 @@
 package monix.execution
 
 import java.util.concurrent.TimeoutException
+import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -88,7 +89,7 @@ object FutureUtils {
     }
     else {
       val p = Promise[Try[A]]()
-      source.onComplete(result => p.success(result))
+      source.onComplete(p.success)(immediate)
       p.future
     }
   }
@@ -123,10 +124,10 @@ object FutureUtils {
       }
     else {
       val p = Promise[A]()
-      source.onComplete {
+      source.onComplete({
         case Failure(error) => p.failure(error)
         case Success(result) => p.complete(result)
-      }
+      })(immediate)
       p.future
     }
   }
@@ -136,8 +137,7 @@ object FutureUtils {
     */
   def delayedResult[A](delay: FiniteDuration)(result: => A)(implicit s: Scheduler): Future[A] = {
     val p = Promise[A]()
-    s.scheduleOnce(delay.length, delay.unit,
-      new Runnable { def run() = p.complete(Try(result)) })
+    s.scheduleOnce(delay.length, delay.unit, new Runnable { def run() = p.complete(Try(result)) })
     p.future
   }
 
