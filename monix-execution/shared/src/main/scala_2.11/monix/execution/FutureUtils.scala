@@ -19,8 +19,9 @@ package monix.execution
 
 import java.util.concurrent.TimeoutException
 import monix.execution.misc.NonFatal
+import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, MonixInternals, Promise}
 import scala.util.{Failure, Success, Try}
 
 /** Utilities for Scala's standard `concurrent.Future`. */
@@ -89,7 +90,7 @@ object FutureUtils {
     }
     else {
       val p = Promise[Try[A]]()
-      source.onComplete(result => p.success(result))
+      source.onComplete(p.success)(immediate)
       p.future
     }
   }
@@ -124,19 +125,8 @@ object FutureUtils {
       case ref: CancelableFuture[_] =>
         // CancelableFuture already implements transformWith
         ref.asInstanceOf[CancelableFuture[A]].transformWith(f)(ec)
-
       case _ =>
-        val p = Promise[B]()
-        source.onComplete { result =>
-          val fb = try f(result) catch { case NonFatal(t) => Future.failed(t) }
-          if (fb eq source)
-            p.complete(result.asInstanceOf[Try[B]])
-          else fb.value match {
-            case Some(value) => p.complete(value)
-            case None => p.completeWith(fb)
-          }
-        }
-        p.future
+        MonixInternals.transformWith(source, f)(ec)
     }
   }
 
@@ -154,10 +144,10 @@ object FutureUtils {
       }
     else {
       val p = Promise[A]()
-      source.onComplete {
+      source.onComplete({
         case Failure(error) => p.failure(error)
         case Success(result) => p.complete(result)
-      }
+      })(immediate)
       p.future
     }
   }
@@ -167,8 +157,7 @@ object FutureUtils {
     */
   def delayedResult[A](delay: FiniteDuration)(result: => A)(implicit s: Scheduler): Future[A] = {
     val p = Promise[A]()
-    s.scheduleOnce(delay.length, delay.unit,
-      new Runnable { def run() = p.complete(Try(result)) })
+    s.scheduleOnce(delay.length, delay.unit, new Runnable { def run() = p.complete(Try(result)) })
     p.future
   }
 

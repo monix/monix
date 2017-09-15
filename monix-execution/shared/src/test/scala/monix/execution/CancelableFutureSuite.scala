@@ -25,7 +25,7 @@ import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object CancelableFutureSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -64,6 +64,14 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     f.cancel()
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     assertEquals(f.value, None)
+  }
+
+  test("now.onComplete") { implicit s =>
+    var result = Option.empty[Try[Int]]
+    CancelableFuture.pure(1).onComplete(r => result = Some(r))
+
+    assertEquals(result, None); s.tick()
+    assertEquals(result, Some(Success(1)))
   }
 
   test("now.failed") { implicit s =>
@@ -371,6 +379,11 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(1)))
   }
 
+  test("never.mapTo") { implicit s =>
+    val f = CancelableFuture.never[Int].mapTo[Int]
+    assertEquals(f, CancelableFuture.never)
+  }
+
   test("async.mapTo") { implicit s =>
     val f = CancelableFuture(Future(1), Cancelable.empty).mapTo[Int]
     assertEquals(f.value, None)
@@ -486,6 +499,8 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
     f.cancel()
     assertEquals(f.value, None)
+    assertEquals(CancelableFuture.Never.cancelable, Cancelable.empty)
+    assertEquals(CancelableFuture.Never.underlying, CancelableFuture.Never)
   }
 
   test("flatMap cancels first") { implicit s =>

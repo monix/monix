@@ -81,7 +81,7 @@ object Cancelable {
       throw new CompositeException(errors)
   }
 
-  /** Marker for cancelables that are dummies that can be ignored. */
+  /** Marker for cancellables that are dummies that can be ignored. */
   trait IsDummy { self: Cancelable => }
 
   private final class CancelableTask(cb: () => Unit)

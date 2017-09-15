@@ -19,7 +19,6 @@ package monix.execution.cancelables
 
 import monix.execution.Cancelable
 import monix.execution.Cancelable.IsDummy
-import monix.execution.atomic.{AtomicAny, PaddingStrategy}
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying
   * cancelable reference can be swapped for another. It can
@@ -78,62 +77,44 @@ import monix.execution.atomic.{AtomicAny, PaddingStrategy}
   * implementation is used for
   * [[monix.execution.CancelableFuture CancelableFuture]].
   *
-  * The implementation is also relaxed about the thread-safety of
-  * the [[chainTo]] operation, treating it like a semi-final state and
-  * using Java 8 `getAndSet` platform intrinsics for performance
-  * reasons.
-  *
   * If unsure about what to use, then you probably don't need
   * [[ChainedCancelable]]. Use [[MultiAssignmentCancelable]] or
   * [[SingleAssignmentCancelable]] for most purposes.
   */
-final class ChainedCancelable private (private val state: AtomicAny[Cancelable])
-  extends AssignableCancelable.Bool {
+final class ChainedCancelable private (private var stateRef: AnyRef)
+  extends AssignableCancelable {
+
+  import ChainedCancelable.{Canceled, WeakRef}
+  private type CC = ChainedCancelable
 
   // States of `state`:
   //
-  //  - null: in case it's cancelled
-  //  - _: ChainedCancelable: in case it was chained
+  //  - null: in case this is a dummy
+  //  - Cancelled: if it was cancelled
+  //  - _: WeakReference[ChainedCancelable]: in case it was chained
   //  - _: Cancelable: in case it has an underlying reference
 
-  override def isCanceled: Boolean =
-    state.get match {
-      case null => true
-      case ref: ChainedCancelable => ref.isCanceled
-      case _ => false
-    }
-
   override def cancel(): Unit = {
-    // Using getAndSet, which on Java 8 should be faster than
-    // a compare-and-set.
-    state.getAndSet(null) match {
-      case null => ()
-      case ref => ref.cancel()
-    }
-  }
+    val prevRef = stateRef
+    stateRef = Canceled
 
-  private def update(value: Cancelable): Unit = {
-    if (value == null) throw new NullPointerException("null values are not supported")
-    val state = this.state
-
-    while (true) {
-      state.get match {
-        case null =>
-          value.cancel()
-          return
-
-        case chained: ChainedCancelable =>
-          chained.update(value)
-          return
-
-        case current =>
-          if (state.compareAndSet(current, value)) return
-      }
+    prevRef match {
+      case null | Canceled => ()
+      case ref: Cancelable => ref.cancel()
+      case WeakRef(cc) =>
+        if (cc != null) cc.cancel()
     }
   }
 
   override def `:=`(value: Cancelable): this.type = {
-    update(value)
+    stateRef match {
+      case Canceled =>
+        value.cancel()
+      case WeakRef(cc) =>
+        if (cc != null) cc := value
+      case _ =>
+        stateRef = value
+    }
     this
   }
 
@@ -163,40 +144,43 @@ final class ChainedCancelable private (private val state: AtomicAny[Cancelable])
     *   //=> Cancelling (2)
     * }}}
     */
-  def chainTo(other: ChainedCancelable): this.type = {
+  def forwardTo(other: ChainedCancelable): Unit = {
+    type CC = ChainedCancelable
+
     // Short-circuit in case we have the same reference
-    if (other eq this) return this
-
-    // Getting the last ChainedCancelable reference in the
-    // chain, since that's the reference that we care about!
-    val ref = {
+    val newRoot = {
       var cursor = other
-      var search = true
+      var continue = true
 
-      while (search)
-        cursor.state.get match {
-          case ref2: ChainedCancelable =>
-            // Interrupt infinite loop if we see the same reference
-            if (ref2 eq this) return this
+      while (continue) {
+        // Short-circuit if we discover a cycle
+        if (cursor eq this) return
+        cursor.stateRef match {
+          case WeakRef(ref2) =>
             cursor = ref2
+            continue = cursor ne null
           case ref2 =>
-            // A null reference will cancel our cancellable,
-            // which is fine, as it's what we want
-            if (ref2 == null) cursor = null
-            search = false
+            if (ref2 eq Canceled) { cancel(); return }
+            continue = false
         }
+      }
       cursor
     }
 
-    // Using Java 8 platform intrinsics, should be faster than
-    // normal getAndSet, while introducing unsafety; but in case a
-    // concurrent cancellation happened, then we say sorry
-    state.getAndSet(ref) match {
-      case null => cancel()
-      case _: IsDummy => ()
-      case prev => ref := prev
+    if (newRoot != null) {
+      val prevRef = stateRef
+      stateRef = WeakRef(newRoot)
+
+      prevRef match {
+        case null => ()
+        case Canceled => cancel()
+        case _: IsDummy => ()
+        case WeakRef(cc) =>
+          if (cc != null) cc := newRoot
+        case prev: Cancelable =>
+          newRoot := prev
+      }
     }
-    this
   }
 }
 
@@ -204,9 +188,14 @@ object ChainedCancelable {
   def apply(): ChainedCancelable =
     apply(null)
 
-  def apply(s: Cancelable): ChainedCancelable = {
-    val ref = if (s != null) s else Cancelable.empty
-    val state = AtomicAny.withPadding(ref, PaddingStrategy.LeftRight128)
-    new ChainedCancelable(state)
-  }
+  def apply(ref: Cancelable): ChainedCancelable =
+    new ChainedCancelable(ref)
+
+  /** Internal marker to use for chained cancellables that
+    * have been cancelled.
+    */
+  private object Canceled
+
+  /** To use instead of a weak reference. */
+  private case class WeakRef(ref: ChainedCancelable)
 }

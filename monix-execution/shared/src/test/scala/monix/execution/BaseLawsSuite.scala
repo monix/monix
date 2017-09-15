@@ -81,11 +81,8 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
   implicit def equalityCancelableFuture[A](implicit A: Eq[A], ec: TestScheduler): Eq[CancelableFuture[A]] =
     new Eq[CancelableFuture[A]] {
       val inst = equalityFuture[A]
-      def eqv(x: CancelableFuture[A], y: CancelableFuture[A]) = {
-        val r = inst.eqv(x, y)
-        if (!r) { println(s"${x.value} !== ${y.value} ($x !== $y)") }
-        r
-      }
+      def eqv(x: CancelableFuture[A], y: CancelableFuture[A]) =
+        inst.eqv(x, y)
     }
 
   implicit def arbitraryCancelableFuture[A]

@@ -18,6 +18,7 @@
 package monix.execution.cancelables
 
 import minitest.SimpleTestSuite
+import monix.execution.Cancelable
 
 object ChainedCancelableSuite extends SimpleTestSuite {
   test("cancel()") {
@@ -27,14 +28,13 @@ object ChainedCancelableSuite extends SimpleTestSuite {
 
     assert(effect == 0)
     assert(!sub.isCanceled)
-    assert(!mSub.isCanceled)
 
     mSub.cancel()
-    assert(sub.isCanceled && mSub.isCanceled)
+    assert(sub.isCanceled, "sub.isCanceled")
     assert(effect == 1)
 
     mSub.cancel()
-    assert(sub.isCanceled && mSub.isCanceled)
+    assert(sub.isCanceled, "sub.isCanceled")
     assert(effect == 1)
   }
 
@@ -46,10 +46,10 @@ object ChainedCancelableSuite extends SimpleTestSuite {
     mSub := sub2
 
     assert(effect == 0)
-    assert(!sub.isCanceled && !sub2.isCanceled && !mSub.isCanceled)
+    assert(!sub.isCanceled && !sub2.isCanceled, "!sub.isCanceled && !sub2.isCanceled")
 
     mSub.cancel()
-    assert(sub2.isCanceled && mSub.isCanceled && !sub.isCanceled)
+    assert(sub2.isCanceled && !sub.isCanceled)
     assert(effect == 10)
   }
 
@@ -61,16 +61,19 @@ object ChainedCancelableSuite extends SimpleTestSuite {
     val sub = BooleanCancelable(() => effect += 1)
 
     assert(effect == 0)
-    assert(!sub.isCanceled && mSub.isCanceled)
+    assert(!sub.isCanceled, "!sub.isCanceled")
 
     mSub := sub
     assert(effect == 1)
     assert(sub.isCanceled)
   }
 
-  test(":= throws on null") {
+  test(":= does not throw on null") {
     val c = ChainedCancelable()
-    intercept[NullPointerException] { c := null }
+    c := null
+    c := Cancelable.empty
+    c := null
+    c.cancel()
   }
 
   test("chain once") {
@@ -80,15 +83,12 @@ object ChainedCancelableSuite extends SimpleTestSuite {
     val source = ChainedCancelable()
     val child1 = ChainedCancelable()
 
-    child1.chainTo(source)
+    child1.forwardTo(source)
     child1 := c1
-
     assert(!c1.isCanceled, "!c1.isCanceled")
 
     source.cancel()
     assert(c1.isCanceled, "c1.isCanceled")
-    assert(source.isCanceled, "source.isCanceled")
-    assert(child1.isCanceled, "child1.isCanceled")
 
     child1 := c2
     assert(c2.isCanceled, "c2.isCanceled")
@@ -102,18 +102,14 @@ object ChainedCancelableSuite extends SimpleTestSuite {
     val child1 = ChainedCancelable()
     val child2 = ChainedCancelable()
 
-    child1.chainTo(source)
-    child2.chainTo(child1)
+    child1.forwardTo(source)
+    child2.forwardTo(child1)
 
     child2 := c1
     assert(!c1.isCanceled, "!c1.isCanceled")
 
     source.cancel()
-
     assert(c1.isCanceled, "c1.isCanceled")
-    assert(source.isCanceled, "source.isCanceled")
-    assert(child1.isCanceled, "child1.isCanceled")
-    assert(child2.isCanceled, "child2.isCanceled")
 
     child2 := c2
     assert(c2.isCanceled, "c2.isCanceled")
@@ -129,8 +125,7 @@ object ChainedCancelableSuite extends SimpleTestSuite {
     source.cancel()
     assert(c1.isCanceled, "c1.isCanceled")
 
-    child1.chainTo(source)
-    assert(child1.isCanceled, "child1.isCanceled")
+    child1.forwardTo(source)
 
     child1 := c2
     assert(c2.isCanceled, "c2.isCanceled")
@@ -147,17 +142,73 @@ object ChainedCancelableSuite extends SimpleTestSuite {
     child.cancel()
     assert(!c1.isCanceled, "!c1.isCanceled")
 
-    child.chainTo(source1)
-    assert(child.isCanceled, "child1.isCanceled")
-    assert(source1.isCanceled, "source.isCanceled")
+    child.forwardTo(source1)
     assert(c1.isCanceled, "c1.isCanceled")
 
     child := c2
     assert(c2.isCanceled, "c2.isCanceled")
-    assert(child.isCanceled, "child.isCanceled")
 
-    child.chainTo(source2)
-    assert(child.isCanceled, "child.isCanceled")
-    assert(source2.isCanceled, "source2.isCanceled")
+    child.forwardTo(source2)
+  }
+
+  test("chained twice, test 1") {
+    val cc1 = ChainedCancelable()
+    val cc2 = ChainedCancelable()
+
+    val one = ChainedCancelable()
+    one.forwardTo(cc1)
+    one.forwardTo(cc2)
+
+    val c = BooleanCancelable()
+    one := c
+
+    assert(!c.isCanceled, "!c.isCanceled")
+    cc1.cancel()
+    assert(c.isCanceled, "c.isCanceled")
+  }
+
+  test("chained twice, test 2") {
+    val cc1 = ChainedCancelable()
+    val cc2 = ChainedCancelable()
+
+    val one = ChainedCancelable()
+    one.forwardTo(cc1)
+    one.forwardTo(cc2)
+
+    val c = BooleanCancelable()
+    one := c
+
+    assert(!c.isCanceled, "!c.isCanceled")
+    cc2.cancel()
+    assert(c.isCanceled, "c.isCanceled")
+  }
+
+  test("self.forwardTo(self)") {
+    val cc = ChainedCancelable()
+    cc.forwardTo(cc)
+
+    val c = BooleanCancelable()
+    cc := c
+
+    assert(!c.isCanceled)
+    cc.cancel()
+    assert(c.isCanceled)
+  }
+
+  test("self.forwardTo(other.forwardTo(self))") {
+    val cc1 = ChainedCancelable()
+    val cc2 = ChainedCancelable()
+    val cc3 = ChainedCancelable()
+
+    cc1.forwardTo(cc2)
+    cc2.forwardTo(cc3)
+    cc3.forwardTo(cc1)
+
+    val c = BooleanCancelable()
+    cc3 := c
+
+    assert(!c.isCanceled)
+    cc1.cancel()
+    assert(c.isCanceled)
   }
 }
