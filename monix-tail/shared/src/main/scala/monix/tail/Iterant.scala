@@ -108,7 +108,7 @@ import scala.reflect.ClassTag
   * ==Attribution==
   *
   * This type was inspired by the `Streaming` type in the
-  * [[http://typelevel.org/cats/ Typelevel Cats]] library (later moved
+  * [[https://typelevel.org/cats/ Typelevel Cats]] library (later moved
   * to [[https://github.com/stew/dogs Dogs]]), originally committed in
   * Cats by Erik Osheim. It was also inspired by other push-based
   * streaming abstractions, like the `Iteratee` or `IAsyncEnumerable`.

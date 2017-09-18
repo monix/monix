@@ -123,7 +123,7 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
         subscription.request(if (isFinite) requestCount else Long.MaxValue)
       }
 
-      private def continue(): Continue = {
+      private def continue(): Ack = {
         toReceive -= 1
         if (toReceive <= 0) {
           toReceive = requestCount
@@ -132,7 +132,7 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
         Continue
       }
 
-      private def stop(): Stop = {
+      private def stop(): Ack = {
         isActive = false
         subscription.cancel()
         Stop

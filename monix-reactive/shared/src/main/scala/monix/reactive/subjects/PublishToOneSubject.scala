@@ -137,7 +137,7 @@ object PublishToOneSubject {
     implicit def scheduler: Scheduler =
       throw new IllegalStateException("EmptySubscriber.scheduler")
 
-    def onNext(elem: A): Stop = Stop
+    def onNext(elem: A): Ack = Stop
     def onError(ex: Throwable): Unit = ()
     def onComplete(): Unit = ()
   }

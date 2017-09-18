@@ -18,13 +18,14 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.Cancelable
+import monix.execution.{Ack, Cancelable}
 import monix.execution.cancelables._
 import monix.execution.exceptions.CompositeException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.execution.atomic.Atomic
 import monix.execution.misc.NonFatal
+
 import scala.collection.mutable
 
 private[reactive] final class MergeMapObservable[A,B](
@@ -61,7 +62,7 @@ private[reactive] final class MergeMapObservable[A,B](
         }
       }
 
-      private def cancelUpstream(): Stop = {
+      private def cancelUpstream(): Ack = {
         if (!upstreamIsDone.getAndSet(true)) composite.cancel()
         Stop
       }
