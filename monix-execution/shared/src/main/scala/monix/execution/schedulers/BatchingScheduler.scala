@@ -52,4 +52,21 @@ trait BatchingScheduler extends Scheduler { self =>
         // No local execution, forwards to underlying context
         executeAsync(runnable)
     }
+
+  /** Runnable that defers the execution of the given reference
+    * with an `executeAsync`.
+    *
+    * This is useful for example when implementing `scheduleOnce`,
+    * to introduce a boundary between the scheduling and the execution,
+    * otherwise risk executing the runnable on the wrong thread-pool.
+    *
+    * It must specifically use `executeAsync`, otherwise we risk
+    * using the `TrampolineExecutionContext` for tasks scheduled
+    * with a delay, which is no good.
+    */
+  protected final class DeferredRunnable(r: Runnable)
+    extends Runnable {
+
+    def run(): Unit = executeAsync(r)
+  }
 }

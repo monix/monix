@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import java.lang.Thread.UncaughtExceptionHandler
-import java.util.concurrent.{Executor, ExecutorService, ScheduledExecutorService}
+import java.util.concurrent.{ExecutorService, ScheduledExecutorService}
 
 import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThreadFactory, StandardWorkerThreadFactory}
 import monix.execution.misc.NonFatal
@@ -164,7 +164,7 @@ object ExecutorScheduler {
         executor.execute(r)
         Cancelable.empty
       } else {
-        val deferred = new DeferredRunnable(r, executor)
+        val deferred = new DeferredRunnable(r)
         val task = scheduler.schedule(deferred, initialDelay, unit)
         Cancelable(() => task.cancel(true))
       }
@@ -187,8 +187,7 @@ object ExecutorScheduler {
       if (initialDelay <= 0) {
         execute(r)
         Cancelable.empty
-      }
-      else {
+      } else {
         val task = s.schedule(r, initialDelay, unit)
         Cancelable(() => task.cancel(true))
       }
@@ -206,12 +205,5 @@ object ExecutorScheduler {
 
     override def withExecutionModel(em: ExecModel): SchedulerService =
       new FromScheduledExecutor(s, r, em)
-  }
-
-  /** Runnable that defers the execution of the given runnable to the
-    * given execution context.
-    */
-  private class DeferredRunnable(r: Runnable, e: Executor) extends Runnable {
-    def run(): Unit = e.execute(r)
   }
 }

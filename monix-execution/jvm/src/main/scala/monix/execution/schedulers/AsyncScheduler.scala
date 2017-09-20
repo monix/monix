@@ -18,7 +18,6 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
-import monix.execution.schedulers.AsyncScheduler.DeferredRunnable
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
 import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
@@ -42,7 +41,7 @@ final class AsyncScheduler private (
       ec.execute(r)
       Cancelable.empty
     } else {
-      val deferred = new DeferredRunnable(r, ec)
+      val deferred = new DeferredRunnable(r)
       val task = scheduler.schedule(deferred, initialDelay, unit)
       Cancelable(() => task.cancel(true))
     }
@@ -72,11 +71,4 @@ object AsyncScheduler {
     reporter: UncaughtExceptionReporter,
     executionModel: ExecModel): AsyncScheduler =
     new AsyncScheduler(schedulerService, ec, reporter, executionModel)
-
-  /** Runnable that defers the execution of the given runnable to the
-    * given execution context.
-    */
-  private class DeferredRunnable(r: Runnable, ec: ExecutionContext) extends Runnable {
-    def run(): Unit = ec.execute(r)
-  }
 }
