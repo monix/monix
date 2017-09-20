@@ -28,7 +28,7 @@ object TaskAppSuite extends SimpleTestSuite {
     val app = new TaskApp {
       override val scheduler = Coeval.now(testS)
       override def runl(args: List[String]) =
-        Task { wasExecuted = args.headOption.contains("true") }
+        Task { wasExecuted = args.headOption.getOrElse("false") == "true" }
     }
 
     app.main(Array("true")); testS.tick()
