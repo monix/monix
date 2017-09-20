@@ -169,7 +169,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends TestSuite[Schedu
       var received = 0
       val started = new CountDownLatch(1)
       val completed = new CountDownLatch(1)
-      val promise = Promise[Continue]()
+      val promise = Promise[Continue.type]()
       var dropped = 0
 
       val underlying = new Observer[Either[Int,Int]] {
@@ -316,7 +316,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends TestSuite[Schedu
   test("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
-    val startConsuming = Promise[Continue]()
+    val startConsuming = Promise[Continue.type]()
 
     val buffer = buildNewForLong(10000, new Observer[Long] {
       def onNext(elem: Long) = {
@@ -358,7 +358,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends TestSuite[Schedu
   test("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
-    val startConsuming = Promise[Continue]()
+    val startConsuming = Promise[Continue.type]()
 
     val buffer = buildNewForLong(10000, new Observer[Long] {
       def onNext(elem: Long) = {

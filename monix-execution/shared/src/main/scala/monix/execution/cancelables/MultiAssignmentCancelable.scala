@@ -41,8 +41,7 @@ import scala.annotation.tailrec
 final class MultiAssignmentCancelable private (initial: Cancelable)
   extends AssignableCancelable.Multi {
 
-  import MultiAssignmentCancelable.State
-  import MultiAssignmentCancelable.State._
+  import MultiAssignmentCancelable.{State, Active, Cancelled}
 
   private[this] val state = {
     val ref = if (initial != null) initial else Cancelable.empty
@@ -114,9 +113,9 @@ object MultiAssignmentCancelable {
   def apply(s: Cancelable): MultiAssignmentCancelable =
     new MultiAssignmentCancelable(s)
 
-  private[monix] sealed trait State
-  private[monix] object State {
-    case class Active(s: Cancelable, order: Long) extends State
-    case object Cancelled extends State
-  }
+  private sealed trait State
+  private final case class Active(s: Cancelable, order: Long)
+    extends State
+  private case object Cancelled
+    extends State
 }

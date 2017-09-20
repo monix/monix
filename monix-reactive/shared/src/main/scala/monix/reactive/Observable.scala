@@ -2785,7 +2785,7 @@ abstract class Observable[+A] extends Serializable { self =>
         private[this] var value: A = _
         private[this] var isEmpty = true
 
-        def onNext(elem: A): Continue = {
+        def onNext(elem: A): Ack = {
           if (isEmpty) isEmpty = false
           value = elem
           Continue
@@ -3026,7 +3026,7 @@ abstract class Observable[+A] extends Serializable { self =>
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
-        def onNext(elem: A): Stop = {
+        def onNext(elem: A): Ack = {
           cb.onSuccess(elem)
           isDone = true
           Stop
@@ -3161,7 +3161,7 @@ abstract class Observable[+A] extends Serializable { self =>
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
-        def onNext(elem: A): Continue = Continue
+        def onNext(elem: A): Ack = Continue
 
         def onError(ex: Throwable): Unit =
           if (!isDone) {

@@ -25,7 +25,7 @@ import monix.reactive.observers.buffers.BuildersImpl
   * return an immediate `Continue` when receiving `onNext`
   * events. Meant to be used by data sources that cannot uphold the
   * no-concurrent events and the back-pressure related requirements
-  * (i.e. data-sources that cannot wait on `Future[Continue]` for
+  * (i.e. data-sources that cannot wait on `Future[Ack]` for
   * sending the next event).
   *
   * Implementations of this interface have the following contract:

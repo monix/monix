@@ -180,7 +180,7 @@ final class PublishSubject[A] private () extends Subject[A,A] { self =>
   }
 
   @tailrec
-  private def unsubscribe(subscriber: Subscriber[A]): Continue = {
+  private def unsubscribe(subscriber: Subscriber[A]): Ack = {
     val state = stateRef.get
     val subscribers = state.subscribers
 

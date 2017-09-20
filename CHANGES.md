@@ -1,4 +1,122 @@
-## Version 2.3.0 (Wed 3, 2017)
+## Version 3.0.0-M1 (Sep 15, 2017)
+
+This is a major release that breaks both binary and source 
+compatibility. The major themes of this release:
+
+1. deep integration with [Typelevel Cats](https://typelevel.org/cats)
+2. the `Iterant` data type in a new `monix-tail` sub-project
+3. API refactoring, eliminated deprecations
+4. major improvements to `Observable`, `Task` and `CancelableFuture`
+
+Typelevel Cats integration:
+
+- [PR #370](https://github.com/monix/monix/pull/370): introduced
+  Cats and `cats-effect` as direct dependencies
+- [PR #377](https://github.com/monix/monix/pull/377): added
+  Cats related conversions, along with naming changes for consistency
+  (e.g. renamed `Coeval.Attempt` to `Coeval.Eager`)
+- [PR #387](https://github.com/monix/monix/pull/387): updated Cats to 
+  `1.0.0-MF`, removed deprecated functions and classes
+- [PR #397](https://github.com/monix/monix/pull/397): standardizes
+  on Cats-related naming, removes `Coeval`'s `Comonad` implementation
+- [PR #398](https://github.com/monix/monix/pull/398): re-adds
+  instances for `CoflatMap`
+- [PR #427](https://github.com/monix/monix/pull/427): adds
+  conversions from Cats to Observable
+  
+New `monix-tail` sub-project, exposing `monix.tail.Iterant[F[_], A]`:
+
+- [PR #280](https://github.com/monix/monix/pull/280): introduces
+  `Iterant[F[_], A]` for pull-based streaming based on `Task` / `Coeval`
+- [PR #396](https://github.com/monix/monix/pull/396):
+  adds the `Iterant.scan` operator
+- [PR #403](https://github.com/monix/monix/pull/403):
+  adds `Iterant.foldWhileLeftL` and `Iterant.foldWhileLeftEvalL`
+  operators
+- [PR #404](https://github.com/monix/monix/pull/404):
+  adds Iterant `existsL`, `forallL`, changes `Observable.foldWhileL`
+  (breaking change)
+- [PR #402](https://github.com/monix/monix/pull/402):
+  adds `Iterant.foldRightL` operator
+- [PR #405](https://github.com/monix/monix/pull/405):
+  adds `Iterant` ops - `findL`, `foldL`, `maxL`, `minL`, `reduceL`
+- [PR #407](https://github.com/monix/monix/pull/407):
+  adds `Iterant` ops - `countL`, `distinctUntilChanged`, 
+  `distinctUntilChangedByKey`
+- [PR #412](https://github.com/monix/monix/pull/412):
+  adds `scanEval` on both `Iterant` and `Observable`
+- [PR #411](https://github.com/monix/monix/pull/411):
+  another naming consistency change between `Observable` 
+  and `Iterant`
+- [PR #413](https://github.com/monix/monix/pull/413):
+  `Iterant.bufferSliding`, `bufferTumbling` and `batched`
+  operators
+- [PR #417](https://github.com/monix/monix/pull/417) and
+  [PR #418](https://github.com/monix/monix/pull/418):
+  Reactive Streams implementation for `Iterant`
+  
+Improvements for `monix-execution` and `CancelableFuture`:
+
+- [PR #390](https://github.com/monix/monix/pull/390): changes for
+  `flatMap` on `CancelableFuture` to cancel all involved futures
+  (thanks to [@larsrh](https://github.com/larsrh))
+- [PR #395](https://github.com/monix/monix/pull/395): adds 
+  Cats type class implementations for `CancelableFuture`
+- [PR #431](https://github.com/monix/monix/pull/431): improvements
+  to `CancelableFuture` to get rid of memory leak, also adding utils
+  like `CancelableFuture.async`
+- [PR #432](https://github.com/monix/monix/pull/432): further 
+  fixes to `CancelableFuture`, since describing a cancellable `flatMap`
+  is a hard problem
+- [PR #418](https://github.com/monix/monix/pull/418):
+  adds flip convenience method to `AtomicBoolean`
+  (thanks to `@Wogan`) 
+  
+Improvements for `monix-reactive` and `Observable`:
+
+- [PR #391](https://github.com/monix/monix/pull/391):
+  makes Observable concatenation (++) stack safe
+- [PR #408](https://github.com/monix/monix/pull/408):
+  changes for `Iterant` and Cats consistency (make use of `Eq` and
+  `Order` type classes, add `foldF` and `foldL`, remove `distinct`
+  and `distinctByKey`)
+- [PR #368](https://github.com/monix/monix/pull/368): added 
+  the `Observable.intersperse` operator (thanks to 
+  [@omainegra](https://github.com/omainegra))
+- [PR #384](https://github.com/monix/monix/pull/384): added `contramap` 
+  method to Callback (thanks to [@Wogan](https://github.com/Wogan))  
+- [PR #425](https://github.com/monix/monix/pull/425): gets rid of 
+  `ObservableLike`, makes `Observable` an `abstract class` where
+  the operators are final, `Pipe` no longer has `Observable`'s 
+  operators, just `transform`
+  
+Improvements for `monix-eval`, `Task` and `Coeval`:
+
+- [PR #410](https://github.com/monix/monix/pull/410): `Task` and
+  `Coeval` performance optimisations
+- [PR #422](https://github.com/monix/monix/pull/422): adds `Task.shift`,
+  an innovation inspired by `cats.effect.IO`
+- [PR #424](https://github.com/monix/monix/pull/424):
+  `Task` refactoring, gets rid of `Task.OnFinish` type alias
+- [PR #430](https://github.com/monix/monix/pull/430):
+  `Coeval` and `Task` refactoring to the `run` methods for
+  consistency, introduced `map2`, `map3`...`map6` on both
+  `Task` and `Coeval`, renamed `zipMap*` to `parMap2`, `parMap3`...
+  `parMap6` for `Task`
+
+Administrative and build changes:
+
+- [PR #372](https://github.com/monix/monix/pull/372): configured
+  project for Git hash versioning (for enabling automatic releases)
+- [PR #378](https://github.com/monix/monix/pull/378):
+  dropped Scala 2.10 support
+- enabled automatic deployments through Travis-ci, wrote a blog post
+  documenting the necessarily steps, see 
+  [Automatic Releases to Maven Central with Travis and SBT](https://alexn.org/blog/2017/08/16/automatic-releases-sbt-travis.html)
+- [PR #423](https://github.com/monix/monix/pull/423): updates Scala.js
+  to 0.6.20, the final in the series before 1.0.0
+
+## Version 2.3.0 (May 3, 2017)
 
 Release is binary backwards compatible with series `2.2.x`.
 
@@ -502,7 +620,7 @@ New Features:
   `onNextAll` extension for both `Observer` and `Subscriber` which can push
   a whole collection of events
 - [Issue #187](https://github.com/monix/monix/issues/187): integrates
-  the `MonadCombine` type class from [Cats](http://typelevel.org/cats/),
+  the `MonadCombine` type class from [Cats](https://typelevel.org/cats/),
   being similar to the Scalaz `MonadPlus`, as somehow this was missed in
   the initial integration
 - [Issue #177](https://github.com/monix/monix/issues/177) reviews exposed

@@ -53,7 +53,7 @@ object NowObservableSuite extends TestSuite[TestScheduler] {
   }
 
   test("should not do back-pressure on onComplete") { implicit s =>
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     var onCompleteCalled = false
     var received = 0
 

@@ -131,7 +131,7 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
       }
 
       def onNext(elem: A): Future[Ack] = {
-        def unfreeze(): Continue = {
+        def unfreeze(): Ack = {
           hasValue = true
           lastTSInMillis = scheduler.currentTimeMillis()
           Continue
@@ -175,7 +175,7 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
         }
 
       def onComplete(): Unit = {
-        def signal(): Stop = {
+        def signal(): Ack = {
           if (!isDone) {
             isDone = true
             task.cancel()
