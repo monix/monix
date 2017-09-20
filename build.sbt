@@ -326,7 +326,10 @@ lazy val typesJS = project.in(file("monix-types/js"))
   .settings(scalaJSSettings)
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution"
+  name := "monix-execution",
+  // Filtering out private stuff that changed in 2.3.1
+  mimaBinaryIssueFilters ++=
+    MimaFilters.executionChangesFor_2_3_1
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))

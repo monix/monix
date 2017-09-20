@@ -41,7 +41,7 @@ final class AsyncScheduler private (
       ec.execute(r)
       Cancelable.empty
     } else {
-      val deferred = new DeferredRunnable(r)
+      val deferred = new ShiftedRunnable(r, this)
       val task = scheduler.schedule(deferred, initialDelay, unit)
       Cancelable(() => task.cancel(true))
     }
