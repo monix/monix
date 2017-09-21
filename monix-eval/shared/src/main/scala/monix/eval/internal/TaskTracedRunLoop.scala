@@ -32,13 +32,12 @@ private[eval] object TaskTracedRunLoop {
     * trampoline loop.
     */
   def restartAsync[A](
-                       source: Task[A],
-                       context: Context,
-                       cb: Callback[A],
-                       bindCurrent: Bind,
-                       bindRest: CallStack,
-                       local: Local.Context): Unit = {
-    val oldCtx = Local.getContext()
+    source: Task[A],
+    context: Context,
+    cb: Callback[A],
+    bindCurrent: Bind,
+    bindRest: CallStack,
+    local: Local.Context): Unit = {
     if (!context.shouldCancel)
       context.scheduler.executeAsync { () =>
         // Resetting the frameRef, as a real asynchronous boundary happened
@@ -89,13 +88,13 @@ private[eval] object TaskTracedRunLoop {
     * the `ExecutionModel`.
     */
   def startWithCallback[A](
-                            source: Task[A],
-                            context: Context,
-                            cb: Callback[A],
-                            bindCurrent: Bind,
-                            bindRest: CallStack,
-                            frameIndex: FrameIndex,
-                            local: Local.Context): Unit = {
+    source: Task[A],
+    context: Context,
+    cb: Callback[A],
+    bindCurrent: Bind,
+    bindRest: CallStack,
+    frameIndex: FrameIndex,
+    local: Local.Context): Unit = {
 
     final class RestartCallback(context: Context, callback: Callback[Any]) extends Callback[Any] {
       private[this] var canCall = false
@@ -162,13 +161,13 @@ private[eval] object TaskTracedRunLoop {
     }
 
     @tailrec def loop(
-                       source: Current,
-                       em: ExecutionModel,
-                       cb: Callback[Any],
-                       rcb: RestartCallback,
-                       bFirst: Bind,
-                       bRest: CallStack,
-                       frameIndex: FrameIndex): Unit = {
+      source: Current,
+      em: ExecutionModel,
+      cb: Callback[Any],
+      rcb: RestartCallback,
+      bFirst: Bind,
+      bRest: CallStack,
+      frameIndex: FrameIndex): Unit = {
 
       if (frameIndex != 0) source match {
         case ref @ FlatMap(fa, _, _) =>
@@ -271,11 +270,11 @@ private[eval] object TaskTracedRunLoop {
   def startAsFuture[A](source: Task[A], scheduler: Scheduler, local: Local.Context): CancelableFuture[A] = {
     /* Called when we hit the first async boundary. */
     def goAsync(
-                 source: Current,
-                 bindCurrent: Bind,
-                 bindRest: CallStack,
-                 nextFrame: FrameIndex,
-                 forceAsync: Boolean): CancelableFuture[Any] = {
+      source: Current,
+      bindCurrent: Bind,
+      bindRest: CallStack,
+      nextFrame: FrameIndex,
+      forceAsync: Boolean): CancelableFuture[Any] = {
 
       val p = Promise[Any]()
       val cb: Callback[Any] = new Callback[Any] {
@@ -302,11 +301,11 @@ private[eval] object TaskTracedRunLoop {
      * or until the evaluation is finished, whichever comes first.
      */
     @tailrec def loop(
-                       source: Current,
-                       em: ExecutionModel,
-                       bFirst: Bind,
-                       bRest: CallStack,
-                       frameIndex: Int): CancelableFuture[Any] = {
+      source: Current,
+      em: ExecutionModel,
+      bFirst: Bind,
+      bRest: CallStack,
+      frameIndex: Int): CancelableFuture[Any] = {
 
       if (frameIndex != 0) source match {
         case ref @ FlatMap(fa, _, _) =>
