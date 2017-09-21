@@ -56,7 +56,7 @@ object CorrelationIdSuite extends SimpleTestSuite {
 
   test("should get CorrelarionId with flatmapped Task with async boundary") {
     // Works with the TracingScheduler given a Task.fromFuture
-    import monix.execution.schedulers.TracingScheduler.Implicits.traced
+    import monix.execution.Scheduler.Implicits.traced
 
     val t1 = CorrelationId("0000").asCurrent {
       taskFlatMap.runAsync.map {
@@ -114,7 +114,7 @@ object CorrelationIdSuite extends SimpleTestSuite {
     assert(cid1.contains(CorrelationId("1111")))
 
     val t2 = CorrelationId("1111").asCurrent {
-      import monix.execution.schedulers.TracingScheduler.Implicits.traced
+      import monix.execution.Scheduler.Implicits.traced
       // Works with TracingScheduler and runAsync
       taskFlatMap.runAsync
     }
@@ -122,7 +122,7 @@ object CorrelationIdSuite extends SimpleTestSuite {
     assert(cid2.contains(CorrelationId("1111")))
 
     val t3 = CorrelationId("1111").asCurrent {
-      import monix.execution.schedulers.TracingScheduler.Implicits.traced
+      import monix.execution.Scheduler.Implicits.traced
       // Works with TracingScheduler and runAsyncTraced
       taskFlatMap.runAsyncTraced
     }
@@ -144,7 +144,7 @@ object CorrelationIdSuite extends SimpleTestSuite {
     // Even though we are using TrancingScheduler does not work
     // because we did not get into an async boundary. It needs the
     // runAsyncTraced
-    import monix.execution.schedulers.TracingScheduler.Implicits.traced
+    import monix.execution.Scheduler.Implicits.traced
 
     val t = CorrelationId("1111").asCurrent {
       sampleTracedTaskTick.runAsync
@@ -176,7 +176,7 @@ object CorrelationIdSuite extends SimpleTestSuite {
   }
 
   test("should NOT get CorrelationId with a composed Task executed outside current context") {
-    import monix.execution.schedulers.TracingScheduler.Implicits.traced
+    import monix.execution.Scheduler.Implicits.traced
 
     val t1 = composed.runAsyncTraced
     t1.map(x => assert(x.message.isEmpty))
