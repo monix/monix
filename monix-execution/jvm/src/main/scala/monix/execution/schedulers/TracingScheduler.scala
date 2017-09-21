@@ -6,20 +6,16 @@ import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter, Execut
 import scala.concurrent.ExecutionContext
 
 final class TracingScheduler private (
-                                       scheduler: ScheduledExecutorService,
-                                       ec: ExecutionContext,
-                                       r: UncaughtExceptionReporter,
-                                       val executionModel: ExecModel)
-  extends ReferenceScheduler with BatchingScheduler { self =>
-
-  override def executeAsync(r: Runnable): Unit =
-    executeWithTrace(r)
+  scheduler: ScheduledExecutorService,
+  ec: ExecutionContext,
+  r: UncaughtExceptionReporter,
+  val executionModel: ExecModel) extends ReferenceScheduler with BatchingScheduler { self =>
 
   /** Executes the given task with tracing.
     *
     * @param r is the callback to be executed
     */
-  def executeWithTrace(r: Runnable): Unit = {
+  override def executeAsync(r: Runnable): Unit = {
     val oldContext = Local.getContext()
     ec.execute(new Runnable {
       override def run = {
@@ -49,11 +45,11 @@ final class TracingScheduler private (
     */
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     if (initialDelay <= 0) {
-      executeWithTrace(r)
+      executeAsync(r)
       Cancelable.empty
     } else {
       val deferred = new Runnable {
-        override def run(): Unit = executeWithTrace(r)
+        override def run(): Unit = executeAsync(r)
       }
       val task = scheduler.schedule(deferred, initialDelay, unit)
       Cancelable(() => task.cancel(true))
@@ -70,20 +66,10 @@ final class TracingScheduler private (
 
 object TracingScheduler {
 
-  object Implicits {
-    implicit lazy val traced: Scheduler =
-      new TracingScheduler(
-        Scheduler.DefaultScheduledExecutor,
-        ExecutionContext.Implicits.global,
-        UncaughtExceptionReporter.LogExceptionsToStandardErr,
-        ExecModel.Default
-      )
-  }
-
   def apply(
-             schedulerService: ScheduledExecutorService,
-             ec: ExecutionContext,
-             reporter: UncaughtExceptionReporter,
-             executionModel: ExecModel): TracingScheduler =
+    schedulerService: ScheduledExecutorService,
+    ec: ExecutionContext,
+    reporter: UncaughtExceptionReporter,
+    executionModel: ExecModel): TracingScheduler =
     new TracingScheduler(schedulerService, ec, reporter, executionModel)
 }
