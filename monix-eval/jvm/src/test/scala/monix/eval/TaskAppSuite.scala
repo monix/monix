@@ -28,7 +28,7 @@ object TaskAppSuite extends SimpleTestSuite {
     }
 
     app.main(Array("true"))
-    assertEquals(wasExecuted, "true")
+    assert(wasExecuted, "wasExecuted")
   }
 
   test("runc works") {
@@ -38,6 +38,6 @@ object TaskAppSuite extends SimpleTestSuite {
     }
 
     app.main(Array.empty)
-    assertEquals(wasExecuted, true)
+    assert(wasExecuted, "wasExecuted")
   }
 }
