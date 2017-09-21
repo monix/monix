@@ -52,23 +52,24 @@ object Local {
   def withClearContext[T](f: => T): T = withContext(null)(f)
 
   private def save(key: Key, tctx: Option[LocalContext]): Unit = {
-    val newCtx = Option(localContext.get) match {
-      case Some(ctx) =>
-        ctx + (key -> tctx)
-      case None =>
+    val newCtx = localContext.get match {
+      case null =>
         context(key, tctx)
+      case ctx =>
+        ctx + (key -> tctx)
     }
     localContext.set(newCtx)
   }
 
   private def get(key: Key): Option[_ <: LocalContext] = {
-    Option(localContext.get).flatMap(_.get(key).flatten)
+    val l = localContext.get
+    if (l == null) None else l.get(key).flatten
   }
 
-  private def clear(key: Key): Unit =
-    Option(localContext.get).foreach { m =>
-      localContext.set(m - key)
-    }
+  private def clear(key: Key): Unit = {
+    val l = localContext.get
+    if (l != null) localContext.set(l - key)
+  }
 
 }
 
