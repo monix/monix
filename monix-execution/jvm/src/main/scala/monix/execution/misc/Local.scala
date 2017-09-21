@@ -1,21 +1,20 @@
 package monix.execution.misc
 
-import java.util.UUID
-
 object Local {
 
-  type Context = scala.collection.immutable.Map[String, Option[LocalContext]]
+  type Context = scala.collection.immutable.Map[Key, Option[LocalContext]]
 
   trait LocalContext
 
-  private[this] def context(k: String, v: Option[LocalContext]): Context =
+  class Key
+
+  private[this] def context(k: Key, v: Option[LocalContext]): Context =
     scala.collection.immutable.Map(k -> v)
 
   private[this] val localContext = ThreadLocal[Context]()
 
-  private def register(): String = synchronized {
-    UUID.randomUUID().toString
-  }
+  private def register(): Key =
+    new Key
 
   /**
     * Return the state of the current Local state.
@@ -52,38 +51,38 @@ object Local {
     */
   def withClearContext[T](f: => T): T = withContext(null)(f)
 
-  private def save(id: String, tctx: Option[LocalContext]): Unit = {
+  private def save(key: Key, tctx: Option[LocalContext]): Unit = {
     val newCtx = Option(localContext.get) match {
       case Some(ctx) =>
-        ctx + (id -> tctx)
+        ctx + (key -> tctx)
       case None =>
-        context(id, tctx)
+        context(key, tctx)
     }
     localContext.set(newCtx)
   }
 
-  private def get(id: String): Option[_ <: LocalContext] = {
-    Option(localContext.get).flatMap(_.get(id).flatten)
+  private def get(key: Key): Option[_ <: LocalContext] = {
+    Option(localContext.get).flatMap(_.get(key).flatten)
   }
 
-  private def clear(id: String): Unit =
+  private def clear(key: Key): Unit =
     Option(localContext.get).foreach { m =>
-      localContext.set(m - id)
+      localContext.set(m - key)
     }
 
 }
 
 final class Local[T <: Local.LocalContext] {
-  private[this] val id: String = Local.register()
+  private[this] val key: Local.Key = Local.register()
 
   def update(value: T): Unit =
     set(Some(value))
 
   private def set(value: Option[T]): Unit =
-    Local.save(id, value)
+    Local.save(key, value)
 
   def apply(): Option[T] =
-    Local.get(id).asInstanceOf[Option[T]]
+    Local.get(key).asInstanceOf[Option[T]]
 
   def withContext[U](value: T)(f: => U): U = {
     val saved = apply()
@@ -100,5 +99,5 @@ final class Local[T <: Local.LocalContext] {
   }
 
   def clear(): Unit =
-    Local.clear(id)
+    Local.clear(key)
 }

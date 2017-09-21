@@ -132,13 +132,13 @@ private[eval] object TaskTracedRunLoop {
     }
 
     def executeOnFinish(
-                         em: ExecutionModel,
-                         cb: Callback[Any],
-                         rcb: RestartCallback,
-                         bFirst: Bind,
-                         bRest: CallStack,
-                         register: (Context, Callback[Any]) => Unit,
-                         nextFrame: FrameIndex): Unit = {
+      em: ExecutionModel,
+      cb: Callback[Any],
+      rcb: RestartCallback,
+      bFirst: Bind,
+      bRest: CallStack,
+      register: (Context, Callback[Any]) => Unit,
+      nextFrame: FrameIndex): Unit = {
 
       if (!context.shouldCancel) {
         // We are going to resume the frame index from where we left,
