@@ -2,7 +2,7 @@ package monix.execution.schedulers
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 import monix.execution.misc.Local
-import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{Cancelable, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
 
 final class TracingScheduler private (

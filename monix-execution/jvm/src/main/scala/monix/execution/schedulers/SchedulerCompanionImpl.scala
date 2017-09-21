@@ -497,7 +497,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       * [[io]].
       */
     implicit lazy val traced: Scheduler =
-      new TracingScheduler(
+      TracingScheduler(
         DefaultScheduledExecutor,
         ExecutionContext.Implicits.global,
         UncaughtExceptionReporter.LogExceptionsToStandardErr,
