@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,6 @@
 package monix.eval
 
 import monix.execution.Scheduler
-import scala.scalajs.js.JSApp
 import scala.scalajs.js.annotation.JSExport
 
 /** Safe `App` type that runs a [[Task]] action.
@@ -29,9 +28,18 @@ import scala.scalajs.js.annotation.JSExport
   *
   * Clients should implement `runc`.
   */
-trait TaskApp extends JSApp {
+trait TaskApp {
   @JSExport
-  def runc: Task[Unit] = Task.now(())
+  def run(args: Array[String]): Task[Unit] =
+    runl(args.toList)
+
+  @JSExport
+  def runl(args: List[String]): Task[Unit] =
+    runc
+
+  @JSExport
+  def runc: Task[Unit] =
+    Task.now(())
 
   /** Scheduler for executing the [[Task]] action.
     * Defaults to `global`, but can be overridden.
@@ -39,6 +47,8 @@ trait TaskApp extends JSApp {
   protected val scheduler: Coeval[Scheduler] =
     Coeval.evalOnce(Scheduler.global)
 
-  override final def main(): Unit =
-    runc.runAsync(scheduler.value)
+  @JSExport
+  final def main(args: Array[String]): Unit = {
+    run(args).runAsync(scheduler.value)
+  }
 }

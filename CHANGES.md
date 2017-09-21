@@ -1,3 +1,15 @@
+## Version 2.3.1 (Sep 20, 2017)
+
+Release is binary backwards compatible with series `2.3.x`.
+
+This is a service release, fixing a minor issue in `AsyncScheduler`
+and upgrading Scala.js:
+
+- [PR #436](https://github.com/monix/monix/pull/436):
+  adds reusable `ShiftedRunnable`, leaving no room for error in
+  `BatchingScheduler` types by usage of `TrampolinedRunnable`;
+  also upgrades Scala.js to 0.6.20
+
 ## Version 2.3.0 (Wed 3, 2017)
 
 Release is binary backwards compatible with series `2.2.x`.

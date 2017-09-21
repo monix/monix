@@ -98,4 +98,9 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.reactive.internal.rstreams.SubscriberAsReactiveSubscriber.this"),
     exclude[MissingClassProblem]("monix.reactive.internal.rstreams.SyncSubscriberAsReactiveSubscriber$")
   )
+
+  lazy val executionChangesFor_2_3_1 = Seq(
+    exclude[MissingClassProblem]("monix.execution.schedulers.ExecutorScheduler$DeferredRunnable"),
+    exclude[MissingClassProblem]("monix.execution.schedulers.AsyncScheduler$DeferredRunnable")
+  )
 }
