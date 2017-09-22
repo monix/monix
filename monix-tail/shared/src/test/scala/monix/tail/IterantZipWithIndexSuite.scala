@@ -33,7 +33,7 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
       Test.Parameters.default.withMaxSize(32)
   }
 
-  test("Iterant.zipWithIndex equivalence with List.zip") { implicit s =>
+  test("Iterant.zipWithIndex equivalence with List.zipWithIndex") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1, allowErrors = false)
       val received = stream.zipWithIndex.toListL
@@ -47,6 +47,16 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
     check2 { (list: List[Int], _: Int) =>
       val stream = Iterant[Task].nextBatchS(Batch.fromIterable(list, 1), Task.now(Iterant[Task].empty[Int]), Task.unit)
       stream.zipWithIndex.toListL <-> stream.toListL.map(_.zipWithIndex.map { case (a, b) => (a, b.toLong) })
+    }
+  }
+
+  test("Iterant.zipWithIndex works for infinite cursors") { implicit s =>
+    check2 { (el: Int, _: Int) =>
+      val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val received = stream.zipWithIndex.take(1).toListL
+      val expected = Coeval(Stream.continually(el).zipWithIndex.map { case (a, b) => (a, b.toLong) }.take(1).toList)
+
+      received <-> expected
     }
   }
 

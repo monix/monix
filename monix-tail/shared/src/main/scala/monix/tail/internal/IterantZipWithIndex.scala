@@ -34,19 +34,23 @@ private[tail] object IterantZipWithIndex {
   def apply[F[_], A](source: Iterant[F, A])
                     (implicit F: Sync[F]): Iterant[F, (A, Long)] = {
 
-
     def processSeq(index: Long, ref: NextCursor[F, A]): NextCursor[F, (A, Long)] = {
       val NextCursor(cursor, rest, stop) = ref
       val buffer = ArrayBuffer.empty[(A, Long)]
 
       var idx = index
+      var toProcess = cursor.recommendedBatchSize
 
-      while (cursor.hasNext()) {
+      // protects against infinite cursors
+      while (toProcess > 0 && cursor.hasNext()) {
         buffer += ((cursor.next(), idx))
         idx += 1
+        toProcess -= 1
       }
 
-      NextCursor(BatchCursor.fromAnyArray(buffer.toArray[Any]), rest.map(loop(idx)), stop)
+      val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
+
+      NextCursor(BatchCursor.fromAnyArray(buffer.toArray[Any]), next.map(loop(idx)), stop)
     }
 
     def loop(index: Long)(source: Iterant[F, A]): Iterant[F, (A, Long)] = {
@@ -75,13 +79,12 @@ private[tail] object IterantZipWithIndex {
     }
 
     source match {
-      case Suspend(_, _) | Halt(_) => loop(0)(source)
-      case _ =>
-        // Suspending execution in order to preserve laziness and
-        // referential transparency, since the provided function can
-        // be side effecting and because processing NextBatch and
-        // NextCursor states can have side effects
+      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
+        // We can have side-effects with NextBatch/NextCursor
+        // processing, so suspending execution in this case
         Suspend(F.delay(loop(0)(source)), source.earlyStop)
+      case _ =>
+        loop(0)(source)
     }
   }
 }
