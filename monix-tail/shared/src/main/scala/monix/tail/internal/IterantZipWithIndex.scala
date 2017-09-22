@@ -31,9 +31,8 @@ private[tail] object IterantZipWithIndex {
   /**
     * Implementation for `Iterant#zipWithIndex`
     */
-  def apply[F[_], A](source: Iterant[F, A])
-                    (implicit F: Sync[F]): Iterant[F, (A, Long)] = {
-
+  def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, (A, Long)] = {
+    
     def processSeq(index: Long, ref: NextCursor[F, A]): NextCursor[F, (A, Long)] = {
       val NextCursor(cursor, rest, stop) = ref
       val buffer = ArrayBuffer.empty[(A, Long)]
