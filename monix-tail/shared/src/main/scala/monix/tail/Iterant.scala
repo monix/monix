@@ -1515,8 +1515,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   // Yields ("Sunday", 0), ("Monday", 1), ("Tuesday", 2), ("Wednesday", 3)
     *   source.zipWithIndex
     * }}}
-    *
-    * */
+    */
   final def zipWithIndex(implicit F: Sync[F]): Iterant[F, (A, Long)] =
     IterantZipWithIndex(this)
 }
