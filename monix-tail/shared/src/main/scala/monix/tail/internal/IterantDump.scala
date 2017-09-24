@@ -32,33 +32,36 @@ private[tail] object IterantDump {
     */
   def apply[F[_], A](source: Iterant[F, A], prefix: String, out: PrintStream = System.out)
                     (implicit F: Sync[F]): Iterant[F, A] = {
-    var pos = 0
 
-    def loop(source: Iterant[F, A]): Iterant[F, A] =
+    def loop(pos: Int)(source: Iterant[F, A]): Iterant[F, A] =
       try source match {
         case Next(item, rest, stop) =>
           out.println(s"$pos: $prefix --> $item")
-          pos += 1
-          Next[F, A](item, rest.map(loop), stop)
+
+          Next[F, A](item, rest.map(loop(pos + 1)), stop)
 
         case NextCursor(cursor, rest, stop) =>
+          var cursorPos = pos
+
           val dumped = cursor.map { el =>
-            out.println(s"$pos: $prefix --> $el")
-            pos += 1
+            out.println(s"$cursorPos: $prefix --> $el")
+            cursorPos += 1
             el
           }
-          NextCursor[F, A](dumped, rest.map(loop), stop)
+          NextCursor[F, A](dumped, rest.map(loop(cursorPos)), stop)
 
         case NextBatch(batch, rest, stop) =>
+          var cursorPos = pos
+
           val dumped = batch.map { el =>
-            out.println(s"$pos: $prefix --> $el")
-            pos += 1
+            out.println(s"$cursorPos: $prefix --> $el")
+            cursorPos += 1
             el
           }
-          NextBatch[F, A](dumped, rest.map(loop), stop)
+          NextBatch[F, A](dumped, rest.map(loop(cursorPos)), stop)
 
         case Suspend(rest, stop) =>
-          Suspend[F, A](rest.map(loop), stop)
+          Suspend[F, A](rest.map(loop(pos)), stop)
 
         case Last(item) =>
           out.println(s"$pos: $prefix --> $item")
@@ -76,13 +79,13 @@ private[tail] object IterantDump {
       }
 
     source match {
-      case Suspend(_, _) | Halt(_) => loop(source)
+      case Suspend(_, _) | Halt(_) => loop(0)(source)
       case _ =>
         // Suspending execution in order to preserve laziness and
         // referential transparency, since the provided PrintStream can
         // be side effecting and because processing NextBatch and
         // NextCursor states can have side effects
-        Suspend(F.delay(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(0)(source)), source.earlyStop)
     }
   }
 }
