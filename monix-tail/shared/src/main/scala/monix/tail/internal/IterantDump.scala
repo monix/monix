@@ -33,7 +33,7 @@ private[tail] object IterantDump {
   def apply[F[_], A](source: Iterant[F, A], prefix: String, out: PrintStream = System.out)
                     (implicit F: Sync[F]): Iterant[F, A] = {
 
-    def loop(pos: Int)(source: Iterant[F, A]): Iterant[F, A] =
+    def loop(pos: Long)(source: Iterant[F, A]): Iterant[F, A] =
       try source match {
         case Next(item, rest, stop) =>
           out.println(s"$pos: $prefix --> $item")
@@ -41,24 +41,22 @@ private[tail] object IterantDump {
           Next[F, A](item, rest.map(loop(pos + 1)), stop)
 
         case NextCursor(cursor, rest, stop) =>
-          var cursorPos = pos
 
-          val dumped = cursor.map { el =>
+          val newPos = cursor.foldLeft(pos) { (cursorPos, el) =>
             out.println(s"$cursorPos: $prefix --> $el")
-            cursorPos += 1
-            el
+            cursorPos + 1
           }
-          NextCursor[F, A](dumped, rest.map(loop(cursorPos)), stop)
+          NextCursor[F, A](cursor, rest.map(loop(newPos)), stop)
 
         case NextBatch(batch, rest, stop) =>
-          var cursorPos = pos
+          var batchPos = pos
 
           val dumped = batch.map { el =>
-            out.println(s"$cursorPos: $prefix --> $el")
-            cursorPos += 1
+            out.println(s"$batchPos: $prefix --> $el")
+            batchPos += 1
             el
           }
-          NextBatch[F, A](dumped, rest.map(loop(cursorPos)), stop)
+          NextBatch[F, A](dumped, rest.map(loop(batchPos)), stop)
 
         case Suspend(rest, stop) =>
           Suspend[F, A](rest.map(loop(pos)), stop)
