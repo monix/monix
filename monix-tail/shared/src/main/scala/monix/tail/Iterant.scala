@@ -1527,6 +1527,20 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def zip[B](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, (A, B)] =
     (self zipMap rhs)((a, b) => (a, b))
+
+  /** Zips the emitted elements of the source with their indices.
+    *
+    * The length of the result will be the same as the source.
+    *
+    * Example: {{{
+    *   val source = Iterant[Task].of("Sunday", "Monday", "Tuesday", "Wednesday")
+    *
+    *   // Yields ("Sunday", 0), ("Monday", 1), ("Tuesday", 2), ("Wednesday", 3)
+    *   source.zipWithIndex
+    * }}}
+    */
+  final def zipWithIndex(implicit F: Sync[F]): Iterant[F, (A, Long)] =
+    IterantZipWithIndex(this)
 }
 
 /** Defines the standard [[Iterant]] builders.
