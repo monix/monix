@@ -405,6 +405,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     */
   def global: Scheduler = Implicits.global
 
+  def traced: Scheduler = Implicits.traced
+
   object Implicits extends ImplicitsLike {
     /** A global [[monix.execution.Scheduler Scheduler]] instance, provided for convenience, piggy-backing
       * on top of Scala's own `concurrent.ExecutionContext.global`, which is a
