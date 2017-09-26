@@ -1582,7 +1582,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[mapTask]] for serial execution
     */
   final def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B])
-                                   (implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+    (implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MapParallelUnorderedObservable[A, B](self, parallelism, f, os)
 
   /** Converts the source Observable that emits `A` into an Observable
