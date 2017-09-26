@@ -37,20 +37,19 @@ private[tail] object IterantDump {
       try source match {
         case Next(item, rest, stop) =>
           out.println(s"$pos: $prefix --> $item")
-
           Next[F, A](item, rest.map(loop(pos + 1)), stop)
 
         case NextCursor(cursor, rest, stop) =>
-
-          val newPos = cursor.foldLeft(pos) { (cursorPos, el) =>
+          var cursorPos = pos
+          val dumped = cursor.map { el =>
             out.println(s"$cursorPos: $prefix --> $el")
-            cursorPos + 1
+            cursorPos += 1
+            el
           }
-          NextCursor[F, A](cursor, rest.map(loop(newPos)), stop)
+          NextCursor[F, A](dumped, rest.map(loop(cursorPos)), stop)
 
         case NextBatch(batch, rest, stop) =>
           var batchPos = pos
-
           val dumped = batch.map { el =>
             out.println(s"$batchPos: $prefix --> $el")
             batchPos += 1
