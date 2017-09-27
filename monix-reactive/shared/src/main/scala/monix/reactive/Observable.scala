@@ -2208,8 +2208,8 @@ abstract class Observable[+A] extends Serializable { self =>
   final def takeWhile(p: A => Boolean): Observable[A] =
     self.liftByOperator(new TakeByPredicateOperator(p))
 
-  /** Takes longest prefix of elements that satisfy the given predicate
-    * and returns a new Observable that emits those elements.
+  /** Takes longest prefix of elements while given [[BooleanCancelable]]
+    * is not canceled and returns a new Observable that emits those elements.
     */
   final def takeWhileNotCanceled(c: BooleanCancelable): Observable[A] =
     self.liftByOperator(new TakeWhileNotCanceledOperator(c))
@@ -2752,7 +2752,7 @@ abstract class Observable[+A] extends Serializable { self =>
     unsafeMulticast(AsyncSubject[A]())
 
   /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
-    * that upon execution will signal the last generated element of the
+    * that upon execution will signal the first generated element of the
     * source observable. Returns an `Option` because the source can be empty.
     */
   final def runAsyncGetFirst(implicit s: Scheduler): CancelableFuture[Option[A]] =
