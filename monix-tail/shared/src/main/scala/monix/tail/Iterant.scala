@@ -17,6 +17,8 @@
 
 package monix.tail
 
+import java.io.PrintStream
+
 import cats.arrow.FunctionK
 import cats.effect.{Effect, Sync}
 import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order}
@@ -492,6 +494,27 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def dropWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDropWhile(self, p)
+
+  /** Dumps incoming events to standard output with provided prefix.
+    *
+    * Utility that can be used for debugging purposes.
+    *
+    * Example: {{{
+    *   Iterant[Task].range(0, 4)
+    *     .dump("O")
+    *     .completeL.runAsync
+    *
+    *   // Results in:
+    *
+    *   0: O --> 0
+    *   1: O --> 1
+    *   2: O --> 2
+    *   3: O --> 3
+    *   4: O completed
+    * }}}
+    */
+  final def dump(prefix: String, out: PrintStream = System.out)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantDump(this, prefix, out)
 
   /** Returns a computation that should be evaluated in case the
     * streaming must stop before reaching the end.
@@ -1504,6 +1527,20 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def zip[B](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, (A, B)] =
     (self zipMap rhs)((a, b) => (a, b))
+
+  /** Zips the emitted elements of the source with their indices.
+    *
+    * The length of the result will be the same as the source.
+    *
+    * Example: {{{
+    *   val source = Iterant[Task].of("Sunday", "Monday", "Tuesday", "Wednesday")
+    *
+    *   // Yields ("Sunday", 0), ("Monday", 1), ("Tuesday", 2), ("Wednesday", 3)
+    *   source.zipWithIndex
+    * }}}
+    */
+  final def zipWithIndex(implicit F: Sync[F]): Iterant[F, (A, Long)] =
+    IterantZipWithIndex(this)
 }
 
 /** Defines the standard [[Iterant]] builders.

@@ -20,8 +20,8 @@ package monix.reactive
 import java.io.PrintStream
 
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
+import monix.execution.cancelables.BooleanCancelable
 import monix.execution.misc.NonFatal
 import monix.reactive.internal.rstreams._
 import monix.reactive.observers.Subscriber
@@ -327,13 +327,13 @@ object Observer {
     private[this] var pos = 0
 
     def onNext(elem: A): Ack = {
-      out.println(s"$pos: $prefix-->$elem")
+      out.println(s"$pos: $prefix --> $elem")
       pos += 1
       Continue
     }
 
     def onError(ex: Throwable) = {
-      out.println(s"$pos: $prefix-->$ex")
+      out.println(s"$pos: $prefix --> $ex")
       pos += 1
     }
 

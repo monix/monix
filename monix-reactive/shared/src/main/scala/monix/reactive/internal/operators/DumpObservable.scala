@@ -43,7 +43,7 @@ class DumpObservable[A](source: Observable[A], prefix: String, out: PrintStream)
 
       def onNext(elem: A): Future[Ack] = {
         try {
-          out.println(s"$pos: $prefix-->$elem")
+          out.println(s"$pos: $prefix --> $elem")
           pos += 1
         } catch {
           case NonFatal(_) => () // ignore
@@ -54,7 +54,7 @@ class DumpObservable[A](source: Observable[A], prefix: String, out: PrintStream)
 
       def onError(ex: Throwable) = {
         try {
-          out.println(s"$pos: $prefix-->$ex")
+          out.println(s"$pos: $prefix --> $ex")
           pos += 1
         } catch {
           case NonFatal(_) => () // ignore
