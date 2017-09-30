@@ -1863,7 +1863,9 @@ object Task extends TaskInstances {
     *        auto-cancelable. Defaults to `false`.
     */
   final case class Options(
-    autoCancelableRunLoops: Boolean) {
+    autoCancelableRunLoops: Boolean,
+    localContextPropagation: Boolean
+  ) {
 
     /** Creates a new set of options from the source, but with
       * the [[autoCancelableRunLoops]] value set to `true`.
@@ -1876,12 +1878,25 @@ object Task extends TaskInstances {
       */
     def disableAutoCancelableRunLoops: Options =
       copy(autoCancelableRunLoops = false)
+
+    /** Creates a new set of options from the source, but with
+      * the [[localContextPropagation]] value set to `true`.
+      */
+    def enableLocalContextPropagation: Options =
+      copy(localContextPropagation = true)
+
+    /** Creates a new set of options from the source, but with
+      * the [[localContextPropagation]] value set to `false`.
+      */
+    def disableLocalContextPropagation: Options =
+      copy(localContextPropagation = false)
   }
 
   /** Default [[Options]] to use for [[Task]] evaluation,
     * thus:
     *
     *  - `autoCancelableRunLoops` is `false` by default
+    *  - `localContextPropagation` is `false` by default
     *
     * On top of the JVM the default can be overridden by
     * setting the following system properties:
@@ -1889,17 +1904,24 @@ object Task extends TaskInstances {
     *  - `monix.environment.autoCancelableRunLoops`
     *    (`true`, `yes` or `1` for enabling)
     *
+    *  - `monix.environment.localContextPropagation`
+    *    (`true`, `yes` or `1` for enabling)
+    *
     * @see [[Task.Options]]
     */
   val defaultOptions: Options = {
     if (Platform.isJS)
       // $COVERAGE-OFF$
-      Options(autoCancelableRunLoops = false)
+      Options(autoCancelableRunLoops = false, localContextPropagation = false)
       // $COVERAGE-ON$
     else
       Options(
         autoCancelableRunLoops =
           Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
+            .map(_.toLowerCase)
+            .exists(v => v == "yes" || v == "true" || v == "1"),
+        localContextPropagation =
+          Option(System.getProperty("monix.environment.localContextPropagation", ""))
             .map(_.toLowerCase)
             .exists(v => v == "yes" || v == "true" || v == "1")
       )
