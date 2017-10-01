@@ -314,21 +314,6 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def runAsync(implicit s: Scheduler): CancelableFuture[A] =
     TaskRunLoop.startAsFuture(this, s)
 
-  /** run the Task with LocalContext propagation.
-    *
-    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
-    *        that gets used whenever asynchronous boundaries are needed
-    *        when evaluating the task
-    *
-    * @return a [[monix.execution.CancelableFuture CancelableFuture]]
-    *         that can be used to extract the result or to cancel
-    *         a running task.
-    */
-  def runAsyncTraced(implicit s: Scheduler): CancelableFuture[A] = {
-    val lc = Local.getContext()
-    TaskTracedRunLoop.startAsFuture(this, s, lc)
-  }
-
   /** Tries to execute the source synchronously.
     *
     * As an alternative to `runAsync`, this method tries to execute
@@ -2193,7 +2178,7 @@ object Task extends TaskInstances {
     * and `Task.fork`.
     */
   def unsafeStartAsync[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    TaskRunLoop.restartAsync(source, context, cb, null, null)
+    TaskRunLoop.restartAsync(source, context, cb, null, null, Local.getContext())
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
     * [[monix.execution.schedulers.TrampolinedRunnable trampolined asynchronous boundary]],
@@ -2205,10 +2190,12 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]]
     * and `Task.fork`.
     */
-  def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
+  def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit = {
+    val lc = Local.getContext()
     context.scheduler.executeTrampolined { () =>
-      TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
+      TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef(), lc)
     }
+  }
 
   /** Unsafe utility - starts the execution of a Task, by providing
     * the needed [[monix.execution.Scheduler Scheduler]],
@@ -2219,7 +2206,7 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
+    TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef(), Local.getContext())
 
   private[this] final val neverRef: Async[Nothing] =
     Async((_,_) => ())
