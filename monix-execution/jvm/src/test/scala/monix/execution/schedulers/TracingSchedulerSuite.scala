@@ -24,29 +24,32 @@ object TracingSchedulerSuite extends SimpleTestSuite {
   case class Tc(m: String = "1234") extends Local.LocalContext
 
   test("should propagate context") {
+    Local.clearContext()
     val key = new Local.Key
     val ts: Scheduler = monix.execution.Scheduler.traced
     val as: Scheduler = monix.execution.Scheduler.global
 
-    val p1 = Promise[Local.Context]()
-    val p2 = Promise[Local.Context]()
+    val l1 = new Local[Tc]
+    val p1 = Promise[Option[Tc]]()
+    val p2 = Promise[Option[Tc]]()
 
-    assert(Local.getContext() == null)
+    assert(l1().isEmpty)
 
-    def run(p: Promise[Local.Context]) = new Runnable {
-      override def run(): Unit =
-        p.complete(Success(Local.getContext()))
+    def run(p: Promise[Option[Tc]]) = new Runnable {
+      override def run(): Unit = {
+        p.complete(Success(l1()))
+      }
     }
 
-    Local.setContext(Map(key -> Some(Tc())))
-    assert(Local.getContext().get(key) contains Some(Tc()))
+    l1.update(Tc())
+    assert(l1() contains Tc())
 
     as.execute(run(p1))
     val res1 = Await.result(p1.future, 5.seconds)
-    assert(res1 == null)
+    assert(res1.isEmpty)
     ts.execute(run(p2))
     val res2 = Await.result(p2.future, 5.seconds)
-    assert(res2.get(key) contains Some(Tc()))
+    assert(res2 contains Tc())
   }
 
   test("scheduleOnce with delay") {
