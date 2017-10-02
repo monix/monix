@@ -2208,7 +2208,7 @@ abstract class Observable[+A] extends Serializable { self =>
   final def takeWhile(p: A => Boolean): Observable[A] =
     self.liftByOperator(new TakeByPredicateOperator(p))
 
-  /** Takes longest prefix of elements while given [[BooleanCancelable]]
+  /** Takes longest prefix of elements while given [[monix.execution.cancelables.BooleanCancelable BooleanCancelable]]
     * is not canceled and returns a new Observable that emits those elements.
     */
   final def takeWhileNotCanceled(c: BooleanCancelable): Observable[A] =
