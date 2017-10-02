@@ -21,6 +21,20 @@ import minitest.SimpleTestSuite
 import monix.execution.schedulers.TestScheduler
 
 object TaskAppSuite extends SimpleTestSuite {
+  test("runl works") {
+    val testS = TestScheduler()
+    var wasExecuted = false
+
+    val app = new TaskApp {
+      override val scheduler = Coeval.now(testS)
+      override def runl(args: List[String]) =
+        Task { wasExecuted = args.headOption.getOrElse("false") == "true" }
+    }
+
+    app.main(Array("true")); testS.tick()
+    assertEquals(wasExecuted, true)
+  }
+
   test("runc works") {
     val testS = TestScheduler()
     var wasExecuted = false
