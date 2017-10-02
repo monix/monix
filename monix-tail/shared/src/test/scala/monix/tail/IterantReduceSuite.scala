@@ -19,6 +19,7 @@ package monix.tail
 
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
+
 import scala.util.Failure
 
 object IterantReduceSuite extends BaseTestSuite {
@@ -38,11 +39,27 @@ object IterantReduceSuite extends BaseTestSuite {
     }
   }
 
+  test("maxByL is consistent with List.maxBy") { implicit s =>
+    check2 { (list: List[Int], idx: Int) =>
+      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      val expect = if (list.isEmpty) None else Some(list.maxBy(Math.pow(_, 2)))
+      stream.maxByL(Math.pow(_, 2)) <-> Coeval.pure(expect)
+    }
+  }
+
   test("minL is consistent with List.min") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       val expect = if (list.isEmpty) None else Some(list.min)
       stream.minL <-> Coeval.pure(expect)
+    }
+  }
+
+  test("minByL is consistent with List.minBy") { implicit s =>
+    check2 { (list: List[Int], idx: Int) =>
+      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      val expect = if (list.isEmpty) None else Some(list.minBy(Math.pow(_, 2)))
+      stream.minByL(Math.pow(_, 2)) <-> Coeval.pure(expect)
     }
   }
 
