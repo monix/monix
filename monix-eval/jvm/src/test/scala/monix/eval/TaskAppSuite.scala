@@ -21,14 +21,14 @@ import minitest.SimpleTestSuite
 
 object TaskAppSuite extends SimpleTestSuite {
   test("runl works") {
-    var wasExecuted = "false"
+    var wasExecuted = false
     val app = new TaskApp {
       override def runl(args: List[String]) =
-        Task { wasExecuted = args.headOption.getOrElse("unknown") }
+        Task { wasExecuted = args.headOption.getOrElse("unknown") == "true" }
     }
 
     app.main(Array("true"))
-    assertEquals(wasExecuted, "true")
+    assert(wasExecuted, "wasExecuted")
   }
 
   test("runc works") {
@@ -38,6 +38,6 @@ object TaskAppSuite extends SimpleTestSuite {
     }
 
     app.main(Array.empty)
-    assertEquals(wasExecuted, true)
+    assert(wasExecuted, "wasExecuted")
   }
 }
