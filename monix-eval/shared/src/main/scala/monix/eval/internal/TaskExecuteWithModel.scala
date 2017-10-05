@@ -20,7 +20,7 @@ package monix.eval.internal
 import monix.eval.Task
 import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
-import monix.execution.misc.{Local, NonFatal}
+import monix.execution.misc.NonFatal
 
 private[eval] object TaskExecuteWithModel {
   /**
@@ -45,7 +45,7 @@ private[eval] object TaskExecuteWithModel {
             em.nextFrameIndex(0)
         }
 
-        TaskRunLoop.startWithCallback[A](self, context2, cb, null, null, nextIndex, Local.getContext())
+        TaskRunLoop.startWithCallback[A](self, context2, cb, null, null, nextIndex)
       }
       catch {
         case NonFatal(ex) =>

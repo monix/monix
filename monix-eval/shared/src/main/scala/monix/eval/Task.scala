@@ -25,7 +25,7 @@ import monix.execution._
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
-import monix.execution.misc.{Local, NonFatal, ThreadLocal}
+import monix.execution.misc.{NonFatal, ThreadLocal}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
@@ -1846,6 +1846,10 @@ object Task extends TaskInstances {
     * @param autoCancelableRunLoops should be set to `true` in
     *        case you want `flatMap` driven loops to be
     *        auto-cancelable. Defaults to `false`.
+    * @param localContextPropagation should be set to `true` in
+    *        case you want the [[monix.execution.misc.Local Local]]
+    *        variable to be propagated on async boundaries.
+    *        Defaults to `false`.
     */
   final case class Options(
     autoCancelableRunLoops: Boolean,
@@ -2178,7 +2182,7 @@ object Task extends TaskInstances {
     * and `Task.fork`.
     */
   def unsafeStartAsync[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    TaskRunLoop.restartAsync(source, context, cb, null, null, Local.getContext())
+    TaskRunLoop.restartAsync(source, context, cb, null, null)
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
     * [[monix.execution.schedulers.TrampolinedRunnable trampolined asynchronous boundary]],
@@ -2191,9 +2195,8 @@ object Task extends TaskInstances {
     * and `Task.fork`.
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit = {
-    val lc = Local.getContext()
     context.scheduler.executeTrampolined { () =>
-      TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef(), lc)
+      TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
     }
   }
 
@@ -2206,7 +2209,7 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef(), Local.getContext())
+    TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
 
   private[this] final val neverRef: Async[Nothing] =
     Async((_,_) => ())
