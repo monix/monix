@@ -5,13 +5,49 @@ import monix.execution.misc.Local
 import monix.execution.{Cancelable, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
 
+/**
+  * The [[monix.execution.schedulers.TracingScheduler TracingScheduler]] is based on the
+  * [[monix.execution.schedulers.AsyncScheduler AsyncScheduler]] with the difference that
+  * it propagates [[monix.execution.misc.Local.LocalContext LocalContext]] through the
+  * async execution.
+  *
+  * {{{
+  *   import scala.concurrent.duration._
+  *   import scala.concurrent.{Await, Promise}
+  *
+  *   case class Tc(m: String = "1234") extends Local.LocalContext
+  *
+  *   val ts: Scheduler = monix.execution.Scheduler.traced
+  *
+  *   val key = new Local.Key
+  *
+  *   val p = Promise[Local.Context]()
+  *
+  *   def run = new Runnable {
+  *     override def run(): Unit =
+  *       p.complete(Success(Local.getContext()))
+  *   }
+  *
+  *   Local.setContext(Map(key -> Some(Tc())))
+  *
+  *   ts.execute(run)
+  *
+  *   // Should yield Map(key -> Some(Tc()))
+  *   Await.result(p.future, 5.seconds)
+  * }}}
+  *
+  * @param scheduler the [[java.util.concurrent.ScheduledExecutorService]]
+  * @param ec the underlying [[scala.concurrent.ExecutionContext]]
+  * @param r the [[monix.execution.UncaughtExceptionReporter]]
+  * @param executionModel the [[monix.execution.ExecutionModel]]
+  */
 final class TracingScheduler private (
   scheduler: ScheduledExecutorService,
   ec: ExecutionContext,
   r: UncaughtExceptionReporter,
   val executionModel: ExecModel) extends ReferenceScheduler with BatchingScheduler { self =>
 
-  /** Executes the given task with tracing.
+  /** Executes the given task with propagation of Local.Context.
     *
     * @param r is the callback to be executed
     */

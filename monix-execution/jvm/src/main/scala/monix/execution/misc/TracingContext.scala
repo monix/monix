@@ -2,7 +2,10 @@ package monix.execution.misc
 
 
 /**
-  * A local context that should be used for tracing purposes
+  * A [[monix.execution.misc.TracingContext TracingContext]] is local
+  * context that should be used for tracing purposes. Any class that
+  * extends this trait should define a companion object that extends
+  * [[monix.execution.misc.TracingContextCompanion TracingContextCompanion]]
   */
 trait TracingContext extends Local.LocalContext {
 
@@ -16,7 +19,18 @@ trait TracingContext extends Local.LocalContext {
 }
 
 /**
-  * Should be extended to TracingContext companion object
+  * Should be extended to TracingContext companion object. This helps
+  * define a single local variable for the companion object, which will
+  * manage the access of instances of [[monix.execution.misc.TracingContext TracingContext]]
+  * to the local state. Using the let function will always guarantee any leaks of
+  * the local context because the previous state will always be restored.
+  * {{{
+  *   case class Traced extends TracingContext {
+  *     def asCurrent[T](f: => T): T = Traced.let(Some(this))
+  *   }
+  *
+  *   object Traced extends TracingContextCompanion[Traced]
+  * }}}
   * @tparam T bounded to a TracingContext
   */
 trait TracingContextCompanion[T <: TracingContext] {

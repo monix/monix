@@ -314,21 +314,6 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def runAsync(implicit s: Scheduler): CancelableFuture[A] =
     TaskRunLoop.startAsFuture(this, s)
 
-  /** run the Task with LocalContext propagation.
-    *
-    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
-    *        that gets used whenever asynchronous boundaries are needed
-    *        when evaluating the task
-    *
-    * @return a [[monix.execution.CancelableFuture CancelableFuture]]
-    *         that can be used to extract the result or to cancel
-    *         a running task.
-    */
-  def runAsyncTraced(implicit s: Scheduler): CancelableFuture[A] = {
-    val lc = Local.getContext()
-    TaskTracedRunLoop.startAsFuture(this, s, lc)
-  }
-
   /** Tries to execute the source synchronously.
     *
     * As an alternative to `runAsync`, this method tries to execute
@@ -1863,7 +1848,9 @@ object Task extends TaskInstances {
     *        auto-cancelable. Defaults to `false`.
     */
   final case class Options(
-    autoCancelableRunLoops: Boolean) {
+    autoCancelableRunLoops: Boolean,
+    localContextPropagation: Boolean
+  ) {
 
     /** Creates a new set of options from the source, but with
       * the [[autoCancelableRunLoops]] value set to `true`.
@@ -1876,12 +1863,25 @@ object Task extends TaskInstances {
       */
     def disableAutoCancelableRunLoops: Options =
       copy(autoCancelableRunLoops = false)
+
+    /** Creates a new set of options from the source, but with
+      * the [[localContextPropagation]] value set to `true`.
+      */
+    def enableLocalContextPropagation: Options =
+      copy(localContextPropagation = true)
+
+    /** Creates a new set of options from the source, but with
+      * the [[localContextPropagation]] value set to `false`.
+      */
+    def disableLocalContextPropagation: Options =
+      copy(localContextPropagation = false)
   }
 
   /** Default [[Options]] to use for [[Task]] evaluation,
     * thus:
     *
     *  - `autoCancelableRunLoops` is `false` by default
+    *  - `localContextPropagation` is `false` by default
     *
     * On top of the JVM the default can be overridden by
     * setting the following system properties:
@@ -1889,17 +1889,24 @@ object Task extends TaskInstances {
     *  - `monix.environment.autoCancelableRunLoops`
     *    (`true`, `yes` or `1` for enabling)
     *
+    *  - `monix.environment.localContextPropagation`
+    *    (`true`, `yes` or `1` for enabling)
+    *
     * @see [[Task.Options]]
     */
   val defaultOptions: Options = {
     if (Platform.isJS)
       // $COVERAGE-OFF$
-      Options(autoCancelableRunLoops = false)
+      Options(autoCancelableRunLoops = false, localContextPropagation = false)
       // $COVERAGE-ON$
     else
       Options(
         autoCancelableRunLoops =
           Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
+            .map(_.toLowerCase)
+            .exists(v => v == "yes" || v == "true" || v == "1"),
+        localContextPropagation =
+          Option(System.getProperty("monix.environment.localContextPropagation", ""))
             .map(_.toLowerCase)
             .exists(v => v == "yes" || v == "true" || v == "1")
       )
@@ -2171,7 +2178,7 @@ object Task extends TaskInstances {
     * and `Task.fork`.
     */
   def unsafeStartAsync[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    TaskRunLoop.restartAsync(source, context, cb, null, null)
+    TaskRunLoop.restartAsync(source, context, cb, null, null, Local.getContext())
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
     * [[monix.execution.schedulers.TrampolinedRunnable trampolined asynchronous boundary]],
@@ -2183,10 +2190,12 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]]
     * and `Task.fork`.
     */
-  def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
+  def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit = {
+    val lc = Local.getContext()
     context.scheduler.executeTrampolined { () =>
-      TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
+      TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef(), lc)
     }
+  }
 
   /** Unsafe utility - starts the execution of a Task, by providing
     * the needed [[monix.execution.Scheduler Scheduler]],
@@ -2197,7 +2206,7 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
+    TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef(), Local.getContext())
 
   private[this] final val neverRef: Async[Nothing] =
     Async((_,_) => ())
