@@ -4,9 +4,9 @@ object Local {
 
   type Context = scala.collection.immutable.Map[Key, Option[LocalContext]]
 
-  trait LocalContext
+  trait LocalContext extends Serializable
 
-  class Key
+  final class Key extends Serializable
 
   private[this] def context(k: Key, v: Option[LocalContext]): Context =
     scala.collection.immutable.Map(k -> v)
