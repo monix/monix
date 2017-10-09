@@ -42,6 +42,12 @@ private[eval] object TaskRunLoop {
   private def createCallStack(): CallStack =
     ArrayStack(8)
 
+  /**
+    * Used for evaluating the [[Local.Context Local]]
+    */
+  private def setLocal[T](local: Local.Context)(f: => T): T =
+    if (local == null) f else Local.withContext(local)(f)
+
   /** Internal utility, for forcing an asynchronous boundary in the
     * trampoline loop.
     */
@@ -52,15 +58,21 @@ private[eval] object TaskRunLoop {
     bindCurrent: Bind,
     bindRest: CallStack): Unit = {
 
-    if (!context.shouldCancel)
+    val local = if (context.options.localContextPropagation) Local.getContext() else null
+    if (!context.shouldCancel) {
       context.scheduler.executeAsync { () =>
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
         // Getting the current context if localContextPropagation == true.
-        // Will only propagate if TracingScheduler is used.
-        //val l = if (context.options.localContextPropagation) Local.getContext() else null
-        startWithCallback(source, context, cb, bindCurrent, bindRest, 1)
+        // We add this so there is no need to use the TracingScheduler
+        // and leave the propagation in async boundaries to the setting
+        // of the option localContextPropagation.
+        setLocal(local) {
+          startWithCallback(source, context, cb, bindCurrent, bindRest, 1)
+        }
       }
+    }
+
   }
 
   /** Logic for finding the next `Transformation` reference,
@@ -117,7 +129,7 @@ private[eval] object TaskRunLoop {
       private[this] var bFirst: Bind = _
       private[this] var bRest: CallStack = _
       private[this] val runLoopIndex = context.frameRef
-      val local = if (context.options.localContextPropagation) Local.getContext() else null
+      private[this] val local = if (context.options.localContextPropagation) Local.getContext() else null
 
       def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
         canCall = true
@@ -128,9 +140,7 @@ private[eval] object TaskRunLoop {
       def onSuccess(value: Any): Unit =
         if (canCall) {
           canCall = false
-          if (local == null)
-            loop(Now(value), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
-          else Local.withContext(local) {
+          setLocal(local) {
             loop(Now(value), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
           }
         }
@@ -139,9 +149,7 @@ private[eval] object TaskRunLoop {
       def onError(ex: Throwable): Unit =
         if (canCall) {
           canCall = false
-          if (local == null)
-            loop(Error(ex), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
-          else Local.withContext(local) {
+          setLocal(local) {
             loop(Error(ex), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
           }
         } else {
@@ -286,7 +294,6 @@ private[eval] object TaskRunLoop {
     source: Task[A],
     scheduler: Scheduler,
     cb: Callback[A]): Cancelable = {
-    //val local = Local.getContext()
     /* Called when we hit the first async boundary. */
     def goAsync(
       source: Current,
