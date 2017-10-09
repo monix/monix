@@ -4,9 +4,9 @@ object Local {
 
   type Context = scala.collection.immutable.Map[Key, Option[LocalContext]]
 
-  trait LocalContext
+  trait LocalContext extends Serializable
 
-  class Key
+  final class Key extends Serializable
 
   private[this] def context(k: Key, v: Option[LocalContext]): Context =
     scala.collection.immutable.Map(k -> v)
@@ -70,9 +70,46 @@ object Local {
     val l = localContext.get
     if (l != null) localContext.set(l - key)
   }
-
 }
 
+/**
+  * An instance of [[Local]] is used to register a context of a thread using a
+  * [[monix.execution.misc.ThreadLocal ThreadLocal]] with the help of a global
+  * state bound to its companion object where all the registered contexts are stored.
+  * The type parameter T is bounded to [[monix.execution.misc.Local.LocalContext LocalContext]]
+  * so the user can create local contexts and define the rules of its behaviour.
+  * {{{
+  *
+  *   case class TestLocalContext(id: Int) extends LocalContext
+  *
+  *   val local = new Local[TestLocalContext]
+  *
+  *   // To get the current state, should yield None
+  *   local()
+  *
+  *   // To set the value
+  *   local.set(Some(TestLocalContext(1)))
+  *
+  *   // Should yield TestLocalContext(1)
+  *   local()
+  *
+  *   // To get the global state
+  *   // Should yield Map(Key@5de5e95 -> Some(TestLocalContext(1)))
+  *   Local.getContext()
+  *
+  *   val local2 = new Local[TestLocalContext]
+  *
+  *   // To set new LocalContext of local2
+  *   local2.set(Some(TestLocalContext(2)))
+  *
+  *   // To get the global state
+  *   // Should yield:
+  *   // Map(Key@5de5e95 -> Some(TestLocalContext(1)), Key@2f677247 -> Some(TestLocalContext(2)))
+  *   Local.getContext()
+  *
+  * }}}
+  * @tparam T bounded to the [[monix.execution.misc.Local.LocalContext LocalContext]]
+  */
 final class Local[T <: Local.LocalContext] {
   private[this] val key: Local.Key = Local.register()
 

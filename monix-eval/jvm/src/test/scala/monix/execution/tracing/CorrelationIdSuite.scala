@@ -10,6 +10,7 @@ import scala.util.Success
 
 object CorrelationIdSuite extends SimpleTestSuite {
 
+  System.setProperty("monix.environment.localContextPropagation", "true")
 
   case class Log(value: Int, message: String)
 
@@ -84,8 +85,6 @@ object CorrelationIdSuite extends SimpleTestSuite {
       }
     })
   }
-
-  System.setProperty("monix.environment.localContextPropagation", "true")
 
   test("should get CorrelarionId with flatmapped Task with async boundary") {
     // Works with the TracingScheduler given a map on the Future
