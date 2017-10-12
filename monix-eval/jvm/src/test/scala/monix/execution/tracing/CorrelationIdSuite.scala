@@ -10,7 +10,7 @@ import scala.util.Success
 
 object CorrelationIdSuite extends SimpleTestSuite {
 
-  System.setProperty("monix.environment.localContextPropagation", "true")
+  implicit val opts: Task.Options = Task.defaultOptions.enableLocalContextPropagation
 
   case class Log(value: Int, message: String)
 
