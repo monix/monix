@@ -415,7 +415,7 @@ private[eval] object TaskRunLoop {
     * and actual asynchronous execution in case of an
     * asynchronous boundary.
     */
-  def startAsFuture[A](source: Task[A], scheduler: Scheduler): CancelableFuture[A] = {
+  def startAsFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
     /* Called when we hit the first async boundary. */
     def goAsync(
       source: Current,
@@ -432,7 +432,7 @@ private[eval] object TaskRunLoop {
           p.tryFailure(ex)
       }
 
-      val context = Context(scheduler)
+      val context = Context(scheduler, opts)
       if (forceAsync)
         restartAsync(source, context, cb, bindCurrent, bindRest)
       else

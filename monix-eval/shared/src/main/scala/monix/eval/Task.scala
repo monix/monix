@@ -311,8 +311,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         that can be used to extract the result or to cancel
     *         a running task.
     */
-  def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-    TaskRunLoop.startAsFuture(this, s)
+  def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
+    TaskRunLoop.startAsFuture(this, s, opts)
 
   /** Tries to execute the source synchronously.
     *
@@ -2035,11 +2035,11 @@ object Task extends TaskInstances {
 
   object Context {
     /** Initialize fresh [[Context]] reference. */
-    def apply(s: Scheduler): Context = {
+    def apply(s: Scheduler, opts: Options = defaultOptions): Context = {
       val conn = StackedCancelable()
       val em = s.executionModel
       val frameRef = FrameIndexRef(em)
-      Context(s, conn, frameRef, defaultOptions)
+      Context(s, conn, frameRef, opts)
     }
   }
 
@@ -2053,7 +2053,7 @@ object Task extends TaskInstances {
     }
 
     // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
       CancelableFuture.successful(value)
 
     override def toString: String =
@@ -2070,7 +2070,7 @@ object Task extends TaskInstances {
     }
 
     // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
       CancelableFuture.failed(ex)
 
     override def toString: String =
@@ -2155,7 +2155,7 @@ object Task extends TaskInstances {
           Cancelable.empty
       }
 
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
       state.get match {
         case null =>
           super.runAsync(s)
