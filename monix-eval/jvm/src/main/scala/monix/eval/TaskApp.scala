@@ -47,8 +47,11 @@ trait TaskApp {
   protected val scheduler: Coeval[Scheduler] =
     Coeval.evalOnce(Scheduler.global)
 
+  protected val options: Coeval[Task.Options] =
+    Coeval.evalOnce(Task.defaultOptions)
+
   final def main(args: Array[String]): Unit = {
-    val f = run(args).runAsync(scheduler.value)
+    val f = run(args).runAsync(scheduler.value, options.value)
     Await.result(f, Duration.Inf)
   }
 }

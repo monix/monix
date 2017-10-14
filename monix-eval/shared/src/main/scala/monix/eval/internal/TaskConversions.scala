@@ -27,13 +27,13 @@ import scala.util.{Failure, Success}
 
 private[eval] object TaskConversions {
   /** Implementation for `Task#toIO`. */
-  def toIO[A](source: Task[A])(implicit s: Scheduler): IO[A] =
+  def toIO[A](source: Task[A])(implicit s: Scheduler, opts: Task.Options): IO[A] =
     source match {
       case Task.Now(v) => IO.pure(v)
       case Task.Error(e) => IO.raiseError(e)
       case Task.Eval(thunk) => IO(thunk())
       case _ => IO.suspend {
-        val f = source.runAsync(s)
+        val f = source.runAsync(s, opts)
         f.value match {
           case Some(tryA) => tryA match {
             case Success(v) => IO.pure(v)

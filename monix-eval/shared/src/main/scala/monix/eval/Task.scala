@@ -311,7 +311,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         that can be used to extract the result or to cancel
     *         a running task.
     */
-  def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
+  def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
     TaskRunLoop.startAsFuture(this, s, opts)
 
   /** Tries to execute the source synchronously.
@@ -346,8 +346,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         was hit and further async execution is needed or
     *         in case of failure
     */
-  def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
-    val future = this.runAsync(s)
+  def runSyncMaybe(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
+    val future = this.runAsync(s, opts)
 
     future.value match {
       case Some(value) =>
@@ -371,8 +371,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * value is available immediately, or `Left(future)` in case we
     * have an asynchronous boundary or an error.
     */
-  def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
-    Coeval.eval(runSyncMaybe(s))
+  def coeval(implicit s: Scheduler, opts: Options): Coeval[Either[CancelableFuture[A], A]] =
+    Coeval.eval(runSyncMaybe(s, opts))
 
   /** Returns a failed projection of this task.
     *
@@ -747,8 +747,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * The application of this function has strict behavior, as the
     * task is immediately executed.
     */
-  def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
-    foreachL(f).runAsync(s)
+  def foreach(f: A => Unit)(implicit s: Scheduler, opts: Options): CancelableFuture[Unit] =
+    foreachL(f).runAsync(s, opts)
 
   /** Returns a new Task that applies the mapping function to the
     * element emitted by the source.
@@ -915,8 +915,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     }
 
   /** Converts the source `Task` to a `cats.effect.IO` value. */
-  def toIO(implicit s: Scheduler): IO[A] =
-    TaskConversions.toIO(this)(s)
+  def toIO(implicit s: Scheduler, opts: Options): IO[A] =
+    TaskConversions.toIO(this)(s, opts)
 
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
     * emits a single item on success, or just the error on failure.
@@ -2053,7 +2053,7 @@ object Task extends TaskInstances {
     }
 
     // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
       CancelableFuture.successful(value)
 
     override def toString: String =
@@ -2070,7 +2070,7 @@ object Task extends TaskInstances {
     }
 
     // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
       CancelableFuture.failed(ex)
 
     override def toString: String =
@@ -2155,10 +2155,10 @@ object Task extends TaskInstances {
           Cancelable.empty
       }
 
-    override def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
       state.get match {
         case null =>
-          super.runAsync(s)
+          super.runAsync(s, opts)
         case (p: Promise[_], conn: StackedCancelable) =>
           val f = p.asInstanceOf[Promise[A]].future
           CancelableFuture(f, conn)
