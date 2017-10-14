@@ -106,12 +106,12 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     var effect = 0
     val ts = Task.delay { effect += 1; effect }
 
-    assertEquals(ts.runAsync(s).value, Some(Success(1)))
-    assertEquals(ts.runAsync(s).value, Some(Success(2)))
-    assertEquals(ts.runAsync(s).value, Some(Success(3)))
+    assertEquals(ts.runAsync.value, Some(Success(1)))
+    assertEquals(ts.runAsync.value, Some(Success(2)))
+    assertEquals(ts.runAsync.value, Some(Success(3)))
 
     val dummy = new DummyException("dummy")
     val te = Task.delay { throw dummy }
-    assertEquals(te.runAsync(s).value, Some(Failure(dummy)))
+    assertEquals(te.runAsync.value, Some(Failure(dummy)))
   }
 }

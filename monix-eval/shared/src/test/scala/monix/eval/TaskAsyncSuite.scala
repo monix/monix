@@ -165,7 +165,7 @@ object TaskAsyncSuite extends BaseTestSuite {
       Cancelable.empty
     }
 
-    val f = task.runAsync(s)
+    val f = task.runAsync
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
