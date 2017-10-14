@@ -1898,7 +1898,7 @@ object Task extends TaskInstances {
     *
     * @see [[Task.Options]]
     */
-  val defaultOptions: Options = {
+  implicit val defaultOptions: Options = {
     if (Platform.isJS)
       // $COVERAGE-OFF$
       Options(autoCancelableRunLoops = false, localContextPropagation = false)
