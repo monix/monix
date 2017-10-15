@@ -293,7 +293,8 @@ private[eval] object TaskRunLoop {
   def startLightWithCallback[A](
     source: Task[A],
     scheduler: Scheduler,
-    cb: Callback[A]): Cancelable = {
+    cb: Callback[A],
+    opts: Task.Options): Cancelable = {
     /* Called when we hit the first async boundary. */
     def goAsync(
       source: Current,
@@ -302,7 +303,7 @@ private[eval] object TaskRunLoop {
       nextFrame: FrameIndex,
       forceAsync: Boolean): Cancelable = {
 
-      val context = Context(scheduler)
+      val context = Context(scheduler, opts)
       val cba = cb.asInstanceOf[Callback[Any]]
       if (forceAsync)
         restartAsync(source, context, cba, bindCurrent, bindRest)

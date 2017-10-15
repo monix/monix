@@ -279,8 +279,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return a [[monix.execution.Cancelable Cancelable]] that can
     *         be used to cancel a running task
     */
-  def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
-    TaskRunLoop.startLightWithCallback(self, s, cb)
+  def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options = defaultOptions): Cancelable =
+    TaskRunLoop.startLightWithCallback(self, s, cb, opts)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
@@ -295,11 +295,11 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return a [[monix.execution.Cancelable Cancelable]] that can
     *         be used to cancel a running task
     */
-  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable =
+  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable =
     runAsync(new Callback[A] {
       def onSuccess(value: A): Unit = f(Success(value))
       def onError(ex: Throwable): Unit = f(Failure(ex))
-    })
+    })(s, opts)
 
   /** $runAsyncDesc
     *
@@ -2046,7 +2046,7 @@ object Task extends TaskInstances {
   /** [[Task]] state describing an immediate synchronous value. */
   private[eval] final case class Now[A](value: A) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options = defaultOptions): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onSuccess(value)
       else s.executeAsync(() => cb.onSuccess(value))
       Cancelable.empty
@@ -2063,7 +2063,7 @@ object Task extends TaskInstances {
   /** [[Task]] state describing an immediate exception. */
   private[eval] final case class Error[A](ex: Throwable) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options = defaultOptions): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onError(ex)
       else s.executeAsync(() => cb.onError(ex))
       Cancelable.empty
@@ -2142,7 +2142,7 @@ object Task extends TaskInstances {
           Some(result.asInstanceOf[Try[A]])
       }
 
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options = defaultOptions): Cancelable =
       state.get match {
         case null =>
           super.runAsync(cb)(s)
