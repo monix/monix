@@ -64,7 +64,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, Platform.recommendedBatchSize * 2)
   }
 
-  test("fromStateAction should be cancelable") { implicit s =>
+  test("fromAsyncStateAction should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
