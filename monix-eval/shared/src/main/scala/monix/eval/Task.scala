@@ -279,7 +279,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return a [[monix.execution.Cancelable Cancelable]] that can
     *         be used to cancel a running task
     */
-  def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options = defaultOptions): Cancelable =
+  def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
     TaskRunLoop.startLightWithCallback(self, s, cb, opts)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
@@ -295,7 +295,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return a [[monix.execution.Cancelable Cancelable]] that can
     *         be used to cancel a running task
     */
-  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable =
+  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler, opts: Options = defaultOptions): Cancelable =
     runAsync(new Callback[A] {
       def onSuccess(value: A): Unit = f(Success(value))
       def onError(ex: Throwable): Unit = f(Failure(ex))
@@ -311,7 +311,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         that can be used to extract the result or to cancel
     *         a running task.
     */
-  def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+  def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
     TaskRunLoop.startAsFuture(this, s, opts)
 
   /** Tries to execute the source synchronously.
@@ -346,7 +346,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         was hit and further async execution is needed or
     *         in case of failure
     */
-  def runSyncMaybe(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
+  def runSyncMaybe(implicit s: Scheduler, opts: Options = defaultOptions): Either[CancelableFuture[A], A] = {
     val future = this.runAsync(s, opts)
 
     future.value match {
@@ -371,7 +371,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * value is available immediately, or `Left(future)` in case we
     * have an asynchronous boundary or an error.
     */
-  def coeval(implicit s: Scheduler, opts: Options): Coeval[Either[CancelableFuture[A], A]] =
+  def coeval(implicit s: Scheduler, opts: Options = defaultOptions): Coeval[Either[CancelableFuture[A], A]] =
     Coeval.eval(runSyncMaybe(s, opts))
 
   /** Returns a failed projection of this task.
@@ -747,7 +747,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * The application of this function has strict behavior, as the
     * task is immediately executed.
     */
-  def foreach(f: A => Unit)(implicit s: Scheduler, opts: Options): CancelableFuture[Unit] =
+  def foreach(f: A => Unit)(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[Unit] =
     foreachL(f).runAsync(s, opts)
 
   /** Returns a new Task that applies the mapping function to the
@@ -915,8 +915,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     }
 
   /** Converts the source `Task` to a `cats.effect.IO` value. */
-  def toIO(implicit s: Scheduler, opts: Options): IO[A] =
-    TaskConversions.toIO(this)(s, opts)
+  def toIO(implicit s: Scheduler): IO[A] =
+    TaskConversions.toIO(this)(s)
 
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
     * emits a single item on success, or just the error on failure.
@@ -1898,7 +1898,7 @@ object Task extends TaskInstances {
     *
     * @see [[Task.Options]]
     */
-  implicit val defaultOptions: Options = {
+  val defaultOptions: Options = {
     if (Platform.isJS)
       // $COVERAGE-OFF$
       Options(autoCancelableRunLoops = false, localContextPropagation = false)
@@ -2046,14 +2046,14 @@ object Task extends TaskInstances {
   /** [[Task]] state describing an immediate synchronous value. */
   private[eval] final case class Now[A](value: A) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options = defaultOptions): Cancelable = {
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onSuccess(value)
       else s.executeAsync(() => cb.onSuccess(value))
       Cancelable.empty
     }
 
     // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
       CancelableFuture.successful(value)
 
     override def toString: String =
@@ -2063,14 +2063,14 @@ object Task extends TaskInstances {
   /** [[Task]] state describing an immediate exception. */
   private[eval] final case class Error[A](ex: Throwable) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options = defaultOptions): Cancelable = {
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onError(ex)
       else s.executeAsync(() => cb.onError(ex))
       Cancelable.empty
     }
 
     // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options = defaultOptions): CancelableFuture[A] =
       CancelableFuture.failed(ex)
 
     override def toString: String =
@@ -2142,10 +2142,10 @@ object Task extends TaskInstances {
           Some(result.asInstanceOf[Try[A]])
       }
 
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options = defaultOptions): Cancelable =
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
       state.get match {
         case null =>
-          super.runAsync(cb)(s)
+          super.runAsync(cb)(s, opts)
         case (p: Promise[_], conn: StackedCancelable) =>
           val f = p.asInstanceOf[Promise[A]].future
           f.onComplete(cb)

@@ -56,7 +56,7 @@ object CatsEffectInstances {
         cb(Right(value)).unsafeRunAsync(noop)
       def onError(ex: Throwable): Unit =
         cb(Left(ex)).unsafeRunAsync(noop)
-    }))
+    })(s, Task.defaultOptions))
   }
 
   /** Reusable reference to an empty callback. */
