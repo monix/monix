@@ -1898,23 +1898,11 @@ object Task extends TaskInstances {
     *
     * @see [[Task.Options]]
     */
-  val defaultOptions: Options = {
-    if (Platform.isJS)
-      // $COVERAGE-OFF$
-      Options(autoCancelableRunLoops = false, localContextPropagation = false)
-      // $COVERAGE-ON$
-    else
-      Options(
-        autoCancelableRunLoops =
-          Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
-            .map(_.toLowerCase)
-            .exists(v => v == "yes" || v == "true" || v == "1"),
-        localContextPropagation =
-          Option(System.getProperty("monix.environment.localContextPropagation", ""))
-            .map(_.toLowerCase)
-            .exists(v => v == "yes" || v == "true" || v == "1")
-      )
-  }
+  val defaultOptions: Options =
+    Options(
+      autoCancelableRunLoops = Platform.autoCancelableRunLoops,
+      localContextPropagation = Platform.localContextPropagation
+    )
 
   /** A reference that boxes a [[FrameIndex]] possibly using a thread-local.
     *
