@@ -90,6 +90,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
   }
 
   test("Task.wanderUnordered should be stack safe on success") { implicit s =>
+    implicit val options = Task.defaultOptions
     def fold[A](ta: Task[ListBuffer[A]], next: A): Task[ListBuffer[A]] =
       ta flatMap { acc =>
         Task.wanderUnordered(Seq(acc, next)) { v =>

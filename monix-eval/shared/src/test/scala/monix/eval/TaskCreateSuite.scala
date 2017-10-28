@@ -31,6 +31,7 @@ object TaskCreateSuite extends BaseTestSuite {
     def sum(t1: Task[Int], t2: Task[Int]): Task[Int] =
       Task.create { (s, cb) =>
         implicit val scheduler = s
+        implicit val options = Task.defaultOptions
         val state = Atomic(null : Either[Int,Int])
         val composite = CompositeCancelable()
 
@@ -81,6 +82,7 @@ object TaskCreateSuite extends BaseTestSuite {
     def sum(t1: Task[Int], t2: Task[Int]): Task[Int] =
       Task.create { (s, cb) =>
         implicit val scheduler = s
+        implicit val options = Task.defaultOptions
         val c = MultiAssignmentCancelable()
 
         c := t1.runAsync(new Callback[Int] {

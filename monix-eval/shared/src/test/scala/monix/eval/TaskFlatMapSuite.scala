@@ -66,6 +66,8 @@ object TaskFlatMapSuite extends BaseTestSuite {
   }
 
   test("runAsync(callback) flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
+    implicit val options = Task.defaultOptions
+
     val maxCount = Platform.recommendedBatchSize * 4
     val expected = Platform.recommendedBatchSize * 2 - 1
 

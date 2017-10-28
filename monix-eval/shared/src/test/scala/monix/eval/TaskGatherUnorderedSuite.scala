@@ -87,6 +87,8 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
   }
 
   test("Task.gatherUnordered should be stack safe on success") { implicit s =>
+    implicit val options = Task.defaultOptions
+
     def fold[A,B](ta: Task[ListBuffer[A]], tb: Task[A]): Task[ListBuffer[A]] =
       Task.gatherUnordered(List(ta, tb)).map {
         case a :: b :: Nil =>
