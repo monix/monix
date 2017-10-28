@@ -58,7 +58,7 @@ private[reactive] final class ScanTaskObservable[A, S]
         out.onError(ex)
     }
 
-    conn.orderedUpdate(seed.runAsync(cb)(out.scheduler), 1)
+    conn.orderedUpdate(seed.runAsync(cb)(out.scheduler, Task.defaultOptions), 1)
   }
 
   private final class ScanTaskSubscriber(out: Subscriber[S], initial: S)

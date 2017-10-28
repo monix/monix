@@ -28,6 +28,7 @@ private[reactive] final
 class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
+    implicit val options = Task.defaultOptions
     var streamErrors = true
     try {
       val init = seed
