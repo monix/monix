@@ -9,8 +9,8 @@ addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+publishSigned ;sonatypeReleaseAll")
 
-val catsVersion = "1.0.0-MF"
-val catsEffectVersion = "0.4"
+val catsVersion = "1.0.0-RC1"
+val catsEffectVersion = "0.5"
 val jcToolsVersion = "2.0.2"
 val reactiveStreamsVersion = "1.0.1"
 val scalaTestVersion = "3.0.3"

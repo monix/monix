@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.functor.Contravariant
+import cats.Contravariant
 import monix.execution.misc.NonFatal
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
 
