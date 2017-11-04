@@ -19,6 +19,9 @@ package monix.tail
 
 import java.io.{OutputStream, PrintStream}
 
+import cats.laws._
+import cats.laws.discipline._
+
 import monix.eval.{Coeval, Task}
 import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException

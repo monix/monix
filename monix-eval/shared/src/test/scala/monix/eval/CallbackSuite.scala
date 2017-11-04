@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.functor.Contravariant
+import cats.Contravariant
 import monix.execution.exceptions.DummyException
 
 import scala.concurrent.Promise
