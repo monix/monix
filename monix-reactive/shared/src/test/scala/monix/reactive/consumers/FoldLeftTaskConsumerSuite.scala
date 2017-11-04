@@ -17,6 +17,8 @@
 
 package monix.reactive.consumers
 
+import cats.laws._
+import cats.laws.discipline._
 import cats.effect.IO
 import monix.eval.Task
 import monix.execution.exceptions.DummyException

@@ -18,8 +18,9 @@
 package monix.execution
 
 import cats.Eq
-import cats.laws.IsEq
-import cats.kernel.laws._
+import cats.laws._
+//import cats.kernel.laws._
+
 import minitest.SimpleTestSuite
 import minitest.laws.Checkers
 import monix.execution.exceptions.DummyException
@@ -68,13 +69,6 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
 
 trait ArbitraryInstances extends ArbitraryInstancesBase {
   /** Syntax for equivalence in tests. */
-  implicit final class IsEqArrow[A](val lhs: A) {
-    def <->(rhs: A): IsEq[A] = IsEq(lhs, rhs)
-  }
-
-  implicit def isEqToProp[A](isEq: IsEq[A])(implicit A: Eq[A]): Prop =
-    isEq.lhs ?== isEq.rhs
-
   implicit def isEqListToProp[A](list: List[IsEq[A]])(implicit A: Eq[A]): Prop =
     Prop(list.forall(isEq => A.eqv(isEq.lhs, isEq.rhs)))
 

@@ -17,6 +17,8 @@
 
 package monix.reactive.consumers
 
+import cats.laws._
+import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseTestSuite, Consumer, Observable}
 import scala.util.Failure

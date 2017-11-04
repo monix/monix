@@ -17,6 +17,8 @@
 
 package monix.tail
 
+import cats.laws._
+import cats.laws.discipline._
 import cats.effect.{Effect, IO}
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution

@@ -17,6 +17,8 @@
 
 package monix.reactive.internal.operators
 
+import cats.laws._
+import cats.laws.discipline._
 import monix.eval.Task
 import monix.reactive.{BaseTestSuite, Observable}
 import scala.concurrent.duration._
