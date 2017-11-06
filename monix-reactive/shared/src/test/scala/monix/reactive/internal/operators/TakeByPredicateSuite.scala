@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
@@ -69,7 +70,7 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
 
 
   test("should not call onComplete multiple times for 1 element") { implicit s =>
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     var wasCompleted = 0
 
     createObservable(1) match {
@@ -77,7 +78,7 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
+          def onNext(elem: Long): Future[Ack] = { onNextReceived = true; p.future }
           def onError(ex: Throwable): Unit = throw new IllegalStateException()
           def onComplete(): Unit = wasCompleted += 1
         })

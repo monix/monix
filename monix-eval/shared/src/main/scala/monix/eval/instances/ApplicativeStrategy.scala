@@ -29,14 +29,6 @@ package monix.eval.instances
 sealed trait ApplicativeStrategy[+F[_]]
 
 object ApplicativeStrategy {
-  /** Returns the [[Sequential]] strategy, parametrized by the given `F` type. */
-  def sequential[F[_]]: ApplicativeStrategy[F] =
-    Sequential
-
-  /** Returns the [[Parallel]] strategy, parametrized by the given `F` type. */
-  def parallel[F[_]]: ApplicativeStrategy[F] =
-    Parallel
-
   /** An [[ApplicativeStrategy]] specifying that sequential processing
     * should be used when applying operations such as `map2` or `ap` 
     * (e.g. ordered results, ordered side effects).

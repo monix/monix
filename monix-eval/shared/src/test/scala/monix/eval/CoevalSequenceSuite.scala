@@ -17,6 +17,9 @@
 
 package monix.eval
 
+import cats.laws._
+import cats.laws.discipline._
+
 object CoevalSequenceSuite extends BaseTestSuite {
   test("Coeval.sequence") { implicit s =>
     check1 { (numbers: List[Int]) =>

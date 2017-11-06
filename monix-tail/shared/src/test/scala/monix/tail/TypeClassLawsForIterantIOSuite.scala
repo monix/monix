@@ -20,14 +20,14 @@ package monix.tail
 import cats.Eq
 import cats.data.EitherT
 import cats.effect.IO
-import cats.laws.discipline.{CartesianTests, CoflatMapTests, MonadErrorTests, MonoidKTests}
+import cats.laws.discipline.{SemigroupalTests, CoflatMapTests, MonadErrorTests, MonoidKTests}
 
 object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
   type F[α] = Iterant[IO, α]
 
   // Explicit instance due to weird implicit resolution problem
-  implicit val iso: CartesianTests.Isomorphisms[F] =
-    CartesianTests.Isomorphisms.invariant
+  implicit val iso: SemigroupalTests.Isomorphisms[F] =
+    SemigroupalTests.Isomorphisms.invariant
 
   // Explicit instance, since Scala can't figure it out below :-(
   val eqEitherT: Eq[EitherT[F, Throwable, Int]] =

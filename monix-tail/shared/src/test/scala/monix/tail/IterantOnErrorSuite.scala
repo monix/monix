@@ -1,5 +1,8 @@
 package monix.tail
 
+import cats.laws._
+import cats.laws.discipline._
+
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 

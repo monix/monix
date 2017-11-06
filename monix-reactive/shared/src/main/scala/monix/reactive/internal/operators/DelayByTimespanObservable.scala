@@ -43,7 +43,7 @@ class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
       private[this] var completeTriggered = false
       private[this] val delayMs = delay.toMillis
       private[this] var currentElem: A = _
-      private[this] var ack: Promise[Ack] = null
+      private[this] var ack: Promise[Ack] = _
 
       def onNext(elem: A): Future[Ack] = {
         currentElem = elem

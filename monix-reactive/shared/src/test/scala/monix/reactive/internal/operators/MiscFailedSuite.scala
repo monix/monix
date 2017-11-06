@@ -52,7 +52,7 @@ object MiscFailedSuite extends TestSuite[TestScheduler] {
   test("should signal error without back-pressure applied") { implicit s =>
     var wasCompleted = false
     var thrown: Throwable = null
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
 
     Observable.raiseError(DummyException("dummy")).failed
       .unsafeSubscribeFn(new Observer[Throwable] {

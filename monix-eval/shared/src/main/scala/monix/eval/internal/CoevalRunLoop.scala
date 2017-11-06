@@ -42,7 +42,7 @@ private[eval] object CoevalRunLoop {
           }
 
         case eval @ Once(_) =>
-          loop(eval.runToEager, bFirst, bRest)
+          loop(eval.run, bFirst, bRest)
 
         case Always(thunk) =>
           val fa = try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }

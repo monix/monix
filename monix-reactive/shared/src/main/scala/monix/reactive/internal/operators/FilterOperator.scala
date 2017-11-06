@@ -18,9 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
 import monix.execution.misc.NonFatal
+import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 private[reactive] final class FilterOperator[A](p: A => Boolean)

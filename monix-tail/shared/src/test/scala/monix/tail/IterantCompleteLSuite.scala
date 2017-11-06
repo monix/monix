@@ -17,6 +17,8 @@
 
 package monix.tail
 
+import cats.laws._
+import cats.laws.discipline._
 import cats.syntax.all._
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
@@ -31,7 +33,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
         Iterant[Coeval].empty[Int]
       }
 
-      val fa = trigger.completeL >> Coeval.eval(effect)
+      val fa = trigger.completeL *> Coeval.eval(effect)
       fa <-> Coeval.now(1)
     }
   }

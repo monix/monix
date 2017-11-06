@@ -45,7 +45,7 @@ object WhileBusyDropEventsAndSignalOverflowSuite extends TestSuite[TestScheduler
 
   test("should drop events for busy observers") { implicit s =>
     val source = PublishSubject[Long]()
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     var received = 0L
     var wasCompleted = false
 
@@ -81,7 +81,7 @@ object WhileBusyDropEventsAndSignalOverflowSuite extends TestSuite[TestScheduler
 
   test("should send number of dropped events when onComplete") { implicit s =>
     val source = PublishSubject[Long]()
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     var received = 0L
     var wasCompleted = false
 

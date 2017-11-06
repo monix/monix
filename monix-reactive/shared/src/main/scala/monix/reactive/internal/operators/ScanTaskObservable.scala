@@ -25,9 +25,7 @@ import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
-import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
-
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
@@ -40,34 +38,27 @@ import scala.concurrent.Future
   */
 private[reactive] final class ScanTaskObservable[A, S]
   (source: Observable[A], seed: Task[S], op: (S, A) => Task[S])
-  extends ChainedObservable[S] {
+  extends Observable[S] {
 
-  def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[S]): Unit = {
-    val order = conn.currentOrder
+  def unsafeSubscribeFn(out: Subscriber[S]): Cancelable = {
+    val conn = MultiAssignmentCancelable()
+
     val cb = new Callback[S] {
       def onSuccess(initial: S): Unit = {
         val subscriber = new ScanTaskSubscriber(out, initial)
         val mainSubscription = source.unsafeSubscribeFn(subscriber)
-
         val c = Cancelable { () =>
           try mainSubscription.cancel()
           finally subscriber.cancel()
         }
-
-        conn.orderedUpdate(c, order + 2)
+        conn.orderedUpdate(c, 2)
       }
 
       def onError(ex: Throwable): Unit =
         out.onError(ex)
     }
 
-    conn.orderedUpdate(seed.runAsync(cb)(out.scheduler), order + 1)
-  }
-
-  def unsafeSubscribeFn(out: Subscriber[S]): Cancelable = {
-    val conn = MultiAssignmentCancelable()
-    unsafeSubscribeFn(conn, out)
-    conn
+    conn.orderedUpdate(seed.runAsync(cb)(out.scheduler), 1)
   }
 
   private final class ScanTaskSubscriber(out: Subscriber[S], initial: S)

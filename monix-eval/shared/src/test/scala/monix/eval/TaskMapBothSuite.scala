@@ -17,6 +17,9 @@
 
 package monix.eval
 
+import cats.laws._
+import cats.laws.discipline._
+
 import scala.util.{Failure, Success}
 
 object TaskMapBothSuite extends BaseTestSuite {

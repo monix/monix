@@ -71,7 +71,7 @@ object Subscriber {
   def empty[A](implicit s: Scheduler): Subscriber.Sync[A] =
     new Subscriber.Sync[A] {
       implicit val scheduler = s
-      def onNext(elem: A): Continue = Continue
+      def onNext(elem: A): Ack = Continue
       def onError(ex: Throwable): Unit = s.reportFailure(ex)
       def onComplete(): Unit = ()
     }
@@ -84,7 +84,7 @@ object Subscriber {
       implicit val scheduler: Scheduler = s
       def onError(ex: Throwable): Unit = s.reportFailure(ex)
       def onComplete(): Unit = ()
-      def onNext(elem: A): Stop = Stop
+      def onNext(elem: A): Ack = Stop
     }
 
   /** Builds an [[Subscriber]] that just logs incoming events. */

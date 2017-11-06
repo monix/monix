@@ -387,7 +387,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
 
     var sum = 0L
     val complete = new CountDownLatch(1)
-    val startConsuming = Promise[Continue]()
+    val startConsuming = Promise[Continue.type]()
 
     val buffer = BufferedSubscriber[Long](
       new Subscriber[Long] {
@@ -439,7 +439,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     val totalCount = 10000
     var sum = 0L
     val complete = new CountDownLatch(1)
-    val startConsuming = Promise[Continue]()
+    val startConsuming = Promise[Continue.type]()
 
     val buffer = BufferedSubscriber[Long](
       new Subscriber[Long] {

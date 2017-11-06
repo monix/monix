@@ -17,6 +17,9 @@
 
 package monix.reactive.consumers
 
+import cats.laws._
+import cats.laws.discipline._
+
 import monix.reactive.{BaseConcurrencySuite, Consumer, Observable}
 
 object LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {

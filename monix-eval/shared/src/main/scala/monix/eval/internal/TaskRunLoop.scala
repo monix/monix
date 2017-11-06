@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, MemoizeSuspend, Now, OnFinish, Suspend, fromTry}
+import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, MemoizeSuspend, Now, Suspend, fromTry}
 import monix.eval.{Callback, Task}
 import monix.execution.atomic.AtomicAny
 import monix.execution.cancelables.StackedCancelable
@@ -145,7 +145,7 @@ private[eval] object TaskRunLoop {
       rcb: RestartCallback,
       bFirst: Bind,
       bRest: CallStack,
-      onFinish: OnFinish[Any],
+      register: (Context, Callback[Any]) => Unit,
       nextFrame: FrameIndex): Unit = {
 
       if (!context.shouldCancel) {
@@ -163,7 +163,7 @@ private[eval] object TaskRunLoop {
         // rcb reference might be null, so initializing
         val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
         restartCallback.prepare(bFirst, bRest)
-        onFinish(context, restartCallback)
+        register(context, restartCallback)
       }
     }
 

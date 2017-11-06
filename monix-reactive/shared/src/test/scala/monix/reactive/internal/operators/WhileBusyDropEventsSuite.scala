@@ -42,7 +42,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
 
   test("should drop events for busy observers") { implicit s =>
     val source = PublishSubject[Long]()
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     var received = 0L
     var wasCompleted = false
 
@@ -75,7 +75,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
 
   test("onComplete should not apply back-pressure") { implicit s =>
     val source = PublishSubject[Long]()
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     var received = 0L
     var wasCompleted = false
 
@@ -107,7 +107,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
 
   test("onError should not apply back-pressure") { implicit s =>
     val source = PublishSubject[Long]()
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     var received = 0L
     var wasThrown = null : Throwable
 

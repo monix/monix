@@ -17,8 +17,12 @@
 
 package monix.eval
 
+import cats.Eval
 import cats.effect.{Effect, IO}
+import cats.laws._
+import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
+
 import scala.util.{Failure, Success}
 
 object TaskConversionsSuite extends BaseTestSuite {
@@ -125,6 +129,21 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
 
     assertEquals(s.state.lastReportedError, dummy)
+  }
+
+  test("Task.fromEval") { implicit s =>
+    var effect = 0
+    val task = Task.fromEval(Eval.always { effect += 1; effect })
+
+    assertEquals(task.runAsync.value, Some(Success(1)))
+    assertEquals(task.runAsync.value, Some(Success(2)))
+    assertEquals(task.runAsync.value, Some(Success(3)))
+  }
+
+  test("Task.fromEval protects against user error") { implicit s =>
+    val dummy = new DummyException("dummy")
+    val task = Task.fromEval(Eval.always { throw dummy })
+    assertEquals(task.runAsync.value, Some(Failure(dummy)))
   }
 
   class CustomIOEffect extends Effect[IO] {

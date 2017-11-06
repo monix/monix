@@ -28,7 +28,7 @@ import monix.reactive.observers.Subscriber
 private[reactive] final class DeferObservable[+A](factory: () => Observable[A])
   extends ChainedObservable[A] {
 
-  def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
+  override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val fa = try factory() catch { case NonFatal(e) => Observable.raiseError(e) }
     if (fa.isInstanceOf[ChainedObservable[_]]) {
       val ch = fa.asInstanceOf[ChainedObservable[A]]
