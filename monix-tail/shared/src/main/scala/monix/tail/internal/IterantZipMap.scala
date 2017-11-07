@@ -17,6 +17,7 @@
 
 package monix.tail.internal
 
+import cats.Applicative
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.misc.NonFatal
@@ -32,14 +33,14 @@ private[tail] object IterantZipMap {
     * Implementation for `Iterant#zipMap` 
     */
   def apply[F[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B])(f: (A, B) => C)
-    (implicit F: Sync[F]): Iterant[F, C] = {
+    (implicit F: Sync[F], A: Applicative[F]): Iterant[F, C] = {
     
     def loop(lh: Iterant[F, A], rh: Iterant[F, B]): Iterant[F, C] = {
       def stopBoth(stopA: F[Unit], stopB: F[Unit]): F[Unit] =
         stopA.flatMap(_ => stopB)
 
       def processPair(a: A, restA: F[Iterant[F, A]], stopA: F[Unit], b: B, restB: F[Iterant[F, B]], stopB: F[Unit]) = {
-        val rest = F.map2(restA, restB)(loop)
+        val rest = A.map2(restA, restB)(loop)
         Next(f(a, b), rest, stopBoth(stopA, stopB))
       }
 
@@ -81,9 +82,9 @@ private[tail] object IterantZipMap {
 
           if (isEmptyItemsA && isEmptyItemsB) {
             if (array.isEmpty)
-              Suspend(F.map2(restA, restB)(loop), stopBoth(stopA, stopB))
+              Suspend(A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromAnyArray(array), F.map2(restA, restB)(loop), stopBoth(stopA, stopB))
+              NextBatch(Batch.fromAnyArray(array), A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
           }
           else if (isEmptyItemsA) {
             if (array.isEmpty)
@@ -182,7 +183,7 @@ private[tail] object IterantZipMap {
             case Last(_) =>
               Suspend(restA.map(loop(_, rh)), stopA)
             case Suspend(restB, stopB) =>
-              Suspend(F.map2(restA, restB)(loop), stopBoth(stopA, stopB))
+              Suspend(A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
             case _ =>
               Suspend(restA.map(loop(_, rh)), stopBoth(stopA, rh.earlyStop))
           }

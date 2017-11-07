@@ -27,6 +27,9 @@ import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
+import scala.concurrent.duration._
+import scala.util.Success
+
 object IterantZipMapSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
     if (Platform.isJVM)
@@ -89,5 +92,43 @@ object IterantZipMapSuite extends BaseTestSuite {
     val stream = source1.zip(source2)
     stream.earlyStop.value
     assertEquals(effect, 2)
+  }
+
+  test("Iterant.parZip equivalence with List.zip") { implicit s =>
+    check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
+      val stream1 = arbitraryListToIterant[Task, Int](list1, math.abs(idx1) + 1, allowErrors = false)
+      val stream2 = arbitraryListToIterant[Task, Int](list2, math.abs(idx2) + 1, allowErrors = false)
+
+      val received = stream1.parZip(stream2).toListL
+      val expected = Task.eval(list1.zip(list2))
+      received <-> expected
+    }
+  }
+
+  test("Iterant.zip does not process in parallel") { implicit s =>
+    val stream1 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(1)).delayExecution(1.second))
+    val stream2 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(2)).delayExecution(1.second))
+    val task = stream1.zip(stream2).headOptionL
+
+    val f = task.runAsync
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(Some((1, 2)))))
+  }
+
+  test("Iterant.parZip can process in parallel") { implicit s =>
+    val stream1 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(1)).delayExecution(1.second))
+    val stream2 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(2)).delayExecution(1.second))
+    val task = stream1.parZip(stream2).headOptionL
+
+    val f = task.runAsync
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(Some((1, 2)))))
   }
 }

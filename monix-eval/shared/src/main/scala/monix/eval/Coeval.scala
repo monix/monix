@@ -560,7 +560,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   *         naming consistency with the Typelevel ecosystem, where
   *         `Attempt[A]` is usually an alias for `Either[Throwable, A]`.
   */
-object Coeval extends CoevalLevel0 {
+object Coeval extends CoevalInstancesLevel0 {
   /** Promotes a non-strict value to a [[Coeval]].
     *
     * Alias of [[eval]].
@@ -1035,7 +1035,7 @@ object Coeval extends CoevalLevel0 {
     new CatsMonadToMonoid[Coeval, A]()(CatsSyncForCoeval, A)
 }
 
-private[eval] abstract class CoevalLevel0 {
+private[eval] abstract class CoevalInstancesLevel0 {
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
     * then this provides the evidence that `Coeval[A]` also has
     * a `Semigroup[Coeval[A]]` implementation.
