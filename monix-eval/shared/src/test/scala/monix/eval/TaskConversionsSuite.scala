@@ -19,8 +19,9 @@ package monix.eval
 
 import cats.Eval
 import cats.effect.{Effect, IO}
+import cats.laws._
+import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success}
 
 object TaskConversionsSuite extends BaseTestSuite {
@@ -79,12 +80,6 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromEffect(task) == task") { implicit s =>
-    val ref = Task(1)
-    assertEquals(Task.fromEffect(ref), ref)
-  }
-
-  test("Task.fromEffect(parallelTask) == parallelTask") { implicit s =>
-    import Task.nondeterminism
     val ref = Task(1)
     assertEquals(Task.fromEffect(ref), ref)
   }

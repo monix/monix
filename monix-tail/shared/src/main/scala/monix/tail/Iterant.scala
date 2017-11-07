@@ -20,9 +20,9 @@ package monix.tail
 import java.io.PrintStream
 
 import cats.arrow.FunctionK
-import cats.effect.{Effect, Sync}
-import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order}
-import monix.eval.instances.{CatsAsyncInstances, CatsSyncInstances}
+import cats.effect.{Async, Effect, Sync}
+import cats.{Applicative, CoflatMap, Eq, MonadError, Monoid, MonoidK, Order, Parallel}
+import monix.eval.instances.{CatsAsyncForTask, CatsBaseForTask, CatsSyncForCoeval}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
 import monix.tail.batches.{Batch, BatchCursor}
@@ -126,20 +126,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
   import Iterant._
 
-  /** Appends the given stream to the end of the source, effectively
-    * concatenating them.
-    *
-    * Example: {{{
-    *   // Yields 1, 2, 3, 4
-    *   Iterant[Task].of(1, 2) ++ Iterant[Task].of(3, 4)
-    * }}}
-    *
-    * @param rhs is the (right hand side) iterant to concatenate at
-    *        the end of this iterant.
-    */
-  final def ++[B >: A](rhs: Iterant[F, B])(implicit F: Applicative[F]): Iterant[F, B] =
-    IterantConcat.concat(this.upcast[B], rhs)(F)
-
   /** Appends a stream to the end of the source, effectively
     * concatenating them.
     *
@@ -184,6 +170,41 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def :+[B >: A](elem: B)(implicit F: Applicative[F]): Iterant[F, B] =
     ++(Next[F, B](elem, F.pure(Halt[F, B](None)), F.unit))(F)
+
+  /** Appends the given stream to the end of the source, effectively
+    * concatenating them.
+    *
+    * Example: {{{
+    *   // Yields 1, 2, 3, 4
+    *   Iterant[Task].of(1, 2) ++ Iterant[Task].of(3, 4)
+    * }}}
+    *
+    * @param rhs is the (right hand side) iterant to concatenate at
+    *        the end of this iterant.
+    */
+  final def ++[B >: A](rhs: Iterant[F, B])(implicit F: Applicative[F]): Iterant[F, B] =
+    IterantConcat.concat(this.upcast[B], rhs)(F)
+
+  /** Explicit covariance operator.
+    *
+    * The [[Iterant]] type isn't covariant in type param `A`, because
+    * covariance doesn't play well with a higher-kinded type like
+    * `F[_]`.  So in case you have an `Iterant[F, A]`, but need an
+    * `Iterant[F, B]`, knowing that `A extends B`, then you can do an
+    * `upcast`.
+    *
+    * Example: {{{
+    *   val source: Iterant[Task, List[Int]] = ???
+    *
+    *   // This will trigger an error because of the invariance:
+    *   val sequences: Iterant[Task, Seq[Int]] = source
+    *
+    *   // But this will work just fine:
+    *   val sequences: Iterant[Task, Seq[Int]] = source.upcast[Seq[Int]]
+    * }}}
+    */
+  final def upcast[B >: A]: Iterant[F, B] =
+    this.asInstanceOf[Iterant[F, B]]
 
   /** Converts the source `Iterant` that emits `A` elements into an
     * iterant that emits `Either[Throwable, A]`, thus materializing
@@ -313,24 +334,45 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def collect[B](pf: PartialFunction[A, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantCollect(this, pf)(F)
 
-  /** Upon evaluation of the result, consumes this iterant to
-    * completion.
-    *
-    * Example: {{{
-    *   val onFinish: Task[Unit] =
-    *     iterant.completeL >> Task.eval(println("Done!"))
-    * }}}
-    */
-  final def completeL(implicit F: Sync[F]): F[Unit] =
-    IterantCompleteL(this)(F)
-
   /** Alias for [[concat]]. */
   final def concat[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
     flatten(ev, F)
 
+  /** Given an `Iterant` that generates `Iterant` elements, concatenates
+    * all the generated iterants.
+    *
+    * Equivalent with: `source.flatMap(x => x)`
+    */
+  final def flatten[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
+    flatMap(x => x)(F)
+
   /** Alias for [[flatMap]]. */
   final def concatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     flatMap(f)
+
+  /** Applies the function to the elements of the source and
+    * concatenates the results.
+    *
+    * This operation is the monadic "bind", with all laws it entails.
+    *
+    * Also note that the implementation can use constant memory
+    * depending on usage, thus it can be used in tail recursive loops.
+    *
+    * Example: {{{
+    *   // Effectively equivalent with .filter
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).flatMap { elem =>
+    *     if (elem % 2 == 0)
+    *       Iterant[Task].pure(elem)
+    *     else
+    *       Iterant[Task].empty
+    *   }
+    * }}}
+    *
+    * @param f is the function mapping elements from the
+    *        source to iterants
+    */
+  final def flatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
+    IterantConcat.flatMap(this, f)(F)
 
   /** Counts the total number of elements emitted by the source.
     *
@@ -550,6 +592,52 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     foldWhileLeftL(false)((_, e) => if (p(e)) Right(true) else next)
   }
 
+  /** Left associative fold using the function `op` that can be
+    * short-circuited.
+    *
+    * On execution the stream will be traversed from left to right,
+    * and the given function will be called with the prior result,
+    * accumulating state either until the end, or until `op` returns
+    * a `Right` result, when the summary is returned.
+    *
+    * Example: {{{
+    *   // Sums first 10 items
+    *   Iterant[Task].range(0, 1000).foldWhileLeftL((0, 0)) {
+    *     case ((sum, count), e) =>
+    *       val next = (sum + e, count + 1)
+    *       if (count + 1 < 10) Left(next) else Right(next)
+    *   }
+    *
+    *   // Implements exists(predicate)
+    *   Iterant[Task].of(1, 2, 3, 4, 5).foldWhileLeftL(false) {
+    *     (default, e) =>
+    *       if (e == 3) Right(true) else Left(default)
+    *   }
+    *
+    *   // Implements forall(predicate)
+    *   Iterant[Task].of(1, 2, 3, 4, 5).foldWhileLeftL(true) {
+    *     (default, e) =>
+    *       if (e != 3) Right(false) else Left(default)
+    *   }
+    * }}}
+    *
+    * @see [[Iterant.foldWhileLeftL]] for the lazy, potentially
+    *      asynchronous version.
+    *
+    * @param seed is the start value
+    * @param op is the binary operator returning either `Left`,
+    *        signaling that the state should be evolved or a `Right`,
+    *        signaling that the process can be short-circuited and
+    *        the result returned immediately
+    *
+    * @return the result of inserting `op` between consecutive
+    *         elements of this iterant, going from left to right with
+    *         the `seed` as the start value, or `seed` if the iterant
+    *         is empty
+    */
+  final def foldWhileLeftL[S](seed: => S)(op: (S, A) => Either[S, S])(implicit F: Sync[F]): F[S] =
+    IterantFoldWhileLeft.strict(self, seed, op)
+
   /** Filters the iterant by the given predicate function, returning
     * only those elements that match.
     *
@@ -609,21 +697,16 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def foreach(cb: A => Unit)(implicit F: Sync[F]): F[Unit] =
     map(cb)(F).completeL
 
-  /** Optionally selects the first element.
+  /** Upon evaluation of the result, consumes this iterant to
+    * completion.
     *
-    * {{{
-    *   // Yields Some(1)
-    *   Iterant[Task].of(1, 2, 3, 4).headOptionL
-    *
-    *   // Yields None
-    *   Iterant[Task].empty[Int].headOptionL
+    * Example: {{{
+    *   val onFinish: Task[Unit] =
+    *     iterant.completeL >> Task.eval(println("Done!"))
     * }}}
-    *
-    * @return the first element of this iterant if it is nonempty, or
-    *         `None` if it is empty, in the `F` context.
     */
-  final def headOptionL(implicit F: Sync[F]): F[Option[A]] =
-    IterantSlice.headOptionL(self)(F)
+  final def completeL(implicit F: Sync[F]): F[Unit] =
+    IterantCompleteL(this)(F)
 
   /** Returns a new stream by mapping the supplied function over the
     * elements of the source.
@@ -640,6 +723,22 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def map[B](f: A => B)(implicit F: Sync[F]): Iterant[F, B] =
     IterantMap(this, f)(F)
+
+  /** Optionally selects the first element.
+    *
+    * {{{
+    *   // Yields Some(1)
+    *   Iterant[Task].of(1, 2, 3, 4).headOptionL
+    *
+    *   // Yields None
+    *   Iterant[Task].empty[Int].headOptionL
+    * }}}
+    *
+    * @return the first element of this iterant if it is nonempty, or
+    *         `None` if it is empty, in the `F` context.
+    */
+  final def headOptionL(implicit F: Sync[F]): F[Option[A]] =
+    IterantSlice.headOptionL(self)(F)
 
   /** Given a mapping function that returns a possibly lazy or
     * asynchronous result, applies it over the elements emitted by the
@@ -661,30 +760,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def mapEval[B](f: A => F[B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantMapEval(this, f)(F)
-
-  /** Applies the function to the elements of the source and
-    * concatenates the results.
-    *
-    * This operation is the monadic "bind", with all laws it entails.
-    *
-    * Also note that the implementation can use constant memory
-    * depending on usage, thus it can be used in tail recursive loops.
-    *
-    * Example: {{{
-    *   // Effectively equivalent with .filter
-    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).flatMap { elem =>
-    *     if (elem % 2 == 0)
-    *       Iterant[Task].pure(elem)
-    *     else
-    *       Iterant[Task].empty
-    *   }
-    * }}}
-    *
-    * @param f is the function mapping elements from the
-    *        source to iterants
-    */
-  final def flatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
-    IterantConcat.flatMap(this, f)(F)
 
   /** Given a predicate, finds the first item that satisfies it,
     * returning `Some(a)` if available, or `None` otherwise.
@@ -712,14 +787,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     val next = Left(init)
     foldWhileLeftL(init) { (_, a) => if (p(a)) Right(Some(a)) else next }
   }
-
-  /** Given an `Iterant` that generates `Iterant` elements, concatenates
-    * all the generated iterants.
-    *
-    * Equivalent with: `source.flatMap(x => x)`
-    */
-  final def flatten[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
-    flatMap(x => x)(F)
 
   /** Given evidence that type `A` has a `cats.Monoid` implementation,
     * folds the stream with the provided monoid definition.
@@ -775,52 +842,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def foldLeftL[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): F[S] =
     IterantFoldLeft(self, seed)(op)(F)
-
-  /** Left associative fold using the function `op` that can be
-    * short-circuited.
-    *
-    * On execution the stream will be traversed from left to right,
-    * and the given function will be called with the prior result,
-    * accumulating state either until the end, or until `op` returns
-    * a `Right` result, when the summary is returned.
-    *
-    * Example: {{{
-    *   // Sums first 10 items
-    *   Iterant[Task].range(0, 1000).foldWhileLeftL((0, 0)) {
-    *     case ((sum, count), e) =>
-    *       val next = (sum + e, count + 1)
-    *       if (count + 1 < 10) Left(next) else Right(next)
-    *   }
-    *
-    *   // Implements exists(predicate)
-    *   Iterant[Task].of(1, 2, 3, 4, 5).foldWhileLeftL(false) {
-    *     (default, e) =>
-    *       if (e == 3) Right(true) else Left(default)
-    *   }
-    *
-    *   // Implements forall(predicate)
-    *   Iterant[Task].of(1, 2, 3, 4, 5).foldWhileLeftL(true) {
-    *     (default, e) =>
-    *       if (e != 3) Right(false) else Left(default)
-    *   }
-    * }}}
-    *
-    * @see [[Iterant.foldWhileLeftL]] for the lazy, potentially
-    *      asynchronous version.
-    *
-    * @param seed is the start value
-    * @param op is the binary operator returning either `Left`,
-    *        signaling that the state should be evolved or a `Right`,
-    *        signaling that the process can be short-circuited and
-    *        the result returned immediately
-    *
-    * @return the result of inserting `op` between consecutive
-    *         elements of this iterant, going from left to right with
-    *         the `seed` as the start value, or `seed` if the iterant
-    *         is empty
-    */
-  final def foldWhileLeftL[S](seed: => S)(op: (S, A) => Either[S, S])(implicit F: Sync[F]): F[S] =
-    IterantFoldWhileLeft.strict(self, seed, op)
 
   /** Left associative fold using the function `op` that can be
     * short-circuited.
@@ -905,7 +926,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     *   def concat[F[_], A](lh: Iterant[F, A], rh: Iterant[F, A])
     *     (implicit F: Sync[F]): Iterant[F, A] = {
-
+    *
     *     Iterant.suspend[F, A] {
     *       lh.foldRightL(F.pure(rh)) { (a, rest, stop) =>
     *         F.pure(Iterant.nextS(a, rest, stop))
@@ -1118,56 +1139,30 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def minL(implicit F: Sync[F], A: Order[A]): F[Option[A]] =
     reduceL((max, a) => if (A.compare(max, a) > 0) a else max)
 
-  /** Returns an `Iterant` that mirrors the behavior of the source,
-    * unless the source is terminated with an error, in which
-    * case the streaming of events fallbacks to an iterant
-    * emitting a single element generated by the backup function.
+  /** Reduces the elements of the source using the specified
+    * associative binary operator, going from left to right, start to
+    * finish.
     *
-    * Example: {{{
-    *   val prefix = Iterant[Task].of(1, 2, 3, 4)
-    *   val suffix = Iterant[Task].raiseError(DummyException("dummy"))
-    *   val fa = prefix ++ suffix
+    * Example:
     *
-    *   fa.onErrorHandle { _ => 5 }
+    * {{{
+    *   // Yields Some(10)
+    *   Iterant[Coeval].of(1, 2, 3, 4).reduceL(_ + _)
+    *
+    *   // Yields None
+    *   Iterant[Coeval].empty[Int].reduceL(_ + _)
     * }}}
     *
-    * See [[onErrorRecover]] for the version that takes a
-    * partial function as a parameter.
+    * @param op is an associative binary operation that's going
+    *           to be used to reduce the source to a single value
     *
-    * @param f is a function that matches errors with a
-    *        backup element that is emitted when the source
-    *        throws an error.
+    * @return either `Some(value)` in case the stream is not empty,
+    *         `value` being the result of inserting `op` between
+    *         consecutive elements of this iterant, going from left
+    *         to right, or `None` in case the stream is empty
     */
-  final def onErrorHandle[B >: A](f: Throwable => B)(implicit F: Sync[F]): Iterant[F, B] =
-    onErrorHandleWith { e => Iterant.pure[F, B](f(e)) }
-
-  /** Returns an `Iterant` that mirrors the behavior of the source,
-    * unless the source is terminated with an error, in which case
-    * the streaming of events continues with the specified backup
-    * sequence generated by the given function.
-    *
-    * Example: {{{
-    *   val prefix = Iterant[Task].of(1, 2, 3, 4)
-    *   val suffix = Iterant[Task].raiseError(DummyException("dummy"))
-    *   val fa = prefix ++ suffix
-    *
-    *   fa.onErrorHandleWith {
-    *     case _: DummyException =>
-    *       Iterant[Task].pure(5)
-    *     case other =>
-    *       Iterant[Task].raiseError(other)
-    *   }
-    * }}}
-    *
-    * See [[onErrorRecoverWith]] for the version that takes a partial
-    * function as a parameter.
-    *
-    * @param f is a function that matches errors with a
-    *        backup throwable that is subscribed when the source
-    *        throws an error.
-    */
-  final def onErrorHandleWith[B >: A](f: Throwable => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
-    IterantOnError.handleWith(self.upcast, f)
+  final def reduceL(op: (A, A) => A)(implicit F: Sync[F]): F[Option[A]] =
+    IterantReduce(self, op)
 
   /** Returns an `Iterant` that mirrors the behavior of the source,
     * unless the source is terminated with an error, in which case
@@ -1203,6 +1198,34 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     }
 
   /** Returns an `Iterant` that mirrors the behavior of the source,
+    * unless the source is terminated with an error, in which case
+    * the streaming of events continues with the specified backup
+    * sequence generated by the given function.
+    *
+    * Example: {{{
+    *   val prefix = Iterant[Task].of(1, 2, 3, 4)
+    *   val suffix = Iterant[Task].raiseError(DummyException("dummy"))
+    *   val fa = prefix ++ suffix
+    *
+    *   fa.onErrorHandleWith {
+    *     case _: DummyException =>
+    *       Iterant[Task].pure(5)
+    *     case other =>
+    *       Iterant[Task].raiseError(other)
+    *   }
+    * }}}
+    *
+    * See [[onErrorRecoverWith]] for the version that takes a partial
+    * function as a parameter.
+    *
+    * @param f is a function that matches errors with a
+    *        backup throwable that is subscribed when the source
+    *        throws an error.
+    */
+  final def onErrorHandleWith[B >: A](f: Throwable => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
+    IterantOnError.handleWith(self.upcast, f)
+
+  /** Returns an `Iterant` that mirrors the behavior of the source,
     * unless the source is terminated with an error, in which
     * case the streaming of events fallbacks to an iterant
     * emitting a single element generated by the backup function.
@@ -1234,36 +1257,65 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
       else throw e
     }
 
+  /** Returns an `Iterant` that mirrors the behavior of the source,
+    * unless the source is terminated with an error, in which
+    * case the streaming of events fallbacks to an iterant
+    * emitting a single element generated by the backup function.
+    *
+    * Example: {{{
+    *   val prefix = Iterant[Task].of(1, 2, 3, 4)
+    *   val suffix = Iterant[Task].raiseError(DummyException("dummy"))
+    *   val fa = prefix ++ suffix
+    *
+    *   fa.onErrorHandle { _ => 5 }
+    * }}}
+    *
+    * See [[onErrorRecover]] for the version that takes a
+    * partial function as a parameter.
+    *
+    * @param f is a function that matches errors with a
+    *        backup element that is emitted when the source
+    *        throws an error.
+    */
+  final def onErrorHandle[B >: A](f: Throwable => B)(implicit F: Sync[F]): Iterant[F, B] =
+    onErrorHandleWith { e => Iterant.pure[F, B](f(e)) }
+
   /** Returns a new `Iterant` that mirrors the source, but ignores
     * any errors in case they happen.
     */
   final def onErrorIgnore(implicit F: Sync[F]): Iterant[F, A] =
     onErrorHandleWith(_ => Iterant.empty[F, A])
 
-  /** Reduces the elements of the source using the specified
-    * associative binary operator, going from left to right, start to
-    * finish.
+  /** Lazily zip two iterants together, the elements of the emitted
+    * tuples being fetched in parallel.
     *
-    * Example:
+    * This is the parallel version of [[zip]], the results are
+    * still ordered, but it can yield non-deterministic ordering
+    * of effects when fetching the elements of an emitted tuple.
     *
-    * {{{
-    *   // Yields Some(10)
-    *   Iterant[Coeval].of(1, 2, 3, 4).reduceL(_ + _)
-    *
-    *   // Yields None
-    *   Iterant[Coeval].empty[Int].reduceL(_ + _)
-    * }}}
-    *
-    * @param op is an associative binary operation that's going
-    *           to be used to reduce the source to a single value
-    *
-    * @return either `Some(value)` in case the stream is not empty,
-    *         `value` being the result of inserting `op` between
-    *         consecutive elements of this iterant, going from left
-    *         to right, or `None` in case the stream is empty
+    * @param rhs is the other iterant to zip the source with (the
+    *        right hand side)
     */
-  final def reduceL(op: (A, A) => A)(implicit F: Sync[F]): F[Option[A]] =
-    IterantReduce(self, op)
+  final def parZip[G[_], B](rhs: Iterant[F, B])
+    (implicit F: Sync[F], P: Parallel[F, G]): Iterant[F, (A, B)] =
+    (self parZipMap rhs) ((a, b) => (a, b))
+
+  /** Lazily zip two iterants together, in parallel, using the given
+    * function `f` to produce output values.
+    *
+    * This is like [[zipMap]], except that the element pairs are
+    * processed in parallel (ordered results, but non-deterministic
+    * ordering of effects).
+    *
+    * @param rhs is the other iterant to zip the source with (the
+    *        right hand side)
+    *
+    * @param f is the mapping function to transform the zipped
+    *        `(A, B)` elements
+    */
+  final def parZipMap[G[_], B, C](rhs: Iterant[F, B])(f: (A, B) => C)
+    (implicit F: Sync[F], P: Parallel[F, G]): Iterant[F, C] =
+    IterantZipMap.par(this, rhs, f)
 
   /** Applies the function to the elements of the source and
     * concatenates the results.
@@ -1280,27 +1332,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def unsafeFlatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.unsafeFlatMap(this)(f)(F)
-
-  /** Explicit covariance operator.
-    *
-    * The [[Iterant]] type isn't covariant in type param `A`, because
-    * covariance doesn't play well with a higher-kinded type like
-    * `F[_]`.  So in case you have an `Iterant[F, A]`, but need an
-    * `Iterant[F, B]`, knowing that `A extends B`, then you can do an
-    * `upcast`.
-    *
-    * Example: {{{
-    *   val source: Iterant[Task, List[Int]] = ???
-    *
-    *   // This will trigger an error because of the invariance:
-    *   val sequences: Iterant[Task, Seq[Int]] = source
-    *
-    *   // But this will work just fine:
-    *   val sequences: Iterant[Task, Seq[Int]] = source.upcast[Seq[Int]]
-    * }}}
-    */
-  final def upcast[B >: A]: Iterant[F, B] =
-    this.asInstanceOf[Iterant[F, B]]
 
   /** Creates a new iterant that upon evaluation will select
     * the first `n` elements from the source and then stop,
@@ -1543,6 +1574,25 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def toListL(implicit F: Sync[F]): F[List[A]] =
     IterantFoldLeft.toListL(self)(F)
 
+  /** Lazily zip two iterants together.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    *
+    * Example: {{{
+    *   val lh = Iterant[Task].of(11, 12, 13, 14)
+    *   val rh = Iterant[Task].of(21, 22, 23, 24, 25)
+    *
+    *   // Yields (11, 21), (12, 22), (13, 23), (14, 24)
+    *   lh.zip(rh)
+    * }}}
+    *
+    * @param rhs is the other iterant to zip the source with (the
+    *        right hand side)
+    */
+  final def zip[B](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, (A, B)] =
+    (self zipMap rhs) ((a, b) => (a, b))
+
   /** Lazily zip two iterants together, using the given function `f` to
     * produce output values.
     *
@@ -1565,26 +1615,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def zipMap[B, C](rhs: Iterant[F, B])(f: (A, B) => C)
     (implicit F: Sync[F]): Iterant[F, C] =
-    IterantZipMap(this, rhs)(f)
-
-  /** Lazily zip two iterants together.
-    *
-    * The length of the result will be the shorter of the two
-    * arguments.
-    *
-    * Example: {{{
-    *   val lh = Iterant[Task].of(11, 12, 13, 14)
-    *   val rh = Iterant[Task].of(21, 22, 23, 24, 25)
-    *
-    *   // Yields (11, 21), (12, 22), (13, 23), (14, 24)
-    *   lh.zip(rh)
-    * }}}
-    *
-    * @param rhs is the other iterant to zip the source with (the
-    *        right hand side)
-    */
-  final def zip[B](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, (A, B)] =
-    (self zipMap rhs)((a, b) => (a, b))
+    IterantZipMap.seq(this, rhs, f)
 
   /** Zips the emitted elements of the source with their indices.
     *
@@ -1652,7 +1683,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         This state cannot be followed by any other element and
   *         represents the end of the stream.
   *
-  *         @see [[Iterant.Last]] for an alternative that signals one
+  * @see [[Iterant.Last]] for an alternative that signals one
   *              last item, as an optimisation
   *
   * @define builderSuspendByName Promote a non-strict value representing a
@@ -1816,7 +1847,7 @@ object Iterant extends IterantInstances {
     IterantConcat.tailRecM(a)(f)
 
   /** Converts any standard `Array` into a stream. */
-  def fromArray[F[_], A : ClassTag](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
+  def fromArray[F[_], A: ClassTag](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextBatch(Batch.fromArray(xs), F.pure(empty[F, A]), F.unit)
 
   /** Converts any `scala.collection.Seq` into a stream. */
@@ -1956,60 +1987,56 @@ object Iterant extends IterantInstances {
     def earlyStop(implicit F: Applicative[F]): F[Unit] =
       F.unit
   }
+
 }
 
 private[tail] trait IterantInstances extends IterantInstances1 {
   /** Provides type class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
-    * [[monix.eval.Task.catsInstances Task.catsInstances]].
+    * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
-  implicit def catsInstancesForTask(implicit F: CatsAsyncInstances[Task]): CatsInstances[Task] = {
-    import CatsAsyncInstances.{ForParallelTask, ForTask}
+  implicit def catsInstancesForTask(implicit F: Async[Task]): CatsInstances[Task] = {
     // Avoiding the creation of junk, because it is expensive
     F match {
-      case ForTask => defaultIterantTaskRef
-      case ForParallelTask => nondetIterantTaskRef
+      case _: CatsBaseForTask => defaultIterantTaskRef
       case _ => new CatsInstancesForTask()(F)
     }
   }
 
   /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
   private[this] final val defaultIterantTaskRef: CatsInstances[Task] =
-    new CatsInstancesForTask()(CatsAsyncInstances.ForTask)
+    new CatsInstancesForTask()(CatsAsyncForTask)
 
   /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
-    * [[monix.eval.Coeval.catsInstances Coeval.catsSync]].
+    * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
     */
-  implicit def catsInstancesForCoeval(implicit F: CatsSyncInstances[Coeval]): CatsInstances[Coeval] = {
-    import CatsSyncInstances.ForCoeval
+  implicit def catsInstancesForCoeval(implicit F: Sync[Coeval]): CatsInstances[Coeval] = {
     // Avoiding the creation of junk, because it is expensive
     F match {
-      case `ForCoeval` => defaultIterantCoevalRef
+      case CatsSyncForCoeval => defaultIterantCoevalRef
       case _ => new CatsInstancesForCoeval()(F)
     }
   }
 
   /** Reusable instance for `Iterant[Coeval, A]`, avoids creating junk. */
   private[this] final val defaultIterantCoevalRef =
-    new CatsInstancesForCoeval()(CatsSyncInstances.ForCoeval)
-  /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
-  private[this] val nondetIterantTaskRef =
-    new CatsInstancesForTask()(CatsAsyncInstances.ForParallelTask)
+    new CatsInstancesForCoeval()(CatsSyncForCoeval)
 
   /** Provides type class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
-    * [[monix.eval.Task.catsInstances Task.catsInstances]].
+    * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
-  private final class CatsInstancesForTask(implicit F: CatsAsyncInstances[Task])
+  private final class CatsInstancesForTask(implicit F: Async[Task])
     extends CatsInstances[Task]()(F)
 
   /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
-    * [[monix.eval.Coeval.catsInstances Coeval.catsSync]].
+    * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
     */
-  private final class CatsInstancesForCoeval(implicit F: CatsSyncInstances[Coeval])
+  private final class CatsInstancesForCoeval(implicit F: Sync[Coeval])
     extends CatsInstances[Coeval]()(F)
+
 }
 
 private[tail] trait IterantInstances1 {
@@ -2019,46 +2046,55 @@ private[tail] trait IterantInstances1 {
 
   /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
   class CatsInstances[F[_]](implicit F: Sync[F])
-    extends Sync[({type λ[α] = Iterant[F, α]})#λ]
-    with MonoidK[({type λ[α] = Iterant[F, α]})#λ]
-    with CoflatMap[({type λ[α] = Iterant[F, α]})#λ] {
+    extends MonadError[({type λ[α] = Iterant[F, α]})#λ, Throwable]
+      with MonoidK[({type λ[α] = Iterant[F, α]})#λ]
+      with CoflatMap[({type λ[α] = Iterant[F, α]})#λ] {
 
     override def pure[A](a: A): Iterant[F, A] =
       Iterant.pure(a)
+
     override def map[A, B](fa: Iterant[F, A])(f: (A) => B): Iterant[F, B] =
       fa.map(f)(F)
+
     override def flatMap[A, B](fa: Iterant[F, A])(f: (A) => Iterant[F, B]): Iterant[F, B] =
       fa.flatMap(f)
+
     override def map2[A, B, Z](fa: Iterant[F, A], fb: Iterant[F, B])(f: (A, B) => Z): Iterant[F, Z] =
       fa.flatMap(a => fb.map(b => f(a, b))(F))
+
     override def ap[A, B](ff: Iterant[F, (A) => B])(fa: Iterant[F, A]): Iterant[F, B] =
       ff.flatMap(f => fa.map(a => f(a))(F))
+
     override def tailRecM[A, B](a: A)(f: (A) => Iterant[F, Either[A, B]]): Iterant[F, B] =
       Iterant.tailRecM(a)(f)(F)
+
     override def empty[A]: Iterant[F, A] =
       Iterant.empty
+
     override def combineK[A](x: Iterant[F, A], y: Iterant[F, A]): Iterant[F, A] =
       x.++(y)(F)
+
     override def coflatMap[A, B](fa: Iterant[F, A])(f: (Iterant[F, A]) => B): Iterant[F, B] =
       Iterant.pure[F, B](f(fa))
+
     override def coflatten[A](fa: Iterant[F, A]): Iterant[F, Iterant[F, A]] =
       Iterant.pure(fa)
 
-    // Sync && MonadError
-    override def suspend[A](thunk: =>Iterant[F, A]): Iterant[F, A] =
-      Iterant.suspend(thunk)
-    override def delay[A](thunk: => A): Iterant[F, A] =
-      Iterant.eval(thunk)
     override def raiseError[A](e: Throwable): Iterant[F, A] =
       Iterant.raiseError(e)
+
     override def attempt[A](fa: Iterant[F, A]): Iterant[F, Either[Throwable, A]] =
       fa.attempt
+
     override def handleErrorWith[A](fa: Iterant[F, A])(f: (Throwable) => Iterant[F, A]): Iterant[F, A] =
       fa.onErrorHandleWith(f)
+
     override def handleError[A](fa: Iterant[F, A])(f: (Throwable) => A): Iterant[F, A] =
       fa.onErrorHandle(f)
+
     override def recover[A](fa: Iterant[F, A])(pf: PartialFunction[Throwable, A]): Iterant[F, A] =
       fa.onErrorRecover(pf)
+
     override def recoverWith[A](fa: Iterant[F, A])(pf: PartialFunction[Throwable, Iterant[F, A]]): Iterant[F, A] =
       fa.onErrorRecoverWith(pf)
   }

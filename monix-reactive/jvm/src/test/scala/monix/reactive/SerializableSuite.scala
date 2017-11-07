@@ -18,6 +18,8 @@
 package monix.reactive
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
+import cats.laws._
+import cats.laws.discipline._
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import scala.concurrent.Promise

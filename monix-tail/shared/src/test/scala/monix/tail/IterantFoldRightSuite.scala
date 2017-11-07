@@ -17,6 +17,8 @@
 
 package monix.tail
 
+import cats.laws._
+import cats.laws.discipline._
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.eval.Coeval
@@ -26,12 +28,12 @@ import scala.util.{Failure, Success}
 object IterantFoldRightSuite extends BaseTestSuite {
   def exists(ref: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
     ref.foldRightL(Coeval(false)) { (e, next, stop) =>
-      if (p(e)) stop >> Coeval(true) else next
+      if (p(e)) stop *> Coeval(true) else next
     }
 
   def forall(ref: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
     ref.foldRightL(Coeval(true)) { (e, next, stop) =>
-      if (!p(e)) stop >> Coeval(false) else next
+      if (!p(e)) stop *> Coeval(false) else next
     }
 
   def concat[F[_], A](lh: Iterant[F, A], rh: Iterant[F, A])

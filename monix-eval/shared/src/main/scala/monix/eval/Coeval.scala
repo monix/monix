@@ -17,10 +17,11 @@
 
 package monix.eval
 
-import cats.Eval
+import cats.{Eval, Monoid}
 import cats.effect.IO
+import cats.kernel.Semigroup
 import monix.eval.Coeval._
-import monix.eval.instances.CatsSyncInstances
+import monix.eval.instances.{CatsSyncForCoeval, CatsMonadToMonoid, CatsMonadToSemigroup}
 import monix.eval.internal.{CoevalRunLoop, LazyOnSuccess, Transformation}
 import monix.execution.misc.NonFatal
 
@@ -559,7 +560,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   *         naming consistency with the Typelevel ecosystem, where
   *         `Attempt[A]` is usually an alias for `Either[Throwable, A]`.
   */
-object Coeval {
+object Coeval extends CoevalInstancesLevel0 {
   /** Promotes a non-strict value to a [[Coeval]].
     *
     * Alias of [[eval]].
@@ -1017,7 +1018,29 @@ object Coeval {
       new Now(Failure(e))
   }
 
-  /** Type class instances of [[Coeval]] for Cats. */
-  implicit def catsInstances: CatsSyncInstances[Coeval] =
-    CatsSyncInstances.ForCoeval
+  /** Instance of Cats type classes for [[Coeval]], implementing
+    * `cats.effect.Sync` (which implies `Applicative`, `Monad`, `MonadError`)
+    * and `cats.CoflatMap`.
+    */
+  implicit def catsSync: CatsSyncForCoeval =
+    CatsSyncForCoeval
+
+  /** Given an `A` type that has a `cats.Monoid[A]` implementation,
+    * then this provides the evidence that `Coeval[A]` also has
+    * a `Monoid[Coeval[A]]` implementation.
+    */
+  implicit def catsMonoid[A](implicit A: Monoid[A]): Monoid[Coeval[A]] =
+    new CatsMonadToMonoid[Coeval, A]()(CatsSyncForCoeval, A)
+}
+
+private[eval] abstract class CoevalInstancesLevel0 {
+  /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
+    * then this provides the evidence that `Coeval[A]` also has
+    * a `Semigroup[Coeval[A]]` implementation.
+    *
+    * This has a lower-level priority than [[Coeval.catsMonoid]]
+    * in order to avoid conflicts.
+    */
+  implicit def catsSemigroup[A](implicit A: Semigroup[A]): Semigroup[Coeval[A]] =
+    new CatsMonadToSemigroup[Coeval, A]()(catsSync, A)
 }

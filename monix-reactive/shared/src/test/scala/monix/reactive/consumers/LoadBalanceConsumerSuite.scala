@@ -17,6 +17,9 @@
 
 package monix.reactive.consumers
 
+import cats.laws._
+import cats.laws.discipline._
+
 import monix.eval.Callback
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, AtomicInt, AtomicLong}

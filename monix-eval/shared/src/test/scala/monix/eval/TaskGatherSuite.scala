@@ -19,7 +19,6 @@ package monix.eval
 
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -68,7 +67,7 @@ object TaskGatherSuite extends BaseTestSuite {
 
   test("Task.gather should be stack safe for synchronous tasks") { implicit s =>
     val count = if (Platform.isJVM) 200000 else 5000
-    val tasks = for (i <- 0 until count) yield Task.now(1)
+    val tasks = for (_ <- 0 until count) yield Task.now(1)
     val composite = Task.gather(tasks).map(_.sum)
     val result = composite.runAsync
     s.tick()
@@ -88,65 +87,5 @@ object TaskGatherSuite extends BaseTestSuite {
     val result2 = task3.runAsync; s.tick()
     assertEquals(result2.value, Some(Success(List(4,4,4))))
     assertEquals(effect, 1 + 3 + 3)
-  }
-
-  test("Task.zipList should be equivalent with gather") { implicit s =>
-    check2 { (list: List[Int], i: Int) =>
-      val tasks = list.map(x => if (i % 2 == 0) Task.eval(i) else Task(i))
-      val gather = Task.gather(tasks)
-      val zipList = Task.zipList(tasks:_*)
-      zipList <-> gather
-    }
-  }
-
-  test("Task.zipList should execute in parallel") { implicit s =>
-    val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
-    val f = Task.zipList(seq:_*).runAsync
-
-    s.tick()
-    assertEquals(f.value, None)
-    s.tick(2.seconds)
-    assertEquals(f.value, None)
-    s.tick(1.second)
-    assertEquals(f.value, Some(Success(Seq(1, 2, 3))))
-  }
-
-  test("Task.zipList should onError if one of the tasks terminates in error") { implicit s =>
-    val ex = DummyException("dummy")
-    val seq = Seq(
-      Task(3).delayExecution(3.seconds),
-      Task(2).delayExecution(1.second),
-      Task(throw ex).delayExecution(2.seconds),
-      Task(3).delayExecution(1.seconds))
-
-    val f = Task.zipList(seq:_*).runAsync
-
-    s.tick()
-    assertEquals(f.value, None)
-    s.tick(2.seconds)
-    assertEquals(f.value, Some(Failure(ex)))
-  }
-
-  test("Task.zipList should be canceled") { implicit s =>
-    val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
-    val f = Task.zipList(seq:_*).runAsync
-
-    s.tick()
-    assertEquals(f.value, None)
-    s.tick(2.seconds)
-    assertEquals(f.value, None)
-
-    f.cancel()
-    s.tick(1.second)
-    assertEquals(f.value, None)
-  }
-
-  test("Task.zipList should be stack safe for synchronous tasks") { implicit s =>
-    val count = if (Platform.isJVM) 200000 else 5000
-    val tasks = for (i <- 0 until count) yield Task.now(1)
-    val composite = Task.zipList(tasks:_*).map(_.sum)
-    val result = composite.runAsync
-    s.tick()
-    assertEquals(result.value, Some(Success(count)))
   }
 }

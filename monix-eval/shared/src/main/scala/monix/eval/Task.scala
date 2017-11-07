@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import cats.{Monoid, Semigroup}
 import cats.effect.{Effect, IO}
 import monix.eval.instances._
 import monix.eval.internal._
@@ -29,7 +30,6 @@ import monix.execution.misc.{NonFatal, ThreadLocal}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
-import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Success, Try}
@@ -1032,7 +1032,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
   *           task.forEffect(Task.shift)
   *         }}}
   */
-object Task extends TaskInstances {
+object Task extends TaskInstancesLevel1 {
   /** Returns a new task that, when executed, will emit the result of
     * the given function, executed asynchronously.
     *
@@ -1457,15 +1457,6 @@ object Task extends TaskInstances {
     */
   def mapBoth[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
     TaskMapBoth(fa1, fa2)(f)
-
-  /** Gathers the results from a sequence of tasks into a single list.
-    * The effects are not ordered, but the results are.
-    */
-  def zipList[A](sources: Task[A]*): Task[List[A]] = {
-    val init = eval(mutable.ListBuffer.empty[A])
-    val r = sources.foldLeft(init)((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
-    r.map(_.toList)
-  }
 
   /** Pairs 2 `Task` values, applying the given mapping function.
     *
@@ -2211,106 +2202,81 @@ object Task extends TaskInstances {
   }
 }
 
-private[eval] trait TaskInstances extends TaskInstances2 {
-  /** Type class instances of [[Task]] for Cats.
+private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
+  /** Global instance for `cats.effect.Async`.
     *
-    * $strategyNote
+    * Implied are `cats.CoflatMap`, `cats.Applicative`, `cats.Monad`,
+    * `cats.MonadError` and `cats.effect.Sync`.
     *
-    * @param as $strategyParamDesc
+    * Seek more info about Cats, the standard library for FP, at:
+    *
+    *  - [[https://typelevel.org/cats/ typelevel/cats]]
+    *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
     */
-  implicit def catsInstances(implicit as: ApplicativeStrategy[Task]): CatsAsyncInstances[Task] =
-    as match {
-      case ApplicativeStrategy.Sequential =>
-        CatsAsyncInstances.ForTask
-      case ApplicativeStrategy.Parallel =>
-        CatsAsyncInstances.ForParallelTask
-    }
+  implicit def catsAsync: CatsAsyncForTask =
+    CatsAsyncForTask
+
+  /** Global instance for `cats.Parallel`.
+    *
+    * The `Parallel` type class is useful for processing
+    * things in parallel in a generic way, usable with
+    * Cats' utils and syntax:
+    *
+    * {{{
+    *   import cats.syntax.all._
+    *
+    *   (taskA, taskB, taskC).parMap { (a, b, c) =>
+    *     a + b + c
+    *   }
+    * }}}
+    *
+    * Seek more info about Cats, the standard library for FP, at:
+    *
+    *  - [[https://typelevel.org/cats/ typelevel/cats]]
+    *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
+    */
+  implicit def catsParallel: CatsParallelForTask =
+    CatsParallelForTask
+
+  /** Given an `A` type that has a `cats.Monoid[A]` implementation,
+    * then this provides the evidence that `Task[A]` also has
+    * a `Monoid[Task[A]]` implementation.
+    */
+  implicit def catsMonoid[A](implicit A: Monoid[A]): Monoid[Task[A]] =
+    new CatsMonadToMonoid[Task, A]()(CatsAsyncForTask, A)
 }
 
-/** @define strategyNote In order to determine the returned instance to do
-  *         parallel processing in `cats.Applicative` then import
-  *         [[Task.nondeterminism]] in scope:
-  *
-  *         $nondeterminismSample
-  *
-  * @define strategyParamDesc is the applicative strategy to use when calling
-  *         `map2`, `ap` or `product`, specifying whether the returned
-  *         instance should do sequential or parallel processing.
-  */
-private[eval] trait TaskInstances2 extends TaskInstances1 {
-  /** Type class instances of [[Task]] for `cats.effect.Effect`.
+private[eval] abstract class TaskInstancesLevel0  {
+  /** Global instance for `cats.effect.Effect`.
     *
-    * $strategyNote
+    * Implied are `cats.CoflatMap`, `cats.Applicative`, `cats.Monad`,
+    * `cats.MonadError`, `cats.effect.Sync` and `cats.effect.Async`.
     *
-    * @param as $strategyParamDesc
-    * @param s is the `Scheduler` to use when executing `Effect#runAsync`
+    * Note this is different from
+    * [[monix.eval.Task.catsAsync Task.catsAsync]] because we need an
+    * implicit [[monix.execution.Scheduler Scheduler]] in scope in
+    * order to trigger the execution of a `Task`. It's also lower
+    * priority in order to not trigger conflicts, because
+    * `Effect <: Async`
+    *
+    * Seek more info about Cats, the standard library for FP, at:
+    *
+    *  - [[https://typelevel.org/cats/ typelevel/cats]]
+    *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
+    *
+    * @param ec is a [[monix.execution.Scheduler Scheduler]] that needs
+    *        to be available in scope
     */
-  implicit def catsEffectInstances(implicit as: ApplicativeStrategy[Task], s: Scheduler): CatsEffectInstances[Task] =
-    as match {
-      case ApplicativeStrategy.Sequential =>
-        new CatsEffectInstances.ForTask()(s)
-      case ApplicativeStrategy.Parallel =>
-        new CatsEffectInstances.ForParallelTask()(s)
-    }
-}
+  implicit def catsEffect(implicit ec: Scheduler): CatsEffectForTask =
+    new CatsEffectForTask
 
-/** @define nondeterminismSample
-  *         {{{
-  *           import monix.eval.Task.nondeterminism
-  *
-  *           // The Task's Applicative will now do parallel processing
-  *           // if the given tasks are forking (logical) threads
-  *           // (e.g. will use `Task.mapBoth`)
-  *           val ap = implicitly[cats.Applicative[Task]]
-  *           ap.map2(task1, task2) { (a, b) => a + b }
-  *
-  *           // Or using the "applicative builder" syntax:
-  *           import cats.syntax.all._
-  *           (task1 |@| task2).map { (a, b) => a + b }
-  *         }}}
-  */
-private[eval] trait TaskInstances1 extends TaskInstances0 {
-  /** An [[monix.eval.instances.ApplicativeStrategy ApplicativeStrategy]]
-    * instance that will determine the generated type class instances
-    * for `Task` to do sequential processing in their applicative
-    * (and thus to order both results and effects).
+  /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
+    * then this provides the evidence that `Task[A]` also has
+    * a `Semigroup[Task[A]]` implementation.
     *
-    * This is the default strategy that `Task` uses.
-    *
-    * @see [[Task.nondeterminism]] for picking a strategy for applicative
-    *      that does unordered effects and thus capable of parallelism
+    * This has a lower-level priority than [[Task.catsMonoid]]
+    * in order to avoid conflicts.
     */
-  implicit def determinism: ApplicativeStrategy[Task] =
-    ApplicativeStrategy.Sequential
-}
-
-
-/** @define nondeterminismSample
-  *         {{{
-  *           import monix.eval.Task.nondeterminism
-  *
-  *           // The Task's Applicative will now do parallel processing
-  *           // if the given tasks are forking (logical) threads
-  *           // (e.g. will use `Task.mapBoth`)
-  *           val ap = implicitly[cats.Applicative[Task]]
-  *           ap.map2(task1, task2) { (a, b) => a + b }
-  *
-  *           // Or using the "applicative builder" syntax:
-  *           import cats.syntax.all._
-  *           (task1 |@| task2).map { (a, b) => a + b }
-  *         }}}
-  */
-private[eval] trait TaskInstances0 {
-  /** An [[monix.eval.instances.ApplicativeStrategy ApplicativeStrategy]]
-    * instance that, when imported in scope, will determine the
-    * generated type class instances for `Task` to do parallel
-    * processing in their applicative.
-    *
-    * Importing this in scope overrides the default
-    * [[Task.determinism]] strategy.
-    *
-    * $nondeterminismSample
-    */
-  implicit def nondeterminism: ApplicativeStrategy[Task] =
-    ApplicativeStrategy.Parallel
+  implicit def catsSemigroup[A](implicit A: Semigroup[A]): Semigroup[Task[A]] =
+    new CatsMonadToSemigroup[Task, A]()(CatsAsyncForTask, A)
 }

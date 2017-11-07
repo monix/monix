@@ -17,26 +17,11 @@
 
 package monix.eval
 
-import cats.Applicative
-import cats.effect.Effect
 import cats.effect.laws.discipline.{AsyncTests, EffectTests}
-import cats.laws.discipline.CoflatMapTests
-import monix.eval.instances.{CatsAsyncInstances, CatsEffectInstances}
-import monix.execution.schedulers.TestScheduler
+import cats.kernel.laws.discipline.MonoidTests
+import cats.laws.discipline.{CoflatMapTests, ParallelTests}
 
 object TypeClassLawsForTaskSuite extends BaseLawsSuite {
-  test("picked the deterministic Async instance") {
-    val inst = implicitly[Applicative[Task]]
-    assert(!inst.isInstanceOf[CatsAsyncInstances.ForParallelTask])
-    assert(!inst.isInstanceOf[CatsEffectInstances.ForTask])
-  }
-
-  test("picked the deterministic Effect instance") {
-    implicit val ec = TestScheduler()
-    val inst = implicitly[Effect[Task]]
-    assert(!inst.isInstanceOf[CatsEffectInstances.ForParallelTask])
-  }
-
   checkAllAsync("CoflatMap[Task]") { implicit ec =>
     CoflatMapTests[Task].coflatMap[Int,Int,Int]
   }
@@ -47,5 +32,13 @@ object TypeClassLawsForTaskSuite extends BaseLawsSuite {
 
   checkAllAsync("Effect[Task]") { implicit ec =>
     EffectTests[Task].effect[Int,Int,Int]
+  }
+
+  checkAllAsync("Parallel[Task, Task]") { implicit ec =>
+    ParallelTests[Task, Task].parallel[Int, Int]
+  }
+
+  checkAllAsync("Monoid[Task[Int]]") { implicit ec =>
+    MonoidTests[Task[Int]].monoid
   }
 }

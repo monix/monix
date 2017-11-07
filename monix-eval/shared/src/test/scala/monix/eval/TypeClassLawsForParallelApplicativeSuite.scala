@@ -15,24 +15,27 @@
  * limitations under the License.
  */
 
-package monix.tail
+package monix.eval
 
-import cats.laws._
-import cats.laws.discipline._
-import monix.eval.Coeval
+import cats.Applicative
+import cats.laws.discipline.ApplicativeTests
+import monix.eval.instances.{CatsParallelForTask, ParallelApplicative}
 
-object IterantHeadOptionSuite extends BaseTestSuite {
-  test("Iterant.headOptionL <-> List.headOption") { _ =>
-    check2 { (list: List[Int], idx: Int) =>
-      val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx % 4), allowErrors = false)
-      iter.headOptionL <-> Coeval.now(list.headOption)
-    }
+object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
+  implicit val ap: Applicative[Task] =
+    new ParallelApplicative()(new CatsParallelForTask)
+
+  test("instance is valid") {
+    val ev = implicitly[Applicative[Task]]
+    assertEquals(ev, ap)
   }
 
-  test("Iterant.headOption <-> List.headOption") { _ =>
-    check2 { (list: List[Int], idx: Int) =>
-      val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx % 4), allowErrors = false)
-      iter.headOptionL.value == list.headOption
-    }
+  test("default instance for Task") {
+    val ev = ParallelApplicative[Task, Task]
+    assertEquals(ev, CatsParallelForTask.applicative)
+  }
+
+  checkAllAsync("ParallelApplicative[Task]") { implicit ec =>
+    ApplicativeTests[Task].applicative[Int,Int,Int]
   }
 }

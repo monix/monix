@@ -17,6 +17,8 @@
 
 package monix.reactive.internal.operators
 
+import cats.laws._
+import cats.laws.discipline._
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
