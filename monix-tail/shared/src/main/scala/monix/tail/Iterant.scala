@@ -21,7 +21,7 @@ import java.io.PrintStream
 
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync}
-import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order, Parallel}
+import cats.{Applicative, CoflatMap, Eq, MonadError, Monoid, MonoidK, Order, Parallel}
 import monix.eval.instances.{CatsAsyncForTask, CatsBaseForTask, CatsSyncForCoeval}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
@@ -2046,7 +2046,7 @@ private[tail] trait IterantInstances1 {
 
   /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
   class CatsInstances[F[_]](implicit F: Sync[F])
-    extends Sync[({type λ[α] = Iterant[F, α]})#λ]
+    extends MonadError[({type λ[α] = Iterant[F, α]})#λ, Throwable]
       with MonoidK[({type λ[α] = Iterant[F, α]})#λ]
       with CoflatMap[({type λ[α] = Iterant[F, α]})#λ] {
 
@@ -2080,13 +2080,6 @@ private[tail] trait IterantInstances1 {
     override def coflatten[A](fa: Iterant[F, A]): Iterant[F, Iterant[F, A]] =
       Iterant.pure(fa)
 
-    // Sync && MonadError
-    override def suspend[A](thunk: => Iterant[F, A]): Iterant[F, A] =
-      Iterant.suspend(thunk)
-
-    override def delay[A](thunk: => A): Iterant[F, A] =
-      Iterant.eval(thunk)
-
     override def raiseError[A](e: Throwable): Iterant[F, A] =
       Iterant.raiseError(e)
 
@@ -2105,5 +2098,4 @@ private[tail] trait IterantInstances1 {
     override def recoverWith[A](fa: Iterant[F, A])(pf: PartialFunction[Throwable, Iterant[F, A]]): Iterant[F, A] =
       fa.onErrorRecoverWith(pf)
   }
-
 }

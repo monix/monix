@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.Eq
 import cats.data.EitherT
-import cats.laws.discipline.{SemigroupalTests, CoflatMapTests, MonadErrorTests, MonoidKTests}
+import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
 import monix.eval.Coeval
 
 object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
@@ -33,7 +33,7 @@ object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
   val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
     implicitly[Eq[EitherT[F, Throwable, Int]]]
 
-  checkAllAsync("MonadError[Iterant[Coeval]]") { implicit ec =>
+  checkAllAsync("MonadError[Iterant[Coeval], Throwable]") { implicit ec =>
     implicit val eqE = eqEitherT
     MonadErrorTests[F, Throwable].monadError[Int, Int, Int]
   }
@@ -42,7 +42,7 @@ object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
     MonoidKTests[F].monoidK[Int]
   }
 
-  checkAllAsync("CoflatMap[Iterant[Coeval]]") { implicit ec =>
+  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
     CoflatMapTests[F].coflatMap[Int, Int, Int]
   }
 }
