@@ -45,11 +45,10 @@ private[monix] object ParallelApplicative {
   /** Given a `cats.Parallel` instance, builds a parallel `cats.Applicative`
     * out of it.
     */
-  def apply[F[_], G[_]](implicit P: Parallel[F, G]): Applicative[F] =
-    P match {
-      case CatsParallelForTask =>
-        P.applicative
-      case _ =>
-        new ParallelApplicative[F, G]()
-    }
+  def apply[F[_], G[_]](implicit P: Parallel[F, G]): Applicative[F] = {
+    if (P.monad eq P.applicative)
+      P.monad
+    else
+      new ParallelApplicative()
+  }
 }
