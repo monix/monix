@@ -28,6 +28,11 @@ private[monix] final class ParallelApplicative[F[_], G[_]]
 
   override def pure[A](x: A): F[A] =
     P.monad.pure(x)
+  override def unit: F[Unit] =
+    P.monad.unit
+  override def map[A, B](fa: F[A])(f: (A) => B): F[B] =
+    P.monad.map(fa)(f)
+
   override def ap[A, B](ff: F[A => B])(fa: F[A]): F[B] =
     P.sequential(P.applicative.ap(P.parallel(ff))(P.parallel(fa)))
   override def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
