@@ -30,7 +30,6 @@ import monix.execution.misc.{NonFatal, ThreadLocal}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
-import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Success, Try}
@@ -1458,15 +1457,6 @@ object Task extends TaskInstancesLevel1 {
     */
   def mapBoth[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
     TaskMapBoth(fa1, fa2)(f)
-
-  /** Gathers the results from a sequence of tasks into a single list.
-    * The effects are not ordered, but the results are.
-    */
-  def zipList[A](sources: Task[A]*): Task[List[A]] = {
-    val init = eval(mutable.ListBuffer.empty[A])
-    val r = sources.foldLeft(init)((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
-    r.map(_.toList)
-  }
 
   /** Pairs 2 `Task` values, applying the given mapping function.
     *
