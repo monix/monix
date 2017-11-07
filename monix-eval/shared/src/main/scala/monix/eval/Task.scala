@@ -2252,7 +2252,7 @@ private[eval] abstract class TaskInstancesLevel0  {
     * Implied are `cats.CoflatMap`, `cats.Applicative`, `cats.Monad`,
     * `cats.MonadError`, `cats.effect.Sync` and `cats.effect.Async`.
     *
-    * Note this is different than
+    * Note this is different from
     * [[monix.eval.Task.catsAsync Task.catsAsync]] because we need an
     * implicit [[monix.execution.Scheduler Scheduler]] in scope in
     * order to trigger the execution of a `Task`. It's also lower
