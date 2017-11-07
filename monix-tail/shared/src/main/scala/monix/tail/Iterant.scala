@@ -20,9 +20,9 @@ package monix.tail
 import java.io.PrintStream
 
 import cats.arrow.FunctionK
-import cats.effect.{Effect, Sync}
+import cats.effect.{Async, Effect, Sync}
 import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order}
-import monix.eval.instances.{CatsAsyncInstances, CatsSyncInstances}
+import monix.eval.instances.{CatsAsyncForTask, CatsBaseForTask, CatsSyncForCoeval}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
 import monix.tail.batches.{Batch, BatchCursor}
@@ -1961,54 +1961,48 @@ object Iterant extends IterantInstances {
 private[tail] trait IterantInstances extends IterantInstances1 {
   /** Provides type class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
-    * [[monix.eval.Task.catsInstances Task.catsInstances]].
+    * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
-  implicit def catsInstancesForTask(implicit F: CatsAsyncInstances[Task]): CatsInstances[Task] = {
-    import CatsAsyncInstances.{ForParallelTask, ForTask}
+  implicit def catsInstancesForTask(implicit F: Async[Task]): CatsInstances[Task] = {
     // Avoiding the creation of junk, because it is expensive
     F match {
-      case ForTask => defaultIterantTaskRef
-      case ForParallelTask => nondetIterantTaskRef
+      case _: CatsBaseForTask => defaultIterantTaskRef
       case _ => new CatsInstancesForTask()(F)
     }
   }
 
   /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
   private[this] final val defaultIterantTaskRef: CatsInstances[Task] =
-    new CatsInstancesForTask()(CatsAsyncInstances.ForTask)
+    new CatsInstancesForTask()(CatsAsyncForTask)
 
   /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
-    * [[monix.eval.Coeval.catsInstances Coeval.catsSync]].
+    * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
     */
-  implicit def catsInstancesForCoeval(implicit F: CatsSyncInstances[Coeval]): CatsInstances[Coeval] = {
-    import CatsSyncInstances.ForCoeval
+  implicit def catsInstancesForCoeval(implicit F: Sync[Coeval]): CatsInstances[Coeval] = {
     // Avoiding the creation of junk, because it is expensive
     F match {
-      case `ForCoeval` => defaultIterantCoevalRef
+      case CatsSyncForCoeval => defaultIterantCoevalRef
       case _ => new CatsInstancesForCoeval()(F)
     }
   }
 
   /** Reusable instance for `Iterant[Coeval, A]`, avoids creating junk. */
   private[this] final val defaultIterantCoevalRef =
-    new CatsInstancesForCoeval()(CatsSyncInstances.ForCoeval)
-  /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
-  private[this] val nondetIterantTaskRef =
-    new CatsInstancesForTask()(CatsAsyncInstances.ForParallelTask)
+    new CatsInstancesForCoeval()(CatsSyncForCoeval)
 
   /** Provides type class instances for `Iterant[Task, A]`, based
     * on the default instances provided by
-    * [[monix.eval.Task.catsInstances Task.catsInstances]].
+    * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
-  private final class CatsInstancesForTask(implicit F: CatsAsyncInstances[Task])
+  private final class CatsInstancesForTask(implicit F: Async[Task])
     extends CatsInstances[Task]()(F)
 
   /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
-    * [[monix.eval.Coeval.catsInstances Coeval.catsSync]].
+    * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
     */
-  private final class CatsInstancesForCoeval(implicit F: CatsSyncInstances[Coeval])
+  private final class CatsInstancesForCoeval(implicit F: Sync[Coeval])
     extends CatsInstances[Coeval]()(F)
 }
 

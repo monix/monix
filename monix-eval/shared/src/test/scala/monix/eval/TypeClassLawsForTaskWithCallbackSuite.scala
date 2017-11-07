@@ -19,8 +19,10 @@ package monix.eval
 
 import cats.Eq
 import cats.effect.laws.discipline.{AsyncTests, EffectTests}
-import cats.laws.discipline.CoflatMapTests
+import cats.kernel.laws.discipline.MonoidTests
+import cats.laws.discipline.{CoflatMapTests, ParallelTests}
 import monix.execution.schedulers.TestScheduler
+
 import scala.concurrent.Promise
 
 /** Type class tests for Task that use an alternative `Eq`, making
@@ -44,5 +46,13 @@ object TypeClassLawsForTaskWithCallbackSuite extends BaseLawsSuite {
 
   checkAllAsync("Effect[Task]") { implicit ec =>
     EffectTests[Task].effect[Int,Int,Int]
+  }
+
+  checkAllAsync("Parallel[Task, Task]") { implicit ec =>
+    ParallelTests[Task, Task].parallel[Int, Int]
+  }
+
+  checkAllAsync("Monoid[Task[Int]]") { implicit ec =>
+    MonoidTests[Task[Int]].monoid
   }
 }
