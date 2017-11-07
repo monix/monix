@@ -17,24 +17,38 @@
 
 package monix.tail.internal
 
-import cats.Applicative
 import cats.effect.Sync
 import cats.syntax.all._
+import cats.{Applicative, Parallel}
+import monix.eval.instances.ParallelApplicative
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
-
 import scala.collection.mutable.ArrayBuffer
 
 
 private[tail] object IterantZipMap {
-  /** 
-    * Implementation for `Iterant#zipMap` 
+  /**
+    * Implementation for `Iterant#zipMap`
     */
-  def apply[F[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B])(f: (A, B) => C)
+  def seq[F[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)
+    (implicit F: Sync[F]): Iterant[F, C] =
+    apply(lh, rh, f)(F, F)
+
+  /**
+    * Implementation for `Iterant#parZipMap`
+    */
+  def par[F[_], G[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)
+    (implicit F: Sync[F], P: Parallel[F, G]): Iterant[F, C] = {
+
+    val A = ParallelApplicative(P)
+    apply(lh, rh, f)(F, A)
+  }
+
+  private def apply[F[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)
     (implicit F: Sync[F], A: Applicative[F]): Iterant[F, C] = {
-    
+
     def loop(lh: Iterant[F, A], rh: Iterant[F, B]): Iterant[F, C] = {
       def stopBoth(stopA: F[Unit], stopB: F[Unit]): F[Unit] =
         stopA.flatMap(_ => stopB)
@@ -70,7 +84,7 @@ private[tail] object IterantZipMap {
         if (batchSize > 1) {
           val buffer = ArrayBuffer.empty[C]
           var toFetch = batchSize
-          
+
           while (toFetch > 0 && itemsA.hasNext() && itemsB.hasNext()) {
             buffer += f(itemsA.next(), itemsB.next())
             toFetch -= 1
