@@ -6,6 +6,7 @@ end
 
 puts "CI=#{ENV['CI']}"
 puts "TRAVIS_BRANCH=#{ENV['TRAVIS_BRANCH']}"
+puts "TRAVIS_TAG=#{ENV['TRAVIS_TAG']}"
 puts "TRAVIS_PULL_REQUEST=#{ENV['TRAVIS_PULL_REQUEST']}"
 puts "PUBLISH=#{ENV['PUBLISH']}"
 puts
@@ -19,10 +20,10 @@ unless ENV['PUBLISH'] == 'true'
   exit
 end
 
-branch = ENV['TRAVIS_BRANCH']
+branch = ENV["TRAVIS_TAG"] || ENV['TRAVIS_BRANCH']
 version = nil
 
-unless branch =~ /^v(\d+\.\d+\.\d+)$/ ||
+unless branch =~ /^v(\d+\.\d+\.\d+(?:[-.]\w+)?)$/ ||
   (branch == "snapshot" && ENV['TRAVIS_PULL_REQUEST'] == 'false')
 
   puts "Only deploying docs on the `publish` branch, or for version tags " +
