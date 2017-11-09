@@ -1,30 +1,31 @@
 language: scala
 sudo: required
 dist: trusty
+group: edge
 
 matrix:
   include:
     # Scala 2.10
     - jdk: oraclejdk8
       scala: 2.10.6
-      env: COMMAND=ci-jvm COVERAGE=
+      env: COMMAND=ci-jvm COVERAGE= PUBLISH=
     - jdk: oraclejdk8
       scala: 2.10.6
-      env: COMMAND=ci-js COVERAGE=
+      env: COMMAND=ci-js COVERAGE= PUBLISH=
     # Scala 2.11
     - jdk: oraclejdk8
       scala: 2.11.11
-      env: COMMAND=ci-jvm COVERAGE=coverage
+      env: COMMAND=ci-jvm COVERAGE=coverage PUBLISH=
     - jdk: oraclejdk8
       scala: 2.11.11
-      env: COMMAND=ci-js COVERAGE=
+      env: COMMAND=ci-js COVERAGE= PUBLISH=
     # Scala 2.12
     - jdk: oraclejdk8
-      scala: 2.12.2
-      env: COMMAND=ci-jvm-all COVERAGE=
+      scala: 2.12.3
+      env: COMMAND=ci-jvm-all COVERAGE= PUBLISH=true
     - jdk: oraclejdk8
-      scala: 2.12.2
-      env: COMMAND=ci-js COVERAGE=
+      scala: 2.12.3
+      env: COMMAND=ci-js PUBLISH= COVERAGE=
 
 env:
   global:
@@ -36,15 +37,11 @@ install:
 
 script:
   - export SBT_PROFILE=$COVERAGE
-  - travis_wait 30 sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COVERAGE $COMMAND
+  - sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COVERAGE $COMMAND
 
 after_success:
-  - |
-    if [ "$COVERAGE" = "coverage" ]; then
-      export SBT_PROFILE=$COVERAGE
-      sbt ++$TRAVIS_SCALA_VERSION coverageAggregate coverageReport
-      bash <(curl -s https://codecov.io/bash)
-    fi
+  - ./project/upload-coverage
+  - ./project/publish
 
 notifications:
   webhooks:
