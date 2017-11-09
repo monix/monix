@@ -1,4 +1,6 @@
-import com.typesafe.sbt.pgp.PgpKeys
+import com.typesafe.sbt.GitVersioning
+import sbt.Keys.version
+
 // For getting Scoverage out of the generated POM
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -143,14 +145,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   // -- Settings meant for deployment on oss.sonatype.org
 
-  useGpg := true,
-  useGpgAgent := true,
-  usePgpKeyHex("2673B174C4071B0E"),
-
   publishMavenStyle := true,
-  releaseCrossBuild := true,
-  releasePublishArtifactsAction := PgpKeys.publishSigned.value,
-
   publishTo := {
     val nexus = "https://oss.sonatype.org/"
     if (isSnapshot.value)
@@ -159,6 +154,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
       Some("releases"  at nexus + "service/local/staging/deploy/maven2")
   },
 
+  isSnapshot := version.value endsWith "SNAPSHOT",
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
 
@@ -174,26 +170,22 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     }).transform(node).head
   },
 
-  pomExtra :=
-    <url>https://monix.io/</url>
-    <licenses>
-      <license>
-        <name>Apache License, Version 2.0</name>
-        <url>https://www.apache.org/licenses/LICENSE-2.0</url>
-        <distribution>repo</distribution>
-      </license>
-    </licenses>
-    <scm>
-      <url>git@github.com:monix/monix.git</url>
-      <connection>scm:git:git@github.com:monix/monix.git</connection>
-    </scm>
-    <developers>
-      <developer>
-        <id>alexelcu</id>
-        <name>Alexandru Nedelcu</name>
-        <url>https://alexn.org</url>
-      </developer>
-    </developers>
+  licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
+  homepage := Some(url("https://monix.io")),
+
+  scmInfo := Some(
+    ScmInfo(
+      url("https://github.com/monix/monix"),
+      "scm:git@github.com:monix/monix.git"
+    )),
+
+  developers := List(
+    Developer(
+      id="alexelcu",
+      name="Alexandru Nedelcu",
+      email="noreply@alexn.org",
+      url=url("https://alexn.org")
+    ))
 )
 
 lazy val crossSettings = sharedSettings ++ Seq(
@@ -468,3 +460,31 @@ lazy val benchmarks = project.in(file("benchmarks"))
     )
   )
 
+//------------- For Release
+
+useGpg := false
+usePgpKeyHex("2673B174C4071B0E")
+pgpPublicRing := baseDirectory.value / "project" / ".gnupg" / "pubring.gpg"
+pgpSecretRing := baseDirectory.value / "project" / ".gnupg" / "secring.gpg"
+pgpPassphrase := sys.env.get("PGP_PASS").map(_.toArray)
+
+enablePlugins(GitVersioning)
+
+/* The BaseVersion setting represents the in-development (upcoming) version,
+ * as an alternative to SNAPSHOTS.
+ */
+git.baseVersion := "2.3.2"
+
+val ReleaseTag = """^v(\d+\.\d+\.\d+(?:[-.]\w+)?)$""".r
+git.gitTagToVersionNumber := {
+  case ReleaseTag(v) => Some(v)
+  case _ => None
+}
+
+git.formattedShaVersion := {
+  val suffix = git.makeUncommittedSignifierSuffix(git.gitUncommittedChanges.value, git.uncommittedSignifier.value)
+
+  git.gitHeadCommit.value map { _.substring(0, 7) } map { sha =>
+    git.baseVersion.value + "-" + sha + suffix
+  }
+}

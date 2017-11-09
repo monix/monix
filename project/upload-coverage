@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+if [ "$COVERAGE" = "coverage" ]; then
+  export SBT_PROFILE=$COVERAGE
+  sbt ++$TRAVIS_SCALA_VERSION coverageAggregate coverageReport
+  bash <(curl -s https://codecov.io/bash)
+fi
