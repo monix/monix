@@ -145,15 +145,22 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
   // -- Settings meant for deployment on oss.sonatype.org
+  sonatypeProfileName := organization.value,
+
+  credentials += Credentials(
+    "Sonatype Nexus Repository Manager",
+    "oss.sonatype.org",
+    sys.env.getOrElse("SONATYPE_USER", ""),
+    sys.env.getOrElse("SONATYPE_PASS", "")
+  ),
 
   publishMavenStyle := true,
-  publishTo := {
-    val nexus = "https://oss.sonatype.org/"
+  publishTo := Some(
     if (isSnapshot.value)
-      Some("snapshots" at nexus + "content/repositories/snapshots")
+      Opts.resolver.sonatypeSnapshots
     else
-      Some("releases"  at nexus + "service/local/staging/deploy/maven2")
-  },
+      Opts.resolver.sonatypeStaging
+  ),
 
   isSnapshot := version.value endsWith "SNAPSHOT",
   publishArtifact in Test := false,
