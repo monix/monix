@@ -939,13 +939,13 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * source emitting any item.
     */
   def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
-    Task.chooseFirstOf(self, backup.delayExecution(after)).map {
+    Task.chooseFirstOf(self, Task.unit.delayExecution(after)).flatMap {
       case Left(((a, futureB))) =>
         futureB.cancel()
-        a
-      case Right((futureA, b)) =>
+        Task.now(a)
+      case Right((futureA, _)) =>
         futureA.cancel()
-        b
+        backup
     }
 
   /** Creates a new `Task` by applying the 'fa' function to the successful result of
