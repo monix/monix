@@ -49,6 +49,6 @@ trait TaskApp {
 
   @JSExport
   final def main(args: Array[String]): Unit = {
-    run(args).runAsync(scheduler.value)
+    run(args).runAsync(scheduler.value, Task.defaultOptions)
   }
 }

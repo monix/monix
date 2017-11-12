@@ -37,6 +37,7 @@ final class MapTaskConsumer[In, R, R2](source: Consumer[In,R], f: R => Task[R2])
           // end up with stack-overflows or other problems
           def run(): Unit = {
             implicit val scheduler = s
+            implicit val options = Task.defaultOptions
             // For protecting the contract, as if a call was already made to
             // `onSuccess`, then we can't call `onError`
             var streamErrors = true

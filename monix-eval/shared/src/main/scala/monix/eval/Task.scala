@@ -264,42 +264,43 @@ import scala.util.{Failure, Success, Try}
   *
   *         Without invoking `runAsync` on a `Task`, nothing
   *         gets evaluated, as a `Task` has lazy behavior.
+  *
+  * @define schedulerDesc is an injected
+  *         [[monix.execution.Scheduler Scheduler]] that gets used
+  *         whenever asynchronous boundaries are needed when
+  *         evaluating the task
+  *
+  * @define callbackDesc is a callback that will be invoked upon
+  *         completion
+  *
+  * @define cancelableDesc a [[monix.execution.Cancelable Cancelable]]
+  *         that can be used to cancel a running task
   */
 sealed abstract class Task[+A] extends Serializable { self =>
   import monix.eval.Task._
 
   /** $runAsyncDesc
     *
-    * @param cb is a callback that will be invoked upon completion.
-    *
-    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
-    *        that gets used whenever asynchronous boundaries are needed
-    *        when evaluating the task
-    *
-    * @return a [[monix.execution.Cancelable Cancelable]] that can
-    *         be used to cancel a running task
+    * @param cb $callbackDesc
+    * @param s $schedulerDesc
+    * @return $cancelableDesc
     */
-  def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
-    TaskRunLoop.startLightWithCallback(self, s, cb)
+  def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
+    TaskRunLoop.startLightWithCallback(self, s, cb, opts)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
     * the result is available.
     *
-    * @param f is a callback that will be invoked upon completion.
-    *
-    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
-    *        that gets used whenever asynchronous boundaries are needed
-    *        when evaluating the task
-    *
-    * @return a [[monix.execution.Cancelable Cancelable]] that can
-    *         be used to cancel a running task
+    * @param f $callbackDesc
+    * @param s $schedulerDesc
+    * @return $cancelableDesc
     */
-  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable =
+  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable =
     runAsync(new Callback[A] {
       def onSuccess(value: A): Unit = f(Success(value))
       def onError(ex: Throwable): Unit = f(Failure(ex))
-    })
+    })(s, opts)
 
   /** $runAsyncDesc
     *
@@ -311,8 +312,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         that can be used to extract the result or to cancel
     *         a running task.
     */
-  def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-    TaskRunLoop.startAsFuture(this, s)
+  def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+    TaskRunLoop.startAsFuture(this, s, opts)
 
   /** Tries to execute the source synchronously.
     *
@@ -346,8 +347,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         was hit and further async execution is needed or
     *         in case of failure
     */
-  def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
-    val future = this.runAsync(s)
+  def runSyncMaybe(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
+    val future = this.runAsync(s, opts)
 
     future.value match {
       case Some(value) =>
@@ -371,8 +372,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * value is available immediately, or `Left(future)` in case we
     * have an asynchronous boundary or an error.
     */
-  def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
-    Coeval.eval(runSyncMaybe(s))
+  def coeval(implicit s: Scheduler, opts: Options): Coeval[Either[CancelableFuture[A], A]] =
+    Coeval.eval(runSyncMaybe(s, opts))
 
   /** Returns a failed projection of this task.
     *
@@ -747,8 +748,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * The application of this function has strict behavior, as the
     * task is immediately executed.
     */
-  def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
-    foreachL(f).runAsync(s)
+  def foreach(f: A => Unit)(implicit s: Scheduler, opts: Options): CancelableFuture[Unit] =
+    foreachL(f).runAsync(s, opts)
 
   /** Returns a new Task that applies the mapping function to the
     * element emitted by the source.
@@ -1837,9 +1838,15 @@ object Task extends TaskInstancesLevel1 {
     * @param autoCancelableRunLoops should be set to `true` in
     *        case you want `flatMap` driven loops to be
     *        auto-cancelable. Defaults to `false`.
+    *
+    * @param localContextPropagation should be set to `true` in
+    *        case you want the [[monix.execution.misc.Local Local]]
+    *        variables to be propagated on async boundaries.
+    *        Defaults to `false`.
     */
   final case class Options(
-    autoCancelableRunLoops: Boolean) {
+    autoCancelableRunLoops: Boolean,
+    localContextPropagation: Boolean) {
 
     /** Creates a new set of options from the source, but with
       * the [[autoCancelableRunLoops]] value set to `true`.
@@ -1852,12 +1859,25 @@ object Task extends TaskInstancesLevel1 {
       */
     def disableAutoCancelableRunLoops: Options =
       copy(autoCancelableRunLoops = false)
+
+    /** Creates a new set of options from the source, but with
+      * the [[localContextPropagation]] value set to `true`.
+      */
+    def enableLocalContextPropagation: Options =
+      copy(localContextPropagation = true)
+
+    /** Creates a new set of options from the source, but with
+      * the [[localContextPropagation]] value set to `false`.
+      */
+    def disableLocalContextPropagation: Options =
+      copy(localContextPropagation = false)
   }
 
   /** Default [[Options]] to use for [[Task]] evaluation,
     * thus:
     *
     *  - `autoCancelableRunLoops` is `false` by default
+    *  - `localContextPropagation` is `false` by default
     *
     * On top of the JVM the default can be overridden by
     * setting the following system properties:
@@ -1865,21 +1885,16 @@ object Task extends TaskInstancesLevel1 {
     *  - `monix.environment.autoCancelableRunLoops`
     *    (`true`, `yes` or `1` for enabling)
     *
+    *  - `monix.environment.localContextPropagation`
+    *    (`true`, `yes` or `1` for enabling)
+    *
     * @see [[Task.Options]]
     */
-  val defaultOptions: Options = {
-    if (Platform.isJS)
-      // $COVERAGE-OFF$
-      Options(autoCancelableRunLoops = false)
-      // $COVERAGE-ON$
-    else
-      Options(
-        autoCancelableRunLoops =
-          Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
-            .map(_.toLowerCase)
-            .exists(v => v == "yes" || v == "true" || v == "1")
-      )
-  }
+  implicit val defaultOptions: Options =
+    Options(
+      autoCancelableRunLoops = Platform.autoCancelableRunLoops,
+      localContextPropagation = Platform.localContextPropagation
+    )
 
   /** A reference that boxes a [[FrameIndex]] possibly using a thread-local.
     *
@@ -2000,25 +2015,25 @@ object Task extends TaskInstancesLevel1 {
 
   object Context {
     /** Initialize fresh [[Context]] reference. */
-    def apply(s: Scheduler): Context = {
+    def apply(s: Scheduler, opts: Options): Context = {
       val conn = StackedCancelable()
       val em = s.executionModel
       val frameRef = FrameIndexRef(em)
-      Context(s, conn, frameRef, defaultOptions)
+      Context(s, conn, frameRef, opts)
     }
   }
 
   /** [[Task]] state describing an immediate synchronous value. */
   private[eval] final case class Now[A](value: A) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onSuccess(value)
       else s.executeAsync(() => cb.onSuccess(value))
       Cancelable.empty
     }
 
     // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
       CancelableFuture.successful(value)
 
     override def toString: String =
@@ -2028,14 +2043,14 @@ object Task extends TaskInstancesLevel1 {
   /** [[Task]] state describing an immediate exception. */
   private[eval] final case class Error[A](ex: Throwable) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onError(ex)
       else s.executeAsync(() => cb.onError(ex))
       Cancelable.empty
     }
 
     // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
       CancelableFuture.failed(ex)
 
     override def toString: String =
@@ -2107,10 +2122,10 @@ object Task extends TaskInstancesLevel1 {
           Some(result.asInstanceOf[Try[A]])
       }
 
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
       state.get match {
         case null =>
-          super.runAsync(cb)(s)
+          super.runAsync(cb)(s, opts)
         case (p: Promise[_], conn: StackedCancelable) =>
           val f = p.asInstanceOf[Promise[A]].future
           f.onComplete(cb)
@@ -2120,10 +2135,10 @@ object Task extends TaskInstancesLevel1 {
           Cancelable.empty
       }
 
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
       state.get match {
         case null =>
-          super.runAsync(s)
+          super.runAsync(s, opts)
         case (p: Promise[_], conn: StackedCancelable) =>
           val f = p.asInstanceOf[Promise[A]].future
           CancelableFuture(f, conn)
@@ -2159,10 +2174,11 @@ object Task extends TaskInstancesLevel1 {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]]
     * and `Task.fork`.
     */
-  def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
+  def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit = {
     context.scheduler.executeTrampolined { () =>
       TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
     }
+  }
 
   /** Unsafe utility - starts the execution of a Task, by providing
     * the needed [[monix.execution.Scheduler Scheduler]],
@@ -2180,25 +2196,25 @@ object Task extends TaskInstancesLevel1 {
 
   /** Internal, reusable reference. */
   private final val nowConstructor: (Any => Task[Nothing]) =
-    ((a: Any) => new Now(a)).asInstanceOf[Any => Task[Nothing]]
+    ((a: Any) => Now(a)).asInstanceOf[Any => Task[Nothing]]
   /** Internal, reusable reference. */
   private final val raiseConstructor: (Throwable => Task[Nothing]) =
-    e => new Error(e)
+    e => Error(e)
 
   /** Used as optimization by [[Task.attempt]]. */
   private object AttemptTask extends Transformation[Any, Task[Either[Throwable, Any]]] {
     override def apply(a: Any): Task[Either[Throwable, Any]] =
-      new Now(Right(a))
+      Now(Right(a))
     override def error(e: Throwable): Task[Either[Throwable, Any]] =
-      new Now(Left(e))
+      Now(Left(e))
   }
 
   /** Used as optimization by [[Task.materialize]]. */
   private object MaterializeTask extends Transformation[Any, Task[Try[Any]]] {
     override def apply(a: Any): Task[Try[Any]] =
-      new Now(Success(a))
+      Now(Success(a))
     override def error(e: Throwable): Task[Try[Any]] =
-      new Now(Failure(e))
+      Now(Failure(e))
   }
 }
 

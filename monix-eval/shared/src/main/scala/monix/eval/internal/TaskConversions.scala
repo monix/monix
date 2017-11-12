@@ -32,7 +32,7 @@ private[eval] object TaskConversions {
       case Task.Error(e) => IO.raiseError(e)
       case Task.Eval(thunk) => IO(thunk())
       case _ => IO.suspend {
-        val f = source.runAsync(s)
+        val f = source.runAsync
         f.value match {
           case Some(tryA) => tryA match {
             case Success(v) => IO.pure(v)
