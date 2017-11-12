@@ -264,7 +264,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   test("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
-    val startConsuming = Promise[Continue]()
+    val startConsuming = Promise[Continue.type]()
 
     val underlying = new Observer[Long] {
       def onNext(elem: Long) = {
@@ -308,7 +308,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   test("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
-    val startConsuming = Promise[Continue]()
+    val startConsuming = Promise[Continue.type]()
 
     val underlying = new Observer[Long] {
       def onNext(elem: Long) = {

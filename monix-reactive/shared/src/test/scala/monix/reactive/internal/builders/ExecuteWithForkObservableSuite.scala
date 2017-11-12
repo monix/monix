@@ -50,25 +50,6 @@ object ExecuteWithForkObservableSuite extends TestSuite[TestScheduler]  {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Observable.now.executeOn should execute async") { implicit s =>
-    val s2 = TestScheduler()
-    val obs = Observable.now(10).executeOn(s2)
-    val p = Promise[Int]()
-
-    obs.subscribe(new Observer[Int] {
-      def onError(ex: Throwable): Unit = p.failure(ex)
-      def onComplete(): Unit = ()
-      def onNext(elem: Int): Future[Ack] = { p.success(elem); Stop }
-    })
-
-    val f = p.future
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, None)
-    s2.tick()
-    assertEquals(f.value, Some(Success(10)))
-  }
-
   test("Observer.executeWithModel should work") { implicit s =>
     val count = Platform.recommendedBatchSize * 4
     val obs = Observable.range(0, count).executeWithModel(SynchronousExecution)

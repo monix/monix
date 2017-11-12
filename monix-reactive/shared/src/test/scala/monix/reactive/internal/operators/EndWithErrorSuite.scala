@@ -34,7 +34,7 @@ object EndWithErrorSuite extends TestSuite[TestScheduler] {
   test("should end in the specified error") { implicit s =>
     var received = 0
     var wasThrown: Throwable = null
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
 
     val source = Observable.now(1000)
       .endWithError(DummyException("dummy"))

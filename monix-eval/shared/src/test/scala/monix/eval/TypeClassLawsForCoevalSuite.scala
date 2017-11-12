@@ -18,6 +18,7 @@
 package monix.eval
 
 import cats.effect.laws.discipline.SyncTests
+import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.CoflatMapTests
 
 object TypeClassLawsForCoevalSuite extends BaseLawsSuite {
@@ -26,4 +27,7 @@ object TypeClassLawsForCoevalSuite extends BaseLawsSuite {
 
   checkAll("CoflatMap[Coeval]",
     CoflatMapTests[Coeval].coflatMap[Int, Int, Int])
+
+  checkAll("Monoid[Coeval[Int]]",
+    MonoidTests[Coeval[Int]].monoid)
 }

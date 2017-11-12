@@ -232,7 +232,7 @@ object AckSuite extends TestSuite[TestScheduler] {
 
   test("syncMap should protect against exceptions") { implicit s =>
     val dummy = new RuntimeException("dummy")
-    val result = (Continue : Future[Ack]).syncMap { x => throw dummy }
+    val result = (Continue : Future[Ack]).syncMap { _ => throw dummy }
 
     assertEquals(result, Stop)
     assertEquals(s.state.lastReportedError, dummy)
@@ -351,7 +351,7 @@ object AckSuite extends TestSuite[TestScheduler] {
 
   test("syncFlatMap should protect against exceptions") { implicit s =>
     val dummy = new RuntimeException("dummy")
-    val result = (Continue : Future[Ack]).syncFlatMap { x => throw dummy }
+    val result = (Continue : Future[Ack]).syncFlatMap { _ => throw dummy }
 
     assertEquals(result, Stop)
     assertEquals(s.state.lastReportedError, dummy)
@@ -700,39 +700,39 @@ object AckSuite extends TestSuite[TestScheduler] {
   }
 
   test("Continue.transform") { implicit s =>
-    val f1 = Continue.transform { r => Success(1) }
+    val f1 = Continue.transform { _ => Success(1) }
     s.tick()
     assertEquals(f1.value, Some(Success(1)))
 
     val dummy = new RuntimeException("dummy")
-    val f2 = Continue.transform { r => Failure(dummy) }
+    val f2 = Continue.transform { _ => Failure(dummy) }
     s.tick()
     assertEquals(f2.value, Some(Failure(dummy)))
 
-    val f3 = Continue.transform { r => throw dummy }
+    val f3 = Continue.transform { _ => throw dummy }
     s.tick()
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
   test("Continue.transformWith") { implicit s =>
-    val f1 = Continue.transformWith { r => Future.successful(1) }
+    val f1 = Continue.transformWith { _ => Future.successful(1) }
     s.tick()
     assertEquals(f1.value, Some(Success(1)))
 
     val dummy = new RuntimeException("dummy")
-    val f2 = Continue.transformWith { r => Future.failed(dummy) }
+    val f2 = Continue.transformWith { _ => Future.failed(dummy) }
     s.tick()
     assertEquals(f2.value, Some(Failure(dummy)))
 
-    val f3 = Continue.transformWith { r => throw dummy }
+    val f3 = Continue.transformWith { _ => throw dummy }
     s.tick()
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
   test("Continue.transformWith is stack safe") { implicit s =>
-    def loop(n: Int): Future[Continue] =
+    def loop(n: Int): Future[Ack] =
       if (n <= 0) Continue else Continue.transformWith {
-        case Success(Continue) => loop(n-1)
+        case Success(_) => loop(n-1)
         case Failure(ex) => Future.failed(ex)
       }
 
@@ -741,39 +741,39 @@ object AckSuite extends TestSuite[TestScheduler] {
   }
 
   test("Stop.transform") { implicit s =>
-    val f1 = Stop.transform { r => Success(1) }
+    val f1 = Stop.transform { _ => Success(1) }
     s.tick()
     assertEquals(f1.value, Some(Success(1)))
 
     val dummy = new RuntimeException("dummy")
-    val f2 = Stop.transform { r => Failure(dummy) }
+    val f2 = Stop.transform { _ => Failure(dummy) }
     s.tick()
     assertEquals(f2.value, Some(Failure(dummy)))
 
-    val f3 = Stop.transform { r => throw dummy }
+    val f3 = Stop.transform { _ => throw dummy }
     s.tick()
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
   test("Stop.transformWith") { implicit s =>
-    val f1 = Stop.transformWith { r => Future.successful(1) }
+    val f1 = Stop.transformWith { _ => Future.successful(1) }
     s.tick()
     assertEquals(f1.value, Some(Success(1)))
 
     val dummy = new RuntimeException("dummy")
-    val f2 = Stop.transformWith { r => Future.failed(dummy) }
+    val f2 = Stop.transformWith { _ => Future.failed(dummy) }
     s.tick()
     assertEquals(f2.value, Some(Failure(dummy)))
 
-    val f3 = Stop.transformWith { r => throw dummy }
+    val f3 = Stop.transformWith { _ => throw dummy }
     s.tick()
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
   test("Stop.transformWith is stack safe") { implicit s =>
-    def loop(n: Int): Future[Stop] =
+    def loop(n: Int): Future[Ack] =
       if (n <= 0) Stop else Stop.transformWith {
-        case Success(Stop) => loop(n-1)
+        case Success(_) => loop(n-1)
         case Failure(ex) => Future.failed(ex)
       }
 

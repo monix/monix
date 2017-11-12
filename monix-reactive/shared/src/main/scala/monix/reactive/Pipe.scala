@@ -19,8 +19,7 @@ package monix.reactive
 
 import monix.execution.Scheduler
 import monix.execution.misc.NonFatal
-import monix.reactive.observables.ObservableLike
-import monix.reactive.observables.ObservableLike.{Operator, Transformer}
+import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
 import monix.reactive.Pipe.{LiftedPipe, TransformedPipe}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -29,7 +28,7 @@ import monix.reactive.subjects._
 /** Represents a factory for an input/output channel for
   * broadcasting input to multiple subscribers.
   */
-abstract class Pipe[I, +O] extends ObservableLike[O, ({type λ[+α] = Pipe[I, α]})#λ] {
+abstract class Pipe[I, +O] extends Serializable {
   /** Returns an input/output pair that can be used to
     * push input to a single subscriber.
     *
@@ -72,12 +71,12 @@ abstract class Pipe[I, +O] extends ObservableLike[O, ({type λ[+α] = Pipe[I, α
   }
 
   // provides observable-like operators
-  override def liftByOperator[B](op: Operator[O, B]): Pipe[I, B] =
+  final def liftByOperator[B](op: Operator[O, B]): Pipe[I, B] =
     new LiftedPipe(this, op)
 
   /** Transforms the source using the given transformer function. */
-  override def transform[B](transformer: Transformer[O, B]): Pipe[I, B] =
-    new TransformedPipe(this, transformer)
+  final def transform[B](f: Observable[O] => Observable[B]): Pipe[I, B] =
+    new TransformedPipe(this, f)
 }
 
 object Pipe {
@@ -221,7 +220,7 @@ object Pipe {
     }
   }
 
-  private final class TransformedPipe[I,+O,+U](self: Pipe[I,O], f: Transformer[O, U])
+  private final class TransformedPipe[I,+O,+U](self: Pipe[I, O], f: Observable[O] => Observable[U])
     extends Pipe[I,U] {
 
     override def unicast: (Observer[I], Observable[U]) = {

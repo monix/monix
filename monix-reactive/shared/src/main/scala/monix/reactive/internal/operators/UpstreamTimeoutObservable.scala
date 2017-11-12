@@ -72,7 +72,7 @@ private[reactive] final class UpstreamTimeoutObservable[+A](
       }
 
       def onNext(elem: A): Future[Ack] = {
-        def unfreeze(): Continue = {
+        def unfreeze(): Ack = {
           lastEmittedMillis = scheduler.currentTimeMillis()
           isProcessingOnNext = false
           Continue

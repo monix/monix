@@ -19,10 +19,9 @@ package monix.eval.internal
 
 import cats.effect.{Effect, IO}
 import monix.eval.Task
-import monix.eval.instances.CatsAsyncInstances
+import monix.eval.instances.CatsBaseForTask
 import monix.execution.Scheduler
 import monix.execution.misc.NonFatal
-
 import scala.util.{Failure, Success}
 
 private[eval] object TaskConversions {
@@ -57,7 +56,7 @@ private[eval] object TaskConversions {
   def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
     import IO.ioEffect
     F match {
-      case _: CatsAsyncInstances.ForTask =>
+      case _: CatsBaseForTask =>
         fa.asInstanceOf[Task[A]]
       case `ioEffect` =>
         fromIO(fa.asInstanceOf[IO[A]])

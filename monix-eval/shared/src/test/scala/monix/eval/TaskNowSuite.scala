@@ -17,6 +17,9 @@
 
 package monix.eval
 
+import cats.laws._
+import cats.laws.discipline._
+
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success, Try}

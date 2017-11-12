@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observable.{empty, now}
 import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
@@ -90,11 +90,11 @@ object ConcatOneSuite extends BaseOperatorSuite {
     var total = 0L
 
     createObservable(sourceCount) match {
-      case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, count, sum, _, _)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
           private[this] var sum = 0L
 
-          def onNext(elem: Long): Continue = {
+          def onNext(elem: Long): Ack = {
             received += 1
             sum += elem
             Continue
@@ -202,7 +202,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
     val dummy2 = DummyException("dummy2")
 
     val source = Observable.now(1L).endWithError(dummy1)
-    val obs: Observable[Long] = source.flatMap { i => Observable.raiseError(dummy2) }
+    val obs: Observable[Long] = source.flatMap { _ => Observable.raiseError(dummy2) }
 
     var thrownError: Throwable = null
     var received = 0
@@ -210,7 +210,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
     var onErrorReceived = 0
 
     obs.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long): Continue = {
+      def onNext(elem: Long): Ack = {
         received += 1
         Continue
       }
@@ -235,7 +235,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
     val dummy2 = DummyException("dummy2")
 
     val source = Observable.now(1L).endWithError(dummy1)
-    val obs: Observable[Long] = source.flatMap { i =>
+    val obs: Observable[Long] = source.flatMap { _ =>
       Observable.fork(Observable.raiseError(dummy2))
     }
 
@@ -245,7 +245,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
     var onErrorReceived = 0
 
     obs.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long): Continue = {
+      def onNext(elem: Long): Ack = {
         received += 1
         Continue
       }

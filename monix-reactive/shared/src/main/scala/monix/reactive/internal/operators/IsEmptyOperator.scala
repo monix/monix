@@ -17,9 +17,9 @@
 
 package monix.reactive.internal.operators
 
+import monix.execution.Ack
 import monix.execution.Ack.Stop
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 private[reactive] object IsEmptyOperator extends Operator[Any,Boolean] {
@@ -29,7 +29,7 @@ private[reactive] object IsEmptyOperator extends Operator[Any,Boolean] {
       private[this] var isDone = false
       private[this] var isEmpty = true
 
-      def onNext(elem: Any): Stop = {
+      def onNext(elem: Any): Ack = {
         isEmpty = false
         onComplete()
         Stop

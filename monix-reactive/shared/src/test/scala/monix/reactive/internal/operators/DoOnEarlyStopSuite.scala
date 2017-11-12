@@ -18,11 +18,13 @@
 package monix.reactive.internal.operators
 
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 
 object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
@@ -72,7 +74,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     Observable.range(0,10).doOnEarlyStop(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
-        def onNext(elem: Long): Future[Continue] =
+        def onNext(elem: Long): Future[Ack] =
           if (elem % 2 == 0) Continue else Future(Continue)
 
         def onError(ex: Throwable): Unit = ()
@@ -93,7 +95,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     Observable.raiseError(dummy).doOnEarlyStop(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
-        def onNext(elem: Long): Future[Continue] =
+        def onNext(elem: Long): Future[Ack] =
           if (elem % 2 == 0) Continue else Future(Continue)
 
         def onError(ex: Throwable): Unit =

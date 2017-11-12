@@ -201,7 +201,7 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
   test("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     var wasCompleted = false
-    val startConsuming = Promise[Continue]()
+    val startConsuming = Promise[Continue.type]()
 
     val buffer = BufferedSubscriber[Long](
       new Subscriber[Long] {
@@ -249,7 +249,7 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
   test("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     var errorThrown: Throwable = null
-    val startConsuming = Promise[Continue]()
+    val startConsuming = Promise[Continue.type]()
 
     val buffer = BufferedSubscriber[Long](
       new Subscriber[Long] {
