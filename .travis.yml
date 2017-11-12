@@ -14,10 +14,10 @@ matrix:
       env: COMMAND=ci-js COVERAGE= PUBLISH=
     # Scala 2.12
     - jdk: oraclejdk8
-      scala: 2.12.3
+      scala: 2.12.4
       env: COMMAND=ci-jvm-all COVERAGE= PUBLISH=true
     - jdk: oraclejdk8
-      scala: 2.12.3
+      scala: 2.12.4
       env: COMMAND=ci-js PUBLISH= COVERAGE=
 
 env:

@@ -59,7 +59,7 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 0)
   }
 
-  test("real async test of many tasks") { _ =>
+  testAsync("real async test of many tasks") { _ =>
     // Executing tasks on the global scheduler!
     import monix.execution.Scheduler.Implicits.global
     val semaphore = TaskSemaphore(maxParallelism = 4)
