@@ -66,7 +66,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
     assertEquals(semaphore.activeCount, 0)
   }
 
-  test("real async test of many futures") { _ =>
+  testAsync("real async test of many futures") { _ =>
     // Executing Futures on the global scheduler!
     import monix.execution.Scheduler.Implicits.global
     val semaphore = AsyncSemaphore(maxParallelism = 4)

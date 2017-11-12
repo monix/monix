@@ -11,10 +11,10 @@ addCommandAlias("release",    ";project monix ;+publishSigned ;sonatypeReleaseAl
 
 val catsVersion = "1.0.0-RC1"
 val catsEffectVersion = "0.5"
-val jcToolsVersion = "2.0.2"
+val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.1"
-val scalaTestVersion = "3.0.3"
-val minitestVersion = "1.1.1"
+val scalaTestVersion = "3.0.4"
+val minitestVersion = "2.0.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -42,8 +42,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.11.11",
-  crossScalaVersions := Seq("2.11.11", "2.12.3"),
+  scalaVersion := "2.12.4",
+  crossScalaVersions := Seq("2.11.11", "2.12.4"),
 
   scalacOptions ++= Seq(
     // warnings
