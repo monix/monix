@@ -19,8 +19,8 @@ package monix.eval
 
 import monix.execution.misc.Local
 
-/** A `TaskLocal` is like a [[ThreadLocal]] that is pure,
-  * being processed in the context of the [[Task]] data type
+/** A `TaskLocal` is like a [[monix.execution.misc.ThreadLocal ThreadLocal]]
+  * that is pure, being processed in the context of the [[Task]] data type.
   *
   * This data type wraps [[monix.execution.misc.Local]].
   *
@@ -65,11 +65,11 @@ import monix.execution.misc.Local
   *       value5 <- local.read // value5 == 0
   *     } yield {
   *       // Should print 0, 100, 400, 100, 0
-  *       println(s"value1: $value1")
-  *       println(s"value2: $value2")
-  *       println(s"value3: $value3")
-  *       println(s"value4: $value4")
-  *       println(s"value5: $value5")
+  *       println("value1: " + value1)
+  *       println("value2: " + value2)
+  *       println("value3: " + value3)
+  *       println("value4: " + value4)
+  *       println("value5: " + value5)
   *     }
   *
   *   // To run the Task and ensure that locals get transported
