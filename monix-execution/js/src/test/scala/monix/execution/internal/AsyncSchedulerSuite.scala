@@ -39,7 +39,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler): Unit =
     lastReported.set(null)
 
-  test("execute async should work") { implicit s =>
+  testAsync("execute async should work") { implicit s =>
     var effect = 0
     val p = Promise[Int]()
 
@@ -76,7 +76,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
     assertEquals(effect, 1 + 2 + 3)
   }
 
-  test("schedule for execution with delay") { implicit s =>
+  testAsync("schedule for execution with delay") { implicit s =>
     import concurrent.duration._
     val p = Promise[Unit]()
     val startAt = s.currentTimeMillis()
