@@ -23,6 +23,7 @@ import monix.execution.atomic.AtomicAny
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.{Local, NonFatal}
+import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
 
 import scala.annotation.tailrec
@@ -42,12 +43,6 @@ private[eval] object TaskRunLoop {
   private def createCallStack(): CallStack =
     ArrayStack(8)
 
-  /**
-    * Used for evaluating the [[Local.Context Local]]
-    */
-  private def setLocal[T](local: Local.Context)(f: => T): T =
-    if (local == null) f else Local.withContext(local)(f)
-
   /** Internal utility, for forcing an asynchronous boundary in the
     * trampoline loop.
     */
@@ -58,21 +53,20 @@ private[eval] object TaskRunLoop {
     bindCurrent: Bind,
     bindRest: CallStack): Unit = {
 
-    val local = if (context.options.localContextPropagation) Local.getContext() else null
+    val saved =
+      if (context.options.localContextPropagation) Local.getContext()
+      else null
+
     if (!context.shouldCancel) {
       context.scheduler.executeAsync { () =>
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
-        // Getting the current context if localContextPropagation == true.
-        // We add this so there is no need to use the TracingScheduler
-        // and leave the propagation in async boundaries to the setting
-        // of the option localContextPropagation.
-        setLocal(local) {
+        // Transporting the current context if localContextPropagation == true.
+        Local.bind(saved) {
           startWithCallback(source, context, cb, bindCurrent, bindRest, 1)
         }
       }
     }
-
   }
 
   /** Logic for finding the next `Transformation` reference,
@@ -94,7 +88,6 @@ private[eval] object TaskRunLoop {
     }
     result
   }
-
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
     if ((bFirst ne null) && !bFirst.isInstanceOf[Transformation.OnError[_]])
@@ -129,27 +122,28 @@ private[eval] object TaskRunLoop {
       private[this] var bFirst: Bind = _
       private[this] var bRest: CallStack = _
       private[this] val runLoopIndex = context.frameRef
-      private[this] val local = if (context.options.localContextPropagation) Local.getContext() else null
+      private[this] val withLocal = context.options.localContextPropagation
+      private[this] var saved: Local.Context = _
 
       def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
         canCall = true
         this.bFirst = bindCurrent
         this.bRest = bindRest
+        if (withLocal) saved = Local.getContext()
       }
 
       def onSuccess(value: Any): Unit =
         if (canCall) {
           canCall = false
-          setLocal(local) {
+          Local.bind(saved) {
             loop(Now(value), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
           }
         }
 
-
       def onError(ex: Throwable): Unit =
         if (canCall) {
           canCall = false
-          setLocal(local) {
+          Local.bind(saved) {
             loop(Error(ex), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
           }
         } else {
@@ -185,7 +179,6 @@ private[eval] object TaskRunLoop {
         val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
         restartCallback.prepare(bFirst, bRest)
         register(context, restartCallback)
-
       }
     }
 
@@ -295,6 +288,7 @@ private[eval] object TaskRunLoop {
     scheduler: Scheduler,
     cb: Callback[A],
     opts: Task.Options): Cancelable = {
+
     /* Called when we hit the first async boundary. */
     def goAsync(
       source: Current,
@@ -600,10 +594,11 @@ private[eval] object TaskRunLoop {
           }
 
           // Asynchronous boundary to prevent stack-overflows!
-          s.executeTrampolined { () =>
-            startWithCallback(underlying, context, callback, null, null, nextFrame)
-          }
-
+          s.execute(new TrampolinedRunnable {
+            def run(): Unit = {
+              startWithCallback(underlying, context, callback, null, null, nextFrame)
+            }
+          })
           true
         }
 

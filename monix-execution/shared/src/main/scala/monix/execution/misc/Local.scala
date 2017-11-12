@@ -1,141 +1,185 @@
+/*
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package monix.execution.misc
 
+import monix.execution.Macros
+
 object Local {
+  /** Builds a new [[Local]] with the given `default` to be returned
+    * if a value hasn't been set, or after the local gets cleared.
+    *
+    * {{{
+    *   val num = Local(0)
+    *   num() //=> 0
+    *
+    *   num := 100
+    *   num() //=> 100
+    *
+    *   num.clear()
+    *   num() //=> 0
+    * }}}
+    */
+  def apply[A](default: A): Local[A] =
+    new Local[A](default)
 
-  type Context = scala.collection.immutable.Map[Key, Option[LocalContext]]
+  /** Represents the current state of all [[Local locals]] for a given
+    * execution context.
+    *
+    * This should be treated as an opaque value and direct modifications
+    * and access are considered verboten.
+    */
+  type Context = scala.collection.immutable.Map[Key, _]
 
-  trait LocalContext extends Serializable
-
+  /** Internal — key type used in [[Context]]. */
   final class Key extends Serializable
 
-  private[this] def context(k: Key, v: Option[LocalContext]): Context =
-    scala.collection.immutable.Map(k -> v)
+  /** Current [[Context]] kept in a `ThreadLocal`. */
+  private[this] val localContext: ThreadLocal[Context] =
+    ThreadLocal(Map.empty)
 
-  private[this] val localContext = ThreadLocal[Context]()
-
-  private def register(): Key =
-    new Key
-
-  /**
-    * Return the state of the current Local state.
-    */
+  /** Return the state of the current Local state. */
   def getContext(): Context =
     localContext.get
 
-  /**
-    * Restore the Local state to a given Context.
-    */
+  /** Restore the Local state to a given Context. */
   def setContext(ctx: Context): Unit =
     localContext.set(ctx)
 
-  /**
-    * Clear the Local state.
-    */
+  /** Clear the Local state. */
   def clearContext(): Unit =
-    localContext.set(null)
+    localContext.reset()
 
-  /**
-    * Execute a block of code using the specified state of Local
-    * Context and restore the current state when complete
+  /** Execute a block of code using the specified state of
+    * `Local.Context` and restore the current state when complete.
     */
-  def withContext[T](ctx: Context)(f: => T): T = {
-    val saved = getContext()
-    setContext(ctx)
-    try f
-    finally setContext(saved)
+  def bind[R](ctx: Context)(f: => R): R =
+    macro Macros.localLet
+
+  /** Execute a block of code with a clear state of `Local.Context`
+    * and restore the current state when complete.
+    */
+  def bindClear[R](f: => R): R =
+    macro Macros.localLetClear
+
+  /** Convert a closure `() => R` into another closure of the same
+    * type whose [[Local.Context]] is saved when calling closed
+    * and restored upon invocation.
+    */
+  def closed[R](fn: () => R): () => R = {
+    val closure = Local.getContext()
+    () => {
+      val save = Local.getContext()
+      Local.setContext(closure)
+      try fn() finally Local.setContext(save)
+    }
   }
 
-  /**
-    * Execute a block of code with a clear state of Local
-    * Context and restore the current state when complete
-    */
-  def withClearContext[T](f: => T): T = withContext(null)(f)
+  private def getKey[A](key: Key): Option[A] =
+    localContext.get().get(key).asInstanceOf[Option[A]]
 
-  private def save(key: Key, tctx: Option[LocalContext]): Unit = {
-    val newCtx = localContext.get match {
-      case null =>
-        context(key, tctx)
-      case ctx =>
-        ctx + (key -> tctx)
-    }
+  private def getKeyOrElse[A](key: Key, default: => A): A = {
+    val ctx = localContext.get()
+    ctx.getOrElse(key, default).asInstanceOf[A]
+  }
+
+  private def saveKey(key: Key, value: Any): Unit = {
+    val newCtx = localContext.get().updated(key, value)
     localContext.set(newCtx)
   }
 
-  private def get(key: Key): Option[_ <: LocalContext] = {
-    val l = localContext.get
-    if (l == null) None else l.get(key).flatten
-  }
+  private def clearKey(key: Key): Unit =
+    localContext.set(localContext.get - key)
 
-  private def clear(key: Key): Unit = {
-    val l = localContext.get
-    if (l != null) localContext.set(l - key)
-  }
+  private def restoreKey(key: Key, value: Option[_]): Unit =
+    value match {
+      case None => clearKey(key)
+      case Some(v) => saveKey(key, v)
+    }
 }
 
-/**
-  * An instance of [[Local]] is used to register a context of a thread using a
-  * [[monix.execution.misc.ThreadLocal ThreadLocal]] with the help of a global
-  * state bound to its companion object where all the registered contexts are stored.
-  * The type parameter T is bounded to [[monix.execution.misc.Local.LocalContext LocalContext]]
-  * so the user can create local contexts and define the rules of its behaviour.
-  * {{{
+/** A `Local` is a [[ThreadLocal]] whose scope is flexible. The state
+  * of all Locals may be saved or restored onto the current thread by
+  * the user. This is useful for threading Locals through execution
+  * contexts.
   *
-  *   case class TestLocalContext(id: Int) extends LocalContext
+  * Because it's not meaningful to inherit control from two places,
+  * Locals don't have to worry about having to merge two
+  * [[monix.execution.misc.Local.Context contexts]].
   *
-  *   val local = new Local[TestLocalContext]
-  *
-  *   // To get the current state, should yield None
-  *   local()
-  *
-  *   // To set the value
-  *   local.set(Some(TestLocalContext(1)))
-  *
-  *   // Should yield TestLocalContext(1)
-  *   local()
-  *
-  *   // To get the global state
-  *   // Should yield Map(Key@5de5e95 -> Some(TestLocalContext(1)))
-  *   Local.getContext()
-  *
-  *   val local2 = new Local[TestLocalContext]
-  *
-  *   // To set new LocalContext of local2
-  *   local2.set(Some(TestLocalContext(2)))
-  *
-  *   // To get the global state
-  *   // Should yield:
-  *   // Map(Key@5de5e95 -> Some(TestLocalContext(1)), Key@2f677247 -> Some(TestLocalContext(2)))
-  *   Local.getContext()
-  *
-  * }}}
-  * @tparam T bounded to the [[monix.execution.misc.Local.LocalContext LocalContext]]
+  * Note: the implementation is optimized for situations in which save
+  * and restore optimizations are dominant.
   */
-final class Local[T <: Local.LocalContext] {
-  private[this] val key: Local.Key = Local.register()
+final class Local[A](default: => A) {
+  import Local.Key
+  private[this] val key: Key = new Key
 
-  def update(value: T): Unit =
-    set(Some(value))
+  /** Returns the current value of this `Local`. */
+  def apply(): A =
+    Local.getKeyOrElse(key, default)
 
-  private def set(value: Option[T]): Unit =
-    Local.save(key, value)
+  /** Updates the value of this `Local`. */
+  def update(value: A): Unit =
+    Local.saveKey(key, value)
 
-  def apply(): Option[T] =
-    Local.get(key).asInstanceOf[Option[T]]
+  /** Alias for [[apply]]. */
+  def get: A = apply()
 
-  def withContext[U](value: T)(f: => U): U = {
-    val saved = apply()
-    set(Some(value))
-    try f
-    finally set(saved)
+  /** Alis for [[update]]. */
+  def `:=`(value: A): Unit = update(value)
+
+  /** Returns the current value of this `Local`, or `None` in
+    * case this local should fallback to the default.
+    *
+    * Use [[apply]] in case automatic fallback is needed.
+    */
+  def value: Option[A] =
+    Local.getKey(key)
+
+  /** Updates the current value of this `Local`. If the given
+    * value is `None`, then the local gets [[clear cleared]].
+    *
+    * This operation is a mixture of [[apply]] and [[clear]].
+    */
+  def value_=(update: Option[A]): Unit =
+    Local.restoreKey(key, update)
+
+  /** Execute a block with a specific local value, restoring the
+    * current state upon completion.
+    */
+  def bind[R](value: A)(f: => R): R = {
+    val saved = this.value
+    update(value)
+    try f finally this.value = saved
   }
 
-  def withClearContext[U](f: => U): U = {
-    val saved = apply()
+  /** Execute a block with the `Local` cleared, restoring the current
+    * state upon completion.
+    */
+  def bindClear[R](f: => R): R = {
+    val saved = Local.getKey[A](key)
     clear()
-    try f
-    finally set(saved)
+    try f finally Local.restoreKey(key, saved)
   }
 
+  /** Clear the Local's value. Other [[Local Locals]] are not modified.
+    *
+    * General usage should be via [[bindClear]] to avoid leaks.
+    */
   def clear(): Unit =
-    Local.clear(key)
+    Local.clearKey(key)
 }

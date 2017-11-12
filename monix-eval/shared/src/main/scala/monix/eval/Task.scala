@@ -27,6 +27,7 @@ import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 import monix.execution.misc.{NonFatal, ThreadLocal}
+import monix.execution.schedulers.TrampolinedRunnable
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
@@ -2174,11 +2175,11 @@ object Task extends TaskInstancesLevel1 {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]]
     * and `Task.fork`.
     */
-  def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit = {
-    context.scheduler.executeTrampolined { () =>
-      TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
-    }
-  }
+  def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
+    context.scheduler.execute(new TrampolinedRunnable {
+      def run(): Unit =
+        TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
+    })
 
   /** Unsafe utility - starts the execution of a Task, by providing
     * the needed [[monix.execution.Scheduler Scheduler]],

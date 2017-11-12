@@ -1,0 +1,220 @@
+/*
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package monix.eval
+
+import monix.execution.misc.Local
+
+/** A `TaskLocal` is like a [[ThreadLocal]] that is pure,
+  * being processed in the context of the [[Task]] data type
+  *
+  * This data type wraps [[monix.execution.misc.Local]].
+  *
+  * If you use [[Task]], then the implementation will ensure that
+  * local vars are captured and transported over asynchronous boundaries,
+  * but NOT by default, user has to enable
+  * [[Task.Options.localContextPropagation]].
+  *
+  * One way of doing that is to build an implicit instance that will
+  * get picked up by `Task.runAsync`:
+  *
+  * {{{
+  *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  *   // ...
+  *   task.runAsync
+  * }}}
+  *
+  * Another way of doing that is to use [[Task.executeWithOptions]]:
+  *
+  * {{{
+  *   task.executeWithOptions(_.enableLocalContextPropagation)
+  * }}}
+  *
+  * This will not work for `cats.effect.IO` or other data types.
+  * Therefore this data type cannot be generic.
+  *
+  * Full example:
+  *
+  * {{{
+  *   import monix.eval.{Task, TaskLocal}
+  *
+  *   val local = TaskLocal(0)
+  *
+  *   val task: Task[Unit] =
+  *     for {
+  *       value1 <- local.read // value1 == 0
+  *       _ <- local.write(100)
+  *       value2 <- local.read // value2 == 100
+  *       value3 <- local.bind(200)(local.read.map(_ * 2)) // value3 == 200 * 2
+  *       value4 <- local.read // value4 == 100
+  *       _ <- local.clear
+  *       value5 <- local.read // value5 == 0
+  *     } yield {
+  *       // Should print 0, 100, 400, 100, 0
+  *       println(s"value1: $value1")
+  *       println(s"value2: $value2")
+  *       println(s"value3: $value3")
+  *       println(s"value4: $value4")
+  *       println(s"value5: $value5")
+  *     }
+  *
+  *   // To run the Task and ensure that locals get transported
+  *   // over asynchronous boundaries, we need a different
+  *   // set of `Task.Options`:
+  *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  *
+  *   // For transporting locals over async boundaries defined by
+  *   // Task, any Scheduler will do, however for transporting locals
+  *   // over async boundaries managed by Future and others, you need
+  *   // a `TracingScheduler` here:
+  *   import monix.execution.Scheduler.Implicits.global
+  *
+  *   // Should pick up the implicit `Options` defined above
+  *   val f = task.runAsync
+  * }}}
+  */
+final class TaskLocal[A] private (default: => A) {
+  private[this] val ref = new Local(default)
+
+  /** Returns the current local value (in the `Task` context). */
+  def read: Task[A] =
+    Task.eval(ref.get)
+
+  /** Updates the local value. */
+  def write(value: A): Task[Unit] =
+    Task.eval(ref.update(value))
+
+  /** Clears the local value, making it return its `default`. */
+  def clear: Task[Unit] =
+    Task.eval(ref.clear())
+
+  /** Binds the local var to a `value` for the duration of the given
+    * `task` execution.
+    *
+    * {{{
+    *   val local = TaskLocal(0)
+    *
+    *   // Should yield 200 on execution, regardless of what value
+    *   // we have in `local` at the time of evaluation
+    *   val task = local.bind(100)(Task {
+    *     local.get * 2
+    *   })
+    * }}}
+    *
+    * @see [[bindL]] for the version with a lazy `value`.
+    *
+    * @param value is the value to be set in this local var when the
+    *        task evaluation is triggered (aka lazily)
+    *
+    * @param task is the [[Task]] to wrap, having the given `value`
+    *        as the response to [[read]] queries and transported
+    *        over asynchronous boundaries — on finish the local gets
+    *        reset to the previous value
+    */
+  def bind[R](value: A)(task: Task[R]): Task[R] =
+    Task.suspend {
+      val saved = ref.value
+      ref.update(value)
+      task.doOnFinish(_ => restore(saved))
+    }
+
+  /** Binds the local var to a `value` for the duration of the given
+    * `task` execution, the `value` itself being lazily evaluated
+    * in the [[Task]] context.
+    *
+    * {{{
+    *   val local = TaskLocal(0)
+    *
+    *   // Should yield 200 on execution, regardless of what value
+    *   // we have in `local` at the time of evaluation
+    *   val task = local.bindL(Task.eval(100))(Task {
+    *     local.get * 2
+    *   })
+    * }}}
+    *
+    * @see [[bind]] for the version with a strict `value`.
+    *
+    * @param value is the value to be set in this local var when the
+    *        task evaluation is triggered (aka lazily)
+    *
+    * @param task is the [[Task]] to wrap, having the given `value`
+    *        as the response to [[read]] queries and transported
+    *        over asynchronous boundaries — on finish the local gets
+    *        reset to the previous value
+    */
+  def bindL[R](value: Task[A])(task: Task[R]): Task[R] =
+    value.flatMap { value =>
+      val saved = ref.value
+      ref.update(value)
+      task.doOnFinish(_ => restore(saved))
+    }
+
+  /** Clears the local var to the default for the duration of the
+    * given `task` execution.
+    *
+    * {{{
+    *   val local = TaskLocal(0)
+    *
+    *   //...
+    *
+    *   // Should yield 0 on execution, regardless of what value
+    *   // we have in `local` at the time of evaluation
+    *   val task = local.bindClear(Task {
+    *     local.get * 2
+    *   })
+    * }}}
+    *
+    * @param task is the [[Task]] to wrap, having the local cleared,
+    *        returning the default as the response to [[read]] queries
+    *        and transported over asynchronous boundaries — on finish
+    *        the local gets reset to the previous value
+    */
+  def bindClear[R](task: Task[R]): Task[R] =
+    Task.suspend {
+      val saved = ref.value
+      ref.clear()
+      task.doOnFinish(_ => restore(saved))
+    }
+
+  private def restore(value: Option[A]): Task[Unit] =
+    Task.eval(ref.value = value)
+}
+
+object TaskLocal {
+  /** Builds a [[TaskLocal]] reference with the given default.
+    *
+    * @param default is a value that gets returned in case the
+    *        local was never updated (with [[TaskLocal.write write]])
+    *        or in case it was cleared (with [[TaskLocal.clear]])
+    */
+  def apply[A](default: A): TaskLocal[A] =
+    new TaskLocal(default)
+
+  /** Builds a [[TaskLocal]] reference with the given `default`,
+    * being lazily evaluated, using [[Coeval]] to manage evaluation.
+    *
+    * Yes, side effects in the `default` are allowed, [[Coeval]]
+    * being a data type that's safe for side effects.
+    *
+    * @param default is a value that gets returned in case the
+    *        local was never updated (with [[TaskLocal.write write]])
+    *        or in case it was cleared (with [[TaskLocal.clear]]),
+    *        lazily evaluated and managed by [[Coeval]]
+    */
+  def lazyDefault[A](default: Coeval[A]): TaskLocal[A] =
+    new TaskLocal[A](default.value)
+}

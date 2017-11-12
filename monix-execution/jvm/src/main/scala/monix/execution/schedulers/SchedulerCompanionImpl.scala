@@ -393,18 +393,26 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   lazy val DefaultScheduledExecutor: ScheduledExecutorService =
     Defaults.scheduledExecutor
 
-  /** The explicit global `Scheduler`. Invoke `global` when you want to provide the global
-    * `Scheduler` explicitly.
+  /** The explicit global `Scheduler`. Invoke `global` when you want
+    * to provide the global `Scheduler` explicitly.
     *
-    * The default `Scheduler` implementation is backed by a work-stealing thread pool, along
-    * with a single-threaded `ScheduledExecutionContext` that does the scheduling. By default,
-    * the thread pool uses a target number of worker threads equal to the number of
+    * The default `Scheduler` implementation is backed by a
+    * work-stealing thread pool, along with a single-threaded
+    * `ScheduledExecutionContext` that does the scheduling. By default,
+    * the thread pool uses a target number of worker threads equal
+    * to the number of
     * [[https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#availableProcessors-- available processors]].
     *
     * @return the global `Scheduler`
     */
   def global: Scheduler = Implicits.global
 
+  /** A global [[monix.execution.Scheduler Scheduler]] instance that does
+    * propagation of [[monix.execution.misc.Local.Context Local.Context]]
+    * on async execution.
+    *
+    * It wraps [[global]].
+    */
   def traced: Scheduler = Implicits.traced
 
   /**
@@ -445,9 +453,10 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * thread-pool that is more optimal for blocking. See for example
     * [[io]].
     */
-  object Implicits extends ImplicitsLike {
-    /** A global [[monix.execution.Scheduler Scheduler]] instance, provided for convenience, piggy-backing
-      * on top of Scala's own `concurrent.ExecutionContext.global`, which is a
+  object Implicits extends ImplicitsLevel0 with ImplicitsLike {
+    /** A global [[monix.execution.Scheduler Scheduler]] instance,
+      * provided for convenience, piggy-backing on top of Scala's
+      * own `concurrent.ExecutionContext.global`, which is a
       * `ForkJoinPool`.
       *
       * $globalTuning
@@ -459,21 +468,18 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
         UncaughtExceptionReporter.LogExceptionsToStandardErr,
         ExecModel.Default
       )
+  }
 
-    /** A [[monix.execution.Scheduler Scheduler]] instance which include the propagation of
-      * [[monix.execution.misc.Local Local]] through the async execution. It is based on
-      * [[monix.execution.schedulers.AsyncScheduler]] and it propagates the Local in the
-      * executeAsync function. It's also based on Scala's own `concurrent.ExecutionContext.global`,
-      * which is a `ForkJoinPool`.
+  private[execution] abstract class ImplicitsLevel0 {
+    /** A [[monix.execution.Scheduler Scheduler]] instance that does
+      * propagation of [[monix.execution.misc.Local.Context Local.Context]]
+      * through async execution.
+      *
+      * It wraps [[global]].
       *
       * $globalTuning
       */
     implicit lazy val traced: Scheduler =
-      TracingScheduler(
-        DefaultScheduledExecutor,
-        ExecutionContext.Implicits.global,
-        UncaughtExceptionReporter.LogExceptionsToStandardErr,
-        ExecModel.Default
-      )
+      TracingScheduler(global)
   }
 }

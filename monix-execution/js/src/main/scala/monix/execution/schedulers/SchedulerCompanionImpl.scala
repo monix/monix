@@ -51,14 +51,21 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executionModel: ExecModel = ExecModel.Default): Scheduler =
     TrampolineScheduler(underlying, executionModel)
 
-  /** The explicit global `Scheduler`. Invoke `global` when you want to provide the global
-    * `Scheduler` explicitly.
+  /** The explicit global `Scheduler`. Invoke `global` when you want
+    * to provide the global `Scheduler` explicitly.
     */
   def global: Scheduler = Implicits.global
 
-  object Implicits extends ImplicitsLike {
-    /**
-      * A global [[monix.execution.Scheduler Scheduler]] instance,
+  /** A global [[monix.execution.Scheduler Scheduler]] instance that does
+    * propagation of [[monix.execution.misc.Local.Context Local.Context]]
+    * on async execution.
+    *
+    * It wraps [[global]].
+    */
+  def traced: Scheduler = Implicits.traced
+
+  object Implicits extends ImplicitsLevel0 with ImplicitsLike {
+    /** A global [[monix.execution.Scheduler Scheduler]] instance,
       * provided for convenience, piggy-backing
       * on top of `global.setTimeout`.
       */
@@ -66,5 +73,16 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       AsyncScheduler(
         UncaughtExceptionReporter.LogExceptionsToStandardErr,
         ExecModel.Default)
+  }
+
+  private[execution] abstract class ImplicitsLevel0 {
+    /** A [[monix.execution.Scheduler Scheduler]] instance that does
+      * propagation of [[monix.execution.misc.Local.Context Local.Context]]
+      * through async execution.
+      *
+      * It wraps [[global]].
+      */
+    implicit lazy val traced: Scheduler =
+      TracingScheduler(global)
   }
 }

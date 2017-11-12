@@ -18,8 +18,9 @@
 package monix.execution
 
 import monix.execution.Ack.AckExtensions
-import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
+import monix.execution.misc.{HygieneUtilMacros, InlineMacros, Local}
 import monix.execution.schedulers.{StartAsyncBatchRunnable, TrampolinedRunnable}
+
 import scala.concurrent.Future
 import scala.reflect.macros.whitebox
 
@@ -330,6 +331,38 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
       val $runnable = new $TrampolinedRunnableSymbol { def run(): Unit = { $cb } }
       $self.execute(new $StartAsyncBatchRunnableSymbol($runnable, $self))
       """)
+  }
+
+  def localLet(ctx: Tree)(f: Tree): Tree = {
+    val ctxRef = util.name("ctx")
+    val saved = util.name("saved")
+    val Local = symbolOf[Local[_]].companion
+    val AnyRefSym = symbolOf[AnyRef]
+
+    resetTree(
+      q"""
+       val $ctxRef = ($ctx)
+       if (($ctxRef : $AnyRefSym) eq null) {
+         $f
+       } else {
+         val $saved = $Local.getContext()
+         $Local.setContext($ctxRef)
+         try { $f } finally { $Local.setContext($saved) }
+       }
+       """)
+  }
+
+  def localLetClear(f: Tree): Tree = {
+    val saved = util.name("saved")
+    val Local = symbolOf[Local[_]].companion
+    val Map = symbolOf[scala.collection.immutable.Map[_, _]].companion
+
+    resetTree(
+      q"""
+       val $saved = $Local.getContext()
+       $Local.setContext($Map.empty)
+       try { $f } finally { $Local.setContext($saved) }
+       """)
   }
 
   private[monix] def sourceFromScheduler(tree: Tree): c.Expr[Scheduler] = {
