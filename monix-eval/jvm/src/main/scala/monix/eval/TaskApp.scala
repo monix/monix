@@ -59,8 +59,8 @@ trait TaskApp {
     val task = {
       val ref = run(args)
       val opts = options.value
-      if (opts == Task.defaultOptions) ref else
-        ref.executeWithOptions(_ => Task.defaultOptions)
+      if (opts == Task.defaultOptions) ref
+      else ref.executeWithOptions(_ => opts)
     }
 
     val f = task.runAsync(scheduler.value)
