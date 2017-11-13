@@ -18,6 +18,8 @@
 package monix.eval
 
 import minitest.SimpleTestSuite
+import monix.eval.Task.Options
+import scala.concurrent.Promise
 
 object TaskAppSuite extends SimpleTestSuite {
   test("runl works") {
@@ -39,5 +41,31 @@ object TaskAppSuite extends SimpleTestSuite {
 
     app.main(Array.empty)
     assert(wasExecuted, "wasExecuted")
+  }
+
+  testAsync("options are configurable") {
+    import monix.execution.Scheduler.Implicits.global
+
+    val opts = Task.defaultOptions
+    assert(!opts.localContextPropagation, "!opts.localContextPropagation")
+    val opts2 = opts.enableLocalContextPropagation
+    assert(opts2.localContextPropagation, "opts2.localContextPropagation")
+
+    val p = Promise[Options]()
+    val exposeOpts =
+      Task.unsafeCreate[Task.Options] { (ctx, cb) =>
+        cb.onSuccess(ctx.options)
+      }
+
+    val app = new TaskApp {
+      override val options = Coeval(opts2)
+      override def runc =
+        exposeOpts.map { x => p.success(x) }
+    }
+
+    app.main(Array.empty)
+    for (r <- p.future) yield {
+      assertEquals(r, opts2)
+    }
   }
 }

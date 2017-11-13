@@ -47,8 +47,16 @@ trait TaskApp {
   protected val scheduler: Coeval[Scheduler] =
     Coeval.evalOnce(Scheduler.global)
 
+  /** [[monix.eval.Task.Options Options]] for executing the
+    * [[Task]] action. The default value is defined in
+    * [[monix.eval.Task.defaultOptions defaultOptions]],
+    * but can be overridden.
+    */
+  protected val options: Coeval[Task.Options] =
+    Coeval.evalOnce(Task.defaultOptions)
+
   final def main(args: Array[String]): Unit = {
-    val f = run(args).runAsync(scheduler.value)
+    val f = run(args).runAsyncOpt(scheduler.value, options.value)
     Await.result(f, Duration.Inf)
   }
 }

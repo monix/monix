@@ -33,7 +33,6 @@ import scala.annotation.tailrec
 final class StackedCancelable private (initial: List[Cancelable])
   extends BooleanCancelable {
 
-  private def underlying: List[Cancelable] = state.get
   private[this] val state = {
     val ref = if (initial != null) initial else Nil
     AtomicAny.withPadding(ref, PaddingStrategy.LeftRight128)

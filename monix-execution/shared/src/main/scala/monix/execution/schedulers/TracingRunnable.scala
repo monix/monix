@@ -15,26 +15,23 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.builders
+package monix.execution.schedulers
 
-import monix.execution.Cancelable
-import monix.reactive.Observable
-import monix.reactive.observers.Subscriber
-import monix.eval.{Callback, Task}
+import monix.execution.misc.Local
+import monix.execution.misc.Local.Context
 
-private[reactive] final
-class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    import subscriber.scheduler
-    task.runAsync(new Callback[A] {
-      def onSuccess(value: A): Unit = {
-        subscriber.onNext(value)
-        subscriber.onComplete()
-      }
+/** Wraps a `Runnable` into one that restores the given
+  * [[monix.execution.misc.Local.Context Local.Context]]
+  * upon execution of `run()`.
+  *
+  * Used by [[TracingScheduler]].
+  */
+final class TracingRunnable(r: Runnable, context: Context = Local.getContext())
+  extends Runnable {
 
-      def onError(ex: Throwable): Unit = {
-        subscriber.onError(ex)
-      }
-    })
+  override def run(): Unit = {
+    val prev: Context = Local.getContext()
+    Local.setContext(context)
+    try r.run() finally Local.setContext(prev)
   }
 }
