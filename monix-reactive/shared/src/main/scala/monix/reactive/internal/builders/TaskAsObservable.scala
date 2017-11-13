@@ -26,8 +26,6 @@ private[reactive] final
 class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
-    implicit val options = Task.defaultOptions
-
     task.runAsync(new Callback[A] {
       def onSuccess(value: A): Unit = {
         subscriber.onNext(value)

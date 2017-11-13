@@ -68,7 +68,6 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
     extends Subscriber[A] with Cancelable { self =>
 
     implicit val scheduler = out.scheduler
-    implicit val options = Task.defaultOptions
     // Ensures we don't execute more then a maximum number of tasks in parallel
     private[this] val semaphore = AsyncSemaphore(parallelism)
     // Reusable instance for releasing permits on cancel, but

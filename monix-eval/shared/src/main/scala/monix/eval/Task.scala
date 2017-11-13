@@ -286,8 +286,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param s $schedulerDesc
     * @return $cancelableDesc
     */
-  def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
-    TaskRunLoop.startLightWithCallback(self, s, cb, opts)
+  def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
+    TaskRunLoop.startLightWithCallback(self, s, cb, defaultOptions)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
@@ -297,11 +297,11 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param s $schedulerDesc
     * @return $cancelableDesc
     */
-  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable =
+  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable =
     runAsync(new Callback[A] {
       def onSuccess(value: A): Unit = f(Success(value))
       def onError(ex: Throwable): Unit = f(Failure(ex))
-    })(s, opts)
+    })(s)
 
   /** $runAsyncDesc
     *
@@ -313,8 +313,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         that can be used to extract the result or to cancel
     *         a running task.
     */
-  def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
-    TaskRunLoop.startAsFuture(this, s, opts)
+  def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+    TaskRunLoop.startAsFuture(this, s, defaultOptions)
 
   /** Tries to execute the source synchronously.
     *
@@ -348,8 +348,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         was hit and further async execution is needed or
     *         in case of failure
     */
-  def runSyncMaybe(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
-    val future = this.runAsync(s, opts)
+  def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
+    val future = this.runAsync(s)
 
     future.value match {
       case Some(value) =>
@@ -373,8 +373,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * value is available immediately, or `Left(future)` in case we
     * have an asynchronous boundary or an error.
     */
-  def coeval(implicit s: Scheduler, opts: Options): Coeval[Either[CancelableFuture[A], A]] =
-    Coeval.eval(runSyncMaybe(s, opts))
+  def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
+    Coeval.eval(runSyncMaybe(s))
 
   /** Returns a failed projection of this task.
     *
@@ -749,8 +749,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * The application of this function has strict behavior, as the
     * task is immediately executed.
     */
-  def foreach(f: A => Unit)(implicit s: Scheduler, opts: Options): CancelableFuture[Unit] =
-    foreachL(f).runAsync(s, opts)
+  def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
+    foreachL(f).runAsync(s)
 
   /** Returns a new Task that applies the mapping function to the
     * element emitted by the source.
@@ -2027,14 +2027,14 @@ object Task extends TaskInstancesLevel1 {
   /** [[Task]] state describing an immediate synchronous value. */
   private[eval] final case class Now[A](value: A) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onSuccess(value)
       else s.executeAsync(() => cb.onSuccess(value))
       Cancelable.empty
     }
 
     // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
       CancelableFuture.successful(value)
 
     override def toString: String =
@@ -2044,14 +2044,14 @@ object Task extends TaskInstancesLevel1 {
   /** [[Task]] state describing an immediate exception. */
   private[eval] final case class Error[A](ex: Throwable) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onError(ex)
       else s.executeAsync(() => cb.onError(ex))
       Cancelable.empty
     }
 
     // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
       CancelableFuture.failed(ex)
 
     override def toString: String =
@@ -2123,10 +2123,10 @@ object Task extends TaskInstancesLevel1 {
           Some(result.asInstanceOf[Try[A]])
       }
 
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
       state.get match {
         case null =>
-          super.runAsync(cb)(s, opts)
+          super.runAsync(cb)(s)
         case (p: Promise[_], conn: StackedCancelable) =>
           val f = p.asInstanceOf[Promise[A]].future
           f.onComplete(cb)
@@ -2136,10 +2136,10 @@ object Task extends TaskInstancesLevel1 {
           Cancelable.empty
       }
 
-    override def runAsync(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
       state.get match {
         case null =>
-          super.runAsync(s, opts)
+          super.runAsync(s)
         case (p: Promise[_], conn: StackedCancelable) =>
           val f = p.asInstanceOf[Promise[A]].future
           CancelableFuture(f, conn)

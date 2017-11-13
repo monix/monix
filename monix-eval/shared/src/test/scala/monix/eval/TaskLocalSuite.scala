@@ -22,7 +22,7 @@ import monix.execution.Scheduler
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
-  implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  val opts = Task.defaultOptions.enableLocalContextPropagation
 
   testAsync("Local.apply") {
     val local = TaskLocal(0)
@@ -40,7 +40,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 0))
       } yield ()
 
-    test.runAsync
+    test.executeWithOptions(_ => opts).runAsync
   }
 
   testAsync("Local.defaultLazy") {
@@ -61,7 +61,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 2))
       } yield ()
 
-    test.runAsync
+    test.executeWithOptions(_ => opts).runAsync
   }
 
 
@@ -77,7 +77,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsync
+    test.executeWithOptions(_ => opts).runAsync
   }
 
   testAsync("TaskLocal!.bindL") {
@@ -92,7 +92,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsync
+    test.executeWithOptions(_ => opts).runAsync
   }
 
   testAsync("TaskLocal!.bindClear") {
@@ -107,6 +107,6 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsync
+    test.executeWithOptions(_ => opts).runAsync
   }
 }

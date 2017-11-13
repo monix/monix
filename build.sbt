@@ -394,7 +394,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    libraryDependencies += "io.monix" %% "monix-reactive" % "2.3.0"
+    libraryDependencies += "io.monix" %% "monix-reactive" % "2.3.2"
   )
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))

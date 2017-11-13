@@ -37,11 +37,11 @@ private[tail] object IterantToReactivePublisher {
     * Implementation of `Iterant.toReactivePublisher`
     */
   def apply[F[_], A](self: Iterant[F, A])
-    (implicit F: Effect[F], ec: Scheduler, opts: Task.Options = Task.defaultOptions): Publisher[A] =
+    (implicit F: Effect[F], ec: Scheduler): Publisher[A] =
     new IterantPublisher[F, A](self)
 
   private final class IterantPublisher[F[_], A](source: Iterant[F, A])
-    (implicit F: Effect[F], ec: Scheduler, opts: Task.Options = Task.defaultOptions)
+    (implicit F: Effect[F], ec: Scheduler)
     extends Publisher[A] {
 
     override def subscribe(out: Subscriber[_ >: A]): Unit = {
@@ -110,7 +110,7 @@ private[tail] object IterantToReactivePublisher {
   }
 
   private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[_ >: A])
-    (implicit F: Effect[F], ec: Scheduler, opts: Task.Options = Task.defaultOptions)
+    (implicit F: Effect[F], ec: Scheduler)
     extends Subscription {
 
     // Keeps track of the currently requested items

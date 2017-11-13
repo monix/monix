@@ -24,8 +24,6 @@ import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
 object TaskMemoizeSuite extends BaseTestSuite {
-  implicit val options = Task.defaultOptions
-
   test("Task.apply.memoize should work asynchronously for first subscriber") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }.memoize

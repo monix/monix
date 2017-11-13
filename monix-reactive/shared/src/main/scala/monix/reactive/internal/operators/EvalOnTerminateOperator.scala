@@ -38,7 +38,6 @@ class EvalOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], h
       // being called multiple times
       private[this] val active = Atomic(true)
       implicit val scheduler = out.scheduler
-      implicit val options = Task.defaultOptions
 
       def onNext(elem: A): Future[Ack] = {
         val result =

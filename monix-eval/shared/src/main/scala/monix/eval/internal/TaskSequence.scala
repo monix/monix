@@ -55,7 +55,6 @@ private[eval] object TaskSequence {
     }
 
     Task.defer {
-      val cursor = in.toIterator
       loop(in.toIterator, cbf(in))
     }
   }
