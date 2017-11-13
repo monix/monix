@@ -53,7 +53,7 @@ private[eval] object TaskRunLoop {
     bindCurrent: Bind,
     bindRest: CallStack): Unit = {
 
-    val saved =
+    val savedLocals =
       if (context.options.localContextPropagation) Local.getContext()
       else null
 
@@ -62,7 +62,7 @@ private[eval] object TaskRunLoop {
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
         // Transporting the current context if localContextPropagation == true.
-        Local.bind(saved) {
+        Local.bind(savedLocals) {
           startWithCallback(source, context, cb, bindCurrent, bindRest, 1)
         }
       }
@@ -123,19 +123,20 @@ private[eval] object TaskRunLoop {
       private[this] var bRest: CallStack = _
       private[this] val runLoopIndex = context.frameRef
       private[this] val withLocal = context.options.localContextPropagation
-      private[this] var saved: Local.Context = _
+      private[this] var savedLocals: Local.Context = _
 
       def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
         canCall = true
         this.bFirst = bindCurrent
         this.bRest = bindRest
-        if (withLocal) saved = Local.getContext()
+        if (withLocal)
+          savedLocals = Local.getContext()
       }
 
       def onSuccess(value: Any): Unit =
         if (canCall) {
           canCall = false
-          Local.bind(saved) {
+          Local.bind(savedLocals) {
             loop(Now(value), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
           }
         }
@@ -143,7 +144,7 @@ private[eval] object TaskRunLoop {
       def onError(ex: Throwable): Unit =
         if (canCall) {
           canCall = false
-          Local.bind(saved) {
+          Local.bind(savedLocals) {
             loop(Error(ex), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
           }
         } else {

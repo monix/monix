@@ -64,7 +64,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     */
   def traced: Scheduler = Implicits.traced
 
-  object Implicits extends ImplicitsLevel0 with ImplicitsLike {
+  object Implicits extends ImplicitsLike {
     /** A global [[monix.execution.Scheduler Scheduler]] instance,
       * provided for convenience, piggy-backing
       * on top of `global.setTimeout`.
@@ -73,9 +73,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       AsyncScheduler(
         UncaughtExceptionReporter.LogExceptionsToStandardErr,
         ExecModel.Default)
-  }
 
-  private[execution] abstract class ImplicitsLevel0 {
     /** A [[monix.execution.Scheduler Scheduler]] instance that does
       * propagation of [[monix.execution.misc.Local.Context Local.Context]]
       * through async execution.

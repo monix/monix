@@ -453,7 +453,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * thread-pool that is more optimal for blocking. See for example
     * [[io]].
     */
-  object Implicits extends ImplicitsLevel0 with ImplicitsLike {
+  object Implicits extends ImplicitsLike {
     /** A global [[monix.execution.Scheduler Scheduler]] instance,
       * provided for convenience, piggy-backing on top of Scala's
       * own `concurrent.ExecutionContext.global`, which is a
@@ -468,9 +468,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
         UncaughtExceptionReporter.LogExceptionsToStandardErr,
         ExecModel.Default
       )
-  }
 
-  private[execution] abstract class ImplicitsLevel0 {
     /** A [[monix.execution.Scheduler Scheduler]] instance that does
       * propagation of [[monix.execution.misc.Local.Context Local.Context]]
       * through async execution.
