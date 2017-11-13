@@ -19,33 +19,27 @@ package monix.eval
 
 import monix.execution.misc.Local
 
-/** A `TaskLocal` is like a [[monix.execution.misc.ThreadLocal ThreadLocal]]
-  * that is pure, being processed in the context of the [[Task]] data type.
+/** A `TaskLocal` is like a
+  * [[monix.execution.misc.ThreadLocal ThreadLocal]]
+  * that is pure and with a flexible scope, being processed in the
+  * context of the [[Task]] data type.
   *
   * This data type wraps [[monix.execution.misc.Local]].
   *
-  * If you use [[Task]], then the implementation will ensure that
-  * local vars are captured and transported over asynchronous boundaries,
-  * but NOT by default, user has to enable
-  * [[Task.Options.localContextPropagation]].
+  * Just like a `ThreadLocal`, usage of a `TaskLocal` is safe,
+  * the state of all current locals being transported over
+  * async boundaries (aka when threads get forked) by the `Task`
+  * run-loop implementation, but only when the `Task` reference
+  * gets executed with [[Task.Options.localContextPropagation]]
+  * set to `true`.
   *
-  * One way of doing that is to build an implicit instance that will
-  * get picked up by `Task.runAsync`:
-  *
-  * {{{
-  *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-  *   // ...
-  *   task.runAsync
-  * }}}
-  *
-  * Another way of doing that is to use [[Task.executeWithOptions]]:
+  * This can be achieved with a [[Task.executeWithOptions]],
+  * a single call is sufficient just before `runAsync`:
   *
   * {{{
   *   task.executeWithOptions(_.enableLocalContextPropagation)
+  *     .runAsync
   * }}}
-  *
-  * This will not work for `cats.effect.IO` or other data types.
-  * Therefore this data type cannot be generic.
   *
   * Full example:
   *
@@ -72,19 +66,17 @@ import monix.execution.misc.Local
   *       println("value5: " + value5)
   *     }
   *
-  *   // To run the Task and ensure that locals get transported
-  *   // over asynchronous boundaries, we need a different
-  *   // set of `Task.Options`:
-  *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-  *
   *   // For transporting locals over async boundaries defined by
   *   // Task, any Scheduler will do, however for transporting locals
   *   // over async boundaries managed by Future and others, you need
   *   // a `TracingScheduler` here:
   *   import monix.execution.Scheduler.Implicits.global
   *
-  *   // Should pick up the implicit `Options` defined above
-  *   val f = task.runAsync
+  *   // Needs enabling the "localContextPropagation" option
+  *   // just before execution
+  *   val f = task
+  *     .executeWithOptions(_.enableLocalContextPropagation)
+  *     .runAsync
   * }}}
   */
 final class TaskLocal[A] private (default: => A) {
