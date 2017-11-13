@@ -34,6 +34,15 @@ class CompositeException(val errors: Seq[Throwable])
         "(" + reasons + ")"
       })
   }
+
+  def canEqual(other: Any): Boolean = other.isInstanceOf[CompositeException]
+
+  override def equals(other: Any): Boolean = other match {
+    case that: CompositeException =>
+      (that canEqual this) &&
+        errors == that.errors
+    case _ => false
+  }
 }
 
 object CompositeException extends AbstractFunction1[Seq[Throwable], CompositeException] {

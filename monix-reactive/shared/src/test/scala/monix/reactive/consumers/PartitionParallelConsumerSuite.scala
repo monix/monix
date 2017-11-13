@@ -20,8 +20,8 @@ package monix.reactive.consumers
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.atomic.AtomicLong
+import monix.execution.exceptions.{CompositeException, DummyException}
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.exceptions.{CompositeException, DummyException}
 import monix.reactive.{Consumer, Observable, OverflowStrategy}
 
 import scala.util.{Failure, Success}
@@ -49,6 +49,11 @@ object PartitionParallelConsumerSuite extends TestSuite[TestScheduler] {
       .consumeWith(Consumer.partitionParallel[Long](3, OverflowStrategy.Unbounded, _.toInt, (_,_) => Task.raiseError(ex))).runAsync
 
     s.tick()
+
+    f.value.foreach {
+      case scala.util.Failure(ex) => println(ex)
+      case scala.util.Success(v) => println(v)
+    }
 
     assertEquals(f.value, Some(Failure(CompositeException(Seq(ex, ex, ex)))))
   }
