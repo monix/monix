@@ -1891,7 +1891,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * @see [[Task.Options]]
     */
-  implicit val defaultOptions: Options =
+  val defaultOptions: Options =
     Options(
       autoCancelableRunLoops = Platform.autoCancelableRunLoops,
       localContextPropagation = Platform.localContextPropagation
