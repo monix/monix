@@ -210,6 +210,32 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "backup should be canceled")
   }
 
+  test("Task#timeout should not return the source after timeout") { implicit s =>
+    val task = Task(1).delayExecution(2.seconds).timeoutTo(1.second, Task(99).delayExecution(2.seconds))
+    val f = task.runAsync
+
+    s.tick()
+    assertEquals(f.value, None)
+
+    s.tick(3.seconds)
+    assertEquals(f.value, Some(Success(99)))
+  }
+
+  test("Task#timeout should cancel the source after timeout") { implicit s =>
+    val backup = Task(99).delayExecution(1.seconds)
+    val task = Task(1).delayExecution(5.seconds).timeoutTo(1.second, backup)
+    val f = task.runAsync
+
+    s.tick()
+    assertEquals(f.value, None)
+
+    s.tick(1.seconds)
+    assert(s.state.tasks.size == 1, "source should be canceled after timeout")
+
+    s.tick(1.seconds)
+    assert(s.state.tasks.isEmpty, "all task should be completed")
+  }
+
   test("Task.chooseFirstOf(a,b) should work if a completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
