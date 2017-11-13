@@ -17,11 +17,14 @@
 
 package monix.reactive.internal.operators
 
+import cats.laws._
+import cats.laws.discipline._
+
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{Observable, Observer, OverflowStrategy}
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
@@ -278,7 +281,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     var initiated = 0
     var received = 0
     var isComplete = false
-    val p = Promise[Continue]()
+    val p = Promise[Continue.type]()
     val totalCount = Platform.recommendedBatchSize * 4
 
     Observable.range(0, totalCount)
@@ -305,6 +308,39 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     p.success(Continue); s.tick()
     assertEquals(initiated, totalCount)
     assertEquals(received, totalCount)
+    assert(isComplete, "isComplete")
+  }
+
+  test("should respect custom overflow strategy") { implicit s =>
+    var initiated = 0
+    var received = 0
+    var isComplete = false
+    val p = Promise[Continue.type]()
+    val totalCount = Platform.recommendedBatchSize * 4
+
+    Observable.range(0, totalCount)
+      .doOnNext(_ => initiated += 1)
+      .mapParallelUnordered(parallelism=4)(x => Task(x))(OverflowStrategy.DropNew(Platform.recommendedBatchSize))
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += 1
+          p.future
+        }
+
+        def onError(ex: Throwable): Unit =
+          throw ex
+        def onComplete(): Unit =
+          isComplete = true
+      })
+
+    s.tick()
+    assertEquals(initiated, totalCount)
+    assertEquals(received, 1)
+    assert(!isComplete, "!isComplete")
+
+    p.success(Continue); s.tick()
+    assertEquals(initiated, totalCount)
+    assertEquals(received, Platform.recommendedBatchSize + 2) // The rest were dropped from the buffer
     assert(isComplete, "isComplete")
   }
 

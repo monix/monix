@@ -18,10 +18,11 @@
 package monix.reactive.internal.util
 
 import monix.eval.Task
+import monix.execution.Ack
 import monix.execution.Ack.Continue
 
 private[reactive] object Instances {
   /** Reusable task instance. */
-  final val ContinueTask: Task[Continue] =
+  final val ContinueTask: Task[Ack] =
     Task.now(Continue)
 }

@@ -17,6 +17,8 @@
 
 package monix.tail
 
+import cats.laws._
+import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 
 object IterantConcatSuite extends BaseTestSuite {

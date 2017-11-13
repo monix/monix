@@ -35,10 +35,10 @@ private[tail] object IterantMapEval {
     def protectedF(a: A, stop: F[Unit]): F[B] = {
       try {
         val fb = ff(a)
-        fb.handleErrorWith(e => stop >> F.raiseError(e))
+        fb.handleErrorWith(e => stop *> F.raiseError(e))
       } catch {
         case NonFatal(e) =>
-          stop >> F.raiseError(e)
+          stop *> F.raiseError(e)
       }
     }
 

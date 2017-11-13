@@ -45,10 +45,9 @@ abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
     */
   def size: Int
 
-  override def toReactivePublisher[U >: O](implicit s: Scheduler): RProcessor[I, U] =
-    Subject.toReactiveProcessor(this, s.executionModel.recommendedBatchSize)
-
-  def toReactive[U >: O](bufferSize: Int)(implicit s: Scheduler): RProcessor[I, U] =
+  final def toReactiveProcessor[U >: O](implicit s: Scheduler): RProcessor[I, U] =
+    toReactiveProcessor(s.executionModel.recommendedBatchSize)
+  final def toReactiveProcessor[U >: O](bufferSize: Int)(implicit s: Scheduler): RProcessor[I, U] =
     Subject.toReactiveProcessor(this, bufferSize)
 }
 

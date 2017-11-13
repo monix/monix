@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.functor.Contravariant
+import cats.Contravariant
 import monix.execution.misc.NonFatal
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
 
@@ -48,7 +48,7 @@ abstract class Callback[-A] extends Listener[A] with ((Try[A]) => Unit) {
     }
 
   final def apply(result: Coeval[A]): Unit =
-    result.runToEager match {
+    result.run match {
       case Coeval.Now(a) => onSuccess(a)
       case Coeval.Error(e) => onError(e)
     }

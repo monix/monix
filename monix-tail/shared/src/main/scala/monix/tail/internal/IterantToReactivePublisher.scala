@@ -20,7 +20,7 @@ package internal
 
 import cats.effect.{Effect, IO}
 import cats.syntax.all._
-import monix.eval.instances.CatsAsyncInstances
+import monix.eval.instances.CatsBaseForTask
 import monix.eval.{Callback, Task}
 import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.Scheduler
@@ -97,7 +97,7 @@ private[tail] object IterantToReactivePublisher {
       import cats.effect.IO.ioEffect
 
       F.asInstanceOf[Any] match {
-        case _: CatsAsyncInstances.ForTask =>
+        case _: CatsBaseForTask =>
           (fa, cb) => fa.asInstanceOf[Task[Iterant[F, A]]].runAsync(cb)
         case `ioEffect` =>
           (fa, cb) => fa.asInstanceOf[IO[Iterant[F, A]]].unsafeRunAsync(r => cb(r))
@@ -144,7 +144,7 @@ private[tail] object IterantToReactivePublisher {
           val ecb: Either[Throwable, Unit] => Unit = r => cb(r)
           fa => fa.asInstanceOf[IO[Unit]].unsafeRunAsync(ecb)
 
-        case _: CatsAsyncInstances.ForTask =>
+        case _: CatsBaseForTask =>
           val cb = Callback.empty[Unit]
           fa => fa.asInstanceOf[Task[Unit]].runAsync(cb)
 

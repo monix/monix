@@ -131,7 +131,7 @@ final class LoadBalanceConsumer[-In, R]
 
       def onNext(elem: In): Future[Ack] = {
         // Declares a stop event, completing the callback
-        def stop(): Stop = self.synchronized {
+        def stop(): Ack = self.synchronized {
           // Protecting against contract violations
           isUpstreamComplete = true
           Stop

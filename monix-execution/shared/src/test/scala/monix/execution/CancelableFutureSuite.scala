@@ -19,11 +19,13 @@ package monix.execution
 
 import minitest.TestSuite
 import cats.Monad
+import monix.execution.cancelables.{BooleanCancelable, ChainedCancelable}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
+
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object CancelableFutureSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -64,6 +66,14 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
   }
 
+  test("now.onComplete") { implicit s =>
+    var result = Option.empty[Try[Int]]
+    CancelableFuture.pure(1).onComplete(r => result = Some(r))
+
+    assertEquals(result, None); s.tick()
+    assertEquals(result, Some(Success(1)))
+  }
+
   test("now.failed") { implicit s =>
     val dummy = new RuntimeException("dummy")
     val f = CancelableFuture.failed(dummy).failed
@@ -77,6 +87,46 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(f.value, Some(Success(dummy)))
   }
+
+  test("async is chain-able, test 1") { implicit s =>
+    val b = BooleanCancelable()
+    val fa = CancelableFuture.async[Int] { _ =>
+      val ch = ChainedCancelable()
+      s.executeAsync(() => ch := b)
+      ch
+    }
+
+    s.tick()
+    assertEquals(fa.value, None)
+    assert(!b.isCanceled, "!b.isCanceled")
+
+    fa.cancel()
+    assert(b.isCanceled, "b.isCanceled")
+  }
+
+  test("async is chain-able, test 2") { implicit s =>
+    val b = BooleanCancelable()
+    val fa = CancelableFuture.async[Int] { _ =>
+      val ch = ChainedCancelable()
+      s.executeAsync(() => ch := b)
+      ch
+    }
+
+    fa.cancel()
+    assert(!b.isCanceled, "!b.isCanceled")
+
+    s.tick()
+    assert(b.isCanceled, "b.isCanceled")
+  }
+
+  test("async is chain-able, test 2") { implicit s =>
+    val b = BooleanCancelable()
+    val fa = CancelableFuture.async[Int] { _ => ChainedCancelable(b) }
+
+    fa.cancel(); s.tick()
+    assert(b.isCanceled, "b.isCanceled")
+  }
+
 
   test("now.map.failed") { implicit s =>
     val dummy = new RuntimeException("dummy")
@@ -329,6 +379,11 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(1)))
   }
 
+  test("never.mapTo") { implicit s =>
+    val f = CancelableFuture.never[Int].mapTo[Int]
+    assertEquals(f, CancelableFuture.never)
+  }
+
   test("async.mapTo") { implicit s =>
     val f = CancelableFuture(Future(1), Cancelable.empty).mapTo[Int]
     assertEquals(f.value, None)
@@ -444,32 +499,54 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
     f.cancel()
     assertEquals(f.value, None)
+    assertEquals(CancelableFuture.Never.cancelable, Cancelable.empty)
+    assertEquals(CancelableFuture.Never.underlying, CancelableFuture.Never)
   }
 
   test("flatMap cancels first") { implicit s =>
-    val c = Promise[Unit]
-    val f = CancelableFuture(CancelableFuture.never[Unit], Cancelable { () =>
-      c.success(())
-    })
+    val c = BooleanCancelable()
+    val f = CancelableFuture(CancelableFuture.never[Unit], c)
+      .flatMap(_ => Future.successful(1))
+
     assert(!f.isCompleted, "f.isCompleted")
     s.tick()
     f.cancel()
-    assert(c.isCompleted, "!c.isCompleted")
+    assert(c.isCanceled, "c.isCanceled")
   }
 
   test("flatMap cancels second") { implicit s =>
-    val c = Promise[Unit]
+    val c = BooleanCancelable()
     val first = CancelableFuture.successful(())
+
     val f = first.flatMap { _ =>
       CancelableFuture(CancelableFuture.never[Unit], Cancelable { () =>
-        c.success(())
+        c.cancel()
       })
     }
+
     assert(first.isCompleted, "!first.isCompleted")
     s.tick()
     f.cancel()
     s.tick()
-    assert(c.isCompleted, "!c.isCompleted")
+    assert(c.isCanceled, "c.isCanceled")
+  }
+
+  test("flatMap cancels third") { implicit s =>
+    val c = BooleanCancelable()
+    val first = CancelableFuture(Future.successful(1), Cancelable.empty)
+
+    val f = first.flatMap { _ =>
+      val second = CancelableFuture(Future.successful(2), Cancelable.empty)
+      second.flatMap { _ =>
+        CancelableFuture(CancelableFuture.never[Unit], c)
+      }
+    }
+
+    assert(first.isCompleted, "!first.isCompleted")
+    s.tick()
+    f.cancel()
+    s.tick()
+    assert(c.isCanceled, "c.isCanceled")
   }
 
   test("flatMap should be stack safe") { implicit s =>
@@ -479,5 +556,142 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     s.tick()
     assert(f.isCompleted, "!f.isCompleted")
     assertEquals(f.value, Some(Success(n)))
+  }
+
+  test("async works for success") { implicit s =>
+    val fa = CancelableFuture.async[Int] { cb =>
+      s.executeAsync(() => cb(Success(1)))
+      Cancelable.empty
+    }
+
+    s.tick()
+    assertEquals(fa.value, Some(Success(1)))
+  }
+
+  test("async works for failure") { implicit s =>
+    val dummy = DummyException("dummy")
+    val fa = CancelableFuture.async[Int] { cb =>
+      s.executeAsync(() => cb(Failure(dummy)))
+      Cancelable.empty
+    }
+
+    s.tick()
+    assertEquals(fa.value, Some(Failure(dummy)))
+  }
+
+  test("async is cancelable") { implicit s =>
+    val fa = CancelableFuture.async[Int] { cb =>
+      s.scheduleOnce(1.second)(cb(Success(1)))
+    }
+
+    s.tick()
+    assertEquals(fa.value, None)
+    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
+
+    fa.cancel()
+    s.tick()
+    assertEquals(fa.value, None)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+
+    s.tick(1.second)
+    assertEquals(fa.value, None)
+  }
+
+  test("async reports failures in user code") { implicit s =>
+    val dummy = DummyException("dummy")
+    val fa = CancelableFuture.async[Int] { _ => throw dummy }
+    assertEquals(fa.value, Some(Failure(dummy)))
+  }
+
+  test("async throws error if protocol is violated") { implicit s =>
+    val fa = CancelableFuture.async[Int] { cb =>
+      cb(Success(1))
+      cb(Success(2))
+      Cancelable.empty
+    }
+
+    assertEquals(fa.value, Some(Success(1)))
+    assert(s.state.lastReportedError != null)
+    assert(s.state.lastReportedError.isInstanceOf[IllegalStateException])
+  }
+
+  test("transform is safe") { implicit s =>
+    val fa1 = CancelableFuture(CancelableFuture.successful(1), Cancelable.empty)
+    val fa2 = fa1.transform(_.map(_ + 1))
+    val fa3 = fa2.transform(_.map(_ + 1))
+
+    s.tick()
+    assertEquals(fa1.value, Some(Success(1)))
+    assertEquals(fa2.value, Some(Success(2)))
+    assertEquals(fa3.value, Some(Success(3)))
+  }
+
+  test("transformWith is safe") { implicit s =>
+    val fa1 = CancelableFuture(CancelableFuture.successful(1), Cancelable.empty)
+    val fa2 = fa1.transformWith(x => CancelableFuture.fromTry(x.map(_ + 1)))
+    val fa3 = fa2.transformWith(x => CancelableFuture.fromTry(x.map(_ + 1)))
+
+    s.tick()
+    assertEquals(fa1.value, Some(Success(1)))
+    assertEquals(fa2.value, Some(Success(2)))
+    assertEquals(fa3.value, Some(Success(3)))
+  }
+
+  test("transform protects against user error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val fa1 = CancelableFuture(CancelableFuture.successful(1), Cancelable.empty)
+    val fa2 = fa1.transform(_ => throw dummy)
+
+    s.tick()
+    assertEquals(fa2.value, Some(Failure(dummy)))
+  }
+
+  test("transformWith protects against user error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val fa1 = CancelableFuture(CancelableFuture.successful(1), Cancelable.empty)
+    val fa2 = fa1.transformWith(_ => throw dummy)
+
+    s.tick()
+    assertEquals(fa2.value, Some(Failure(dummy)))
+  }
+
+  test("pure.transform protects against user error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val fa1 = CancelableFuture.successful(1)
+    val fa2 = fa1.transform(_ => throw dummy)
+
+    s.tick()
+    assertEquals(fa2.value, Some(Failure(dummy)))
+  }
+
+  test("pure.transformWith protects against user error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val fa1 = CancelableFuture.pure(1)
+    val fa2 = fa1.transformWith(_ => throw dummy)
+
+    s.tick()
+    assertEquals(fa2.value, Some(Failure(dummy)))
+  }
+
+  test("raiseError.transform protects against user error") { implicit s =>
+    val dummy1 = DummyException("dummy1")
+    val dummy2 = DummyException("dummy2")
+
+    val fa1 = CancelableFuture.raiseError(dummy1)
+    val fa2 = fa1.transform(_ => throw dummy2)
+
+    s.tick()
+    assertEquals(fa2.value, Some(Failure(dummy2)))
+  }
+
+  test("pure.transformWith protects against user error") { implicit s =>
+    val dummy1 = DummyException("dummy1")
+    val dummy2 = DummyException("dummy2")
+
+    val fa1 = CancelableFuture.raiseError(dummy1)
+    val fa2 = fa1.transformWith(_ => throw dummy2)
+
+    s.tick()
+    assertEquals(fa2.value, Some(Failure(dummy2)))
   }
 }

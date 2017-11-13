@@ -17,6 +17,8 @@
 
 package monix.reactive.internal.builders
 
+import cats.laws._
+import cats.laws.discipline._
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseTestSuite, Observable}

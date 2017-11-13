@@ -17,6 +17,7 @@
 
 package monix.execution
 
+import monix.execution.misc.NonFatal
 import scala.concurrent.duration.Duration
 import scala.concurrent.{CanAwait, ExecutionContext, Future, Promise}
 import scala.language.experimental.macros
@@ -25,61 +26,52 @@ import scala.util.{Failure, Success, Try}
 /** Represents an acknowledgement of processing that a consumer
   * sends back upstream. Useful to implement back-pressure.
   */
-sealed abstract class Ack extends Future[Ack] with Serializable
+sealed abstract class Ack extends Future[Ack] with Serializable {
+  val AsSuccess: Success[Ack]
+
+  // For Scala 2.12 compatibility
+  final def transform[S](f: (Try[Ack]) => Try[S])(implicit executor: ExecutionContext): Future[S] = {
+    val p = Promise[S]()
+    onComplete(r => p.complete(try f(r) catch { case NonFatal(t) => Failure(t) }))
+    p.future
+  }
+
+  // For Scala 2.12 compatibility
+  final def transformWith[S](f: (Try[Ack]) => Future[S])(implicit executor: ExecutionContext): Future[S] = {
+    val p = Promise[S]()
+    onComplete(r => p.completeWith(try f(r) catch { case NonFatal(t) => Future.failed(t) }))
+    p.future
+  }
+
+  final def onComplete[U](func: Try[Ack] => U)(implicit executor: ExecutionContext): Unit =
+    executor.execute(new Runnable {
+      def run(): Unit = func(AsSuccess)
+    })
+}
 
 object Ack {
   /** Acknowledgement of processing that signals upstream that the
     * consumer is interested in receiving more events.
     */
-  sealed abstract class Continue extends Ack
-
-  case object Continue extends Continue with Future[Continue] { self =>
+  case object Continue extends Ack { self =>
     final val AsSuccess = Success(Continue)
     final val value = Some(AsSuccess)
     final val isCompleted = true
 
     final def ready(atMost: Duration)(implicit permit: CanAwait) = self
     final def result(atMost: Duration)(implicit permit: CanAwait) = Continue
-
-    // For Scala 2.12 compatibility
-    def transform[S](f: (Try[Continue]) => Try[S])(implicit executor: ExecutionContext): Future[S] =
-      FutureUtils.transform(this, f)(executor)
-
-    // For Scala 2.12 compatibility
-    def transformWith[S](f: (Try[Continue]) => Future[S])(implicit executor: ExecutionContext): Future[S] =
-      FutureUtils.transformWith(this, f)(executor)
-
-    final def onComplete[U](func: Try[Continue] => U)(implicit executor: ExecutionContext): Unit =
-      executor.execute(new Runnable {
-        def run(): Unit = func(AsSuccess)
-      })
   }
 
   /** Acknowledgement of processing that signals to upstream that the
     * consumer is no longer interested in receiving events.
     */
-  sealed abstract class Stop extends Ack
-
-  case object Stop extends Stop with Future[Stop] { self =>
+  case object Stop extends Ack { self =>
     final val AsSuccess = Success(Stop)
     final val value = Some(AsSuccess)
     final val isCompleted = true
 
     final def ready(atMost: Duration)(implicit permit: CanAwait) = self
     final def result(atMost: Duration)(implicit permit: CanAwait) = Stop
-
-    // For Scala 2.12 compatibility
-    def transform[S](f: (Try[Stop]) => Try[S])(implicit executor: ExecutionContext): Future[S] =
-      FutureUtils.transform(this, f)(executor)
-
-    // For Scala 2.12 compatibility
-    def transformWith[S](f: (Try[Stop]) => Future[S])(implicit executor: ExecutionContext): Future[S] =
-      FutureUtils.transformWith(this, f)(executor)
-
-    final def onComplete[U](func: Try[Stop] => U)(implicit executor: ExecutionContext): Unit =
-      executor.execute(new Runnable {
-        def run(): Unit = func(AsSuccess)
-      })
   }
 
   /** Helpers for dealing with synchronous `Future[Ack]` results,
@@ -90,7 +82,7 @@ object Ack {
       * `Continue` or `Stop`, `false` otherwise.
       */
     def isSynchronous: Boolean =
-       macro Macros.isSynchronous[Self]
+      macro Macros.isSynchronous[Self]
 
     /** Executes the given `callback` on `Continue`.
       *

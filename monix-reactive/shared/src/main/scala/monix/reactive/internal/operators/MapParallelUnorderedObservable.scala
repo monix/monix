@@ -20,11 +20,9 @@ package monix.reactive.internal.operators
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
-import monix.execution.internal.Platform
 import monix.execution.misc.{AsyncSemaphore, NonFatal}
 import monix.execution.{Ack, Cancelable}
-import monix.reactive.Observable
-import monix.reactive.OverflowStrategy.BackPressure
+import monix.reactive.{Observable, OverflowStrategy}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -41,8 +39,11 @@ import scala.util.{Failure, Success}
   *  - to ensure the required parallelism factor, we are using an
   *    [[monix.execution.misc.AsyncSemaphore]]
   */
-private[reactive] final class MapParallelUnorderedObservable[A,B]
-  (source: Observable[A], parallelism: Int, f: A => Task[B])
+private[reactive] final class MapParallelUnorderedObservable[A,B](
+   source: Observable[A],
+   parallelism: Int,
+   f: A => Task[B],
+   overflowStrategy: OverflowStrategy[B])
   extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
@@ -73,13 +74,8 @@ private[reactive] final class MapParallelUnorderedObservable[A,B]
     // it's debatable whether this is needed, since on cancel
     // everything gets canceled at once
     private[this] val releaseTask = Task.eval(semaphore.release())
-    // Concurrent buffer implementation with the back-pressure
-    // used as an overflow strategy, meaning that when the buffer
-    // is full then the data source gets frozen
-    private[this] val buffer = {
-      val strategy = BackPressure(parallelism + Platform.recommendedBatchSize)
-      BufferedSubscriber[B](out, strategy)
-    }
+    // Buffer with the supplied  overflow strategy.
+    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy)
 
     // Flag indicating whether a final event was called, after which
     // nothing else can happen. It's a very light protection, as

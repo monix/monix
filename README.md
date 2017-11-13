@@ -25,13 +25,15 @@ Highlights:
 
 - exposes the kick-ass `Observable`, `Task` and `Coeval`
 - modular, only use what you need
-- the core has no third-party dependencies
 - strives to be idiomatic Scala and encourages referential transparency,
-  but is built to be faster than alternatives
-- is a [Typelevel project](http://typelevel.org/projects/)
-- designed for true asynchronicity, running on both the
-  JVM and [Scala.js](scala-js.org),
-- really good test coverage and API documentation as a project policy
+  being built for functional programming, but is built to be faster 
+  than alternatives
+- it is a [Typelevel project](https://typelevel.org/projects/)
+- has deep integration with [Typelevel Cats](https://typelevel.org/cats/)
+- designed for true asynchronicity, running on both the JVM and 
+  on top of Node.js and the browser, with [Scala.js](scala-js.org)
+- really good test coverage and API documentation as a project 
+  policy
 
 ## Usage
 
@@ -42,14 +44,21 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Current stable release: `2.3.0`
+- Current stable release: `2.3.1`
+- Milestone release: `3.0.0-M2`
 - Development version: `3.0.0-$hash`
   (see [versioning scheme](https://github.com/monix/monix#versioning-scheme))
 
 For the current stable release (use the `%%%` for Scala.js):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.3.0"
+libraryDependencies += "io.monix" %% "monix" % "2.3.1"
+```
+
+Or for the milestone (that works with Cats `1.0-MF`):
+
+```scala
+libraryDependencies += "io.monix" %% "monix" % "3.0.0-M1"
 ```
 
 ### Sub-projects
@@ -96,6 +105,7 @@ hosted at,
 
 API Documentation:
 
+- [3.0](https://monix.io/api/3.0/)
 - [2.3](https://monix.io/api/2.3/)
 - [2.2](https://monix.io/api/2.2/)
 - [2.1](https://monix.io/api/2.1/)
@@ -122,7 +132,7 @@ licensed with the same license that Monix is licensed with (Apache
 2.0, see LICENSE.txt).
 
 People are expected to follow the
-[Typelevel Code of Conduct](http://typelevel.org/conduct.html) when
+[Typelevel Code of Conduct](https://typelevel.org/conduct.html) when
 discussing Monix on the Github page, Gitter channel, or other venues.
 
 Feel free to open an issue if you notice a bug, have an idea for a

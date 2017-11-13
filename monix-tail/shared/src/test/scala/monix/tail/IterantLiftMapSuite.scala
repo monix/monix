@@ -19,6 +19,8 @@ package monix.tail
 
 import cats.~>
 import cats.effect.IO
+import cats.laws._
+import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import scala.util.Failure

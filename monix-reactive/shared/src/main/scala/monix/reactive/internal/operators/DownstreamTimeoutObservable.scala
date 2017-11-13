@@ -72,7 +72,7 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
       }
 
       def onNext(elem: A): Future[Ack] = {
-        def unfreeze(): Continue = {
+        def unfreeze(): Ack = {
           isProcessingOnNext = false
           Continue
         }

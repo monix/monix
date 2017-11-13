@@ -18,10 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
 
 private[reactive] final

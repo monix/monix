@@ -66,7 +66,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Continue = { sum += elem; Continue }
+      def onNext(elem: Int): Ack = { sum += elem; Continue }
       def onComplete(): Unit = onCompleteCalled += 1
       def onError(ex: Throwable): Unit =
         throw new IllegalStateException("onError")
@@ -92,7 +92,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Continue =
+      def onNext(elem: Int): Ack =
         { sum += elem; Continue }
       def onComplete(): Unit =
         throw new IllegalStateException("onComplete")
@@ -119,7 +119,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Continue = { sum += elem; Continue }
+      def onNext(elem: Int): Ack = { sum += elem; Continue }
       def onComplete(): Unit = onCompleteCalled += 1
       def onError(ex: Throwable): Unit =
         throw new IllegalStateException("onError")
@@ -143,7 +143,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val c = obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Continue = { received += 1; Continue }
+      def onNext(elem: Int): Ack = { received += 1; Continue }
       def onComplete(): Unit = onCompleteCalled += 1
       def onError(ex: Throwable): Unit =
         throw new IllegalStateException("onError")
@@ -169,7 +169,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Continue = {
+      def onNext(elem: Int): Ack = {
         received += 1
         if (received == n) throw ex
         Continue
@@ -199,7 +199,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Continue = {
+      def onNext(elem: Int): Ack = {
         received += 1
         if (received == n * 2) throw ex
         Continue
@@ -261,7 +261,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Continue = { sum += elem; Continue }
+      def onNext(elem: Int): Ack = { sum += elem; Continue }
       def onComplete(): Unit =
         throw new IllegalStateException("onComplete")
       def onError(ex: Throwable): Unit =
@@ -285,7 +285,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Continue = { received += 1; Continue }
+      def onNext(elem: Int): Ack = { received += 1; Continue }
       def onComplete(): Unit =
         onCompleteCalled += 1
       def onError(ex: Throwable): Unit =

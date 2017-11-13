@@ -9,16 +9,16 @@ addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+publishSigned ;sonatypeReleaseAll")
 
-val catsVersion = "1.0.0-MF"
-val catsEffectVersion = "0.4"
-val jcToolsVersion = "2.0.2"
+val catsVersion = "1.0.0-RC1"
+val catsEffectVersion = "0.5"
+val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.1"
-val scalaTestVersion = "3.0.3"
-val minitestVersion = "1.1.1"
+val scalaTestVersion = "3.0.4"
+val minitestVersion = "2.0.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "2.3.0"
+val monixSeries = "3.0.0"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -42,8 +42,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.11.11",
-  crossScalaVersions := Seq("2.11.11", "2.12.3"),
+  scalaVersion := "2.12.4",
+  crossScalaVersions := Seq("2.11.11", "2.12.4"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -261,7 +261,7 @@ lazy val cmdlineProfile =
   sys.env.getOrElse("SBT_PROFILE", "")
 
 def mimaSettings(projectName: String) = Seq(
-  mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
+  // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
 )
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
@@ -296,7 +296,6 @@ lazy val coreJS = project.in(file("monix/js"))
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
   name := "monix-execution",
   // Filtering out breaking changes from 3.0.0
-  mimaBinaryIssueFilters ++= MimaFilters.execChangesFor_3_0_0,
   libraryDependencies += "org.typelevel" %%% "cats-core" % catsVersion
 )
 
@@ -322,21 +321,20 @@ lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
     // Filtering out breaking changes from 3.0.0
-    mimaBinaryIssueFilters ++= MimaFilters.evalChangesFor_3_0_0,
     libraryDependencies +=
       "org.typelevel" %%% "cats-effect" % catsEffectVersion
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM)
+  .dependsOn(executionJVM % "compile->compile; test->test")
   .settings(evalCommon)
   .settings(mimaSettings("monix-eval"))
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(executionJS)
+  .dependsOn(executionJS % "compile->compile; test->test")
   .settings(scalaJSSettings)
   .settings(evalCommon)
 
@@ -361,9 +359,7 @@ lazy val tailJS = project.in(file("monix-tail/js"))
 
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-reactive",
-    // Filtering out breaking changes from 3.0.0
-    mimaBinaryIssueFilters ++= MimaFilters.reactiveChangesFor_3_0_0
+    name := "monix-reactive"
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
@@ -424,7 +420,7 @@ enablePlugins(GitVersioning)
  */
 git.baseVersion := "3.0.0"
 
-val ReleaseTag = """^v([\d\.]+)$""".r
+val ReleaseTag = """^v(\d+\.\d+\.\d+(?:[-.]\w+)?)$""".r
 git.gitTagToVersionNumber := {
   case ReleaseTag(v) => Some(v)
   case _ => None

@@ -35,8 +35,11 @@ trait TaskApp {
   def runl(args: List[String]): Task[Unit] =
     runc
 
-  def runc: Task[Unit] =
+  def runc: Task[Unit] = {
+    // $COVERAGE-OFF$
     Task.now(())
+    // $COVERAGE-ON$
+  }
 
   /** Scheduler for executing the [[Task]] action.
     * Defaults to `global`, but can be overridden.
