@@ -261,6 +261,11 @@ import scala.util.{Failure, Success, Try}
   * the injected `ExecutionModel`. If you want a different behavior,
   * you need to execute the `Task` reference with a different scheduler.
   *
+  * @define runAsyncOptDesc Triggers the asynchronous execution,
+  *         much like normal `runAsync`, but includes the ability
+  *         to specify [[monix.eval.Task.Options Options]] that
+  *         can modify the behavior of the run-loop.
+  *
   * @define runAsyncDesc Triggers the asynchronous execution.
   *
   *         Without invoking `runAsync` on a `Task`, nothing
@@ -276,9 +281,25 @@ import scala.util.{Failure, Success, Try}
   *
   * @define cancelableDesc a [[monix.execution.Cancelable Cancelable]]
   *         that can be used to cancel a running task
+  *
+  * @define optionsDesc a set of [[monix.eval.Task.Options Options]]
+  *         that determine the behavior of Task's run-loop.
   */
 sealed abstract class Task[+A] extends Serializable { self =>
   import monix.eval.Task._
+
+  /** $runAsyncDesc
+    *
+    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
+    *        that gets used whenever asynchronous boundaries are needed
+    *        when evaluating the task
+    *
+    * @return a [[monix.execution.CancelableFuture CancelableFuture]]
+    *         that can be used to extract the result or to cancel
+    *         a running task.
+    */
+  def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+    TaskRunLoop.startAsFuture(this, s, defaultOptions)
 
   /** $runAsyncDesc
     *
@@ -288,6 +309,25 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
     TaskRunLoop.startLightWithCallback(self, s, cb, defaultOptions)
+
+  /** $runAsyncOptDesc
+    *
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    * @return $cancelableDesc
+    */
+  def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+    TaskRunLoop.startAsFuture(this, s, opts)
+
+  /** $runAsyncOptDesc
+    *
+    * @param cb $callbackDesc
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    * @return $cancelableDesc
+    */
+  def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
+    TaskRunLoop.startLightWithCallback(self, s, cb, opts)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
@@ -302,19 +342,6 @@ sealed abstract class Task[+A] extends Serializable { self =>
       def onSuccess(value: A): Unit = f(Success(value))
       def onError(ex: Throwable): Unit = f(Failure(ex))
     })(s)
-
-  /** $runAsyncDesc
-    *
-    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
-    *        that gets used whenever asynchronous boundaries are needed
-    *        when evaluating the task
-    *
-    * @return a [[monix.execution.CancelableFuture CancelableFuture]]
-    *         that can be used to extract the result or to cancel
-    *         a running task.
-    */
-  def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-    TaskRunLoop.startAsFuture(this, s, defaultOptions)
 
   /** Tries to execute the source synchronously.
     *
@@ -1835,6 +1862,9 @@ object Task extends TaskInstancesLevel1 {
   type FrameIndex = Int
 
   /** Set of options for customizing the task's behavior.
+    *
+    * See [[Task.defaultOptions]] for the default `Options` instance
+    * used by [[Task!.runAsync(implicit* .runAsync]].
     *
     * @param autoCancelableRunLoops should be set to `true` in
     *        case you want `flatMap` driven loops to be

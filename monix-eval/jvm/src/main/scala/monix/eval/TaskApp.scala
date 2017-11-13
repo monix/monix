@@ -56,14 +56,7 @@ trait TaskApp {
     Coeval.evalOnce(Task.defaultOptions)
 
   final def main(args: Array[String]): Unit = {
-    val task = {
-      val ref = run(args)
-      val opts = options.value
-      if (opts == Task.defaultOptions) ref
-      else ref.executeWithOptions(_ => opts)
-    }
-
-    val f = task.runAsync(scheduler.value)
+    val f = run(args).runAsyncOpt(scheduler.value, options.value)
     Await.result(f, Duration.Inf)
   }
 }

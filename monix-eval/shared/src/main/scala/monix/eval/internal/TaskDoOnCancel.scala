@@ -28,7 +28,8 @@ private[eval] object TaskDoOnCancel {
     Task.unsafeCreate { (context, onFinish) =>
       implicit val s = context.scheduler
       implicit val o = context.options
-      val c = Cancelable(() => callback.runAsync(Callback.empty))
+
+      val c = Cancelable(() => callback.runAsyncOpt(Callback.empty))
       val conn = context.connection
       conn.push(c)
 

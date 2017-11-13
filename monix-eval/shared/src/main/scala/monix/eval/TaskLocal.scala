@@ -33,12 +33,24 @@ import monix.execution.misc.Local
   * gets executed with [[Task.Options.localContextPropagation]]
   * set to `true`.
   *
-  * This can be achieved with a [[Task.executeWithOptions]],
+  * One way to achieve this is with [[Task.executeWithOptions]],
   * a single call is sufficient just before `runAsync`:
   *
   * {{{
   *   task.executeWithOptions(_.enableLocalContextPropagation)
+  *     // triggers the actual execution
   *     .runAsync
+  * }}}
+  *
+  * Another possibility is to use
+  * [[Task.runAsyncOpt(implicit* .runAsyncOpt]] instead of `runAsync`
+  * and specify the set of options implicitly:
+  *
+  * {{{
+  *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  *
+  *   // Options passed implicitly
+  *   val f = task.runAsyncOpt
   * }}}
   *
   * Full example:
@@ -74,9 +86,10 @@ import monix.execution.misc.Local
   *
   *   // Needs enabling the "localContextPropagation" option
   *   // just before execution
-  *   val f = task
-  *     .executeWithOptions(_.enableLocalContextPropagation)
-  *     .runAsync
+  *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  *
+  *   // Triggering actual execution
+  *   val f = task.runAsyncOpt
   * }}}
   */
 final class TaskLocal[A] private (default: => A) {
