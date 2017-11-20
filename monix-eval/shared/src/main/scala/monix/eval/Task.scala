@@ -27,6 +27,7 @@ import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 import monix.execution.misc.{NonFatal, ThreadLocal}
+import monix.execution.schedulers.TrampolinedRunnable
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
@@ -260,46 +261,32 @@ import scala.util.{Failure, Success, Try}
   * the injected `ExecutionModel`. If you want a different behavior,
   * you need to execute the `Task` reference with a different scheduler.
   *
+  * @define runAsyncOptDesc Triggers the asynchronous execution,
+  *         much like normal `runAsync`, but includes the ability
+  *         to specify [[monix.eval.Task.Options Options]] that
+  *         can modify the behavior of the run-loop.
+  *
   * @define runAsyncDesc Triggers the asynchronous execution.
   *
   *         Without invoking `runAsync` on a `Task`, nothing
   *         gets evaluated, as a `Task` has lazy behavior.
+  *
+  * @define schedulerDesc is an injected
+  *         [[monix.execution.Scheduler Scheduler]] that gets used
+  *         whenever asynchronous boundaries are needed when
+  *         evaluating the task
+  *
+  * @define callbackDesc is a callback that will be invoked upon
+  *         completion
+  *
+  * @define cancelableDesc a [[monix.execution.Cancelable Cancelable]]
+  *         that can be used to cancel a running task
+  *
+  * @define optionsDesc a set of [[monix.eval.Task.Options Options]]
+  *         that determine the behavior of Task's run-loop.
   */
 sealed abstract class Task[+A] extends Serializable { self =>
   import monix.eval.Task._
-
-  /** $runAsyncDesc
-    *
-    * @param cb is a callback that will be invoked upon completion.
-    *
-    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
-    *        that gets used whenever asynchronous boundaries are needed
-    *        when evaluating the task
-    *
-    * @return a [[monix.execution.Cancelable Cancelable]] that can
-    *         be used to cancel a running task
-    */
-  def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
-    TaskRunLoop.startLightWithCallback(self, s, cb)
-
-  /** Similar to Scala's `Future#onComplete`, this method triggers
-    * the evaluation of a `Task` and invokes the given callback whenever
-    * the result is available.
-    *
-    * @param f is a callback that will be invoked upon completion.
-    *
-    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
-    *        that gets used whenever asynchronous boundaries are needed
-    *        when evaluating the task
-    *
-    * @return a [[monix.execution.Cancelable Cancelable]] that can
-    *         be used to cancel a running task
-    */
-  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable =
-    runAsync(new Callback[A] {
-      def onSuccess(value: A): Unit = f(Success(value))
-      def onError(ex: Throwable): Unit = f(Failure(ex))
-    })
 
   /** $runAsyncDesc
     *
@@ -312,7 +299,49 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         a running task.
     */
   def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-    TaskRunLoop.startAsFuture(this, s)
+    TaskRunLoop.startAsFuture(this, s, defaultOptions)
+
+  /** $runAsyncDesc
+    *
+    * @param cb $callbackDesc
+    * @param s $schedulerDesc
+    * @return $cancelableDesc
+    */
+  def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
+    TaskRunLoop.startLightWithCallback(self, s, cb, defaultOptions)
+
+  /** $runAsyncOptDesc
+    *
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    * @return $cancelableDesc
+    */
+  def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+    TaskRunLoop.startAsFuture(this, s, opts)
+
+  /** $runAsyncOptDesc
+    *
+    * @param cb $callbackDesc
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    * @return $cancelableDesc
+    */
+  def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
+    TaskRunLoop.startLightWithCallback(self, s, cb, opts)
+
+  /** Similar to Scala's `Future#onComplete`, this method triggers
+    * the evaluation of a `Task` and invokes the given callback whenever
+    * the result is available.
+    *
+    * @param f $callbackDesc
+    * @param s $schedulerDesc
+    * @return $cancelableDesc
+    */
+  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable =
+    runAsync(new Callback[A] {
+      def onSuccess(value: A): Unit = f(Success(value))
+      def onError(ex: Throwable): Unit = f(Failure(ex))
+    })(s)
 
   /** Tries to execute the source synchronously.
     *
@@ -939,13 +968,13 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * source emitting any item.
     */
   def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
-    Task.chooseFirstOf(self, backup.delayExecution(after)).map {
+    Task.chooseFirstOf(self, Task.unit.delayExecution(after)).flatMap {
       case Left(((a, futureB))) =>
         futureB.cancel()
-        a
-      case Right((futureA, b)) =>
+        Task.now(a)
+      case Right((futureA, _)) =>
         futureA.cancel()
-        b
+        backup
     }
 
   /** Creates a new `Task` by applying the 'fa' function to the successful result of
@@ -1834,12 +1863,21 @@ object Task extends TaskInstancesLevel1 {
 
   /** Set of options for customizing the task's behavior.
     *
+    * See [[Task.defaultOptions]] for the default `Options` instance
+    * used by [[Task!.runAsync(implicit* .runAsync]].
+    *
     * @param autoCancelableRunLoops should be set to `true` in
     *        case you want `flatMap` driven loops to be
     *        auto-cancelable. Defaults to `false`.
+    *
+    * @param localContextPropagation should be set to `true` in
+    *        case you want the [[monix.execution.misc.Local Local]]
+    *        variables to be propagated on async boundaries.
+    *        Defaults to `false`.
     */
   final case class Options(
-    autoCancelableRunLoops: Boolean) {
+    autoCancelableRunLoops: Boolean,
+    localContextPropagation: Boolean) {
 
     /** Creates a new set of options from the source, but with
       * the [[autoCancelableRunLoops]] value set to `true`.
@@ -1852,12 +1890,25 @@ object Task extends TaskInstancesLevel1 {
       */
     def disableAutoCancelableRunLoops: Options =
       copy(autoCancelableRunLoops = false)
+
+    /** Creates a new set of options from the source, but with
+      * the [[localContextPropagation]] value set to `true`.
+      */
+    def enableLocalContextPropagation: Options =
+      copy(localContextPropagation = true)
+
+    /** Creates a new set of options from the source, but with
+      * the [[localContextPropagation]] value set to `false`.
+      */
+    def disableLocalContextPropagation: Options =
+      copy(localContextPropagation = false)
   }
 
   /** Default [[Options]] to use for [[Task]] evaluation,
     * thus:
     *
     *  - `autoCancelableRunLoops` is `false` by default
+    *  - `localContextPropagation` is `false` by default
     *
     * On top of the JVM the default can be overridden by
     * setting the following system properties:
@@ -1865,21 +1916,16 @@ object Task extends TaskInstancesLevel1 {
     *  - `monix.environment.autoCancelableRunLoops`
     *    (`true`, `yes` or `1` for enabling)
     *
+    *  - `monix.environment.localContextPropagation`
+    *    (`true`, `yes` or `1` for enabling)
+    *
     * @see [[Task.Options]]
     */
-  val defaultOptions: Options = {
-    if (Platform.isJS)
-      // $COVERAGE-OFF$
-      Options(autoCancelableRunLoops = false)
-      // $COVERAGE-ON$
-    else
-      Options(
-        autoCancelableRunLoops =
-          Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
-            .map(_.toLowerCase)
-            .exists(v => v == "yes" || v == "true" || v == "1")
-      )
-  }
+  val defaultOptions: Options =
+    Options(
+      autoCancelableRunLoops = Platform.autoCancelableRunLoops,
+      localContextPropagation = Platform.localContextPropagation
+    )
 
   /** A reference that boxes a [[FrameIndex]] possibly using a thread-local.
     *
@@ -2000,11 +2046,11 @@ object Task extends TaskInstancesLevel1 {
 
   object Context {
     /** Initialize fresh [[Context]] reference. */
-    def apply(s: Scheduler): Context = {
+    def apply(s: Scheduler, opts: Options): Context = {
       val conn = StackedCancelable()
       val em = s.executionModel
       val frameRef = FrameIndexRef(em)
-      Context(s, conn, frameRef, defaultOptions)
+      Context(s, conn, frameRef, opts)
     }
   }
 
@@ -2160,9 +2206,10 @@ object Task extends TaskInstancesLevel1 {
     * and `Task.fork`.
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    context.scheduler.executeTrampolined { () =>
-      TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
-    }
+    context.scheduler.execute(new TrampolinedRunnable {
+      def run(): Unit =
+        TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
+    })
 
   /** Unsafe utility - starts the execution of a Task, by providing
     * the needed [[monix.execution.Scheduler Scheduler]],
@@ -2180,25 +2227,25 @@ object Task extends TaskInstancesLevel1 {
 
   /** Internal, reusable reference. */
   private final val nowConstructor: (Any => Task[Nothing]) =
-    ((a: Any) => new Now(a)).asInstanceOf[Any => Task[Nothing]]
+    ((a: Any) => Now(a)).asInstanceOf[Any => Task[Nothing]]
   /** Internal, reusable reference. */
   private final val raiseConstructor: (Throwable => Task[Nothing]) =
-    e => new Error(e)
+    e => Error(e)
 
   /** Used as optimization by [[Task.attempt]]. */
   private object AttemptTask extends Transformation[Any, Task[Either[Throwable, Any]]] {
     override def apply(a: Any): Task[Either[Throwable, Any]] =
-      new Now(Right(a))
+      Now(Right(a))
     override def error(e: Throwable): Task[Either[Throwable, Any]] =
-      new Now(Left(e))
+      Now(Left(e))
   }
 
   /** Used as optimization by [[Task.materialize]]. */
   private object MaterializeTask extends Transformation[Any, Task[Try[Any]]] {
     override def apply(a: Any): Task[Try[Any]] =
-      new Now(Success(a))
+      Now(Success(a))
     override def error(e: Throwable): Task[Try[Any]] =
-      new Now(Failure(e))
+      Now(Failure(e))
   }
 }
 

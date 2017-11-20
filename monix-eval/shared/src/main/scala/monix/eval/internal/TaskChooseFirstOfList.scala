@@ -33,15 +33,15 @@ private[eval] object TaskChooseFirstOfList {
 
       val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
       val taskArray = tasks.toArray
-      val cancelablesArray = buildCancelableArray(taskArray.length)
+      val cancelableArray = buildCancelableArray(taskArray.length)
 
-      val composite = Cancelable.collection(cancelablesArray)
+      val composite = Cancelable.collection(cancelableArray)
       conn.push(composite)
 
       var index = 0
       while (index < taskArray.length) {
         val task = taskArray(index)
-        val taskCancelable = cancelablesArray(index)
+        val taskCancelable = cancelableArray(index)
         val taskContext = context.copy(connection = taskCancelable)
         index += 1
 
@@ -49,8 +49,8 @@ private[eval] object TaskChooseFirstOfList {
           private def popAndCancelRest(): Unit = {
             conn.pop()
             var i = 0
-            while (i < cancelablesArray.length) {
-              val ref = cancelablesArray(i)
+            while (i < cancelableArray.length) {
+              val ref = cancelableArray(i)
               if (ref ne taskCancelable) ref.cancel()
               i += 1
             }

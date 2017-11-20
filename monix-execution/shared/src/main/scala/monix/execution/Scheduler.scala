@@ -174,10 +174,12 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
 private[monix] trait SchedulerCompanion {
   trait ImplicitsLike {
     def global: Scheduler
+    def traced: Scheduler
   }
 
   def Implicits: ImplicitsLike
   def global: Scheduler
+  def traced: Scheduler
 }
 
 object Scheduler extends SchedulerCompanionImpl {

@@ -52,7 +52,7 @@ object ObservableForeachSuite extends BaseTestSuite {
 
   test("foreachL protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
-    val f = Observable.fromIterable(0 until 1000).foreachL(_ => throw dummy).runAsync(s)
+    val f = Observable.fromIterable(0 until 1000).foreachL(_ => throw dummy).runAsync
     assertEquals(f.value, Some(Failure(dummy)))
   }
 }

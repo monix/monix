@@ -393,58 +393,73 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   lazy val DefaultScheduledExecutor: ScheduledExecutorService =
     Defaults.scheduledExecutor
 
-  /** The explicit global `Scheduler`. Invoke `global` when you want to provide the global
-    * `Scheduler` explicitly.
+  /** The explicit global `Scheduler`. Invoke `global` when you want
+    * to provide the global `Scheduler` explicitly.
     *
-    * The default `Scheduler` implementation is backed by a work-stealing thread pool, along
-    * with a single-threaded `ScheduledExecutionContext` that does the scheduling. By default,
-    * the thread pool uses a target number of worker threads equal to the number of
+    * The default `Scheduler` implementation is backed by a
+    * work-stealing thread pool, along with a single-threaded
+    * `ScheduledExecutionContext` that does the scheduling. By default,
+    * the thread pool uses a target number of worker threads equal
+    * to the number of
     * [[https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#availableProcessors-- available processors]].
     *
     * @return the global `Scheduler`
     */
   def global: Scheduler = Implicits.global
 
+  /** A global [[monix.execution.Scheduler Scheduler]] instance that does
+    * propagation of [[monix.execution.misc.Local.Context Local.Context]]
+    * on async execution.
+    *
+    * It wraps [[global]].
+    */
+  def traced: Scheduler = Implicits.traced
+
+  /**
+    * @define globalTuning
+    * It can be tuned by setting the following JVM system properties:
+    *
+    * - "scala.concurrent.context.minThreads" an integer specifying the minimum
+    *   number of active threads in the pool
+    *
+    * - "scala.concurrent.context.maxThreads" an integer specifying the maximum
+    *   number of active threads in the pool
+    *
+    * - "scala.concurrent.context.numThreads" can be either an integer,
+    *   specifying the parallelism directly or a string with the format "xNUM"
+    *   (e.g. "x1.5") specifying the multiplication factor of the number of
+    *   available processors (taken with `Runtime.availableProcessors`)
+    *
+    * The formula for calculating the parallelism in our pool is
+    * `min(maxThreads, max(minThreads, numThreads))`.
+    *
+    * To set a system property from the command line, a JVM parameter must be
+    * given to the `java` command as `-Dname=value`. So as an example, to customize
+    * this global scheduler, we could start our process like this:
+    *
+    * <pre>
+    *   java -Dscala.concurrent.context.minThreads=2 \
+    *        -Dscala.concurrent.context.maxThreads=30 \
+    *        -Dscala.concurrent.context.numThreads=x1.5 \
+    *        ...
+    * </pre>
+    *
+    * As a note, this being backed by Scala's own global execution context,
+    * it is cooperating with Scala's BlockContext, so when operations marked
+    * with `scala.concurrent.blocking` are encountered, the thread-pool may
+    * decide to add extra threads in the pool. However this is not a thread-pool
+    * that is optimal for doing blocking operations, so for example if you want
+    * to do a lot of blocking I/O, then use a Scheduler backed by a
+    * thread-pool that is more optimal for blocking. See for example
+    * [[io]].
+    */
   object Implicits extends ImplicitsLike {
-    /** A global [[monix.execution.Scheduler Scheduler]] instance, provided for convenience, piggy-backing
-      * on top of Scala's own `concurrent.ExecutionContext.global`, which is a
+    /** A global [[monix.execution.Scheduler Scheduler]] instance,
+      * provided for convenience, piggy-backing on top of Scala's
+      * own `concurrent.ExecutionContext.global`, which is a
       * `ForkJoinPool`.
       *
-      * It can be tuned by setting the following JVM system properties:
-      *
-      * - "scala.concurrent.context.minThreads" an integer specifying the minimum
-      *   number of active threads in the pool
-      *
-      * - "scala.concurrent.context.maxThreads" an integer specifying the maximum
-      *   number of active threads in the pool
-      *
-      * - "scala.concurrent.context.numThreads" can be either an integer,
-      *   specifying the parallelism directly or a string with the format "xNUM"
-      *   (e.g. "x1.5") specifying the multiplication factor of the number of
-      *   available processors (taken with `Runtime.availableProcessors`)
-      *
-      * The formula for calculating the parallelism in our pool is
-      * `min(maxThreads, max(minThreads, numThreads))`.
-      *
-      * To set a system property from the command line, a JVM parameter must be
-      * given to the `java` command as `-Dname=value`. So as an example, to customize
-      * this global scheduler, we could start our process like this:
-      *
-      * <pre>
-      *   java -Dscala.concurrent.context.minThreads=2 \
-      *        -Dscala.concurrent.context.maxThreads=30 \
-      *        -Dscala.concurrent.context.numThreads=x1.5 \
-      *        ...
-      * </pre>
-      *
-      * As a note, this being backed by Scala's own global execution context,
-      * it is cooperating with Scala's BlockContext, so when operations marked
-      * with `scala.concurrent.blocking` are encountered, the thread-pool may
-      * decide to add extra threads in the pool. However this is not a thread-pool
-      * that is optimal for doing blocking operations, so for example if you want
-      * to do a lot of blocking I/O, then use a Scheduler backed by a
-      * thread-pool that is more optimal for blocking. See for example
-      * [[io]].
+      * $globalTuning
       */
     implicit lazy val global: Scheduler =
       AsyncScheduler(
@@ -453,5 +468,16 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
         UncaughtExceptionReporter.LogExceptionsToStandardErr,
         ExecModel.Default
       )
+
+    /** A [[monix.execution.Scheduler Scheduler]] instance that does
+      * propagation of [[monix.execution.misc.Local.Context Local.Context]]
+      * through async execution.
+      *
+      * It wraps [[global]].
+      *
+      * $globalTuning
+      */
+    implicit lazy val traced: Scheduler =
+      TracingScheduler(global)
   }
 }

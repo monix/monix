@@ -24,7 +24,6 @@ import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, Scheduler}
-
 import scala.annotation.tailrec
 
 private[eval] object TaskMapBoth {
@@ -92,7 +91,7 @@ private[eval] object TaskMapBoth {
             state.get match {
               case null => // null means this is the first task to complete
                 if (!state.compareAndSet(null, Left(a1))) onSuccess(a1)
-              case ref@Right(a2) => // the other task completed, so we can send
+              case Right(a2) => // the other task completed, so we can send
                 sendSignal(mainConn, cb, a1, a2.asInstanceOf[A2])(s)
               case Stop => // the other task triggered an error
                 () // do nothing
@@ -112,7 +111,7 @@ private[eval] object TaskMapBoth {
             state.get match {
               case null => // null means this is the first task to complete
                 if (!state.compareAndSet(null, Right(a2))) onSuccess(a2)
-              case ref@Left(a1) => // the other task completed, so we can send
+              case Left(a1) => // the other task completed, so we can send
                 sendSignal(mainConn, cb, a1.asInstanceOf[A1], a2)(s)
               case Stop => // the other task triggered an error
                 () // do nothing
