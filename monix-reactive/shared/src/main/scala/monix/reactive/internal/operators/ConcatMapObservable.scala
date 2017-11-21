@@ -85,7 +85,10 @@ private[reactive] final class ConcatMapObservable[A, B]
     implicit val scheduler = out.scheduler
 
     // For gathering errors
-    private[this] val errors = if (delayErrors) Atomic(List.empty[Throwable]) else null
+    private[this] val errors =
+      if (delayErrors) Atomic(List.empty[Throwable])
+      else null
+
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
     private[this] val stateRef =
@@ -129,7 +132,14 @@ private[reactive] final class ConcatMapObservable[A, B]
         // Simple, ordered write - we cannot use WaitOnNext as the
         // start of an iteration because we cannot detect
         // synchronous execution below
-        stateRef.lazySet(WaitOnActiveChild)
+        stateRef.getAndSet(WaitOnActiveChild) match {
+          case Cancelled =>
+            // Oops, we need to cancel!
+            self.cancel()
+            Stop
+          case _ =>
+            // Nothing to do!
+        }
 
         // Shoot first, ask questions later :-)
         val cancellable = child.unsafeSubscribeFn(new Subscriber[B] {
@@ -308,9 +318,13 @@ private[reactive] final class ConcatMapObservable[A, B]
           // since it's now the responsibility of the child to finish!
           ()
 
-        case previous @ (WaitComplete(_,_) | Cancelled) =>
+        case previous @ WaitComplete(_,_) =>
           // GC purposes: we no longer need the cancelable reference!
           stateRef.lazySet(previous)
+
+        case Cancelled =>
+          // Better safe than sorry, restore previous state!
+          self.cancel()
 
         case WaitOnActiveChild =>
           // Something is screwed up in our state machine :-(
