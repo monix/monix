@@ -36,12 +36,20 @@ package monix.reactive.subjects
   *
   *     val watcher = stack foreach (println _)
   *
-  *     stack onNext Push(1)   // prints List(1)
-  *     stack onNext Push(2)   // prints List(2, 1)
-  *     stack onNext Push(3)   // prints List(3, 2, 1)
-  *     stack onNext Pop       // prints List(2, 1)
-  *     stack onNext Pop       // prints List(1)
-  *     stack onNext Pop       // prints List()
+  *     stack onNext Push(1)
+  *     stack onNext Push(2)
+  *     stack onNext Push(3)
+  *     stack onNext Pop
+  *     stack onNext Pop
+  *
+  * The above should print out:
+  *
+  *     List()
+  *     List(1)
+  *     List(2, 1)
+  *     List(3, 2, 1)
+  *     List(2, 1)
+  *     List(1)
   */
 final class ActorSubject[M, A](initial: A, pf: PartialFunction[(A, M), A]) extends Observer[M] {
   val observer = PublishSubject[M]()
