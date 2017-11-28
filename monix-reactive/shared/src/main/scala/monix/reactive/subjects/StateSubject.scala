@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2017 by The Tonix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,11 +51,11 @@ package monix.reactive.subjects
   *     List(2, 1)
   *     List(1)
   */
-final class StateSubject[M, A](initial: A, pf: PartialFunction[(A, M), A]) extends Observer[M] {
-  val observer = PublishSubject[M]()
+final class StateSubject[T, A](initial: A, pf: PartialFunction[(A, T), A]) extends Observer[T] {
+  val observer = PublishSubject[T]()
 
   // adhere to the observer contract
-  def onNext(m: M) = observer.onNext(m)
+  def onNext(m: T) = observer.onNext(m)
   def onComplete = observer.onComplete
   def onError(ex: Throwable) = observer.onError(ex)
 
@@ -71,9 +71,9 @@ object StateSubject {
   
   /** Create a new `StateSubject`.
     */
-  def apply[M, A](initial: A)(pf: PartialFunction[(A, M), A]) = new StateSubject(initial, pf)
+  def apply[T, A](initial: A)(pf: PartialFunction[(A, T), A]) = new StateSubject(initial, pf)
 
   /** Implicitly coerces an `StateSubject` to an `Observable`.
     */
-  implicit def toObservable[M, A](subject: StateSubject[M, A]) = subject.observable
+  implicit def toObservable[T, A](subject: StateSubject[T, A]) = subject.observable
 }
