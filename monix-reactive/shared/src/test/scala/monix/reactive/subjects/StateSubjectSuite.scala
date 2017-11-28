@@ -21,16 +21,16 @@ import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.reactive.Observer
 
-object AsyncSubjectSuite extends BaseSubjectSuite {
-  sealed trait Message
+object StateSubjectSuite extends BaseSubjectSuite {
+  sealed trait Transform
 
-  final case class  Push[T](x: T) extends Message
-  final case object Pop           extends Message
+  final case class  Push[T](x: T) extends Transform
+  final case object Pop           extends Transform
 
-  test("accept messages and update state value") { implicit s =>
+  test("accept transforms and update state value") { implicit s =>
     var stack = ???
 
-    val subject = ActorSubject(List.empty[Int]) {
+    val subject = StateSubject(List.empty[Int]) {
       case (xs, Push(x: Int)) => x :: xs
       case (xs, Pop)          => xs drop 1
     }

@@ -17,19 +17,19 @@
 
 package monix.reactive.subjects
 
-/** `ActorSubject` is a `Subject` that processes messages sent via `onNext` to
-  * update a value that is observed.
+/** `StateSubject` is a `Subject` that processes all values it observes as
+  * transformations to a value that is - in turn - observed by others.
   *
   * @see `Subject`
   *
   * Example:
   *
-  *     sealed trait StackMessage
+  *     sealed trait StackTransform
   *
-  *     case class  Push[T](x: T) extends StackMessage
-  *     case object Pop           extends StackMessage
+  *     case class  Push[T](x: T) extends StackTransform
+  *     case object Pop           extends StackTransform
   *
-  *     val stack = ActorSubject[StackMessage, List[Int]](List.empty) {
+  *     val stack = StateSubject[StackTransform, List[Int]](List.empty) {
   *       case (xs, Push(x: Int)) => x :: xs
   *       case (xs, Pop)          => xs drop 1
   *     }
@@ -51,7 +51,7 @@ package monix.reactive.subjects
   *     List(2, 1)
   *     List(1)
   */
-final class ActorSubject[M, A](initial: A, pf: PartialFunction[(A, M), A]) extends Observer[M] {
+final class StateSubject[M, A](initial: A, pf: PartialFunction[(A, M), A]) extends Observer[M] {
   val observer = PublishSubject[M]()
 
   // adhere to the observer contract
@@ -65,15 +65,15 @@ final class ActorSubject[M, A](initial: A, pf: PartialFunction[(A, M), A]) exten
   }
 }
 
-object ActorSubject {
+object StateSubject {
   import scala.language.implicitConversions
   import scala.language.higherKinds
   
-  /** Create a new `ActorSubject`.
+  /** Create a new `StateSubject`.
     */
-  def apply[M, A](initial: A)(pf: PartialFunction[(A, M), A]) = new ActorSubject(initial, pf)
+  def apply[M, A](initial: A)(pf: PartialFunction[(A, M), A]) = new StateSubject(initial, pf)
 
-  /** Implicitly coerces an `ActorSubject` to an `Observable`.
+  /** Implicitly coerces an `StateSubject` to an `Observable`.
     */
-  implicit def toObservable[M, A](subject: ActorSubject[M, A]) = subject.observable
+  implicit def toObservable[M, A](subject: StateSubject[M, A]) = subject.observable
 }
