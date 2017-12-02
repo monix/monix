@@ -18,9 +18,10 @@
 package monix.reactive.internal.rstreams
 
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.Future
 
 object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
@@ -59,6 +60,81 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
 
     scheduler.tick()
     assertEquals(sum, 5000L * 9999)
+  }
+
+  test("should work with Observer.Sync") { implicit scheduler =>
+    var sum = 0L
+
+    val observer = new Observer.Sync[Long] {
+      def onNext(elem: Long) = {
+        sum += elem
+        Continue
+      }
+
+      def onError(ex: Throwable): Unit = {
+        scheduler.reportFailure(ex)
+      }
+
+      def onComplete(): Unit = ()
+    }
+
+    Observable.range(0, 10000).toReactivePublisher
+      .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 128))
+
+    scheduler.tick()
+    assertEquals(sum, 5000L * 9999)
+  }
+
+  test("should throw NullPointerException for null elements with Async Subscriber") { implicit s =>
+
+    val observer = new Observer[Any] {
+      def onNext(elem: Any) = Continue
+
+      def onError(ex: Throwable): Unit = throw ex
+
+      def onComplete(): Unit = ()
+    }
+
+    val reactiveSubscriber = Observer.toReactiveSubscriber[Any](observer)
+
+    Observable(1, 2, 3).toReactivePublisher
+      .subscribe(reactiveSubscriber)
+
+    s.tick()
+
+    intercept[NullPointerException]{
+      reactiveSubscriber.onNext(null)
+    }
+
+    intercept[NullPointerException]{
+      reactiveSubscriber.onError(null)
+    }
+  }
+
+  test("should throw NullPointerException for null elements with Sync Subscriber") { implicit s =>
+
+    val observer = new Observer.Sync[Any] {
+      def onNext(elem: Any) = Continue
+
+      def onError(ex: Throwable): Unit = throw ex
+
+      def onComplete(): Unit = ()
+    }
+
+    val reactiveSubscriber = Observer.toReactiveSubscriber[Any](observer)
+
+    Observable(1, 2, 3).toReactivePublisher
+      .subscribe(reactiveSubscriber)
+
+    s.tick()
+
+    intercept[NullPointerException]{
+      reactiveSubscriber.onNext(null)
+    }
+
+    intercept[NullPointerException]{
+      reactiveSubscriber.onError(null)
+    }
   }
 
   test("should work synchronously and with requests of size 1") { implicit s =>
