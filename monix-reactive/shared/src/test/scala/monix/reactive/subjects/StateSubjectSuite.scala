@@ -24,7 +24,7 @@ object StateSubjectSuite extends BaseSubjectSuite {
   final case object Pop           extends Transform
 
   test("accept transforms and update state value") { implicit s =>
-    var stack = ???
+    var stack: List[Int] = ???
 
     val subject = StateSubject[Transform, List[Int]](List.empty[Int]) {
       case (xs, Push(x: Int)) => x :: xs
