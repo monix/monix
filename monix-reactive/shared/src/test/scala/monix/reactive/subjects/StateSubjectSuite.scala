@@ -17,10 +17,6 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.Continue
-import monix.execution.exceptions.DummyException
-import monix.reactive.Observer
-
 object StateSubjectSuite extends BaseSubjectSuite {
   sealed trait Transform
 
@@ -30,7 +26,7 @@ object StateSubjectSuite extends BaseSubjectSuite {
   test("accept transforms and update state value") { implicit s =>
     var stack = ???
 
-    val subject = StateSubject(List.empty[Int]) {
+    val subject = StateSubject[Transform, List[Int]](List.empty[Int]) {
       case (xs, Push(x: Int)) => x :: xs
       case (xs, Pop)          => xs drop 1
     }
@@ -45,19 +41,19 @@ object StateSubjectSuite extends BaseSubjectSuite {
     subject onNext Pop
     subject onNext Pop
 
-    s.tick
+    s.tick()
     assertEquals(stack, List())
-    s.tick
+    s.tick()
     assertEquals(stack, List(1))
-    s.tick
+    s.tick()
     assertEquals(stack, List(2,1))
-    s.tick
+    s.tick()
     assertEquals(stack, List(3,2,1))
-    s.tick
+    s.tick()
     assertEquals(stack, List(2,1))
-    s.tick
+    s.tick()
     assertEquals(stack, List(1))
-    s.tick
+    s.tick()
     assertEquals(stack, List())
 
     subject.onComplete()
