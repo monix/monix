@@ -23,6 +23,22 @@ object StateSubjectSuite extends BaseSubjectSuite {
   final case class  Push[T](x: T) extends Transform
   final case object Pop           extends Transform
 
+  def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
+    val s = StateSubject[Long, Long](0) {
+      case (a, n) => a + n
+    }
+
+    Sample(s, expectedElems.lastOption.getOrElse(0))
+  }
+
+  def continuousStreamingTest(expectedElems: Seq[Long]) = {
+    val s = StateSubject[Long, Long](0) {
+      case (a, n) => a + n
+    }
+
+    Some(Sample(s, expectedElems.sum))
+  }
+
   test("accept transforms and update state value") { implicit s =>
     var stack: List[Int] = ???
 
