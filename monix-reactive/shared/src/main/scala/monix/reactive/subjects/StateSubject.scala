@@ -17,7 +17,7 @@
 
 package monix.reactive.subjects
 
-import monix.reactive._
+import monix.reactive.observers._
 
 /** `StateSubject` is a `Subject` that processes all values it observes as
   * transformations to a value that is - in turn - observed by others.
@@ -53,7 +53,7 @@ import monix.reactive._
   *     List(2, 1)
   *     List(1)
   */
-final class StateSubject[T, A](initial: A, pf: PartialFunction[(A, T), A]) extends Observer[T] {
+final class StateSubject[T, A](initial: A, pf: PartialFunction[(A, T), A]) extends Subject[T, A] {
   val observer = PublishSubject[T]()
 
   // adhere to the observer contract
@@ -61,10 +61,16 @@ final class StateSubject[T, A](initial: A, pf: PartialFunction[(A, T), A]) exten
   def onComplete = observer.onComplete
   def onError(ex: Throwable) = observer.onError(ex)
 
+  // adhere to Subject trait
+  def size = observer.size
+
   // however, ignore the observable side of our subject, and use this instead...
   val observable = initial +: observer.scan(initial) {
     (a, m) => if (pf.isDefinedAt((a, m))) pf((a, m)) else a // maybe onError here?
   }
+
+  // subscribe to the transformed result
+  def unsafeSubscribeFn(s: Subscriber[A]) = observable.subscribe(s)
 }
 
 object StateSubject {
