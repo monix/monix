@@ -79,8 +79,4 @@ object StateSubject {
   /** Create a new `StateSubject`.
     */
   def apply[T, A](initial: A)(pf: PartialFunction[(A, T), A]) = new StateSubject(initial, pf)
-
-  /** Implicitly coerces an `StateSubject` to an `Observable`.
-    */
-  implicit def toObservable[T, A](subject: StateSubject[T, A]) = subject.observable
 }
