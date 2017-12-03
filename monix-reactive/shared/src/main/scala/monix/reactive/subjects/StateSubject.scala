@@ -17,6 +17,8 @@
 
 package monix.reactive.subjects
 
+import monix.reactive._
+
 /** `StateSubject` is a `Subject` that processes all values it observes as
   * transformations to a value that is - in turn - observed by others.
   *
@@ -67,7 +69,6 @@ final class StateSubject[T, A](initial: A, pf: PartialFunction[(A, T), A]) exten
 
 object StateSubject {
   import scala.language.implicitConversions
-  import scala.language.higherKinds
   
   /** Create a new `StateSubject`.
     */
