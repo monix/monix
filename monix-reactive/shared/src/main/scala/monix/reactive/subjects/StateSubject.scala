@@ -17,7 +17,11 @@
 
 package monix.reactive.subjects
 
+import monix.execution._
+import monix.reactive._
 import monix.reactive.observers._
+
+import scala.concurrent.Future
 
 /** `StateSubject` is a `Subject` that processes all values it observes as
   * transformations to a value that is - in turn - observed by others.
@@ -25,13 +29,14 @@ import monix.reactive.observers._
   * @see `Subject`
   *
   * Example:
-  *
+  * <pre>
+  *   <code>
   *     sealed trait StackTransform
   *
   *     case class  Push[T](x: T) extends StackTransform
   *     case object Pop           extends StackTransform
   *
-  *     val stack = StateSubject[StackTransform, List[Int]](List.empty) {
+  *     val stack = StateSubject[StackTransform,List[Int]](List.empty) {
   *       case (xs, Push(x: Int)) => x :: xs
   *       case (xs, Pop)          => xs drop 1
   *     }
@@ -43,38 +48,44 @@ import monix.reactive.observers._
   *     stack onNext Push(3)
   *     stack onNext Pop
   *     stack onNext Pop
-  *
+  *   </code>
+  * </pre>
   * The above should print out:
-  *
+  * <pre>
   *     List()
   *     List(1)
   *     List(2, 1)
   *     List(3, 2, 1)
   *     List(2, 1)
   *     List(1)
+  * </pre>
   */
-final class StateSubject[T, A](initial: A, pf: PartialFunction[(A, T), A]) extends Subject[T, A] {
-  val observer = PublishSubject[T]()
+abstract class StateSubject[T, A](initial: A) extends Subject[T, A] {
+  val observer: Subject[T, T] = PublishSubject[T]()
 
   // adhere to the observer contract
-  def onNext(m: T) = observer.onNext(m)
-  def onComplete = observer.onComplete
-  def onError(ex: Throwable) = observer.onError(ex)
+  def onNext(m: T): Future[Ack] = observer.onNext(m)
+  def onComplete(): Unit = observer.onComplete()
+  def onError(ex: Throwable): Unit = observer.onError(ex)
 
   // adhere to Subject trait
-  def size = observer.size
+  def size: Int = observer.size
+
+  // function to be implemented by instance
+  def update(a: A, t: T): A
 
   // however, ignore the observable side of our subject, and use this instead...
-  val observable = initial +: observer.scan(initial) {
-    (a, m) => if (pf.isDefinedAt((a, m))) pf((a, m)) else a // maybe onError here?
-  }
+  val observable: Observable[A] = initial +: observer.scan(initial)(update)
 
   // subscribe to the transformed result
-  def unsafeSubscribeFn(s: Subscriber[A]) = observable.subscribe(s)
+  def unsafeSubscribeFn(s: Subscriber[A]): Cancelable = observable.subscribe(s)
 }
 
 object StateSubject {
-  /** Create a new `StateSubject`.
+  /** Create a new `StateSubject` with a `PartialFunction` update.
     */
-  def apply[T, A](initial: A)(pf: PartialFunction[(A, T), A]) = new StateSubject(initial, pf)
+  def apply[T, A](initial: A)(pf: PartialFunction[(A, T), A]): StateSubject[T, A] =
+    new StateSubject[T, A](initial) {
+      def update(a: A, t: T): A = if (pf.isDefinedAt((a, t))) pf((a, t)) else a
+    }
 }

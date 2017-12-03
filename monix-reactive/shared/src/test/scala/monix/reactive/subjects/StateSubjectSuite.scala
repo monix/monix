@@ -23,52 +23,50 @@ object StateSubjectSuite extends BaseSubjectSuite {
   final case class  Push[T](x: T) extends Transform
   final case object Pop           extends Transform
 
-  def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
+  def alreadyTerminatedTest(expectedElems: Seq[Long]): Sample = {
     val s = StateSubject[Long, Long](0) {
-      case (a, n) => a + n
+      case _ => 0
     }
 
-    Sample(s, expectedElems.lastOption.getOrElse(0))
+    Sample(s, 0)
   }
 
-  def continuousStreamingTest(expectedElems: Seq[Long]) = {
-    val s = StateSubject[Long, Long](0) {
-      case (a, n) => a + n
-    }
-
-    Some(Sample(s, expectedElems.sum))
-  }
+  def continuousStreamingTest(expectedElems: Seq[Long]): Option[Sample] = None
 
   test("accept transforms and update state value") { implicit s =>
-    var stack: List[Int] = ???
+    var stack: List[Int] = List.empty
 
     val subject = StateSubject[Transform, List[Int]](List.empty[Int]) {
       case (xs, Push(x: Int)) => x :: xs
       case (xs, Pop)          => xs drop 1
     }
 
-    val observer = subject foreach (stack = _)
-
-    subject onNext Push(1)
-    subject onNext Push(2)
-    subject onNext Push(3)
-
-    subject onNext Pop
-    subject onNext Pop
-    subject onNext Pop
+    val _ = subject foreach (stack = _)
 
     s.tick()
     assertEquals(stack, List())
+
+    subject onNext Push(1)
     s.tick()
     assertEquals(stack, List(1))
+
+    subject onNext Push(2)
     s.tick()
     assertEquals(stack, List(2,1))
+
+    subject onNext Push(3)
     s.tick()
     assertEquals(stack, List(3,2,1))
+
+    subject onNext Pop
     s.tick()
     assertEquals(stack, List(2,1))
+
+    subject onNext Pop
     s.tick()
     assertEquals(stack, List(1))
+
+    subject onNext Pop
     s.tick()
     assertEquals(stack, List())
 
