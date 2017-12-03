@@ -74,8 +74,6 @@ final class StateSubject[T, A](initial: A, pf: PartialFunction[(A, T), A]) exten
 }
 
 object StateSubject {
-  import scala.language.implicitConversions
-  
   /** Create a new `StateSubject`.
     */
   def apply[T, A](initial: A)(pf: PartialFunction[(A, T), A]) = new StateSubject(initial, pf)
