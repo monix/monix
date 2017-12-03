@@ -63,7 +63,7 @@ final class StateSubject[T, A](initial: A, pf: PartialFunction[(A, T), A]) exten
 
   // however, ignore the observable side of our subject, and use this instead...
   val observable = initial +: observer.scan(initial) {
-    (a, m) => if (pf isDefinedAt (a, m)) pf((a, m)) else a // maybe onError here?
+    (a, m) => if (pf.isDefinedAt((a, m))) pf((a, m)) else a // maybe onError here?
   }
 }
 
