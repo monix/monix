@@ -36,7 +36,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
         }
       }
 
-      val ack = downstream.onNextAll(xs)
+      val ack = downstream.feed(xs)
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
         sum == xs.sum
@@ -57,6 +57,46 @@ object SubscriberFeedSuite extends BaseTestSuite {
       }
 
       val ack = downstream.onNextAll(xs)
+      s.tick()
+      ack.syncTryFlatten(s) == Continue &&
+        sum == xs.sum
+    }
+  }
+
+  test("feed synchronous iterator") { s =>
+    check1 { (xs: List[Int]) =>
+      var sum = 0
+      val downstream = new Subscriber.Sync[Int] {
+        implicit val scheduler = s
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = sum += 100
+        def onNext(elem: Int) = {
+          sum += elem
+          Continue
+        }
+      }
+
+      val ack = downstream.feed(xs.toIterator)
+      s.tick()
+      ack.syncTryFlatten(s) == Continue &&
+        sum == xs.sum
+    }
+  }
+
+  test("feed asynchronous iterator") { s =>
+    check1 { (xs: List[Int]) =>
+      var sum = 0
+      val downstream = new Subscriber[Int] {
+        implicit val scheduler = s
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = sum += 100
+        def onNext(elem: Int) = Future {
+          sum += elem
+          Continue
+        }
+      }
+
+      val ack = downstream.feed(xs.toIterator)
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
         sum == xs.sum

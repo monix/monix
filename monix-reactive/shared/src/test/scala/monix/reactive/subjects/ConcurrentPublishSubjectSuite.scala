@@ -18,12 +18,12 @@
 package monix.reactive.subjects
 
 import monix.execution.Scheduler
-import monix.reactive.OverflowStrategy
+import monix.reactive.{MulticastStrategy, OverflowStrategy}
 import OverflowStrategy.Unbounded
 
 object ConcurrentPublishSubjectSuite extends BaseConcurrentSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ConcurrentSubject.publish[Long](Unbounded)
+    val c = ConcurrentSubject[Long](MulticastStrategy.publish)
     Sample(c, 0)
   }
 

@@ -15,20 +15,28 @@
  * limitations under the License.
  */
 
-package monix.reactive.subjects
+package monix.reactive.observers
 
-import monix.execution.Scheduler
-import monix.reactive.MulticastStrategy
-import monix.reactive.OverflowStrategy.Unbounded
+import monix.execution.Ack.Stop
+import monix.execution.exceptions.DummyException
+import monix.reactive.{BaseTestSuite, Observer}
 
-object ConcurrentReplaySubjectSuite extends BaseConcurrentSubjectSuite {
-  def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ConcurrentSubject[Long](MulticastStrategy.replay, Unbounded)
-    Sample(c, expectedElems.sum)
+object StoppedObserverSuite extends BaseTestSuite {
+  test("Observer.stopped works") { implicit s =>
+    val out = Observer.stopped[Int]
+
+    assertEquals(out.onNext(1), Stop)
+    out.onComplete()
+    out.onError(DummyException("dummy"))
+    assertEquals(out.onNext(2), Stop)
   }
 
-  def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ConcurrentSubject.replay[Long](Unbounded)
-    Some(Sample(c, expectedElems.sum))
+  test("Subscriber.canceled works") { implicit s =>
+    val out = Subscriber.canceled[Int]
+
+    assertEquals(out.onNext(1), Stop)
+    out.onComplete()
+    out.onError(DummyException("dummy"))
+    assertEquals(out.onNext(2), Stop)
   }
 }

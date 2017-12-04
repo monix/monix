@@ -2,8 +2,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-
-import monix.eval.Coeval
+import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 
 object IterantOnErrorSuite extends BaseTestSuite {
@@ -37,4 +36,34 @@ object IterantOnErrorSuite extends BaseTestSuite {
       r <-> fa
     }
   }
+
+  test("fa.onErrorHandleWith(_ => fb) <-> fa for successful streams") { _ =>
+    check1 { (list: List[Int]) =>
+      val iter = Iterant[Coeval].of(list: _*)
+
+      iter.onErrorHandleWith(_ => Iterant[Coeval].empty[Int]) <-> iter
+    }
+  }
+
+  test("fa.onErrorHandleWith(_ => fb) <-> fa ++ fb in case of error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val iter1 = Iterant[Coeval].of(1, 2, 3) ++ Iterant[Coeval].raiseError[Int](dummy)
+    val iter2 = Iterant[Coeval].fromArray(Array(4, 5, 6))
+
+    assertEquals(
+      iter1.onErrorHandleWith(_ => iter2).toListL.value,
+      List(1, 2, 3, 4, 5, 6)
+    )
+  }
+
+  test("Iterant[Task].onErrorHandleWith should protect against broken batches") { implicit s =>
+    check1 { (prefix: Iterant[Task, Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
+      val stream = (prefix.onErrorIgnore ++ error).onErrorHandleWith(ex => Iterant[Task].haltS[Int](Some(ex)))
+      stream <-> Iterant[Task].haltS[Int](Some(dummy))
+    }
+  }
+
 }
