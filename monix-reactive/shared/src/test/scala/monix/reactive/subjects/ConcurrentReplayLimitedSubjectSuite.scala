@@ -17,18 +17,34 @@
 
 package monix.reactive.subjects
 
+import minitest.laws.Checkers
 import monix.execution.Scheduler
 import monix.reactive.MulticastStrategy
 import monix.reactive.OverflowStrategy.Unbounded
 
-object ConcurrentReplaySubjectSuite extends BaseConcurrentSubjectSuite {
+import scala.util.Success
+
+object ConcurrentReplayLimitedSubjectSuite extends BaseConcurrentSubjectSuite with Checkers {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ConcurrentSubject[Long](MulticastStrategy.replay, Unbounded)
+    val c = ConcurrentSubject[Long](MulticastStrategy.replayLimited(expectedElems.size + 1), Unbounded)
     Sample(c, expectedElems.sum)
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ConcurrentSubject.replay[Long](Unbounded)
+    val c = ConcurrentSubject.replayLimited[Long](expectedElems.size + 1)
     Some(Sample(c, expectedElems.sum))
+  }
+
+  test("should replay only last n elements") { implicit s =>
+    check1 { (list: Seq[Long]) =>
+      val capacity = 10
+      val c = ConcurrentSubject.replayLimited[Long](capacity, list, Unbounded)
+
+      val sum = c.sumL.runAsync
+      c.onComplete()
+      s.tick()
+
+      sum.value == Some(Success(list.takeRight(capacity).sum))
+    }
   }
 }

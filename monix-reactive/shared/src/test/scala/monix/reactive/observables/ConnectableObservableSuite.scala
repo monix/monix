@@ -20,7 +20,10 @@ package monix.reactive.observables
 import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
+import monix.reactive.subjects.ConcurrentSubject
 import monix.reactive.{Consumer, Observable}
+
+import scala.util.Success
 
 object ConnectableObservableSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
@@ -45,5 +48,17 @@ object ConnectableObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(foreachSum, 21)
     assertEquals(consumerSum, 21)
     assertEquals(subscribeSum, 21)
+  }
+
+  test("cacheUntilConnect") { implicit s =>
+    val source = Observable(1, 2, 3, 4, 5, 6)
+    val subject = ConcurrentSubject.replay[Int]
+    val observable = ConnectableObservable.cacheUntilConnect(source, subject)
+
+    observable.connect()
+    val f = observable.sumL.runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Success(21)))
   }
 }

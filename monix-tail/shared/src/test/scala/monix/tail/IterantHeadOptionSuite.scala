@@ -19,7 +19,9 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.Coeval
+import monix.eval.{Coeval, Task}
+import monix.execution.exceptions.DummyException
+import monix.tail.batches.{Batch, BatchCursor}
 
 object IterantHeadOptionSuite extends BaseTestSuite {
   test("Iterant.headOptionL <-> List.headOption") { _ =>
@@ -34,5 +36,34 @@ object IterantHeadOptionSuite extends BaseTestSuite {
       val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx % 4), allowErrors = false)
       iter.headOptionL.value == list.headOption
     }
+  }
+
+  test("Iterant.headOption suspends execution for NextCursor or NextBatch") { _ =>
+    check1 { (list: List[Int]) =>
+      val iter1 = Iterant[Coeval].nextBatchS(Batch(list: _*), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      iter1.headOptionL <-> Coeval.suspend(Coeval.now(list.headOption))
+
+      val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(list: _*), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      iter2.headOptionL <-> Coeval.suspend(Coeval.now(list.headOption))
+    }
+  }
+
+  test("Iterant.headOption works for empty NextCursor or NextBatch") { _ =>
+    val iter1 = Iterant[Coeval].nextBatchS(Batch[Int](), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+    assertEquals(iter1.headOptionL.value, None)
+
+    val iter2 = Iterant[Coeval].nextCursorS(BatchCursor[Int](), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+    assertEquals(iter2.headOptionL.value, None)
+  }
+
+  test("Iterant.headOption doesn't touch Halt") { implicit s =>
+    val dummy = DummyException("dummy")
+    val iter1: Iterant[Task, Int] = Iterant[Task].haltS(Some(dummy))
+    val state1 = iter1.headOptionL
+    assertEquals(state1, Task.raiseError[Option[Int]](dummy))
+
+    val iter2: Iterant[Task, Int] = Iterant[Task].haltS(None)
+    val state2 = iter2.headOptionL
+    assertEquals(state2, Task.pure(None))
   }
 }
