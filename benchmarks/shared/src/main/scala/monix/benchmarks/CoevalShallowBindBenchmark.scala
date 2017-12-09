@@ -22,13 +22,13 @@ import org.openjdk.jmh.annotations._
 
 /** To do comparative benchmarks between Monix versions:
   *
-  *     benchmarks/run-benchmark CoevalFlatMapLongLoopBenchmark
+  *     benchmarks/run-benchmark CoevalShallowBindBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.CoevalFlatMapLongLoopBenchmark
+  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.CoevalShallowBindBenchmark
   *
   * Which means "10 iterations", "10 warm-up iterations", "2 fork", "1 thread".
   * Please note that benchmarks should be usually executed at least in
@@ -37,7 +37,7 @@ import org.openjdk.jmh.annotations._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class CoevalFlatMapLongLoopBenchmark {
+class CoevalShallowBindBenchmark {
   @Param(Array("10000"))
   var size: Int = _
 
