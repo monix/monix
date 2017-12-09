@@ -22,7 +22,7 @@ import cats.effect.IO
 import cats.kernel.Semigroup
 import monix.eval.Coeval._
 import monix.eval.instances.{CatsSyncForCoeval, CatsMonadToMonoid, CatsMonadToSemigroup}
-import monix.eval.internal.{CoevalRunLoop, LazyOnSuccess, Transformation}
+import monix.eval.internal.{CoevalRunLoop, LazyOnSuccess, StackFrame}
 import monix.execution.misc.NonFatal
 
 import scala.collection.generic.CanBuildFrom
@@ -251,7 +251,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * [[scala.util.Try Try]] or [[transformWith]] for an alternative.
     */
   def attempt: Coeval[Either[Throwable, A]] =
-    FlatMap(this, AttemptCoeval.asInstanceOf[Transformation[A, Coeval[Either[Throwable, A]]]], null)
+    FlatMap(this, AttemptCoeval.asInstanceOf[A => Coeval[Either[Throwable, A]]])
 
   /** Returns a failed projection of this coeval.
     *
@@ -284,7 +284,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * }}}
     */
   def flatMap[B](f: A => Coeval[B]): Coeval[B] =
-    FlatMap(this, f, null)
+    FlatMap(this, f)
 
   /** Given a source Coeval that emits another Coeval, this function
     * flattens the result, returning a Coeval equivalent to the emitted
@@ -340,7 +340,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * [[scala.Either Either]] or [[transformWith]] for an alternative.
     */
   def materialize: Coeval[Try[A]] =
-    FlatMap(this, MaterializeCoeval.asInstanceOf[Transformation[A, Coeval[Try[A]]]], null)
+    FlatMap(this, MaterializeCoeval.asInstanceOf[A => Coeval[Try[A]]])
 
   /** Dematerializes the source's result from a `Try`.
     *
@@ -419,7 +419,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * @param fe function that transforms an error of the receiver
     */
   def transformWith[R](fa: A => Coeval[R], fe: Throwable => Coeval[R]): Coeval[R] =
-    FlatMap(this, fa, fe)
+    FlatMap(this, StackFrame.fold(fa, fe))
 
   /** Given a predicate function, keep retrying the
     * coeval until the function returns true.
@@ -441,7 +441,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   def onErrorHandleWith[B >: A](f: Throwable => Coeval[B]): Coeval[B] =
-    FlatMap(this, null, f)
+    FlatMap(this, StackFrame.errorHandler(nowConstructor, f))
 
   /** Creates a new coeval that in case of error will fallback to the
     * given backup coeval.
@@ -987,15 +987,8 @@ object Coeval extends CoevalInstancesLevel0 {
 
   /** Internal [[Coeval]] state that is the result of applying `flatMap`. */
   private[eval] final case class FlatMap[A, B](
-    source: Coeval[A], f: A => Coeval[B], g: Throwable => Coeval[B])
-    extends Coeval[B] {
-
-    def bind(): A => Coeval[B] = {
-      if (g eq null) f
-      else if (f eq null) Transformation.onError(g)
-      else Transformation(f, g)
-    }
-  }
+    source: Coeval[A], f: A => Coeval[B])
+    extends Coeval[B]
 
   private final val nowConstructor: (Any => Coeval[Nothing]) =
     ((a: Any) => new Now(a)).asInstanceOf[Any => Coeval[Nothing]]
@@ -1003,18 +996,18 @@ object Coeval extends CoevalInstancesLevel0 {
     (e: Throwable) => new Error(e)
 
   /** Used as optimization by [[Coeval.attempt]]. */
-  private object AttemptCoeval extends Transformation[Any, Coeval[Either[Throwable, Any]]] {
+  private object AttemptCoeval extends StackFrame[Any, Coeval[Either[Throwable, Any]]] {
     override def apply(a: Any): Coeval[Either[Throwable, Any]] =
       new Now(Right(a))
-    override def error(e: Throwable): Coeval[Either[Throwable, Any]] =
+    override def recover(e: Throwable): Coeval[Either[Throwable, Any]] =
       new Now(Left(e))
   }
 
   /** Used as optimization by [[Coeval.materialize]]. */
-  private object MaterializeCoeval extends Transformation[Any, Coeval[Try[Any]]] {
+  private object MaterializeCoeval extends StackFrame[Any, Coeval[Try[Any]]] {
     override def apply(a: Any): Coeval[Try[Any]] =
       new Now(Success(a))
-    override def error(e: Throwable): Coeval[Try[Any]] =
+    override def recover(e: Throwable): Coeval[Try[Any]] =
       new Now(Failure(e))
   }
 

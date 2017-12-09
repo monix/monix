@@ -33,6 +33,14 @@ private[eval] object CoevalRunLoop {
     // Tail-recursive run-loop
     @tailrec def loop(source: Coeval[Any], bFirst: Bind, bRest: CallStack): Eager[Any] = {
       source match {
+        case FlatMap(fa, bindNext) =>
+          var callStack: CallStack = bRest
+          if (bFirst ne null) {
+            if (callStack eq null) callStack = createCallStack()
+            callStack.push(bFirst)
+          }
+          loop(fa, bindNext.asInstanceOf[Bind], callStack)
+
         case now @ Now(a) =>
           popNextBind(bFirst, bRest) match {
             case null => now
@@ -41,31 +49,22 @@ private[eval] object CoevalRunLoop {
               loop(fa, null, bRest)
           }
 
-        case eval @ Once(_) =>
-          loop(eval.run, bFirst, bRest)
-
         case Always(thunk) =>
           val fa = try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }
           loop(fa, bFirst, bRest)
+
+        case eval @ Once(_) =>
+          loop(eval.run, bFirst, bRest)
 
         case Suspend(thunk) =>
           val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
           loop(fa, bFirst, bRest)
 
-        case ref @ FlatMap(fa, _, _) =>
-          var callStack: CallStack = bRest
-          val bindNext = ref.bind()
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          loop(fa, bindNext, callStack)
-
         case error @ Error(e) =>
           findErrorHandler(bFirst, bRest) match {
             case null => error
             case bind =>
-              val fa = try bind.error(e) catch { case NonFatal(err) => Error(err) }
+              val fa = try bind.recover(e) catch { case NonFatal(err) => Error(err) }
               loop(fa, null, bRest)
           }
       }
@@ -77,14 +76,14 @@ private[eval] object CoevalRunLoop {
   /** Logic for finding the next `Transformation` reference,
     * meant for handling errors in the run-loop.
     */
-  private def findErrorHandler(bFirst: Bind, bRest: CallStack): Transformation[Any, Coeval[Any]] = {
-    var result: Transformation[Any, Coeval[Any]] = null
+  private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Coeval[Any]] = {
+    var result: StackFrame[Any, Coeval[Any]] = null
     var cursor = bFirst
     var continue = true
 
     while (continue) {
-      if (cursor != null && cursor.isInstanceOf[Transformation[_, _]]) {
-        result = cursor.asInstanceOf[Transformation[Any, Coeval[Any]]]
+      if (cursor != null && cursor.isInstanceOf[StackFrame[_, _]]) {
+        result = cursor.asInstanceOf[StackFrame[Any, Coeval[Any]]]
         continue = false
       } else {
         cursor = if (bRest ne null) bRest.pop() else null
@@ -95,12 +94,21 @@ private[eval] object CoevalRunLoop {
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if ((bFirst ne null) && !bFirst.isInstanceOf[Transformation.OnError[_]])
+    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]])
       bFirst
-    else if (bRest ne null) {
+    else if (bRest != null) {
       var cursor: Bind = null
-      do { cursor = bRest.pop() }
-      while (cursor != null && cursor.isInstanceOf[Transformation.OnError[_]])
+      var continue = true
+
+      while (continue) {
+        val ref = bRest.pop()
+        if (ref == null) {
+          continue = false
+        } else if (!ref.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
+          cursor = ref
+          continue = false
+        }
+      }
       cursor
     } else {
       null

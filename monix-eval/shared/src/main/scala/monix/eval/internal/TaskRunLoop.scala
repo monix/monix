@@ -72,14 +72,14 @@ private[eval] object TaskRunLoop {
   /** Logic for finding the next `Transformation` reference,
     * meant for handling errors in the run-loop.
     */
-  private def findErrorHandler(bFirst: Bind, bRest: CallStack): Transformation[Any, Task[Any]] = {
-    var result: Transformation[Any, Task[Any]] = null
+  private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
+    var result: StackFrame[Any, Task[Any]] = null
     var cursor = bFirst
     var continue = true
 
     while (continue) {
-      if (cursor != null && cursor.isInstanceOf[Transformation[_, _]]) {
-        result = cursor.asInstanceOf[Transformation[Any, Task[Any]]]
+      if (cursor != null && cursor.isInstanceOf[StackFrame[_, _]]) {
+        result = cursor.asInstanceOf[StackFrame[Any, Task[Any]]]
         continue = false
       } else {
         cursor = if (bRest ne null) bRest.pop() else null
@@ -90,12 +90,21 @@ private[eval] object TaskRunLoop {
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if ((bFirst ne null) && !bFirst.isInstanceOf[Transformation.OnError[_]])
+    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]])
       bFirst
-    else if (bRest ne null) {
+    else if (bRest != null) {
       var cursor: Bind = null
-      do { cursor = bRest.pop() }
-      while (cursor != null && cursor.isInstanceOf[Transformation.OnError[_]])
+      var continue = true
+
+      while (continue) {
+        val ref = bRest.pop()
+        if (ref == null) {
+          continue = false
+        } else if (!ref.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
+          cursor = ref
+          continue = false
+        }
+      }
       cursor
     } else {
       null
@@ -193,15 +202,14 @@ private[eval] object TaskRunLoop {
       frameIndex: FrameIndex): Unit = {
 
       if (frameIndex != 0) source match {
-        case ref @ FlatMap(fa, _, _) =>
+        case FlatMap(fa, bindNext) =>
           var callStack: CallStack = bRest
-          val bindNext = ref.bind()
           if (bFirst ne null) {
             if (callStack eq null) callStack = createCallStack()
             callStack.push(bFirst)
           }
           // Next iteration please
-          loop(fa, em, cb, rcb, bindNext, callStack, frameIndex)
+          loop(fa, em, cb, rcb, bindNext.asInstanceOf[Bind], callStack, frameIndex)
 
         case Now(value) =>
           popNextBind(bFirst, bRest) match {
@@ -248,7 +256,7 @@ private[eval] object TaskRunLoop {
           findErrorHandler(bFirst, bRest) match {
             case null => cb.onError(ex)
             case bind =>
-              val fa = try bind.error(ex) catch { case NonFatal(e) => Error(e) }
+              val fa = try bind.recover(ex) catch { case NonFatal(e) => Error(e) }
               // Given a flatMap evaluation just happened, must increment the index
               val nextFrame = em.nextFrameIndex(frameIndex)
               // Next cycle please
@@ -320,15 +328,14 @@ private[eval] object TaskRunLoop {
       frameIndex: Int): Cancelable = {
 
       if (frameIndex != 0) source match {
-        case ref @ FlatMap(fa, _, _) =>
+        case FlatMap(fa, bind) =>
           var callStack: CallStack = bRest
-          val bind = ref.bind()
           if (bFirst ne null) {
             if (callStack eq null) callStack = createCallStack()
             callStack.push(bFirst)
           }
           // Next iteration please
-          loop(fa, em, cb, bind, callStack, frameIndex)
+          loop(fa, em, cb, bind.asInstanceOf[Bind], callStack, frameIndex)
 
         case Now(value) =>
           popNextBind(bFirst, bRest) match {
@@ -377,7 +384,7 @@ private[eval] object TaskRunLoop {
               cb.onError(ex)
               Cancelable.empty
             case bind =>
-              val fa = try bind.error(ex) catch { case NonFatal(e) => Error(e) }
+              val fa = try bind.recover(ex) catch { case NonFatal(e) => Error(e) }
               // Given a flatMap evaluation just happened, must increment the index
               val nextFrame = em.nextFrameIndex(frameIndex)
               // Next cycle please
@@ -449,15 +456,14 @@ private[eval] object TaskRunLoop {
       frameIndex: Int): CancelableFuture[Any] = {
 
       if (frameIndex != 0) source match {
-        case ref @ FlatMap(fa, _, _) =>
+        case FlatMap(fa, bind) =>
           var callStack: CallStack = bRest
-          val bind = ref.bind()
           if (bFirst ne null) {
             if (callStack eq null) callStack = createCallStack()
             callStack.push(bFirst)
           }
           // Next iteration please
-          loop(fa, em, bind, callStack, frameIndex)
+          loop(fa, em, bind.asInstanceOf[Bind], callStack, frameIndex)
 
         case Now(value) =>
           popNextBind(bFirst, bRest) match {
@@ -504,7 +510,7 @@ private[eval] object TaskRunLoop {
           findErrorHandler(bFirst, bRest) match {
             case null => CancelableFuture.failed(ex)
             case bind =>
-              val fa = try bind.error(ex) catch { case NonFatal(e) => Error(e) }
+              val fa = try bind.recover(ex) catch { case NonFatal(e) => Error(e) }
               // Given a flatMap evaluation just happened, must increment the index
               val nextFrame = em.nextFrameIndex(frameIndex)
               // Next cycle please
@@ -571,7 +577,7 @@ private[eval] object TaskRunLoop {
       }
     }
 
-    implicit val s = context.scheduler
+    implicit val s: Scheduler = context.scheduler
 
     self.state.get match {
       case null =>
