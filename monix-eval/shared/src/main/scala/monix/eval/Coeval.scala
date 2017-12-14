@@ -24,6 +24,7 @@ import monix.eval.Coeval._
 import monix.eval.instances.{CatsSyncForCoeval, CatsMonadToMonoid, CatsMonadToSemigroup}
 import monix.eval.internal.{CoevalRunLoop, LazyOnSuccess, StackFrame}
 import monix.execution.misc.NonFatal
+import monix.execution.internal.Platform.fusionMaxStackDepth
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -331,7 +332,16 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * ```
     */
   def map[B](f: A => B): Coeval[B] =
-    flatMap(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
+    this match {
+      case Map(source, g, index) =>
+        // Allowed to do a fixed number of map operations fused before
+        // resetting the counter in order to avoid stack overflows;
+        // See `monix.execution.internal.Platform` for details.
+        if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
+        else Map(this, f, 0)
+      case _ =>
+        Map(this, f, 0)
+    }
 
   /** Creates a new [[Coeval]] that will expose any triggered error from
     * the source.
@@ -552,6 +562,12 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     */
   def zipMap[B,C](that: Coeval[B])(f: (A,B) => C): Coeval[C] =
     for (a <- this; b <- that) yield f(a,b)
+
+  override def toString: String = this match {
+    case Now(a) => s"Coeval.Now($a)"
+    case Error(e) => s"Coeval.Error($e)"
+    case _ => "Coeval$" + System.identityHashCode(this)
+  }
 }
 
 /** [[Coeval]] builders.
@@ -915,11 +931,11 @@ object Coeval extends CoevalInstancesLevel0 {
   /** Constructs an eager [[Coeval]] instance for
     * a result that represents an error.
     */
-  final case class Error(ex: Throwable) extends Eager[Nothing] {
-    override def apply(): Nothing = throw ex
+  final case class Error(error: Throwable) extends Eager[Nothing] {
+    override def apply(): Nothing = throw error
     override def run: Error = this
-    override def runAttempt: Either[Throwable, Nothing] = Left(ex)
-    override def runTry: Try[Nothing] = Failure(ex)
+    override def runAttempt: Either[Throwable, Nothing] = Left(error)
+    override def runTry: Try[Nothing] = Failure(error)
 
     // Overrides for strict evaluation
     override def map[B](f: (Nothing) => B): Coeval[B] =
@@ -984,11 +1000,17 @@ object Coeval extends CoevalInstancesLevel0 {
   /** Internal state, the result of [[Coeval.defer]] */
   private[eval] final case class Suspend[+A](thunk: () => Coeval[A])
     extends Coeval[A]
-
   /** Internal [[Coeval]] state that is the result of applying `flatMap`. */
-  private[eval] final case class FlatMap[A, B](
-    source: Coeval[A], f: A => Coeval[B])
-    extends Coeval[B]
+  private[eval] final case class FlatMap[S, A](source: Coeval[S], f: S => Coeval[A])
+    extends Coeval[A]
+
+  /** Internal [[Coeval]] state that is the result of applying `map`. */
+  private[eval] final case class Map[S, +A](source: Coeval[S], f: S => A, index: Int)
+    extends Coeval[A] with (S => Coeval[A]) {
+
+    def apply(value: S): Coeval[A] =
+      new Now(f(value))
+  }
 
   private final val nowConstructor: (Any => Coeval[Nothing]) =
     ((a: Any) => new Now(a)).asInstanceOf[Any => Coeval[Nothing]]
