@@ -883,7 +883,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorRecover]] for the version that takes a partial function.
     */
   def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
-    onErrorHandleWith(a => Now(f(a)))
+    onErrorHandleWith(f.andThen(nowConstructor))
 
   /** Creates a new task that on error will try to map the error
     * to another value using the provided partial function.
