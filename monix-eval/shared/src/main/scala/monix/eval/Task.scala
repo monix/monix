@@ -693,6 +693,25 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def executeWithOptions(f: Options => Options): Task[A] =
     TaskExecuteWithOptions(self, f)
 
+  /** Returns a new task that will execute the source with autoCancelableRunLoops set to `true`
+    *
+    * This will make `flatMap` driven loops to be auto-cancelable.
+    *
+    * Example:
+    *
+    * {{{
+    *   task.interruptible
+    * }}}
+    *
+    * This is equivalent to:
+    * {{{
+    *   task.executeWithOptions(_.enableAutoCancelableRunLoops)
+    * }}}
+    *
+    */
+  def interruptible: Task[A] =
+    executeWithOptions(_.enableAutoCancelableRunLoops)
+
   /** Introduces an asynchronous boundary at the current stage in the
     * asynchronous processing pipeline.
     *

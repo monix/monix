@@ -55,7 +55,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
     val atomic = Atomic(0)
     val f = loop(atomic)
-      .executeWithOptions(_.enableAutoCancelableRunLoops)
+      .interruptible
       .runAsync
 
     assertEquals(atomic.get, expected1)
@@ -80,7 +80,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
     var result = Option.empty[Try[Unit]]
 
     val c = loop(atomic)
-      .executeWithOptions(_.enableAutoCancelableRunLoops)
+      .interruptible
       .runAsync(new Callback[Unit] {
         def onSuccess(value: Unit): Unit =
           result = Some(Success(value))
