@@ -25,8 +25,6 @@ import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.{Local, NonFatal}
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
-
-import scala.annotation.tailrec
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -445,109 +443,105 @@ private[eval] object TaskRunLoop {
       context.connection
     }
 
-    /* Loop that evaluates a Task until the first async boundary is hit,
-     * or until the evaluation is finished, whichever comes first.
-     */
-    @tailrec def loop(
-      source: Current,
-      em: ExecutionModel,
-      cb: Callback[Any],
-      bFirst: Bind,
-      bRest: CallStack,
-      frameIndex: Int): Cancelable = {
+    var current = source.asInstanceOf[Task[Any]]
+    var bFirst: Bind = null
+    var bRest: CallStack = null
+    // Values from Now, Always and Once are unboxed in this var, for code reuse
+    var hasUnboxed: Boolean = false
+    var unboxed: AnyRef = null
+    // Keeps track of the current frame, used for forced async boundaries
+    val em = scheduler.executionModel
+    var frameIndex = frameStart(em)
 
-      if (frameIndex != 0) source match {
-        case FlatMap(fa, bind) =>
-          var callStack: CallStack = bRest
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          // Next iteration please
-          loop(fa, em, cb, bind.asInstanceOf[Bind], callStack, frameIndex)
+    do {
+      if (frameIndex != 0) {
+        current match {
+          case FlatMap(fa, bindNext) =>
+            if (bFirst ne null) {
+              if (bRest eq null) bRest = createCallStack()
+              bRest.push(bFirst)
+            }
+            bFirst = bindNext.asInstanceOf[Bind]
+            current = fa
 
-        case ref @ Map(fa, _, _) =>
-          var callStack: CallStack = bRest
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          // Next iteration please
-          loop(fa, em, cb, ref.asInstanceOf[Bind], callStack, frameIndex)
+          case Now(value) =>
+            unboxed = value.asInstanceOf[AnyRef]
+            hasUnboxed = true
 
-        case Now(value) =>
+          case Eval(thunk) =>
+            try {
+              unboxed = thunk().asInstanceOf[AnyRef]
+              hasUnboxed = true
+              current = null
+            } catch { case NonFatal(e) =>
+              current = Error(e)
+            }
+
+          case bindNext @ Map(fa, _, _) =>
+            if (bFirst ne null) {
+              if (bRest eq null) bRest = createCallStack()
+              bRest.push(bFirst)
+            }
+            bFirst = bindNext.asInstanceOf[Bind]
+            current = fa
+
+          case Suspend(thunk) =>
+            current = try thunk() catch { case NonFatal(ex) => Error(ex) }
+
+          case Error(error) =>
+            findErrorHandler(bFirst, bRest) match {
+              case null =>
+                cb.onError(error)
+                return Cancelable.empty
+              case bind =>
+                val fa = try bind.recover(error) catch { case NonFatal(e) => Error(e) }
+                frameIndex = em.nextFrameIndex(frameIndex)
+                bFirst = null
+                current = fa
+            }
+
+          case Async(_) =>
+            return goAsync(current, bFirst, bRest, frameIndex, forceAsync = false)
+
+          case ref: MemoizeSuspend[_] =>
+            // Already processed?
+            ref.value match {
+              case Some(materialized) =>
+                materialized match {
+                  case Success(value) =>
+                    unboxed = value.asInstanceOf[AnyRef]
+                    hasUnboxed = true
+                    current = null
+                  case Failure(error) =>
+                    current = Error(error)
+                }
+              case None =>
+                return goAsync(current, bFirst, bRest, frameIndex, forceAsync = false)
+            }
+        }
+
+        if (hasUnboxed) {
           popNextBind(bFirst, bRest) match {
             case null =>
-              cb.onSuccess(value)
-              Cancelable.empty
+              cb.onSuccess(unboxed.asInstanceOf[A])
+              return Cancelable.empty
             case bind =>
-              val fa = try bind(value) catch { case NonFatal(ex) => Error(ex) }
-              // Given a flatMap evaluation just happened, must increment the index
-              val nextFrame = em.nextFrameIndex(frameIndex)
-              loop(fa, em, cb, null, bRest, nextFrame)
+              current = try bind(unboxed) catch { case NonFatal(ex) => Error(ex) }
+              frameIndex = em.nextFrameIndex(frameIndex)
+              hasUnboxed = false
+              unboxed = null
+              bFirst = null
           }
-
-        case Eval(thunk) =>
-          var streamErrors = true
-          var nextState: Current = null
-          try {
-            val value = thunk()
-            streamErrors = false
-
-            popNextBind(bFirst, bRest) match {
-              case null => cb.onSuccess(value)
-              case bind =>
-                nextState = try bind(value) catch { case NonFatal(ex) => Error(ex) }
-            }
-          } catch {
-            case NonFatal(ex) if streamErrors =>
-              nextState = Error(ex)
-          }
-
-          if (nextState eq null) Cancelable.empty else {
-            // Given a flatMap evaluation just happened, must increment the index
-            val nextFrame = em.nextFrameIndex(frameIndex)
-            // Next iteration please
-            val nextBFirst = if (streamErrors) bFirst else null
-            loop(nextState, em, cb, nextBFirst, bRest, nextFrame)
-          }
-
-        case Suspend(thunk) =>
-          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
-          loop(fa, em, cb, bFirst, bRest, frameIndex)
-
-        case Error(ex) =>
-          findErrorHandler(bFirst, bRest) match {
-            case null =>
-              cb.onError(ex)
-              Cancelable.empty
-            case bind =>
-              val fa = try bind.recover(ex) catch { case NonFatal(e) => Error(e) }
-              // Given a flatMap evaluation just happened, must increment the index
-              val nextFrame = em.nextFrameIndex(frameIndex)
-              // Next cycle please
-              loop(fa, em, cb, null, bRest, nextFrame)
-          }
-
-        case ref: MemoizeSuspend[_] =>
-          ref.asInstanceOf[MemoizeSuspend[A]].value match {
-            case Some(materialized) =>
-              loop(fromTry(materialized), em, cb, bFirst, bRest, frameIndex)
-            case None =>
-              goAsync(source, bFirst, bRest, frameIndex, forceAsync = false)
-          }
-
-        case async @ Async(_) =>
-          goAsync(async, bFirst, bRest, frameIndex, forceAsync = false)
+        }
       }
       else {
-        // Asynchronous boundary is forced
-        goAsync(source, bFirst, bRest, frameIndex, forceAsync = true)
+        // Force async boundary
+        return goAsync(current, bFirst, bRest, frameIndex, forceAsync = true)
       }
-    }
-
-    val em = scheduler.executionModel
-    loop(source, em, cb.asInstanceOf[Callback[Any]], null, null, frameStart(em))
+    } while (true)
+    // $COVERAGE-OFF$
+    null
+    // $COVERAGE-ON$
   }
 
   /** A run-loop that attempts to complete a
@@ -563,127 +557,117 @@ private[eval] object TaskRunLoop {
       bindCurrent: Bind,
       bindRest: CallStack,
       nextFrame: FrameIndex,
-      forceAsync: Boolean): CancelableFuture[Any] = {
+      forceAsync: Boolean): CancelableFuture[A] = {
 
-      val p = Promise[Any]()
-      val cb: Callback[Any] = new Callback[Any] {
-        def onSuccess(value: Any): Unit =
-          p.trySuccess(value)
-        def onError(ex: Throwable): Unit =
-          p.tryFailure(ex)
-      }
-
+      val p = Promise[A]()
+      val cb = Callback.fromPromise(p)
+      val fa = source.asInstanceOf[Task[A]]
       val context = Context(scheduler, opts)
       if (forceAsync)
-        restartAsync(source, context, cb, bindCurrent, bindRest)
+        restartAsync(fa, context, cb, bindCurrent, bindRest)
       else
-        startWithCallback(source, context, cb, bindCurrent, bindRest, nextFrame)
-
+        startWithCallback(fa, context, cb, bindCurrent, bindRest, nextFrame)
 
       CancelableFuture(p.future, context.connection)
     }
 
-    /* Loop that evaluates a Task until the first async boundary is hit,
-     * or until the evaluation is finished, whichever comes first.
-     */
-    @tailrec def loop(
-      source: Current,
-      em: ExecutionModel,
-      bFirst: Bind,
-      bRest: CallStack,
-      frameIndex: Int): CancelableFuture[Any] = {
+    var current = source.asInstanceOf[Task[Any]]
+    var bFirst: Bind = null
+    var bRest: CallStack = null
+    // Values from Now, Always and Once are unboxed in this var, for code reuse
+    var hasUnboxed: Boolean = false
+    var unboxed: AnyRef = null
+    // Keeps track of the current frame, used for forced async boundaries
+    val em = scheduler.executionModel
+    var frameIndex = frameStart(em)
 
-      if (frameIndex != 0) source match {
-        case FlatMap(fa, bind) =>
-          var callStack: CallStack = bRest
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          // Next iteration please
-          loop(fa, em, bind.asInstanceOf[Bind], callStack, frameIndex)
+    do {
+      if (frameIndex != 0) {
+        current match {
+          case FlatMap(fa, bindNext) =>
+            if (bFirst ne null) {
+              if (bRest eq null) bRest = createCallStack()
+              bRest.push(bFirst)
+            }
+            bFirst = bindNext.asInstanceOf[Bind]
+            current = fa
 
-        case ref @ Map(fa, _, _) =>
-          var callStack: CallStack = bRest
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          // Next iteration please
-          loop(fa, em, ref.asInstanceOf[Bind], callStack, frameIndex)
+          case Now(value) =>
+            unboxed = value.asInstanceOf[AnyRef]
+            hasUnboxed = true
 
-        case Now(value) =>
+          case Eval(thunk) =>
+            try {
+              unboxed = thunk().asInstanceOf[AnyRef]
+              hasUnboxed = true
+              current = null
+            } catch { case NonFatal(e) =>
+              current = Error(e)
+            }
+
+          case bindNext @ Map(fa, _, _) =>
+            if (bFirst ne null) {
+              if (bRest eq null) bRest = createCallStack()
+              bRest.push(bFirst)
+            }
+            bFirst = bindNext.asInstanceOf[Bind]
+            current = fa
+
+          case Suspend(thunk) =>
+            current = try thunk() catch { case NonFatal(ex) => Error(ex) }
+
+          case Error(error) =>
+            findErrorHandler(bFirst, bRest) match {
+              case null =>
+                return CancelableFuture.failed(error)
+              case bind =>
+                val fa = try bind.recover(error) catch { case NonFatal(e) => Error(e) }
+                frameIndex = em.nextFrameIndex(frameIndex)
+                bFirst = null
+                current = fa
+            }
+
+          case Async(_) =>
+            return goAsync(current, bFirst, bRest, frameIndex, forceAsync = false)
+
+          case ref: MemoizeSuspend[_] =>
+            // Already processed?
+            ref.value match {
+              case Some(materialized) =>
+                materialized match {
+                  case Success(value) =>
+                    unboxed = value.asInstanceOf[AnyRef]
+                    hasUnboxed = true
+                    current = null
+                  case Failure(error) =>
+                    current = Error(error)
+                }
+              case None =>
+                return goAsync(current, bFirst, bRest, frameIndex, forceAsync = false)
+            }
+        }
+
+        if (hasUnboxed) {
           popNextBind(bFirst, bRest) match {
             case null =>
-              CancelableFuture.successful(value)
+              return CancelableFuture.successful(unboxed.asInstanceOf[A])
             case bind =>
-              val fa = try bind(value) catch { case NonFatal(ex) => Error(ex) }
-              // Given a flatMap evaluation just happened, must increment the index
-              val nextFrame = em.nextFrameIndex(frameIndex)
-              loop(fa, em, null, bRest, nextFrame)
+              current = try bind(unboxed) catch { case NonFatal(ex) => Error(ex) }
+              frameIndex = em.nextFrameIndex(frameIndex)
+              hasUnboxed = false
+              unboxed = null
+              bFirst = null
           }
-
-        case Eval(thunk) =>
-          var nextBFirst = bFirst
-          var result: CancelableFuture[Any] = null
-          var nextState: Current = null
-
-          try {
-            val value = thunk()
-            popNextBind(bFirst, bRest) match {
-              case null =>
-                result = CancelableFuture.successful(value)
-              case bind =>
-                nextBFirst = null
-                nextState = bind(value)
-            }
-          } catch {
-            case NonFatal(e) =>
-              nextState = Error(e)
-          }
-
-          if (result ne null) result else {
-            // Given a flatMap evaluation just happened, must increment the index
-            val nextFrame = em.nextFrameIndex(frameIndex)
-            // Next iteration please
-            loop(nextState, em, nextBFirst, bRest, nextFrame)
-          }
-
-        case Suspend(thunk) =>
-          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
-          loop(fa, em, bFirst, bRest, frameIndex)
-
-        case Error(ex) =>
-          findErrorHandler(bFirst, bRest) match {
-            case null => CancelableFuture.failed(ex)
-            case bind =>
-              val fa = try bind.recover(ex) catch { case NonFatal(e) => Error(e) }
-              // Given a flatMap evaluation just happened, must increment the index
-              val nextFrame = em.nextFrameIndex(frameIndex)
-              // Next cycle please
-              loop(fa, em, null, bRest, nextFrame)
-          }
-
-        case async @ Async(_) =>
-          goAsync(async, bFirst, bRest, frameIndex, forceAsync = false)
-
-        case ref: MemoizeSuspend[_] =>
-          ref.asInstanceOf[MemoizeSuspend[A]].value match {
-            case Some(materialized) =>
-              loop(fromTry(materialized), em, bFirst, bRest, frameIndex)
-            case None =>
-              goAsync(source, bFirst, bRest, frameIndex, forceAsync = false)
-          }
+        }
       }
       else {
-        // Asynchronous boundary is forced
-        goAsync(source, bFirst, bRest, frameIndex, forceAsync = true)
+        // Force async boundary
+        return goAsync(current, bFirst, bRest, frameIndex, forceAsync = true)
       }
-    }
-
-    val em = scheduler.executionModel
-    loop(source, em, null, null, frameStart(em))
-      .asInstanceOf[CancelableFuture[A]]
+    } while (true)
+    // $COVERAGE-OFF$
+    null
+    // $COVERAGE-ON$
   }
 
   /** Starts the execution and memoization of a `Task.MemoizeSuspend` state. */
