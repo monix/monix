@@ -49,7 +49,7 @@ private[tail] object IterantReduce {
           F.raiseError(e)
       } catch {
         case NonFatal(e) =>
-          self.earlyStop.followedBy(F.raiseError(e))
+          self.earlyStop *> F.raiseError(e)
       }
     }
 
@@ -82,7 +82,7 @@ private[tail] object IterantReduce {
           }
       } catch {
         case NonFatal(e) =>
-          self.earlyStop.followedBy(F.raiseError(e))
+          self.earlyStop *> F.raiseError(e)
       }
     }
 
