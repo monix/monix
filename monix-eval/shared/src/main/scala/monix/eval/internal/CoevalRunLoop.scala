@@ -68,7 +68,9 @@ private[eval] object CoevalRunLoop {
           current = fa
 
         case Suspend(thunk) =>
-          current = try thunk() catch { case NonFatal(ex) => Error(ex) }
+          // Try/catch described as statement, otherwise ObjectRef happens ;-)
+          try { current = thunk() }
+          catch { case NonFatal(ex) => current = Error(ex) }
 
         case eval @ Once(_) =>
           current = eval.run
@@ -78,9 +80,10 @@ private[eval] object CoevalRunLoop {
             case null =>
               return ref
             case bind =>
-              val fa = try bind.recover(ex) catch { case NonFatal(e) => Error(e) }
+              // Try/catch described as statement, otherwise ObjectRef happens ;-)
+              try { current = bind.recover(ex) }
+              catch { case NonFatal(e) => current = Error(e) }
               bFirst = null
-              current = fa
           }
       }
 
@@ -89,7 +92,9 @@ private[eval] object CoevalRunLoop {
           case null =>
             return (if (current ne null) current else Now(unboxed)).asInstanceOf[Eager[A]]
           case bind =>
-            current = try bind(unboxed) catch { case NonFatal(ex) => Error(ex) }
+            // Try/catch described as statement, otherwise ObjectRef happens ;-)
+            try { current = bind(unboxed) }
+            catch { case NonFatal(ex) => current = Error(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null

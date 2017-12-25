@@ -2238,25 +2238,25 @@ object Task extends TaskInstancesLevel1 {
 
   /** Internal, reusable reference. */
   private final val nowConstructor: (Any => Task[Nothing]) =
-    ((a: Any) => Now(a)).asInstanceOf[Any => Task[Nothing]]
+    ((a: Any) => new Now(a)).asInstanceOf[Any => Task[Nothing]]
   /** Internal, reusable reference. */
   private final val raiseConstructor: (Throwable => Task[Nothing]) =
-    e => Error(e)
+    e => new Error(e)
 
   /** Used as optimization by [[Task.attempt]]. */
   private object AttemptTask extends StackFrame[Any, Task[Either[Throwable, Any]]] {
     override def apply(a: Any): Task[Either[Throwable, Any]] =
-      Now(Right(a))
+      new Now(new Right(a))
     override def recover(e: Throwable): Task[Either[Throwable, Any]] =
-      Now(Left(e))
+      new Now(new Left(e))
   }
 
   /** Used as optimization by [[Task.materialize]]. */
   private object MaterializeTask extends StackFrame[Any, Task[Try[Any]]] {
     override def apply(a: Any): Task[Try[Any]] =
-      Now(Success(a))
+      new Now(new Success(a))
     override def recover(e: Throwable): Task[Try[Any]] =
-      Now(Failure(e))
+      new Now(new Failure(e))
   }
 }
 

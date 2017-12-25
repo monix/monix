@@ -61,6 +61,7 @@ private[eval] object TaskRunLoop {
         context.frameRef.reset()
         // Transporting the current context if localContextPropagation == true.
         Local.bind(savedLocals) {
+          // Using frameIndex = 1 to ensure at least one cycle gets executed
           startWithCallback(source, context, cb, bindCurrent, bindRest, 1)
         }
       }
@@ -237,7 +238,9 @@ private[eval] object TaskRunLoop {
               current = fa
 
             case Suspend(thunk) =>
-              current = try thunk() catch { case NonFatal(ex) => Error(ex) }
+              // Try/catch described as statement, otherwise ObjectRef happens ;-)
+              try { current = thunk() }
+              catch { case NonFatal(ex) => current = Error(ex) }
 
             case Error(error) =>
               findErrorHandler(bFirst, bRest) match {
@@ -245,10 +248,11 @@ private[eval] object TaskRunLoop {
                   cb.onError(error)
                   return
                 case bind =>
-                  val fa = try bind.recover(error) catch { case NonFatal(e) => Error(e) }
+                  // Try/catch described as statement, otherwise ObjectRef happens ;-)
+                  try { current = bind.recover(error) }
+                  catch { case NonFatal(e) => current = Error(e) }
                   frameIndex = em.nextFrameIndex(frameIndex)
                   bFirst = null
-                  current = fa
               }
 
             case Async(onFinish) =>
@@ -281,7 +285,9 @@ private[eval] object TaskRunLoop {
                 cb.onSuccess(unboxed)
                 return
               case bind =>
-                current = try bind(unboxed) catch { case NonFatal(ex) => Error(ex) }
+                // Try/catch described as statement, otherwise ObjectRef happens ;-)
+                try { current = bind(unboxed) }
+                catch { case NonFatal(ex) => current = Error(ex) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 hasUnboxed = false
                 unboxed = null
@@ -370,7 +376,9 @@ private[eval] object TaskRunLoop {
             current = fa
 
           case Suspend(thunk) =>
-            current = try thunk() catch { case NonFatal(ex) => Error(ex) }
+            // Try/catch described as statement, otherwise ObjectRef happens ;-)
+            try { current = thunk() }
+            catch { case NonFatal(ex) => current = Error(ex) }
 
           case Error(error) =>
             findErrorHandler(bFirst, bRest) match {
@@ -378,10 +386,11 @@ private[eval] object TaskRunLoop {
                 cb.onError(error)
                 return Cancelable.empty
               case bind =>
-                val fa = try bind.recover(error) catch { case NonFatal(e) => Error(e) }
+                // Try/catch described as statement, otherwise ObjectRef happens ;-)
+                try { current = bind.recover(error) }
+                catch { case NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
-                current = fa
             }
 
           case Async(_) =>
@@ -410,7 +419,9 @@ private[eval] object TaskRunLoop {
               cb.onSuccess(unboxed.asInstanceOf[A])
               return Cancelable.empty
             case bind =>
-              current = try bind(unboxed) catch { case NonFatal(ex) => Error(ex) }
+              // Try/catch described as statement, otherwise ObjectRef happens ;-)
+              try { current = bind(unboxed) }
+              catch { case NonFatal(ex) => current = Error(ex) }
               frameIndex = em.nextFrameIndex(frameIndex)
               hasUnboxed = false
               unboxed = null
@@ -428,33 +439,17 @@ private[eval] object TaskRunLoop {
     // $COVERAGE-ON$
   }
 
-  /** A run-loop that attempts to complete a
-    * [[monix.execution.CancelableFuture CancelableFuture]]
-    * synchronously falling back to [[startWithCallback]]
-    * and actual asynchronous execution in case of an
-    * asynchronous boundary.
+  /** A run-loop that attempts to complete a `CancelableFuture`
+    * synchronously falling back to [[startWithCallback]] and actual
+    * asynchronous execution in case of an asynchronous boundary.
+    *
+    * This method gets invoked by `Task.runAsync(implicit s: Scheduler)`.
+    *
+    * @param source is the `Task` being evaluated
+    * @param scheduler is the `Scheduler` used for managing async boundaries
+    * @param opts are the task execution options (for async boundaries)
     */
   def startAsFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
-    /* Called when we hit the first async boundary. */
-    def goAsync(
-      source: Current,
-      bindCurrent: Bind,
-      bindRest: CallStack,
-      nextFrame: FrameIndex,
-      forceAsync: Boolean): CancelableFuture[A] = {
-
-      val p = Promise[A]()
-      val cb = Callback.fromPromise(p)
-      val fa = source.asInstanceOf[Task[A]]
-      val context = Context(scheduler, opts)
-      if (forceAsync)
-        restartAsync(fa, context, cb, bindCurrent, bindRest)
-      else
-        startWithCallback(fa, context, cb, bindCurrent, bindRest, nextFrame)
-
-      CancelableFuture(p.future, context.connection)
-    }
-
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
     var bRest: CallStack = null
@@ -485,11 +480,12 @@ private[eval] object TaskRunLoop {
               unboxed = thunk().asInstanceOf[AnyRef]
               hasUnboxed = true
               current = null
-            } catch { case NonFatal(e) =>
-              current = Error(e)
+            } catch {
+              case NonFatal(e) =>
+                current = Error(e)
             }
 
-          case bindNext @ Map(fa, _, _) =>
+          case bindNext@Map(fa, _, _) =>
             if (bFirst ne null) {
               if (bRest eq null) bRest = createCallStack()
               bRest.push(bFirst)
@@ -498,21 +494,32 @@ private[eval] object TaskRunLoop {
             current = fa
 
           case Suspend(thunk) =>
-            current = try thunk() catch { case NonFatal(ex) => Error(ex) }
+            // Try/catch described as statement to prevent ObjectRef ;-)
+            try {
+              current = thunk()
+            }
+            catch {
+              case NonFatal(ex) => current = Error(ex)
+            }
 
           case Error(error) =>
             findErrorHandler(bFirst, bRest) match {
               case null =>
                 return CancelableFuture.failed(error)
               case bind =>
-                val fa = try bind.recover(error) catch { case NonFatal(e) => Error(e) }
+                // Try/catch described as statement to prevent ObjectRef ;-)
+                try {
+                  current = bind.recover(error)
+                }
+                catch {
+                  case NonFatal(e) => current = Error(e)
+                }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
-                current = fa
             }
 
           case Async(_) =>
-            return goAsync(current, bFirst, bRest, frameIndex, forceAsync = false)
+            return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceAsync = false)
 
           case ref: MemoizeSuspend[_] =>
             // Already processed?
@@ -527,7 +534,7 @@ private[eval] object TaskRunLoop {
                     current = Error(error)
                 }
               case None =>
-                return goAsync(current, bFirst, bRest, frameIndex, forceAsync = false)
+                return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceAsync = false)
             }
         }
 
@@ -536,17 +543,22 @@ private[eval] object TaskRunLoop {
             case null =>
               return CancelableFuture.successful(unboxed.asInstanceOf[A])
             case bind =>
-              current = try bind(unboxed) catch { case NonFatal(ex) => Error(ex) }
+              // Try/catch described as statement to prevent ObjectRef ;-)
+              try {
+                current = bind(unboxed)
+              }
+              catch {
+                case NonFatal(ex) => current = Error(ex)
+              }
               frameIndex = em.nextFrameIndex(frameIndex)
               hasUnboxed = false
               unboxed = null
               bFirst = null
           }
         }
-      }
-      else {
+      } else {
         // Force async boundary
-        return goAsync(current, bFirst, bRest, frameIndex, forceAsync = true)
+        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceAsync = true)
       }
     } while (true)
     // $COVERAGE-OFF$
@@ -554,8 +566,30 @@ private[eval] object TaskRunLoop {
     // $COVERAGE-ON$
   }
 
+  /** Called when we hit the first async boundary in [[startAsFuture]]. */
+  private def goAsync4Future[A](
+    source: Current,
+    scheduler: Scheduler,
+    opts: Task.Options,
+    bindCurrent: Bind,
+    bindRest: CallStack,
+    nextFrame: FrameIndex,
+    forceAsync: Boolean): CancelableFuture[A] = {
+
+    val p = Promise[A]()
+    val cb = Callback.fromPromise(p)
+    val fa = source.asInstanceOf[Task[A]]
+    val context = Context(scheduler, opts)
+    if (forceAsync)
+      restartAsync(fa, context, cb, bindCurrent, bindRest)
+    else
+      startWithCallback(fa, context, cb, bindCurrent, bindRest, nextFrame)
+
+    CancelableFuture(p.future, context.connection)
+  }
+
   /** Starts the execution and memoization of a `Task.MemoizeSuspend` state. */
-  def startMemoization[A](
+  private def startMemoization[A](
     self: MemoizeSuspend[A],
     context: Context,
     cb: Callback[A],
@@ -603,7 +637,6 @@ private[eval] object TaskRunLoop {
           startMemoization(self, context, cb, bindCurrent, bindRest, nextFrame) // retry
         else {
           val underlying = try self.thunk() catch { case NonFatal(ex) => Error(ex) }
-
           val callback = new Callback[A] {
             def onError(ex: Throwable): Unit = {
               cacheValue(self.state, Failure(ex))
