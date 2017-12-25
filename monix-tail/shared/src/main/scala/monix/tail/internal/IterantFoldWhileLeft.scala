@@ -80,7 +80,7 @@ private[tail] object IterantFoldWhileLeft {
       }
       catch {
         case NonFatal(e) =>
-          self.earlyStop.followedBy(F.raiseError(e))
+          self.earlyStop *> F.raiseError(e)
       }
     }
 
@@ -138,7 +138,7 @@ private[tail] object IterantFoldWhileLeft {
       }
       catch {
         case NonFatal(e) =>
-          self.earlyStop.followedBy(F.raiseError(e))
+          self.earlyStop *> F.raiseError(e)
       }
     }
 
