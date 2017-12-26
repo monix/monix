@@ -309,7 +309,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return $cancelableDesc
     */
   def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
-    TaskRunLoop.startLightWithCallback(self, s, cb, defaultOptions)
+    TaskRunLoop.startLightWithCallback(self, s, defaultOptions, cb)
 
   /** $runAsyncOptDesc
     *
@@ -328,7 +328,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return $cancelableDesc
     */
   def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
-    TaskRunLoop.startLightWithCallback(self, s, cb, opts)
+    TaskRunLoop.startLightWithCallback(self, s, opts, cb)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever

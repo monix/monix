@@ -68,57 +68,18 @@ private[eval] object TaskRunLoop {
     }
   }
 
-  /** Logic for finding the next `Transformation` reference,
-    * meant for handling errors in the run-loop.
-    */
-  private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
-    if ((bFirst ne null) && bFirst.isInstanceOf[StackFrame[_, _]])
-      return bFirst.asInstanceOf[StackFrame[Any, Task[Any]]]
-
-    if (bRest eq null) return null
-    do {
-      bRest.pop() match {
-        case null => return null
-        case ref: StackFrame[_, _] =>
-          return ref.asInstanceOf[StackFrame[Any, Task[Any]]]
-        case _ => // next please
-      }
-    } while (true)
-    // $COVERAGE-OFF$
-    null
-    // $COVERAGE-ON$
-  }
-
-  private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]])
-      return bFirst
-
-    if (bRest eq null) return null
-    do {
-      bRest.pop() match {
-        case null => return null
-        case _: StackFrame.ErrorHandler[_, _] => // next please
-        case ref => return ref
-      }
-    } while (true)
-    // $COVERAGE-OFF$
-    null
-    // $COVERAGE-ON$
-  }
-
-  /** Internal utility, starts or resumes evaluation of
-    * the run-loop from where it left off.
+  /** Starts or resumes evaluation of the run-loop from where it left
+    * off. This is the complete run-loop.
     *
-    * The `frameIndex=1` default value ensures that the
-    * first cycle of the trampoline gets executed regardless of
-    * the `ExecutionModel`.
+    * Used for continuing a run-loop after an async boundary
+    * happens from [[startAsFuture]] and [[startLightWithCallback]].
     */
   def startWithCallback[A](
     source: Task[A],
     context: Context,
     cb: Callback[A],
-    bindCurrent: Bind,
-    bindRest: CallStack,
+    bFirst: Bind,
+    bRest: CallStack,
     frameIndex: FrameIndex): Unit = {
 
     final class RestartCallback(context: Context, callback: Callback[Any]) extends Callback[Any] {
@@ -141,7 +102,7 @@ private[eval] object TaskRunLoop {
         if (canCall) {
           canCall = false
           Local.bind(savedLocals) {
-            loop(Now(value), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
+            loop(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
           }
         }
 
@@ -149,7 +110,7 @@ private[eval] object TaskRunLoop {
         if (canCall) {
           canCall = false
           Local.bind(savedLocals) {
-            loop(Error(ex), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
+            loop(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())
           }
         } else {
           context.scheduler.reportFailure(ex)
@@ -161,7 +122,7 @@ private[eval] object TaskRunLoop {
     }
 
     def executeOnFinish(
-      em: ExecutionModel,
+      context: Context,
       cb: Callback[Any],
       rcb: RestartCallback,
       bFirst: Bind,
@@ -190,13 +151,14 @@ private[eval] object TaskRunLoop {
 
     def loop(
       start: Current,
-      em: ExecutionModel,
+      context: Context,
       cb: Callback[Any],
       rcb: RestartCallback,
       bFirstInit: Bind,
       bRestInit: CallStack,
       frameIndexInit: FrameIndex): Unit = {
 
+      val em = context.executionModel
       var current = start
       var bFirst = bFirstInit
       var bRest = bRestInit
@@ -256,7 +218,7 @@ private[eval] object TaskRunLoop {
               }
 
             case Async(onFinish) =>
-              executeOnFinish(em, cb, rcb, bFirst, bRest, onFinish, frameIndex)
+              executeOnFinish(context, cb, rcb, bFirst, bRest, onFinish, frameIndex)
               return
 
             case ref: MemoizeSuspend[_] =>
@@ -305,33 +267,21 @@ private[eval] object TaskRunLoop {
 
     // Can happen to receive a `RestartCallback` (e.g. from Task.fork),
     // in which case we should unwrap it
-    val callback = cb.asInstanceOf[Callback[Any]]
-    loop(source, context.executionModel, callback, null, bindCurrent, bindRest, frameIndex)
+    val cba = cb.asInstanceOf[Callback[Any]]
+    loop(source, context, cba, null, bFirst, bRest, frameIndex)
   }
 
+  /** A run-loop that attempts to evaluate a `Task` without
+    * initializing a `Task.Context`, falling back to
+    * [[startWithCallback]] when the first `Async` boundary is hit.
+    *
+    * Function gets invoked by `Task.runAsync(cb: Callback)`.
+    */
   def startLightWithCallback[A](
     source: Task[A],
     scheduler: Scheduler,
-    cb: Callback[A],
-    opts: Task.Options): Cancelable = {
-
-    /* Called when we hit the first async boundary. */
-    def goAsync(
-      source: Current,
-      bindCurrent: Bind,
-      bindRest: CallStack,
-      nextFrame: FrameIndex,
-      forceAsync: Boolean): Cancelable = {
-
-      val context = Context(scheduler, opts)
-      val cba = cb.asInstanceOf[Callback[Any]]
-      if (forceAsync)
-        restartAsync(source, context, cba, bindCurrent, bindRest)
-      else
-        startWithCallback(source, context, cba, bindCurrent, bindRest, nextFrame)
-
-      context.connection
-    }
+    opts: Task.Options,
+    cb: Callback[A]): Cancelable = {
 
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
@@ -394,7 +344,11 @@ private[eval] object TaskRunLoop {
             }
 
           case Async(_) =>
-            return goAsync(current, bFirst, bRest, frameIndex, forceAsync = false)
+            return goAsyncForLightCB(
+              current, scheduler, opts,
+              cb.asInstanceOf[Callback[Any]],
+              bFirst, bRest, frameIndex,
+              forceAsync = false)
 
           case ref: MemoizeSuspend[_] =>
             // Already processed?
@@ -409,7 +363,11 @@ private[eval] object TaskRunLoop {
                     current = Error(error)
                 }
               case None =>
-                return goAsync(current, bFirst, bRest, frameIndex, forceAsync = false)
+                return goAsyncForLightCB(
+                  current, scheduler, opts,
+                  cb.asInstanceOf[Callback[Any]],
+                  bFirst, bRest, frameIndex,
+                  forceAsync = false)
             }
         }
 
@@ -431,7 +389,11 @@ private[eval] object TaskRunLoop {
       }
       else {
         // Force async boundary
-        return goAsync(current, bFirst, bRest, frameIndex, forceAsync = true)
+        return goAsyncForLightCB(
+          current, scheduler, opts,
+          cb.asInstanceOf[Callback[Any]],
+          bFirst, bRest, frameIndex,
+          forceAsync = true)
       }
     } while (true)
     // $COVERAGE-OFF$
@@ -443,11 +405,7 @@ private[eval] object TaskRunLoop {
     * synchronously falling back to [[startWithCallback]] and actual
     * asynchronous execution in case of an asynchronous boundary.
     *
-    * This method gets invoked by `Task.runAsync(implicit s: Scheduler)`.
-    *
-    * @param source is the `Task` being evaluated
-    * @param scheduler is the `Scheduler` used for managing async boundaries
-    * @param opts are the task execution options (for async boundaries)
+    * Function gets invoked by `Task.runAsync(implicit s: Scheduler)`.
     */
   def startAsFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
     var current = source.asInstanceOf[Task[Any]]
@@ -566,6 +524,28 @@ private[eval] object TaskRunLoop {
     // $COVERAGE-ON$
   }
 
+  /** Called when we hit the first async boundary in
+    * [[startLightWithCallback]].
+    */
+  private def goAsyncForLightCB(
+    source: Current,
+    scheduler: Scheduler,
+    opts: Task.Options,
+    cb: Callback[Any],
+    bindCurrent: Bind,
+    bindRest: CallStack,
+    nextFrame: FrameIndex,
+    forceAsync: Boolean): Cancelable = {
+
+    val context = Context(scheduler, opts)
+    if (forceAsync)
+      restartAsync(source, context, cb, bindCurrent, bindRest)
+    else
+      startWithCallback(source, context, cb, bindCurrent, bindRest, nextFrame)
+
+    context.connection
+  }
+
   /** Called when we hit the first async boundary in [[startAsFuture]]. */
   private def goAsync4Future[A](
     source: Current,
@@ -672,5 +652,40 @@ private[eval] object TaskRunLoop {
         // Race condition happened
         false
     }
+  }
+
+  private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
+    if ((bFirst ne null) && bFirst.isInstanceOf[StackFrame[_, _]])
+      return bFirst.asInstanceOf[StackFrame[Any, Task[Any]]]
+
+    if (bRest eq null) return null
+    do {
+      bRest.pop() match {
+        case null => return null
+        case ref: StackFrame[_, _] =>
+          return ref.asInstanceOf[StackFrame[Any, Task[Any]]]
+        case _ => // next please
+      }
+    } while (true)
+    // $COVERAGE-OFF$
+    null
+    // $COVERAGE-ON$
+  }
+
+  private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
+    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]])
+      return bFirst
+
+    if (bRest eq null) return null
+    do {
+      bRest.pop() match {
+        case null => return null
+        case _: StackFrame.ErrorHandler[_, _] => // next please
+        case ref => return ref
+      }
+    } while (true)
+    // $COVERAGE-OFF$
+    null
+    // $COVERAGE-ON$
   }
 }
