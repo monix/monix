@@ -3,7 +3,7 @@
 Dir.chdir(File.absolute_path(File.join(File.dirname(__FILE__), "..")))
 
 Dir.entries("benchmarks/shared/src/main/scala/monix/benchmarks").each do |f|
-  if f =~ /^([^.]+)\.scala$/
+  if f =~ /^([^.]+)\.scala$/ && f !~ /package.scala$/
     system("./benchmarks/run-benchmark #{$1}")
   end
 end
