@@ -654,21 +654,20 @@ private[eval] object TaskRunLoop {
   }
 
   private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
-    if ((bFirst ne null) && bFirst.isInstanceOf[StackFrame[_, _]])
-      return bFirst.asInstanceOf[StackFrame[Any, Task[Any]]]
+    var result: StackFrame[Any, Task[Any]] = null
+    var cursor = bFirst
+    var continue = true
 
-    if (bRest eq null) return null
-    do {
-      bRest.pop() match {
-        case null => return null
-        case ref: StackFrame[_, _] =>
-          return ref.asInstanceOf[StackFrame[Any, Task[Any]]]
-        case _ => // next please
+    while (continue) {
+      if (cursor != null && cursor.isInstanceOf[StackFrame[_, _]]) {
+        result = cursor.asInstanceOf[StackFrame[Any, Task[Any]]]
+        continue = false
+      } else {
+        cursor = if (bRest ne null) bRest.pop() else null
+        continue = cursor != null
       }
-    } while (true)
-    // $COVERAGE-OFF$
-    null
-    // $COVERAGE-ON$
+    }
+    result
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {

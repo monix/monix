@@ -106,25 +106,21 @@ private[eval] object CoevalRunLoop {
     // $COVERAGE-ON$
   }
 
-  /** Logic for finding the next `Transformation` reference,
-    * meant for handling errors in the run-loop.
-    */
   private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Coeval[Any]] = {
-    if ((bFirst ne null) && bFirst.isInstanceOf[StackFrame[_, _]])
-      return bFirst.asInstanceOf[StackFrame[Any, Coeval[Any]]]
+    var result: StackFrame[Any, Coeval[Any]] = null
+    var cursor = bFirst
+    var continue = true
 
-    if (bRest eq null) return null
-    do {
-      bRest.pop() match {
-        case null => return null
-        case ref: StackFrame[_, _] =>
-          return ref.asInstanceOf[StackFrame[Any, Coeval[Any]]]
-        case _ => // next please
+    while (continue) {
+      if (cursor != null && cursor.isInstanceOf[StackFrame[_, _]]) {
+        result = cursor.asInstanceOf[StackFrame[Any, Coeval[Any]]]
+        continue = false
+      } else {
+        cursor = if (bRest ne null) bRest.pop() else null
+        continue = cursor != null
       }
-    } while (true)
-    // $COVERAGE-OFF$
-    null
-    // $COVERAGE-ON$
+    }
+    result
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
@@ -144,7 +140,6 @@ private[eval] object CoevalRunLoop {
     // $COVERAGE-ON$
   }
 
-  /** Creates a new [[CallStack]]. */
   private def createCallStack(): CallStack =
     ArrayStack(8)
 }
