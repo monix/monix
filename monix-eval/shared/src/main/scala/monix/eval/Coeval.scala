@@ -262,7 +262,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * `NoSuchElementException`.
     */
   final def failed: Coeval[Throwable] =
-    self.transformWith(_ => Error(new NoSuchElementException("failed")), e => Now(e))
+    self.transformWith(_ => Error(new NoSuchElementException("failed")), e => new Now(e))
 
   /** Creates a new `Coeval` by applying a function to the successful result
     * of the source, and returns a new instance equivalent
@@ -564,8 +564,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     for (a <- this; b <- that) yield f(a,b)
 
   override def toString: String = this match {
-    case Now(a) => s"Task.Now($a)"
-    case Error(e) => s"Task.Error($e)"
+    case Now(a) => s"Coeval.Now($a)"
+    case Error(e) => s"Coeval.Error($e)"
     case _ =>
       val n = this.getClass.getName.replaceFirst("^monix\\.eval\\.Coeval[$.]", "")
       s"Coeval.$n$$${System.identityHashCode(this)}"
@@ -990,7 +990,7 @@ object Coeval extends CoevalInstancesLevel0 {
     def apply(value: S): Coeval[A] =
       new Now(f(value))
     override def toString: String =
-      Coeval.super.toString
+      super[Coeval].toString
   }
 
   private final val nowConstructor: (Any => Coeval[Nothing]) =

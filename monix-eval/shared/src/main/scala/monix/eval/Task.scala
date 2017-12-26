@@ -2132,7 +2132,7 @@ object Task extends TaskInstancesLevel1 {
     def apply(value: S): Task[A] =
       new Now(f(value))
     override def toString: String =
-      Task.super.toString
+      super[Task].toString
   }
 
   /** Constructs a lazy [[Task]] instance whose result will

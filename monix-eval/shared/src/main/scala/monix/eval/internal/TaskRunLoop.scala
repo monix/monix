@@ -113,12 +113,11 @@ private[eval] object TaskRunLoop {
             loop(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())
           }
         } else {
+          // $COVERAGE-OFF$
           context.scheduler.reportFailure(ex)
+          // $COVERAGE-ON$
         }
       }
-
-      override def toString(): String =
-        s"RestartCallback($context, $callback)@${hashCode()}"
     }
 
     def executeOnFinish(
@@ -466,12 +465,8 @@ private[eval] object TaskRunLoop {
                 return CancelableFuture.failed(error)
               case bind =>
                 // Try/catch described as statement to prevent ObjectRef ;-)
-                try {
-                  current = bind.recover(error)
-                }
-                catch {
-                  case NonFatal(e) => current = Error(e)
-                }
+                try { current = bind.recover(error) }
+                catch { case NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
             }
@@ -613,9 +608,11 @@ private[eval] object TaskRunLoop {
       case null =>
         val p = Promise[A]()
 
-        if (!self.state.compareAndSet(null, (p, context.connection)))
+        if (!self.state.compareAndSet(null, (p, context.connection))) {
+          // $COVERAGE-OFF$
           startMemoization(self, context, cb, bindCurrent, bindRest, nextFrame) // retry
-        else {
+          // $COVERAGE-ON$
+        } else {
           val underlying = try self.thunk() catch { case NonFatal(ex) => Error(ex) }
           val callback = new Callback[A] {
             def onError(ex: Throwable): Unit = {
@@ -650,7 +647,9 @@ private[eval] object TaskRunLoop {
 
       case _: Try[_] =>
         // Race condition happened
+        // $COVERAGE-OFF$
         false
+        // $COVERAGE-ON$
     }
   }
 
