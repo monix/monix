@@ -22,45 +22,39 @@ package monix.eval.internal
   * Used in the `Task` and `Coeval` implementations to specify
   * error handlers in their respective `FlatMap` internal states.
   */
-private[eval] abstract class Transformation[-A, +R]
+private[eval] abstract class StackFrame[-A, +R]
   extends (A => R) { self =>
 
   def apply(a: A): R
-  def error(e: Throwable): R
-
-  override def andThen[X](g: (R) => X): Transformation[A, X] =
-    new Transformation[A, X] {
-      def apply(a: A): X =
-        g(self(a))
-      def error(e: Throwable): X =
-        g(self.error(e))
-    }
+  def recover(e: Throwable): R
 }
 
-private[eval] object Transformation {
-  /** Builds a [[Transformation]] instance. */
-  def apply[A, R](fa: A => R, fe: Throwable => R): Transformation[A, R] =
+private[eval] object StackFrame {
+  /** Builds a [[StackFrame]] instance. */
+  def fold[A, R](fa: A => R, fe: Throwable => R): StackFrame[A, R] =
     new Fold(fa, fe)
 
-  /** Builds a [[Transformation]] instance that only handles errors,
-    * otherwise mirroring the value on `success`.
-    */
-  def onError[R](fe: Throwable => R): Transformation[Any, R] =
-    new OnError(fe)
-
-  /** [[Transformation]] reference that only handles errors,
-    * useful for quick filtering of `onErrorHandleWith` frames.
-    */
-  final class OnError[+R](fe: Throwable => R) extends Transformation[Any, R] {
-    def error(e: Throwable): R = fe(e)
-    def apply(a: Any): R =
-      throw new NotImplementedError("Transformation.OnError.success")
-  }
-
   private final class Fold[-A, +R](fa: A => R, fe: Throwable => R)
-    extends Transformation[A, R] {
+    extends StackFrame[A, R] {
 
     def apply(a: A): R = fa(a)
-    def error(e: Throwable): R = fe(e)
+    def recover(e: Throwable): R = fe(e)
+  }
+
+  /** Builds a [[StackFrame]] instance that only handles errors,
+    * otherwise mirroring the value on `success`.
+    */
+  def errorHandler[F[_], A](fa: A => F[A], fe: Throwable => F[A]): StackFrame[A, F[A]] =
+    new ErrorHandler(fa, fe)
+
+  /** [[StackFrame]] reference that only handles errors,
+    * useful for quick filtering of `onErrorHandleWith` frames.
+    */
+  final class ErrorHandler[-A, +R] private[StackFrame]
+    (fa: A => R, fe: Throwable => R)
+    extends StackFrame[A, R] {
+
+    def apply(a: A): R = fa(a)
+    def recover(e: Throwable): R = fe(e)
   }
 }

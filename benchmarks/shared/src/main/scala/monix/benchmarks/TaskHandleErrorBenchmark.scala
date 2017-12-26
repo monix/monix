@@ -18,83 +18,58 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-
-import monix.execution.ExecutionModel.SynchronousExecution
-import monix.execution.Scheduler
-import monix.execution.exceptions.DummyException
+import monix.eval.Task
 import org.openjdk.jmh.annotations._
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
-/** To do comparative benchmarks between Monix versions:
+/** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark TaskRecoverBenchmark
+  *     benchmarks/run-benchmark TaskHandleErrorBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TaskRecoverBenchmark
+  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TaskHandleErrorBenchmark
   *
-  * Which means "10 iterations", "10 warm-up iterations", "2 fork", "1 thread".
+  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
   * Please note that benchmarks should be usually executed at least in
   * 10 iterations (as a rule of thumb), but more is better.
   */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class TaskRecoverBenchmark {
-  import TaskRecoverBenchmark.scheduler
-
+class TaskHandleErrorBenchmark {
   @Param(Array("10000"))
   var size: Int = _
 
   @Benchmark
-  def justFlatMap() = {
-    import monix.eval.Task
-
+  def happyPath(): Int = {
     def loop(i: Int): Task[Int] =
       if (i < size)
-        Task.now(i + 1).flatMap(loop)
+        Task.pure(i + 1)
+          .onErrorHandleWith(Task.raiseError)
+          .flatMap(loop)
       else
-        Task.now(i)
+        Task.pure(i)
 
-    Task.now(0).flatMap(loop).runAsync.value
+    Await.result(loop(0).runAsync, Duration.Inf)
   }
 
   @Benchmark
-  def happyPath() = {
-    import monix.eval.Task
+  def errorRaised(): Int = {
+    val dummy = new RuntimeException("dummy")
 
     def loop(i: Int): Task[Int] =
       if (i < size)
-        Task.now(i + 1)
-          .onErrorHandleWith(_ => Task.now(i + 1))
-          .flatMap(loop)
+        Task.raiseError[Int](dummy)
+          .flatMap(x => Task.pure(x + 1))
+          .flatMap(x => Task.pure(x + 1))
+          .onErrorHandleWith(_ => loop(i + 1))
       else
-        Task.now(i)
+        Task.pure(i)
 
-    Task.now(0).flatMap(loop).runAsync.value
-  }
-
-  @Benchmark
-  def handleError() = {
-    import monix.eval.Task
-    val dummy = DummyException("dummy")
-
-    def loop(i: Int): Task[Int] =
-      if (i < size)
-        Task.raiseError(dummy)
-          .onErrorHandleWith(_ => Task.now(i + 1))
-          .flatMap(loop)
-      else
-        Task.now(i)
-
-    Task.now(0).flatMap(loop).runAsync.value
-  }
-}
-
-object TaskRecoverBenchmark {
-  implicit val scheduler: Scheduler = {
-    import monix.execution.Scheduler.global
-    global.withExecutionModel(SynchronousExecution)
+    Await.result(loop(0).runAsync, Duration.Inf)
   }
 }

@@ -18,74 +18,53 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-
-import monix.execution.exceptions.DummyException
+import monix.eval.Coeval
 import org.openjdk.jmh.annotations._
 
-/** To do comparative benchmarks between Monix versions:
+/** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark CoevalRecoverBenchmark
+  *     benchmarks/run-benchmark CoevalAttemptBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.CoevalRecoverBenchmark
+  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.CoevalAttemptBenchmark
   *
-  * Which means "10 iterations", "10 warm-up iterations", "2 fork", "1 thread".
+  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
   * Please note that benchmarks should be usually executed at least in
   * 10 iterations (as a rule of thumb), but more is better.
   */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class CoevalRecoverBenchmark {
+class CoevalAttemptBenchmark {
   @Param(Array("10000"))
   var size: Int = _
 
   @Benchmark
-  def justFlatMap(): Int = {
-    import monix.eval.Coeval
-
-    def loop(i: Int): Coeval[Int] =
-      if (i < size)
-        Coeval.now(i + 1).flatMap(loop)
-      else
-        Coeval.now(i)
-
-    Coeval.now(0).flatMap(loop).value
-  }
-
-  @Benchmark
   def happyPath(): Int = {
-    import monix.eval.Coeval
-
     def loop(i: Int): Coeval[Int] =
-      if (i < size)
-        Coeval.now(i + 1)
-          .onErrorHandleWith(_ => Coeval.now(i + 1))
-          .flatMap(loop)
-      else
-        Coeval.now(i)
+      if (i < size) Coeval.pure(i + 1).attempt.flatMap(_.fold(Coeval.raiseError, loop))
+      else Coeval.pure(i)
 
-    Coeval.now(0).flatMap(loop).value
+    loop(0).value
   }
 
   @Benchmark
-  def handleError(): Int = {
-    import monix.eval.Coeval
-    val dummy = DummyException("dummy")
+  def errorRaised(): Int = {
+    val dummy = new RuntimeException("dummy")
+    val id = Coeval.pure[Int] _
 
     def loop(i: Int): Coeval[Int] =
       if (i < size)
-        Coeval.raiseError(dummy)
-          .onErrorHandleWith(_ => Coeval.now(i + 1))
-          .flatMap(loop)
+        Coeval.raiseError[Int](dummy)
+          .flatMap(x => Coeval.pure(x + 1))
+          .attempt
+          .flatMap(_.fold(_ => loop(i + 1), id))
       else
-        Coeval.now(i)
+        Coeval.pure(i)
 
-    Coeval.now(0)
-      .flatMap(loop)
-      .value
+    loop(0).value
   }
 }

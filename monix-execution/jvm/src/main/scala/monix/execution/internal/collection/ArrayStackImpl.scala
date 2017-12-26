@@ -45,7 +45,7 @@ private[monix] final class ArrayStackImpl[A] private (
   def push(a: A): Unit = {
     // If over capacity, we must double the array size!
     if (index >= capacity) {
-      val newCapacity = capacity * 2
+      val newCapacity = capacity << 1 // * 2
       val copy = new Array[AnyRef](newCapacity)
       System.arraycopy(array, 0, copy, 0, index)
       // Mutating internal state
@@ -63,14 +63,13 @@ private[monix] final class ArrayStackImpl[A] private (
     val result = array(index)
 
     if (capacity >= popCapacityThreshold && index <= (capacity >> 2)) {
-      val newCapacity = capacity / 2
+      val newCapacity = capacity >> 1
       val copy = new Array[AnyRef](newCapacity)
       System.arraycopy(array, 0, copy, 0, index)
       // Mutating internal state
       capacity = newCapacity
       array = copy
     }
-
     result.asInstanceOf[A]
   }
 }

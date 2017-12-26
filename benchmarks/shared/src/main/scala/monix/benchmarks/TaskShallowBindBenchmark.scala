@@ -19,77 +19,60 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.ExecutionModel.SynchronousExecution
+import monix.eval.Task
 import org.openjdk.jmh.annotations._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-/** To do comparative benchmarks between Monix versions:
+/** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark TaskFlatMapLongLoopBenchmark
+  *     benchmarks/run-benchmark TaskShallowBindBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TaskFlatMapLongLoopBenchmark
+  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TaskShallowBindBenchmark
   *
-  * Which means "10 iterations", "10 warm-up iterations", "2 fork", "1 thread".
+  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
   * Please note that benchmarks should be usually executed at least in
   * 10 iterations (as a rule of thumb), but more is better.
   */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class TaskFlatMapLongLoopBenchmark {
+class TaskShallowBindBenchmark {
   @Param(Array("10000"))
   var size: Int = _
 
   @Benchmark
-  def now(): Int = {
-    import TaskEvalFlatMapBenchmark.monixScheduler
-    import monix.eval.Task
-
+  def pure(): Int = {
     def loop(i: Int): Task[Int] =
-      if (i < size) Task.now(i + 1).flatMap(loop)
-      else Task.now(i)
+      if (i < size) Task.pure(i + 1).flatMap(loop)
+      else Task.pure(i)
 
-    Task.now(0).flatMap(loop)
-      .runSyncMaybe.right.get
+    val task = Task.pure(0).flatMap(loop)
+    Await.result(task.runAsync, Duration.Inf)
   }
 
   @Benchmark
-  def eval(): Int = {
-    import TaskEvalFlatMapBenchmark.monixScheduler
-    import monix.eval.Task
-
+  def delay(): Int = {
     def loop(i: Int): Task[Int] =
       if (i < size) Task.eval(i + 1).flatMap(loop)
       else Task.eval(i)
 
-    Task.eval(0).flatMap(loop)
-      .runSyncMaybe.right.get
+    val task = Task.eval(0).flatMap(loop)
+    Await.result(task.runAsync, Duration.Inf)
   }
 
   @Benchmark
   def async(): Int = {
-    import TaskEvalFlatMapBenchmark.monixScheduler
-    import monix.eval.Task
-
     def loop(i: Int): Task[Int] =
       if (i < size) Task(i + 1).flatMap(loop)
       else Task(i)
 
-    Await.result(Task(0).flatMap(loop).runAsync, Duration.Inf)
-  }
-}
-
-object TaskEvalFlatMapBenchmark {
-  import monix.execution.Scheduler
-
-  implicit val monixScheduler: Scheduler = {
-    import monix.execution.Scheduler.global
-    global.withExecutionModel(SynchronousExecution)
+    val task = Task(0).flatMap(loop)
+    Await.result(task.runAsync, Duration.Inf)
   }
 }

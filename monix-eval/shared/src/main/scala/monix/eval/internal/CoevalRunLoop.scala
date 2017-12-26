@@ -18,10 +18,9 @@
 package monix.eval.internal
 
 import monix.eval.Coeval
-import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Now, Once, Suspend}
+import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Map, Now, Once, Suspend}
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.NonFatal
-import scala.annotation.tailrec
 
 private[eval] object CoevalRunLoop {
   private type Current = Coeval[Any]
@@ -30,61 +29,91 @@ private[eval] object CoevalRunLoop {
 
   /** Trampoline for lazy evaluation. */
   def start[A](source: Coeval[A]): Eager[A] = {
-    // Tail-recursive run-loop
-    @tailrec def loop(source: Coeval[Any], bFirst: Bind, bRest: CallStack): Eager[Any] = {
-      source match {
-        case now @ Now(a) =>
-          popNextBind(bFirst, bRest) match {
-            case null => now
-            case bind =>
-              val fa = try bind(a) catch { case NonFatal(ex) => Error(ex) }
-              loop(fa, null, bRest)
-          }
+    var current: Current = source
+    var bFirst: Bind = null
+    var bRest: CallStack = null
+    // Values from Now, Always and Once are unboxed in this var, for code reuse
+    var hasUnboxed: Boolean = false
+    var unboxed: AnyRef = null
 
-        case eval @ Once(_) =>
-          loop(eval.run, bFirst, bRest)
+    do {
+      current match {
+        case FlatMap(fa, bindNext) =>
+          if (bFirst ne null) {
+            if (bRest eq null) bRest = createCallStack()
+            bRest.push(bFirst)
+          }
+          bFirst = bindNext.asInstanceOf[Bind]
+          current = fa
+
+        case Now(value) =>
+          unboxed = value.asInstanceOf[AnyRef]
+          hasUnboxed = true
 
         case Always(thunk) =>
-          val fa = try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }
-          loop(fa, bFirst, bRest)
+          try {
+            unboxed = thunk().asInstanceOf[AnyRef]
+            hasUnboxed = true
+            current = null
+          } catch { case NonFatal(e) =>
+            current = Error(e)
+          }
+
+        case bindNext @ Map(fa, _, _) =>
+          if (bFirst ne null) {
+            if (bRest eq null) bRest = createCallStack()
+            bRest.push(bFirst)
+          }
+          bFirst = bindNext.asInstanceOf[Bind]
+          current = fa
 
         case Suspend(thunk) =>
-          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
-          loop(fa, bFirst, bRest)
+          // Try/catch described as statement, otherwise ObjectRef happens ;-)
+          try { current = thunk() }
+          catch { case NonFatal(ex) => current = Error(ex) }
 
-        case ref @ FlatMap(fa, _, _) =>
-          var callStack: CallStack = bRest
-          val bindNext = ref.bind()
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          loop(fa, bindNext, callStack)
+        case eval @ Once(_) =>
+          current = eval.run
 
-        case error @ Error(e) =>
+        case ref @ Error(ex) =>
           findErrorHandler(bFirst, bRest) match {
-            case null => error
+            case null =>
+              return ref
             case bind =>
-              val fa = try bind.error(e) catch { case NonFatal(err) => Error(err) }
-              loop(fa, null, bRest)
+              // Try/catch described as statement, otherwise ObjectRef happens ;-)
+              try { current = bind.recover(ex) }
+              catch { case NonFatal(e) => current = Error(e) }
+              bFirst = null
           }
       }
-    }
 
-    loop(source, null, null).asInstanceOf[Eager[A]]
+      if (hasUnboxed) {
+        popNextBind(bFirst, bRest) match {
+          case null =>
+            return (if (current ne null) current else Now(unboxed)).asInstanceOf[Eager[A]]
+          case bind =>
+            // Try/catch described as statement, otherwise ObjectRef happens ;-)
+            try { current = bind(unboxed) }
+            catch { case NonFatal(ex) => current = Error(ex) }
+            hasUnboxed = false
+            unboxed = null
+            bFirst = null
+        }
+      }
+    } while (true)
+    // $COVERAGE-OFF$
+    null // Unreachable code
+    // $COVERAGE-ON$
   }
 
-  /** Logic for finding the next `Transformation` reference,
-    * meant for handling errors in the run-loop.
-    */
-  private def findErrorHandler(bFirst: Bind, bRest: CallStack): Transformation[Any, Coeval[Any]] = {
-    var result: Transformation[Any, Coeval[Any]] = null
+  private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Coeval[Any]] = {
+    var result: StackFrame[Any, Coeval[Any]] = null
     var cursor = bFirst
     var continue = true
 
     while (continue) {
-      if (cursor != null && cursor.isInstanceOf[Transformation[_, _]]) {
-        result = cursor.asInstanceOf[Transformation[Any, Coeval[Any]]]
+      if (cursor != null && cursor.isInstanceOf[StackFrame[_, _]]) {
+        result = cursor.asInstanceOf[StackFrame[Any, Coeval[Any]]]
         continue = false
       } else {
         cursor = if (bRest ne null) bRest.pop() else null
@@ -95,19 +124,22 @@ private[eval] object CoevalRunLoop {
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if ((bFirst ne null) && !bFirst.isInstanceOf[Transformation.OnError[_]])
-      bFirst
-    else if (bRest ne null) {
-      var cursor: Bind = null
-      do { cursor = bRest.pop() }
-      while (cursor != null && cursor.isInstanceOf[Transformation.OnError[_]])
-      cursor
-    } else {
-      null
-    }
+    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]])
+      return bFirst
+
+    if (bRest eq null) return null
+    do {
+      bRest.pop() match {
+        case null => return null
+        case _: StackFrame.ErrorHandler[_, _] => // next please
+        case ref => return ref
+      }
+    } while (true)
+    // $COVERAGE-OFF$
+    null
+    // $COVERAGE-ON$
   }
 
-  /** Creates a new [[CallStack]]. */
   private def createCallStack(): CallStack =
-    ArrayStack(4)
+    ArrayStack(8)
 }

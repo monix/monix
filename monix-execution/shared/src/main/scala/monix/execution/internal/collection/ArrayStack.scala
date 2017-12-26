@@ -46,8 +46,11 @@ private[monix] abstract class ArrayStack[A]
   def pop(): A
 
   /** Returns a shallow copy of this stack. */
-  override def clone(): ArrayStack[A] =
+  override def clone(): ArrayStack[A] = {
+    // $COVERAGE-OFF$
     super.clone().asInstanceOf[ArrayStack[A]]
+    // $COVERAGE-ON$
+  }
 }
 
 private[monix] object ArrayStack {

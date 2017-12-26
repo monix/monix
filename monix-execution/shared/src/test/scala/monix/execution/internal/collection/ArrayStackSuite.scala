@@ -123,4 +123,28 @@ object ArrayStackSuite extends SimpleTestSuite {
     assertEquals(cloned.size, 256)
     for (i <- 255.to(0, -1)) assertEquals(cloned.pop(), i)
   }
+
+  test("ArrayStack grows and shrinks") {
+    val stack = ArrayStack[Int](8)
+    val count = 256
+
+    assertEquals(stack.minimumCapacity, 8)
+    assertEquals(stack.currentCapacity, 8)
+
+    for (i <- 1 to count) {
+      stack.push(i)
+    }
+
+    assertEquals(stack.currentCapacity, count)
+    assertEquals(stack.minimumCapacity, 8)
+
+    var sum = 0
+    while (!stack.isEmpty) {
+      sum += stack.pop()
+    }
+
+    assertEquals(sum, count * (count + 1) / 2)
+    assertEquals(stack.currentCapacity, 8)
+    assertEquals(stack.minimumCapacity, 8)
+  }
 }

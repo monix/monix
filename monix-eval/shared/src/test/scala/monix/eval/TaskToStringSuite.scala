@@ -22,38 +22,48 @@ import monix.execution.Cancelable
 import monix.execution.exceptions.DummyException
 
 object TaskToStringSuite extends SimpleTestSuite {
+  def assertContains[A](ref: Task[A], startStr: String): Unit = {
+    val str = ref.toString
+    assert(str.startsWith(startStr), s""""$str".startsWith("$startStr")""")
+  }
+
   test("Task.Now") {
-    val task = Task.now(1)
-    assert(task.toString.startsWith("Task.Now"), "task.toString.startsWith(\"Task.Now\")")
+    val ref = Task.now(1)
+    assertContains(ref, "Task.Now")
   }
 
   test("Task.Error") {
-    val task = Task.raiseError(DummyException("dummy"))
-    assert(task.toString.startsWith("Task.Error"), "task.toString.startsWith(\"Task.Error\")")
+    val ref = Task.raiseError(DummyException("dummy"))
+    assertContains(ref, "Task.Error")
   }
 
   test("Task.Eval") {
-    val task = Task.eval("hello")
-    assert(task.toString.startsWith("Task.Eval"), "task.toString.startsWith(\"Task.Eval\")")
+    val ref = Task.eval("hello")
+    assertContains(ref, "Task.Eval")
   }
 
   test("Task.Async") {
-    val task = Task.create[Int]((_,cb) => { cb.onSuccess(1); Cancelable.empty })
-    assert(task.toString.startsWith("Task.Async"), "task.toString.startsWith(\"Task.Async\")")
+    val ref = Task.create[Int]((_,cb) => { cb.onSuccess(1); Cancelable.empty })
+    assertContains(ref, "Task.Async")
   }
 
   test("Task.FlatMap") {
-    val task = Task.now(1).flatMap(Task.now)
-    assert(task.toString.startsWith("Task.FlatMap"), "task.toString.startsWith(\"Task.FlatMap\")")
+    val ref = Task.now(1).flatMap(Task.now)
+    assertContains(ref, "Task.FlatMap")
   }
 
   test("Task.Suspend") {
-    val task = Task.defer(Task.now(1))
-    assert(task.toString.startsWith("Task.Suspend"), "task.toString.startsWith(\"Task.Suspend\")")
+    val ref = Task.defer(Task.now(1))
+    assertContains(ref, "Task.Suspend")
   }
 
   test("Task.MemoizeSuspend") {
-    val task = Task(1).memoize
-    assert(task.toString.startsWith("Task.MemoizeSuspend"), "task.toString.startsWith(\"Task.MemoizeSuspend\")")
+    val ref = Task(1).memoize
+    assertContains(ref, "Task.MemoizeSuspend")
+  }
+
+  test("Task.Map") {
+    val ref = Task.now(1).map(_ + 1)
+    assertContains(ref, "Task.Map")
   }
 }

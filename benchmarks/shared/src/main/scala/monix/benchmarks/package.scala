@@ -15,29 +15,14 @@
  * limitations under the License.
  */
 
-package monix.execution.internal
+package monix
 
-import minitest.SimpleTestSuite
+import monix.execution.ExecutionModel.SynchronousExecution
+import monix.execution.Scheduler
+import monix.execution.Scheduler.Implicits.global
 
-object PlatformSuite extends SimpleTestSuite {
-  test("isJS") {
-    assert(!Platform.isJVM, "!isJVM")
-    assert(Platform.isJS, "isJS")
-  }
-
-  test("recommendedBatchSize default ") {
-    assertEquals(Platform.recommendedBatchSize, 512)
-  }
-
-  test("autoCancelableRunLoops") {
-    assert(!Platform.autoCancelableRunLoops)
-  }
-
-  test("localContextPropagation") {
-    assert(!Platform.localContextPropagation)
-  }
-
-  test("fusionMaxStackDepth") {
-    assertEquals(Platform.fusionMaxStackDepth, 31)
-  }
+package object benchmarks {
+  /** Scheduler used for all testing, avoiding forced async boundaries. */
+  implicit val scheduler: Scheduler =
+    global.withExecutionModel(SynchronousExecution)
 }

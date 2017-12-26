@@ -23,6 +23,21 @@ object PlatformSuite extends SimpleTestSuite {
   test("isJVM") {
     assert(Platform.isJVM, "isJVM")
     assert(!Platform.isJS, "!isJS")
+  }
+
+  test("recommendedBatchSize default ") {
     assertEquals(Platform.recommendedBatchSize, 1024)
+  }
+
+  test("autoCancelableRunLoops") {
+    assert(!Platform.autoCancelableRunLoops)
+  }
+
+  test("localContextPropagation") {
+    assert(!Platform.localContextPropagation)
+  }
+
+  test("fusionMaxStackDepth") {
+    assertEquals(Platform.fusionMaxStackDepth, 127)
   }
 }
