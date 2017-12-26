@@ -3518,6 +3518,11 @@ abstract class Observable[+A] extends Serializable { self =>
   *         the resulting observable by converting it into a
   *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
   *         by means of [[Observable!.multicast multicast]].
+  *
+  * @define blocksDefaultSchedulerDesc To read from a open/unclosed stream, you
+  *         may want to use the ExecutionModel
+  *         [[monix.execution.ExecutionModel.AlwaysAsyncExecution AlwaysAsyncExecution]]
+  *         to avoid blocking on the call to .subscribe().
   */
 object Observable {
   /** An `Operator` is a function for transforming observers,
@@ -3707,12 +3712,16 @@ object Observable {
 
   /** $fromInputStreamDesc
     *
+    * $blocksDefaultSchedulerDesc
+    *
     * @param in is the `InputStream` to convert into an observable
     */
   def fromInputStream(in: InputStream): Observable[Array[Byte]] =
     fromInputStream(in, chunkSize = 4096)
 
   /** $fromInputStreamDesc
+    *
+    * $blocksDefaultSchedulerDesc
     *
     * @param in is the `InputStream` to convert into an observable
     * @param chunkSize is the maximum length of the emitted arrays of bytes.
@@ -3723,12 +3732,16 @@ object Observable {
 
   /** $fromCharsReaderDesc
     *
+    * $blocksDefaultSchedulerDesc
+    *
     * @param in is the `Reader` to convert into an observable
     */
   def fromCharsReader(in: Reader): Observable[Array[Char]] =
     fromCharsReader(in, chunkSize = 4096)
 
   /** $fromCharsReaderDesc
+    *
+    * $blocksDefaultSchedulerDesc
     *
     * @param in is the `Reader` to convert into an observable
     * @param chunkSize is the maximum length of the emitted arrays of chars.
