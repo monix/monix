@@ -45,6 +45,10 @@ class IterantBuilders[F[_]] {
   def eval[A](a: => A)(implicit F: Sync[F]): Iterant[F,A] =
     Iterant.eval(a)(F)
 
+  /** Aliased builder, see documentation for [[Iterant.liftF]]. */
+  def liftF[A](a: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.liftF(a)
+
   /** Aliased builder, see documentation for [[Iterant.nextS]]. */
   def nextS[A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Iterant.nextS(item, rest, stop)

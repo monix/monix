@@ -59,6 +59,20 @@ object IterantBasicSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
+  test("Iterant.liftF") { implicit s =>
+    var effect = 0
+    val iter = Iterant[IO].liftF(IO { effect += 1; effect })
+    val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Iterant.liftF should lift raised errors") { implicit s =>
+    val dummy = DummyException("dummy")
+    val iter = Iterant[IO].liftF(IO.raiseError(dummy))
+    val f = iter.headOptionL.unsafeToFuture()
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
+
   test("tailRecM basic usage") { implicit s =>
     val fa = Iterant[Coeval].tailRecM(0) { (a: Int) =>
       if (a < 10)

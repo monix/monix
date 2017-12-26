@@ -1752,6 +1752,12 @@ object Iterant extends IterantInstances {
   def eval[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
     Suspend(F.delay(nextS[F, A](a, F.pure(Halt(None)), F.unit)), F.unit)
 
+  /** Lifts a value from monadic context into the stream context,
+    * returning a stream of one element
+    */
+  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Suspend(F.map(fa)(lastS), F.unit)
+
   /** Builds a stream state equivalent with [[Iterant.Next]].
     *
     * $NextDesc
