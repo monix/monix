@@ -51,7 +51,7 @@ private[tail] object IterantCompleteL {
           F.raiseError(ex)
       } catch {
         case NonFatal(ex) =>
-          source.earlyStop.followedBy(F.raiseError(ex))
+          source.earlyStop *> F.raiseError(ex)
       }
     }
 
