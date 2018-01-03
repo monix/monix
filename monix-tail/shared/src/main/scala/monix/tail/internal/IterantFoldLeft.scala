@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,7 +52,7 @@ private[tail] object IterantFoldLeft {
           F.raiseError(ex)
       } catch {
         case NonFatal(ex) =>
-          source.earlyStop.followedBy(F.raiseError(ex))
+          source.earlyStop *> F.raiseError(ex)
       }
     }
 
@@ -64,7 +64,7 @@ private[tail] object IterantFoldLeft {
         loop(source, init)
       } catch {
         case NonFatal(e) if catchErrors =>
-          source.earlyStop.followedBy(F.raiseError(e))
+          source.earlyStop *> F.raiseError(e)
       }
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,12 +18,14 @@
 package monix.reactive.observers.buffers
 
 import java.util
+
 import monix.execution.internal.Platform
-import monix.execution.internals.atomic.UnsafeAccess
+import monix.execution.internal.atomic.UnsafeAccess
 import monix.execution.internal.math.nextPowerOf2
 import org.jctools.queues._
 import org.jctools.queues.MessagePassingQueue.Consumer
 import org.jctools.queues.atomic.{MpscAtomicArrayQueue, MpscLinkedAtomicQueue}
+
 import scala.collection.mutable
 
 /** A simple internal interface providing the needed commonality between

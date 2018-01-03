@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -122,5 +122,29 @@ object ArrayStackSuite extends SimpleTestSuite {
     assertEquals(cloned.currentCapacity, 256)
     assertEquals(cloned.size, 256)
     for (i <- 255.to(0, -1)) assertEquals(cloned.pop(), i)
+  }
+
+  test("ArrayStack grows and shrinks") {
+    val stack = ArrayStack[Int](8)
+    val count = 256
+
+    assertEquals(stack.minimumCapacity, 8)
+    assertEquals(stack.currentCapacity, 8)
+
+    for (i <- 1 to count) {
+      stack.push(i)
+    }
+
+    assertEquals(stack.currentCapacity, count)
+    assertEquals(stack.minimumCapacity, 8)
+
+    var sum = 0
+    while (!stack.isEmpty) {
+      sum += stack.pop()
+    }
+
+    assertEquals(sum, count * (count + 1) / 2)
+    assertEquals(stack.currentCapacity, 8)
+    assertEquals(stack.minimumCapacity, 8)
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,8 +46,11 @@ private[monix] abstract class ArrayStack[A]
   def pop(): A
 
   /** Returns a shallow copy of this stack. */
-  override def clone(): ArrayStack[A] =
+  override def clone(): ArrayStack[A] = {
+    // $COVERAGE-OFF$
     super.clone().asInstanceOf[ArrayStack[A]]
+    // $COVERAGE-ON$
+  }
 }
 
 private[monix] object ArrayStack {

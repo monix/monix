@@ -9,8 +9,8 @@ addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+publishSigned ;sonatypeReleaseAll")
 
-val catsVersion = "1.0.0-RC1"
-val catsEffectVersion = "0.5"
+val catsVersion = "1.0.0-RC2"
+val catsEffectVersion = "0.6"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.1"
 val scalaTestVersion = "3.0.4"
@@ -225,9 +225,9 @@ lazy val unidocSettings = Seq(
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
     inProjects(executionJVM, evalJVM, tailJVM, reactiveJVM),
 
-  // Exclude monix.execution.atomic.internals from ScalaDoc
+  // Exclude monix.*.internal from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
-    file.getCanonicalPath matches "^.*monix.execution.internals.*$"
+    file.getCanonicalPath matches "^.*monix\\.[^.]+\\.internal.*$"
   }),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
@@ -394,7 +394,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    libraryDependencies += "io.monix" %% "monix-reactive" % "2.3.2"
+    libraryDependencies += "io.monix" %% "monix-reactive" % "3.0.0-M2"
   )
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
