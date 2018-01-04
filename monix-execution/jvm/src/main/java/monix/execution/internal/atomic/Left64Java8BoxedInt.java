@@ -17,10 +17,21 @@
 
 package monix.execution.internal.atomic;
 
+import monix.execution.internal.InternalApi;
 import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
 
+/**
+ * INTERNAL API — used in the implementation of
+ * `monix.execution.atomic.Atomic`.
+ *
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
+ */
+@InternalApi
 final class Left64Java8BoxedInt extends LeftPadding56 implements BoxedInt {
   private static final long OFFSET;
   private static final Unsafe UNSAFE = (Unsafe) UnsafeAccess.getInstance();
