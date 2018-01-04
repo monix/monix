@@ -44,7 +44,7 @@ private[eval] object TaskExecuteWithModel {
           case AlwaysAsyncExecution | SynchronousExecution =>
             em.nextFrameIndex(0)
         }
-        TaskRunLoop.startWithCallback[A](self, context2, cb, null, null, nextIndex)
+        TaskRunLoop.startFull[A](self, context2, cb, null, null, nextIndex)
       }
       catch {
         case ex if NonFatal(ex) =>

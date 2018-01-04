@@ -286,7 +286,7 @@ import scala.util.{Failure, Success, Try}
   * @define optionsDesc a set of [[monix.eval.Task.Options Options]]
   *         that determine the behavior of Task's run-loop.
   */
-sealed abstract class Task[+A] extends Serializable { self =>
+sealed abstract class Task[+A] extends Serializable {
   import monix.eval.Task._
 
   /** $runAsyncDesc
@@ -300,7 +300,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         a running task.
     */
   def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-    TaskRunLoop.startAsFuture(this, s, defaultOptions)
+    TaskRunLoop.startFuture(this, s, defaultOptions)
 
   /** $runAsyncDesc
     *
@@ -309,7 +309,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return $cancelableDesc
     */
   def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
-    TaskRunLoop.startLightWithCallback(self, s, defaultOptions, cb)
+    TaskRunLoop.startLight(this, s, defaultOptions, cb)
 
   /** $runAsyncOptDesc
     *
@@ -318,7 +318,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return $cancelableDesc
     */
   def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
-    TaskRunLoop.startAsFuture(this, s, opts)
+    TaskRunLoop.startFuture(this, s, opts)
 
   /** $runAsyncOptDesc
     *
@@ -328,7 +328,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return $cancelableDesc
     */
   def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
-    TaskRunLoop.startLightWithCallback(self, s, opts, cb)
+    TaskRunLoop.startLight(this, s, opts, cb)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
@@ -435,7 +435,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *     source with a customizable trigger.
     */
   final def delayExecution(timespan: FiniteDuration): Task[A] =
-    TaskDelayExecution(self, timespan)
+    TaskDelayExecution(this, timespan)
 
   /** Returns a task that waits for the specified `trigger` to succeed
     * before mirroring the result of the source.
@@ -454,7 +454,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *     source with a simple timespan
     */
   final def delayExecutionWith(trigger: Task[Any]): Task[A] =
-    TaskDelayExecutionWith(self, trigger)
+    TaskDelayExecutionWith(this, trigger)
 
   /** Returns a task that executes the source immediately on `runAsync`,
     * but before emitting the `onSuccess` result for the specified
@@ -467,7 +467,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *     delay strategies depending on the signaled result.
     */
   final def delayResult(timespan: FiniteDuration): Task[A] =
-    TaskDelayResult(self, timespan)
+    TaskDelayResult(this, timespan)
 
   /** Returns a task that executes the source immediately on `runAsync`,
     * but with the result delayed by the specified `selector`.
@@ -492,7 +492,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @see [[delayResult]] for delaying with a simple timeout
     */
   final def delayResultBySelector[B](selector: A => Task[B]): Task[A] =
-    TaskDelayResultBySelector(self, selector)
+    TaskDelayResultBySelector(this, selector)
 
   /** Overrides the default [[monix.execution.Scheduler Scheduler]],
     * possibly forcing an asynchronous boundary before execution
@@ -631,7 +631,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         boundary on execution
     */
   final def executeOn(s: Scheduler, forceAsync: Boolean = true): Task[A] =
-    TaskExecuteOn(self, s, forceAsync)
+    TaskExecuteOn(this, s, forceAsync)
 
   /** Mirrors the given source `Task`, but upon execution ensure
     * that evaluation forks into a separate (logical) thread.
@@ -657,7 +657,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * start the run-loop in `runAsync`.
     */
   final def executeWithFork: Task[A] =
-    Task.shift.flatMap(_ => self)
+    Task.shift.flatMap(_ => this)
 
   /** Returns a new task that will execute the source with a different
     * [[monix.execution.ExecutionModel ExecutionModel]].
@@ -675,7 +675,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *        with which the source will get evaluated on `runAsync`
     */
   final def executeWithModel(em: ExecutionModel): Task[A] =
-    TaskExecuteWithModel(self, em)
+    TaskExecuteWithModel(this, em)
 
   /** Returns a new task that will execute the source with a different
     * set of [[Task.Options Options]].
@@ -692,7 +692,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *        upon `runAsync`
     */
   final def executeWithOptions(f: Options => Options): Task[A] =
-    TaskExecuteWithOptions(self, f)
+    TaskExecuteWithOptions(this, f)
 
   /** Introduces an asynchronous boundary at the current stage in the
     * asynchronous processing pipeline.
@@ -724,7 +724,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * scheduler.
     */
   final def asyncBoundary: Task[A] =
-    self.flatMap(r => Task.shift.map(_ => r))
+    this.flatMap(r => Task.shift.map(_ => r))
 
   /** Introduces an asynchronous boundary at the current stage in the
     * asynchronous processing pipeline, making processing to jump on
@@ -759,7 +759,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param s is the scheduler triggering the asynchronous boundary
     */
   final def asyncBoundary(s: Scheduler): Task[A] =
-    self.flatMap(a => Task.shift(s).map(_ => a))
+    this.flatMap(a => Task.shift(s).map(_ => a))
 
   /** Returns a new task that upon evaluation will execute the given
     * function for the generated element, transforming the source into
@@ -769,7 +769,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * obviously nothing gets executed at this point.
     */
   final def foreachL(f: A => Unit): Task[Unit] =
-    self.map { a => f(a); () }
+    this.map { a => f(a); () }
 
   /** Triggers the evaluation of the source, executing the given
     * function for the generated element.
@@ -836,7 +836,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *        canceled prematurely
     */
   final def doOnCancel(callback: Task[Unit]): Task[A] =
-    TaskDoOnCancel(self, callback)
+    TaskDoOnCancel(this, callback)
 
   /** Creates a new [[Task]] that will expose any triggered error from
     * the source.
@@ -846,7 +846,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
 
   /** Dematerializes the source's result from a `Try`. */
   final def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
-    self.asInstanceOf[Task[Try[B]]].flatMap(fromTry)
+    this.asInstanceOf[Task[Try[B]]].flatMap(fromTry)
 
   /** Creates a new task that will try recovering from an error by
     * matching it with another task using the given partial function.
@@ -874,7 +874,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * task until the function returns true.
     */
   final def restartUntil(p: (A) => Boolean): Task[A] =
-    self.flatMap(a => if (p(a)) now(a) else self.restartUntil(p))
+    this.flatMap(a => if (p(a)) now(a) else this.restartUntil(p))
 
   /** Creates a new task that in case of error will retry executing the
     * source again and again, until it succeeds.
@@ -883,8 +883,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * will be `maxRetries + 1`.
     */
   final def onErrorRestart(maxRetries: Long): Task[A] =
-    self.onErrorHandleWith(ex =>
-      if (maxRetries > 0) self.onErrorRestart(maxRetries-1)
+    this.onErrorHandleWith(ex =>
+      if (maxRetries > 0) this.onErrorRestart(maxRetries-1)
       else raiseError(ex))
 
   /** Creates a new task that in case of error will retry executing the
@@ -894,7 +894,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * will be `maxRetries + 1`.
     */
   final def onErrorRestartIf(p: Throwable => Boolean): Task[A] =
-    self.onErrorHandleWith(ex => if (p(ex)) self.onErrorRestartIf(p) else raiseError(ex))
+    this.onErrorHandleWith(ex => if (p(ex)) this.onErrorRestartIf(p) else raiseError(ex))
 
   /** Creates a new task that will handle any matching throwable that
     * this task might emit.
@@ -923,18 +923,18 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *     successful results
     */
   final def memoize: Task[A] =
-    self match {
+    this match {
       case Now(_) | Error(_) =>
-        self
+        this
       case Eval(f) =>
         f match {
-          case _:Coeval.Once[_] => self
+          case _:Coeval.Once[_] => this
           case _ =>
             val coeval = Coeval.Once(f)
             Eval(coeval)
         }
       case ref: MemoizeSuspend[_] if ref.isCachingAll =>
-        self
+        this
       case other =>
         new MemoizeSuspend[A](() => other, cacheErrors = true)
     }
@@ -950,14 +950,14 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *     results and failures
     */
   final def memoizeOnSuccess: Task[A] =
-    self match {
+    this match {
       case Now(_) | Error(_) =>
-        self
+        this
       case Eval(f) =>
         val lf = LazyOnSuccess(f)
-        if (lf eq f) self else Eval(lf)
+        if (lf eq f) this else Eval(lf)
       case _: MemoizeSuspend[_] =>
-        self
+        this
       case other =>
         new MemoizeSuspend[A](() => other, cacheErrors = false)
     }
@@ -973,7 +973,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * Reactive Streams specification.
     */
   final def toReactivePublisher(implicit s: Scheduler): org.reactivestreams.Publisher[A @uV] =
-    TaskToReactivePublisher[A](self)(s)
+    TaskToReactivePublisher[A](this)(s)
 
   /** Returns a Task that mirrors the source Task but that triggers a
     * `TimeoutException` in case the given duration passes without the
@@ -987,7 +987,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * source emitting any item.
     */
   final def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
-    Task.chooseFirstOf(self, Task.unit.delayExecution(after)).flatMap {
+    Task.chooseFirstOf(this, Task.unit.delayExecution(after)).flatMap {
       case Left(((a, futureB))) =>
         futureB.cancel()
         Task.now(a)
@@ -2151,7 +2151,7 @@ object Task extends TaskInstancesLevel1 {
   private[eval] final class MemoizeSuspend[A](
     f: () => Task[A],
     private[eval] val cacheErrors: Boolean)
-    extends Task[A] { self =>
+    extends Task[A] {
 
     private[eval] var thunk: () => Task[A] = f
     private[eval] val state = Atomic(null : AnyRef)
@@ -2219,7 +2219,7 @@ object Task extends TaskInstancesLevel1 {
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     context.scheduler.execute(new TrampolinedRunnable {
       def run(): Unit =
-        TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
+        TaskRunLoop.startFull(source, context, cb, null, null, context.frameRef())
     })
 
   /** Unsafe utility - starts the execution of a Task, by providing
@@ -2231,7 +2231,7 @@ object Task extends TaskInstancesLevel1 {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
+    TaskRunLoop.startFull(source, context, cb, null, null, context.frameRef())
 
   private[this] final val neverRef: Async[Nothing] =
     Async((_,_) => ())
