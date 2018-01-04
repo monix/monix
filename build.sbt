@@ -227,7 +227,7 @@ lazy val unidocSettings = Seq(
 
   // Exclude monix.*.internal from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
-    file.getCanonicalPath matches "^.*monix\\.[^.]+\\.internal.*$"
+    file.getCanonicalPath matches "^.*monix.+?internal.*$"
   }),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
