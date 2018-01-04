@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,11 +20,11 @@ package monix.reactive.subjects
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
-import monix.reactive.Observer
+import monix.reactive.{MulticastStrategy, Observer}
 
 object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ConcurrentSubject.async[Long]
+    val c = ConcurrentSubject(MulticastStrategy.async[Long])
     Sample(c, expectedElems.lastOption.getOrElse(0))
   }
 
@@ -46,7 +46,7 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
       }
     }
 
-    val channel = ConcurrentSubject.async[Long]
+    val channel = ConcurrentSubject(MulticastStrategy.async[Long])
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)

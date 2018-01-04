@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,8 @@
 
 package monix.eval
 
-import cats.{Monoid, Semigroup}
 import cats.effect.{Effect, IO}
+import cats.{Monoid, Semigroup}
 import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -26,7 +26,8 @@ import monix.execution._
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
-import monix.execution.misc.{NonFatal, ThreadLocal}
+import monix.execution.internal.Platform.fusionMaxStackDepth
+import monix.execution.misc.ThreadLocal
 import monix.execution.schedulers.TrampolinedRunnable
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
@@ -308,7 +309,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return $cancelableDesc
     */
   def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
-    TaskRunLoop.startLightWithCallback(self, s, cb, defaultOptions)
+    TaskRunLoop.startLightWithCallback(self, s, defaultOptions, cb)
 
   /** $runAsyncOptDesc
     *
@@ -327,7 +328,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @return $cancelableDesc
     */
   def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
-    TaskRunLoop.startLightWithCallback(self, s, cb, opts)
+    TaskRunLoop.startLightWithCallback(self, s, opts, cb)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
@@ -337,7 +338,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param s $schedulerDesc
     * @return $cancelableDesc
     */
-  def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable =
+  final def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable =
     runAsync(new Callback[A] {
       def onSuccess(value: A): Unit = f(Success(value))
       def onError(ex: Throwable): Unit = f(Failure(ex))
@@ -375,7 +376,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         was hit and further async execution is needed or
     *         in case of failure
     */
-  def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
+  final def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
     val future = this.runAsync(s)
 
     future.value match {
@@ -392,15 +393,15 @@ sealed abstract class Task[+A] extends Serializable { self =>
   /** Creates a new [[Task]] that will expose any triggered error
     * from the source.
     */
-  def attempt: Task[Either[Throwable, A]] =
-    FlatMap(this, AttemptTask.asInstanceOf[Transformation[A, Task[Either[Throwable, A]]]], null)
+  final def attempt: Task[Either[Throwable, A]] =
+    FlatMap(this, AttemptTask.asInstanceOf[A => Task[Either[Throwable, A]]])
 
   /** Transforms a [[Task]] into a [[Coeval]] that tries to execute the
     * source synchronously, returning either `Right(value)` in case a
     * value is available immediately, or `Left(future)` in case we
     * have an asynchronous boundary or an error.
     */
-  def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
+  final def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
     Coeval.eval(runSyncMaybe(s))
 
   /** Returns a failed projection of this task.
@@ -410,21 +411,21 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * otherwise if the source succeeds the result will fail with a
     * `NoSuchElementException`.
     */
-  def failed: Task[Throwable] =
+  final def failed: Task[Throwable] =
     transformWith(_ => Error(new NoSuchElementException("failed")), e => Now(e))
 
   /** Creates a new Task by applying a function to the successful result
     * of the source Task, and returns a task equivalent to the result
     * of the function.
     */
-  def flatMap[B](f: A => Task[B]): Task[B] =
-    FlatMap(this, f, null)
+  final def flatMap[B](f: A => Task[B]): Task[B] =
+    FlatMap(this, f)
 
   /** Given a source Task that emits another Task, this function
     * flattens the result, returning a Task equivalent to the emitted
     * Task by the source.
     */
-  def flatten[B](implicit ev: A <:< Task[B]): Task[B] =
+  final def flatten[B](implicit ev: A <:< Task[B]): Task[B] =
     flatMap(a => a)
 
   /** Returns a task that waits for the specified `timespan` before
@@ -433,7 +434,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @see [[delayExecutionWith]] for delaying the execution of the
     *     source with a customizable trigger.
     */
-  def delayExecution(timespan: FiniteDuration): Task[A] =
+  final def delayExecution(timespan: FiniteDuration): Task[A] =
     TaskDelayExecution(self, timespan)
 
   /** Returns a task that waits for the specified `trigger` to succeed
@@ -452,7 +453,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @see [[delayExecution]] for delaying the execution of the
     *     source with a simple timespan
     */
-  def delayExecutionWith(trigger: Task[Any]): Task[A] =
+  final def delayExecutionWith(trigger: Task[Any]): Task[A] =
     TaskDelayExecutionWith(self, trigger)
 
   /** Returns a task that executes the source immediately on `runAsync`,
@@ -465,7 +466,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @see [[delayResultBySelector]] for applying different
     *     delay strategies depending on the signaled result.
     */
-  def delayResult(timespan: FiniteDuration): Task[A] =
+  final def delayResult(timespan: FiniteDuration): Task[A] =
     TaskDelayResult(self, timespan)
 
   /** Returns a task that executes the source immediately on `runAsync`,
@@ -490,7 +491,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *
     * @see [[delayResult]] for delaying with a simple timeout
     */
-  def delayResultBySelector[B](selector: A => Task[B]): Task[A] =
+  final def delayResultBySelector[B](selector: A => Task[B]): Task[A] =
     TaskDelayResultBySelector(self, selector)
 
   /** Overrides the default [[monix.execution.Scheduler Scheduler]],
@@ -629,7 +630,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         the default and possibly force an extra asynchronous
     *         boundary on execution
     */
-  def executeOn(s: Scheduler, forceAsync: Boolean = true): Task[A] =
+  final def executeOn(s: Scheduler, forceAsync: Boolean = true): Task[A] =
     TaskExecuteOn(self, s, forceAsync)
 
   /** Mirrors the given source `Task`, but upon execution ensure
@@ -655,7 +656,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * the async boundary will be the default, meaning the one used to
     * start the run-loop in `runAsync`.
     */
-  def executeWithFork: Task[A] =
+  final def executeWithFork: Task[A] =
     Task.shift.flatMap(_ => self)
 
   /** Returns a new task that will execute the source with a different
@@ -673,7 +674,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *        [[monix.execution.ExecutionModel ExecutionModel]]
     *        with which the source will get evaluated on `runAsync`
     */
-  def executeWithModel(em: ExecutionModel): Task[A] =
+  final def executeWithModel(em: ExecutionModel): Task[A] =
     TaskExecuteWithModel(self, em)
 
   /** Returns a new task that will execute the source with a different
@@ -690,7 +691,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *        options that will be used to execute the source
     *        upon `runAsync`
     */
-  def executeWithOptions(f: Options => Options): Task[A] =
+  final def executeWithOptions(f: Options => Options): Task[A] =
     TaskExecuteWithOptions(self, f)
 
   /** Introduces an asynchronous boundary at the current stage in the
@@ -722,7 +723,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * will make all subsequent operations to happen on the default
     * scheduler.
     */
-  def asyncBoundary: Task[A] =
+  final def asyncBoundary: Task[A] =
     self.flatMap(r => Task.shift.map(_ => r))
 
   /** Introduces an asynchronous boundary at the current stage in the
@@ -757,7 +758,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *
     * @param s is the scheduler triggering the asynchronous boundary
     */
-  def asyncBoundary(s: Scheduler): Task[A] =
+  final def asyncBoundary(s: Scheduler): Task[A] =
     self.flatMap(a => Task.shift(s).map(_ => a))
 
   /** Returns a new task that upon evaluation will execute the given
@@ -767,7 +768,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * Similar in spirit with normal [[foreach]], but lazy, as
     * obviously nothing gets executed at this point.
     */
-  def foreachL(f: A => Unit): Task[Unit] =
+  final def foreachL(f: A => Unit): Task[Unit] =
     self.map { a => f(a); () }
 
   /** Triggers the evaluation of the source, executing the given
@@ -776,14 +777,32 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * The application of this function has strict behavior, as the
     * task is immediately executed.
     */
-  def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
+  final def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
     foreachL(f).runAsync(s)
 
-  /** Returns a new Task that applies the mapping function to the
-    * element emitted by the source.
+  /** Returns a new `Task` that applies the mapping function to
+    * the element emitted by the source.
+    *
+    * Can be used for specifying a (lazy) transformation to the result
+    * of the source.
+    *
+    * This equivalence with [[flatMap]] always holds:
+    *
+    * ```scala
+    * fa.map(f) <-> fa.flatMap(x => Task.pure(f(x)))
+    * ```
     */
-  def map[B](f: A => B): Task[B] =
-    flatMap(a => try now(f(a)) catch { case NonFatal(ex) => raiseError(ex) })
+  final def map[B](f: A => B): Task[B] =
+    this match {
+      case Map(source, g, index) =>
+        // Allowed to do a fixed number of map operations fused before
+        // resetting the counter in order to avoid stack overflows;
+        // See `monix.execution.internal.Platform` for details.
+        if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
+        else Map(this, f, 0)
+      case _ =>
+        Map(this, f, 0)
+    }
 
   /** Returns a new `Task` in which `f` is scheduled to be run on
     * completion. This would typically be used to release any
@@ -800,7 +819,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[doOnCancel]] for specifying a callback to call on
     * canceling a task.
     */
-  def doOnFinish(f: Option[Throwable] => Task[Unit]): Task[A] =
+  final def doOnFinish(f: Option[Throwable] => Task[Unit]): Task[A] =
     transformWith(
       a => f(None).map(_ => a),
       e => f(Some(e)).flatMap(_ => Error(e))
@@ -816,17 +835,17 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param callback is the callback to execute if the task gets
     *        canceled prematurely
     */
-  def doOnCancel(callback: Task[Unit]): Task[A] =
+  final def doOnCancel(callback: Task[Unit]): Task[A] =
     TaskDoOnCancel(self, callback)
 
   /** Creates a new [[Task]] that will expose any triggered error from
     * the source.
     */
-  def materialize: Task[Try[A]] =
-    FlatMap(this, MaterializeTask.asInstanceOf[Transformation[A, Task[Try[A]]]], null)
+  final def materialize: Task[Try[A]] =
+    FlatMap(this, MaterializeTask.asInstanceOf[A => Task[Try[A]]])
 
   /** Dematerializes the source's result from a `Try`. */
-  def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
+  final def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
     self.asInstanceOf[Task[Try[B]]].flatMap(fromTry)
 
   /** Creates a new task that will try recovering from an error by
@@ -834,7 +853,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *
     * See [[onErrorHandleWith]] for the version that takes a total function.
     */
-  def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Task[B]]): Task[B] =
+  final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Task[B]]): Task[B] =
     onErrorHandleWith(ex => pf.applyOrElse(ex, raiseConstructor))
 
   /** Creates a new task that will handle any matching throwable that
@@ -842,19 +861,19 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
-  def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
-    FlatMap(this, null, f)
+  final def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
+    FlatMap(this, StackFrame.errorHandler(nowConstructor, f))
 
   /** Creates a new task that in case of error will fallback to the
     * given backup task.
     */
-  def onErrorFallbackTo[B >: A](that: Task[B]): Task[B] =
+  final def onErrorFallbackTo[B >: A](that: Task[B]): Task[B] =
     onErrorHandleWith(_ => that)
 
   /** Given a predicate function, keep retrying the
     * task until the function returns true.
     */
-  def restartUntil(p: (A) => Boolean): Task[A] =
+  final def restartUntil(p: (A) => Boolean): Task[A] =
     self.flatMap(a => if (p(a)) now(a) else self.restartUntil(p))
 
   /** Creates a new task that in case of error will retry executing the
@@ -863,7 +882,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * In case of continuous failure the total number of executions
     * will be `maxRetries + 1`.
     */
-  def onErrorRestart(maxRetries: Long): Task[A] =
+  final def onErrorRestart(maxRetries: Long): Task[A] =
     self.onErrorHandleWith(ex =>
       if (maxRetries > 0) self.onErrorRestart(maxRetries-1)
       else raiseError(ex))
@@ -874,7 +893,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * In case of continuous failure the total number of executions
     * will be `maxRetries + 1`.
     */
-  def onErrorRestartIf(p: Throwable => Boolean): Task[A] =
+  final def onErrorRestartIf(p: Throwable => Boolean): Task[A] =
     self.onErrorHandleWith(ex => if (p(ex)) self.onErrorRestartIf(p) else raiseError(ex))
 
   /** Creates a new task that will handle any matching throwable that
@@ -882,7 +901,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *
     * See [[onErrorRecover]] for the version that takes a partial function.
     */
-  def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
+  final def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
     onErrorHandleWith(f.andThen(nowConstructor))
 
   /** Creates a new task that on error will try to map the error
@@ -890,8 +909,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *
     * See [[onErrorHandle]] for the version that takes a total function.
     */
-  def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Task[U] =
-    onErrorRecoverWith(pf.andThen(now))
+  final def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Task[U] =
+    onErrorRecoverWith(pf.andThen(nowConstructor))
 
   /** Memoizes (caches) the result of the source task and reuses it on
     * subsequent invocations of `runAsync`.
@@ -903,7 +922,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @see [[memoizeOnSuccess]] for a version that only caches
     *     successful results
     */
-  def memoize: Task[A] =
+  final def memoize: Task[A] =
     self match {
       case Now(_) | Error(_) =>
         self
@@ -930,7 +949,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @see [[memoize]] for a version that caches both successful
     *     results and failures
     */
-  def memoizeOnSuccess: Task[A] =
+  final def memoizeOnSuccess: Task[A] =
     self match {
       case Now(_) | Error(_) =>
         self
@@ -944,7 +963,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     }
 
   /** Converts the source `Task` to a `cats.effect.IO` value. */
-  def toIO(implicit s: Scheduler): IO[A] =
+  final def toIO(implicit s: Scheduler): IO[A] =
     TaskConversions.toIO(this)(s)
 
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
@@ -953,21 +972,21 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[http://www.reactive-streams.org/ reactive-streams.org]] for the
     * Reactive Streams specification.
     */
-  def toReactivePublisher(implicit s: Scheduler): org.reactivestreams.Publisher[A @uV] =
+  final def toReactivePublisher(implicit s: Scheduler): org.reactivestreams.Publisher[A @uV] =
     TaskToReactivePublisher[A](self)(s)
 
   /** Returns a Task that mirrors the source Task but that triggers a
     * `TimeoutException` in case the given duration passes without the
     * task emitting any item.
     */
-  def timeout(after: FiniteDuration): Task[A] =
+  final def timeout(after: FiniteDuration): Task[A] =
     timeoutTo(after, raiseError(new TimeoutException(s"Task timed-out after $after of inactivity")))
 
   /** Returns a Task that mirrors the source Task but switches to the
     * given backup Task in case the given duration passes without the
     * source emitting any item.
     */
-  def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
+  final def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
     Task.chooseFirstOf(self, Task.unit.delayExecution(after)).flatMap {
       case Left(((a, futureB))) =>
         futureB.cancel()
@@ -986,7 +1005,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param fa function that transforms a successful result of the receiver
     * @param fe function that transforms an error of the receiver
     */
-  def transform[R](fa: A => R, fe: Throwable => R): Task[R] =
+  final def transform[R](fa: A => R, fe: Throwable => R): Task[R] =
     transformWith(fa.andThen(nowConstructor), fe.andThen(nowConstructor))
 
   /** Creates a new `Task` by applying the 'fa' function to the successful result of
@@ -998,20 +1017,28 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param fa function that transforms a successful result of the receiver
     * @param fe function that transforms an error of the receiver
     */
-  def transformWith[R](fa: A => Task[R], fe: Throwable => Task[R]): Task[R] =
-    FlatMap(this, fa, fe)
+  final def transformWith[R](fa: A => Task[R], fe: Throwable => Task[R]): Task[R] =
+    FlatMap(this, StackFrame.fold(fa, fe))
 
   /** Zips the values of `this` and `that` task, and creates a new task
     * that will emit the tuple of their results.
     */
-  def zip[B](that: Task[B]): Task[(A, B)] =
+  final def zip[B](that: Task[B]): Task[(A, B)] =
     Task.mapBoth(this, that)((a,b) => (a,b))
 
   /** Zips the values of `this` and `that` and applies the given
     * mapping function on their results.
     */
-  def zipMap[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
+  final def zipMap[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
     Task.mapBoth(this, that)(f)
+
+  override def toString: String = this match {
+    case Now(a) => s"Task.Now($a)"
+    case Error(e) => s"Task.Error($e)"
+    case _ =>
+      val n = this.getClass.getName.replaceFirst("^monix\\.eval\\.Task[$.]", "")
+      s"Task.$n$$${System.identityHashCode(this)}"
+  }
 }
 
 /** Builders for [[Task]].
@@ -1371,7 +1398,7 @@ object Task extends TaskInstancesLevel1 {
     Async[Unit] { (context, cb) =>
       val ec2 = if (ec eq null) context.scheduler else ec
       ec2.execute(new Runnable {
-        def run() = {
+        def run(): Unit = {
           context.frameRef.reset()
           cb.onSuccess(())
         }
@@ -2056,63 +2083,56 @@ object Task extends TaskInstancesLevel1 {
 
   /** [[Task]] state describing an immediate synchronous value. */
   private[eval] final case class Now[A](value: A) extends Task[A] {
-    // Optimization to avoid the run-loop
+    // Optimizations to avoid the run-loop
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onSuccess(value)
       else s.executeAsync(() => cb.onSuccess(value))
       Cancelable.empty
     }
-
-    // Optimization to avoid the run-loop
     override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
       CancelableFuture.successful(value)
-
-    override def toString: String =
-      s"Task.Now($value)"
+    override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+      runAsync(s)
+    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
+      runAsync(cb)(s)
   }
 
   /** [[Task]] state describing an immediate exception. */
   private[eval] final case class Error[A](ex: Throwable) extends Task[A] {
-    // Optimization to avoid the run-loop
+    // Optimizations to avoid the run-loop
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onError(ex)
       else s.executeAsync(() => cb.onError(ex))
       Cancelable.empty
     }
-
-    // Optimization to avoid the run-loop
     override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
       CancelableFuture.failed(ex)
-
-    override def toString: String =
-      s"Task.Error($ex)"
+    override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+      runAsync(s)
+    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
+      runAsync(cb)(s)
   }
 
   /** [[Task]] state describing an immediate synchronous value. */
-  private[eval] final case class Eval[A](thunk: () => A) extends Task[A] {
-    override def toString: String =
-      s"Task.Eval($thunk)"
-  }
+  private[eval] final case class Eval[A](thunk: () => A)
+    extends Task[A]
 
   /** Internal state, the result of [[Task.defer]] */
-  private[eval] final case class Suspend[+A](thunk: () => Task[A]) extends Task[A] {
-    override def toString: String =
-      s"Task.Suspend($thunk)"
-  }
+  private[eval] final case class Suspend[+A](thunk: () => Task[A])
+    extends Task[A]
 
   /** Internal [[Task]] state that is the result of applying `flatMap`. */
-  private[eval] final case class FlatMap[A, B](
-    source: Task[A], f: A => Task[B], g: Throwable => Task[B])
-    extends Task[B] {
+  private[eval] final case class FlatMap[A, B](source: Task[A], f: A => Task[B])
+    extends Task[B]
 
-    def bind(): A => Task[B] = {
-      if (g eq null) f
-      else if (f eq null) Transformation.onError(g)
-      else Transformation(f, g)
-    }
+  /** Internal [[Coeval]] state that is the result of applying `map`. */
+  private[eval] final case class Map[S, +A](source: Task[S], f: S => A, index: Int)
+    extends Task[A] with (S => Task[A]) {
 
+    def apply(value: S): Task[A] =
+      new Now(f(value))
     override def toString: String =
-      s"Task.FlatMap(Task@${System.identityHashCode(source)}, $f)"
+      super[Task].toString
   }
 
   /** Constructs a lazy [[Task]] instance whose result will
@@ -2121,13 +2141,8 @@ object Task extends TaskInstancesLevel1 {
     * Unsafe to build directly, only use if you know what you're doing.
     * For building `Async` instances safely, see [[create]].
     */
-  private[eval] final case class Async[+A](
-    register: (Context, Callback[A]) => Unit)
-    extends Task[A] {
-
-    override def toString: String =
-      s"Task.Async($register)"
-  }
+  private[eval] final case class Async[+A](register: (Context, Callback[A]) => Unit)
+    extends Task[A]
 
   /** Internal [[Task]] state that defers the evaluation of the
     * given [[Task]] and upon execution memoize its result to
@@ -2176,10 +2191,6 @@ object Task extends TaskInstancesLevel1 {
         case result: Try[_] =>
           CancelableFuture.fromTry(result.asInstanceOf[Try[A]])
       }
-
-
-    override def toString: String =
-      s"Task.MemoizeSuspend(${state.get})"
   }
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
@@ -2227,25 +2238,25 @@ object Task extends TaskInstancesLevel1 {
 
   /** Internal, reusable reference. */
   private final val nowConstructor: (Any => Task[Nothing]) =
-    ((a: Any) => Now(a)).asInstanceOf[Any => Task[Nothing]]
+    ((a: Any) => new Now(a)).asInstanceOf[Any => Task[Nothing]]
   /** Internal, reusable reference. */
   private final val raiseConstructor: (Throwable => Task[Nothing]) =
-    e => Error(e)
+    e => new Error(e)
 
   /** Used as optimization by [[Task.attempt]]. */
-  private object AttemptTask extends Transformation[Any, Task[Either[Throwable, Any]]] {
+  private object AttemptTask extends StackFrame[Any, Task[Either[Throwable, Any]]] {
     override def apply(a: Any): Task[Either[Throwable, Any]] =
-      Now(Right(a))
-    override def error(e: Throwable): Task[Either[Throwable, Any]] =
-      Now(Left(e))
+      new Now(new Right(a))
+    override def recover(e: Throwable): Task[Either[Throwable, Any]] =
+      new Now(new Left(e))
   }
 
   /** Used as optimization by [[Task.materialize]]. */
-  private object MaterializeTask extends Transformation[Any, Task[Try[Any]]] {
+  private object MaterializeTask extends StackFrame[Any, Task[Try[Any]]] {
     override def apply(a: Any): Task[Try[Any]] =
-      Now(Success(a))
-    override def error(e: Throwable): Task[Try[Any]] =
-      Now(Failure(e))
+      new Now(new Success(a))
+    override def recover(e: Throwable): Task[Try[Any]] =
+      new Now(new Failure(e))
   }
 }
 
