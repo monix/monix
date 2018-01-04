@@ -228,7 +228,7 @@ object Pipe {
         val (in,out) = self.unicast
         (in, f(out))
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           (Observer.stopped, Observable.raiseError(e))
       }
     }
@@ -238,7 +238,7 @@ object Pipe {
         val (in,out) = self.multicast(s)
         (in, f(out))
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           (Observer.stopped, Observable.raiseError(e))
       }
     }

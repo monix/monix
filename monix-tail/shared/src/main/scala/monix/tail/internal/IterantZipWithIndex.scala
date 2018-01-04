@@ -71,7 +71,7 @@ private[tail] object IterantZipWithIndex {
           empty.asInstanceOf[Iterant[F, (A, Long)]]
       }
       catch {
-        case NonFatal(ex) => signalError(source, ex)
+        case ex if NonFatal(ex) => signalError(source, ex)
       }
     }
 

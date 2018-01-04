@@ -104,7 +104,7 @@ final class TestScheduler private (
         else {
           // execute task
           try head.task.run() catch {
-            case NonFatal(ex) =>
+            case ex if NonFatal(ex) =>
               reportFailure(ex)
           }
 
@@ -129,7 +129,7 @@ final class TestScheduler private (
           else {
             // execute task
             try head.task.run() catch {
-              case NonFatal(ex) =>
+              case ex if NonFatal(ex) =>
                 reportFailure(ex)
             }
 

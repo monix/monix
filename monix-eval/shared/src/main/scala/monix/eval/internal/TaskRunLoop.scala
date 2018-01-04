@@ -186,7 +186,7 @@ private[eval] object TaskRunLoop {
                 unboxed = thunk().asInstanceOf[AnyRef]
                 hasUnboxed = true
                 current = null
-              } catch { case NonFatal(e) =>
+              } catch { case e if NonFatal(e) =>
                 current = Error(e)
               }
 
@@ -201,7 +201,7 @@ private[eval] object TaskRunLoop {
             case Suspend(thunk) =>
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
               try { current = thunk() }
-              catch { case NonFatal(ex) => current = Error(ex) }
+              catch { case ex if NonFatal(ex) => current = Error(ex) }
 
             case Error(error) =>
               findErrorHandler(bFirst, bRest) match {
@@ -211,7 +211,7 @@ private[eval] object TaskRunLoop {
                 case bind =>
                   // Try/catch described as statement, otherwise ObjectRef happens ;-)
                   try { current = bind.recover(error) }
-                  catch { case NonFatal(e) => current = Error(e) }
+                  catch { case e if NonFatal(e) => current = Error(e) }
                   frameIndex = em.nextFrameIndex(frameIndex)
                   bFirst = null
               }
@@ -248,7 +248,7 @@ private[eval] object TaskRunLoop {
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
                 try { current = bind(unboxed) }
-                catch { case NonFatal(ex) => current = Error(ex) }
+                catch { case ex if NonFatal(ex) => current = Error(ex) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 hasUnboxed = false
                 unboxed = null
@@ -312,7 +312,7 @@ private[eval] object TaskRunLoop {
               unboxed = thunk().asInstanceOf[AnyRef]
               hasUnboxed = true
               current = null
-            } catch { case NonFatal(e) =>
+            } catch { case e if NonFatal(e) =>
               current = Error(e)
             }
 
@@ -327,7 +327,7 @@ private[eval] object TaskRunLoop {
           case Suspend(thunk) =>
             // Try/catch described as statement, otherwise ObjectRef happens ;-)
             try { current = thunk() }
-            catch { case NonFatal(ex) => current = Error(ex) }
+            catch { case ex if NonFatal(ex) => current = Error(ex) }
 
           case Error(error) =>
             findErrorHandler(bFirst, bRest) match {
@@ -337,7 +337,7 @@ private[eval] object TaskRunLoop {
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
                 try { current = bind.recover(error) }
-                catch { case NonFatal(e) => current = Error(e) }
+                catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
             }
@@ -378,7 +378,7 @@ private[eval] object TaskRunLoop {
             case bind =>
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
               try { current = bind(unboxed) }
-              catch { case NonFatal(ex) => current = Error(ex) }
+              catch { case ex if NonFatal(ex) => current = Error(ex) }
               frameIndex = em.nextFrameIndex(frameIndex)
               hasUnboxed = false
               unboxed = null
@@ -438,7 +438,7 @@ private[eval] object TaskRunLoop {
               hasUnboxed = true
               current = null
             } catch {
-              case NonFatal(e) =>
+              case e if NonFatal(e) =>
                 current = Error(e)
             }
 
@@ -456,7 +456,7 @@ private[eval] object TaskRunLoop {
               current = thunk()
             }
             catch {
-              case NonFatal(ex) => current = Error(ex)
+              case ex if NonFatal(ex) => current = Error(ex)
             }
 
           case Error(error) =>
@@ -466,7 +466,7 @@ private[eval] object TaskRunLoop {
               case bind =>
                 // Try/catch described as statement to prevent ObjectRef ;-)
                 try { current = bind.recover(error) }
-                catch { case NonFatal(e) => current = Error(e) }
+                catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
             }
@@ -501,7 +501,7 @@ private[eval] object TaskRunLoop {
                 current = bind(unboxed)
               }
               catch {
-                case NonFatal(ex) => current = Error(ex)
+                case ex if NonFatal(ex) => current = Error(ex)
               }
               frameIndex = em.nextFrameIndex(frameIndex)
               hasUnboxed = false
@@ -613,7 +613,7 @@ private[eval] object TaskRunLoop {
           startMemoization(self, context, cb, bindCurrent, bindRest, nextFrame) // retry
           // $COVERAGE-ON$
         } else {
-          val underlying = try self.thunk() catch { case NonFatal(ex) => Error(ex) }
+          val underlying = try self.thunk() catch { case ex if NonFatal(ex) => Error(ex) }
           val callback = new Callback[A] {
             def onError(ex: Throwable): Unit = {
               cacheValue(self.state, Failure(ex))

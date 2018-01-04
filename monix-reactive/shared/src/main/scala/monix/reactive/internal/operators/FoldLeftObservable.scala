@@ -46,7 +46,7 @@ class FoldLeftObservable[A,R](source: Observable[A], initial: () => R, f: (R,A) 
               state = f(state, elem)
               Continue
             } catch {
-              case NonFatal(ex) =>
+              case ex if NonFatal(ex) =>
                 onError(ex)
                 Stop
             }

@@ -143,7 +143,7 @@ private[eval] object TaskGatherUnordered {
           activate(stateRef, count, mainConn, finalCallback)(s)
         }
         catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             reportError(stateRef, context.connection, ex)(context.scheduler)
         }
       }

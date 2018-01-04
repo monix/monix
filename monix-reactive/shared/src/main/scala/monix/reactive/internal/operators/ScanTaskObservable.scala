@@ -222,7 +222,7 @@ private[reactive] final class ScanTaskObservable[A, S]
             // $COVERAGE-ON$
         }
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           if (streamErrors) {
             onError(ex)
             Stop

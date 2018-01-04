@@ -1554,7 +1554,7 @@ abstract class Observable[+A] extends Serializable { self =>
     mapTask { elemA =>
       try Task.fromFuture(f(elemA))
       catch {
-        case NonFatal(ex) => Task.raiseError(ex)
+        case ex if NonFatal(ex) => Task.raiseError(ex)
       }
     }
 

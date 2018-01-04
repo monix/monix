@@ -165,7 +165,7 @@ object Observer {
     (implicit s: Scheduler): Future[Ack] = {
 
     try feed(target, subscription, iterable.iterator) catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         target.onError(ex)
         Stop
     }
@@ -222,7 +222,7 @@ object Observer {
 
         def run(): Unit = {
           try fastLoop(0) catch {
-            case NonFatal(ex) =>
+            case ex if NonFatal(ex) =>
               try target.onError(ex) finally {
                 promise.failure(ex)
               }
@@ -239,7 +239,7 @@ object Observer {
       else
         Continue
     } catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         target.onError(ex)
         Stop
     }

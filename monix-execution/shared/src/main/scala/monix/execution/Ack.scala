@@ -32,14 +32,14 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
   // For Scala 2.12 compatibility
   final def transform[S](f: (Try[Ack]) => Try[S])(implicit executor: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    onComplete(r => p.complete(try f(r) catch { case NonFatal(t) => Failure(t) }))
+    onComplete(r => p.complete(try f(r) catch { case t if NonFatal(t) => Failure(t) }))
     p.future
   }
 
   // For Scala 2.12 compatibility
   final def transformWith[S](f: (Try[Ack]) => Future[S])(implicit executor: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    onComplete(r => p.completeWith(try f(r) catch { case NonFatal(t) => Future.failed(t) }))
+    onComplete(r => p.completeWith(try f(r) catch { case t if NonFatal(t) => Future.failed(t) }))
     p.future
   }
 

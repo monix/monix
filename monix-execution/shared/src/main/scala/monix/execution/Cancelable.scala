@@ -74,7 +74,7 @@ object Cancelable {
     val cursor = seq.iterator
     while (cursor.hasNext) {
       try cursor.next().cancel()
-      catch { case NonFatal(ex) => errors = errors.enqueue(ex) }
+      catch { case ex if NonFatal(ex) => errors = errors.enqueue(ex) }
     }
 
     if (errors.nonEmpty)

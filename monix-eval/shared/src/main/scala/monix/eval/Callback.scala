@@ -150,7 +150,7 @@ object Callback {
       if (isActive) {
         isActive = false
         try underlying.onSuccess(value) catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             r.reportFailure(ex)
         }
       }
@@ -160,7 +160,7 @@ object Callback {
       if (isActive) {
         isActive = false
         try underlying.onError(ex) catch {
-          case NonFatal(err) =>
+          case err if NonFatal(err) =>
             r.reportFailure(ex)
             r.reportFailure(err)
         }
@@ -172,7 +172,7 @@ object Callback {
 
     def onSuccess(value: B): Unit =
       try underlying.onSuccess(f(value)) catch {
-        case NonFatal(err) =>
+        case err if NonFatal(err) =>
           underlying.onError(err)
       }
 

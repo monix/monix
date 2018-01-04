@@ -55,7 +55,7 @@ private[eval] object CoevalRunLoop {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
             current = null
-          } catch { case NonFatal(e) =>
+          } catch { case e if NonFatal(e) =>
             current = Error(e)
           }
 
@@ -70,7 +70,7 @@ private[eval] object CoevalRunLoop {
         case Suspend(thunk) =>
           // Try/catch described as statement, otherwise ObjectRef happens ;-)
           try { current = thunk() }
-          catch { case NonFatal(ex) => current = Error(ex) }
+          catch { case ex if NonFatal(ex) => current = Error(ex) }
 
         case eval @ Once(_) =>
           current = eval.run
@@ -82,7 +82,7 @@ private[eval] object CoevalRunLoop {
             case bind =>
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
               try { current = bind.recover(ex) }
-              catch { case NonFatal(e) => current = Error(e) }
+              catch { case e if NonFatal(e) => current = Error(e) }
               bFirst = null
           }
       }
@@ -94,7 +94,7 @@ private[eval] object CoevalRunLoop {
           case bind =>
             // Try/catch described as statement, otherwise ObjectRef happens ;-)
             try { current = bind(unboxed) }
-            catch { case NonFatal(ex) => current = Error(ex) }
+            catch { case ex if NonFatal(ex) => current = Error(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null

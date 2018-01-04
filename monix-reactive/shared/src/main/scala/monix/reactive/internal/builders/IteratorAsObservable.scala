@@ -66,7 +66,7 @@ private[reactive] final class IteratorAsObservable[A](
         cancelable
       }
     } catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         // We can only stream onError events if we have a guarantee
         // that no other final events happened, otherwise we could
         // violate the contract.
@@ -86,7 +86,7 @@ private[reactive] final class IteratorAsObservable[A](
     */
   private def triggerCancel(s: Scheduler): Unit =
     try onFinish.cancel() catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         s.reportFailure(ex)
     }
 
@@ -107,7 +107,7 @@ private[reactive] final class IteratorAsObservable[A](
           // If fastLoop throws, then it's a contract violation and
           // the only thing we can do is to log it
           try fastLoop(iter, out, c, em, 0) catch {
-            case NonFatal(ex) =>
+            case ex if NonFatal(ex) =>
               triggerCancel(s)
               s.reportFailure(ex)
           }

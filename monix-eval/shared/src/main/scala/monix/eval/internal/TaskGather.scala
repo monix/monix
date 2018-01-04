@@ -153,7 +153,7 @@ private[eval] object TaskGather {
           }
         }
         catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             // We are still under the lock.synchronize block
             // so this call is safe
             reportError(context.connection, ex)(context.scheduler)

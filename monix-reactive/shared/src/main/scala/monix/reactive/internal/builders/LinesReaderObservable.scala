@@ -110,14 +110,14 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
         // and these we are allowed to stream.
         val ex =
           try { blocking(in.close()); null }
-          catch { case NonFatal(err) => err }
+          catch { case err if NonFatal(err) => err }
 
         if (ex == null) out.onComplete()
         else out.onError(ex)
         Stop
       }
     } catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         errorThrown = ex
     }
 
@@ -150,7 +150,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
 
   private def triggerCancel(s: UncaughtExceptionReporter): Unit =
     try blocking(in.close()) catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         s.reportFailure(ex)
     }
 }

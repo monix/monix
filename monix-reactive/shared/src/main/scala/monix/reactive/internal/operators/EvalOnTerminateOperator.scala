@@ -42,7 +42,7 @@ class EvalOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], h
       def onNext(elem: A): Future[Ack] = {
         val result =
           try out.onNext(elem)
-          catch { case NonFatal(ex) => Future.failed(ex) }
+          catch { case ex if NonFatal(ex) => Future.failed(ex) }
 
         val task = Task.fromFuture(result).attempt.flatMap {
           case Right(ack) =>
@@ -87,7 +87,7 @@ class EvalOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], h
             triggerSignal()
             onTerminate(ex)
           }
-          catch { case NonFatal(err) =>
+          catch { case err if NonFatal(err) =>
             if (streamErrors) {
               out.onError(err)
               ex.foreach(scheduler.reportFailure)

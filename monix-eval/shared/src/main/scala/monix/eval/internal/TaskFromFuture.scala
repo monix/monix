@@ -103,7 +103,7 @@ private[eval] object TaskFromFuture {
             }
         }
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           if (streamErrors) callback.asyncOnError(ex)
           else s.reportFailure(ex)
       }

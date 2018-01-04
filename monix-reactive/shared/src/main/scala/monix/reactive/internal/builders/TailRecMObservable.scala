@@ -153,7 +153,7 @@ private[monix] final class TailRecMObservable[A,B](seed: A, f: A => Observable[E
       conn.push(c)
       c := next.unsafeSubscribeFn(loopSubscriber)
     } catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         if (streamErrors) callback.success(Future.failed(ex))
         else out.scheduler.reportFailure(ex)
     }

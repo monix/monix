@@ -34,7 +34,7 @@ private[eval] object TaskExecuteWithOptions {
         streamErrors = false
         Task.unsafeStartTrampolined[A](self, context2, Callback.async(cb))
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           if (streamErrors) cb.asyncOnError(ex)
           else context.scheduler.reportFailure(ex)
       }

@@ -37,7 +37,7 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Unit)
       def onNext(elem: A): Future[Ack] =
         out.onNext(elem).syncFlatMap { ack =>
           try { cb(elem, ack); ack }
-          catch { case NonFatal(ex) => onError(ex); Stop }
+          catch { case ex if NonFatal(ex) => onError(ex); Stop }
         }
 
       def onComplete(): Unit = {

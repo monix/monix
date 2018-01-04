@@ -29,7 +29,7 @@ private[reactive] final class DeferObservable[+A](factory: () => Observable[A])
   extends ChainedObservable[A] {
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val fa = try factory() catch { case NonFatal(e) => Observable.raiseError(e) }
+    val fa = try factory() catch { case e if NonFatal(e) => Observable.raiseError(e) }
     if (fa.isInstanceOf[ChainedObservable[_]]) {
       val ch = fa.asInstanceOf[ChainedObservable[A]]
       val conn = MultiAssignmentCancelable()
@@ -41,7 +41,7 @@ private[reactive] final class DeferObservable[+A](factory: () => Observable[A])
   }
 
   override def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[A]): Unit = {
-    val fa = try factory() catch { case NonFatal(e) => Observable.raiseError(e) }
+    val fa = try factory() catch { case e if NonFatal(e) => Observable.raiseError(e) }
     chain(fa, conn, out)
   }
 }

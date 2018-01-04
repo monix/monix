@@ -49,7 +49,7 @@ private[reactive] final class SwitchMapObservable[A,B](
           // Protects calls to user code from within the operator.
           val childObservable =
             try f(elem) catch {
-              case NonFatal(ex) =>
+              case ex if NonFatal(ex) =>
                 Observable.raiseError(ex)
             }
 
