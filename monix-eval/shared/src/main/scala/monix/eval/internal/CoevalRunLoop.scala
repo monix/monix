@@ -40,7 +40,7 @@ private[eval] object CoevalRunLoop {
       current match {
         case FlatMap(fa, bindNext) =>
           if (bFirst ne null) {
-            if (bRest eq null) bRest = createCallStack()
+            if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
           bFirst = bindNext.asInstanceOf[Bind]
@@ -61,7 +61,7 @@ private[eval] object CoevalRunLoop {
 
         case bindNext @ Map(fa, _, _) =>
           if (bFirst ne null) {
-            if (bRest eq null) bRest = createCallStack()
+            if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
           bFirst = bindNext.asInstanceOf[Bind]
@@ -139,7 +139,4 @@ private[eval] object CoevalRunLoop {
     null
     // $COVERAGE-ON$
   }
-
-  private def createCallStack(): CallStack =
-    ArrayStack(8)
 }

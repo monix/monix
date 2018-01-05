@@ -136,7 +136,7 @@ private[eval] object TaskRunLoop {
           current match {
             case FlatMap(fa, bindNext) =>
               if (bFirst ne null) {
-                if (bRest eq null) bRest = createCallStack()
+                if (bRest eq null) bRest = new ArrayStack()
                 bRest.push(bFirst)
               }
               bFirst = bindNext.asInstanceOf[Bind]
@@ -157,7 +157,7 @@ private[eval] object TaskRunLoop {
 
             case bindNext @ Map(fa, _, _) =>
               if (bFirst ne null) {
-                if (bRest eq null) bRest = createCallStack()
+                if (bRest eq null) bRest = new ArrayStack()
                 bRest.push(bFirst)
               }
               bFirst = bindNext.asInstanceOf[Bind]
@@ -220,8 +220,7 @@ private[eval] object TaskRunLoop {
                 bFirst = null
             }
           }
-        }
-        else {
+        } else {
           // Force async boundary
           restartAsync(current, context, cb, bFirst, bRest)
           return
@@ -289,7 +288,7 @@ private[eval] object TaskRunLoop {
         current match {
           case FlatMap(fa, bindNext) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = createCallStack()
+              if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
             bFirst = bindNext.asInstanceOf[Bind]
@@ -310,7 +309,7 @@ private[eval] object TaskRunLoop {
 
           case bindNext @ Map(fa, _, _) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = createCallStack()
+              if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
             bFirst = bindNext.asInstanceOf[Bind]
@@ -414,7 +413,7 @@ private[eval] object TaskRunLoop {
         current match {
           case FlatMap(fa, bindNext) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = createCallStack()
+              if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
             bFirst = bindNext.asInstanceOf[Bind]
@@ -436,7 +435,7 @@ private[eval] object TaskRunLoop {
 
           case bindNext@Map(fa, _, _) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = createCallStack()
+              if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
             bFirst = bindNext.asInstanceOf[Bind]
@@ -682,8 +681,4 @@ private[eval] object TaskRunLoop {
   // We always start from 1
   final def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
-
-  /** Creates a new [[CallStack]] */
-  private def createCallStack(): CallStack =
-    ArrayStack(8)
 }
