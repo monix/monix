@@ -32,7 +32,7 @@ package object forkJoin {
   private[monix] type ForkJoinTask[V] =
     scala.concurrent.forkjoin.ForkJoinTask[V]
 
-  object ForkJoinPool {
+  private[monix] object ForkJoinPool {
     def managedBlock(blocker: ManagedBlocker): Unit =
       scala.concurrent.forkjoin.ForkJoinPool.managedBlock(blocker)
   }
