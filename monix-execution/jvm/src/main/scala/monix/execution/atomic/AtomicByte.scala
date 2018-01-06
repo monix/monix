@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.internals.atomic.{BoxedInt, Factory}
+import monix.execution.internal.atomic.{BoxedInt, Factory}
 
 /** Atomic references wrapping `Byte` values.
   *
@@ -33,7 +33,7 @@ final class AtomicByte private (private[this] val ref: BoxedInt)
   def get: Byte = (ref.volatileGet() & mask).asInstanceOf[Byte]
   def set(update: Byte): Unit = ref.volatileSet(update)
 
-  def lazySet(update: Byte) =
+  def lazySet(update: Byte): Unit =
     ref.lazySet(update)
 
   def compareAndSet(expect: Byte, update: Byte): Boolean =

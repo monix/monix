@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.internals.atomic.{BoxedInt, Factory}
+import monix.execution.internal.atomic.{BoxedInt, Factory}
 
 /** Atomic references wrapping `Short` values.
   *
@@ -32,7 +32,7 @@ final class AtomicShort private (private[this] val ref: BoxedInt)
   def get: Short = (ref.volatileGet() & mask).asInstanceOf[Short]
   def set(update: Short): Unit = ref.volatileSet(update)
 
-  def lazySet(update: Short) =
+  def lazySet(update: Short): Unit =
     ref.lazySet(update)
 
   def compareAndSet(expect: Short, update: Short): Boolean =
