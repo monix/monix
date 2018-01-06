@@ -416,7 +416,7 @@ private[eval] object TaskRunLoop {
               if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
-            bFirst = bindNext.asInstanceOf[Bind]
+            bFirst = bindNext
             current = fa
 
           case Now(value) =>
@@ -433,12 +433,12 @@ private[eval] object TaskRunLoop {
                 current = Error(e)
             }
 
-          case bindNext@Map(fa, _, _) =>
+          case bindNext @ Map(fa, _, _) =>
             if (bFirst ne null) {
               if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
-            bFirst = bindNext.asInstanceOf[Bind]
+            bFirst = bindNext
             current = fa
 
           case Suspend(thunk) =>
@@ -645,20 +645,22 @@ private[eval] object TaskRunLoop {
   }
 
   private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
-    var result: StackFrame[Any, Task[Any]] = null
-    var cursor = bFirst
-    var continue = true
-
-    while (continue) {
-      if (cursor != null && cursor.isInstanceOf[StackFrame[_, _]]) {
-        result = cursor.asInstanceOf[StackFrame[Any, Task[Any]]]
-        continue = false
-      } else {
-        cursor = if (bRest ne null) bRest.pop() else null
-        continue = cursor != null
-      }
+    bFirst match {
+      case ref: StackFrame[Any, Task[Any]] @unchecked => ref
+      case _ =>
+        if (bRest eq null) null else {
+          do {
+            val ref = bRest.pop()
+            if (ref eq null)
+              return null
+            else if (ref.isInstanceOf[StackFrame[_, _]])
+              return ref.asInstanceOf[StackFrame[Any, Task[Any]]]
+          } while (true)
+          // $COVERAGE-OFF$
+          null
+          // $COVERAGE-ON$
+        }
     }
-    result
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
@@ -667,10 +669,11 @@ private[eval] object TaskRunLoop {
 
     if (bRest eq null) return null
     do {
-      bRest.pop() match {
-        case null => return null
-        case _: StackFrame.ErrorHandler[_, _] => // next please
-        case ref => return ref
+      val next = bRest.pop()
+      if (next eq null) {
+        return null
+      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
+        return next
       }
     } while (true)
     // $COVERAGE-OFF$

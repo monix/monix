@@ -107,20 +107,22 @@ private[eval] object CoevalRunLoop {
   }
 
   private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Coeval[Any]] = {
-    var result: StackFrame[Any, Coeval[Any]] = null
-    var cursor = bFirst
-    var continue = true
-
-    while (continue) {
-      if (cursor != null && cursor.isInstanceOf[StackFrame[_, _]]) {
-        result = cursor.asInstanceOf[StackFrame[Any, Coeval[Any]]]
-        continue = false
-      } else {
-        cursor = if (bRest ne null) bRest.pop() else null
-        continue = cursor != null
-      }
+    bFirst match {
+      case ref: StackFrame[Any, Coeval[Any]] @unchecked => ref
+      case _ =>
+        if (bRest eq null) null else {
+          do {
+            val ref = bRest.pop()
+            if (ref eq null)
+              return null
+            else if (ref.isInstanceOf[StackFrame[_, _]])
+              return ref.asInstanceOf[StackFrame[Any, Coeval[Any]]]
+          } while (true)
+          // $COVERAGE-OFF$
+          null
+          // $COVERAGE-ON$
+        }
     }
-    result
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
@@ -129,10 +131,11 @@ private[eval] object CoevalRunLoop {
 
     if (bRest eq null) return null
     do {
-      bRest.pop() match {
-        case null => return null
-        case _: StackFrame.ErrorHandler[_, _] => // next please
-        case ref => return ref
+      val next = bRest.pop()
+      if (next eq null) {
+        return null
+      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
+        return next
       }
     } while (true)
     // $COVERAGE-OFF$
