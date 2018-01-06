@@ -107,7 +107,7 @@ private[tail] object IterantBuffer {
           }
       }
       catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           F.pure(signalError(self, e))
       }
     }

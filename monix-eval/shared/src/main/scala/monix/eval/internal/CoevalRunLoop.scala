@@ -40,7 +40,7 @@ private[eval] object CoevalRunLoop {
       current match {
         case FlatMap(fa, bindNext) =>
           if (bFirst ne null) {
-            if (bRest eq null) bRest = createCallStack()
+            if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
           bFirst = bindNext.asInstanceOf[Bind]
@@ -55,13 +55,13 @@ private[eval] object CoevalRunLoop {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
             current = null
-          } catch { case NonFatal(e) =>
+          } catch { case e if NonFatal(e) =>
             current = Error(e)
           }
 
         case bindNext @ Map(fa, _, _) =>
           if (bFirst ne null) {
-            if (bRest eq null) bRest = createCallStack()
+            if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
           bFirst = bindNext.asInstanceOf[Bind]
@@ -70,7 +70,7 @@ private[eval] object CoevalRunLoop {
         case Suspend(thunk) =>
           // Try/catch described as statement, otherwise ObjectRef happens ;-)
           try { current = thunk() }
-          catch { case NonFatal(ex) => current = Error(ex) }
+          catch { case ex if NonFatal(ex) => current = Error(ex) }
 
         case eval @ Once(_) =>
           current = eval.run
@@ -82,7 +82,7 @@ private[eval] object CoevalRunLoop {
             case bind =>
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
               try { current = bind.recover(ex) }
-              catch { case NonFatal(e) => current = Error(e) }
+              catch { case e if NonFatal(e) => current = Error(e) }
               bFirst = null
           }
       }
@@ -94,7 +94,7 @@ private[eval] object CoevalRunLoop {
           case bind =>
             // Try/catch described as statement, otherwise ObjectRef happens ;-)
             try { current = bind(unboxed) }
-            catch { case NonFatal(ex) => current = Error(ex) }
+            catch { case ex if NonFatal(ex) => current = Error(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null
@@ -107,20 +107,22 @@ private[eval] object CoevalRunLoop {
   }
 
   private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Coeval[Any]] = {
-    var result: StackFrame[Any, Coeval[Any]] = null
-    var cursor = bFirst
-    var continue = true
-
-    while (continue) {
-      if (cursor != null && cursor.isInstanceOf[StackFrame[_, _]]) {
-        result = cursor.asInstanceOf[StackFrame[Any, Coeval[Any]]]
-        continue = false
-      } else {
-        cursor = if (bRest ne null) bRest.pop() else null
-        continue = cursor != null
-      }
+    bFirst match {
+      case ref: StackFrame[Any, Coeval[Any]] @unchecked => ref
+      case _ =>
+        if (bRest eq null) null else {
+          do {
+            val ref = bRest.pop()
+            if (ref eq null)
+              return null
+            else if (ref.isInstanceOf[StackFrame[_, _]])
+              return ref.asInstanceOf[StackFrame[Any, Coeval[Any]]]
+          } while (true)
+          // $COVERAGE-OFF$
+          null
+          // $COVERAGE-ON$
+        }
     }
-    result
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
@@ -129,17 +131,15 @@ private[eval] object CoevalRunLoop {
 
     if (bRest eq null) return null
     do {
-      bRest.pop() match {
-        case null => return null
-        case _: StackFrame.ErrorHandler[_, _] => // next please
-        case ref => return ref
+      val next = bRest.pop()
+      if (next eq null) {
+        return null
+      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
+        return next
       }
     } while (true)
     // $COVERAGE-OFF$
     null
     // $COVERAGE-ON$
   }
-
-  private def createCallStack(): CallStack =
-    ArrayStack(8)
 }

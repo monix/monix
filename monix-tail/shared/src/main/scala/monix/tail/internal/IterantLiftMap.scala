@@ -76,7 +76,7 @@ private[tail] object IterantLiftMap {
         case Last(_) | Halt(_) =>
           fa.asInstanceOf[Iterant[G, A]]
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           Suspend[G, A](g(fa.earlyStop).map(_ => Halt(Some(e))), G.unit)
       }
 

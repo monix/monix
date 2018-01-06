@@ -43,7 +43,7 @@ private[tail] object IterantSkipSuspend {
         case other @ (Halt(_) | Last(_)) =>
           F.pure(other)
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           source.earlyStop.map(_ => Halt(Some(ex)))
       }
 

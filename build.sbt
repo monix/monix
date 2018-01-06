@@ -227,7 +227,8 @@ lazy val unidocSettings = Seq(
 
   // Exclude monix.*.internal from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
-    file.getCanonicalPath matches "^.*monix\\.[^.]+\\.internal.*$"
+    // Exclude all internal Java files from documentation
+    file.getCanonicalPath matches "^.*monix.+?internal.*?\\.java$"
   }),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
@@ -394,7 +395,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    libraryDependencies += "io.monix" %% "monix-reactive" % "3.0.0-M2"
+    libraryDependencies += "io.monix" %% "monix-reactive" % "3.0.0-d357cb1"
   )
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))

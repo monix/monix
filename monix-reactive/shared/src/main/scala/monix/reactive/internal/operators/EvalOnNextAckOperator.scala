@@ -38,7 +38,7 @@ private[reactive] final class EvalOnNextAckOperator[A](cb: (A, Ack) => Task[Unit
 
       def tryExecute(a: A, ack: Ack): Ack = {
         try { cb(a, ack); ack }
-        catch { case NonFatal(ex) => onError(ex); Stop }
+        catch { case ex if NonFatal(ex) => onError(ex); Stop }
       }
 
       def onNext(elem: A): Future[Ack] = {
@@ -48,7 +48,7 @@ private[reactive] final class EvalOnNextAckOperator[A](cb: (A, Ack) => Task[Unit
         // back-pressure for the following onNext events
         val f = out.onNext(elem)
         val task = Task.fromFuture(f).flatMap { ack =>
-          val r = try cb(elem,ack) catch { case NonFatal(ex) => Task.raiseError(ex) }
+          val r = try cb(elem,ack) catch { case ex if NonFatal(ex) => Task.raiseError(ex) }
           r.map(_ => ack).onErrorHandle { ex => onError(ex); Stop }
         }
 

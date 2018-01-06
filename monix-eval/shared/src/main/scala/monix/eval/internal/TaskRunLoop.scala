@@ -33,48 +33,13 @@ private[eval] object TaskRunLoop {
   private type Bind = Any => Task[Any]
   private type CallStack = ArrayStack[Bind]
 
-  // We always start from 1
-  final def frameStart(em: ExecutionModel): FrameIndex =
-    em.nextFrameIndex(0)
-
-  /** Creates a new [[CallStack]] */
-  private def createCallStack(): CallStack =
-    ArrayStack(8)
-
-  /** Internal utility, for forcing an asynchronous boundary in the
-    * trampoline loop.
-    */
-  def restartAsync[A](
-    source: Task[A],
-    context: Context,
-    cb: Callback[A],
-    bindCurrent: Bind,
-    bindRest: CallStack): Unit = {
-
-    val savedLocals =
-      if (context.options.localContextPropagation) Local.getContext()
-      else null
-
-    if (!context.shouldCancel) {
-      context.scheduler.executeAsync { () =>
-        // Resetting the frameRef, as a real asynchronous boundary happened
-        context.frameRef.reset()
-        // Transporting the current context if localContextPropagation == true.
-        Local.bind(savedLocals) {
-          // Using frameIndex = 1 to ensure at least one cycle gets executed
-          startWithCallback(source, context, cb, bindCurrent, bindRest, 1)
-        }
-      }
-    }
-  }
-
   /** Starts or resumes evaluation of the run-loop from where it left
     * off. This is the complete run-loop.
     *
     * Used for continuing a run-loop after an async boundary
-    * happens from [[startAsFuture]] and [[startLightWithCallback]].
+    * happens from [[startFuture]] and [[startLight]].
     */
-  def startWithCallback[A](
+  def startFull[A](
     source: Task[A],
     context: Context,
     cb: Callback[A],
@@ -171,7 +136,7 @@ private[eval] object TaskRunLoop {
           current match {
             case FlatMap(fa, bindNext) =>
               if (bFirst ne null) {
-                if (bRest eq null) bRest = createCallStack()
+                if (bRest eq null) bRest = new ArrayStack()
                 bRest.push(bFirst)
               }
               bFirst = bindNext.asInstanceOf[Bind]
@@ -186,13 +151,13 @@ private[eval] object TaskRunLoop {
                 unboxed = thunk().asInstanceOf[AnyRef]
                 hasUnboxed = true
                 current = null
-              } catch { case NonFatal(e) =>
+              } catch { case e if NonFatal(e) =>
                 current = Error(e)
               }
 
             case bindNext @ Map(fa, _, _) =>
               if (bFirst ne null) {
-                if (bRest eq null) bRest = createCallStack()
+                if (bRest eq null) bRest = new ArrayStack()
                 bRest.push(bFirst)
               }
               bFirst = bindNext.asInstanceOf[Bind]
@@ -201,7 +166,7 @@ private[eval] object TaskRunLoop {
             case Suspend(thunk) =>
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
               try { current = thunk() }
-              catch { case NonFatal(ex) => current = Error(ex) }
+              catch { case ex if NonFatal(ex) => current = Error(ex) }
 
             case Error(error) =>
               findErrorHandler(bFirst, bRest) match {
@@ -211,7 +176,7 @@ private[eval] object TaskRunLoop {
                 case bind =>
                   // Try/catch described as statement, otherwise ObjectRef happens ;-)
                   try { current = bind.recover(error) }
-                  catch { case NonFatal(e) => current = Error(e) }
+                  catch { case e if NonFatal(e) => current = Error(e) }
                   frameIndex = em.nextFrameIndex(frameIndex)
                   bFirst = null
               }
@@ -248,15 +213,14 @@ private[eval] object TaskRunLoop {
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
                 try { current = bind(unboxed) }
-                catch { case NonFatal(ex) => current = Error(ex) }
+                catch { case ex if NonFatal(ex) => current = Error(ex) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 hasUnboxed = false
                 unboxed = null
                 bFirst = null
             }
           }
-        }
-        else {
+        } else {
           // Force async boundary
           restartAsync(current, context, cb, bFirst, bRest)
           return
@@ -270,13 +234,40 @@ private[eval] object TaskRunLoop {
     loop(source, context, cba, null, bFirst, bRest, frameIndex)
   }
 
+  /** Internal utility, for forcing an asynchronous boundary in the
+    * trampoline loop.
+    */
+  def restartAsync[A](
+    source: Task[A],
+    context: Context,
+    cb: Callback[A],
+    bindCurrent: Bind,
+    bindRest: CallStack): Unit = {
+
+    val savedLocals =
+      if (context.options.localContextPropagation) Local.getContext()
+      else null
+
+    if (!context.shouldCancel) {
+      context.scheduler.executeAsync { () =>
+        // Resetting the frameRef, as a real asynchronous boundary happened
+        context.frameRef.reset()
+        // Transporting the current context if localContextPropagation == true.
+        Local.bind(savedLocals) {
+          // Using frameIndex = 1 to ensure at least one cycle gets executed
+          startFull(source, context, cb, bindCurrent, bindRest, 1)
+        }
+      }
+    }
+  }
+
   /** A run-loop that attempts to evaluate a `Task` without
     * initializing a `Task.Context`, falling back to
-    * [[startWithCallback]] when the first `Async` boundary is hit.
+    * [[startFull]] when the first `Async` boundary is hit.
     *
     * Function gets invoked by `Task.runAsync(cb: Callback)`.
     */
-  def startLightWithCallback[A](
+  def startLight[A](
     source: Task[A],
     scheduler: Scheduler,
     opts: Task.Options,
@@ -297,7 +288,7 @@ private[eval] object TaskRunLoop {
         current match {
           case FlatMap(fa, bindNext) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = createCallStack()
+              if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
             bFirst = bindNext.asInstanceOf[Bind]
@@ -312,13 +303,13 @@ private[eval] object TaskRunLoop {
               unboxed = thunk().asInstanceOf[AnyRef]
               hasUnboxed = true
               current = null
-            } catch { case NonFatal(e) =>
+            } catch { case e if NonFatal(e) =>
               current = Error(e)
             }
 
           case bindNext @ Map(fa, _, _) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = createCallStack()
+              if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
             bFirst = bindNext.asInstanceOf[Bind]
@@ -327,7 +318,7 @@ private[eval] object TaskRunLoop {
           case Suspend(thunk) =>
             // Try/catch described as statement, otherwise ObjectRef happens ;-)
             try { current = thunk() }
-            catch { case NonFatal(ex) => current = Error(ex) }
+            catch { case ex if NonFatal(ex) => current = Error(ex) }
 
           case Error(error) =>
             findErrorHandler(bFirst, bRest) match {
@@ -337,7 +328,7 @@ private[eval] object TaskRunLoop {
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
                 try { current = bind.recover(error) }
-                catch { case NonFatal(e) => current = Error(e) }
+                catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
             }
@@ -378,7 +369,7 @@ private[eval] object TaskRunLoop {
             case bind =>
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
               try { current = bind(unboxed) }
-              catch { case NonFatal(ex) => current = Error(ex) }
+              catch { case ex if NonFatal(ex) => current = Error(ex) }
               frameIndex = em.nextFrameIndex(frameIndex)
               hasUnboxed = false
               unboxed = null
@@ -401,12 +392,12 @@ private[eval] object TaskRunLoop {
   }
 
   /** A run-loop that attempts to complete a `CancelableFuture`
-    * synchronously falling back to [[startWithCallback]] and actual
+    * synchronously falling back to [[startFull]] and actual
     * asynchronous execution in case of an asynchronous boundary.
     *
     * Function gets invoked by `Task.runAsync(implicit s: Scheduler)`.
     */
-  def startAsFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
+  def startFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
     var bRest: CallStack = null
@@ -422,10 +413,10 @@ private[eval] object TaskRunLoop {
         current match {
           case FlatMap(fa, bindNext) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = createCallStack()
+              if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
-            bFirst = bindNext.asInstanceOf[Bind]
+            bFirst = bindNext
             current = fa
 
           case Now(value) =>
@@ -438,16 +429,16 @@ private[eval] object TaskRunLoop {
               hasUnboxed = true
               current = null
             } catch {
-              case NonFatal(e) =>
+              case e if NonFatal(e) =>
                 current = Error(e)
             }
 
-          case bindNext@Map(fa, _, _) =>
+          case bindNext @ Map(fa, _, _) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = createCallStack()
+              if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
-            bFirst = bindNext.asInstanceOf[Bind]
+            bFirst = bindNext
             current = fa
 
           case Suspend(thunk) =>
@@ -456,7 +447,7 @@ private[eval] object TaskRunLoop {
               current = thunk()
             }
             catch {
-              case NonFatal(ex) => current = Error(ex)
+              case ex if NonFatal(ex) => current = Error(ex)
             }
 
           case Error(error) =>
@@ -466,7 +457,7 @@ private[eval] object TaskRunLoop {
               case bind =>
                 // Try/catch described as statement to prevent ObjectRef ;-)
                 try { current = bind.recover(error) }
-                catch { case NonFatal(e) => current = Error(e) }
+                catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
             }
@@ -501,7 +492,7 @@ private[eval] object TaskRunLoop {
                 current = bind(unboxed)
               }
               catch {
-                case NonFatal(ex) => current = Error(ex)
+                case ex if NonFatal(ex) => current = Error(ex)
               }
               frameIndex = em.nextFrameIndex(frameIndex)
               hasUnboxed = false
@@ -520,7 +511,7 @@ private[eval] object TaskRunLoop {
   }
 
   /** Called when we hit the first async boundary in
-    * [[startLightWithCallback]].
+    * [[startLight]].
     */
   private def goAsyncForLightCB(
     source: Current,
@@ -536,12 +527,12 @@ private[eval] object TaskRunLoop {
     if (forceAsync)
       restartAsync(source, context, cb, bindCurrent, bindRest)
     else
-      startWithCallback(source, context, cb, bindCurrent, bindRest, nextFrame)
+      startFull(source, context, cb, bindCurrent, bindRest, nextFrame)
 
     context.connection
   }
 
-  /** Called when we hit the first async boundary in [[startAsFuture]]. */
+  /** Called when we hit the first async boundary in [[startFuture]]. */
   private def goAsync4Future[A](
     source: Current,
     scheduler: Scheduler,
@@ -558,7 +549,7 @@ private[eval] object TaskRunLoop {
     if (forceAsync)
       restartAsync(fa, context, cb, bindCurrent, bindRest)
     else
-      startWithCallback(fa, context, cb, bindCurrent, bindRest, nextFrame)
+      startFull(fa, context, cb, bindCurrent, bindRest, nextFrame)
 
     CancelableFuture(p.future, context.connection)
   }
@@ -613,7 +604,7 @@ private[eval] object TaskRunLoop {
           startMemoization(self, context, cb, bindCurrent, bindRest, nextFrame) // retry
           // $COVERAGE-ON$
         } else {
-          val underlying = try self.thunk() catch { case NonFatal(ex) => Error(ex) }
+          val underlying = try self.thunk() catch { case ex if NonFatal(ex) => Error(ex) }
           val callback = new Callback[A] {
             def onError(ex: Throwable): Unit = {
               cacheValue(self.state, Failure(ex))
@@ -629,7 +620,7 @@ private[eval] object TaskRunLoop {
           // Asynchronous boundary to prevent stack-overflows!
           s.execute(new TrampolinedRunnable {
             def run(): Unit = {
-              startWithCallback(underlying, context, callback, null, null, nextFrame)
+              startFull(underlying, context, callback, null, null, nextFrame)
             }
           })
           true
@@ -641,7 +632,7 @@ private[eval] object TaskRunLoop {
         p.asInstanceOf[Promise[A]].future.onComplete { r =>
           context.connection.pop()
           context.frameRef.reset()
-          startWithCallback(fromTry(r), context, cb, bindCurrent, bindRest, 1)
+          startFull(fromTry(r), context, cb, bindCurrent, bindRest, 1)
         }
         true
 
@@ -654,20 +645,22 @@ private[eval] object TaskRunLoop {
   }
 
   private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
-    var result: StackFrame[Any, Task[Any]] = null
-    var cursor = bFirst
-    var continue = true
-
-    while (continue) {
-      if (cursor != null && cursor.isInstanceOf[StackFrame[_, _]]) {
-        result = cursor.asInstanceOf[StackFrame[Any, Task[Any]]]
-        continue = false
-      } else {
-        cursor = if (bRest ne null) bRest.pop() else null
-        continue = cursor != null
-      }
+    bFirst match {
+      case ref: StackFrame[Any, Task[Any]] @unchecked => ref
+      case _ =>
+        if (bRest eq null) null else {
+          do {
+            val ref = bRest.pop()
+            if (ref eq null)
+              return null
+            else if (ref.isInstanceOf[StackFrame[_, _]])
+              return ref.asInstanceOf[StackFrame[Any, Task[Any]]]
+          } while (true)
+          // $COVERAGE-OFF$
+          null
+          // $COVERAGE-ON$
+        }
     }
-    result
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
@@ -676,14 +669,19 @@ private[eval] object TaskRunLoop {
 
     if (bRest eq null) return null
     do {
-      bRest.pop() match {
-        case null => return null
-        case _: StackFrame.ErrorHandler[_, _] => // next please
-        case ref => return ref
+      val next = bRest.pop()
+      if (next eq null) {
+        return null
+      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
+        return next
       }
     } while (true)
     // $COVERAGE-OFF$
     null
     // $COVERAGE-ON$
   }
+
+  // We always start from 1
+  final def frameStart(em: ExecutionModel): FrameIndex =
+    em.nextFrameIndex(0)
 }

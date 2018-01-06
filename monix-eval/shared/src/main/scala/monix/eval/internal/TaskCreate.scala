@@ -60,7 +60,7 @@ private[eval] object TaskCreate {
             cancelable := ref
         }
         catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             // We cannot stream the error, because the callback might have
             // been called already and we'd be violating its contract,
             // hence the only thing possible is to log the error.

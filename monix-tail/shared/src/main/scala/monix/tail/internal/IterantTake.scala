@@ -79,7 +79,7 @@ private[tail] object IterantTake {
           Suspend(stop.map(_ => Halt(None)), stop)
       }
       catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           val stop = source.earlyStop
           Suspend(stop.map(_ => Halt(Some(ex))), stop)
       }

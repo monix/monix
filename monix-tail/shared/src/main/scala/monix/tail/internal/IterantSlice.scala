@@ -52,7 +52,7 @@ private[tail] object IterantSlice {
         case Halt(Some(ex)) =>
           F.raiseError(ex)
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           source.earlyStop.flatMap(_ =>
             F.raiseError(ex))
       }

@@ -121,7 +121,7 @@ final class PublishSubject[A] private () extends Subject[A,A] { self =>
 
       val ack =
         try subscriber.onNext(elem)
-        catch { case NonFatal(ex) => Future.failed(ex) }
+        catch { case ex if NonFatal(ex) => Future.failed(ex) }
 
       // if execution is synchronous, takes the fast-path
       if (ack.isCompleted) {

@@ -95,7 +95,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]]
     val r = Atomic(zero)
     r.transform { x =>
       try valueFromInt(valueToInt(x) + 1) catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           x
       }
     }
@@ -143,7 +143,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]]
     val r = Atomic(zero)
     val result = r.transformAndGet { x =>
       try valueFromInt(valueToInt(x) + 1) catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           x
       }
     }
@@ -192,7 +192,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]]
     val r = Atomic(zero)
     val result = r.getAndTransform { x =>
       try valueFromInt(valueToInt(x) + 1) catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           x
       }
     }
@@ -245,7 +245,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]]
     val r = Atomic(zero)
     val result = r.transformAndExtract { x =>
       try { (x, valueFromInt(valueToInt(x) + 1)) } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           (x, x)
       }
     }

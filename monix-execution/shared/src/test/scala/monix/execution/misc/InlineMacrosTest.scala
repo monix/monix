@@ -117,7 +117,7 @@ object InlineMacrosTest extends SimpleTestSuite {
 
     val mapped = box.map { x =>
       try increment(x) catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           assertEquals(ex, dummy)
           x + 1
       }

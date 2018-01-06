@@ -17,16 +17,20 @@
 
 package monix.execution.internal.atomic;
 
+import monix.execution.internal.InternalApi;
 import monix.execution.misc.NonFatal;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 
 /**
- * Provides access to `sun.misc.Unsafe`.
+ * INTERNAL API — Provides access to `sun.misc.Unsafe`.
  *
- * DO NOT use unless you know what you're doing.
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
  */
-public final class UnsafeAccess {
+@InternalApi public final class UnsafeAccess {
   private static final Object UNSAFE;
 
   /** True in case the underlying platform supports

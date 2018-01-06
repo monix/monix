@@ -44,10 +44,10 @@ private[eval] object TaskExecuteWithModel {
           case AlwaysAsyncExecution | SynchronousExecution =>
             em.nextFrameIndex(0)
         }
-        TaskRunLoop.startWithCallback[A](self, context2, cb, null, null, nextIndex)
+        TaskRunLoop.startFull[A](self, context2, cb, null, null, nextIndex)
       }
       catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           if (streamErrors) cb.onError(ex)
           else context.scheduler.reportFailure(ex)
       }

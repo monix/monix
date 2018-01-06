@@ -37,7 +37,7 @@ private[tail] object IterantMapEval {
         val fb = ff(a)
         fb.handleErrorWith(e => stop *> F.raiseError(e))
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           stop *> F.raiseError(e)
       }
     }
@@ -75,7 +75,7 @@ private[tail] object IterantMapEval {
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]
       } catch {
-        case NonFatal(ex) => signalError(source, ex)
+        case ex if NonFatal(ex) => signalError(source, ex)
       }
 
     source match {

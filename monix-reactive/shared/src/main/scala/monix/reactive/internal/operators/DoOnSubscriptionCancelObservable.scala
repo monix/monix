@@ -34,7 +34,7 @@ class DoOnSubscriptionCancelObservable[+A](source: Observable[A], cb: () => Unit
       try subscription.cancel() finally {
         // Then execute the callback, protected
         try cb() catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             subscriber.scheduler.reportFailure(ex)
         }
       }
