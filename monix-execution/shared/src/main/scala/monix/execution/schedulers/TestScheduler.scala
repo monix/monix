@@ -19,7 +19,7 @@ package monix.execution.schedulers
 
 import monix.execution.Cancelable
 import monix.execution.atomic.AtomicAny
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.misc.NonFatal
 import monix.execution.schedulers.TestScheduler._
 // Prevents conflict with the deprecated symbol
@@ -209,7 +209,7 @@ object TestScheduler {
       require(delay >= Duration.Zero, "The given delay must be positive")
 
       val newID = lastID + 1
-      SingleAssignmentCancelable()
+      SingleAssignCancelable()
 
       val task = Task(newID, r, this.clock + delay)
       val cancelable = new Cancelable {

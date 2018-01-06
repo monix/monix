@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, OrderedCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -32,7 +32,7 @@ private[reactive] final class RepeatSourceObservable[A](source: Observable[A])
   // recursive function - subscribes the observer again when
   // onComplete happens
   def loop(subject: Subject[A, A], out: Subscriber[A],
-    task: MultiAssignmentCancelable, index: Long): Unit = {
+    task: OrderedCancelable, index: Long): Unit = {
 
     val cancelable = subject.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
@@ -75,7 +75,7 @@ private[reactive] final class RepeatSourceObservable[A](source: Observable[A])
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val subject = ReplaySubject[A]()
-    val repeatTask = MultiAssignmentCancelable()
+    val repeatTask = OrderedCancelable()
     loop(subject, out, repeatTask, index=0)
 
     val mainTask = source.unsafeSubscribeFn(Subscriber(subject, out.scheduler))

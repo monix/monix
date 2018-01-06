@@ -17,7 +17,7 @@
 
 package monix.execution.cancelables
 
-import monix.execution.cancelables.SingleAssignmentCancelable.State
+import monix.execution.cancelables.SingleAssignCancelable.State
 import monix.execution.atomic.AtomicAny
 import scala.annotation.tailrec
 import monix.execution.Cancelable
@@ -25,7 +25,7 @@ import monix.execution.Cancelable
 /** Represents a [[monix.execution.Cancelable]] that can be assigned only
   * once to another cancelable reference.
   *
-  * Similar to [[monix.execution.cancelables.MultiAssignmentCancelable]],
+  * Similar to [[monix.execution.cancelables.OrderedCancelable]],
   * except that in case of multi-assignment, it throws a
   * `java.lang.IllegalStateException`.
   *
@@ -34,11 +34,11 @@ import monix.execution.Cancelable
   *
   * Useful in case you need a forward reference.
   */
-final class SingleAssignmentCancelable private (extra: Cancelable)
+final class SingleAssignCancelable private (extra: Cancelable)
   extends AssignableCancelable.Bool {
 
   // For binary compatibility
-  private[SingleAssignmentCancelable] def this() = this(null)
+  private[SingleAssignCancelable] def this() = this(null)
 
   import State._
 
@@ -102,13 +102,13 @@ final class SingleAssignmentCancelable private (extra: Cancelable)
   private[this] val state = AtomicAny(Empty : State)
 }
 
-object SingleAssignmentCancelable {
-  /** Builder for [[SingleAssignmentCancelable]]. */
-  def  apply(): SingleAssignmentCancelable =
-    new SingleAssignmentCancelable()
+object SingleAssignCancelable {
+  /** Builder for [[SingleAssignCancelable]]. */
+  def  apply(): SingleAssignCancelable =
+    new SingleAssignCancelable()
 
-  /** Builder for [[SingleAssignmentCancelable]] that takes an extra reference,
-    * to be canceled on [[SingleAssignmentCancelable.cancel cancel()]]
+  /** Builder for [[SingleAssignCancelable]] that takes an extra reference,
+    * to be canceled on [[SingleAssignCancelable.cancel cancel()]]
     * along with whatever underlying reference we have.
     *
     * {{{
@@ -125,8 +125,8 @@ object SingleAssignmentCancelable {
     *   //=> main canceled
     * }}}
     */
-  def plusOne(guest: Cancelable): SingleAssignmentCancelable =
-    new SingleAssignmentCancelable(guest)
+  def plusOne(guest: Cancelable): SingleAssignCancelable =
+    new SingleAssignCancelable(guest)
 
   private[monix] sealed trait State
   private[monix] object State {

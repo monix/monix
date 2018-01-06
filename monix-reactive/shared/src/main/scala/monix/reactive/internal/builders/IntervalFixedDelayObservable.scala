@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.cancelables.MultiAssignCancelable
 import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.Observable
@@ -34,7 +34,7 @@ private[reactive] final class IntervalFixedDelayObservable
     import subscriber.{scheduler => s}
 
     val o = subscriber
-    val task = MultiAssignmentCancelable()
+    val task = MultiAssignCancelable()
 
     val runnable = new Runnable { self =>
       private[this] var counter = 0L

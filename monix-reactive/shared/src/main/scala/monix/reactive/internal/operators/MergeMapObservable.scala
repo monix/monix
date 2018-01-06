@@ -78,7 +78,7 @@ private[reactive] final class MergeMapObservable[A,B](
           streamError = false
           val refID = refCount.acquire()
 
-          val childTask = SingleAssignmentCancelable()
+          val childTask = SingleAssignCancelable()
           composite += childTask
 
           childTask := fb.unsafeSubscribeFn(new Subscriber[B] {

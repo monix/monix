@@ -20,7 +20,7 @@ package monix.execution
 import cats.{CoflatMap, Eval, Monad, MonadError, StackSafeMonad}
 import monix.execution.Cancelable.IsDummy
 import monix.execution.CancelableFuture.{Async, Never, Pure}
-import monix.execution.cancelables.{ChainedCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{ChainedCancelable, SingleAssignCancelable}
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 
@@ -34,11 +34,11 @@ import scala.util.control.NonFatal
   * as long as it isn't complete.
   */
 sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { self =>
-  /** Returns this future's cancelable reference. */
-  protected def cancelable: Cancelable
+  /** Returns this future's underlying [[Cancelable]] reference. */
+  private[monix] def cancelable: Cancelable
 
   /** Returns the underlying `Future` reference. */
-  protected def underlying: Future[A]
+  private[monix] def underlying: Future[A]
 
   override final def failed: CancelableFuture[Throwable] = {
     implicit val ec = immediate
@@ -272,7 +272,7 @@ object CancelableFuture {
     (implicit ec: ExecutionContext): CancelableFuture[A] = {
 
     val p = Promise[A]()
-    val cRef = SingleAssignmentCancelable()
+    val cRef = SingleAssignCancelable()
 
     // Light async boundary to guard against stack overflows
     ec.execute(new TrampolinedRunnable {

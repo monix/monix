@@ -18,7 +18,7 @@
 package monix.reactive.subjects
 
 import monix.execution.Scheduler
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
 import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber => RSubscriber}
@@ -67,7 +67,7 @@ object Subject {
         Subscriber(source, s).toReactive(bufferSize)
 
       def subscribe(subscriber: RSubscriber[_ >: O]): Unit = {
-        val sub = SingleAssignmentCancelable()
+        val sub = SingleAssignCancelable()
         sub := source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber, sub))
       }
 

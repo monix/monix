@@ -30,11 +30,11 @@ import scala.annotation.tailrec
   *
   * Useful in case you need a thread-safe forward reference.
   */
-final class SingleAssignmentSubscription private ()
+final class SingleAssignSubscription private ()
   extends Subscription {
 
-  import SingleAssignmentSubscription.State
-  import SingleAssignmentSubscription.State._
+  import SingleAssignSubscription.State
+  import SingleAssignSubscription.State._
 
   private[this] val state = AtomicAny(Empty : State)
 
@@ -114,18 +114,32 @@ final class SingleAssignmentSubscription private ()
   }
 }
 
-object SingleAssignmentSubscription {
-  /** Builder for [[SingleAssignmentSubscription]] */
-  def apply(): SingleAssignmentSubscription =
-    new SingleAssignmentSubscription
+object SingleAssignSubscription {
+  /** Builder for [[SingleAssignSubscription]] */
+  def apply(): SingleAssignSubscription =
+    new SingleAssignSubscription
 
-  private sealed trait State
+  /** Internal state kept in an atomic reference. */
+  private sealed abstract class State
 
   private object State {
+    /** Subscription hasn't been initialized. */
     case object Empty extends State
+
+    /** Subscription hasn't been initialized, but at least
+      * a request was received from subscriber.
+      */
     case class EmptyRequest(nr: Long) extends State
+
+    /** Subscription hasn't been initialized, but the
+      * subscriber has already cancelled.
+      */
     case object EmptyCanceled extends State
+
+    /** Has an active subscription. */
     case class WithSubscription(s: org.reactivestreams.Subscription) extends State
+
+    /** Subscription was cancelled. */
     case object Canceled extends State
   }
 }

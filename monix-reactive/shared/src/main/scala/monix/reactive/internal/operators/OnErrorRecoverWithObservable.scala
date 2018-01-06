@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.cancelables.OrderedCancelable
 import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -31,7 +31,7 @@ class OnErrorRecoverWithObservable[A](source: Observable[A], f: Throwable => Obs
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val cancelable = MultiAssignmentCancelable()
+    val cancelable = OrderedCancelable()
 
     val main = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler

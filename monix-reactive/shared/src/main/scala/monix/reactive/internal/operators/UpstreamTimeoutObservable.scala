@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable}
 import monix.execution.exceptions.UpstreamTimeoutException
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
@@ -32,8 +32,8 @@ private[reactive] final class UpstreamTimeoutObservable[+A](
   extends Observable[A] {
 
   def unsafeSubscribeFn(downstream: Subscriber[A]): Cancelable = {
-    val timeoutCheck = MultiAssignmentCancelable()
-    val mainTask = SingleAssignmentCancelable()
+    val timeoutCheck = MultiAssignCancelable()
+    val mainTask = SingleAssignCancelable()
     val composite = CompositeCancelable(mainTask, timeoutCheck)
 
     mainTask := source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>

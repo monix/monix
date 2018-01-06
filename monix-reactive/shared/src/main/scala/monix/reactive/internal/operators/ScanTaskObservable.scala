@@ -21,7 +21,7 @@ import monix.eval.{Callback, Task}
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.cancelables.OrderedCancelable
 import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -41,7 +41,7 @@ private[reactive] final class ScanTaskObservable[A, S]
   extends Observable[S] {
 
   def unsafeSubscribeFn(out: Subscriber[S]): Cancelable = {
-    val conn = MultiAssignmentCancelable()
+    val conn = OrderedCancelable()
 
     val cb = new Callback[S] {
       def onSuccess(initial: S): Unit = {

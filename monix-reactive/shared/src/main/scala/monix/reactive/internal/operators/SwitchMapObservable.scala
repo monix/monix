@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, SerialCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, SerialCancelable, SingleAssignCancelable}
 import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.observers.Subscriber
@@ -32,7 +32,7 @@ private[reactive] final class SwitchMapObservable[A,B](
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     val activeChild = SerialCancelable()
-    val mainTask = SingleAssignmentCancelable()
+    val mainTask = SingleAssignCancelable()
     val composite = CompositeCancelable(activeChild, mainTask)
 
     mainTask := source.unsafeSubscribeFn(new Subscriber.Sync[A] { self =>
