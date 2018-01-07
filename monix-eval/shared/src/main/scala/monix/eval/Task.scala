@@ -974,6 +974,47 @@ sealed abstract class Task[+A] extends Serializable {
   final def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Task[U] =
     onErrorRecoverWith(pf.andThen(nowConstructor))
 
+  /** Start execution of the source suspended in the `Task` context.
+    *
+    * This can be used for non-deterministic / concurrent execution.
+    * The following code is more or less equivalent with
+    * [[Task.parMap2]] (minus the behavior on error handling and
+    * cancellation):
+    *
+    * {{{
+    *   def par2[A, B](ta: Task[A], tb: Task[B]): Task[(A, B)] =
+    *     for {
+    *       fa <- ta.start
+    *       fb <- tb.start
+    *        a <- fa
+    *        b <- fb
+    *     } yield (a, b)
+    * }}}
+    *
+    * Note in such a case usage of [[Task.parMap2 parMap2]]
+    * (and [[Task.parMap3 parMap3]], etc.) is still recommended
+    * because of behavior on error and cancellation — consider that
+    * in the example above, if the first task finishes in error,
+    * the second task doesn't get cancelled.
+    *
+    * IMPORTANT — this operation does not fork, it does not introduce
+    * an asynchronous boundary, so in case the evaluation of a task
+    * is immediate, a fork might be needed to make evaluation happen
+    * on another thread or stack frame (if it doesn't do that already):
+    *
+    * {{{
+    *   Task.fork(myTask).start
+    * }}}
+    *
+    * Inspired by
+    * [[https://github.com/functional-streams-for-scala/fs2 FS2]],
+    * with the difference that this method does not fork
+    * automatically, being consistent with Monix's default
+    * behavior.
+    */
+  final def start: Task[Task[A]] =
+    TaskStart(this)
+
   /** Converts the source `Task` to a `cats.effect.IO` value. */
   final def toIO(implicit s: Scheduler): IO[A] =
     TaskConversions.toIO(this)(s)

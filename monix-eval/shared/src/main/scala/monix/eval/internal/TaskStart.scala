@@ -1,0 +1,48 @@
+/*
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package monix.eval
+package internal
+
+import monix.execution.schedulers.TrampolinedRunnable
+
+import scala.concurrent.Promise
+
+private[eval] object TaskStart {
+  /**
+    * Implementation for `Task.start`.
+    */
+  def apply[A](fa: Task[A]): Task[Task[A]] =
+    Task.Async { (ctx, cb) =>
+      implicit val sc = ctx.scheduler
+      // Standard Scala promise gets used for storing or waiting
+      // for the final result
+      val p = Promise[A]()
+      // Signaling the result as a Task
+      val ctx2 = Task.Context(ctx.scheduler, ctx.options)
+      val task = TaskFromFuture.build(p.future, ctx2.connection)
+      // Light async boundary to avoid stack overflows
+      ctx.scheduler.execute(new TrampolinedRunnable {
+        def run(): Unit = {
+          // Signal the created Task reference
+          cb.onSuccess(task)
+          // Starting actual execution
+          Task.unsafeStartNow(fa, ctx2, Callback.fromPromise(p))
+        }
+      })
+    }
+}

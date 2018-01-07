@@ -76,7 +76,7 @@ private[eval] object TaskFromFuture {
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete
-        cb.apply(value)
+        cb.asyncApply(value)
 
       case None =>
         f.onComplete { result =>
@@ -92,7 +92,7 @@ private[eval] object TaskFromFuture {
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete
-        cb.apply(value)
+        cb.asyncApply(value)
 
       case None =>
         // Given a cancelable future, we should use it
