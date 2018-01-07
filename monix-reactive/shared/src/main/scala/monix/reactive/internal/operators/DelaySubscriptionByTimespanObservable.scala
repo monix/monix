@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.cancelables.OrderedCancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.duration.FiniteDuration
@@ -28,7 +28,7 @@ private[reactive] final class DelaySubscriptionByTimespanObservable[A]
   extends Observable[A] { self =>
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val conn = MultiAssignmentCancelable()
+    val conn = OrderedCancelable()
     val main = out.scheduler.scheduleOnce(
       timespan.length, timespan.unit,
       new Runnable {

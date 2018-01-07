@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
 import monix.execution.misc.{AsyncSemaphore, NonFatal}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.{Observable, OverflowStrategy}
@@ -94,7 +94,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
       try {
         // We need a forward reference, because of the
         // interaction with the `composite` below
-        val subscription = SingleAssignmentCancelable()
+        val subscription = SingleAssignCancelable()
         composite += subscription
 
         val task = {

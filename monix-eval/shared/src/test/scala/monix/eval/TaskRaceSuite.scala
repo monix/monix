@@ -25,9 +25,9 @@ import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-object TaskChooseFirstOfSuite extends BaseTestSuite {
-  test("Task.chooseFirstOfList should switch to other") { implicit s =>
-    val task = Task.chooseFirstOfList(Seq(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second)))
+object TaskRaceSuite extends BaseTestSuite {
+  test("Task.raceList should switch to other") { implicit s =>
+    val task = Task.raceMany(Seq(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second)))
     val f = task.runAsync
 
     s.tick()
@@ -36,9 +36,9 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(99)))
   }
 
-  test("Task.chooseFirstOfList should onError from other") { implicit s =>
+  test("Task.raceList should onError from other") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task.chooseFirstOfList(Seq(Task(1).delayExecution(10.seconds), Task(throw ex).delayExecution(1.second)))
+    val task = Task.raceMany(Seq(Task(1).delayExecution(10.seconds), Task(throw ex).delayExecution(1.second)))
     val f = task.runAsync
 
     s.tick()
@@ -47,8 +47,8 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.chooseFirstOfList should mirror the source") { implicit s =>
-    val task = Task.chooseFirstOfList(Seq(Task(1).delayExecution(1.seconds), Task(99).delayExecution(10.second)))
+  test("Task.raceList should mirror the source") { implicit s =>
+    val task = Task.raceMany(Seq(Task(1).delayExecution(1.seconds), Task(99).delayExecution(10.second)))
     val f = task.runAsync
 
     s.tick()
@@ -58,9 +58,9 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "other should be canceled")
   }
 
-  test("Task.chooseFirstOfList should onError from the source") { implicit s =>
+  test("Task.raceList should onError from the source") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task.chooseFirstOfList(Seq(Task(throw ex).delayExecution(1.seconds), Task(99).delayExecution(10.second)))
+    val task = Task.raceMany(Seq(Task(throw ex).delayExecution(1.seconds), Task(99).delayExecution(10.second)))
     val f = task.runAsync
 
     s.tick()
@@ -70,8 +70,8 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "other should be canceled")
   }
 
-  test("Task.chooseFirstOfList should cancel both") { implicit s =>
-    val task = Task.chooseFirstOfList(Seq(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second)))
+  test("Task.raceList should cancel both") { implicit s =>
+    val task = Task.raceMany(Seq(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second)))
     val f = task.runAsync
 
     s.tick()
@@ -83,19 +83,19 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "both should be canceled")
   }
 
-  test("Task.chooseFirstOfList should be stack safe, take 1") { implicit s =>
+  test("Task.raceList should be stack safe, take 1") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task(x))
-    val sum = Task.chooseFirstOfList(tasks)
+    val sum = Task.raceMany(tasks)
 
     sum.runAsync
     s.tick()
   }
 
-  test("Task.chooseFirstOfList should be stack safe, take 2") { implicit s =>
+  test("Task.raceList should be stack safe, take 2") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task.eval(x))
-    val sum = Task.chooseFirstOfList(tasks)
+    val sum = Task.raceMany(tasks)
 
     sum.runAsync
     s.tick()
@@ -236,15 +236,15 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "all task should be completed")
   }
 
-  test("Task.chooseFirstOf(a,b) should work if a completes first") { implicit s =>
+  test("Task.racePair(a,b) should work if a completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
 
-    val t = Task.chooseFirstOf(ta, tb).flatMap {
-      case Left((a, futureB)) =>
-        Task.fromFuture(futureB).map(b => a + b)
-      case Right((futureA, b)) =>
-        Task.fromFuture(futureA).map(a => a + b)
+    val t = Task.racePair(ta, tb).flatMap {
+      case Left((a, taskB)) =>
+        taskB.map(b => a + b)
+      case Right((taskA, b)) =>
+        taskA.map(a => a + b)
     }
 
     val f = t.runAsync
@@ -254,11 +254,11 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(30)))
   }
 
-  test("Task.chooseFirstOf(a,b) should cancel both") { implicit s =>
+  test("Task.racePair(a,b) should cancel both") { implicit s =>
     val ta = Task.now(10).delayExecution(2.second)
     val tb = Task.now(20).delayExecution(1.seconds)
 
-    val t = Task.chooseFirstOf(ta, tb)
+    val t = Task.racePair(ta, tb)
     val f = t.runAsync
     s.tick()
     f.cancel()
@@ -266,17 +266,17 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.chooseFirstOf(A,B) should not cancel B if A completes first") { implicit s =>
+  test("Task.racePair(A,B) should not cancel B if A completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
     var future = Option.empty[CancelableFuture[Int]]
 
-    val t = Task.chooseFirstOf(ta, tb).map {
-      case Left((a, futureB)) =>
-        future = Some(futureB)
+    val t = Task.racePair(ta, tb).map {
+      case Left((a, taskB)) =>
+        future = Some(taskB.runAsync)
         a
-      case Right((futureA, b)) =>
-        future = Some(futureA)
+      case Right((taskA, b)) =>
+        future = Some(taskA.runAsync)
         b
     }
 
@@ -292,17 +292,17 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(future.flatMap(_.value), Some(Success(20)))
   }
 
-  test("Task.chooseFirstOf(A,B) should not cancel A if B completes first") { implicit s =>
+  test("Task.racePair(A,B) should not cancel A if B completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(2.second)
     val tb = Task.now(20).delayExecution(1.seconds)
     var future = Option.empty[CancelableFuture[Int]]
 
-    val t = Task.chooseFirstOf(ta, tb).map {
-      case Left((a, futureB)) =>
-        future = Some(futureB)
+    val t = Task.racePair(ta, tb).map {
+      case Left((a, taskB)) =>
+        future = Some(taskB.runAsync)
         a
-      case Right((futureA, b)) =>
-        future = Some(futureA)
+      case Right((taskA, b)) =>
+        future = Some(taskA.runAsync)
         b
     }
 
@@ -318,45 +318,45 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(future.flatMap(_.value), Some(Success(10)))
   }
 
-  test("Task.chooseFirstOf(A,B) should end both in error if A completes first in error") { implicit s =>
+  test("Task.racePair(A,B) should end both in error if A completes first in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.raiseError[Int](dummy).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
 
-    val t = Task.chooseFirstOf(ta, tb)
+    val t = Task.racePair(ta, tb)
     val f = t.runAsync
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(dummy)))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.chooseFirstOf(A,B) should end both in error if B completes first in error") { implicit s =>
+  test("Task.racePair(A,B) should end both in error if B completes first in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.now(10).delayExecution(2.seconds)
     val tb = Task.raiseError[Int](dummy).delayExecution(1.second)
 
-    val t = Task.chooseFirstOf(ta, tb)
+    val t = Task.racePair(ta, tb)
     val f = t.runAsync
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(dummy)))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.chooseFirstOf(A,B) should work if A completes second in error") { implicit s =>
+  test("Task.racePair(A,B) should work if A completes second in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.raiseError[Int](dummy).delayExecution(2.second)
     val tb = Task.now(20).delayExecution(1.seconds)
 
-    val t1 = Task.chooseFirstOf(ta, tb).flatMap {
-      case Left((a, futureB)) =>
-        Task.fromFuture(futureB).map(b => a + b)
-      case Right((futureA, b)) =>
-        Task.fromFuture(futureA).map(a => a + b)
+    val t1 = Task.racePair(ta, tb).flatMap {
+      case Left((a, taskB)) =>
+        taskB.map(b => a + b)
+      case Right((taskA, b)) =>
+        taskA.map(a => a + b)
     }
 
-    val t2 = Task.chooseFirstOf(ta, tb).map {
-      case Left((a, futureB)) => a
-      case Right((futureA, b)) => b
+    val t2 = Task.racePair(ta, tb).map {
+      case Left((a, _)) => a
+      case Right((_, b)) => b
     }
 
     val f1 = t1.runAsync
@@ -367,21 +367,21 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(20)))
   }
 
-  test("Task.chooseFirstOf(A,B) should work if B completes second in error") { implicit s =>
+  test("Task.racePair(A,B) should work if B completes second in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.now(10).delayExecution(1.seconds)
     val tb = Task.raiseError[Int](dummy).delayExecution(2.second)
 
-    val t1 = Task.chooseFirstOf(ta, tb).flatMap {
-      case Left((a, futureB)) =>
-        Task.fromFuture(futureB).map(b => a + b)
-      case Right((futureA, b)) =>
-        Task.fromFuture(futureA).map(a => a + b)
+    val t1 = Task.racePair(ta, tb).flatMap {
+      case Left((a, taskB)) =>
+        taskB.map(b => a + b)
+      case Right((taskA, b)) =>
+        taskA.map(a => a + b)
     }
 
-    val t2 = Task.chooseFirstOf(ta, tb).map {
-      case Left((a, futureB)) => a
-      case Right((futureA, b)) => b
+    val t2 = Task.racePair(ta, tb).map {
+      case Left((a, _)) => a
+      case Right((_, b)) => b
     }
 
     val f1 = t1.runAsync
@@ -392,28 +392,157 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(10)))
   }
 
-  test("Task.chooseFirstOf should be stack safe, take 1") { implicit s =>
+  test("Task.racePair should be stack safe, take 1") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task(x))
     val init = Task.never[Int]
 
-    val sum = tasks.foldLeft(init)((acc,t) => Task.chooseFirstOf(acc,t).map {
-      case Left((a,fb)) => a
-      case Right((fa, b)) => b
+    val sum = tasks.foldLeft(init)((acc,t) => Task.racePair(acc,t).map {
+      case Left((a, _)) => a
+      case Right((_, b)) => b
     })
 
     sum.runAsync
     s.tick()
   }
 
-  test("Task.chooseFirstOf should be stack safe, take 2") { implicit s =>
+  test("Task.racePair should be stack safe, take 2") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task.eval(x))
     val init = Task.never[Int]
 
-    val sum = tasks.foldLeft(init)((acc,t) => Task.chooseFirstOf(acc,t).map {
-      case Left((a,fb)) => a
-      case Right((fa, b)) => b
+    val sum = tasks.foldLeft(init)((acc,t) => Task.racePair(acc,t).map {
+      case Left((a, _)) => a
+      case Right((_, b)) => b
+    })
+
+    sum.runAsync
+    s.tick()
+  }
+  
+  test("Task.race(a, b) should work if a completes first") { implicit s =>
+    val ta = Task.now(10).delayExecution(1.second)
+    val tb = Task.now(20).delayExecution(2.seconds)
+
+    val t = Task.race(ta, tb).map {
+      case Left(a) => a
+      case Right(b) => b
+    }
+
+    val f = t.runAsync
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(10)))
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("Task.race(a, b) should work if b completes first") { implicit s =>
+    val ta = Task.now(10).delayExecution(2.second)
+    val tb = Task.now(20).delayExecution(1.seconds)
+
+    val t = Task.race(ta, tb).map {
+      case Left(a) => a
+      case Right(b) => b
+    }
+
+    val f = t.runAsync
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(20)))
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+
+  test("Task.race(a, b) should cancel both") { implicit s =>
+    val ta = Task.now(10).delayExecution(2.second)
+    val tb = Task.now(20).delayExecution(1.seconds)
+
+    val t = Task.race(ta, tb)
+    val f = t.runAsync
+    s.tick()
+    f.cancel()
+    assertEquals(f.value, None)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("Task.race(a, b) should end both in error if `a` completes first in error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val ta = Task.raiseError[Int](dummy).delayExecution(1.second)
+    val tb = Task.now(20).delayExecution(2.seconds)
+
+    val t = Task.race(ta, tb)
+    val f = t.runAsync
+    s.tick(1.second)
+    assertEquals(f.value, Some(Failure(dummy)))
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("Task.race(a, b) should end both in error if `b` completes first in error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val ta = Task.now(20).delayExecution(2.seconds)
+    val tb = Task.raiseError[Int](dummy).delayExecution(1.second)
+
+    val t = Task.race(ta, tb)
+    val f = t.runAsync
+    s.tick(1.second)
+    assertEquals(f.value, Some(Failure(dummy)))
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("Task.race(a, b) should work if `a` completes in error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val ta = Task.raiseError[Int](dummy).delayExecution(2.second).uncancelable
+    val tb = Task.now(20).delayExecution(1.seconds)
+
+    val task = Task.race(ta, tb).map {
+      case Left(a) => a
+      case Right(b) => b
+    }
+
+    val f = task.runAsync
+    s.tick(2.seconds)
+
+    assertEquals(f.value, Some(Success(20)))
+    assertEquals(s.state.lastReportedError, dummy)
+  }
+
+  test("Task.race(a, b) should work if `b` completes in error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val ta = Task.now(20).delayExecution(1.seconds)
+    val tb = Task.raiseError[Int](dummy).delayExecution(2.second).uncancelable
+
+    val task = Task.race(ta, tb).map {
+      case Left(a) => a
+      case Right(b) => b
+    }
+
+    val f = task.runAsync
+    s.tick(2.seconds)
+
+    assertEquals(f.value, Some(Success(20)))
+    assertEquals(s.state.lastReportedError, dummy)
+  }
+
+  test("Task.race should be stack safe, take 1") { implicit s =>
+    val count = if (Platform.isJVM) 100000 else 10000
+    val tasks = (0 until count).map(x => Task(x))
+    val init = Task.never[Int]
+
+    val sum = tasks.foldLeft(init)((acc,t) => Task.race(acc,t).map {
+      case Left(a) => a
+      case Right(b) => b
+    })
+
+    sum.runAsync
+    s.tick()
+  }
+
+  test("Task.race should be stack safe, take 2") { implicit s =>
+    val count = if (Platform.isJVM) 100000 else 10000
+    val tasks = (0 until count).map(x => Task.eval(x))
+    val init = Task.never[Int]
+
+    val sum = tasks.foldLeft(init)((acc,t) => Task.race(acc,t).map {
+      case Left(a) => a
+      case Right(b) => b
     })
 
     sum.runAsync

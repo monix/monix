@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.execution.cancelables.{SingleAssignmentCancelable, StackedCancelable}
+import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
 import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, Scheduler}
 
@@ -47,7 +47,7 @@ private[eval] object TaskCreate {
     Task.unsafeCreate { (context, cb) =>
       val s = context.scheduler
       val conn = context.connection
-      val cancelable = SingleAssignmentCancelable()
+      val cancelable = SingleAssignCancelable()
       conn push cancelable
 
       // Forcing a real asynchronous boundary,

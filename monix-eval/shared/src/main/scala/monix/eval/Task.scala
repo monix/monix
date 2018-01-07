@@ -396,6 +396,73 @@ sealed abstract class Task[+A] extends Serializable {
   final def attempt: Task[Either[Throwable, A]] =
     FlatMap(this, AttemptTask.asInstanceOf[A => Task[Either[Throwable, A]]])
 
+  /** Introduces an asynchronous boundary at the current stage in the
+    * asynchronous processing pipeline.
+    *
+    * Consider the following example:
+    *
+    * {{{
+    *   import monix.execution.Scheduler
+    *   val io = Scheduler.io()
+    *
+    *   val source = Task(1).executeOn(io).map(_ + 1)
+    * }}}
+    *
+    * That task is being forced to execute on the `io` scheduler,
+    * including the `map` transformation that follows after
+    * `executeOn`. But what if we want to jump with the execution
+    * run-loop on the default scheduler for the following
+    * transformations?
+    *
+    * Then we can do:
+    *
+    * {{{
+    *   source.asyncBoundary.map(_ + 2)
+    * }}}
+    *
+    * In this sample, whatever gets evaluated by the `source` will
+    * happen on the `io` scheduler, however the `asyncBoundary` call
+    * will make all subsequent operations to happen on the default
+    * scheduler.
+    */
+  final def asyncBoundary: Task[A] =
+    this.flatMap(r => Task.shift.map(_ => r))
+
+  /** Introduces an asynchronous boundary at the current stage in the
+    * asynchronous processing pipeline, making processing to jump on
+    * the given [[monix.execution.Scheduler Scheduler]] (until the
+    * next async boundary).
+    *
+    * Consider the following example:
+    * {{{
+    *   import monix.execution.Scheduler
+    *   val io = Scheduler.io()
+    *
+    *   val source = Task(1).executeOn(io).map(_ + 1)
+    * }}}
+    *
+    * That task is being forced to execute on the `io` scheduler,
+    * including the `map` transformation that follows after
+    * `executeOn`. But what if we want to jump with the execution
+    * run-loop on another scheduler for the following transformations?
+    *
+    * Then we can do:
+    * {{{
+    *   import monix.execution.Scheduler.global
+    *
+    *   source.asyncBoundary(global).map(_ + 2)
+    * }}}
+    *
+    * In this sample, whatever gets evaluated by the `source` will
+    * happen on the `io` scheduler, however the `asyncBoundary` call
+    * will make all subsequent operations to happen on the specified
+    * `global` scheduler.
+    *
+    * @param s is the scheduler triggering the asynchronous boundary
+    */
+  final def asyncBoundary(s: Scheduler): Task[A] =
+    this.flatMap(a => Task.shift(s).map(_ => a))
+
   /** Transforms a [[Task]] into a [[Coeval]] that tries to execute the
     * source synchronously, returning either `Right(value)` in case a
     * value is available immediately, or `Left(future)` in case we
@@ -404,29 +471,25 @@ sealed abstract class Task[+A] extends Serializable {
   final def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
     Coeval.eval(runSyncMaybe(s))
 
-  /** Returns a failed projection of this task.
+  /** Signals cancellation of the source.
     *
-    * The failed projection is a `Task` holding a value of type `Throwable`,
-    * emitting the error yielded by the source, in case the source fails,
-    * otherwise if the source succeeds the result will fail with a
-    * `NoSuchElementException`.
+    * Returns a new task that will complete when the cancellation is
+    * sent (but not when it is observed).
+    *
+    * Compared with
+    * [[monix.execution.CancelableFuture.cancel CancelableFuture.cancel()]]
+    * this action is pure.
+    *
+    * Example:
+    * {{{
+    *   Task.racePair(ta, tb).flatMap {
+    *     case Left((a, tb)) => tb.cancel.map(_ => a)
+    *     case Right((ta, b)) => ta.cancel.map(_ => b)
+    *   }
+    * }}}
     */
-  final def failed: Task[Throwable] =
-    transformWith(_ => Error(new NoSuchElementException("failed")), e => Now(e))
-
-  /** Creates a new Task by applying a function to the successful result
-    * of the source Task, and returns a task equivalent to the result
-    * of the function.
-    */
-  final def flatMap[B](f: A => Task[B]): Task[B] =
-    FlatMap(this, f)
-
-  /** Given a source Task that emits another Task, this function
-    * flattens the result, returning a Task equivalent to the emitted
-    * Task by the source.
-    */
-  final def flatten[B](implicit ev: A <:< Task[B]): Task[B] =
-    flatMap(a => a)
+  final def cancel: Task[Unit] =
+    TaskCancellation.signal(this)
 
   /** Returns a task that waits for the specified `timespan` before
     * executing and mirroring the result of the source.
@@ -694,72 +757,29 @@ sealed abstract class Task[+A] extends Serializable {
   final def executeWithOptions(f: Options => Options): Task[A] =
     TaskExecuteWithOptions(this, f)
 
-  /** Introduces an asynchronous boundary at the current stage in the
-    * asynchronous processing pipeline.
+  /** Returns a failed projection of this task.
     *
-    * Consider the following example:
-    *
-    * {{{
-    *   import monix.execution.Scheduler
-    *   val io = Scheduler.io()
-    *
-    *   val source = Task(1).executeOn(io).map(_ + 1)
-    * }}}
-    *
-    * That task is being forced to execute on the `io` scheduler,
-    * including the `map` transformation that follows after
-    * `executeOn`. But what if we want to jump with the execution
-    * run-loop on the default scheduler for the following
-    * transformations?
-    *
-    * Then we can do:
-    *
-    * {{{
-    *   source.asyncBoundary.map(_ + 2)
-    * }}}
-    *
-    * In this sample, whatever gets evaluated by the `source` will
-    * happen on the `io` scheduler, however the `asyncBoundary` call
-    * will make all subsequent operations to happen on the default
-    * scheduler.
+    * The failed projection is a `Task` holding a value of type `Throwable`,
+    * emitting the error yielded by the source, in case the source fails,
+    * otherwise if the source succeeds the result will fail with a
+    * `NoSuchElementException`.
     */
-  final def asyncBoundary: Task[A] =
-    this.flatMap(r => Task.shift.map(_ => r))
+  final def failed: Task[Throwable] =
+    transformWith(_ => Error(new NoSuchElementException("failed")), e => Now(e))
 
-  /** Introduces an asynchronous boundary at the current stage in the
-    * asynchronous processing pipeline, making processing to jump on
-    * the given [[monix.execution.Scheduler Scheduler]] (until the
-    * next async boundary).
-    *
-    * Consider the following example:
-    * {{{
-    *   import monix.execution.Scheduler
-    *   val io = Scheduler.io()
-    *
-    *   val source = Task(1).executeOn(io).map(_ + 1)
-    * }}}
-    *
-    * That task is being forced to execute on the `io` scheduler,
-    * including the `map` transformation that follows after
-    * `executeOn`. But what if we want to jump with the execution
-    * run-loop on another scheduler for the following transformations?
-    *
-    * Then we can do:
-    * {{{
-    *   import monix.execution.Scheduler.global
-    *
-    *   source.asyncBoundary(global).map(_ + 2)
-    * }}}
-    *
-    * In this sample, whatever gets evaluated by the `source` will
-    * happen on the `io` scheduler, however the `asyncBoundary` call
-    * will make all subsequent operations to happen on the specified
-    * `global` scheduler.
-    *
-    * @param s is the scheduler triggering the asynchronous boundary
+  /** Creates a new Task by applying a function to the successful result
+    * of the source Task, and returns a task equivalent to the result
+    * of the function.
     */
-  final def asyncBoundary(s: Scheduler): Task[A] =
-    this.flatMap(a => Task.shift(s).map(_ => a))
+  final def flatMap[B](f: A => Task[B]): Task[B] =
+    FlatMap(this, f)
+
+  /** Given a source Task that emits another Task, this function
+    * flattens the result, returning a Task equivalent to the emitted
+    * Task by the source.
+    */
+  final def flatten[B](implicit ev: A <:< Task[B]): Task[B] =
+    flatMap(a => a)
 
   /** Returns a new task that upon evaluation will execute the given
     * function for the generated element, transforming the source into
@@ -779,30 +799,6 @@ sealed abstract class Task[+A] extends Serializable {
     */
   final def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
     foreachL(f).runAsync(s)
-
-  /** Returns a new `Task` that applies the mapping function to
-    * the element emitted by the source.
-    *
-    * Can be used for specifying a (lazy) transformation to the result
-    * of the source.
-    *
-    * This equivalence with [[flatMap]] always holds:
-    *
-    * ```scala
-    * fa.map(f) <-> fa.flatMap(x => Task.pure(f(x)))
-    * ```
-    */
-  final def map[B](f: A => B): Task[B] =
-    this match {
-      case Map(source, g, index) =>
-        // Allowed to do a fixed number of map operations fused before
-        // resetting the counter in order to avoid stack overflows;
-        // See `monix.execution.internal.Platform` for details.
-        if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
-        else Map(this, f, 0)
-      case _ =>
-        Map(this, f, 0)
-    }
 
   /** Returns a new `Task` in which `f` is scheduled to be run on
     * completion. This would typically be used to release any
@@ -876,41 +872,29 @@ sealed abstract class Task[+A] extends Serializable {
   final def restartUntil(p: (A) => Boolean): Task[A] =
     this.flatMap(a => if (p(a)) now(a) else this.restartUntil(p))
 
-  /** Creates a new task that in case of error will retry executing the
-    * source again and again, until it succeeds.
+  /** Returns a new `Task` that applies the mapping function to
+    * the element emitted by the source.
     *
-    * In case of continuous failure the total number of executions
-    * will be `maxRetries + 1`.
-    */
-  final def onErrorRestart(maxRetries: Long): Task[A] =
-    this.onErrorHandleWith(ex =>
-      if (maxRetries > 0) this.onErrorRestart(maxRetries-1)
-      else raiseError(ex))
-
-  /** Creates a new task that in case of error will retry executing the
-    * source again and again, until it succeeds.
+    * Can be used for specifying a (lazy) transformation to the result
+    * of the source.
     *
-    * In case of continuous failure the total number of executions
-    * will be `maxRetries + 1`.
-    */
-  final def onErrorRestartIf(p: Throwable => Boolean): Task[A] =
-    this.onErrorHandleWith(ex => if (p(ex)) this.onErrorRestartIf(p) else raiseError(ex))
-
-  /** Creates a new task that will handle any matching throwable that
-    * this task might emit.
+    * This equivalence with [[flatMap]] always holds:
     *
-    * See [[onErrorRecover]] for the version that takes a partial function.
+    * ```scala
+    * fa.map(f) <-> fa.flatMap(x => Task.pure(f(x)))
+    * ```
     */
-  final def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
-    onErrorHandleWith(f.andThen(nowConstructor))
-
-  /** Creates a new task that on error will try to map the error
-    * to another value using the provided partial function.
-    *
-    * See [[onErrorHandle]] for the version that takes a total function.
-    */
-  final def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Task[U] =
-    onErrorRecoverWith(pf.andThen(nowConstructor))
+  final def map[B](f: A => B): Task[B] =
+    this match {
+      case Map(source, g, index) =>
+        // Allowed to do a fixed number of map operations fused before
+        // resetting the counter in order to avoid stack overflows;
+        // See `monix.execution.internal.Platform` for details.
+        if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
+        else Map(this, f, 0)
+      case _ =>
+        Map(this, f, 0)
+    }
 
   /** Memoizes (caches) the result of the source task and reuses it on
     * subsequent invocations of `runAsync`.
@@ -962,6 +946,83 @@ sealed abstract class Task[+A] extends Serializable {
         new MemoizeSuspend[A](() => other, cacheErrors = false)
     }
 
+  /** Creates a new task that in case of error will retry executing the
+    * source again and again, until it succeeds.
+    *
+    * In case of continuous failure the total number of executions
+    * will be `maxRetries + 1`.
+    */
+  final def onErrorRestart(maxRetries: Long): Task[A] =
+    this.onErrorHandleWith(ex =>
+      if (maxRetries > 0) this.onErrorRestart(maxRetries-1)
+      else raiseError(ex))
+
+  /** Creates a new task that in case of error will retry executing the
+    * source again and again, until it succeeds.
+    *
+    * In case of continuous failure the total number of executions
+    * will be `maxRetries + 1`.
+    */
+  final def onErrorRestartIf(p: Throwable => Boolean): Task[A] =
+    this.onErrorHandleWith(ex => if (p(ex)) this.onErrorRestartIf(p) else raiseError(ex))
+
+  /** Creates a new task that will handle any matching throwable that
+    * this task might emit.
+    *
+    * See [[onErrorRecover]] for the version that takes a partial function.
+    */
+  final def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
+    onErrorHandleWith(f.andThen(nowConstructor))
+
+  /** Creates a new task that on error will try to map the error
+    * to another value using the provided partial function.
+    *
+    * See [[onErrorHandle]] for the version that takes a total function.
+    */
+  final def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Task[U] =
+    onErrorRecoverWith(pf.andThen(nowConstructor))
+
+  /** Start execution of the source suspended in the `Task` context.
+    *
+    * This can be used for non-deterministic / concurrent execution.
+    * The following code is more or less equivalent with
+    * [[Task.parMap2]] (minus the behavior on error handling and
+    * cancellation):
+    *
+    * {{{
+    *   def par2[A, B](ta: Task[A], tb: Task[B]): Task[(A, B)] =
+    *     for {
+    *       fa <- ta.start
+    *       fb <- tb.start
+    *        a <- fa
+    *        b <- fb
+    *     } yield (a, b)
+    * }}}
+    *
+    * Note in such a case usage of [[Task.parMap2 parMap2]]
+    * (and [[Task.parMap3 parMap3]], etc.) is still recommended
+    * because of behavior on error and cancellation — consider that
+    * in the example above, if the first task finishes in error,
+    * the second task doesn't get cancelled.
+    *
+    * IMPORTANT — this operation does not fork, it does not introduce
+    * an asynchronous boundary, so in case the evaluation of a task
+    * is immediate, a fork might be needed to make evaluation happen
+    * on another thread or stack frame (if it doesn't do that already):
+    *
+    * {{{
+    *   Task.fork(myTask).start
+    * }}}
+    *
+    * Inspired by
+    * [[https://github.com/functional-streams-for-scala/fs2 FS2]],
+    * with the difference that this method does not fork
+    * automatically, being consistent with Monix's default
+    * behavior.
+    */
+  final def start: Task[Task[A]] =
+    TaskStart(this)
+
   /** Converts the source `Task` to a `cats.effect.IO` value. */
   final def toIO(implicit s: Scheduler): IO[A] =
     TaskConversions.toIO(this)(s)
@@ -987,14 +1048,23 @@ sealed abstract class Task[+A] extends Serializable {
     * source emitting any item.
     */
   final def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
-    Task.chooseFirstOf(this, Task.unit.delayExecution(after)).flatMap {
-      case Left(((a, futureB))) =>
-        futureB.cancel()
+    Task.race(this, Task.unit.delayExecution(after)).flatMap {
+      case Left(a) =>
         Task.now(a)
-      case Right((futureA, _)) =>
-        futureA.cancel()
+      case Right(_) =>
         backup
     }
+
+  /** Returns a string representation of this task meant for
+    * debugging purposes only.
+    */
+  override def toString: String = this match {
+    case Now(a) => s"Task.Now($a)"
+    case Error(e) => s"Task.Error($e)"
+    case _ =>
+      val n = this.getClass.getName.replaceFirst("^monix\\.eval\\.Task[$.]", "")
+      s"Task.$n$$${System.identityHashCode(this)}"
+  }
 
   /** Creates a new `Task` by applying the 'fa' function to the successful result of
     * this future, or the 'fe' function to the potential errors that might happen.
@@ -1020,6 +1090,12 @@ sealed abstract class Task[+A] extends Serializable {
   final def transformWith[R](fa: A => Task[R], fe: Throwable => Task[R]): Task[R] =
     FlatMap(this, StackFrame.fold(fa, fe))
 
+  /** Makes the source `Task` uninterruptible such that a [[cancel]]
+    * signal has no effect until it finishes.
+    */
+  final def uncancelable: Task[A] =
+    TaskCancellation.uncancelable(this)
+
   /** Zips the values of `this` and `that` task, and creates a new task
     * that will emit the tuple of their results.
     */
@@ -1031,14 +1107,6 @@ sealed abstract class Task[+A] extends Serializable {
     */
   final def zipMap[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
     Task.mapBoth(this, that)(f)
-
-  override def toString: String = this match {
-    case Now(a) => s"Task.Now($a)"
-    case Error(e) => s"Task.Error($e)"
-    case _ =>
-      val n = this.getClass.getName.replaceFirst("^monix\\.eval\\.Task[$.]", "")
-      s"Task.$n$$${System.identityHashCode(this)}"
-  }
 }
 
 /** Builders for [[Task]].
@@ -1354,21 +1422,79 @@ object Task extends TaskInstancesLevel1 {
   def fromFuture[A](f: Future[A]): Task[A] =
     TaskFromFuture.strict(f)
 
-  /** Creates a `Task` that upon execution will execute both given tasks
-    * (possibly in parallel in case the tasks are asynchronous) and will
-    * return the result of the task that manages to complete first,
-    * along with a cancelable future of the other task.
+  /** Run two `Task` actions concurrently, and return the first to
+    * finish, either in success or error. The loser of the race is
+    * cancelled.
     *
-    * If the first task that completes
+    * The two tasks are executed in parallel, the winner being the
+    * first that signals a result.
+    *
+    * As an example, this would be equivalent with [[Task.timeout]]:
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   val timeoutError = Task
+    *     .raiseError(new TimeoutException)
+    *     .delayExecution(5.seconds)
+    *
+    *   Task.race(myTask, timeoutError)
+    * }}}
+    *
+    * Similarly [[Task.timeoutTo]] is expressed in terms of `race`.
+    *
+    * Also see [[racePair]] for a version that does not cancel
+    * the loser automatically on successful results. And [[raceMany]]
+    * for a version that races a whole list of tasks.
     */
-  def chooseFirstOf[A,B](fa: Task[A], fb: Task[B]): Task[Either[(A, CancelableFuture[B]), (CancelableFuture[A], B)]] =
-    TaskChooseFirstOf(fa, fb)
+  def race[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
+    TaskRace(fa, fb)
 
-  /** Creates a `Task` that upon execution will return the result of the
-    * first completed task in the given list and then cancel the rest.
+  /** Runs multiple `Task` actions concurrently, returning the
+    * first to finish, either in success or error. All losers of the
+    * race get cancelled.
+    *
+    * The tasks get executed in parallel, the winner being the first
+    * that signals a result.
+    *
+    * {{{
+    *   val list: List[Task[Int]] = List(t1, t2, t3, ???)
+    *
+    *   val winner: Task[Int] = Task.raceMany(list)
+    * }}}
+    *
+    * See [[race]] or [[racePair]] for racing two tasks, for more
+    * control.
     */
-  def chooseFirstOfList[A](tasks: TraversableOnce[Task[A]]): Task[A] =
-    TaskChooseFirstOfList(tasks)
+  def raceMany[A](tasks: TraversableOnce[Task[A]]): Task[A] =
+    TaskRaceList(tasks)
+
+  /** Run two `Task` actions concurrently, and returns a pair
+    * containing both the winner's successful value and the loser
+    * represented as a still-unfinished task.
+    *
+    * If the first task completes in error, then the result will
+    * complete in error, the other task being cancelled.
+    *
+    * On usage the user has the option of cancelling the losing task,
+    * this being equivalent with plain [[race]]:
+    *
+    * {{{
+    *   val ta: Task[A] = ???
+    *   val tb: Task[B] = ???
+    *
+    *   Task.racePair(ta, tb).flatMap {
+    *     case Left((a, taskB)) =>
+    *       taskB.cancel.map(_ => a)
+    *     case Right((taskA, b)) =>
+    *       taskA.cancel.map(_ => b)
+    *   }
+    * }}}
+    *
+    * See [[race]] for a simpler version that cancels the loser
+    * immediately or [[raceMany]] that races collections of tasks.
+    */
+  def racePair[A,B](fa: Task[A], fb: Task[B]): Task[Either[(A, Task[B]), (Task[A], B)]] =
+    TaskRacePair(fa, fb)
 
   /** Asynchronous boundary described as an effectful `Task` that
     * can be used in `flatMap` chains to "shift" the continuation
@@ -2204,7 +2330,7 @@ object Task extends TaskInstancesLevel1 {
     * and `Task.fork`.
     */
   def unsafeStartAsync[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    TaskRunLoop.restartAsync(source, context, cb, null, null)
+    TaskRunLoop.restartAsync(source, context, cb, null, null, null)
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
     * [[monix.execution.schedulers.TrampolinedRunnable trampolined asynchronous boundary]],
@@ -2219,7 +2345,7 @@ object Task extends TaskInstancesLevel1 {
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     context.scheduler.execute(new TrampolinedRunnable {
       def run(): Unit =
-        TaskRunLoop.startFull(source, context, cb, null, null, context.frameRef())
+        TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
     })
 
   /** Unsafe utility - starts the execution of a Task, by providing
@@ -2231,7 +2357,7 @@ object Task extends TaskInstancesLevel1 {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    TaskRunLoop.startFull(source, context, cb, null, null, context.frameRef())
+    TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
 
   private[this] final val neverRef: Async[Nothing] =
     Async((_,_) => ())

@@ -25,7 +25,7 @@ import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
-import monix.execution.cancelables.{BooleanCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
 import monix.execution.exceptions.UpstreamTimeoutException
 import monix.execution.misc.NonFatal
 import monix.reactive.Observable.Operator
@@ -2623,7 +2623,7 @@ abstract class Observable[+A] extends Serializable { self =>
   final def toReactivePublisher[B >: A](implicit s: Scheduler): RPublisher[B] =
     new RPublisher[B] {
       def subscribe(subscriber: RSubscriber[_ >: B]): Unit = {
-        val subscription = SingleAssignmentCancelable()
+        val subscription = SingleAssignCancelable()
         subscription := unsafeSubscribeFn(SafeSubscriber(
           Subscriber.fromReactiveSubscriber(subscriber, subscription)
         ))

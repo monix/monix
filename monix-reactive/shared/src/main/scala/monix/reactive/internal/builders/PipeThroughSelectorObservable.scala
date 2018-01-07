@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.{Ack, Cancelable}
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.misc.NonFatal
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Pipe}
@@ -32,7 +32,7 @@ private[reactive] final class PipeThroughSelectorObservable[A,B,C]
   def unsafeSubscribeFn(out: Subscriber[C]): Cancelable = {
     import out.scheduler
     var streamErrors = true
-    val upstream = SingleAssignmentCancelable()
+    val upstream = SingleAssignCancelable()
 
     try {
       val connectable = source.multicast(pipe)

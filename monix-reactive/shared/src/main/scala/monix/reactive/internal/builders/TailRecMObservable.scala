@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.AtomicBoolean
-import monix.execution.cancelables.{SingleAssignmentCancelable, StackedCancelable}
+import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
 import monix.execution.misc.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.{Ack, Cancelable}
@@ -149,7 +149,7 @@ private[monix] final class TailRecMObservable[A,B](seed: A, f: A => Observable[E
         }
       }
 
-      val c = SingleAssignmentCancelable()
+      val c = SingleAssignCancelable()
       conn.push(c)
       c := next.unsafeSubscribeFn(loopSubscriber)
     } catch {

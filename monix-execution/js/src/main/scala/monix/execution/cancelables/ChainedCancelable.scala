@@ -25,7 +25,7 @@ import monix.execution.Cancelable.IsDummy
   * be "chained" to another `ChainedCancelable`, forwarding all
   * operations to it.
   *
-  * For most purposes it works like a [[MultiAssignmentCancelable]]:
+  * For most purposes it works like a [[OrderedCancelable]]:
   *
   * {{{
   *   val s = ChainedCancelable()
@@ -78,8 +78,8 @@ import monix.execution.Cancelable.IsDummy
   * [[monix.execution.CancelableFuture CancelableFuture]].
   *
   * If unsure about what to use, then you probably don't need
-  * [[ChainedCancelable]]. Use [[MultiAssignmentCancelable]] or
-  * [[SingleAssignmentCancelable]] for most purposes.
+  * [[ChainedCancelable]]. Use [[OrderedCancelable]] or
+  * [[SingleAssignCancelable]] for most purposes.
   */
 final class ChainedCancelable private (private var stateRef: AnyRef)
   extends AssignableCancelable {

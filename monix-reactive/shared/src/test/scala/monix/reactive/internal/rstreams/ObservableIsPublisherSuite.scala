@@ -19,7 +19,7 @@ package monix.reactive.internal.rstreams
 
 import minitest.TestSuite
 import monix.execution.Ack.Continue
-import monix.execution.rstreams.SingleAssignmentSubscription
+import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.subjects.PublishSubject
@@ -72,7 +72,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
   test("should work with stop-and-wait back-pressure, test 2") { implicit s =>
     val out = PublishSubject[Long]()
 
-    val subscription = SingleAssignmentSubscription()
+    val subscription = SingleAssignSubscription()
     var wasCompleted = false
     var received = 0L
     var streamed = 0L

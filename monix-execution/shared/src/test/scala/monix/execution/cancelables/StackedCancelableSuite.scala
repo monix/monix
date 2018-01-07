@@ -164,4 +164,58 @@ object StackedCancelableSuite extends SimpleTestSuite {
     assert(sc.isCanceled, "sc.isCanceled")
     assert(c.isCanceled, "c.isCanceled")
   }
+
+  test("alreadyCanceled returns same reference") {
+    val ref1 = StackedCancelable.alreadyCanceled
+    val ref2 = StackedCancelable.alreadyCanceled
+    assertEquals(ref1, ref2)
+  }
+
+  test("alreadyCanceled reference is already cancelled") {
+    val ref = StackedCancelable.alreadyCanceled
+    assert(ref.isCanceled, "ref.isCanceled")
+    ref.cancel()
+    assert(ref.isCanceled, "ref.isCanceled")
+  }
+
+  test("alreadyCanceled.pop") {
+    val ref = StackedCancelable.alreadyCanceled
+    assertEquals(ref.pop(), Cancelable.empty)
+  }
+
+  test("alreadyCanceled.push cancels the given cancelable") {
+    val ref = StackedCancelable.alreadyCanceled
+    val c = BooleanCancelable()
+    ref.push(c)
+
+    assert(c.isCanceled, "c.isCanceled")
+  }
+
+  test("alreadyCanceled.popAndPush cancels the given cancelable") {
+    val ref = StackedCancelable.alreadyCanceled
+    val c = BooleanCancelable()
+
+    assertEquals(ref.popAndPush(c), Cancelable.empty)
+    assert(c.isCanceled, "c.isCanceled")
+  }
+
+  test("alreadyCanceled.pushList cancels the given list") {
+    val ref = StackedCancelable.alreadyCanceled
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+    ref.pushList(List(c1, c2))
+
+    assert(c1.isCanceled, "c1.isCanceled")
+    assert(c2.isCanceled, "c2.isCanceled")
+  }
+
+  test("alreadyCanceled.popAndPushList cancels the given list") {
+    val ref = StackedCancelable.alreadyCanceled
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+
+    assertEquals(ref.popAndPushList(List(c1, c2)), Cancelable.empty)
+    assert(c1.isCanceled, "c1.isCanceled")
+    assert(c2.isCanceled, "c2.isCanceled")
+  }
 }

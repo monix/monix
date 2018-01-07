@@ -15,25 +15,18 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.operators
+package monix.execution
 
-import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Cancelable, Scheduler}
-import monix.reactive.Observable
-import monix.reactive.observers.Subscriber
+/** Package exposing utilities for working with the
+  * [[http://www.reactive-streams.org/ Reactive Streams]]
+  * specification.
+  */
+package object rstreams {
+  /** DEPRECATED — renamed to [[SingleAssignSubscription]]. */
+  @deprecated("Renamed to SingleAssignSubscription", "3.0.0")
+  type SingleAssignmentSubscription = SingleAssignSubscription
 
-private[reactive] final
-class SubscribeOnObservable[+A](source: Observable[A], s: Scheduler)
-  extends Observable[A] {
-
-  def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val subscription = SingleAssignCancelable()
-
-    s.execute(new Runnable {
-      def run(): Unit =
-        subscription := source.unsafeSubscribeFn(out)
-    })
-
-    subscription
-  }
+  /** DEPRECATED — renamed to [[SingleAssignSubscription]]. */
+  @deprecated("Renamed to SingleAssignSubscription", "3.0.0")
+  val SingleAssignmentSubscription = SingleAssignSubscription
 }

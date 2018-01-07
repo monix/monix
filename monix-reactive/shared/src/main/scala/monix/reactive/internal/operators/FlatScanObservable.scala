@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
 import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.execution.exceptions.CompositeException
@@ -46,7 +46,7 @@ class FlatScanObservable[A,R](
   }
 
   def subscribeWithState(out: Subscriber[R], initial: R): Cancelable = {
-    val conn = MultiAssignmentCancelable()
+    val conn = MultiAssignCancelable()
     val composite = CompositeCancelable(conn)
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] { self =>
