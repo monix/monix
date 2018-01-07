@@ -39,13 +39,10 @@ private[eval] object TaskStart {
           // It needs its own context, its own cancelable
           val ctx2 = Task.Context(ctx.scheduler, ctx.options)
           val task = TaskFromFuture.build(p.future, ctx2.connection)
-          // Signal the created Task reference; this comes before the
-          // execution because it will make our main run-loop to
-          // eventually back-pressure for its result (when the result
-          // is needed or when the first async boundary is hit)
-          cb.onSuccess(task)
           // Starting actual execution of our newly created task
           Task.unsafeStartNow(fa, ctx2, Callback.fromPromise(p))
+          // Signal the created Task reference
+          cb.onSuccess(task)
         }
       })
     }
