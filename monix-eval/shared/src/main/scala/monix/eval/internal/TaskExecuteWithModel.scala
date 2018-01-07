@@ -44,9 +44,8 @@ private[eval] object TaskExecuteWithModel {
           case AlwaysAsyncExecution | SynchronousExecution =>
             em.nextFrameIndex(0)
         }
-        TaskRunLoop.startFull[A](self, context2, cb, null, null, nextIndex)
-      }
-      catch {
+        TaskRunLoop.startFull[A](self, context2, cb, null, null, null, nextIndex)
+      } catch {
         case ex if NonFatal(ex) =>
           if (streamErrors) cb.onError(ex)
           else context.scheduler.reportFailure(ex)

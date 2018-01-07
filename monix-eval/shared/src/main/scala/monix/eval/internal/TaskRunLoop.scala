@@ -25,6 +25,7 @@ import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.{Local, NonFatal}
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -43,47 +44,10 @@ private[eval] object TaskRunLoop {
     source: Task[A],
     context: Context,
     cb: Callback[A],
+    rcb: RestartCallback,
     bFirst: Bind,
     bRest: CallStack,
     frameIndex: FrameIndex): Unit = {
-
-    final class RestartCallback(context: Context, callback: Callback[Any]) extends Callback[Any] {
-      private[this] var canCall = false
-      private[this] var bFirst: Bind = _
-      private[this] var bRest: CallStack = _
-      private[this] val runLoopIndex = context.frameRef
-      private[this] val withLocal = context.options.localContextPropagation
-      private[this] var savedLocals: Local.Context = _
-
-      def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
-        canCall = true
-        this.bFirst = bindCurrent
-        this.bRest = bindRest
-        if (withLocal)
-          savedLocals = Local.getContext()
-      }
-
-      def onSuccess(value: Any): Unit =
-        if (canCall) {
-          canCall = false
-          Local.bind(savedLocals) {
-            loop(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
-          }
-        }
-
-      def onError(ex: Throwable): Unit = {
-        if (canCall) {
-          canCall = false
-          Local.bind(savedLocals) {
-            loop(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())
-          }
-        } else {
-          // $COVERAGE-OFF$
-          context.scheduler.reportFailure(ex)
-          // $COVERAGE-ON$
-        }
-      }
-    }
 
     def executeOnFinish(
       context: Context,
@@ -113,125 +77,111 @@ private[eval] object TaskRunLoop {
       }
     }
 
-    def loop(
-      start: Current,
-      context: Context,
-      cb: Callback[Any],
-      rcb: RestartCallback,
-      bFirstInit: Bind,
-      bRestInit: CallStack,
-      frameIndexInit: FrameIndex): Unit = {
+    val cba = cb.asInstanceOf[Callback[Any]]
+    val em = context.executionModel
+    var current: Current = source
+    var bFirstRef = bFirst
+    var bRestRef = bRest
+    // Values from Now, Always and Once are unboxed in this var, for code reuse
+    var hasUnboxed: Boolean = false
+    var unboxed: AnyRef = null
+    var currentIndex = frameIndex
 
-      val em = context.executionModel
-      var current = start
-      var bFirst = bFirstInit
-      var bRest = bRestInit
-      // Values from Now, Always and Once are unboxed in this var, for code reuse
-      var hasUnboxed: Boolean = false
-      var unboxed: AnyRef = null
-      var frameIndex = frameIndexInit
+    do {
+      if (currentIndex != 0) {
+        current match {
+          case FlatMap(fa, bindNext) =>
+            if (bFirstRef ne null) {
+              if (bRestRef eq null) bRestRef = new ArrayStack()
+              bRestRef.push(bFirstRef)
+            }
+            bFirstRef = bindNext.asInstanceOf[Bind]
+            current = fa
 
-      do {
-        if (frameIndex != 0) {
-          current match {
-            case FlatMap(fa, bindNext) =>
-              if (bFirst ne null) {
-                if (bRest eq null) bRest = new ArrayStack()
-                bRest.push(bFirst)
-              }
-              bFirst = bindNext.asInstanceOf[Bind]
-              current = fa
+          case Now(value) =>
+            unboxed = value.asInstanceOf[AnyRef]
+            hasUnboxed = true
 
-            case Now(value) =>
-              unboxed = value.asInstanceOf[AnyRef]
+          case Eval(thunk) =>
+            try {
+              unboxed = thunk().asInstanceOf[AnyRef]
               hasUnboxed = true
+              current = null
+            } catch { case e if NonFatal(e) =>
+              current = Error(e)
+            }
 
-            case Eval(thunk) =>
-              try {
-                unboxed = thunk().asInstanceOf[AnyRef]
-                hasUnboxed = true
-                current = null
-              } catch { case e if NonFatal(e) =>
-                current = Error(e)
-              }
+          case bindNext @ Map(fa, _, _) =>
+            if (bFirstRef ne null) {
+              if (bRestRef eq null) bRestRef = new ArrayStack()
+              bRestRef.push(bFirstRef)
+            }
+            bFirstRef = bindNext.asInstanceOf[Bind]
+            current = fa
 
-            case bindNext @ Map(fa, _, _) =>
-              if (bFirst ne null) {
-                if (bRest eq null) bRest = new ArrayStack()
-                bRest.push(bFirst)
-              }
-              bFirst = bindNext.asInstanceOf[Bind]
-              current = fa
+          case Suspend(thunk) =>
+            // Try/catch described as statement, otherwise ObjectRef happens ;-)
+            try { current = thunk() }
+            catch { case ex if NonFatal(ex) => current = Error(ex) }
 
-            case Suspend(thunk) =>
-              // Try/catch described as statement, otherwise ObjectRef happens ;-)
-              try { current = thunk() }
-              catch { case ex if NonFatal(ex) => current = Error(ex) }
-
-            case Error(error) =>
-              findErrorHandler(bFirst, bRest) match {
-                case null =>
-                  cb.onError(error)
-                  return
-                case bind =>
-                  // Try/catch described as statement, otherwise ObjectRef happens ;-)
-                  try { current = bind.recover(error) }
-                  catch { case e if NonFatal(e) => current = Error(e) }
-                  frameIndex = em.nextFrameIndex(frameIndex)
-                  bFirst = null
-              }
-
-            case Async(onFinish) =>
-              executeOnFinish(context, cb, rcb, bFirst, bRest, onFinish, frameIndex)
-              return
-
-            case ref: MemoizeSuspend[_] =>
-              // Already processed?
-              ref.value match {
-                case Some(materialized) =>
-                  materialized match {
-                    case Success(value) =>
-                      unboxed = value.asInstanceOf[AnyRef]
-                      hasUnboxed = true
-                      current = null
-                    case Failure(error) =>
-                      current = Error(error)
-                  }
-                case None =>
-                  val anyRef = ref.asInstanceOf[MemoizeSuspend[Any]]
-                  val isSuccess = startMemoization(anyRef, context, cb, bFirst, bRest, frameIndex)
-                  if (isSuccess) return
-                  current = ref
-              }
-          }
-
-          if (hasUnboxed) {
-            popNextBind(bFirst, bRest) match {
+          case Error(error) =>
+            findErrorHandler(bFirstRef, bRestRef) match {
               case null =>
-                cb.onSuccess(unboxed)
+                cba.onError(error)
                 return
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
-                try { current = bind(unboxed) }
-                catch { case ex if NonFatal(ex) => current = Error(ex) }
-                frameIndex = em.nextFrameIndex(frameIndex)
-                hasUnboxed = false
-                unboxed = null
-                bFirst = null
+                try { current = bind.recover(error) }
+                catch { case e if NonFatal(e) => current = Error(e) }
+                currentIndex = em.nextFrameIndex(currentIndex)
+                bFirstRef = null
             }
-          }
-        } else {
-          // Force async boundary
-          restartAsync(current, context, cb, bFirst, bRest)
-          return
-        }
-      } while (true)
-    }
 
-    // Can happen to receive a `RestartCallback` (e.g. from Task.fork),
-    // in which case we should unwrap it
-    val cba = cb.asInstanceOf[Callback[Any]]
-    loop(source, context, cba, null, bFirst, bRest, frameIndex)
+          case Async(onFinish) =>
+            executeOnFinish(context, cba, rcb, bFirstRef, bRestRef, onFinish, currentIndex)
+            return
+
+          case ref: MemoizeSuspend[_] =>
+            // Already processed?
+            ref.value match {
+              case Some(materialized) =>
+                materialized match {
+                  case Success(value) =>
+                    unboxed = value.asInstanceOf[AnyRef]
+                    hasUnboxed = true
+                    current = null
+                  case Failure(error) =>
+                    current = Error(error)
+                }
+              case None =>
+                val anyRef = ref.asInstanceOf[MemoizeSuspend[Any]]
+                val isSuccess = startMemoization(anyRef, context, cba, rcb, bFirstRef, bRestRef, currentIndex)
+                if (isSuccess) return
+                current = ref
+            }
+        }
+
+        if (hasUnboxed) {
+          popNextBind(bFirstRef, bRestRef) match {
+            case null =>
+              cba.onSuccess(unboxed)
+              return
+            case bind =>
+              // Try/catch described as statement, otherwise ObjectRef happens ;-)
+              try { current = bind(unboxed) }
+              catch { case ex if NonFatal(ex) => current = Error(ex) }
+              currentIndex = em.nextFrameIndex(currentIndex)
+              hasUnboxed = false
+              unboxed = null
+              bFirstRef = null
+          }
+        }
+      } else {
+        // Force async boundary
+        restartAsync(current, context, cba, rcb, bFirstRef, bRestRef)
+        return
+      }
+    } while (true)
   }
 
   /** Internal utility, for forcing an asynchronous boundary in the
@@ -241,6 +191,7 @@ private[eval] object TaskRunLoop {
     source: Task[A],
     context: Context,
     cb: Callback[A],
+    rcb: RestartCallback,
     bindCurrent: Bind,
     bindRest: CallStack): Unit = {
 
@@ -255,7 +206,7 @@ private[eval] object TaskRunLoop {
         // Transporting the current context if localContextPropagation == true.
         Local.bind(savedLocals) {
           // Using frameIndex = 1 to ensure at least one cycle gets executed
-          startFull(source, context, cb, bindCurrent, bindRest, 1)
+          startFull(source, context, cb, rcb, bindCurrent, bindRest, 1)
         }
       }
     }
@@ -525,9 +476,9 @@ private[eval] object TaskRunLoop {
 
     val context = Context(scheduler, opts)
     if (forceAsync)
-      restartAsync(source, context, cb, bindCurrent, bindRest)
+      restartAsync(source, context, cb, null, bindCurrent, bindRest)
     else
-      startFull(source, context, cb, bindCurrent, bindRest, nextFrame)
+      startFull(source, context, cb, null, bindCurrent, bindRest, nextFrame)
 
     context.connection
   }
@@ -547,9 +498,9 @@ private[eval] object TaskRunLoop {
     val fa = source.asInstanceOf[Task[A]]
     val context = Context(scheduler, opts)
     if (forceAsync)
-      restartAsync(fa, context, cb, bindCurrent, bindRest)
+      restartAsync(fa, context, cb, null, bindCurrent, bindRest)
     else
-      startFull(fa, context, cb, bindCurrent, bindRest, nextFrame)
+      startFull(fa, context, cb, null, bindCurrent, bindRest, nextFrame)
 
     CancelableFuture(p.future, context.connection)
   }
@@ -559,6 +510,7 @@ private[eval] object TaskRunLoop {
     self: MemoizeSuspend[A],
     context: Context,
     cb: Callback[A],
+    rcb: RestartCallback,
     bindCurrent: Bind,
     bindRest: CallStack,
     nextFrame: FrameIndex): Boolean = {
@@ -601,26 +553,26 @@ private[eval] object TaskRunLoop {
 
         if (!self.state.compareAndSet(null, (p, context.connection))) {
           // $COVERAGE-OFF$
-          startMemoization(self, context, cb, bindCurrent, bindRest, nextFrame) // retry
+          startMemoization(self, context, cb, rcb, bindCurrent, bindRest, nextFrame) // retry
           // $COVERAGE-ON$
         } else {
           val underlying = try self.thunk() catch { case ex if NonFatal(ex) => Error(ex) }
           val callback = new Callback[A] {
             def onError(ex: Throwable): Unit = {
               cacheValue(self.state, Failure(ex))
-              restartAsync(Error(ex), context, cb, bindCurrent, bindRest)
+              restartAsync(Error(ex), context, cb, rcb, bindCurrent, bindRest)
             }
 
             def onSuccess(value: A): Unit = {
               cacheValue(self.state, Success(value))
-              restartAsync(Now(value), context, cb, bindCurrent, bindRest)
+              restartAsync(Now(value), context, cb, rcb, bindCurrent, bindRest)
             }
           }
 
           // Asynchronous boundary to prevent stack-overflows!
           s.execute(new TrampolinedRunnable {
             def run(): Unit = {
-              startFull(underlying, context, callback, null, null, nextFrame)
+              startFull(underlying, context, callback, null, null, null, nextFrame)
             }
           })
           true
@@ -632,7 +584,7 @@ private[eval] object TaskRunLoop {
         p.asInstanceOf[Promise[A]].future.onComplete { r =>
           context.connection.pop()
           context.frameRef.reset()
-          startFull(fromTry(r), context, cb, bindCurrent, bindRest, 1)
+          startFull(fromTry(r), context, cb, rcb, bindCurrent, bindRest, 1)
         }
         true
 
@@ -681,7 +633,44 @@ private[eval] object TaskRunLoop {
     // $COVERAGE-ON$
   }
 
-  // We always start from 1
-  final def frameStart(em: ExecutionModel): FrameIndex =
+  private def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
+
+  final class RestartCallback(context: Context, callback: Callback[Any]) extends Callback[Any] {
+    private[this] var canCall = false
+    private[this] var bFirst: Bind = _
+    private[this] var bRest: CallStack = _
+    private[this] val runLoopIndex = context.frameRef
+    private[this] val withLocal = context.options.localContextPropagation
+    private[this] var savedLocals: Local.Context = _
+
+    def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
+      canCall = true
+      this.bFirst = bindCurrent
+      this.bRest = bindRest
+      if (withLocal)
+        savedLocals = Local.getContext()
+    }
+
+    def onSuccess(value: Any): Unit =
+      if (canCall) {
+        canCall = false
+        Local.bind(savedLocals) {
+          startFull(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
+        }
+      }
+
+    def onError(ex: Throwable): Unit = {
+      if (canCall) {
+        canCall = false
+        Local.bind(savedLocals) {
+          startFull(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())
+        }
+      } else {
+        // $COVERAGE-OFF$
+        context.scheduler.reportFailure(ex)
+        // $COVERAGE-ON$
+      }
+    }
+  }
 }
