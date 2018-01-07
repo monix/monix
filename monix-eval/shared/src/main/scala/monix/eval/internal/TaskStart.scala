@@ -28,19 +28,23 @@ private[eval] object TaskStart {
     */
   def apply[A](fa: Task[A]): Task[Task[A]] =
     Task.Async { (ctx, cb) =>
-      implicit val sc = ctx.scheduler
-      // Standard Scala promise gets used for storing or waiting
-      // for the final result
-      val p = Promise[A]()
-      // Signaling the result as a Task
-      val ctx2 = Task.Context(ctx.scheduler, ctx.options)
-      val task = TaskFromFuture.build(p.future, ctx2.connection)
       // Light async boundary to avoid stack overflows
       ctx.scheduler.execute(new TrampolinedRunnable {
         def run(): Unit = {
-          // Signal the created Task reference
+          implicit val sc = ctx.scheduler
+          // Standard Scala promise gets used for storing or waiting
+          // for the final result
+          val p = Promise[A]()
+          // Building the Task to signal, linked to the above Promise.
+          // It needs its own context, its own cancelable
+          val ctx2 = Task.Context(ctx.scheduler, ctx.options)
+          val task = TaskFromFuture.build(p.future, ctx2.connection)
+          // Signal the created Task reference; this comes before the
+          // execution because it will make our main run-loop to
+          // eventually back-pressure for its result (when the result
+          // is needed or when the first async boundary is hit)
           cb.onSuccess(task)
-          // Starting actual execution
+          // Starting actual execution of our newly created task
           Task.unsafeStartNow(fa, ctx2, Callback.fromPromise(p))
         }
       })
