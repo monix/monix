@@ -479,6 +479,14 @@ sealed abstract class Task[+A] extends Serializable {
     * Compared with
     * [[monix.execution.CancelableFuture.cancel CancelableFuture.cancel()]]
     * this action is pure.
+    *
+    * Example:
+    * {{{
+    *   Task.racePair(ta, tb).flatMap {
+    *     case Left((a, tb)) => tb.cancel.map(_ => a)
+    *     case Right((ta, b)) => ta.cancel.map(_ => b)
+    *   }
+    * }}}
     */
   final def cancel: Task[Unit] =
     TaskCancellation.signal(this)
@@ -1085,7 +1093,7 @@ sealed abstract class Task[+A] extends Serializable {
   /** Makes the source `Task` uninterruptible such that a [[cancel]]
     * signal has no effect until it finishes.
     */
-  def uncancelable: Task[A] =
+  final def uncancelable: Task[A] =
     TaskCancellation.uncancelable(this)
 
   /** Zips the values of `this` and `that` task, and creates a new task
