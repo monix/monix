@@ -20,10 +20,10 @@ package monix.execution.cancelables
 import minitest.SimpleTestSuite
 import monix.execution.Cancelable
 
-object SingleAssignmentCancelableSuite extends SimpleTestSuite {
+object SingleAssignCancelableSuite extends SimpleTestSuite {
   test("cancel()") {
     var effect = 0
-    val s = SingleAssignmentCancelable()
+    val s = SingleAssignCancelable()
     val b = BooleanCancelable { () => effect += 1 }
     s := b
 
@@ -41,7 +41,7 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
     val extra = BooleanCancelable { () => effect += 1 }
     val b = BooleanCancelable { () => effect += 2 }
 
-    val s = SingleAssignmentCancelable.plusOne(extra)
+    val s = SingleAssignCancelable.plusOne(extra)
     s := b
 
     s.cancel()
@@ -55,7 +55,7 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
   }
 
   test("cancel on single assignment") {
-    val s = SingleAssignmentCancelable()
+    val s = SingleAssignCancelable()
     s.cancel()
     assert(s.isCanceled)
 
@@ -73,7 +73,7 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
   test("cancel on single assignment (plus one)") {
     var effect = 0
     val extra = BooleanCancelable { () => effect += 1 }
-    val s = SingleAssignmentCancelable.plusOne(extra)
+    val s = SingleAssignCancelable.plusOne(extra)
 
     s.cancel()
     assert(s.isCanceled, "s.isCanceled")
@@ -91,7 +91,7 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
   }
 
   test("throw exception on multi assignment") {
-    val s = SingleAssignmentCancelable()
+    val s = SingleAssignCancelable()
     val b1 = Cancelable()
     s := b1
 
@@ -102,7 +102,7 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
   }
 
   test("throw exception on multi assignment when canceled") {
-    val s = SingleAssignmentCancelable()
+    val s = SingleAssignCancelable()
     s.cancel()
 
     val b1 = Cancelable()

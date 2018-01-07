@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.cancelables.OrderedCancelable
 import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
 import monix.execution.{Cancelable, Scheduler}
 // Prevents conflict with the deprecated symbol
@@ -36,7 +36,7 @@ trait ReferenceScheduler extends Scheduler {
     System.currentTimeMillis()
 
   override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    val sub = MultiAssignmentCancelable()
+    val sub = OrderedCancelable()
 
     def loop(initialDelay: Long, delay: Long): Unit = {
       if (!sub.isCanceled)
@@ -53,7 +53,7 @@ trait ReferenceScheduler extends Scheduler {
   }
 
   override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    val sub = MultiAssignmentCancelable()
+    val sub = OrderedCancelable()
 
     def loop(initialDelayMs: Long, periodMs: Long): Unit =
       if (!sub.isCanceled) {

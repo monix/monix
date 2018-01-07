@@ -68,7 +68,7 @@ private[tail] object IterantDropWhile {
         case halt @ Halt(_) =>
           halt
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           val stop = source.earlyStop
           Suspend(stop.map(_ => Halt(Some(ex))), stop)
       }

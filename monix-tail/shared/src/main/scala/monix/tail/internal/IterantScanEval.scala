@@ -73,7 +73,7 @@ private[tail] object IterantScanEval {
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, S]]
       } catch {
-        case NonFatal(ex) => signalError(source, ex)
+        case ex if NonFatal(ex) => signalError(source, ex)
       }
 
     // Suspending execution in order to not trigger

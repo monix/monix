@@ -21,7 +21,7 @@ import monix.eval.Callback
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.atomic.{Atomic, PaddingStrategy}
-import monix.execution.cancelables.{AssignableCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{AssignableCancelable, SingleAssignCancelable}
 import monix.execution.misc.NonFatal
 import monix.reactive.Consumer
 import monix.reactive.internal.consumers.LoadBalanceConsumer.IndexedSubscriber
@@ -48,7 +48,7 @@ final class LoadBalanceConsumer[-In, R]
   def createSubscriber(onFinish: Callback[List[R]], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     // Assignable cancelable returned, can be used to cancel everything
     // since it will be assigned the stream subscription
-    val mainCancelable = SingleAssignmentCancelable()
+    val mainCancelable = SingleAssignCancelable()
 
     val balanced = new Subscriber[In] { self =>
       implicit val scheduler = s
@@ -229,7 +229,7 @@ final class LoadBalanceConsumer[-In, R]
             case Failure(ex) =>
               interruptAll(ex)
           } catch {
-            case NonFatal(ex) =>
+            case ex if NonFatal(ex) =>
               interruptAll(ex)
           }
         }
@@ -256,7 +256,7 @@ final class LoadBalanceConsumer[-In, R]
                 if (ex == null) subscriber.out.onComplete()
                 else subscriber.out.onError(ex)
               } catch {
-                case NonFatal(err) => s.reportFailure(err)
+                case err if NonFatal(err) => s.reportFailure(err)
               }
 
               if (activeCount > 0) loop(activeCount-1)

@@ -7,10 +7,10 @@ matrix:
   include:
     # Scala 2.11
     - jdk: oraclejdk8
-      scala: 2.11.11
+      scala: 2.11.12
       env: COMMAND=ci-jvm COVERAGE=coverage PUBLISH=
     - jdk: oraclejdk8
-      scala: 2.11.11
+      scala: 2.11.12
       env: COMMAND=ci-js COVERAGE= PUBLISH=
     # Scala 2.12
     - jdk: oraclejdk8

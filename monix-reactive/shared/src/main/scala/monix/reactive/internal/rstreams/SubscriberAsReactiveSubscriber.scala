@@ -19,7 +19,7 @@ package monix.reactive.internal.rstreams
 
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.rstreams.SingleAssignmentSubscription
+import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -109,7 +109,7 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
 
-  private[this] val subscription = SingleAssignmentSubscription()
+  private[this] val subscription = SingleAssignSubscription()
   private[this] val downstream: Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = target.scheduler

@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import scala.concurrent.duration.FiniteDuration
 
 private[eval] object TaskDelayExecution {
@@ -29,7 +29,7 @@ private[eval] object TaskDelayExecution {
     Task.unsafeCreate { (context, cb) =>
       implicit val s = context.scheduler
       val conn = context.connection
-      val c = SingleAssignmentCancelable()
+      val c = SingleAssignCancelable()
       conn push c
 
       c := s.scheduleOnce(timespan.length, timespan.unit, new Runnable {

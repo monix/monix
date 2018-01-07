@@ -32,7 +32,7 @@ private[reactive] final class UnsafeCreateObservable[+A](f: Subscriber[A] => Can
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable =
     try f(new SafeSubscriber[A](out)) catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         out.scheduler.reportFailure(ex)
         Cancelable.empty
     }
@@ -51,7 +51,7 @@ private[reactive] object UnsafeCreateObservable {
     def onNext(elem: A): Future[Ack] =
       if (isDone) Stop else {
         val ack = try underlying.onNext(elem) catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             self.onError(ex)
             Stop
         }

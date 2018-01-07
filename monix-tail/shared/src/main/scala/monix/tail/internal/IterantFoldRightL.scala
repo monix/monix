@@ -55,7 +55,7 @@ private[tail] object IterantFoldRightL {
           }
 
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           self.earlyStop.flatMap(_ => F.raiseError(e))
       }
     }

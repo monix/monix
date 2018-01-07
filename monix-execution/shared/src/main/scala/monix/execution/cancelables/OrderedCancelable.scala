@@ -21,12 +21,13 @@ import monix.execution.Cancelable
 import monix.execution.atomic.{PaddingStrategy, AtomicAny}
 import scala.annotation.tailrec
 
-/** Represents a [[monix.execution.Cancelable]] whose underlying cancelable
-  * reference can be swapped for another.
+/** Represents a [[monix.execution.Cancelable Cancelable]] whose
+  * underlying cancelable reference can be swapped for another and
+  * that has the capability to force ordering of updates.
   *
-  * Example:
+  * For the most part it's very similar with [[MultiAssignCancelable]]:
   * {{{
-  *   val s = MultiAssignmentCancelable()
+  *   val s = OrderedCancelable()
   *   s := c1 // sets the underlying cancelable to c1
   *   s := c2 // swaps the underlying cancelable to c2
   *
@@ -35,13 +36,36 @@ import scala.annotation.tailrec
   *   s := c3 // also cancels c3, because s is already canceled
   * }}}
   *
-  * Also see [[SerialCancelable]], which is similar, except that it cancels the
-  * old cancelable upon assigning a new cancelable.
+  * However it also has the capability of doing
+  * [[OrderedCancelable#orderedUpdate orderedUpdate]]:
+  * {{{
+  *   val s = OrderedCancelable()
+  *
+  *   ec.execute(new Runnable {
+  *     def run() =
+  *       s.orderedUpdate(ref2, 2)
+  *   })
+  *
+  *   // The ordered updates are guarding against reversed ordering
+  *   // due to the created thread being able to execute before the
+  *   // following update
+  *   s.orderedUpdate(ref1, 1)
+  * }}}
+  *
+  * Also see:
+  *
+  *  - [[SerialCancelable]], which is similar, except that it
+  *    cancels the old cancelable upon assigning a new cancelable
+  *  - [[SingleAssignCancelable]] that is effectively a forward
+  *    reference that can be assigned at most once
+  *  - [[MultiAssignCancelable]] that's very similar with
+  *    `OrderedCancelable`, but simpler, without the capability of
+  *    doing ordered updates and possibly more efficient
   */
-final class MultiAssignmentCancelable private (initial: Cancelable)
+final class OrderedCancelable private (initial: Cancelable)
   extends AssignableCancelable.Multi {
 
-  import MultiAssignmentCancelable.{State, Active, Cancelled}
+  import OrderedCancelable.{State, Active, Cancelled}
 
   private[this] val state = {
     val ref = if (initial != null) initial else Cancelable.empty
@@ -55,7 +79,7 @@ final class MultiAssignmentCancelable private (initial: Cancelable)
     }
 
   /** Returns the current order index, useful for working with
-    * [[orderedUpdate]] in instances where the [[MultiAssignmentCancelable]]
+    * [[orderedUpdate]] in instances where the [[OrderedCancelable]]
     * reference is shared.
     */
   def currentOrder: Long =
@@ -69,7 +93,7 @@ final class MultiAssignmentCancelable private (initial: Cancelable)
     // a compare-and-set.
     val oldState = state.getAndSet(Cancelled)
     if (oldState ne Cancelled)
-      oldState.asInstanceOf[Active].s.cancel()
+      oldState.asInstanceOf[Active].underlying.cancel()
   }
 
   @tailrec def `:=`(value: Cancelable): this.type =
@@ -85,6 +109,12 @@ final class MultiAssignmentCancelable private (initial: Cancelable)
           this
     }
 
+  /** An ordered update is an update with an order attached and if
+    * the currently stored reference has on order that is greater
+    * than the update, then the update is ignored.
+    *
+    * Useful to force ordering for concurrent updates.
+    */
   @tailrec def orderedUpdate(value: Cancelable, order: Long): this.type =
     state.get match {
       case Cancelled =>
@@ -106,16 +136,30 @@ final class MultiAssignmentCancelable private (initial: Cancelable)
     }
 }
 
-object MultiAssignmentCancelable {
-  def apply(): MultiAssignmentCancelable =
-    new MultiAssignmentCancelable(null)
+object OrderedCancelable {
+  /** Builder for [[OrderedCancelable]]. */
+  def apply(): OrderedCancelable =
+    new OrderedCancelable(null)
 
-  def apply(s: Cancelable): MultiAssignmentCancelable =
-    new MultiAssignmentCancelable(s)
+  /** Builder for [[OrderedCancelable]]. */
+  def apply(s: Cancelable): OrderedCancelable =
+    new OrderedCancelable(s)
 
-  private sealed trait State
-  private final case class Active(s: Cancelable, order: Long)
+  /** Describes the internal state of [[OrderedCancelable]]. */
+  private sealed abstract class State
+
+  /** Non-canceled state, containing the current `underlying`
+    * cancelable, along with an `order` index kept to discard
+    * unordered updates.
+    */
+  private final case class Active(underlying: Cancelable, order: Long)
     extends State
+
+  /** Internal [[State state]] signaling a cancellation occurred.
+    *
+    * After this state happens all subsequent assignments will
+    * cancel the given values.
+    */
   private case object Cancelled
     extends State
 }

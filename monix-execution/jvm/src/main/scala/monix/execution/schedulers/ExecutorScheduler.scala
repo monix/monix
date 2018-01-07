@@ -58,7 +58,7 @@ abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporte
           p.success(e.awaitTermination(timeout, unit))
         }
         catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             p.failure(ex)
         }
     })

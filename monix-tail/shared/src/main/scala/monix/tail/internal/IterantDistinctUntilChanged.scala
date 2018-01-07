@@ -95,7 +95,7 @@ private[tail] object IterantDistinctUntilChanged {
         case Halt(_) =>
           self
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           signalError(self, e)
       }
     }
@@ -121,7 +121,7 @@ private[tail] object IterantDistinctUntilChanged {
         case Last(_) | Halt(_) =>
           self
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           signalError(self, e)
       }
     }

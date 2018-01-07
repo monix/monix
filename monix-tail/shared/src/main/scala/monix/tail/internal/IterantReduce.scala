@@ -48,7 +48,7 @@ private[tail] object IterantReduce {
         case Halt(Some(e)) =>
           F.raiseError(e)
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           self.earlyStop *> F.raiseError(e)
       }
     }
@@ -81,7 +81,7 @@ private[tail] object IterantReduce {
             case Some(e) => F.raiseError(e)
           }
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           self.earlyStop *> F.raiseError(e)
       }
     }

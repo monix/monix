@@ -35,4 +35,20 @@ package monix.execution
   *   task.cancel()
   * }}}
   */
-package object cancelables
+package object cancelables {
+  /** DEPRECATED — renamed to [[OrderedCancelable]]. */
+  @deprecated("Renamed to OrderedCancelable", "3.0.0")
+  type MultiAssignmentCancelable = OrderedCancelable
+
+  /** DEPRECATED — renamed to [[OrderedCancelable]]. */
+  @deprecated("Renamed to OrderedCancelable", "3.0.0")
+  val MultiAssignmentCancelable = OrderedCancelable
+
+  /** DEPRECATED — renamed to [[SingleAssignCancelable]]. */
+  @deprecated("Renamed to SingleAssignCancelable", "3.0.0")
+  type SingleAssignmentCancelable = SingleAssignCancelable
+
+  /** DEPRECATED — renamed to [[SingleAssignCancelable]]. */
+  @deprecated("Renamed to SingleAssignCancelable", "3.0.0")
+  val SingleAssignmentCancelable = SingleAssignCancelable
+}

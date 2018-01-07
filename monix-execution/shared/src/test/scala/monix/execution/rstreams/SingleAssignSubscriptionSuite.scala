@@ -19,9 +19,9 @@ package monix.execution.rstreams
 
 import minitest.SimpleTestSuite
 
-object SingleAssignmentSubscriptionSuite extends SimpleTestSuite {
+object SingleAssignSubscriptionSuite extends SimpleTestSuite {
   test("should call cancel on assignment") {
-    val ref = SingleAssignmentSubscription()
+    val ref = SingleAssignSubscription()
     ref.cancel()
 
     var wasCanceled = false
@@ -34,7 +34,7 @@ object SingleAssignmentSubscriptionSuite extends SimpleTestSuite {
   }
 
   test("should call request on assignment") {
-    val ref = SingleAssignmentSubscription()
+    val ref = SingleAssignSubscription()
     ref.request(100)
     ref.request(200)
 
@@ -48,7 +48,7 @@ object SingleAssignmentSubscriptionSuite extends SimpleTestSuite {
   }
 
   test("cancel should have priority on assignment") {
-    val ref = SingleAssignmentSubscription()
+    val ref = SingleAssignSubscription()
     ref.request(100)
     ref.cancel()
     ref.request(200)
@@ -66,7 +66,7 @@ object SingleAssignmentSubscriptionSuite extends SimpleTestSuite {
   }
 
   test("request and cancel after assignment should work") {
-    val ref = SingleAssignmentSubscription()
+    val ref = SingleAssignSubscription()
     var wasCanceled = false
     var wasRequested = 0L
 

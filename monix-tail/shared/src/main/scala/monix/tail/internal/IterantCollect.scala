@@ -55,7 +55,7 @@ private[tail] object IterantCollect {
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]
       } catch {
-        case NonFatal(ex) => signalError(source, ex)
+        case ex if NonFatal(ex) => signalError(source, ex)
       }
     }
 

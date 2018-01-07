@@ -36,7 +36,7 @@ import scala.annotation.tailrec
   *   s := c3 // also cancels c3, because s is already canceled
   * }}}
   *
-  * Also see [[MultiAssignmentCancelable]], which is similar, but doesn't cancel
+  * Also see [[OrderedCancelable]], which is similar, but doesn't cancel
   * the old cancelable upon assignment.
   */
 final class SerialCancelable private (initial: Cancelable)

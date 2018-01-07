@@ -44,8 +44,8 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Current stable release: `2.3.1`
-- Milestone release: `3.0.0-M2`
+- Current stable release: `2.3.2`
+- Milestone release: `3.0.0-M3`
 - Development version: `3.0.0-$hash`
   (see [versioning scheme](https://github.com/monix/monix#versioning-scheme))
 

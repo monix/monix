@@ -21,7 +21,7 @@ import minitest.SimpleTestSuite
 
 object ArrayStackSuite extends SimpleTestSuite {
   test("ArrayStack(1) push and pop") {
-    val stack = ArrayStack[Int](1)
+    val stack = new ArrayStack[Int](1)
     assertEquals(stack.currentCapacity, 1)
 
     stack.push(1)
@@ -43,7 +43,7 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("ArrayStack(1) unlimited push and pop") {
-    val stack = ArrayStack[Int](1)
+    val stack = new ArrayStack[Int](1)
     assert(stack.isEmpty, "stack.isEmpty")
     assertEquals(stack.currentCapacity, 1)
     assertEquals(stack.minimumCapacity, 1)
@@ -78,7 +78,7 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("ArrayStack(16) unlimited push and pop") {
-    val stack = ArrayStack[Int](16)
+    val stack = new ArrayStack[Int](16)
     assert(stack.isEmpty, "stack.isEmpty")
     assertEquals(stack.currentCapacity, 16)
     assertEquals(stack.minimumCapacity, 16)
@@ -113,7 +113,7 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("ArrayStack clone") {
-    val stack = ArrayStack[Int](16)
+    val stack = new ArrayStack[Int](16)
     assert(stack.isEmpty, "stack.isEmpty")
     for (i <- 0 until 256) stack.push(i)
 
@@ -125,7 +125,7 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("ArrayStack grows and shrinks") {
-    val stack = ArrayStack[Int](8)
+    val stack = new ArrayStack[Int](8)
     val count = 256
 
     assertEquals(stack.minimumCapacity, 8)

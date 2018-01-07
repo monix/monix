@@ -44,7 +44,7 @@ private[reactive] object DoOnSubscribeObservable {
     def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
       import subscriber.{scheduler => s}
       val cancelable = source.unsafeSubscribeFn(subscriber)
-      try callback() catch { case NonFatal(ex) => s.reportFailure(ex) }
+      try callback() catch { case ex if NonFatal(ex) => s.reportFailure(ex) }
       cancelable
     }
   }

@@ -28,7 +28,7 @@ object MonixInternals {
 
     val p = new DefaultPromise[S]()
     source.onComplete { result =>
-      val fb = try f(result) catch { case NonFatal(t) => Future.failed(t) }
+      val fb = try f(result) catch { case t if NonFatal(t) => Future.failed(t) }
       fb match {
         // If possible, link DefaultPromises to avoid space leaks
         case dp: DefaultPromise[_] => dp.asInstanceOf[DefaultPromise[S]].linkRootOf(p)

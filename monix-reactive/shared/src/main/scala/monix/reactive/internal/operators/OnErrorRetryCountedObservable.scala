@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.cancelables.OrderedCancelable
 import monix.execution.{Scheduler, Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -29,7 +29,7 @@ private[reactive] final
 class OnErrorRetryCountedObservable[+A](source: Observable[A], maxRetries: Long)
   extends Observable[A] {
 
-  private def loop(subscriber: Subscriber[A], task: MultiAssignmentCancelable, retryIdx: Long): Unit = {
+  private def loop(subscriber: Subscriber[A], task: OrderedCancelable, retryIdx: Long): Unit = {
     val cancelable = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = subscriber.scheduler
       private[this] var isDone = false
@@ -72,7 +72,7 @@ class OnErrorRetryCountedObservable[+A](source: Observable[A], maxRetries: Long)
   }
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val task = MultiAssignmentCancelable()
+    val task = OrderedCancelable()
     loop(subscriber, task, retryIdx = 0)
     task
   }

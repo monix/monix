@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Stop, Continue}
-import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.cancelables.MultiAssignCancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -36,7 +36,7 @@ private[reactive] final class IntervalFixedRateObservable
   override def unsafeSubscribeFn(subscriber: Subscriber[Long]): Cancelable = {
     import subscriber.{scheduler => s}
     val o = subscriber
-    val task = MultiAssignmentCancelable()
+    val task = MultiAssignCancelable()
 
     val runnable = new Runnable { self =>
       private[this] val periodMillis = period.toMillis

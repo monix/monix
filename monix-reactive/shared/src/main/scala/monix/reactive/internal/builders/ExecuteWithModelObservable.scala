@@ -42,7 +42,7 @@ final class ExecuteWithModelObservable[A](source: Observable[A], em: ExecutionMo
       })
     }
     catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         if (streamErrors) out.onError(ex)
         else out.scheduler.reportFailure(ex)
         Cancelable.empty

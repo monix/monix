@@ -40,7 +40,7 @@ private[reactive] final class EvalOnEarlyStopOperator[A](onStop: Task[Unit])
       def onNext(elem: A): Future[Ack] = {
         val result =
           try out.onNext(elem)
-          catch { case NonFatal(ex) => Future.failed(ex) }
+          catch { case ex if NonFatal(ex) => Future.failed(ex) }
 
         val task = Task.fromFuture(result)
           .onErrorHandle { ex => onError(ex); Stop }

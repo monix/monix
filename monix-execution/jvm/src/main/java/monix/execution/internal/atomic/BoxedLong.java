@@ -17,7 +17,18 @@
 
 package monix.execution.internal.atomic;
 
-public interface BoxedLong {
+import monix.execution.internal.InternalApi;
+
+/**
+ * INTERNAL API — used in the implementation of
+ * `monix.execution.atomic.Atomic`.
+ *
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
+ */
+@InternalApi public interface BoxedLong {
     long volatileGet();
     void volatileSet(long update);
     void lazySet(long update);

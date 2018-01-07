@@ -38,7 +38,7 @@ class StateActionObservable[S,A](seed: => S, f: S => (A,S)) extends Observable[A
       new StateRunLoop(subscriber, cancelable, init, f).run()
       cancelable
     } catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         if (streamErrors) subscriber.onError(ex)
         else subscriber.scheduler.reportFailure(ex)
         Cancelable.empty
@@ -69,7 +69,7 @@ class StateActionObservable[S,A](seed: => S, f: S => (A,S)) extends Observable[A
         this.seed = newState
         o.onNext(nextA)
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           o.onError(ex)
           Stop
       }
@@ -87,7 +87,7 @@ class StateActionObservable[S,A](seed: => S, f: S => (A,S)) extends Observable[A
 
     def run(): Unit =
       try fastLoop(0) catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           s.reportFailure(ex)
       }
   }
