@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import scala.concurrent.duration.FiniteDuration
 
 private[eval] object TaskDelayResult {
@@ -33,7 +33,7 @@ private[eval] object TaskDelayResult {
       Task.unsafeStartAsync(self, context,
         new Callback[A] {
           def onSuccess(value: A): Unit = {
-            val task = SingleAssignmentCancelable()
+            val task = SingleAssignCancelable()
             conn push task
 
             // Delaying result

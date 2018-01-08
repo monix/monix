@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.AtomicBoolean
-import monix.execution.cancelables.{SingleAssignmentCancelable, StackedCancelable}
+import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
 import monix.execution.misc.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.{Ack, Cancelable}
@@ -149,11 +149,11 @@ private[monix] final class TailRecMObservable[A,B](seed: A, f: A => Observable[E
         }
       }
 
-      val c = SingleAssignmentCancelable()
+      val c = SingleAssignCancelable()
       conn.push(c)
       c := next.unsafeSubscribeFn(loopSubscriber)
     } catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         if (streamErrors) callback.success(Future.failed(ex))
         else out.scheduler.reportFailure(ex)
     }

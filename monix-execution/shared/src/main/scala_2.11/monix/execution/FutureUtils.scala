@@ -108,7 +108,7 @@ object FutureUtils {
       case _ =>
         val p = Promise[B]()
         source.onComplete { result =>
-          val b = try f(result) catch { case NonFatal(t) => Failure(t) }
+          val b = try f(result) catch { case t if NonFatal(t) => Failure(t) }
           p.complete(b)
         }
         p.future

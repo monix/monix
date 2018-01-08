@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ import monix.execution.atomic.{AtomicAny, PaddingStrategy}
   * be "chained" to another `ChainedCancelable`, forwarding all
   * operations to it.
   *
-  * For most purposes it works like a [[MultiAssignmentCancelable]]:
+  * For most purposes it works like a [[OrderedCancelable]]:
   *
   * {{{
   *   val s = ChainedCancelable()
@@ -85,8 +85,8 @@ import monix.execution.atomic.{AtomicAny, PaddingStrategy}
   * reasons.
   *
   * If unsure about what to use, then you probably don't need
-  * [[ChainedCancelable]]. Use [[MultiAssignmentCancelable]] or
-  * [[SingleAssignmentCancelable]] for most purposes.
+  * [[ChainedCancelable]]. Use [[OrderedCancelable]] or
+  * [[SingleAssignCancelable]] for most purposes.
   */
 final class ChainedCancelable private (private val state: AtomicAny[AnyRef])
   extends AssignableCancelable {

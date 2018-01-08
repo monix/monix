@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,24 +30,7 @@ import scala.annotation.tailrec
   *
   * Used in the implementation of `monix.eval.Task`.
   */
-final class StackedCancelable private (initial: List[Cancelable])
-  extends BooleanCancelable {
-
-  private[this] val state = {
-    val ref = if (initial != null) initial else Nil
-    AtomicAny.withPadding(ref, PaddingStrategy.LeftRight128)
-  }
-
-  override def isCanceled: Boolean =
-    state.get == null
-
-  override def cancel(): Unit = {
-    // Using getAndSet, which on Java 8 should be faster than
-    // a compare-and-set.
-    val oldState = state.getAndSet(null)
-    if (oldState ne null) oldState.foreach(_.cancel())
-  }
-
+sealed abstract class StackedCancelable extends BooleanCancelable {
   /** Pops the head of the stack and pushes a list as an
     * atomic operation.
     *
@@ -60,23 +43,7 @@ final class StackedCancelable private (initial: List[Cancelable])
     * @param list is the list to prepend to the cancelable stack
     * @return the cancelable reference that was popped from the stack
     */
-  @tailrec def popAndPushList(list: List[Cancelable]): Cancelable = {
-    state.get match {
-      case null =>
-        list.foreach(_.cancel())
-        Cancelable.empty
-      case Nil =>
-        if (!state.compareAndSet(Nil, list))
-          popAndPushList(list)
-        else
-          Cancelable.empty
-      case ref @ (head :: tail) =>
-        if (!state.compareAndSet(ref, list ::: tail))
-          popAndPushList(list)
-        else
-          head
-    }
-  }
+  def popAndPushList(list: List[Cancelable]): Cancelable
 
   /** Pops the head of the stack and pushes a list as
     * an atomic operation.
@@ -90,23 +57,7 @@ final class StackedCancelable private (initial: List[Cancelable])
     * @param value is the cancelable reference to push on the stack
     * @return the cancelable reference that was popped from the stack
     */
-  @tailrec def popAndPush(value: Cancelable): Cancelable = {
-    state.get match {
-      case null =>
-        value.cancel()
-        Cancelable.empty
-      case Nil =>
-        if (!state.compareAndSet(Nil, value :: Nil))
-          popAndPush(value)
-        else
-          Cancelable.empty
-      case ref @ (head :: tail) =>
-        if (!state.compareAndSet(ref, value :: tail))
-          popAndPush(value) // retry
-        else
-          head
-    }
-  }
+  def popAndPush(value: Cancelable): Cancelable
 
   /** Pushes a whole list of cancelable references on the stack.
     *
@@ -117,61 +68,154 @@ final class StackedCancelable private (initial: List[Cancelable])
     *
     * @param list is the list to prepend to the cancelable stack
     */
-  @tailrec def pushList(list: List[Cancelable]): Unit = {
-    state.get match {
-      case null =>
-        list.foreach(_.cancel())
-      case stack =>
-        if (!state.compareAndSet(stack, list ::: stack))
-          pushList(list) // retry
-    }
-  }
+  def pushList(list: List[Cancelable]): Unit
 
   /** Pushes a cancelable reference on the stack, to be
     * popped or cancelled later in FIFO order.
     */
-  @tailrec def push(value: Cancelable): Unit = {
-    state.get match {
-      case null =>
-        value.cancel()
-      case stack =>
-        if (!state.compareAndSet(stack, value :: stack))
-          push(value) // retry
-    }
-  }
+  def push(value: Cancelable): Unit
 
   /** Removes a cancelable reference from the stack in FIFO order.
     *
     * @return the cancelable reference that was removed.
     */
-  @tailrec def pop(): Cancelable = {
-    state.get match {
-      case null => Cancelable.empty
-      case Nil => Cancelable.empty
-      case ref @ (head :: tail) =>
-        if (!state.compareAndSet(ref, tail))
-          pop()
-        else
-          head
-    }
-  }
+  def pop(): Cancelable
 }
 
 object StackedCancelable {
   /** Builds an empty [[StackedCancelable]] reference. */
   def apply(): StackedCancelable =
-    new StackedCancelable(null)
+    new Impl(Nil)
 
   /** Builds a [[StackedCancelable]] with an initial
     * cancelable reference in it.
     */
   def apply(initial: Cancelable): StackedCancelable =
-    new StackedCancelable(List(initial))
+    new Impl(List(initial))
 
   /** Builds a [[StackedCancelable]] already initialized with
     * a list of cancelable references, to be popped or canceled
     * later in FIFO order.
     */
   def apply(initial: List[Cancelable]): StackedCancelable =
-    new StackedCancelable(initial)
+    new Impl(initial)
+
+  /** Reusable [[StackedCancelable]] reference that is already
+    * cancelled.
+    */
+  final val alreadyCanceled: StackedCancelable =
+    new AlreadyCanceled
+
+  /** Implementation for [[StackedCancelable]] backed by a
+    * cache-line padded atomic reference for synchronization.
+    */
+  private final class Impl(initial: List[Cancelable])
+    extends StackedCancelable {
+
+    private[this] val state = {
+      val ref = if (initial != null) initial else Nil
+      AtomicAny.withPadding(ref, PaddingStrategy.LeftRight128)
+    }
+
+    override def isCanceled: Boolean =
+      state.get == null
+
+    override def cancel(): Unit = {
+      // Using getAndSet, which on Java 8 should be faster than
+      // a compare-and-set.
+      val oldState = state.getAndSet(null)
+      if (oldState ne null) oldState.foreach(_.cancel())
+    }
+
+    @tailrec def popAndPushList(list: List[Cancelable]): Cancelable = {
+      state.get match {
+        case null =>
+          list.foreach(_.cancel())
+          Cancelable.empty
+        case Nil =>
+          if (!state.compareAndSet(Nil, list))
+            popAndPushList(list)
+          else
+            Cancelable.empty
+        case ref @ (head :: tail) =>
+          if (!state.compareAndSet(ref, list ::: tail))
+            popAndPushList(list)
+          else
+            head
+      }
+    }
+
+    @tailrec def popAndPush(value: Cancelable): Cancelable = {
+      state.get match {
+        case null =>
+          value.cancel()
+          Cancelable.empty
+        case Nil =>
+          if (!state.compareAndSet(Nil, value :: Nil))
+            popAndPush(value)
+          else
+            Cancelable.empty
+        case ref @ (head :: tail) =>
+          if (!state.compareAndSet(ref, value :: tail))
+            popAndPush(value) // retry
+          else
+            head
+      }
+    }
+
+    @tailrec def pushList(list: List[Cancelable]): Unit = {
+      state.get match {
+        case null =>
+          list.foreach(_.cancel())
+        case stack =>
+          if (!state.compareAndSet(stack, list ::: stack))
+            pushList(list) // retry
+      }
+    }
+
+    @tailrec def push(value: Cancelable): Unit = {
+      state.get match {
+        case null =>
+          value.cancel()
+        case stack =>
+          if (!state.compareAndSet(stack, value :: stack))
+            push(value) // retry
+      }
+    }
+
+    @tailrec def pop(): Cancelable = {
+      state.get match {
+        case null => Cancelable.empty
+        case Nil => Cancelable.empty
+        case ref @ (head :: tail) =>
+          if (!state.compareAndSet(ref, tail))
+            pop()
+          else
+            head
+      }
+    }
+  }
+
+  /** [[StackedCancelable]] implementation that is already cancelled. */
+  private final class AlreadyCanceled extends StackedCancelable {
+    override def cancel(): Unit = ()
+    override def isCanceled: Boolean = true
+    override def pop(): Cancelable = Cancelable.empty
+
+    override def push(value: Cancelable): Unit =
+      value.cancel()
+
+    override def popAndPushList(list: List[Cancelable]): Cancelable = {
+      Cancelable.cancelAll(list)
+      Cancelable.empty
+    }
+
+    override def popAndPush(value: Cancelable): Cancelable = {
+      value.cancel()
+      Cancelable.empty
+    }
+
+    override def pushList(list: List[Cancelable]): Unit =
+      Cancelable.cancelAll(list)
+  }
 }

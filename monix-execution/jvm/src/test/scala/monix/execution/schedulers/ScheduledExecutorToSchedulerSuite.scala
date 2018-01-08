@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import minitest.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 import monix.execution.atomic.Atomic
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
@@ -90,7 +90,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
   }
 
   test("schedule with fixed delay") { implicit s =>
-    val sub = SingleAssignmentCancelable()
+    val sub = SingleAssignCancelable()
     val p = Promise[Int]()
     var value = 0
 
@@ -109,7 +109,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
   }
 
   test("schedule at fixed rate") { implicit s =>
-    val sub = SingleAssignmentCancelable()
+    val sub = SingleAssignCancelable()
     val p = Promise[Int]()
     var value = 0
 

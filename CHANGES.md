@@ -1,3 +1,76 @@
+## Version 3.0.0-M3 (Jan 7, 2017)
+
+Final milestone release before the RC and the final and stable `3.0.0`.
+
+Special thanks to Leandro Bolivar for implementing propagation of
+"local vars" (aka `Local` and `TaskLocal`, the equivalents of 
+`ThreadLocal`, but for usage with `Future` and `Task`).
+
+This release also lands a long awaited feature for `Task`: pure 
+cancellation, aka `Task.cancel`. It's building on top of the current
+`Task` implementation, however it changes the API — e.g. in order to 
+keep `Task` pure, the `chooseFirstOf` operator is now gone, being
+replaced with an equivalent `racePair` that operates with tasks and
+pure functions.
+
+The other highlight of the release are the performance improvements
+for `Task`, an on-going process to make sure that Monix's `Task` 
+remains the best implementation in Scala's ecosystem.
+
+We now depend on Cats `1.0.1` and cats-effect `0.8`.
+
+Full list of PRs:
+
+- [PR #464](https://github.com/monix/monix/pull/464):
+  updates dependencies, Scala to `2.12.4` and `2.11.12`, JCTools to 
+  `2.1.1`, Minitest to `2.0.0`, Scala.js to `0.6.21`
+- [PR #462](https://github.com/monix/monix/pull/462):
+  Fix for `timeoutTo` to cancel source task directly after timeout
+- [PR #444](https://github.com/monix/monix/pull/444):
+  Add `localContextPropagation` to `Task.Options`, implement tracing 
+  `Local` vars
+- [PR 470](https://github.com/monix/monix/pull/470):
+  increase test coverage
+- [PR #473](https://github.com/monix/monix/pull/473):
+  Fix issue where `fromAsyncStateAction` is not safe for user code
+- [PR #485](https://github.com/monix/monix/pull/485) and 
+  [PR #489](https://github.com/monix/monix/pull/489):
+  Updates Cats to `1.0.1` and cats-effect to `0.8`
+- [PR #474](https://github.com/monix/monix/pull/474):
+  `Task` / `Coeval` Run-loop Optimizations, First Batch
+- [PR #492](https://github.com/monix/monix/pull/492):
+  Second batch of optimizations
+- [PR #494](https://github.com/monix/monix/pull/494):
+  `Task.cancel` as a pure action, along with `.start`, 
+  `.race` and `.uncancelable`
+
+## Version 3.0.0-M2 (Nov 9, 2017)
+
+The highlight of this release is the upgrade to Cats 1.0-RC1,
+bringing a `cats.Parallel[Task, Task]` instance that replaces
+the need for `Task.nondeterminism`, now removed.
+
+List of changes:
+
+- [PR #437](https://github.com/monix/monix/pull/437): 
+  Added `Iterant.zipWithIndex`
+- [PR #439](https://github.com/monix/monix/pull/439):
+  Added `Iterant.dump`
+- [PR #441](https://github.com/monix/monix/pull/441):
+  `Observable.mapParallelUnordered` needs configurable overflow strategy
+- [PR #445](https://github.com/monix/monix/pull/445):
+  Added `ShiftedRunnable` in `monix.execution`
+- [PR #443](https://github.com/monix/monix/pull/443):
+  Iterant `maxByL` and `minByL` ops
+- [PR #442](https://github.com/monix/monix/pull/442):
+  small fixes in `takeWhileNotCanceled` and `runAsyncGetFirst` docs
+- [PR #450](https://github.com/monix/monix/pull/450):
+  Minor test description fix
+- [PR #458](https://github.com/monix/monix/pull/458):
+  Updates to cats 1.0-RC1 and cats-effect 0.5, along with
+  redesigning that integration, e.g. added `cats.Parallel` instance,
+  `Iterant.parZip` and `Iterant.parZipMap`
+
 ## Version 3.0.0-M1 (Sep 15, 2017)
 
 This is a major release that breaks both binary and source 
