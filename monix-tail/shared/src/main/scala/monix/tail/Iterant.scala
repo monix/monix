@@ -978,6 +978,25 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def foldRightL[B](b: F[B])(f: (A, F[B], F[Unit]) => F[B])(implicit F: Sync[F]): F[B] =
     IterantFoldRightL(self, b, f)(F)
 
+  /** Creates a new stream from the source that will emit a specific `separator`
+    * between every pair of elements.
+    *
+    * @param separator the separator
+    */
+  final def intersperse(separator: A)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantIntersperse(self, separator)
+
+  /** Creates a new stream from the source that will emit the `start` element
+    * followed by the upstream elements paired with the `separator`
+    * and lastly the `end` element.
+    *
+    * @param start the first element emitted
+    * @param separator the separator
+    * @param end the last element emitted
+    */
+  final def intersperse(start: A, separator: A, end: A)(implicit F: Sync[F]): Iterant[F, A] =
+    start +: IterantIntersperse(self, separator) :+ end
+
   /** Given mapping functions from `F` to `G`, lifts the source into
     * an iterant that is going to use the resulting `G` for evaluation.
     *
