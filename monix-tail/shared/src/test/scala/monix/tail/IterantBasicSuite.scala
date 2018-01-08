@@ -73,6 +73,12 @@ object IterantBasicSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
+  test("Iterant.liftF should lift any IO value") { implicit s =>
+    check1 { (io: IO[Int]) =>
+      Iterant[IO].liftF(io).headOptionL <-> io.map(Some.apply)
+    }
+  }
+
   test("tailRecM basic usage") { implicit s =>
     val fa = Iterant[Coeval].tailRecM(0) { (a: Int) =>
       if (a < 10)
