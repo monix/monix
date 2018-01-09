@@ -37,20 +37,20 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
 
   test("Iterant.switchIfEmpty still executes left's earlyStop when switching") { implicit s =>
     val cancelable = BooleanCancelable()
-    val left = Iterant[Coeval].suspendS(Coeval(emptyInts), Coeval { cancelable.cancel() })
+    val left = emptyInts.doOnFinish(_ => Coeval { cancelable.cancel() })
 
     left.switchIfEmpty(backupStream).toListL.value
 
     assert(cancelable.isCanceled)
   }
 
-  test("Iterant.switchIfEmpty still executes right's earlyStop when not switching") { implicit s =>
+  test("Iterant.switchIfEmpty does not evaluate other stream effects when not switching") { implicit s =>
     val cancelable = BooleanCancelable()
-    val right = Iterant[Coeval].suspendS(Coeval(emptyInts), Coeval { cancelable.cancel() })
+    val right = emptyInts.doOnFinish(_ => Coeval { cancelable.cancel() })
 
     backupStream.switchIfEmpty(right).toListL.value
 
-    assert(cancelable.isCanceled)
+    assert(!cancelable.isCanceled)
   }
 
   test("Iterant.switchIfEmpty chooses fallback for Halt with no errors") { implicit s =>
@@ -76,5 +76,16 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
       }
       left.switchIfEmpty(right).toListL <-> target
     }
+  }
+
+  test("Iterant.switchIfEmpty can handle broken batches") { implicit s =>
+    val dummy = DummyException("dummy")
+    val iterant = Iterant[Coeval].nextBatchS(
+      ThrowExceptionBatch[Int](dummy), Coeval(emptyInts), Coeval.unit
+    )
+    assertEquals(
+      iterant.switchIfEmpty(backupStream).toListL.runAttempt,
+      Left(dummy)
+    )
   }
 }
