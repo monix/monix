@@ -958,13 +958,82 @@ sealed abstract class Task[+A] extends Serializable {
       else raiseError(ex))
 
   /** Creates a new task that in case of error will retry executing the
-    * source again and again, until it succeeds.
+    * source again and again, until it succeeds, or until the given
+    * predicate returns `false`.
     *
-    * In case of continuous failure the total number of executions
-    * will be `maxRetries + 1`.
+    * In this sample we retry for as long as the exception is a `TimeoutException`:
+    * {{{
+    *   task.onErrorRestartIf {
+    *     case _: TimeoutException => true
+    *     case _ => false
+    *   }
+    * }}}
+    *
+    * @param p is the predicate that is executed if an error is thrown and
+    *        that keeps restarting the source for as long as it returns `true`
     */
   final def onErrorRestartIf(p: Throwable => Boolean): Task[A] =
     this.onErrorHandleWith(ex => if (p(ex)) this.onErrorRestartIf(p) else raiseError(ex))
+
+  /** On error restarts the source with a customizable restart loop.
+    *
+    * This operation keeps an internal `state`, with a start value, an internal
+    * state that gets evolved and based on which the next step gets decided,
+    * e.g. should it restart, maybe with a delay, or should it give up and
+    * re-throw the current error.
+    *
+    * Example that implements a simple retry policy that retries for a maximum
+    * of 10 times before giving up; also introduce a 1 second delay before
+    * each retry is executed:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   task.onErrorRestartLoop(10) { (err, maxRetries, retry) =>
+    *     if (maxRetries > 0)
+    *       // Next retry please; but do a 1 second delay
+    *       retry(maxRetries - 1).delayExecution(1.second)
+    *     else
+    *       // No retries left, rethrow the error
+    *       Task.raiseError(err)
+    *   }
+    * }}}
+    *
+    * A more complex exponential back-off sample:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   // Keeps the current state, indicating the restart delay and the
+    *   // maximum number of retries left
+    *   final case class Backoff(maxRetries: Int, delay: FiniteDuration)
+    *
+    *   // Restarts for a maximum of 10 times, with an initial delay of 1 second,
+    *   // a delay that keeps being multiplied by 2
+    *   task.onErrorRestartLoop(Backoff(10, 1.second)) { (err, state, retry) =>
+    *     val Backoff(maxRetries, delay) = state
+    *     if (maxRetries > 0)
+    *       retry(Backoff(maxRetries - 1, delay * 2)).delayExecution(1.second)
+    *     else
+    *       // No retries left, rethrow the error
+    *       Task.raiseError(err)
+    *   }
+    * }}}
+    *
+    * The given function injects the following parameters:
+    *
+    *  1. `error` reference that was thrown
+    *  2. the current `state`, based on which a decision for the retry is made
+    *  3. `retry: S => Task[B]` function that schedules the next retry
+    *
+    * @param initial is the initial state used to determine the next on error
+    *        retry cycle
+    * @param f is a function that injects the current error, state, a
+    *        function that can signal a retry is to be made and returns
+    *        the next task
+    */
+  final def onErrorRestartLoop[S, B >: A](initial: S)(f: (Throwable, S, S => Task[B]) => Task[B]): Task[B] =
+    onErrorHandleWith(err => f(err, initial, state => (this : Task[B]).onErrorRestartLoop(state)(f)))
 
   /** Creates a new task that will handle any matching throwable that
     * this task might emit.

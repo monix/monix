@@ -522,4 +522,40 @@ object TaskErrorSuite extends BaseTestSuite {
     s.tick()
     assertEquals(result.value, Some(Success(count)))
   }
+
+  test("Task.onErrorRestartLoop works for success") { implicit s =>
+    val dummy = DummyException("dummy")
+    var tries = 0
+    val source = Task.eval {
+      tries += 1
+      if (tries < 5) throw dummy
+      tries
+    }
+
+    val task = source.onErrorRestartLoop(10) { (err, maxRetries, retry) =>
+      if (maxRetries > 0)
+        retry(maxRetries - 1)
+      else
+        Task.raiseError(err)
+    }
+
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(5)))
+    assertEquals(tries, 5)
+  }
+
+  test("Task.onErrorRestartLoop can rethrow") { implicit s =>
+    val dummy = DummyException("dummy")
+    val source = Task.eval[Int] { throw dummy }
+
+    val task = source.onErrorRestartLoop(10) { (err, maxRetries, retry) =>
+      if (maxRetries > 0)
+        retry(maxRetries - 1)
+      else
+        Task.raiseError(err)
+    }
+
+    val f = task.runAsync
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
 }
