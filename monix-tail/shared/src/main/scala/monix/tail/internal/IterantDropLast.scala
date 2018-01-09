@@ -56,12 +56,12 @@ private[tail] object IterantDropLast {
     }
 
     def finalCursor(toDrop: Int, length: Int, queue: mutable.Queue[A]): Iterant[F, A] = {
-      var i = length
+      var queueLength = length
       val buffer = mutable.Buffer[A]()
 
-      while (i > toDrop) {
+      while (queueLength > toDrop) {
         buffer.append(queue.dequeue())
-        i -= 1
+        queueLength -= 1
       }
       val cursor = BatchCursor.fromSeq(buffer)
       NextCursor(cursor, F.pure(Halt(None)), F.unit)
