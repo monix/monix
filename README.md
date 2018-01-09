@@ -52,13 +52,13 @@ The packages are published on Maven Central.
 For the current stable release (use the `%%%` for Scala.js):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.3.1"
+libraryDependencies += "io.monix" %% "monix" % "2.3.2"
 ```
 
-Or for the milestone (that works with Cats `1.0-MF`):
+Or for the milestone (that works with Cats `1.0`):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.0.0-M1"
+libraryDependencies += "io.monix" %% "monix" % "3.0.0-M3"
 ```
 
 ### Sub-projects
