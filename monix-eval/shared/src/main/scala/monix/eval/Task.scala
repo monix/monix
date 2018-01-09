@@ -1013,7 +1013,7 @@ sealed abstract class Task[+A] extends Serializable {
     *   task.onErrorRestartLoop(Backoff(10, 1.second)) { (err, state, retry) =>
     *     val Backoff(maxRetries, delay) = state
     *     if (maxRetries > 0)
-    *       retry(Backoff(maxRetries - 1, delay * 2)).delayExecution(1.second)
+    *       retry(Backoff(maxRetries - 1, delay * 2)).delayExecution(delay)
     *     else
     *       // No retries left, rethrow the error
     *       Task.raiseError(err)
