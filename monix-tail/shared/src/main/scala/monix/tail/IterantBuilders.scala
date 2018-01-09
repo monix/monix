@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,6 +44,10 @@ class IterantBuilders[F[_]] {
   /** Aliased builder, see documentation for [[Iterant.eval]]. */
   def eval[A](a: => A)(implicit F: Sync[F]): Iterant[F,A] =
     Iterant.eval(a)(F)
+
+  /** Aliased builder, see documentation for [[Iterant.liftF]]. */
+  def liftF[A](a: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.liftF(a)
 
   /** Aliased builder, see documentation for [[Iterant.nextS]]. */
   def nextS[A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =

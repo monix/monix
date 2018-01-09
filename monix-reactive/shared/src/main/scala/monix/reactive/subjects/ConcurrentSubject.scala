@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.reactive.subjects
 
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -239,7 +239,7 @@ object ConcurrentSubject {
         Subscriber(source, s).toReactive(bufferSize)
 
       def subscribe(subscriber: RSubscriber[_ >: O]): Unit = {
-        val sub = SingleAssignmentCancelable()
+        val sub = SingleAssignCancelable()
         sub := source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber, sub))
       }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
-import monix.execution.rstreams.SingleAssignmentSubscription
+import monix.execution.rstreams.SingleAssignSubscription
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import org.reactivestreams
@@ -30,7 +30,7 @@ final class ReactiveObservable[A](publisher: RPublisher[A], requestCount: Int)
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val subscription = SingleAssignmentSubscription()
+    val subscription = SingleAssignSubscription()
     val sub =
       if (requestCount > 0) subscriber.toReactive(requestCount)
       else subscriber.toReactive

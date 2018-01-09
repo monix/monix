@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,13 +22,13 @@ import minitest.SimpleTestSuite
 object AssignableCancelableSuite extends SimpleTestSuite {
   test("AssignableCancelable.multi() returns a MultiAssignmentCancelable") {
     val c = AssignableCancelable.multi()
-    assert(c.isInstanceOf[MultiAssignmentCancelable],
-      "isInstanceOf[MultiAssignmentCancelable]")
+    assert(c.isInstanceOf[MultiAssignCancelable],
+      "isInstanceOf[MultiAssignCancelable]")
   }
 
   test("AssignableCancelable.single() returns a SingleAssignmentCancelable") {
     val c = AssignableCancelable.single()
-    assert(c.isInstanceOf[SingleAssignmentCancelable],
+    assert(c.isInstanceOf[SingleAssignCancelable],
       "isInstanceOf[SingleAssignmentCancelable]")
   }
 

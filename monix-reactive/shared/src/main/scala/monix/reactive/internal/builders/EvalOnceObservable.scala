@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,7 +35,7 @@ private[reactive] final class EvalOnceObservable[A](a: => A)
   private def signalResult(out: Subscriber[A], value: A, ex: Throwable): Unit = {
     if (ex != null)
       try out.onError(ex) catch {
-        case NonFatal(err) =>
+        case err if NonFatal(err) =>
           out.scheduler.reportFailure(err)
           out.scheduler.reportFailure(ex)
       }
@@ -43,7 +43,7 @@ private[reactive] final class EvalOnceObservable[A](a: => A)
       out.onNext(value)
       out.onComplete()
     } catch {
-      case NonFatal(err) =>
+      case err if NonFatal(err) =>
         out.scheduler.reportFailure(err)
     }
   }
@@ -52,7 +52,7 @@ private[reactive] final class EvalOnceObservable[A](a: => A)
     if (hasResult) signalResult(subscriber, result, errorThrown) else
       synchronized {
         if (hasResult) signalResult(subscriber, result, errorThrown) else {
-          try result = a catch { case NonFatal(ex) => errorThrown = ex }
+          try result = a catch { case ex if NonFatal(ex) => errorThrown = ex }
           hasResult = true
           signalResult(subscriber, result, errorThrown)
         }

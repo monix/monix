@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 import monix.execution.Ack.{Stop, Continue}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.exceptions.DownstreamTimeoutException
 import monix.reactive.Observable
@@ -32,8 +32,8 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
   extends Observable[A] {
 
   def unsafeSubscribeFn(downstream: Subscriber[A]): Cancelable = {
-    val timeoutCheck = MultiAssignmentCancelable()
-    val mainTask = SingleAssignmentCancelable()
+    val timeoutCheck = MultiAssignCancelable()
+    val mainTask = SingleAssignCancelable()
     val composite = CompositeCancelable(mainTask, timeoutCheck)
 
     mainTask := source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>

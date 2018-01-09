@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.eval
 
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
@@ -81,7 +81,7 @@ object TaskCreateSuite extends BaseTestSuite {
     def sum(t1: Task[Int], t2: Task[Int]): Task[Int] =
       Task.create { (s, cb) =>
         implicit val scheduler = s
-        val c = MultiAssignmentCancelable()
+        val c = MultiAssignCancelable()
 
         c := t1.runAsync(new Callback[Int] {
           def onSuccess(v1: Int): Unit =

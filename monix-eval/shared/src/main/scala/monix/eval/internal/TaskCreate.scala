@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.execution.cancelables.{SingleAssignmentCancelable, StackedCancelable}
+import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
 import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, Scheduler}
 
@@ -47,7 +47,7 @@ private[eval] object TaskCreate {
     Task.unsafeCreate { (context, cb) =>
       val s = context.scheduler
       val conn = context.connection
-      val cancelable = SingleAssignmentCancelable()
+      val cancelable = SingleAssignCancelable()
       conn push cancelable
 
       // Forcing a real asynchronous boundary,
@@ -60,7 +60,7 @@ private[eval] object TaskCreate {
             cancelable := ref
         }
         catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             // We cannot stream the error, because the callback might have
             // been called already and we'd be violating its contract,
             // hence the only thing possible is to log the error.

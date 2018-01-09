@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,7 +45,7 @@ final class MapTaskConsumer[In, R, R2](source: Consumer[In,R], f: R => Task[R2])
               streamErrors = false
               task.runAsync(cb)
             } catch {
-              case NonFatal(ex) =>
+              case ex if NonFatal(ex) =>
                 if (streamErrors) cb.onError(ex)
                 else s.reportFailure(ex)
             }

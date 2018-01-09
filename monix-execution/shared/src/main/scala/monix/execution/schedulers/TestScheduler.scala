@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.execution.schedulers
 
 import monix.execution.Cancelable
 import monix.execution.atomic.AtomicAny
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.misc.NonFatal
 import monix.execution.schedulers.TestScheduler._
 // Prevents conflict with the deprecated symbol
@@ -104,7 +104,7 @@ final class TestScheduler private (
         else {
           // execute task
           try head.task.run() catch {
-            case NonFatal(ex) =>
+            case ex if NonFatal(ex) =>
               reportFailure(ex)
           }
 
@@ -129,7 +129,7 @@ final class TestScheduler private (
           else {
             // execute task
             try head.task.run() catch {
-              case NonFatal(ex) =>
+              case ex if NonFatal(ex) =>
                 reportFailure(ex)
             }
 
@@ -209,7 +209,7 @@ object TestScheduler {
       require(delay >= Duration.Zero, "The given delay must be positive")
 
       val newID = lastID + 1
-      SingleAssignmentCancelable()
+      SingleAssignCancelable()
 
       val task = Task(newID, r, this.clock + delay)
       val cancelable = new Cancelable {

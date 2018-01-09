@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.{Ack, Cancelable}
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.misc.NonFatal
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Pipe}
@@ -32,7 +32,7 @@ private[reactive] final class PipeThroughSelectorObservable[A,B,C]
   def unsafeSubscribeFn(out: Subscriber[C]): Cancelable = {
     import out.scheduler
     var streamErrors = true
-    val upstream = SingleAssignmentCancelable()
+    val upstream = SingleAssignCancelable()
 
     try {
       val connectable = source.multicast(pipe)
@@ -57,7 +57,7 @@ private[reactive] final class PipeThroughSelectorObservable[A,B,C]
         downstream.cancel()
       }
     } catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         upstream.cancel()
         if (streamErrors) out.onError(ex)
         else out.scheduler.reportFailure(ex)

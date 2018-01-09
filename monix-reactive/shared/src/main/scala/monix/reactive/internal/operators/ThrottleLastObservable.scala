@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -30,8 +30,8 @@ private[reactive] final class ThrottleLastObservable[+A, S](
   extends Observable[A] {
 
   def unsafeSubscribeFn(downstream: Subscriber[A]): Cancelable = {
-    val upstreamSubscription = SingleAssignmentCancelable()
-    val samplerSubscription = SingleAssignmentCancelable()
+    val upstreamSubscription = SingleAssignCancelable()
+    val samplerSubscription = SingleAssignCancelable()
     val composite = CompositeCancelable(upstreamSubscription, samplerSubscription)
 
     upstreamSubscription := source.unsafeSubscribeFn(

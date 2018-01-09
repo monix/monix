@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,7 +44,7 @@ private[reactive] object DoOnSubscribeObservable {
     def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
       import subscriber.{scheduler => s}
       val cancelable = source.unsafeSubscribeFn(subscriber)
-      try callback() catch { case NonFatal(ex) => s.reportFailure(ex) }
+      try callback() catch { case ex if NonFatal(ex) => s.reportFailure(ex) }
       cancelable
     }
   }

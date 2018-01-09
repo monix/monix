@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,6 +57,26 @@ object IterantBasicSuite extends BaseTestSuite {
     val iter = Iterant[IO].defer { effect += 1; Iterant[IO].pure(effect) }
     val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
     assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Iterant.liftF") { implicit s =>
+    var effect = 0
+    val iter = Iterant[IO].liftF(IO { effect += 1; effect })
+    val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Iterant.liftF should lift raised errors") { implicit s =>
+    val dummy = DummyException("dummy")
+    val iter = Iterant[IO].liftF(IO.raiseError(dummy))
+    val f = iter.headOptionL.unsafeToFuture()
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
+
+  test("Iterant.liftF should lift any IO value") { implicit s =>
+    check1 { (io: IO[Int]) =>
+      Iterant[IO].liftF(io).headOptionL <-> io.map(Some.apply)
+    }
   }
 
   test("tailRecM basic usage") { implicit s =>

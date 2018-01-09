@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,7 +41,7 @@ private[tail] object IterantOnError {
     def sendError(stop: F[Unit], e: Throwable): Iterant[F, A] = {
       val next = stop.map { _ =>
         try f(e) catch {
-          case NonFatal(err) =>
+          case err if NonFatal(err) =>
             Halt[F, A](Some(err))
         }
       }
@@ -66,7 +66,7 @@ private[tail] object IterantOnError {
             else
               Suspend(next, stop)
           } catch {
-            case NonFatal(e) =>
+            case e if NonFatal(e) =>
               sendError(stop, e)
           }
 
@@ -74,7 +74,7 @@ private[tail] object IterantOnError {
           try {
             loop(NextCursor(batch.cursor(), rest, stop))
           } catch {
-            case NonFatal(e) =>
+            case e if NonFatal(e) =>
               sendError(stop, e)
           }
 
@@ -85,8 +85,8 @@ private[tail] object IterantOnError {
         case Halt(Some(e)) =>
           f(e)
       } catch {
-        case NonFatal(e) =>
-          try f(e) catch { case NonFatal(err) => Halt(Some(err)) }
+        case e if NonFatal(e) =>
+          try f(e) catch { case err if NonFatal(err) => Halt(Some(err)) }
       }
 
     fa match {

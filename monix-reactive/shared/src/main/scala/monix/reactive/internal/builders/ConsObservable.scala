@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.{MultiAssignmentCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{MultiAssignCancelable, SingleAssignCancelable}
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
 import monix.reactive.observables.ChainedObservable.{subscribe => chain}
@@ -27,12 +27,12 @@ import monix.reactive.observers.Subscriber
 private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A])
   extends ChainedObservable[A] {
 
-  def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[A]): Unit = {
+  def unsafeSubscribeFn(conn: MultiAssignCancelable, out: Subscriber[A]): Unit = {
     import out.{scheduler => s}
     out.onNext(head).syncOnContinue(chain(tail, conn, out))(s)
   }
 
-  private def simpleSubscribe(conn: SingleAssignmentCancelable, out: Subscriber[A]): Unit = {
+  private def simpleSubscribe(conn: SingleAssignCancelable, out: Subscriber[A]): Unit = {
     import out.{scheduler => s}
     out.onNext(head).syncOnContinue {
       conn := tail.unsafeSubscribeFn(out)
@@ -41,11 +41,11 @@ private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A])
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     if (!tail.isInstanceOf[ChainedObservable[_]]) {
-      val conn = SingleAssignmentCancelable()
+      val conn = SingleAssignCancelable()
       simpleSubscribe(conn, out)
       conn
     } else {
-      val conn = MultiAssignmentCancelable()
+      val conn = MultiAssignCancelable()
       unsafeSubscribeFn(conn, out)
       conn
     }

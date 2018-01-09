@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.reactive.observables
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.cancelables.MultiAssignCancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -48,10 +48,10 @@ abstract class ChainedObservable[+A] extends Observable[A] {
     * @param subscriber is the subscriber that will receive all events
     *        from the source
     */
-  def unsafeSubscribeFn(conn: MultiAssignmentCancelable, subscriber: Subscriber[A]): Unit
+  def unsafeSubscribeFn(conn: MultiAssignCancelable, subscriber: Subscriber[A]): Unit
 
   override def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val conn = MultiAssignmentCancelable()
+    val conn = MultiAssignCancelable()
     unsafeSubscribeFn(conn, subscriber)
     conn
   }
@@ -62,7 +62,7 @@ object ChainedObservable {
     * subscribing to it by injecting the provided `conn` if it is,
     * otherwise it subscribes
     */
-  def subscribe[A](source: Observable[A], conn: MultiAssignmentCancelable, out: Subscriber[A]): Unit =
+  def subscribe[A](source: Observable[A], conn: MultiAssignCancelable, out: Subscriber[A]): Unit =
     source match {
       case _: ChainedObservable[_] =>
         out.scheduler.executeTrampolined { () =>

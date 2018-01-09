@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -109,14 +109,14 @@ private[reactive] final class CharsReaderObservable(
         // and these we are allowed to stream.
         val ex =
           try { blocking(in.close()); null }
-          catch { case NonFatal(err) => err }
+          catch { case err if NonFatal(err) => err }
 
         if (ex == null) out.onComplete()
         else out.onError(ex)
         Stop
       }
     } catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         errorThrown = ex
     }
 
@@ -149,7 +149,7 @@ private[reactive] final class CharsReaderObservable(
 
   private def triggerCancel(s: UncaughtExceptionReporter): Unit =
     try blocking(in.close()) catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         s.reportFailure(ex)
     }
 }

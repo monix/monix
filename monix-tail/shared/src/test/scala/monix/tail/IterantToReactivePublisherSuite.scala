@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.execution.rstreams.SingleAssignmentSubscription
+import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.batches.Batch
 import org.reactivestreams.{Subscriber, Subscription}
 import scala.util.{Failure, Success}
@@ -94,7 +94,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     var wasCompleted = false
     var received = 0
 
-    val subscription = SingleAssignmentSubscription()
+    val subscription = SingleAssignSubscription()
 
     Iterant[Task].range(0, count)
       .doOnEarlyStop(Task { wasStopped += 1 })
@@ -189,7 +189,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     var wasCompleted: Option[Throwable] = null
     var received = 0
 
-    val subscription = SingleAssignmentSubscription()
+    val subscription = SingleAssignSubscription()
 
     Iterant[Task].range(0, count)
       .doOnEarlyStop(Task { wasStopped += 1 })
@@ -324,7 +324,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   def sum[F[_]](stream: Iterant[F, Int], request: Long)(implicit F: Effect[F]): Task[Long] =
     Task.create { (scheduler, cb) =>
       implicit val ec = scheduler
-      val subscription = SingleAssignmentSubscription()
+      val subscription = SingleAssignSubscription()
 
       stream.toReactivePublisher.subscribe(
         new Subscriber[Int] {

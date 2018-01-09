@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1751,6 +1751,12 @@ object Iterant extends IterantInstances {
     */
   def eval[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
     Suspend(F.delay(nextS[F, A](a, F.pure(Halt(None)), F.unit)), F.unit)
+
+  /** Lifts a value from monadic context into the stream context,
+    * returning a stream of one element
+    */
+  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Suspend(F.map(fa)(lastS), F.unit)
 
   /** Builds a stream state equivalent with [[Iterant.Next]].
     *

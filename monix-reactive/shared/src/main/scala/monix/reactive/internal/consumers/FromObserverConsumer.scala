@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -58,7 +58,7 @@ final class FromObserverConsumer[In](f: Scheduler => Observer[In])
 
           def onNext(elem: In): Future[Ack] = {
             val ack = try out.onNext(elem) catch {
-              case NonFatal(ex) => Future.failed(ex)
+              case ex if NonFatal(ex) => Future.failed(ex)
             }
 
             ack.syncOnComplete {
