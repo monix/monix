@@ -36,8 +36,6 @@ private[tail] object IterantTakeEveryNth {
 
     require(n > 0, "n must be strictly positive")
 
-    if (n == 1) return source
-
     def processSeq(index: Int, ref: NextCursor[F, A]): NextCursor[F, A] = {
       val NextCursor(cursor, rest, stop) = ref
       val buffer = ArrayBuffer.empty[A]
@@ -83,7 +81,8 @@ private[tail] object IterantTakeEveryNth {
       }
     }
 
-    source match {
+    if (n == 1) source
+    else source match {
       case NextBatch(_, _, _) | NextCursor(_, _, _) =>
         // We can have side-effects with NextBatch/NextCursor
         // processing, so suspending execution in this case
