@@ -45,11 +45,12 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
       }
 
   test("naiveImp smoke test") { implicit s =>
-    val iter = Iterant[Coeval].fromList(List(1, 2, 3, 4, 5, 6))
-    assertEquals(naiveImp(iter, 1).toListL.value, List(1, 2, 3, 4, 5, 6))
+    val input = List(1, 2, 3, 4, 5, 6)
+    val iter = Iterant[Coeval].fromList(input)
+    assertEquals(naiveImp(iter, 1).toListL.value, input)
     assertEquals(naiveImp(iter, 2).toListL.value, List(2, 4, 6))
     assertEquals(naiveImp(iter, 3).toListL.value, List(3, 6))
-    assertEquals(naiveImp(iter, 7).toListL.value, List.empty[Int])
+    assertEquals(naiveImp(iter, input.length + 1).toListL.value, List.empty[Int])
   }
 
   test("Iterant[Task].takeEveryNth equivalence with naiveImp") { implicit s =>
