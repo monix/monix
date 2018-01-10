@@ -31,9 +31,7 @@ private[tail] object IterantTakeEveryNth {
   /**
     * Implementation for `Iterant#takeEveryNth`
     */
-  def apply[F[_], A](source: Iterant[F, A], n: Int)
-                    (implicit F: Sync[F]): Iterant[F, A] = {
-
+  def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Sync[F]): Iterant[F, A] = {
     require(n > 0, "n must be strictly positive")
 
     def processSeq(index: Int, ref: NextCursor[F, A]): NextCursor[F, A] = {
