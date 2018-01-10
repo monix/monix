@@ -38,7 +38,6 @@ private[tail] object IterantDropLast {
       val limit = cursor.recommendedBatchSize
       val buffer = mutable.Buffer[A]()
 
-      var bufferLength = 0
       var queueLength = length
       var toProcess = limit
 
@@ -46,15 +45,12 @@ private[tail] object IterantDropLast {
       while (toProcess > 0 && cursor.hasNext()) {
         queue.enqueue(cursor.next())
         toProcess -= 1
-        if (queueLength >= toDrop && bufferLength < limit) {
+        if (queueLength >= toDrop)
           buffer.append(queue.dequeue())
-          bufferLength += 1
-        }
         else queueLength += 1
       }
 
       val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
-
       NextBatch(Batch.fromSeq(buffer), next.map(loop(toDrop, queueLength, queue)), stop)
     }
 
@@ -99,11 +95,8 @@ private[tail] object IterantDropLast {
       }
     }
 
-    source match {
-      // Suspending execution, because pushing into our queue
-      // is side-effecting
-      case _ =>
-        Suspend(F.delay(loop(n, 0, mutable.Queue.empty[A])(source)), source.earlyStop)
-    }
+    // Suspending execution, because pushing into our queue
+    // is side-effecting
+    Suspend(F.delay(loop(n, 0, mutable.Queue.empty[A])(source)), source.earlyStop)
   }
 }
