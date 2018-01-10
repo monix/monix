@@ -24,7 +24,8 @@ import monix.eval.{Coeval, Task}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.tail.batches.BatchCursor
+import monix.tail.Iterant.Suspend
+import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
@@ -116,6 +117,14 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     intercept[IllegalArgumentException] { source.takeEveryNth(0).toListL.value }
   }
 
-  // TODO cover missing scenarios (see IterantTakeSuite)
+  test("Iterant.takeEveryNth suspends execution for NextCursor or NextBatch") { _ =>
+    val iter1 = Iterant[Coeval].nextBatchS(Batch(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+    assert(iter1.takeEveryNth(2).isInstanceOf[Suspend[Coeval, Int]], "NextBatch should be suspended")
+    assertEquals(iter1.takeEveryNth(2).toListL.value, List(2))
+
+    val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+    assert(iter2.takeEveryNth(2).isInstanceOf[Suspend[Coeval, Int]], "NextCursor should be suspended")
+    assertEquals(iter2.takeEveryNth(2).toListL.value, List(2))
+  }
 
 }
