@@ -56,9 +56,10 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
       val length = list.length
-      // TODO cover from 1 up to length + 1
-      val n = math.max(length / 3, 1)
-
+      // scale down from (Int.MinValue to Int.MaxValue) to (1 to (length + 1)) range
+      val n = math.round(
+        (length * (nr.toDouble - Int.MinValue.toDouble)) / (Int.MaxValue.toDouble - Int.MinValue.toDouble) + 1
+      ).toInt
       val res = stream.takeEveryNth(n).toListL.runAsync
       val exp = naiveImp(stream, n).toListL.runAsync
       s.tick()
