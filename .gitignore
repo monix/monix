@@ -10,5 +10,3 @@ target/
 /.lib/
 project/target/
 .classpath
-.jvmopts
-.gitignore
