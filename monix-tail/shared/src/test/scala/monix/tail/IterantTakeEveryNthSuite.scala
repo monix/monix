@@ -28,6 +28,7 @@ import monix.tail.Iterant.Suspend
 import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
+import scala.util.Failure
 
 object IterantTakeEveryNthSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
@@ -98,7 +99,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
-      intercept[DummyException] { stream.takeEveryNth(1).toListL.value }
+      assertEquals(stream.takeEveryNth(1).toListL.runTry, Failure(dummy))
       cancelable.isCanceled
     }
   }
@@ -114,7 +115,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
 
   test("Iterant.takeEveryNth throws on invalid n") { implicit s =>
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    intercept[IllegalArgumentException] { source.takeEveryNth(0).toListL.value }
+    intercept[IllegalArgumentException] { source.takeEveryNth(0) }
   }
 
   test("Iterant.takeEveryNth suspends execution for NextCursor or NextBatch") { _ =>
