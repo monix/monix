@@ -76,4 +76,14 @@ object IterantDropLastSuite extends BaseTestSuite {
       cancelable.isCanceled
     }
   }
+
+  test("Iterant.dropLast works for infinite cursors") { implicit s =>
+    check2 { (el: Int, _: Int) =>
+      val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val received = stream.dropLast(1).take(1).toListL
+      val expected = Coeval(Stream.continually(el).dropRight(1).take(1).toList)
+
+      received <-> expected
+    }
+  }
 }

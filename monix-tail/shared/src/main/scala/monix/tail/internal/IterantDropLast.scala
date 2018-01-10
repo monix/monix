@@ -33,15 +33,19 @@ private[tail] object IterantDropLast {
   def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Sync[F]): Iterant[F, A] = {
 
     def processCursor(toDrop: Int, length: Int, queue: mutable.Queue[A],
-                      cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] = {
-
+                      ref: NextCursor[F, A]): Iterant[F, A] = {
+      val NextCursor(cursor, rest, stop) = ref
       val limit = cursor.recommendedBatchSize
-      var queueLength = length
       val buffer = mutable.Buffer[A]()
-      var bufferLength = 0
 
-      while (cursor.hasNext()) {
+      var bufferLength = 0
+      var queueLength = length
+      var toProcess = limit
+
+      // protects against infinite cursors
+      while (toProcess > 0 && cursor.hasNext()) {
         queue.enqueue(cursor.next())
+        toProcess -= 1
         if (queueLength >= toDrop && bufferLength < limit) {
           buffer.append(queue.dequeue())
           bufferLength += 1
@@ -49,10 +53,9 @@ private[tail] object IterantDropLast {
         else queueLength += 1
       }
 
-      if (bufferLength > 0)
-        NextBatch(Batch.fromSeq(buffer), rest.map(loop(toDrop, queueLength, queue)), stop)
-      else
-        Suspend(rest.map(loop(toDrop, queueLength, queue)), stop)
+      val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
+
+      NextBatch(Batch.fromSeq(buffer), next.map(loop(toDrop, queueLength, queue)), stop)
     }
 
     def finalCursor(toDrop: Int, length: Int, queue: mutable.Queue[A]): Iterant[F, A] = {
@@ -76,10 +79,10 @@ private[tail] object IterantDropLast {
             Next(queue.dequeue(), rest.map(loop(toDrop, length, queue)), stop)
           else
             Suspend(rest.map(loop(toDrop, length + 1, queue)), stop)
-        case NextCursor(cursor, rest, stop) =>
-          processCursor(toDrop, length, queue, cursor, rest, stop)
+        case ref@NextCursor(_, _, _) =>
+          processCursor(toDrop, length, queue, ref)
         case NextBatch(batch, rest, stop) =>
-          processCursor(toDrop, length, queue, batch.cursor(), rest, stop)
+          processCursor(toDrop, length, queue, NextCursor(batch.cursor(), rest, stop))
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop(toDrop, length, queue)), stop)
         case Last(item) =>
