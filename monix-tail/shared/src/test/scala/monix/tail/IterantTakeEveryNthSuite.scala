@@ -111,7 +111,10 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  // TODO cover n < 1 case throws exception
+  test("Iterant.takeEveryNth throws on invalid n") { implicit s =>
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+    intercept[IllegalArgumentException] { source.takeEveryNth(0).toListL.value }
+  }
 
   // TODO cover missing scenarios (see IterantTakeSuite)
 
