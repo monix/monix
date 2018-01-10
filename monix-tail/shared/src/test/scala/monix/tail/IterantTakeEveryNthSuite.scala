@@ -60,12 +60,14 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
       val n = math.round(
         (length * (nr.toDouble - Int.MinValue.toDouble)) / (Int.MaxValue.toDouble - Int.MinValue.toDouble) + 1
       ).toInt
-      val res = stream.takeEveryNth(n).toListL.runAsync
-      val exp = naiveImp(stream, n).toListL.runAsync
+      val actual = stream.takeEveryNth(n).toListL.runAsync
+      val expected = naiveImp(stream, n).toListL.runAsync
       s.tick()
-      res.value <-> exp.value
+      actual.value <-> expected.value
     }
   }
+
+  // TODO cover n < 1 case throws exception
 
   // TODO cover various scenarios (early stop, broken batches, etc.)
 
