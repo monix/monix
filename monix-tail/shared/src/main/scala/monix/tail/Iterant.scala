@@ -1407,6 +1407,25 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def takeWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantTakeWhile(self, p)(F)
 
+  /** Takes every n-th element, dropping intermediary elements
+    * and returns a new iterant that emits those elements.
+    *
+    * Example: {{{
+    *   // Yields 2, 4, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeEveryNth(2)
+    *
+    *   // Yields 1, 2, 3, 4, 5, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeEveryNth(1)
+    * }}}
+    *
+    * @param n is the sequence number of an element to be taken (must be > 0)
+    *
+    * @return a new iterant instance that on evaluation will return only every n-th
+    *         element of the source
+    */
+  final def takeEveryNth(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantTakeEveryNth(self, n)
+
   /** Drops the first element of the source iterant, emitting the rest.
     *
     * Example: {{{
