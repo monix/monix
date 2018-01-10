@@ -36,7 +36,7 @@ private[tail] object IterantTakeEveryNth {
 
     require(n > 0, "n must be strictly positive")
 
-    // TODO shortcut for n = 1
+    if (n == 1) return source
 
     def processSeq(index: Int, ref: NextCursor[F, A]): NextCursor[F, A] = {
       val NextCursor(cursor, rest, stop) = ref
