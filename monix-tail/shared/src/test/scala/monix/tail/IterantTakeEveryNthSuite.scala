@@ -21,7 +21,10 @@ import cats.effect.Sync
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
+import monix.execution.cancelables.BooleanCancelable
+import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
@@ -68,8 +71,48 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     }
   }
 
+  test("Iterant.takeEveryNth protects against broken batches") { implicit s =>
+    check1 { (iter: Iterant[Task, Int]) =>
+      val dummy = DummyException("dummy")
+      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val stream = iter.onErrorIgnore ++ suffix
+      val received = stream.takeEveryNth(1)
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
+    }
+  }
+
+  test("Iterant.takeEveryNth protects against broken cursors") { implicit s =>
+    check1 { (iter: Iterant[Task, Int]) =>
+      val dummy = DummyException("dummy")
+      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val stream = iter.onErrorIgnore ++ suffix
+      val received = stream.takeEveryNth(1)
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
+    }
+  }
+
+  test("Iterant.takeEveryNth triggers early stop on exception") { _ =>
+    check1 { (iter: Iterant[Coeval, Int]) =>
+      val cancelable = BooleanCancelable()
+      val dummy = DummyException("dummy")
+      val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
+      val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
+      intercept[DummyException] { stream.takeEveryNth(1).toListL.value }
+      cancelable.isCanceled
+    }
+  }
+
+  test("Iterant.takeEveryNth preserves the source earlyStop") { implicit s =>
+    var effect = 0
+    val stop = Coeval.eval(effect += 1)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val stream = source.takeEveryNth(1)
+    stream.earlyStop.value
+    assertEquals(effect, 1)
+  }
+
   // TODO cover n < 1 case throws exception
 
-  // TODO cover various scenarios (early stop, broken batches, etc.)
+  // TODO cover missing scenarios (see IterantTakeSuite)
 
 }
