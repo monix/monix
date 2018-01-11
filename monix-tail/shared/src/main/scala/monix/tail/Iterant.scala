@@ -1392,6 +1392,24 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def takeWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantTakeWhile(self, p)(F)
 
+  /** Takes longest prefix of elements zipped with their indices that satisfy the given predicate
+    * and returns a new iterant that emits those elements.
+    *
+    * Example: {{{
+    *   // Yields 1, 2
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeWhile((_, idx) => idx < 2)
+    * }}}
+    *
+    * @param p is the function that tests each element, stopping
+    *          the streaming on the first `false` result
+    *
+    * @return a new iterant instance that on evaluation will all
+    *         elements of the source for as long as the given predicate
+    *         returns `true`, stopping upon the first `false` result
+    */
+  final def takeWhileWithIndex(p: (A, Long) => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantTakeWhileWithIndex(self, p)(F)
+
   /** Takes every n-th element, dropping intermediary elements
     * and returns a new iterant that emits those elements.
     *
