@@ -29,7 +29,6 @@ object VarSubjectSuite extends TestSuite[TestScheduler] {
   }
 
   test("initial value is emitted on subscribe") { implicit s =>
-
     val var0 = Var(0)
     var emitted: Option[Int] = None
 
@@ -40,18 +39,15 @@ object VarSubjectSuite extends TestSuite[TestScheduler] {
       case Some(x) => assertEquals(x, var0())
       case None => fail("Initial value was never emitted!")
     }
-
   }
 
   test("new value is emitted on update") { implicit s =>
-
     val var0 = Var(0)
     var emitted: Option[Int] = None
 
     var0.foreach { x => emitted = Some(x) }
 
     s.tick()
-
     var0 := 123
     s.tick()
 
@@ -59,7 +55,5 @@ object VarSubjectSuite extends TestSuite[TestScheduler] {
       case Some(x) => assertEquals(x, var0())
       case None => fail("Initial value was never emitted!")
     }
-
   }
-
 }

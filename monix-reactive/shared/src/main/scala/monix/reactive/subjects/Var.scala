@@ -22,18 +22,37 @@ import monix.reactive.{ Observable, OverflowStrategy }
 import monix.reactive.observers.Subscriber
 
 /** `Var` when subscribed, will emit the most recently emitted item by the source,
-  * or the `initialValue` (as the seed) in case no value has yet been emitted, then continuing
+  * or the `initial` (as the seed) in case no value has yet been emitted, then continuing
   * to emit events subsequent to the time of invocation via an underlying [[ConcurrentSubject]].
+  * Note that this data type is equivalent to a `ConcurrentSubject.behavior(Unbounded)` with
+  * additional functionality to expose the current value for immediate usage.
+  *
+  * Sample usage:
+  *
+  * {{{
+  *   val a = Var(0)
+  *   val b = Var(0)
+  *
+  *   // Sum that gets re-calculated "reactively"
+  *   val sum = Observable.combineLatest(a, b)(_ + _)
+  *
+  *   // Subscribes for updates
+  *   sum.foreach(println)
+  *
+  *   a := 4
+  *   // => 4
+  *   b := 5
+  *   // => 9
+  *   a := 10
+  *   // => 15
+  * }}}
   *
   * @see [[ConcurrentSubject]]
   */
-final class Var[A] private (
-  initialValue: A
-)(implicit scheduler: Scheduler)
-    extends Observable[A] { self =>
+final class Var[A] private (initial: A)(implicit s: Scheduler) extends Observable[A] { self =>
 
-  private[this] var value: A   = initialValue
-  private[this] val underlying = ConcurrentSubject.behavior(initialValue, OverflowStrategy.Unbounded)
+  private[this] var value: A   = initial
+  private[this] val underlying = ConcurrentSubject.behavior(initial, OverflowStrategy.Unbounded)
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable =
     underlying.unsafeSubscribeFn(subscriber)
@@ -55,14 +74,11 @@ final class Var[A] private (
       value = update
       underlying.onNext(update)
     }
-
 }
 
 object Var {
   /** Builder for [[Var]] */
-  def apply[A](
-    initialValue: A
-  )(implicit scheduler: Scheduler): Var[A] = {
-    new Var[A](initialValue)
+  def apply[A](initial: A )(implicit s: Scheduler): Var[A] = {
+    new Var[A](initial)
   }
 }
