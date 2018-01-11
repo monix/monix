@@ -22,8 +22,10 @@ import cats.syntax.all._
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.BatchCursor
 
+import scala.annotation.tailrec
+import scala.collection.immutable.Queue
 import scala.collection.mutable
 
 private[tail] object IterantDropLast {
@@ -32,60 +34,78 @@ private[tail] object IterantDropLast {
     */
   def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Sync[F]): Iterant[F, A] = {
 
-    def processCursor(toDrop: Int, length: Int, queue: mutable.Queue[A],
-                      ref: NextCursor[F, A]): Iterant[F, A] = {
+    def processCursor(length: Int, queue: Queue[A], ref: NextCursor[F, A]): Iterant[F, A] = {
       val NextCursor(cursor, rest, stop) = ref
       val limit = cursor.recommendedBatchSize
+
       val buffer = mutable.Buffer[A]()
-
       var queueLength = length
-      var toProcess = limit
 
-      // protects against infinite cursors
-      while (toProcess > 0 && cursor.hasNext()) {
-        queue.enqueue(cursor.next())
-        toProcess -= 1
-        if (queueLength >= toDrop)
-          buffer.append(queue.dequeue())
-        else queueLength += 1
+      @tailrec
+      def queueLoop(queue: Queue[A], toProcess: Int): Queue[A] = {
+        if (!(toProcess > 0 && cursor.hasNext()))
+          queue
+        else {
+          val updatedQueue = queue.enqueue(cursor.next())
+          if (queueLength >= n) {
+            val (item, dequeuedQueue) = updatedQueue.dequeue
+            buffer.append(item)
+            queueLoop(dequeuedQueue, toProcess - 1)
+          } else {
+            queueLength += 1
+            queueLoop(updatedQueue, toProcess - 1)
+          }
+        }
       }
 
+      val finalQueue = queueLoop(queue, limit)
       val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
-      NextBatch(Batch.fromSeq(buffer), next.map(loop(toDrop, queueLength, queue)), stop)
+      NextCursor(BatchCursor.fromSeq(buffer), next.map(loop(queueLength, finalQueue)), stop)
     }
 
-    def finalCursor(toDrop: Int, length: Int, queue: mutable.Queue[A]): Iterant[F, A] = {
-      var queueLength = length
+    def finalCursor(length: Int, queue: Queue[A]): Iterant[F, A] = {
       val buffer = mutable.Buffer[A]()
 
-      while (queueLength > toDrop) {
-        buffer.append(queue.dequeue())
-        queueLength -= 1
+      @tailrec
+      def queueLoop(queue: Queue[A], queueLength: Int): Queue[A] = {
+        if (queueLength <= n) {
+          queue
+        } else {
+          val (item, nextQueue) = queue.dequeue
+          buffer.append(item)
+          queueLoop(nextQueue, queueLength - 1)
+        }
       }
-      val cursor = BatchCursor.fromSeq(buffer)
-      NextCursor(cursor, F.pure(Halt(None)), F.unit)
+
+      queueLoop(queue, length)
+      NextCursor(BatchCursor.fromSeq(buffer), F.pure(Halt(None)), F.unit)
     }
 
-    def loop(toDrop: Int, length: Int, queue: mutable.Queue[A])
-            (source: Iterant[F, A]): Iterant[F, A] = {
-      try if (toDrop <= 0) source else source match {
-        case Next(elem, rest, stop) =>
-          queue.enqueue(elem)
-          if (length >= toDrop)
-            Next(queue.dequeue(), rest.map(loop(toDrop, length, queue)), stop)
-          else
-            Suspend(rest.map(loop(toDrop, length + 1, queue)), stop)
+    def loop(length: Int, queue: Queue[A])(source: Iterant[F, A]): Iterant[F, A] = {
+      try if (n <= 0) source else source match {
+        case Next(item, rest, stop) =>
+          val updatedQueue = queue.enqueue(item)
+          if (length >= n) {
+            val (nextItem, dequeuedQueue) = updatedQueue.dequeue
+            Next(nextItem, rest.map(loop(length, dequeuedQueue)), stop)
+          }
+          else Suspend(rest.map(loop(length + 1, updatedQueue)), stop)
+
         case ref@NextCursor(_, _, _) =>
-          processCursor(toDrop, length, queue, ref)
+          processCursor(length, queue, ref)
+
         case NextBatch(batch, rest, stop) =>
-          processCursor(toDrop, length, queue, NextCursor(batch.cursor(), rest, stop))
+          processCursor(length, queue, NextCursor(batch.cursor(), rest, stop))
+
         case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(toDrop, length, queue)), stop)
+          Suspend(rest.map(loop(length, queue)), stop)
+
         case Last(item) =>
-          queue.enqueue(item)
-          finalCursor(toDrop, length + 1, queue)
+          finalCursor(length + 1, queue.enqueue(item))
+
         case Halt(None) =>
-          finalCursor(toDrop, length, queue)
+          finalCursor(length, queue)
+
         case halt@Halt(Some(_)) =>
           halt
       } catch {
@@ -95,8 +115,13 @@ private[tail] object IterantDropLast {
       }
     }
 
-    // Suspending execution, because pushing into our queue
-    // is side-effecting
-    Suspend(F.delay(loop(n, 0, mutable.Queue.empty[A])(source)), source.earlyStop)
+    source match {
+      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
+        // We can have side-effects with NextBatch/NextCursor
+        // processing, so suspending execution in this case
+        Suspend(F.delay(loop(0, Queue.empty[A])(source)), source.earlyStop)
+      case _ =>
+        loop(0, Queue.empty[A])(source)
+    }
   }
 }
