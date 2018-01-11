@@ -108,7 +108,8 @@ private[tail] object IterantIntersperse {
     source match {
       case NextCursor(_, _, _) | NextBatch(_, _, _) =>
         Suspend(F.delay(loop(prepend = false)(source)), source.earlyStop)
-      case _ => loop(prepend = false)(source)
+      case _ =>
+        loop(prepend = false)(source)
     }
   }
 }
