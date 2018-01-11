@@ -519,6 +519,20 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def drop(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDrop(self, n)(F)
 
+  /** Drops the last `n` elements (from the end).
+    *
+    * Example: {{{
+    *   // Yields 1, 2
+    *   Iterant[Task].of(1, 2, 3, 4, 5).dropLast(3)
+    * }}}
+    *
+    * @param n the number of elements to drop
+    * @return a new iterant that drops the last ''n'' elements
+    *         emitted by the source
+    */
+  final def dropLast(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantDropLast(self, n)(F)
+
   /** Drops the longest prefix of elements that satisfy the given
     * predicate and returns a new iterant that emits the rest.
     *
@@ -1139,6 +1153,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def minL(implicit F: Sync[F], A: Order[A]): F[Option[A]] =
     reduceL((max, a) => if (A.compare(max, a) > 0) a else max)
 
+  /** In case this Iterant is empty, switch to the given backup. */
+  final def switchIfEmpty(backup: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+    IterantSwitchIfEmpty(this, backup)
+
   /** Reduces the elements of the source using the specified
     * associative binary operator, going from left to right, start to
     * finish.
@@ -1387,6 +1405,25 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def takeWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantTakeWhile(self, p)(F)
+
+  /** Takes every n-th element, dropping intermediary elements
+    * and returns a new iterant that emits those elements.
+    *
+    * Example: {{{
+    *   // Yields 2, 4, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeEveryNth(2)
+    *
+    *   // Yields 1, 2, 3, 4, 5, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeEveryNth(1)
+    * }}}
+    *
+    * @param n is the sequence number of an element to be taken (must be > 0)
+    *
+    * @return a new iterant instance that on evaluation will return only every n-th
+    *         element of the source
+    */
+  final def takeEveryNth(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantTakeEveryNth(self, n)
 
   /** Drops the first element of the source iterant, emitting the rest.
     *

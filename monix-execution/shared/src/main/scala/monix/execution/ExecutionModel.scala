@@ -81,8 +81,8 @@ object ExecutionModel {
       * [[SynchronousExecution]] type is set to the maximum power
       * of 2 expressible with a `Int`, which is 2^30^ (or 1,073,741,824).
       */
-    val recommendedBatchSize = math.roundToPowerOf2(Int.MaxValue)
-    val batchedExecutionModulus = recommendedBatchSize-1
+    val recommendedBatchSize: Int = math.roundToPowerOf2(Int.MaxValue)
+    val batchedExecutionModulus: Int = recommendedBatchSize-1
 
     /** Returns the next frame index in the run-loop.
       *
@@ -100,8 +100,8 @@ object ExecutionModel {
     /** The [[ExecutionModel.recommendedBatchSize]] for the
       * [[SynchronousExecution]] type is set to one.
       */
-    val recommendedBatchSize = 1
-    val batchedExecutionModulus = 0
+    val recommendedBatchSize: Int = 1
+    val batchedExecutionModulus: Int = 0
 
     /** Returns the next frame index in the run-loop.
       *
@@ -128,8 +128,8 @@ object ExecutionModel {
     private val batchSize: Int)
     extends ExecutionModel {
 
-    val recommendedBatchSize = math.nextPowerOf2(batchSize)
-    val batchedExecutionModulus = recommendedBatchSize-1
+    val recommendedBatchSize: Int = math.nextPowerOf2(batchSize)
+    val batchedExecutionModulus: Int = recommendedBatchSize - 1
 
     def nextFrameIndex(current: Int): Int =
       (current + 1) & batchedExecutionModulus
