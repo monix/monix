@@ -519,6 +519,20 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def drop(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDrop(self, n)(F)
 
+  /** Drops the last `n` elements (from the end).
+    *
+    * Example: {{{
+    *   // Yields 1, 2
+    *   Iterant[Task].of(1, 2, 3, 4, 5).dropLast(3)
+    * }}}
+    *
+    * @param n the number of elements to drop
+    * @return a new iterant that drops the last ''n'' elements
+    *         emitted by the source
+    */
+  final def dropLast(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantDropLast(self, n)(F)
+
   /** Drops the longest prefix of elements that satisfy the given
     * predicate and returns a new iterant that emits the rest.
     *
