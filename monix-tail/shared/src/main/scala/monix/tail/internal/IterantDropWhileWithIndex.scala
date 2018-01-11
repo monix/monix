@@ -34,42 +34,46 @@ private[tail] object IterantDropWhileWithIndex {
 
     // Reusable logic for NextCursor / NextBatch branches
     @tailrec
-    def evalCursor(ref: F[Iterant[F, A]], cursor: BatchCursor[A], rest: F[Iterant[F, A]],
-                   stop: F[Unit], dropped: Int, index: Int, continueDropping: Boolean): Iterant[F, A] = {
+    def evalCursor(
+      ref: F[Iterant[F, A]], cursor: BatchCursor[A], rest: F[Iterant[F, A]],
+      stop: F[Unit], dropped: Int, index: Int): Iterant[F, A] = {
+
       if (!cursor.hasNext())
-        Suspend(rest.map(loop(index, continueDropping)), stop)
+        Suspend(rest.map(loop(index)), stop)
       else if (dropped >= cursor.recommendedBatchSize)
-        Suspend(ref.map(loop(index, continueDropping)), stop)
+        Suspend(ref.map(loop(index)), stop)
       else {
         val elem = cursor.next()
-        if (continueDropping && p(elem, index))
-          evalCursor(ref, cursor, rest, stop, dropped + 1, index + 1, continueDropping)
+        if (p(elem, index))
+          evalCursor(ref, cursor, rest, stop, dropped + 1, index + 1)
         else if (cursor.hasNext())
-          Next(elem, ref.map(loop(index, continueDropping = false)), stop)
+          Next(elem, ref, stop)
         else
-          Next(elem, rest.map(loop(index, continueDropping = false)), stop)
+          Next(elem, rest, stop)
       }
     }
 
-    def loop(index: Int, continueDropping: Boolean)(source: Iterant[F, A]): Iterant[F, A] = {
+    def loop(index: Int)(source: Iterant[F, A]): Iterant[F, A] = {
       try source match {
         case ref@Next(item, rest, stop) =>
-          if (continueDropping && p(item, index)) Suspend(rest.map(loop(index + 1, continueDropping = true)), stop)
-          else ref
+          if (p(item, index))
+            Suspend(rest.map(loop(index + 1)), stop)
+          else
+            ref
 
         case ref@NextCursor(cursor, rest, stop) =>
-          evalCursor(F.pure(ref), cursor, rest, stop, 0, index, continueDropping)
+          evalCursor(F.pure(ref), cursor, rest, stop, 0, index)
 
         case NextBatch(batch, rest, stop) =>
           val cursor = batch.cursor()
           val ref = NextCursor(cursor, rest, stop)
-          evalCursor(F.pure(ref), cursor, rest, stop, 0, index, continueDropping)
+          evalCursor(F.pure(ref), cursor, rest, stop, 0, index)
 
         case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(index, continueDropping)), stop)
+          Suspend(rest.map(loop(index)), stop)
 
         case last@Last(elem) =>
-          if (continueDropping && p(elem, index)) Halt(None) else last
+          if (p(elem, index)) Halt(None) else last
 
         case halt@Halt(_) =>
           halt
@@ -81,13 +85,13 @@ private[tail] object IterantDropWhileWithIndex {
     }
 
     source match {
-      case Suspend(_, _) | Halt(_) => loop(0, continueDropping = true)(source)
+      case Suspend(_, _) | Halt(_) => loop(0)(source)
       case _ =>
         // Suspending execution in order to preserve laziness and
         // referential transparency, since the provided function can
         // be side effecting and because processing NextBatch and
         // NextCursor states can have side effects
-        Suspend(F.delay(loop(0, continueDropping = true)(source)), source.earlyStop)
+        Suspend(F.delay(loop(0)(source)), source.earlyStop)
     }
   }
 }
