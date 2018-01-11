@@ -1397,7 +1397,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * Example: {{{
     *   // Yields 1, 2
-    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeWhile((_, idx) => idx < 2)
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeWhile((_, idx) => idx != 2)
     * }}}
     *
     * @param p is the function that tests each element, stopping
