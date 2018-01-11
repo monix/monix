@@ -3519,10 +3519,13 @@ abstract class Observable[+A] extends Serializable { self =>
   *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
   *         by means of [[Observable!.multicast multicast]].
   *
-  * @define blocksDefaultSchedulerDesc To read from a open/unclosed stream, you
-  *         may want to use the ExecutionModel
+  * @define blocksDefaultSchedulerDesc This operation will start processing on the current
+  *         thread (on `subscribe()`), so in order to not block it might be better to also do an
+  *         [[Observable.executeWithFork executeWithFork]], or you may want to use the 
   *         [[monix.execution.ExecutionModel.AlwaysAsyncExecution AlwaysAsyncExecution]]
-  *         to avoid blocking on the call to .subscribe().
+  *         model, which can be configured per `Scheduler`, see
+  *         [[monix.execution.Scheduler.withExecutionModel Scheduler.withExecutionModel]],
+  *         or per `Observable`, see [[Observable.executeWithModel]].
   */
 object Observable {
   /** An `Operator` is a function for transforming observers,
