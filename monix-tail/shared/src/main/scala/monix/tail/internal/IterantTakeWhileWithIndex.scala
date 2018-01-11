@@ -46,13 +46,13 @@ private[tail] object IterantTakeWhileWithIndex {
       else {
         val buffer = ArrayBuffer.empty[A]
         var continue = true
-        var idx = 0
+        var cursorIndex = 0
 
-        while (continue && idx < batchSize && cursor.hasNext()) {
+        while (continue && cursorIndex < batchSize && cursor.hasNext()) {
           val item = cursor.next()
-          if (p(item, index + idx)) {
+          if (p(item, index + cursorIndex)) {
             buffer += item
-            idx += 1
+            cursorIndex += 1
           } else {
             continue = false
           }
@@ -60,8 +60,8 @@ private[tail] object IterantTakeWhileWithIndex {
 
         val bufferCursor = BatchCursor.fromAnyArray[A](buffer.toArray[Any])
         if (continue) {
-          val next: F[Iterant[F, A]] = if (idx < batchSize) rest else F.pure(ref)
-          NextCursor(bufferCursor, next.map(loop(index + idx)), stop)
+          val next: F[Iterant[F, A]] = if (cursorIndex < batchSize) rest else F.pure(ref)
+          NextCursor(bufferCursor, next.map(loop(index + cursorIndex)), stop)
         } else {
           NextCursor(bufferCursor, stop.map(_ => Halt(None)), stop)
         }
