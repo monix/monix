@@ -3520,7 +3520,7 @@ abstract class Observable[+A] extends Serializable { self =>
   *         by means of [[Observable!.multicast multicast]].
   *
   * @define blocksDefaultSchedulerDesc This operation will start processing on the current
-  *         thread (on `subscribe()`), so in order to not block it might be better to also do an
+  *         thread (on `subscribe()`), so in order to not block, it might be better to also do an
   *         [[Observable.executeWithFork executeWithFork]], or you may want to use the 
   *         [[monix.execution.ExecutionModel.AlwaysAsyncExecution AlwaysAsyncExecution]]
   *         model, which can be configured per `Scheduler`, see
