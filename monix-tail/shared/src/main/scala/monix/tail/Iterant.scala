@@ -1158,6 +1158,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def minL(implicit F: Sync[F], A: Order[A]): F[Option[A]] =
     reduceL((max, a) => if (A.compare(max, a) > 0) a else max)
 
+  /** In case this Iterant is empty, switch to the given backup. */
+  final def switchIfEmpty(backup: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+    IterantSwitchIfEmpty(this, backup)
+
   /** Reduces the elements of the source using the specified
     * associative binary operator, going from left to right, start to
     * finish.
