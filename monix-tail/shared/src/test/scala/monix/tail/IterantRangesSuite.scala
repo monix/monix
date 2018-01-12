@@ -104,4 +104,73 @@ object IterantRangesSuite extends BaseTestSuite {
 
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
+
+  test("Iterant.intervalAtFixedRate(1.second)") { implicit s =>
+    var effect = 0
+    val lst = Iterant[Task].intervalAtFixedRate(1.second)
+      .mapEval(e => Task.eval { effect += 1; e }.delayExecution(100.millis))
+      .take(3)
+      .toListL
+      .runAsync
+
+    assertEquals(lst.value, None)
+    assertEquals(effect, 0)
+    s.tick(100.millis) // Wait until first effect happens
+    assertEquals(effect, 1)
+
+    s.tick(1.second)
+    assertEquals(effect, 2)
+
+    s.tick(1.second)
+    assertEquals(effect, 3)
+
+    assertEquals(lst.value, Some(Success(List(0, 1, 2))))
+  }
+
+  test("Iterant.intervalAtFixedRate(2.seconds, 1.second)") { implicit s =>
+    var effect = 0
+    val lst = Iterant[Task].intervalAtFixedRate(2.seconds, 1.second)
+      .mapEval(e => Task.eval { effect += 1; e }.delayExecution(100.millis))
+      .take(3)
+      .toListL
+      .runAsync
+
+    assertEquals(lst.value, None)
+    s.tick(2.seconds)
+    assertEquals(effect, 0)
+
+    s.tick(100.millis) // Wait until first effect happens
+    assertEquals(effect, 1)
+
+    s.tick(1.second)
+    assertEquals(effect, 2)
+
+    s.tick(1.second)
+    assertEquals(effect, 3)
+
+    assertEquals(lst.value, Some(Success(List(0, 1, 2))))
+  }
+
+  test("Iterant.intervalAtFixedRate accounts for time it takes task to finish") { implicit s =>
+    var effect = 0
+    val lst = Iterant[Task].intervalAtFixedRate(1.second)
+      .mapEval(e => Task.eval { effect += 1; e }.delayExecution(2.seconds))
+      .take(3)
+      .toListL
+      .runAsync
+
+    assertEquals(lst.value, None)
+    assertEquals(effect, 0)
+
+    s.tick(2.seconds)
+    assertEquals(effect, 1)
+
+    s.tick(2.seconds)
+    assertEquals(effect, 2)
+
+    s.tick(2.seconds)
+    assertEquals(effect, 3)
+
+    assertEquals(lst.value, Some(Success(List(0, 1, 2))))
+  }
 }
