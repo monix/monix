@@ -551,6 +551,28 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def dropWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDropWhile(self, p)
 
+  /** Drops the longest prefix of elements that satisfy the given
+    * function and returns a new Iterant that emits the rest.
+    *
+    * In comparison with [[dropWhile]], this version accepts a function
+    * that takes an additional parameter: the zero-based index of the
+    * element.
+    *
+    * Example: {{{
+    *   // Yields 3, 4, 5
+    *   Iterant[Task].of(1, 2, 3, 4, 5).dropWhile((value, index) => value >= index * 2)
+    * }}}
+    *
+    * @param p is the predicate used to test whether the current
+    *        element should be dropped, if `true`, or to interrupt
+    *        the dropping process, if `false`
+    *
+    * @return a new iterant that drops the elements of the source
+    *         until the first time the given predicate returns `false`
+    */
+  final def dropWhileWithIndex(p: (A, Int) => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantDropWhileWithIndex(self, p)
+
   /** Dumps incoming events to standard output with provided prefix.
     *
     * Utility that can be used for debugging purposes.
