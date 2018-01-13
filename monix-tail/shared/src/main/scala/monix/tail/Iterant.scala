@@ -1656,6 +1656,51 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def scanEval[S](seed: F[S])(op: (S, A) => F[S])(implicit F: Sync[F]): Iterant[F, S] =
     IterantScanEval(self, seed, op)
 
+  /** Applies implicitly available `Monoid[B]` to combine elements using
+    * `Monoid[B]` identity value as the initial state and map every incoming
+    * element of this `Iterant` with provided function f: A => B.
+    *
+    * It goes from left to right and returns a new `Iterant` that emits
+    * on each step the result of the applied functions.
+    *
+    * Similar with [[scan]], but this applies provided function on every element
+    * and uses implicitly available `Monoid[B]` instance to get the initial state
+    * and function for combining elements.
+    *
+    * Example showing how state can be evolved and acted upon:
+    * {{{
+    *   import cats.Monoid
+    *
+    *   sealed trait State[+A] { def count: Int }
+    *   case object Init extends State[Nothing] { def count = 0 }
+    *   case class Current[A](current: A, count: Int) extends State[A]
+    *
+    *   implicit val intStateMonoid: Monoid[State[Int]] = new Monoid[State[Int]] {
+    *       def empty: State[Int] = Init
+    *
+    *   def combine(x: State[Int], y: State[Int]): State[Int] = {
+    *     (x, y) match {
+    *       case (_, Init) => Init
+    *       case (Current(_, count1), Current(curr, count2)) => Current(curr, count1 + count2)
+    *       case (_, curr@ Current(_, _)) => curr
+    *     }
+    *   }
+    *
+    *   val scanned = source.scanMap(Current(_, 1): State[Int])
+    *
+    *   scanned
+    *     .takeWhile(_.count < 10)
+    *     .collect { case Current(a, _) => a }
+    * }}}
+    *
+    * @param f is the function applied to every incoming element of this `Iterant`
+    *
+    * @return a new iterant that emits all intermediate states being
+    *         resulted from applying function `Monoid[B].combine`
+    */
+  final def scanMap[B](f: A => B)(implicit F: Sync[F], B: Monoid[B]): Iterant[F, B] =
+    self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
+
   /** Skips over [[Iterant.Suspend]] states, along with
     * [[Iterant.NextCursor]] and [[Iterant.NextBatch]] states that
     * signal empty collections.
