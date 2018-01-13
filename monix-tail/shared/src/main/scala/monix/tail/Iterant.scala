@@ -1678,12 +1678,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   implicit val intStateMonoid: Monoid[State[Int]] = new Monoid[State[Int]] {
     *       def empty: State[Int] = Init
     *
-    *   def combine(x: State[Int], y: State[Int]): State[Int] = {
-    *     (x, y) match {
-    *       case (_, Init) => Init
-    *       case (Current(_, count1), Current(curr, count2)) => Current(curr, count1 + count2)
-    *       case (_, curr@ Current(_, _)) => curr
-    *     }
+    *       def combine(x: State[Int], y: State[Int]): State[Int] = {
+    *         (x, y) match {
+    *           case (_, Init) => Init
+    *           case (Current(_, count1), Current(curr, count2)) => Current(curr, count1 + count2)
+    *           case (_, curr@ Current(_, _)) => curr
+    *       }
     *   }
     *
     *   val scanned = source.scanMap(Current(_, 1): State[Int])
