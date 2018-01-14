@@ -76,10 +76,13 @@ final class MultiAssignCancelable private (initial: Cancelable)
         // ignore
         this
       case current =>
-        if (!state.compareAndSet(current, value))
-          :=(value) // retry
-        else
+        if (state.compareAndSet(current, value)) {
           this
+        } else {
+          // $COVERAGE-OFF$
+          :=(value) // retry
+          // $COVERAGE-ON$
+        }
     }
 
   /** Clears the underlying reference, setting it to a
@@ -99,10 +102,13 @@ final class MultiAssignCancelable private (initial: Cancelable)
   @tailrec def clear(): Cancelable = {
     val current: Cancelable = state.get
     if ((current ne null) && !current.isInstanceOf[IsDummy]) {
-      if (!state.compareAndSet(current, Cancelable.empty))
-        clear() // retry
-      else
+      if (state.compareAndSet(current, Cancelable.empty)) {
         current
+      } else {
+        // $COVERAGE-OFF$
+        clear() // retry
+        // $COVERAGE-ON$
+      }
     } else {
       Cancelable.empty
     }

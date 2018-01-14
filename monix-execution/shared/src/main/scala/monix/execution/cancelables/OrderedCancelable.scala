@@ -103,10 +103,13 @@ final class OrderedCancelable private (initial: Cancelable)
         this
 
       case current @ Active(_, currentOrder) =>
-        if (!state.compareAndSet(current, Active(value, currentOrder)))
-          :=(value) // retry
-        else
+        if (state.compareAndSet(current, Active(value, currentOrder))) {
           this
+        } else {
+          // $COVERAGE-OFF$
+          :=(value) // retry
+          // $COVERAGE-ON$
+        }
     }
 
   /** An ordered update is an update with an order attached and if
@@ -128,10 +131,13 @@ final class OrderedCancelable private (initial: Cancelable)
           (currentOrder >= 0L && order < 0L) // takes overflow into account
 
         if (!isOrdered) this else {
-          if (!state.compareAndSet(current, Active(value, order)))
-            orderedUpdate(value, order) // retry
-          else
+          if (state.compareAndSet(current, Active(value, order))) {
             this
+          } else {
+            // $COVERAGE-OFF$
+            orderedUpdate(value, order) // retry
+            // $COVERAGE-ON$
+          }
         }
     }
 }

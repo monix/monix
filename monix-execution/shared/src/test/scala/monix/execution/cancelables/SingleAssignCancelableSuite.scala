@@ -25,10 +25,12 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
     var effect = 0
     val s = SingleAssignCancelable()
     val b = BooleanCancelable { () => effect += 1 }
+
     s := b
+    assert(!s.isCanceled, "!s.isCanceled")
 
     s.cancel()
-    assert(s.isCanceled)
+    assert(s.isCanceled, "s.isCanceled")
     assert(b.isCanceled)
     assert(effect == 1)
 
