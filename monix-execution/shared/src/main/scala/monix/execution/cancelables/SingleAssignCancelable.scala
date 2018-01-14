@@ -73,7 +73,6 @@ final class SingleAssignCancelable private (extra: Cancelable)
         value.cancel()
         raiseError()
     }
-
     this
   }
 
@@ -86,10 +85,13 @@ final class SingleAssignCancelable private (extra: Cancelable)
         if (extra != null) extra.cancel()
         s.cancel()
       case Empty =>
-        if (!state.compareAndSet(Empty, IsEmptyCanceled))
-          cancel()
-        else if (extra != null)
-          extra.cancel()
+        if (state.compareAndSet(Empty, IsEmptyCanceled)) {
+          if (extra != null) extra.cancel()
+        } else {
+          // $COVERAGE-OFF$
+          cancel() // retry
+          // $COVERAGE-ON$
+        }
     }
   }
 
@@ -128,8 +130,8 @@ object SingleAssignCancelable {
   def plusOne(guest: Cancelable): SingleAssignCancelable =
     new SingleAssignCancelable(guest)
 
-  private[monix] sealed trait State
-  private[monix] object State {
+  private sealed trait State
+  private object State {
     case object Empty extends State
     case class IsActive(s: Cancelable) extends State
     case object IsCanceled extends State

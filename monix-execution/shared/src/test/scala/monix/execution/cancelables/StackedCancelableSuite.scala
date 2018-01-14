@@ -61,6 +61,16 @@ object StackedCancelableSuite extends SimpleTestSuite {
     assertEquals(effect, 1)
   }
 
+  test("cancel the second time is a no-op") {
+    val bc = BooleanCancelable()
+    val c = StackedCancelable(bc)
+
+    c.cancel()
+    assert(bc.isCanceled, "bc.isCanceled")
+    c.cancel()
+    assert(bc.isCanceled, "bc.isCanceled")
+  }
+
   test("push two, pop two") {
     var effect = 0
     val initial1 = Cancelable(() => effect += 1)
@@ -217,5 +227,42 @@ object StackedCancelableSuite extends SimpleTestSuite {
     assertEquals(ref.popAndPushList(List(c1, c2)), Cancelable.empty)
     assert(c1.isCanceled, "c1.isCanceled")
     assert(c2.isCanceled, "c2.isCanceled")
+  }
+
+  test("pushList") {
+    val ref = StackedCancelable()
+
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+    val c3 = BooleanCancelable()
+    val c4 = BooleanCancelable()
+
+    ref.push(c1)
+    ref.pushList(List(c2, c3, c4))
+
+    assertEquals(ref.pop(), c4)
+    ref.cancel()
+
+    assert(c1.isCanceled, "c1.isCanceled")
+    assert(c2.isCanceled, "c2.isCanceled")
+    assert(c3.isCanceled, "c3.isCanceled")
+    assert(!c4.isCanceled, "!c4.isCanceled")
+  }
+
+  test("pushList after cancel") {
+    val ref = StackedCancelable()
+    ref.cancel()
+
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+    val c3 = BooleanCancelable()
+    val c4 = BooleanCancelable()
+
+    ref.pushList(List(c1, c2, c3, c4))
+
+    assert(c1.isCanceled, "c1.isCanceled")
+    assert(c2.isCanceled, "c2.isCanceled")
+    assert(c3.isCanceled, "c3.isCanceled")
+    assert(c4.isCanceled, "c4.isCanceled")
   }
 }

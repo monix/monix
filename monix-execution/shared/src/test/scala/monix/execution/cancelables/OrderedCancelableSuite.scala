@@ -75,13 +75,19 @@ object OrderedCancelableSuite extends SimpleTestSuite {
 
     val c1 = Cancelable { () => effect = 1 }
     mc.orderedUpdate(c1, 1)
+    assertEquals(mc.currentOrder, 1)
+
     val c2 = Cancelable { () => effect = 2 }
     mc.orderedUpdate(c2, 2)
+    assertEquals(mc.currentOrder, 2)
+
     val c3 = Cancelable { () => effect = 3 }
     mc.orderedUpdate(c3, 1)
+    assertEquals(mc.currentOrder, 2)
 
     mc.cancel()
     assertEquals(effect, 2)
+    assertEquals(mc.currentOrder, 0)
   }
 
   test("orderedUpdate should work on overflow") {
@@ -99,5 +105,15 @@ object OrderedCancelableSuite extends SimpleTestSuite {
 
     mc.cancel()
     assertEquals(effect, 3)
+  }
+
+  test("orderedUpdate cancels after cancel") {
+    val ref = OrderedCancelable()
+    ref.cancel()
+    assert(ref.isCanceled, "ref.isCanceled")
+
+    val c = BooleanCancelable()
+    ref.orderedUpdate(c, 1)
+    assert(c.isCanceled, "c.isCanceled")
   }
 }
