@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,7 @@ private[reactive] final class CreateObservable[+A](
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val out = BufferedSubscriber.synchronous(subscriber, overflowStrategy)
     try f(out) catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         subscriber.scheduler.reportFailure(ex)
         Cancelable.empty
     }

@@ -18,9 +18,5 @@ name = ARGV[0]
 date = Time.now.strftime("%Y-%m-%d")
 
 exec("mkdir -p benchmarks/results/#{date}")
-exec(
-    "sbt ++2.12.3 " +
-    "benchmarksPrev/clean benchmarksNext/clean " +
-    "'benchmarksPrev/jmh:run -o ../results/#{date}/#{name}-Prev.txt  -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.#{name}' " +
-    "'benchmarksNext/jmh:run -o ../results/#{date}/#{name}-Next.txt  -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.#{name}'"
-)
+exec("sbt benchmarksNext/clean 'benchmarksNext/jmh:run -o ../results/#{date}/#{name}-Next.txt  -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.#{name}'")
+exec("sbt benchmarksPrev/clean 'benchmarksPrev/jmh:run -o ../results/#{date}/#{name}-Prev.txt  -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.#{name}'")

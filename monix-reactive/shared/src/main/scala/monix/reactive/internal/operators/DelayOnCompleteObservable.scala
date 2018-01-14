@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.cancelables.SerialCancelable
+import monix.execution.cancelables.OrderedCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -29,7 +29,7 @@ private[reactive] final class DelayOnCompleteObservable[A]
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val task = SerialCancelable()
+    val task = OrderedCancelable()
 
     val c = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
@@ -50,7 +50,8 @@ private[reactive] final class DelayOnCompleteObservable[A]
       def onComplete(): Unit =
         if (!isDone) {
           isDone = true
-          val scheduled = scheduler.scheduleOnce(delay.length, delay.unit,
+          val scheduled = scheduler.scheduleOnce(
+            delay.length, delay.unit,
             new Runnable { def run(): Unit = out.onComplete() })
 
           task.orderedUpdate(scheduled, order = 2)

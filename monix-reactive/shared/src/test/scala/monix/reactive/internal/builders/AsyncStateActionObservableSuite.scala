@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,9 +22,12 @@ import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
+import scala.util.Failure
 
 object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -88,6 +91,15 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assert(!wasCompleted)
   }
 
+  test("should protect against user code errors") { implicit s =>
+    val ex = DummyException("dummy")
+    val f = Observable.fromAsyncStateAction(intError(ex))(s.currentTimeMillis())
+      .runAsyncGetFirst
+
+    s.tick()
+    assertEquals(f.value, Some(Failure(ex)))
+  }
+
   test("should respect the ExecutionModel") { scheduler =>
     implicit val s = scheduler.withExecutionModel(AlwaysAsyncExecution)
 
@@ -109,6 +121,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
 
   def intAsync(seed: Long) = Task(int(seed))
   def intNow(seed: Long) = Task.now(int(seed))
+  def intError(ex: Throwable)(seed: Long) = Task.raiseError[(Int, Long)](ex)
 
   def int(seed: Long): (Int, Long) = {
     // `&` is bitwise AND. We use the current seed to generate a new seed.

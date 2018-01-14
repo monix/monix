@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution
 
 import monix.execution.atomic.PaddingStrategy._
-import monix.execution.internals.atomic.BoxPaddingStrategy
+import monix.execution.internal.atomic.BoxPaddingStrategy
 
 /** A small toolkit of classes that support compare-and-swap semantics
   * for safe mutation of variables.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -121,7 +121,7 @@ final class PublishSubject[A] private () extends Subject[A,A] { self =>
 
       val ack =
         try subscriber.onNext(elem)
-        catch { case NonFatal(ex) => Future.failed(ex) }
+        catch { case ex if NonFatal(ex) => Future.failed(ex) }
 
       // if execution is synchronous, takes the fast-path
       if (ack.isCompleted) {

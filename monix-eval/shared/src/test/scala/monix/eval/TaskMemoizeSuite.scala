@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -519,4 +519,54 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(third.future.value, None)
     assertEquals(effect, 0)
   }
+
+  test("Task.memoize serves error after async boundary") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val task = Task { effect += 1; throw dummy }.memoize
+    val task2 = Task(1).flatMap(_ => task)
+
+    val f1 = task2.runAsync
+    s.tick()
+    assertEquals(f1.value, Some(Failure(dummy)))
+    assertEquals(effect, 1)
+
+    val f2 = task2.runAsync
+    s.tick()
+    assertEquals(f2.value, Some(Failure(dummy)))
+    assertEquals(effect, 1)
+  }
+
+  test("TaskRunLoop.startLightWithCallback for success") { implicit s =>
+    var effect = 0
+    val task = Task.eval { effect += 1; effect }.map(x => x).memoize
+
+    val p1 = Promise[Int]()
+    task.runAsync(Callback.fromPromise(p1))
+    s.tick()
+    assertEquals(p1.future.value, Some(Success(1)))
+
+    val p2 = Promise[Int]()
+    task.runAsync(Callback.fromPromise(p2))
+    assertEquals(p2.future.value, Some(Success(1)))
+  }
+
+  test("TaskRunLoop.startLightWithCallback for failure") { implicit s =>
+    var effect = 0
+    val dummy = DummyException("dummy")
+    val task = Task.eval { effect += 1; throw dummy }.map(x => x).memoize
+
+    val p1 = Promise[Int]()
+    task.runAsync(Callback.fromPromise(p1))
+    s.tick()
+    assertEquals(p1.future.value, Some(Failure(dummy)))
+    assertEquals(effect, 1)
+
+    val p2 = Promise[Int]()
+    task.runAsync(Callback.fromPromise(p2))
+    assertEquals(p2.future.value, Some(Failure(dummy)))
+    assertEquals(effect, 1)
+  }
+
 }

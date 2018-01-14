@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +38,7 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
         .runAsync(Callback.empty)
     }
     catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         if (streamErrors) subscriber.onError(ex)
         else subscriber.scheduler.reportFailure(ex)
         Cancelable.empty
@@ -46,13 +46,19 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
   }
 
   def loop(subscriber: Subscriber[A], state: S): Task[Unit] =
-    try f(state).flatMap { case (a, newState) =>
-      Task.fromFuture(subscriber.onNext(a)).flatMap {
-        case Continue => loop(subscriber, newState)
-        case Stop => Task.unit
+    try f(state).transformWith(
+      { case (a, newState) =>
+        Task.fromFuture(subscriber.onNext(a)).flatMap {
+          case Continue => loop(subscriber, newState)
+          case Stop => Task.unit
+        }
+      },
+      { ex =>
+        subscriber.onError(ex)
+        Task.unit
       }
-    } catch {
-      case NonFatal(ex) =>
+    ) catch {
+      case ex if NonFatal(ex) =>
         Task.raiseError(ex)
     }
 }

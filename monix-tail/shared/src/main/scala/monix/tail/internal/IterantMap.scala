@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,7 +46,7 @@ private[tail] object IterantMap {
         case empty@Halt(_) =>
           empty.asInstanceOf[Iterant[F, B]]
       } catch {
-        case NonFatal(ex) => signalError(source, ex)
+        case ex if NonFatal(ex) => signalError(source, ex)
       }
 
     source match {

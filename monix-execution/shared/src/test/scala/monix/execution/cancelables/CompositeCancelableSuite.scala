@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +20,8 @@ package monix.execution.cancelables
 import minitest.SimpleTestSuite
 import minitest.laws.Checkers
 import monix.execution.Cancelable
+import monix.execution.atomic.PaddingStrategy.LeftRight256
+
 import scala.collection.mutable.ListBuffer
 
 object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
@@ -34,6 +36,9 @@ object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
     assert(s.isCanceled)
     assert(b1.isCanceled)
     assert(b2.isCanceled)
+
+    s.cancel() // no-op
+    assert(s.isCanceled)
   }
 
   test("cancel on assignment after being canceled") {
@@ -146,19 +151,36 @@ object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
     assert(seq.forall(!_.isCanceled))
   }
 
-  test("getAndResetTo") {
+  test("getAndSet") {
     val set1 = List.fill(10)(BooleanCancelable())
     val cc = CompositeCancelable.fromSet(set1.toSet[Cancelable])
 
     val set2 = List.fill(10)(BooleanCancelable())
     assertEquals(cc.getAndSet(set2), set1.toSet[Cancelable])
 
+    val set3 = List.fill(10)(BooleanCancelable())
+    assertEquals(cc.getAndSet(set3.toSet[Cancelable]), set2.toSet[Cancelable])
+
     cc.cancel()
     assert(set1.forall(c => !c.isCanceled), "set1.forall(c => !c.isCanceled)")
-    assert(set2.forall(_.isCanceled), "set2.forall(_.isCanceled)")
-
-    val set3 = List.fill(10)(BooleanCancelable())
-    assertEquals(cc.getAndSet(set3), Set.empty)
+    assert(set2.forall(c => !c.isCanceled), "set2.forall(c => !c.isCanceled)")
     assert(set3.forall(_.isCanceled), "set3.forall(_.isCanceled)")
+
+    val set4 = List.fill(10)(BooleanCancelable())
+    assertEquals(cc.getAndSet(set4), Set.empty)
+    assert(set4.forall(_.isCanceled), "set4.forall(_.isCanceled)")
+  }
+
+  test("withPadding") {
+    val cc = CompositeCancelable.withPadding(LeftRight256)
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+
+    cc += c1
+    cc += c2
+    cc.cancel()
+
+    assert(c1.isCanceled, "c1.isCanceled")
+    assert(c2.isCanceled, "c2.isCanceled")
   }
 }

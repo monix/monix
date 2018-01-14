@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,9 @@
 package monix.execution
 
 import monix.execution.misc.NonFatal
+import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration.Duration
 import scala.concurrent.{CanAwait, ExecutionContext, Future, Promise}
-import scala.language.experimental.macros
 import scala.util.{Failure, Success, Try}
 
 /** Represents an acknowledgement of processing that a consumer
@@ -32,14 +32,14 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
   // For Scala 2.12 compatibility
   final def transform[S](f: (Try[Ack]) => Try[S])(implicit executor: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    onComplete(r => p.complete(try f(r) catch { case NonFatal(t) => Failure(t) }))
+    onComplete(r => p.complete(try f(r) catch { case t if NonFatal(t) => Failure(t) }))
     p.future
   }
 
   // For Scala 2.12 compatibility
   final def transformWith[S](f: (Try[Ack]) => Future[S])(implicit executor: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    onComplete(r => p.completeWith(try f(r) catch { case NonFatal(t) => Future.failed(t) }))
+    onComplete(r => p.completeWith(try f(r) catch { case t if NonFatal(t) => Future.failed(t) }))
     p.future
   }
 
@@ -76,88 +76,146 @@ object Ack {
 
   /** Helpers for dealing with synchronous `Future[Ack]` results,
     * powered by macros.
+    *
+    * @define syncModel Execution will happen without any hard
+    *         asynchronous boundaries — in case the `source`
+    *         is an `Ack` value (e.g. `Continue` or `Stop`) then
+    *         execution will be immediate, otherwise execution
+    *         will be trampolined (being execute on Monix's
+    *         `TrampolineExecutionContext`).
+    *
+    *         WARN: in case the source is an `Ack` value
+    *         (e.g. `Continue` or `Stop`) and the execution being
+    *         immediate, with no async boundaries, this means that
+    *         application of this function is *stack unsafe*!
+    *
+    *         Use with great care as an optimization. Don't use
+    *         it in tail-recursive loops!
     */
   implicit class AckExtensions[Self <: Future[Ack]](val source: Self) extends AnyVal {
     /** Returns `true` if self is a direct reference to
       * `Continue` or `Stop`, `false` otherwise.
       */
     def isSynchronous: Boolean =
-      macro Macros.isSynchronous[Self]
+      (source eq Continue) || (source eq Stop)
 
     /** Executes the given `callback` on `Continue`.
       *
-      * Execution will happen synchronously if the `source` value is
-      * a direct reference to `Continue` or `Stop`, or asynchronously
-      * otherwise.
+      * $syncModel
+      *
+      * @param r is an exception reporter used for reporting errors
+      *        triggered by `thunk`
       */
-    def syncOnContinue(callback: => Unit)(implicit s: Scheduler): Self =
-      macro Macros.syncOnContinue[Self]
+    def syncOnContinue(thunk: => Unit)(implicit r: UncaughtExceptionReporter): Self = {
+      if (source eq Continue)
+        try thunk catch { case e if NonFatal(e) => r.reportFailure(e) }
+      else if (source ne Stop)
+        source.onComplete {
+          case Success(Continue) =>
+            try thunk catch { case e if NonFatal(e) => r.reportFailure(e) }
+          case _ =>
+            ()
+        }(immediate)
+      source
+    }
 
     /** Executes the given `callback` on `Stop` or on `Failure(ex)`.
       *
-      * Execution will happen synchronously if the `source` value is
-      * a direct reference to `Continue` or `Stop`, or asynchronously
-      * otherwise.
+      * $syncModel
+      *
+      * @param r is an exception reporter used for reporting errors
+      *        triggered by `cb`
       */
-    def syncOnStopOrFailure(callback: Option[Throwable] => Unit)(implicit s: Scheduler): Self =
-      macro Macros.syncOnStopOrFailure[Self]
+    def syncOnStopOrFailure(cb: Option[Throwable] => Unit)(implicit r: UncaughtExceptionReporter): Self = {
+      if (source eq Stop)
+        try cb(None) catch { case e if NonFatal(e) => r.reportFailure(e) }
+      else if (source ne Continue)
+        source.onComplete { ack =>
+          try ack match {
+            case Success(Stop) => cb(None)
+            case Failure(e) => cb(Some(e))
+            case _ => ()
+          } catch {
+            case e if NonFatal(e) => r.reportFailure(e)
+          }
+        }(immediate)
+      source
+    }
 
     /** Given a mapping function, returns a new future reference that
       * is the result of a `map` operation applied to the source.
       *
-      * Execution will happen synchronously if the `source` value is
-      * a direct reference to `Continue` or `Stop`, or asynchronously
-      * otherwise.
+      * $syncModel
+      *
+      * @param f is the mapping function used to transform the source
+      * @param r is an exception reporter used for reporting errors
+      *        triggered by `f`
       */
-    def syncMap(f: Ack => Ack)(implicit s: Scheduler): Future[Ack] =
-      macro Macros.syncMap[Self]
+    def syncMap(f: Ack => Ack)(implicit r: UncaughtExceptionReporter): Future[Ack] =
+      syncFlatMap(f)(r)
 
     /** Given a mapping function, returns a new future reference that
       * is the result of a `flatMap` operation applied to the source.
       *
-      * Execution will happen synchronously if the `source` value is
-      * a direct reference to `Continue` or `Stop`, or asynchronously
-      * otherwise.
+      * $syncModel
+      *
+      * @param f is the mapping function used to transform the source
+      * @param r is an exception reporter used for reporting errors
+      *        triggered by `f`
       */
-    def syncFlatMap(f: Ack => Future[Ack])(implicit s: Scheduler): Future[Ack] =
-      macro Macros.syncFlatMap[Self]
+    def syncFlatMap(f: Ack => Future[Ack])(implicit r: UncaughtExceptionReporter): Future[Ack] = {
+      if ((source eq Continue) || (source eq Stop))
+        try f(source.asInstanceOf[Ack]) catch { case e if NonFatal(e) =>
+          r.reportFailure(e)
+          Stop
+        }
+      else
+        source.flatMap(_.syncFlatMap(f)(r))(immediate)
+    }
 
     /** When the source future is completed, either through an exception,
       * or a value, apply the provided function.
       *
-      * Execution will happen synchronously if the `source` value is
-      * a direct reference to `Continue` or `Stop`, or asynchronously
-      * otherwise.
+      * $syncModel
+      *
+      * @param r is a reporter for exceptions thrown by `f`
       */
-    def syncOnComplete(f: Try[Ack] => Unit)(implicit s: Scheduler): Unit =
-      macro Macros.syncOnComplete[Self]
+    def syncOnComplete(f: Try[Ack] => Unit)(implicit r: UncaughtExceptionReporter): Unit = {
+      if ((source eq Continue) || (source eq Stop))
+        try f(Success(source.asInstanceOf[Ack]))
+        catch { case e if NonFatal(e) => r.reportFailure(e) }
+      else
+        source.onComplete { ack =>
+          try f(ack)
+          catch { case e if NonFatal(e) => r.reportFailure(e) }
+        }(immediate)
+    }
 
     /** If the source completes with a `Stop`, then complete the given
       * promise with a value.
       */
-    def syncOnContinueFollow[A](p: Promise[A], value: A)(implicit s: Scheduler): Self = {
+    def syncOnContinueFollow[A](p: Promise[A], value: A): Self = {
       if (source eq Continue)
         p.trySuccess(value)
       else if (source ne Stop)
         source.onComplete { r =>
           if (r.isSuccess && (r.get eq Continue))
             p.trySuccess(value)
-        }
-
+        }(immediate)
       source
     }
 
     /** If the source completes with a `Stop`, then complete the given
       * promise with a value.
       */
-    def syncOnStopFollow[A](p: Promise[A], value: A)(implicit s: Scheduler): Self = {
+    def syncOnStopFollow[A](p: Promise[A], value: A): Self = {
       if (source eq Stop)
         p.trySuccess(value)
       else if (source ne Continue)
         source.onComplete { r =>
           if (r.isSuccess && (r.get eq Stop))
             p.trySuccess(value)
-        }
+        }(immediate)
       source
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -37,7 +37,7 @@ private[reactive] final class BufferTimedObservable[+A](
   require(maxCount >= 0, "maxCount must be positive")
 
   def unsafeSubscribeFn(out: Subscriber[Seq[A]]): Cancelable = {
-    val periodicTask = MultiAssignmentCancelable()
+    val periodicTask = MultiAssignCancelable()
 
     val connection = source.unsafeSubscribeFn(
       new Subscriber[A] with Runnable { self =>

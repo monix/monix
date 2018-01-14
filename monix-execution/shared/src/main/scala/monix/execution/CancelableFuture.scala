@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.execution
 import cats.{CoflatMap, Eval, Monad, MonadError, StackSafeMonad}
 import monix.execution.Cancelable.IsDummy
 import monix.execution.CancelableFuture.{Async, Never, Pure}
-import monix.execution.cancelables.{ChainedCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{ChainedCancelable, SingleAssignCancelable}
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 
@@ -34,11 +34,11 @@ import scala.util.control.NonFatal
   * as long as it isn't complete.
   */
 sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { self =>
-  /** Returns this future's cancelable reference. */
-  protected def cancelable: Cancelable
+  /** Returns this future's underlying [[Cancelable]] reference. */
+  private[monix] def cancelable: Cancelable
 
   /** Returns the underlying `Future` reference. */
-  protected def underlying: Future[A]
+  private[monix] def underlying: Future[A]
 
   override final def failed: CancelableFuture[Throwable] = {
     implicit val ec = immediate
@@ -146,7 +146,7 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     val f2 = FutureUtils.transformWith(underlying, { result: Try[A] =>
       val nextRef: Future[S] =
         try f(result)
-        catch { case NonFatal(e) => Future.failed(e) }
+        catch { case e if NonFatal(e) => Future.failed(e) }
 
       // Checking to see if we are dealing with a "flatMap"
       // future, in which case we need to chain the cancelable
@@ -272,7 +272,7 @@ object CancelableFuture {
     (implicit ec: ExecutionContext): CancelableFuture[A] = {
 
     val p = Promise[A]()
-    val cRef = SingleAssignmentCancelable()
+    val cRef = SingleAssignCancelable()
 
     // Light async boundary to guard against stack overflows
     ec.execute(new TrampolinedRunnable {
@@ -280,7 +280,7 @@ object CancelableFuture {
         try {
           cRef := register(p.complete)
         } catch {
-          case NonFatal(e) =>
+          case e if NonFatal(e) =>
             if (!p.tryComplete(Failure(e)))
               ec.reportFailure(e)
         }

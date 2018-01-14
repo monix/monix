@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -519,6 +519,20 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def drop(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDrop(self, n)(F)
 
+  /** Drops the last `n` elements (from the end).
+    *
+    * Example: {{{
+    *   // Yields 1, 2
+    *   Iterant[Task].of(1, 2, 3, 4, 5).dropLast(3)
+    * }}}
+    *
+    * @param n the number of elements to drop
+    * @return a new iterant that drops the last ''n'' elements
+    *         emitted by the source
+    */
+  final def dropLast(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantDropLast(self, n)(F)
+
   /** Drops the longest prefix of elements that satisfy the given
     * predicate and returns a new iterant that emits the rest.
     *
@@ -536,6 +550,28 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def dropWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDropWhile(self, p)
+
+  /** Drops the longest prefix of elements that satisfy the given
+    * function and returns a new Iterant that emits the rest.
+    *
+    * In comparison with [[dropWhile]], this version accepts a function
+    * that takes an additional parameter: the zero-based index of the
+    * element.
+    *
+    * Example: {{{
+    *   // Yields 3, 4, 5
+    *   Iterant[Task].of(1, 2, 3, 4, 5).dropWhile((value, index) => value >= index * 2)
+    * }}}
+    *
+    * @param p is the predicate used to test whether the current
+    *        element should be dropped, if `true`, or to interrupt
+    *        the dropping process, if `false`
+    *
+    * @return a new iterant that drops the elements of the source
+    *         until the first time the given predicate returns `false`
+    */
+  final def dropWhileWithIndex(p: (A, Int) => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantDropWhileWithIndex(self, p)
 
   /** Dumps incoming events to standard output with provided prefix.
     *
@@ -978,6 +1014,35 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def foldRightL[B](b: F[B])(f: (A, F[B], F[Unit]) => F[B])(implicit F: Sync[F]): F[B] =
     IterantFoldRightL(self, b, f)(F)
 
+  /** Creates a new stream from the source that will emit a specific `separator`
+    * between every pair of elements.
+    *
+    * {{{
+    *   // Yields 1, 0, 2, 0, 3
+    *   Iterant[Coeval].of(1, 2, 3).intersperse(0)
+    * }}}
+    *
+    * @param separator the separator
+    */
+  final def intersperse(separator: A)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantIntersperse(self, separator)
+
+  /** Creates a new stream from the source that will emit the `start` element
+    * followed by the upstream elements paired with the `separator`
+    * and lastly the `end` element.
+    *
+    * {{{
+    *   // Yields '<', 'a', '-', 'b', '>'
+    *   Iterant[Coeval].of('a', 'b').intersperse('<', '-', '>')
+    * }}}
+    *
+    * @param start the first element emitted
+    * @param separator the separator
+    * @param end the last element emitted
+    */
+  final def intersperse(start: A, separator: A, end: A)(implicit F: Sync[F]): Iterant[F, A] =
+    start +: IterantIntersperse(self, separator) :+ end
+
   /** Given mapping functions from `F` to `G`, lifts the source into
     * an iterant that is going to use the resulting `G` for evaluation.
     *
@@ -1138,6 +1203,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def minL(implicit F: Sync[F], A: Order[A]): F[Option[A]] =
     reduceL((max, a) => if (A.compare(max, a) > 0) a else max)
+
+  /** In case this Iterant is empty, switch to the given backup. */
+  final def switchIfEmpty(backup: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+    IterantSwitchIfEmpty(this, backup)
 
   /** Reduces the elements of the source using the specified
     * associative binary operator, going from left to right, start to
@@ -1387,6 +1456,43 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def takeWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantTakeWhile(self, p)(F)
+
+  /** Takes longest prefix of elements zipped with their indices that satisfy the given predicate
+    * and returns a new iterant that emits those elements.
+    *
+    * Example: {{{
+    *   // Yields 1, 2
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeWhileWithIndex((_, idx) => idx != 2)
+    * }}}
+    *
+    * @param p is the function that tests each element, stopping
+    *          the streaming on the first `false` result
+    *
+    * @return a new iterant instance that on evaluation will all
+    *         elements of the source for as long as the given predicate
+    *         returns `true`, stopping upon the first `false` result
+    */
+  final def takeWhileWithIndex(p: (A, Long) => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantTakeWhileWithIndex(self, p)(F)
+
+  /** Takes every n-th element, dropping intermediary elements
+    * and returns a new iterant that emits those elements.
+    *
+    * Example: {{{
+    *   // Yields 2, 4, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeEveryNth(2)
+    *
+    *   // Yields 1, 2, 3, 4, 5, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeEveryNth(1)
+    * }}}
+    *
+    * @param n is the sequence number of an element to be taken (must be > 0)
+    *
+    * @return a new iterant instance that on evaluation will return only every n-th
+    *         element of the source
+    */
+  final def takeEveryNth(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantTakeEveryNth(self, n)
 
   /** Drops the first element of the source iterant, emitting the rest.
     *
@@ -1751,6 +1857,12 @@ object Iterant extends IterantInstances {
     */
   def eval[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
     Suspend(F.delay(nextS[F, A](a, F.pure(Halt(None)), F.unit)), F.unit)
+
+  /** Lifts a value from monadic context into the stream context,
+    * returning a stream of one element
+    */
+  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Suspend(F.map(fa)(lastS), F.unit)
 
   /** Builds a stream state equivalent with [[Iterant.Next]].
     *

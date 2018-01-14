@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
-import monix.execution.cancelables.{BooleanCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
 import monix.execution.exceptions.UpstreamTimeoutException
 import monix.execution.misc.NonFatal
 import monix.reactive.Observable.Operator
@@ -1554,7 +1554,7 @@ abstract class Observable[+A] extends Serializable { self =>
     mapTask { elemA =>
       try Task.fromFuture(f(elemA))
       catch {
-        case NonFatal(ex) => Task.raiseError(ex)
+        case ex if NonFatal(ex) => Task.raiseError(ex)
       }
     }
 
@@ -2623,7 +2623,7 @@ abstract class Observable[+A] extends Serializable { self =>
   final def toReactivePublisher[B >: A](implicit s: Scheduler): RPublisher[B] =
     new RPublisher[B] {
       def subscribe(subscriber: RSubscriber[_ >: B]): Unit = {
-        val subscription = SingleAssignmentCancelable()
+        val subscription = SingleAssignCancelable()
         subscription := unsafeSubscribeFn(SafeSubscriber(
           Subscriber.fromReactiveSubscriber(subscriber, subscription)
         ))
@@ -3518,6 +3518,14 @@ abstract class Observable[+A] extends Serializable { self =>
   *         the resulting observable by converting it into a
   *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
   *         by means of [[Observable!.multicast multicast]].
+  *
+  * @define blocksDefaultSchedulerDesc This operation will start processing on the current
+  *         thread (on `subscribe()`), so in order to not block, it might be better to also do an
+  *         [[Observable.executeWithFork executeWithFork]], or you may want to use the 
+  *         [[monix.execution.ExecutionModel.AlwaysAsyncExecution AlwaysAsyncExecution]]
+  *         model, which can be configured per `Scheduler`, see
+  *         [[monix.execution.Scheduler.withExecutionModel Scheduler.withExecutionModel]],
+  *         or per `Observable`, see [[Observable.executeWithModel]].
   */
 object Observable {
   /** An `Operator` is a function for transforming observers,
@@ -3707,12 +3715,16 @@ object Observable {
 
   /** $fromInputStreamDesc
     *
+    * $blocksDefaultSchedulerDesc
+    *
     * @param in is the `InputStream` to convert into an observable
     */
   def fromInputStream(in: InputStream): Observable[Array[Byte]] =
     fromInputStream(in, chunkSize = 4096)
 
   /** $fromInputStreamDesc
+    *
+    * $blocksDefaultSchedulerDesc
     *
     * @param in is the `InputStream` to convert into an observable
     * @param chunkSize is the maximum length of the emitted arrays of bytes.
@@ -3723,12 +3735,16 @@ object Observable {
 
   /** $fromCharsReaderDesc
     *
+    * $blocksDefaultSchedulerDesc
+    *
     * @param in is the `Reader` to convert into an observable
     */
   def fromCharsReader(in: Reader): Observable[Array[Char]] =
     fromCharsReader(in, chunkSize = 4096)
 
   /** $fromCharsReaderDesc
+    *
+    * $blocksDefaultSchedulerDesc
     *
     * @param in is the `Reader` to convert into an observable
     * @param chunkSize is the maximum length of the emitted arrays of chars.

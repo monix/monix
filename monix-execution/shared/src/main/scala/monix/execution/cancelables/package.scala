@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,4 +35,20 @@ package monix.execution
   *   task.cancel()
   * }}}
   */
-package object cancelables
+package object cancelables {
+  /** DEPRECATED — renamed to [[OrderedCancelable]]. */
+  @deprecated("Renamed to OrderedCancelable", "3.0.0")
+  type MultiAssignmentCancelable = OrderedCancelable
+
+  /** DEPRECATED — renamed to [[OrderedCancelable]]. */
+  @deprecated("Renamed to OrderedCancelable", "3.0.0")
+  val MultiAssignmentCancelable = OrderedCancelable
+
+  /** DEPRECATED — renamed to [[SingleAssignCancelable]]. */
+  @deprecated("Renamed to SingleAssignCancelable", "3.0.0")
+  type SingleAssignmentCancelable = SingleAssignCancelable
+
+  /** DEPRECATED — renamed to [[SingleAssignCancelable]]. */
+  @deprecated("Renamed to SingleAssignCancelable", "3.0.0")
+  val SingleAssignmentCancelable = SingleAssignCancelable
+}

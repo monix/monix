@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -76,7 +76,7 @@ private[tail] object IterantLiftMap {
         case Last(_) | Halt(_) =>
           fa.asInstanceOf[Iterant[G, A]]
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           Suspend[G, A](g(fa.earlyStop).map(_ => Halt(Some(e))), G.unit)
       }
 

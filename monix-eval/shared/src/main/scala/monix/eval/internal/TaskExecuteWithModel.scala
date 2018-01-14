@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ private[eval] object TaskExecuteWithModel {
     Task.unsafeCreate { (context, cb) =>
       var streamErrors = true
       try {
-        implicit val s2 = context.scheduler.withExecutionModel(em)
+        val s2 = context.scheduler.withExecutionModel(em)
         val context2 = context.copy(scheduler = s2)
         val frame = context2.frameRef
         streamErrors = false
@@ -44,11 +44,9 @@ private[eval] object TaskExecuteWithModel {
           case AlwaysAsyncExecution | SynchronousExecution =>
             em.nextFrameIndex(0)
         }
-
-        TaskRunLoop.startWithCallback[A](self, context2, cb, null, null, nextIndex)
-      }
-      catch {
-        case NonFatal(ex) =>
+        TaskRunLoop.startFull[A](self, context2, cb, null, null, null, nextIndex)
+      } catch {
+        case ex if NonFatal(ex) =>
           if (streamErrors) cb.onError(ex)
           else context.scheduler.reportFailure(ex)
       }

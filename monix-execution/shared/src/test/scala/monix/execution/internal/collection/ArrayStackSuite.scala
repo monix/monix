@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import minitest.SimpleTestSuite
 
 object ArrayStackSuite extends SimpleTestSuite {
   test("ArrayStack(1) push and pop") {
-    val stack = ArrayStack[Int](1)
+    val stack = new ArrayStack[Int](1)
     assertEquals(stack.currentCapacity, 1)
 
     stack.push(1)
@@ -43,7 +43,7 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("ArrayStack(1) unlimited push and pop") {
-    val stack = ArrayStack[Int](1)
+    val stack = new ArrayStack[Int](1)
     assert(stack.isEmpty, "stack.isEmpty")
     assertEquals(stack.currentCapacity, 1)
     assertEquals(stack.minimumCapacity, 1)
@@ -78,7 +78,7 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("ArrayStack(16) unlimited push and pop") {
-    val stack = ArrayStack[Int](16)
+    val stack = new ArrayStack[Int](16)
     assert(stack.isEmpty, "stack.isEmpty")
     assertEquals(stack.currentCapacity, 16)
     assertEquals(stack.minimumCapacity, 16)
@@ -113,7 +113,7 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("ArrayStack clone") {
-    val stack = ArrayStack[Int](16)
+    val stack = new ArrayStack[Int](16)
     assert(stack.isEmpty, "stack.isEmpty")
     for (i <- 0 until 256) stack.push(i)
 
@@ -122,5 +122,29 @@ object ArrayStackSuite extends SimpleTestSuite {
     assertEquals(cloned.currentCapacity, 256)
     assertEquals(cloned.size, 256)
     for (i <- 255.to(0, -1)) assertEquals(cloned.pop(), i)
+  }
+
+  test("ArrayStack grows and shrinks") {
+    val stack = new ArrayStack[Int](8)
+    val count = 256
+
+    assertEquals(stack.minimumCapacity, 8)
+    assertEquals(stack.currentCapacity, 8)
+
+    for (i <- 1 to count) {
+      stack.push(i)
+    }
+
+    assertEquals(stack.currentCapacity, count)
+    assertEquals(stack.minimumCapacity, 8)
+
+    var sum = 0
+    while (!stack.isEmpty) {
+      sum += stack.pop()
+    }
+
+    assertEquals(sum, count * (count + 1) / 2)
+    assertEquals(stack.currentCapacity, 8)
+    assertEquals(stack.minimumCapacity, 8)
   }
 }

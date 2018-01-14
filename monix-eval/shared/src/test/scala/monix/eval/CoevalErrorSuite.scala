@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -259,5 +259,40 @@ object CoevalErrorSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val f = Coeval[Int](throw dummy).onErrorRecoverWith { case _: TimeoutException => Coeval.now(10) }
     assertEquals(f.runTry, Failure(dummy))
+  }
+
+
+  test("Coeval.onErrorRestartLoop works for success") { implicit s =>
+    val dummy = DummyException("dummy")
+    var tries = 0
+    val source = Coeval.eval {
+      tries += 1
+      if (tries < 5) throw dummy
+      tries
+    }
+
+    val coeval = source.onErrorRestartLoop(10) { (err, maxRetries, retry) =>
+      if (maxRetries > 0)
+        retry(maxRetries - 1)
+      else
+        Coeval.raiseError(err)
+    }
+
+    assertEquals(coeval.runTry, Success(5))
+    assertEquals(tries, 5)
+  }
+
+  test("Coeval.onErrorRestartLoop can rethrow") { implicit s =>
+    val dummy = DummyException("dummy")
+    val source = Coeval.eval[Int] { throw dummy }
+
+    val coeval = source.onErrorRestartLoop(10) { (err, maxRetries, retry) =>
+      if (maxRetries > 0)
+        retry(maxRetries - 1)
+      else
+        Coeval.raiseError(err)
+    }
+
+    assertEquals(coeval.runTry, Failure(dummy))
   }
 }

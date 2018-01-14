@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,8 @@ import monix.execution.Cancelable
   * an internal reference to another cancelable (and thus
   * has to support the assignment operator).
   *
-  * Examples are the [[MultiAssignmentCancelable]] and the
-  * [[SingleAssignmentCancelable]].
+  * Examples are the [[OrderedCancelable]] and the
+  * [[SingleAssignCancelable]].
   *
   * On assignment, if this cancelable is already
   * canceled, then no assignment should happen and the update
@@ -50,21 +50,15 @@ object AssignableCancelable {
   /** Interface for [[AssignableCancelable]] types that can be
     * assigned multiple times.
     */
-  trait Multi extends AssignableCancelable.Bool {
-    /** An ordered update is an update with an order attached and if
-      * the currently stored reference has on order that is greater
-      * than the update, then the update is ignored.
-      */
-    def orderedUpdate(value: Cancelable, order: Long): this.type
-  }
+  trait Multi extends AssignableCancelable.Bool
 
-  /** Builds a [[MultiAssignmentCancelable]] */
+  /** Builds a [[OrderedCancelable]] */
   def multi(initial: Cancelable = Cancelable.empty): AssignableCancelable =
-    MultiAssignmentCancelable(initial)
+    MultiAssignCancelable(initial)
 
-  /** Builds a [[SingleAssignmentCancelable]] */
+  /** Builds a [[SingleAssignCancelable]] */
   def single(): AssignableCancelable =
-    SingleAssignmentCancelable()
+    SingleAssignCancelable()
 
   /** A reusable [[AssignableCancelable]] instance that's already
     * canceled and that's going to cancel given values on assignment.

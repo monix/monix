@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,7 +40,7 @@ private[reactive] final class EvalOnEarlyStopOperator[A](onStop: Task[Unit])
       def onNext(elem: A): Future[Ack] = {
         val result =
           try out.onNext(elem)
-          catch { case NonFatal(ex) => Future.failed(ex) }
+          catch { case ex if NonFatal(ex) => Future.failed(ex) }
 
         val task = Task.fromFuture(result)
           .onErrorHandle { ex => onError(ex); Stop }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -188,20 +188,20 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
             ack
         }
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           signalError(ex)
           Stop
       }
 
     private def signalComplete(): Unit =
       try out.onComplete() catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           scheduler.reportFailure(ex)
       }
 
     private def signalError(ex: Throwable): Unit =
       try out.onError(ex) catch {
-        case NonFatal(err) =>
+        case err if NonFatal(err) =>
           scheduler.reportFailure(err)
       }
 
@@ -327,7 +327,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
             if (remaining <= 0) return
           }
         } catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             if (streamErrors) {
               // ending loop
               downstreamIsComplete = true

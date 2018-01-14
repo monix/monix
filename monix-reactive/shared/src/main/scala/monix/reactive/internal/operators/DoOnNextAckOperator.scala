@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,7 +37,7 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Unit)
       def onNext(elem: A): Future[Ack] =
         out.onNext(elem).syncFlatMap { ack =>
           try { cb(elem, ack); ack }
-          catch { case NonFatal(ex) => onError(ex); Stop }
+          catch { case ex if NonFatal(ex) => onError(ex); Stop }
         }
 
       def onComplete(): Unit = {
