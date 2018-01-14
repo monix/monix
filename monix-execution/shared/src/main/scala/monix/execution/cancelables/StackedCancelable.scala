@@ -91,7 +91,7 @@ object StackedCancelable {
     * cancelable reference in it.
     */
   def apply(initial: Cancelable): StackedCancelable =
-    new Impl(List(initial))
+    apply(List(initial))
 
   /** Builds a [[StackedCancelable]] already initialized with
     * a list of cancelable references, to be popped or canceled
@@ -112,10 +112,8 @@ object StackedCancelable {
   private final class Impl(initial: List[Cancelable])
     extends StackedCancelable {
 
-    private[this] val state = {
-      val ref = if (initial != null) initial else Nil
-      AtomicAny.withPadding(ref, PaddingStrategy.LeftRight128)
-    }
+    private[this] val state =
+      AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)
 
     override def isCanceled: Boolean =
       state.get == null
@@ -123,25 +121,33 @@ object StackedCancelable {
     override def cancel(): Unit = {
       // Using getAndSet, which on Java 8 should be faster than
       // a compare-and-set.
-      val oldState = state.getAndSet(null)
-      if (oldState ne null) oldState.foreach(_.cancel())
+      state.getAndSet(null) match {
+        case null => ()
+        case list => Cancelable.cancelAll(list)
+      }
     }
 
     @tailrec def popAndPushList(list: List[Cancelable]): Cancelable = {
       state.get match {
         case null =>
-          list.foreach(_.cancel())
+          Cancelable.cancelAll(list)
           Cancelable.empty
         case Nil =>
-          if (!state.compareAndSet(Nil, list))
-            popAndPushList(list)
-          else
+          if (state.compareAndSet(Nil, list)) {
             Cancelable.empty
-        case ref @ (head :: tail) =>
-          if (!state.compareAndSet(ref, list ::: tail))
+          } else {
+            // $COVERAGE-OFF$
             popAndPushList(list)
-          else
+            // $COVERAGE-ON$
+          }
+        case ref @ (head :: tail) =>
+          if (state.compareAndSet(ref, concatList(list, tail))) {
             head
+          } else {
+            // $COVERAGE-OFF$
+            popAndPushList(list)
+            // $COVERAGE-ON$
+          }
       }
     }
 
@@ -151,25 +157,34 @@ object StackedCancelable {
           value.cancel()
           Cancelable.empty
         case Nil =>
-          if (!state.compareAndSet(Nil, value :: Nil))
-            popAndPush(value)
-          else
+          if (state.compareAndSet(Nil, value :: Nil)) {
             Cancelable.empty
+          } else {
+            // $COVERAGE-OFF$
+            popAndPush(value)
+            // $COVERAGE-ON$
+          }
         case ref @ (head :: tail) =>
-          if (!state.compareAndSet(ref, value :: tail))
-            popAndPush(value) // retry
-          else
+          if (state.compareAndSet(ref, value :: tail)) {
             head
+          } else {
+            // $COVERAGE-OFF$
+            popAndPush(value)
+            // $COVERAGE-ON$
+          }
       }
     }
 
     @tailrec def pushList(list: List[Cancelable]): Unit = {
       state.get match {
         case null =>
-          list.foreach(_.cancel())
-        case stack =>
-          if (!state.compareAndSet(stack, list ::: stack))
+          Cancelable.cancelAll(list)
+        case current =>
+          if (!state.compareAndSet(current, concatList(list, current))) {
+            // $COVERAGE-OFF$
             pushList(list) // retry
+            // $COVERAGE-ON$
+          }
       }
     }
 
@@ -178,8 +193,11 @@ object StackedCancelable {
         case null =>
           value.cancel()
         case stack =>
-          if (!state.compareAndSet(stack, value :: stack))
+          if (!state.compareAndSet(stack, value :: stack)) {
+            // $COVERAGE-OFF$
             push(value) // retry
+            // $COVERAGE-ON$
+          }
       }
     }
 
@@ -188,12 +206,22 @@ object StackedCancelable {
         case null => Cancelable.empty
         case Nil => Cancelable.empty
         case ref @ (head :: tail) =>
-          if (!state.compareAndSet(ref, tail))
-            pop()
-          else
+          if (state.compareAndSet(ref, tail)) {
             head
+          } else {
+            // $COVERAGE-OFF$
+            pop() // retry
+            // $COVERAGE-ON$
+          }
       }
     }
+
+    @tailrec private[this]
+    def concatList(list: List[Cancelable], current: List[Cancelable]): List[Cancelable] =
+      list match {
+        case Nil => current
+        case x :: xs => concatList(xs, x :: current)
+      }
   }
 
   /** [[StackedCancelable]] implementation that is already cancelled. */

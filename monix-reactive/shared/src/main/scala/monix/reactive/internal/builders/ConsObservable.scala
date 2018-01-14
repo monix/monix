@@ -33,10 +33,10 @@ private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A])
   }
 
   private def simpleSubscribe(conn: SingleAssignCancelable, out: Subscriber[A]): Unit = {
-    import out.{scheduler => s}
+    import out.scheduler
     out.onNext(head).syncOnContinue {
       conn := tail.unsafeSubscribeFn(out)
-    }(s)
+    }
   }
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {

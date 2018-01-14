@@ -17,7 +17,7 @@
 
 package monix.execution.misc
 
-import monix.execution.Macros
+import scala.reflect.macros.whitebox
 
 object Local {
   /** Builds a new [[Local]] with the given `default` to be returned
@@ -110,6 +110,43 @@ object Local {
       case None => clearKey(key)
       case Some(v) => saveKey(key, v)
     }
+
+  /** Macros implementations for [[bind]] and [[bindClear]]. */
+  class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
+    import c.universe._
+
+    def localLet(ctx: Tree)(f: Tree): Tree = {
+      val ctxRef = util.name("ctx")
+      val saved = util.name("saved")
+      val Local = symbolOf[Local[_]].companion
+      val AnyRefSym = symbolOf[AnyRef]
+
+      resetTree(
+        q"""
+       val $ctxRef = ($ctx)
+       if (($ctxRef : $AnyRefSym) eq null) {
+         $f
+       } else {
+         val $saved = $Local.getContext()
+         $Local.setContext($ctxRef)
+         try { $f } finally { $Local.setContext($saved) }
+       }
+       """)
+    }
+
+    def localLetClear(f: Tree): Tree = {
+      val saved = util.name("saved")
+      val Local = symbolOf[Local[_]].companion
+      val Map = symbolOf[scala.collection.immutable.Map[_, _]].companion
+
+      resetTree(
+        q"""
+       val $saved = $Local.getContext()
+       $Local.setContext($Map.empty)
+       try { $f } finally { $Local.setContext($saved) }
+       """)
+    }
+  }
 }
 
 /** A `Local` is a [[ThreadLocal]] whose scope is flexible. The state
