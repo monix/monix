@@ -18,7 +18,6 @@
 package monix.execution.schedulers
 
 import monix.execution.Scheduler
-import language.experimental.macros
 
 /** Defines extension methods for [[Scheduler]] meant for
   * executing runnables.
