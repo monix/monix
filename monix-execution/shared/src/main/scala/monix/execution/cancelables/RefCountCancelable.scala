@@ -46,32 +46,42 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
     @tailrec def decrementCounter(): State = {
       val oldState = state.get
       val newState = oldState.copy(activeCounter = oldState.activeCounter - 1)
-      if (state.compareAndSet(oldState, newState))
+      if (state.compareAndSet(oldState, newState)) {
         newState
-      else
+      } else {
+        // $COVERAGE-OFF$
         decrementCounter()
+        // $COVERAGE-ON$
+      }
     }
 
     val oldState = state.get
-    if (oldState.isCanceled)
+    if (oldState.isCanceled) {
       Cancelable.empty
-    else if (!state.compareAndSet(oldState, oldState.copy(activeCounter = oldState.activeCounter + 1)))
+    } else if (!state.compareAndSet(oldState, oldState.copy(activeCounter = oldState.activeCounter + 1))) {
+      // $COVERAGE-OFF$
       acquire()
-    else
+      // $COVERAGE-ON$
+    } else {
       Cancelable { () =>
         val newState = decrementCounter()
         if (newState.activeCounter == 0 && newState.isCanceled)
           onCancel()
       }
+    }
   }
 
   override def cancel(): Unit = {
     val oldState = state.get
     if (!oldState.isCanceled)
-      if (!state.compareAndSet(oldState, oldState.copy(isCanceled = true)))
+      if (state.compareAndSet(oldState, oldState.copy(isCanceled = true))) {
+        if (oldState.activeCounter == 0)
+          onCancel()
+      } else {
+        // $COVERAGE-OFF$
         cancel()
-      else if (oldState.activeCounter == 0)
-        onCancel()
+        // $COVERAGE-ON$
+      }
   }
 
   private[this] val state = AtomicAny(State(isCanceled = false, activeCounter = 0))
