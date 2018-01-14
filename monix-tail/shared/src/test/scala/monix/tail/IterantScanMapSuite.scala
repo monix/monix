@@ -17,77 +17,24 @@
 
 package monix.tail
 
-import cats.Monoid
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
-import monix.execution.exceptions.DummyException
 
 object IterantScanMapSuite extends BaseTestSuite {
 
-  sealed trait State[+A] {
-    def count: Int
-  }
-
-  case object Init extends State[Nothing] {
-    def count = 0
-  }
-
-  case class Current[A](current: A, count: Int) extends State[A]
-
-  implicit val intStateMonoid: Monoid[State[Int]] = new Monoid[State[Int]] {
-    def empty: State[Int] = Init
-
-    def combine(x: State[Int], y: State[Int]): State[Int] = {
-      (x, y) match {
-        case (_, Init) => Init
-        case (Current(_, count1), Current(curr, count2)) => Current(curr, count1 + count2)
-        case (_, curr@ Current(_, _)) => curr
-      }
-    }
-  }
-
-  test("Iterant.scanMap evolves state") { implicit s =>
-    check1 { (source: Iterant[Coeval, Int]) =>
-
-      val scanned = source.scanMap(Current(_, 1): State[Int])
-
-      val fa = scanned
-        .takeWhile(_.count < 10)
-        .collect { case Current(a, _) => a }
-
-      fa.toListL <-> source.take(10).toListL.map(_.take(9))
-    }
-  }
-
   test("Iterant.scanMap equivalence to Iterant.scan") { implicit s =>
     check1 { (source: Iterant[Coeval, Int]) =>
-
-      val scanned1 = source.scanMap(Current(_, 1): State[Int])
-
-      val scanned2 = source.scan(Init : State[Int]) { (acc, a) =>
-        acc match {
-          case Init => Current(a, 1)
-          case Current(_, count) => Current(a, count + 1)
-        }
-      }
+      val scanned1 = source.scanMap(x => x)
+      val scanned2 = source.scan(0)(_ + _)
 
       val fa1 = scanned1
-        .takeWhile(_.count < 10)
-        .collect { case Current(a, _) => a }
+        .takeWhile(_ < 10)
 
       val fa2 = scanned2
-        .takeWhile(_.count < 10)
-        .collect { case Current(a, _) => a }
+        .takeWhile(_ < 10)
 
       fa1.toListL <-> fa2.toListL
     }
-  }
-
-  test("Iterant.scanMap protects against user error") { implicit s =>
-    val dummy = DummyException("dummy")
-    val fa = Iterant[Coeval].of(1, 2, 3)
-    val r = fa.scanMap(_ => throw dummy).attempt.toListL
-    assertEquals(r.value, List(Left(dummy)))
   }
 }

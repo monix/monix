@@ -1656,47 +1656,31 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def scanEval[S](seed: F[S])(op: (S, A) => F[S])(implicit F: Sync[F]): Iterant[F, S] =
     IterantScanEval(self, seed, op)
 
-  /** Applies implicitly available `Monoid[B]` to combine elements using
-    * `Monoid[B]` identity value as the initial state and map every incoming
-    * element of this `Iterant` with provided function f: A => B.
+  /** Given a mapping function that returns a `B` type for which we have
+    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
+    * elements of the sources using the provided `Monoid[B].combine`, with the
+    * initial seed being the `Monoid[B].empty` value, emitting the generated values
+    * at each step.
     *
-    * It goes from left to right and returns a new `Iterant` that emits
-    * on each step the result of the applied functions.
-    *
-    * Similar with [[scan]], but this applies provided function on every element
-    * and uses implicitly available `Monoid[B]` instance to get the initial state
-    * and function for combining elements.
-    *
-    * Example showing how state can be evolved and acted upon:
+    * Equivalent with [[scan]] applied with the given [[cats.Monoid]], so given
+    * our `f` mapping function returns a `B`, this law holds:
     * {{{
-    *   import cats.Monoid
+    * val B = implicitly[Monoid[B]]
     *
-    *   sealed trait State[+A] { def count: Int }
-    *   case object Init extends State[Nothing] { def count = 0 }
-    *   case class Current[A](current: A, count: Int) extends State[A]
-    *
-    *   implicit val intStateMonoid: Monoid[State[Int]] = new Monoid[State[Int]] {
-    *       def empty: State[Int] = Init
-    *
-    *       def combine(x: State[Int], y: State[Int]): State[Int] = {
-    *         (x, y) match {
-    *           case (_, Init) => Init
-    *           case (Current(_, count1), Current(curr, count2)) => Current(curr, count1 + count2)
-    *           case (_, curr@ Current(_, _)) => curr
-    *       }
-    *   }
-    *
-    *   val scanned = source.scanMap(Current(_, 1): State[Int])
-    *
-    *   scanned
-    *     .takeWhile(_.count < 10)
-    *     .collect { case Current(a, _) => a }
+    * stream.scanMap(f) <-> stream.scan(B.empty)(B.combine)
     * }}}
     *
-    * @param f is the function applied to every incoming element of this `Iterant`
+    * Example:
+    * {{{
+    * // Yields 2, 6, 12, 20, 30, 42
+    * Iterant[Task].of(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
+    * }}}
     *
-    * @return a new iterant that emits all intermediate states being
-    *         resulted from applying function `Monoid[B].combine`
+    * @param f is the mapping function applied to every incoming element of this `Iterant`
+    *          before folding using `Monoid[B].combine`
+    *
+    * @return a new `Iterant` that emits all intermediate states being
+    *         resulted from applying `Monoid[B].combine` function
     */
   final def scanMap[B](f: A => B)(implicit F: Sync[F], B: Monoid[B]): Iterant[F, B] =
     self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
