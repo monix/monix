@@ -17,6 +17,8 @@
 
 package monix.tail
 
+import cats.effect.Sync
+import monix.eval.Coeval
 import monix.execution.internal.Platform
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
@@ -29,7 +31,20 @@ object IterantInterleaveSuite extends BaseTestSuite {
       Test.Parameters.default.withMaxSize(32)
   }
 
-  // TODO naive imp
+  private def naiveImp[F[_], A, B >: A](lh: Iterant[F, A], rh: Iterant[F, B])
+                                       (implicit F: Sync[F]): Iterant[F, B] =
+    lh.zip(rh).flatMap { case (a, b) => Iterant[F].pure(a) ++ Iterant[F].pure(b) }
+
+  test("naiveImp smoke test") { implicit s =>
+    assertEquals(naiveImp(
+      Iterant[Coeval].of(11, 12),
+      Iterant[Coeval].of(21, 22, 23)).toListL.value,
+      List(11, 21, 12, 22))
+    assertEquals(naiveImp(
+      Iterant[Coeval].of(11, 12),
+      Iterant[Coeval].of(21)).toListL.value,
+      List(11, 21))
+  }
 
   // TODO equivalence test with naive imp
 
