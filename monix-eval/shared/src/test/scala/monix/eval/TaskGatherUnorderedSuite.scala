@@ -123,9 +123,9 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
   test("Task.gatherUnordered should log errors if multiple errors happen") { implicit s =>
     val ex = DummyException("dummy1")
     var errorsThrow = 0
-    val task1 = Task.fork(Task.raiseError[Int](ex))
+    val task1 = Task.raiseError[Int](ex).executeAsync
       .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
-    val task2 = Task.fork(Task.raiseError[Int](ex))
+    val task2 = Task.raiseError[Int](ex).executeAsync
       .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
 
     val gather = Task.gatherUnordered(Seq(task1, task2))
