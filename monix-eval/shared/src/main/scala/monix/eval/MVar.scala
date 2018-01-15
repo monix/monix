@@ -113,29 +113,29 @@ object MVar {
   /** [[MVar]] implementation based on [[monix.execution.misc.AsyncVar]] */
   private final class AsyncMVarImpl[A](av: AsyncVar[A]) extends MVar[A] {
     def put(a: A): Task[Unit] =
-      Task.unsafeCreate { (context, callback) =>
-        implicit val s = context.scheduler
+      Task.unsafeCreate { (ctx, cb) =>
+        val async = Callback.async(cb)(ctx.scheduler)
         // Execution could be synchronous
-        if (av.unsafePut(a, callback)) callback.asyncOnSuccess(())
+        if (av.unsafePut(a, async)) async.onSuccess(())
       }
 
     def take: Task[A] =
-      Task.unsafeCreate { (context, callback) =>
-        implicit val s = context.scheduler
+      Task.unsafeCreate { (ctx, cb) =>
+        val async = Callback.async(cb)(ctx.scheduler)
         // Execution could be synchronous (e.g. result is null or not)
-        av.unsafeTake(callback) match {
+        av.unsafeTake(async) match {
           case null => () // do nothing
-          case a => callback.asyncOnSuccess(a)
+          case a => async.onSuccess(a)
         }
       }
 
     def read: Task[A] =
-      Task.unsafeCreate { (context, callback) =>
-        implicit val s = context.scheduler
+      Task.unsafeCreate { (ctx, cb) =>
+        val async = Callback.async(cb)(ctx.scheduler)
         // Execution could be synchronous (e.g. result is null or not)
-        av.unsafeRead(callback) match {
+        av.unsafeRead(async) match {
           case null => () // do nothing
-          case a => callback.asyncOnSuccess(a)
+          case a => async.onSuccess(a)
         }
       }
   }
