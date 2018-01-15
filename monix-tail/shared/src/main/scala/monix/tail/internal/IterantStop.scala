@@ -67,7 +67,7 @@ private[tail] object IterantStop {
         val ref = f(ex)
         Suspend[F,A](F.map(ref)(_ => halt), ref)
     } catch {
-      case NonFatal(ex) => signalError(source, ex)
+      case ex if NonFatal(ex) => signalError(source, ex)
     }
   }
 }

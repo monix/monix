@@ -57,7 +57,7 @@ private[reactive] abstract class SearchByOrderOperator[A, K]
 
           Continue
         } catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             onError(ex)
             Stop
         }

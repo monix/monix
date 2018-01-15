@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -32,8 +32,8 @@ private[reactive] final class BufferWithSelectorObservable[+A,S](
   extends Observable[Seq[A]] {
 
   def unsafeSubscribeFn(downstream: Subscriber[Seq[A]]): Cancelable = {
-    val upstreamSubscription = SingleAssignmentCancelable()
-    val samplerSubscription = SingleAssignmentCancelable()
+    val upstreamSubscription = SingleAssignCancelable()
+    val samplerSubscription = SingleAssignCancelable()
     val composite = CompositeCancelable(upstreamSubscription, samplerSubscription)
 
     upstreamSubscription := source.unsafeSubscribeFn(

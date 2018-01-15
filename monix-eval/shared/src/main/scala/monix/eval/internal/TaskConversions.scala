@@ -69,7 +69,7 @@ private[eval] object TaskConversions {
             }
             io.unsafeRunAsync(unitCb)
           } catch {
-            case NonFatal(e) =>
+            case e if NonFatal(e) =>
               ctx.scheduler.reportFailure(e)
           }
         }

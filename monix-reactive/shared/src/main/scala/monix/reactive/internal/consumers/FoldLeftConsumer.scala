@@ -43,7 +43,7 @@ final class FoldLeftConsumer[A,R](initial: () => R, f: (R,A) => R)
           state = f(state, elem)
           Continue
         } catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             onError(ex)
             Stop
         }

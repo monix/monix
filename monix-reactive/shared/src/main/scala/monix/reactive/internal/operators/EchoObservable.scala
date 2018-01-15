@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import java.util.concurrent.TimeUnit
 
 import monix.execution.Ack.{Stop, Continue}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -35,8 +35,8 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
   private[this] val timeoutMillis = timeout.toMillis
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val task = MultiAssignmentCancelable()
-    val mainTask = SingleAssignmentCancelable()
+    val task = MultiAssignCancelable()
+    val mainTask = SingleAssignCancelable()
     val composite = CompositeCancelable(mainTask, task)
 
     mainTask := source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>

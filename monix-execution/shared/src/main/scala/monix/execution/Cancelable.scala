@@ -74,14 +74,14 @@ object Cancelable {
     val cursor = seq.iterator
     while (cursor.hasNext) {
       try cursor.next().cancel()
-      catch { case NonFatal(ex) => errors = errors.enqueue(ex) }
+      catch { case ex if NonFatal(ex) => errors = errors.enqueue(ex) }
     }
 
     if (errors.nonEmpty)
       throw new CompositeException(errors)
   }
 
-  /** Marker for cancellables that are dummies that can be ignored. */
+  /** Marker for cancelables that are dummies that can be ignored. */
   trait IsDummy { self: Cancelable => }
 
   private final class CancelableTask(cb: () => Unit)

@@ -17,8 +17,20 @@
 
 package monix.execution.internal.atomic;
 
+import monix.execution.internal.InternalApi;
+
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
+/**
+ * INTERNAL API — used in the implementation of
+ * `monix.execution.atomic.Atomic`.
+ *
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
+ */
+@InternalApi
 final class LeftRight128JavaXBoxedLong extends LeftRight128JavaXBoxedLongImpl {
   public volatile long r1, r2, r3, r4, r5, r6, r7, r8 = 11;
   @Override public long sum() {
@@ -31,8 +43,17 @@ final class LeftRight128JavaXBoxedLong extends LeftRight128JavaXBoxedLongImpl {
   }
 }
 
+/**
+ * INTERNAL API — used in the implementation of
+ * `monix.execution.atomic.Atomic`.
+ *
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
+ */
+@InternalApi
 abstract class LeftRight128JavaXBoxedLongImpl extends LeftPadding56 implements BoxedLong {
-
   public volatile long value;
 
   private static final AtomicLongFieldUpdater<LeftRight128JavaXBoxedLongImpl> UPDATER =

@@ -21,7 +21,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
 
 import minitest.TestSuite
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, Default => DefaultExecutionModel}
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
 
@@ -79,7 +79,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   }
 
   test("schedule with fixed delay") { scheduler =>
-    val sub = SingleAssignmentCancelable()
+    val sub = SingleAssignCancelable()
     val p = Promise[Int]()
     var value = 0
 
@@ -98,7 +98,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   }
 
   test("schedule at fixed rate") { scheduler =>
-    val sub = SingleAssignmentCancelable()
+    val sub = SingleAssignCancelable()
     val p = Promise[Int]()
     var value = 0
 

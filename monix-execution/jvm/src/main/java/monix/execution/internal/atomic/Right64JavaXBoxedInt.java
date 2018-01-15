@@ -17,8 +17,20 @@
 
 package monix.execution.internal.atomic;
 
+import monix.execution.internal.InternalApi;
+
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+/**
+ * INTERNAL API — used in the implementation of
+ * `monix.execution.atomic.Atomic`.
+ *
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
+ */
+@InternalApi
 final class Right64JavaXBoxedInt extends Right64JavaXBoxedIntImpl {
   public volatile long p1, p2, p3, p4, p5, p6, p7 = 7;
   public long sum() { return p1 + p2 + p3 + p4 + p5 + p6 + p7; }
@@ -28,6 +40,16 @@ final class Right64JavaXBoxedInt extends Right64JavaXBoxedIntImpl {
   }
 }
 
+/**
+ * INTERNAL API — used in the implementation of
+ * `monix.execution.atomic.Atomic`.
+ *
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
+ */
+@InternalApi
 abstract class Right64JavaXBoxedIntImpl implements BoxedInt {
   public volatile int value;
 

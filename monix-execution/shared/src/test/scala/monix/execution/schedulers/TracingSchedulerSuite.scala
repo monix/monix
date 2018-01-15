@@ -24,7 +24,7 @@ import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.misc.Local
 import monix.execution.FutureUtils.extensions._
 import monix.execution.{Cancelable, Scheduler}
-import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
 
 import scala.concurrent.{Future, Promise}
@@ -107,7 +107,7 @@ object TracingSchedulerSuite extends SimpleTestSuite {
       var sum = 0
       var count = 0
       val p = Promise[Int]()
-      val sub = SingleAssignmentCancelable()
+      val sub = SingleAssignCancelable()
 
       sub := schedule(traced, 1, 1, TimeUnit.SECONDS, new Runnable {
         def run(): Unit = {

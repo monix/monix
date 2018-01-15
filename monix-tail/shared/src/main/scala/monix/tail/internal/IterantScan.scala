@@ -84,7 +84,7 @@ private[tail] object IterantScan {
           halt.asInstanceOf[Iterant[F, S]]
 
       } catch {
-        case NonFatal(e) =>
+        case e if NonFatal(e) =>
           signalError(fa, e)
       }
 
@@ -92,7 +92,7 @@ private[tail] object IterantScan {
     // to suspend
     val task = F.delay {
       try loop(initial)(fa)
-      catch { case NonFatal(e) => Halt[F, S](Some(e)) }
+      catch { case e if NonFatal(e) => Halt[F, S](Some(e)) }
     }
     Suspend(task, F.unit)
   }

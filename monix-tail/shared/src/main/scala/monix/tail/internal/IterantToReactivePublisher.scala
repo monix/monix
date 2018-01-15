@@ -250,7 +250,7 @@ private[tail] object IterantToReactivePublisher {
             F.unit
         }
         catch {
-          case NonFatal(e) =>
+          case e if NonFatal(e) =>
             source.earlyStop.map { _ =>
               if (streamErrors) out.onError(e)
               else ec.reportFailure(e)

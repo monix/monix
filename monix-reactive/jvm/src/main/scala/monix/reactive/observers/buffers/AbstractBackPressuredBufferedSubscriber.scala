@@ -142,20 +142,20 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
             ack
         }
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           signalError(ex)
           Stop
       }
 
     private final def signalComplete(): Unit =
       try out.onComplete() catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           scheduler.reportFailure(ex)
       }
 
     private final def signalError(ex: Throwable): Unit =
       try out.onError(ex) catch {
-        case NonFatal(err) =>
+        case err if NonFatal(err) =>
           scheduler.reportFailure(err)
       }
 

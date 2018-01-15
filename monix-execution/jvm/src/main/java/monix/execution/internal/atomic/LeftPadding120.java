@@ -17,11 +17,24 @@
 
 package monix.execution.internal.atomic;
 
+import monix.execution.internal.InternalApi;
+
+/**
+ * INTERNAL API — used in the implementation of
+ * `monix.execution.atomic.Atomic`.
+ * <p>
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
+ */
+@InternalApi
 abstract class LeftPadding120 {
-    public volatile long p01, p02, p03, p04, p05, p06, p07, p08 = 7;
-    public volatile long p09, p10, p11, p12, p13, p14, p15 = 8;
-    public long sum() {
-        return p01 + p02 + p03 + p04 + p05 + p06 + p07 + p08 +
-               p09 + p10 + p11 + p12 + p13 + p14 + p15;
-    }
+  public volatile long p01, p02, p03, p04, p05, p06, p07, p08 = 7;
+  public volatile long p09, p10, p11, p12, p13, p14, p15 = 8;
+
+  public long sum() {
+    return p01 + p02 + p03 + p04 + p05 + p06 + p07 + p08 +
+           p09 + p10 + p11 + p12 + p13 + p14 + p15;
+  }
 }

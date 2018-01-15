@@ -17,9 +17,19 @@
 
 package monix.execution.internal.atomic;
 
+import monix.execution.internal.InternalApi;
 import scala.MatchError;
 
-public final class Factory {
+/**
+ * INTERNAL API — used in the implementation of
+ * `monix.execution.atomic.Atomic`.
+ *
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
+ */
+@InternalApi public final class Factory {
   public static BoxedObject newBoxedObject(Object initial, BoxPaddingStrategy padding, boolean allowUnsafe, boolean allowJava8Intrinsics) {
     boolean useJava7Unsafe = allowUnsafe && UnsafeAccess.IS_AVAILABLE;
     boolean useJava8Unsafe = useJava7Unsafe && allowJava8Intrinsics && UnsafeAccess.HAS_JAVA8_INTRINSICS;

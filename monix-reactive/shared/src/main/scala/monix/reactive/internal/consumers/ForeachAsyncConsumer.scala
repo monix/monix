@@ -45,7 +45,7 @@ final class ForeachAsyncConsumer[A](f: A => Task[Unit])
               Continue
           }
         } catch {
-          case NonFatal(ex) =>
+          case ex if NonFatal(ex) =>
             onError(ex)
             Stop
         }

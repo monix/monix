@@ -17,9 +17,20 @@
 
 package monix.execution.internal.atomic;
 
+import monix.execution.internal.InternalApi;
 import sun.misc.Unsafe;
 import java.lang.reflect.Field;
 
+/**
+ * INTERNAL API — used in the implementation of
+ * `monix.execution.atomic.Atomic`.
+ *
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
+ */
+@InternalApi
 final class LeftRight128Java7BoxedLong extends LeftRight128Java7BoxedLongImpl {
   public volatile long r1, r2, r3, r4, r5, r6, r7, r8 = 11;
   @Override public long sum() {
@@ -32,8 +43,17 @@ final class LeftRight128Java7BoxedLong extends LeftRight128Java7BoxedLongImpl {
   }
 }
 
+/**
+ * INTERNAL API — used in the implementation of
+ * `monix.execution.atomic.Atomic`.
+ *
+ * Being internal it can always change between minor versions,
+ * providing no backwards compatibility guarantees and is only public
+ * because Java does not provide the capability of marking classes as
+ * "internal" to a package and all its sub-packages.
+ */
+@InternalApi
 abstract class LeftRight128Java7BoxedLongImpl extends LeftPadding56 implements BoxedLong {
-
   public volatile long value;
   private static final long OFFSET;
   private static final Unsafe UNSAFE = (Unsafe) UnsafeAccess.getInstance();

@@ -34,7 +34,7 @@ private[eval] object TaskDeferAction {
         Task.unsafeStartTrampolined(fa, context, callback)
       }
       catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           if (streamErrors) callback.asyncOnError(ex)
           else ec.reportFailure(ex)
       }

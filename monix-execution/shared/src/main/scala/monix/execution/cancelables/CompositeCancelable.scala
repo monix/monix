@@ -86,8 +86,11 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
       case current @ Active(set) =>
         if (stateRef.compareAndSet(current, Cancelled))
           Cancelable.cancelAll(set)
-        else
+        else {
+          // $COVERAGE-OFF$
           cancel()
+          // $COVERAGE-ON$
+        }
     }
 
   /** $addOp
@@ -104,10 +107,13 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
         other.cancel()
         this
       case current @ Active(set) =>
-        if (!stateRef.compareAndSet(current, Active(set + other)))
-          add(other)
-        else
+        if (stateRef.compareAndSet(current, Active(set + other))) {
           this
+        } else {
+          // $COVERAGE-OFF$
+          add(other)
+          // $COVERAGE-ON$
+        }
     }
 
   /** $addAllOp
@@ -125,10 +131,13 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
           Cancelable.cancelAll(that)
           this
         case current @ Active(set) =>
-          if (!stateRef.compareAndSet(current, Active(set ++ that)))
-            loop(that)
-          else
+          if (stateRef.compareAndSet(current, Active(set ++ that))) {
             this
+          } else {
+            // $COVERAGE-OFF$
+            loop(that)
+            // $COVERAGE-ON$
+          }
       }
 
     loop(that.toIterable.seq)
@@ -145,10 +154,13 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
     stateRef.get match {
       case Cancelled => this
       case current @ Active(set) =>
-        if (!stateRef.compareAndSet(current, Active(set - s)))
-          remove(s)
-        else
+        if (stateRef.compareAndSet(current, Active(set - s))) {
           this
+        } else {
+          // $COVERAGE-OFF$
+          remove(s)
+          // $COVERAGE-ON$
+        }
     }
 
   /** $removeAllOp
@@ -164,10 +176,13 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
       stateRef.get match {
         case Cancelled => this
         case current @ Active(set) =>
-          if (!stateRef.compareAndSet(current, Active(set -- that)))
-            loop(that)
-          else
+          if (stateRef.compareAndSet(current, Active(set -- that))) {
             this
+          } else {
+            // $COVERAGE-OFF$
+            loop(that)
+            // $COVERAGE-ON$
+          }
       }
 
     loop(that.toIterable.seq)
@@ -180,10 +195,13 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
     stateRef.get match {
       case Cancelled => this
       case current @ Active(_) =>
-        if (!stateRef.compareAndSet(current, Active(Set.empty)))
-          reset()
-        else
+        if (stateRef.compareAndSet(current, Active(Set.empty))) {
           this
+        } else {
+          // $COVERAGE-OFF$
+          reset() // retry
+          // $COVERAGE-ON$
+        }
     }
 
   /** Replaces the underlying set of cancelables with a new one,
@@ -196,10 +214,13 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
           Cancelable.cancelAll(that)
           Set.empty
         case current @ Active(set) =>
-          if (!stateRef.compareAndSet(current, Active(that)))
-            loop(that)
-          else
+          if (stateRef.compareAndSet(current, Active(that))) {
             set
+          } else {
+            // $COVERAGE-OFF$
+            loop(that)
+            // $COVERAGE-ON$
+          }
       }
 
     that match {

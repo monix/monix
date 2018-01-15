@@ -17,10 +17,9 @@
 
 package monix.eval.internal
 
-import monix.eval.Task
+import monix.eval.{Callback, Task}
 import monix.execution.misc.NonFatal
-import monix.execution.{Cancelable, Scheduler}
-
+import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import scala.concurrent.Future
 
 private[eval] object TaskFromFuture {
@@ -29,50 +28,24 @@ private[eval] object TaskFromFuture {
     if (f.isCompleted) {
       // An already computed result is synchronous
       Task.fromTry(f.value.get)
-    }
-    else f match {
+    } else f match {
       // Do we have a CancelableFuture?
-      case c: Cancelable =>
+      case cf: CancelableFuture[A] @unchecked =>
         // Cancelable future, needs canceling
-        Task.unsafeCreate { (context, cb) =>
-          implicit val s = context.scheduler
-          // Already completed future?
-          if (f.isCompleted)
-            cb.asyncApply(f.value.get)
-          else {
-            val conn = context.connection
-            conn.push(c)
-            f.onComplete { result =>
-              // Async boundary should trigger frame reset
-              context.frameRef.reset()
-              conn.pop()
-              cb(result)
-            }
-          }
-        }
+        Task.unsafeCreate(startCancelable(_, _, cf, cf.cancelable))
       case _ =>
         // Simple future, convert directly
-        Task.unsafeCreate { (context, cb) =>
-          implicit val s = context.scheduler
-          if (f.isCompleted)
-            cb.asyncApply(f.value.get)
-          else
-            f.onComplete { result =>
-              // Async boundary should trigger frame reset
-              context.frameRef.reset()
-              cb(result)
-            }
-        }
+        Task.unsafeCreate(startSimple(_, _, f))
     }
   }
 
   def deferAction[A](f: Scheduler => Future[A]): Task[A] =
     Task.unsafeCreate[A] { (context, callback) =>
-      implicit val s = context.scheduler
+      implicit val sc = context.scheduler
       // Prevents violations of the Callback contract
       var streamErrors = true
       try {
-        val future = f(s)
+        val future = f(sc)
         streamErrors = false
 
         future.value match {
@@ -80,32 +53,58 @@ private[eval] object TaskFromFuture {
             // Already completed future, streaming value immediately,
             // but with light async boundary to prevent stack overflows
             callback.asyncApply(value)
-
           case None =>
             future match {
-              case c: Cancelable =>
-                // Given a cancelable future, we should use it
-                val conn = context.connection
-                conn.push(c)
-                future.onComplete { result =>
-                  // Async boundary should trigger frame reset
-                  context.frameRef.reset()
-                  conn.pop()
-                  callback(result)
-                }
+              case cf: CancelableFuture[A] @unchecked =>
+                startCancelable(context, callback, cf, cf.cancelable)
               case _ =>
-                // Normal future reference
-                future.onComplete { result =>
-                  // Async boundary should trigger frame reset
-                  context.frameRef.reset()
-                  callback(result)
-                }
+                startSimple(context, callback, future)
             }
         }
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           if (streamErrors) callback.asyncOnError(ex)
-          else s.reportFailure(ex)
+          else sc.reportFailure(ex)
       }
     }
+
+  def build[A](f: Future[A], c: Cancelable): Task[A] =
+    Task.unsafeCreate[A](startCancelable(_, _, f, c))
+
+  private def startSimple[A](ctx: Task.Context, cb: Callback[A], f: Future[A]) = {
+    implicit val sc = ctx.scheduler
+    f.value match {
+      case Some(value) =>
+        // Short-circuit the processing, as future is already complete
+        cb.asyncApply(value)
+
+      case None =>
+        f.onComplete { result =>
+          // Async boundary should trigger frame reset
+          ctx.frameRef.reset()
+          cb(result)
+        }
+    }
+  }
+
+  private def startCancelable[A](ctx: Task.Context, cb: Callback[A], f: Future[A], c: Cancelable): Unit = {
+    implicit val sc = ctx.scheduler
+    f.value match {
+      case Some(value) =>
+        // Short-circuit the processing, as future is already complete
+        cb.asyncApply(value)
+
+      case None =>
+        // Given a cancelable future, we should use it
+        val conn = ctx.connection
+        conn.push(c)
+        // Async boundary
+        f.onComplete { result =>
+          // Async boundary should trigger frame reset
+          ctx.frameRef.reset()
+          conn.pop()
+          cb(result)
+        }
+    }
+  }
 }

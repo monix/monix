@@ -20,11 +20,11 @@ package monix.execution.cancelables
 import minitest.SimpleTestSuite
 import monix.execution.Cancelable
 
-object MultiAssignmentCancelableSuite extends SimpleTestSuite {
+object OrderedCancelableSuite extends SimpleTestSuite {
   test("cancel()") {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)
-    val mSub = MultiAssignmentCancelable(sub)
+    val mSub = OrderedCancelable(sub)
 
     assert(effect == 0)
     assert(!sub.isCanceled)
@@ -42,7 +42,7 @@ object MultiAssignmentCancelableSuite extends SimpleTestSuite {
   test("cancel() after second assignment") {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)
-    val mSub = MultiAssignmentCancelable(sub)
+    val mSub = OrderedCancelable(sub)
     val sub2 = BooleanCancelable(() => effect += 10)
     mSub := sub2
 
@@ -55,7 +55,7 @@ object MultiAssignmentCancelableSuite extends SimpleTestSuite {
   }
 
   test("automatically cancel assigned") {
-    val mSub = MultiAssignmentCancelable()
+    val mSub = OrderedCancelable()
     mSub.cancel()
 
     var effect = 0
@@ -70,22 +70,28 @@ object MultiAssignmentCancelableSuite extends SimpleTestSuite {
   }
 
   test("should do orderedUpdate") {
-    val mc = MultiAssignmentCancelable()
+    val mc = OrderedCancelable()
     var effect = 0
 
     val c1 = Cancelable { () => effect = 1 }
     mc.orderedUpdate(c1, 1)
+    assertEquals(mc.currentOrder, 1)
+
     val c2 = Cancelable { () => effect = 2 }
     mc.orderedUpdate(c2, 2)
+    assertEquals(mc.currentOrder, 2)
+
     val c3 = Cancelable { () => effect = 3 }
     mc.orderedUpdate(c3, 1)
+    assertEquals(mc.currentOrder, 2)
 
     mc.cancel()
     assertEquals(effect, 2)
+    assertEquals(mc.currentOrder, 0)
   }
 
   test("orderedUpdate should work on overflow") {
-    val mc = MultiAssignmentCancelable()
+    val mc = OrderedCancelable()
     var effect = 0
 
     val c1 = Cancelable { () => effect = 1 }
@@ -99,5 +105,15 @@ object MultiAssignmentCancelableSuite extends SimpleTestSuite {
 
     mc.cancel()
     assertEquals(effect, 3)
+  }
+
+  test("orderedUpdate cancels after cancel") {
+    val ref = OrderedCancelable()
+    ref.cancel()
+    assert(ref.isCanceled, "ref.isCanceled")
+
+    val c = BooleanCancelable()
+    ref.orderedUpdate(c, 1)
+    assert(c.isCanceled, "c.isCanceled")
   }
 }

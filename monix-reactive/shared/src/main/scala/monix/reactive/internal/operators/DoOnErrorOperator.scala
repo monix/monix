@@ -38,7 +38,7 @@ class DoOnErrorOperator[A](cb: Throwable => Unit)
         // In case our callback throws an error the behavior
         // is undefined, so we just log it.
         try cb(ex) catch {
-          case NonFatal(err) =>
+          case err if NonFatal(err) =>
             scheduler.reportFailure(err)
         } finally {
           out.onError(ex)

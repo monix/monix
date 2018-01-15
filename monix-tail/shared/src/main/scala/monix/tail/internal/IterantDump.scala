@@ -70,7 +70,7 @@ private[tail] object IterantDump {
           empty.asInstanceOf[Iterant[F, A]]
 
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           out.println(s"$pos: $prefix --> $ex")
           signalError(source, ex)
       }

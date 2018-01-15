@@ -496,6 +496,43 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   final def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Coeval[U] =
     onErrorRecoverWith(pf.andThen(nowConstructor))
 
+  /** On error restarts the source with a customizable restart loop.
+    *
+    * This operation keeps an internal `state`, with a start value, an internal
+    * state that gets evolved and based on which the next step gets decided,
+    * e.g. should it restart, or should it give up and rethrow the current error.
+    *
+    * Example that implements a simple retry policy that retries for a maximum
+    * of 10 times before giving up:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   task.onErrorRestartLoop(10) { (err, maxRetries, retry) =>
+    *     if (maxRetries > 0)
+    *       // Do next retry please
+    *       retry(maxRetries - 1)
+    *     else
+    *       // No retries left, rethrow the error
+    *       Task.raiseError(err)
+    *   }
+    * }}}
+    *
+    * The given function injects the following parameters:
+    *
+    *  1. `error` reference that was thrown
+    *  2. the current `state`, based on which a decision for the retry is made
+    *  3. `retry: S => Task[B]` function that schedules the next retry
+    *
+    * @param initial is the initial state used to determine the next on error
+    *        retry cycle
+    * @param f is a function that injects the current error, state, a
+    *        function that can signal a retry is to be made and returns
+    *        the next coeval
+    */
+  final def onErrorRestartLoop[S, B >: A](initial: S)(f: (Throwable, S, S => Coeval[B]) => Coeval[B]): Coeval[B] =
+    onErrorHandleWith(err => f(err, initial, state => (this : Coeval[B]).onErrorRestartLoop(state)(f)))
+
   /** Memoizes (caches) the result of the source and reuses it on
     * subsequent invocations of `value`.
     *
@@ -892,7 +929,7 @@ object Coeval extends CoevalInstancesLevel0 {
     /** Promotes a non-strict value to a [[Coeval.Eager]]. */
     def apply[A](f: => A): Eager[A] =
       try Now(f) catch {
-        case NonFatal(ex) => Error(ex)
+        case ex if NonFatal(ex) => Error(ex)
       }
 
     /** Builds an [[Coeval.Eager Eager]] from a `scala.util.Try` */
@@ -942,7 +979,7 @@ object Coeval extends CoevalInstancesLevel0 {
       try {
         Now(thunk())
       } catch {
-        case NonFatal(ex) => Error(ex)
+        case ex if NonFatal(ex) => Error(ex)
       } finally {
         // GC relief
         thunk = null
@@ -969,11 +1006,11 @@ object Coeval extends CoevalInstancesLevel0 {
     override def apply(): A = f()
 
     override def run: Eager[A] =
-      try Now(f()) catch { case NonFatal(e) => Error(e) }
+      try Now(f()) catch { case e if NonFatal(e) => Error(e) }
     override def runAttempt: Either[Throwable, A] =
-      try Right(f()) catch { case NonFatal(e) => Left (e) }
+      try Right(f()) catch { case e if NonFatal(e) => Left (e) }
     override def runTry: Try[A] =
-      try Success(f()) catch { case NonFatal(e) => Failure(e) }
+      try Success(f()) catch { case e if NonFatal(e) => Failure(e) }
   }
 
   /** Internal state, the result of [[Coeval.defer]] */

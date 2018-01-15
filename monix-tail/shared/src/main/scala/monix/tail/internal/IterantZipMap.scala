@@ -228,7 +228,7 @@ private[tail] object IterantZipMap {
               Suspend(rh.earlyStop.map(_ => halt.asInstanceOf[Iterant[F, C]]), rh.earlyStop)
           }
       } catch {
-        case NonFatal(ex) =>
+        case ex if NonFatal(ex) =>
           val stop = lh.earlyStop.flatMap(_ => rh.earlyStop)
           Suspend(stop.map(_ => Halt(Some(ex))), stop)
       }

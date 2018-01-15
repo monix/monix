@@ -38,7 +38,7 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
         .runAsync(Callback.empty)
     }
     catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         if (streamErrors) subscriber.onError(ex)
         else subscriber.scheduler.reportFailure(ex)
         Cancelable.empty
@@ -58,7 +58,7 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
         Task.unit
       }
     ) catch {
-      case NonFatal(ex) =>
+      case ex if NonFatal(ex) =>
         Task.raiseError(ex)
     }
 }

@@ -7,12 +7,12 @@ import scala.xml.transform.{RewriteRule, RuleTransformer}
 addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
-addCommandAlias("release",    ";project monix ;+publishSigned ;sonatypeReleaseAll")
+addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
-val catsVersion = "1.0.0-RC2"
-val catsEffectVersion = "0.6"
+val catsVersion = "1.0.1"
+val catsEffectVersion = "0.8"
 val jcToolsVersion = "2.1.1"
-val reactiveStreamsVersion = "1.0.1"
+val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
 val minitestVersion = "2.0.0"
 
@@ -43,7 +43,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.12.4",
-  crossScalaVersions := Seq("2.11.11", "2.12.4"),
+  crossScalaVersions := Seq("2.11.12", "2.12.4"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -227,7 +227,8 @@ lazy val unidocSettings = Seq(
 
   // Exclude monix.*.internal from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
-    file.getCanonicalPath matches "^.*monix\\.[^.]+\\.internal.*$"
+    // Exclude all internal Java files from documentation
+    file.getCanonicalPath matches "^.*monix.+?internal.*?\\.java$"
   }),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
@@ -394,7 +395,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    libraryDependencies += "io.monix" %% "monix-reactive" % "3.0.0-M2"
+    libraryDependencies += "io.monix" %% "monix-reactive" % "3.0.0-d357cb1"
   )
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))

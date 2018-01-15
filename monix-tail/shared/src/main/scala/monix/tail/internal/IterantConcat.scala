@@ -100,7 +100,7 @@ private[tail] object IterantConcat {
       case empty @ Halt(_) =>
         empty.asInstanceOf[Iterant[F, B]]
     } catch {
-      case NonFatal(ex) => signalError(source, ex)
+      case ex if NonFatal(ex) => signalError(source, ex)
     }
   }
 

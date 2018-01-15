@@ -18,22 +18,17 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.execution.CancelableFuture
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables._
-import scala.concurrent.Promise
 
-private[eval] object TaskChooseFirstOf {
+private[eval] object TaskRace {
   /**
-    * Implementation for `Task.chooseFirstOf`.
+    * Implementation for `Task.race`.
     */
-  def apply[A,B](fa: Task[A], fb: Task[B]): Task[Either[(A, CancelableFuture[B]), (CancelableFuture[A], B)]] =
+  def apply[A,B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
     Task.unsafeCreate { (context, cb) =>
-      implicit val s = context.scheduler
+      implicit val sc = context.scheduler
       val conn = context.connection
-
-      val pa = Promise[A]()
-      val pb = Promise[B]()
 
       val isActive = Atomic(true)
       val connA = StackedCancelable()
@@ -47,11 +42,9 @@ private[eval] object TaskChooseFirstOf {
       Task.unsafeStartAsync(fa, contextA, new Callback[A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
-            val futureB = CancelableFuture(pb.future, connB)
+            connB.cancel()
             conn.pop()
-            cb.asyncOnSuccess(Left((valueA, futureB)))
-          } else {
-            pa.success(valueA)
+            cb.asyncOnSuccess(Left(valueA))
           }
 
         def onError(ex: Throwable): Unit =
@@ -60,7 +53,7 @@ private[eval] object TaskChooseFirstOf {
             connB.cancel()
             cb.asyncOnError(ex)
           } else {
-            pa.failure(ex)
+            sc.reportFailure(ex)
           }
       })
 
@@ -68,11 +61,9 @@ private[eval] object TaskChooseFirstOf {
       Task.unsafeStartAsync(fb, contextB, new Callback[B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
-            val futureA = CancelableFuture(pa.future, connA)
+            connA.cancel()
             conn.pop()
-            cb.asyncOnSuccess(Right((futureA, valueB)))
-          } else {
-            pb.success(valueB)
+            cb.asyncOnSuccess(Right(valueB))
           }
 
         def onError(ex: Throwable): Unit =
@@ -81,7 +72,7 @@ private[eval] object TaskChooseFirstOf {
             connA.cancel()
             cb.asyncOnError(ex)
           } else {
-            pb.failure(ex)
+            sc.reportFailure(ex)
           }
       })
     }

@@ -22,9 +22,9 @@ import monix.execution.Cancelable
 import monix.execution.atomic.{Atomic, PaddingStrategy}
 import monix.execution.cancelables.StackedCancelable
 
-private[eval] object TaskChooseFirstOfList {
+private[eval] object TaskRaceList {
   /**
-    * Implementation for `Task.chooseFirstOfList`
+    * Implementation for `Task.raceList`
     */
   def apply[A](tasks: TraversableOnce[Task[A]]): Task[A] =
     Task.unsafeCreate { (context, callback) =>
