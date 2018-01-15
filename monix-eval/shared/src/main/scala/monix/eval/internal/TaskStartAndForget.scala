@@ -24,7 +24,6 @@ private[eval] object TaskStartAndForget {
     */
   def apply[A](fa: Task[A]): Task[Unit] =
     Task.Async[Unit] { (ctx, cb) =>
-
       implicit val sc = ctx.scheduler
       // It needs its own context, its own cancelable
       val ctx2 = Task.Context(ctx.scheduler, ctx.options)
