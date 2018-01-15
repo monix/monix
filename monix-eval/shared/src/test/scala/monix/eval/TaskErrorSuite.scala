@@ -513,7 +513,7 @@ object TaskErrorSuite extends BaseTestSuite {
     def loop(task: Task[Int], n: Int): Task[Int] =
       task.onErrorRecoverWith {
         case `ex` if n <= 0 => Task(count)
-        case `ex` => Task.fork(loop(task, n-1))
+        case `ex` => loop(task, n-1).executeAsync
       }
 
     val task = loop(Task.raiseError(ex), count)

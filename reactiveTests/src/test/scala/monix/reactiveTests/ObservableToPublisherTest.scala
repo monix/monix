@@ -30,7 +30,7 @@ class ObservableToPublisherTest extends PublisherVerification[Long](env())
   def eval[A](x: A): Observable[A] = {
     val n = Random.nextInt()
     if (math.abs(n % 10) == 0)
-      Observable.fork(Observable.now(x))
+      Observable.now(x).executeAsync
     else
       Observable.now(x)
   }
