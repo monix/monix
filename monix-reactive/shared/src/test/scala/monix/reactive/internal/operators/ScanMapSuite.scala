@@ -15,14 +15,18 @@
  * limitations under the License.
  */
 
-package monix.execution.misc
+package monix.reactive.internal.operators
 
-private[execution] object compat {
-  type Context = scala.reflect.macros.whitebox.Context
+import monix.reactive.{BaseTestSuite, Observable}
 
-  def freshTermName[C <: Context](c: C)(s: String) =
-    c.universe.TermName(c.freshName(s))
+object ScanMapSuite extends BaseTestSuite {
 
-  def setOrig[C <: Context](c: C)(tt: c.universe.TypeTree, t: c.Tree) =
-    c.universe.internal.setOriginal(tt, t)
+  test("Observable.scanMap equivalence to Observable.scan") { implicit s =>
+    val obs1 = Observable(1, 2, 3, 4).scanMap(x => x)
+    val obs2 = Observable(1, 2, 3, 4).scan(0)(_ + _)
+    val f1 = obs1.runAsyncGetLast
+    val f2 = obs2.runAsyncGetLast
+    s.tick()
+    assertEquals(f1.value, f2.value)
+  }
 }

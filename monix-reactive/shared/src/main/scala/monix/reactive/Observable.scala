@@ -2087,6 +2087,35 @@ abstract class Observable[+A] extends Serializable { self =>
   final def scanEval[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: Effect[F]): Observable[S] =
     scanTask(Task.fromEffect(seed)(F))((s, a) => Task.fromEffect(op(s, a))(F))
 
+  /** Given a mapping function that returns a `B` type for which we have
+    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
+    * elements of the sources using the provided `Monoid[B].combine`, with the
+    * initial seed being the `Monoid[B].empty` value, emitting the generated values
+    * at each step.
+    *
+    * Equivalent with [[scan]] applied with the given [[cats.Monoid]], so given
+    * our `f` mapping function returns a `B`, this law holds:
+    * {{{
+    * val B = implicitly[Monoid[B]]
+    *
+    * stream.scanMap(f) <-> stream.scan(B.empty)(B.combine)
+    * }}}
+    *
+    * Example:
+    * {{{
+    * // Yields 2, 6, 12, 20, 30, 42
+    * Observable(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
+    * }}}
+    *
+    * @param f is the mapping function applied to every incoming element of this `Observable`
+    *          before folding using `Monoid[B].combine`
+    *
+    * @return a new `Observable` that emits all intermediate states being
+    *         resulted from applying `Monoid[B].combine` function
+    */
+  final def scanMap[B](f: A => B)(implicit B: Monoid[B]): Observable[B] =
+    self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
+
   /** Applies a binary operator to a start value and all elements of
     * this stream, going left to right and returns a new stream that
     * emits on each step the result of the applied function.
