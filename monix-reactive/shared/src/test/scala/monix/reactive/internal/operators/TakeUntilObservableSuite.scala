@@ -64,8 +64,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
   }
 
   test("should cancel the trigger if finished before it") { implicit s =>
-    val obs = Observable.fork(Observable(1))
-      .takeUntil(Observable.now(1).delaySubscription(1.second))
+    val obs = Observable(1).executeAsync.takeUntil(Observable.now(1).delaySubscription(1.second))
     val f = obs.runAsyncGetFirst
 
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
