@@ -157,8 +157,8 @@ object MVarSuite extends BaseTestSuite {
     val channel = MVar(Option(0))
     val count = 1000000
 
-    val producerTask = producer(channel, (0 until count).toList).executeWithFork
-    val consumerTask = consumer(channel, 0L).executeWithFork
+    val producerTask = producer(channel, (0 until count).toList).executeAsync
+    val consumerTask = consumer(channel, 0L).executeAsync
 
     // Ensure they run in parallel
     val sumTask = Task.mapBoth(producerTask, consumerTask)((_,sum) => sum)

@@ -19,26 +19,31 @@ package monix.eval.internal
 
 import monix.eval.{Callback, Task}
 import monix.execution.misc.NonFatal
+import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
+
 import scala.concurrent.Future
 
 private[eval] object TaskFromFuture {
   /** Implementation for `Task.fromFuture`. */
   def strict[A](f: Future[A]): Task[A] = {
-    if (f.isCompleted) {
-      // An already computed result is synchronous
-      Task.fromTry(f.value.get)
-    } else f match {
-      // Do we have a CancelableFuture?
-      case cf: CancelableFuture[A] @unchecked =>
-        // Cancelable future, needs canceling
-        Task.unsafeCreate(startCancelable(_, _, cf, cf.cancelable))
-      case _ =>
-        // Simple future, convert directly
-        Task.unsafeCreate(startSimple(_, _, f))
+    f.value match {
+      case None =>
+        f match {
+          // Do we have a CancelableFuture?
+          case cf: CancelableFuture[A] @unchecked =>
+            // Cancelable future, needs canceling
+            Task.unsafeCreate(startCancelable(_, _, cf, cf.cancelable))
+          case _ =>
+            // Simple future, convert directly
+            Task.unsafeCreate(startSimple(_, _, f))
+        }
+      case Some(value) =>
+        Task.fromTry(value)
     }
   }
 
+  /** Implementation for `Task.deferFutureAction`. */
   def deferAction[A](f: Scheduler => Future[A]): Task[A] =
     Task.unsafeCreate[A] { (context, callback) =>
       implicit val sc = context.scheduler
@@ -68,31 +73,33 @@ private[eval] object TaskFromFuture {
       }
     }
 
-  def build[A](f: Future[A], c: Cancelable): Task[A] =
-    Task.unsafeCreate[A](startCancelable(_, _, f, c))
+  /** Internal implementation used in `Task.start`. */
+  def lightBuild[A](f: Future[A], c: Cancelable): Task[A] = {
+    // The task could have been a strict or easily computed value
+    // in which case we're already there
+    f.value match {
+      case None =>
+        Task.unsafeCreate(startCancelable(_, _, f, c))
+      case Some(value) =>
+        Task.fromTry(value)
+    }
+  }
 
   private def startSimple[A](ctx: Task.Context, cb: Callback[A], f: Future[A]) = {
-    implicit val sc = ctx.scheduler
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete
-        cb.asyncApply(value)
-
+        cb.asyncApply(value)(ctx.scheduler)
       case None =>
-        f.onComplete { result =>
-          // Async boundary should trigger frame reset
-          ctx.frameRef.reset()
-          cb(result)
-        }
+        f.onComplete(cb)(immediate)
     }
   }
 
   private def startCancelable[A](ctx: Task.Context, cb: Callback[A], f: Future[A], c: Cancelable): Unit = {
-    implicit val sc = ctx.scheduler
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete
-        cb.asyncApply(value)
+        cb.asyncApply(value)(ctx.scheduler)
 
       case None =>
         // Given a cancelable future, we should use it
@@ -100,11 +107,9 @@ private[eval] object TaskFromFuture {
         conn.push(c)
         // Async boundary
         f.onComplete { result =>
-          // Async boundary should trigger frame reset
-          ctx.frameRef.reset()
           conn.pop()
           cb(result)
-        }
+        }(immediate)
     }
   }
 }

@@ -23,10 +23,10 @@ import scala.concurrent.duration.Duration._
 
 object Zip4Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o1 = Observable.fork(Observable.range(0, sourceCount))
-    val o2 = Observable.fork(Observable.range(0, sourceCount))
-    val o3 = Observable.fork(Observable.range(0, sourceCount))
-    val o4 = Observable.fork(Observable.range(0, sourceCount))
+    val o1 = Observable.range(0, sourceCount).executeAsync
+    val o2 = Observable.range(0, sourceCount).executeAsync
+    val o3 = Observable.range(0, sourceCount).executeAsync
+    val o4 = Observable.range(0, sourceCount).executeAsync
 
     val o = Observable.zipMap4(o1,o2,o3,o4)(_+_+_+_)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -46,10 +46,10 @@ object Zip4Suite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o1 = Observable.fork(Observable.range(0, sourceCount))
-    val o2 = Observable.fork(Observable.range(0, sourceCount + 100))
-    val o3 = Observable.fork(Observable.range(0, sourceCount))
-    val o4 = Observable.fork(Observable.range(0, sourceCount))
+    val o1 = Observable.range(0, sourceCount).executeAsync
+    val o2 = Observable.range(0, sourceCount + 100).executeAsync
+    val o3 = Observable.range(0, sourceCount).executeAsync
+    val o4 = Observable.range(0, sourceCount).executeAsync
 
     val o = Observable.zipMap4(o1, o2, o3, o4) { (x1, x2, x3, x4) =>
       if (x2 < sourceCount - 1) x1 + x2 + x3 + x4 else throw ex
