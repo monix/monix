@@ -229,7 +229,7 @@ import scala.util.{Failure, Success, Try}
   * triggered in case of cancellation:
   *
   * {{{
-  *   val task = Task.eval(println("Hello!")).executeWithFork
+  *   val task = Task.eval(println("Hello!")).executeAsync
   *
   *   task.doOnCancel(Task.eval {
   *     println("A cancellation attempt was made!")
@@ -285,6 +285,12 @@ import scala.util.{Failure, Success, Try}
   *
   * @define optionsDesc a set of [[monix.eval.Task.Options Options]]
   *         that determine the behavior of Task's run-loop.
+  *         
+  * @define startInspiration Inspired by
+  *         [[https://github.com/functional-streams-for-scala/fs2 FS2]],
+  *         with the difference that this method does not fork
+  *         automatically, being consistent with Monix's default
+  *         behavior.
   */
 sealed abstract class Task[+A] extends Serializable {
   import monix.eval.Task._
@@ -719,7 +725,7 @@ sealed abstract class Task[+A] extends Serializable {
     * the async boundary will be the default, meaning the one used to
     * start the run-loop in `runAsync`.
     */
-  final def executeWithFork: Task[A] =
+  final def executeAsync: Task[A] =
     Task.shift.flatMap(_ => this)
 
   /** Returns a new task that will execute the source with a different
@@ -799,6 +805,41 @@ sealed abstract class Task[+A] extends Serializable {
     */
   final def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
     foreachL(f).runAsync(s)
+
+  /** Start asynchronous execution of the source suspended in the `Task` context.
+    *
+    * This can be used for non-deterministic / concurrent execution.
+    * The following code is more or less equivalent with
+    * [[Task.parMap2]] (minus the behavior on error handling and
+    * cancellation, plus forced async execution):
+    *
+    * {{{
+    *   def par2[A, B](ta: Task[A], tb: Task[B]): Task[(A, B)] =
+    *     for {
+    *       fa <- ta.fork
+    *       fb <- tb.fork
+    *        a <- fa
+    *        b <- fb
+    *     } yield (a, b)
+    * }}}
+    *
+    * Note in such a case usage of [[Task.parMap2 parMap2]]
+    * (and [[Task.parMap3 parMap3]], etc.) is still recommended
+    * because of behavior on error and cancellation — consider that
+    * in the example above, if the first task finishes in error,
+    * the second task doesn't get cancelled.
+    *
+    * IMPORTANT — this operation forces an asynchronous boundary before
+    * execution, as in general this law holds:
+    * {{{
+    *   fa.fork <-> fa.executeAsync.start
+    * }}}
+    *
+    * See [[start]] for the equivalent that does not start the task with
+    * a forced async boundary.
+    */
+  final def fork: Task[Task[A]] =
+    executeAsync.start
 
   /** Returns a new `Task` in which `f` is scheduled to be run on
     * completion. This would typically be used to release any
@@ -1074,20 +1115,16 @@ sealed abstract class Task[+A] extends Serializable {
     * in the example above, if the first task finishes in error,
     * the second task doesn't get cancelled.
     *
-    * IMPORTANT — this operation does not fork, it does not introduce
-    * an asynchronous boundary, so in case the evaluation of a task
-    * is immediate, a fork might be needed to make evaluation happen
-    * on another thread or stack frame (if it doesn't do that already):
+    * IMPORTANT — this operation does start with an asynchronous boundary.
+    * You can either use [[fork]] as an alternative, or use [[executeAsync]]
+    * just before calling `start`, as in general this law holds:
     *
     * {{{
-    *   Task.fork(myTask).start
+    *   fa.fork <-> fa.executeAsync.start
     * }}}
     *
-    * Inspired by
-    * [[https://github.com/functional-streams-for-scala/fs2 FS2]],
-    * with the difference that this method does not fork
-    * automatically, being consistent with Monix's default
-    * behavior.
+    * See [[fork]] for the equivalent that does starts the task with
+    * a forced async boundary.
     */
   final def start: Task[Task[A]] =
     TaskStart(this)
@@ -1210,7 +1247,7 @@ sealed abstract class Task[+A] extends Serializable {
   * @define shiftDesc For example we can introduce an
   *         asynchronous boundary in the `flatMap` chain before a
   *         certain task, this being literally the implementation of
-  *         [[Task.fork[A](fa:monix\.eval\.Task[A])* Task.fork(fa)]]:
+  *         [[Task.executeAsync executeAsync]]:
   *
   *         {{{
   *           Task.shift.flatMap(_ => task)
@@ -1244,10 +1281,15 @@ object Task extends TaskInstancesLevel1 {
   /** Returns a new task that, when executed, will emit the result of
     * the given function, executed asynchronously.
     *
+    * This operation is the equivalent of:
+    * {{{
+    *   Task.eval(f).executeAsync
+    * }}}
+    *
     * @param f is the callback to execute asynchronously
     */
   def apply[A](f: => A): Task[A] =
-    fork(eval(f))
+    eval(f).executeAsync
 
   /** Returns a `Task` that on execution is always successful, emitting
     * the given strict value.
@@ -1420,31 +1462,6 @@ object Task extends TaskInstancesLevel1 {
 
   /** Transforms a [[Coeval]] into a [[Task]]. */
   def coeval[A](a: Coeval[A]): Task[A] = Eval(a)
-
-  /** Mirrors the given source `Task`, but upon execution ensure
-    * that evaluation forks into a separate (logical) thread.
-    *
-    * The [[monix.execution.Scheduler Scheduler]] used will be
-    * the one that is used to start the run-loop in `runAsync`.
-    *
-    * Alias for [[Task.executeWithFork .executeWithFork]], see its
-    * description.
-    *
-    * @param fa is the task that will get executed with a forced
-    *        asynchronous boundary
-    */
-  def fork[A](fa: Task[A]): Task[A] =
-    fa.executeWithFork
-
-  /** Mirrors the given source `Task`, but upon execution override
-    * the default [[monix.execution.Scheduler Scheduler]] and force
-    * an asynchronous boundary right before execution.
-    *
-    * Alias for [[Task.executeOn .executeOn]] with
-    * `forceAsync = true`, see its description.
-    */
-  def fork[A](fa: Task[A], s: Scheduler): Task[A] =
-    fa.executeOn(s)
 
   /** $createAsyncDesc
     *
@@ -2291,6 +2308,45 @@ object Task extends TaskInstancesLevel1 {
     }
   }
 
+  // -- DEPRECATIONS
+
+  /** DEPRECATED — please use [[Task!.executeAsync .executeAsync]].
+    *
+    * The reason for the deprecation is the repurposing of the word "fork".
+    */
+  @deprecated("Please use Task!.executeAsync", "3.0.0")
+  def fork[A](fa: Task[A]): Task[A] = {
+    // $COVERAGE-OFF$
+    fa.executeAsync
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — please use [[Task.executeOn .executeOn]].
+    *
+    * The reason for the deprecation is the repurposing of the word "fork".
+    */
+  @deprecated("Please use Task!.executeOn", "3.0.0")
+  def fork[A](fa: Task[A], s: Scheduler): Task[A] = {
+  // $COVERAGE-OFF$
+    fa.executeOn(s)
+    // $COVERAGE-ON$
+  }
+
+  implicit final class DeprecatedExtensions[A](val self: Task[A]) extends AnyVal {
+    /** DEPRECATED - renamed to [[Task.executeAsync executeAsync]].
+      *
+      * The reason for the deprecation is the repurposing of the word "fork".
+      */
+    @deprecated("Renamed to Task!.executeAsync", "3.0.0")
+    def executeWithFork: Task[A] = {
+      // $COVERAGE-OFF$
+      self.executeAsync
+      // $COVERAGE-ON$
+    }
+  }
+
+  // -- INTERNALS
+
   /** [[Task]] state describing an immediate synchronous value. */
   private[eval] final case class Now[A](value: A) extends Task[A] {
     // Optimizations to avoid the run-loop
@@ -2411,7 +2467,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * DO NOT use directly, as it is UNSAFE to use, unless you know
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]]
-    * and `Task.fork`.
+    * and [[Task.executeAsync .executeAsync]].
     */
   def unsafeStartAsync[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     TaskRunLoop.restartAsync(source, context, cb, null, null, null)
@@ -2424,7 +2480,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * DO NOT use directly, as it is UNSAFE to use, unless you know
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]]
-    * and `Task.fork`.
+    * and [[Task.executeAsync .executeAsync]].
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     context.scheduler.execute(new TrampolinedRunnable {

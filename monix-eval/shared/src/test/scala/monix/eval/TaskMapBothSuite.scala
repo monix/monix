@@ -90,9 +90,9 @@ object TaskMapBothSuite extends BaseTestSuite {
 
   test("both task can fail with error") { implicit s =>
     val err1 = new RuntimeException("Error 1")
-    val t1 = Task.fork(Task.defer(Task.raiseError[Int](err1)))
+    val t1 = Task.defer(Task.raiseError[Int](err1)).executeAsync
     val err2 = new RuntimeException("Error 2")
-    val t2 = Task.fork(Task.defer(Task.raiseError[Int](err2)))
+    val t2 = Task.defer(Task.raiseError[Int](err2)).executeAsync
 
     val fb = Task.mapBoth(t1, t2)(_ + _).runAsync
     s.tick()

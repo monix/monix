@@ -27,15 +27,15 @@ import monix.reactive.{Observable, Observer}
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
-object ExecuteWithForkObservableSuite extends TestSuite[TestScheduler]  {
+object ExecuteAsyncObservableSuite extends TestSuite[TestScheduler]  {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty,
       "TestScheduler should be left with no pending tasks")
   }
 
-  test("Observable.now.executeWithFork should execute async") { implicit s =>
-    val obs = Observable.now(10).executeWithFork
+  test("Observable.now.executeAsync should execute async") { implicit s =>
+    val obs = Observable.now(10).executeAsync
     val p = Promise[Int]()
 
     obs.subscribe(new Observer[Int] {

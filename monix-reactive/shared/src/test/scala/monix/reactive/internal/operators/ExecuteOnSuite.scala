@@ -40,9 +40,11 @@ object ExecuteOnSuite extends TestSuite[TestScheduler] {
     var receivedOnNext: Long = 0
     var finallyReceived: Long = 0
 
-    val forked = Observable.fork(
-      Observable.range(0, nr).sumF.doOnNext(sum => receivedOnNext = sum),
-      other)
+    val forked =
+      Observable.range(0, nr)
+        .sumF.doOnNext(sum => receivedOnNext = sum)
+        .executeOn(other)
+
     val obs =
       forked.asyncBoundary(Unbounded)
 
