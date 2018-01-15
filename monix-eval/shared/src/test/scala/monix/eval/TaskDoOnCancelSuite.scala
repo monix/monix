@@ -45,7 +45,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
   test("Task.doOnCancel should mirror failed sources") { implicit s =>
     var effect = 0
     val dummy = new RuntimeException("dummy")
-    val f = Task.fork(Task.raiseError(dummy))
+    val f = Task.raiseError(dummy).executeAsync
       .doOnCancel(Task.eval { effect += 1 })
       .runAsync
 

@@ -43,7 +43,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
 
     for (_ <- 0 until 100) {
       val sum = Observable.range(0, count)
-        .flatMap(x => Observable(x,x,x).executeWithFork)
+        .flatMap(x => Observable(x,x,x).executeAsync)
         .sumL
         .runAsync
 
