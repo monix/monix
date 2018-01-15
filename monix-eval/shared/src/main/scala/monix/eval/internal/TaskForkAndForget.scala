@@ -18,7 +18,7 @@
 package monix.eval
 package internal
 
-private[eval] object TaskStartAndForget {
+private[eval] object TaskForkAndForget {
   /**
     * Implementation for `Task.startAndForget`.
     */
@@ -29,7 +29,6 @@ private[eval] object TaskStartAndForget {
       val ctx2 = Task.Context(sc, ctx.options)
       // Starting actual execution of our newly created task forcing new async boundary
       Task.unsafeStartAsync(fa, ctx2, Callback.empty)
-      // Signal the created Task reference
-      cb.onSuccess(())
+      cb.asyncOnSuccess(())
     }
 }
