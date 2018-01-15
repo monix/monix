@@ -79,12 +79,12 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     )
 
     def loop(n: Int, acc: Int): Task[Int] =
-      Task.fork(Task.defer {
+      Task.defer {
         if (n > 0)
           circuitBreaker.protect(loop(n-1, acc+1))
         else
           Task.now(acc)
-      })
+      }.executeAsync
 
     val f = loop(100000, 0).runAsync; s.tick()
     assertEquals(f.value, Some(Success(100000)))
