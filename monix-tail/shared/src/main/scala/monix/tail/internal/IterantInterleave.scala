@@ -22,7 +22,7 @@ import monix.tail.Iterant
 
 
 private[tail] object IterantInterleave {
-  def apply[F[_], A, B >: A](lh: Iterant[F, A], rh: Iterant[F, B]) (implicit F: Sync[F]): Iterant[F, B] = {
-    rh
+  def apply[F[_], A](lh: Iterant[F, A], rh: Iterant[F, A]) (implicit F: Sync[F]): Iterant[F, A] = {
+    lh
   }
 }

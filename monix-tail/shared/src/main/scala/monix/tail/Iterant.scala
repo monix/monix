@@ -1525,7 +1525,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        right hand side)
     */
   final def interleave[B >: A](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
-    IterantInterleave(self, rhs)(F)
+    IterantInterleave(self.upcast[B], rhs)(F)
 
   /** Converts this `Iterant` into an `org.reactivestreams.Publisher`.
     *
