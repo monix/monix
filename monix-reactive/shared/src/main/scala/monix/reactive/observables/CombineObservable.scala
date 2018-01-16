@@ -17,17 +17,17 @@
 
 package monix.reactive.observables
 
-import cats.Applicative
+import cats.Apply
 import monix.reactive.Observable
 
 /** A `CombineObservable` is an observable that wraps a regular
-  * [[Observable]] and provide [[cats.Applicative]] instance
+  * [[Observable]] and provide [[cats.Apply]] instance
   * which uses [[Observable.combineLatest]] to combine elements.
   */
 final class CombineObservable[A](val value: Observable[A]) extends AnyVal
 
 object CombineObservable {
-  implicit def combineObservableApplicative: Applicative[CombineObservable] = new Applicative[CombineObservable] {
+  implicit def combineObservableApplicative: Apply[CombineObservable] = new Apply[CombineObservable] {
     def pure[A](x: A): CombineObservable[A] = new CombineObservable(Observable.now(x))
 
     def ap[A, B](ff: CombineObservable[(A) => B])(fa: CombineObservable[A]) = new CombineObservable(

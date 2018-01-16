@@ -20,7 +20,7 @@ package monix.reactive
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
 import cats.effect.{Effect, IO}
-import cats.{Applicative, CoflatMap, Eq, Eval, Monad, MonadError, Monoid, MonoidK, Order, Parallel, ~>}
+import cats.{Apply, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
@@ -4471,10 +4471,11 @@ object Observable {
       Observable.empty[A]
   }
 
-  /** [[cats.Parallel]] instance for [[Observable]]. */
-  implicit def observableParallel: Parallel[Observable, CombineObservable] = new Parallel[Observable, CombineObservable] {
-    def monad: Monad[Observable] = implicitly[Monad[Observable]]
-    def applicative: Applicative[CombineObservable] = CombineObservable.combineObservableApplicative
+  /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
+  implicit def observableParallel: NonEmptyParallel[Observable, CombineObservable] = new NonEmptyParallel[Observable, CombineObservable] {
+    def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
+    def apply: Apply[CombineObservable] = CombineObservable.combineObservableApplicative
+
     def sequential = new (CombineObservable ~> Observable) {
       def apply[A](fa: CombineObservable[A]): Observable[A] = fa.value
     }
