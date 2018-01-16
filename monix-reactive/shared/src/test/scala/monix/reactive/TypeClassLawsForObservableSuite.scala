@@ -17,7 +17,8 @@
 
 package monix.reactive
 
-import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests}
+import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests, ParallelTests}
+import monix.reactive.observables.CombineObservable
 
 object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
   checkAllAsync("MonadError[Observable, Throwable]") { implicit ec =>
@@ -30,5 +31,9 @@ object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
 
   checkAllAsync("MonoidK[Observable]") { implicit ec =>
     MonoidKTests[Observable].monoidK[Int]
+  }
+
+  checkAllAsync("Parallel[Observable]") { implicit ec =>
+    ParallelTests[Observable, CombineObservable].parallel[Int, Int]
   }
 }
