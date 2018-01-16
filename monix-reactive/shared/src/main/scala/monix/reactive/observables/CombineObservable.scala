@@ -28,7 +28,6 @@ final class CombineObservable[A](val value: Observable[A]) extends AnyVal
 
 object CombineObservable {
   implicit def combineObservableApplicative: Apply[CombineObservable] = new Apply[CombineObservable] {
-    def pure[A](x: A): CombineObservable[A] = new CombineObservable(Observable.now(x))
 
     def ap[A, B](ff: CombineObservable[(A) => B])(fa: CombineObservable[A]) = new CombineObservable(
       ff.value.combineLatestMap(fa.value)((f, a) => f(a))
