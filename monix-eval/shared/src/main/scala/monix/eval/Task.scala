@@ -841,6 +841,19 @@ sealed abstract class Task[+A] extends Serializable {
   final def fork: Task[Task[A]] =
     executeAsync.start
 
+  /** Start asynchronous execution of the source suspended in the `Task` context,
+    * running it in the background and discarding the result.
+    *
+    * Similar to [[fork]] after mapping result to Unit. Below law holds:
+    *
+    * {{{
+    *   task.forkAndForget <-> task.fork.map(_ => ())
+    * }}}
+    *
+    */
+  final def forkAndForget: Task[Unit] =
+    TaskForkAndForget(this)
+
   /** Returns a new `Task` in which `f` is scheduled to be run on
     * completion. This would typically be used to release any
     * resources acquired by this `Task`.
