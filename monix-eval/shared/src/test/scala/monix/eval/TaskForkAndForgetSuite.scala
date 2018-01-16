@@ -43,8 +43,9 @@ object TaskForkAndForgetSuite extends BaseTestSuite {
   }
 
   test("Task.forkAndForget triggers exceptions in background thread") { implicit sc =>
+    val dummy = new DummyException()
     val task = Task.now(20)
-    val errorTask = Task.raiseError(new DummyException)
+    val errorTask = Task.raiseError(dummy)
 
     val result = for {
       _ <- errorTask.forkAndForget
@@ -54,6 +55,7 @@ object TaskForkAndForgetSuite extends BaseTestSuite {
     val f = result.runAsync
     sc.tick()
     assertEquals(f.value, Some(Success(20)))
+    assertEquals(sc.state.lastReportedError, dummy)
   }
 
   test("Task.forkAndForget is stack safe") { implicit sc =>
