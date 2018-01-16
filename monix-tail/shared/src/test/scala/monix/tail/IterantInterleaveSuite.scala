@@ -17,6 +17,8 @@
 
 package monix.tail
 
+import cats.laws._
+import cats.laws.discipline._
 import cats.effect.Sync
 import monix.eval.Coeval
 import monix.execution.internal.Platform
@@ -35,18 +37,24 @@ object IterantInterleaveSuite extends BaseTestSuite {
                                        (implicit F: Sync[F]): Iterant[F, B] =
     lh.zip(rh).flatMap { case (a, b) => Iterant[F].pure(a) ++ Iterant[F].pure(b) }
 
-  test("naiveImp smoke test") { implicit s =>
-    assertEquals(naiveImp(
-      Iterant[Coeval].of(11, 12),
-      Iterant[Coeval].of(21, 22, 23)).toListL.value,
-      List(11, 21, 12, 22))
-    assertEquals(naiveImp(
-      Iterant[Coeval].of(11, 12),
-      Iterant[Coeval].of(21)).toListL.value,
-      List(11, 21))
+  test("naiveImp on iterants equivalence with List-based one") { implicit s =>
+    check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
+      val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
+      val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
+
+      val expected = Coeval(list1.zip(list2).flatMap { case (a, b) => List(a, b) }).value
+      naiveImp(stream1, stream2).toListL.value <-> expected
+    }
   }
 
-  // TODO equivalence test with naive imp
+  test("Iterant.interleave equivalence with naiveImp") { implicit s =>
+    check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
+      val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
+      val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
+
+      stream1.interleave(stream2).toListL.value <-> naiveImp(stream1, stream2).toListL.value
+    }
+  }
 
   // TODO various scenarios (stop on error, etc.)
 
