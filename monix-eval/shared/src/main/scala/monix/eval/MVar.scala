@@ -89,26 +89,26 @@ abstract class MVar[A] {
 
 object MVar {
   /** Builds an [[MVar]] instance with an `initial` value. */
-  def apply[A](initial: A): MVar[A] =
-    new AsyncMVarImpl[A](AsyncVar(initial))
+  def apply[A](initial: A): Task[MVar[A]] =
+    Task.eval(new AsyncMVarImpl[A](AsyncVar(initial)))
 
   /** Returns an empty [[MVar]] instance. */
-  def empty[A]: MVar[A] =
-    new AsyncMVarImpl[A](AsyncVar.empty)
+  def empty[A]: Task[MVar[A]] =
+    Task.eval(new AsyncMVarImpl[A](AsyncVar.empty))
 
   /** Builds an [[MVar]] instance with an `initial`  value and a given
     * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
     * (for avoiding the false sharing problem).
     */
-  def withPadding[A](initial: A, ps: PaddingStrategy): MVar[A] =
-    new AsyncMVarImpl[A](AsyncVar.withPadding(initial, ps))
+  def withPadding[A](initial: A, ps: PaddingStrategy): Task[MVar[A]] =
+    Task.eval(new AsyncMVarImpl[A](AsyncVar.withPadding(initial, ps)))
 
   /** Builds an empty [[MVar]] instance with a given
     * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
     * (for avoiding the false sharing problem).
     */
-  def withPadding[A](ps: PaddingStrategy): MVar[A] =
-    new AsyncMVarImpl[A](AsyncVar.withPadding(ps))
+  def withPadding[A](ps: PaddingStrategy): Task[MVar[A]] =
+    Task.eval(new AsyncMVarImpl[A](AsyncVar.withPadding(ps)))
 
   /** [[MVar]] implementation based on [[monix.execution.misc.AsyncVar]] */
   private final class AsyncMVarImpl[A](av: AsyncVar[A]) extends MVar[A] {

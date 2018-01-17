@@ -18,6 +18,7 @@
 package monix.eval
 
 import monix.execution.CancelableFuture
+import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.internal.Platform
 
@@ -25,12 +26,11 @@ import scala.util.Success
 
 object MVarSuite extends BaseTestSuite {
   test("empty; put; take; put; take") { implicit s =>
-    val av = MVar.empty[Int]
-
     val task = for {
-      _ <- av.put(10)
+      av <- MVar.empty[Int]
+      _  <- av.put(10)
       r1 <- av.take
-      _ <- av.put(20)
+      _  <- av.put(20)
       r2 <- av.take
     } yield List(r1,r2)
 
@@ -38,47 +38,47 @@ object MVarSuite extends BaseTestSuite {
   }
 
   test("empty; take; put; take; put") { implicit s =>
-    val av = MVar.empty[Int]
-
     val task = for {
-      r1 <- Task.mapBoth(av.take, av.put(10))((r,u) => r)
-      r2 <- Task.mapBoth(av.take, av.put(20))((r,u) => r)
+      av <- MVar.empty[Int]
+      r1 <- Task.mapBoth(av.take, av.put(10))((r,_) => r)
+      r2 <- Task.mapBoth(av.take, av.put(20))((r,_) => r)
     } yield List(r1,r2)
 
     assertEquals(task.runSyncMaybe, Right(List(10,20)))
   }
 
   test("empty; put; put; put; take; take; take") { implicit s =>
-    val av = MVar.empty[Int]
+    val task = for {
+      av    <- MVar.empty[Int]
+      take3  = Task.zip3(av.take, av.take, av.take)
+      put3   = Task.zip3(av.put(10), av.put(20), av.put(30))
+      result <- Task.mapBoth(put3,take3) { case (_, (r1,r2,r3)) =>
+        List(r1,r2,r3)
+      }
+    } yield result
 
-    val take3 = Task.zip3(av.take, av.take, av.take)
-    val put3 = Task.zip3(av.put(10), av.put(20), av.put(30))
-
-    val task =
-      Task.mapBoth(put3,take3) { case (_, (r1,r2,r3)) => List(r1,r2,r3) }
 
     val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Success(List(10,20,30))))
   }
 
   test("empty; take; take; take; put; put; put") { implicit s =>
-    val av = MVar.empty[Int]
-
-    val take3 = Task.zip3(av.take, av.take, av.take)
-    val put3 = Task.zip3(av.put(10), av.put(20), av.put(30))
-
-    val task =
-      Task.mapBoth(take3, put3) { case ((r1,r2,r3), _) => List(r1,r2,r3) }
+    val task = for {
+      av     <- MVar.empty[Int]
+      take3   = Task.zip3(av.take, av.take, av.take)
+      put3    = Task.zip3(av.put(10), av.put(20), av.put(30))
+      result <- Task.mapBoth(take3, put3) { case ((r1,r2,r3), _) => List(r1,r2,r3) }
+    } yield result
 
     val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Success(List(10,20,30))))
   }
 
   test("initial; take; put; take") { implicit s =>
-    val av = MVar(10)
     val task = for {
+      av <- MVar(10)
       r1 <- av.take
-      _ <- av.put(20)
+      _  <- av.put(20)
       r2 <- av.take
     } yield List(r1,r2)
 
@@ -86,8 +86,8 @@ object MVarSuite extends BaseTestSuite {
   }
 
   test("withPadding; put; take; put; take") { implicit s =>
-    val av = MVar.withPadding[Int](LeftRight128)
     val task = for {
+      av <- MVar.withPadding[Int](LeftRight128)
       _ <- av.put(10)
       r1 <- av.take
       _ <- av.put(20)
@@ -98,8 +98,8 @@ object MVarSuite extends BaseTestSuite {
   }
 
   test("withPadding(initial); put; take; put; take") { implicit s =>
-    val av = MVar.withPadding[Int](10, LeftRight128)
     val task = for {
+      av <- MVar.withPadding[Int](10, LeftRight128)
       r1 <- av.take
       _ <- av.put(20)
       r2 <- av.take
@@ -109,8 +109,8 @@ object MVarSuite extends BaseTestSuite {
   }
 
   test("initial; read; take") { implicit s =>
-    val av = MVar(10)
     val task = for {
+      av <- MVar(10)
       read <- av.read
       take <- av.take
     } yield read + take
@@ -119,14 +119,15 @@ object MVarSuite extends BaseTestSuite {
   }
 
   test("empty; read; put") { implicit s =>
-    val av = MVar.empty[Int]
-    val task = Task.mapBoth(av.read, av.put(10))((r,_) => r)
+    val task = for {
+      av <- MVar.empty[Int]
+      r  <- Task.mapBoth(av.read, av.put(10))((r, _) => r)
+    } yield r
     assertEquals(task.runSyncMaybe, Right(10))
   }
 
   test("put(null) throws NullPointerException") { implicit s =>
-    val av = MVar.empty[String]
-    val task = av.put(null)
+    val task = MVar.empty[String].flatMap(_.put(null))
 
     intercept[NullPointerException] {
       task.runSyncMaybe
@@ -155,14 +156,15 @@ object MVarSuite extends BaseTestSuite {
           Task.now(sum) // we are done!
       }
 
-    val channel = MVar(Option(0))
     val count = 1000000
+    val sumTask = for {
+      channel <- MVar(Option(0))
+      producerTask = producer(channel, (0 until count).toList).executeAsync
+      consumerTask = consumer(channel, 0L).executeAsync
+      // Ensure they run in parallel
+      sum <- Task.mapBoth(producerTask, consumerTask)((_, sum) => sum)
+    } yield sum
 
-    val producerTask = producer(channel, (0 until count).toList).executeAsync
-    val consumerTask = consumer(channel, 0L).executeAsync
-
-    // Ensure they run in parallel
-    val sumTask = Task.mapBoth(producerTask, consumerTask)((_,sum) => sum)
     // Evaluate
     val f: CancelableFuture[Long] = sumTask.runAsync
 
@@ -183,13 +185,13 @@ object MVarSuite extends BaseTestSuite {
           Task.now(sum) // we are done!
       }
 
-    val channel = MVar(Option(0))
+    val channel = MVar(Option(0)).memoize
     val count = 100000
 
-    val consumerTask = consumer(channel, 0L)
+    val consumerTask = channel.flatMap(consumer(_, 0L))
 
-    val tasks = for (i <- 0 until count) yield channel.put(Some(i))
-    val producerTask = Task.gather(tasks).flatMap(_ => channel.put(None))
+    val tasks = for (i <- 0 until count) yield channel.flatMap(_.put(Some(i)))
+    val producerTask = Task.gather(tasks).flatMap(_ => channel.flatMap(_.put(None)))
 
     val pf = producerTask.runAsync
     val cf = consumerTask.runAsync
@@ -200,7 +202,7 @@ object MVarSuite extends BaseTestSuite {
   }
 
   test("take/put test is stack safe") { implicit s =>
-    val ch = MVar.empty[Int]
+    val Right(ch) = MVar.empty[Int].runSyncMaybe
 
     def loop(n: Int, acc: Int): Task[Int] =
       if (n <= 0) Task.now(acc) else
@@ -218,8 +220,7 @@ object MVarSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(count)))
   }
 
-  def testStackParallel(): (Int, Task[Int], Task[Unit]) = {
-    val channel = MVar.empty[Int]
+  def testStackParallel(channel: MVar[Int]): (Int, Task[Int], Task[Unit]) = {
     val count = if (Platform.isJVM) 100000 else 5000
 
     val parallelRead = (0 until count).foldLeft(Task.now(0)) { (acc, _) =>
@@ -233,25 +234,35 @@ object MVarSuite extends BaseTestSuite {
   }
 
   test("put is stack safe when repeated in parallel") { implicit s =>
-    val (count, reads, writes) = testStackParallel()
-    val f = (for (_ <- writes.start; r <- reads) yield r).runAsync
+    val task = for {
+      ch <- MVar.empty[Int]
+      (count, reads, writes) = testStackParallel(ch)
+      _ <- writes.start
+      r <- reads
+    } yield r == count
+
+    val f = task.runAsync
 
     s.tick()
-    assertEquals(f.value, Some(Success(count)))
+    assertEquals(f.value, Some(Success(true)))
   }
 
   test("take is stack safe when repeated in parallel") { implicit s =>
-    val (count, parallelRead, parallelWrite) = testStackParallel()
-    val f = (
-      for (f <- parallelRead.start; _ <- parallelWrite; r <- f) yield r
-    ).runAsync
+    val task = for {
+      ch <- MVar.empty[Int]
+      (count, reads, writes) = testStackParallel(ch)
+      fr <- reads.start
+      _ <- writes
+      r <- fr
+    } yield r == count
+
+    val f = task.runAsync
 
     s.tick()
-    assertEquals(f.value, Some(Success(count)))
+    assertEquals(f.value, Some(Success(true)))
   }
 
-  def testStackSequential(): (Int, Task[Int], Task[Unit]) = {
-    val channel = MVar.empty[Int]
+  def testStackSequential(channel: MVar[Int]): (Int, Task[Int], Task[Unit]) = {
     val count = if (Platform.isJVM) 100000 else 5000
 
     def readLoop(n: Int, acc: Int): Task[Int] = {
@@ -272,21 +283,58 @@ object MVarSuite extends BaseTestSuite {
   }
 
   test("put is stack safe when repeated sequentially") { implicit s =>
-    val (count, reads, writes) = testStackSequential()
-    val f = (for (_ <- writes.start; r <- reads) yield r).runAsync
+    val task = for {
+      channel <- MVar.empty[Int]
+      (count, reads, writes) = testStackSequential(channel)
+      _ <- writes.start
+      r <- reads
+    } yield r == count
+
+    val f = task.runAsync
 
     s.tick()
-    assertEquals(f.value, Some(Success(count)))
+    assertEquals(f.value, Some(Success(true)))
   }
 
   test("take is stack safe when repeated sequentially") { implicit s =>
-    val (count, reads, writes) = testStackSequential()
-    val f = (
-      for (f <- reads.start; _ <- writes; r <- f) yield r
-      ).runAsync
+    val task = for {
+      channel <- MVar.empty[Int]
+      (count, reads, writes) = testStackSequential(channel)
+      fr <- reads.start
+      _ <- writes
+      r <- fr
+    } yield r == count
+
+    val f = task.runAsync
 
     s.tick()
-    assertEquals(f.value, Some(Success(count)))
+    assertEquals(f.value, Some(Success(true)))
+  }
+
+  test("constructors are referentially transparent") { implicit s =>
+    // Doing put or take twice on the same MVar will never terminate
+    // so incoming tasks MUST produce different MVars when ran
+    def putTwice(t: Task[MVar[Int]]) = {
+      val putTask = t.flatMap(_.put(42))
+      putTask.flatMap(_ => putTask).map(_ => "PUT")
+    }
+    def takeTwice(t: Task[MVar[Int]]) = {
+      val takeTask = t.flatMap(_.take)
+      takeTask.flatMap(_ => takeTask).map(_ => "TAKE")
+    }
+
+    val f = Task.gather(Seq(
+      takeTwice(MVar(0)),
+      takeTwice(MVar.withPadding(0, PaddingStrategy.LeftRight256)),
+      putTwice(MVar.empty[Int]),
+      putTwice(MVar.withPadding(PaddingStrategy.LeftRight256))
+    )).runAsync
+
+    s.tick()
+
+    // Check termination
+    assertEquals(f.value, Some(Success(Seq("TAKE", "TAKE", "PUT", "PUT"))))
+
   }
 
 }
