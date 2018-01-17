@@ -18,25 +18,32 @@
 package monix.reactive.observables
 
 import cats.Apply
+import monix.execution.internal.Newtype1
 import monix.reactive.Observable
 
 /** A `CombineObservable` is an observable that wraps a regular
   * [[Observable]] and provide [[cats.Apply]] instance
   * which uses [[Observable.combineLatest]] to combine elements.
   */
-final class CombineObservable[A](val value: Observable[A]) extends AnyVal
 
-object CombineObservable {
-  implicit def combineObservableApplicative: Apply[CombineObservable] = new Apply[CombineObservable] {
+object CombineObservable extends Newtype1 {
 
-    def ap[A, B](ff: CombineObservable[(A) => B])(fa: CombineObservable[A]) = new CombineObservable(
-      ff.value.combineLatestMap(fa.value)((f, a) => f(a))
-    )
+  def apply[A](value: Observable[A]): CombineObservable.Type[A] =
+    value.asInstanceOf[CombineObservable.Type[A]]
 
-    override def map[A, B](fa: CombineObservable[A])(f: A => B): CombineObservable[B] =
-      new CombineObservable(fa.value.map(f))
+  def unwrap[A](value: CombineObservable.Type[A]): Observable[A] =
+    value.asInstanceOf[Observable[A]]
 
-    override def product[A, B](fa: CombineObservable[A], fb: CombineObservable[B]): CombineObservable[(A, B)] =
-      new CombineObservable(fa.value.combineLatest(fb.value))
+  implicit def combineObservableApplicative: Apply[CombineObservable.Type] = new Apply[CombineObservable.Type] {
+    import CombineObservable.{apply => wrap}
+
+    def ap[A, B](ff: CombineObservable.Type[(A) => B])(fa: CombineObservable.Type[A]) =
+      wrap(unwrap(ff).combineLatestMap(unwrap(fa))((f, a) => f(a)))
+
+    override def map[A, B](fa: CombineObservable.Type[A])(f: A => B): CombineObservable.Type[B] =
+      wrap(unwrap(fa).map(f))
+
+    override def product[A, B](fa: CombineObservable.Type[A], fb: CombineObservable.Type[B]): CombineObservable.Type[(A, B)] =
+      wrap(unwrap(fa).combineLatest(unwrap(fb)))
   }
 }

@@ -33,11 +33,11 @@ object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
     MonoidKTests[Observable].monoidK[Int]
   }
 
-  checkAllAsync("Apply[CombineObservable]") { implicit ec =>
-    ApplyTests[CombineObservable].apply[Int, Int, Int]
+  checkAllAsync("Apply[CombineObservable.Type]") { implicit ec =>
+    ApplyTests[CombineObservable.Type].apply[Int, Int, Int]
   }
 
-  checkAllAsync("NonEmptyParallel[Observable, CombineObservable]") { implicit ec =>
-    NonEmptyParallelTests[Observable, CombineObservable].nonEmptyParallel[Int, Int]
+  checkAllAsync("NonEmptyParallel[Observable, CombineObservable.Type]") { implicit ec =>
+    NonEmptyParallelTests[Observable, CombineObservable.Type].nonEmptyParallel[Int, Int]
   }
 }

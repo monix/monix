@@ -88,10 +88,11 @@ trait ArbitraryInstances extends ArbitraryInstancesBase with monix.eval.Arbitrar
       }
     }
 
-  implicit def equalityCombineObservable[A](implicit A: Eq[A], ec: TestScheduler): Eq[CombineObservable[A]] =
-    new Eq[CombineObservable[A]] {
-      def eqv(lh: CombineObservable[A], rh: CombineObservable[A]): Boolean = {
-        Eq[Observable[A]].eqv(lh.value, rh.value)
+  implicit def equalityCombineObservable[A](implicit A: Eq[A], ec: TestScheduler): Eq[CombineObservable.Type[A]] =
+    new Eq[CombineObservable.Type[A]] {
+      import CombineObservable.unwrap
+      def eqv(lh: CombineObservable.Type[A], rh: CombineObservable.Type[A]): Boolean = {
+        Eq[Observable[A]].eqv(unwrap(lh), unwrap(rh))
       }
     }
 }
@@ -103,11 +104,13 @@ trait ArbitraryInstancesBase extends monix.eval.ArbitraryInstancesBase {
         .map(Observable.fromIterable)
     }
 
-  implicit def arbitraryCombineObservable[A : Arbitrary]: Arbitrary[CombineObservable[A]] =
+  implicit def arbitraryCombineObservable[A : Arbitrary]: Arbitrary[CombineObservable.Type[A]] = {
+    import CombineObservable.{apply => wrap}
     Arbitrary {
       implicitly[Arbitrary[List[A]]].arbitrary
-        .map(list => new CombineObservable(Observable.fromIterable(list)))
+        .map(list => wrap(Observable.fromIterable(list)))
     }
+  }
 
   implicit def cogenForObservable[A]: Cogen[Observable[A]] =
     Cogen[Unit].contramap(_ => ())
