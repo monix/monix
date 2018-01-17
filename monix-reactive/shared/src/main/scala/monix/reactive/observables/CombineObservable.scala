@@ -25,17 +25,20 @@ import monix.reactive.Observable
   * instance which uses [[Observable.combineLatest]] to combine elements
   * needed for implementing [[cats.NonEmptyParallel]]
   */
-
 object CombineObservable extends Newtype1[Observable] {
 
-  implicit def combineObservableApplicative: Apply[CombineObservable.Type] = new Apply[CombineObservable.Type] {
+  implicit val combineObservableApplicative: Apply[CombineObservable.Type] = new Apply[CombineObservable.Type] {
     import CombineObservable.{apply => wrap}
 
-    def ap[A, B](ff: CombineObservable.Type[(A) => B])(fa: CombineObservable.Type[A]) =
+    override def ap[A, B](ff: CombineObservable.Type[(A) => B])(fa: CombineObservable.Type[A]) =
       wrap(unwrap(ff).combineLatestMap(unwrap(fa))((f, a) => f(a)))
 
     override def map[A, B](fa: CombineObservable.Type[A])(f: A => B): CombineObservable.Type[B] =
       wrap(unwrap(fa).map(f))
+
+    override def map2[A, B, C](fa: CombineObservable.Type[A],
+      fb: CombineObservable.Type[B])(f: (A, B) => C): CombineObservable.Type[C] =
+      wrap(unwrap(fa).combineLatestMap(unwrap(fb))(f))
 
     override def product[A, B](fa: CombineObservable.Type[A], fb: CombineObservable.Type[B]): CombineObservable.Type[(A, B)] =
       wrap(unwrap(fa).combineLatest(unwrap(fb)))

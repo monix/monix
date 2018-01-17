@@ -4472,18 +4472,18 @@ object Observable {
   }
 
   /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
-  implicit def observableNonEmptyParallel: NonEmptyParallel[Observable, CombineObservable.Type] =
+  implicit val observableNonEmptyParallel: NonEmptyParallel[Observable, CombineObservable.Type] =
     new NonEmptyParallel[Observable, CombineObservable.Type] {
       import CombineObservable.unwrap
       import CombineObservable.{apply => wrap}
 
-      def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
-      def apply: Apply[CombineObservable.Type] = CombineObservable.combineObservableApplicative
+      override def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
+      override def apply: Apply[CombineObservable.Type] = CombineObservable.combineObservableApplicative
 
-      def sequential = new (CombineObservable.Type ~> Observable) {
+      override val sequential = new (CombineObservable.Type ~> Observable) {
         def apply[A](fa: CombineObservable.Type[A]): Observable[A] = unwrap(fa)
       }
-      def parallel = new (Observable ~> CombineObservable.Type) {
+      override val parallel = new (Observable ~> CombineObservable.Type) {
         def apply[A](fa: Observable[A]): CombineObservable.Type[A] = wrap(fa)
       }
   }
