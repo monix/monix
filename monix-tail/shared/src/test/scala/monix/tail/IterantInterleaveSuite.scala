@@ -17,13 +17,17 @@
 
 package monix.tail
 
+import cats.effect.Sync
 import cats.laws._
 import cats.laws.discipline._
-import cats.effect.Sync
-import monix.eval.Coeval
+import monix.eval.{Coeval, Task}
 import monix.execution.internal.Platform
+import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
+
+import scala.concurrent.duration._
+import scala.util.Success
 
 object IterantInterleaveSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
@@ -56,6 +60,28 @@ object IterantInterleaveSuite extends BaseTestSuite {
     }
   }
 
-  // TODO various scenarios (stop on error, etc.)
+  test("Iterant.interleave preserves the source earlyStop") { implicit s =>
+    var effect = 0
+    val stop = Coeval.eval(effect += 1)
+    val source1 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val source2 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val stream = source1.interleave(source2)
+    stream.earlyStop.value
+    assertEquals(effect, 2)
+  }
 
+  test("Iterant.interleave does not process in parallel") { implicit s =>
+    val stream1 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(1)).delayExecution(1.second))
+    val stream2 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(2)).delayExecution(1.second))
+    val task = stream1.interleave(stream2).toListL
+
+    val f = task.runAsync
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(List(1,2))))
+  }
 }
