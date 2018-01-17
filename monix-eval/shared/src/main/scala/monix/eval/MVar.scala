@@ -87,18 +87,33 @@ abstract class MVar[A] {
   def read: Task[A]
 }
 
+/** Builders for [[MVar]]
+  *
+  * @define refTransparent [[Task]] returned by this operation
+  *         produces a new [[MVar]] each time it is evaluated.
+  *         To share a state between multiple consumers, pass
+  *         [[MVar]] as a parameter or use [[Task.memoize]]
+  */
 object MVar {
-  /** Builds an [[MVar]] instance with an `initial` value. */
+  /** Builds an [[MVar]] instance with an `initial` value.
+    *
+    * $refTransparent
+    */
   def apply[A](initial: A): Task[MVar[A]] =
     Task.eval(new AsyncMVarImpl[A](AsyncVar(initial)))
 
-  /** Returns an empty [[MVar]] instance. */
+  /** Returns an empty [[MVar]] instance.
+    *
+    * $refTransparent
+    */
   def empty[A]: Task[MVar[A]] =
     Task.eval(new AsyncMVarImpl[A](AsyncVar.empty))
 
   /** Builds an [[MVar]] instance with an `initial`  value and a given
     * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
     * (for avoiding the false sharing problem).
+    *
+    * $refTransparent
     */
   def withPadding[A](initial: A, ps: PaddingStrategy): Task[MVar[A]] =
     Task.eval(new AsyncMVarImpl[A](AsyncVar.withPadding(initial, ps)))
@@ -106,6 +121,8 @@ object MVar {
   /** Builds an empty [[MVar]] instance with a given
     * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
     * (for avoiding the false sharing problem).
+    *
+    * $refTransparent
     */
   def withPadding[A](ps: PaddingStrategy): Task[MVar[A]] =
     Task.eval(new AsyncMVarImpl[A](AsyncVar.withPadding(ps)))

@@ -441,6 +441,10 @@ final class TaskCircuitBreaker private (
 object TaskCircuitBreaker {
   /** Builder for a [[TaskCircuitBreaker]] reference.
     *
+    * [[Task]] returned by this operation produces a new
+    * [[TaskCircuitBreaker]] each time it is evaluated. To share a state between
+    * multiple consumers, pass [[TaskCircuitBreaker]] as a parameter or use [[Task.memoize]]
+    *
     * @param maxFailures is the maximum count for failures before
     *        opening the circuit breaker
     * @param resetTimeout is the timeout to wait in the `Open` state
@@ -470,7 +474,7 @@ object TaskCircuitBreaker {
     onClosed: Task[Unit] = Task.unit,
     onHalfOpen: Task[Unit] = Task.unit,
     onOpen: Task[Unit] = Task.unit,
-    padding: PaddingStrategy = NoPadding): TaskCircuitBreaker = {
+    padding: PaddingStrategy = NoPadding): Task[TaskCircuitBreaker] = Task.eval {
 
     val atomic = Atomic.withPadding(Closed(0) : State, padding)
     new TaskCircuitBreaker(

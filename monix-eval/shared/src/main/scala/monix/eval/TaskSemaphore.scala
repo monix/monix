@@ -128,9 +128,14 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
 object TaskSemaphore {
   /** Builder for [[TaskSemaphore]].
     *
+    * [[Task]] returned by this operation produces a new
+    * [[TaskSemaphore]] each time it is evaluated. To share
+    * a semaphore between multiple consumers, pass
+    * it as a parameter or use [[Task.memoize]]
+    *
     * @param maxParallelism represents the number of tasks
     *        allowed for parallel execution
     */
-  def apply(maxParallelism: Int): TaskSemaphore =
-    new TaskSemaphore(maxParallelism)
+  def apply(maxParallelism: Int): Task[TaskSemaphore] =
+    Task.eval(new TaskSemaphore(maxParallelism))
 }
