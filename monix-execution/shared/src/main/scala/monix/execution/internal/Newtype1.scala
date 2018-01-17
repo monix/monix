@@ -28,8 +28,14 @@ package monix.execution.internal
   * Inspired by
   * [[https://github.com/alexknvl/newtypes alexknvl/newtypes]].
   */
-private[monix] abstract class Newtype1 {
+private[monix] abstract class Newtype1[F[_]] { self =>
   type Base
   trait Tag extends Any
   type Type[+A] <: Base with Tag
+
+  def apply[A](fa: F[A]): Type[A] =
+    fa.asInstanceOf[Type[A]]
+
+  def unwrap[A](fa: Type[A]): F[A] =
+    fa.asInstanceOf[F[A]]
 }

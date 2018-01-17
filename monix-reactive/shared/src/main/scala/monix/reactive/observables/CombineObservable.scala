@@ -26,13 +26,7 @@ import monix.reactive.Observable
   * which uses [[Observable.combineLatest]] to combine elements.
   */
 
-object CombineObservable extends Newtype1 {
-
-  def apply[A](value: Observable[A]): CombineObservable.Type[A] =
-    value.asInstanceOf[CombineObservable.Type[A]]
-
-  def unwrap[A](value: CombineObservable.Type[A]): Observable[A] =
-    value.asInstanceOf[Observable[A]]
+object CombineObservable extends Newtype1[Observable] {
 
   implicit def combineObservableApplicative: Apply[CombineObservable.Type] = new Apply[CombineObservable.Type] {
     import CombineObservable.{apply => wrap}
