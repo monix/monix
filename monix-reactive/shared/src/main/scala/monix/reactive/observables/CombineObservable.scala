@@ -21,9 +21,9 @@ import cats.Apply
 import monix.execution.internal.Newtype1
 import monix.reactive.Observable
 
-/** A `CombineObservable` is an observable that wraps a regular
-  * [[Observable]] and provide [[cats.Apply]] instance
-  * which uses [[Observable.combineLatest]] to combine elements.
+/** Newtype encoding for an [[Observable]] datatype that has a [[cats.Apply]]
+  * instance which uses [[Observable.combineLatest]] to combine elements
+  * needed for implementing [[cats.NonEmptyParallel]]
   */
 
 object CombineObservable extends Newtype1[Observable] {
