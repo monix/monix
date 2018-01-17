@@ -20,7 +20,7 @@ package monix.reactive
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
 import cats.effect.{Effect, IO}
-import cats.{CoflatMap, Eq, Eval, MonadError, Monoid, MonoidK, Order}
+import cats.{Apply, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
@@ -4469,6 +4469,23 @@ object Observable {
       fa.onErrorRecoverWith(pf)
     override def empty[A]: Observable[A] =
       Observable.empty[A]
+  }
+
+  /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
+  implicit val observableNonEmptyParallel: NonEmptyParallel[Observable, CombineObservable.Type] =
+    new NonEmptyParallel[Observable, CombineObservable.Type] {
+      import CombineObservable.unwrap
+      import CombineObservable.{apply => wrap}
+
+      override def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
+      override def apply: Apply[CombineObservable.Type] = CombineObservable.combineObservableApplicative
+
+      override val sequential = new (CombineObservable.Type ~> Observable) {
+        def apply[A](fa: CombineObservable.Type[A]): Observable[A] = unwrap(fa)
+      }
+      override val parallel = new (Observable ~> CombineObservable.Type) {
+        def apply[A](fa: Observable[A]): CombineObservable.Type[A] = wrap(fa)
+      }
   }
   
   // -- DEPRECATIONS
