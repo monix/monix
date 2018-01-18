@@ -39,6 +39,15 @@ object TypeClassLawsForTaskWithCallbackSuite extends BaseLawsSuite {
       p.future
     }
 
+  override implicit def equalityTaskPar[A](implicit A: Eq[A], ec: TestScheduler): Eq[Task.Par[A]] = {
+    import Task.Par.unwrap
+    Eq.by { task =>
+      val p = Promise[A]()
+      unwrap(task).runOnComplete(r => p.complete(r))
+      p.future
+    }
+  }
+
   checkAllAsync("CoflatMap[Task]") { implicit ec =>
     CoflatMapTests[Task].coflatMap[Int,Int,Int]
   }
