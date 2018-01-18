@@ -18,10 +18,11 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.Continue
 import monix.reactive.Observable
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
+
 import scala.collection.mutable
 
 private[reactive] final class TakeLastOperator[A](n: Int)
