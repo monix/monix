@@ -1507,6 +1507,26 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def tail(implicit F: Sync[F]): Iterant[F, A] =
     IterantTail(self)(F)
 
+  /** Lazily interleaves two iterants together, starting with the first
+    * element from `self`.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    *
+    * Example: {{{
+    *   val lh = Iterant[Task].of(11, 12)
+    *   val rh = Iterant[Task].of(21, 22, 23)
+    *
+    *   // Yields 11, 21, 12, 22
+    *   lh.interleave(rh)
+    * }}}
+    *
+    * @param rhs is the other iterant to interleave the source with (the
+    *        right hand side)
+    */
+  final def interleave[B >: A](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
+    IterantInterleave(self.upcast[B], rhs)(F)
+
   /** Converts this `Iterant` into an `org.reactivestreams.Publisher`.
     *
     * Meant for interoperability with other Reactive Streams
