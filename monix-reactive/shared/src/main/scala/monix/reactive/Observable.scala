@@ -1514,7 +1514,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * buffer gets dropped and the error gets emitted immediately.
     */
   final def takeLast(n: Int): Observable[A] =
-    self.liftByOperator(new TakeLastOperator(n))
+    if (n <= 0) Observable.empty else self.liftByOperator(new TakeLastOperator(n))
 
   /** Maps elements from the source using a function that can do
     * lazy or asynchronous processing by means of any `F[_]` data
@@ -3130,7 +3130,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *         `n` elements from the source
     */
   final def take(n: Long): Observable[A] =
-    self.liftByOperator(new TakeLeftOperator(n))
+    if (n <= 0) Observable.empty else self.liftByOperator(new TakeLeftOperator(n))
 
   /** Applies a binary operator to a start value and all elements of
     * the source, going left to right and returns a new `Task` that

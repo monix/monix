@@ -64,7 +64,7 @@ object TakeLeftSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     createObservable(1) match {
-      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {
@@ -79,6 +79,21 @@ object TakeLeftSuite extends BaseOperatorSuite {
         p.success(Continue)
         s.tick(waitForNext)
     }
+  }
+
+  test("take(0) shouldn't subscribe to the source at all") { implicit s =>
+    var counter = 0
+
+    def inc() = {
+      counter += 1
+      1
+    }
+
+    val task = Observable.repeatEval(inc()).take(0).toListL
+    task.runAsync
+
+    s.tick()
+    assertEquals(counter, 0)
   }
 
   override def cancelableObservables() = {
