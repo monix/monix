@@ -62,4 +62,19 @@ object TakeLastSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+
+  test("takeLast(0) shouldn't subscribe to the source at all") { implicit s =>
+    var counter = 0
+
+    def inc() = {
+      counter += 1
+      1
+    }
+
+    val task = Observable.repeatEval(inc()).takeLast(0).toListL
+    task.runAsync
+
+    s.tick()
+    assertEquals(counter, 0)
+  }
 }

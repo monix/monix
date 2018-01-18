@@ -29,14 +29,13 @@ private[reactive] final class TakeLastOperator[A](n: Int)
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber.Sync[A] {
+      require(n > 0, "n should be strictly positive")
       implicit val scheduler = out.scheduler
       private[this] val queue = mutable.Queue.empty[A]
       private[this] var queued = 0
 
       def onNext(elem: A): Ack = {
-        if (n <= 0)
-          Stop
-        else if (queued < n) {
+        if (queued < n) {
           queue.enqueue(elem)
           queued += 1
           Continue
