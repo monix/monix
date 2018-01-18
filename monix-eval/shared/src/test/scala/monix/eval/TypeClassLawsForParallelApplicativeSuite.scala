@@ -23,19 +23,14 @@ import monix.eval.instances.{CatsParallelForTask, ParallelApplicative}
 
 object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
   implicit val ap: Applicative[Task] =
-    new ParallelApplicative()(new CatsParallelForTask)
+    ParallelApplicative(new CatsParallelForTask)
 
   test("instance is valid") {
     val ev = implicitly[Applicative[Task]]
     assertEquals(ev, ap)
   }
 
-  test("default instance for Task") {
-    val ev = ParallelApplicative[Task, Task]
-    assertEquals(ev, CatsParallelForTask.applicative)
-  }
-
   checkAllAsync("ParallelApplicative[Task]") { implicit ec =>
-    ApplicativeTests[Task].applicative[Int,Int,Int]
+    ApplicativeTests[Task].applicative[Int, Int, Int]
   }
 }

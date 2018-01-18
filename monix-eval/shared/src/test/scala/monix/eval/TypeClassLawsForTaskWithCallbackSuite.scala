@@ -17,10 +17,11 @@
 
 package monix.eval
 
-import cats.Eq
 import cats.effect.laws.discipline.{AsyncTests, EffectTests}
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{CoflatMapTests, ParallelTests}
+import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
+import cats.{Applicative, Eq}
+import monix.eval.instances.CatsParallelForTask
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.Promise
@@ -29,6 +30,8 @@ import scala.concurrent.Promise
   * use of Task's `runAsync(callback)`.
   */
 object TypeClassLawsForTaskWithCallbackSuite extends BaseLawsSuite {
+  implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
+
   override implicit def equalityTask[A](implicit A: Eq[A], ec: TestScheduler) =
     Eq.by { task =>
       val p = Promise[A]()
@@ -48,8 +51,12 @@ object TypeClassLawsForTaskWithCallbackSuite extends BaseLawsSuite {
     EffectTests[Task].effect[Int,Int,Int]
   }
 
+  checkAllAsync("Applicative[Task.Par]") { implicit ec =>
+    ApplicativeTests[Task.Par].applicative[Int, Int, Int]
+  }
+
   checkAllAsync("Parallel[Task, Task]") { implicit ec =>
-    ParallelTests[Task, Task].parallel[Int, Int]
+    ParallelTests[Task, Task.Par].parallel[Int, Int]
   }
 
   checkAllAsync("Monoid[Task[Int]]") { implicit ec =>
