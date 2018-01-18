@@ -40,22 +40,22 @@ object TaskBlockingSuite extends SimpleTestSuite {
   test("blocking on async") {
     for (_ <- 0 until 1000) {
       val task = Task(1)
-      assertEquals(task.runSyncUnsafe(), 1)
+      assertEquals(task.runSyncUnsafe(Duration.Inf), 1)
     }
   }
 
   test("blocking on async.flatMap") {
     for (_ <- 0 until 1000) {
       val task = Task(1).flatMap(_ => Task(2))
-      assertEquals(task.runSyncUnsafe(), 2)
+      assertEquals(task.runSyncUnsafe(Duration.Inf), 2)
     }
   }
 
   test("blocking on memoize") {
     for (_ <- 0 until 1000) {
       val task = Task(1).flatMap(_ => Task(2)).memoize
-      assertEquals(task.runSyncUnsafe(), 2)
-      assertEquals(task.runSyncUnsafe(), 2)
+      assertEquals(task.runSyncUnsafe(Duration.Inf), 2)
+      assertEquals(task.runSyncUnsafe(Duration.Inf), 2)
     }
   }
 
