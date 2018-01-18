@@ -25,8 +25,8 @@ import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, S
 import monix.execution._
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
-import monix.execution.internal.Platform
 import monix.execution.internal.Platform.fusionMaxStackDepth
+import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.ThreadLocal
 import monix.execution.schedulers.TrampolinedRunnable
 
@@ -2568,7 +2568,7 @@ private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
     new CatsMonadToMonoid[Task, A]()(CatsAsyncForTask, A)
 }
 
-private[eval] abstract class TaskInstancesLevel0  {
+private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
   /** Global instance for `cats.effect.Effect`.
     *
     * Implied are `cats.CoflatMap`, `cats.Applicative`, `cats.Monad`,
@@ -2601,4 +2601,24 @@ private[eval] abstract class TaskInstancesLevel0  {
     */
   implicit def catsSemigroup[A](implicit A: Semigroup[A]): Semigroup[Task[A]] =
     new CatsMonadToSemigroup[Task, A]()(CatsAsyncForTask, A)
+}
+
+private[eval] abstract class TaskParallelNewtype {
+  /** Newtype encoding for an `Task` datatype that has a [[cats.Applicative]]
+    * capable of doing parallel processing in `ap` and `map2`, needed
+    * for implementing [[cats.Parallel]].
+    *
+    * Helpers are provided for converting back and forth in `Par.apply`
+    * for wrapping any `Task` value and `Par.unwrap` for unwrapping.
+    *
+    * The encoding is based on the "newtypes" project by
+    * Alexander Konovalov, chosen because it's devoid of boxing issues and
+    * a good choice until opaque types will land in Scala.
+    */
+  type Par[+A] = Par.Type[A]
+
+  /** Newtype encoding, see the [[Task.Par]] type alias
+    * for more details.
+    */
+  object Par extends Newtype1[Task]
 }

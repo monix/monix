@@ -33,6 +33,13 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
         equalityFuture(A, ec).eqv(lh.runAsync, rh.runAsync)
     }
 
+  implicit def equalityTaskPar[A](implicit A: Eq[A], ec: TestScheduler): Eq[Task.Par[A]] =
+    new Eq[Task.Par[A]] {
+      import Task.Par.unwrap
+      def eqv(lh: Task.Par[A], rh: Task.Par[A]): Boolean =
+        Eq[Task[A]].eqv(unwrap(lh), unwrap(rh))
+    }
+
   implicit def equalityIO[A](implicit A: Eq[A], ec: TestScheduler): Eq[IO[A]] =
     new Eq[IO[A]] {
       def eqv(x: IO[A], y: IO[A]): Boolean =
@@ -60,6 +67,19 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
             Cancelable.empty
           })
       } yield task
+    }
+
+  implicit def arbitraryTaskPar[A](implicit A: Arbitrary[A]): Arbitrary[Task.Par[A]] =
+    Arbitrary {
+      for {
+        a <- A.arbitrary
+        task <- Gen.oneOf(
+          Task.now(a), Task.evalOnce(a), Task.eval(a),
+          Task.create[A] { (_, cb) =>
+            cb.onSuccess(a)
+            Cancelable.empty
+          })
+      } yield Task.Par.apply(task)
     }
 
   implicit def arbitraryIO[A](implicit A: Arbitrary[A]): Arbitrary[IO[A]] =
