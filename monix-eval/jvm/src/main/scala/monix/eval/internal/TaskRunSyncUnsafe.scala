@@ -61,7 +61,6 @@ private[eval] object TaskRunSyncUnsafe {
           try {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
-            current = null
           } catch {
             case e if NonFatal(e) =>
               current = Error(e)
@@ -105,7 +104,6 @@ private[eval] object TaskRunSyncUnsafe {
                 case Success(value) =>
                   unboxed = value.asInstanceOf[AnyRef]
                   hasUnboxed = true
-                  current = null
                 case Failure(error) =>
                   current = Error(error)
               }
