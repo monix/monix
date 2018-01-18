@@ -28,11 +28,11 @@ import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.misc.ThreadLocal
-import monix.execution.schedulers.TrampolinedRunnable
+import monix.execution.schedulers.{CanBlock, TrampolinedRunnable}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
@@ -291,6 +291,41 @@ import scala.util.{Failure, Success, Try}
   *         with the difference that this method does not fork
   *         automatically, being consistent with Monix's default
   *         behavior.
+  *
+  * @define runSyncUnsafeDesc Evaluates the source task synchronously and
+  *         returns the result immediately or blocks the underlying thread
+  *         until the result is ready.
+  *
+  *         '''WARNING:''' blocking operations are unsafe and incredibly error
+  *         prone on top of the JVM. It's a good practice to not block any threads
+  *         and use the asynchronous `runAsync` methods instead.
+  *
+  *         In general prefer to use the asynchronous
+  *         [[monix.eval.Task!.runAsync(implicit* .runAsync]] and to
+  *         structure your logic around asynchronous actions in a
+  *         non-blocking way. But in case you're blocking only once,
+  *         in `main`, at the "edge of the world" so to speak, then
+  *         it's OK.
+  *
+  *         As a matter of implementation detail the loop starts in an
+  *         execution mode that ignores
+  *         [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]] or
+  *         [[monix.execution.ExecutionModel.AlwaysAsyncExecution AlwaysAsyncExecution]],
+  *         until the first asynchronous boundary. This is because we want to block
+  *         the underlying thread for the result, in which case preserving
+  *         fairness by forcing (batched) async boundaries doesn't do us any good,
+  *         quite the contrary, the underlying thread being stuck until the result
+  *         is available or until the timeout exception gets triggered.
+  *
+  * @define runSyncUnsafeTimeout is a
+  *         [[scala.concurrent.duration.Duration Duration]] that specifies the
+  *         maximum amount of time that this operation is allowed to block the
+  *         underlying thread. If the timeout expires before the result is ready,
+  *         a `TimeoutException` gets thrown.
+  *
+  * @define runSyncUnsafePermit is an implicit value that's only available for
+  *         the JVM and not for JavaScript, its purpose being to stop usage of
+  *         this operation on top of engines that do not support blocking threads.
   */
 sealed abstract class Task[+A] extends Serializable {
   import monix.eval.Task._
@@ -335,6 +370,27 @@ sealed abstract class Task[+A] extends Serializable {
     */
   def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
     TaskRunLoop.startLight(this, s, opts, cb)
+
+  /** $runSyncUnsafeDesc
+    *
+    * @param timeout $runSyncUnsafeTimeout
+    * @param s $schedulerDesc
+    * @param permit $runSyncUnsafePermit
+    */
+  final def runSyncUnsafe(timeout: Duration = Duration.Inf)
+    (implicit s: Scheduler, permit: CanBlock): A =
+    TaskRunSyncUnsafe(this, timeout, s, defaultOptions)
+
+  /** $runSyncUnsafeDesc
+    *
+    * @param timeout $runSyncUnsafeTimeout
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    * @param permit $runSyncUnsafePermit
+    */
+  final def runSyncUnsafeOpt(timeout: Duration = Duration.Inf)
+    (implicit s: Scheduler, opts: Options, permit: CanBlock): A =
+    TaskRunSyncUnsafe(this, timeout, s, opts)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
