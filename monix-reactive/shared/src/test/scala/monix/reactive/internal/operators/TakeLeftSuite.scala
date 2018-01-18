@@ -84,4 +84,19 @@ object TakeLeftSuite extends BaseOperatorSuite {
     val o = Observable.range(1, 10).delayOnNext(1.second).take(1)
     Seq(Sample(o,0,0,0.seconds,0.seconds))
   }
+
+  test("take(0) shouldn't subscribe to the source at all") { implicit s =>
+    var counter = 0
+
+    def inc() = {
+      counter += 1
+      1
+    }
+
+    val task = Observable.repeatEval(inc()).take(0).toListL
+    task.runAsync
+
+    s.tick()
+    assertEquals(counter, 0)
+  }
 }

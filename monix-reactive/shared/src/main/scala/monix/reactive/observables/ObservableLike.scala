@@ -1860,7 +1860,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *         `n` elements from the source
     */
   def take(n: Long): Self[A] =
-    self.liftByOperator(new TakeLeftOperator(n))
+    if (n <= 0) self.transform(_ => Observable.empty) else self.liftByOperator(new TakeLeftOperator(n))
 
   /** Creates a new Observable that emits the events of the source, only
     * for the specified `timestamp`, after which it completes.
@@ -1884,7 +1884,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * buffer gets dropped and the error gets emitted immediately.
     */
   def takeLast(n: Int): Self[A] =
-    self.liftByOperator(new TakeLastOperator(n))
+    if (n <= 0) self.transform(_ => Observable.empty) else self.liftByOperator(new TakeLastOperator(n))
 
   /** Creates a new observable that mirrors the source until
     * the given `trigger` emits either an element or `onComplete`,
