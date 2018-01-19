@@ -2105,7 +2105,6 @@ object Iterant extends IterantInstances {
       } catch {
         case e if NonFatal(e) => F.delay(Halt(Some(e)))
       }
-
     Suspend(F.suspend(seed.flatMap(loop)), F.unit)
   }
 
