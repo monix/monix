@@ -28,11 +28,11 @@ import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.ThreadLocal
-import monix.execution.schedulers.TrampolinedRunnable
+import monix.execution.schedulers.{CanBlock, TrampolinedRunnable}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
@@ -291,6 +291,105 @@ import scala.util.{Failure, Success, Try}
   *         with the difference that this method does not fork
   *         automatically, being consistent with Monix's default
   *         behavior.
+  *
+  * @define runSyncUnsafeDesc Evaluates the source task synchronously and
+  *         returns the result immediately or blocks the underlying thread
+  *         until the result is ready.
+  *
+  *         '''WARNING:''' blocking operations are unsafe and incredibly error
+  *         prone on top of the JVM. It's a good practice to not block any threads
+  *         and use the asynchronous `runAsync` methods instead.
+  *
+  *         In general prefer to use the asynchronous
+  *         [[monix.eval.Task!.runAsync(implicit* .runAsync]] and to
+  *         structure your logic around asynchronous actions in a
+  *         non-blocking way. But in case you're blocking only once,
+  *         in `main`, at the "edge of the world" so to speak, then
+  *         it's OK.
+  *
+  *         Sample:
+  *         {{{
+  *           import scala.concurrent.duration._
+  *
+  *           task.runSyncUnsafe(3.seconds)
+  *         }}}
+  *
+  *         This is equivalent with:
+  *         {{{
+  *           import scala.concurrent.Await
+  *
+  *           Await.result(task.runAsync, 3.seconds)
+  *         }}}
+  *
+  *         Some implementation details:
+  *
+  *          - blocking the underlying thread is done by triggering Scala's
+  *            `BlockingContext` (`scala.concurrent.blocking`), just like
+  *            Scala's `Await.result`
+  *          - the `timeout` is mandatory, just like when using Scala's
+  *            `Await.result`, in order to make the caller aware that the
+  *            operation is dangerous and that setting a `timeout` is good
+  *            practice
+  *          - the loop starts in an execution mode that ignores
+  *            [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]] or
+  *            [[monix.execution.ExecutionModel.AlwaysAsyncExecution AlwaysAsyncExecution]],
+  *            until the first asynchronous boundary. This is because we want to block
+  *            the underlying thread for the result, in which case preserving
+  *            fairness by forcing (batched) async boundaries doesn't do us any good,
+  *            quite the contrary, the underlying thread being stuck until the result
+  *            is available or until the timeout exception gets triggered.
+  *
+  *         Not supported on top of JavaScript engines and trying to use it
+  *         with Scala.js will trigger a compile time error.
+  *
+  *         For optimizations on top of JavaScript you can use [[runSyncMaybe]]
+  *         instead.
+  *
+  * @define runSyncUnsafeTimeout is a duration that specifies the
+  *         maximum amount of time that this operation is allowed to block the
+  *         underlying thread. If the timeout expires before the result is ready,
+  *         a `TimeoutException` gets thrown. Note that you're allowed to
+  *         pass an infinite duration (with `Duration.Inf`), but unless
+  *         it's `main` that you're blocking and unless you're doing it only
+  *         once, then this is definitely not recommended — provide a finite
+  *         timeout in order to avoid deadlocks.
+  *
+  * @define runSyncUnsafePermit is an implicit value that's only available for
+  *         the JVM and not for JavaScript, its purpose being to stop usage of
+  *         this operation on top of engines that do not support blocking threads.
+  *
+  * @define runSyncMaybeDesc Tries to execute the source synchronously.
+  *
+  *         As an alternative to `runAsync`, this method tries to execute
+  *         the source task immediately on the current thread and call-stack.
+  *
+  *         WARNING: This method is a partial function, throwing exceptions
+  *         in case errors happen immediately (synchronously).
+  *
+  *         Usage sample:
+  *         {{{
+  *           try task.runSyncMaybe match {
+  *             case Right(a) => println("Success: " + a)
+  *             case Left(future) =>
+  *               future.onComplete {
+  *                 case Success(a) => println("Async success: " + a)
+  *                 case Failure(e) => println("Async error: " + e)
+  *               }
+  *           } catch {
+  *             case NonFatal(e) =>
+  *               println("Error: " + e)
+  *           }
+  *         }}}
+  *
+  *         Obviously the purpose of this method is to be used for
+  *         optimizations.
+  *
+  *         Also see [[runSyncUnsafe]], the blocking execution mode that can
+  *         only work on top of the JVM.
+  *
+  * @define runSyncMaybeReturn `Right(result)` in case a result was processed,
+  *         or `Left(future)` in case an asynchronous boundary
+  *         was hit and further async execution is needed
   */
 sealed abstract class Task[+A] extends Serializable {
   import monix.eval.Task._
@@ -336,6 +435,54 @@ sealed abstract class Task[+A] extends Serializable {
   def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
     TaskRunLoop.startLight(this, s, opts, cb)
 
+  /** $runSyncMaybeDesc
+    *
+    * @param s $schedulerDesc
+    * @return $runSyncMaybeReturn
+    */
+  final def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] =
+    runSyncMaybeOpt(s, defaultOptions)
+
+  /** $runSyncMaybeDesc
+    *
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    * @return $runSyncMaybeReturn
+    */
+  final def runSyncMaybeOpt(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
+    val future = runAsyncOpt(s, opts)
+    future.value match {
+      case Some(value) =>
+        value match {
+          case Success(a) => Right(a)
+          case Failure(e) => throw e
+        }
+      case None =>
+        Left(future)
+    }
+  }
+
+  /** $runSyncUnsafeDesc
+    *
+    * @param timeout $runSyncUnsafeTimeout
+    * @param s $schedulerDesc
+    * @param permit $runSyncUnsafePermit
+    */
+  final def runSyncUnsafe(timeout: Duration)
+    (implicit s: Scheduler, permit: CanBlock): A =
+    TaskRunSyncUnsafe(this, timeout, s, defaultOptions)
+
+  /** $runSyncUnsafeDesc
+    *
+    * @param timeout $runSyncUnsafeTimeout
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    * @param permit $runSyncUnsafePermit
+    */
+  final def runSyncUnsafeOpt(timeout: Duration)
+    (implicit s: Scheduler, opts: Options, permit: CanBlock): A =
+    TaskRunSyncUnsafe(this, timeout, s, opts)
+
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
     * the result is available.
@@ -349,52 +496,6 @@ sealed abstract class Task[+A] extends Serializable {
       def onSuccess(value: A): Unit = f(Success(value))
       def onError(ex: Throwable): Unit = f(Failure(ex))
     })(s)
-
-  /** Tries to execute the source synchronously.
-    *
-    * As an alternative to `runAsync`, this method tries to execute
-    * the source task immediately on the current thread and call-stack.
-    *
-    * WARNING: This method is a partial function, throwing exceptions
-    * in case errors happen immediately (synchronously).
-    *
-    * Usage sample:
-    *
-    * {{{
-    *   try task.runSyncMaybe match {
-    *     case Right(a) => println("Success: " + a)
-    *     case Left(future) =>
-    *       future.onComplete {
-    *         case Success(a) => println("Async success: " + a)
-    *         case Failure(e) => println("Async error: " + e)
-    *       }
-    *   } catch {
-    *     case NonFatal(e) =>
-    *       println("Error: " + e)
-    *   }
-    * }}}
-    *
-    * Obviously the purpose of this method is to be used for
-    * optimizations.
-    *
-    * @return `Right(result)` in case a result was processed,
-    *         or `Left(future)` in case an asynchronous boundary
-    *         was hit and further async execution is needed or
-    *         in case of failure
-    */
-  final def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
-    val future = this.runAsync(s)
-
-    future.value match {
-      case Some(value) =>
-        value match {
-          case Success(a) => Right(a)
-          case Failure(e) => throw e
-        }
-      case None =>
-        Left(future)
-    }
-  }
 
   /** Creates a new [[Task]] that will expose any triggered error
     * from the source.
