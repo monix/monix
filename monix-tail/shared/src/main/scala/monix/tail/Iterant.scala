@@ -2054,12 +2054,20 @@ object Iterant extends IterantInstances {
     * by our generator function with default `recommendedBatchSize`.
     *
     * Example: {{{
-    *   val f = (x: Int) => (x + 1, x * 2)
-    *   val seed = 1
-    *   val stream = Iterant.fromStateAction[Task, Int, Int](f)(seed)
+    *   // Given a function generating a pseudo-random integers:
     *
-    *   // Yields 2, 3, 5, 9
-    *   stream.take(5)
+    *   def int(seed: Long): (Int, Long) = {
+    *     //  `&` is bitwise AND. We use the current seed to generate a new seed.
+    *     val newSeed = (seed * 0x5DEECE66DL + 0xBL) & 0xFFFFFFFFFFFFL
+    *     // The next state, which is an `RNG` instance created from the new seed.
+    *     val nextRNG = newSeed
+    *     // `>>>` is right binary shift with zero fill. The value `n` is our new pseudo-random integer.
+    *     val n = (newSeed >>> 16).toInt
+    *     // The return value is a tuple containing both a pseudo-random integer and the next `RNG` state.
+    *     (n, nextRNG)
+    *   }
+    *   // We can use to generate stream of pseudo-random integers
+    *   val stream = Iterant[Coeval].fromStateAction(int)(System.currentTimeMillis())
     * }}}
     *
     */
@@ -2093,6 +2101,8 @@ object Iterant extends IterantInstances {
     *   // Yields 2, 3, 5, 9
     *   stream.take(5)
     * }}}
+    *
+    * @see [[fromStateAction]] for version without `F[_]` context and an additional example
     */
   def fromStateActionL[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] = {
     import cats.syntax.all._
