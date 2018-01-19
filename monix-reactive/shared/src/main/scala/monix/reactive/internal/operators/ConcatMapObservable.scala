@@ -55,7 +55,7 @@ import scala.util.Failure
   *    monitors (`synchronize`), or `compareAndSet`, but plain writes,
   *    along with `getAndSet`
   *
-  *  - currently for each `onNext` we are doing 2 `getAndSet`
+  *  - currently for each `onNext` we are doing 3 `getAndSet`
   *    operations per `onNext` call, which is awesome because on top
   *    of Java 8 `getAndSet` operations are cheaper than
   *    `compareAndSet`. It is more of a problem on Java 7 and below,
@@ -118,6 +118,16 @@ private[reactive] final class ConcatMapObservable[A, B]
         () // do nothing else
     }
 
+    private def setStateIfNotCancelled(update: FlatMapState): Boolean = {
+      if (stateRef.getAndSet(update) eq Cancelled) {
+        // Oops, we need to cancel!
+        self.cancel()
+        false
+      } else {
+        true
+      }
+    }
+
     def onNext(elem: A): Future[Ack] = {
       // For protecting against user code, without violating the
       // observer's contract, by marking the boundary after which
@@ -132,150 +142,56 @@ private[reactive] final class ConcatMapObservable[A, B]
         // Simple, ordered write - we cannot use WaitOnNext as the
         // start of an iteration because we cannot detect
         // synchronous execution below
-        stateRef.getAndSet(WaitOnActiveChild) match {
-          case Cancelled =>
-            // Oops, we need to cancel!
-            self.cancel()
-            Stop
-          case _ =>
-            // Nothing to do!
+        if (!setStateIfNotCancelled(WaitOnActiveChild)) Stop else {
+          // Shoot first, ask questions later :-)
+          val cancellable = child.unsafeSubscribeFn(new ChildSubscriber(out, asyncUpstreamAck))
+
+          // Execution already started at this point This `getAndSet` is
+          // concurrent with the task being finished (the `getAndSet` in
+          // the Task.flatMap above), but not with the `getAndSet`
+          // happening in `onComplete` and `onError`, therefore a
+          // `WaitComplete` state is invalid here. The state we do
+          // expect most of the time is either `WaitOnNext` or
+          // `WaitActiveTask`.
+          stateRef.getAndSet(Active(cancellable)) match {
+            case previous @ WaitOnNextChild(ack) =>
+              // Task execution was synchronous, w00t, so redo state!
+              if (setStateIfNotCancelled(previous)) {
+                ack.syncTryFlatten
+              } else {
+                Stop
+              }
+
+            case WaitOnActiveChild =>
+              // Expected outcome for async observables
+              asyncUpstreamAck.future.syncTryFlatten
+
+            case WaitComplete(_, _) =>
+              // Branch that can happen in case the child has finished
+              // already in error, so stop further onNext events.
+              stateRef.lazySet(Cancelled) // GC purposes
+              Stop
+
+            case Cancelled =>
+              // Race condition, oops, now cancel the active task
+              cancellable.cancel()
+              // Now restore the state and pretend that this didn't
+              // happen :-) Note that this is probably going to call
+              // `ack.cancel()` a second time, but that's OK
+              self.cancel()
+              Stop
+
+            case state @ Active(_) =>
+              // This should never, ever happen!
+              // Something is screwed up in our state machine :-(
+              // $COVERAGE-OFF$
+              reportInvalidState(state, "onNext")
+              cancellable.cancel()
+              Stop
+              // $COVERAGE-ON$
+          }
         }
-
-        // Shoot first, ask questions later :-)
-        val cancellable = child.unsafeSubscribeFn(new Subscriber[B] {
-          implicit val scheduler = out.scheduler
-          private[this] var ack: Future[Ack] = Continue
-
-          def onNext(elem: B) = {
-            ack = out.onNext(elem)
-            ack.syncOnStopOrFailure(_ => signalChildOnComplete(ack, isStop = true))
-          }
-
-          def onComplete(): Unit =
-            signalChildOnComplete(ack, isStop = false)
-
-          def onError(ex: Throwable): Unit =
-            if (!delayErrors) signalChildOnError(ex) else {
-              errors.transform(list => ex :: list)
-              onComplete()
-            }
-
-          private def signalChildOnError(ex: Throwable): Unit = {
-            // The cancelable passed in WaitComplete here can be `null`
-            // because it would only replace the child's own cancelable
-            stateRef.getAndSet(WaitComplete(Some(ex), null)) match {
-              case WaitOnActiveChild | WaitOnNextChild(_) | Active(_) =>
-                // Branch happens while the main subscriber is still
-                // active; the `getAndSet(WaitComplete)` however will
-                // stop it and we are free to send the final error
-                out.onError(ex)
-                asyncUpstreamAck.trySuccess(Stop)
-
-              case WaitComplete(otherEx, _) =>
-                // Branch happens when the main subscriber has already
-                // finished - we were in `Active` until now, so it is
-                // the child's responsibility to finish! But if an
-                // exception also happened on main subscriber, we need
-                // to log it somewhere!
-                otherEx.foreach(scheduler.reportFailure)
-                // Send our immediate error downstream and stop everything
-                out.onError(ex)
-                asyncUpstreamAck.trySuccess(Stop)
-
-              case Cancelled =>
-                // User cancelled, but we have to log errors somewhere
-                scheduler.reportFailure(ex)
-            }
-          }
-
-          private def signalChildOnComplete(ack: Future[Ack], isStop: Boolean): Unit = {
-            // This assignment must happen after `onNext`, otherwise
-            // we can end with a race condition with `onComplete`
-            stateRef.getAndSet(WaitOnNextChild(ack)) match {
-              case WaitOnActiveChild =>
-                () // Optimization, do nothing else
-
-              case WaitOnNextChild(_) | Active(_) =>
-                // Branch happens when the main subscriber is still
-                // active and this child is thus giving it permission
-                // to continue with the next child observable
-                ack.value match {
-                  case Some(result) =>
-                    asyncUpstreamAck.tryComplete(result)
-                  case None =>
-                    asyncUpstreamAck.tryCompleteWith(ack)
-                }
-
-              case Cancelled =>
-                asyncUpstreamAck.trySuccess(Stop)
-
-              case WaitComplete(exOpt, _) =>
-                // An `onComplete` or `onError` event happened since
-                // `onNext` was called, so we are now responsible for
-                // signaling it downstream.  Note that we've set
-                // `WaitOnNext` above, which would make one wonder if
-                // we couldn't have a problem with the logic in
-                // `onComplete` or `onError`, but if we are seeing
-                // this state, it means that these calls already
-                // happened, so we can't have a race condition.
-                if (!isStop) exOpt match {
-                  case None => sendOnComplete()
-                  case Some(ex) => out.onError(ex)
-                }
-                else ack.value match {
-                  case Some(Failure(ex)) =>
-                    // An error happened and we need to report it somewhere
-                    scheduler.reportFailure(ex)
-                  case _ =>
-                    () // do nothing else
-                }
-            }
-          }
-        })
-
-        // Execution already started at this point This `getAndSet` is
-        // concurrent with the task being finished (the `getAndSet` in
-        // the Task.flatMap above), but not with the `getAndSet`
-        // happening in `onComplete` and `onError`, therefore a
-        // `WaitComplete` state is invalid here. The state we do
-        // expect most of the time is either `WaitOnNext` or
-        // `WaitActiveTask`.
-        stateRef.getAndSet(Active(cancellable)) match {
-          case previous @ WaitOnNextChild(ack) =>
-            // Task execution was synchronous, w00t, so redo state!
-            stateRef.lazySet(previous)
-            ack.syncTryFlatten
-
-          case WaitOnActiveChild =>
-            // Expected outcome for async observables
-            asyncUpstreamAck.future.syncTryFlatten
-
-          case previous @ WaitComplete(_, _) =>
-            // Branch that can happen in case the child has finished
-            // already in error, so stop further onNext events.
-            stateRef.lazySet(previous) // GC purposes
-            Stop
-
-          case Cancelled =>
-            // Race condition, oops, now cancel the active task
-            cancellable.cancel()
-            // Now restore the state and pretend that this didn't
-            // happen :-) Note that this is probably going to call
-            // `ack.cancel()` a second time, but that's OK
-            self.cancel()
-            Stop
-
-          case state @ Active(_) =>
-            // This should never, ever happen!
-            // Something is screwed up in our state machine :-(
-            // $COVERAGE-OFF$
-            reportInvalidState(state, "onNext")
-            cancellable.cancel()
-            Stop
-            // $COVERAGE-ON$
-        }
-      }
-      catch { case ex if NonFatal(ex) =>
+      } catch { case ex if NonFatal(ex) =>
         if (streamErrors) {
           onError(ex)
           Stop
@@ -360,6 +276,105 @@ private[reactive] final class ConcatMapObservable[A, B]
           "please open an issue, see: https://monix.io"
         ))
       // $COVERAGE-ON$
+    }
+
+    private final class ChildSubscriber(out: Subscriber[B], asyncUpstreamAck: Promise[Ack])
+      extends Subscriber[B] {
+
+      implicit val scheduler = out.scheduler
+      private[this] var ack: Future[Ack] = Continue
+
+      // Reusable reference to stop creating function references for each `onNext`
+      private[this] val onStopOrFailureRef: Option[Throwable] => Unit = {
+        case None => signalChildOnComplete(Stop, isStop = true)
+        case Some(ex) => signalChildOnComplete(Future.failed(ex), isStop = true)
+      }
+
+      def onNext(elem: B) = {
+        ack = out.onNext(elem)
+        ack.syncOnStopOrFailure(onStopOrFailureRef)
+      }
+
+      def onComplete(): Unit =
+        signalChildOnComplete(ack, isStop = false)
+
+      def onError(ex: Throwable): Unit =
+        if (!delayErrors) signalChildOnError(ex) else {
+          errors.transform(list => ex :: list)
+          onComplete()
+        }
+
+      private def signalChildOnError(ex: Throwable): Unit = {
+        // The cancelable passed in WaitComplete here can be `null`
+        // because it would only replace the child's own cancelable
+        stateRef.getAndSet(WaitComplete(Some(ex), null)) match {
+          case WaitOnActiveChild | WaitOnNextChild(_) | Active(_) =>
+            // Branch happens while the main subscriber is still
+            // active; the `getAndSet(WaitComplete)` however will
+            // stop it and we are free to send the final error
+            out.onError(ex)
+            asyncUpstreamAck.trySuccess(Stop)
+
+          case WaitComplete(otherEx, _) =>
+            // Branch happens when the main subscriber has already
+            // finished - we were in `Active` until now, so it is
+            // the child's responsibility to finish! But if an
+            // exception also happened on main subscriber, we need
+            // to log it somewhere!
+            otherEx.foreach(scheduler.reportFailure)
+            // Send our immediate error downstream and stop everything
+            out.onError(ex)
+            asyncUpstreamAck.trySuccess(Stop)
+
+          case Cancelled =>
+            // User cancelled, but we have to log errors somewhere
+            scheduler.reportFailure(ex)
+        }
+      }
+
+      private def signalChildOnComplete(ack: Future[Ack], isStop: Boolean): Unit = {
+        // This assignment must happen after `onNext`, otherwise
+        // we can end with a race condition with `onComplete`
+        stateRef.getAndSet(WaitOnNextChild(ack)) match {
+          case WaitOnActiveChild =>
+            () // Optimization, do nothing else
+
+          case WaitOnNextChild(_) | Active(_) =>
+            // Branch happens when the main subscriber is still
+            // active and this child is thus giving it permission
+            // to continue with the next child observable
+            ack.value match {
+              case Some(result) =>
+                asyncUpstreamAck.tryComplete(result)
+              case None =>
+                asyncUpstreamAck.tryCompleteWith(ack)
+            }
+
+          case Cancelled =>
+            asyncUpstreamAck.trySuccess(Stop)
+
+          case WaitComplete(exOpt, _) =>
+            // An `onComplete` or `onError` event happened since
+            // `onNext` was called, so we are now responsible for
+            // signaling it downstream.  Note that we've set
+            // `WaitOnNext` above, which would make one wonder if
+            // we couldn't have a problem with the logic in
+            // `onComplete` or `onError`, but if we are seeing
+            // this state, it means that these calls already
+            // happened, so we can't have a race condition.
+            if (!isStop) exOpt match {
+              case None => sendOnComplete()
+              case Some(ex) => out.onError(ex)
+            }
+            else ack.value match {
+              case Some(Failure(ex)) =>
+                // An error happened and we need to report it somewhere
+                scheduler.reportFailure(ex)
+              case _ =>
+                () // do nothing else
+            }
+        }
+      }
     }
   }
 }

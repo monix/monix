@@ -60,15 +60,19 @@ abstract class ChainedObservable[+A] extends Observable[A] {
 object ChainedObservable {
   /** Function that checks if the `source` is a `ChainedObservable`,
     * subscribing to it by injecting the provided `conn` if it is,
-    * otherwise it subscribes
+    * otherwise it triggers a normal subscription.
     */
-  def subscribe[A](source: Observable[A], conn: MultiAssignCancelable, out: Subscriber[A]): Unit =
-    source match {
-      case _: ChainedObservable[_] =>
-        out.scheduler.executeTrampolined { () =>
+  def subscribe[A](source: Observable[A], conn: MultiAssignCancelable, out: Subscriber[A]): Unit = {
+    // Subscription can be synchronous, which can trigger really
+    // weird ordering issues, therefore we need a light async boundary
+    // to delay it and force ordering; plus it protects from stack overflows
+    out.scheduler.executeTrampolined { () =>
+      source match {
+        case _: ChainedObservable[_] =>
           source.asInstanceOf[ChainedObservable[A]].unsafeSubscribeFn(conn, out)
-        }
-      case _ =>
-        conn := source.unsafeSubscribeFn(out)
+        case _ =>
+          conn := source.unsafeSubscribeFn(out)
+      }
     }
+  }
 }
