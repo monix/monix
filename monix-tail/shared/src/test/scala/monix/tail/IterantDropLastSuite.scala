@@ -89,7 +89,7 @@ object IterantDropLastSuite extends BaseTestSuite {
 
   test("Iterant.dropLast suspends side effects") { implicit s =>
     check1 { stream: Iterant[Task, Int] =>
-      stream <-> stream
+      stream.dropLast(1) <-> stream.dropLast(1)
     }
   }
 }

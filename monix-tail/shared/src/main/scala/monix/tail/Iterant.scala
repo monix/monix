@@ -25,11 +25,13 @@ import cats.{Applicative, CoflatMap, Eq, MonadError, Monoid, MonoidK, Order, Par
 import monix.eval.instances.{CatsAsyncForTask, CatsBaseForTask, CatsSyncForCoeval}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
+import monix.execution.misc.NonFatal
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
@@ -2044,6 +2046,67 @@ object Iterant extends IterantInstances {
   def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] = {
     val bs = if (xs.hasDefiniteSize) batches.defaultBatchSize else 1
     NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty), F.unit)
+  }
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * `Iterant` that keeps generating `NextBatch` items produced by our generator function
+    * with default `recommendedBatchSize`.
+    *
+    * Example: {{{
+    *   val f = (x: Int) => (x + 1, x * 2)
+    *   val seed = 1
+    *   val stream = Iterant.fromStateAction[Task, Int, Int](f)(seed)
+    *
+    *   // Yields 2, 3, 5, 9
+    *   stream.take(5)
+    * }}}
+    *
+    */
+  def fromStateAction[F[_], S, A](f: S => (A, S))(seed: => S)(implicit F: Sync[F]): Iterant[F, A] = {
+    def loop(state: S): Iterant[F, A] = {
+      var toProcess = batches.defaultBatchSize
+      var currentState = state
+      val buffer = mutable.Buffer[A]()
+
+      while (toProcess > 0) {
+        val (elem, newState) = f(currentState)
+        buffer.append(elem)
+        currentState = newState
+        toProcess -= 1
+      }
+      NextBatch[F, A](Batch.fromSeq(buffer), F.delay(loop(currentState)), F.unit)
+    }
+    try loop(seed)
+    catch { case e if NonFatal(e) => Halt(Some(e)) }
+  }
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence in `F[_]` context, creates an
+    * `Iterant` that keeps generating `Next` items produced by our generator function.
+    *
+    * Example: {{{
+    *   val f = (x: Int) => F.pure((x + 1, x * 2))
+    *   val seed = F.pure(1)
+    *   val stream = Iterant.fromStateAction[Task, Int, Int](f)(seed)
+    *
+    *   // Yields 2, 3, 5, 9
+    *   stream.take(5)
+    * }}}
+    */
+  def fromStateActionL[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] = {
+    import cats.syntax.all._
+
+    def loop(state: S): F[Iterant[F, A]] =
+      try {
+        f(state).map { case (elem, newState) =>
+          Next(elem, F.suspend(loop(newState)), F.unit)
+        }
+      } catch {
+        case e if NonFatal(e) => F.delay(Halt(Some(e)))
+      }
+
+    Suspend(F.suspend(seed.flatMap(loop)), F.unit)
   }
 
   /** Builds a stream that on evaluation will produce equally spaced
