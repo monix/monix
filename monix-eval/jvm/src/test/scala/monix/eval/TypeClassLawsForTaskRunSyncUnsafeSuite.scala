@@ -17,11 +17,12 @@
 
 package monix.eval
 
-import cats.Eq
+import cats.{Applicative, Eq}
 import cats.effect.IO
 import cats.effect.laws.discipline.{AsyncTests, EffectTests}
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{CoflatMapTests, ParallelTests}
+import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
+import monix.eval.instances.CatsParallelForTask
 import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Try
@@ -32,10 +33,20 @@ import scala.util.Try
 object TypeClassLawsForTaskRunSyncUnsafeSuite extends monix.execution.BaseLawsSuite
   with  ArbitraryInstancesBase {
 
+  implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
+
   implicit def equalityTask[A](implicit A: Eq[A]): Eq[Task[A]] =
     Eq.instance { (a, b) =>
       val ta = Try(a.runSyncUnsafe(5.minutes))
       val tb = Try(b.runSyncUnsafe(5.minutes))
+      equalityTry[A].eqv(ta, tb)
+    }
+
+  implicit def equalityTaskPar[A](implicit A: Eq[A]): Eq[Task.Par[A]] =
+    Eq.instance { (a, b) =>
+      import Task.Par.unwrap
+      val ta = Try(unwrap(a).runSyncUnsafe(5.minutes))
+      val tb = Try(unwrap(b).runSyncUnsafe(5.minutes))
       equalityTry[A].eqv(ta, tb)
     }
 
@@ -55,8 +66,11 @@ object TypeClassLawsForTaskRunSyncUnsafeSuite extends monix.execution.BaseLawsSu
   checkAll("Effect[Task]",
     EffectTests[Task].effect[Int,Int,Int])
 
-  checkAll("Parallel[Task, Task]",
-    ParallelTests[Task, Task].parallel[Int, Int])
+  checkAll("Applicative[Task.Par]",
+    ApplicativeTests[Task.Par].applicative[Int, Int, Int])
+
+  checkAll("Parallel[Task, Task.Par]",
+    ParallelTests[Task, Task.Par].parallel[Int, Int])
 
   checkAll("Monoid[Task[Int]]",
     MonoidTests[Task[Int]].monoid)
