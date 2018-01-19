@@ -15,22 +15,18 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.reactive.internal.operators
 
-import cats.Applicative
-import cats.laws.discipline.ApplicativeTests
-import monix.eval.instances.{CatsParallelForTask, ParallelApplicative}
+import monix.reactive.{BaseTestSuite, Observable}
 
-object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
-  implicit val ap: Applicative[Task] =
-    ParallelApplicative(new CatsParallelForTask)
+object ScanMapSuite extends BaseTestSuite {
 
-  test("instance is valid") {
-    val ev = implicitly[Applicative[Task]]
-    assertEquals(ev, ap)
-  }
-
-  checkAllAsync("ParallelApplicative[Task]") { implicit ec =>
-    ApplicativeTests[Task].applicative[Int, Int, Int]
+  test("Observable.scanMap equivalence to Observable.scan") { implicit s =>
+    val obs1 = Observable(1, 2, 3, 4).scanMap(x => x)
+    val obs2 = Observable(1, 2, 3, 4).scan(0)(_ + _)
+    val f1 = obs1.runAsyncGetLast
+    val f2 = obs2.runAsyncGetLast
+    s.tick()
+    assertEquals(f1.value, f2.value)
   }
 }

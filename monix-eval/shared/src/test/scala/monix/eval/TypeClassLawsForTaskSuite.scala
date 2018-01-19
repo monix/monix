@@ -17,25 +17,33 @@
 
 package monix.eval
 
+import cats.Applicative
 import cats.effect.laws.discipline.{AsyncTests, EffectTests}
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{CoflatMapTests, ParallelTests}
+import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
+import monix.eval.instances.CatsParallelForTask
 
 object TypeClassLawsForTaskSuite extends BaseLawsSuite {
+  implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
+
   checkAllAsync("CoflatMap[Task]") { implicit ec =>
-    CoflatMapTests[Task].coflatMap[Int,Int,Int]
+    CoflatMapTests[Task].coflatMap[Int, Int, Int]
   }
 
   checkAllAsync("Async[Task]") { implicit ec =>
-    AsyncTests[Task].async[Int,Int,Int]
+    AsyncTests[Task].async[Int, Int, Int]
   }
 
   checkAllAsync("Effect[Task]") { implicit ec =>
-    EffectTests[Task].effect[Int,Int,Int]
+    EffectTests[Task].effect[Int, Int, Int]
   }
 
-  checkAllAsync("Parallel[Task, Task]") { implicit ec =>
-    ParallelTests[Task, Task].parallel[Int, Int]
+  checkAllAsync("Applicative[Task.Par]") { implicit ec =>
+    ApplicativeTests[Task.Par].applicative[Int, Int, Int]
+  }
+
+  checkAllAsync("Parallel[Task, Task.Par]") { implicit ec =>
+    ParallelTests[Task, Task.Par].parallel[Int, Int]
   }
 
   checkAllAsync("Monoid[Task[Int]]") { implicit ec =>

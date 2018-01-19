@@ -15,22 +15,19 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.eval.internal
 
-import cats.Applicative
-import cats.laws.discipline.ApplicativeTests
-import monix.eval.instances.{CatsParallelForTask, ParallelApplicative}
+import monix.eval.Task
+import monix.execution.Scheduler
+import scala.concurrent.duration.Duration
 
-object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
-  implicit val ap: Applicative[Task] =
-    ParallelApplicative(new CatsParallelForTask)
-
-  test("instance is valid") {
-    val ev = implicitly[Applicative[Task]]
-    assertEquals(ev, ap)
-  }
-
-  checkAllAsync("ParallelApplicative[Task]") { implicit ec =>
-    ApplicativeTests[Task].applicative[Int, Int, Int]
+private[eval] object TaskRunSyncUnsafe {
+  /** Implementation of `Task.runSyncUnsafe`, meant to throw an
+    * "unsupported exception", since JavaScript cannot support it.
+    */
+  def apply[A](source: Task[A], timeout: Duration, scheduler: Scheduler, opts: Task.Options): A = {
+    // $COVERAGE-OFF$
+    throw new UnsupportedOperationException("runSyncUnsafe isn't supported on top of JavaScript")
+    // $COVERAGE-ON$
   }
 }

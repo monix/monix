@@ -25,14 +25,14 @@ import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, S
 import monix.execution._
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
-import monix.execution.internal.Platform
 import monix.execution.internal.Platform.fusionMaxStackDepth
+import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.ThreadLocal
-import monix.execution.schedulers.TrampolinedRunnable
+import monix.execution.schedulers.{CanBlock, TrampolinedRunnable}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
@@ -291,6 +291,105 @@ import scala.util.{Failure, Success, Try}
   *         with the difference that this method does not fork
   *         automatically, being consistent with Monix's default
   *         behavior.
+  *
+  * @define runSyncUnsafeDesc Evaluates the source task synchronously and
+  *         returns the result immediately or blocks the underlying thread
+  *         until the result is ready.
+  *
+  *         '''WARNING:''' blocking operations are unsafe and incredibly error
+  *         prone on top of the JVM. It's a good practice to not block any threads
+  *         and use the asynchronous `runAsync` methods instead.
+  *
+  *         In general prefer to use the asynchronous
+  *         [[monix.eval.Task!.runAsync(implicit* .runAsync]] and to
+  *         structure your logic around asynchronous actions in a
+  *         non-blocking way. But in case you're blocking only once,
+  *         in `main`, at the "edge of the world" so to speak, then
+  *         it's OK.
+  *
+  *         Sample:
+  *         {{{
+  *           import scala.concurrent.duration._
+  *
+  *           task.runSyncUnsafe(3.seconds)
+  *         }}}
+  *
+  *         This is equivalent with:
+  *         {{{
+  *           import scala.concurrent.Await
+  *
+  *           Await.result(task.runAsync, 3.seconds)
+  *         }}}
+  *
+  *         Some implementation details:
+  *
+  *          - blocking the underlying thread is done by triggering Scala's
+  *            `BlockingContext` (`scala.concurrent.blocking`), just like
+  *            Scala's `Await.result`
+  *          - the `timeout` is mandatory, just like when using Scala's
+  *            `Await.result`, in order to make the caller aware that the
+  *            operation is dangerous and that setting a `timeout` is good
+  *            practice
+  *          - the loop starts in an execution mode that ignores
+  *            [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]] or
+  *            [[monix.execution.ExecutionModel.AlwaysAsyncExecution AlwaysAsyncExecution]],
+  *            until the first asynchronous boundary. This is because we want to block
+  *            the underlying thread for the result, in which case preserving
+  *            fairness by forcing (batched) async boundaries doesn't do us any good,
+  *            quite the contrary, the underlying thread being stuck until the result
+  *            is available or until the timeout exception gets triggered.
+  *
+  *         Not supported on top of JavaScript engines and trying to use it
+  *         with Scala.js will trigger a compile time error.
+  *
+  *         For optimizations on top of JavaScript you can use [[runSyncMaybe]]
+  *         instead.
+  *
+  * @define runSyncUnsafeTimeout is a duration that specifies the
+  *         maximum amount of time that this operation is allowed to block the
+  *         underlying thread. If the timeout expires before the result is ready,
+  *         a `TimeoutException` gets thrown. Note that you're allowed to
+  *         pass an infinite duration (with `Duration.Inf`), but unless
+  *         it's `main` that you're blocking and unless you're doing it only
+  *         once, then this is definitely not recommended — provide a finite
+  *         timeout in order to avoid deadlocks.
+  *
+  * @define runSyncUnsafePermit is an implicit value that's only available for
+  *         the JVM and not for JavaScript, its purpose being to stop usage of
+  *         this operation on top of engines that do not support blocking threads.
+  *
+  * @define runSyncMaybeDesc Tries to execute the source synchronously.
+  *
+  *         As an alternative to `runAsync`, this method tries to execute
+  *         the source task immediately on the current thread and call-stack.
+  *
+  *         WARNING: This method is a partial function, throwing exceptions
+  *         in case errors happen immediately (synchronously).
+  *
+  *         Usage sample:
+  *         {{{
+  *           try task.runSyncMaybe match {
+  *             case Right(a) => println("Success: " + a)
+  *             case Left(future) =>
+  *               future.onComplete {
+  *                 case Success(a) => println("Async success: " + a)
+  *                 case Failure(e) => println("Async error: " + e)
+  *               }
+  *           } catch {
+  *             case NonFatal(e) =>
+  *               println("Error: " + e)
+  *           }
+  *         }}}
+  *
+  *         Obviously the purpose of this method is to be used for
+  *         optimizations.
+  *
+  *         Also see [[runSyncUnsafe]], the blocking execution mode that can
+  *         only work on top of the JVM.
+  *
+  * @define runSyncMaybeReturn `Right(result)` in case a result was processed,
+  *         or `Left(future)` in case an asynchronous boundary
+  *         was hit and further async execution is needed
   */
 sealed abstract class Task[+A] extends Serializable {
   import monix.eval.Task._
@@ -336,6 +435,54 @@ sealed abstract class Task[+A] extends Serializable {
   def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
     TaskRunLoop.startLight(this, s, opts, cb)
 
+  /** $runSyncMaybeDesc
+    *
+    * @param s $schedulerDesc
+    * @return $runSyncMaybeReturn
+    */
+  final def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] =
+    runSyncMaybeOpt(s, defaultOptions)
+
+  /** $runSyncMaybeDesc
+    *
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    * @return $runSyncMaybeReturn
+    */
+  final def runSyncMaybeOpt(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
+    val future = runAsyncOpt(s, opts)
+    future.value match {
+      case Some(value) =>
+        value match {
+          case Success(a) => Right(a)
+          case Failure(e) => throw e
+        }
+      case None =>
+        Left(future)
+    }
+  }
+
+  /** $runSyncUnsafeDesc
+    *
+    * @param timeout $runSyncUnsafeTimeout
+    * @param s $schedulerDesc
+    * @param permit $runSyncUnsafePermit
+    */
+  final def runSyncUnsafe(timeout: Duration)
+    (implicit s: Scheduler, permit: CanBlock): A =
+    TaskRunSyncUnsafe(this, timeout, s, defaultOptions)
+
+  /** $runSyncUnsafeDesc
+    *
+    * @param timeout $runSyncUnsafeTimeout
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    * @param permit $runSyncUnsafePermit
+    */
+  final def runSyncUnsafeOpt(timeout: Duration)
+    (implicit s: Scheduler, opts: Options, permit: CanBlock): A =
+    TaskRunSyncUnsafe(this, timeout, s, opts)
+
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
     * the result is available.
@@ -349,52 +496,6 @@ sealed abstract class Task[+A] extends Serializable {
       def onSuccess(value: A): Unit = f(Success(value))
       def onError(ex: Throwable): Unit = f(Failure(ex))
     })(s)
-
-  /** Tries to execute the source synchronously.
-    *
-    * As an alternative to `runAsync`, this method tries to execute
-    * the source task immediately on the current thread and call-stack.
-    *
-    * WARNING: This method is a partial function, throwing exceptions
-    * in case errors happen immediately (synchronously).
-    *
-    * Usage sample:
-    *
-    * {{{
-    *   try task.runSyncMaybe match {
-    *     case Right(a) => println("Success: " + a)
-    *     case Left(future) =>
-    *       future.onComplete {
-    *         case Success(a) => println("Async success: " + a)
-    *         case Failure(e) => println("Async error: " + e)
-    *       }
-    *   } catch {
-    *     case NonFatal(e) =>
-    *       println("Error: " + e)
-    *   }
-    * }}}
-    *
-    * Obviously the purpose of this method is to be used for
-    * optimizations.
-    *
-    * @return `Right(result)` in case a result was processed,
-    *         or `Left(future)` in case an asynchronous boundary
-    *         was hit and further async execution is needed or
-    *         in case of failure
-    */
-  final def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
-    val future = this.runAsync(s)
-
-    future.value match {
-      case Some(value) =>
-        value match {
-          case Success(a) => Right(a)
-          case Failure(e) => throw e
-        }
-      case None =>
-        Left(future)
-    }
-  }
 
   /** Creates a new [[Task]] that will expose any triggered error
     * from the source.
@@ -500,30 +601,29 @@ sealed abstract class Task[+A] extends Serializable {
   /** Returns a task that waits for the specified `timespan` before
     * executing and mirroring the result of the source.
     *
-    * @see [[delayExecutionWith]] for delaying the execution of the
-    *     source with a customizable trigger.
-    */
-  final def delayExecution(timespan: FiniteDuration): Task[A] =
-    TaskDelayExecution(this, timespan)
-
-  /** Returns a task that waits for the specified `trigger` to succeed
-    * before mirroring the result of the source.
+    * In this example we're printing to standard output, but before
+    * doing that we're introducing a 3 seconds delay:
     *
-    * If the `trigger` ends in error, then the resulting task will
-    * also end in error.
-    *
-    * As an example, these are equivalent (in the observed effects and
-    * result, not necessarily in implementation):
     * {{{
-    *   val ta = source.delayExecution(10.seconds)
-    *   val tb = source.delayExecutionWith(Task.unit.delayExecution(10.seconds))
+    *   Task(println("Hello!"))
+    *     .delayExecution(3.seconds)
     * }}}
     *
-    * @see [[delayExecution]] for delaying the execution of the
-    *     source with a simple timespan
+    * This operation is also equivalent with:
+    *
+    * {{{
+    *   Task.sleep(timespan).flatMap(_ => task)
+    * }}}
+    *
+    * See [[Task.sleep]] for the operation that describes the effect
+    * and [[Task.delayResult]] for the version that evaluates the
+    * task on time, but delays the signaling of the result.
+    *
+    * @param timespan is the time span to wait before triggering
+    *        the evaluation of the task
     */
-  final def delayExecutionWith(trigger: Task[Any]): Task[A] =
-    TaskDelayExecutionWith(this, trigger)
+  final def delayExecution(timespan: FiniteDuration): Task[A] =
+    Task.sleep(timespan).flatMap(_ => this)
 
   /** Returns a task that executes the source immediately on `runAsync`,
     * but before emitting the `onSuccess` result for the specified
@@ -532,36 +632,36 @@ sealed abstract class Task[+A] extends Serializable {
     * Note that if an error happens, then it is streamed immediately
     * with no delay.
     *
-    * @see [[delayResultBySelector]] for applying different
-    *     delay strategies depending on the signaled result.
-    */
-  final def delayResult(timespan: FiniteDuration): Task[A] =
-    TaskDelayResult(this, timespan)
-
-  /** Returns a task that executes the source immediately on `runAsync`,
-    * but with the result delayed by the specified `selector`.
+    * See [[delayExecution]] for delaying the evaluation of the
+    * task with the specified duration. The [[delayResult]] operation
+    * is effectively equivalent with:
     *
-    * The `selector` generates another `Task` whose execution will
-    * delay the signaling of the result generated by the source.
-    * Compared with [[delayResult]] this gives you an opportunity
-    * to apply different delay strategies depending on the
-    * signaled result.
-    *
-    * As an example, these are equivalent (in the observed effects
-    * and result, not necessarily in implementation):
     * {{{
-    *   val t1 = source.delayResult(10.seconds)
-    *   val t2 = source.delayResultBySelector(_ =>
-    *     Task.unit.delayExecution(10.seconds))
+    *   task.flatMap(a => Task.now(a).delayExecution(timespan))
     * }}}
     *
-    * Note that if an error happens, then it is streamed immediately
-    * with no delay.
+    * Or if we are to use the [[Task.sleep]] describing just the
+    * effect, this operation is equivalent with:
     *
-    * @see [[delayResult]] for delaying with a simple timeout
+    * {{{
+    *   task.flatMap(a => Task.sleep(timespan).map(_ => a))
+    * }}}
+    *
+    * Thus in this example 3 seconds will pass before the result
+    * is being generated by the source, plus another 5 seconds
+    * before it is finally emitted:
+    *
+    * {{{
+    *   Task.eval(1 + 1)
+    *     .delayExecution(3.seconds)
+    *     .delayResult(5.seconds)
+    * }}}
+    *
+    * @param timespan is the time span to sleep before signaling
+    *        the result, but after the evaluation of the source
     */
-  final def delayResultBySelector[B](selector: A => Task[B]): Task[A] =
-    TaskDelayResultBySelector(this, selector)
+  final def delayResult(timespan: FiniteDuration): Task[A] =
+    flatMap(a => Task.sleep(timespan).map(_ => a))
 
   /** Overrides the default [[monix.execution.Scheduler Scheduler]],
     * possibly forcing an asynchronous boundary before execution
@@ -840,6 +940,19 @@ sealed abstract class Task[+A] extends Serializable {
     */
   final def fork: Task[Task[A]] =
     executeAsync.start
+
+  /** Start asynchronous execution of the source suspended in the `Task` context,
+    * running it in the background and discarding the result.
+    *
+    * Similar to [[fork]] after mapping result to Unit. Below law holds:
+    *
+    * {{{
+    *   task.forkAndForget <-> task.fork.map(_ => ())
+    * }}}
+    *
+    */
+  final def forkAndForget: Task[Unit] =
+    TaskForkAndForget(this)
 
   /** Returns a new `Task` in which `f` is scheduled to be run on
     * completion. This would typically be used to release any
@@ -1617,6 +1730,28 @@ object Task extends TaskInstancesLevel1 {
       })
     }
 
+  /** Creates a new `Task` that will sleep for the given duration,
+    * emitting a tick when that time span is over.
+    *
+    * As an example on evaluation this will print "Hello!" after
+    * 3 seconds:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   Task.sleep(3.seconds).flatMap { _ =>
+    *     Task.eval(println("Hello!"))
+    *   }
+    * }}}
+    *
+    * See [[Task.delayExecution]] for this operation described as
+    * a method on `Task` references or [[Task.delayResult]] for the
+    * helper that triggers the evaluation of the source on time, but
+    * then delays the result.
+    */
+  def sleep(timespan: FiniteDuration): Task[Unit] =
+    TaskSleep.apply(timespan)
+
   /** Given a `TraversableOnce` of tasks, transforms it to a task signaling
     * the collection, executing the tasks one by one and gathering their
     * results in the same collection.
@@ -2328,6 +2463,46 @@ object Task extends TaskInstancesLevel1 {
       self.executeAsync
       // $COVERAGE-ON$
     }
+
+    /** DEPRECATED - please use [[Task.flatMap flatMap]].
+      *
+      * The reason for the deprecation is that this operation is
+      * redundant, as it can be expressed with `flatMap`, with the
+      * same effect:
+      * {{{
+      *   trigger.flatMap(_ => task)
+      * }}}
+      *
+      * The syntax provided by Cats can also help:
+      * {{{
+      *   import cats.syntax.all._
+      *
+      *   trigger *> task
+      * }}}
+      */
+    @deprecated("Please use flatMap", "3.0.0")
+    def delayExecutionWith(trigger: Task[Any]): Task[A] = {
+      // $COVERAGE-OFF$
+      trigger.flatMap(_ => self)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED - please use [[Task.flatMap flatMap]].
+      *
+      * The reason for the deprecation is that this operation is
+      * redundant, as it can be expressed with `flatMap` and `map`,
+      * with the same effect:
+      *
+      * {{{
+      *   task.flatMap(a => selector(a).map(_ => a))
+      * }}}
+      */
+    @deprecated("Please rewrite in terms of flatMap", "3.0.0")
+    def delayResultBySelector[B](selector: A => Task[B]): Task[A] = {
+      // $COVERAGE-OFF$
+      self.flatMap(a => selector(a).map(_ => a))
+      // $COVERAGE-OFF$
+    }
   }
 
   // -- INTERNALS
@@ -2555,7 +2730,7 @@ private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
     new CatsMonadToMonoid[Task, A]()(CatsAsyncForTask, A)
 }
 
-private[eval] abstract class TaskInstancesLevel0  {
+private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
   /** Global instance for `cats.effect.Effect`.
     *
     * Implied are `cats.CoflatMap`, `cats.Applicative`, `cats.Monad`,
@@ -2588,4 +2763,24 @@ private[eval] abstract class TaskInstancesLevel0  {
     */
   implicit def catsSemigroup[A](implicit A: Semigroup[A]): Semigroup[Task[A]] =
     new CatsMonadToSemigroup[Task, A]()(CatsAsyncForTask, A)
+}
+
+private[eval] abstract class TaskParallelNewtype {
+  /** Newtype encoding for an `Task` datatype that has a [[cats.Applicative]]
+    * capable of doing parallel processing in `ap` and `map2`, needed
+    * for implementing [[cats.Parallel]].
+    *
+    * Helpers are provided for converting back and forth in `Par.apply`
+    * for wrapping any `Task` value and `Par.unwrap` for unwrapping.
+    *
+    * The encoding is based on the "newtypes" project by
+    * Alexander Konovalov, chosen because it's devoid of boxing issues and
+    * a good choice until opaque types will land in Scala.
+    */
+  type Par[+A] = Par.Type[A]
+
+  /** Newtype encoding, see the [[Task.Par]] type alias
+    * for more details.
+    */
+  object Par extends Newtype1[Task]
 }

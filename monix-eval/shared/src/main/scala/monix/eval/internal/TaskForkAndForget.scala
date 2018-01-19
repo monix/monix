@@ -16,21 +16,19 @@
  */
 
 package monix.eval
+package internal
 
-import cats.Applicative
-import cats.laws.discipline.ApplicativeTests
-import monix.eval.instances.{CatsParallelForTask, ParallelApplicative}
-
-object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
-  implicit val ap: Applicative[Task] =
-    ParallelApplicative(new CatsParallelForTask)
-
-  test("instance is valid") {
-    val ev = implicitly[Applicative[Task]]
-    assertEquals(ev, ap)
-  }
-
-  checkAllAsync("ParallelApplicative[Task]") { implicit ec =>
-    ApplicativeTests[Task].applicative[Int, Int, Int]
-  }
+private[eval] object TaskForkAndForget {
+  /**
+    * Implementation for `Task.startAndForget`.
+    */
+  def apply[A](fa: Task[A]): Task[Unit] =
+    Task.Async[Unit] { (ctx, cb) =>
+      implicit val sc = ctx.scheduler
+      // It needs its own context, its own cancelable
+      val ctx2 = Task.Context(sc, ctx.options)
+      // Starting actual execution of our newly created task forcing new async boundary
+      Task.unsafeStartAsync(fa, ctx2, Callback.empty)
+      cb.asyncOnSuccess(())
+    }
 }

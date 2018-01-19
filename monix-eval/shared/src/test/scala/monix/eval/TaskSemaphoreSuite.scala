@@ -29,7 +29,7 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
   test("simple green-light") { implicit s =>
-    val semaphore = TaskSemaphore(maxParallelism = 4)
+    val Right(semaphore) = TaskSemaphore(maxParallelism = 4).runSyncMaybe
     val future = semaphore.greenLight(Task(1)).runAsync
 
     assertEquals(semaphore.activeCount.value, 1)
@@ -41,7 +41,7 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
   }
 
   test("should release on cancel") { implicit s =>
-    val semaphore = TaskSemaphore(maxParallelism = 4)
+    val Right(semaphore) = TaskSemaphore(maxParallelism = 4).runSyncMaybe
     val p = Promise[Int]()
     var effect = 0
 
@@ -62,7 +62,7 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
   testAsync("real async test of many tasks") { _ =>
     // Executing tasks on the global scheduler!
     import monix.execution.Scheduler.Implicits.global
-    val semaphore = TaskSemaphore(maxParallelism = 4)
+    val Right(semaphore) = TaskSemaphore(maxParallelism = 4).runSyncMaybe
     val count = if (Platform.isJVM) 100000 else 1000
 
     val tasks = for (i <- 0 until count) yield
@@ -77,7 +77,7 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
   }
 
   test("await for release of all active and pending permits") { implicit s =>
-    val semaphore = TaskSemaphore(maxParallelism = 2)
+    val Right(semaphore) = TaskSemaphore(maxParallelism = 2).runSyncMaybe
     val p1 = semaphore.acquire.runAsync
     assertEquals(p1.value, Some(Success(())))
     val p2 = semaphore.acquire.runAsync
@@ -114,7 +114,7 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
   }
 
   test("acquire is cancelable") { implicit s =>
-    val semaphore = TaskSemaphore(maxParallelism = 2)
+    val Right(semaphore) = TaskSemaphore(maxParallelism = 2).runSyncMaybe
 
     val p1 = semaphore.acquire.runAsync
     assert(p1.isCompleted, "p1.isCompleted")

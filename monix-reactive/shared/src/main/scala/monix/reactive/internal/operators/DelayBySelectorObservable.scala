@@ -71,7 +71,7 @@ class DelayBySelectorObservable[A,S](source: Observable[A], selector: A => Obser
 
         var streamErrors = true
         try {
-          val obs = selector(elem).take(0)
+          val obs = selector(elem).completed
           streamErrors = false
           task := obs.unsafeSubscribeFn(trigger)
           ack.future

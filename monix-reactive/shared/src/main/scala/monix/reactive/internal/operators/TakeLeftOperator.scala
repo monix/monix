@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
@@ -26,33 +25,7 @@ private[reactive] final class TakeLeftOperator[A](n: Long)
   extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] = {
-    if (n <= 0) zero(out) else positive(out)
-  }
-
-  private def zero(out: Subscriber[A]): Subscriber.Sync[A] =
-    new Subscriber.Sync[A] {
-      implicit val scheduler = out.scheduler
-      private[this] var isDone = false
-
-      def onNext(elem: A): Ack = {
-        onComplete()
-        Stop
-      }
-
-      def onError(ex: Throwable): Unit =
-        if (!isDone) {
-          isDone = true
-          out.onError(ex)
-        }
-
-      def onComplete(): Unit =
-        if (!isDone) {
-          isDone = true
-          out.onComplete()
-        }
-    }
-
-  private def positive(out: Subscriber[A]): Subscriber[A] =
+    require(n > 0, "n should be strictly positive")
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
@@ -67,7 +40,7 @@ private[reactive] final class TakeLeftOperator[A](n: Long)
           if (counter < n) {
             // this is not the last event in the stream, so send it directly
             out.onNext(elem)
-          } else  {
+          } else {
             // last event in the stream, so we need to send the event followed by an EOF downstream
             // after which we signal upstream to the producer that it should stop
             isActive = false
@@ -95,4 +68,5 @@ private[reactive] final class TakeLeftOperator[A](n: Long)
           out.onComplete()
         }
     }
+  }
 }

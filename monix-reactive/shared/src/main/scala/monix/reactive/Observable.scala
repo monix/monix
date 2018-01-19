@@ -20,7 +20,7 @@ package monix.reactive
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
 import cats.effect.{Effect, IO}
-import cats.{CoflatMap, Eq, Eval, MonadError, Monoid, MonoidK, Order}
+import cats.{Apply, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
@@ -1514,7 +1514,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * buffer gets dropped and the error gets emitted immediately.
     */
   final def takeLast(n: Int): Observable[A] =
-    self.liftByOperator(new TakeLastOperator(n))
+    if (n <= 0) Observable.empty else self.liftByOperator(new TakeLastOperator(n))
 
   /** Maps elements from the source using a function that can do
     * lazy or asynchronous processing by means of any `F[_]` data
@@ -2086,6 +2086,35 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def scanEval[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: Effect[F]): Observable[S] =
     scanTask(Task.fromEffect(seed)(F))((s, a) => Task.fromEffect(op(s, a))(F))
+
+  /** Given a mapping function that returns a `B` type for which we have
+    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
+    * elements of the sources using the provided `Monoid[B].combine`, with the
+    * initial seed being the `Monoid[B].empty` value, emitting the generated values
+    * at each step.
+    *
+    * Equivalent with [[scan]] applied with the given [[cats.Monoid]], so given
+    * our `f` mapping function returns a `B`, this law holds:
+    * {{{
+    * val B = implicitly[Monoid[B]]
+    *
+    * stream.scanMap(f) <-> stream.scan(B.empty)(B.combine)
+    * }}}
+    *
+    * Example:
+    * {{{
+    * // Yields 2, 6, 12, 20, 30, 42
+    * Observable(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
+    * }}}
+    *
+    * @param f is the mapping function applied to every incoming element of this `Observable`
+    *          before folding using `Monoid[B].combine`
+    *
+    * @return a new `Observable` that emits all intermediate states being
+    *         resulted from applying `Monoid[B].combine` function
+    */
+  final def scanMap[B](f: A => B)(implicit B: Monoid[B]): Observable[B] =
+    self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
 
   /** Applies a binary operator to a start value and all elements of
     * this stream, going left to right and returns a new stream that
@@ -3101,7 +3130,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *         `n` elements from the source
     */
   final def take(n: Long): Observable[A] =
-    self.liftByOperator(new TakeLeftOperator(n))
+    if (n <= 0) Observable.empty else self.liftByOperator(new TakeLeftOperator(n))
 
   /** Applies a binary operator to a start value and all elements of
     * the source, going left to right and returns a new `Task` that
@@ -4440,6 +4469,23 @@ object Observable {
       fa.onErrorRecoverWith(pf)
     override def empty[A]: Observable[A] =
       Observable.empty[A]
+  }
+
+  /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
+  implicit val observableNonEmptyParallel: NonEmptyParallel[Observable, CombineObservable.Type] =
+    new NonEmptyParallel[Observable, CombineObservable.Type] {
+      import CombineObservable.unwrap
+      import CombineObservable.{apply => wrap}
+
+      override def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
+      override def apply: Apply[CombineObservable.Type] = CombineObservable.combineObservableApplicative
+
+      override val sequential = new (CombineObservable.Type ~> Observable) {
+        def apply[A](fa: CombineObservable.Type[A]): Observable[A] = unwrap(fa)
+      }
+      override val parallel = new (Observable ~> CombineObservable.Type) {
+        def apply[A](fa: Observable[A]): CombineObservable.Type[A] = wrap(fa)
+      }
   }
   
   // -- DEPRECATIONS
