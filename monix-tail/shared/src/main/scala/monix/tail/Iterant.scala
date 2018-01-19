@@ -2050,8 +2050,8 @@ object Iterant extends IterantInstances {
 
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
-    * `Iterant` that keeps generating `NextBatch` items produced by our generator function
-    * with default `recommendedBatchSize`.
+    * `Iterant` that keeps generating `NextBatch` items produced
+    * by our generator function with default `recommendedBatchSize`.
     *
     * Example: {{{
     *   val f = (x: Int) => (x + 1, x * 2)
