@@ -26,6 +26,15 @@ import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
 object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
+  // When coverage is enabled, the tests are really slow and
+  // have the potential to fail on Travis
+  val cancelIterations = {
+    if (System.getenv("SBT_COVERAGE") == "coverage")
+      100
+    else
+      10000
+  }
+
   test("scanTask should work for synchronous children") { implicit s =>
     val count = 10000L
     val expected = 3L * count * (count - 1) / 2
@@ -63,7 +72,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
       (isCancelled.future, ref)
     }
 
-    for (i <- 0 until 10000) {
+    for (i <- 0 until cancelIterations) {
       val (isCancelled, ref) = never()
       val c = Observable(1).scanTask(Task.now(0))((_, _) => ref).subscribe()
 
@@ -88,7 +97,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
         Cancelable(() => p.trySuccess(()))
       }
 
-    for (i <- 0 until 10000) {
+    for (i <- 0 until cancelIterations) {
       val p = Promise[Unit]()
       val c = Observable.range(0, Long.MaxValue)
         .uncancelable
