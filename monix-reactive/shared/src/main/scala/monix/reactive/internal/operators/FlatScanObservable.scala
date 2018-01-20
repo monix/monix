@@ -316,9 +316,9 @@ private[reactive] final class FlatScanObservable[A,R](
       private[this] var ack: Future[Ack] = Continue
 
       // Reusable reference to stop creating function references for each `onNext`
-      private[this] val onStopOrFailureRef: Option[Throwable] => Unit = {
-        case None => signalChildOnComplete(Stop, isStop = true)
-        case Some(ex) => signalChildOnComplete(Future.failed(ex), isStop = true)
+      private[this] val onStopOrFailureRef = (err: Option[Throwable]) => {
+        if (err.isDefined) out.scheduler.reportFailure(err.get)
+        signalChildOnComplete(Stop, isStop = true)
       }
 
       def onNext(elem: R) = {

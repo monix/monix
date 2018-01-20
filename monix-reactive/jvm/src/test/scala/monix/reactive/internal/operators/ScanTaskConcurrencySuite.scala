@@ -26,14 +26,15 @@ import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
 object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
+  val isTravis = System.getenv("CI") == "true"
+  val inCoverage = System.getenv("SBT_PROFILE") == "coverage"
   // Travis fixes, because high latency can fail tests
+  val cancelTimeout = {
+    if (isTravis || inCoverage) 10.minutes
+    else 30.seconds
+  }
   val cancelIterations = {
-    if (System.getenv("SBT_COVERAGE") == "coverage")
-      100
-    else if (System.getenv("CI") == "true")
-      1000
-    else
-      10000
+    if (isTravis || inCoverage) 1000 else 100000
   }
 
   test("scanTask should work for synchronous children") { implicit s =>
@@ -66,7 +67,9 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test("scanTask should be cancellable, test 1 (issue #468)") { implicit s =>
+  test(s"scanTask should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
+    if (isTravis) print(".")
+
     def never(): (Future[Unit], Task[Int]) = {
       val isCancelled = Promise[Unit]()
       val ref = Task.create[Int]((_, _) => Cancelable(() => isCancelled.success(())))
@@ -83,11 +86,11 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
       } else {
         c.cancel()
       }
-      Await.result(isCancelled, 30.seconds)
+      Await.result(isCancelled, cancelTimeout)
     }
   }
 
-  test("scanTask should be cancellable, test 2 (issue #468)") { implicit s =>
+  test(s"scanTask should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
     def one(p: Promise[Unit])(acc: Long, x: Long): Task[Long] =
       Task.create { (sc, cb) =>
         if (Random.nextInt() % 2 == 0) {
@@ -112,7 +115,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
       } else {
         c.cancel()
       }
-      Await.result(p.future, 30.seconds)
+      Await.result(p.future, cancelTimeout)
     }
   }
 }
