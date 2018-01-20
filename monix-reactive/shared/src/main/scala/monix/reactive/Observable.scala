@@ -3468,6 +3468,25 @@ abstract class Observable[+A] extends Serializable { self =>
   final def toListL: Task[List[A]] =
     foldLeftL(mutable.ListBuffer.empty[A])(_ += _).map(_.toList)
 
+  /** Makes the source `Observable` uninterruptible such that a `cancel`
+    * signal has no effect.
+    *
+    * {{{
+    *   val cancelable = Observable
+    *     .eval(println("Hello!"))
+    *     .delayExecution(10.seconds)
+    *     .subscribe()
+    *
+    *   // No longer works
+    *   cancelable.cancel()
+    *
+    *   // After 10 seconds
+    *   //=> Hello!
+    * }}}
+    */
+  final def uncancelable: Observable[A] =
+    new UncancelableObservable[A](self)
+
   /** Creates a new [[monix.eval.Task Task]] that will consume the
     * source observable, executing the given callback for each element.
     */

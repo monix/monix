@@ -17,9 +17,11 @@
 
 package monix.reactive.internal.operators
 
+import monix.execution.Cancelable
 import monix.reactive.{BaseConcurrencySuite, Observable}
-import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future, Promise}
+import scala.util.Random
 
 object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
   test("concatMap should work for synchronous children") { implicit s =>
@@ -49,6 +51,58 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)
+    }
+  }
+
+  test("concatMap should be cancellable, test 1 (issue #468)") { implicit s =>
+    def never(): (Future[Unit], Observable[Int]) = {
+      val isCancelled = Promise[Unit]()
+      val ref = Observable.unsafeCreate[Int] { _ =>
+        Cancelable(() => isCancelled.success(()))
+      }
+      (isCancelled.future, ref)
+    }
+
+    for (i <- 0 until 10000) {
+      val (isCancelled, ref) = never()
+      val c = Observable(1).flatMap(_ => ref).subscribe()
+
+      // Creating race condition
+      if (i % 2 == 0) {
+        s.execute(new Runnable { def run(): Unit = c.cancel() })
+      } else {
+        c.cancel()
+      }
+      Await.result(isCancelled, 20.seconds)
+    }
+  }
+
+  test("concatMap should be cancellable, test 2 (issue #468)") { implicit s =>
+    def one(p: Promise[Unit])(x: Long): Observable[Long] =
+      Observable.unsafeCreate { sub =>
+        if (Random.nextInt() % 2 == 0) {
+          sub.scheduler.executeAsync(() => { sub.onNext(x); sub.onComplete() })
+        } else {
+          sub.onNext(x); sub.onComplete()
+        }
+        Cancelable(() => p.trySuccess(()))
+      }
+
+    for (i <- 0 until 10000) {
+      val p = Promise[Unit]()
+      val c = Observable.range(0, Long.MaxValue)
+        .uncancelable
+        .doOnEarlyStop(() => p.trySuccess(()))
+        .flatMap(one(p))
+        .subscribe()
+
+      // Creating race condition
+      if (i % 2 == 0) {
+        s.execute(new Runnable { def run(): Unit = c.cancel() })
+      } else {
+        c.cancel()
+      }
+      Await.result(p.future, 20.seconds)
     }
   }
 }

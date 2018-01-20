@@ -1310,7 +1310,20 @@ sealed abstract class Task[+A] extends Serializable {
     FlatMap(this, StackFrame.fold(fa, fe))
 
   /** Makes the source `Task` uninterruptible such that a [[cancel]]
-    * signal has no effect until it finishes.
+    * signal has no effect.
+    *
+    * {{{
+    *   val cancelable = Task
+    *     .eval(println("Hello!"))
+    *     .delayExecution(10.seconds)
+    *     .runAsync
+    *
+    *   // No longer works
+    *   cancelable.cancel()
+    *
+    *   // After 10 seconds
+    *   //=> Hello!
+    * }}}
     */
   final def uncancelable: Task[A] =
     TaskCancellation.uncancelable(this)
