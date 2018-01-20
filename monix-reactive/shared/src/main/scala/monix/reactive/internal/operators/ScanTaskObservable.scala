@@ -26,18 +26,20 @@ import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
 /** Implementation for `Observable.scanTask`.
   *
-  * Implementation is based on [[ScanTaskObservable]].
+  * Implementation is based on [[MapTaskObservable]].
   *
   * Tricky concurrency handling within, here be dragons!
-  * See the description on [[ScanTaskObservable]] for details.
   */
-private[reactive] final class ScanTaskObservable[A, S]
-  (source: Observable[A], seed: Task[S], op: (S, A) => Task[S])
+private[reactive] final class ScanTaskObservable[A, S](
+  source: Observable[A],
+  seed: Task[S],
+  op: (S, A) => Task[S])
   extends Observable[S] {
 
   def unsafeSubscribeFn(out: Subscriber[S]): Cancelable = {
@@ -68,10 +70,15 @@ private[reactive] final class ScanTaskObservable[A, S]
     import MapTaskObservable.MapTaskState._
 
     implicit val scheduler = out.scheduler
+
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
-    private[this] val stateRef =
-      Atomic.withPadding(WaitOnNext : MapTaskState, LeftRight128)
+    private[this] val stateRef = Atomic.withPadding(WaitOnNext : MapTaskState, LeftRight128)
+
+    // Boolean for keeping the `isActive` state, needed because we could miss
+    // out on seeing a `Cancelled` state due to the `lazySet` instructions,
+    // making the visibility of the `Cancelled` state thread-unsafe!
+    private[this] val isActive = Atomic(true)
 
     // Current state, keeps getting updated by the task in `onNext`
     private[this] var currentS = initial
@@ -80,106 +87,65 @@ private[reactive] final class ScanTaskObservable[A, S]
       * we can afford a `compareAndSet`, not being a big deal since
       * cancellation only happens once.
       */
-    @tailrec def cancel(): Unit = {
+    def cancel(): Unit = {
+      // The cancellation is a two-phase process, because usage of the
+      // `Cancelled` state alone is thread-unsafe
+      if (isActive.getAndSet(false)) cancelState()
+    }
+
+    @tailrec private def cancelState(): Unit =
       stateRef.get match {
         case current @ Active(ref) =>
-          if (stateRef.compareAndSet(current, Cancelled))
+          if (stateRef.compareAndSet(current, Cancelled)) {
             ref.cancel()
-          // $COVERAGE-OFF$
-          else
-            cancel() // retry
-          // $COVERAGE-ON$
-        case current @ WaitComplete(_, ref) =>
-          if (ref != null) {
-            if (stateRef.compareAndSet(current, Cancelled))
-              ref.cancel()
+          } else {
             // $COVERAGE-OFF$
-            else
-              cancel() // retry
+            cancelState() // retry
             // $COVERAGE-ON$
           }
+        case current @ WaitComplete(_, ref) =>
+          if (ref != null) {
+            if (stateRef.compareAndSet(current, Cancelled)) {
+              ref.cancel()
+            } else {
+              // $COVERAGE-OFF$
+              cancelState() // retry
+              // $COVERAGE-ON$
+            }
+          }
         case current @ (WaitOnNext | WaitActiveTask) =>
-          if (!stateRef.compareAndSet(current, Cancelled))
+          if (!stateRef.compareAndSet(current, Cancelled)) {
             // $COVERAGE-OFF$
-            cancel() // retry
+            cancelState() // retry
             // $COVERAGE-ON$
+          }
         case Cancelled =>
+          // $COVERAGE-OFF$
           () // do nothing else
+          // $COVERAGE-ON$
       }
-    }
 
     def onNext(elem: A): Future[Ack] = {
       // For protecting against user code, without violating the
       // observer's contract, by marking the boundary after which
       // we can no longer stream errors downstream
       var streamErrors = true
-      try {
-        val task = op(currentS, elem).transformWith(
-          value => {
-            // Updating mutable shared state, no need for synchronization
-            // because `onNext` operations are ordered
-            currentS = value
 
-            // Shoot first, ask questions later :-)
-            val next = out.onNext(value)
-
-            // This assignment must happen after `onNext`, otherwise
-            // we can end with a race condition with `onComplete`
-            stateRef.getAndSet(WaitOnNext) match {
-              case WaitActiveTask | WaitOnNext | Active(_) =>
-                // Expected outcome
-                Task.fromFuture(next)
-
-              case Cancelled =>
-                Task.now(Stop)
-
-              case WaitComplete(exOpt, _) =>
-                // An `onComplete` or `onError` event happened since
-                // `onNext` was called, so we are now responsible for
-                // signaling it downstream.  Note that we've set
-                // `WaitOnNext` above, which would make one wonder if
-                // we couldn't have a problem with the logic in
-                // `onComplete` or `onError`, but if we are seeing
-                // this state, it means that these calls already
-                // happened, so we can't have a race condition.
-                exOpt match {
-                  case None => out.onComplete()
-                  case Some(ex) => out.onError(ex)
-                }
-                Task.now(Stop)
-            }
-          },
-          error => {
-            // The cancelable passed in WaitComplete here can be `null`
-            // because it would only replace the child's own cancelable
-            stateRef.getAndSet(WaitComplete(Some(error), null)) match {
-              case WaitActiveTask | WaitOnNext | Active(_) =>
-                Task.eval {
-                  out.onError(error)
-                  Stop
-                }
-
-              case WaitComplete(otherEx, _) =>
-                // If an exception also happened on main observable, log it!
-                otherEx.foreach(scheduler.reportFailure)
-                // Send our immediate error downstream and stop everything
-                out.onError(error)
-                Task.now(Stop)
-
-              case Cancelled =>
-                // User cancelled, but we have to log it somewhere
-                scheduler.reportFailure(error)
-                Task.now(Stop)
-            }
-          }
-        )
-
+      // WARN: Concurrent cancellation might have happened, due
+      // to the `Cancelled` state being thread-unsafe because of
+      // the logic using `lazySet` below; hence the extra check
+      if (!isActive.get) {
+        Stop
+      } else try {
+        val task = op(currentS, elem).transformWith(childOnSuccess, childOnError)
         // No longer allowed to stream errors downstream
         streamErrors = false
-        // Simple, ordered write - we cannot use WaitOnNext as the
-        // start of an iteration because we couldn't detect
-        // synchronous execution below
+
+        // Simple, ordered write - we cannot use WaitOnNext as the start of
+        // an iteration because we couldn't detect synchronous execution below.
+        // WARN: this can override the `Cancelled` status!
         stateRef.lazySet(WaitActiveTask)
+
         // Start execution
         val ack = task.runAsync
 
@@ -192,34 +158,47 @@ private[reactive] final class ScanTaskObservable[A, S]
         stateRef.getAndSet(Active(ack)) match {
           case WaitOnNext =>
             // Task execution was synchronous, w00t, so redo state!
+            //
+            // NOTE: we don't need to worry about cancellation here, b/c we
+            // have no child active and the cancellation of the parent stream
+            // is not our concern
             stateRef.lazySet(WaitOnNext)
             ack.syncTryFlatten
 
           case WaitActiveTask =>
-            // Expected outcome for asynchronous tasks
-            ack
+            // Expected outcome for async observables ...
+            //
+            // Concurrent cancellation might have happened, the `Cancelled` state
+            // being thread-unsafe, hence this check;
+            //
+            // WARN: the assumption is that if the `Cancelled` state was set
+            // right before `lazySet(WaitActiveTask)`, then we would see
+            // `isActive == false` here b/c it was updated before `stateRef` (JMM);
+            // And if `stateRef = Cancelled` happened afterwards, then we should
+            // see it in the outer match statement
+            if (isActive.get) {
+              ack
+            } else {
+              cancelState()
+              Stop
+            }
 
           case WaitComplete(_,_) =>
             // Branch that can happen in case the child has finished
             // already in error, so stop further onNext events.
+            stateRef.lazySet(Cancelled) // GC purposes
             Stop
 
           case Cancelled =>
-            // Race condition, oops, now cancel the active task
-            ack.cancel()
-            // Now restore the state and pretend that this didn't
-            // happen :-) Note that this is probably going to call
-            // `ack.cancel()` a second time, but that's OK
-            self.cancel()
+            // Race condition, oops, revert
+            cancelState()
             Stop
 
           case state @ Active(_) =>
-            // $COVERAGE-OFF$
             // This should never, ever happen!
             // Something is screwed up in our state machine :-(
             reportInvalidState(state, "onNext")
             Stop
-            // $COVERAGE-ON$
         }
       } catch {
         case ex if NonFatal(ex) =>
@@ -227,11 +206,71 @@ private[reactive] final class ScanTaskObservable[A, S]
             onError(ex)
             Stop
           } else {
-            // $COVERAGE-OFF$
             scheduler.reportFailure(ex)
             Stop
-            // $COVERAGE-ON$
           }
+      }
+    }
+
+    // Reusable function reference, to prevent creating a new instance
+    // on each `onNext` / `transformWith` call below
+    private[this] val childOnSuccess = (value: S) => {
+      // Updating mutable shared state, no need for synchronization
+      // because `onNext` operations are ordered
+      currentS = value
+      // Shoot first, ask questions later :-)
+      val next = out.onNext(value)
+
+      // This assignment must happen after `onNext`, otherwise
+      // we can end with a race condition with `onComplete`
+      stateRef.getAndSet(WaitOnNext) match {
+        case WaitActiveTask | WaitOnNext | Active(_) =>
+          // Expected outcome
+          Task.fromFuture(next)
+
+        case Cancelled =>
+          Task.now(Stop)
+
+        case WaitComplete(exOpt, _) =>
+          // An `onComplete` or `onError` event happened since
+          // `onNext` was called, so we are now responsible for
+          // signaling it downstream.  Note that we've set
+          // `WaitOnNext` above, which would make one wonder if
+          // we couldn't have a problem with the logic in
+          // `onComplete` or `onError`, but if we are seeing
+          // this state, it means that these calls already
+          // happened, so we can't have a race condition.
+          exOpt match {
+            case None => out.onComplete()
+            case Some(ex) => out.onError(ex)
+          }
+          Task.now(Stop)
+      }
+    }
+
+    // Reusable function reference, to prevent creating a new instance
+    // on each `onNext` / `transformWith` call below
+    private[this] val childOnError = (error: Throwable) => {
+      // The cancelable passed in WaitComplete here can be `null`
+      // because it would only replace the child's own cancelable
+      stateRef.getAndSet(WaitComplete(Some(error), null)) match {
+        case WaitActiveTask | WaitOnNext | Active(_) =>
+          Task.eval {
+            out.onError(error)
+            Stop
+          }
+
+        case WaitComplete(otherEx, _) =>
+          // If an exception also happened on main observable, log it!
+          otherEx.foreach(scheduler.reportFailure)
+          // Send our immediate error downstream and stop everything
+          out.onError(error)
+          Task.now(Stop)
+
+        case Cancelled =>
+          // User cancelled, but we have to log it somewhere
+          scheduler.reportFailure(error)
+          Task.now(Stop)
       }
     }
 
@@ -264,18 +303,32 @@ private[reactive] final class ScanTaskObservable[A, S]
           // GC purposes: we no longer need the cancelable reference!
           stateRef.lazySet(Cancelled)
 
-        case previous @ (WaitComplete(_,_) | Cancelled) =>
-          // GC purposes: we no longer need the cancelable reference!
-          stateRef.lazySet(previous)
+        case WaitComplete(_,_) =>
+          // This branch happens if the child has triggered the completion
+          // event already, thus there's nothing for us left to do.
+          // GC purposes: we no longer need `childRef`.
+          stateRef.lazySet(Cancelled)
+
+        case Cancelled =>
+          // Oops, concurrent cancellation happened
+          cancelState()
+          // GC purposes: we no longer need `childRef`
+          stateRef.lazySet(Cancelled)
 
         case Active(_) =>
-          // Child still active, so we are not supposed to do anything here
-          // since it's now the responsibility of the child to finish!
-          ()
+          // On this branch we've got an active child that needs to finish.
+          //
+          // WARN: Concurrent cancellation might have happened and because the
+          // `Cancelled` state is thread unsafe, we need a second check.
+          // Assumption is that `isActive = false` would be visible in case of
+          // a race condition!
+          if (!isActive.get) cancelState()
 
         case WaitActiveTask =>
           // Something is screwed up in our state machine :-(
+          // $COVERAGE-OFF$
           reportInvalidState(WaitActiveTask, "signalFinish")
+        // $COVERAGE-ON$
       }
     }
 
@@ -284,15 +337,16 @@ private[reactive] final class ScanTaskObservable[A, S]
     def onError(ex: Throwable): Unit =
       signalFinish(Some(ex))
 
-    // $COVERAGE-OFF$
     private def reportInvalidState(state: MapTaskState, method: String): Unit = {
+      // $COVERAGE-OFF$
+      cancelState()
       scheduler.reportFailure(
         new IllegalStateException(
-          s"State $state in the Monix ScanAsync.$method implementation is invalid, " +
-          "due to either a broken Subscriber implementation, or a bug, " +
-          "please open an issue, see: https://monix.io"
+          s"State $state in the Monix MapTask.$method implementation is invalid, " +
+            "due to either a broken Subscriber implementation, or a bug, " +
+            "please open an issue, see: https://monix.io"
         ))
+      // $COVERAGE-ON$
     }
-    // $COVERAGE-ON$
   }
 }

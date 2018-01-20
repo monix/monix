@@ -17,39 +17,22 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack
-import monix.execution.Ack.Continue
+import monix.execution.Cancelable
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
-import monix.reactive.observables.ChainedObservable.{subscribe => chain}
 import monix.reactive.observers.Subscriber
 
-import scala.concurrent.Future
-
-/** Implementation for observable concatenation `++`. */
-private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: Observable[A])
+/** Implementation for `Observable.uncancelable`. */
+private[reactive] final class UncancelableObservable[A](source: Observable[A])
   extends ChainedObservable[A] {
 
-  def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
-    chain(lh, conn, new Subscriber[A] {
-      private[this] var ack: Future[Ack] = Continue
-      implicit val scheduler = out.scheduler
+  override def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
+    ChainedObservable.subscribe(source, AssignableCancelable.dummy, out)
+  }
 
-      def onNext(elem: A): Future[Ack] = {
-        ack = out.onNext(elem)
-        ack
-      }
-
-      def onError(ex: Throwable): Unit =
-        out.onError(ex)
-
-      def onComplete(): Unit = {
-        // This can create a stack issue, but `chainedSubscribe`
-        // creates light async boundaries, so should be safe
-        ack.syncOnContinue(chain(rh, conn, out))
-      }
-    })
+  override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
+    out.scheduler.executeTrampolined(() => source.unsafeSubscribeFn(out))
+    Cancelable.empty
   }
 }
-

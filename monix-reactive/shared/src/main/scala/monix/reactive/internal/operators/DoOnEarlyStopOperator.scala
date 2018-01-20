@@ -31,12 +31,15 @@ private[reactive] final class DoOnEarlyStopOperator[A](cb: () => Unit)
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
-      @inline
-      private def execute(): Unit =
-        try cb() catch { case ex if NonFatal(ex) => scheduler.reportFailure(ex) }
+      private[this] val onStopRef =
+        (_: Option[Throwable]) => {
+          try cb() catch { case ex if NonFatal(ex) =>
+            scheduler.reportFailure(ex)
+          }
+        }
 
       def onNext(elem: A): Future[Ack] =
-        out.onNext(elem).syncOnStopOrFailure(_ => execute())
+        out.onNext(elem).syncOnStopOrFailure(onStopRef)
       def onError(ex: Throwable): Unit =
         out.onError(ex)
       def onComplete(): Unit =
