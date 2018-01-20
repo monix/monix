@@ -83,7 +83,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
       } else {
         c.cancel()
       }
-      Await.result(isCancelled, 20.seconds)
+      Await.result(isCancelled, 30.seconds)
     }
   }
 
@@ -112,7 +112,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
       } else {
         c.cancel()
       }
-      Await.result(p.future, 20.seconds)
+      Await.result(p.future, 30.seconds)
     }
   }
 }

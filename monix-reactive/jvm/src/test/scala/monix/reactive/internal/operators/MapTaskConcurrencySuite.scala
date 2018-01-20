@@ -28,10 +28,8 @@ import scala.util.Random
 object MapTaskConcurrencySuite extends BaseConcurrencySuite {
   // Travis fixes, because high latency can fail tests
   val cancelIterations = {
-    if (System.getenv("SBT_COVERAGE") == "coverage")
+    if (System.getenv("SBT_COVERAGE") == "coverage" || System.getenv("CI") == "true")
       100
-    else if (System.getenv("CI") == "true")
-      1000
     else
       10000
   }
@@ -83,7 +81,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
       } else {
         c.cancel()
       }
-      Await.result(isCancelled, 20.seconds)
+      Await.result(isCancelled, 30.seconds)
     }
   }
 
@@ -112,7 +110,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
       } else {
         c.cancel()
       }
-      Await.result(p.future, 20.seconds)
+      Await.result(p.future, 30.seconds)
     }
   }
 }
