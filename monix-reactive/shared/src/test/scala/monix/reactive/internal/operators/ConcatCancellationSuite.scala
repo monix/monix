@@ -62,4 +62,16 @@ object ConcatCancellationSuite extends BaseTestSuite {
     sc.tick()
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
   }
+
+  test("issue #468 - scanTask is cancellable") { implicit sc =>
+    val o = Observable.eval(1).executeAsync.scanTask(Task.now(0)) { (acc, x) =>
+      Task.now(acc + x).delayExecution(1.second)
+    }
+
+    val c = o.subscribe()
+    c.cancel()
+
+    sc.tick()
+    assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
+  }
 }

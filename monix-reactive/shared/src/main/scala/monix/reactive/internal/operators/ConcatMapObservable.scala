@@ -89,6 +89,11 @@ private[reactive] final class ConcatMapObservable[A, B]
       if (delayErrors) Atomic(List.empty[Throwable])
       else null
 
+    // Boolean for keeping the `isActive` state, needed because we could miss
+    // out on seeing a `Cancelled` state due to the `lazySet` instructions,
+    // making the visibility of the `Cancelled` state thread-unsafe!
+    private[this] val isActive = Atomic(true)
+
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
     private[this] val stateRef =
@@ -98,33 +103,30 @@ private[reactive] final class ConcatMapObservable[A, B]
       * we can afford a `compareAndSet`, not being a big deal since
       * cancellation only happens once.
       */
-    @tailrec def cancel(): Unit = stateRef.get match {
-      case current @ Active(ref) =>
-        if (stateRef.compareAndSet(current, Cancelled))
-          ref.cancel()
-        else
-          cancel() // retry
-      case current @ WaitComplete(_, ref) =>
-        if (ref != null) {
+    def cancel(): Unit = {
+      // The cancellation is a two-phase process
+      if (isActive.getAndSet(false)) cancelState()
+    }
+
+    @tailrec private def cancelState(): Unit = {
+      stateRef.get match {
+        case current @ Active(ref) =>
           if (stateRef.compareAndSet(current, Cancelled))
             ref.cancel()
           else
-            cancel() // retry
-        }
-      case current @ (WaitOnNextChild(_) | WaitOnActiveChild) =>
-        if (!stateRef.compareAndSet(current, Cancelled))
-          cancel() // retry
-      case Cancelled =>
-        () // do nothing else
-    }
-
-    private def setStateIfNotCancelled(update: FlatMapState): Boolean = {
-      if (stateRef.getAndSet(update) eq Cancelled) {
-        // Oops, we need to cancel!
-        self.cancel()
-        false
-      } else {
-        true
+            cancelState() // retry
+        case current @ WaitComplete(_, ref) =>
+          if (ref != null) {
+            if (stateRef.compareAndSet(current, Cancelled))
+              ref.cancel()
+            else
+              cancelState() // retry
+          }
+        case current @ (WaitOnNextChild(_) | WaitOnActiveChild) =>
+          if (!stateRef.compareAndSet(current, Cancelled))
+            cancelState() // retry
+        case Cancelled =>
+          () // do nothing else
       }
     }
 
@@ -133,63 +135,79 @@ private[reactive] final class ConcatMapObservable[A, B]
       // observer's contract, by marking the boundary after which
       // we can no longer stream errors downstream
       var streamErrors = true
-      try {
+
+      // WARN: Concurrent cancellation might have happened, due
+      // to the `Cancelled` state being thread-unsafe because of
+      // the logic using `lazySet` below; hence the extra check
+      if (!isActive.get) {
+        Stop
+      } else try {
         val asyncUpstreamAck = Promise[Ack]()
         val child = f(elem)
         // No longer allowed to stream errors downstream
         streamErrors = false
 
-        // Simple, ordered write - we cannot use WaitOnNext as the
-        // start of an iteration because we cannot detect
-        // synchronous execution below
-        if (!setStateIfNotCancelled(WaitOnActiveChild)) Stop else {
-          // Shoot first, ask questions later :-)
-          val cancellable = child.unsafeSubscribeFn(new ChildSubscriber(out, asyncUpstreamAck))
+        // Simple, ordered write - we cannot use WaitOnNext as the start of an
+        // iteration because we cannot detect synchronous execution below;
+        // WARN: this can override the `Cancelled` status!
+        stateRef.lazySet(WaitOnActiveChild)
 
-          // Execution already started at this point This `getAndSet` is
-          // concurrent with the task being finished (the `getAndSet` in
-          // the Task.flatMap above), but not with the `getAndSet`
-          // happening in `onComplete` and `onError`, therefore a
-          // `WaitComplete` state is invalid here. The state we do
-          // expect most of the time is either `WaitOnNext` or
-          // `WaitActiveTask`.
-          stateRef.getAndSet(Active(cancellable)) match {
-            case previous @ WaitOnNextChild(ack) =>
-              // Task execution was synchronous, w00t, so redo state!
-              if (setStateIfNotCancelled(previous)) {
-                ack.syncTryFlatten
-              } else {
-                Stop
-              }
+        // Shoot first, ask questions later :-)
+        val cancellable = child.unsafeSubscribeFn(new ChildSubscriber(out, asyncUpstreamAck))
 
-            case WaitOnActiveChild =>
-              // Expected outcome for async observables
+        // Execution already started at this point This `getAndSet` is
+        // concurrent with the task being finished (the `getAndSet` in
+        // the Task.flatMap above), but not with the `getAndSet`
+        // happening in `onComplete` and `onError`, therefore a
+        // `WaitComplete` state is invalid here. The state we do
+        // expect most of the time is either `WaitOnNext` or
+        // `WaitActiveTask`.
+        stateRef.getAndSet(Active(cancellable)) match {
+          case previous @ WaitOnNextChild(ack) =>
+            // Task execution was synchronous, w00t, so redo state!
+            //
+            // NOTE: we don't need to worry about cancellation here, b/c we
+            // have no child active and the cancellation of the parent stream
+            // is not our concern
+            stateRef.lazySet(previous)
+            ack.syncTryFlatten
+
+          case WaitOnActiveChild =>
+            // Expected outcome for async observables ...
+            //
+            // Concurrent cancellation might have happened, the `Cancelled` state
+            // being thread-unsafe, hence this check;
+            //
+            // WARN: the assumption is that if the `Cancelled` state was set
+            // right before `lazySet(WaitOnActiveChild)`, then we would see
+            // `isActive == false` here b/c it was updated before `stateRef` (JMM);
+            // And if `stateRef = Cancelled` happened afterwards, then we should
+            // see it in the outer match statement
+            if (isActive.get) {
               asyncUpstreamAck.future.syncTryFlatten
-
-            case WaitComplete(_, _) =>
-              // Branch that can happen in case the child has finished
-              // already in error, so stop further onNext events.
-              stateRef.lazySet(Cancelled) // GC purposes
+            } else {
+              cancelState()
               Stop
+            }
 
-            case Cancelled =>
-              // Race condition, oops, now cancel the active task
-              cancellable.cancel()
-              // Now restore the state and pretend that this didn't
-              // happen :-) Note that this is probably going to call
-              // `ack.cancel()` a second time, but that's OK
-              self.cancel()
-              Stop
+          case WaitComplete(_, _) =>
+            // Branch that can happen in case the child has finished
+            // already in error, so stop further onNext events.
+            stateRef.lazySet(Cancelled) // GC purposes
+            Stop
 
-            case state @ Active(_) =>
-              // This should never, ever happen!
-              // Something is screwed up in our state machine :-(
-              // $COVERAGE-OFF$
-              reportInvalidState(state, "onNext")
-              cancellable.cancel()
-              Stop
-              // $COVERAGE-ON$
-          }
+          case Cancelled =>
+            // Race condition, oops, now cancel the active task
+            cancelState()
+            Stop
+
+          case state @ Active(_) =>
+            // This should never, ever happen!
+            // Something is screwed up in our state machine :-(
+            // $COVERAGE-OFF$
+            reportInvalidState(state, "onNext")
+            Stop
+            // $COVERAGE-ON$
         }
       } catch { case ex if NonFatal(ex) =>
         if (streamErrors) {
@@ -230,17 +248,25 @@ private[reactive] final class ConcatMapObservable[A, B]
           stateRef.lazySet(Cancelled)
 
         case Active(_) =>
-          // Child still active, so we are not supposed to do anything here
-          // since it's now the responsibility of the child to finish!
-          ()
+          // On this branch we've got an active child that needs to finish.
+          //
+          // WARN: Concurrent cancellation might have happened and because the
+          // `Cancelled` state is thread unsafe, we need a second check.
+          // Assumption is that `isActive = false` would be visible in case of
+          // a race condition!
+          if (!isActive.get) cancelState()
 
-        case previous @ WaitComplete(_,_) =>
-          // GC purposes: we no longer need the cancelable reference!
-          stateRef.lazySet(previous)
+        case WaitComplete(_,_) =>
+          // This branch happens if the child has triggered the completion
+          // event already, thus there's nothing for us left to do.
+          // GC purposes: we no longer need `childRef`.
+          stateRef.lazySet(Cancelled)
 
         case Cancelled =>
-          // Better safe than sorry, restore previous state!
-          self.cancel()
+          // Oops, cancellation happened, cancel!
+          cancelState()
+          // GC purposes: we no longer need `childRef`.
+          stateRef.lazySet(Cancelled)
 
         case WaitOnActiveChild =>
           // Something is screwed up in our state machine :-(
@@ -269,6 +295,7 @@ private[reactive] final class ConcatMapObservable[A, B]
 
     private def reportInvalidState(state: FlatMapState, method: String): Unit = {
       // $COVERAGE-OFF$
+      cancelState()
       scheduler.reportFailure(
         new IllegalStateException(
           s"State $state in the Monix ConcatMap.$method implementation is invalid, " +
@@ -384,9 +411,9 @@ private[reactive] object ConcatMapObservable {
     * implementation, modeling its state machine for managing
     * the active task.
     */
-  private sealed abstract class FlatMapState
+  private[internal] sealed abstract class FlatMapState
 
-  private object FlatMapState {
+  private[internal] object FlatMapState {
     /** The initial state of our internal atomic in [[MapTaskObservable]].
       *
       * This state is being set in `onNext` and when it is observed it

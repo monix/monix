@@ -37,7 +37,7 @@ object FlatScanSuite extends BaseOperatorSuite {
       val o = Observable.range(0, sourceCount).endWithError(ex)
         .flatScan(1L)((acc, elem) => Observable.fromIterable(Seq(1L,1L,1L)))
 
-      Sample(o, sourceCount * 3 - 2, sourceCount * 3 - 2, Zero, Zero)
+      Sample(o, sourceCount * 3, sourceCount * 3, Zero, Zero)
     }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
