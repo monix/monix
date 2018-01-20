@@ -26,16 +26,8 @@ import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
 object MapTaskConcurrencySuite extends BaseConcurrencySuite {
-  val isTravis = System.getenv("CI") == "true"
-  val inCoverage = System.getenv("SBT_PROFILE") == "coverage"
-  // Travis fixes, because high latency can fail tests
-  val cancelTimeout = {
-    if (isTravis || inCoverage) 10.minutes
-    else 30.seconds
-  }
-  val cancelIterations = {
-    if (isTravis || inCoverage) 1000 else 100000
-  }
+  val cancelTimeout = 3.minutes
+  val cancelIterations = 100
 
   test("mapTask should work for synchronous children") { implicit s =>
     val count = 10000L

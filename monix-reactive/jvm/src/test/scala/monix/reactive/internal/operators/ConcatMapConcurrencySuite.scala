@@ -24,21 +24,8 @@ import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
 object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
-  val isTravis = System.getenv("CI") == "true"
-  val inCoverage = System.getenv("SBT_PROFILE") == "coverage"
-  // Travis fixes, because high latency can fail tests
-  val cancelTimeout = {
-    if (isTravis || inCoverage) 10.minutes
-    else 30.seconds
-  }
-  val cancelIterations = {
-    if (isTravis || inCoverage) 1000 else 100000
-  }
-
-  def printProgress(): Unit = {
-    System.out.print(".")
-    System.out.flush()
-  }
+  val cancelTimeout = 3.minutes
+  val cancelIterations = 100
 
   test("concatMap should work for synchronous children") { implicit s =>
     val count = 10000L
@@ -92,7 +79,6 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
       Await.result(isCancelled, cancelTimeout)
     }
   }
-
 
   test(s"concatMap should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
     def one(p: Promise[Unit])(x: Long): Observable[Long] =
