@@ -17,10 +17,11 @@
 
 package monix.reactive.internal.operators
 
-import minitest.api.Result.Success
+import monix.execution.internal.Platform
 import monix.reactive.{BaseTestSuite, Observable}
 
 import concurrent.duration._
+import scala.util.Success
 
 object UncancelableSuite extends BaseTestSuite {
   test("uncancelable works") { implicit ec =>
@@ -39,6 +40,24 @@ object UncancelableSuite extends BaseTestSuite {
 
     ec.tick(1.second)
     assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
+    assertEquals(f.value, Some(Success(Some(1))))
+  }
+
+  test("uncancelable works for suspend loop") { implicit ec =>
+    def loop(n: Int): Observable[Int] =
+      Observable.suspend {
+        if (n > 0)
+          loop(n - 1).executeAsync.uncancelable
+        else
+          Observable.now(1)
+      }
+
+    val n = if (Platform.isJVM) 10000 else 1000
+    val f = loop(n).runAsyncGetFirst
+
+    f.cancel()
+    ec.tick()
+
     assertEquals(f.value, Some(Success(Some(1))))
   }
 }

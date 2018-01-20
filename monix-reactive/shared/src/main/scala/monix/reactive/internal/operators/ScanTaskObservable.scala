@@ -96,22 +96,33 @@ private[reactive] final class ScanTaskObservable[A, S](
     @tailrec private def cancelState(): Unit =
       stateRef.get match {
         case current @ Active(ref) =>
-          if (stateRef.compareAndSet(current, Cancelled))
+          if (stateRef.compareAndSet(current, Cancelled)) {
             ref.cancel()
-          else
+          } else {
+            // $COVERAGE-OFF$
             cancelState() // retry
+            // $COVERAGE-ON$
+          }
         case current @ WaitComplete(_, ref) =>
           if (ref != null) {
-            if (stateRef.compareAndSet(current, Cancelled))
+            if (stateRef.compareAndSet(current, Cancelled)) {
               ref.cancel()
-            else
+            } else {
+              // $COVERAGE-OFF$
               cancelState() // retry
+              // $COVERAGE-ON$
+            }
           }
         case current @ (WaitOnNext | WaitActiveTask) =>
-          if (!stateRef.compareAndSet(current, Cancelled))
+          if (!stateRef.compareAndSet(current, Cancelled)) {
+            // $COVERAGE-OFF$
             cancelState() // retry
+            // $COVERAGE-ON$
+          }
         case Cancelled =>
+          // $COVERAGE-OFF$
           () // do nothing else
+          // $COVERAGE-ON$
       }
 
     def onNext(elem: A): Future[Ack] = {

@@ -18,12 +18,18 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Cancelable
+import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.Observable
+import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
 
 /** Implementation for `Observable.uncancelable`. */
 private[reactive] final class UncancelableObservable[A](source: Observable[A])
-  extends Observable [A] {
+  extends ChainedObservable[A] {
+
+  override def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
+    ChainedObservable.subscribe(source, AssignableCancelable.dummy, out)
+  }
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     out.scheduler.executeTrampolined(() => source.unsafeSubscribeFn(out))

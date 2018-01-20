@@ -104,22 +104,33 @@ private[reactive] final class FlatScanObservable[A,R](
     @tailrec private def cancelState(): Unit = {
       stateRef.get match {
         case current @ Active(ref) =>
-          if (stateRef.compareAndSet(current, Cancelled))
+          if (stateRef.compareAndSet(current, Cancelled)) {
             ref.cancel()
-          else
+          } else {
+            // $COVERAGE-OFF$
             cancelState() // retry
+            // $COVERAGE-ON$
+          }
         case current @ WaitComplete(_, ref) =>
           if (ref != null) {
-            if (stateRef.compareAndSet(current, Cancelled))
+            if (stateRef.compareAndSet(current, Cancelled)) {
               ref.cancel()
-            else
+            } else {
+              // $COVERAGE-OFF$
               cancelState() // retry
+              // $COVERAGE-ON$
+            }
           }
         case current @ (WaitOnNextChild(_) | WaitOnActiveChild) =>
-          if (!stateRef.compareAndSet(current, Cancelled))
+          if (!stateRef.compareAndSet(current, Cancelled)) {
+            // $COVERAGE-OFF$
             cancelState() // retry
+            // $COVERAGE-ON$
+          }
         case Cancelled =>
+          // $COVERAGE-OFF$
           () // do nothing else
+          // $COVERAGE-ON$
       }
     }
 
