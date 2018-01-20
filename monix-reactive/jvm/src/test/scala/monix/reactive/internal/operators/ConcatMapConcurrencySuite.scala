@@ -24,11 +24,12 @@ import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
 object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
-  // When coverage is enabled, the tests are really slow and
-  // have the potential to fail on Travis
+  // Travis fixes, because high latency can fail tests
   val cancelIterations = {
     if (System.getenv("SBT_COVERAGE") == "coverage")
       100
+    else if (System.getenv("CI") == "true")
+      1000
     else
       10000
   }
