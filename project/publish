@@ -20,13 +20,18 @@ unless ENV['PUBLISH'] == 'true'
   exit
 end
 
-branch = ENV["TRAVIS_TAG"] || ENV['TRAVIS_BRANCH']
 version = nil
+branch = if ENV["TRAVIS_TAG"] && !ENV["TRAVIS_TAG"].empty?
+  ENV["TRAVIS_TAG"] 
+else
+  ENV['TRAVIS_BRANCH']
+end
 
+puts "Detected branch or tag: " + branch
 unless branch =~ /^v(\d+\.\d+\.\d+(?:[-.]\w+)?)$/ ||
   (branch == "snapshot" && ENV['TRAVIS_PULL_REQUEST'] == 'false')
 
-  puts "Only deploying docs on the `publish` branch, or for version tags " +
+  puts "Only publishing on the `publish` branch, or for version tags " +
        "and not for pull requests or other branches, exiting!"
   exit 0
 else
@@ -41,4 +46,4 @@ exec("openssl aes-256-cbc -K #{ENV['encrypted_4413938994d3_key']} -iv #{ENV['enc
 exec("openssl aes-256-cbc -K #{ENV['encrypted_4257a4a5aee2_key']} -iv #{ENV['encrypted_4257a4a5aee2_iv']} -in project/.gnupg/secring.gpg.enc -out project/.gnupg/secring.gpg -d")
 
 # Go, go, go
-exec("sbt release")
+exec("sbt -J-Xmx6144m release")
