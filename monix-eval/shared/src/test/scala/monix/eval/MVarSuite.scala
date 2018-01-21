@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ package monix.eval
 
 import monix.execution.CancelableFuture
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.internal.Platform
 
 import scala.util.Success
 
@@ -40,8 +41,8 @@ object MVarSuite extends BaseTestSuite {
     val av = MVar.empty[Int]
 
     val task = for {
-      r1 <- Task.mapBoth(av.take, av.put(10))((r,u) => r)
-      r2 <- Task.mapBoth(av.take, av.put(20))((r,u) => r)
+      r1 <- Task.mapBoth(av.take, av.put(10))((r, _) => r)
+      r2 <- Task.mapBoth(av.take, av.put(20))((r, _) => r)
     } yield List(r1,r2)
 
     assertEquals(task.runSyncMaybe, Right(List(10,20)))
@@ -196,5 +197,75 @@ object MVarSuite extends BaseTestSuite {
     s.tick()
     assertEquals(pf.value, Some(Success(())))
     assertEquals(cf.value, Some(Success(count.toLong * (count - 1) / 2)))
+  }
+
+  test("take/put test is stack safe") { implicit s =>
+    val ch = MVar.empty[Int]
+
+    def loop(n: Int, acc: Int): Task[Int] =
+      if (n <= 0) Task.now(acc) else
+        ch.take.flatMap { x =>
+          ch.put(1).flatMap(_ => loop(n - 1, acc + x))
+        }
+
+    val count = if (Platform.isJVM) 100000 else 5000
+    val f = loop(count, 0).runAsync
+    s.tick()
+    assertEquals(f.value, None)
+
+    ch.put(1).runAsync
+    s.tick()
+    assertEquals(f.value, Some(Success(count)))
+  }
+
+  def testStackParallel(): (Int, Task[Int], Task[Unit]) = {
+    val channel = MVar.empty[Int]
+    val count = if (Platform.isJVM) 100000 else 5000
+
+    val parallelRead = (0 until count).foldLeft(Task.now(0)) { (acc, _) =>
+      Task.mapBoth(acc, channel.take)((x, _) => x + 1)
+    }
+    val parallelWrite = (0 until count).foldLeft(Task.unit) { (acc, _) =>
+      Task.mapBoth(acc, channel.put(1))((_, _) => ())
+    }
+
+    (count, parallelRead, parallelWrite)
+  }
+
+  test("put/take are stack safe when repeated in parallel") { implicit s =>
+    val (count, reads, writes) = testStackParallel()
+    val f = Task.mapBoth(writes.executeWithFork, reads.executeWithFork)((_, r) => r).runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Success(count)))
+  }
+
+  def testStackSequential(): (Int, Task[Int], Task[Unit]) = {
+    val channel = MVar.empty[Int]
+    val count = if (Platform.isJVM) 100000 else 5000
+
+    def readLoop(n: Int, acc: Int): Task[Int] = {
+      if (n > 0)
+        channel.take.flatMap(_ => readLoop(n - 1, acc + 1))
+      else
+        Task.pure(acc)
+    }
+
+    def writeLoop(n: Int): Task[Unit] = {
+      if (n > 0)
+        channel.put(1).flatMap(_ => writeLoop(n - 1))
+      else
+        Task.pure(())
+    }
+
+    (count, readLoop(count, 0), writeLoop(count))
+  }
+
+  test("put/take are stack safe when repeated sequentially") { implicit s =>
+    val (count, reads, writes) = testStackSequential()
+    val f = Task.mapBoth(writes.executeWithFork, reads.executeWithFork)((_, r) => r).runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Success(count)))
   }
 }
