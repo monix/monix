@@ -507,6 +507,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
     IterantStop.doOnFinish(this, f)(F)
 
+  // @TODO determine the destiny of this method
+  private[tail] final def doOnFullConsumption(f: Option[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
+    IterantStop.doOnFullConsumption(this, f)(F)
+
   /** Drops the first `n` elements (from the start).
     *
     * Example: {{{
@@ -1874,6 +1878,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         the stream when evaluated
   */
 object Iterant extends IterantInstances {
+  // @TODO move somewhere else?
+  sealed trait BracketResult
+  case object Completed extends BracketResult
+  case object EarlyStop extends BracketResult
+  case class Error(e: Throwable) extends BracketResult
+
   /** Returns an [[IterantBuilders]] instance for the specified `F`
     * monadic type that can be used to build [[Iterant]] instances.
     *
@@ -1887,6 +1897,25 @@ object Iterant extends IterantInstances {
   /** Alias for [[now]]. */
   def pure[F[_], A](a: A): Iterant[F, A] =
     now[F, A](a)
+
+  def bracket[F[_], A, B](acquire: F[A])(
+    use: A => Iterant[F, B],
+    release: (A, BracketResult) => F[Unit]
+  )(
+    implicit F: Sync[F]
+  ): Iterant[F, B] = {
+    Iterant.liftF(acquire).flatMap { a =>
+      Iterant.suspend(F.map(F.attempt(F.delay(use(a))))(_.fold(
+        ex => Iterant.raiseError[F, B](ex),
+        iterant => iterant
+      )))
+        .doOnEarlyStop(F.suspend(release(a, EarlyStop)))
+        .doOnFullConsumption {
+          case None => F.suspend(release(a, Completed))
+          case Some(ex) => F.suspend(release(a, Error(ex)))
+        }
+    }
+  }
 
   /** Lifts a strict value into the stream context, returning a
     * stream of one element.
