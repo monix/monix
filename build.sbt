@@ -46,8 +46,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.11.11",
-  crossScalaVersions := Seq("2.10.6", "2.11.11", " 2.12.4"),
+  scalaVersion := "2.12.4",
+  crossScalaVersions := Seq("2.10.7", "2.11.12", " 2.12.4"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -180,6 +180,22 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
+  headerLicense := Some(HeaderLicense.Custom(
+    """|Copyright (c) 2014-2018 by The Monix Project Developers.
+       |See the project homepage at: https://monix.io
+       |
+       |Licensed under the Apache License, Version 2.0 (the "License");
+       |you may not use this file except in compliance with the License.
+       |You may obtain a copy of the License at
+       |
+       |    http://www.apache.org/licenses/LICENSE-2.0
+       |
+       |Unless required by applicable law or agreed to in writing, software
+       |distributed under the License is distributed on an "AS IS" BASIS,
+       |WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+       |See the License for the specific language governing permissions and
+       |limitations under the License."""
+      .stripMargin)),
 
   scmInfo := Some(
     ScmInfo(
@@ -378,7 +394,9 @@ lazy val reactiveCommon =
     name := "monix-reactive",
     // Filtering out private stuff for 2.3.x
     mimaBinaryIssueFilters ++=
-      MimaFilters.reactiveChangesFor_2_3_0
+      MimaFilters.reactiveChangesFor_2_3_0,
+    mimaBinaryIssueFilters ++=
+      MimaFilters.reactiveChangesFor_2_4_0
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
