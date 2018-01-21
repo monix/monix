@@ -7,29 +7,29 @@ matrix:
   include:
     # Scala 2.10
     - jdk: oraclejdk8
-      scala: 2.10.6
+      scala: 2.10.7
       env: COMMAND=ci-jvm COVERAGE= PUBLISH=
     - jdk: oraclejdk8
-      scala: 2.10.6
+      scala: 2.10.7
       env: COMMAND=ci-js COVERAGE= PUBLISH=
     # Scala 2.11
     - jdk: oraclejdk8
-      scala: 2.11.11
+      scala: 2.11.12
       env: COMMAND=ci-jvm COVERAGE=coverage PUBLISH=
     - jdk: oraclejdk8
-      scala: 2.11.11
+      scala: 2.11.12
       env: COMMAND=ci-js COVERAGE= PUBLISH=
     # Scala 2.12
     - jdk: oraclejdk8
-      scala: 2.12.3
+      scala: 2.12.4
       env: COMMAND=ci-jvm-all COVERAGE= PUBLISH=true
     - jdk: oraclejdk8
-      scala: 2.12.3
+      scala: 2.12.4
       env: COMMAND=ci-js PUBLISH= COVERAGE=
 
 env:
   global:
-    - TRAVIS_NODE_VERSION="6.10" # LTS
+    - TRAVIS_NODE_VERSION="8.9" # LTS
 
 # http://austinpray.com/ops/2015/09/20/change-travis-node-version.html
 install:

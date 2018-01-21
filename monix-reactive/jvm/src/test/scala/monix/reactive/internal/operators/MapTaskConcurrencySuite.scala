@@ -17,23 +17,25 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Cancelable
 import monix.reactive.{BaseConcurrencySuite, Observable}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
-object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
+object MapTaskConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 3.minutes
   val cancelIterations = 100
 
-  test("concatMap should work for synchronous children") { implicit s =>
+  test("mapTask should work for synchronous children") { implicit s =>
     val count = 10000L
     val expected = 3L * count * (count - 1) / 2
 
     for (_ <- 0 until 100) {
       val sum = Observable.range(0, count)
-        .flatMap(x => Observable(x,x,x))
+        .mapTask(x => Task.now(x * 3))
         .sumL
         .runAsync
 
@@ -42,13 +44,13 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test("concatMap should work for asynchronous children") { implicit s =>
+  test("mapTask should work for asynchronous children") { implicit s =>
     val count = 10000L
     val expected = 3L * count * (count - 1) / 2
 
     for (_ <- 0 until 100) {
       val sum = Observable.range(0, count)
-        .flatMap(x => Observable(x, x, x).executeWithFork)
+        .mapTask(x => Task(3 * x))
         .sumL
         .runAsync
 
@@ -57,18 +59,16 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test(s"concatMap should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
-    def never(): (Future[Unit], Observable[Int]) = {
+  test(s"mapTask should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
+    def never(): (Future[Unit], Task[Int]) = {
       val isCancelled = Promise[Unit]()
-      val ref = Observable.unsafeCreate[Int] { _ =>
-        Cancelable(() => isCancelled.success(()))
-      }
+      val ref = Task.create[Int]((_, _) => Cancelable(() => isCancelled.success(())))
       (isCancelled.future, ref)
     }
 
     for (i <- 0 until cancelIterations) {
       val (isCancelled, ref) = never()
-      val c = Observable(1).flatMap(_ => ref).subscribe()
+      val c = Observable(1).mapTask(_ => ref).subscribe()
 
       // Creating race condition
       if (i % 2 == 0) {
@@ -80,13 +80,13 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test(s"concatMap should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
-    def one(p: Promise[Unit])(x: Long): Observable[Long] =
-      Observable.unsafeCreate { sub =>
+  test(s"mapTask should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
+    def one(p: Promise[Unit])(x: Long): Task[Long] =
+      Task.create { (sc, cb) =>
         if (Random.nextInt() % 2 == 0) {
-          sub.scheduler.executeAsync(() => { sub.onNext(x); sub.onComplete() })
+          sc.executeAsync(() => cb.onSuccess(x))
         } else {
-          sub.onNext(x); sub.onComplete()
+          cb.onSuccess(x)
         }
         Cancelable(() => p.trySuccess(()))
       }
@@ -96,7 +96,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
       val c = Observable.range(0, Long.MaxValue)
         .uncancelable
         .doOnEarlyStop(() => p.trySuccess(()))
-        .flatMap(one(p))
+        .mapTask(one(p))
         .subscribe()
 
       // Creating race condition

@@ -103,4 +103,16 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.execution.schedulers.ExecutorScheduler$DeferredRunnable"),
     exclude[MissingClassProblem]("monix.execution.schedulers.AsyncScheduler$DeferredRunnable")
   )
+
+  lazy val reactiveChangesFor_2_4_0 = Seq(
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$Active"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitActiveTask$"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitOnNext$"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$Active$"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitComplete$"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitComplete"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$Cancelled$"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$")
+  )
 }
