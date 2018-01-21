@@ -18,12 +18,14 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
+
 import monix.eval.Coeval.Attempt
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.reactive.internal.builders
+import monix.reactive.internal.operators.UncancelableObservable
 import monix.reactive.internal.subscribers.ForeachSubscriber
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
@@ -31,6 +33,7 @@ import monix.reactive.observers._
 import monix.reactive.subjects._
 import monix.types._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
+
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
@@ -532,6 +535,25 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     */
   def toListL: Task[List[A]] =
     foldLeftL(mutable.ListBuffer.empty[A])(_ += _).map(_.toList)
+
+  /** Makes the source `Observable` uninterruptible such that a `cancel`
+    * signal has no effect.
+    *
+    * {{{
+    *   val cancelable = Observable
+    *     .eval(println("Hello!"))
+    *     .delayExecution(10.seconds)
+    *     .subscribe()
+    *
+    *   // No longer works
+    *   cancelable.cancel()
+    *
+    *   // After 10 seconds
+    *   //=> Hello!
+    * }}}
+    */
+  final def uncancelable: Observable[A] =
+    new UncancelableObservable[A](self)
 
   /** Creates a new [[monix.eval.Task Task]] that will consume the
     * source observable, executing the given callback for each element.
