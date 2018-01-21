@@ -15,7 +15,7 @@ matrix:
     # Scala 2.11
     - jdk: oraclejdk8
       scala: 2.11.12
-      env: COMMAND=ci-jvm COVERAGE=coverage PUBLISH=
+      env: COMMAND=ci-jvm COVERAGE= PUBLISH=
     - jdk: oraclejdk8
       scala: 2.11.12
       env: COMMAND=ci-js COVERAGE= PUBLISH=
