@@ -25,7 +25,7 @@ import scala.util.Random
 
 object FlatScanConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 3.minutes
-  val cancelIterations = 100
+  val cancelIterations = 10
 
   test("flatScan should work for synchronous children") { implicit s =>
     val count = 10000L

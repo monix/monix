@@ -25,7 +25,7 @@ import scala.util.Random
 
 object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 3.minutes
-  val cancelIterations = 100
+  val cancelIterations = 10
 
   test("concatMap should work for synchronous children") { implicit s =>
     val count = 10000L

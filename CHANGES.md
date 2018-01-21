@@ -1,3 +1,26 @@
+## Version 2.3.3 (Jan 21, 2018)
+
+Release is binary backwards compatible with series `2.3.x`.
+
+Bug fixes:
+
+- [Issue #468](https://github.com/monix/monix/issues/468):
+  Observables created using `concat` don't get canceled
+  (**critical**)
+- [Issue #483](https://github.com/monix/monix/issues/483):
+  stack overflow error on `MVar.put`
+- [Issue #541](https://github.com/monix/monix/issues/541):
+  `observable.take(0)` shouldn't subscribe to the source at all
+- [Issue #475](https://github.com/monix/monix/pull/475):
+  `Observable.fromAsyncStateAction` does not protect against
+  exceptions thrown in use code
+
+Issue #468 in particular is pretty serious as it can lead to
+resource leaks. Read the [pull request](https://github.com/monix/monix/pull/469)
+for more details.
+
+Upgrade to `2.3.3` is recommended!
+
 ## Version 2.3.1 (Sep 20, 2017)
 
 Release is binary backwards compatible with series `2.3.x`.

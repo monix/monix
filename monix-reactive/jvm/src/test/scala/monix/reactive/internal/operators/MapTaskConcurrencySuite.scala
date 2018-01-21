@@ -27,7 +27,7 @@ import scala.util.Random
 
 object MapTaskConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 3.minutes
-  val cancelIterations = 100
+  val cancelIterations = 10
 
   test("mapTask should work for synchronous children") { implicit s =>
     val count = 10000L
