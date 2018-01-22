@@ -28,6 +28,7 @@ import monix.execution.Scheduler
 import monix.execution.misc.NonFatal
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
+import monix.tail.BracketResult._
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
@@ -1878,12 +1879,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         the stream when evaluated
   */
 object Iterant extends IterantInstances {
-  // @TODO move somewhere else?
-  sealed trait BracketResult
-  case object Completed extends BracketResult
-  case object EarlyStop extends BracketResult
-  case class Error(e: Throwable) extends BracketResult
-
   /** Returns an [[IterantBuilders]] instance for the specified `F`
     * monadic type that can be used to build [[Iterant]] instances.
     *

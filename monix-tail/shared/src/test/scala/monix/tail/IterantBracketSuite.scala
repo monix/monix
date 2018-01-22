@@ -21,6 +21,7 @@ import cats.effect.IO
 import cats.laws._
 import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
+import monix.tail.BracketResult._
 
 object IterantBracketSuite extends BaseTestSuite {
   class Resource(var acquired: Int = 0, var released: Int = 0) {
@@ -44,7 +45,7 @@ object IterantBracketSuite extends BaseTestSuite {
     val bracketed = Iterant.bracket(rs.acquire)(
       _ => Iterant.range(1, 10),
       (_, result) => rs.release.flatMap(_ => IO {
-        assertEquals(result, Iterant.Completed)
+        assertEquals(result, Completed)
       })
     )
     bracketed.completeL.unsafeRunSync()
@@ -57,7 +58,7 @@ object IterantBracketSuite extends BaseTestSuite {
     val bracketed = Iterant.bracket(rs.acquire)(
       _ => Iterant.range(1, 10),
       (_, result) => rs.release.flatMap(_ => IO {
-        assertEquals(result, Iterant.EarlyStop)
+        assertEquals(result, EarlyStop)
       })
     ).take(1)
     bracketed.completeL.unsafeRunSync()
@@ -71,7 +72,7 @@ object IterantBracketSuite extends BaseTestSuite {
     val bracketed = Iterant.bracket(rs.acquire)(
       _ => Iterant.range[IO](1, 10) ++ Iterant.raiseError[IO, Int](error),
       (_, result) => rs.release.flatMap(_ => IO {
-        assertEquals(result, Iterant.Error(error))
+        assertEquals(result, Error(error))
       })
     )
     intercept[DummyException] {
@@ -87,7 +88,7 @@ object IterantBracketSuite extends BaseTestSuite {
     val bracketed = Iterant.bracket(rs.acquire)(
       _ => throw dummy,
       (_, result) => rs.release.flatMap(_ => IO {
-        assertEquals(result, Iterant.Error(dummy))
+        assertEquals(result, Error(dummy))
       })
     )
     intercept[DummyException] {
@@ -104,7 +105,7 @@ object IterantBracketSuite extends BaseTestSuite {
       IO.raiseError(dummy).flatMap(_ => rs.acquire))(
       _ => Iterant.empty[IO, Int],
       (_, result) => rs.release.flatMap(_ => IO {
-        assertEquals(result, Iterant.Error(dummy))
+        assertEquals(result, Error(dummy))
       })
     )
     intercept[DummyException] {
