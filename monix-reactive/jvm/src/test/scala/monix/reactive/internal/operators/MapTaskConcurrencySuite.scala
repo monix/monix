@@ -19,14 +19,13 @@ package monix.reactive.internal.operators
 
 import monix.eval.Task
 import monix.execution.Cancelable
+import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.{BaseConcurrencySuite, Observable}
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
-import scala.util.Random
 
 object MapTaskConcurrencySuite extends BaseConcurrencySuite {
-  val cancelTimeout = 3.minutes
+  val cancelTimeout = 5.minutes
   val cancelIterations = 100
 
   test("mapTask should work for synchronous children") { implicit s =>
@@ -83,28 +82,42 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
   test(s"mapTask should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
     def one(p: Promise[Unit])(x: Long): Task[Long] =
       Task.create { (sc, cb) =>
-        if (Random.nextInt() % 2 == 0) {
-          sc.executeAsync(() => cb.onSuccess(x))
-        } else {
-          cb.onSuccess(x)
-        }
-        Cancelable(() => p.trySuccess(()))
+        val ref = BooleanCancelable(() => p.trySuccess(()))
+        sc.executeAsync(() => if (!ref.isCanceled) cb.onSuccess(x))
+        ref
       }
 
-    for (i <- 0 until cancelIterations) {
+    for (_ <- 0 until cancelIterations) {
       val p = Promise[Unit]()
       val c = Observable.range(0, Long.MaxValue)
+        .executeAsync
         .uncancelable
+        .doOnError(p.tryFailure)
+        .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
         .doOnEarlyStop(() => p.trySuccess(()))
         .mapTask(one(p))
         .subscribe()
 
       // Creating race condition
-      if (i % 2 == 0) {
-        s.execute(new Runnable { def run(): Unit = c.cancel() })
-      } else {
-        c.cancel()
-      }
+      s.executeAsync(() => c.cancel())
+      Await.result(p.future, cancelTimeout)
+    }
+  }
+
+  test(s"mapTask should be cancellable, test 3, count $cancelIterations (issue #468)") { implicit s =>
+    for (_ <- 0 until cancelIterations) {
+      val p = Promise[Unit]()
+      val c = Observable.range(0, Long.MaxValue)
+        .executeAsync
+        .uncancelable
+        .doOnError(p.tryFailure)
+        .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
+        .doOnEarlyStop(() => p.trySuccess(()))
+        .mapTask(x => Task(x))
+        .subscribe()
+
+      // Creating race condition
+      s.executeAsync(() => c.cancel())
       Await.result(p.future, cancelTimeout)
     }
   }
