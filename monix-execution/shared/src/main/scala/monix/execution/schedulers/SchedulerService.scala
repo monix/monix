@@ -106,6 +106,10 @@ object SchedulerService {
 
     /** A blocking version of [[SchedulerService.awaitTermination]] that
       * blocks the current thread.
+      *
+      * Due to requiring a [[CanBlock]] permit, calls to this function want
+      * compile on top of JavaScript, since blocking operations are not supported
+      * for JS engines.
       */
     def awaitTermination(timeout: FiniteDuration)(implicit permit: CanBlock): Boolean = {
       val fa = self.awaitTermination(timeout, immediate)
