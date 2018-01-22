@@ -570,6 +570,89 @@ sealed abstract class Task[+A] extends Serializable {
   final def asyncBoundary(s: Scheduler): Task[A] =
     this.flatMap(a => Task.shift(s).map(_ => a))
 
+  /** Returns a task that treats the source task as the acquisition of a resource,
+    * which is then exploited by the `use` function and then `released`.
+    *
+    * The `bracket` operation is the equivalent of `try {} catch {} finally {}`
+    * statements from mainstream languages.
+    *
+    * The `bracket` operation installs the necessary exception handler to release
+    * the resource in the event of an exception being raised during the computation,
+    * or in case of cancellation.
+    *
+    * If an exception is raised, then `bracket` will re-raise the exception
+    * ''after'' performing the `release`. If the resulting task gets cancelled,
+    * then `bracket` will still perform the `release`, but the yielded task
+    * will be non-terminating (equivalent with [[Task.never]]).
+    *
+    * Example:
+    *
+    * {{{
+    *   import java.io._
+    *
+    *   def readFile(file: File): Task[String] = {
+    *     val acquire = Task.eval(new BufferedReader(
+    *       new InputStreamReader(new FileInputStream(file), "utf-8"))
+    *     )
+    *
+    *     acquire.bracket { in =>
+    *       // Usage part
+    *       Task.eval {
+    *         // Yes, not FP; side-effects are suspended though
+    *         var line: String = null
+    *         val buff = new StringBuilder()
+    *         do {
+    *           line = in.readLine()
+    *           if (line != null) buff.append(line)
+    *         } while (line != null)
+    *         buff.toString()
+    *       }
+    *     } { in =>
+    *       // The release part
+    *       Task.eval(in.close())
+    *     }
+    *   }
+    * }}}
+    *
+    * Note that in case of cancellation the underlying implementation cannot
+    * guarantee that the computation described by `use` doesn't end up
+    * executed concurrently with the computation from `release`. In the example
+    * above that ugly Java loop might end up reading from a `BufferedReader`
+    * that is already closed due to the task being cancelled, thus triggering
+    * an error in the background with nowhere to go but in
+    * [[monix.execution.Scheduler.reportFailure Scheduler.reportFailure]].
+    *
+    * In this particular example, given that we are reading from a file,
+    * it doesn't matter. But in other cases it might matter, as concurrency
+    * on top of the JVM when dealing with I/O might lead to corrupted data.
+    *
+    * For those cases you might want to do synchronization (e.g. usage of
+    * locks and semaphores) and you might want to use [[bracketE]], the
+    * version that allows you to differentiate between nuormal termination
+    * and cancellation.
+    */
+  final def bracket[B](use: A => Task[B])(release: A => Task[Unit]): Task[B] =
+    TaskBracket.simple(this, use, release)
+
+  /** Returns a task that treats the source task as the acquisition of a resource,
+    * which is then exploited by the `use` function and then `released`, with
+    * the possibility of distinguishing between normal termination and cancellation,
+    * such that an appropriate release of resources can be executed.
+    *
+    * The `bracketE` operation is the equivalent of `try {} catch {} finally {}`
+    * statements from mainstream languages.
+    *
+    * The `bracketE` operation installs the necessary exception handler to release
+    * the resource in the event of an exception being raised during the computation,
+    * or in case of cancellation.
+    *
+    * In comparison with the simpler [[bracket]] version, this one allows the
+    * caller to differentiate between normal termination and cancellation.
+    */
+  final def bracketE[B](use: A => Task[B])
+    (release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] =
+    TaskBracket.either(this, use, release)
+
   /** Transforms a [[Task]] into a [[Coeval]] that tries to execute the
     * source synchronously, returning either `Right(value)` in case a
     * value is available immediately, or `Left(future)` in case we
@@ -863,21 +946,65 @@ sealed abstract class Task[+A] extends Serializable {
   final def executeWithOptions(f: Options => Options): Task[A] =
     TaskExecuteWithOptions(this, f)
 
-  /** Returns a new task that will execute the source with autoCancelableRunLoops set to `true`
+  /** Returns a new task that is cancelable.
     *
-    * This will make `flatMap` driven loops to be auto-cancelable.
+    * Normally Monix Tasks have these characteristics:
     *
-    * Example:
+    * - `flatMap` chains are not cancelable by default
+    * - when creating [[Task.create async tasks]] the user has to specify explicit
+    *   cancellation logic
     *
-    * {{{
-    *   task.cancelable
-    * }}}
-    *
-    * This is equivalent to:
+    * This operation returns a task that has [[Task.Options.autoCancelableRunLoops]]
+    * enabled upon evaluation, thus being equivalent with:
     * {{{
     *   task.executeWithOptions(_.enableAutoCancelableRunLoops)
     * }}}
     *
+    * What this does is two-fold:
+    *
+    * - `flatMap` chains become cancelable on async boundaries, which works in
+    *   combination with [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]]
+    *   that's enabled by default (injected by [[monix.execution.Scheduler Scheduler]],
+    *   but can also be changed with [[executeWithModel]])
+    * - even if the source task cannot be cancelled, upon completion the result
+    *   is not allowed to be streamed and the continuation is not allowed to execute
+    *
+    * For example this is a function that calculates the n-th Fibonacci element:
+    * {{{
+    *   def fib(n: Int): Task[Long] = {
+    *     def loop(n: Int, a: Long, b: Long): Task[Long] =
+    *       Task.suspend {
+    *         if (n > 0)
+    *           loop(n - 1, b, a + b)
+    *         else
+    *           a
+    *       }
+    *
+    *     loop(n, 0, 1).cancelable
+    *   }
+    * }}}
+    * 
+    * Normally this isn't cancelable and it might take a long time, but
+    * by calling `cancelable` on the result, we ensure that when cancellation
+    * is observed, at async boundaries, the loop will stop with the task
+    * becoming a non-terminating one.
+    * 
+    * This operation represents the opposite of [[uncancelable]]. And note
+    * that it works even for tasks that are uncancelable / atomic, because
+    * it blocks the rest of the `flatMap` loop from executing, functioning
+    * like a sort of cancellation boundary:
+    *
+    * {{{
+    *   Task(println("Hello ..."))
+    *     .cancelable
+    *     .flatMap(_ => println("World!"))
+    * }}}
+    *
+    * Normally [[Task.apply]] does not yield a cancelable task, but by applying
+    * the `cancelable` transformation to it, the `println` will execute,
+    * but not the subsequent `flatMap` operation.
+    *
+    * Also see [[Task.cancelableUnit]].
     */
   def cancelable: Task[A] =
     executeWithOptions(_.enableAutoCancelableRunLoops)
@@ -1016,6 +1143,46 @@ sealed abstract class Task[+A] extends Serializable {
   /** Dematerializes the source's result from a `Try`. */
   final def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
     this.asInstanceOf[Task[Try[B]]].flatMap(fromTry)
+
+  /** Returns a new task that mirrors the source task for normal termination,
+    * but that triggers the given error on cancellation.
+    *
+    * Normally tasks that are cancelled become non-terminating.
+    * Here's an example of a cancelable task:
+    *
+    * {{{
+    *   val tenSecs = Task.sleep(10)
+    *   val task = tenSecs.fork.flatMap { fa =>
+    *     // Triggering pure cancellation, then trying to get its result
+    *     fa.cancel.flatMap(_ => fa)
+    *   }
+    *
+    *   task.timeout(10.seconds).runAsync
+    *   //=> throws TimeoutException
+    * }}}
+    *
+    * In general you can expect cancelable tasks to become non-terminating on
+    * cancellation.
+    *
+    * This `onCancelRaiseError` operator transforms a task that would yield
+    * [[Task.never]] on cancellation into one that yields [[Task.raiseError]].
+    *
+    * Example:
+    * {{{
+    *   import java.util.concurrent.CancellationException
+    *
+    *   val tenSecs = Task.sleep(10.seconds).onCancelRaiseError
+    *   val task = tenSecs.fork.flatMap { fa =>
+    *     // Triggering pure cancellation, then trying to get its result
+    *     fa.cancel.flatMap(_ => fa)
+    *   }
+    *
+    *   task.runAsync
+    *   // => CancellationException
+    * }}}
+    */
+  final def onCancelRaiseError(e: Throwable): Task[A] =
+    TaskCancellation.raiseError(this, e)
 
   /** Creates a new task that will try recovering from an error by
     * matching it with another task using the given partial function.
