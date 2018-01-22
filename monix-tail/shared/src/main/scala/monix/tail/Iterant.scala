@@ -1903,7 +1903,7 @@ object Iterant extends IterantInstances {
     *     Iterant.bracket(IO { new PrintWriter("./lines.txt") })(
     *       writer => Iterant[IO]
     *         .fromIterator(Iterator.from(1))
-    *         .mapEval(i => IO { writer.println(s"Line #$i") }),
+    *         .mapEval(i => IO { writer.println(s"Line #\$i") }),
     *       (writer, _) => IO { writer.close() }
     *     )
     *
