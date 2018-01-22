@@ -40,6 +40,18 @@ object IterantBracketSuite extends BaseTestSuite {
     }
   }
 
+  test("Bracket preserves earlyStop of stream returned from `use`") { _ =>
+    var earlyStopDone = false
+    val bracketed = Iterant.bracket(IO.unit)(
+      _ => Iterant[IO].of(1, 2, 3).doOnEarlyStop(IO {
+        earlyStopDone = true
+      }),
+      (_, _) => IO.unit
+    )
+    bracketed.take(1).completeL.unsafeRunSync()
+    assert(earlyStopDone)
+  }
+
   test("Bracket releases resource on normal completion") { _ =>
     val rs = new Resource
     val bracketed = Iterant.bracket(rs.acquire)(

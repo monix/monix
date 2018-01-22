@@ -28,7 +28,6 @@ import monix.execution.Scheduler
 import monix.execution.misc.NonFatal
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
-import monix.tail.BracketResult._
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
@@ -507,10 +506,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
     IterantStop.doOnFinish(this, f)(F)
-
-  // @TODO determine the destiny of this method
-  private[tail] final def doOnFullConsumption(f: Option[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
-    IterantStop.doOnFullConsumption(this, f)(F)
 
   /** Drops the first `n` elements (from the start).
     *
@@ -1893,24 +1888,37 @@ object Iterant extends IterantInstances {
   def pure[F[_], A](a: A): Iterant[F, A] =
     now[F, A](a)
 
+  /** Creates a stream that depends on resource allocated by a
+    * monadic value, ensuring the resource is released.
+    *
+    * Typical use-cases are working with files or network sockets
+    *
+    * @param acquire resource to acquire at the start of the stream
+    * @param use function that uses the resource to generate a stream of outputs
+    * @param release function that releases the acquired resource
+    *
+    * Example:
+    * {{{
+    *   val writeLines =
+    *     Iterant.bracket(IO { new PrintWriter("./lines.txt") })(
+    *       writer => Iterant[IO]
+    *         .fromIterator(Iterator.from(1))
+    *         .mapEval(i => IO { writer.println(s"Line #$i") }),
+    *       (writer, _) => IO { writer.close() }
+    *     )
+    *
+    *   // Write 100 numbered lines to the file
+    *   // closing the writer when finished
+    *   writeLines.take(100).completeL.unsafeRunSync()
+    * }}}
+    */
   def bracket[F[_], A, B](acquire: F[A])(
     use: A => Iterant[F, B],
     release: (A, BracketResult) => F[Unit]
   )(
     implicit F: Sync[F]
-  ): Iterant[F, B] = {
-    Iterant.liftF(acquire).flatMap { a =>
-      Iterant.suspend(F.map(F.attempt(F.delay(use(a))))(_.fold(
-        ex => Iterant.raiseError[F, B](ex),
-        iterant => iterant
-      )))
-        .doOnEarlyStop(F.suspend(release(a, EarlyStop)))
-        .doOnFullConsumption {
-          case None => F.suspend(release(a, Completed))
-          case Some(ex) => F.suspend(release(a, Error(ex)))
-        }
-    }
-  }
+  ): Iterant[F, B] =
+    IterantBracket(acquire, use, release)
 
   /** Lifts a strict value into the stream context, returning a
     * stream of one element.

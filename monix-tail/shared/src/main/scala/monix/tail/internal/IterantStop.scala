@@ -70,27 +70,4 @@ private[tail] object IterantStop {
       case ex if NonFatal(ex) => signalError(source, ex)
     }
   }
-
-  def doOnFullConsumption[F[_], A](source: Iterant[F, A], f: Option[Throwable] => F[Unit])
-    (implicit F: Sync[F]): Iterant[F, A] = {
-    try source match {
-      case Next(item, rest, stop) =>
-        Next(item, rest.map(doOnFullConsumption[F, A](_, f)), stop)
-      case NextCursor(items, rest, stop) =>
-        NextCursor(items, rest.map(doOnFullConsumption[F, A](_, f)), stop)
-      case NextBatch(items, rest, stop) =>
-        NextBatch(items, rest.map(doOnFullConsumption[F, A](_, f)), stop)
-      case Suspend(rest, stop) =>
-        Suspend(rest.map(doOnFullConsumption[F, A](_, f)), stop)
-      case last @ Last(_) =>
-        val ref = f(None)
-        Suspend[F,A](F.map(ref)(_ => last), F.unit)
-      case halt @ Halt(ex) =>
-        val ref = f(ex)
-        Suspend[F,A](F.map(ref)(_ => halt), F.unit)
-    } catch {
-      case ex if NonFatal(ex) =>
-        signalError(source, ex)
-    }
-  }
 }
