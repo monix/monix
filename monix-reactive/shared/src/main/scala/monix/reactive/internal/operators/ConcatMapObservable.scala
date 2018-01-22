@@ -137,7 +137,7 @@ private[reactive] final class ConcatMapObservable[A, B]
         case Cancelled =>
           // $COVERAGE-OFF$
           () // do nothing else
-        // $COVERAGE-ON$
+          // $COVERAGE-ON$
       }
     }
 
@@ -378,9 +378,9 @@ private[reactive] final class ConcatMapObservable[A, B]
             () // Optimization, do nothing else
 
           case WaitOnNextChild(_) | Active(_) =>
-            // Branch happens when the main subscriber is still
-            // active and this child is thus giving it permission
-            // to continue with the next child observable
+            // Branch happens when this child had asynchronous execution and
+            // the main subscriber is still active; this child is thus giving it
+            // permission to continue with the next child observable
             ack.value match {
               case Some(result) =>
                 asyncUpstreamAck.tryComplete(result)

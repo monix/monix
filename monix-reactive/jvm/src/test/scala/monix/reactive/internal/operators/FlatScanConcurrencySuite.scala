@@ -18,14 +18,14 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Cancelable
+import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.{BaseConcurrencySuite, Observable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
-import scala.util.Random
 
 object FlatScanConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 3.minutes
-  val cancelIterations = 100
+  val cancelIterations = 1000
 
   test("flatScan should work for synchronous children") { implicit s =>
     val count = 10000L
@@ -72,7 +72,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
 
       // Creating race condition
       if (i % 2 == 0) {
-        s.execute(new Runnable { def run(): Unit = c.cancel() })
+        s.executeAsync(() => c.cancel())
       } else {
         c.cancel()
       }
@@ -83,28 +83,45 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
   test(s"flatScan should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
     def one(p: Promise[Unit])(acc: Long, x: Long): Observable[Long] =
       Observable.unsafeCreate { sub =>
-        if (Random.nextInt() % 2 == 0) {
-          sub.scheduler.executeAsync(() => { sub.onNext(x); sub.onComplete() })
-        } else {
-          sub.onNext(x); sub.onComplete()
+        val ref = BooleanCancelable(() => p.trySuccess(()))
+        sub.scheduler.executeAsync { () =>
+          if (!ref.isCanceled)
+            Observable.now(x).unsafeSubscribeFn(sub)
         }
-        Cancelable(() => p.trySuccess(()))
+        ref
       }
 
-    for (i <- 0 until cancelIterations) {
+    for (_ <- 0 until cancelIterations) {
       val p = Promise[Unit]()
       val c = Observable.range(0, Long.MaxValue)
+        .executeAsync
         .uncancelable
+        .doOnError(p.tryFailure)
+        .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
         .doOnEarlyStop(() => p.trySuccess(()))
         .flatScan(0L)(one(p))
         .subscribe()
 
       // Creating race condition
-      if (i % 2 == 0) {
-        s.execute(new Runnable { def run(): Unit = c.cancel() })
-      } else {
-        c.cancel()
-      }
+      s.executeAsync(() => c.cancel())
+      Await.result(p.future, cancelTimeout)
+    }
+  }
+
+  test(s"flatScan should be cancellable, test 3, count $cancelIterations (issue #468)") { implicit s =>
+    for (_ <- 0 until cancelIterations) {
+      val p = Promise[Unit]()
+      val c = Observable.range(0, Long.MaxValue)
+        .executeAsync
+        .uncancelable
+        .doOnError(p.tryFailure)
+        .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
+        .doOnEarlyStop(() => p.trySuccess(()))
+        .flatScan(0L)((_, x) => Observable.now(x).executeAsync)
+        .subscribe()
+
+      // Creating race condition
+      s.executeAsync(() => c.cancel())
       Await.result(p.future, cancelTimeout)
     }
   }
