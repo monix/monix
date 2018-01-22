@@ -18,28 +18,16 @@
 package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
-import minitest.TestSuite
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.exceptions.DummyException
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.DropNewAndSignal
-import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.SchedulerService
-import monix.reactive.{Observable, Observer}
-
+import monix.reactive.{BaseConcurrencySuite, Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
-object OverflowStrategyDropNewAndSignalConcurrencySuite extends TestSuite[SchedulerService] {
-  def setup() =
-    Scheduler.computation(name="monix-drop-new-signal-test")
-
-  def tearDown(env: SchedulerService) = {
-    env.shutdown()
-    Await.result(env.awaitTermination(1.hour, Scheduler.global), Duration.Inf)
-  }
-
+object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencySuite {
   def buildNewForInt(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
     BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Some(nr.toInt)))
   }

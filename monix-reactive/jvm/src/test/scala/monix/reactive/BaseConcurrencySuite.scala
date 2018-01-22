@@ -39,9 +39,8 @@ trait BaseConcurrencySuite extends TestSuite[SchedulerService]
   }
 
   def tearDown(env: SchedulerService): Unit = {
-    import monix.execution.Scheduler.Implicits.global
     env.shutdown()
-    Await.result(env.awaitTermination(3.minutes, global), 3.minutes)
+    assert(env.awaitTermination(1.minute), "scheduler.awaitTermination")
   }
 
   implicit def equalityObservable[A](implicit A: Eq[A], ec: Scheduler): Eq[Observable[A]] =

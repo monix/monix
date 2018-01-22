@@ -26,7 +26,7 @@ import scala.concurrent.{Await, Future, Promise}
 
 object MapTaskConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 3.minutes
-  val cancelIterations = 100
+  val cancelIterations = 1000
 
   test("mapTask should work for synchronous children") { implicit s =>
     val count = 10000L

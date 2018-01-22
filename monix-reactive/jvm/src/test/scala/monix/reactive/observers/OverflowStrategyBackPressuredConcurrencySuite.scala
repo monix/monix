@@ -19,28 +19,18 @@ package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
-import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.ExecutionModel.BatchedExecution
 import monix.execution.exceptions.DummyException
-import monix.execution.{Ack, Scheduler}
-import monix.execution.schedulers.SchedulerService
-import monix.reactive.{Observable, Observer}
 import monix.reactive.OverflowStrategy.BackPressure
+import monix.reactive.{BaseConcurrencySuite, Observable, Observer}
 
-import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
-object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[SchedulerService] {
-  def setup() =
-    Scheduler.computation(name="monix-backpressured-test")
-
-  def tearDown(env: SchedulerService) = {
-    env.shutdown()
-    Await.result(env.awaitTermination(1.hour, Scheduler.global), Duration.Inf)
-  }
-
+object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite {
   test("merge test should work") { scheduler =>
     implicit val s = scheduler.withExecutionModel(BatchedExecution(1024))
 

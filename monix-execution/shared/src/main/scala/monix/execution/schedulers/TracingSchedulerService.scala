@@ -17,10 +17,9 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{ExecutionModel, Scheduler}
-
-import scala.concurrent.Future
+import monix.execution.ExecutionModel
 import scala.concurrent.duration.TimeUnit
+import scala.concurrent.{ExecutionContext, Future}
 
 /** The `TracingScheduler` is a [[monix.execution.Scheduler Scheduler]]
   * implementation that wraps another
@@ -43,7 +42,7 @@ final class TracingSchedulerService(underlying: SchedulerService)
     underlying.isTerminated
   override def shutdown(): Unit =
     underlying.shutdown()
-  override def awaitTermination(timeout: Long, unit: TimeUnit, awaitOn: Scheduler): Future[Boolean] =
+  override def awaitTermination(timeout: Long, unit: TimeUnit, awaitOn: ExecutionContext): Future[Boolean] =
     underlying.awaitTermination(timeout, unit, awaitOn)
   override def withExecutionModel(em: ExecutionModel): TracingSchedulerService =
     new TracingSchedulerService(underlying.withExecutionModel(em))
