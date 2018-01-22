@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
 object FlatScanConcurrencySuite extends BaseConcurrencySuite {
-  val cancelTimeout = 5.minutes
+  val cancelTimeout = 3.minutes
   val cancelIterations = 100
 
   test("flatScan should work for synchronous children") { implicit s =>

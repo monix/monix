@@ -22,13 +22,27 @@ import minitest.TestSuite
 import minitest.laws.Checkers
 import monix.eval.Task
 import monix.execution.Scheduler
+import monix.execution.schedulers.SchedulerService
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
 
-trait BaseConcurrencySuite extends TestSuite[Scheduler] with Checkers with ArbitraryInstancesBase {
-  def setup(): Scheduler = Scheduler.global
-  def tearDown(env: Scheduler): Unit = ()
+trait BaseConcurrencySuite extends TestSuite[SchedulerService]
+  with Checkers with ArbitraryInstancesBase {
+
+  def setup(): SchedulerService = {
+    Scheduler.computation(
+      parallelism = 4,
+      name = "concurrency-tests",
+      daemonic = true)
+  }
+
+  def tearDown(env: SchedulerService): Unit = {
+    import monix.execution.Scheduler.Implicits.global
+    env.shutdown()
+    Await.result(env.awaitTermination(3.minutes, global), 3.minutes)
+  }
 
   implicit def equalityObservable[A](implicit A: Eq[A], ec: Scheduler): Eq[Observable[A]] =
     new Eq[Observable[A]] {
