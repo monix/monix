@@ -126,4 +126,39 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.acquired, 0)
     assertEquals(rs.released, 0)
   }
+
+  test("Bracket nesting: outer releases even if inner release fails") { _ =>
+    var released = false
+    val dummy = DummyException("dummy")
+    val bracketed = Iterant.bracket(IO.unit)(
+      _ => Iterant.bracket(IO.unit)(
+        _ => Iterant.empty[IO, Int],
+        (_, _) => IO.raiseError(dummy)
+      ),
+      (_, _) => IO { released = true }
+    )
+
+    intercept[DummyException] {
+      bracketed.completeL.unsafeRunSync()
+    }
+    assert(released)
+  }
+
+  test("Bracket nesting: inner releases even if outer release fails") { _ =>
+    var released = false
+    val dummy = DummyException("dummy")
+    val bracketed = Iterant.bracket(IO.unit)(
+      _ => Iterant.bracket(IO.unit)(
+        _ => Iterant.empty[IO, Int],
+        (_, _) => IO { released = true }
+      ),
+      (_, _) => IO.raiseError(dummy)
+    )
+
+    intercept[DummyException] {
+      bracketed.completeL.unsafeRunSync()
+    }
+    assert(released)
+
+  }
 }
