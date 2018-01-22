@@ -870,7 +870,7 @@ sealed abstract class Task[+A] extends Serializable {
     * Example:
     *
     * {{{
-    *   task.interruptible
+    *   task.cancelable
     * }}}
     *
     * This is equivalent to:
@@ -879,7 +879,7 @@ sealed abstract class Task[+A] extends Serializable {
     * }}}
     *
     */
-  def interruptible: Task[A] =
+  def cancelable: Task[A] =
     executeWithOptions(_.enableAutoCancelableRunLoops)
 
   /** Returns a failed projection of this task.
