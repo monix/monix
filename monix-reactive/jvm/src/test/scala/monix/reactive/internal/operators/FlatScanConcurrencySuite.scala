@@ -72,7 +72,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
 
       // Creating race condition
       if (i % 2 == 0) {
-        s.execute(new Runnable { def run(): Unit = c.cancel() })
+        s.executeAsync(() => c.cancel())
       } else {
         c.cancel()
       }
