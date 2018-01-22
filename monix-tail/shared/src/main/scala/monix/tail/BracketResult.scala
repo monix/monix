@@ -17,6 +17,17 @@
 
 package monix.tail
 
+/** An ADT representing the way evaluation of a stream
+  * had completed, used in [[Iterant$.bracket]]
+  *
+  * The following values of `BracketResult` exist:
+  *
+  *  - [[BracketResult$.Completed Completed]], for a stream that was fully consumed
+  *  - [[BracketResult$.EarlyStop EarlyStop]], for a stream that was partially consumed
+  * e.g. by `take` operation
+  *  - [[BracketResult$.Error Error]], for a stream which evaluation
+  * resulted in an error
+  */
 sealed abstract class BracketResult
 
 object BracketResult {
