@@ -20,7 +20,7 @@ package monix.reactive
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
 import cats.effect.{Effect, IO}
-import cats.{CoflatMap, Eq, Eval, MonadError, Monoid, MonoidK, Order}
+import cats.{Apply, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
@@ -1514,7 +1514,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * buffer gets dropped and the error gets emitted immediately.
     */
   final def takeLast(n: Int): Observable[A] =
-    self.liftByOperator(new TakeLastOperator(n))
+    if (n <= 0) Observable.empty else self.liftByOperator(new TakeLastOperator(n))
 
   /** Maps elements from the source using a function that can do
     * lazy or asynchronous processing by means of any `F[_]` data
@@ -1680,12 +1680,9 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * The execution is managed by the injected
     * [[monix.execution.Scheduler scheduler]] in `subscribe()`.
-    *
-    * Alias for
-    * [[Observable.fork[A](fa:monix\.reactive\.Observable[A])* Observable.fork(fa)]].
     */
-  final def executeWithFork: Observable[A] =
-    new ExecuteWithForkObservable(self)
+  final def executeAsync: Observable[A] =
+    new ExecuteAsyncObservable(self)
 
   /** Returns a new observable that will execute the source with a different
     * [[monix.execution.ExecutionModel ExecutionModel]].
@@ -2089,6 +2086,35 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def scanEval[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: Effect[F]): Observable[S] =
     scanTask(Task.fromEffect(seed)(F))((s, a) => Task.fromEffect(op(s, a))(F))
+
+  /** Given a mapping function that returns a `B` type for which we have
+    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
+    * elements of the sources using the provided `Monoid[B].combine`, with the
+    * initial seed being the `Monoid[B].empty` value, emitting the generated values
+    * at each step.
+    *
+    * Equivalent with [[scan]] applied with the given [[cats.Monoid]], so given
+    * our `f` mapping function returns a `B`, this law holds:
+    * {{{
+    * val B = implicitly[Monoid[B]]
+    *
+    * stream.scanMap(f) <-> stream.scan(B.empty)(B.combine)
+    * }}}
+    *
+    * Example:
+    * {{{
+    * // Yields 2, 6, 12, 20, 30, 42
+    * Observable(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
+    * }}}
+    *
+    * @param f is the mapping function applied to every incoming element of this `Observable`
+    *          before folding using `Monoid[B].combine`
+    *
+    * @return a new `Observable` that emits all intermediate states being
+    *         resulted from applying `Monoid[B].combine` function
+    */
+  final def scanMap[B](f: A => B)(implicit B: Monoid[B]): Observable[B] =
+    self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
 
   /** Applies a binary operator to a start value and all elements of
     * this stream, going left to right and returns a new stream that
@@ -3104,7 +3130,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *         `n` elements from the source
     */
   final def take(n: Long): Observable[A] =
-    self.liftByOperator(new TakeLeftOperator(n))
+    if (n <= 0) Observable.empty else self.liftByOperator(new TakeLeftOperator(n))
 
   /** Applies a binary operator to a start value and all elements of
     * the source, going left to right and returns a new `Task` that
@@ -3442,6 +3468,25 @@ abstract class Observable[+A] extends Serializable { self =>
   final def toListL: Task[List[A]] =
     foldLeftL(mutable.ListBuffer.empty[A])(_ += _).map(_.toList)
 
+  /** Makes the source `Observable` uninterruptible such that a `cancel`
+    * signal has no effect.
+    *
+    * {{{
+    *   val cancelable = Observable
+    *     .eval(println("Hello!"))
+    *     .delayExecution(10.seconds)
+    *     .subscribe()
+    *
+    *   // No longer works
+    *   cancelable.cancel()
+    *
+    *   // After 10 seconds
+    *   //=> Hello!
+    * }}}
+    */
+  final def uncancelable: Observable[A] =
+    new UncancelableObservable[A](self)
+
   /** Creates a new [[monix.eval.Task Task]] that will consume the
     * source observable, executing the given callback for each element.
     */
@@ -3486,7 +3531,7 @@ abstract class Observable[+A] extends Serializable { self =>
   *         the resulting observable by converting it into a
   *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
   *         by means of [[Observable!.multicast multicast]].
-  *
+  *         
   * @define fromInputStreamDesc Converts a `java.io.InputStream` into an
   *         observable that will emit `Array[Byte]` elements.
   *
@@ -3502,7 +3547,7 @@ abstract class Observable[+A] extends Serializable { self =>
   *         the resulting observable by converting it into a
   *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
   *         by means of [[Observable!.multicast multicast]].
-  *
+  *         
   * @define fromCharsReaderDesc Converts a `java.io.Reader` into an observable
   *         that will emit `Array[Char]` elements.
   *
@@ -3518,6 +3563,14 @@ abstract class Observable[+A] extends Serializable { self =>
   *         the resulting observable by converting it into a
   *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
   *         by means of [[Observable!.multicast multicast]].
+  *
+  * @define blocksDefaultSchedulerDesc This operation will start processing on the current
+  *         thread (on `subscribe()`), so in order to not block, it might be better to also do an
+  *         [[Observable.executeAsync executeAsync]], or you may want to use the
+  *         [[monix.execution.ExecutionModel.AlwaysAsyncExecution AlwaysAsyncExecution]]
+  *         model, which can be configured per `Scheduler`, see
+  *         [[monix.execution.Scheduler.withExecutionModel Scheduler.withExecutionModel]],
+  *         or per `Observable`, see [[Observable.executeWithModel]].
   */
 object Observable {
   /** An `Operator` is a function for transforming observers,
@@ -3576,36 +3629,6 @@ object Observable {
     */
   def never[A]: Observable[A] =
     builders.NeverObservable
-
-  /** Mirrors the given source [[Observable]], but upon subscription
-    * ensure that evaluation forks into a separate (logical) thread.
-    *
-    * The [[monix.execution.Scheduler Scheduler]] used will be
-    * the one that is injected in `subscribe()`.
-    *
-    * @param fa is the observable that will get subscribed
-    *        asynchronously
-    */
-  def fork[A](fa: Observable[A]): Observable[A] =
-    fa.executeWithFork
-
-  /** Mirrors the given source [[Observable]], but upon subscription ensure
-    * that evaluation forks into a separate (logical) thread,
-    * managed by the given scheduler, which will also be used for
-    * subsequent asynchronous execution, overriding the default.
-    *
-    * The given [[monix.execution.Scheduler Scheduler]]  will be
-    * used for evaluation of the source [[Observable]], effectively
-    * overriding the `Scheduler` that's passed in `subscribe()`.
-    * Thus you can evaluate an observable on a separate thread-pool,
-    * useful for example in case of doing I/O.
-    *
-    * @param fa is the source observable that will evaluate asynchronously
-    *        on the specified scheduler
-    * @param scheduler is the scheduler to use for evaluation
-    */
-  def fork[A](fa: Observable[A], scheduler: Scheduler): Observable[A] =
-    fa.executeOn(scheduler)
 
   /** Keeps calling `f` and concatenating the resulting observables
     * for each `scala.util.Left` event emitted by the source, concatenating
@@ -3707,12 +3730,16 @@ object Observable {
 
   /** $fromInputStreamDesc
     *
+    * $blocksDefaultSchedulerDesc
+    *
     * @param in is the `InputStream` to convert into an observable
     */
   def fromInputStream(in: InputStream): Observable[Array[Byte]] =
     fromInputStream(in, chunkSize = 4096)
 
   /** $fromInputStreamDesc
+    *
+    * $blocksDefaultSchedulerDesc
     *
     * @param in is the `InputStream` to convert into an observable
     * @param chunkSize is the maximum length of the emitted arrays of bytes.
@@ -3723,12 +3750,16 @@ object Observable {
 
   /** $fromCharsReaderDesc
     *
+    * $blocksDefaultSchedulerDesc
+    *
     * @param in is the `Reader` to convert into an observable
     */
   def fromCharsReader(in: Reader): Observable[Array[Char]] =
     fromCharsReader(in, chunkSize = 4096)
 
   /** $fromCharsReaderDesc
+    *
+    * $blocksDefaultSchedulerDesc
     *
     * @param in is the `Reader` to convert into an observable
     * @param chunkSize is the maximum length of the emitted arrays of chars.
@@ -4457,5 +4488,59 @@ object Observable {
       fa.onErrorRecoverWith(pf)
     override def empty[A]: Observable[A] =
       Observable.empty[A]
+  }
+
+  /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
+  implicit val observableNonEmptyParallel: NonEmptyParallel[Observable, CombineObservable.Type] =
+    new NonEmptyParallel[Observable, CombineObservable.Type] {
+      import CombineObservable.unwrap
+      import CombineObservable.{apply => wrap}
+
+      override def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
+      override def apply: Apply[CombineObservable.Type] = CombineObservable.combineObservableApplicative
+
+      override val sequential = new (CombineObservable.Type ~> Observable) {
+        def apply[A](fa: CombineObservable.Type[A]): Observable[A] = unwrap(fa)
+      }
+      override val parallel = new (Observable ~> CombineObservable.Type) {
+        def apply[A](fa: Observable[A]): CombineObservable.Type[A] = wrap(fa)
+      }
+  }
+  
+  // -- DEPRECATIONS
+
+  /** DEPRECATED — please use [[Observable!.executeAsync .executeAsync]].
+    *
+    * The reason for the deprecation is the repurposing of the word "fork"
+    * in [[monix.eval.Task Task]].
+    */
+  @deprecated("Please use Observable!.executeAsync", "3.0.0")
+  def fork[A](fa: Observable[A]): Observable[A] = {
+    // $COVERAGE-OFF$
+    fa.executeAsync
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — please use [[Observable!.executeOn .executeOn]].
+    *
+    * The reason for the deprecation is the repurposing of the word "fork"
+    * in [[monix.eval.Task Task]].
+    */
+  @deprecated("Please use Observable!.executeOn", "3.0.0")
+  def fork[A](fa: Observable[A], scheduler: Scheduler): Observable[A] =
+    fa.executeOn(scheduler)
+
+  implicit final class DeprecatedExtensions[A](val self: Observable[A]) extends AnyVal {
+    /** DEPRECATED - renamed to [[Observable.executeAsync executeAsync]].
+      *
+      * The reason for the deprecation is the repurposing of the word "fork"
+      * in [[monix.eval.Task Task]].
+      */
+    @deprecated("Renamed to Observable!.executeAsync", "3.0.0")
+    def executeWithFork: Observable[A] = {
+      // $COVERAGE-OFF$
+      self.executeAsync
+      // $COVERAGE-ON$
+    }
   }
 }

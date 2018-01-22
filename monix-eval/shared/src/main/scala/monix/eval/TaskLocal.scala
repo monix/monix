@@ -199,15 +199,24 @@ final class TaskLocal[A] private (default: => A) {
     Task.eval(ref.value = value)
 }
 
+/** Builders for [[TaskLocal]]
+  *
+  * @define refTransparent [[Task]] returned by this operation
+  *         produces a new [[TaskLocal]] each time it is evaluated.
+  *         To share a state between multiple consumers, pass
+  *         [[TaskLocal]] as a parameter or use [[Task.memoize]]
+  */
 object TaskLocal {
   /** Builds a [[TaskLocal]] reference with the given default.
+    *
+    * $refTransparent
     *
     * @param default is a value that gets returned in case the
     *        local was never updated (with [[TaskLocal.write write]])
     *        or in case it was cleared (with [[TaskLocal.clear]])
     */
-  def apply[A](default: A): TaskLocal[A] =
-    new TaskLocal(default)
+  def apply[A](default: A): Task[TaskLocal[A]] =
+    Task.eval(new TaskLocal(default))
 
   /** Builds a [[TaskLocal]] reference with the given `default`,
     * being lazily evaluated, using [[Coeval]] to manage evaluation.
@@ -215,11 +224,13 @@ object TaskLocal {
     * Yes, side effects in the `default` are allowed, [[Coeval]]
     * being a data type that's safe for side effects.
     *
+    * $refTransparent
+    *
     * @param default is a value that gets returned in case the
     *        local was never updated (with [[TaskLocal.write write]])
     *        or in case it was cleared (with [[TaskLocal.clear]]),
     *        lazily evaluated and managed by [[Coeval]]
     */
-  def lazyDefault[A](default: Coeval[A]): TaskLocal[A] =
-    new TaskLocal[A](default.value)
+  def lazyDefault[A](default: Coeval[A]): Task[TaskLocal[A]] =
+    Task.eval(new TaskLocal[A](default.value))
 }

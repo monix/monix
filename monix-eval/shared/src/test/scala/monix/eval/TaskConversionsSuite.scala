@@ -72,7 +72,7 @@ object TaskConversionsSuite extends BaseTestSuite {
 
   test("Task.raiseError(dummy).asyncBoundary.toIO") { implicit s =>
     val dummy = DummyException("dummy")
-    val io = Task.fork(Task.raiseError[Int](dummy)).toIO
+    val io = Task.raiseError[Int](dummy).executeAsync.toIO
     val f = io.unsafeToFuture()
 
     assertEquals(f.value, None); s.tick()

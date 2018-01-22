@@ -25,11 +25,13 @@ import cats.{Applicative, CoflatMap, Eq, MonadError, Monoid, MonoidK, Order, Par
 import monix.eval.instances.{CatsAsyncForTask, CatsBaseForTask, CatsSyncForCoeval}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
+import monix.execution.misc.NonFatal
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
@@ -519,6 +521,20 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def drop(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDrop(self, n)(F)
 
+  /** Drops the last `n` elements (from the end).
+    *
+    * Example: {{{
+    *   // Yields 1, 2
+    *   Iterant[Task].of(1, 2, 3, 4, 5).dropLast(3)
+    * }}}
+    *
+    * @param n the number of elements to drop
+    * @return a new iterant that drops the last ''n'' elements
+    *         emitted by the source
+    */
+  final def dropLast(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantDropLast(self, n)(F)
+
   /** Drops the longest prefix of elements that satisfy the given
     * predicate and returns a new iterant that emits the rest.
     *
@@ -536,6 +552,28 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def dropWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDropWhile(self, p)
+
+  /** Drops the longest prefix of elements that satisfy the given
+    * function and returns a new Iterant that emits the rest.
+    *
+    * In comparison with [[dropWhile]], this version accepts a function
+    * that takes an additional parameter: the zero-based index of the
+    * element.
+    *
+    * Example: {{{
+    *   // Yields 3, 4, 5
+    *   Iterant[Task].of(1, 2, 3, 4, 5).dropWhile((value, index) => value >= index * 2)
+    * }}}
+    *
+    * @param p is the predicate used to test whether the current
+    *        element should be dropped, if `true`, or to interrupt
+    *        the dropping process, if `false`
+    *
+    * @return a new iterant that drops the elements of the source
+    *         until the first time the given predicate returns `false`
+    */
+  final def dropWhileWithIndex(p: (A, Int) => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantDropWhileWithIndex(self, p)
 
   /** Dumps incoming events to standard output with provided prefix.
     *
@@ -978,6 +1016,35 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def foldRightL[B](b: F[B])(f: (A, F[B], F[Unit]) => F[B])(implicit F: Sync[F]): F[B] =
     IterantFoldRightL(self, b, f)(F)
 
+  /** Creates a new stream from the source that will emit a specific `separator`
+    * between every pair of elements.
+    *
+    * {{{
+    *   // Yields 1, 0, 2, 0, 3
+    *   Iterant[Coeval].of(1, 2, 3).intersperse(0)
+    * }}}
+    *
+    * @param separator the separator
+    */
+  final def intersperse(separator: A)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantIntersperse(self, separator)
+
+  /** Creates a new stream from the source that will emit the `start` element
+    * followed by the upstream elements paired with the `separator`
+    * and lastly the `end` element.
+    *
+    * {{{
+    *   // Yields '<', 'a', '-', 'b', '>'
+    *   Iterant[Coeval].of('a', 'b').intersperse('<', '-', '>')
+    * }}}
+    *
+    * @param start the first element emitted
+    * @param separator the separator
+    * @param end the last element emitted
+    */
+  final def intersperse(start: A, separator: A, end: A)(implicit F: Sync[F]): Iterant[F, A] =
+    start +: IterantIntersperse(self, separator) :+ end
+
   /** Given mapping functions from `F` to `G`, lifts the source into
     * an iterant that is going to use the resulting `G` for evaluation.
     *
@@ -1138,6 +1205,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def minL(implicit F: Sync[F], A: Order[A]): F[Option[A]] =
     reduceL((max, a) => if (A.compare(max, a) > 0) a else max)
+
+  /** In case this Iterant is empty, switch to the given backup. */
+  final def switchIfEmpty(backup: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+    IterantSwitchIfEmpty(this, backup)
 
   /** Reduces the elements of the source using the specified
     * associative binary operator, going from left to right, start to
@@ -1388,6 +1459,43 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def takeWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantTakeWhile(self, p)(F)
 
+  /** Takes longest prefix of elements zipped with their indices that satisfy the given predicate
+    * and returns a new iterant that emits those elements.
+    *
+    * Example: {{{
+    *   // Yields 1, 2
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeWhileWithIndex((_, idx) => idx != 2)
+    * }}}
+    *
+    * @param p is the function that tests each element, stopping
+    *          the streaming on the first `false` result
+    *
+    * @return a new iterant instance that on evaluation will all
+    *         elements of the source for as long as the given predicate
+    *         returns `true`, stopping upon the first `false` result
+    */
+  final def takeWhileWithIndex(p: (A, Long) => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantTakeWhileWithIndex(self, p)(F)
+
+  /** Takes every n-th element, dropping intermediary elements
+    * and returns a new iterant that emits those elements.
+    *
+    * Example: {{{
+    *   // Yields 2, 4, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeEveryNth(2)
+    *
+    *   // Yields 1, 2, 3, 4, 5, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeEveryNth(1)
+    * }}}
+    *
+    * @param n is the sequence number of an element to be taken (must be > 0)
+    *
+    * @return a new iterant instance that on evaluation will return only every n-th
+    *         element of the source
+    */
+  final def takeEveryNth(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantTakeEveryNth(self, n)
+
   /** Drops the first element of the source iterant, emitting the rest.
     *
     * Example: {{{
@@ -1400,6 +1508,26 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def tail(implicit F: Sync[F]): Iterant[F, A] =
     IterantTail(self)(F)
+
+  /** Lazily interleaves two iterants together, starting with the first
+    * element from `self`.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    *
+    * Example: {{{
+    *   val lh = Iterant[Task].of(11, 12)
+    *   val rh = Iterant[Task].of(21, 22, 23)
+    *
+    *   // Yields 11, 21, 12, 22
+    *   lh.interleave(rh)
+    * }}}
+    *
+    * @param rhs is the other iterant to interleave the source with (the
+    *        right hand side)
+    */
+  final def interleave[B >: A](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
+    IterantInterleave(self.upcast[B], rhs)(F)
 
   /** Converts this `Iterant` into an `org.reactivestreams.Publisher`.
     *
@@ -1549,6 +1677,35 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def scanEval[S](seed: F[S])(op: (S, A) => F[S])(implicit F: Sync[F]): Iterant[F, S] =
     IterantScanEval(self, seed, op)
+
+  /** Given a mapping function that returns a `B` type for which we have
+    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
+    * elements of the sources using the provided `Monoid[B].combine`, with the
+    * initial seed being the `Monoid[B].empty` value, emitting the generated values
+    * at each step.
+    *
+    * Equivalent with [[scan]] applied with the given [[cats.Monoid]], so given
+    * our `f` mapping function returns a `B`, this law holds:
+    * {{{
+    * val B = implicitly[Monoid[B]]
+    *
+    * stream.scanMap(f) <-> stream.scan(B.empty)(B.combine)
+    * }}}
+    *
+    * Example:
+    * {{{
+    * // Yields 2, 6, 12, 20, 30, 42
+    * Iterant[Task].of(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
+    * }}}
+    *
+    * @param f is the mapping function applied to every incoming element of this `Iterant`
+    *          before folding using `Monoid[B].combine`
+    *
+    * @return a new `Iterant` that emits all intermediate states being
+    *         resulted from applying `Monoid[B].combine` function
+    */
+  final def scanMap[B](f: A => B)(implicit F: Sync[F], B: Monoid[B]): Iterant[F, B] =
+    self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
 
   /** Skips over [[Iterant.Suspend]] states, along with
     * [[Iterant.NextCursor]] and [[Iterant.NextBatch]] states that
@@ -1752,6 +1909,12 @@ object Iterant extends IterantInstances {
   def eval[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
     Suspend(F.delay(nextS[F, A](a, F.pure(Halt(None)), F.unit)), F.unit)
 
+  /** Lifts a value from monadic context into the stream context,
+    * returning a stream of one element
+    */
+  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Suspend(F.map(fa)(lastS), F.unit)
+
   /** Builds a stream state equivalent with [[Iterant.Next]].
     *
     * $NextDesc
@@ -1883,6 +2046,70 @@ object Iterant extends IterantInstances {
   def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] = {
     val bs = if (xs.hasDefiniteSize) batches.defaultBatchSize else 1
     NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty), F.unit)
+  }
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * `Iterant` that keeps generating `NextBatch` items produced
+    * by our generator function with default `recommendedBatchSize`.
+    *
+    * Example: {{{
+    *   val f = (x: Int) => (x + 1, x * 2)
+    *   val seed = 1
+    *   val stream = Iterant.fromStateAction[Task, Int, Int](f)(seed)
+    *
+    *   // Yields 2, 3, 5, 9
+    *   stream.take(5)
+    * }}}
+    *
+    * @see [[fromStateActionL]] for version supporting `F[_]`
+    *     in result of generator function and seed element
+    */
+  def fromStateAction[F[_], S, A](f: S => (A, S))(seed: => S)(implicit F: Sync[F]): Iterant[F, A] = {
+    def loop(state: S): Iterant[F, A] = {
+      var toProcess = batches.defaultBatchSize
+      var currentState = state
+      val buffer = mutable.Buffer[A]()
+
+      while (toProcess > 0) {
+        val (elem, newState) = f(currentState)
+        buffer.append(elem)
+        currentState = newState
+        toProcess -= 1
+      }
+      NextBatch[F, A](Batch.fromSeq(buffer), F.delay(loop(currentState)), F.unit)
+    }
+    try loop(seed)
+    catch { case e if NonFatal(e) => Halt(Some(e)) }
+  }
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence in `F[_]` context, creates an
+    * `Iterant` that keeps generating `Next` items produced by our generator function.
+    *
+    * Example: {{{
+    *   val f = (x: Int) => F.pure((x + 1, x * 2))
+    *   val seed = F.pure(1)
+    *   val stream = Iterant.fromStateAction[Task, Int, Int](f)(seed)
+    *
+    *   // Yields 2, 3, 5, 9
+    *   stream.take(5)
+    * }}}
+    *
+    * @see [[fromStateAction]] for version without `F[_]` context which generates `NextBatch` items
+    */
+  def fromStateActionL[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] = {
+    import cats.syntax.all._
+
+    def loop(state: S): F[Iterant[F, A]] =
+      try {
+        f(state).map { case (elem, newState) =>
+          Next(elem, F.suspend(loop(newState)), F.unit)
+        }
+      } catch {
+        case e if NonFatal(e) => F.pure(Halt(Some(e)))
+      }
+    Suspend(F.suspend(seed.flatMap(loop)), F.unit)
   }
 
   /** Builds a stream that on evaluation will produce equally spaced

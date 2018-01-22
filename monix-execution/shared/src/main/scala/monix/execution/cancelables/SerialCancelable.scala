@@ -42,63 +42,36 @@ import scala.annotation.tailrec
 final class SerialCancelable private (initial: Cancelable)
   extends AssignableCancelable.Multi {
 
-  import SerialCancelable.State
-  import SerialCancelable.State._
-
   private[this] val state = {
-    val s: State = Active(if (initial != null) initial else Cancelable.empty,0)
-    AtomicAny.withPadding(s, PaddingStrategy.LeftRight128)
+    AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)
   }
 
   override def isCanceled: Boolean =
     state.get match {
-      case Cancelled => true
+      case null => true
       case _ => false
     }
 
   def cancel(): Unit =
-    state.getAndSet(Cancelled) match {
-      case Cancelled => () // nothing to do
-      case current @ Active(s,_) => s.cancel()
+    state.getAndSet(null) match {
+      case null => () // nothing to do
+      case ref => ref.cancel()
     }
 
   @tailrec def `:=`(value: Cancelable): this.type =
     state.get match {
-      case Cancelled =>
+      case null =>
         value.cancel()
         this
 
-      case current @ Active(old, currentOrder) =>
-        if (!state.compareAndSet(current, Active(value, currentOrder)))
+      case current =>
+        if (!state.compareAndSet(current, value)) {
+          // $COVERAGE-OFF$
           :=(value) // retry
-        else {
-          old.cancel()
-          this
-        }
-    }
-
-  @tailrec def orderedUpdate(value: Cancelable, order: Long): this.type =
-    state.get match {
-      case Cancelled =>
-        value.cancel()
-        this
-
-      case current @ Active(oldRef, currentOrder) =>
-        val sameSign = (currentOrder < 0) ^ (order >= 0)
-        val isOrdered =
-          (sameSign && currentOrder <= order) ||
-            (currentOrder >= 0L && order < 0L) // takes overflow into account
-
-        if (!isOrdered) {
-          value.cancel()
-          this
+          // $COVERAGE-ON$
         } else {
-          if (!state.compareAndSet(current, Active(value, order)))
-            orderedUpdate(value, order) // retry
-          else {
-            oldRef.cancel()
-            this
-          }
+          current.cancel()
+          this
         }
     }
 }
@@ -106,15 +79,9 @@ final class SerialCancelable private (initial: Cancelable)
 object SerialCancelable {
   /** Builder for [[SerialCancelable]]. */
   def apply(): SerialCancelable =
-    new SerialCancelable(null)
+    apply(Cancelable.empty)
 
   /** Builder for [[SerialCancelable]]. */
   def apply(initial: Cancelable): SerialCancelable =
     new SerialCancelable(initial)
-
-  private sealed trait State
-  private object State {
-    case class Active(s: Cancelable, order: Long) extends State
-    case object Cancelled extends State
-  }
 }

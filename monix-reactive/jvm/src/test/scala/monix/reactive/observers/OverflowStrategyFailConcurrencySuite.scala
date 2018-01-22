@@ -18,30 +18,16 @@
 package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
-import minitest.TestSuite
-import monix.execution.{Ack, Scheduler}
-import monix.reactive.{Observer, OverflowStrategy}
+import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
-import OverflowStrategy.Fail
-import monix.execution.exceptions.BufferOverflowException
-import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.SchedulerService
-
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
+import monix.execution.exceptions.{BufferOverflowException, DummyException}
+import monix.reactive.OverflowStrategy.Fail
+import monix.reactive.{BaseConcurrencySuite, Observer}
+import scala.concurrent.{Future, Promise}
 import scala.util.Random
 
 
-object OverflowStrategyFailConcurrencySuite extends TestSuite[SchedulerService] {
-  def setup() =
-    Scheduler.computation(name="monix-fail-test")
-
-  def tearDown(env: SchedulerService) = {
-    env.shutdown()
-    Await.result(env.awaitTermination(1.hour, Scheduler.global), Duration.Inf)
-  }
-
+object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
   test("should not lose events, test 1") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)

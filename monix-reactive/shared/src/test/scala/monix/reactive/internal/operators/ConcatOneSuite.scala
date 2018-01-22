@@ -236,7 +236,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
     val source = Observable.now(1L).endWithError(dummy1)
     val obs: Observable[Long] = source.flatMap { _ =>
-      Observable.fork(Observable.raiseError(dummy2))
+      Observable.raiseError(dummy2).executeAsync
     }
 
     var thrownError: Throwable = null

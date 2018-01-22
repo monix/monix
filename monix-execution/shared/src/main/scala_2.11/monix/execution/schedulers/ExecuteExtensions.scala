@@ -18,7 +18,6 @@
 package monix.execution.schedulers
 
 import monix.execution.Scheduler
-import language.experimental.macros
 
 /** Defines extension methods for [[Scheduler]] meant for
   * executing runnables.
@@ -44,7 +43,7 @@ private[execution] trait ExecuteExtensions extends Any {
     * @param cb the callback to execute asynchronously
     */
   def executeAsync(cb: () => Unit): Unit =
-    macro ExecuteMacros.executeAsync
+    source.execute(new Runnable { def run() = cb() })
 
   /** Schedules the given callback for asynchronous
     * execution in the thread-pool, but also indicates the
@@ -63,8 +62,10 @@ private[execution] trait ExecuteExtensions extends Any {
     *
     * @param cb the callback to execute asynchronously
     */
-  def executeAsyncBatch(cb: () => Unit): Unit =
-    macro ExecuteMacros.executeAsyncBatch
+  def executeAsyncBatch(cb: () => Unit): Unit = {
+    def r = new TrampolinedRunnable { def run() = cb() }
+    source.execute(new StartAsyncBatchRunnable(r, source))
+  }
 
   /** Schedules the given callback for immediate execution as a
     * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]].
@@ -83,5 +84,5 @@ private[execution] trait ExecuteExtensions extends Any {
     * @param cb the callback to execute asynchronously
     */
   def executeTrampolined(cb: () => Unit): Unit =
-    macro ExecuteMacros.executeTrampolined
+    source.execute(new TrampolinedRunnable { def run() = cb() })
 }

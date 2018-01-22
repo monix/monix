@@ -87,55 +87,72 @@ abstract class MVar[A] {
   def read: Task[A]
 }
 
+/** Builders for [[MVar]]
+  *
+  * @define refTransparent [[Task]] returned by this operation
+  *         produces a new [[MVar]] each time it is evaluated.
+  *         To share a state between multiple consumers, pass
+  *         [[MVar]] as a parameter or use [[Task.memoize]]
+  */
 object MVar {
-  /** Builds an [[MVar]] instance with an `initial` value. */
-  def apply[A](initial: A): MVar[A] =
-    new AsyncMVarImpl[A](AsyncVar(initial))
+  /** Builds an [[MVar]] instance with an `initial` value.
+    *
+    * $refTransparent
+    */
+  def apply[A](initial: A): Task[MVar[A]] =
+    Task.eval(new AsyncMVarImpl[A](AsyncVar(initial)))
 
-  /** Returns an empty [[MVar]] instance. */
-  def empty[A]: MVar[A] =
-    new AsyncMVarImpl[A](AsyncVar.empty)
+  /** Returns an empty [[MVar]] instance.
+    *
+    * $refTransparent
+    */
+  def empty[A]: Task[MVar[A]] =
+    Task.eval(new AsyncMVarImpl[A](AsyncVar.empty))
 
   /** Builds an [[MVar]] instance with an `initial`  value and a given
     * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
     * (for avoiding the false sharing problem).
+    *
+    * $refTransparent
     */
-  def withPadding[A](initial: A, ps: PaddingStrategy): MVar[A] =
-    new AsyncMVarImpl[A](AsyncVar.withPadding(initial, ps))
+  def withPadding[A](initial: A, ps: PaddingStrategy): Task[MVar[A]] =
+    Task.eval(new AsyncMVarImpl[A](AsyncVar.withPadding(initial, ps)))
 
   /** Builds an empty [[MVar]] instance with a given
     * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
     * (for avoiding the false sharing problem).
+    *
+    * $refTransparent
     */
-  def withPadding[A](ps: PaddingStrategy): MVar[A] =
-    new AsyncMVarImpl[A](AsyncVar.withPadding(ps))
+  def withPadding[A](ps: PaddingStrategy): Task[MVar[A]] =
+    Task.eval(new AsyncMVarImpl[A](AsyncVar.withPadding(ps)))
 
   /** [[MVar]] implementation based on [[monix.execution.misc.AsyncVar]] */
   private final class AsyncMVarImpl[A](av: AsyncVar[A]) extends MVar[A] {
     def put(a: A): Task[Unit] =
-      Task.unsafeCreate { (context, callback) =>
-        implicit val s = context.scheduler
+      Task.unsafeCreate { (ctx, cb) =>
+        val async = Callback.async(cb)(ctx.scheduler)
         // Execution could be synchronous
-        if (av.unsafePut(a, callback)) callback.asyncOnSuccess(())
+        if (av.unsafePut(a, async)) async.onSuccess(())
       }
 
     def take: Task[A] =
-      Task.unsafeCreate { (context, callback) =>
-        implicit val s = context.scheduler
+      Task.unsafeCreate { (ctx, cb) =>
+        val async = Callback.async(cb)(ctx.scheduler)
         // Execution could be synchronous (e.g. result is null or not)
-        av.unsafeTake(callback) match {
+        av.unsafeTake(async) match {
           case null => () // do nothing
-          case a => callback.asyncOnSuccess(a)
+          case a => async.onSuccess(a)
         }
       }
 
     def read: Task[A] =
-      Task.unsafeCreate { (context, callback) =>
-        implicit val s = context.scheduler
+      Task.unsafeCreate { (ctx, cb) =>
+        val async = Callback.async(cb)(ctx.scheduler)
         // Execution could be synchronous (e.g. result is null or not)
-        av.unsafeRead(callback) match {
+        av.unsafeRead(async) match {
           case null => () // do nothing
-          case a => callback.asyncOnSuccess(a)
+          case a => async.onSuccess(a)
         }
       }
   }

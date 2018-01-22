@@ -23,6 +23,7 @@ import minitest.laws.Checkers
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Notification.{OnComplete, OnError, OnNext}
+import monix.reactive.observables.CombineObservable
 import org.scalacheck.Test.Parameters
 import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.typelevel.discipline.Laws
@@ -86,6 +87,14 @@ trait ArbitraryInstances extends ArbitraryInstancesBase with monix.eval.Arbitrar
         equalityFuture(eqList, ec).eqv(fa, fb)
       }
     }
+
+  implicit def equalityCombineObservable[A](implicit A: Eq[A], ec: TestScheduler): Eq[CombineObservable.Type[A]] =
+    new Eq[CombineObservable.Type[A]] {
+      import CombineObservable.unwrap
+      def eqv(lh: CombineObservable.Type[A], rh: CombineObservable.Type[A]): Boolean = {
+        Eq[Observable[A]].eqv(unwrap(lh), unwrap(rh))
+      }
+    }
 }
 
 trait ArbitraryInstancesBase extends monix.eval.ArbitraryInstancesBase {
@@ -94,6 +103,14 @@ trait ArbitraryInstancesBase extends monix.eval.ArbitraryInstancesBase {
       implicitly[Arbitrary[List[A]]].arbitrary
         .map(Observable.fromIterable)
     }
+
+  implicit def arbitraryCombineObservable[A : Arbitrary]: Arbitrary[CombineObservable.Type[A]] = {
+    import CombineObservable.{apply => wrap}
+    Arbitrary {
+      implicitly[Arbitrary[List[A]]].arbitrary
+        .map(list => wrap(Observable.fromIterable(list)))
+    }
+  }
 
   implicit def cogenForObservable[A]: Cogen[Observable[A]] =
     Cogen[Unit].contramap(_ => ())
