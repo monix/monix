@@ -50,7 +50,13 @@ private[tail] object IterantBracket {
           NextBatch(batch, rest.map(loop(a)), earlyRelease(a) *> stop)
 
         case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(a)), earlyRelease(a) *> stop)
+          Suspend(
+            F.handleError(rest.map(loop(a))) { ex =>
+              val done = F.suspend(release(a, Error(ex)))
+              Suspend(done.as(Halt(Some(ex))), done)
+            },
+            earlyRelease(a) *> stop
+          )
 
         case h @ Last(_) =>
           Suspend(
