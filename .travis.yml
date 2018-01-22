@@ -8,23 +8,19 @@ matrix:
     # Scala 2.11 — JVM
     - jdk: oraclejdk8
       scala: 2.11.12
-      env: COMMAND=ci-jvm COVERAGE= PUBLISH=
+      env: COMMAND=ci-jvm COVERAGE=
     # Scala 2.11 — JavaScript
     - jdk: oraclejdk8
       scala: 2.11.12
-      env: COMMAND=ci-js COVERAGE= PUBLISH=
-    # Scala 2.12 — JVM — all tests + publish
+      env: COMMAND=ci-js COVERAGE=
+    # Scala 2.12 — JVM — all tests + coverage
     - jdk: oraclejdk8
       scala: 2.12.4
-      env: COMMAND=ci-jvm-all COVERAGE= PUBLISH=true
+      env: COMMAND=ci-jvm-all COVERAGE=coverage
     # Scala 2.12 — JavaScript
     - jdk: oraclejdk8
       scala: 2.12.4
-      env: COMMAND=ci-js PUBLISH= COVERAGE=
-    # Scala 2.12 — JVM — code coverage
-    - jdk: oraclejdk8
-      scala: 2.12.4
-      env: COMMAND=ci-jvm COVERAGE=coverage PUBLISH=
+      env: COMMAND=ci-js COVERAGE=
 
 env:
   global:
@@ -40,7 +36,6 @@ script:
 
 after_success:
   - ./project/upload-coverage
-  - ./project/publish
 
 notifications:
   webhooks:
