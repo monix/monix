@@ -31,15 +31,23 @@ private[eval] object TaskBracket {
 
     acquire.flatMap { a =>
       val next = try use(a) catch { case NonFatal(e) => Task.raiseError(e) }
-      next.onCancelRaiseError(isCancel).transformWith[B](
-        b => release(a, Right(b)).map(_ => b),
-        err => {
-          if (err != isCancel)
-            release(a, Left(Some(err))).flatMap(_ => Task.raiseError[B](err))
-          else
-            release(a, leftNone).flatMap(neverFn)
-        }
-      )
+      next.onCancelRaiseError(isCancel).flatMap(new BracketTr(a, release))
+    }
+  }
+
+  private final class BracketTr[A, B](
+    a: A,
+    release: (A, Either[Option[Throwable], B]) => Task[Unit])
+    extends StackFrame[B, Task[B]] {
+
+    def apply(b: B): Task[B] =
+      release(a, Right(b)).map(_ => b)
+
+    def recover(e: Throwable): Task[B] = {
+      if (e != isCancel)
+        release(a, Left(Some(e))).flatMap(_ => Task.raiseError[B](e))
+      else
+        release(a, leftNone).flatMap(neverFn)
     }
   }
 

@@ -17,42 +17,83 @@
 
 package monix.eval
 
-import java.io._
+import cats.laws._
+import cats.laws.discipline._
+import cats.syntax.all._
+import monix.execution.exceptions.DummyException
 
-private[eval] object TaskBracketSuite extends BaseTestSuite {
+import scala.util.{Failure, Success}
 
-  def readFile(file: File): Task[String] = {
-    val acquire = Task.eval(new BufferedReader(
-      new InputStreamReader(new FileInputStream(file), "utf-8"))
-    )
-
-    acquire.bracket { in =>
-      // Usage part
-      Task.eval {
-        // Yes, not FP; side-effects are suspended though
-        var line: String = null
-        val buff = new StringBuilder()
-        do {
-          line = in.readLine()
-          if (line != null) buff.append(line)
-        } while (line != null)
-        buff.toString()
+object TaskBracketSuite extends BaseTestSuite {
+  test("equivalence with onErrorHandleWith") { implicit sc =>
+    check2 { (task: Task[Int], f: Throwable => Task[Unit]) =>
+      val expected = task.onErrorHandleWith(e => f(e) *> Task.raiseError(e))
+      val received = task.bracketE(Task.now) {
+        case (_, Left(Some(e))) => f(e)
+        case (_, _) => Task.unit
       }
-    } { in =>
-      // The release part
-      Task.eval(in.close())
+      received <-> expected
     }
   }
 
+  test("equivalence with flatMap + transformWith") { implicit sc =>
+    check3 { (acquire: Task[Int], f: Int => Task[Int], release: Int => Task[Unit]) =>
+      val expected = acquire.flatMap { a =>
+        f(a).transformWith(
+          s => release(a) *> Task.pure(s),
+          e => release(a) *> Task.raiseError(e)
+        )
+      }
 
-  test("works") { implicit sc =>
-
-    val file = Task(new File(""))
-
-    file.bracket { a =>
-      Task.eval(a.getAbsoluteFile)
-    } { file =>
-      Task.eval(file.delete())
+      val received = acquire.bracket(f)(release)
+      received <-> expected
     }
+  }
+
+  test("release is evaluated on success") { implicit sc =>
+    var input = Option.empty[(Int, Either[Option[Throwable], Int])]
+    val task = Task(1).bracketE(x => Task(x + 1)) { (a, i) =>
+      Task.eval { input = Some((a, i)) }
+    }
+
+    val f = task.runAsync
+    sc.tick()
+
+    assertEquals(input, Some((1, Right(2))))
+    assertEquals(f.value, Some(Success(2)))
+  }
+
+  test("release is evaluated on error") { implicit sc =>
+    val dummy = new DummyException("dummy")
+    var input = Option.empty[(Int, Either[Option[Throwable], Int])]
+
+    val task = Task(1).bracketE(_ => Task.raiseError[Int](dummy)) { (a, i) =>
+      Task.eval { input = Some((a, i)) }
+    }
+
+    val f = task.runAsync
+    sc.tick()
+
+    assertEquals(input, Some((1, Left(Some(dummy)))))
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
+
+  test("release is evaluated on cancel") { implicit sc =>
+    import scala.concurrent.duration._
+    var input = Option.empty[(Int, Either[Option[Throwable], Int])]
+
+    val task = Task(1)
+      .bracketE(x => Task(x + 1).delayExecution(1.second)) { (a, i) =>
+        Task.eval { input = Some((a, i)) }
+      }
+
+    val f = task.runAsync
+    sc.tick()
+
+    f.cancel()
+    sc.tick(1.second)
+
+    assertEquals(f.value, None)
+    assertEquals(input, Some((1, Left(None))))
   }
 }
