@@ -22,33 +22,9 @@ import monix.execution.misc.NonFatal
 
 private[eval] object TaskBracket {
   /**
-    * Implementation for `Task.bracket1`.
+    * Implementation for `Task.bracketE`.
     */
-  def simple[A, B](
-    acquire: Task[A],
-    use: A => Task[B],
-    release: A => Task[Unit]): Task[B] = {
-
-    either(acquire, use, (a, _) => release(a))
-
-    acquire.flatMap { a =>
-      val next = try use(a) catch { case NonFatal(e) => Task.raiseError(e) }
-      next.onCancelRaiseError(isCancel).transformWith[B](
-        b => release(a).map(_ => b),
-        err => {
-          if (err != isCancel)
-            release(a).flatMap(_ => Task.raiseError[B](err))
-          else
-            release(a).flatMap(neverFn)
-        }
-      )
-    }
-  }
-
-  /**
-    * Implementation for `Task.bracket2`.
-    */
-  def either[A, B](
+  def apply[A, B](
     acquire: Task[A],
     use: A => Task[B],
     release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] = {
