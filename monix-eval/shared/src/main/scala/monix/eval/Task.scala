@@ -215,35 +215,57 @@ import scala.util.{Failure, Success, Try}
   * [[monix.execution.Cancelable.empty Cancelable.empty]] reference,
   * in which case the resulting `Task` would not be cancelable.
   *
-  * But the `Task` we just described is cancelable:
+  * But the `Task` we just described is cancelable, for one at the
+  * edge, due to `runAsync` returning [[monix.execution.Cancelable Cancelable]]
+  * and [[monix.execution.CancelableFuture CancelableFuture]] references:
   *
   * {{{
   *   // Triggering execution
-  *   val f: CancelableFuture[Unit] = delayedHello.run()
+  *   val f: CancelableFuture[Unit] = delayedHello.runAsync
   *
   *   // If we change our mind before the timespan has passed:
   *   f.cancel()
   * }}}
   *
-  * Also, given an `Task` task, we can specify actions that need to be
-  * triggered in case of cancellation:
+  * But also cancellation is described on `Task` as a pure action,
+  * which can be used for example in [[monix.eval.Task.race race]] conditions:
+  *
+  * {{{
+  *   import scala.concurrent.duration._
+  *
+  *   val ta = Task(1)
+  *     .delayExecution(4.seconds)
+  *   val tb = Task.raiseError(new TimeoutException)
+  *     .delayExecution(4.seconds)
+  *
+  *   Task.racePair(ta, tb).flatMap {
+  *     case Left((a, taskB)) =>
+  *       taskB.cancel.map(_ => a)
+  *     case Right((taskA, b)) =>
+  *       taskA.cancel.map(_ => b)
+  *   }
+  * }}}
+  *
+  * Also, given a task, we can specify actions that need to be
+  * triggered in case of cancellation, see
+  * [[monix.eval.Task!.doOnCancel doOnCancel]]:
   *
   * {{{
   *   val task = Task.eval(println("Hello!")).executeAsync
   *
   *   task.doOnCancel(Task.eval {
   *     println("A cancellation attempt was made!")
-  *   }
-  *
-  *   val f: CancelableFuture[Unit] = task.run()
-  *
-  *   // Note that in this case cancelling the resulting Future
-  *   // will not stop the actual execution, since it doesn't know
-  *   // how, but it will trigger our on-cancel callback:
-  *
-  *   f.cancel()
-  *   //=> A cancellation attempt was made!
+  *   })
   * }}}
+  *
+  * Controlling cancellation can be achieved with
+  * [[monix.eval.Task!.cancelable cancelable]] and
+  * [[monix.eval.Task!.uncancelable uncancelable]].
+  *
+  * The former activates
+  * [[monix.eval.Task.Options.autoCancelableRunLoops auto-cancelable flatMap chains]],
+  * whereas the later ensures that a task becomes uncancelable such that
+  * it gets executed as an atomic unit (either all or nothing).
   *
   * =Note on the ExecutionModel=
   *
@@ -254,7 +276,7 @@ import scala.util.{Failure, Success, Try}
   * assumptions about how things will end up executed, as ultimately
   * it is the implementation's job to decide on the best execution
   * model. All you are guaranteed (and can assume) is asynchronous
-  * execution after executing `runAsync()`.
+  * execution after executing `runAsync`.
   *
   * Currently the default
   * [[monix.execution.ExecutionModel ExecutionModel]] specifies
@@ -573,8 +595,8 @@ sealed abstract class Task[+A] extends Serializable {
   /** Returns a task that treats the source task as the acquisition of a resource,
     * which is then exploited by the `use` function and then `released`.
     *
-    * The `bracket` operation is the equivalent of `try {} catch {} finally {}`
-    * statements from mainstream languages.
+    * The `bracket` operation is the equivalent of the
+    * `try {} catch {} finally {}` statements from mainstream languages.
     *
     * The `bracket` operation installs the necessary exception handler to release
     * the resource in the event of an exception being raised during the computation,
@@ -591,9 +613,10 @@ sealed abstract class Task[+A] extends Serializable {
     *   import java.io._
     *
     *   def readFile(file: File): Task[String] = {
+    *     // Opening a file handle for reading text
     *     val acquire = Task.eval(new BufferedReader(
-    *       new InputStreamReader(new FileInputStream(file), "utf-8"))
-    *     )
+    *       new InputStreamReader(new FileInputStream(file), "utf-8")
+    *     ))
     *
     *     acquire.bracket { in =>
     *       // Usage part
@@ -623,22 +646,24 @@ sealed abstract class Task[+A] extends Serializable {
     * an error in the background with nowhere to go but in
     * [[monix.execution.Scheduler.reportFailure Scheduler.reportFailure]].
     *
-    * In this particular example, given that we are reading from a file,
+    * In this particular example, given that we are just reading from a file,
     * it doesn't matter. But in other cases it might matter, as concurrency
     * on top of the JVM when dealing with I/O might lead to corrupted data.
     *
     * For those cases you might want to do synchronization (e.g. usage of
     * locks and semaphores) and you might want to use [[bracketE]], the
-    * version that allows you to differentiate between nuormal termination
+    * version that allows you to differentiate between normal termination
     * and cancellation.
     *
+    * @see [[bracketE]]
+    *
     * @param use is a function that evaluates the resource yielded by the source,
-    *        yielding a result that will get generated by this function on
-    *        evaluation
+    *        yielding a result that will get generated by the task returned
+    *        by this `bracket` function
     *
     * @param release is a function that gets called after `use` terminates,
     *        either normally or in error, or if it gets cancelled, receiving
-    *        as input the resource that needs that needs release
+    *        as input the resource that needs to be released
     */
   final def bracket[B](use: A => Task[B])(release: A => Task[Unit]): Task[B] =
     bracketE(use)((a, _) => release(a))
@@ -663,6 +688,8 @@ sealed abstract class Task[+A] extends Serializable {
     *  - `Left(None)` in case of cancellation
     *  - `Left(Some(error))` in case `use` terminated with an error
     *  - `Right(b)` in case of success
+    *
+    * @see [[bracket]]
     *
     * @param use is a function that evaluates the resource yielded by the source,
     *        yielding a result that will get generated by this function on
@@ -689,9 +716,10 @@ sealed abstract class Task[+A] extends Serializable {
     * Returns a new task that will complete when the cancellation is
     * sent (but not when it is observed).
     *
-    * Compared with
-    * [[monix.execution.CancelableFuture.cancel CancelableFuture.cancel()]]
-    * this action is pure.
+    * Compared with triggering
+    * [[monix.execution.Cancelable.cancel Cancelable.cancel]] or
+    * [[monix.execution.CancelableFuture.cancel CancelableFuture.cancel]]
+    * after [[Task.runAsync(implicit* runAsync]], this action is pure.
     *
     * Example:
     * {{{
@@ -1000,7 +1028,7 @@ sealed abstract class Task[+A] extends Serializable {
     *         if (n > 0)
     *           loop(n - 1, b, a + b)
     *         else
-    *           a
+    *           Task.now(a)
     *       }
     *
     *     loop(n, 0, 1).cancelable
@@ -1020,14 +1048,12 @@ sealed abstract class Task[+A] extends Serializable {
     * {{{
     *   Task(println("Hello ..."))
     *     .cancelable
-    *     .flatMap(_ => println("World!"))
+    *     .flatMap(_ => Task.eval(println("World!")))
     * }}}
     *
     * Normally [[Task.apply]] does not yield a cancelable task, but by applying
     * the `cancelable` transformation to it, the `println` will execute,
     * but not the subsequent `flatMap` operation.
-    *
-    * Also see [[Task.cancelableUnit]].
     */
   def cancelable: Task[A] =
     executeWithOptions(_.enableAutoCancelableRunLoops)
@@ -1194,7 +1220,9 @@ sealed abstract class Task[+A] extends Serializable {
     * {{{
     *   import java.util.concurrent.CancellationException
     *
-    *   val tenSecs = Task.sleep(10.seconds).onCancelRaiseError
+    *   val tenSecs = Task.sleep(10.seconds)
+    *     .onCancelRaiseError(new CancellationException)
+    *
     *   val task = tenSecs.fork.flatMap { fa =>
     *     // Triggering pure cancellation, then trying to get its result
     *     fa.cancel.flatMap(_ => fa)

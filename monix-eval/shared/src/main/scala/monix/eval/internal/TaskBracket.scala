@@ -31,11 +31,11 @@ private[eval] object TaskBracket {
 
     acquire.flatMap { a =>
       val next = try use(a) catch { case NonFatal(e) => Task.raiseError(e) }
-      next.onCancelRaiseError(isCancel).flatMap(new BracketTr(a, release))
+      next.onCancelRaiseError(isCancel).flatMap(new ReleaseFrame(a, release))
     }
   }
 
-  private final class BracketTr[A, B](
+  private final class ReleaseFrame[A, B](
     a: A,
     release: (A, Either[Option[Throwable], B]) => Task[Unit])
     extends StackFrame[B, Task[B]] {

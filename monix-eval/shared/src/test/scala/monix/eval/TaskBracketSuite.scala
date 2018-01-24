@@ -21,7 +21,6 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success}
 
 object TaskBracketSuite extends BaseTestSuite {
@@ -48,6 +47,21 @@ object TaskBracketSuite extends BaseTestSuite {
       val received = acquire.bracket(f)(release)
       received <-> expected
     }
+  }
+
+  test("use is protected against user error") { implicit sc =>
+    val dummy = new DummyException("dummy")
+    var input = Option.empty[(Int, Either[Option[Throwable], Int])]
+
+    val task = Task(1).bracketE(_ => throw dummy) { (a, i) =>
+      Task.eval { input = Some((a, i)) }
+    }
+
+    val f = task.runAsync
+    sc.tick()
+
+    assertEquals(input, Some((1, Left(Some(dummy)))))
+    assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("release is evaluated on success") { implicit sc =>
