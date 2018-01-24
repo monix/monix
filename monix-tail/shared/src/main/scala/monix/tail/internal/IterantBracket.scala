@@ -20,6 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.functor._
 import cats.syntax.apply._
+import cats.syntax.applicativeError._
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.{BracketResult, Iterant}
@@ -38,51 +39,53 @@ private[tail] object IterantBracket {
     def earlyRelease(a: A) =
       F.suspend(release(a, EarlyStop))
 
-    def loop(a: A)(source: Iterant[F, B]): Iterant[F, B] =
-      source match {
-        case Next(item, rest, stop) =>
-          Next(item, rest.map(loop(a)), earlyRelease(a) *> stop)
+    def loop(a: A, sourceF: F[Iterant[F, B]]): F[Iterant[F, B]] =
+      sourceF
+        .map {
+          case Next(item, rest, stop) =>
+            Next(item, loop(a, rest), earlyRelease(a) *> stop)
 
-        case NextCursor(cursor, rest, stop) =>
-          NextCursor(cursor, rest.map(loop(a)), earlyRelease(a) *> stop)
+          case NextCursor(cursor, rest, stop) =>
+            NextCursor(cursor, loop(a, rest), earlyRelease(a) *> stop)
 
-        case NextBatch(batch, rest, stop) =>
-          NextBatch(batch, rest.map(loop(a)), earlyRelease(a) *> stop)
+          case NextBatch(batch, rest, stop) =>
+            NextBatch(batch, loop(a, rest), earlyRelease(a) *> stop)
 
-        case Suspend(rest, stop) =>
-          Suspend(
-            F.handleError(rest.map(loop(a))) { ex =>
-              val done = F.suspend(release(a, Error(ex)))
-              Suspend(done.as(Halt(Some(ex))), done)
-            },
-            earlyRelease(a) *> stop
-          )
+          case Suspend(rest, stop) =>
+            Suspend(
+              loop(a, rest),
+              earlyRelease(a) *> stop
+            )
 
-        case h @ Last(_) =>
-          Suspend(
-            F.suspend(release(a, Completed)).as(h),
-            earlyRelease(a)
-          )
+          case h @ Last(_) =>
+            Suspend[F, B](
+              F.suspend(release(a, Completed)).as(h),
+              earlyRelease(a)
+            )
 
-        case h @ Halt(Some(ex)) =>
-          val done = F.suspend(release(a, Error(ex)))
-          Suspend(done.as(h), done)
+          case h @ Halt(Some(ex)) =>
+            val done = F.suspend(release(a, Error(ex)))
+            Suspend[F, B](done.as(h), done)
 
-        case h @ Halt(None) =>
-          val done = F.suspend(release(a, Completed))
-          Suspend(done.as(h), done)
+          case h @ Halt(None) =>
+            val done = F.suspend(release(a, Completed))
+            Suspend[F, B](done.as(h), done)
+        }
+      .handleErrorWith { ex =>
+        F.suspend(release(a, Error(ex)))
+          .as(Halt(Some(ex)))
       }
 
-    def begin(a: A) =
+    def begin(a: A): F[Iterant[F, B]] =
       try {
-        loop(a)(use(a))
+        loop(a, F.pure(use(a)))
       } catch {
         case ex if NonFatal(ex) =>
           val end = F.suspend(release(a, Error(ex)))
             .as(Iterant.haltS[F, B](Some(ex)))
-          Suspend(end, F.unit)
+          F.pure(Suspend(end, F.unit))
       }
 
-    Suspend(acquire.map(begin), F.unit)
+    Suspend(F.flatMap(acquire)(begin), F.unit)
   }
 }
