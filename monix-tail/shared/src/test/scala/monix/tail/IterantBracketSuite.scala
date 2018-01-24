@@ -165,7 +165,7 @@ object IterantBracketSuite extends BaseTestSuite {
     assert(released)
   }
 
-  // TODO: requires exception handling in completeL
+  // TODO: requires exception handling in completeL?
 /*  test("Bracket handles broken batches & cursors") { _ =>
     val rs = new Resource
     val dummy = DummyException("dummy")
