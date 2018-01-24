@@ -22,12 +22,16 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
 import monix.tail.BracketResult._
+import monix.tail.batches.{Batch, BatchCursor}
 
 object IterantBracketSuite extends BaseTestSuite {
   class Resource(var acquired: Int = 0, var released: Int = 0) {
     def acquire = IO { acquired += 1 }
     def release = IO { released += 1 }
   }
+
+  def runIterant[A](iterant: Iterant[IO, A]): Unit =
+    iterant.completeL.unsafeRunSync()
 
   test("Bracket yields all elements `use` provides") { _ =>
     check1 { (source: Iterant[IO, Int]) =>
@@ -48,7 +52,7 @@ object IterantBracketSuite extends BaseTestSuite {
       }),
       (_, _) => IO.unit
     )
-    bracketed.take(1).completeL.unsafeRunSync()
+    runIterant(bracketed.take(1))
     assert(earlyStopDone)
   }
 
@@ -60,7 +64,7 @@ object IterantBracketSuite extends BaseTestSuite {
         assertEquals(result, Completed)
       })
     )
-    bracketed.completeL.unsafeRunSync()
+    runIterant(bracketed)
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
   }
@@ -73,7 +77,7 @@ object IterantBracketSuite extends BaseTestSuite {
         assertEquals(result, EarlyStop)
       })
     ).take(1)
-    bracketed.completeL.unsafeRunSync()
+    runIterant(bracketed)
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
   }
@@ -88,7 +92,7 @@ object IterantBracketSuite extends BaseTestSuite {
       })
     )
     intercept[DummyException] {
-      bracketed.completeL.unsafeRunSync()
+      runIterant(bracketed)
     }
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
@@ -104,7 +108,7 @@ object IterantBracketSuite extends BaseTestSuite {
       })
     )
     intercept[DummyException] {
-      bracketed.completeL.unsafeRunSync()
+      runIterant(bracketed)
     }
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
@@ -121,7 +125,7 @@ object IterantBracketSuite extends BaseTestSuite {
       })
     )
     intercept[DummyException] {
-      bracketed.completeL.unsafeRunSync()
+      runIterant(bracketed)
     }
     assertEquals(rs.acquired, 0)
     assertEquals(rs.released, 0)
@@ -132,14 +136,14 @@ object IterantBracketSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val bracketed = Iterant.bracket(IO.unit)(
       _ => Iterant.bracket(IO.unit)(
-        _ => Iterant.empty[IO, Int],
+        _ => Iterant[IO].of(1, 2, 3),
         (_, _) => IO.raiseError(dummy)
       ),
       (_, _) => IO { released = true }
     )
 
     intercept[DummyException] {
-      bracketed.completeL.unsafeRunSync()
+      runIterant(bracketed)
     }
     assert(released)
   }
@@ -149,16 +153,70 @@ object IterantBracketSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val bracketed = Iterant.bracket(IO.unit)(
       _ => Iterant.bracket(IO.unit)(
-        _ => Iterant.empty[IO, Int],
+        _ => Iterant[IO].of(1, 2, 3),
         (_, _) => IO { released = true }
       ),
       (_, _) => IO.raiseError(dummy)
     )
 
     intercept[DummyException] {
-      bracketed.completeL.unsafeRunSync()
+      runIterant(bracketed)
     }
     assert(released)
+  }
 
+  // TODO: requires exception handling in completeL
+/*  test("Bracket handles broken batches & cursors") { _ =>
+    val rs = new Resource
+    val dummy = DummyException("dummy")
+    val brokenBatch = Iterant.bracket(rs.acquire)(
+      _ => Iterant.nextBatchS(
+        ThrowExceptionBatch(dummy),
+        IO(Iterant.empty[IO, Int]),
+        IO.unit
+      ),
+      (_,_) => rs.release
+    )
+    val brokenCursor = Iterant.bracket(rs.acquire)(
+      _ => Iterant.nextCursorS(
+        ThrowExceptionCursor(dummy),
+        IO(Iterant.empty[IO, Int]),
+        IO.unit
+      ),
+      (_,_) => rs.release
+    )
+    intercept[DummyException] {
+      brokenBatch.completeL.unsafeRunSync()
+    }
+    intercept[DummyException] {
+      brokenCursor.completeL.unsafeRunSync()
+    }
+    assertEquals(rs.acquired, 2)
+    assertEquals(rs.released, 2)
+  }*/
+
+  test("Bracket handles broken `next` continuations") { _ =>
+    val rs = new Resource
+    val dummy = DummyException("dummy")
+    def withError(ctor: (IO[Iterant[IO, Int]], IO[Unit]) => Iterant[IO, Int]) =
+      Iterant.bracket(rs.acquire)(
+        _ => ctor(IO.raiseError(dummy), IO.unit),
+        (_, _) => rs.release
+      )
+
+    val brokens = Array(
+      withError(Iterant.nextS(0, _, _)),
+      withError(Iterant.nextBatchS(Batch(1, 2, 3), _, _)),
+      withError(Iterant.nextCursorS(BatchCursor(1, 2, 3), _, _)),
+      withError(Iterant.suspendS)
+    )
+
+    for (broken <- brokens) {
+      intercept[DummyException] {
+        runIterant(broken)
+      }
+    }
+    assertEquals(rs.acquired, brokens.length)
+    assertEquals(rs.released, brokens.length)
   }
 }
