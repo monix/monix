@@ -58,7 +58,7 @@ object CoevalBracketSuite extends BaseTestSuite {
     }
 
     val result = coeval.runTry
-    assertEquals(input, Some((1, Left(Some(dummy)))))
+    assertEquals(input, Some((1, Left(dummy))))
     assertEquals(result, Failure(dummy))
   }
 
@@ -82,7 +82,7 @@ object CoevalBracketSuite extends BaseTestSuite {
     }
 
     val result = coeval.runTry
-    assertEquals(input, Some((1, Left(Some(dummy)))))
+    assertEquals(input, Some((1, Left(dummy))))
     assertEquals(result, Failure(dummy))
   }
 }

@@ -86,6 +86,8 @@ private[eval] object TaskCancellation {
       if (waitsForResult.getAndSet(false)) {
         conn.pop()
         cb.asyncOnError(e)
+      } else {
+        sc.reportFailure(e)
       }
   }
 

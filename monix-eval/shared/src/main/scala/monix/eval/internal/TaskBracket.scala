@@ -17,6 +17,8 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
+
 import monix.eval.Task
 import monix.execution.misc.NonFatal
 
@@ -44,15 +46,14 @@ private[eval] object TaskBracket {
       release(a, Right(b)).map(_ => b)
 
     def recover(e: Throwable): Task[B] = {
-      if (e != isCancel)
+      if (e ne isCancel)
         release(a, Left(Some(e))).flatMap(_ => Task.raiseError[B](e))
       else
         release(a, leftNone).flatMap(neverFn)
     }
   }
 
-  private final class CancelException extends RuntimeException
-  private final val isCancel = new CancelException
+  private final val isCancel = new CancellationException("bracket")
   private final val neverFn = (_: Unit) => Task.never[Nothing]
   private final val leftNone = Left(None)
 }

@@ -17,11 +17,14 @@
 
 package monix.eval
 
+import java.util.concurrent.CancellationException
+
 import cats.laws._
 import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
+
 import scala.concurrent.duration._
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 object TaskCancellationSuite extends BaseTestSuite {
   test("cancellation works for async actions") { implicit ec =>
@@ -134,5 +137,20 @@ object TaskCancellationSuite extends BaseTestSuite {
 
       received <-> Task.raiseError(e)
     }
+  }
+
+  test("errors raised after cancel get reported") { implicit sc =>
+    val dummy = new DummyException()
+    val canceled = new CancellationException()
+    val task = Task.raiseError[Int](dummy)
+      .executeAsync
+      .onCancelRaiseError(canceled)
+
+    val f = task.runAsync
+    f.cancel()
+    sc.tick()
+
+    assertEquals(f.value, Some(Failure(canceled)))
+    assertEquals(sc.state.lastReportedError, dummy)
   }
 }
