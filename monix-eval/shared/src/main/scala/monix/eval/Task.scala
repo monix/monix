@@ -1001,9 +1001,9 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * Normally Monix Tasks have these characteristics:
     *
-    * - `flatMap` chains are not cancelable by default
-    * - when creating [[Task.create async tasks]] the user has to specify explicit
-    *   cancellation logic
+    *  - `flatMap` chains are not cancelable by default
+    *  - when creating [[Task.create async tasks]] the user has to specify explicit
+    *    cancellation logic
     *
     * This operation returns a task that has [[Task.Options.autoCancelableRunLoops]]
     * enabled upon evaluation, thus being equivalent with:
@@ -1013,12 +1013,12 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * What this does is two-fold:
     *
-    * - `flatMap` chains become cancelable on async boundaries, which works in
-    *   combination with [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]]
-    *   that's enabled by default (injected by [[monix.execution.Scheduler Scheduler]],
-    *   but can also be changed with [[executeWithModel]])
-    * - even if the source task cannot be cancelled, upon completion the result
-    *   is not allowed to be streamed and the continuation is not allowed to execute
+    *  - `flatMap` chains become cancelable on async boundaries, which works in
+    *    combination with [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]]
+    *    that's enabled by default (injected by [[monix.execution.Scheduler Scheduler]],
+    *    but can also be changed with [[executeWithModel]])
+    *  - even if the source task cannot be cancelled, upon completion the result
+    *    is not allowed to be streamed and the continuation is not allowed to execute
     *
     * For example this is a function that calculates the n-th Fibonacci element:
     * {{{
