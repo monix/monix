@@ -165,35 +165,29 @@ object IterantBracketSuite extends BaseTestSuite {
     assert(released)
   }
 
-  // TODO: requires exception handling in completeL?
-/*  test("Bracket handles broken batches & cursors") { _ =>
+  test("Bracket handles broken batches & cursors") { _ =>
     val rs = new Resource
     val dummy = DummyException("dummy")
-    val brokenBatch = Iterant.bracket(rs.acquire)(
-      _ => Iterant.nextBatchS(
-        ThrowExceptionBatch(dummy),
-        IO(Iterant.empty[IO, Int]),
-        IO.unit
-      ),
-      (_,_) => rs.release
+    def withEmpty(ctor: (IO[Iterant[IO, Int]], IO[Unit]) => Iterant[IO, Int]) =
+      Iterant.bracket(rs.acquire)(
+        _ => ctor(IO(Iterant.empty), IO.unit),
+        (_, _) => rs.release
+      )
+
+    val brokens = Array(
+      withEmpty(Iterant.nextBatchS(ThrowExceptionBatch(dummy), _, _)),
+      withEmpty(Iterant.nextCursorS(ThrowExceptionCursor(dummy), _, _))
     )
-    val brokenCursor = Iterant.bracket(rs.acquire)(
-      _ => Iterant.nextCursorS(
-        ThrowExceptionCursor(dummy),
-        IO(Iterant.empty[IO, Int]),
-        IO.unit
-      ),
-      (_,_) => rs.release
-    )
-    intercept[DummyException] {
-      brokenBatch.completeL.unsafeRunSync()
+
+    for (broken <- brokens) {
+      intercept[DummyException] {
+        broken.completeL.unsafeRunSync()
+      }
     }
-    intercept[DummyException] {
-      brokenCursor.completeL.unsafeRunSync()
-    }
-    assertEquals(rs.acquired, 2)
-    assertEquals(rs.released, 2)
-  }*/
+
+    assertEquals(rs.acquired, brokens.length)
+    assertEquals(rs.released, brokens.length)
+  }
 
   test("Bracket handles broken `next` continuations") { _ =>
     val rs = new Resource
