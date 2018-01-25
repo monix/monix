@@ -17,10 +17,13 @@
 
 package monix.eval
 
+import java.io.{ByteArrayOutputStream, PrintStream}
+
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
 import monix.execution.exceptions.DummyException
+
 import scala.util.{Failure, Success}
 
 object CoevalBracketSuite extends BaseTestSuite {
@@ -84,5 +87,32 @@ object CoevalBracketSuite extends BaseTestSuite {
     val result = coeval.runTry
     assertEquals(input, Some((1, Left(dummy))))
     assertEquals(result, Failure(dummy))
+  }
+
+  test("if both use and release throw, report release error, signal use error") { _ =>
+    val errRef = System.err
+    try {
+      val outStream = new ByteArrayOutputStream()
+      val fakeErr = new PrintStream(outStream)
+      System.setErr(fakeErr)
+
+      val useError = new DummyException("use")
+      val releaseError = new DummyException("release")
+
+      val coeval = Coeval(1).bracket[Int] { _ =>
+        Coeval.raiseError(useError)
+      } { _ =>
+        Coeval.raiseError(releaseError)
+      }
+
+      assertEquals(coeval.runTry, Failure(useError))
+      fakeErr.close()
+      val reported = outStream.toString("utf-8")
+
+      assert(reported.contains("DummyException"), "reported.contains(\"DummyException\")")
+      assert(reported.contains("release"), "reported.contains(\"release\")")
+    } finally {
+      System.setErr(errRef)
+    }
   }
 }

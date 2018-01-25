@@ -18,6 +18,7 @@
 package monix.eval
 package internal
 
+import monix.execution.UncaughtExceptionReporter
 import monix.execution.misc.NonFatal
 
 private[eval] object CoevalBracket {
@@ -43,7 +44,19 @@ private[eval] object CoevalBracket {
     def apply(b: B): Coeval[B] =
       release(a, Right(b)).map(_ => b)
 
-    def recover(e: Throwable): Coeval[B] =
-      release(a, Left(e)).flatMap(_ => Coeval.raiseError[B](e))
+    def recover(e: Throwable, r: UncaughtExceptionReporter): Coeval[B] =
+      release(a, Left(e)).flatMap(new ReleaseRecover(e, r))
+  }
+
+  private final class ReleaseRecover(e: Throwable, r: UncaughtExceptionReporter)
+    extends StackFrame[Unit, Coeval[Nothing]] {
+
+    def apply(a: Unit): Coeval[Nothing] =
+      Coeval.raiseError(e)
+
+    def recover(e2: Throwable, r: UncaughtExceptionReporter): Coeval[Nothing] = {
+      r.reportFailure(e2)
+      Coeval.raiseError(e)
+    }
   }
 }

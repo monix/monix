@@ -50,7 +50,8 @@ private[eval] object TaskRunLoop {
     frameIndex: FrameIndex): Unit = {
 
     val cba = cb.asInstanceOf[Callback[Any]]
-    val em = context.scheduler.executionModel
+    val sc = context.scheduler
+    val em = sc.executionModel
     var current: Current = source
     var bFirstRef = bFirst
     var bRestRef = bRest
@@ -103,7 +104,7 @@ private[eval] object TaskRunLoop {
                 return
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
-                try { current = bind.recover(error) }
+                try { current = bind.recover(error, sc) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 currentIndex = em.nextFrameIndex(currentIndex)
                 bFirstRef = null
@@ -256,7 +257,7 @@ private[eval] object TaskRunLoop {
                 return Cancelable.empty
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
-                try { current = bind.recover(error) }
+                try { current = bind.recover(error, scheduler) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
@@ -390,7 +391,7 @@ private[eval] object TaskRunLoop {
                 return CancelableFuture.failed(error)
               case bind =>
                 // Try/catch described as statement to prevent ObjectRef ;-)
-                try { current = bind.recover(error) }
+                try { current = bind.recover(error, scheduler) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null

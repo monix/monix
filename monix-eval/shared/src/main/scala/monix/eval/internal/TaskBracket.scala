@@ -20,6 +20,7 @@ package monix.eval.internal
 import java.util.concurrent.CancellationException
 
 import monix.eval.Task
+import monix.execution.UncaughtExceptionReporter
 import monix.execution.misc.NonFatal
 
 private[eval] object TaskBracket {
@@ -45,11 +46,23 @@ private[eval] object TaskBracket {
     def apply(b: B): Task[B] =
       release(a, Right(b)).map(_ => b)
 
-    def recover(e: Throwable): Task[B] = {
+    def recover(e: Throwable, r: UncaughtExceptionReporter): Task[B] = {
       if (e ne isCancel)
-        release(a, Left(Some(e))).flatMap(_ => Task.raiseError[B](e))
+        release(a, Left(Some(e))).flatMap(new ReleaseRecover(e, r))
       else
         release(a, leftNone).flatMap(neverFn)
+    }
+  }
+
+  private final class ReleaseRecover(e: Throwable, r: UncaughtExceptionReporter)
+    extends StackFrame[Unit, Task[Nothing]] {
+
+    def apply(a: Unit): Task[Nothing] =
+      Task.raiseError(e)
+
+    def recover(e2: Throwable, r: UncaughtExceptionReporter): Task[Nothing] = {
+      r.reportFailure(e2)
+      Task.raiseError(e)
     }
   }
 

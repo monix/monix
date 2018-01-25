@@ -23,6 +23,7 @@ import cats.kernel.Semigroup
 import monix.eval.Coeval._
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal.{CoevalBracket, CoevalRunLoop, LazyOnSuccess, StackFrame}
+import monix.execution.UncaughtExceptionReporter
 import monix.execution.misc.NonFatal
 import monix.execution.internal.Platform.fusionMaxStackDepth
 
@@ -127,6 +128,32 @@ import scala.util.{Failure, Success, Try}
   * If you just want to delay the evaluation of a pure expression
   * use `cats.Eval`, but if you need to suspend side effects or you
   * need error handling capabilities, then use `Coeval`.
+  *
+  * @define bracketErrorNote '''NOTE on error handling''': one big
+  *         difference versus `try {} finally {}` is that, in case
+  *         both the `release` function and the `use` function throws,
+  *         the error raised by `use` gets signaled and the error
+  *         raised by `release` gets reported with `System.err` for
+  *         [[Coeval]] or with
+  *         [[monix.execution.Scheduler.reportFailure Scheduler.reportFailure]] 
+  *         for [[Task]].
+  *
+  *         For example:
+  *
+  *         {{{
+  *           Coeval("resource").bracket { _ =>
+  *             // use
+  *             Coeval.raiseError(new RuntimeException("Foo"))
+  *           } { _ =>
+  *             // release
+  *             Coeval.raiseError(new RuntimeException("Bar"))
+  *           }
+  *         }}}
+  *
+  *         In this case the error signaled downstream is `"Foo"`,
+  *         while the `"Bar"` error gets reported. This is consistent
+  *         with the behavior of Haskell's `bracket` operation and NOT
+  *         with `try {} finally {}` from Scala, Java or JavaScript.
   */
 sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   /** Evaluates the underlying computation and returns the result.
@@ -258,12 +285,10 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * which is then exploited by the `use` function and then `released`.
     *
     * The `bracket` operation is the equivalent of the
-    * `try {} catch {} finally {}` statements from mainstream languages.
-    *
-    * The `bracket` operation installs the necessary exception handler to release
-    * the resource in the event of an exception being raised during the computation.
-    * If an exception is raised, then `bracket` will re-raise the exception
-    * ''after'' performing the `release`.
+    * `try {} finally {}` statements from mainstream languages, installing
+    * the necessary exception handler to release the resource in the event of
+    * an exception being raised during the computation. If an exception is raised,
+    * then `bracket` will re-raise the exception ''after'' performing the `release`.
     *
     * Example:
     *
@@ -296,6 +321,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *   }
     * }}}
     *
+    * $bracketErrorNote
+    *
     * @see [[bracketE]]
     *
     * @param use is a function that evaluates the resource yielded by the source,
@@ -314,20 +341,18 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * the possibility of distinguishing between successful termination and
     * error,  such that an appropriate release of resources can be executed.
     *
-    * The `bracketE` operation is the equivalent of `try {} catch {} finally {}`
-    * statements from mainstream languages.
-    *
-    * The `bracketE` operation installs the necessary exception handler to release
-    * the resource in the event of an exception being raised during the computation,
-    * or in case of cancellation.
-    *
-    * In comparison with the simpler [[bracket]] version, this one allows the
-    * caller to differentiate between normal termination and cancellation.
+    * The `bracket` operation is the equivalent of the
+    * `try {} finally {}` statements from mainstream languages, installing
+    * the necessary exception handler to release the resource in the event of
+    * an exception being raised during the computation. If an exception is raised,
+    * then `bracket` will re-raise the exception ''after'' performing the `release`.
     *
     * The `release` function receives as input:
     *
     *  - `Left(error)` in case `use` terminated with an error
     *  - `Right(b)` in case of success
+    *
+    * $bracketErrorNote
     *
     * @see [[bracket]]
     *
@@ -1127,7 +1152,7 @@ object Coeval extends CoevalInstancesLevel0 {
   private object AttemptCoeval extends StackFrame[Any, Coeval[Either[Throwable, Any]]] {
     override def apply(a: Any): Coeval[Either[Throwable, Any]] =
       new Now(Right(a))
-    override def recover(e: Throwable): Coeval[Either[Throwable, Any]] =
+    override def recover(e: Throwable, r: UncaughtExceptionReporter): Coeval[Either[Throwable, Any]] =
       new Now(Left(e))
   }
 
@@ -1135,7 +1160,7 @@ object Coeval extends CoevalInstancesLevel0 {
   private object MaterializeCoeval extends StackFrame[Any, Coeval[Try[Any]]] {
     override def apply(a: Any): Coeval[Try[Any]] =
       new Now(Success(a))
-    override def recover(e: Throwable): Coeval[Try[Any]] =
+    override def recover(e: Throwable, r: UncaughtExceptionReporter): Coeval[Try[Any]] =
       new Now(Failure(e))
   }
 

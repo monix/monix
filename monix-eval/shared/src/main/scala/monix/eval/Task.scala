@@ -412,6 +412,32 @@ import scala.util.{Failure, Success, Try}
   * @define runSyncMaybeReturn `Right(result)` in case a result was processed,
   *         or `Left(future)` in case an asynchronous boundary
   *         was hit and further async execution is needed
+  *
+  * @define bracketErrorNote '''NOTE on error handling''': one big
+  *         difference versus `try {} finally {}` is that, in case
+  *         both the `release` function and the `use` function throws,
+  *         the error raised by `use` gets signaled and the error
+  *         raised by `release` gets reported with `System.err` for
+  *         [[Coeval]] or with
+  *         [[monix.execution.Scheduler.reportFailure Scheduler.reportFailure]]
+  *         for [[Task]].
+  *
+  *         For example:
+  *
+  *         {{{
+  *           Task("resource").bracket { _ =>
+  *             // use
+  *             Task.raiseError(new RuntimeException("Foo"))
+  *           } { _ =>
+  *             // release
+  *             Task.raiseError(new RuntimeException("Bar"))
+  *           }
+  *         }}}
+  *
+  *         In this case the error signaled downstream is `"Foo"`,
+  *         while the `"Bar"` error gets reported. This is consistent
+  *         with the behavior of Haskell's `bracket` operation and NOT
+  *         with `try {} finally {}` from Scala, Java or JavaScript.
   */
 sealed abstract class Task[+A] extends Serializable {
   import monix.eval.Task._
@@ -655,6 +681,8 @@ sealed abstract class Task[+A] extends Serializable {
     * version that allows you to differentiate between normal termination
     * and cancellation.
     *
+    * $bracketErrorNote
+    *
     * @see [[bracketE]]
     *
     * @param use is a function that evaluates the resource yielded by the source,
@@ -688,6 +716,8 @@ sealed abstract class Task[+A] extends Serializable {
     *  - `Left(None)` in case of cancellation
     *  - `Left(Some(error))` in case `use` terminated with an error
     *  - `Right(b)` in case of success
+    *
+    * $bracketErrorNote
     *
     * @see [[bracket]]
     *
@@ -2923,7 +2953,7 @@ object Task extends TaskInstancesLevel1 {
   private object AttemptTask extends StackFrame[Any, Task[Either[Throwable, Any]]] {
     override def apply(a: Any): Task[Either[Throwable, Any]] =
       new Now(new Right(a))
-    override def recover(e: Throwable): Task[Either[Throwable, Any]] =
+    override def recover(e: Throwable, r: UncaughtExceptionReporter): Task[Either[Throwable, Any]] =
       new Now(new Left(e))
   }
 
@@ -2931,7 +2961,7 @@ object Task extends TaskInstancesLevel1 {
   private object MaterializeTask extends StackFrame[Any, Task[Try[Any]]] {
     override def apply(a: Any): Task[Try[Any]] =
       new Now(new Success(a))
-    override def recover(e: Throwable): Task[Try[Any]] =
+    override def recover(e: Throwable, r: UncaughtExceptionReporter): Task[Try[Any]] =
       new Now(new Failure(e))
   }
 }

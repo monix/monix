@@ -110,4 +110,21 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     assertEquals(input, Some((1, Left(None))))
   }
+
+  test("if both use and release throw, report release error, signal use error") { implicit sc =>
+    val useError = new DummyException("use")
+    val releaseError = new DummyException("release")
+
+    val task = Task(1).bracket[Int] { _ =>
+      Task.raiseError(useError)
+    } { _ =>
+      Task.raiseError(releaseError)
+    }
+
+    val f = task.runAsync
+    sc.tick()
+
+    assertEquals(f.value, Some(Failure(useError)))
+    assertEquals(sc.state.lastReportedError, releaseError)
+  }
 }
