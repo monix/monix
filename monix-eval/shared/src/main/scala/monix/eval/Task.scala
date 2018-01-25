@@ -923,7 +923,7 @@ sealed abstract class Task[+A] extends Serializable {
     * }}}
     *
     * In this example the implementation of `task` will receive
-    * the reference to `io` and will use it on evaluation, while
+    * the reference to `io1` and will use it on evaluation, while
     * the second invocation of `executeOn` will create an unnecessary
     * async boundary (if `forceAsync = true`) or be basically a
     * costly no-op. This might be confusing but consider the
