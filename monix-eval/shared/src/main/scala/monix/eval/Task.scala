@@ -215,35 +215,57 @@ import scala.util.{Failure, Success, Try}
   * [[monix.execution.Cancelable.empty Cancelable.empty]] reference,
   * in which case the resulting `Task` would not be cancelable.
   *
-  * But the `Task` we just described is cancelable:
+  * But the `Task` we just described is cancelable, for one at the
+  * edge, due to `runAsync` returning [[monix.execution.Cancelable Cancelable]]
+  * and [[monix.execution.CancelableFuture CancelableFuture]] references:
   *
   * {{{
   *   // Triggering execution
-  *   val f: CancelableFuture[Unit] = delayedHello.run()
+  *   val f: CancelableFuture[Unit] = delayedHello.runAsync
   *
   *   // If we change our mind before the timespan has passed:
   *   f.cancel()
   * }}}
   *
-  * Also, given an `Task` task, we can specify actions that need to be
-  * triggered in case of cancellation:
+  * But also cancellation is described on `Task` as a pure action,
+  * which can be used for example in [[monix.eval.Task.race race]] conditions:
+  *
+  * {{{
+  *   import scala.concurrent.duration._
+  *
+  *   val ta = Task(1)
+  *     .delayExecution(4.seconds)
+  *   val tb = Task.raiseError(new TimeoutException)
+  *     .delayExecution(4.seconds)
+  *
+  *   Task.racePair(ta, tb).flatMap {
+  *     case Left((a, taskB)) =>
+  *       taskB.cancel.map(_ => a)
+  *     case Right((taskA, b)) =>
+  *       taskA.cancel.map(_ => b)
+  *   }
+  * }}}
+  *
+  * Also, given a task, we can specify actions that need to be
+  * triggered in case of cancellation, see
+  * [[monix.eval.Task!.doOnCancel doOnCancel]]:
   *
   * {{{
   *   val task = Task.eval(println("Hello!")).executeAsync
   *
   *   task.doOnCancel(Task.eval {
   *     println("A cancellation attempt was made!")
-  *   }
-  *
-  *   val f: CancelableFuture[Unit] = task.run()
-  *
-  *   // Note that in this case cancelling the resulting Future
-  *   // will not stop the actual execution, since it doesn't know
-  *   // how, but it will trigger our on-cancel callback:
-  *
-  *   f.cancel()
-  *   //=> A cancellation attempt was made!
+  *   })
   * }}}
+  *
+  * Controlling cancellation can be achieved with
+  * [[monix.eval.Task!.cancelable cancelable]] and
+  * [[monix.eval.Task!.uncancelable uncancelable]].
+  *
+  * The former activates
+  * [[monix.eval.Task.Options.autoCancelableRunLoops auto-cancelable flatMap chains]],
+  * whereas the later ensures that a task becomes uncancelable such that
+  * it gets executed as an atomic unit (either all or nothing).
   *
   * =Note on the ExecutionModel=
   *
@@ -254,7 +276,7 @@ import scala.util.{Failure, Success, Try}
   * assumptions about how things will end up executed, as ultimately
   * it is the implementation's job to decide on the best execution
   * model. All you are guaranteed (and can assume) is asynchronous
-  * execution after executing `runAsync()`.
+  * execution after executing `runAsync`.
   *
   * Currently the default
   * [[monix.execution.ExecutionModel ExecutionModel]] specifies
@@ -390,6 +412,32 @@ import scala.util.{Failure, Success, Try}
   * @define runSyncMaybeReturn `Right(result)` in case a result was processed,
   *         or `Left(future)` in case an asynchronous boundary
   *         was hit and further async execution is needed
+  *
+  * @define bracketErrorNote '''NOTE on error handling''': one big
+  *         difference versus `try {} finally {}` is that, in case
+  *         both the `release` function and the `use` function throws,
+  *         the error raised by `use` gets signaled and the error
+  *         raised by `release` gets reported with `System.err` for
+  *         [[Coeval]] or with
+  *         [[monix.execution.Scheduler.reportFailure Scheduler.reportFailure]]
+  *         for [[Task]].
+  *
+  *         For example:
+  *
+  *         {{{
+  *           Task("resource").bracket { _ =>
+  *             // use
+  *             Task.raiseError(new RuntimeException("Foo"))
+  *           } { _ =>
+  *             // release
+  *             Task.raiseError(new RuntimeException("Bar"))
+  *           }
+  *         }}}
+  *
+  *         In this case the error signaled downstream is `"Foo"`,
+  *         while the `"Bar"` error gets reported. This is consistent
+  *         with the behavior of Haskell's `bracket` operation and NOT
+  *         with `try {} finally {}` from Scala, Java or JavaScript.
   */
 sealed abstract class Task[+A] extends Serializable {
   import monix.eval.Task._
@@ -570,6 +618,121 @@ sealed abstract class Task[+A] extends Serializable {
   final def asyncBoundary(s: Scheduler): Task[A] =
     this.flatMap(a => Task.shift(s).map(_ => a))
 
+  /** Returns a task that treats the source task as the acquisition of a resource,
+    * which is then exploited by the `use` function and then `released`.
+    *
+    * The `bracket` operation is the equivalent of the
+    * `try {} catch {} finally {}` statements from mainstream languages.
+    *
+    * The `bracket` operation installs the necessary exception handler to release
+    * the resource in the event of an exception being raised during the computation,
+    * or in case of cancellation.
+    *
+    * If an exception is raised, then `bracket` will re-raise the exception
+    * ''after'' performing the `release`. If the resulting task gets cancelled,
+    * then `bracket` will still perform the `release`, but the yielded task
+    * will be non-terminating (equivalent with [[Task.never]]).
+    *
+    * Example:
+    *
+    * {{{
+    *   import java.io._
+    *
+    *   def readFile(file: File): Task[String] = {
+    *     // Opening a file handle for reading text
+    *     val acquire = Task.eval(new BufferedReader(
+    *       new InputStreamReader(new FileInputStream(file), "utf-8")
+    *     ))
+    *
+    *     acquire.bracket { in =>
+    *       // Usage part
+    *       Task.eval {
+    *         // Yes, ugly Java, non-FP loop;
+    *         // side-effects are suspended though
+    *         var line: String = null
+    *         val buff = new StringBuilder()
+    *         do {
+    *           line = in.readLine()
+    *           if (line != null) buff.append(line)
+    *         } while (line != null)
+    *         buff.toString()
+    *       }
+    *     } { in =>
+    *       // The release part
+    *       Task.eval(in.close())
+    *     }
+    *   }
+    * }}}
+    *
+    * Note that in case of cancellation the underlying implementation cannot
+    * guarantee that the computation described by `use` doesn't end up
+    * executed concurrently with the computation from `release`. In the example
+    * above that ugly Java loop might end up reading from a `BufferedReader`
+    * that is already closed due to the task being cancelled, thus triggering
+    * an error in the background with nowhere to go but in
+    * [[monix.execution.Scheduler.reportFailure Scheduler.reportFailure]].
+    *
+    * In this particular example, given that we are just reading from a file,
+    * it doesn't matter. But in other cases it might matter, as concurrency
+    * on top of the JVM when dealing with I/O might lead to corrupted data.
+    *
+    * For those cases you might want to do synchronization (e.g. usage of
+    * locks and semaphores) and you might want to use [[bracketE]], the
+    * version that allows you to differentiate between normal termination
+    * and cancellation.
+    *
+    * $bracketErrorNote
+    *
+    * @see [[bracketE]]
+    *
+    * @param use is a function that evaluates the resource yielded by the source,
+    *        yielding a result that will get generated by the task returned
+    *        by this `bracket` function
+    *
+    * @param release is a function that gets called after `use` terminates,
+    *        either normally or in error, or if it gets cancelled, receiving
+    *        as input the resource that needs to be released
+    */
+  final def bracket[B](use: A => Task[B])(release: A => Task[Unit]): Task[B] =
+    bracketE(use)((a, _) => release(a))
+
+  /** Returns a task that treats the source task as the acquisition of a resource,
+    * which is then exploited by the `use` function and then `released`, with
+    * the possibility of distinguishing between normal termination and cancellation,
+    * such that an appropriate release of resources can be executed.
+    *
+    * The `bracketE` operation is the equivalent of `try {} catch {} finally {}`
+    * statements from mainstream languages.
+    *
+    * The `bracketE` operation installs the necessary exception handler to release
+    * the resource in the event of an exception being raised during the computation,
+    * or in case of cancellation.
+    *
+    * In comparison with the simpler [[bracket]] version, this one allows the
+    * caller to differentiate between normal termination and cancellation.
+    *
+    * The `release` function receives as input:
+    *
+    *  - `Left(None)` in case of cancellation
+    *  - `Left(Some(error))` in case `use` terminated with an error
+    *  - `Right(b)` in case of success
+    *
+    * $bracketErrorNote
+    *
+    * @see [[bracket]]
+    *
+    * @param use is a function that evaluates the resource yielded by the source,
+    *        yielding a result that will get generated by this function on
+    *        evaluation
+    *
+    * @param release is a function that gets called after `use` terminates,
+    *        either normally or in error, or if it gets cancelled, receiving
+    *        as input the resource that needs that needs release, along with
+    *        the result of `use` (cancellation, error or successful result)
+    */
+  final def bracketE[B](use: A => Task[B])(release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] =
+    TaskBracket(this, use, release)
+
   /** Transforms a [[Task]] into a [[Coeval]] that tries to execute the
     * source synchronously, returning either `Right(value)` in case a
     * value is available immediately, or `Left(future)` in case we
@@ -583,9 +746,10 @@ sealed abstract class Task[+A] extends Serializable {
     * Returns a new task that will complete when the cancellation is
     * sent (but not when it is observed).
     *
-    * Compared with
-    * [[monix.execution.CancelableFuture.cancel CancelableFuture.cancel()]]
-    * this action is pure.
+    * Compared with triggering
+    * [[monix.execution.Cancelable.cancel Cancelable.cancel]] or
+    * [[monix.execution.CancelableFuture.cancel CancelableFuture.cancel]]
+    * after [[Task.runAsync(implicit* runAsync]], this action is pure.
     *
     * Example:
     * {{{
@@ -759,7 +923,7 @@ sealed abstract class Task[+A] extends Serializable {
     * }}}
     *
     * In this example the implementation of `task` will receive
-    * the reference to `io` and will use it on evaluation, while
+    * the reference to `io1` and will use it on evaluation, while
     * the second invocation of `executeOn` will create an unnecessary
     * async boundary (if `forceAsync = true`) or be basically a
     * costly no-op. This might be confusing but consider the
@@ -863,21 +1027,63 @@ sealed abstract class Task[+A] extends Serializable {
   final def executeWithOptions(f: Options => Options): Task[A] =
     TaskExecuteWithOptions(this, f)
 
-  /** Returns a new task that will execute the source with autoCancelableRunLoops set to `true`
+  /** Returns a new task that is cancelable.
     *
-    * This will make `flatMap` driven loops to be auto-cancelable.
+    * Normally Monix Tasks have these characteristics:
     *
-    * Example:
+    *  - `flatMap` chains are not cancelable by default
+    *  - when creating [[Task.create async tasks]] the user has to specify explicit
+    *    cancellation logic
     *
-    * {{{
-    *   task.cancelable
-    * }}}
-    *
-    * This is equivalent to:
+    * This operation returns a task that has [[Task.Options.autoCancelableRunLoops]]
+    * enabled upon evaluation, thus being equivalent with:
     * {{{
     *   task.executeWithOptions(_.enableAutoCancelableRunLoops)
     * }}}
     *
+    * What this does is two-fold:
+    *
+    *  - `flatMap` chains become cancelable on async boundaries, which works in
+    *    combination with [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]]
+    *    that's enabled by default (injected by [[monix.execution.Scheduler Scheduler]],
+    *    but can also be changed with [[executeWithModel]])
+    *  - even if the source task cannot be cancelled, upon completion the result
+    *    is not allowed to be streamed and the continuation is not allowed to execute
+    *
+    * For example this is a function that calculates the n-th Fibonacci element:
+    * {{{
+    *   def fib(n: Int): Task[Long] = {
+    *     def loop(n: Int, a: Long, b: Long): Task[Long] =
+    *       Task.suspend {
+    *         if (n > 0)
+    *           loop(n - 1, b, a + b)
+    *         else
+    *           Task.now(a)
+    *       }
+    *
+    *     loop(n, 0, 1).cancelable
+    *   }
+    * }}}
+    * 
+    * Normally this isn't cancelable and it might take a long time, but
+    * by calling `cancelable` on the result, we ensure that when cancellation
+    * is observed, at async boundaries, the loop will stop with the task
+    * becoming a non-terminating one.
+    * 
+    * This operation represents the opposite of [[uncancelable]]. And note
+    * that it works even for tasks that are uncancelable / atomic, because
+    * it blocks the rest of the `flatMap` loop from executing, functioning
+    * like a sort of cancellation boundary:
+    *
+    * {{{
+    *   Task(println("Hello ..."))
+    *     .cancelable
+    *     .flatMap(_ => Task.eval(println("World!")))
+    * }}}
+    *
+    * Normally [[Task.apply]] does not yield a cancelable task, but by applying
+    * the `cancelable` transformation to it, the `println` will execute,
+    * but not the subsequent `flatMap` operation.
     */
   def cancelable: Task[A] =
     executeWithOptions(_.enableAutoCancelableRunLoops)
@@ -1016,6 +1222,48 @@ sealed abstract class Task[+A] extends Serializable {
   /** Dematerializes the source's result from a `Try`. */
   final def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
     this.asInstanceOf[Task[Try[B]]].flatMap(fromTry)
+
+  /** Returns a new task that mirrors the source task for normal termination,
+    * but that triggers the given error on cancellation.
+    *
+    * Normally tasks that are cancelled become non-terminating.
+    * Here's an example of a cancelable task:
+    *
+    * {{{
+    *   val tenSecs = Task.sleep(10)
+    *   val task = tenSecs.fork.flatMap { fa =>
+    *     // Triggering pure cancellation, then trying to get its result
+    *     fa.cancel.flatMap(_ => fa)
+    *   }
+    *
+    *   task.timeout(10.seconds).runAsync
+    *   //=> throws TimeoutException
+    * }}}
+    *
+    * In general you can expect cancelable tasks to become non-terminating on
+    * cancellation.
+    *
+    * This `onCancelRaiseError` operator transforms a task that would yield
+    * [[Task.never]] on cancellation into one that yields [[Task.raiseError]].
+    *
+    * Example:
+    * {{{
+    *   import java.util.concurrent.CancellationException
+    *
+    *   val tenSecs = Task.sleep(10.seconds)
+    *     .onCancelRaiseError(new CancellationException)
+    *
+    *   val task = tenSecs.fork.flatMap { fa =>
+    *     // Triggering pure cancellation, then trying to get its result
+    *     fa.cancel.flatMap(_ => fa)
+    *   }
+    *
+    *   task.runAsync
+    *   // => CancellationException
+    * }}}
+    */
+  final def onCancelRaiseError(e: Throwable): Task[A] =
+    TaskCancellation.raiseError(this, e)
 
   /** Creates a new task that will try recovering from an error by
     * matching it with another task using the given partial function.
@@ -2705,7 +2953,7 @@ object Task extends TaskInstancesLevel1 {
   private object AttemptTask extends StackFrame[Any, Task[Either[Throwable, Any]]] {
     override def apply(a: Any): Task[Either[Throwable, Any]] =
       new Now(new Right(a))
-    override def recover(e: Throwable): Task[Either[Throwable, Any]] =
+    override def recover(e: Throwable, r: UncaughtExceptionReporter): Task[Either[Throwable, Any]] =
       new Now(new Left(e))
   }
 
@@ -2713,7 +2961,7 @@ object Task extends TaskInstancesLevel1 {
   private object MaterializeTask extends StackFrame[Any, Task[Try[Any]]] {
     override def apply(a: Any): Task[Try[Any]] =
       new Now(new Success(a))
-    override def recover(e: Throwable): Task[Try[Any]] =
+    override def recover(e: Throwable, r: UncaughtExceptionReporter): Task[Try[Any]] =
       new Now(new Failure(e))
   }
 }

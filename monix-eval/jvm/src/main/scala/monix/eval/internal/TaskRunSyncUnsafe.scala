@@ -88,7 +88,7 @@ private[eval] object TaskRunSyncUnsafe {
             case null => throw error
             case bind =>
               // Try/catch described as statement to prevent ObjectRef ;-)
-              try { current = bind.recover(error) }
+              try { current = bind.recover(error, scheduler) }
               catch { case e if NonFatal(e) => current = Error(e) }
               bFirst = null
           }
