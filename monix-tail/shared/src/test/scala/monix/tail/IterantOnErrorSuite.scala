@@ -17,10 +17,12 @@
 
 package monix.tail
 
+import cats.effect.IO
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
+import monix.tail.batches.{Batch, BatchCursor}
 
 object IterantOnErrorSuite extends BaseTestSuite {
   test("fa.attempt <-> fa.map(Right) for successful streams") { implicit s =>
@@ -83,4 +85,64 @@ object IterantOnErrorSuite extends BaseTestSuite {
     }
   }
 
+  test("attempt & onErrorHandleWith should protect against broken continuations") { _ =>
+    val dummy = DummyException("dummy")
+    def withError(ctor: (Coeval[Iterant[Coeval, Int]], Coeval[Unit]) => Iterant[Coeval, Int]) = {
+      ctor(Coeval.raiseError(dummy), Coeval.unit)
+    }
+
+    // not val b/c cursors are one-time use
+    def brokens = Array(
+      withError(Iterant.suspendS),
+      withError(Iterant.nextS(0, _, _)),
+      withError(Iterant.nextBatchS(Batch(0), _, _)),
+      withError(Iterant.nextCursorS(BatchCursor(0), _, _))
+    )
+
+    val fallback = Seq(1, 2, 3)
+    for (broken <- brokens) {
+        val out = broken
+          .onErrorHandleWith(_ => Iterant[Coeval].fromSeq(fallback))
+          .toListL
+          .value
+
+      assertEquals(out.takeRight(fallback.length), fallback)
+    }
+
+    for (broken <- brokens) {
+      val end = broken.attempt
+        .toListL
+        .value
+        .last
+
+      assertEquals(end, Left(dummy))
+    }
+  }
+
+  test("onErrorIgnore should capture exceptions from eval, mapEval & liftF") { _ =>
+    val dummy = DummyException("dummy")
+    Iterant[IO]
+      .eval { throw dummy }
+      .onErrorIgnore.completeL.unsafeRunSync()
+
+    Iterant[IO].of(1)
+      .mapEval(_ => IO { throw dummy })
+      .onErrorIgnore.completeL.unsafeRunSync()
+
+    Iterant[IO].of(1)
+      .mapEval(_ => throw dummy)
+      .onErrorIgnore.completeL.unsafeRunSync()
+
+    Iterant[IO].liftF(IO { throw dummy })
+      .onErrorIgnore.completeL.unsafeRunSync()
+  }
+
+  test("attempt should capture exceptions from mapEval") { _ =>
+    val dummy = DummyException("dummy")
+    val result = Iterant[IO].of(1)
+      .mapEval(_ => IO(throw dummy))
+      .attempt.headOptionL.unsafeRunSync()
+
+    assertEquals(result, Some(Left(dummy)))
+  }
 }

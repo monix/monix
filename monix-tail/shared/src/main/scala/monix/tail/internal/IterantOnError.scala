@@ -48,18 +48,23 @@ private[tail] object IterantOnError {
       Suspend[F, A](next, stop)
     }
 
+    def tailGuard(ffa: F[Iterant[F, A]]): F[Iterant[F, A]] =
+      ffa.handleError(f)
+
     def loop(fa: Iterant[F, A]): Iterant[F, A] =
       try fa match {
         case Next(a, lt, stop) =>
-          Next(a, lt.map(loop), stop)
+          Next(a, tailGuard(lt.map(loop)), stop)
 
         case NextCursor(cursor, rest, stop) =>
           try {
             val array = extractBatch(cursor)
-            val next = if (cursor.hasNext())
-              F.pure(fa).map(loop)
-            else
-              rest.map(loop)
+            val next = tailGuard {
+              if (cursor.hasNext())
+                F.pure(fa).map(loop)
+              else
+                rest.map(loop)
+            }
 
             if (array.length != 0)
               NextCursor(BatchCursor.fromAnyArray(array), next, stop)
@@ -79,7 +84,7 @@ private[tail] object IterantOnError {
           }
 
         case Suspend(rest, stop) =>
-          Suspend(rest.map(loop), stop)
+          Suspend(tailGuard(rest.map(loop)), stop)
         case Last(_) | Halt(None) =>
           fa
         case Halt(Some(e)) =>
@@ -101,16 +106,20 @@ private[tail] object IterantOnError {
 
   /** Implementation for `Iterant.attempt`. */
   def attempt[F[_], A](fa: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] = {
+    type ErrOrA = Either[Throwable, A]
+    def tailGuard(ffa: F[Iterant[F, ErrOrA]]): F[Iterant[F, ErrOrA]] =
+      ffa.handleError(ex => Iterant.lastS[F, ErrOrA](Left(ex)))
+
     def loop(fa: Iterant[F, A]): Iterant[F, Either[Throwable, A]] =
       fa match {
         case Next(a, rest, stop) =>
-          Next(Right(a), rest.map(loop), stop)
+          Next(Right(a), tailGuard(rest.map(loop)), stop)
         case NextBatch(batch, rest, stop) =>
-          NextBatch(batch.map(Right.apply), rest.map(loop), stop)
+          NextBatch(batch.map(Right.apply), tailGuard(rest.map(loop)), stop)
         case NextCursor(batch, rest, stop) =>
-          NextCursor(batch.map(Right.apply), rest.map(loop), stop)
+          NextCursor(batch.map(Right.apply), tailGuard(rest.map(loop)), stop)
         case Suspend(rest, stop) =>
-          Suspend(rest.map(loop), stop)
+          Suspend(tailGuard(rest.map(loop)), stop)
         case Last(a) =>
           Last(Right(a))
         case Halt(None) =>
