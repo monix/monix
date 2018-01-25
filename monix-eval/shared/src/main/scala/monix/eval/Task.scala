@@ -778,7 +778,7 @@ sealed abstract class Task[+A] extends Serializable {
     *
     *   def sayHello2(ec: ExecutionContext): Unit =
     *     // Overriding the default `ec`!
-    *     sayHello(io)
+    *     sayHello(io1)
     *
     *   def sayHello3(ec: ExecutionContext): Unit =
     *     // Overriding the default no longer has the desired effect
