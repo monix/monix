@@ -31,7 +31,7 @@ private[tail] object IterantFoldLeft {
     * Implementation for `Iterant#foldLeftL`
     */
   final def apply[F[_], S, A](source: Iterant[F, A], seed: => S)(op: (S,A) => S)
-                             (implicit F: Sync[F]): F[S] = {
+    (implicit F: Sync[F]): F[S] = {
 
     def loop(stopRef: ObjectRef[F[Unit]])(self: Iterant[F, A], state: S): F[S] = {
       try self match {

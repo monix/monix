@@ -29,7 +29,7 @@ import scala.runtime.ObjectRef
 private[tail] object IterantFoldWhileLeft {
   /** Implementation for `Iterant.foldWhileLeftL`. */
   def strict[F[_], A, S](self: Iterant[F, A], seed: => S, f: (S, A) => Either[S, S])
-                        (implicit F: Sync[F]): F[S] = {
+    (implicit F: Sync[F]): F[S] = {
 
     def process(stopRef: ObjectRef[F[Unit]])(state: S, cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
       var hasResult = false
@@ -108,7 +108,7 @@ private[tail] object IterantFoldWhileLeft {
 
   /** Implementation for `Iterant.foldWhileLeftEvalL`. */
   def eval[F[_], A, S](self: Iterant[F, A], seed: F[S], f: (S, A) => F[Either[S, S]])
-                      (implicit F: Sync[F]): F[S] = {
+    (implicit F: Sync[F]): F[S] = {
 
     def process(stopRef: ObjectRef[F[Unit]])(state: S, stop: F[Unit], rest: F[Iterant[F, A]], a: A): F[S] = {
       val fs = f(state, a)
