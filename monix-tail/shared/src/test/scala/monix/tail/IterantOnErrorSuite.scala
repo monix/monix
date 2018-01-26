@@ -50,7 +50,8 @@ object IterantOnErrorSuite extends BaseTestSuite {
       val r = fae.flatMap(_.fold(
         e => Iterant[Coeval].raiseError[Int](e),
         a => Iterant[Coeval].pure(a)
-      ))
+      )
+      )
 
       r <-> fa
     }
@@ -85,38 +86,75 @@ object IterantOnErrorSuite extends BaseTestSuite {
     }
   }
 
-  test("attempt & onErrorHandleWith should protect against broken continuations") { _ =>
+  def brokenTails: Array[Iterant[Coeval, Int]] = {
     val dummy = DummyException("dummy")
+
     def withError(ctor: (Coeval[Iterant[Coeval, Int]], Coeval[Unit]) => Iterant[Coeval, Int]) = {
       ctor(Coeval.raiseError(dummy), Coeval.unit)
     }
 
-    // not val b/c cursors are one-time use
-    def brokens = Array(
+    Array(
       withError(Iterant.suspendS),
       withError(Iterant.nextS(0, _, _)),
       withError(Iterant.nextBatchS(Batch(0), _, _)),
       withError(Iterant.nextCursorS(BatchCursor(0), _, _))
     )
+  }
 
+  test("onErrorHandleWith should protect against broken continuations") { _ =>
     val fallback = Seq(1, 2, 3)
-    for (broken <- brokens) {
-        val out = broken
-          .onErrorHandleWith(_ => Iterant[Coeval].fromSeq(fallback))
-          .toListL
-          .value
+    for (broken <- brokenTails) {
+      val out = broken
+        .onErrorHandleWith(_ => Iterant[Coeval].fromSeq(fallback))
+        .toListL
+        .value
 
       assertEquals(out.takeRight(fallback.length), fallback)
     }
+  }
 
-    for (broken <- brokens) {
+  test("onErrorHandleWith should execute earlyStop of stream prior to error in continuation") { _ =>
+    var effect = 0
+
+    val errorInTail = Iterant[Coeval].nextS(1,
+      Coeval {
+        Iterant[Coeval].nextS(2,
+          Coeval { (throw DummyException("Dummy")) : Iterant[Coeval, Int]},
+          Coeval { effect = 2 }
+        )
+      },
+      Coeval { effect = 1 }
+    )
+    errorInTail.onErrorHandleWith(_ => Iterant[Coeval].empty[Int])
+      .completeL.value
+    assertEquals(effect, 2)
+  }
+
+  test("attempt should protect against broken continuations") { _ =>
+    for (broken <- brokenTails) {
       val end = broken.attempt
         .toListL
         .value
         .last
 
-      assertEquals(end, Left(dummy))
+      assertEquals(end, Left(DummyException("dummy")))
     }
+  }
+
+  test("attempt should execute earlyStop of stream prior to error in continuation") { _ =>
+    var effect = 0
+
+    val errorInTail = Iterant[Coeval].nextS(1,
+      Coeval {
+        Iterant[Coeval].nextS(2,
+          Coeval { (throw DummyException("Dummy")) : Iterant[Coeval, Int]},
+          Coeval { effect = 2 }
+        )
+      },
+      Coeval { effect = 1 }
+    )
+    errorInTail.attempt.completeL.value
+    assertEquals(effect, 2)
   }
 
   test("onErrorIgnore should capture exceptions from eval, mapEval & liftF") { _ =>

@@ -23,7 +23,9 @@ import cats.syntax.all._
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
+
 import scala.collection.mutable.ArrayBuffer
+import scala.runtime.ObjectRef
 
 private[tail] object IterantOnError {
   /** Implementation for `Iterant.onErrorHandleWith`. */
@@ -48,18 +50,18 @@ private[tail] object IterantOnError {
       Suspend[F, A](next, stop)
     }
 
-    def tailGuard(ffa: F[Iterant[F, A]]): F[Iterant[F, A]] =
-      ffa.handleError(f)
+    def tailGuard(stop: F[Unit])(ffa: F[Iterant[F, A]]): F[Iterant[F, A]] =
+      ffa.handleError(sendError(stop, _))
 
     def loop(fa: Iterant[F, A]): Iterant[F, A] =
       try fa match {
         case Next(a, lt, stop) =>
-          Next(a, tailGuard(lt.map(loop)), stop)
+          Next(a, tailGuard(stop)(lt.map(loop)), stop)
 
         case NextCursor(cursor, rest, stop) =>
           try {
             val array = extractBatch(cursor)
-            val next = tailGuard {
+            val next = tailGuard(stop) {
               if (cursor.hasNext())
                 F.pure(fa).map(loop)
               else
@@ -84,7 +86,7 @@ private[tail] object IterantOnError {
           }
 
         case Suspend(rest, stop) =>
-          Suspend(tailGuard(rest.map(loop)), stop)
+          Suspend(tailGuard(stop)(rest.map(loop)), stop)
         case Last(_) | Halt(None) =>
           fa
         case Halt(Some(e)) =>
@@ -106,19 +108,34 @@ private[tail] object IterantOnError {
 
   /** Implementation for `Iterant.attempt`. */
   def attempt[F[_], A](fa: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] = {
-    type ErrOrA = Either[Throwable, A]
-    def tailGuard(ffa: F[Iterant[F, ErrOrA]]): F[Iterant[F, ErrOrA]] =
-      ffa.handleError(ex => Iterant.lastS[F, ErrOrA](Left(ex)))
+    type Attempt = Either[Throwable, A]
+
+    // Reference to keep track of latest `earlyStop` value
+    val stopRef: ObjectRef[F[Unit]] = ObjectRef.create(null.asInstanceOf[F[Unit]])
+
+    def tailGuard(ffa: F[Iterant[F, Attempt]]): F[Iterant[F, Attempt]] =
+      ffa.handleErrorWith { ex =>
+        val end = Iterant.lastS[F, Attempt](Left(ex)).pure[F]
+        stopRef.elem match {
+          case null => end
+          // this will swallow exception if earlyStop fails
+          case stop => stop.attempt *> end
+        }
+      }
 
     def loop(fa: Iterant[F, A]): Iterant[F, Either[Throwable, A]] =
       fa match {
         case Next(a, rest, stop) =>
+          stopRef.elem = stop
           Next(Right(a), tailGuard(rest.map(loop)), stop)
         case NextBatch(batch, rest, stop) =>
+          stopRef.elem = stop
           NextBatch(batch.map(Right.apply), tailGuard(rest.map(loop)), stop)
         case NextCursor(batch, rest, stop) =>
+          stopRef.elem = stop
           NextCursor(batch.map(Right.apply), tailGuard(rest.map(loop)), stop)
         case Suspend(rest, stop) =>
+          stopRef.elem = stop
           Suspend(tailGuard(rest.map(loop)), stop)
         case Last(a) =>
           Last(Right(a))
