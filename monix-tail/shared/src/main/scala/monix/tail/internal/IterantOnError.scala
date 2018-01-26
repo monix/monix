@@ -40,40 +40,28 @@ private[tail] object IterantOnError {
       buffer.toArray[Any].asInstanceOf[Array[A]]
     }
 
-    val stopRef: ObjectRef[F[Unit]] = ObjectRef.create(null.asInstanceOf[F[Unit]])
-
-    def sendError(e: Throwable): Iterant[F, A] = {
-      stopRef.elem match {
-        case null =>
-          try f(e) catch {
-            case err if NonFatal(err) =>
-              Halt[F, A](Some(err))
-          }
-        case stop =>
-          val next = stop.map { _ =>
-            try f(e) catch {
-              case err if NonFatal(err) =>
-                Halt[F, A](Some(err))
-            }
-          }
-          Suspend[F, A](next, stop)
+    def sendError(stop: F[Unit], e: Throwable): Iterant[F, A] = {
+      val next = stop.map { _ =>
+        try f(e) catch {
+          case err if NonFatal(err) =>
+            Halt[F, A](Some(err))
+        }
       }
+      Suspend[F, A](next, stop)
     }
 
-    def tailGuard(ffa: F[Iterant[F, A]]): F[Iterant[F, A]] =
-      ffa.handleError(sendError)
+    def tailGuard(stop: F[Unit])(ffa: F[Iterant[F, A]]): F[Iterant[F, A]] =
+      ffa.handleError(sendError(stop, _))
 
     def loop(fa: Iterant[F, A]): Iterant[F, A] =
       try fa match {
         case Next(a, lt, stop) =>
-          stopRef.elem = stop
-          Next(a, tailGuard(lt.map(loop)), stop)
+          Next(a, tailGuard(stop)(lt.map(loop)), stop)
 
         case NextCursor(cursor, rest, stop) =>
-          stopRef.elem = stop
           try {
             val array = extractBatch(cursor)
-            val next = tailGuard {
+            val next = tailGuard(stop) {
               if (cursor.hasNext())
                 F.pure(fa).map(loop)
               else
@@ -86,21 +74,19 @@ private[tail] object IterantOnError {
               Suspend(next, stop)
           } catch {
             case e if NonFatal(e) =>
-              sendError(e)
+              sendError(stop, e)
           }
 
         case NextBatch(batch, rest, stop) =>
-          stopRef.elem = stop
           try {
             loop(NextCursor(batch.cursor(), rest, stop))
           } catch {
             case e if NonFatal(e) =>
-              sendError(e)
+              sendError(stop, e)
           }
 
         case Suspend(rest, stop) =>
-          stopRef.elem = stop
-          Suspend(tailGuard(rest.map(loop)), stop)
+          Suspend(tailGuard(stop)(rest.map(loop)), stop)
         case Last(_) | Halt(None) =>
           fa
         case Halt(Some(e)) =>
@@ -112,7 +98,6 @@ private[tail] object IterantOnError {
 
     fa match {
       case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        stopRef.elem = fa.earlyStop
         // Suspending execution in order to preserve laziness and
         // referential transparency
         Suspend(F.delay(loop(fa)), fa.earlyStop)
