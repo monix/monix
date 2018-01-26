@@ -17,8 +17,14 @@
 
 package monix.eval
 
+import java.util.concurrent.CancellationException
+
+import cats.laws._
+import cats.laws.discipline._
+import monix.execution.exceptions.DummyException
+
 import scala.concurrent.duration._
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 object TaskCancellationSuite extends BaseTestSuite {
   test("cancellation works for async actions") { implicit ec =>
@@ -46,6 +52,18 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(effect, 0)
   }
 
+  test("task.fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
+    check1 { (task: Task[Int]) =>
+      val fa = for {
+        forked <- task.asyncBoundary.cancelable.fork
+        _ <- forked.cancel
+        r <- forked
+      } yield r
+
+      fa <-> Task.never
+    }
+  }
+
   test("uncancelable works for async actions") { implicit ec =>
     var effect = 0
     val task = Task.eval(1).delayExecution(1.second)
@@ -65,13 +83,19 @@ object TaskCancellationSuite extends BaseTestSuite {
   }
 
   test("uncancelable works for autoCancelableRunLoops") { implicit ec =>
-    implicit val opts = Task.defaultOptions.enableAutoCancelableRunLoops
     val task = Task(1)
-    val f = task.flatMap(x => task.map(_ + x)).uncancelable.runAsyncOpt
+    val source = task.flatMap(x => task.map(_ + x))
+      .executeWithOptions(_.enableAutoCancelableRunLoops)
 
-    f.cancel()
+    val f1 = source.uncancelable.runAsync
+    val f2 = source.runAsync
+
+    f1.cancel()
+    f2.cancel()
+
     ec.tick()
-    assertEquals(f.value, Some(Success(2)))
+    assertEquals(f1.value, Some(Success(2)))
+    assertEquals(f2.value, None)
   }
 
   test("uncancelable is stack safe in flatMap loop, take 1") { implicit ec =>
@@ -95,5 +119,38 @@ object TaskCancellationSuite extends BaseTestSuite {
     val f = task.runAsync
     ec.tick()
     assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("fa.onCancelRaiseError <-> fa") { implicit ec =>
+    val dummy = new DummyException("dummy")
+    check1 { (fa: Task[Int]) =>
+      fa.onCancelRaiseError(dummy) <-> fa
+    }
+  }
+
+  test("fa.onCancelRaiseError(e).fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> raiseError(e)") { implicit ec =>
+    check2 { (fa: Task[Int], e: Throwable) =>
+      val received = fa
+        .onCancelRaiseError(e)
+        .fork
+        .flatMap(fa => fa.cancel.flatMap(_ => fa))
+
+      received <-> Task.raiseError(e)
+    }
+  }
+
+  test("errors raised after cancel get reported") { implicit sc =>
+    val dummy = new DummyException()
+    val canceled = new CancellationException()
+    val task = Task.raiseError[Int](dummy)
+      .executeAsync
+      .onCancelRaiseError(canceled)
+
+    val f = task.runAsync
+    f.cancel()
+    sc.tick()
+
+    assertEquals(f.value, Some(Failure(canceled)))
+    assertEquals(sc.state.lastReportedError, dummy)
   }
 }

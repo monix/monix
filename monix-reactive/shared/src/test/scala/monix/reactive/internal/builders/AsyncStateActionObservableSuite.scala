@@ -87,7 +87,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, s.executionModel.recommendedBatchSize - 1)
+    assertEquals(sum, s.executionModel.recommendedBatchSize / 2)
     assert(!wasCompleted)
   }
 
@@ -115,7 +115,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 2)
 
     cancelable.cancel(); s.tick()
-    assertEquals(received, 3)
+    assertEquals(received, 2)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 

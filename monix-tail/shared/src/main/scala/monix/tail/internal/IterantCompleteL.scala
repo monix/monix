@@ -22,6 +22,7 @@ import cats.syntax.all._
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import scala.runtime.ObjectRef
 
 private[tail] object IterantCompleteL {
   /**
@@ -30,39 +31,46 @@ private[tail] object IterantCompleteL {
   final def apply[F[_], A](source: Iterant[F, A])
     (implicit F: Sync[F]): F[Unit] = {
 
-    def loop(self: Iterant[F, A]): F[Unit] = {
-      try self match {
-        case Next(_, rest, _) =>
-          rest.flatMap(loop)
-        case NextCursor(cursor, rest, _) =>
+    def loop(stopRef: ObjectRef[F[Unit]])(source: Iterant[F, A]): F[Unit] = {
+      try source match {
+        case Next(_, rest, stop) =>
+          stopRef.elem = stop
+          rest.flatMap(loop(stopRef))
+        case NextCursor(cursor, rest, stop) =>
+          stopRef.elem = stop
           while (cursor.hasNext()) cursor.next()
-          rest.flatMap(loop)
-        case NextBatch(gen, rest, _) =>
+          rest.flatMap(loop(stopRef))
+        case NextBatch(gen, rest, stop) =>
+          stopRef.elem = stop
           val cursor = gen.cursor()
           while (cursor.hasNext()) cursor.next()
-          rest.flatMap(loop)
-        case Suspend(rest, _) =>
-          rest.flatMap(loop)
+          rest.flatMap(loop(stopRef))
+        case Suspend(rest, stop) =>
+          stopRef.elem = stop
+          rest.flatMap(loop(stopRef))
         case Last(_) =>
           F.unit
         case Halt(None) =>
           F.unit
         case Halt(Some(ex)) =>
+          stopRef.elem = null.asInstanceOf[F[Unit]]
           F.raiseError(ex)
       } catch {
         case ex if NonFatal(ex) =>
-          source.earlyStop *> F.raiseError(ex)
+          F.raiseError(ex)
       }
     }
 
-    source match {
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        // Must suspend execution for NextBatch and NextCursor,
-        // because we'll trigger side effects otherwise and we need
-        // to preserve referential transparency
-        F.suspend(loop(source))
-      case _ =>
-        loop(source)
+    F.suspend {
+      // Reference to keep track of latest `earlyStop` value
+      val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
+      // Catch-all exceptions, ensuring latest `earlyStop` gets called
+      F.handleErrorWith(loop(stopRef)(source)) { ex =>
+        stopRef.elem match {
+          case null => F.raiseError(ex)
+          case stop => stop *> F.raiseError(ex)
+        }
+      }
     }
   }
 }
