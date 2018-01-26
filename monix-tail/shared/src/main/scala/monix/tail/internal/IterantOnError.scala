@@ -25,7 +25,6 @@ import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
 
 import scala.collection.mutable.ArrayBuffer
-import scala.runtime.ObjectRef
 
 private[tail] object IterantOnError {
   /** Implementation for `Iterant.onErrorHandleWith`. */
@@ -110,33 +109,23 @@ private[tail] object IterantOnError {
   def attempt[F[_], A](fa: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] = {
     type Attempt = Either[Throwable, A]
 
-    // Reference to keep track of latest `earlyStop` value
-    val stopRef: ObjectRef[F[Unit]] = ObjectRef.create(null.asInstanceOf[F[Unit]])
-
-    def tailGuard(ffa: F[Iterant[F, Attempt]]): F[Iterant[F, Attempt]] =
+    def tailGuard(stop: F[Unit])(ffa: F[Iterant[F, Attempt]]): F[Iterant[F, Attempt]] =
       ffa.handleErrorWith { ex =>
         val end = Iterant.lastS[F, Attempt](Left(ex)).pure[F]
-        stopRef.elem match {
-          case null => end
-          // this will swallow exception if earlyStop fails
-          case stop => stop.attempt *> end
-        }
+        // this will swallow exception if earlyStop fails
+        stop.attempt *> end
       }
 
     def loop(fa: Iterant[F, A]): Iterant[F, Either[Throwable, A]] =
       fa match {
         case Next(a, rest, stop) =>
-          stopRef.elem = stop
-          Next(Right(a), tailGuard(rest.map(loop)), stop)
+          Next(Right(a), tailGuard(stop)(rest.map(loop)), stop)
         case NextBatch(batch, rest, stop) =>
-          stopRef.elem = stop
-          NextBatch(batch.map(Right.apply), tailGuard(rest.map(loop)), stop)
+          NextBatch(batch.map(Right.apply), tailGuard(stop)(rest.map(loop)), stop)
         case NextCursor(batch, rest, stop) =>
-          stopRef.elem = stop
-          NextCursor(batch.map(Right.apply), tailGuard(rest.map(loop)), stop)
+          NextCursor(batch.map(Right.apply), tailGuard(stop)(rest.map(loop)), stop)
         case Suspend(rest, stop) =>
-          stopRef.elem = stop
-          Suspend(tailGuard(rest.map(loop)), stop)
+          Suspend(tailGuard(stop)(rest.map(loop)), stop)
         case Last(a) =>
           Last(Right(a))
         case Halt(None) =>
