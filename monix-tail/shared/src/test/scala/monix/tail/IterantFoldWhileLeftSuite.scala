@@ -357,6 +357,19 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     assertEquals(effect, 3)
   }
 
+  test("foldWhileLeft earlyStop doesn't get called for Last node") { implicit s =>
+    var effect = 0
+
+    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
+    val dummy = DummyException("dummy")
+    val node3 = Iterant[Coeval].lastS(3)
+    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
+    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
+
+    assertEquals(node1.foldWhileLeftL(0)((_, el) => if (el == 3) throw dummy else Left(0)).runTry, Failure(dummy))
+    assertEquals(effect, 0)
+  }
+
   test("foldWhileLeftEvalL earlyStop gets called for failing `rest` on Next node") { implicit s =>
     var effect = 0
 
@@ -368,6 +381,19 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
 
     assertEquals(node1.foldWhileLeftEvalL(Coeval(0))((_, _) => Coeval(Left(0))).runTry, Failure(dummy))
     assertEquals(effect, 3)
+  }
+
+  test("foldWhileLeftEvalL earlyStop doesn't get called for Last node") { implicit s =>
+    var effect = 0
+
+    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
+    val dummy = DummyException("dummy")
+    val node3 = Iterant[Coeval].lastS(3)
+    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
+    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
+
+    assertEquals(node1.foldWhileLeftEvalL(Coeval(0))((_, el) => if (el == 3) throw dummy else Coeval(Left(0))).runTry, Failure(dummy))
+    assertEquals(effect, 0)
   }
 
 }

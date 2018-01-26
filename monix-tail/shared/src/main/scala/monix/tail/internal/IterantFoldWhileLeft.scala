@@ -47,15 +47,15 @@ private[tail] object IterantFoldWhileLeft {
       if (hasResult)
         stop.map(_ => s)
       else
-        rest.flatMap(loop(stopRef)(s))
+        rest.flatMap(loop(stopRef, s))
     }
 
-    def loop(stopRef: ObjectRef[F[Unit]])(state: S)(self: Iterant[F, A]): F[S] = {
+    def loop(stopRef: ObjectRef[F[Unit]], state: S)(self: Iterant[F, A]): F[S] = {
       try self match {
         case Next(a, rest, stop) =>
           stopRef.elem = stop
           f(state, a) match {
-            case Left(s) => rest.flatMap(loop(stopRef)(s))
+            case Left(s) => rest.flatMap(loop(stopRef, s))
             case Right(s) => stop.map(_ => s)
           }
 
@@ -70,9 +70,10 @@ private[tail] object IterantFoldWhileLeft {
 
         case Suspend(rest, stop) =>
           stopRef.elem = stop
-          rest.flatMap(loop(stopRef)(state))
+          rest.flatMap(loop(stopRef, state))
 
         case Last(a) =>
+          stopRef.elem = null.asInstanceOf[F[Unit]]
           F.pure(f(state, a) match {
             case Left(s) => s
             case Right(s) => s
@@ -97,7 +98,7 @@ private[tail] object IterantFoldWhileLeft {
       // Reference to keep track of latest `earlyStop` value
       val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
       // Catch-all exceptions, ensuring latest `earlyStop` gets called
-      F.handleErrorWith(loop(stopRef)(seed)(self)) { ex =>
+      F.handleErrorWith(loop(stopRef, seed)(self)) { ex =>
         stopRef.elem match {
           case null => F.raiseError(ex)
           case stop => stop *> F.raiseError(ex)
@@ -114,12 +115,12 @@ private[tail] object IterantFoldWhileLeft {
       val fs = f(state, a)
 
       fs.flatMap {
-        case Left(s) => rest.flatMap(loop(stopRef)(s))
+        case Left(s) => rest.flatMap(loop(stopRef, s))
         case Right(s) => stop.map(_ => s)
       }
     }
 
-    def loop(stopRef: ObjectRef[F[Unit]])(state: S)(self: Iterant[F, A]): F[S] = {
+    def loop(stopRef: ObjectRef[F[Unit]], state: S)(self: Iterant[F, A]): F[S] = {
       try self match {
         case Next(a, rest, stop) =>
           stopRef.elem = stop
@@ -127,7 +128,7 @@ private[tail] object IterantFoldWhileLeft {
 
         case NextCursor(cursor, rest, stop) =>
           stopRef.elem = stop
-          if (!cursor.hasNext()) rest.flatMap(loop(stopRef)(state)) else {
+          if (!cursor.hasNext()) rest.flatMap(loop(stopRef, state)) else {
             val a = cursor.next()
             process(stopRef)(state, stop, F.pure(self), a)
           }
@@ -135,16 +136,17 @@ private[tail] object IterantFoldWhileLeft {
         case NextBatch(batch, rest, stop) =>
           stopRef.elem = stop
           val cursor = batch.cursor()
-          if (!cursor.hasNext()) rest.flatMap(loop(stopRef)(state)) else {
+          if (!cursor.hasNext()) rest.flatMap(loop(stopRef, state)) else {
             val a = cursor.next()
             process(stopRef)(state, stop, F.pure(NextCursor(cursor, rest, stop)), a)
           }
 
         case Suspend(rest, stop) =>
           stopRef.elem = stop
-          rest.flatMap(loop(stopRef)(state))
+          rest.flatMap(loop(stopRef, state))
 
         case Last(a) =>
+          stopRef.elem = null.asInstanceOf[F[Unit]]
           f(state, a).map {
             case Left(s) => s
             case Right(s) => s
@@ -169,7 +171,7 @@ private[tail] object IterantFoldWhileLeft {
       // Reference to keep track of latest `earlyStop` value
       val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
       // Catch-all exceptions, ensuring latest `earlyStop` gets called
-      F.handleErrorWith(seed.flatMap(s => loop(stopRef)(s)(self))) { ex =>
+      F.handleErrorWith(seed.flatMap(s => loop(stopRef, s)(self))) { ex =>
         stopRef.elem match {
           case null => F.raiseError(ex)
           case stop => stop *> F.raiseError(ex)
