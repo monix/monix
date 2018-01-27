@@ -49,23 +49,20 @@ private[tail] object IterantOnError {
       Suspend[F, A](next, stop)
     }
 
-    def tailGuard(stop: F[Unit])(ffa: F[Iterant[F, A]]): F[Iterant[F, A]] =
+    def tailGuard(ffa: F[Iterant[F, A]], stop: F[Unit]) =
       ffa.handleError(sendError(stop, _))
 
     def loop(fa: Iterant[F, A]): Iterant[F, A] =
       try fa match {
         case Next(a, lt, stop) =>
-          Next(a, tailGuard(stop)(lt.map(loop)), stop)
+          Next(a, tailGuard(lt, stop).map(loop), stop)
 
         case NextCursor(cursor, rest, stop) =>
           try {
             val array = extractBatch(cursor)
-            val next = tailGuard(stop) {
-              if (cursor.hasNext())
-                F.pure(fa).map(loop)
-              else
-                rest.map(loop)
-            }
+            val next =
+              if (cursor.hasNext()) F.delay(loop(fa))
+              else tailGuard(rest, stop).map(loop)
 
             if (array.length != 0)
               NextCursor(BatchCursor.fromAnyArray(array), next, stop)
@@ -85,7 +82,7 @@ private[tail] object IterantOnError {
           }
 
         case Suspend(rest, stop) =>
-          Suspend(tailGuard(stop)(rest.map(loop)), stop)
+          Suspend(tailGuard(rest, stop).map(loop), stop)
         case Last(_) | Halt(None) =>
           fa
         case Halt(Some(e)) =>
@@ -109,27 +106,27 @@ private[tail] object IterantOnError {
   def attempt[F[_], A](fa: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] = {
     type Attempt = Either[Throwable, A]
 
-    def tailGuard(stop: F[Unit])(ffa: F[Iterant[F, Attempt]]): F[Iterant[F, Attempt]] =
+    def tailGuard(ffa: F[Iterant[F, Attempt]], stop: F[Unit]) =
       ffa.handleErrorWith { ex =>
         val end = Iterant.lastS[F, Attempt](Left(ex)).pure[F]
         // this will swallow exception if earlyStop fails
         stop.attempt *> end
       }
 
-    def loop(fa: Iterant[F, A]): Iterant[F, Either[Throwable, A]] =
+    def loop(fa: Iterant[F, A]): Iterant[F, Attempt] =
       fa match {
         case Next(a, rest, stop) =>
-          Next(Right(a), tailGuard(stop)(rest.map(loop)), stop)
+          Next(Right(a), tailGuard(rest.map(loop), stop), stop)
         case NextBatch(batch, rest, stop) =>
-          NextBatch(batch.map(Right.apply), tailGuard(stop)(rest.map(loop)), stop)
+          NextBatch(batch.map(Right.apply), tailGuard(rest.map(loop), stop), stop)
         case NextCursor(batch, rest, stop) =>
-          NextCursor(batch.map(Right.apply), tailGuard(stop)(rest.map(loop)), stop)
+          NextCursor(batch.map(Right.apply), tailGuard(rest.map(loop), stop), stop)
         case Suspend(rest, stop) =>
-          Suspend(tailGuard(stop)(rest.map(loop)), stop)
+          Suspend(tailGuard(rest.map(loop), stop), stop)
         case Last(a) =>
           Last(Right(a))
         case Halt(None) =>
-          fa.asInstanceOf[Iterant[F, Either[Throwable, A]]]
+          fa.asInstanceOf[Iterant[F, Attempt]]
         case Halt(Some(ex)) =>
           Last(Left(ex))
       }
