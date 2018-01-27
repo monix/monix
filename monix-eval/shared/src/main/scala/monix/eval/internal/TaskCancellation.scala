@@ -19,15 +19,17 @@ package monix.eval
 package internal
 
 import monix.eval.Task.{Async, Context}
+import monix.execution.atomic.{Atomic, AtomicBoolean}
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.schedulers.TrampolinedRunnable
+import monix.execution.{Cancelable, Scheduler}
 
 private[eval] object TaskCancellation {
   /**
     * Implementation for `Task.cancel`.
     */
   def signal[A](fa: Task[A]): Task[Unit] =
-    Task.Async { (ctx, cb) =>
+    Task.Async { (ctx: Context, cb: Callback[Unit]) =>
       implicit val sc = ctx.scheduler
       // Continues the execution of `fa` using an already cancelled
       // cancelable, which will ensure that all future registrations
@@ -55,4 +57,50 @@ private[eval] object TaskCancellation {
       val ctx2 = Context(sc, ctx.options)
       Task.unsafeStartTrampolined(fa, ctx2, Callback.async(cb))
     }
+
+  /**
+    * Implementation for `Task.onCancelRaiseError`.
+    */
+  def raiseError[A](fa: Task[A], e: Throwable): Task[A] =
+    Async { (ctx, cb) =>
+      implicit val sc = ctx.scheduler
+      val waitsForResult = Atomic(true)
+      val conn = ctx.connection
+      conn.push(new RaiseCancelable(waitsForResult, cb, e))
+      Task.unsafeStartTrampolined(fa, ctx, new RaiseCallback(waitsForResult, conn, cb))
+    }
+
+  private final class RaiseCallback[A](
+    waitsForResult: AtomicBoolean,
+    conn: StackedCancelable,
+    cb: Callback[A])
+    (implicit sc: Scheduler)
+    extends Callback[A] {
+
+    def onSuccess(value: A): Unit =
+      if (waitsForResult.getAndSet(false)) {
+        conn.pop()
+        cb.asyncOnSuccess(value)
+      }
+    def onError(e: Throwable): Unit =
+      if (waitsForResult.getAndSet(false)) {
+        conn.pop()
+        cb.asyncOnError(e)
+      } else {
+        sc.reportFailure(e)
+      }
+  }
+
+  private final class RaiseCancelable[A](
+    waitsForResult: AtomicBoolean,
+    cb: Callback[A],
+    e: Throwable)
+    (implicit sc: Scheduler)
+    extends Cancelable {
+
+    override def cancel(): Unit =
+      if (waitsForResult.getAndSet(false)) {
+        cb.asyncOnError(e)
+      }
+  }
 }

@@ -227,4 +227,18 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       i.countL <-> Coeval(list.length)
     }
   }
+
+  test("earlyStop gets called for failing `rest` on Next node") { implicit s =>
+    var effect = 0
+
+    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
+    val dummy = DummyException("dummy")
+    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy), stop(3))
+    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
+    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
+
+    assertEquals(node1.toListL.runTry, Failure(dummy))
+    assertEquals(effect, 3)
+  }
+
 }

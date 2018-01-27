@@ -27,5 +27,7 @@
   *    corresponding to the `monix-eval` sub-project
   *  - '''[[monix.reactive]]''' exposes the [[monix.reactive.Observable Observable]]
   *    pattern, corresponding to the `monix-reactive` sub-project
+  *  - '''[[monix.tail]]''' exposes [[monix.tail.Iterant Iterant]]
+  *    the reasonable, pull based, streaming abstraction
   */
 package object monix {}

@@ -19,10 +19,12 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+
 import scala.collection.mutable
-import monix.execution.misc.NonFatal
+import scala.runtime.ObjectRef
 
 private[tail] object IterantFoldLeft {
   /**
@@ -31,37 +33,51 @@ private[tail] object IterantFoldLeft {
   final def apply[F[_], S, A](source: Iterant[F, A], seed: => S)(op: (S,A) => S)
     (implicit F: Sync[F]): F[S] = {
 
-    def loop(self: Iterant[F, A], state: S): F[S] = {
+    def loop(stopRef: ObjectRef[F[Unit]], state: S)(self: Iterant[F, A]): F[S] = {
       try self match {
-        case Next(a, rest, _) =>
+        case Next(a, rest, stop) =>
+          stopRef.elem = stop
           val newState = op(state, a)
-          rest.flatMap(loop(_, newState))
-        case NextCursor(cursor, rest, _) =>
+          rest.flatMap(loop(stopRef, newState))
+        case NextCursor(cursor, rest, stop) =>
+          stopRef.elem = stop
           val newState = cursor.foldLeft(state)(op)
-          rest.flatMap(loop(_, newState))
-        case NextBatch(gen, rest, _) =>
+          rest.flatMap(loop(stopRef, newState))
+        case NextBatch(gen, rest, stop) =>
+          stopRef.elem = stop
           val newState = gen.foldLeft(state)(op)
-          rest.flatMap(loop(_, newState))
-        case Suspend(rest, _) =>
-          rest.flatMap(loop(_, state))
+          rest.flatMap(loop(stopRef, newState))
+        case Suspend(rest, stop) =>
+          stopRef.elem = stop
+          rest.flatMap(loop(stopRef, state))
         case Last(item) =>
           F.pure(op(state,item))
         case Halt(None) =>
           F.pure(state)
         case Halt(Some(ex)) =>
+          stopRef.elem = null.asInstanceOf[F[Unit]]
           F.raiseError(ex)
       } catch {
         case ex if NonFatal(ex) =>
-          source.earlyStop *> F.raiseError(ex)
+          F.raiseError(ex)
       }
     }
 
     F.suspend {
       var catchErrors = true
       try {
+        // handle exception in the seed
         val init = seed
         catchErrors = false
-        loop(source, init)
+        // Reference to keep track of latest `earlyStop` value
+        val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
+        // Catch-all exceptions, ensuring latest `earlyStop` gets called
+        F.handleErrorWith(loop(stopRef, init)(source)) { ex =>
+          stopRef.elem match {
+            case null => F.raiseError(ex)
+            case stop => stop *> F.raiseError(ex)
+          }
+        }
       } catch {
         case NonFatal(e) if catchErrors =>
           source.earlyStop *> F.raiseError(e)

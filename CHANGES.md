@@ -1,3 +1,26 @@
+## Version 2.3.3 (Jan 21, 2018)
+
+Release is binary backwards compatible with series `2.3.x`.
+
+Bug fixes:
+
+- [Issue #468](https://github.com/monix/monix/issues/468):
+  Observables created using `concat` don't get canceled
+  (**critical**)
+- [Issue #483](https://github.com/monix/monix/issues/483):
+  stack overflow error on `MVar.put`
+- [Issue #541](https://github.com/monix/monix/issues/541):
+  `observable.take(0)` shouldn't subscribe to the source at all
+- [Issue #475](https://github.com/monix/monix/pull/475):
+  `Observable.fromAsyncStateAction` does not protect against
+  exceptions thrown in use code
+
+Issue #468 in particular is pretty serious as it can lead to
+resource leaks. Read the [pull request](https://github.com/monix/monix/pull/469)
+for more details.
+
+Upgrade to `2.3.3` is recommended!
+
 ## Version 3.0.0-M3 (Jan 7, 2017)
 
 Final milestone release before the RC and the final and stable `3.0.0`.
@@ -188,6 +211,18 @@ Administrative and build changes:
   [Automatic Releases to Maven Central with Travis and SBT](https://alexn.org/blog/2017/08/16/automatic-releases-sbt-travis.html)
 - [PR #423](https://github.com/monix/monix/pull/423): updates Scala.js
   to 0.6.20, the final in the series before 1.0.0
+
+## Version 2.3.1 (Sep 20, 2017)
+
+Release is binary backwards compatible with series `2.3.x`.
+
+This is a service release, fixing a minor issue in `AsyncScheduler`
+and upgrading Scala.js:
+
+- [PR #436](https://github.com/monix/monix/pull/436):
+  adds reusable `ShiftedRunnable`, leaving no room for error in
+  `BatchingScheduler` types by usage of `TrampolinedRunnable`;
+  also upgrades Scala.js to 0.6.20
 
 ## Version 2.3.1 (Sep 20, 2017)
 

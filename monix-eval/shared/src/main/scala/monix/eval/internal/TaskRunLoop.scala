@@ -50,7 +50,8 @@ private[eval] object TaskRunLoop {
     frameIndex: FrameIndex): Unit = {
 
     val cba = cb.asInstanceOf[Callback[Any]]
-    val em = context.executionModel
+    val sc = context.scheduler
+    val em = sc.executionModel
     var current: Current = source
     var bFirstRef = bFirst
     var bRestRef = bRest
@@ -103,7 +104,7 @@ private[eval] object TaskRunLoop {
                 return
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
-                try { current = bind.recover(error) }
+                try { current = bind.recover(error, sc) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 currentIndex = em.nextFrameIndex(currentIndex)
                 bFirstRef = null
@@ -171,8 +172,14 @@ private[eval] object TaskRunLoop {
       if (context.options.localContextPropagation) Local.getContext()
       else null
 
-    if (!context.shouldCancel) {
-      context.scheduler.executeAsync { () =>
+    context.scheduler.executeAsync { () =>
+      // Checking for the cancellation status after the async boundary;
+      // This is consistent with the behavior on `Async` tasks, i.e. check
+      // is done *after* the evaluation and *before* signaling the result
+      // or continuing the evaluation of the bind chain. It also makes sense
+      // because it gives a chance to the caller to cancel and not wait for
+      // another forced boundary to have actual cancellation happening.
+      if (!context.shouldCancel) {
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
         // Transporting the current context if localContextPropagation == true.
@@ -250,7 +257,7 @@ private[eval] object TaskRunLoop {
                 return Cancelable.empty
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
-                try { current = bind.recover(error) }
+                try { current = bind.recover(error, scheduler) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
@@ -384,7 +391,7 @@ private[eval] object TaskRunLoop {
                 return CancelableFuture.failed(error)
               case bind =>
                 // Try/catch described as statement to prevent ObjectRef ;-)
-                try { current = bind.recover(error) }
+                try { current = bind.recover(error, scheduler) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
@@ -462,23 +469,21 @@ private[eval] object TaskRunLoop {
     bRest: CallStack,
     nextFrame: FrameIndex): Unit = {
 
-    if (!context.shouldCancel) {
-      // We are going to resume the frame index from where we left,
-      // but only if no real asynchronous execution happened. So in order
-      // to detect asynchronous execution, we are reading a thread-local
-      // variable that's going to be reset in case of a thread jump.
-      // Obviously this doesn't work for Javascript or for single-threaded
-      // thread-pools, but that's OK, as it only means that in such instances
-      // we can experience more async boundaries and everything is fine for
-      // as long as the implementation of `Async` tasks are triggering
-      // a `frameRef.reset` on async boundaries.
-      context.frameRef := nextFrame
+    // We are going to resume the frame index from where we left,
+    // but only if no real asynchronous execution happened. So in order
+    // to detect asynchronous execution, we are reading a thread-local
+    // variable that's going to be reset in case of a thread jump.
+    // Obviously this doesn't work for Javascript or for single-threaded
+    // thread-pools, but that's OK, as it only means that in such instances
+    // we can experience more async boundaries and everything is fine for
+    // as long as the implementation of `Async` tasks are triggering
+    // a `frameRef.reset` on async boundaries.
+    context.frameRef := nextFrame
 
-      // rcb reference might be null, so initializing
-      val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
-      restartCallback.prepare(bFirst, bRest)
-      register(context, restartCallback)
-    }
+    // rcb reference might be null, so initializing
+    val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
+    restartCallback.prepare(bFirst, bRest)
+    register(context, restartCallback)
   }
 
   /** Called when we hit the first async boundary in
@@ -572,8 +577,7 @@ private[eval] object TaskRunLoop {
       }
     }
 
-    implicit val s: Scheduler = context.scheduler
-
+    implicit val sc: Scheduler = context.scheduler
     self.state.get match {
       case null =>
         val p = Promise[A]()
@@ -597,7 +601,7 @@ private[eval] object TaskRunLoop {
           }
 
           // Asynchronous boundary to prevent stack-overflows!
-          s.execute(new TrampolinedRunnable {
+          sc.execute(new TrampolinedRunnable {
             def run(): Unit = {
               startFull(underlying, context, callback, null, null, null, nextFrame)
             }
@@ -682,7 +686,7 @@ private[eval] object TaskRunLoop {
     }
 
     def onSuccess(value: Any): Unit =
-      if (canCall) {
+      if (canCall && !context.shouldCancel) {
         canCall = false
         Local.bind(savedLocals) {
           startFull(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
@@ -690,7 +694,7 @@ private[eval] object TaskRunLoop {
       }
 
     def onError(ex: Throwable): Unit = {
-      if (canCall) {
+      if (canCall && !context.shouldCancel) {
         canCall = false
         Local.bind(savedLocals) {
           startFull(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())

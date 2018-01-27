@@ -44,7 +44,7 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Current stable release: `2.3.2`
+- Current stable release: `2.3.3`
 - Milestone release: `3.0.0-M3`
 - Development version: `3.0.0-$hash`
   (see [versioning scheme](https://github.com/monix/monix#versioning-scheme))
@@ -52,7 +52,7 @@ The packages are published on Maven Central.
 For the current stable release (use the `%%%` for Scala.js):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.3.2"
+libraryDependencies += "io.monix" %% "monix" % "2.3.3"
 ```
 
 Or for the milestone (that works with Cats `1.0`):
