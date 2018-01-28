@@ -2136,14 +2136,10 @@ object Iterant extends IterantInstances {
     *
     * It terminates either on error or if the source is empty.
     */
-  def repeat[F[_], A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] = {
-    try elems match {
-      case Seq() => Iterant.empty
-      case Seq(elem) => Next[F, A](elem, F.delay(repeat(elem)), F.unit)
-      case _ => NextBatch[F, A](Batch(elems: _*), F.delay(repeat(elems: _*)), F.unit)
-    } catch {
-      case e if NonFatal(e) => Halt(Some(e))
-    }
+  def repeat[F[_], A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] = elems match {
+    case Seq() => Iterant.empty
+    case Seq(elem) => Next[F, A](elem, F.delay(repeat(elem)), F.unit)
+    case _ => NextBatch[F, A](Batch(elems: _*), F.delay(repeat(elems: _*)), F.unit)
   }
 
   /** Returns an empty stream. */

@@ -63,7 +63,7 @@ object IterantRepeatSuite extends BaseTestSuite {
   test("Iterant.repeat preserves the source earlyStop") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.repeat
     stream.earlyStop.value
     assertEquals(effect, 1)
@@ -76,7 +76,9 @@ object IterantRepeatSuite extends BaseTestSuite {
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
-      intercept[DummyException] { stream.repeat.toListL.value }
+      intercept[DummyException] {
+        stream.repeat.toListL.value
+      }
       cancelable.isCanceled
     }
   }
@@ -145,6 +147,13 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source = Iterant[Coeval].empty[Int]
 
     assertEquals(source.repeat, source)
+  }
+
+  test("Iterant.repeat doesn't touch Halt") { implicit s =>
+    val dummy = DummyException("dummy")
+    val iter1: Iterant[Task, Int] = Iterant[Task].haltS(Some(dummy))
+    val state1 = iter1.repeat
+    assertEquals(state1, iter1)
   }
 
   test("Iterant.repeat builder terminates on exception") { implicit s =>
