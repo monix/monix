@@ -151,9 +151,10 @@ object IterantRepeatSuite extends BaseTestSuite {
 
   test("Iterant.repeat doesn't touch Halt") { implicit s =>
     val dummy = DummyException("dummy")
-    val iter1: Iterant[Task, Int] = Iterant[Task].haltS(Some(dummy))
+    val iter1: Iterant[Coeval, Int] = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].haltS[Int](Some(dummy))), Coeval.unit)
     val state1 = iter1.repeat
-    assertEquals(state1, iter1)
+
+    assertEquals(state1.toListL.runTry, iter1.toListL.runTry)
   }
 
   test("Iterant.repeat builder terminates on exception") { implicit s =>
