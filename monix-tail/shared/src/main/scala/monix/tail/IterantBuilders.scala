@@ -124,6 +124,10 @@ class IterantBuilders[F[_]] {
   /** Aliased builder, see documentation for [[Iterant.range]]. */
   def range(from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
     Iterant.range(from, until, step)(F)
+
+  /** Aliased builder, see documentation for [[Iterant.repeat]]. */
+  def repeat[A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.repeat(elems: _*)
 }
 
 object IterantBuilders {

@@ -1235,6 +1235,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def reduceL(op: (A, A) => A)(implicit F: Sync[F]): F[Option[A]] =
     IterantReduce(self, op)
 
+  /** Repeats the items emitted by the source continuously
+    *
+    * It terminates either on error or if the source is empty.
+    */
+  final def repeat(implicit F: Sync[F]): Iterant[F, A] =
+    IterantRepeat(self)
+
   /** Returns an `Iterant` that mirrors the behavior of the source,
     * unless the source is terminated with an error, in which case
     * the streaming of events continues with the specified backup
@@ -2124,6 +2131,20 @@ object Iterant extends IterantInstances {
     */
   def range[F[_]](from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
     NextBatch(Batch.range(from, until, step), F.pure(empty[F, Int]), F.unit)
+
+  /** Builds a stream that repeats the items provided in argument.
+    *
+    * It terminates either on error or if the source is empty.
+    */
+  def repeat[F[_], A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] = {
+    try elems match {
+      case Seq() => Iterant.empty
+      case Seq(elem) => Next[F, A](elem, F.delay(repeat(elem)), F.unit)
+      case _ => NextBatch[F, A](Batch(elems: _*), F.delay(repeat(elems: _*)), F.unit)
+    } catch {
+      case e if NonFatal(e) => Halt(Some(e))
+    }
+  }
 
   /** Returns an empty stream. */
   def empty[F[_], A]: Iterant[F, A] =
