@@ -23,6 +23,7 @@ import cats.syntax.all._
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
+
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantOnError {
@@ -48,18 +49,20 @@ private[tail] object IterantOnError {
       Suspend[F, A](next, stop)
     }
 
+    def tailGuard(ffa: F[Iterant[F, A]], stop: F[Unit]) =
+      ffa.handleError(sendError(stop, _))
+
     def loop(fa: Iterant[F, A]): Iterant[F, A] =
       try fa match {
         case Next(a, lt, stop) =>
-          Next(a, lt.map(loop), stop)
+          Next(a, tailGuard(lt, stop).map(loop), stop)
 
         case NextCursor(cursor, rest, stop) =>
           try {
             val array = extractBatch(cursor)
-            val next = if (cursor.hasNext())
-              F.pure(fa).map(loop)
-            else
-              rest.map(loop)
+            val next =
+              if (cursor.hasNext()) F.delay(loop(fa))
+              else tailGuard(rest, stop).map(loop)
 
             if (array.length != 0)
               NextCursor(BatchCursor.fromAnyArray(array), next, stop)
@@ -79,7 +82,7 @@ private[tail] object IterantOnError {
           }
 
         case Suspend(rest, stop) =>
-          Suspend(rest.map(loop), stop)
+          Suspend(tailGuard(rest, stop).map(loop), stop)
         case Last(_) | Halt(None) =>
           fa
         case Halt(Some(e)) =>
@@ -101,20 +104,29 @@ private[tail] object IterantOnError {
 
   /** Implementation for `Iterant.attempt`. */
   def attempt[F[_], A](fa: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] = {
-    def loop(fa: Iterant[F, A]): Iterant[F, Either[Throwable, A]] =
+    type Attempt = Either[Throwable, A]
+
+    def tailGuard(ffa: F[Iterant[F, Attempt]], stop: F[Unit]) =
+      ffa.handleErrorWith { ex =>
+        val end = Iterant.lastS[F, Attempt](Left(ex)).pure[F]
+        // this will swallow exception if earlyStop fails
+        stop.attempt *> end
+      }
+
+    def loop(fa: Iterant[F, A]): Iterant[F, Attempt] =
       fa match {
         case Next(a, rest, stop) =>
-          Next(Right(a), rest.map(loop), stop)
+          Next(Right(a), tailGuard(rest.map(loop), stop), stop)
         case NextBatch(batch, rest, stop) =>
-          NextBatch(batch.map(Right.apply), rest.map(loop), stop)
+          NextBatch(batch.map(Right.apply), tailGuard(rest.map(loop), stop), stop)
         case NextCursor(batch, rest, stop) =>
-          NextCursor(batch.map(Right.apply), rest.map(loop), stop)
+          NextCursor(batch.map(Right.apply), tailGuard(rest.map(loop), stop), stop)
         case Suspend(rest, stop) =>
-          Suspend(rest.map(loop), stop)
+          Suspend(tailGuard(rest.map(loop), stop), stop)
         case Last(a) =>
           Last(Right(a))
         case Halt(None) =>
-          fa.asInstanceOf[Iterant[F, Either[Throwable, A]]]
+          fa.asInstanceOf[Iterant[F, Attempt]]
         case Halt(Some(ex)) =>
           Last(Left(ex))
       }
