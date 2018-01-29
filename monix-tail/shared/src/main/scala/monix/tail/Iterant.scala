@@ -2138,8 +2138,16 @@ object Iterant extends IterantInstances {
     */
   def repeat[F[_], A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] = elems match {
     case Seq() => Iterant.empty
-    case Seq(elem) => Next[F, A](elem, F.delay(repeat(elem)), F.unit)
-    case _ => NextBatch[F, A](Batch(elems: _*), F.delay(repeat(elems: _*)), F.unit)
+    case Seq(elem) =>
+      // trick to optimize recursion, see Optimisation section at:
+      // https://japgolly.blogspot.com.by/2017/12/practical-awesome-recursion-ch-02.html
+      var result: Iterant[F, A] = null
+      result = Next[F, A](elem, F.delay(result), F.unit)
+      result
+    case _ =>
+      var result: Iterant[F, A] = null
+      result = NextBatch(Batch(elems: _*), F.delay(result), F.unit)
+      result
   }
 
   /** Returns an empty stream. */

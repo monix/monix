@@ -39,11 +39,11 @@ private[tail] object IterantRepeat {
         case Suspend(rest, stop) =>
           Suspend[F, A](rest.map(loop), stop)
         case Last(item) =>
-          Next[F, A](item, F.delay(loop(Iterant.empty)), F.unit)
+          Next[F, A](item, F.delay(loop(source)), F.unit)
         case Halt(Some(ex)) =>
           signalError(self, ex)
         case Halt(None) =>
-          Suspend(F.delay(loop(source)), self.earlyStop)
+          Suspend(F.delay(loop(source)), F.unit)
       } catch {
         case ex if NonFatal(ex) => signalError(source, ex)
       }
