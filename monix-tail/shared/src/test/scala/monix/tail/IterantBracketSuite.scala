@@ -213,4 +213,55 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.acquired, brokens.length)
     assertEquals(rs.released, brokens.length)
   }
+
+  test("Bracket releases resource on all completion methods") { _ =>
+    val rs = new Resource
+    val completes: Array[Iterant[IO, Int] => IO[Unit]] =
+      Array(
+        _.completeL,
+        _.foldLeftL(())((_, _) => ()),
+        _.foldWhileLeftL(())((_, _) => Left(())),
+        _.foldWhileLeftEvalL(IO.unit)((_, _) => IO(Left(()))),
+        _.headOptionL.map(_ => ()),
+        _.reduceL(_ + _).map(_ => ())
+      )
+
+    val pure = Iterant.bracket(rs.acquire)(
+      _ => Iterant[IO].of(1, 2, 3),
+      (_, _) => rs.release
+    )
+
+    for (method <- completes) {
+      method(pure).unsafeRunSync()
+    }
+    assertEquals(rs.acquired, completes.length)
+    assertEquals(rs.released, completes.length)
+
+    val dummy = DummyException("dummy")
+    val faulty = Iterant.bracket(rs.acquire)(
+      _ => Iterant[IO].raiseError[Int](dummy),
+      (_, _) => rs.release
+    )
+
+    for (method <- completes) {
+      intercept[DummyException] {
+        method(faulty).unsafeRunSync()
+      }
+    }
+    assertEquals(rs.acquired, completes.length * 2)
+    assertEquals(rs.released, completes.length * 2)
+
+    val broken = Iterant.bracket(rs.acquire)(
+      _ => Iterant[IO].suspendS[Int](IO.raiseError(dummy), IO.unit),
+      (_, _) => rs.release
+    )
+
+    for (method <- completes) {
+      intercept[DummyException] {
+        method(broken).unsafeRunSync()
+      }
+    }
+    assertEquals(rs.acquired, completes.length * 3)
+    assertEquals(rs.released, completes.length * 3)
+  }
 }
