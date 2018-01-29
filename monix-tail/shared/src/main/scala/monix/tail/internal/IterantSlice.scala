@@ -23,48 +23,62 @@ import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 
+import scala.runtime.ObjectRef
+
 private[tail] object IterantSlice {
   /** Implementation for `Iterant#headOption`. */
   def headOptionL[F[_], A](source: Iterant[F, A])
     (implicit F: Sync[F]): F[Option[A]] = {
 
-    def loop(source: Iterant[F, A]): F[Option[A]] = {
+    def loop(stopRef: ObjectRef[F[Unit]])(source: Iterant[F, A]): F[Option[A]] = {
       try source match {
         case Next(a, _, stop) =>
+          stopRef.elem = null.asInstanceOf[F[Unit]]
           stop.map(_ => Some(a))
 
         case NextCursor(items, rest, stop) =>
-          if (items.hasNext()) stop.map(_ => Some(items.next()))
-          else rest.flatMap(loop)
+          stopRef.elem = stop
+          if (items.hasNext()) stop.map { _ => stopRef.elem = null.asInstanceOf[F[Unit]]; Some(items.next()) }
+          else rest.flatMap(loop(stopRef))
 
         case NextBatch(items, rest, stop) =>
+          stopRef.elem = stop
           val cursor = items.cursor()
-          if (cursor.hasNext()) stop.map(_ => Some(cursor.next()))
-          else rest.flatMap(loop)
+          if (cursor.hasNext()) stop.map { _ => stopRef.elem = null.asInstanceOf[F[Unit]]; Some(cursor.next()) }
+          else rest.flatMap(loop(stopRef))
 
-        case Suspend(rest, _) =>
-          rest.flatMap(loop)
+        case Suspend(rest, stop) =>
+          stopRef.elem = stop
+          rest.flatMap(loop(stopRef))
 
         case Last(a) =>
+          stopRef.elem = null.asInstanceOf[F[Unit]]
           F.pure(Some(a))
         case Halt(None) =>
           F.pure(None)
         case Halt(Some(ex)) =>
+          stopRef.elem = null.asInstanceOf[F[Unit]]
           F.raiseError(ex)
       } catch {
         case ex if NonFatal(ex) =>
-          source.earlyStop.flatMap(_ =>
-            F.raiseError(ex))
+          F.raiseError(ex)
       }
     }
-
-    source match {
-      case NextCursor(_, _, _) | NextBatch(_, _, _) =>
-        // Suspending execution for referential transparency, as we
-        // can have side effects when processing NextCursor/NextBatch
-        F.suspend(loop(source))
-      case _ =>
-        loop(source)
+      // Reference to keep track of latest `earlyStop` value
+      val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
+      // Catch-all exceptions, ensuring latest `earlyStop` gets called
+      F.handleErrorWith(source match {
+        case NextCursor(_, _, _) | NextBatch(_, _, _) =>
+          // Suspending execution for referential transparency, as we
+          // can have side effects when processing NextCursor/NextBatch
+          F.suspend(loop(stopRef)(source))
+        case _ =>
+          loop(stopRef)(source)
+      }) { ex =>
+        stopRef.elem match {
+          case null => F.raiseError(ex)
+          case stop => stop *> F.raiseError(ex)
+        }
+      }
     }
-  }
 }
