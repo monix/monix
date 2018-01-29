@@ -64,21 +64,17 @@ private[tail] object IterantSlice {
           F.raiseError(ex)
       }
     }
+
+    F.suspend {
       // Reference to keep track of latest `earlyStop` value
       val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
       // Catch-all exceptions, ensuring latest `earlyStop` gets called
-      F.handleErrorWith(source match {
-        case NextCursor(_, _, _) | NextBatch(_, _, _) =>
-          // Suspending execution for referential transparency, as we
-          // can have side effects when processing NextCursor/NextBatch
-          F.suspend(loop(stopRef)(source))
-        case _ =>
-          loop(stopRef)(source)
-      }) { ex =>
+      F.handleErrorWith(loop(stopRef)(source)) { ex =>
         stopRef.elem match {
           case null => F.raiseError(ex)
           case stop => stop *> F.raiseError(ex)
         }
       }
     }
+  }
 }
