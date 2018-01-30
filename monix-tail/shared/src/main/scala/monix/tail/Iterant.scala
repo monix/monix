@@ -1717,6 +1717,15 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def skipSuspendL(implicit F: Sync[F]): F[Iterant[F, A]] =
     IterantSkipSuspend(self)
 
+  /** Given evidence that type `A` has a `scala.math.Numeric` implementation,
+    * sums the stream of elements.
+    *
+    * An alternative to [[foldL]] which does not require any imports and works
+    * in cases `cats.Monoid` is not defined for values (e.g. `A = Char`)
+    */
+  final def sumL(implicit F: Sync[F], A: Numeric[A]): F[A] =
+    foldLeftL(A.zero)(A.plus)
+
   /** Aggregates all elements in a `List` and preserves order.
     *
     * Example: {{{
