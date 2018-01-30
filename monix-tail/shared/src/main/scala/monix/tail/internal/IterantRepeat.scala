@@ -28,30 +28,48 @@ private[tail] object IterantRepeat {
   /** Implementation for `Iterant.repeat`. */
   def apply[F[_], A, B](source: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] = {
 
-    def loop(self: Iterant[F, A]): Iterant[F, A] =
+    def loop(isEmpty: Boolean)(self: Iterant[F, A]): Iterant[F, A] =
       try self match {
         case Next(head, tail, stop) =>
-          Next[F, A](head, tail.map(loop), stop)
+          Next[F, A](head, tail.map(loop(isEmpty = false)), stop)
+
         case NextCursor(cursor, rest, stop) =>
-          NextCursor[F, A](cursor, rest.map(loop), stop)
+          if(!isEmpty || cursor.hasNext())
+            NextCursor[F, A](cursor, rest.map(loop(isEmpty = false)), stop)
+          else
+            Suspend(rest.map(loop(isEmpty)), stop)
+
         case NextBatch(gen, rest, stop) =>
-          NextBatch(gen, rest.map(loop), stop)
+          if(isEmpty){
+            val cursor = gen.cursor()
+            if(cursor.hasNext()) NextCursor[F, A](cursor, rest.map(loop(isEmpty = false)), stop)
+            else Suspend(rest.map(loop(isEmpty = true)), stop)
+          } else
+            NextBatch[F, A](gen, rest.map(loop(isEmpty = false)), stop)
+
         case Suspend(rest, stop) =>
-          Suspend[F, A](rest.map(loop), stop)
+          Suspend[F, A](rest.map(loop(isEmpty)), stop)
         case Last(item) =>
-          Next[F, A](item, F.delay(loop(source)), F.unit)
+          Next[F, A](item, F.delay(loop(isEmpty = false)(source)), F.unit)
         case Halt(Some(ex)) =>
           signalError(self, ex)
         case Halt(None) =>
-          Suspend(F.delay(loop(source)), F.unit)
+          if(isEmpty) Iterant.empty
+          else Suspend(F.delay(loop(isEmpty)(source)), F.unit)
       } catch {
         case ex if NonFatal(ex) => signalError(source, ex)
       }
 
     source match {
       // terminate if the source is empty
-      case empty @ Halt(_) => empty
-      case _ => loop(source)
+      case empty @ Halt(_) =>
+        empty
+      // We can have side-effects with NextBatch/NextCursor
+      // processing, so suspending execution in this case
+      case NextBatch(_, _,_) | NextCursor(_, _, _) =>
+        Suspend(F.delay(loop(isEmpty = true)(source)), source.earlyStop)
+      case _ =>
+        loop(isEmpty = true)(source)
     }
   }
 }

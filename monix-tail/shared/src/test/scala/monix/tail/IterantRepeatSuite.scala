@@ -84,69 +84,99 @@ object IterantRepeatSuite extends BaseTestSuite {
   }
 
   test("Iterant.repeat works for NextBatch") { implicit s =>
-    var effect = 0
     var values = List[Int]()
     val expectedValues = List(3, 2, 1, 3, 2, 1)
     val dummy = DummyException("dummy")
     val source = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (effect == 6) throw dummy else {
-        effect += 1; values ::= x; x
+      source.repeat.map { x => if (values.size == 6) throw dummy else {
+        values ::= x; x
+      }}.toListL.value}
+
+    assertEquals(values, expectedValues)
+  }
+
+  test("Iterant.repeat works for empty NextBatch with more elements") { implicit s =>
+    var values = List[Int]()
+    val expectedValues = List(3, 2, 1, 3, 2, 1)
+    val dummy = DummyException("dummy")
+    val source = Iterant[Coeval].nextBatchS(Batch(),
+      Coeval(Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)), Coeval.unit)
+
+    intercept[DummyException] {
+      source.repeat.map { x => if (values.size == 6) throw dummy else {
+        values ::= x; x
       }}.toListL.value}
 
     assertEquals(values, expectedValues)
   }
 
   test("Iterant.repeat works for NextCursor") { implicit s =>
-    var effect = 0
     var values = List[Int]()
     val expectedValues = List(3, 2, 1, 3, 2, 1)
     val dummy = DummyException("dummy")
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (effect == 6) throw dummy else {
-        effect += 1; values ::= x; x
+      source.repeat.map { x => if (values.size == 6) throw dummy else {
+        values ::= x; x
+      }}.toListL.value}
+
+    assertEquals(values, expectedValues)
+  }
+
+  test("Iterant.repeat works for empty NextCursor with more elements") { implicit s =>
+    var values = List[Int]()
+    val expectedValues = List(3, 2, 1, 3, 2, 1)
+    val dummy = DummyException("dummy")
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(),
+      Coeval(Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)), Coeval.unit)
+
+    intercept[DummyException] {
+      source.repeat.map { x => if (values.size == 6) throw dummy else {
+        values ::= x; x
       }}.toListL.value}
 
     assertEquals(values, expectedValues)
   }
 
   test("Iterant.repeat works for Last") { implicit s =>
-    var effect = 0
     var values = List[Int]()
     val expectedValues = List.fill(6)(1)
     val dummy = DummyException("dummy")
     val source = Iterant[Coeval].lastS(1)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (effect == 6) throw dummy else {
-        effect += 1; values ::= x; x
+      source.repeat.map { x => if (values.size == 6) throw dummy else {
+        values ::= x; x
       }}.toListL.value}
 
     assertEquals(values, expectedValues)
   }
 
   test("Iterant.repeat works for Suspend") { implicit s =>
-    var effect = 0
     var values = List[Int]()
     val expectedValues = List.fill(6)(1)
     val dummy = DummyException("dummy")
     val source = Iterant[Coeval].suspendS[Int](Coeval(Iterant.nextS(1, Coeval(Iterant.empty), Coeval.unit)), Coeval.unit)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (effect == 6) throw dummy else {
-        effect += 1; values ::= x; x
+      source.repeat.map { x => if (values.size == 6) throw dummy else {
+        values ::= x; x
       }}.toListL.value}
 
     assertEquals(values, expectedValues)
   }
 
   test("Iterant.repeat terminates if the source is empty") { implicit s =>
-    val source = Iterant[Coeval].empty[Int]
+    val source1 = Iterant[Coeval].empty[Int]
+    val source2 = Iterant[Coeval].suspendS(Coeval(source1), Coeval.unit)
+    val source3 = Iterant[Coeval].nextCursorS[Int](BatchCursor(), Coeval(source1), Coeval.unit)
 
-    assertEquals(source.repeat, source)
+    assertEquals(source1.repeat.toListL.value, List.empty[Int])
+    assertEquals(source2.repeat.toListL.value, List.empty[Int])
+    assertEquals(source3.repeat.toListL.value, List.empty[Int])
   }
 
   test("Iterant.repeat doesn't touch Halt") { implicit s =>
@@ -158,30 +188,28 @@ object IterantRepeatSuite extends BaseTestSuite {
   }
 
   test("Iterant.repeat builder terminates on exception") { implicit s =>
-    var effect = 0
     var values = List[Int]()
     val expectedValues = List.fill(6)(1)
     val dummy = DummyException("dummy")
     val source = Iterant[Coeval].repeat(1)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (effect == 6) throw dummy else {
-        effect += 1; values ::= x; x
+      source.repeat.map { x => if (values.size == 6) throw dummy else {
+        values ::= x; x
       }}.toListL.value}
 
     assertEquals(values, expectedValues)
   }
 
   test("Iterant.repeat builder works for batches of elems") { implicit s =>
-    var effect = 0
     var values = List[Int]()
     val expectedValues = List(3, 2, 1, 3, 2, 1)
     val dummy = DummyException("dummy")
     val source = Iterant[Coeval].repeat(List(1, 2, 3): _*)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (effect == 6) throw dummy else {
-        effect += 1; values ::= x; x
+      source.repeat.map { x => if (values.size == 6) throw dummy else {
+        values ::= x; x
       }}.toListL.value}
 
     assertEquals(values, expectedValues)
