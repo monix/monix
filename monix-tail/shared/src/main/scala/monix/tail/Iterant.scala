@@ -1904,7 +1904,7 @@ object Iterant extends IterantInstances {
     *       writer => Iterant[IO]
     *         .fromIterator(Iterator.from(1))
     *         .mapEval(i => IO { writer.println(s"Line #\$i") }),
-    *       (writer, _) => IO { writer.close() }
+    *       writer => IO { writer.close() }
     *     )
     *
     *   // Write 100 numbered lines to the file
@@ -1913,6 +1913,21 @@ object Iterant extends IterantInstances {
     * }}}
     */
   def bracket[F[_], A, B](acquire: F[A])(
+    use: A => Iterant[F, B],
+    release: A => F[Unit]
+  )(
+    implicit F: Sync[F]
+  ): Iterant[F, B] =
+    bracketA(acquire)(use, (a, _) => release(a))
+
+  /** A more powerful version of bracket that also provides information
+    * whether the stream has completed successfully, was terminated early
+    * or terminated with an error.
+    *
+    * BracketResult may be superseded by ADT in cats-effect#113,
+    * this method is private until then
+    */
+  private[tail] def bracketA[F[_], A, B](acquire: F[A])(
     use: A => Iterant[F, B],
     release: (A, BracketResult) => F[Unit]
   )(

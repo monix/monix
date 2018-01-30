@@ -50,7 +50,7 @@ class IterantBuilders[F[_]] {
     Iterant.liftF(a)
 
   /** Aliased builder, see documentation for [[Iterant.bracket]] */
-  def bracket[A, B](acquire: F[A])(use: A => Iterant[F, B], release: (A, BracketResult) => F[Unit])(implicit F: Sync[F]): Iterant[F, B] =
+  def bracket[A, B](acquire: F[A])(use: A => Iterant[F, B], release: A => F[Unit])(implicit F: Sync[F]): Iterant[F, B] =
     Iterant.bracket(acquire)(use, release)
 
   /** Aliased builder, see documentation for [[Iterant.nextS]]. */

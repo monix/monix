@@ -28,7 +28,7 @@ import monix.tail.BracketResult._
 
 private[tail] object IterantBracket {
   /**
-    * Implementation for `Iterant.bracket`
+    * Implementation for `Iterant.bracketA`
     */
   def apply[F[_], A, B](
     acquire: F[A],

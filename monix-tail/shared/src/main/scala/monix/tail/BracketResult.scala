@@ -27,10 +27,13 @@ package monix.tail
   * e.g. by `take` operation
   *  - [[BracketResult$.Error Error]], for a stream which evaluation
   * resulted in an error
+  *
+  * [[BracketResult]] may be superseded by ADT in cats-effect#113,
+  * this method is private until then
   */
-sealed abstract class BracketResult
+private[tail] sealed abstract class BracketResult
 
-object BracketResult {
+private[tail] object BracketResult {
   case object Completed extends BracketResult
   case object EarlyStop extends BracketResult
   final case class Error(e: Throwable) extends BracketResult
