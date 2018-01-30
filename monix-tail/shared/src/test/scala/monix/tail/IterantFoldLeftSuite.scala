@@ -221,6 +221,12 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     }
   }
 
+  test("Iterant[Coeval, Int].sumL is consistent with foldLeftL") { implicit s =>
+    check1 { (stream: Iterant[Coeval, Int]) =>
+      stream.sumL <-> stream.foldLeftL(0)(_ + _)
+    }
+  }
+
   test("Iterant.countL consistent with List.length") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val i = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
@@ -239,6 +245,19 @@ object IterantFoldLeftSuite extends BaseTestSuite {
 
     assertEquals(node1.toListL.runTry, Failure(dummy))
     assertEquals(effect, 3)
+  }
+
+  test("earlyStop doesn't get called for Last node") { implicit s =>
+    var effect = 0
+
+    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
+    val dummy = DummyException("dummy")
+    val node3 = Iterant[Coeval].lastS(3)
+    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
+    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
+
+    assertEquals(node1.foldLeftL(0)((_, el) => if (el == 3) throw dummy else el).runTry, Failure(dummy))
+    assertEquals(effect, 0)
   }
 
 }

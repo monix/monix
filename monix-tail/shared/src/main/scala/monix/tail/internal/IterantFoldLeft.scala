@@ -51,6 +51,7 @@ private[tail] object IterantFoldLeft {
           stopRef.elem = stop
           rest.flatMap(loop(stopRef, state))
         case Last(item) =>
+          stopRef.elem = null.asInstanceOf[F[Unit]]
           F.pure(op(state,item))
         case Halt(None) =>
           F.pure(state)

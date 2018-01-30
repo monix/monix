@@ -1235,6 +1235,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def reduceL(op: (A, A) => A)(implicit F: Sync[F]): F[Option[A]] =
     IterantReduce(self, op)
 
+  /** Repeats the items emitted by the source continuously
+    *
+    * It terminates either on error or if the source is empty.
+    */
+  final def repeat(implicit F: Sync[F]): Iterant[F, A] =
+    IterantRepeat(self)
+
   /** Returns an `Iterant` that mirrors the behavior of the source,
     * unless the source is terminated with an error, in which case
     * the streaming of events continues with the specified backup
@@ -1717,6 +1724,15 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def skipSuspendL(implicit F: Sync[F]): F[Iterant[F, A]] =
     IterantSkipSuspend(self)
 
+  /** Given evidence that type `A` has a `scala.math.Numeric` implementation,
+    * sums the stream of elements.
+    *
+    * An alternative to [[foldL]] which does not require any imports and works
+    * in cases `cats.Monoid` is not defined for values (e.g. `A = Char`)
+    */
+  final def sumL(implicit F: Sync[F], A: Numeric[A]): F[A] =
+    foldLeftL(A.zero)(A.plus)
+
   /** Aggregates all elements in a `List` and preserves order.
     *
     * Example: {{{
@@ -2171,6 +2187,24 @@ object Iterant extends IterantInstances {
     */
   def range[F[_]](from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
     NextBatch(Batch.range(from, until, step), F.pure(empty[F, Int]), F.unit)
+
+  /** Builds a stream that repeats the items provided in argument.
+    *
+    * It terminates either on error or if the source is empty.
+    */
+  def repeat[F[_], A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] = elems match {
+    case Seq() => Iterant.empty
+    case Seq(elem) =>
+      // trick to optimize recursion, see Optimisation section at:
+      // https://japgolly.blogspot.com.by/2017/12/practical-awesome-recursion-ch-02.html
+      var result: Iterant[F, A] = null
+      result = Next[F, A](elem, F.delay(result), F.unit)
+      result
+    case _ =>
+      var result: Iterant[F, A] = null
+      result = NextBatch(Batch(elems: _*), F.delay(result), F.unit)
+      result
+  }
 
   /** Returns an empty stream. */
   def empty[F[_], A]: Iterant[F, A] =
