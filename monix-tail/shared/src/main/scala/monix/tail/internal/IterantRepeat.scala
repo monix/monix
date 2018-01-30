@@ -34,18 +34,19 @@ private[tail] object IterantRepeat {
           Next[F, A](head, tail.map(loop(isEmpty = false)), stop)
 
         case NextCursor(cursor, rest, stop) =>
-          if(!isEmpty || cursor.hasNext())
+          if (!isEmpty || cursor.hasNext())
             NextCursor[F, A](cursor, rest.map(loop(isEmpty = false)), stop)
           else
             Suspend(rest.map(loop(isEmpty)), stop)
 
         case NextBatch(gen, rest, stop) =>
-          if(isEmpty){
+          if (isEmpty) {
             val cursor = gen.cursor()
-            if(cursor.hasNext()) NextCursor[F, A](cursor, rest.map(loop(isEmpty = false)), stop)
+            if (cursor.hasNext()) NextCursor[F, A](cursor, rest.map(loop(isEmpty = false)), stop)
             else Suspend(rest.map(loop(isEmpty = true)), stop)
-          } else
+          } else {
             NextBatch[F, A](gen, rest.map(loop(isEmpty = false)), stop)
+          }
 
         case Suspend(rest, stop) =>
           Suspend[F, A](rest.map(loop(isEmpty)), stop)
@@ -54,7 +55,7 @@ private[tail] object IterantRepeat {
         case Halt(Some(ex)) =>
           signalError(self, ex)
         case Halt(None) =>
-          if(isEmpty) Iterant.empty
+          if (isEmpty) Iterant.empty
           else Suspend(F.delay(loop(isEmpty)(source)), F.unit)
       } catch {
         case ex if NonFatal(ex) => signalError(source, ex)
@@ -62,11 +63,11 @@ private[tail] object IterantRepeat {
 
     source match {
       // terminate if the source is empty
-      case empty @ Halt(_) =>
+      case empty@Halt(_) =>
         empty
       // We can have side-effects with NextBatch/NextCursor
       // processing, so suspending execution in this case
-      case NextBatch(_, _,_) | NextCursor(_, _, _) =>
+      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
         Suspend(F.delay(loop(isEmpty = true)(source)), source.earlyStop)
       case _ =>
         loop(isEmpty = true)(source)
