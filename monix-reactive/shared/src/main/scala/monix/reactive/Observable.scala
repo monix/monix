@@ -4012,6 +4012,13 @@ object Observable {
   def repeatEval[A](task: => A): Observable[A] =
     new builders.RepeatEvalObservable(task)
 
+  /** Repeats the evaluation of given effectful value, emitting
+    * the results indefinitely.
+    *
+    */
+  def repeatEvalF[F[_], A](fa: F[A])(implicit F: Effect[F]): Observable[A] =
+    repeat(()).mapEval(_ => fa)
+
   /** Creates an Observable that emits items in the given range.
     *
     * @param from the range start

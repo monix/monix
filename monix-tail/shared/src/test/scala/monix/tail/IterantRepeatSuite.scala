@@ -19,6 +19,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
+import cats.syntax.eq._
 import monix.eval.{Coeval, Task}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
@@ -219,5 +220,40 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source = Iterant[Coeval].empty[Int]
 
     assertEquals(Iterant[Coeval].repeat(Seq(): _*), source)
+  }
+
+  test("Iterant.repeatEval captures effects") { _ =>
+    check1 { (xs: Vector[Int]) =>
+      val iterator = xs.iterator
+      val evaluated = Iterant[Coeval]
+        .repeatEval(iterator.next())
+        .take(xs.length)
+
+      evaluated <-> Iterant[Coeval].fromIterator(xs.iterator)
+    }
+  }
+
+  test("Iterant.repeatEval terminates on exceptions") { _ =>
+    val dummy = DummyException("dummy")
+    val xs = Iterant[Coeval].repeatEval[Int] {
+      throw dummy
+    }
+    assert(xs === Iterant[Coeval].raiseError(dummy))
+  }
+
+  test("Iterant.repeatEvalF repeats effectful values") { _ =>
+    val repeats = 66
+    var effect = 0
+    val increment = Coeval { effect += 1 }
+    Iterant[Coeval].repeatEvalF(increment).take(repeats)
+      .completeL.value
+    assertEquals(effect, repeats)
+  }
+
+  test("Iterant.repeatEvalF terminates on exceptions raised in F") { _ =>
+    val dummy = DummyException("dummy")
+    val xs = Iterant[Coeval].repeatEvalF(Coeval.raiseError[Int](dummy))
+
+    assert(xs === Iterant[Coeval].raiseError(dummy))
   }
 }

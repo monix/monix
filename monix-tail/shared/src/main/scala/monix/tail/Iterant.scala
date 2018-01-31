@@ -2159,6 +2159,32 @@ object Iterant extends IterantInstances {
       result
   }
 
+  /** Builds a stream that suspends provided thunk and evaluates
+    * it indefinitely on-demand.
+    *
+    * The stream will only terminate if evaluation throws an exception
+    *
+    * Referentially transparent alternative to [[Iterator.continually]]
+    *
+    * Example: infinite sequence of random numbers
+    * {{{
+    *   import scala.util.Random
+    *
+    *   val randomInts = Iterant[Coeval].repeatEval(Random.nextInt())
+    * }}}
+    *
+    */
+  def repeatEval[F[_], A](thunk: => A)(implicit F: Sync[F]): Iterant[F, A] =
+    repeatEvalF(F.delay(thunk))
+
+  /**
+    * Builds a stream that evaluates provided effectful values indefinitely.
+    *
+    * The stream will only terminate if an error is raised in F context
+    */
+  def repeatEvalF[F[_], A](fa: F[A])(implicit F: Sync[F]): Iterant[F, A] =
+    repeat(()).mapEval(_ => fa)
+
   /** Returns an empty stream. */
   def empty[F[_], A]: Iterant[F, A] =
     Halt[F, A](None)
