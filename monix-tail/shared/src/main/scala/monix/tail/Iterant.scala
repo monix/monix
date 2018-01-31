@@ -2164,7 +2164,7 @@ object Iterant extends IterantInstances {
     *
     * The stream will only terminate if evaluation throws an exception
     *
-    * Referentially transparent alternative to [[scala.Iterator.continually]]
+    * Referentially transparent alternative to `Iterator.continually`
     *
     * Example: infinite sequence of random numbers
     * {{{
