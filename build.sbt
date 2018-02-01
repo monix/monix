@@ -270,6 +270,12 @@ lazy val testSettings = Seq(
   )
 )
 
+lazy val java8Settings = sharedSettings ++ testSettings ++ Seq(
+  name := "monix-java8",
+  // Support only Scala 2.12+
+  crossScalaVersions ~= { _.filterNot(_ startsWith "2.11") }
+)
+
 lazy val scalaJSSettings = Seq(
   coverageExcludedFiles := ".*"
 )
@@ -393,6 +399,11 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .dependsOn(executionJS, evalJS % "compile->compile; test->test")
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
+
+lazy val java8JVM = project.in(file("monix-java8"))
+  .configure(profile)
+  .dependsOn(evalJVM % "compile->compile; test->test")
+  .settings(java8Settings)
 
 lazy val reactiveTests = project.in(file("reactiveTests"))
   .configure(profile)
