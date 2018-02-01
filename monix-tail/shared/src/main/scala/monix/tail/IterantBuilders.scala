@@ -121,6 +121,14 @@ class IterantBuilders[F[_]] {
   def fromIterator[A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromIterator(xs)(F)
 
+  /** Aliased builder, see documentation for [[Iterant.fromStateAction]]. */
+  def fromStateAction[S, A](f: S => (A, S))(seed: => S)(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.fromStateAction(f)(seed)
+
+  /** Aliased builder, see documentation for [[Iterant.fromStateActionL]]. */
+  def fromStateActionL[S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.fromStateActionL(f)(seed)
+
   /** Aliased builder, see documentation for [[Iterant.range]]. */
   def range(from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
     Iterant.range(from, until, step)(F)
