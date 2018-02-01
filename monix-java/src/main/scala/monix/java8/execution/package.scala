@@ -19,22 +19,29 @@ package monix.java8
 
 import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
 
-import monix.eval.Task
-import monix.execution.{Cancelable, CancelableFuture, Scheduler}
+import monix.execution.{Cancelable, CancelableFuture}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-package object extensions {
+
+/** Utilities for integration with Java 8 classes
+  *
+  * Provides methods to convert between `scala.concurrent.Future`
+  * and `java.util.concurrent.CompletableFuture`
+  */
+package object execution {
+
   implicit class JavaCompletableFutureUtils[A](val source: CompletableFuture[A]) extends AnyVal {
+
     /** Convert `CompletableFuture` to [[monix.execution.CancelableFuture]]
       *
       * If the source is cancelled, returned `Future` will never terminate
       */
     def asScala(implicit ec: ExecutionContext): CancelableFuture[A] =
       CancelableFuture.async(cb => {
-        source.handle[Unit]({
-          (result, err) => err match {
+        source.handle[Unit]({ (result, err) =>
+          err match {
             case null =>
               cb(Success(result))
             case _: CancellationException =>
@@ -50,6 +57,7 @@ package object extensions {
   }
 
   implicit class ScalaFutureUtils[A](val source: Future[A]) extends AnyVal {
+
     /** Convert Scala `Future` to Java `CompletableFuture`
       *
       * NOTE: Cancelling resulting future will not have any
@@ -65,37 +73,5 @@ package object extensions {
       }
       cf
     }
-  }
-
-  implicit class TaskCompanionUtils(val source: Task.type) extends AnyVal {
-    /** Converts the given Java `CompletableFuture` into a `Task`.
-      *
-      * NOTE: if you want to defer the creation of the future, use
-      * in combination with [[Task.defer]]
-      */
-    def fromCompletableFuture[A](cf: CompletableFuture[A]): Task[A] =
-      Task.async((_, cb) => {
-        cf.handle[Unit]((result, err) => err match {
-          case null =>
-            cb(Success(result))
-          case _: CancellationException =>
-            ()
-          case ex: CompletionException if ex.getCause ne null =>
-            cb(Failure(ex.getCause))
-          case ex =>
-            cb(Failure(ex))
-        })
-        Cancelable(() => cf.cancel(true))
-      })
-
-    /** Wraps calls that generate `CompletableFuture` results
-      * into a [[Task]], provided a callback with an injected
-      * [[monix.execution.Scheduler Scheduler]] to act as the
-      * `Executor` for asynchronous actions.
-      */
-    def deferCompletableFutureAction[A](f: Scheduler => CompletableFuture[A]): Task[A] =
-      Task.deferAction { sc =>
-        fromCompletableFuture(f(sc))
-      }
   }
 }

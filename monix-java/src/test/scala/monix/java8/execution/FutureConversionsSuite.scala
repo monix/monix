@@ -15,19 +15,18 @@
  * limitations under the License.
  */
 
-package monix.java8.extensions
+package monix.java8.execution
+
+import java.util.concurrent.{CompletableFuture, CompletionException}
+
+import monix.eval.BaseTestSuite
+import monix.execution.exceptions.DummyException
+import cats.syntax.eq._
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-import monix.eval.{BaseTestSuite, Task}
-import cats.syntax.eq._
-import monix.execution.exceptions.DummyException
-
-import java.util.concurrent.{CompletableFuture, CompletionException}
-
-
-object Java8ExtensionsSuite extends BaseTestSuite {
+object FutureConversionsSuite extends BaseTestSuite {
   test("CompletableFuture.asScala works") { implicit s =>
     val cf = CompletableFuture.completedFuture(42)
     assertEquals(cf.asScala.value, Some(Success(42)))
@@ -65,42 +64,5 @@ object Java8ExtensionsSuite extends BaseTestSuite {
       case ex: CompletionException =>
         assertEquals(ex.getCause, dummy)
     }
-  }
-
-  test("Task.fromCompletableFuture works") { implicit s =>
-    val cf = new CompletableFuture[Int]()
-    val task = Task.fromCompletableFuture(cf)
-    cf.complete(42)
-    assert(task === Task(42))
-  }
-
-  test("Task.fromCompletableFuture reports errors") { implicit s =>
-    val dummy = DummyException("dummy")
-    val cf = new CompletableFuture[Int]()
-    val task = Task.fromCompletableFuture(cf)
-    cf.completeExceptionally(dummy)
-    assert(task === Task.raiseError(dummy))
-  }
-
-  test("Task.fromCompletableFuture preserves cancelability") { implicit s =>
-    val cf = new CompletableFuture[Int]()
-    val task = Task.fromCompletableFuture(cf)
-    cf.cancel(true)
-    assert(task === Task.never[Int])
-  }
-
-  test("Task.deferCompletableFutureAction works") { implicit s =>
-    var effect = 0
-    val task = Task.deferCompletableFutureAction[Int] { executor =>
-      CompletableFuture.supplyAsync(() => {
-        effect += 1
-        42
-      }, executor)
-    }
-    val result = task.runAsync
-    assertEquals(effect, 0)
-    s.tickOne() // check that CompletableFutures are ran using provided scheduler
-    assertEquals(effect, 1)
-    assertEquals(result.value, Some(Success(42)))
   }
 }
