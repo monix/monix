@@ -225,6 +225,15 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(err)))
   }
 
+  test("Task.onErrorFallbackTo should take fallback by-name") { implicit s =>
+    var effect = 0
+    val task = Task(2).onErrorFallbackTo(Task.now{ effect = 5; effect })
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, Some(Success(2)))
+    assertEquals(effect, 0)
+  }
+
   test("Task.onErrorFallbackTo should be cancelable if the ExecutionModel allows it") { implicit s =>
     def recursive(): Task[Int] = {
       Task[Int](throw DummyException("dummy")).onErrorFallbackTo(Task.defer(recursive()))
