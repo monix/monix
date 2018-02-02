@@ -136,6 +136,14 @@ class IterantBuilders[F[_]] {
   /** Aliased builder, see documentation for [[Iterant.repeat]]. */
   def repeat[A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] =
     Iterant.repeat(elems: _*)
+
+  /** Aliased builder, see documentation for [[Iterant.repeatEval]]. */
+  def repeatEval[A](thunk: => A)(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.repeatEval(thunk)
+
+  /** Aliased builder, see documentation for [[Iterant.repeatEvalF]]. */
+  def repeatEvalF[A](fa: F[A])(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.repeatEvalF(fa)
 }
 
 object IterantBuilders {
