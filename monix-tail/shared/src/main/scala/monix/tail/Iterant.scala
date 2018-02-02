@@ -1904,6 +1904,53 @@ object Iterant extends IterantInstances {
   def pure[F[_], A](a: A): Iterant[F, A] =
     now[F, A](a)
 
+  /** Creates a stream that depends on resource allocated by a
+    * monadic value, ensuring the resource is released.
+    *
+    * Typical use-cases are working with files or network sockets
+    *
+    * @param acquire resource to acquire at the start of the stream
+    * @param use function that uses the resource to generate a stream of outputs
+    * @param release function that releases the acquired resource
+    *
+    * Example:
+    * {{{
+    *   val writeLines =
+    *     Iterant.bracket(IO { new PrintWriter("./lines.txt") })(
+    *       writer => Iterant[IO]
+    *         .fromIterator(Iterator.from(1))
+    *         .mapEval(i => IO { writer.println(s"Line #\$i") }),
+    *       writer => IO { writer.close() }
+    *     )
+    *
+    *   // Write 100 numbered lines to the file
+    *   // closing the writer when finished
+    *   writeLines.take(100).completeL.unsafeRunSync()
+    * }}}
+    */
+  def bracket[F[_], A, B](acquire: F[A])(
+    use: A => Iterant[F, B],
+    release: A => F[Unit]
+  )(
+    implicit F: Sync[F]
+  ): Iterant[F, B] =
+    bracketA(acquire)(use, (a, _) => release(a))
+
+  /** A more powerful version of bracket that also provides information
+    * whether the stream has completed successfully, was terminated early
+    * or terminated with an error.
+    *
+    * BracketResult may be superseded by ADT in cats-effect#113,
+    * this method is private until then
+    */
+  private[tail] def bracketA[F[_], A, B](acquire: F[A])(
+    use: A => Iterant[F, B],
+    release: (A, BracketResult) => F[Unit]
+  )(
+    implicit F: Sync[F]
+  ): Iterant[F, B] =
+    IterantBracket(acquire, use, release)
+
   /** Lifts a strict value into the stream context, returning a
     * stream of one element.
     */
