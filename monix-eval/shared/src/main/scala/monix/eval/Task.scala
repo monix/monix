@@ -1284,7 +1284,7 @@ sealed abstract class Task[+A] extends Serializable {
   /** Creates a new task that in case of error will fallback to the
     * given backup task.
     */
-  final def onErrorFallbackTo[B >: A](that: Task[B]): Task[B] =
+  final def onErrorFallbackTo[B >: A](that: => Task[B]): Task[B] =
     onErrorHandleWith(_ => that)
 
   /** Given a predicate function, keep retrying the
