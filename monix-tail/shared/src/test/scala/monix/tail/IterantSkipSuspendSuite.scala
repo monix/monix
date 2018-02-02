@@ -19,11 +19,13 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.Task
+import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
+
+import scala.util.Success
 
 object IterantSkipSuspendSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
@@ -58,5 +60,17 @@ object IterantSkipSuspendSuite extends BaseTestSuite {
       val received = stream.skipSuspendL
       Iterant[Task].suspend(received) <-> Iterant[Task].haltS[Int](Some(dummy))
     }
+  }
+
+  test("Iterant.skipSuspend on broken nodes calls earlyStop and reports errors as Halt") { implicit s =>
+    val dummy = DummyException("dummy")
+    var stopCalled = false
+    val brokenIterant = Iterant[Coeval].suspendS[Int](
+      Coeval.raiseError(dummy),
+      Coeval { stopCalled = true }
+    )
+    val result = brokenIterant.skipSuspendL.runTry
+    assertEquals(result, Success(Iterant.Halt[Coeval, Int](Some(dummy))))
+    assert(stopCalled)
   }
 }

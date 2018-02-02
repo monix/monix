@@ -23,37 +23,43 @@ import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 
+import scala.runtime.ObjectRef
+
 private[tail] object IterantSkipSuspend {
   /**
     * Implementation for `Iterant#skipSuspendL`
     */
   def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[Iterant[F, A]] = {
-    def loop(source: Iterant[F, A]): F[Iterant[F, A]] =
+    def loop(stopRef: ObjectRef[F[Unit]])(source: Iterant[F, A]): F[Iterant[F, A]] =
       try source match {
         case Next(_, _, _) =>
           F.pure(source)
-        case NextCursor(cursor, rest, _) =>
+        case NextCursor(cursor, rest, stop) =>
+          stopRef.elem = stop
           if (cursor.hasNext()) F.pure(source)
-          else rest.flatMap(loop)
+          else rest.flatMap(loop(stopRef))
         case NextBatch(batch, rest, stop) =>
+          stopRef.elem = stop
           val cursor = batch.cursor()
-          loop(NextCursor(cursor, rest, stop))
-        case Suspend(rest, _) =>
-          rest.flatMap(loop)
+          loop(stopRef)(NextCursor(cursor, rest, stop))
+        case Suspend(rest, stop) =>
+          stopRef.elem = stop
+          rest.flatMap(loop(stopRef))
         case other @ (Halt(_) | Last(_)) =>
           F.pure(other)
       } catch {
         case ex if NonFatal(ex) =>
-          source.earlyStop.map(_ => Halt(Some(ex)))
+          stopRef.elem.map(_ => Halt(Some(ex)))
       }
 
-    // We can have side-effects with NextBatch/NextCursor
-    // processing, so suspending execution in this case
-    source match {
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        F.suspend(loop(source))
-      case _ =>
-        loop(source)
+    F.suspend {
+      val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
+      loop(stopRef)(source).handleErrorWith { ex =>
+        stopRef.elem match {
+          case null => F.pure(Halt(Some(ex)))
+          case stop => stop *> F.pure(Halt(Some(ex)))
+        }
+      }
     }
   }
 }
