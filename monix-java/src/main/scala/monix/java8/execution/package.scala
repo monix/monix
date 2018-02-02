@@ -18,6 +18,7 @@
 package monix.java8
 
 import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
+import java.util.function.BiFunction
 
 import monix.execution.{Cancelable, CancelableFuture}
 
@@ -40,16 +41,18 @@ package object execution {
       */
     def asScala(implicit ec: ExecutionContext): CancelableFuture[A] =
       CancelableFuture.async(cb => {
-        source.handle[Unit]({ (result, err) =>
-          err match {
-            case null =>
-              cb(Success(result))
-            case _: CancellationException =>
-              ()
-            case ex: CompletionException if ex.getCause ne null =>
-              cb(Failure(ex.getCause))
-            case ex =>
-              cb(Failure(ex))
+        source.handle[Unit](new BiFunction[A, Throwable, Unit] {
+          override def apply(result: A, err: Throwable): Unit = {
+            err match {
+              case null =>
+                cb(Success(result))
+              case _: CancellationException =>
+                ()
+              case ex: CompletionException if ex.getCause ne null =>
+                cb(Failure(ex.getCause))
+              case ex =>
+                cb(Failure(ex))
+            }
           }
         })
         Cancelable(() => source.cancel(true))

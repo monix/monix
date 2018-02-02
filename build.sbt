@@ -271,9 +271,7 @@ lazy val testSettings = Seq(
 )
 
 lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
-  name := "monix-java",
-  // Support only Scala 2.12+
-  crossScalaVersions ~= { _.filterNot(_ startsWith "2.11") }
+  name := "monix-java"
 )
 
 lazy val scalaJSSettings = Seq(

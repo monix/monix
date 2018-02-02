@@ -18,6 +18,7 @@
 package monix.java8
 
 import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
+import java.util.function.BiFunction
 
 import monix.eval.Task
 import monix.execution.{Cancelable, Scheduler}
@@ -39,16 +40,19 @@ package object eval {
       */
     def fromCompletableFuture[A](cf: CompletableFuture[A]): Task[A] =
       Task.async((_, cb) => {
-        cf.handle[Unit]((result, err) =>
-          err match {
-            case null =>
-              cb(Success(result))
-            case _: CancellationException =>
-              ()
-            case ex: CompletionException if ex.getCause ne null =>
-              cb(Failure(ex.getCause))
-            case ex =>
-              cb(Failure(ex))
+        cf.handle[Unit](new BiFunction[A, Throwable, Unit] {
+          override def apply(result: A, err: Throwable): Unit = {
+            err match {
+              case null =>
+                cb(Success(result))
+              case _: CancellationException =>
+                ()
+              case ex: CompletionException if ex.getCause ne null =>
+                cb(Failure(ex.getCause))
+              case ex =>
+                cb(Failure(ex))
+            }
+          }
         })
         Cancelable(() => cf.cancel(true))
       })
