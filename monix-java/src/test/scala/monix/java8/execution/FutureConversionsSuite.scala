@@ -19,9 +19,10 @@ package monix.java8.execution
 
 import java.util.concurrent.{CompletableFuture, CompletionException}
 
-import monix.eval.BaseTestSuite
-import monix.execution.exceptions.DummyException
 import cats.syntax.eq._
+import monix.eval.BaseTestSuite
+import monix.execution.CancelableFuture
+import monix.execution.exceptions.DummyException
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -35,7 +36,7 @@ object FutureConversionsSuite extends BaseTestSuite {
   test("CompletableFuture.asScala is non-terminating on cancelled source") { implicit s =>
     val cf = new CompletableFuture[Int]
     cf.cancel(true)
-    assert((cf.asScala: Future[Int]) === (Future.never: Future[Int]))
+    assert(cf.asScala === CancelableFuture.never[Int])
   }
 
   test("CompletableFuture.asScala reports errors") { implicit s =>

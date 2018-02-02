@@ -18,6 +18,7 @@
 package monix.java8.eval
 
 import java.util.concurrent.CompletableFuture
+import java.util.function.Supplier
 
 import cats.syntax.eq._
 import monix.eval.{BaseTestSuite, Task}
@@ -51,9 +52,11 @@ object TaskBuildersSuite extends BaseTestSuite {
   test("Task.deferCompletableFutureAction works") { implicit s =>
     var effect = 0
     val task = Task.deferCompletableFutureAction[Int] { executor =>
-      CompletableFuture.supplyAsync(() => {
-        effect += 1
-        42
+      CompletableFuture.supplyAsync(new Supplier[Int] {
+        override def get(): Int = {
+          effect += 1
+          42
+        }
       }, executor)
     }
     val result = task.runAsync
