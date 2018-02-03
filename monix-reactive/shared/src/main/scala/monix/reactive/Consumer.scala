@@ -395,6 +395,16 @@ object Consumer {
   def loadBalance[A,R](consumers: Consumer[A,R]*): Consumer[A, List[R]] =
     new LoadBalanceConsumer[A,R](consumers.length, consumers.toArray)
 
+  /** Consumer for partitioned parallel consumption
+    *
+    * @param nrPartitions Number of partitions which consume the stream in parallel
+    * @param overflowStrategy Specify what to do if upstream pushes more elements the consumer can handle
+    * @param partitioner A function which returns a integer which is used to partition the element to a specific bucket. It is not needed to do modulo on this. Whenever this bucket is ready to get consumed, the consumer is called
+    * @param consumer A consumer function which gets called with the partition number plus a sequence of elements which are buffered internally.
+    * */
+  def partitionParallel[A](nrPartitions: Int, overflowStrategy: OverflowStrategy.Synchronous[A], partitioner: A => Int, consumer: (Int, Seq[A]) => Task[Unit]): Consumer[A, Unit] =
+    new PartitionParallelConsumer[A](nrPartitions, overflowStrategy, partitioner, consumer)
+
   /** Defines a synchronous [[Consumer]] that builds
     * [[monix.reactive.observers.Subscriber.Sync synchronous subscribers]].
     */
