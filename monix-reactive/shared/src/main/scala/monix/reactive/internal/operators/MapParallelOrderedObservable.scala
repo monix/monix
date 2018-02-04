@@ -17,6 +17,9 @@
 
 package monix.reactive.internal.operators
 
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.locks.ReentrantLock
+
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
@@ -25,7 +28,6 @@ import monix.execution.{Ack, Cancelable, CancelableFuture}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
 
-import scala.collection.mutable
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -53,11 +55,10 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
   }
 
   private final class MapAsyncParallelSubscription(
-    out: Subscriber[B], composite: CompositeCancelable)
-    extends Subscriber[A] with Cancelable { self =>
+    out: Subscriber[B], composite: CompositeCancelable) extends Subscriber[A] with Cancelable { self =>
 
     implicit val scheduler = out.scheduler
-    // Ensures we don't execute more then a maximum number of tasks in parallel
+    // Ensures we don't execute more than a maximum number of tasks in parallel
     private[this] val semaphore = AsyncSemaphore(parallelism)
     // Reusable instance for releasing permits on cancel, but
     // it's debatable whether this is needed, since on cancel
@@ -74,35 +75,38 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     // coming from the `buffer` - this indicates that the downstream
     // no longer wants any events, so we must cancel
     private[this] var lastAck: Ack = Continue
-    // Buffer for signaling new elements to downstream preserving original order
-    private[this] val queue = mutable.Queue[CancelableFuture[B]]()
+    // Buffer for signaling new elements downstream preserving original order
+    private[this] val queue = new ConcurrentLinkedQueue[CancelableFuture[B]]
+    // This lock makes sure that only one thread at the time sends processed elements downstream
+    private[this] val sendDownstreamLock = new ReentrantLock()
 
-    private def sendHeadIfPossible(): Unit = {
-      while (queue.nonEmpty && queue.head.isCompleted && !isDone) {
-        val head = queue.head
-        head.value match {
-          case Some(Success(value)) =>
-            buffer.onNext(value).syncOnComplete {
-              case Success(Stop) =>
-                lastAck = Stop
-                composite.cancel()
-                queue.dequeue()
-              case Success(Continue) =>
-                queue.dequeue()
-                composite -= head.cancelable
-              case Failure(ex) =>
-                lastAck = Stop
-                composite -= head.cancelable
-                self.onError(ex)
-            }
+    private def sendDownstreamOrdered(): Unit = {
+      if (sendDownstreamLock.tryLock()) {
+        while (!isDone && !queue.isEmpty && queue.peek().isCompleted) {
+          val head = queue.poll()
+          head.value match {
+            case Some(Success(value)) =>
+              buffer.onNext(value).syncOnComplete {
+                case Success(Stop) =>
+                  lastAck = Stop
+                  composite.cancel()
+                case Success(Continue) =>
+                  composite -= head.cancelable
+                case Failure(ex) =>
+                  lastAck = Stop
+                  composite -= head.cancelable
+                  self.onError(ex)
+              }
 
-          case Some(Failure(error)) =>
-            lastAck = Stop
-            composite -= head.cancelable
-            self.onError(error)
+            case Some(Failure(error)) =>
+              lastAck = Stop
+              composite -= head.cancelable
+              self.onError(error)
 
-          case None => // shouldnt get here
+            case None => // shouldnt get here
+          }
         }
+        sendDownstreamLock.unlock()
       }
     }
 
@@ -122,18 +126,20 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
         streamErrors = false
         // Start execution
         val future = task.runAsync
+        queue.offer(future)
         future.onComplete {
           case Success(_) =>
+            // We can only send current head element to downstream subscriber
+            sendDownstreamOrdered()
             // Computation is complete so we can accept new ones
             semaphore.release()
-            // We can only send current head element to downstream subscriber
-            sendHeadIfPossible()
+
           case Failure(error) =>
             lastAck = Stop
             composite -= subscription
             self.onError(error)
         }
-        queue.enqueue(future)
+
         subscription := future.cancelable
       } catch {
         case ex if NonFatal(ex) =>
@@ -179,8 +185,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
       if (!isDone) {
         isDone = true
         lastAck = Stop
-        // clear elements from queue
-        queue.dequeueAll(_ => true)
+        queue.clear()
         // Outsourcing the handling and safety of onError
         // to our concurrent buffer implementation
         buffer.onError(ex)
