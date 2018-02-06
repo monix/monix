@@ -25,10 +25,10 @@ private[eval] object TaskStart {
   /**
     * Implementation for `Task.start`.
     */
-  def apply[A](fa: Task[A]): Task[Task[A]] =
+  def apply[A](fa: Task[A]): Task[Fiber[A]] =
     fa match {
       // There's no point in evaluating strict stuff
-      case Task.Now(_) | Task.Error(_) => Task.Now(fa)
+      case Task.Now(_) | Task.Error(_) => Task.Now(Fiber(fa))
       case _ =>
         Task.Async { (ctx, cb) =>
           // Light async boundary to prevent stack overflows
@@ -47,7 +47,7 @@ private[eval] object TaskStart {
               // first async boundary is hit, whichever comes first
               Task.unsafeStartNow(fa, ctx2, Callback.fromPromise(p))
               // Signal the created Task reference
-              cb.onSuccess(task)
+              cb.onSuccess(Fiber(task))
             }
           })
         }

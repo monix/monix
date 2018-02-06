@@ -104,9 +104,9 @@ import scala.util.{Failure, Success, Try}
   *
   * {{{
   *   def retryOnFailure[A](times: Int, source: Task[A]): Task[A] =
-  *     source.recoverWith { err =>
+  *     source.onErrorRecoverWith { err =>
   *       // No more retries left? Re-throw error:
-  *       if (times <= 0) Task.raise(err) else {
+  *       if (times <= 0) Task.raiseError(err) else {
   *         // Recursive call, yes we can!
   *         retryOnFailure(times - 1, source)
   *           // Adding 500 ms delay for good measure
@@ -145,8 +145,7 @@ import scala.util.{Failure, Success, Try}
   * it does for `Future.sequence`, the given `Task` values being
   * evaluated one after another, in ''sequence'', not in ''parallel''.
   * If you want parallelism, then you need to use
-  * [[monix.eval.Task.gather Task.gather]] and
-  * thus be explicit about it.
+  * [[monix.eval.Task.gather Task.gather]] and thus be explicit about it.
   *
   * This is great because it gives you the possibility of fine tuning the
   * execution. For example, say you want to execute things in parallel,
@@ -239,12 +238,16 @@ import scala.util.{Failure, Success, Try}
   *     .delayExecution(4.seconds)
   *
   *   Task.racePair(ta, tb).flatMap {
-  *     case Left((a, taskB)) =>
-  *       taskB.cancel.map(_ => a)
-  *     case Right((taskA, b)) =>
-  *       taskA.cancel.map(_ => b)
+  *     case Left((a, fiberB)) =>
+  *       fiberB.cancel.map(_ => a)
+  *     case Right((fiberA, b)) =>
+  *       fiberA.cancel.map(_ => b)
   *   }
   * }}}
+  *
+  * The returned type in `racePair` is [[Fiber]], which is a data
+  * type that's meant to wrap tasks linked to an active process
+  * and that can be [[Fiber.cancel canceled]] or [[Fiber.join joined]].
   *
   * Also, given a task, we can specify actions that need to be
   * triggered in case of cancellation, see
@@ -253,9 +256,9 @@ import scala.util.{Failure, Success, Try}
   * {{{
   *   val task = Task.eval(println("Hello!")).executeAsync
   *
-  *   task.doOnCancel(Task.eval {
+  *   task doOnCancel Task.eval {
   *     println("A cancellation attempt was made!")
-  *   })
+  *   }
   * }}}
   *
   * Controlling cancellation can be achieved with
@@ -741,27 +744,6 @@ sealed abstract class Task[+A] extends Serializable {
   final def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
     Coeval.eval(runSyncMaybe(s))
 
-  /** Signals cancellation of the source.
-    *
-    * Returns a new task that will complete when the cancellation is
-    * sent (but not when it is observed).
-    *
-    * Compared with triggering
-    * [[monix.execution.Cancelable.cancel Cancelable.cancel]] or
-    * [[monix.execution.CancelableFuture.cancel CancelableFuture.cancel]]
-    * after [[Task.runAsync(implicit* runAsync]], this action is pure.
-    *
-    * Example:
-    * {{{
-    *   Task.racePair(ta, tb).flatMap {
-    *     case Left((a, tb)) => tb.cancel.map(_ => a)
-    *     case Right((ta, b)) => ta.cancel.map(_ => b)
-    *   }
-    * }}}
-    */
-  final def cancel: Task[Unit] =
-    TaskCancellation.signal(this)
-
   /** Returns a task that waits for the specified `timespan` before
     * executing and mirroring the result of the source.
     *
@@ -1163,7 +1145,7 @@ sealed abstract class Task[+A] extends Serializable {
     * See [[start]] for the equivalent that does not start the task with
     * a forced async boundary.
     */
-  final def fork: Task[Task[A]] =
+  final def fork: Task[Fiber[A]] =
     executeAsync.start
 
   /** Start asynchronous execution of the source suspended in the `Task` context,
@@ -1506,7 +1488,7 @@ sealed abstract class Task[+A] extends Serializable {
     * See [[fork]] for the equivalent that does starts the task with
     * a forced async boundary.
     */
-  final def start: Task[Task[A]] =
+  final def start: Task[Fiber[A]] =
     TaskStart(this)
 
   /** Converts the source `Task` to a `cats.effect.IO` value. */
@@ -1972,7 +1954,7 @@ object Task extends TaskInstancesLevel1 {
     * See [[race]] for a simpler version that cancels the loser
     * immediately or [[raceMany]] that races collections of tasks.
     */
-  def racePair[A,B](fa: Task[A], fb: Task[B]): Task[Either[(A, Task[B]), (Task[A], B)]] =
+  def racePair[A,B](fa: Task[A], fb: Task[B]): Task[Either[(A, Fiber[B]), (Fiber[A], B)]] =
     TaskRacePair(fa, fb)
 
   /** Asynchronous boundary described as an effectful `Task` that

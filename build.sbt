@@ -335,6 +335,27 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(requiredMacroDeps)
   .settings(executionCommon)
 
+lazy val catsCommon =
+  crossSettings ++ testSettings ++ Seq(
+    name := "monix-cats",
+    // Filtering out breaking changes from 3.0.0
+    libraryDependencies +=
+      "org.typelevel" %%% "cats-effect" % catsEffectVersion
+  )
+
+lazy val catsJVM = project.in(file("monix-cats/jvm"))
+  .configure(profile)
+  .dependsOn(executionJVM % "compile->compile; test->test")
+  .settings(catsCommon)
+  .settings(mimaSettings("monix-cats"))
+
+lazy val catsJS = project.in(file("monix-cats/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .configure(profile)
+  .dependsOn(executionJS % "compile->compile; test->test")
+  .settings(scalaJSSettings)
+  .settings(catsCommon)
+
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
@@ -437,7 +458,7 @@ enablePlugins(GitVersioning)
  */
 git.baseVersion := "3.0.0"
 
-val ReleaseTag = """^v(\d+\.\d+\.\d+(?:[-.]\w+)?)$""".r
+val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {
   case ReleaseTag(v) => Some(v)
   case _ => None
