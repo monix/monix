@@ -17,8 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.Stop
-import monix.execution.misc.NonFatal
+import monix.execution.Ack._
+import monix.execution.misc.{AsyncSemaphore, NonFatal}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -40,24 +40,33 @@ class ScanObservable[A,R](
       source.unsafeSubscribeFn(
         new Subscriber[A] {
           implicit val scheduler = out.scheduler
-          private[this] var isDone = false
+          @volatile private[this] var isDone = false
           private[this] var state = initialState
+          private[this] val semaphore = AsyncSemaphore(1)
+          // Signal initial state immediately
+          private[this] var lastAck = out.onNext(state)
 
-          def onNext(elem: A): Future[Ack] = {
-            // Protects calls to user code from within the operator and
-            // stream the error downstream if it happens, but if the
-            // error happens because of calls to `onNext` or other
-            // protocol calls, then the behavior should be undefined.
-            var streamError = true
-            try {
-              state = f(state, elem)
-              streamError = false
-              out.onNext(state)
-            }
-            catch {
-              case NonFatal(ex) if streamError =>
-                onError(ex)
+          def onNext(elem: A): Future[Ack] = semaphore.greenLight { () =>
+            lastAck.syncFlatMap {
+              case Stop =>
                 Stop
+
+              case Continue =>
+                // Protects calls to user code from within the operator and
+                // stream the error downstream if it happens, but if the
+                // error happens because of calls to `onNext` or other
+                // protocol calls, then the behavior should be undefined.
+                var streamError = true
+                try {
+                  state = f(state, elem)
+                  streamError = false
+                  lastAck = out.onNext(state)
+                  lastAck
+                } catch {
+                  case NonFatal(ex) if streamError =>
+                    onError(ex)
+                    Stop
+                }
             }
           }
 
@@ -68,9 +77,13 @@ class ScanObservable[A,R](
             }
 
           def onComplete(): Unit =
-            if (!isDone) {
-              isDone = true
-              out.onComplete()
+            // `onNext` might require error reporting, so we need for it
+            // to actually finish before we can try to forward `onComplete`
+            semaphore.awaitAllReleased().foreach { _ =>
+              if (!isDone) {
+                isDone = true
+                out.onComplete()
+              }
             }
         })
     }
