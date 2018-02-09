@@ -270,6 +270,10 @@ lazy val testSettings = Seq(
   )
 )
 
+lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
+  name := "monix-java"
+)
+
 lazy val scalaJSSettings = Seq(
   coverageExcludedFiles := ".*"
 )
@@ -297,8 +301,8 @@ lazy val monix = project.in(file("."))
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM)
-  .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM)
+  .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
@@ -393,6 +397,12 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .dependsOn(executionJS, evalJS % "compile->compile; test->test")
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
+
+lazy val javaJVM = project.in(file("monix-java"))
+  .configure(profile)
+  .dependsOn(executionJVM % "provided->compile; test->test")
+  .dependsOn(evalJVM % "provided->compile; test->test")
+  .settings(javaExtensionsSettings)
 
 lazy val reactiveTests = project.in(file("reactiveTests"))
   .configure(profile)
