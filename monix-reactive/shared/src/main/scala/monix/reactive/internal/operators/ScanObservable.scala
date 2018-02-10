@@ -23,7 +23,7 @@ import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Future
 
 private[reactive] final
 class ScanObservable[A,R](
@@ -46,10 +46,11 @@ class ScanObservable[A,R](
           private[this] var lastAck = out.onNext(state)
 
           def onNext(elem: A): Future[Ack] = {
-            val processed = Promise[Ack]
-            val oldAck = lastAck
-            lastAck = processed.future
-            oldAck.syncOnContinue {
+            lastAck.syncFlatMap {
+              case Stop =>
+                Stop
+
+              case Continue =>
               // Protects calls to user code from within the operator and
               // stream the error downstream if it happens, but if the
               // error happens because of calls to `onNext` or other
@@ -58,15 +59,15 @@ class ScanObservable[A,R](
               try {
                 state = f(state, elem)
                 streamError = false
-                processed.completeWith(out.onNext(state))
+                lastAck = out.onNext(state)
+                lastAck
               } catch {
                 case NonFatal(ex) if streamError =>
                   onError(ex)
-                  processed.success(Stop)
+                  lastAck = Stop
+                  lastAck
               }
             }
-            oldAck.syncOnStopFollow(processed, Stop)
-            lastAck
           }
 
           def onError(ex: Throwable): Unit =
