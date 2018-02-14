@@ -22,7 +22,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.batches.BatchCursor
+import monix.tail.batches.{Batch, BatchCursor}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -113,14 +113,38 @@ private[tail] object IterantOnError {
         stop.attempt *> end
       }
 
+    def extractBatch(ref: BatchCursor[A]): Array[Attempt] = {
+      var size = ref.recommendedBatchSize
+      val buffer = ArrayBuffer.empty[Attempt]
+      while (size > 0 && ref.hasNext()) {
+        try {
+          buffer += Right(ref.next())
+          size -= 1
+        } catch {
+          case NonFatal(ex) =>
+            buffer += Left(ex)
+            size = 0
+        }
+      }
+      buffer.toArray[Attempt]
+    }
+
     def loop(fa: Iterant[F, A]): Iterant[F, Attempt] =
       fa match {
         case Next(a, rest, stop) =>
           Next(Right(a), tailGuard(rest.map(loop), stop), stop)
         case NextBatch(batch, rest, stop) =>
-          NextBatch(batch.map(Right.apply), tailGuard(rest.map(loop), stop), stop)
-        case NextCursor(batch, rest, stop) =>
-          NextCursor(batch.map(Right.apply), tailGuard(rest.map(loop), stop), stop)
+          loop(NextCursor(batch.cursor(), rest, stop))
+        case NextCursor(cursor, rest, stop) =>
+          val cb = extractBatch(cursor)
+          val batch = Batch.fromAnyArray(cb)
+          if (cb.length > 0 && cb.last.isLeft) {
+            NextBatch(batch, F.pure(Halt(None)), stop)
+          } else if (!cursor.hasNext()) {
+            NextBatch(batch, tailGuard(rest.map(loop), stop), stop)
+          } else {
+            NextBatch(batch, tailGuard(F.delay(loop(fa)), stop), stop)
+          }
         case Suspend(rest, stop) =>
           Suspend(tailGuard(rest.map(loop), stop), stop)
         case Last(a) =>
@@ -135,7 +159,7 @@ private[tail] object IterantOnError {
       case NextBatch(_, _, _) | NextCursor(_, _, _) =>
         // Suspending execution in order to preserve laziness and
         // referential transparency
-        Suspend(F.delay(loop(fa)), fa.earlyStop)
+        Suspend(tailGuard(F.delay(loop(fa)), fa.earlyStop), fa.earlyStop)
       case _ =>
         loop(fa)
     }
