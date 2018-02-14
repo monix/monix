@@ -18,6 +18,7 @@
 package monix.tail
 
 import cats.effect.IO
+import cats.syntax.eq._
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
@@ -84,6 +85,14 @@ object IterantOnErrorSuite extends BaseTestSuite {
       val stream = (prefix.onErrorIgnore ++ error).onErrorHandleWith(ex => Iterant[Task].haltS[Int](Some(ex)))
       stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
+  }
+
+  test("Iterant[Task].onErrorHandleWith should protect against cursors broken in the middle") { implicit s =>
+    val dummy = DummyException("dummy")
+    val cursor = BatchCursor.fromIterator(semibrokenIterator(dummy))
+    val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
+    val result = error.onErrorHandleWith(_ => Iterant[Task].empty[Int])
+    assert(result.toListL === Task.now(List(0, 1, 2)))
   }
 
   def brokenTails: Array[Iterant[Coeval, Int]] = {
@@ -183,4 +192,45 @@ object IterantOnErrorSuite extends BaseTestSuite {
 
     assertEquals(result, Some(Left(dummy)))
   }
+
+  test("attempt should protect against broken batches") { _ =>
+    val dummy = DummyException("dummy")
+    val result = Iterant[IO].nextBatchS[Int](ThrowExceptionBatch(dummy), IO(Iterant[IO].empty), IO.unit)
+      .attempt.headOptionL.unsafeRunSync()
+
+    assertEquals(result, Some(Left(dummy)))
+  }
+
+  test("attempt should protect against broken cursor") { _ =>
+    val dummy = DummyException("dummy")
+    val result = Iterant[IO].nextCursorS[Int](ThrowExceptionCursor(dummy), IO(Iterant[IO].empty), IO.unit)
+      .attempt.headOptionL.unsafeRunSync()
+
+    assertEquals(result, Some(Left(dummy)))
+  }
+
+  //noinspection ScalaUnreachableCode
+  def semibrokenIterator(ex: Throwable): Iterator[Int] = {
+    def end: Iterator[Int] = new Iterator[Int] {
+      override def hasNext: Boolean = true
+      override def next(): Int = throw ex
+    }
+    Iterator(0, 1, 2) ++ end
+  }
+
+  test("attempt should protect against cursors broken in the middle") { _ =>
+    val dummy = DummyException("dummy")
+    val cursor = BatchCursor.fromIterator(semibrokenIterator(dummy))
+
+    val result = Iterant[IO].nextCursorS(cursor, IO(Iterant[IO].empty[Int]), IO.unit)
+      .attempt.toListL.unsafeRunSync()
+
+    assertEquals(result, List(
+      Right(0),
+      Right(1),
+      Right(2),
+      Left(dummy)
+    ))
+  }
+
 }
