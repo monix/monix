@@ -24,8 +24,8 @@ import scala.concurrent.duration.Duration.Zero
 object Zip3Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.range(0, sourceCount).executeAsync
-    val o2 = Observable.range(0, sourceCount).executeAsync
-    val o3 = Observable.range(0, sourceCount).executeAsync
+    val o2 = Observable.range(0, sourceCount + 1).executeAsync
+    val o3 = Observable.range(0, sourceCount + 2).executeAsync
 
     val o = Observable.zipMap3(o1,o2,o3)(_+_+_)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
