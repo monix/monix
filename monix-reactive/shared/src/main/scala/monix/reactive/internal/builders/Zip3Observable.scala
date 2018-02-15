@@ -56,7 +56,7 @@ class Zip3Observable[A1,A2,A3,+R]
     // MUST BE synchronized by `self`
     var continueP = Promise[Ack]()
     // MUST BE synchronized by `self`
-    var completedCount = 0
+    var completeWithNext = false
 
     // MUST BE synchronized by `self`
     def rawOnNext(a1: A1, a2: A2, a3: A3): Future[Ack] =
@@ -66,7 +66,11 @@ class Zip3Observable[A1,A2,A3,+R]
         try {
           val c = f(a1, a2, a3)
           streamError = false
-          out.onNext(c)
+          val ack = out.onNext(c)
+          if (completeWithNext) {
+            ack.onComplete(_ => signalOnComplete(false))
+          }
+          ack
         } catch {
           case NonFatal(ex) if streamError =>
             isDone = true
@@ -112,12 +116,7 @@ class Zip3Observable[A1,A2,A3,+R]
       }
 
     def signalOnComplete(hasElem: Boolean): Unit = self.synchronized {
-      val shouldComplete = !hasElem || {
-        completedCount += 1
-        completedCount == 3
-      }
-
-      if (shouldComplete) {
+      if (!hasElem) {
         lastAck match {
           case Continue => rawOnComplete()
           case Stop => () // do nothing
@@ -132,6 +131,8 @@ class Zip3Observable[A1,A2,A3,+R]
 
         continueP.success(Stop)
         lastAck = Stop
+      } else {
+        completeWithNext = true
       }
     }
 

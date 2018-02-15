@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 object Zip2Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.range(0, sourceCount)
-    val o2 = Observable.range(0, sourceCount)
+    val o2 = Observable.range(0, sourceCount + 2)
 
     val o = Observable.zipMap2(o1, o2) { (x1, x2) => x1 + x2 }
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
