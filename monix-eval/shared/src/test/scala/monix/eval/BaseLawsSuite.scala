@@ -17,6 +17,8 @@
 
 package monix.eval
 
+import scala.util.Try
+
 import cats.Eq
 import cats.effect.IO
 import monix.execution.Cancelable
@@ -124,11 +126,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def equalityCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
     new Eq[Coeval[A]] {
       def eqv(lh: Coeval[A], rh: Coeval[A]): Boolean = {
-        val valueA = lh.runTry
-        val valueB = rh.runTry
-
-        (valueA.isFailure && valueB.isFailure) ||
-          A.eqv(valueA.get, valueB.get)
+        Eq[Try[A]].eqv(lh.runTry, rh.runTry)
       }
     }
 

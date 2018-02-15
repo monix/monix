@@ -83,7 +83,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix.onErrorIgnore ++ error).onErrorHandleWith(ex => Iterant[Task].haltS[Int](Some(ex)))
-      stream <-> Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> prefix.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 

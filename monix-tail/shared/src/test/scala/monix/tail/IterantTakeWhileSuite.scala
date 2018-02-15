@@ -81,7 +81,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.takeWhile(_ => true)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -91,7 +91,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.takeWhile(_ => true)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 

@@ -18,6 +18,7 @@
 package monix.tail
 
 import cats.Eq
+import cats.syntax.eq._
 import cats.effect.{IO, Sync}
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
@@ -88,33 +89,26 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
         arbitraryListToIterant[IO, A](source.reverse, math.abs(i))
     }
 
-  implicit def isEqIterantCoeval[A](implicit A: Eq[List[A]]): Eq[Iterant[Coeval, A]] =
+  implicit def isEqIterantCoeval[A](implicit A: Eq[A]): Eq[Iterant[Coeval, A]] =
     new Eq[Iterant[Coeval, A]] {
       def eqv(lh: Iterant[Coeval,  A], rh: Iterant[Coeval,  A]): Boolean = {
-        val valueA = lh.toListL.runTry
-        val valueB = rh.toListL.runTry
-
-        (valueA.isFailure && valueB.isFailure) || {
-          val la = valueA.get
-          val lb = valueB.get
-          A.eqv(la, lb)
-        }
+        lh.attempt.toListL === rh.attempt.toListL
       }
     }
 
-  implicit def isEqIterantTask[A](implicit A: Eq[List[A]]): Eq[Iterant[Task, A]] =
+  implicit def isEqIterantTask[A](implicit A: Eq[A]): Eq[Iterant[Task, A]] =
     new Eq[Iterant[Task, A]] {
       def eqv(lh: Iterant[Task,  A], rh: Iterant[Task,  A]): Boolean = {
         implicit val s = TestScheduler()
-        equalityTask[List[A]].eqv(lh.toListL, rh.toListL)
+        lh.attempt.toListL === rh.attempt.toListL
       }
     }
 
-  implicit def isEqIterantIO[A](implicit A: Eq[List[A]]): Eq[Iterant[IO, A]] =
+  implicit def isEqIterantIO[A](implicit A: Eq[A]): Eq[Iterant[IO, A]] =
     new Eq[Iterant[IO, A]] {
       def eqv(lh: Iterant[IO,  A], rh: Iterant[IO,  A]): Boolean = {
         implicit val s = TestScheduler()
-        equalityIO[List[A]].eqv(lh.toListL, rh.toListL)
+        lh.attempt.toListL === rh.attempt.toListL
       }
     }
 
