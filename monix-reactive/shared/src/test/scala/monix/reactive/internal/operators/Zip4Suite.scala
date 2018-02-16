@@ -24,10 +24,9 @@ import scala.concurrent.duration.Duration._
 object Zip4Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.fork(Observable.range(0, sourceCount))
-    val o2 = Observable.fork(Observable.range(0, sourceCount))
-    val o3 = Observable.fork(Observable.range(0, sourceCount))
-    val o4 = Observable.fork(Observable.range(0, sourceCount))
-
+    val o2 = Observable.fork(Observable.range(0, sourceCount + 1))
+    val o3 = Observable.fork(Observable.range(0, sourceCount + 2))
+    val o4 = Observable.fork(Observable.range(0, sourceCount + 3))
     val o = Observable.zipMap4(o1,o2,o3,o4)(_+_+_+_)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
