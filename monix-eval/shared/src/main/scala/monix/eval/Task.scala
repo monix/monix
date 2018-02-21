@@ -23,18 +23,17 @@ import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 import monix.execution._
-import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.ThreadLocal
 import monix.execution.schedulers.{CanBlock, TrampolinedRunnable}
-
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
+import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
+
 
 /** `Task` represents a specification for a possibly lazy or
   * asynchronous computation, which when executed will produce an `A`
@@ -441,11 +440,37 @@ import scala.util.{Failure, Success, Try}
   *         while the `"Bar"` error gets reported. This is consistent
   *         with the behavior of Haskell's `bracket` operation and NOT
   *         with `try {} finally {}` from Scala, Java or JavaScript.
+  *
+  * @define unsafeRun '''UNSAFE''' — this operation can trigger the
+  *         execution of side effects, which break referential
+  *         transparency and is thus not a pure function.
+  *
+  *         In FP code use with care, suspended in another `Task`
+  *         or [[monix.eval.Coeval Coeval]], or at the edge of the
+  *         FP program.
+  *
+  * @define unsafeMemoize '''UNSAFE''' — this operation allocates a shared,
+  *         mutable reference, which can break in certain cases
+  *         referential transparency, even if this operation guarantees
+  *         idempotency (i.e. referential transparency implies idempotency,
+  *         but idempotency does not imply referential transparency).
+  *
+  *         The allocation of a mutable reference is known to be a
+  *         side effect, thus breaking referential transparency,
+  *         even if calling this method does not trigger the evaluation
+  *         of side effects suspended by the source.
+  *
+  *         Use with care. Sometimes it's easier to just keep a shared,
+  *         memoized reference to some connection, but keep in mind
+  *         it might be better to pass such a reference around as
+  *         a parameter.
   */
 sealed abstract class Task[+A] extends Serializable {
   import monix.eval.Task._
 
   /** $runAsyncDesc
+    *
+    * $unsafeRun
     *
     * @param s is an injected [[monix.execution.Scheduler Scheduler]]
     *        that gets used whenever asynchronous boundaries are needed
@@ -547,6 +572,44 @@ sealed abstract class Task[+A] extends Serializable {
       def onSuccess(value: A): Unit = f(Success(value))
       def onError(ex: Throwable): Unit = f(Failure(ex))
     })(s)
+
+  /** Memoizes (caches) the result of the source task and reuses it on
+    * subsequent invocations of `runAsync`.
+    *
+    * The resulting task will be idempotent, meaning that
+    * evaluating the resulting task multiple times will have the
+    * same effect as evaluating it once.
+    *
+    * $unsafeMemoize
+    *
+    * @see [[memoizeOnSuccess]] for a version that only caches
+    *     successful results
+    *
+    * @return a `Task` that can be used to wait for the memoized
+    *         value or to cancel the background process that calculates
+    *         the memoized result (as long as it can be cancelled)
+    */
+  final def memoize: Fiber[A] =
+    TaskMemoize(this, cacheErrors = true)
+
+  /** Memoizes (cache) the successful result of the source task
+    * and reuses it on subsequent invocations of `runAsync`.
+    * Thrown exceptions are not cached.
+    *
+    * The resulting task will be idempotent, but only if the
+    * result is successful.
+    *
+    * $unsafeMemoize
+    *
+    * @see [[memoize]] for a version that caches both successful
+    *     results and failures
+    *
+    * @return a [[Fiber]] that can be used to wait for the memoized
+    *         value or to cancel the background process that calculates
+    *         the memoized result (as long as it can be cancelled)
+    */
+  final def memoizeOnSuccess: Fiber[A] =
+    TaskMemoize(this, cacheErrors = false)
 
   /** Creates a new [[Task]] that will expose any triggered error
     * from the source.
@@ -1299,56 +1362,6 @@ sealed abstract class Task[+A] extends Serializable {
         Map(this, f, 0)
     }
 
-  /** Memoizes (caches) the result of the source task and reuses it on
-    * subsequent invocations of `runAsync`.
-    *
-    * The resulting task will be idempotent, meaning that
-    * evaluating the resulting task multiple times will have the
-    * same effect as evaluating it once.
-    *
-    * @see [[memoizeOnSuccess]] for a version that only caches
-    *     successful results
-    */
-  final def memoize: Task[A] =
-    this match {
-      case Now(_) | Error(_) =>
-        this
-      case Eval(f) =>
-        f match {
-          case _:Coeval.Once[_] => this
-          case _ =>
-            val coeval = Coeval.Once(f)
-            Eval(coeval)
-        }
-      case ref: MemoizeSuspend[_] if ref.isCachingAll =>
-        this
-      case other =>
-        new MemoizeSuspend[A](() => other, cacheErrors = true)
-    }
-
-  /** Memoizes (cache) the successful result of the source task
-    * and reuses it on subsequent invocations of `runAsync`.
-    * Thrown exceptions are not cached.
-    *
-    * The resulting task will be idempotent, but only if the
-    * result is successful.
-    *
-    * @see [[memoize]] for a version that caches both successful
-    *     results and failures
-    */
-  final def memoizeOnSuccess: Task[A] =
-    this match {
-      case Now(_) | Error(_) =>
-        this
-      case Eval(f) =>
-        val lf = LazyOnSuccess(f)
-        if (lf eq f) this else Eval(lf)
-      case _: MemoizeSuspend[_] =>
-        this
-      case other =>
-        new MemoizeSuspend[A](() => other, cacheErrors = false)
-    }
-
   /** Creates a new task that in case of error will retry executing the
     * source again and again, until it succeeds.
     *
@@ -1558,8 +1571,8 @@ sealed abstract class Task[+A] extends Serializable {
   final def transformWith[R](fa: A => Task[R], fe: Throwable => Task[R]): Task[R] =
     FlatMap(this, StackFrame.fold(fa, fe))
 
-  /** Makes the source `Task` uninterruptible such that a [[cancel]]
-    * signal has no effect.
+  /** Makes the source `Task` uninterruptible such that a `cancel` signal
+    * (e.g. [[Fiber.cancel]]) has no effect.
     *
     * {{{
     *   val cancelable = Task
@@ -1759,7 +1772,7 @@ object Task extends TaskInstancesLevel1 {
     * evaluation, the result being then available on subsequent evaluations.
     */
   def evalOnce[A](a: => A): Task[A] = {
-    val coeval = Coeval.Once(a _)
+    val coeval = Coeval.evalOnce(a)
     Eval(coeval)
   }
 
@@ -1821,7 +1834,13 @@ object Task extends TaskInstancesLevel1 {
   final val unit: Task[Unit] = Now(())
 
   /** Transforms a [[Coeval]] into a [[Task]]. */
-  def coeval[A](a: Coeval[A]): Task[A] = Eval(a)
+  def coeval[A](a: Coeval[A]): Task[A] =
+    a match {
+      case Coeval.Now(value) => Task.Now(value)
+      case Coeval.Error(e) => Task.Error(e)
+      case Coeval.Always(f) => Task.Eval(f)
+      case _ => Task.Eval(a)
+    }
 
   /** $createAsyncDesc
     *
@@ -2831,55 +2850,6 @@ object Task extends TaskInstancesLevel1 {
     */
   private[eval] final case class Async[+A](register: (Context, Callback[A]) => Unit)
     extends Task[A]
-
-  /** Internal [[Task]] state that defers the evaluation of the
-    * given [[Task]] and upon execution memoize its result to
-    * be available for later evaluations.
-    */
-  private[eval] final class MemoizeSuspend[A](
-    f: () => Task[A],
-    private[eval] val cacheErrors: Boolean)
-    extends Task[A] {
-
-    private[eval] var thunk: () => Task[A] = f
-    private[eval] val state = Atomic(null : AnyRef)
-
-    def isCachingAll: Boolean =
-      cacheErrors
-
-    def value: Option[Try[A]] =
-      state.get match {
-        case null => None
-        case (p: Promise[_], _) =>
-          p.asInstanceOf[Promise[A]].future.value
-        case result: Try[_] =>
-          Some(result.asInstanceOf[Try[A]])
-      }
-
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
-      state.get match {
-        case null =>
-          super.runAsync(cb)(s)
-        case (p: Promise[_], conn: StackedCancelable) =>
-          val f = p.asInstanceOf[Promise[A]].future
-          f.onComplete(cb)
-          conn
-        case result: Try[_] =>
-          cb(result.asInstanceOf[Try[A]])
-          Cancelable.empty
-      }
-
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-      state.get match {
-        case null =>
-          super.runAsync(s)
-        case (p: Promise[_], conn: StackedCancelable) =>
-          val f = p.asInstanceOf[Promise[A]].future
-          CancelableFuture(f, conn)
-        case result: Try[_] =>
-          CancelableFuture.fromTry(result.asInstanceOf[Try[A]])
-      }
-  }
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
     * asynchronous boundary, by providing

@@ -76,7 +76,7 @@ object TaskGatherSuite extends BaseTestSuite {
 
   test("Task.gather runAsync multiple times") { implicit s =>
     var effect = 0
-    val task1 = Task { effect += 1; 3 }.memoize
+    val task1 = Task { effect += 1; 3 }.memoize.join
     val task2 = task1 map { x => effect += 1; x + 1 }
     val task3 = Task.gather(List(task2, task2, task2))
 

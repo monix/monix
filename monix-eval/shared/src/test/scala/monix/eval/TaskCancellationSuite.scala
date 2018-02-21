@@ -31,7 +31,8 @@ object TaskCancellationSuite extends BaseTestSuite {
     var wasCancelled = false
     val task = Task.eval(1).delayExecution(1.second)
       .doOnCancel(Task.eval { wasCancelled = true })
-      .cancel
+      .start
+      .flatMap(_.cancel)
 
     task.runAsync
     assert(wasCancelled, "wasCancelled")
@@ -44,7 +45,8 @@ object TaskCancellationSuite extends BaseTestSuite {
     var effect = 0
     val task = Task(1).flatMap(x => Task(2).map(_ + x))
       .foreachL { x => effect = x }
-      .cancel
+      .start
+      .flatMap(_.cancel)
 
     val f = task.runAsyncOpt
     ec.tick()
@@ -57,7 +59,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       val fa = for {
         forked <- task.asyncBoundary.cancelable.fork
         _ <- forked.cancel
-        r <- forked
+        r <- forked.join
       } yield r
 
       fa <-> Task.never
@@ -133,7 +135,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       val received = fa
         .onCancelRaiseError(e)
         .fork
-        .flatMap(fa => fa.cancel.flatMap(_ => fa))
+        .flatMap(fa => fa.cancel.flatMap(_ => fa.join))
 
       received <-> Task.raiseError(e)
     }

@@ -68,7 +68,7 @@ class CatsBaseForTask extends MonadError[Task, Throwable] with CoflatMap[Task] {
   override def fromTry[A](t: Try[A])(implicit ev: <:<[Throwable, Throwable]): Task[A] =
     Task.fromTry(t)
   override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
-    fa.fork.map(f)
+    fa.fork.map(fiber => f(fiber.join))
   override def coflatten[A](fa: Task[A]): Task[Task[A]] =
-    fa.fork
+    fa.fork.map(_.join)
 }

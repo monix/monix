@@ -185,7 +185,7 @@ object MVarSuite extends BaseTestSuite {
           Task.now(sum) // we are done!
       }
 
-    val channel = MVar(Option(0)).memoize
+    val channel = MVar(Option(0)).memoize.join
     val count = 100000
 
     val consumerTask = channel.flatMap(consumer(_, 0L))
@@ -253,7 +253,7 @@ object MVarSuite extends BaseTestSuite {
       (count, reads, writes) = testStackParallel(ch)
       fr <- reads.start
       _ <- writes
-      r <- fr
+      r <- fr.join
     } yield r == count
 
     val f = task.runAsync
@@ -302,7 +302,7 @@ object MVarSuite extends BaseTestSuite {
       (count, reads, writes) = testStackSequential(channel)
       fr <- reads.start
       _ <- writes
-      r <- fr
+      r <- fr.join
     } yield r == count
 
     val f = task.runAsync

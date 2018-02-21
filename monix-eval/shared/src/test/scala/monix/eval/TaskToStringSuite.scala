@@ -57,11 +57,6 @@ object TaskToStringSuite extends SimpleTestSuite {
     assertContains(ref, "Task.Suspend")
   }
 
-  test("Task.MemoizeSuspend") {
-    val ref = Task(1).memoize
-    assertContains(ref, "Task.MemoizeSuspend")
-  }
-
   test("Task.Map") {
     val ref = Task.now(1).map(_ + 1)
     assertContains(ref, "Task.Map")

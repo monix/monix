@@ -26,12 +26,12 @@ import scala.util.Success
 object TaskStartSuite extends BaseTestSuite {
   test("task.start.flatMap(id) <-> task") { implicit sc =>
     check1 { (task: Task[Int]) =>
-      task.start.flatMap(x => x) <-> task
+      task.start.flatMap(_.join) <-> task
     }
   }
 
   test("task.start.flatMap(id) is cancelable") { implicit sc =>
-    val task = Task.eval(1).delayExecution(1.second).start.flatMap(x => x)
+    val task = Task.eval(1).delayExecution(1.second).start.flatMap(_.join)
     val f = task.runAsync
 
     assert(sc.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -44,8 +44,7 @@ object TaskStartSuite extends BaseTestSuite {
 
   test("task.start is stack safe") { implicit sc =>
     var task: Task[Any] = Task(1)
-    for (_ <- 0 until 5000) task = task.start
-    for (_ <- 0 until 5000) task = task.flatMap(x => x.asInstanceOf[Task[Any]])
+    for (_ <- 0 until 5000) task = task.start.flatMap(_.join)
 
     val f = task.runAsync
     sc.tick()

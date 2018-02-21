@@ -53,7 +53,7 @@ object TaskBlockingSuite extends SimpleTestSuite {
 
   test("blocking on memoize") {
     for (_ <- 0 until 1000) {
-      val task = Task(1).flatMap(_ => Task(2)).memoize
+      val task = Task(1).flatMap(_ => Task(2)).memoize.join
       assertEquals(task.runSyncUnsafe(Duration.Inf), 2)
       assertEquals(task.runSyncUnsafe(Duration.Inf), 2)
     }

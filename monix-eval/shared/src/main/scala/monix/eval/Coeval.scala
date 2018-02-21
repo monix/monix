@@ -22,7 +22,7 @@ import cats.effect.IO
 import cats.kernel.Semigroup
 import monix.eval.Coeval._
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
-import monix.eval.internal.{CoevalBracket, CoevalRunLoop, LazyOnSuccess, StackFrame}
+import monix.eval.internal.{CoevalBracket, CoevalRunLoop, LazyVal, StackFrame}
 import monix.execution.UncaughtExceptionReporter
 import monix.execution.misc.NonFatal
 import monix.execution.internal.Platform.fusionMaxStackDepth
@@ -154,6 +154,30 @@ import scala.util.{Failure, Success, Try}
   *         while the `"Bar"` error gets reported. This is consistent
   *         with the behavior of Haskell's `bracket` operation and NOT
   *         with `try {} finally {}` from Scala, Java or JavaScript.
+  *
+  * @define unsafeRun '''UNSAFE''' — this operation can trigger the
+  *         execution of side effects, which break referential
+  *         transparency and is thus not a pure function.
+  *
+  *         In FP code use with care, suspended in another `Coeval`
+  *         or [[monix.eval.Task Task]], or at the edge of the FP
+  *         program.
+  *
+  * @define unsafeMemoize '''UNSAFE''' — this operation allocates a shared,
+  *         mutable reference, which can break in certain cases
+  *         referential transparency, even if this operation guarantees
+  *         idempotency (i.e. referential transparency implies idempotency,
+  *         but idempotency does not imply referential transparency).
+  *
+  *         The allocation of a mutable reference is known to be a
+  *         side effect, thus breaking referential transparency,
+  *         even if calling this method does not trigger the evaluation
+  *         of side effects suspended by the source.
+  *
+  *         Use with care. Sometimes it's easier to just keep a shared,
+  *         memoized reference to some connection, but keep in mind
+  *         it might be better to pass such a reference around as
+  *         a parameter.
   */
 sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   /** Evaluates the underlying computation and returns the result.
@@ -169,6 +193,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *   fa() //=> 2
     *   fa() //=> 3
     * }}}
+    *
+    * $unsafeRun
     */
   override def apply(): A =
     CoevalRunLoop.start(this) match {
@@ -181,6 +207,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * NOTE: this can throw exceptions.
     *
     * Alias for [[apply]].
+    *
+    * $unsafeRun
     */
   def value: A = apply()
 
@@ -203,6 +231,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * values and [[runTry]] for working with [[scala.util.Try Try]]
     * values. See [[apply]] for a partial function (that may throw
     * exceptions in case of failure).
+    *
+    * $unsafeRun
     */
   def run: Coeval.Eager[A] =
     CoevalRunLoop.start(this)
@@ -226,6 +256,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * [[runTry]] for working with [[scala.util.Try Try]] values.
     * See [[apply]] for a partial function (that may throw exceptions
     * in case of failure).
+    *
+    * $unsafeRun
     */
   def runAttempt: Either[Throwable, A] =
     run match {
@@ -251,9 +283,55 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * [[runAttempt]] for working with [[scala.Either Either]] values.
     * See [[apply]] for a partial function (that may throw exceptions
     * in case of failure).
+    *
+    * $unsafeRun
     */
   def runTry: Try[A] =
     run.toTry
+
+  /** Memoizes (caches) the result of the source and reuses it on
+    * subsequent invocations of `value`.
+    *
+    * The resulting coeval will be idempotent, meaning that
+    * evaluating the resulting coeval multiple times will have the
+    * same effect as evaluating it once.
+    *
+    * $unsafeMemoize
+    *
+    * @see [[memoizeOnSuccess]] for a version that only caches
+    *     successful results
+    */
+  final def memoize: Coeval[A] =
+    self match {
+      case Now(_) | Error(_) =>
+        self
+      case Suspend(f: LazyVal[A @unchecked]) if f.cacheErrors =>
+        self
+      case _ =>
+        Suspend(LazyVal(self, cacheErrors = true))
+    }
+
+  /** Memoizes (cache) the successful result of the source
+    * and reuses it on subsequent invocations of `value`.
+    * Thrown exceptions are not cached.
+    *
+    * The resulting coeval will be idempotent, but only if the
+    * result is successful.
+    *
+    * $unsafeMemoize
+    *
+    * @see [[memoize]] for a version that caches both successful
+    *     results and failures
+    */
+  final def memoizeOnSuccess: Coeval[A] =
+    self match {
+      case Now(_) | Error(_) =>
+        self
+      case Suspend(_: LazyVal[A @unchecked]) =>
+        self
+      case _ =>
+        Suspend(LazyVal(self, cacheErrors = false))
+    }
 
   /** Creates a new [[Coeval]] that will expose any triggered error
     * from the source.
@@ -646,51 +724,6 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   final def onErrorRestartLoop[S, B >: A](initial: S)(f: (Throwable, S, S => Coeval[B]) => Coeval[B]): Coeval[B] =
     onErrorHandleWith(err => f(err, initial, state => (this : Coeval[B]).onErrorRestartLoop(state)(f)))
 
-  /** Memoizes (caches) the result of the source and reuses it on
-    * subsequent invocations of `value`.
-    *
-    * The resulting coeval will be idempotent, meaning that
-    * evaluating the resulting coeval multiple times will have the
-    * same effect as evaluating it once.
-    *
-    * @see [[memoizeOnSuccess]] for a version that only caches
-    *     successful results
-    */
-  final def memoize: Coeval[A] =
-    self match {
-      case Now(_) | Error(_) =>
-        self
-      case Always(thunk) =>
-        new Once[A](thunk)
-      case _: Once[_] =>
-        self
-      case other =>
-        new Once[A](() => other.value)
-    }
-
-  /** Memoizes (cache) the successful result of the source
-    * and reuses it on subsequent invocations of `value`.
-    * Thrown exceptions are not cached.
-    *
-    * The resulting coeval will be idempotent, but only if the
-    * result is successful.
-    *
-    * @see [[memoize]] for a version that caches both successful
-    *     results and failures
-    */
-  final def memoizeOnSuccess: Coeval[A] =
-    self match {
-      case Now(_) | Error(_) =>
-        self
-      case Always(thunk) =>
-        val lf = LazyOnSuccess(thunk)
-        if (lf eq thunk) self else Always(lf)
-      case _: Once[_] =>
-        self
-      case other =>
-        Always[A](LazyOnSuccess(() => other.value))
-    }
-
   /** Returns a new `Coeval` in which `f` is scheduled to be run on completion.
     * This would typically be used to release any resources acquired by this
     * `Coeval`.
@@ -727,6 +760,22 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   * @define attemptDeprecation This change happened in order to achieve
   *         naming consistency with the Typelevel ecosystem, where
   *         `Attempt[A]` is usually an alias for `Either[Throwable, A]`.
+  *
+  * @define unsafeMemoize '''UNSAFE''' — this operation allocates a shared,
+  *         mutable reference, which can break in certain cases
+  *         referential transparency, even if this operation guarantees
+  *         idempotency (i.e. referential transparency implies idempotency,
+  *         but idempotency does not imply referential transparency).
+  *
+  *         The allocation of a mutable reference is known to be a
+  *         side effect, thus breaking referential transparency,
+  *         even if calling this method does not trigger the evaluation
+  *         of side effects suspended by the source.
+  *
+  *         Use with care. Sometimes it's easier to just keep a shared,
+  *         memoized reference to some connection, but keep in mind
+  *         it might be better to pass such a reference around as
+  *         a parameter.
   */
 object Coeval extends CoevalInstancesLevel0 {
   /** Promotes a non-strict value to a [[Coeval]].
@@ -736,6 +785,7 @@ object Coeval extends CoevalInstancesLevel0 {
   def apply[A](f: => A): Coeval[A] =
     Always(f _)
 
+  Stream(1,2,3).map(_ + 1)
   /** Returns a `Coeval` that on execution is always successful, emitting
     * the given strict value.
     */
@@ -761,8 +811,13 @@ object Coeval extends CoevalInstancesLevel0 {
 
   /** Promote a non-strict value to a `Coeval` that is memoized on the first
     * evaluation, the result being then available on subsequent evaluations.
+    *
+    * Guarantees thread-safe idempotency.
+    *
+    * $unsafeMemoize
     */
-  def evalOnce[A](a: => A): Coeval[A] = Once(a _)
+  def evalOnce[A](a: => A): Coeval[A] =
+    Suspend(LazyVal(a _, cacheErrors = true))
 
   /** Promote a non-strict value to a `Coeval`, catching exceptions in the
     * process.
@@ -1071,43 +1126,6 @@ object Coeval extends CoevalInstancesLevel0 {
     override def run: Error = this
     override def runAttempt: Either[Throwable, Nothing] = Left(error)
     override def runTry: Try[Nothing] = Failure(error)
-  }
-
-  /** Constructs a lazy [[Coeval]] instance that gets evaluated
-    * only once.
-    *
-    * In some sense it is equivalent to using a lazy val.
-    * When caching is not required or desired,
-    * prefer [[Always]] or [[Now]].
-    */
-  final class Once[+A](f: () => A) extends Coeval[A] with (() => A) { self =>
-    private[this] var thunk: () => A = f
-
-    override def apply(): A = run match {
-      case Now(a) => a
-      case Error(ex) => throw ex
-    }
-
-    override lazy val run: Eager[A] = {
-      try {
-        Now(thunk())
-      } catch {
-        case ex if NonFatal(ex) => Error(ex)
-      } finally {
-        // GC relief
-        thunk = null
-      }
-    }
-  }
-
-  object Once {
-    /** Builder for an [[Once]] instance. */
-    def apply[A](a: () => A): Once[A] =
-      new Once[A](a)
-
-    /** Deconstructs an [[Once]] instance. */
-    def unapply[A](coeval: Once[A]): Some[() => A] =
-      Some(coeval)
   }
 
   /** Constructs a lazy [[Coeval]] instance.
