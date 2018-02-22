@@ -447,7 +447,7 @@ enablePlugins(GitVersioning)
  */
 git.baseVersion := "3.0.0"
 
-val ReleaseTag = """^v(\d+\.\d+\.\d+(?:[-.]\w+)?)$""".r
+val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {
   case ReleaseTag(v) => Some(v)
   case _ => None

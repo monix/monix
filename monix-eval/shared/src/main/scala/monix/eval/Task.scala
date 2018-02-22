@@ -23,18 +23,17 @@ import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 import monix.execution._
-import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.ThreadLocal
 import monix.execution.schedulers.{CanBlock, TrampolinedRunnable}
-
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
+import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
+
 
 /** `Task` represents a specification for a possibly lazy or
   * asynchronous computation, which when executed will produce an `A`
@@ -104,9 +103,9 @@ import scala.util.{Failure, Success, Try}
   *
   * {{{
   *   def retryOnFailure[A](times: Int, source: Task[A]): Task[A] =
-  *     source.recoverWith { err =>
+  *     source.onErrorRecoverWith { err =>
   *       // No more retries left? Re-throw error:
-  *       if (times <= 0) Task.raise(err) else {
+  *       if (times <= 0) Task.raiseError(err) else {
   *         // Recursive call, yes we can!
   *         retryOnFailure(times - 1, source)
   *           // Adding 500 ms delay for good measure
@@ -145,8 +144,7 @@ import scala.util.{Failure, Success, Try}
   * it does for `Future.sequence`, the given `Task` values being
   * evaluated one after another, in ''sequence'', not in ''parallel''.
   * If you want parallelism, then you need to use
-  * [[monix.eval.Task.gather Task.gather]] and
-  * thus be explicit about it.
+  * [[monix.eval.Task.gather Task.gather]] and thus be explicit about it.
   *
   * This is great because it gives you the possibility of fine tuning the
   * execution. For example, say you want to execute things in parallel,
@@ -239,12 +237,16 @@ import scala.util.{Failure, Success, Try}
   *     .delayExecution(4.seconds)
   *
   *   Task.racePair(ta, tb).flatMap {
-  *     case Left((a, taskB)) =>
-  *       taskB.cancel.map(_ => a)
-  *     case Right((taskA, b)) =>
-  *       taskA.cancel.map(_ => b)
+  *     case Left((a, fiberB)) =>
+  *       fiberB.cancel.map(_ => a)
+  *     case Right((fiberA, b)) =>
+  *       fiberA.cancel.map(_ => b)
   *   }
   * }}}
+  *
+  * The returned type in `racePair` is [[Fiber]], which is a data
+  * type that's meant to wrap tasks linked to an active process
+  * and that can be [[Fiber.cancel canceled]] or [[Fiber.join joined]].
   *
   * Also, given a task, we can specify actions that need to be
   * triggered in case of cancellation, see
@@ -253,9 +255,9 @@ import scala.util.{Failure, Success, Try}
   * {{{
   *   val task = Task.eval(println("Hello!")).executeAsync
   *
-  *   task.doOnCancel(Task.eval {
+  *   task doOnCancel Task.eval {
   *     println("A cancellation attempt was made!")
-  *   })
+  *   }
   * }}}
   *
   * Controlling cancellation can be achieved with
@@ -438,11 +440,53 @@ import scala.util.{Failure, Success, Try}
   *         while the `"Bar"` error gets reported. This is consistent
   *         with the behavior of Haskell's `bracket` operation and NOT
   *         with `try {} finally {}` from Scala, Java or JavaScript.
+  *
+  * @define unsafeRun '''UNSAFE''' — this operation can trigger the
+  *         execution of side effects, which break referential
+  *         transparency and is thus not a pure function.
+  *
+  *         In FP code use with care, suspended in another `Task`
+  *         or [[monix.eval.Coeval Coeval]], or at the edge of the
+  *         FP program.
+  *
+  * @define memoizeCancel '''Cancellation''' — a memoized task will mirror
+  *         the behavior of the source on cancellation. This means that:
+  *
+  *          - if the source isn't cancellable, then the resulting memoized
+  *            task won't be cancellable either
+  *          - if the source is cancellable, then the memoized task can be
+  *            cancelled, which can take unprepared users by surprise
+  *
+  *         Depending on use-case, there are two ways to ensure no surprises:
+  *
+  *          - usage of [[onCancelRaiseError]], before applying memoization, to
+  *            ensure that on cancellation an error is triggered and then noticed
+  *            by the memoization logic
+  *          - usage of [[uncancelable]], either before or after applying
+  *            memoization, to ensure that the memoized task cannot be cancelled
+  *
+  * @define memoizeUnsafe '''UNSAFE''' — this operation allocates a shared,
+  *         mutable reference, which can break in certain cases
+  *         referential transparency, even if this operation guarantees
+  *         idempotency (i.e. referential transparency implies idempotency,
+  *         but idempotency does not imply referential transparency).
+  *
+  *         The allocation of a mutable reference is known to be a
+  *         side effect, thus breaking referential transparency,
+  *         even if calling this method does not trigger the evaluation
+  *         of side effects suspended by the source.
+  *
+  *         Use with care. Sometimes it's easier to just keep a shared,
+  *         memoized reference to some connection, but keep in mind
+  *         it might be better to pass such a reference around as
+  *         a parameter.
   */
 sealed abstract class Task[+A] extends Serializable {
   import monix.eval.Task._
 
   /** $runAsyncDesc
+    *
+    * $unsafeRun
     *
     * @param s is an injected [[monix.execution.Scheduler Scheduler]]
     *        that gets used whenever asynchronous boundaries are needed
@@ -544,6 +588,80 @@ sealed abstract class Task[+A] extends Serializable {
       def onSuccess(value: A): Unit = f(Success(value))
       def onError(ex: Throwable): Unit = f(Failure(ex))
     })(s)
+
+  /** Memoizes (caches) the result of the source task and reuses it on
+    * subsequent invocations of `runAsync`.
+    *
+    * The resulting task will be idempotent, meaning that
+    * evaluating the resulting task multiple times will have the
+    * same effect as evaluating it once.
+    *
+    * $memoizeCancel
+    *
+    * Example:
+    * {{{
+    *   import scala.concurrent.CancellationException
+    *
+    *   val source = Task(1).delayExecution(5.seconds)
+    *
+    *   // Option 1: trigger error on cancellation
+    *   val err = new CancellationException
+    *   val cached1 = source.onCancelRaiseError(err).memoize
+    *
+    *   // Option 2: make it uninterruptible
+    *   val cached2 = source.uncancelable.memoize
+    * }}}
+    *
+    * When using [[onCancelRaiseError]] like in the example above, the
+    * behavior of `memoize` is to cache the error. If you want the ability
+    * to retry errors until a successful value happens, see [[memoizeOnSuccess]].
+    *
+    * $memoizeUnsafe
+    *
+    * @see [[memoizeOnSuccess]] for a version that only caches
+    *     successful results
+    *
+    * @return a `Task` that can be used to wait for the memoized value
+    */
+  final def memoize: Task[A] =
+    TaskMemoize(this, cacheErrors = true)
+
+  /** Memoizes (cache) the successful result of the source task
+    * and reuses it on subsequent invocations of `runAsync`.
+    * Thrown exceptions are not cached.
+    *
+    * The resulting task will be idempotent, but only if the
+    * result is successful.
+    *
+    * $memoizeCancel
+    *
+    * Example:
+    * {{{
+    *   import scala.concurrent.CancellationException
+    *
+    *   val source = Task(1).delayExecution(5.seconds)
+    *
+    *   // Option 1: trigger error on cancellation
+    *   val err = new CancellationException
+    *   val cached1 = source.onCancelRaiseError(err).memoizeOnSuccess
+    *
+    *   // Option 2: make it uninterruptible
+    *   val cached2 = source.uncancelable.memoizeOnSuccess
+    * }}}
+    *
+    * When using [[onCancelRaiseError]] like in the example above, the
+    * behavior of `memoizeOnSuccess` is to retry the source on subsequent
+    * invocations. Use [[memoize]] if that's not the desired behavior.
+    *
+    * $memoizeUnsafe
+    *
+    * @see [[memoize]] for a version that caches both successful
+    *     results and failures
+    *
+    * @return a `Task` that can be used to wait for the memoized value
+    */
+  final def memoizeOnSuccess: Task[A] =
+    TaskMemoize(this, cacheErrors = false)
 
   /** Creates a new [[Task]] that will expose any triggered error
     * from the source.
@@ -740,27 +858,6 @@ sealed abstract class Task[+A] extends Serializable {
     */
   final def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
     Coeval.eval(runSyncMaybe(s))
-
-  /** Signals cancellation of the source.
-    *
-    * Returns a new task that will complete when the cancellation is
-    * sent (but not when it is observed).
-    *
-    * Compared with triggering
-    * [[monix.execution.Cancelable.cancel Cancelable.cancel]] or
-    * [[monix.execution.CancelableFuture.cancel CancelableFuture.cancel]]
-    * after [[Task.runAsync(implicit* runAsync]], this action is pure.
-    *
-    * Example:
-    * {{{
-    *   Task.racePair(ta, tb).flatMap {
-    *     case Left((a, tb)) => tb.cancel.map(_ => a)
-    *     case Right((ta, b)) => ta.cancel.map(_ => b)
-    *   }
-    * }}}
-    */
-  final def cancel: Task[Unit] =
-    TaskCancellation.signal(this)
 
   /** Returns a task that waits for the specified `timespan` before
     * executing and mirroring the result of the source.
@@ -1163,7 +1260,7 @@ sealed abstract class Task[+A] extends Serializable {
     * See [[start]] for the equivalent that does not start the task with
     * a forced async boundary.
     */
-  final def fork: Task[Task[A]] =
+  final def fork: Task[Fiber[A]] =
     executeAsync.start
 
   /** Start asynchronous execution of the source suspended in the `Task` context,
@@ -1317,56 +1414,6 @@ sealed abstract class Task[+A] extends Serializable {
         Map(this, f, 0)
     }
 
-  /** Memoizes (caches) the result of the source task and reuses it on
-    * subsequent invocations of `runAsync`.
-    *
-    * The resulting task will be idempotent, meaning that
-    * evaluating the resulting task multiple times will have the
-    * same effect as evaluating it once.
-    *
-    * @see [[memoizeOnSuccess]] for a version that only caches
-    *     successful results
-    */
-  final def memoize: Task[A] =
-    this match {
-      case Now(_) | Error(_) =>
-        this
-      case Eval(f) =>
-        f match {
-          case _:Coeval.Once[_] => this
-          case _ =>
-            val coeval = Coeval.Once(f)
-            Eval(coeval)
-        }
-      case ref: MemoizeSuspend[_] if ref.isCachingAll =>
-        this
-      case other =>
-        new MemoizeSuspend[A](() => other, cacheErrors = true)
-    }
-
-  /** Memoizes (cache) the successful result of the source task
-    * and reuses it on subsequent invocations of `runAsync`.
-    * Thrown exceptions are not cached.
-    *
-    * The resulting task will be idempotent, but only if the
-    * result is successful.
-    *
-    * @see [[memoize]] for a version that caches both successful
-    *     results and failures
-    */
-  final def memoizeOnSuccess: Task[A] =
-    this match {
-      case Now(_) | Error(_) =>
-        this
-      case Eval(f) =>
-        val lf = LazyOnSuccess(f)
-        if (lf eq f) this else Eval(lf)
-      case _: MemoizeSuspend[_] =>
-        this
-      case other =>
-        new MemoizeSuspend[A](() => other, cacheErrors = false)
-    }
-
   /** Creates a new task that in case of error will retry executing the
     * source again and again, until it succeeds.
     *
@@ -1506,7 +1553,7 @@ sealed abstract class Task[+A] extends Serializable {
     * See [[fork]] for the equivalent that does starts the task with
     * a forced async boundary.
     */
-  final def start: Task[Task[A]] =
+  final def start: Task[Fiber[A]] =
     TaskStart(this)
 
   /** Converts the source `Task` to a `cats.effect.IO` value. */
@@ -1576,8 +1623,8 @@ sealed abstract class Task[+A] extends Serializable {
   final def transformWith[R](fa: A => Task[R], fe: Throwable => Task[R]): Task[R] =
     FlatMap(this, StackFrame.fold(fa, fe))
 
-  /** Makes the source `Task` uninterruptible such that a [[cancel]]
-    * signal has no effect.
+  /** Makes the source `Task` uninterruptible such that a `cancel` signal
+    * (e.g. [[Fiber.cancel]]) has no effect.
     *
     * {{{
     *   val cancelable = Task
@@ -1777,7 +1824,7 @@ object Task extends TaskInstancesLevel1 {
     * evaluation, the result being then available on subsequent evaluations.
     */
   def evalOnce[A](a: => A): Task[A] = {
-    val coeval = Coeval.Once(a _)
+    val coeval = Coeval.evalOnce(a)
     Eval(coeval)
   }
 
@@ -1839,7 +1886,13 @@ object Task extends TaskInstancesLevel1 {
   final val unit: Task[Unit] = Now(())
 
   /** Transforms a [[Coeval]] into a [[Task]]. */
-  def coeval[A](a: Coeval[A]): Task[A] = Eval(a)
+  def coeval[A](a: Coeval[A]): Task[A] =
+    a match {
+      case Coeval.Now(value) => Task.Now(value)
+      case Coeval.Error(e) => Task.Error(e)
+      case Coeval.Always(f) => Task.Eval(f)
+      case _ => Task.Eval(a)
+    }
 
   /** $createAsyncDesc
     *
@@ -1972,7 +2025,7 @@ object Task extends TaskInstancesLevel1 {
     * See [[race]] for a simpler version that cancels the loser
     * immediately or [[raceMany]] that races collections of tasks.
     */
-  def racePair[A,B](fa: Task[A], fb: Task[B]): Task[Either[(A, Task[B]), (Task[A], B)]] =
+  def racePair[A,B](fa: Task[A], fb: Task[B]): Task[Either[(A, Fiber[B]), (Fiber[A], B)]] =
     TaskRacePair(fa, fb)
 
   /** Asynchronous boundary described as an effectful `Task` that
@@ -2679,9 +2732,9 @@ object Task extends TaskInstancesLevel1 {
     */
   final case class Context(
     scheduler: Scheduler,
+    options: Options,
     connection: StackedCancelable,
-    frameRef: FrameIndexRef,
-    options: Options) {
+    frameRef: FrameIndexRef) {
 
     /** Helper that returns the
       * [[monix.execution.ExecutionModel ExecutionModel]]
@@ -2700,11 +2753,14 @@ object Task extends TaskInstancesLevel1 {
 
   object Context {
     /** Initialize fresh [[Context]] reference. */
-    def apply(s: Scheduler, opts: Options): Context = {
-      val conn = StackedCancelable()
-      val em = s.executionModel
+    def apply(scheduler: Scheduler, options: Options): Context =
+      apply(scheduler, options, StackedCancelable())
+
+    /** Initialize fresh [[Context]] reference. */
+    def apply(scheduler: Scheduler, options: Options, connection: StackedCancelable): Context = {
+      val em = scheduler.executionModel
       val frameRef = FrameIndexRef(em)
-      Context(s, conn, frameRef, opts)
+      Context(scheduler, options, connection, frameRef)
     }
   }
 
@@ -2849,55 +2905,6 @@ object Task extends TaskInstancesLevel1 {
     */
   private[eval] final case class Async[+A](register: (Context, Callback[A]) => Unit)
     extends Task[A]
-
-  /** Internal [[Task]] state that defers the evaluation of the
-    * given [[Task]] and upon execution memoize its result to
-    * be available for later evaluations.
-    */
-  private[eval] final class MemoizeSuspend[A](
-    f: () => Task[A],
-    private[eval] val cacheErrors: Boolean)
-    extends Task[A] {
-
-    private[eval] var thunk: () => Task[A] = f
-    private[eval] val state = Atomic(null : AnyRef)
-
-    def isCachingAll: Boolean =
-      cacheErrors
-
-    def value: Option[Try[A]] =
-      state.get match {
-        case null => None
-        case (p: Promise[_], _) =>
-          p.asInstanceOf[Promise[A]].future.value
-        case result: Try[_] =>
-          Some(result.asInstanceOf[Try[A]])
-      }
-
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
-      state.get match {
-        case null =>
-          super.runAsync(cb)(s)
-        case (p: Promise[_], conn: StackedCancelable) =>
-          val f = p.asInstanceOf[Promise[A]].future
-          f.onComplete(cb)
-          conn
-        case result: Try[_] =>
-          cb(result.asInstanceOf[Try[A]])
-          Cancelable.empty
-      }
-
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-      state.get match {
-        case null =>
-          super.runAsync(s)
-        case (p: Promise[_], conn: StackedCancelable) =>
-          val f = p.asInstanceOf[Promise[A]].future
-          CancelableFuture(f, conn)
-        case result: Try[_] =>
-          CancelableFuture.fromTry(result.asInstanceOf[Try[A]])
-      }
-  }
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
     * asynchronous boundary, by providing

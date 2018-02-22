@@ -50,11 +50,6 @@ object CoevalToStringSuite extends SimpleTestSuite {
     assertContains(ref, "Coeval.Suspend")
   }
 
-  test("Coeval.Once") {
-    val ref = Coeval(1).memoize
-    assertContains(ref, "Coeval.Once")
-  }
-
   test("Coeval.Map") {
     val ref = Coeval(1).map(_ + 1)
     assertContains(ref, "Coeval.Map")

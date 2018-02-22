@@ -35,7 +35,7 @@ private[eval] object TaskToReactivePublisher {
           private[this] val conn = StackedCancelable()
           private[this] val context = {
             val ref = Task.FrameIndexRef(s.executionModel)
-            Task.Context(s, conn, ref, Task.defaultOptions)
+            Task.Context(s, Task.defaultOptions, conn, ref)
           }
 
           def request(n: Long): Unit = {

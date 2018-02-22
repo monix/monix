@@ -253,7 +253,7 @@ object MVarSuite extends BaseTestSuite {
       (count, reads, writes) = testStackParallel(ch)
       fr <- reads.start
       _ <- writes
-      r <- fr
+      r <- fr.join
     } yield r == count
 
     val f = task.runAsync
@@ -302,7 +302,7 @@ object MVarSuite extends BaseTestSuite {
       (count, reads, writes) = testStackSequential(channel)
       fr <- reads.start
       _ <- writes
-      r <- fr
+      r <- fr.join
     } yield r == count
 
     val f = task.runAsync

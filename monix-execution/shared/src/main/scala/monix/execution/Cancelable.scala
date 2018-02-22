@@ -21,6 +21,7 @@ import monix.execution.atomic.AtomicAny
 import monix.execution.exceptions.CompositeException
 import monix.execution.misc.NonFatal
 import scala.collection.immutable.Queue
+import scala.concurrent.Promise
 
 /** Represents a one-time idempotent action that can be used
   * to cancel async computations, or to release resources that
@@ -62,6 +63,15 @@ object Cancelable {
     */
   def collection(refs: Iterable[Cancelable]): Cancelable =
     apply { () => cancelAll(refs) }
+
+  /** Builds a [[Cancelable]] out of a Scala `Promise`, completing the
+    * promise with the given `Throwable` on cancel.
+    */
+  def fromPromise[A](p: Promise[A], e: Throwable): Cancelable =
+    new Cancelable {
+      def cancel(): Unit =
+        p.tryFailure(e)
+    }
 
   /** Given a collection of cancelables, cancel them all.
     *
