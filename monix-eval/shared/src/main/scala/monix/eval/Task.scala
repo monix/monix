@@ -580,11 +580,6 @@ sealed abstract class Task[+A] extends Serializable {
     * evaluating the resulting task multiple times will have the
     * same effect as evaluating it once.
     *
-    * Note on cancellation — the `memoize` operation makes no attempt to
-    * assume any usage pattern, this is why it mirrors the source on
-    * cancellation
-    *
-    *
     * $unsafeMemoize
     *
     * @see [[memoizeOnSuccess]] for a version that only caches
