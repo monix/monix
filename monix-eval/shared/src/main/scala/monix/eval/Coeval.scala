@@ -785,7 +785,6 @@ object Coeval extends CoevalInstancesLevel0 {
   def apply[A](f: => A): Coeval[A] =
     Always(f _)
 
-  Stream(1,2,3).map(_ + 1)
   /** Returns a `Coeval` that on execution is always successful, emitting
     * the given strict value.
     */

@@ -19,43 +19,38 @@ package monix.eval.internal
 
 import monix.eval.Task.{Context, Error, FrameIndex, Now}
 import monix.eval.internal.TaskRunLoop.{restartAsync, startFull}
-import monix.eval.{Callback, Coeval, Fiber, Task}
+import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.schedulers.TrampolinedRunnable
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
+
 
 private[eval] object TaskMemoize {
   /**
     * Implementation for `.memoize` and `.memoizeOnSuccess`.
     */
-  def apply[A](fa: Task[A], cacheErrors: Boolean): Fiber[A] =
-    fa match {
+  def apply[A](source: Task[A], cacheErrors: Boolean): Task[A] =
+    source match {
       case Now(_) | Error(_) =>
-        Fiber(fa)
+        source
       case Task.Eval(Coeval.Suspend(f: LazyVal[A @unchecked]))
         if !cacheErrors || f.cacheErrors =>
-        Fiber(fa)
+        source
       case Task.Async(r: Register[A] @unchecked)
-        if !cacheErrors || r.fiber.cacheErrors =>
-        r.fiber
-      case other =>
-        new MemoFiber[A](other, cacheErrors)
+        if !cacheErrors || r.cacheErrors =>
+        source
+      case _ =>
+        Task.Async(new Register(source, cacheErrors))
     }
 
-  private final class MemoFiber[A](
-    source: Task[A],
-    val cacheErrors: Boolean)
-    extends Fiber[A] {
+  private final class Register[A](source: Task[A], val cacheErrors: Boolean)
+    extends ((Task.Context, Callback[A]) => Unit) { self =>
 
-    var thunk: Task[A] = source
+    var thunk = source
     val state = Atomic(null : AnyRef)
-
-    def isCachingAll: Boolean =
-      cacheErrors
 
     def value: Option[Try[A]] =
       state.get match {
@@ -66,24 +61,14 @@ private[eval] object TaskMemoize {
           Some(result.asInstanceOf[Try[A]])
       }
 
-    val join: Task[A] =
-      Task.Async(new Register[A](this))
-
-    val cancel: Task[Unit] =
-      TaskCancellation.signal(join)
-  }
-
-  private final class Register[A](val fiber: MemoFiber[A])
-    extends ((Task.Context, Callback[A]) => Unit) {
-
     def apply(ctx: Context, cb: Callback[A]): Unit = {
       implicit val sc = ctx.scheduler
-      fiber.value match {
+      value match {
         case Some(result) =>
           cb.asyncApply(result)
         case None =>
           sc.executeTrampolined { () =>
-            val ref = startMemoization(fiber, ctx, cb, ctx.frameRef())
+            val ref = startMemoization(self, ctx, cb, ctx.frameRef())
             // Race condition happened
             if (ref ne null) {
               // $COVERAGE-OFF$
@@ -97,7 +82,7 @@ private[eval] object TaskMemoize {
 
   /** Starts the execution and memoization of a `Task.MemoizeSuspend` state. */
   private def startMemoization[A](
-    self: MemoFiber[A],
+    self: Register[A],
     context: Context,
     cb: Callback[A],
     nextFrame: FrameIndex): Try[A] = {

@@ -185,7 +185,7 @@ object MVarSuite extends BaseTestSuite {
           Task.now(sum) // we are done!
       }
 
-    val channel = MVar(Option(0)).memoize.join
+    val channel = MVar(Option(0)).memoize
     val count = 100000
 
     val consumerTask = channel.flatMap(consumer(_, 0L))

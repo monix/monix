@@ -41,7 +41,7 @@ import monix.eval.internal.TaskCancellation
   *     _ <- runToBunker.handleErrorWith { error =>
   *       // Retreat failed, cancel launch (maybe we should
   *       // have retreated to our bunker before the launch?)
-  *       fiber.cancel.flatMap(_ => IO.raiseError(error))
+  *       fiber.cancel.flatMap(_ => Task.raiseError(error))
   *     }
   *     aftermath <- fiber.join
   *   } yield {

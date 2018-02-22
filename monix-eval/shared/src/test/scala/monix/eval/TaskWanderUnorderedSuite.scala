@@ -149,7 +149,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     var effect = 0
     val task1 = Task {
       effect += 1; 3
-    }.memoize.join
+    }.memoize
 
     val task2 = task1 map { x => effect += 1; x + 1 }
 

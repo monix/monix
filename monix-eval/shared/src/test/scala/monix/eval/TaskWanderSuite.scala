@@ -82,7 +82,7 @@ object TaskWanderSuite extends BaseTestSuite {
   test("Task.wander runAsync multiple times") { implicit s =>
     var effect = 0
 
-    val task1 = Task { effect += 1; 3 }.memoize.join
+    val task1 = Task { effect += 1; 3 }.memoize
 
     val task2 = Task.wander(Seq(0,0,0)) { _ =>
       task1 map { x => effect += 1; x + 1 }

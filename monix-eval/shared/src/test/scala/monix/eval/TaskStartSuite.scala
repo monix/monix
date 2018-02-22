@@ -24,7 +24,7 @@ import concurrent.duration._
 import scala.util.Success
 
 object TaskStartSuite extends BaseTestSuite {
-  test("task.start.flatMap(id) <-> task") { implicit sc =>
+  test("task.start.flatMap(_.join) <-> task") { implicit sc =>
     check1 { (task: Task[Int]) =>
       task.start.flatMap(_.join) <-> task
     }

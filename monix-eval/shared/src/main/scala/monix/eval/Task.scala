@@ -580,16 +580,19 @@ sealed abstract class Task[+A] extends Serializable {
     * evaluating the resulting task multiple times will have the
     * same effect as evaluating it once.
     *
+    * Note on cancellation — the `memoize` operation makes no attempt to
+    * assume any usage pattern, this is why it mirrors the source on
+    * cancellation
+    *
+    *
     * $unsafeMemoize
     *
     * @see [[memoizeOnSuccess]] for a version that only caches
     *     successful results
     *
-    * @return a `Task` that can be used to wait for the memoized
-    *         value or to cancel the background process that calculates
-    *         the memoized result (as long as it can be cancelled)
+    * @return a `Task` that can be used to wait for the memoized value
     */
-  final def memoize: Fiber[A] =
+  final def memoize: Task[A] =
     TaskMemoize(this, cacheErrors = true)
 
   /** Memoizes (cache) the successful result of the source task
@@ -604,11 +607,9 @@ sealed abstract class Task[+A] extends Serializable {
     * @see [[memoize]] for a version that caches both successful
     *     results and failures
     *
-    * @return a [[Fiber]] that can be used to wait for the memoized
-    *         value or to cancel the background process that calculates
-    *         the memoized result (as long as it can be cancelled)
+    * @return a `Task` that can be used to wait for the memoized value
     */
-  final def memoizeOnSuccess: Fiber[A] =
+  final def memoizeOnSuccess: Task[A] =
     TaskMemoize(this, cacheErrors = false)
 
   /** Creates a new [[Task]] that will expose any triggered error
