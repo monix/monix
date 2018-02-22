@@ -53,9 +53,8 @@ private[eval] object TaskCancellation {
     */
   def uncancelable[A](fa: Task[A]): Task[A] =
     Async { (ctx, cb) =>
-      implicit val sc = ctx.scheduler
-      val ctx2 = Context(sc, ctx.options)
-      Task.unsafeStartTrampolined(fa, ctx2, Callback.async(cb))
+      val ctx2 = ctx.copy(connection = StackedCancelable.uncancelable)
+      Task.unsafeStartTrampolined(fa, ctx2, Callback.async(cb)(ctx2.scheduler))
     }
 
   /**
