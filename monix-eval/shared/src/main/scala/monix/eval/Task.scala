@@ -449,7 +449,23 @@ import scala.util.{Failure, Success, Try}
   *         or [[monix.eval.Coeval Coeval]], or at the edge of the
   *         FP program.
   *
-  * @define unsafeMemoize '''UNSAFE''' — this operation allocates a shared,
+  * @define memoizeCancel '''Cancellation''' — a memoized task will mirror
+  *         the behavior of the source on cancellation. This means that:
+  *
+  *          - if the source isn't cancellable, then the resulting memoized
+  *            task won't be cancellable either
+  *          - if the source is cancellable, then the memoized task can be
+  *            cancelled, which can take unprepared users by surprise
+  *
+  *         Depending on use-case, there are two ways to ensure no surprises:
+  *
+  *          - usage of [[onCancelRaiseError]], before applying memoization, to
+  *            ensure that on cancellation an error is triggered and then noticed
+  *            by the memoization logic
+  *          - usage of [[uncancelable]], either before or after applying
+  *            memoization, to ensure that the memoized task cannot be cancelled
+  *
+  * @define memoizeUnsafe '''UNSAFE''' — this operation allocates a shared,
   *         mutable reference, which can break in certain cases
   *         referential transparency, even if this operation guarantees
   *         idempotency (i.e. referential transparency implies idempotency,
@@ -580,7 +596,27 @@ sealed abstract class Task[+A] extends Serializable {
     * evaluating the resulting task multiple times will have the
     * same effect as evaluating it once.
     *
-    * $unsafeMemoize
+    * $memoizeCancel
+    *
+    * Example:
+    * {{{
+    *   import scala.concurrent.CancellationException
+    *
+    *   val source = Task(1).delayExecution(5.seconds)
+    *
+    *   // Option 1: trigger error on cancellation
+    *   val err = new CancellationException
+    *   val cached1 = source.onCancelRaiseError(err).memoize
+    *
+    *   // Option 2: make it uninterruptible
+    *   val cached2 = source.uncancelable.memoize
+    * }}}
+    *
+    * When using [[onCancelRaiseError]] like in the example above, the
+    * behavior of `memoize` is to cache the error. If you want the ability
+    * to retry errors until a successful value happens, see [[memoizeOnSuccess]].
+    *
+    * $memoizeUnsafe
     *
     * @see [[memoizeOnSuccess]] for a version that only caches
     *     successful results
@@ -597,7 +633,27 @@ sealed abstract class Task[+A] extends Serializable {
     * The resulting task will be idempotent, but only if the
     * result is successful.
     *
-    * $unsafeMemoize
+    * $memoizeCancel
+    *
+    * Example:
+    * {{{
+    *   import scala.concurrent.CancellationException
+    *
+    *   val source = Task(1).delayExecution(5.seconds)
+    *
+    *   // Option 1: trigger error on cancellation
+    *   val err = new CancellationException
+    *   val cached1 = source.onCancelRaiseError(err).memoizeOnSuccess
+    *
+    *   // Option 2: make it uninterruptible
+    *   val cached2 = source.uncancelable.memoizeOnSuccess
+    * }}}
+    *
+    * When using [[onCancelRaiseError]] like in the example above, the
+    * behavior of `memoizeOnSuccess` is to retry the source on subsequent
+    * invocations. Use [[memoize]] if that's not the desired behavior.
+    *
+    * $memoizeUnsafe
     *
     * @see [[memoize]] for a version that caches both successful
     *     results and failures
@@ -2676,9 +2732,9 @@ object Task extends TaskInstancesLevel1 {
     */
   final case class Context(
     scheduler: Scheduler,
+    options: Options,
     connection: StackedCancelable,
-    frameRef: FrameIndexRef,
-    options: Options) {
+    frameRef: FrameIndexRef) {
 
     /** Helper that returns the
       * [[monix.execution.ExecutionModel ExecutionModel]]
@@ -2697,11 +2753,14 @@ object Task extends TaskInstancesLevel1 {
 
   object Context {
     /** Initialize fresh [[Context]] reference. */
-    def apply(s: Scheduler, opts: Options): Context = {
-      val conn = StackedCancelable()
-      val em = s.executionModel
+    def apply(scheduler: Scheduler, options: Options): Context =
+      apply(scheduler, options, StackedCancelable())
+
+    /** Initialize fresh [[Context]] reference. */
+    def apply(scheduler: Scheduler, options: Options, connection: StackedCancelable): Context = {
+      val em = scheduler.executionModel
       val frameRef = FrameIndexRef(em)
-      Context(s, conn, frameRef, opts)
+      Context(scheduler, options, connection, frameRef)
     }
   }
 

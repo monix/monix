@@ -17,14 +17,14 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Context, Error, FrameIndex, Now}
-import monix.eval.internal.TaskRunLoop.{restartAsync, startFull}
+import monix.eval.Task.{Context, Error, Now}
+import monix.eval.internal.TaskRunLoop.startFull
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Scheduler
-import monix.execution.atomic.{Atomic, AtomicAny}
+import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
-import monix.execution.schedulers.TrampolinedRunnable
-import scala.concurrent.Promise
+import scala.annotation.tailrec
+import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Failure, Success, Try}
 
 
@@ -46,55 +46,39 @@ private[eval] object TaskMemoize {
         Task.Async(new Register(source, cacheErrors))
     }
 
+  /** Registration function, used in `Task.Async`. */
   private final class Register[A](source: Task[A], val cacheErrors: Boolean)
     extends ((Task.Context, Callback[A]) => Unit) { self =>
 
-    var thunk = source
-    val state = Atomic(null : AnyRef)
-
-    def value: Option[Try[A]] =
-      state.get match {
-        case null => None
-        case (p: Promise[_], _) =>
-          p.asInstanceOf[Promise[A]].future.value
-        case result: Try[_] =>
-          Some(result.asInstanceOf[Try[A]])
-      }
+    // N.B. keeps state!
+    private[this] var thunk = source
+    private[this] val state = Atomic(null : AnyRef)
 
     def apply(ctx: Context, cb: Callback[A]): Unit = {
       implicit val sc = ctx.scheduler
-      value match {
-        case Some(result) =>
+      state.get match {
+        case result: Try[A] @unchecked =>
           cb.asyncApply(result)
-        case None =>
-          sc.executeTrampolined { () =>
-            val ref = startMemoization(self, ctx, cb, ctx.frameRef())
-            // Race condition happened
-            if (ref ne null) {
-              // $COVERAGE-OFF$
-              cb(ref)
-              // $COVERAGE-ON$
-            }
-          }
+        case _ =>
+          start(ctx, cb)
       }
     }
-  }
 
-  /** Starts the execution and memoization of a `Task.MemoizeSuspend` state. */
-  private def startMemoization[A](
-    self: Register[A],
-    context: Context,
-    cb: Callback[A],
-    nextFrame: FrameIndex): Try[A] = {
-
-    // Internal function that stores
-    def cacheValue(state: AtomicAny[AnyRef], value: Try[A]): Unit = {
+    /** Saves the final result on completion and triggers the registered
+      * listeners.
+      */
+    @tailrec def cacheValue(value: Try[A])(implicit sc: Scheduler): Unit = {
       // Should we cache everything, error results as well,
       // or only successful results?
       if (self.cacheErrors || value.isSuccess) {
         state.getAndSet(value) match {
-          case (p: Promise[_], _) =>
-            p.asInstanceOf[Promise[A]].complete(value)
+          case (p: Promise[A] @unchecked, _) =>
+            if (!p.tryComplete(value)) {
+              // $COVERAGE-OFF$
+              if (value.isFailure)
+                sc.reportFailure(value.failed.get)
+              // $COVERAGE-ON$
+            }
           case _ =>
             () // do nothing
         }
@@ -102,68 +86,81 @@ private[eval] object TaskMemoize {
         self.thunk = null
       } else {
         // Error happened and we are not caching errors!
-        val current = state.get
-        // Resetting the state to `null` will trigger the
-        // execution again on next `runAsync`
-        if (state.compareAndSet(current, null))
-          current match {
-            case (p: Promise[_], _) =>
-              p.asInstanceOf[Promise[A]].complete(value)
-            case _ =>
-              () // do nothing
-          }
-        else
-          cacheValue(state, value) // retry
+        state.get match {
+          case current @ (p: Promise[A] @unchecked, _) =>
+            // Resetting the state to `null` will trigger the
+            // execution again on next `runAsync`
+            if (state.compareAndSet(current, null)) {
+              p.tryComplete(value)
+            } else {
+              // Race condition, retry
+              // $COVERAGE-OFF$
+              cacheValue(value)
+              // $COVERAGE-ON$
+            }
+          case _ =>
+            // $COVERAGE-OFF$
+            () // Do nothing, as value is probably null already
+            // $COVERAGE-ON$
+        }
       }
     }
 
-    implicit val sc: Scheduler = context.scheduler
-    self.state.get match {
-      case null =>
-        val p = Promise[A]()
+    /** Builds a callback that gets used to cache the result. */
+    private def complete(implicit sc: Scheduler): Callback[A] =
+      new Callback[A] {
+        def onSuccess(value: A): Unit =
+          self.cacheValue(Success(value))
+        def onError(ex: Throwable): Unit =
+          self.cacheValue(Failure(ex))
+      }
 
-        if (!self.state.compareAndSet(null, (p, context.connection))) {
-          // $COVERAGE-OFF$
-          startMemoization(self, context, cb, nextFrame) // retry
-          // $COVERAGE-ON$
-        } else {
-          val underlying = self.thunk
-          val callback = new Callback[A] {
-            def onError(ex: Throwable): Unit = {
-              cacheValue(self.state, Failure(ex))
-              restartAsync(Error(ex), context, cb, null, null, null)
-            }
+    /** While the task is pending completion, registers a new listener
+      * that will receive the result once the task is complete.
+      */
+    private def registerListener(
+      ref: (Promise[A], StackedCancelable),
+      context: Context,
+      cb: Callback[A])
+      (implicit ec: ExecutionContext): Unit = {
 
-            def onSuccess(value: A): Unit = {
-              cacheValue(self.state, Success(value))
-              restartAsync(Now(value), context, cb, null, null, null)
-            }
+      val (p, c) = ref
+      context.connection.push(c)
+      p.future.onComplete { r =>
+        context.connection.pop()
+        context.frameRef.reset()
+        startFull(Task.fromTry(r), context, cb, null, null, null, 1)
+      }
+    }
+
+    /**
+      * Starts execution, eventually caching the value on completion.
+      */
+    @tailrec private def start(context: Context, cb: Callback[A]): Unit = {
+      implicit val sc: Scheduler = context.scheduler
+      self.state.get match {
+        case null =>
+          val update = (Promise[A](), context.connection)
+
+          if (!self.state.compareAndSet(null, update)) {
+            // $COVERAGE-OFF$
+            start(context, cb) // retry
+            // $COVERAGE-ON$
+          } else {
+            self.registerListener(update, context, cb)
+            // With light async boundary to prevent stack-overflows!
+            Task.unsafeStartTrampolined(self.thunk, context, self.complete)
           }
 
-          // Asynchronous boundary to prevent stack-overflows!
-          sc.execute(new TrampolinedRunnable {
-            def run(): Unit = {
-              startFull(underlying, context, callback, null, null, null, nextFrame)
-            }
-          })
-          null
-        }
+        case ref: (Promise[A], StackedCancelable) @unchecked =>
+          self.registerListener(ref, context, cb)
 
-      case (p: Promise[_], mainCancelable: StackedCancelable) =>
-        // execution is pending completion
-        context.connection push mainCancelable
-        p.asInstanceOf[Promise[A]].future.onComplete { r =>
-          context.connection.pop()
-          context.frameRef.reset()
-          startFull(Task.fromTry(r), context, cb, null, null, null, 1)
-        }
-        null
-
-      case ref: Try[A] @unchecked =>
-        // Race condition happened
-        // $COVERAGE-OFF$
-        ref
-        // $COVERAGE-ON$
+        case ref: Try[A] @unchecked =>
+          // Race condition happened
+          // $COVERAGE-OFF$
+          cb.asyncApply(ref)
+          // $COVERAGE-ON$
+      }
     }
   }
 }
