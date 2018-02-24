@@ -123,7 +123,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
   /** Returns the current time in milliseconds.  Note that while the
     * unit of time of the return value is a millisecond, the
     * granularity of the value depends on the underlying operating
-    * system and may be larger.  For example, many operating systems
+    * system and may be larger.  For example, some operating systems
     * measure time in units of tens of milliseconds.
     *
     * It's the equivalent of `System.currentTimeMillis()`. When wanting

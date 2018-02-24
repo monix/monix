@@ -18,20 +18,19 @@
 package monix.tail
 
 import java.io.PrintStream
-
 import cats.arrow.FunctionK
-import cats.effect.{Async, Effect, Sync}
+import cats.effect.{Async, Effect, IO, Sync}
 import cats.{Applicative, CoflatMap, Eq, MonadError, Monoid, MonoidK, Order, Parallel}
-import monix.eval.instances.{CatsAsyncForTask, CatsBaseForTask, CatsSyncForCoeval}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
 import monix.execution.misc.NonFatal
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
+import monix.tail.util.Timer
 import org.reactivestreams.Publisher
-
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.reflect.ClassTag
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
@@ -1888,6 +1887,22 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *
   * @define suspendByNameParam is the by-name parameter that will generate
   *         the stream when evaluated
+  *
+  * @define intervalAtFixedRateDesc Creates an iterant that
+  *         emits auto-incremented natural numbers (longs).
+  *         at a fixed rate, as given by the specified `period`.
+  *         The amount of time it takes to process an incoming
+  *         value gets subtracted from provided `period`, thus
+  *         created iterant tries to emit events spaced by the
+  *         given time interval, regardless of how long further
+  *         processing takes
+  *
+  * @define intervalWithFixedDelayDesc Creates an iterant that
+  *         emits auto-incremented natural numbers (longs) spaced
+  *         by a given time interval. Starts from 0 with no delay,
+  *         after which it emits incremented numbers spaced by the
+  *         `period` of time. The given `period` of time acts as a
+  *         fixed delay between successive events.
   */
 object Iterant extends IterantInstances {
   /** Returns an [[IterantBuilders]] instance for the specified `F`
@@ -2236,6 +2251,54 @@ object Iterant extends IterantInstances {
   def empty[F[_], A]: Iterant[F, A] =
     Halt[F, A](None)
 
+  /** $intervalAtFixedRateDesc
+    *
+    * @param period period between 2 successive emitted values
+    * @param timer is the timer implementation used to generate
+    *        delays and to fetch the current time
+    */
+  def intervalAtFixedRate[F[_]](period: FiniteDuration)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    IterantIntervalAtFixedRate(Duration.Zero, period)
+
+  /** $intervalAtFixedRateDesc
+    *
+    * This version of the `intervalAtFixedRate` allows specifying an
+    * `initialDelay` before first value is emitted
+    *
+    * @param initialDelay initial delay before emitting the first value
+    * @param period period between 2 successive emitted values
+    * @param timer is the timer implementation used to generate
+    *        delays and to fetch the current time
+    */
+  def intervalAtFixedRate[F[_]](initialDelay: FiniteDuration, period: FiniteDuration)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    IterantIntervalAtFixedRate(initialDelay, period)
+
+  /** $intervalWithFixedDelayDesc
+    *
+    * Without having an initial delay specified, this overload
+    * will immediately emit the first item, without any delays.
+    *
+    * @param delay the time to wait between 2 successive events
+    * @param timer is the timer implementation used to generate
+    *        delays and to fetch the current time
+    */
+  def intervalWithFixedDelay[F[_]](delay: FiniteDuration)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    IterantIntervalWithFixedDelay(Duration.Zero, delay)
+
+  /** $intervalWithFixedDelayDesc
+    *
+    * @param initialDelay is the delay to wait before emitting the first event
+    * @param delay the time to wait between 2 successive events
+    * @param timer is the timer implementation used to generate
+    *        delays and to fetch the current time
+    */
+  def intervalWithFixedDelay[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    IterantIntervalWithFixedDelay(initialDelay, delay)
+
   /** $NextDesc
     *
     * @param item $headParamDesc
@@ -2329,48 +2392,21 @@ private[tail] trait IterantInstances extends IterantInstances1 {
     * on the default instances provided by
     * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
-  implicit def catsInstancesForTask(implicit F: Async[Task]): CatsInstances[Task] = {
-    // Avoiding the creation of junk, because it is expensive
-    F match {
-      case _: CatsBaseForTask => defaultIterantTaskRef
-      case _ => new CatsInstancesForTask()(F)
-    }
-  }
-
-  /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
-  private[this] final val defaultIterantTaskRef: CatsInstances[Task] =
-    new CatsInstancesForTask()(CatsAsyncForTask)
+  implicit val catsInstancesForTask: CatsInstances[Task] = 
+    new CatsInstances
 
   /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
     * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
     */
-  implicit def catsInstancesForCoeval(implicit F: Sync[Coeval]): CatsInstances[Coeval] = {
-    // Avoiding the creation of junk, because it is expensive
-    F match {
-      case CatsSyncForCoeval => defaultIterantCoevalRef
-      case _ => new CatsInstancesForCoeval()(F)
-    }
-  }
+  implicit val catsInstancesForCoeval: CatsInstances[Coeval] =
+    new CatsInstances
 
-  /** Reusable instance for `Iterant[Coeval, A]`, avoids creating junk. */
-  private[this] final val defaultIterantCoevalRef =
-    new CatsInstancesForCoeval()(CatsSyncForCoeval)
-
-  /** Provides type class instances for `Iterant[Task, A]`, based
-    * on the default instances provided by
-    * [[monix.eval.Task.catsAsync Task.catsAsync]].
+  /** Provides type class instances for `Iterant[IO, A]`, based on
+    * the default instances provided by `IO.ioEffect`.
     */
-  private final class CatsInstancesForTask(implicit F: Async[Task])
-    extends CatsInstances[Task]()(F)
-
-  /** Provides type class instances for `Iterant[Coeval, A]`, based on
-    * the default instances provided by
-    * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
-    */
-  private final class CatsInstancesForCoeval(implicit F: Sync[Coeval])
-    extends CatsInstances[Coeval]()(F)
-
+  implicit val catsInstancesForIO: CatsInstances[IO] =
+    new CatsInstances
 }
 
 private[tail] trait IterantInstances1 {
