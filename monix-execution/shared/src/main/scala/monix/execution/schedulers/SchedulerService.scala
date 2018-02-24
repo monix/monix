@@ -17,8 +17,10 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{ExecutionModel => ExecModel, Scheduler}
-import scala.concurrent.Future
+import monix.execution.{Scheduler, ExecutionModel => ExecModel}
+import monix.execution.internal.Platform
+import monix.execution.schedulers.TrampolineExecutionContext.immediate
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 
 /** A [[monix.execution.Scheduler Scheduler]] type that provides
@@ -84,12 +86,12 @@ trait SchedulerService extends Scheduler {
     *
     * @param timeout the maximum time to wait
     * @param unit the time unit of the timeout argument
-    * @param awaitOn the [[Scheduler]] used for awaiting the shutdown
+    * @param awaitOn the `ExecutionContext` used for awaiting the shutdown
     *
     * @return a `Future` signaling `true` if this scheduler terminated or
     *         `false` if the timeout elapsed before termination
     */
-  def awaitTermination(timeout: Long, unit: TimeUnit, awaitOn: Scheduler): Future[Boolean]
+  def awaitTermination(timeout: Long, unit: TimeUnit, awaitOn: ExecutionContext): Future[Boolean]
 
   // Overriding the return type
   override def withExecutionModel(em: ExecModel): SchedulerService
@@ -99,7 +101,19 @@ object SchedulerService {
   /** Extensions for the [[SchedulerService]] interface. */
   implicit class Extensions(val self: SchedulerService) extends AnyVal {
     /** Overload of [[SchedulerService.awaitTermination]]. */
-    def awaitTermination(timeout: FiniteDuration, awaitOn: Scheduler): Future[Boolean] =
+    def awaitTermination(timeout: FiniteDuration, awaitOn: ExecutionContext): Future[Boolean] =
       self.awaitTermination(timeout.length, timeout.unit, awaitOn)
+
+    /** A blocking version of [[SchedulerService.awaitTermination]] that
+      * blocks the current thread.
+      *
+      * Due to requiring a [[CanBlock]] permit, calls to this function want
+      * compile on top of JavaScript, since blocking operations are not supported
+      * for JS engines.
+      */
+    def awaitTermination(timeout: FiniteDuration)(implicit permit: CanBlock): Boolean = {
+      val fa = self.awaitTermination(timeout, immediate)
+      Platform.await(fa, timeout)
+    }
   }
 }

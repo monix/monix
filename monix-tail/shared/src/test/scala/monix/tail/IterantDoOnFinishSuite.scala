@@ -152,7 +152,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     check1 { (stream: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val received = stream.doOnFinish(_ => throw dummy)
-      received <-> Iterant[Coeval].raiseError(dummy)
+      received <-> stream.onErrorIgnore ++ Iterant[Coeval].raiseError[Int](dummy)
     }
   }
 }

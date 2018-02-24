@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package monix.eval.internal
+package monix.eval
+package internal
 
-import monix.eval.{Callback, Task}
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
 import scala.concurrent.Promise
@@ -26,7 +26,7 @@ private[eval] object TaskRacePair {
   /**
     * Implementation for `Task.racePair`.
     */
-  def apply[A, B](fa: Task[A], fb: Task[B]): Task[Either[(A, Task[B]), (Task[A], B)]] =
+  def apply[A, B](fa: Task[A], fb: Task[B]): Task[Either[(A, Fiber[B]), (Fiber[A], B)]] =
     Task.unsafeCreate { (context, cb) =>
       implicit val s = context.scheduler
       val conn = context.connection
@@ -46,9 +46,9 @@ private[eval] object TaskRacePair {
       Task.unsafeStartAsync(fa, contextA, new Callback[A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
-            val futureB = TaskFromFuture.build(pb.future, connB)
+            val fiberB = Fiber(TaskFromFuture.lightBuild(pb.future, connB))
             conn.pop()
-            cb.asyncOnSuccess(Left((valueA, futureB)))
+            cb.asyncOnSuccess(Left((valueA, fiberB)))
           } else {
             pa.success(valueA)
           }
@@ -67,9 +67,9 @@ private[eval] object TaskRacePair {
       Task.unsafeStartAsync(fb, contextB, new Callback[B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
-            val futureA = TaskFromFuture.build(pa.future, connA)
+            val fiberA = Fiber(TaskFromFuture.lightBuild(pa.future, connA))
             conn.pop()
-            cb.asyncOnSuccess(Right((futureA, valueB)))
+            cb.asyncOnSuccess(Right((fiberA, valueB)))
           } else {
             pb.success(valueB)
           }

@@ -18,8 +18,7 @@
 package monix.eval
 
 import monix.execution.Scheduler
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.Duration.Inf
 
 /** Safe `App` type that runs a [[Task]] action.
   *
@@ -56,7 +55,6 @@ trait TaskApp {
     Coeval.evalOnce(Task.defaultOptions)
 
   final def main(args: Array[String]): Unit = {
-    val f = run(args).runAsyncOpt(scheduler.value, options.value)
-    Await.result(f, Duration.Inf)
+    run(args).runSyncUnsafeOpt(Inf)(scheduler.value, options.value, implicitly)
   }
 }

@@ -25,9 +25,9 @@ object TaskLocalSuite extends SimpleTestSuite {
   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
   testAsync("Local.apply") {
-    val local = TaskLocal(0)
     val test =
       for {
+        local <- TaskLocal(0)
         v1 <- local.read
         _ <- Task.now(assertEquals(v1, 0))
         _ <- local.write(100)
@@ -45,10 +45,10 @@ object TaskLocalSuite extends SimpleTestSuite {
 
   testAsync("Local.defaultLazy") {
     var i = 0
-    val local = TaskLocal.lazyDefault(Coeval { i += 1; i })
 
     val test =
       for {
+        local <- TaskLocal.lazyDefault(Coeval { i += 1; i })
         v1 <- local.read
         _ <- Task.now(assertEquals(v1, 1))
         _ <- local.write(100)
@@ -66,9 +66,9 @@ object TaskLocalSuite extends SimpleTestSuite {
 
 
   testAsync("TaskLocal!.bind") {
-    val local = TaskLocal(0)
     val test =
       for {
+        local <- TaskLocal(0)
         _ <- local.write(100)
         _ <- Task.shift
         v1 <- local.bind(200)(local.read.map(_ * 2))
@@ -81,9 +81,9 @@ object TaskLocalSuite extends SimpleTestSuite {
   }
 
   testAsync("TaskLocal!.bindL") {
-    val local = TaskLocal(0)
     val test =
       for {
+        local <- TaskLocal(0)
         _ <- local.write(100)
         _ <- Task.shift
         v1 <- local.bindL(Task.eval(200))(local.read.map(_ * 2))
@@ -96,9 +96,9 @@ object TaskLocalSuite extends SimpleTestSuite {
   }
 
   testAsync("TaskLocal!.bindClear") {
-    val local = TaskLocal(200)
     val test =
       for {
+        local <- TaskLocal(200)
         _ <- local.write(100)
         _ <- Task.shift
         v1 <- local.bindClear(local.read.map(_ * 2))

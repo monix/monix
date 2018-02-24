@@ -2,6 +2,8 @@ benchmarks/results
 test-output/
 TODO
 .*
+!/.gitignore
+!/.scalafmt.conf
 .tags*
 .idea*
 *.log

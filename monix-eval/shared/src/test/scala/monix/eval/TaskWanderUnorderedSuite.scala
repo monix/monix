@@ -132,9 +132,11 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val ex = DummyException("dummy1")
     var errorsThrow = 0
     val gather = Task.wanderUnordered(Seq(0, 0)) { _ =>
-      Task.fork(Task.raiseError[Int](ex))
+      Task.raiseError[Int](ex)
+        .executeAsync
         .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
     }
+
     val result = gather.runAsync
     s.tick()
 
@@ -148,6 +150,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val task1 = Task {
       effect += 1; 3
     }.memoize
+
     val task2 = task1 map { x => effect += 1; x + 1 }
 
     val task3 = Task.wanderUnordered(List(0, 0, 0)) { _ =>

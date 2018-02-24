@@ -18,24 +18,31 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
+import monix.eval.Task.Context
+import monix.execution.cancelables.SingleAssignCancelable
 
-private[eval] object TaskDelayExecutionWith {
-  /**
-    * Implementation for `Task.delayExecutionWith`
-    */
-  def apply[A](self: Task[A], trigger: Task[Any]): Task[A] =
-    Task.unsafeCreate { (context, cb) =>
-      implicit val s = context.scheduler
+import scala.concurrent.duration.Duration
 
-      Task.unsafeStartAsync(trigger, context,
-        new Callback[Any] {
-          def onSuccess(value: Any): Unit = {
-            // Async boundary forced, prevents stack-overflows
-            Task.unsafeStartAsync(self, context, Callback.async(cb))
-          }
+private[eval] object TaskSleep {
+  def apply(timespan: Duration): Task[Unit] =
+    Task.Async { (ctx, cb) =>
+      val c = SingleAssignCancelable()
+      ctx.connection.push(c)
 
-          def onError(ex: Throwable): Unit =
-            cb.asyncOnError(ex)
-        })
+      c := ctx.scheduler.scheduleOnce(
+        timespan.length,
+        timespan.unit,
+        new SleepRunnable(ctx, cb))
     }
+
+  private final class SleepRunnable(ctx: Context, cb: Callback[Unit])
+    extends Runnable {
+
+    def run(): Unit = {
+      ctx.connection.pop()
+      // We had an async boundary, as we must reset the frame
+      ctx.frameRef.reset()
+      cb.onSuccess(())
+    }
+  }
 }

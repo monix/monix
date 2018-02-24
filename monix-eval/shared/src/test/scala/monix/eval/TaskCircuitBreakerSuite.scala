@@ -24,10 +24,10 @@ import scala.util.{Failure, Success}
 
 object TaskCircuitBreakerSuite extends BaseTestSuite {
   test("should work for successful async tasks") { implicit s =>
-    val circuitBreaker = TaskCircuitBreaker(
+    val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    )
+    ).runSyncMaybe
 
     var effect = 0
     val task = circuitBreaker.protect(Task {
@@ -40,10 +40,10 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
   }
 
   test("should work for successful immediate tasks") { implicit s =>
-    val circuitBreaker = TaskCircuitBreaker(
+    val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    )
+    ).runSyncMaybe
 
     var effect = 0
     val task = circuitBreaker.protect(Task.eval {
@@ -55,10 +55,10 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
   }
 
   test("should be stack safe for successful async tasks (flatMap)") { implicit s =>
-    val circuitBreaker = TaskCircuitBreaker(
+    val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    )
+    ).runSyncMaybe
 
     def loop(n: Int, acc: Int): Task[Int] = {
       if (n > 0)
@@ -73,28 +73,28 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
   }
 
   test("should be stack safe for successful async tasks (defer)") { implicit s =>
-    val circuitBreaker = TaskCircuitBreaker(
+    val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    )
+    ).runSyncMaybe
 
     def loop(n: Int, acc: Int): Task[Int] =
-      Task.fork(Task.defer {
+      Task.defer {
         if (n > 0)
           circuitBreaker.protect(loop(n-1, acc+1))
         else
           Task.now(acc)
-      })
+      }.executeAsync
 
     val f = loop(100000, 0).runAsync; s.tick()
     assertEquals(f.value, Some(Success(100000)))
   }
 
   test("should be stack safe for successful immediate tasks (flatMap)") { implicit s =>
-    val circuitBreaker = TaskCircuitBreaker(
+    val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    )
+    ).runSyncMaybe
 
     def loop(n: Int, acc: Int): Task[Int] = {
       if (n > 0)
@@ -109,10 +109,10 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
   }
 
   test("should be stack safe for successful immediate tasks (defer)") { implicit s =>
-    val circuitBreaker = TaskCircuitBreaker(
+    val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    )
+    ).runSyncMaybe
 
     def loop(n: Int, acc: Int): Task[Int] =
       Task.defer {
@@ -133,12 +133,12 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     var rejectedCount = 0
 
     val circuitBreaker = {
-      val cb = TaskCircuitBreaker(
+      val Right(cb) = TaskCircuitBreaker(
         maxFailures = 5,
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 2,
         maxResetTimeout = 10.minutes
-      )
+      ).runSyncMaybe
 
       cb.doOnOpen(Task.eval { openedCount += 1})
         .doOnClosed(Task.eval { closedCount += 1 })
@@ -237,7 +237,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
       val circuitBreaker = TaskCircuitBreaker(
         maxFailures = -1,
         resetTimeout = 1.minute
-      )
+      ).runSyncMaybe
     }
 
     intercept[IllegalArgumentException] {
@@ -245,7 +245,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
       val circuitBreaker = TaskCircuitBreaker(
         maxFailures = 2,
         resetTimeout = -1.minute
-      )
+      ).runSyncMaybe
     }
 
     intercept[IllegalArgumentException] {
@@ -254,7 +254,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
         maxFailures = 2,
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 0.5
-      )
+      ).runSyncMaybe
     }
 
     intercept[IllegalArgumentException] {
@@ -264,7 +264,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 2,
         maxResetTimeout = Duration.Zero
-      )
+      ).runSyncMaybe
     }
   }
 }

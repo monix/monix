@@ -17,22 +17,18 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, Map, MemoizeSuspend, Now, Suspend, fromTry}
+import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
-import monix.execution.atomic.AtomicAny
-import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.{Local, NonFatal}
-import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
-
 import scala.concurrent.Promise
-import scala.util.{Failure, Success, Try}
+
 
 private[eval] object TaskRunLoop {
-  private type Current = Task[Any]
-  private type Bind = Any => Task[Any]
-  private type CallStack = ArrayStack[Bind]
+  type Current = Task[Any]
+  type Bind = Any => Task[Any]
+  type CallStack = ArrayStack[Bind]
 
   /** Starts or resumes evaluation of the run-loop from where it left
     * off. This is the complete run-loop.
@@ -49,36 +45,9 @@ private[eval] object TaskRunLoop {
     bRest: CallStack,
     frameIndex: FrameIndex): Unit = {
 
-    def executeOnFinish(
-      context: Context,
-      cb: Callback[Any],
-      rcb: RestartCallback,
-      bFirst: Bind,
-      bRest: CallStack,
-      register: (Context, Callback[Any]) => Unit,
-      nextFrame: FrameIndex): Unit = {
-
-      if (!context.shouldCancel) {
-        // We are going to resume the frame index from where we left,
-        // but only if no real asynchronous execution happened. So in order
-        // to detect asynchronous execution, we are reading a thread-local
-        // variable that's going to be reset in case of a thread jump.
-        // Obviously this doesn't work for Javascript or for single-threaded
-        // thread-pools, but that's OK, as it only means that in such instances
-        // we can experience more async boundaries and everything is fine for
-        // as long as the implementation of `Async` tasks are triggering
-        // a `frameRef.reset` on async boundaries.
-        context.frameRef := nextFrame
-
-        // rcb reference might be null, so initializing
-        val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
-        restartCallback.prepare(bFirst, bRest)
-        register(context, restartCallback)
-      }
-    }
-
     val cba = cb.asInstanceOf[Callback[Any]]
-    val em = context.executionModel
+    val sc = context.scheduler
+    val em = sc.executionModel
     var current: Current = source
     var bFirstRef = bFirst
     var bRestRef = bRest
@@ -131,34 +100,15 @@ private[eval] object TaskRunLoop {
                 return
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
-                try { current = bind.recover(error) }
+                try { current = bind.recover(error, sc) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 currentIndex = em.nextFrameIndex(currentIndex)
                 bFirstRef = null
             }
 
-          case Async(onFinish) =>
-            executeOnFinish(context, cba, rcb, bFirstRef, bRestRef, onFinish, currentIndex)
+          case Async(register) =>
+            executeAsyncTask(context, register, cba, rcb, bFirstRef, bRestRef, currentIndex)
             return
-
-          case ref: MemoizeSuspend[_] =>
-            // Already processed?
-            ref.value match {
-              case Some(materialized) =>
-                materialized match {
-                  case Success(value) =>
-                    unboxed = value.asInstanceOf[AnyRef]
-                    hasUnboxed = true
-                    current = null
-                  case Failure(error) =>
-                    current = Error(error)
-                }
-              case None =>
-                val anyRef = ref.asInstanceOf[MemoizeSuspend[Any]]
-                val isSuccess = startMemoization(anyRef, context, cba, rcb, bFirstRef, bRestRef, currentIndex)
-                if (isSuccess) return
-                current = ref
-            }
         }
 
         if (hasUnboxed) {
@@ -199,8 +149,14 @@ private[eval] object TaskRunLoop {
       if (context.options.localContextPropagation) Local.getContext()
       else null
 
-    if (!context.shouldCancel) {
-      context.scheduler.executeAsync { () =>
+    context.scheduler.executeAsync { () =>
+      // Checking for the cancellation status after the async boundary;
+      // This is consistent with the behavior on `Async` tasks, i.e. check
+      // is done *after* the evaluation and *before* signaling the result
+      // or continuing the evaluation of the bind chain. It also makes sense
+      // because it gives a chance to the caller to cancel and not wait for
+      // another forced boundary to have actual cancellation happening.
+      if (!context.shouldCancel) {
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
         // Transporting the current context if localContextPropagation == true.
@@ -278,38 +234,21 @@ private[eval] object TaskRunLoop {
                 return Cancelable.empty
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
-                try { current = bind.recover(error) }
+                try { current = bind.recover(error, scheduler) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
             }
 
-          case Async(_) =>
+          case Async(register) =>
             return goAsyncForLightCB(
-              current, scheduler, opts,
+              current,
+              register,
+              scheduler,
+              opts,
               cb.asInstanceOf[Callback[Any]],
               bFirst, bRest, frameIndex,
               forceAsync = false)
-
-          case ref: MemoizeSuspend[_] =>
-            // Already processed?
-            ref.value match {
-              case Some(materialized) =>
-                materialized match {
-                  case Success(value) =>
-                    unboxed = value.asInstanceOf[AnyRef]
-                    hasUnboxed = true
-                    current = null
-                  case Failure(error) =>
-                    current = Error(error)
-                }
-              case None =>
-                return goAsyncForLightCB(
-                  current, scheduler, opts,
-                  cb.asInstanceOf[Callback[Any]],
-                  bFirst, bRest, frameIndex,
-                  forceAsync = false)
-            }
         }
 
         if (hasUnboxed) {
@@ -331,7 +270,8 @@ private[eval] object TaskRunLoop {
       else {
         // Force async boundary
         return goAsyncForLightCB(
-          current, scheduler, opts,
+          current, null,
+          scheduler, opts,
           cb.asInstanceOf[Callback[Any]],
           bFirst, bRest, frameIndex,
           forceAsync = true)
@@ -407,30 +347,19 @@ private[eval] object TaskRunLoop {
                 return CancelableFuture.failed(error)
               case bind =>
                 // Try/catch described as statement to prevent ObjectRef ;-)
-                try { current = bind.recover(error) }
+                try { current = bind.recover(error, scheduler) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
             }
 
-          case Async(_) =>
-            return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceAsync = false)
-
-          case ref: MemoizeSuspend[_] =>
-            // Already processed?
-            ref.value match {
-              case Some(materialized) =>
-                materialized match {
-                  case Success(value) =>
-                    unboxed = value.asInstanceOf[AnyRef]
-                    hasUnboxed = true
-                    current = null
-                  case Failure(error) =>
-                    current = Error(error)
-                }
-              case None =>
-                return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceAsync = false)
-            }
+          case Async(register) =>
+            return goAsync4Future(
+              current, register,
+              scheduler, opts,
+              bFirst, bRest,
+              frameIndex,
+              forceAsync = false)
         }
 
         if (hasUnboxed) {
@@ -453,7 +382,12 @@ private[eval] object TaskRunLoop {
         }
       } else {
         // Force async boundary
-        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceAsync = true)
+        return goAsync4Future(
+          current, null,
+          scheduler, opts,
+          bFirst, bRest,
+          frameIndex,
+          forceAsync = true)
       }
     } while (true)
     // $COVERAGE-OFF$
@@ -461,24 +395,53 @@ private[eval] object TaskRunLoop {
     // $COVERAGE-ON$
   }
 
+  private[internal] def executeAsyncTask(
+    context: Context,
+    register: (Context, Callback[Any]) => Unit,
+    cb: Callback[Any],
+    rcb: RestartCallback,
+    bFirst: Bind,
+    bRest: CallStack,
+    nextFrame: FrameIndex): Unit = {
+
+    // We are going to resume the frame index from where we left,
+    // but only if no real asynchronous execution happened. So in order
+    // to detect asynchronous execution, we are reading a thread-local
+    // variable that's going to be reset in case of a thread jump.
+    // Obviously this doesn't work for Javascript or for single-threaded
+    // thread-pools, but that's OK, as it only means that in such instances
+    // we can experience more async boundaries and everything is fine for
+    // as long as the implementation of `Async` tasks are triggering
+    // a `frameRef.reset` on async boundaries.
+    context.frameRef := nextFrame
+
+    // rcb reference might be null, so initializing
+    val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
+    restartCallback.prepare(bFirst, bRest)
+    register(context, restartCallback)
+  }
+
   /** Called when we hit the first async boundary in
     * [[startLight]].
     */
   private def goAsyncForLightCB(
     source: Current,
+    register: (Context, Callback[Any]) => Unit,
     scheduler: Scheduler,
     opts: Task.Options,
     cb: Callback[Any],
-    bindCurrent: Bind,
-    bindRest: CallStack,
+    bFirst: Bind,
+    bRest: CallStack,
     nextFrame: FrameIndex,
     forceAsync: Boolean): Cancelable = {
 
     val context = Context(scheduler, opts)
-    if (forceAsync)
-      restartAsync(source, context, cb, null, bindCurrent, bindRest)
+    if (register ne null)
+      executeAsyncTask(context, register, cb, null, bFirst, bRest, 1)
+    else if (forceAsync)
+      restartAsync(source, context, cb, null, bFirst, bRest)
     else
-      startFull(source, context, cb, null, bindCurrent, bindRest, nextFrame)
+      startFull(source, context, cb, null, bFirst, bRest, nextFrame)
 
     context.connection
   }
@@ -486,10 +449,11 @@ private[eval] object TaskRunLoop {
   /** Called when we hit the first async boundary in [[startFuture]]. */
   private def goAsync4Future[A](
     source: Current,
+    register: (Context, Callback[Any]) => Unit,
     scheduler: Scheduler,
     opts: Task.Options,
-    bindCurrent: Bind,
-    bindRest: CallStack,
+    bFirst: Bind,
+    bRest: CallStack,
     nextFrame: FrameIndex,
     forceAsync: Boolean): CancelableFuture[A] = {
 
@@ -497,106 +461,18 @@ private[eval] object TaskRunLoop {
     val cb = Callback.fromPromise(p)
     val fa = source.asInstanceOf[Task[A]]
     val context = Context(scheduler, opts)
-    if (forceAsync)
-      restartAsync(fa, context, cb, null, bindCurrent, bindRest)
+
+    if (register ne null)
+      executeAsyncTask(context, register, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
+    else if (forceAsync)
+      restartAsync(fa, context, cb, null, bFirst, bRest)
     else
-      startFull(fa, context, cb, null, bindCurrent, bindRest, nextFrame)
+      startFull(fa, context, cb, null, bFirst, bRest, nextFrame)
 
     CancelableFuture(p.future, context.connection)
   }
 
-  /** Starts the execution and memoization of a `Task.MemoizeSuspend` state. */
-  private def startMemoization[A](
-    self: MemoizeSuspend[A],
-    context: Context,
-    cb: Callback[A],
-    rcb: RestartCallback,
-    bindCurrent: Bind,
-    bindRest: CallStack,
-    nextFrame: FrameIndex): Boolean = {
-
-    // Internal function that stores
-    def cacheValue(state: AtomicAny[AnyRef], value: Try[A]): Unit = {
-      // Should we cache everything, error results as well,
-      // or only successful results?
-      if (self.cacheErrors || value.isSuccess) {
-        state.getAndSet(value) match {
-          case (p: Promise[_], _) =>
-            p.asInstanceOf[Promise[A]].complete(value)
-          case _ =>
-            () // do nothing
-        }
-        // GC purposes
-        self.thunk = null
-      } else {
-        // Error happened and we are not caching errors!
-        val current = state.get
-        // Resetting the state to `null` will trigger the
-        // execution again on next `runAsync`
-        if (state.compareAndSet(current, null))
-          current match {
-            case (p: Promise[_], _) =>
-              p.asInstanceOf[Promise[A]].complete(value)
-            case _ =>
-              () // do nothing
-          }
-        else
-          cacheValue(state, value) // retry
-      }
-    }
-
-    implicit val s: Scheduler = context.scheduler
-
-    self.state.get match {
-      case null =>
-        val p = Promise[A]()
-
-        if (!self.state.compareAndSet(null, (p, context.connection))) {
-          // $COVERAGE-OFF$
-          startMemoization(self, context, cb, rcb, bindCurrent, bindRest, nextFrame) // retry
-          // $COVERAGE-ON$
-        } else {
-          val underlying = try self.thunk() catch { case ex if NonFatal(ex) => Error(ex) }
-          val callback = new Callback[A] {
-            def onError(ex: Throwable): Unit = {
-              cacheValue(self.state, Failure(ex))
-              restartAsync(Error(ex), context, cb, rcb, bindCurrent, bindRest)
-            }
-
-            def onSuccess(value: A): Unit = {
-              cacheValue(self.state, Success(value))
-              restartAsync(Now(value), context, cb, rcb, bindCurrent, bindRest)
-            }
-          }
-
-          // Asynchronous boundary to prevent stack-overflows!
-          s.execute(new TrampolinedRunnable {
-            def run(): Unit = {
-              startFull(underlying, context, callback, null, null, null, nextFrame)
-            }
-          })
-          true
-        }
-
-      case (p: Promise[_], mainCancelable: StackedCancelable) =>
-        // execution is pending completion
-        context.connection push mainCancelable
-        p.asInstanceOf[Promise[A]].future.onComplete { r =>
-          context.connection.pop()
-          context.frameRef.reset()
-          startFull(fromTry(r), context, cb, rcb, bindCurrent, bindRest, 1)
-        }
-        true
-
-      case _: Try[_] =>
-        // Race condition happened
-        // $COVERAGE-OFF$
-        false
-        // $COVERAGE-ON$
-    }
-  }
-
-  private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
+  private[internal] def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
     bFirst match {
       case ref: StackFrame[Any, Task[Any]] @unchecked => ref
       case _ =>
@@ -615,7 +491,7 @@ private[eval] object TaskRunLoop {
     }
   }
 
-  private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
+  private[internal] def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
     if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]])
       return bFirst
 
@@ -636,7 +512,9 @@ private[eval] object TaskRunLoop {
   private def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
 
-  final class RestartCallback(context: Context, callback: Callback[Any]) extends Callback[Any] {
+  private[internal] final class RestartCallback(context: Context, callback: Callback[Any])
+    extends Callback[Any] {
+
     private[this] var canCall = false
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
@@ -653,7 +531,7 @@ private[eval] object TaskRunLoop {
     }
 
     def onSuccess(value: Any): Unit =
-      if (canCall) {
+      if (canCall && !context.shouldCancel) {
         canCall = false
         Local.bind(savedLocals) {
           startFull(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
@@ -661,7 +539,7 @@ private[eval] object TaskRunLoop {
       }
 
     def onError(ex: Throwable): Unit = {
-      if (canCall) {
+      if (canCall && !context.shouldCancel) {
         canCall = false
         Local.bind(savedLocals) {
           startFull(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())

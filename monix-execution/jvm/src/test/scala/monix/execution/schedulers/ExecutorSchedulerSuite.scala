@@ -45,7 +45,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   override def tearDown(scheduler: SchedulerService): Unit = {
     try assert(!scheduler.isShutdown) finally scheduler.shutdown()
     assert(scheduler.isShutdown, "scheduler.isShutdown")
-    val result = Await.result(scheduler.awaitTermination(10.seconds, Scheduler.global), 30.seconds)
+    val result = scheduler.awaitTermination(10.seconds)
     assert(result, "scheduler.awaitTermination")
     assert(scheduler.isTerminated, "scheduler.isTerminated")
   }

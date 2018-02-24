@@ -21,7 +21,7 @@ import cats.Applicative
 import cats.effect.Sync
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
-import monix.tail.internal.IterantIntervalWithFixedDelay
+import monix.tail.internal.{IterantIntervalAtFixedRate, IterantIntervalWithFixedDelay}
 
 import scala.collection.immutable.LinearSeq
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -48,6 +48,10 @@ class IterantBuilders[F[_]] {
   /** Aliased builder, see documentation for [[Iterant.liftF]]. */
   def liftF[A](a: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.liftF(a)
+
+  /** Aliased builder, see documentation for [[Iterant.bracket]] */
+  def bracket[A, B](acquire: F[A])(use: A => Iterant[F, B], release: A => F[Unit])(implicit F: Sync[F]): Iterant[F, B] =
+    Iterant.bracket(acquire)(use, release)
 
   /** Aliased builder, see documentation for [[Iterant.nextS]]. */
   def nextS[A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
@@ -121,9 +125,29 @@ class IterantBuilders[F[_]] {
   def fromIterator[A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromIterator(xs)(F)
 
+  /** Aliased builder, see documentation for [[Iterant.fromStateAction]]. */
+  def fromStateAction[S, A](f: S => (A, S))(seed: => S)(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.fromStateAction(f)(seed)
+
+  /** Aliased builder, see documentation for [[Iterant.fromStateActionL]]. */
+  def fromStateActionL[S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.fromStateActionL(f)(seed)
+
   /** Aliased builder, see documentation for [[Iterant.range]]. */
   def range(from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
     Iterant.range(from, until, step)(F)
+
+  /** Aliased builder, see documentation for [[Iterant.repeat]]. */
+  def repeat[A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.repeat(elems: _*)
+
+  /** Aliased builder, see documentation for [[Iterant.repeatEval]]. */
+  def repeatEval[A](thunk: => A)(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.repeatEval(thunk)
+
+  /** Aliased builder, see documentation for [[Iterant.repeatEvalF]]. */
+  def repeatEvalF[A](fa: F[A])(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.repeatEvalF(fa)
 }
 
 object IterantBuilders {
@@ -196,6 +220,15 @@ object IterantOfCoeval extends IterantBuilders[Coeval]
 /** Defines builders for [[Iterant]] instances powered by
   * [[monix.eval.Task Task]].
   *
+  * @define intervalAtFixedRateDesc Creates an iterant that
+  *         emits auto-incremented natural numbers (longs).
+  *         at a fixed rate, as given by the specified `period`.
+  *         The amount of time it takes to process an incoming
+  *         value gets subtracted from provided `period`, thus
+  *         created iterant tries to emit events spaced by the
+  *         given time interval, regardless of how long further
+  *         processing takes
+  *
   * @define intervalWithFixedDelayDesc Creates an iterant that
   *         emits auto-incremented natural numbers (longs) spaced
   *         by a given time interval. Starts from 0 with no delay,
@@ -204,6 +237,24 @@ object IterantOfCoeval extends IterantBuilders[Coeval]
   *         fixed delay between successive events.
   */
 object IterantOfTask extends IterantBuilders[Task] {
+  /** $intervalAtFixedRateDesc
+    *
+    * @param period period between 2 successive emitted values
+    */
+  def intervalAtFixedRate(period: FiniteDuration): Iterant[Task, Long] =
+    IterantIntervalAtFixedRate(Duration.Zero, period)
+
+  /** $intervalAtFixedRateDesc
+    *
+    * This version of the `intervalAtFixedRate` allows specifying an
+    * `initialDelay` before first value is emitted
+    *
+    * @param initialDelay initial delay before emitting the first value
+    * @param period period between 2 successive emitted values
+    */
+  def intervalAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration): Iterant[Task, Long] =
+    IterantIntervalAtFixedRate(initialDelay, period)
+
   /** $intervalWithFixedDelayDesc
     *
     * Without having an initial delay specified, this overload

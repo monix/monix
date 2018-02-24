@@ -230,7 +230,7 @@ object TaskErrorSuite extends BaseTestSuite {
       Task[Int](throw DummyException("dummy")).onErrorFallbackTo(Task.defer(recursive()))
     }
 
-    val task = recursive().executeWithOptions(_.enableAutoCancelableRunLoops)
+    val task = recursive().cancelable
     val f = task.runAsync
     assertEquals(f.value, None)
 
@@ -272,7 +272,7 @@ object TaskErrorSuite extends BaseTestSuite {
     val task = Task[Int](throw DummyException("dummy"))
       .onErrorRestart(s.executionModel.recommendedBatchSize*2)
 
-    val f = task.executeWithOptions(_.enableAutoCancelableRunLoops).runAsync
+    val f = task.cancelable.runAsync
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
@@ -313,7 +313,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.onErrorRestartIf should be cancelable if ExecutionModel permits") { implicit s =>
     val task = Task[Int](throw DummyException("dummy")).onErrorRestartIf(_ => true)
-    val f = task.executeWithOptions(_.enableAutoCancelableRunLoops).runAsync
+    val f = task.cancelable.runAsync
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
@@ -513,7 +513,7 @@ object TaskErrorSuite extends BaseTestSuite {
     def loop(task: Task[Int], n: Int): Task[Int] =
       task.onErrorRecoverWith {
         case `ex` if n <= 0 => Task(count)
-        case `ex` => Task.fork(loop(task, n-1))
+        case `ex` => loop(task, n-1).executeAsync
       }
 
     val task = loop(Task.raiseError(ex), count)

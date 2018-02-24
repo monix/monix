@@ -77,8 +77,9 @@ object AssignableCancelable {
     * internal state and that doesn't do anything, either
     * on assignment or on cancelation.
     */
-  val dummy: AssignableCancelable =
-    new AssignableCancelable with Cancelable.IsDummy {
+  val dummy: Multi =
+    new Multi with Cancelable.IsDummy {
+      def isCanceled: Boolean = false
       def `:=`(value: Cancelable): this.type = this
       def cancel(): Unit = ()
     }

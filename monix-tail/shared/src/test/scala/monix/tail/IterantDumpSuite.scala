@@ -21,7 +21,6 @@ import java.io.{OutputStream, PrintStream}
 
 import cats.laws._
 import cats.laws.discipline._
-
 import monix.eval.{Coeval, Task}
 import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException
@@ -145,20 +144,22 @@ object IterantDumpSuite extends BaseTestSuite {
   test("Iterant.dump protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
+      val prefix = iter.onErrorIgnore
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter.onErrorIgnore ++ suffix
+      val stream = prefix ++ suffix
 
-      stream.dump("O", dummyOut(AtomicInt(0))) <-> Iterant[Task].haltS[Int](Some(dummy))
+      stream.dump("O", dummyOut(AtomicInt(0))) <-> prefix ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
   test("Iterant.dump protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
+      val prefix = iter.onErrorIgnore
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter.onErrorIgnore ++ suffix
+      val stream = prefix ++ suffix
 
-      stream.dump("O", dummyOut(AtomicInt(0))) <-> Iterant[Task].haltS[Int](Some(dummy))
+      stream.dump("O", dummyOut(AtomicInt(0))) <-> prefix ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 

@@ -176,6 +176,22 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
+  headerLicense := Some(HeaderLicense.Custom(
+    """|Copyright (c) 2014-2018 by The Monix Project Developers.
+       |See the project homepage at: https://monix.io
+       |
+       |Licensed under the Apache License, Version 2.0 (the "License");
+       |you may not use this file except in compliance with the License.
+       |You may obtain a copy of the License at
+       |
+       |    http://www.apache.org/licenses/LICENSE-2.0
+       |
+       |Unless required by applicable law or agreed to in writing, software
+       |distributed under the License is distributed on an "AS IS" BASIS,
+       |WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+       |See the License for the specific language governing permissions and
+       |limitations under the License."""
+    .stripMargin)),
 
   scmInfo := Some(
     ScmInfo(
@@ -254,6 +270,10 @@ lazy val testSettings = Seq(
   )
 )
 
+lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
+  name := "monix-java"
+)
+
 lazy val scalaJSSettings = Seq(
   coverageExcludedFiles := ".*"
 )
@@ -268,6 +288,7 @@ def mimaSettings(projectName: String) = Seq(
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
   case "coverage" => pr
   case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
+      .enablePlugins(AutomateHeaderPlugin)
 }
 
 lazy val monix = project.in(file("."))
@@ -280,8 +301,8 @@ lazy val monix = project.in(file("."))
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM)
-  .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM)
+  .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
@@ -377,6 +398,12 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 
+lazy val javaJVM = project.in(file("monix-java"))
+  .configure(profile)
+  .dependsOn(executionJVM % "provided->compile; test->test")
+  .dependsOn(evalJVM % "provided->compile; test->test")
+  .settings(javaExtensionsSettings)
+
 lazy val reactiveTests = project.in(file("reactiveTests"))
   .configure(profile)
   .dependsOn(coreJVM)
@@ -395,7 +422,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    libraryDependencies += "io.monix" %% "monix-reactive" % "3.0.0-d357cb1"
+    libraryDependencies += "io.monix" %% "monix-reactive" % "2.3.2"
   )
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
@@ -408,11 +435,10 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
 
 //------------- For Release
 
-useGpg := false
+useGpg := true
 usePgpKeyHex("2673B174C4071B0E")
-pgpPublicRing := baseDirectory.value / "project" / ".gnupg" / "pubring.gpg"
-pgpSecretRing := baseDirectory.value / "project" / ".gnupg" / "secring.gpg"
-pgpPassphrase := sys.env.get("PGP_PASS").map(_.toArray)
+//pgpPublicRing := new File(System.getProperty("user.home")) / ".gnupg" / "pubring.gpg"
+//pgpSecretRing := new File(System.getProperty("user.home")) / ".gnupg" / "secring.gpg"
 
 enablePlugins(GitVersioning)
 
@@ -421,7 +447,7 @@ enablePlugins(GitVersioning)
  */
 git.baseVersion := "3.0.0"
 
-val ReleaseTag = """^v(\d+\.\d+\.\d+(?:[-.]\w+)?)$""".r
+val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {
   case ReleaseTag(v) => Some(v)
   case _ => None

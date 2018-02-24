@@ -17,6 +17,8 @@
 
 package monix.eval
 
+import scala.util.Try
+
 import cats.Eq
 import cats.effect.IO
 import monix.execution.Cancelable
@@ -31,6 +33,13 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
     new Eq[Task[A]] {
       def eqv(lh: Task[A], rh: Task[A]): Boolean =
         equalityFuture(A, ec).eqv(lh.runAsync, rh.runAsync)
+    }
+
+  implicit def equalityTaskPar[A](implicit A: Eq[A], ec: TestScheduler): Eq[Task.Par[A]] =
+    new Eq[Task.Par[A]] {
+      import Task.Par.unwrap
+      def eqv(lh: Task.Par[A], rh: Task.Par[A]): Boolean =
+        Eq[Task[A]].eqv(unwrap(lh), unwrap(rh))
     }
 
   implicit def equalityIO[A](implicit A: Eq[A], ec: TestScheduler): Eq[IO[A]] =
@@ -60,6 +69,19 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
             Cancelable.empty
           })
       } yield task
+    }
+
+  implicit def arbitraryTaskPar[A](implicit A: Arbitrary[A]): Arbitrary[Task.Par[A]] =
+    Arbitrary {
+      for {
+        a <- A.arbitrary
+        task <- Gen.oneOf(
+          Task.now(a), Task.evalOnce(a), Task.eval(a),
+          Task.create[A] { (_, cb) =>
+            cb.onSuccess(a)
+            Cancelable.empty
+          })
+      } yield Task.Par.apply(task)
     }
 
   implicit def arbitraryIO[A](implicit A: Arbitrary[A]): Arbitrary[IO[A]] =
@@ -104,11 +126,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def equalityCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
     new Eq[Coeval[A]] {
       def eqv(lh: Coeval[A], rh: Coeval[A]): Boolean = {
-        val valueA = lh.runTry
-        val valueB = rh.runTry
-
-        (valueA.isFailure && valueB.isFailure) ||
-          A.eqv(valueA.get, valueB.get)
+        Eq[Try[A]].eqv(lh.runTry, rh.runTry)
       }
     }
 

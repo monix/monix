@@ -40,7 +40,7 @@ object IterantTailSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.tail
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore.tail ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -50,7 +50,7 @@ object IterantTailSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.tail
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore.tail ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 

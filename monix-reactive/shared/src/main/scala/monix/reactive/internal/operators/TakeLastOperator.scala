@@ -18,25 +18,25 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.Continue
 import monix.reactive.Observable
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
+
 import scala.collection.mutable
 
 private[reactive] final class TakeLastOperator[A](n: Int)
   extends Operator[A, A] {
 
-  def apply(out: Subscriber[A]): Subscriber[A] =
+  def apply(out: Subscriber[A]): Subscriber[A] = {
+    require(n > 0, "n should be strictly positive")
     new Subscriber.Sync[A] {
       implicit val scheduler = out.scheduler
       private[this] val queue = mutable.Queue.empty[A]
       private[this] var queued = 0
 
       def onNext(elem: A): Ack = {
-        if (n <= 0)
-          Stop
-        else if (queued < n) {
+        if (queued < n) {
           queue.enqueue(elem)
           queued += 1
           Continue
@@ -56,4 +56,5 @@ private[reactive] final class TakeLastOperator[A](n: Int)
         out.onError(ex)
       }
     }
+  }
 }

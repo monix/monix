@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.MultiAssignCancelable
+import monix.execution.cancelables.{AssignableCancelable, MultiAssignCancelable}
 import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
@@ -40,7 +40,7 @@ private[reactive] final class DeferObservable[+A](factory: () => Observable[A])
     }
   }
 
-  override def unsafeSubscribeFn(conn: MultiAssignCancelable, out: Subscriber[A]): Unit = {
+  override def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
     val fa = try factory() catch { case e if NonFatal(e) => Observable.raiseError(e) }
     chain(fa, conn, out)
   }
