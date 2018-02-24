@@ -3,7 +3,7 @@
 Features for `monix-execution`:
 
 - [PR #527](https://github.com/monix/monix/pull/527)
-  (issues [#517](https://github.com/monix/monix/issues/517),
+  ([#517](https://github.com/monix/monix/issues/517),
   [#525](https://github.com/monix/monix/issues/525) and
   [#526](https://github.com/monix/monix/issues/526)):
   removes macros, replacing them with plain extension methods,
@@ -11,7 +11,7 @@ Features for `monix-execution`:
 - [PR #556](https://github.com/monix/monix/pull/556):
   `SchedulerService.awaitTermination` and fix concurrency tests
 - [PR #584](https://github.com/monix/monix/pull/584)
-  ([issue #221](https://github.com/monix/monix/issues/221)):
+  ([#221](https://github.com/monix/monix/issues/221)):
   add conversions module for the Java 8 `CompletableFuture`
 
 Features for `monix-eval`:
@@ -19,30 +19,30 @@ Features for `monix-eval`:
 - [PR #507](https://github.com/monix/monix/pull/507): add
   `onErrorRestartLoop` for `Task` and `Coeval`
 - [PR #533](https://github.com/monix/monix/pull/533)
-  ([issue #523](https://github.com/monix/monix/issues/532)):
+  ([#523](https://github.com/monix/monix/issues/532)):
   add `Task.fork` operator, deprecate old `Task.fork` and
   `executeWithFork`, renamed to `executeAsync`
 - [PR #530](https://github.com/monix/monix/pull/530)
-  ([issue #520](https://github.com/monix/monix/issues/520)):
+  ([#520](https://github.com/monix/monix/issues/520)):
   add `Task.forkAndForget`
 - [PR #537](https://github.com/monix/monix/pull/537)
-  ([issue #535](https://github.com/monix/monix/issues/535)):
+  ([#535](https://github.com/monix/monix/issues/535)):
   Make `MVar` constructors return `Task`
 - [PR #540](https://github.com/monix/monix/pull/540)
-  ([issue #539](https://github.com/monix/monix/issues/539)):
+  ([#539](https://github.com/monix/monix/issues/539)):
   make all `Task` abstractions referentially transparent
 - [PR #545](https://github.com/monix/monix/pull/545)
-  ([issue #538](https://github.com/monix/monix/issues/538)):
+  ([#538](https://github.com/monix/monix/issues/538)):
   add `newtype` for `Task.Par`, using same encoding used in `cats-effect`
 - [PR #547](https://github.com/monix/monix/pull/547)
-  ([issue #542](https://github.com/monix/monix/issues/542)):
+  ([#542](https://github.com/monix/monix/issues/542)):
   add `Task.runSyncUnsafe`
 - [PR #550](https://github.com/monix/monix/pull/550):
   add `Task.sleep`, refactor the implementation of `delayExecution` and
   `delayResult` and deprecate `delayExecutionWith` and
   `delayResultBySelector`
 - [PR #482](https://github.com/monix/monix/pull/482)
-  ([issue #477](https://github.com/monix/monix/issues/477)):
+  ([#477](https://github.com/monix/monix/issues/477)):
   add the `.cancelable` operator on `Task`
 - [PR #561](https://github.com/monix/monix/pull/561):
   Bracket for `Task` / `Coeval`, `Task.cancelable` and `Task.onCancelRaiseError`
@@ -52,48 +52,48 @@ Features for `monix-eval`:
 Features for `monix-reactive`:
 
 - [PR #511](https://github.com/monix/monix/pull/511) 
-  (issue [#269](https://github.com/monix/monix/issues/279)):
+  ([#269](https://github.com/monix/monix/issues/279)):
   add `monix.reactive.subjects.Var` type
 - [PR #528](https://github.com/monix/monix/pull/528):
   add `Observable.scanMap` operator
 - [PR #536](https://github.com/monix/monix/pull/536)
-  ([issue #459](https://github.com/monix/monix/issues/459)):
+  ([#459](https://github.com/monix/monix/issues/459)):
   add a `NonEmptyParallel` for `Observable` using `combineLatest`
 
 Features for `monix-tail`:
 
 - [PR #503](https://github.com/monix/monix/pull/503)
-  ([issue #487](https://github.com/monix/monix/issues/487)): 
+  ([#487](https://github.com/monix/monix/issues/487)): 
   add `Iterant.liftF` builder for lifting monadic values
 - [PR #510](https://github.com/monix/monix/pull/510)
-  ([issue #500](https://github.com/monix/monix/issues/500)): 
+  ([#500](https://github.com/monix/monix/issues/500)): 
   add `Iterant.takeEveryNth` operator
 - [PR #504](https://github.com/monix/monix/pull/504)
-  ([issue #499](https://github.com/monix/monix/issues/499)):
+  ([#499](https://github.com/monix/monix/issues/499)):
   add `Iterant.switchIfEmpty` operator
 - [PR #509](https://github.com/monix/monix/pull/509)
-  ([issue #495](https://github.com/monix/monix/issues/495)):
+  ([#495](https://github.com/monix/monix/issues/495)):
   add `Iterant.dropLast` operator
 - [PR #508](https://github.com/monix/monix/pull/508)
-  ([issue #501](https://github.com/monix/monix/issues/501)):
+  ([#501](https://github.com/monix/monix/issues/501)):
   add `Iterant.intersperse` operator
 - [PR #512](https://github.com/monix/monix/pull/512)
-  ([issue #496](https://github.com/monix/monix/issues/496)):
+  ([#496](https://github.com/monix/monix/issues/496)):
   add `Iterant.dropWhileWithIndex` operator
 - [PR #514](https://github.com/monix/monix/pull/514)
-  ([issue #497](https://github.com/monix/monix/issues/497)): 
+  ([#497](https://github.com/monix/monix/issues/497)): 
   add `Iterant.takeWhileWithIndex` operator
 - [PR #523](https://github.com/monix/monix/pull/523)
-  ([issue #519](https://github.com/monix/monix/issues/519)):
+  ([#519](https://github.com/monix/monix/issues/519)):
   add `Iterant.scanMap` operator
 - [PR #518](https://github.com/monix/monix/pull/518)
-  ([issue #516](https://github.com/monix/monix/issues/516)):
+  ([#516](https://github.com/monix/monix/issues/516)):
   add `Iterant[Task].intervalAtFixedRate`
 - [PR #524](https://github.com/monix/monix/pull/524)
-  ([issue #498](https://github.com/monix/monix/issues/498)):
+  ([#498](https://github.com/monix/monix/issues/498)):
   add `Iterant.interleave`
 - [PR #549](https://github.com/monix/monix/pull/549)
-  ([issue #548](https://github.com/monix/monix/issues/548)):
+  ([#548](https://github.com/monix/monix/issues/548)):
   add `Iterant.fromStateAction` and `fromStateActionL`
 - [PR #567](https://github.com/monix/monix/pull/567)
   (related to [#563](https://github.com/monix/monix/issues/563)):
@@ -103,55 +103,55 @@ Features for `monix-tail`:
   `Iterant` fold left operators (yielding `F[_]`) need to handle errors 
   thrown in `F[_]`
 - [PR #566](https://github.com/monix/monix/pull/566)
-  ([issue #562](https://github.com/monix/monix/issues/562)):
+  ([#562](https://github.com/monix/monix/issues/562)):
   improve safety of `attempt` & `onErrorHandleWith` on `Iterant`
 - [PR #578](https://github.com/monix/monix/pull/578)
-  ([issue #570](https://github.com/monix/monix/issues/570)):
+  ([#570](https://github.com/monix/monix/issues/570)):
   add `Iterant#sumL` method
 - [PR #579](https://github.com/monix/monix/pull/579)
-  ([issue #577](https://github.com/monix/monix/issues/577)):
+  ([#577](https://github.com/monix/monix/issues/577)):
   make `Iterant#reduceL` and `headOptionL` left folds handle errors 
   from `F[_]` context
 - [PR #575](https://github.com/monix/monix/pull/575)
-  (issues [##571](https://github.com/monix/monix/issues/571) and
+  ([##571](https://github.com/monix/monix/issues/571) and
   [#572](https://github.com/monix/monix/issues/572)):
   add `Iterant.repeat` (method and builder)
 - [PR #583](https://github.com/monix/monix/pull/583)
-  ([issue #549](https://github.com/monix/monix/pull/549)):
+  ([#549](https://github.com/monix/monix/pull/549)):
   add `Iterant.fromStateAction` builder
 - [PR #582](https://github.com/monix/monix/pull/582)
-  (issues [#573](https://github.com/monix/monix/issues/573) and
+  ([#573](https://github.com/monix/monix/issues/573) and
   [#574](https://github.com/monix/monix/issues/574)):
   add `repeatEval`/`repeatEvalF` for `Iterant` & `repeatEvalF` 
   for `Observable`
 - [PR #554](https://github.com/monix/monix/pull/554)
-  ([issue #479](https://github.com/monix/monix/issues/479)):
+  ([#479](https://github.com/monix/monix/issues/479)):
   add `Iterant#bracket` operator
 - [PR #581](https://github.com/monix/monix/pull/581)
-  ([issue #559](https://github.com/monix/monix/issues/559)):
+  ([#559](https://github.com/monix/monix/issues/559)):
   handle broken nodes in `Iterant.skipSuspendL`
 - [PR #589](https://github.com/monix/monix/pull/589):
   improve handling of broken batches/cursors in `Iterant.attempt`
 - [PR #591](https://github.com/monix/monix/pull/591)
-  ([issue #580](https://github.com/monix/monix/issues/580)):
+  ([#580](https://github.com/monix/monix/issues/580)):
   improve strictness of `Eq` of `Iterant`, fix `doOnFinish` on `Last` 
 
 Bug fixes:
 
 - [PR #552](https://github.com/monix/monix/pull/552) 
-  ([issue #483](https://github.com/monix/monix/issues/483)):
+  ([#483](https://github.com/monix/monix/issues/483)):
   `MVar` is stack unsafe, triggering stack overflow on `put`
 - [PR #543](https://github.com/monix/monix/pull/543)
-  ([issue #541](https://github.com/monix/monix/issues/541)):
+  ([#541](https://github.com/monix/monix/issues/541)):
   `Observable.take(0)` shouldn't subscribe to the source at all
 - [PR #496](https://github.com/monix/monix/pull/469)
-  ([issue #468](https://github.com/monix/monix/issues/468)):
+  ([#468](https://github.com/monix/monix/issues/468)):
   race condition for `Observable` in concatenation operators
 - [PR #568](https://github.com/monix/monix/pull/568):
   in `Iterant.toReactivePublisher` the `cancel` should be made 
   by `request()`
 - [PR #592](https://github.com/monix/monix/pull/592)
-  ([issue #590](https://github.com/monix/monix/issues/590)):
+  ([#590](https://github.com/monix/monix/issues/590)):
   potential nontermination in `Observable.zip[Map]`
 
 Chores:
