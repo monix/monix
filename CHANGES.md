@@ -96,10 +96,10 @@ Features for `monix-tail`:
   ([issue #548](https://github.com/monix/monix/issues/548)):
   add `Iterant.fromStateAction` and `fromStateActionL`
 - [PR #567](https://github.com/monix/monix/pull/567)
-  (related to [issue #563](https://github.com/monix/monix/issues/563)):
+  (related to [#563](https://github.com/monix/monix/issues/563)):
   `completeL` should handle `F[_]` errors, `mapEval` should not
 - [PR #569](https://github.com/monix/monix/pull/569)
-  (related to [issue #563](https://github.com/monix/monix/issues/563)):
+  (related to [#563](https://github.com/monix/monix/issues/563)):
   `Iterant` fold left operators (yielding `F[_]`) need to handle errors 
   thrown in `F[_]`
 - [PR #566](https://github.com/monix/monix/pull/566)
@@ -160,12 +160,12 @@ Chores:
 - [PR #488](https://github.com/monix/monix/pull/488):
   add note about execution model for `Observable.fromInputStream`
 - [PR #531](https://github.com/monix/monix/pull/531)
-  (related to [issue #513](https://github.com/monix/monix/issues/513)):
+  (related to [#513](https://github.com/monix/monix/issues/513)):
   add automatic header creation on compilation
 - [PR #557](https://github.com/monix/monix/pull/557):
   disable automatic publishing, too dangerous
 - [PR #546](https://github.com/monix/monix/pull/546)
-  (related to [issue #513](https://github.com/monix/monix/issues/513)):
+  (related to [#513](https://github.com/monix/monix/issues/513)):
   add `scalafmt.conf` configuration
 - [PR #565](https://github.com/monix/monix/pull/565):
   correct small typo in doc of `Task#executeOn`
