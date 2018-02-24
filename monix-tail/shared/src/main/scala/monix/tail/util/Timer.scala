@@ -31,8 +31,6 @@ import scala.concurrent.duration.FiniteDuration
   * requirement.
   */
 trait Timer[F[_]] {
-  /** Restriction for `F`. */
-  def async: Async[F]
 
   /** Returns the current time in milliseconds, suspended in `F[_]`, similar to
     * [[monix.execution.Scheduler.currentTimeMillis Scheduler.currentTimeMillis]].
@@ -80,11 +78,22 @@ trait Timer[F[_]] {
     *   timer.currentTimeMillis.flatMap(f)
     * }}}
     */
-  def suspendTimed[A](f: Long => F[A]): F[A] =
-    async.flatMap(currentTimeMillis)(f)
+  def suspendTimed[A](f: Long => F[A]): F[A]
 }
 
 object Timer extends TimerImplicits0 {
+  /** Retrieves the implicit `Timer[F]` available in the current scope.
+    *
+    * For example:
+    * {{{
+    *   Timer[Task].sleep(1.second)
+    *   // ... is equivalent with ...
+    *   implicitly[Timer[Task]].sleep(1.second)
+    * }}}
+    */
+  def apply[F[_]](implicit timer: Timer[F]): Timer[F] =
+    timer
+
   /** Implicit [[Timer]] available for [[monix.eval.Task Task]].
     *
     * Does not need any `Scheduler` available in the local context,
@@ -93,8 +102,6 @@ object Timer extends TimerImplicits0 {
     */
   implicit val forTask: Timer[Task] =
     new Timer[Task] {
-      val async: Async[Task] =
-        implicitly[Async[Task]]
       val shift: Task[Unit] =
         Task.shift
       val currentTimeMillis: Task[Long] =
@@ -115,17 +122,14 @@ private[util] abstract class TimerImplicits0 {
     */
   implicit def forAsync[F[_]](implicit F: Async[F], sc: Scheduler): Timer[F] =
     new Timer[F] {
-      val async: Async[F] = F
       val shift: F[Unit] = F.shift(sc)
       val currentTimeMillis: F[Long] =
         F.delay(sc.currentTimeMillis())
-
       def sleep(timespan: FiniteDuration): F[Unit] =
         F.async { cb =>
           sc.scheduleOnce(timespan.length, timespan.unit,
             new Runnable { def run(): Unit = cb(Right(())) })
         }
-
       override def suspendTimed[A](f: Long => F[A]): F[A] =
         F.suspend(f(sc.currentTimeMillis()))
     }

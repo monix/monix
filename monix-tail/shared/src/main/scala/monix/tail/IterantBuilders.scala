@@ -240,7 +240,7 @@ class IterantBuildersAsync[F[_]](implicit F: Async[F])
     *        delays and to fetch the current time
     */
   def intervalAtFixedRate(period: FiniteDuration)
-    (implicit timer: Timer[F]): Iterant[Task, Long] =
+    (implicit timer: Timer[F]): Iterant[F, Long] =
     Iterant.intervalAtFixedRate(Duration.Zero, period)
 
   /** $intervalAtFixedRateDesc
@@ -278,7 +278,7 @@ class IterantBuildersAsync[F[_]](implicit F: Async[F])
     *        delays and to fetch the current time
     */
   def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)
-    (implicit timer: Timer[F]): Iterant[Task, Long] =
+    (implicit timer: Timer[F]): Iterant[F, Long] =
     Iterant.intervalWithFixedDelay(initialDelay, delay)
 }
 
