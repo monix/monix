@@ -109,4 +109,26 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     test.runAsyncOpt
   }
+
+  testAsync("TaskLocal!.local") {
+    val test =
+      for {
+        taskLocal <- TaskLocal(200)
+        local <- taskLocal.local
+        v1 <- taskLocal.read
+        _ <- Task.now(assertEquals(local.get, v1))
+        _ <- taskLocal.write(100)
+        _ <- Task.now(assertEquals(local.get, 100))
+        _ <- Task.now(local.update(200))
+        v2 <- taskLocal.read
+        _ <- Task.now(assertEquals(v2, 200))
+        _ <- Task.shift
+        v3 <- taskLocal.bindClear(Task.now(local.get * 2))
+        _ <- Task.now(assertEquals(v3, 400))
+        v4 <- taskLocal.read
+        _ <- Task.now(assertEquals(v4, local.get))
+      } yield ()
+
+    test.runAsyncOpt
+  }
 }
