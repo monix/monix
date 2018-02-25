@@ -95,7 +95,7 @@ import monix.execution.misc.Local
 final class TaskLocal[A] private (default: => A) {
   private[this] val ref = new Local(default)
 
-  /** Returns Local instance used in this [[TaskLocal]].
+  /** Returns [[monix.execution.misc.Local]] instance used in this [[TaskLocal]].
     *
     * Note that `TaskLocal.bind` will restore the original local value
     * on the thread where the `Task's` run-loop ends up so it might lead
