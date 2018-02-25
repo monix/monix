@@ -14,7 +14,7 @@ val catsEffectVersion = "0.8"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
-val minitestVersion = "2.0.0"
+val minitestVersion = "2.1.1"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -434,11 +434,6 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .settings(doNotPublishArtifact)
 
 //------------- For Release
-
-useGpg := true
-usePgpKeyHex("2673B174C4071B0E")
-//pgpPublicRing := new File(System.getProperty("user.home")) / ".gnupg" / "pubring.gpg"
-//pgpSecretRing := new File(System.getProperty("user.home")) / ".gnupg" / "secring.gpg"
 
 enablePlugins(GitVersioning)
 
