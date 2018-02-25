@@ -1,3 +1,179 @@
+## Version 3.0.0-M4 (Feb 24, 2018)
+
+Features for `monix-execution`:
+
+- [PR #527](https://github.com/monix/monix/pull/527)
+  ([#517](https://github.com/monix/monix/issues/517),
+  [#525](https://github.com/monix/monix/issues/525) and
+  [#526](https://github.com/monix/monix/issues/526)):
+  removes macros, replacing them with plain extension methods,
+  removes `SerialCancelable#orderedUpdate`
+- [PR #556](https://github.com/monix/monix/pull/556):
+  `SchedulerService.awaitTermination` and fix concurrency tests
+- [PR #584](https://github.com/monix/monix/pull/584)
+  ([#221](https://github.com/monix/monix/issues/221)):
+  add conversions module for the Java 8 `CompletableFuture`
+
+Features for `monix-eval`:
+
+- [PR #507](https://github.com/monix/monix/pull/507): add
+  `onErrorRestartLoop` for `Task` and `Coeval`
+- [PR #533](https://github.com/monix/monix/pull/533)
+  ([#523](https://github.com/monix/monix/issues/532)):
+  add `Task.fork` operator, deprecate old `Task.fork` and
+  `executeWithFork`, renamed to `executeAsync`
+- [PR #530](https://github.com/monix/monix/pull/530)
+  ([#520](https://github.com/monix/monix/issues/520)):
+  add `Task.forkAndForget`
+- [PR #537](https://github.com/monix/monix/pull/537)
+  ([#535](https://github.com/monix/monix/issues/535)):
+  Make `MVar` constructors return `Task`
+- [PR #540](https://github.com/monix/monix/pull/540)
+  ([#539](https://github.com/monix/monix/issues/539)):
+  make all `Task` abstractions referentially transparent
+- [PR #545](https://github.com/monix/monix/pull/545)
+  ([#538](https://github.com/monix/monix/issues/538)):
+  add `newtype` for `Task.Par`, using same encoding used in `cats-effect`
+- [PR #547](https://github.com/monix/monix/pull/547)
+  ([#542](https://github.com/monix/monix/issues/542)):
+  add `Task.runSyncUnsafe`
+- [PR #550](https://github.com/monix/monix/pull/550):
+  add `Task.sleep`, refactor the implementation of `delayExecution` and
+  `delayResult` and deprecate `delayExecutionWith` and
+  `delayResultBySelector`
+- [PR #482](https://github.com/monix/monix/pull/482)
+  ([#477](https://github.com/monix/monix/issues/477)):
+  add the `.cancelable` operator on `Task`
+- [PR #561](https://github.com/monix/monix/pull/561):
+  Bracket for `Task` / `Coeval`, `Task.cancelable` and `Task.onCancelRaiseError`
+- [PR #596](https://github.com/monix/monix/pull/596):
+  add `Fiber` interface, refactor `memoize` for `Task` and `Coeval`
+
+Features for `monix-reactive`:
+
+- [PR #511](https://github.com/monix/monix/pull/511) 
+  ([#269](https://github.com/monix/monix/issues/279)):
+  add `monix.reactive.subjects.Var` type
+- [PR #528](https://github.com/monix/monix/pull/528):
+  add `Observable.scanMap` operator
+- [PR #536](https://github.com/monix/monix/pull/536)
+  ([#459](https://github.com/monix/monix/issues/459)):
+  add a `NonEmptyParallel` for `Observable` using `combineLatest`
+
+Features for `monix-tail`:
+
+- [PR #503](https://github.com/monix/monix/pull/503)
+  ([#487](https://github.com/monix/monix/issues/487)): 
+  add `Iterant.liftF` builder for lifting monadic values
+- [PR #510](https://github.com/monix/monix/pull/510)
+  ([#500](https://github.com/monix/monix/issues/500)): 
+  add `Iterant.takeEveryNth` operator
+- [PR #504](https://github.com/monix/monix/pull/504)
+  ([#499](https://github.com/monix/monix/issues/499)):
+  add `Iterant.switchIfEmpty` operator
+- [PR #509](https://github.com/monix/monix/pull/509)
+  ([#495](https://github.com/monix/monix/issues/495)):
+  add `Iterant.dropLast` operator
+- [PR #508](https://github.com/monix/monix/pull/508)
+  ([#501](https://github.com/monix/monix/issues/501)):
+  add `Iterant.intersperse` operator
+- [PR #512](https://github.com/monix/monix/pull/512)
+  ([#496](https://github.com/monix/monix/issues/496)):
+  add `Iterant.dropWhileWithIndex` operator
+- [PR #514](https://github.com/monix/monix/pull/514)
+  ([#497](https://github.com/monix/monix/issues/497)): 
+  add `Iterant.takeWhileWithIndex` operator
+- [PR #523](https://github.com/monix/monix/pull/523)
+  ([#519](https://github.com/monix/monix/issues/519)):
+  add `Iterant.scanMap` operator
+- [PR #518](https://github.com/monix/monix/pull/518)
+  ([#516](https://github.com/monix/monix/issues/516)):
+  add `Iterant[Task].intervalAtFixedRate`
+- [PR #524](https://github.com/monix/monix/pull/524)
+  ([#498](https://github.com/monix/monix/issues/498)):
+  add `Iterant.interleave`
+- [PR #549](https://github.com/monix/monix/pull/549)
+  ([#548](https://github.com/monix/monix/issues/548)):
+  add `Iterant.fromStateAction` and `fromStateActionL`
+- [PR #567](https://github.com/monix/monix/pull/567)
+  (related to [#563](https://github.com/monix/monix/issues/563)):
+  `completeL` should handle `F[_]` errors, `mapEval` should not
+- [PR #569](https://github.com/monix/monix/pull/569)
+  (related to [#563](https://github.com/monix/monix/issues/563)):
+  `Iterant` fold left operators (yielding `F[_]`) need to handle errors 
+  thrown in `F[_]`
+- [PR #566](https://github.com/monix/monix/pull/566)
+  ([#562](https://github.com/monix/monix/issues/562)):
+  improve safety of `attempt` & `onErrorHandleWith` on `Iterant`
+- [PR #578](https://github.com/monix/monix/pull/578)
+  ([#570](https://github.com/monix/monix/issues/570)):
+  add `Iterant#sumL` method
+- [PR #579](https://github.com/monix/monix/pull/579)
+  ([#577](https://github.com/monix/monix/issues/577)):
+  make `Iterant#reduceL` and `headOptionL` left folds handle errors 
+  from `F[_]` context
+- [PR #575](https://github.com/monix/monix/pull/575)
+  ([##571](https://github.com/monix/monix/issues/571) and
+  [#572](https://github.com/monix/monix/issues/572)):
+  add `Iterant.repeat` (method and builder)
+- [PR #583](https://github.com/monix/monix/pull/583)
+  ([#549](https://github.com/monix/monix/pull/549)):
+  add `Iterant.fromStateAction` builder
+- [PR #582](https://github.com/monix/monix/pull/582)
+  ([#573](https://github.com/monix/monix/issues/573) and
+  [#574](https://github.com/monix/monix/issues/574)):
+  add `repeatEval`/`repeatEvalF` for `Iterant` & `repeatEvalF` 
+  for `Observable`
+- [PR #554](https://github.com/monix/monix/pull/554)
+  ([#479](https://github.com/monix/monix/issues/479)):
+  add `Iterant#bracket` operator
+- [PR #581](https://github.com/monix/monix/pull/581)
+  ([#559](https://github.com/monix/monix/issues/559)):
+  handle broken nodes in `Iterant.skipSuspendL`
+- [PR #589](https://github.com/monix/monix/pull/589):
+  improve handling of broken batches/cursors in `Iterant.attempt`
+- [PR #591](https://github.com/monix/monix/pull/591)
+  ([#580](https://github.com/monix/monix/issues/580)):
+  improve strictness of `Eq` of `Iterant`, fix `doOnFinish` on `Last` 
+
+Bug fixes:
+
+- [PR #552](https://github.com/monix/monix/pull/552) 
+  ([#483](https://github.com/monix/monix/issues/483)):
+  `MVar` is stack unsafe, triggering stack overflow on `put`
+- [PR #543](https://github.com/monix/monix/pull/543)
+  ([#541](https://github.com/monix/monix/issues/541)):
+  `Observable.take(0)` shouldn't subscribe to the source at all
+- [PR #496](https://github.com/monix/monix/pull/469)
+  ([#468](https://github.com/monix/monix/issues/468)):
+  race condition for `Observable` in concatenation operators
+- [PR #568](https://github.com/monix/monix/pull/568):
+  in `Iterant.toReactivePublisher` the `cancel` should be made 
+  by `request()`
+- [PR #592](https://github.com/monix/monix/pull/592)
+  ([#590](https://github.com/monix/monix/issues/590)):
+  potential nontermination in `Observable.zip[Map]`
+
+Chores:
+
+- [PR #502](https://github.com/monix/monix/pull/502): update SBT to 1.1
+- [PR #488](https://github.com/monix/monix/pull/488):
+  add note about execution model for `Observable.fromInputStream`
+- [PR #531](https://github.com/monix/monix/pull/531)
+  (related to [#513](https://github.com/monix/monix/issues/513)):
+  add automatic header creation on compilation
+- [PR #557](https://github.com/monix/monix/pull/557):
+  disable automatic publishing, too dangerous
+- [PR #546](https://github.com/monix/monix/pull/546)
+  (related to [#513](https://github.com/monix/monix/issues/513)):
+  add `scalafmt.conf` configuration
+- [PR #565](https://github.com/monix/monix/pull/565):
+  correct small typo in doc of `Task#executeOn`
+- [PR #576](https://github.com/monix/monix/pull/576):
+  fix comment mentioning Akka instead of Monix
+- [PR #588](https://github.com/monix/monix/pull/588):
+  update copyright headers for Scala 2.11 source files
+
 ## Version 2.3.3 (Jan 21, 2018)
 
 Release is binary backwards compatible with series `2.3.x`.
