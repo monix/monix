@@ -101,7 +101,8 @@ final class TaskLocal[A] private (default: => A) {
     * on the thread where the `Task's` run-loop ends up so it might lead
     * to leaving local modified in other thread.
     */
-  def local: Task[Local[A]] = Task.eval(ref)
+  def local: Task[Local[A]] =
+    Task.eval(ref)
 
   /** Returns the current local value (in the `Task` context). */
   def read: Task[A] =
