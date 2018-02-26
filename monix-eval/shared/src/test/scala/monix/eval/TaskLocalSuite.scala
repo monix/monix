@@ -109,4 +109,19 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     test.runAsyncOpt
   }
+
+  testAsync("Local canceled") {
+    import scala.concurrent.duration._
+
+    val test: Task[Unit] = for {
+      local <- TaskLocal[String]("Good")
+      forked <- Task.sleep(1.second).fork
+      _ <- local.bind("Bad!")(forked.cancel).fork
+      _ <- Task.sleep(1.second)
+      s <- local.read
+      _ <- Task.now(assertEquals(s, "Good"))
+    } yield ()
+
+    test.runAsyncOpt
+  }
 }
