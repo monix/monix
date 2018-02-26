@@ -134,7 +134,7 @@ final class TaskLocal[A] private (default: => A) {
     Task.suspend {
       val saved = ref.value
       ref.update(value)
-      task.doOnFinish(_ => restore(saved))
+      task.bracket(r => Task.now(r))(_ => restore(saved))
     }
 
   /** Binds the local var to a `value` for the duration of the given
