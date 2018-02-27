@@ -121,6 +121,8 @@ object TaskLocalSuite extends SimpleTestSuite {
       s <- local.read
       _ <- Task.now(assertEquals(s, "Good"))
     } yield ()
+    
+    test.runAsyncOpt
   }
 
   testAsync("TaskLocal!.local") {
