@@ -95,6 +95,15 @@ import monix.execution.misc.Local
 final class TaskLocal[A] private (default: => A) {
   private[this] val ref = new Local(default)
 
+  /** Returns [[monix.execution.misc.Local]] instance used in this [[TaskLocal]].
+    *
+    * Note that `TaskLocal.bind` will restore the original local value
+    * on the thread where the `Task's` run-loop ends up so it might lead
+    * to leaving local modified in other thread.
+    */
+  def local: Task[Local[A]] =
+    Task.eval(ref)
+
   /** Returns the current local value (in the `Task` context). */
   def read: Task[A] =
     Task.eval(ref.get)
@@ -111,13 +120,13 @@ final class TaskLocal[A] private (default: => A) {
     * `task` execution.
     *
     * {{{
-    *   val local = TaskLocal(0)
-    *
     *   // Should yield 200 on execution, regardless of what value
     *   // we have in `local` at the time of evaluation
-    *   val task = local.bind(100)(Task {
-    *     local.get * 2
-    *   })
+    *   val task: Task[Int] =
+    *     for {
+    *       local <- TaskLocal(0)
+    *       value <- local.bind(100)(local.read.map(_ * 2))
+    *     } yield value
     * }}}
     *
     * @see [[bindL]] for the version with a lazy `value`.
@@ -142,13 +151,13 @@ final class TaskLocal[A] private (default: => A) {
     * in the [[Task]] context.
     *
     * {{{
-    *   val local = TaskLocal(0)
-    *
     *   // Should yield 200 on execution, regardless of what value
     *   // we have in `local` at the time of evaluation
-    *   val task = local.bindL(Task.eval(100))(Task {
-    *     local.get * 2
-    *   })
+    *   val task: Task[Int] =
+    *     for {
+    *       local <- TaskLocal(0)
+    *       value <- local.bindL(Task.eval(100))(local.read.map(_ * 2))
+    *     } yield value
     * }}}
     *
     * @see [[bind]] for the version with a strict `value`.
@@ -172,15 +181,13 @@ final class TaskLocal[A] private (default: => A) {
     * given `task` execution.
     *
     * {{{
-    *   val local = TaskLocal(0)
-    *
-    *   //...
-    *
     *   // Should yield 0 on execution, regardless of what value
     *   // we have in `local` at the time of evaluation
-    *   val task = local.bindClear(Task {
-    *     local.get * 2
-    *   })
+    *   val task: Task[Int] =
+    *     for {
+    *       local <- TaskLocal(0)
+    *       value <- local.bindClear(local.read.map(_ * 2))
+    *     } yield value
     * }}}
     *
     * @param task is the [[Task]] to wrap, having the local cleared,
