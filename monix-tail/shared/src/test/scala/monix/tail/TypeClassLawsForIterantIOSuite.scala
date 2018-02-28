@@ -20,7 +20,8 @@ package monix.tail
 import cats.Eq
 import cats.data.EitherT
 import cats.effect.IO
-import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
+import cats.effect.laws.discipline.AsyncTests
+import cats.laws.discipline.{CoflatMapTests, MonoidKTests, SemigroupalTests}
 
 object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
   type F[α] = Iterant[IO, α]
@@ -33,9 +34,9 @@ object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
   val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
     implicitly[Eq[EitherT[F, Throwable, Int]]]
 
-  checkAllAsync("MonadError[Iterant[IO], Throwable]") { implicit ec =>
+  checkAllAsync("Async[Iterant[IO]]") { implicit ec =>
     implicit val eqE = eqEitherT
-    MonadErrorTests[F, Throwable].monadError[Int, Int, Int]
+    AsyncTests[F].async[Int, Int, Int]
   }
 
   checkAllAsync("MonoidK[Iterant[IO]]") { implicit ec =>
