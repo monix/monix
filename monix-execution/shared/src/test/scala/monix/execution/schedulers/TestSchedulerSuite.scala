@@ -18,10 +18,13 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{TimeUnit, TimeoutException}
+
+import cats.effect.IO
 import minitest.TestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+
 import scala.concurrent.duration._
 import scala.concurrent.Promise
 import scala.util.{Success, Try}
@@ -287,6 +290,55 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 0)
     s.tickOne()
     assertEquals(effect, 3)
+  }
+
+
+  test("timer.clockMonotonic") { s =>
+    val timer = s.timer[IO]
+    val fetch = timer.clockMonotonic(MILLISECONDS)
+
+    assertEquals(fetch.unsafeRunSync(), 0L)
+    s.tick(5.seconds)
+    assertEquals(fetch.unsafeRunSync(), 5000L)
+    s.tick(5.seconds)
+    assertEquals(fetch.unsafeRunSync(), 10000L)
+    s.tick(300.millis)
+    assertEquals(fetch.unsafeRunSync(), 10300L)
+  }
+
+  test("timer.clockRealTime") { s =>
+    val timer = s.timer[IO]
+    val fetch = timer.clockRealTime(MILLISECONDS)
+
+    assertEquals(fetch.unsafeRunSync(), 0L)
+    s.tick(5.seconds)
+    assertEquals(fetch.unsafeRunSync(), 5000L)
+    s.tick(5.seconds)
+    assertEquals(fetch.unsafeRunSync(), 10000L)
+    s.tick(300.millis)
+    assertEquals(fetch.unsafeRunSync(), 10300L)
+  }
+
+  test("timer.shift") { s =>
+    val timer = s.timer[IO]
+
+    val f = timer.shift.unsafeToFuture()
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("timer.sleep") { s =>
+    val timer = s.timer[IO]
+
+    val f = timer.sleep(10.seconds).unsafeToFuture()
+    assertEquals(f.value, None)
+
+    s.tick(5.seconds)
+    assertEquals(f.value, None)
+
+    s.tick(5.seconds)
+    assertEquals(f.value, Some(Success(())))
   }
 
   def action(f: => Unit): Runnable =

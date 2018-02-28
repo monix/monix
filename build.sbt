@@ -10,7 +10,7 @@ addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.0.1"
-val catsEffectVersion = "0.8"
+val catsEffectVersion = "0.10-5b8214f"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
@@ -318,7 +318,7 @@ lazy val coreJS = project.in(file("monix/js"))
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
   name := "monix-execution",
   // Filtering out breaking changes from 3.0.0
-  libraryDependencies += "org.typelevel" %%% "cats-core" % catsVersion
+  libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
@@ -341,10 +341,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-eval",
-    // Filtering out breaking changes from 3.0.0
-    libraryDependencies +=
-      "org.typelevel" %%% "cats-effect" % catsEffectVersion
+    name := "monix-eval"
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))

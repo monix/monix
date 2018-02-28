@@ -18,16 +18,17 @@
 package monix.tail
 
 import java.io.PrintStream
+
 import cats.arrow.FunctionK
-import cats.effect.{Async, Effect, IO, Sync}
+import cats.effect._
 import cats.{Applicative, CoflatMap, Eq, MonadError, Monoid, MonoidK, Order, Parallel}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
 import monix.execution.misc.NonFatal
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
-import monix.tail.util.Timer
 import org.reactivestreams.Publisher
+
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}

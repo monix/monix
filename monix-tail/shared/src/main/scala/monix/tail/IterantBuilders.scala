@@ -18,10 +18,9 @@
 package monix.tail
 
 import cats.Applicative
-import cats.effect.{Async, IO, Sync}
+import cats.effect.{Async, IO, Sync, Timer}
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
-import monix.tail.util.Timer
 import scala.collection.immutable.LinearSeq
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.reflect.ClassTag

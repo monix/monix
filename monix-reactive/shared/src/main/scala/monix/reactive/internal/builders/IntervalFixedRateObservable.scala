@@ -26,7 +26,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 private[reactive] final class IntervalFixedRateObservable
@@ -46,7 +46,7 @@ private[reactive] final class IntervalFixedRateObservable
       def scheduleNext(): Unit = {
         counter += 1
         val delay = {
-          val durationMillis = s.currentTimeMillis() - startedAt
+          val durationMillis = s.clockMonotonic(MILLISECONDS) - startedAt
           val d = periodMillis - durationMillis
           if (d >= 0L) d else 0L
         }
@@ -65,7 +65,7 @@ private[reactive] final class IntervalFixedRateObservable
         }
 
       def run(): Unit = {
-        startedAt = s.currentTimeMillis()
+        startedAt = s.clockMonotonic(MILLISECONDS)
         val ack = o.onNext(counter)
 
         if (ack == Continue)

@@ -17,10 +17,9 @@
 
 package monix.tail.internal
 
-import cats.effect.Async
+import cats.effect.{Async, Timer}
 import monix.tail.Iterant
-import monix.tail.util.Timer
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration._
 
 private[tail] object IterantIntervalWithFixedDelay {
   /**

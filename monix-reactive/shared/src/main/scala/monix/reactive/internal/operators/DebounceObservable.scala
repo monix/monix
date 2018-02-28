@@ -18,12 +18,14 @@
 package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
+
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import scala.concurrent.duration.FiniteDuration
+
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 private[reactive] final
 class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repeat: Boolean)
@@ -61,7 +63,7 @@ class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repe
             // the last time we've tried (!hasValue), so keep waiting
             scheduleNext(timeoutMillis)
           } else {
-            val rightNow = scheduler.currentTimeMillis()
+            val rightNow = scheduler.clockMonotonic(MILLISECONDS)
             val sinceLastOnNext = rightNow - lastTSInMillis
 
             if (sinceLastOnNext >= timeoutMillis) {
@@ -71,7 +73,7 @@ class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repe
 
               out.onNext(lastEvent).syncFlatMap {
                 case Continue =>
-                  val executionTime = scheduler.currentTimeMillis() - rightNow
+                  val executionTime = scheduler.clockMonotonic(MILLISECONDS) - rightNow
                   val delay = if (timeoutMillis > executionTime)
                     timeoutMillis - executionTime else 0L
 
@@ -97,7 +99,7 @@ class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repe
       def onNext(elem: A): Ack = self.synchronized {
         if (!isDone) {
           lastEvent = elem
-          lastTSInMillis = scheduler.currentTimeMillis()
+          lastTSInMillis = scheduler.clockMonotonic(MILLISECONDS)
           hasValue = true
           Continue
         } else {

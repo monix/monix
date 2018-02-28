@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect.{Effect, IO}
+import cats.effect.{Effect, IO, Timer}
 import cats.{Monoid, Semigroup}
 import monix.eval.instances._
 import monix.eval.internal._
@@ -28,9 +28,10 @@ import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.ThreadLocal
 import monix.execution.schedulers.{CanBlock, TrampolinedRunnable}
+
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
@@ -3052,7 +3053,7 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     new CatsMonadToSemigroup[Task, A]()(CatsAsyncForTask, A)
 }
 
-private[eval] abstract class TaskParallelNewtype {
+private[eval] abstract class TaskParallelNewtype extends TaskTimers {
   /** Newtype encoding for an `Task` datatype that has a [[cats.Applicative]]
     * capable of doing parallel processing in `ap` and `map2`, needed
     * for implementing [[cats.Parallel]].
@@ -3070,4 +3071,39 @@ private[eval] abstract class TaskParallelNewtype {
     * for more details.
     */
   object Par extends Newtype1[Task]
+}
+
+private[eval] abstract class TaskTimers {
+  /**
+    * Default, pure, globally visible `cats.effect.Timer`
+    * implementation that defers the evaluation to `Task`'s default
+    * [[monix.execution.Scheduler Scheduler]]
+    * (that's being injected in [[Task.runAsync(implicit* runAsync]])
+    */
+  implicit val timer: Timer[Task] =
+    new Timer[Task] {
+      override def clockRealTime(unit: TimeUnit): Task[Long] =
+        Task.deferAction(sc => Task.now(sc.clockRealTime(unit)))
+      override def clockMonotonic(unit: TimeUnit): Task[Long] =
+        Task.deferAction(sc => Task.now(sc.clockMonotonic(unit)))
+      override def shift: Task[Unit] =
+        Task.shift
+      override def sleep(duration: FiniteDuration): Task[Unit] =
+        Task.sleep(duration)
+    }
+
+  /** Builds a `cats.effect.Timer` instance, given a
+    * [[monix.execution.Scheduler Scheduler]] reference.
+    */
+  def timer(sc: Scheduler): Timer[Task] =
+    new Timer[Task] {
+      override def clockRealTime(unit: TimeUnit): Task[Long] =
+        Task.eval(sc.clockRealTime(unit))
+      override def clockMonotonic(unit: TimeUnit): Task[Long] =
+        Task.eval(sc.clockMonotonic(unit))
+      override val shift: Task[Unit] =
+        Task.shift(sc)
+      override def sleep(duration: FiniteDuration): Task[Unit] =
+        Task.sleep(duration).executeOn(sc)
+    }
 }

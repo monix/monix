@@ -166,14 +166,14 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
 
     assertEquals(taskInError.runAsync.value, Some(Failure(dummy)))
     assertEquals(circuitBreaker.state, TaskCircuitBreaker.Open(
-      startedAt = s.currentTimeMillis(),
+      startedAt = s.clockMonotonic(MILLISECONDS),
       resetTimeout = 1.minute
     ))
 
     // Getting rejections from now on, testing reset timeout
     var resetTimeout = 60.seconds
     for (i <- 0 until 30) {
-      val now = s.currentTimeMillis()
+      val now = s.clockMonotonic(MILLISECONDS)
       val nextTimeout = {
         val value = resetTimeout * 2
         if (value > 10.minutes) 10.minutes else value
@@ -202,7 +202,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
       s.tick(1.second)
       assertEquals(delayedResult.value, Some(Failure(dummy)))
       assertEquals(circuitBreaker.state, TaskCircuitBreaker.Open(
-        startedAt = s.currentTimeMillis(),
+        startedAt = s.clockMonotonic(MILLISECONDS),
         resetTimeout = nextTimeout
       ))
 

@@ -17,9 +17,9 @@
 
 package monix.tail
 
-import cats.effect.IO
+import cats.effect.{IO, Timer}
 import monix.eval.Task
-import monix.tail.util.Timer
+
 import scala.util.Success
 import scala.concurrent.duration._
 
@@ -53,7 +53,9 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
 
-  test("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { implicit s =>
+  test("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
+    implicit val timer = s.timer[IO]
+
     var effect = 0
     val lst = Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)
       .map { e => effect += 1; e }
@@ -105,7 +107,9 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
 
-  test("Iterant[IO].intervalWithFixedDelay(2.seconds)") { implicit s =>
+  test("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
+    implicit val timer = s.timer[IO]
+
     var effect = 0
     val lst = Iterant[IO].intervalWithFixedDelay(2.seconds)
       .map { e => effect += 1; e }
@@ -150,7 +154,9 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  test("Iterant[IO].intervalAtFixedRate(1.second)") { implicit s =>
+  test("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
+    implicit val timer = s.timer[IO]
+
     var effect = 0
     val lst = Iterant[IO].intervalAtFixedRate(1.second)
       .mapEval(e => Timer[IO].sleep(100.millis).map { _ => effect += 1; e })
@@ -196,7 +202,9 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  test("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { implicit s =>
+  test("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
+    implicit val timer = s.timer[IO]
+
     var effect = 0
     val lst = Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)
       .mapEval(e => Timer[IO].sleep(100.millis).map { _ => effect += 1; e })
@@ -243,7 +251,9 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  test("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { implicit s =>
+  test("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
+    implicit val timer = s.timer[IO]
+
     var effect = 0
     val lst = Iterant[IO].intervalAtFixedRate(1.second)
       .mapEval(e => Timer[IO].sleep(2.seconds).map { _ => effect += 1; e })
