@@ -117,8 +117,12 @@ object Cancelable {
       *
       * Useful when working with the `IO.cancelable` builder.
       */
-    def toIO: IO[Unit] =
-      IO(self.cancel())
+    def cancelIO: IO[Unit] =
+      self match {
+        case _: IsDummy => IO.unit
+        case _ =>
+          IO(self.cancel())
+      }
   }
 
   private final class CancelableTask(cb: () => Unit)

@@ -21,7 +21,6 @@ import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.{CompositeException, DummyException}
 import monix.execution.schedulers.TestScheduler
-
 import scala.concurrent.Promise
 import scala.util.Failure
 
@@ -85,7 +84,9 @@ object CancelableSuite extends SimpleTestSuite {
     implicit val ctx = TestScheduler()
 
     var effect = 0
-    val io = IO { effect += 1 }
+    val io = IO {
+      effect += 1
+    }
     val c = Cancelable.fromIO(io)
 
     assertEquals(effect, 0)
@@ -99,7 +100,9 @@ object CancelableSuite extends SimpleTestSuite {
     implicit val ctx = TestScheduler()
     val dummy = DummyException("dummy")
 
-    val io = IO { throw dummy }
+    val io = IO {
+      throw dummy
+    }
     val c = Cancelable.fromIO(io)
 
     assertEquals(ctx.state.lastReportedError, null)
@@ -107,15 +110,19 @@ object CancelableSuite extends SimpleTestSuite {
     assertEquals(ctx.state.lastReportedError, dummy)
   }
 
-  test("Cancelable#toIO") {
+  test("Cancelable#cancelIO") {
     var effect = 0
     val c = Cancelable { () => effect += 1 }
-    val io = c.toIO
+    val io = c.cancelIO
 
     assertEquals(effect, 0)
     io.unsafeRunSync()
     assertEquals(effect, 1)
     io.unsafeRunSync()
     assertEquals(effect, 1)
+  }
+
+  test("Cancelable.empty.cancelIO == IO.unit") {
+    assertEquals(Cancelable.empty.cancelIO, IO.unit)
   }
 }

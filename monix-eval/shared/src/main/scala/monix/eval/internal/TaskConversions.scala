@@ -20,33 +20,43 @@ package monix.eval.internal
 import cats.effect.{Effect, IO}
 import monix.eval.Task
 import monix.eval.instances.CatsBaseForTask
-import monix.execution.Scheduler
+import monix.execution.internal.AttemptCallback
 import monix.execution.misc.NonFatal
+import monix.execution.{CancelableFuture, Scheduler}
+
 import scala.util.{Failure, Success}
 
 private[eval] object TaskConversions {
   /** Implementation for `Task#toIO`. */
-  def toIO[A](source: Task[A])(implicit s: Scheduler): IO[A] =
+  def toIO[A](source: Task[A])(implicit s: Scheduler): IO[A] = {
+    def suspend(task: Task[A]): IO[A] =
+      IO.suspend {
+        val f = task.runAsync(s)
+        f.value match {
+          case Some(value) =>
+            value match {
+              case Success(a) => IO.pure(a)
+              case Failure(e) => IO.raiseError(e)
+            }
+          case None =>
+            async(f)
+        }
+      }
+
+    def async(f: CancelableFuture[A]): IO[A] =
+      IO.cancelable { cb =>
+        f.underlying.onComplete(AttemptCallback.toTry(cb))
+        f.cancelable.cancelIO
+      }
+
     source match {
       case Task.Now(v) => IO.pure(v)
       case Task.Error(e) => IO.raiseError(e)
       case Task.Eval(thunk) => IO(thunk())
-      case _ => IO.suspend {
-        val f = source.runAsync
-        f.value match {
-          case Some(tryA) => tryA match {
-            case Success(v) => IO.pure(v)
-            case Failure(e) => IO.raiseError(e)
-          }
-          case None => IO.async { cb =>
-            f.onComplete {
-              case Success(v) => cb(Right(v))
-              case Failure(e) => cb(Left(e))
-            }
-          }
-        }
-      }
+      case Task.Suspend(thunk) => IO.suspend(toIO(thunk()))
+      case other => suspend(other)
     }
+  }
 
   /** Implementation for `Task#fromIO`. */
   def fromIO[A](io: IO[A]): Task[A] =

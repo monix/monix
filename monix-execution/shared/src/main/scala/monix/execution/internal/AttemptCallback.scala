@@ -19,6 +19,8 @@ package monix.execution.internal
 
 import monix.execution.UncaughtExceptionReporter
 
+import scala.util.{Failure, Success, Try}
+
 /** Internal API — some utilities for working with cats-effect
   * callbacks.
   */
@@ -41,5 +43,13 @@ private[monix] object AttemptCallback {
   def empty(implicit r: UncaughtExceptionReporter): Either[Throwable, Unit] => Unit = {
     case Left(e) => r.reportFailure(e)
     case _ => ()
+  }
+
+  /** Converts an attempt callback into one that uses `Try`
+    * (to be used with `Future.onComplete`).
+    */
+  def toTry[A](cb: Either[Throwable, A] => Unit): (Try[A] => Unit) = {
+    case Success(a) => cb(Right(a))
+    case Failure(e) => cb(Left(e))
   }
 }
