@@ -17,11 +17,11 @@
 
 package monix.execution
 
-import java.util.concurrent.{Executor, TimeUnit}
+import java.util.concurrent.TimeUnit
 import monix.execution.internal.RunnableAction
 import monix.execution.schedulers.SchedulerCompanionImpl
 import scala.annotation.implicitNotFound
-import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.FiniteDuration
 
 /** A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can
@@ -30,7 +30,7 @@ import scala.concurrent.duration.FiniteDuration
 @implicitNotFound(
   "Cannot find an implicit Scheduler, either " +
   "import monix.execution.Scheduler.Implicits.global or use a custom one")
-trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Executor {
+trait Scheduler extends ExecutionContextExecutor with UncaughtExceptionReporter {
   /** Schedules the given `command` for execution at some time in the future.
     *
     * The command may execute in a new thread, in a pooled thread,
