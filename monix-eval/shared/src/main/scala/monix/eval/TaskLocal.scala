@@ -140,7 +140,7 @@ final class TaskLocal[A] private (default: => A) {
     *        reset to the previous value
     */
   def bind[R](value: A)(task: Task[R]): Task[R] =
-    Task.suspend(bindL(Task.now(value))(task))
+    bindL(Task.now(value))(task)
 
   /** Binds the local var to a `value` for the duration of the given
     * `task` execution, the `value` itself being lazily evaluated
@@ -166,13 +166,13 @@ final class TaskLocal[A] private (default: => A) {
     *        over asynchronous boundaries — on finish the local gets
     *        reset to the previous value
     */
-  def bindL[R](value: Task[A])(task: Task[R]): Task[R] = {
-    val saved = ref.value
-    value.bracket { v =>
-      ref.update(v)
-      task
-    }(_ => restore(saved))
-  }
+  def bindL[R](value: Task[A])(task: Task[R]): Task[R] =
+    Task.eval(ref.value).flatMap { saved =>
+      value.bracket { v =>
+        ref.update(v)
+        task
+      }(_ => restore(saved))
+    }
 
   /** Clears the local var to the default for the duration of the
     * given `task` execution.
