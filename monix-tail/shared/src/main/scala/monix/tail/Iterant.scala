@@ -18,17 +18,15 @@
 package monix.tail
 
 import java.io.PrintStream
-
 import cats.arrow.FunctionK
-import cats.effect._
-import cats.{Applicative, CoflatMap, Eq, MonadError, Monoid, MonoidK, Order, Parallel}
+import cats.effect.{Async, Effect, Sync, _}
+import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order, Parallel}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
 import monix.execution.misc.NonFatal
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
 import org.reactivestreams.Publisher
-
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -2393,31 +2391,44 @@ private[tail] trait IterantInstances extends IterantInstances1 {
     * on the default instances provided by
     * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
-  implicit val catsInstancesForTask: CatsInstances[Task] = 
-    new CatsInstances
+  implicit val catsInstancesForTask: CatsAsyncInstances[Task] =
+    catsAsyncInstances[Task]
 
   /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
     * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
     */
-  implicit val catsInstancesForCoeval: CatsInstances[Coeval] =
-    new CatsInstances
+  implicit val catsInstancesForCoeval: CatsSyncInstances[Coeval] =
+    catsSyncInstances[Coeval]
 
-  /** Provides type class instances for `Iterant[IO, A]`, based on
-    * the default instances provided by `IO.ioEffect`.
-    */
-  implicit val catsInstancesForIO: CatsInstances[IO] =
-    new CatsInstances
+  /** Provides type class instances for `Iterant[IO, A]`. */
+  implicit val catsInstancesForIO: CatsAsyncInstances[IO] =
+    catsAsyncInstances[IO]
 }
 
-private[tail] trait IterantInstances1 {
-  /** Provides a Cats type class instances for [[Iterant]]. */
-  implicit def catsInstances[F[_]](implicit F: Sync[F]): CatsInstances[F] =
-    new CatsInstances[F]()
+private[tail] trait IterantInstances1 extends IterantInstances0 {
+  /** Provides the `cats.effect.Async` instance for [[Iterant]]. */
+  implicit def catsAsyncInstances[F[_]](implicit F: Async[F]): CatsAsyncInstances[F] =
+    new CatsAsyncInstances[F]()
 
-  /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
-  class CatsInstances[F[_]](implicit F: Sync[F])
-    extends MonadError[({type λ[α] = Iterant[F, α]})#λ, Throwable]
+  /** Provides the `cats.effect.Async` instance for [[Iterant]]. */
+  class CatsAsyncInstances[F[_]](implicit F: Async[F])
+    extends CatsSyncInstances[F]
+      with Async[({type λ[α] = Iterant[F, α]})#λ] {
+
+    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Iterant[F, A] =
+      Iterant.liftF(F.async(k))
+  }
+}
+
+private[tail] trait IterantInstances0 {
+  /** Provides the `cats.effect.Sync` instance for [[Iterant]]. */
+  implicit def catsSyncInstances[F[_]](implicit F: Sync[F]): CatsSyncInstances[F] =
+    new CatsSyncInstances[F]()
+
+  /** Provides the `cats.effect.Sync` instance for [[Iterant]]. */
+  class CatsSyncInstances[F[_]](implicit F: Sync[F])
+    extends Sync[({type λ[α] = Iterant[F, α]})#λ]
       with MonoidK[({type λ[α] = Iterant[F, α]})#λ]
       with CoflatMap[({type λ[α] = Iterant[F, α]})#λ] {
 
@@ -2468,5 +2479,8 @@ private[tail] trait IterantInstances1 {
 
     override def recoverWith[A](fa: Iterant[F, A])(pf: PartialFunction[Throwable, Iterant[F, A]]): Iterant[F, A] =
       fa.onErrorRecoverWith(pf)
+
+    override def suspend[A](thunk: => Iterant[F, A]): Iterant[F, A] =
+      Iterant.suspend(thunk)
   }
 }

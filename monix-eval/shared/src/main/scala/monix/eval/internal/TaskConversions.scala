@@ -23,7 +23,6 @@ import monix.eval.instances.CatsBaseForTask
 import monix.execution.internal.AttemptCallback
 import monix.execution.misc.NonFatal
 import monix.execution.{CancelableFuture, Scheduler}
-
 import scala.util.{Failure, Success}
 
 private[eval] object TaskConversions {
@@ -64,11 +63,10 @@ private[eval] object TaskConversions {
 
   /** Implementation for `Task#fromEffect`. */
   def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
-    import IO.ioEffect
     F match {
       case _: CatsBaseForTask =>
         fa.asInstanceOf[Task[A]]
-      case `ioEffect` =>
+      case IO.ioConcurrentEffect =>
         fromIO(fa.asInstanceOf[IO[A]])
       case _ =>
         Task.unsafeCreate { (ctx, cb) =>
