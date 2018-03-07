@@ -68,7 +68,7 @@ object ExecuteOnObservableSuite extends TestSuite[TestScheduler] {
 
   test("executeOn should inject scheduler") { implicit s =>
     val s2 = TestScheduler()
-    val obs = Observable.now(10).executeWithFork.executeOn(s2, forceAsync = false)
+    val obs = Observable.now(10).executeAsync.executeOn(s2, forceAsync = false)
     val p = Promise[Int]()
 
     obs.subscribe(new Observer[Int] {

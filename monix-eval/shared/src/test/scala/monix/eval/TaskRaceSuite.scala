@@ -242,9 +242,9 @@ object TaskRaceSuite extends BaseTestSuite {
 
     val t = Task.racePair(ta, tb).flatMap {
       case Left((a, taskB)) =>
-        taskB.map(b => a + b)
+        taskB.join.map(b => a + b)
       case Right((taskA, b)) =>
-        taskA.map(a => a + b)
+        taskA.join.map(a => a + b)
     }
 
     val f = t.runAsync
@@ -273,10 +273,10 @@ object TaskRaceSuite extends BaseTestSuite {
 
     val t = Task.racePair(ta, tb).map {
       case Left((a, taskB)) =>
-        future = Some(taskB.runAsync)
+        future = Some(taskB.join.runAsync)
         a
       case Right((taskA, b)) =>
-        future = Some(taskA.runAsync)
+        future = Some(taskA.join.runAsync)
         b
     }
 
@@ -299,10 +299,10 @@ object TaskRaceSuite extends BaseTestSuite {
 
     val t = Task.racePair(ta, tb).map {
       case Left((a, taskB)) =>
-        future = Some(taskB.runAsync)
+        future = Some(taskB.join.runAsync)
         a
       case Right((taskA, b)) =>
-        future = Some(taskA.runAsync)
+        future = Some(taskA.join.runAsync)
         b
     }
 
@@ -349,9 +349,9 @@ object TaskRaceSuite extends BaseTestSuite {
 
     val t1 = Task.racePair(ta, tb).flatMap {
       case Left((a, taskB)) =>
-        taskB.map(b => a + b)
+        taskB.join.map(b => a + b)
       case Right((taskA, b)) =>
-        taskA.map(a => a + b)
+        taskA.join.map(a => a + b)
     }
 
     val t2 = Task.racePair(ta, tb).map {
@@ -374,9 +374,9 @@ object TaskRaceSuite extends BaseTestSuite {
 
     val t1 = Task.racePair(ta, tb).flatMap {
       case Left((a, taskB)) =>
-        taskB.map(b => a + b)
+        taskB.join.map(b => a + b)
       case Right((taskA, b)) =>
-        taskA.map(a => a + b)
+        taskA.join.map(a => a + b)
     }
 
     val t2 = Task.racePair(ta, tb).map {

@@ -17,7 +17,6 @@
 
 package monix.eval.instances
 
-import cats.arrow.FunctionK
 import cats.{Applicative, Monad, Parallel, ~>}
 import monix.eval.Task
 
@@ -32,35 +31,36 @@ import monix.eval.Task
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsParallelForTask extends Parallel[Task, Task] {
-  import CatsParallelForTask.{NondetApplicative, taskId}
+class CatsParallelForTask extends Parallel[Task, Task.Par] {
 
-  override def applicative: Applicative[Task] =
-    NondetApplicative
-  override def monad: Monad[Task] =
-    CatsAsyncForTask
-  override def sequential: Task ~> Task =
-    taskId
-  override def parallel: Task ~> Task =
-    taskId
+  override def applicative: Applicative[Task.Par] = CatsParallelForTask.NondetApplicative
+  override def monad: Monad[Task] = CatsAsyncForTask
+
+  override val sequential: Task.Par  ~> Task = new (Task.Par ~> Task) {
+    def apply[A](fa: Task.Par[A]): Task[A] = Task.Par.unwrap(fa)
+  }
+  override val parallel: Task ~> Task.Par  = new (Task ~> Task.Par) {
+    def apply[A](fa: Task[A]): Task.Par[A] = Task.Par.apply(fa)
+  }
 }
 
 object CatsParallelForTask extends CatsParallelForTask {
-  private object NondetApplicative extends Applicative[Task] {
-    override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =
-      Task.mapBoth(ff, fa)(_ (_))
-    override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =
-      Task.mapBoth(fa, fb)(f)
-    override def product[A, B](fa: Task[A], fb: Task[B]): Task[(A, B)] =
-      Task.mapBoth(fa, fb)((_, _))
-    override def pure[A](a: A): Task[A] =
-      Task.now(a)
-    override val unit: Task[Unit] =
-      Task.now(())
-    override def map[A, B](fa: Task[A])(f: (A) => B): Task[B] =
-      fa.map(f)
-  }
+  private object NondetApplicative extends Applicative[Task.Par] {
 
-  private val taskId: Task ~> Task =
-    FunctionK.id[Task]
+    import Task.Par.unwrap
+    import Task.Par.{apply => par}
+
+    override def ap[A, B](ff: Task.Par[(A) => B])(fa: Task.Par[A]): Task.Par[B] =
+      par(Task.mapBoth(unwrap(ff), unwrap(fa))(_ (_)))
+    override def map2[A, B, Z](fa: Task.Par[A], fb: Task.Par[B])(f: (A, B) => Z): Task.Par[Z] =
+      par(Task.mapBoth(unwrap(fa), unwrap(fb))(f))
+    override def product[A, B](fa: Task.Par[A], fb: Task.Par[B]): Task.Par[(A, B)] =
+      par(Task.mapBoth(unwrap(fa), unwrap(fb))((_, _)))
+    override def pure[A](a: A): Task.Par[A] =
+      par(Task.now(a))
+    override val unit: Task.Par[Unit] =
+      par(Task.now(()))
+    override def map[A, B](fa: Task.Par[A])(f: (A) => B): Task.Par[B] =
+      par(unwrap(fa).map(f))
+  }
 }

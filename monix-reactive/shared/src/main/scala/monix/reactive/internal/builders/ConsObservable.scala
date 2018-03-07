@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.{MultiAssignCancelable, SingleAssignCancelable}
+import monix.execution.cancelables.{AssignableCancelable, MultiAssignCancelable, SingleAssignCancelable}
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
 import monix.reactive.observables.ChainedObservable.{subscribe => chain}
@@ -27,7 +27,7 @@ import monix.reactive.observers.Subscriber
 private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A])
   extends ChainedObservable[A] {
 
-  def unsafeSubscribeFn(conn: MultiAssignCancelable, out: Subscriber[A]): Unit = {
+  def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
     import out.{scheduler => s}
     out.onNext(head).syncOnContinue(chain(tail, conn, out))(s)
   }

@@ -32,25 +32,15 @@ private[tail] object IterantMapEval {
   def apply[F[_], A, B](source: Iterant[F, A], ff: A => F[B])
     (implicit F: Sync[F]): Iterant[F, B] = {
 
-    def protectedF(a: A, stop: F[Unit]): F[B] = {
-      try {
-        val fb = ff(a)
-        fb.handleErrorWith(e => stop *> F.raiseError(e))
-      } catch {
-        case e if NonFatal(e) =>
-          stop *> F.raiseError(e)
-      }
-    }
-
     def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
-      if (!cursor.hasNext)
+      if (!cursor.hasNext) {
         Suspend[F, B](rest.map(loop), stop)
-      else {
+      } else {
         val head = cursor.next()
-        val fa = protectedF(head, stop)
+        val fb = try ff(head) catch { case NonFatal(e) => F.raiseError[B](e) }
         // If the iterator is empty, then we can skip a beat
         val tail = if (cursor.hasNext()) F.pure(ref: Iterant[F, A]) else rest
-        val suspended = fa.map(h => nextS(h, tail.map(loop), stop))
+        val suspended = fb.map(h => nextS(h, tail.map(loop), stop))
         Suspend[F, B](suspended, stop)
       }
     }
@@ -58,8 +48,7 @@ private[tail] object IterantMapEval {
     def loop(source: Iterant[F, A]): Iterant[F, B] =
       try source match {
         case Next(head, tail, stop) =>
-          val fa = protectedF(head, stop)
-          val rest = fa.map(h => nextS(h, tail.map(loop), stop))
+          val rest = ff(head).map(h => nextS(h, tail.map(loop), stop))
           Suspend(rest, stop)
         case ref @ NextCursor(cursor, rest, stop) =>
           evalNextCursor(ref, cursor, rest, stop)
@@ -70,12 +59,12 @@ private[tail] object IterantMapEval {
         case Suspend(rest, stop) =>
           Suspend[F,B](rest.map(loop), stop)
         case Last(item) =>
-          val fa = ff(item)
-          Suspend(fa.map(h => lastS[F,B](h)), F.unit)
+          Suspend(ff(item).map(h => lastS[F,B](h)), F.unit)
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]
       } catch {
-        case ex if NonFatal(ex) => signalError(source, ex)
+        case ex if NonFatal(ex) =>
+          signalError(source, ex)
       }
 
     source match {

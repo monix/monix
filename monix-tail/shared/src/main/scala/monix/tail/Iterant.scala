@@ -21,15 +21,17 @@ import java.io.PrintStream
 
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync}
-import cats.{Applicative, CoflatMap, Eq, MonadError, Monoid, MonoidK, Order, Parallel}
+import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order, Parallel}
 import monix.eval.instances.{CatsAsyncForTask, CatsBaseForTask, CatsSyncForCoeval}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
+import monix.execution.misc.NonFatal
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
@@ -1233,6 +1235,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def reduceL(op: (A, A) => A)(implicit F: Sync[F]): F[Option[A]] =
     IterantReduce(self, op)
 
+  /** Repeats the items emitted by the source continuously
+    *
+    * It terminates either on error or if the source is empty.
+    */
+  final def repeat(implicit F: Sync[F]): Iterant[F, A] =
+    IterantRepeat(self)
+
   /** Returns an `Iterant` that mirrors the behavior of the source,
     * unless the source is terminated with an error, in which case
     * the streaming of events continues with the specified backup
@@ -1507,6 +1516,26 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def tail(implicit F: Sync[F]): Iterant[F, A] =
     IterantTail(self)(F)
 
+  /** Lazily interleaves two iterants together, starting with the first
+    * element from `self`.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    *
+    * Example: {{{
+    *   val lh = Iterant[Task].of(11, 12)
+    *   val rh = Iterant[Task].of(21, 22, 23)
+    *
+    *   // Yields 11, 21, 12, 22
+    *   lh.interleave(rh)
+    * }}}
+    *
+    * @param rhs is the other iterant to interleave the source with (the
+    *        right hand side)
+    */
+  final def interleave[B >: A](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
+    IterantInterleave(self.upcast[B], rhs)(F)
+
   /** Converts this `Iterant` into an `org.reactivestreams.Publisher`.
     *
     * Meant for interoperability with other Reactive Streams
@@ -1695,6 +1724,15 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def skipSuspendL(implicit F: Sync[F]): F[Iterant[F, A]] =
     IterantSkipSuspend(self)
 
+  /** Given evidence that type `A` has a `scala.math.Numeric` implementation,
+    * sums the stream of elements.
+    *
+    * An alternative to [[foldL]] which does not require any imports and works
+    * in cases `cats.Monoid` is not defined for values (e.g. `A = Char`)
+    */
+  final def sumL(implicit F: Sync[F], A: Numeric[A]): F[A] =
+    foldLeftL(A.zero)(A.plus)
+
   /** Aggregates all elements in a `List` and preserves order.
     *
     * Example: {{{
@@ -1866,6 +1904,53 @@ object Iterant extends IterantInstances {
   def pure[F[_], A](a: A): Iterant[F, A] =
     now[F, A](a)
 
+  /** Creates a stream that depends on resource allocated by a
+    * monadic value, ensuring the resource is released.
+    *
+    * Typical use-cases are working with files or network sockets
+    *
+    * @param acquire resource to acquire at the start of the stream
+    * @param use function that uses the resource to generate a stream of outputs
+    * @param release function that releases the acquired resource
+    *
+    * Example:
+    * {{{
+    *   val writeLines =
+    *     Iterant.bracket(IO { new PrintWriter("./lines.txt") })(
+    *       writer => Iterant[IO]
+    *         .fromIterator(Iterator.from(1))
+    *         .mapEval(i => IO { writer.println(s"Line #\$i") }),
+    *       writer => IO { writer.close() }
+    *     )
+    *
+    *   // Write 100 numbered lines to the file
+    *   // closing the writer when finished
+    *   writeLines.take(100).completeL.unsafeRunSync()
+    * }}}
+    */
+  def bracket[F[_], A, B](acquire: F[A])(
+    use: A => Iterant[F, B],
+    release: A => F[Unit]
+  )(
+    implicit F: Sync[F]
+  ): Iterant[F, B] =
+    bracketA(acquire)(use, (a, _) => release(a))
+
+  /** A more powerful version of bracket that also provides information
+    * whether the stream has completed successfully, was terminated early
+    * or terminated with an error.
+    *
+    * BracketResult may be superseded by ADT in cats-effect#113,
+    * this method is private until then
+    */
+  private[tail] def bracketA[F[_], A, B](acquire: F[A])(
+    use: A => Iterant[F, B],
+    release: (A, BracketResult) => F[Unit]
+  )(
+    implicit F: Sync[F]
+  ): Iterant[F, B] =
+    IterantBracket(acquire, use, release)
+
   /** Lifts a strict value into the stream context, returning a
     * stream of one element.
     */
@@ -2026,6 +2111,70 @@ object Iterant extends IterantInstances {
     NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty), F.unit)
   }
 
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * `Iterant` that keeps generating `NextBatch` items produced
+    * by our generator function with default `recommendedBatchSize`.
+    *
+    * Example: {{{
+    *   val f = (x: Int) => (x + 1, x * 2)
+    *   val seed = 1
+    *   val stream = Iterant.fromStateAction[Task, Int, Int](f)(seed)
+    *
+    *   // Yields 2, 3, 5, 9
+    *   stream.take(5)
+    * }}}
+    *
+    * @see [[fromStateActionL]] for version supporting `F[_]`
+    *     in result of generator function and seed element
+    */
+  def fromStateAction[F[_], S, A](f: S => (A, S))(seed: => S)(implicit F: Sync[F]): Iterant[F, A] = {
+    def loop(state: S): Iterant[F, A] = {
+      var toProcess = batches.defaultBatchSize
+      var currentState = state
+      val buffer = mutable.Buffer[A]()
+
+      while (toProcess > 0) {
+        val (elem, newState) = f(currentState)
+        buffer.append(elem)
+        currentState = newState
+        toProcess -= 1
+      }
+      NextBatch[F, A](Batch.fromSeq(buffer), F.delay(loop(currentState)), F.unit)
+    }
+    try loop(seed)
+    catch { case e if NonFatal(e) => Halt(Some(e)) }
+  }
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence in `F[_]` context, creates an
+    * `Iterant` that keeps generating `Next` items produced by our generator function.
+    *
+    * Example: {{{
+    *   val f = (x: Int) => F.pure((x + 1, x * 2))
+    *   val seed = F.pure(1)
+    *   val stream = Iterant.fromStateAction[Task, Int, Int](f)(seed)
+    *
+    *   // Yields 2, 3, 5, 9
+    *   stream.take(5)
+    * }}}
+    *
+    * @see [[fromStateAction]] for version without `F[_]` context which generates `NextBatch` items
+    */
+  def fromStateActionL[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] = {
+    import cats.syntax.all._
+
+    def loop(state: S): F[Iterant[F, A]] =
+      try {
+        f(state).map { case (elem, newState) =>
+          Next(elem, F.suspend(loop(newState)), F.unit)
+        }
+      } catch {
+        case e if NonFatal(e) => F.pure(Halt(Some(e)))
+      }
+    Suspend(F.suspend(seed.flatMap(loop)), F.unit)
+  }
+
   /** Builds a stream that on evaluation will produce equally spaced
     * values in some integer interval.
     *
@@ -2038,6 +2187,50 @@ object Iterant extends IterantInstances {
     */
   def range[F[_]](from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
     NextBatch(Batch.range(from, until, step), F.pure(empty[F, Int]), F.unit)
+
+  /** Builds a stream that repeats the items provided in argument.
+    *
+    * It terminates either on error or if the source is empty.
+    */
+  def repeat[F[_], A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] = elems match {
+    case Seq() => Iterant.empty
+    case Seq(elem) =>
+      // trick to optimize recursion, see Optimisation section at:
+      // https://japgolly.blogspot.com.by/2017/12/practical-awesome-recursion-ch-02.html
+      var result: Iterant[F, A] = null
+      result = Next[F, A](elem, F.delay(result), F.unit)
+      result
+    case _ =>
+      var result: Iterant[F, A] = null
+      result = NextBatch(Batch(elems: _*), F.delay(result), F.unit)
+      result
+  }
+
+  /** Builds a stream that suspends provided thunk and evaluates
+    * it indefinitely on-demand.
+    *
+    * The stream will only terminate if evaluation throws an exception
+    *
+    * Referentially transparent alternative to `Iterator.continually`
+    *
+    * Example: infinite sequence of random numbers
+    * {{{
+    *   import scala.util.Random
+    *
+    *   val randomInts = Iterant[Coeval].repeatEval(Random.nextInt())
+    * }}}
+    *
+    */
+  def repeatEval[F[_], A](thunk: => A)(implicit F: Sync[F]): Iterant[F, A] =
+    repeatEvalF(F.delay(thunk))
+
+  /**
+    * Builds a stream that evaluates provided effectful values indefinitely.
+    *
+    * The stream will only terminate if an error is raised in F context
+    */
+  def repeatEvalF[F[_], A](fa: F[A])(implicit F: Sync[F]): Iterant[F, A] =
+    repeat(()).mapEval(_ => fa)
 
   /** Returns an empty stream. */
   def empty[F[_], A]: Iterant[F, A] =
@@ -2136,7 +2329,7 @@ private[tail] trait IterantInstances extends IterantInstances1 {
     * on the default instances provided by
     * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
-  implicit def catsInstancesForTask(implicit F: Async[Task]): CatsInstances[Task] = {
+  implicit def catsInstancesForTask(implicit F: Async[Task]): CatsAsyncInstances[Task] = {
     // Avoiding the creation of junk, because it is expensive
     F match {
       case _: CatsBaseForTask => defaultIterantTaskRef
@@ -2145,14 +2338,14 @@ private[tail] trait IterantInstances extends IterantInstances1 {
   }
 
   /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
-  private[this] final val defaultIterantTaskRef: CatsInstances[Task] =
+  private[this] final val defaultIterantTaskRef: CatsAsyncInstances[Task] =
     new CatsInstancesForTask()(CatsAsyncForTask)
 
   /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
     * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
     */
-  implicit def catsInstancesForCoeval(implicit F: Sync[Coeval]): CatsInstances[Coeval] = {
+  implicit def catsInstancesForCoeval(implicit F: Sync[Coeval]): CatsSyncInstances[Coeval] = {
     // Avoiding the creation of junk, because it is expensive
     F match {
       case CatsSyncForCoeval => defaultIterantCoevalRef
@@ -2169,25 +2362,38 @@ private[tail] trait IterantInstances extends IterantInstances1 {
     * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
   private final class CatsInstancesForTask(implicit F: Async[Task])
-    extends CatsInstances[Task]()(F)
+    extends CatsAsyncInstances[Task]()(F)
 
   /** Provides type class instances for `Iterant[Coeval, A]`, based on
     * the default instances provided by
     * [[monix.eval.Coeval.catsSync Coeval.catsSync]].
     */
   private final class CatsInstancesForCoeval(implicit F: Sync[Coeval])
-    extends CatsInstances[Coeval]()(F)
+    extends CatsSyncInstances[Coeval]()(F)
 
 }
 
-private[tail] trait IterantInstances1 {
+private[tail] trait IterantInstances1 extends IterantInstances0 {
+  implicit def catsAsyncInstances[F[_]](implicit F: Async[F]): CatsAsyncInstances[F] =
+    new CatsAsyncInstances[F]()
+
+  class CatsAsyncInstances[F[_]](implicit F: Async[F])
+    extends CatsSyncInstances[F]
+      with Async[({type λ[α] = Iterant[F, α]})#λ] {
+
+    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Iterant[F, A] =
+      Iterant.liftF(F.async(k))
+  }
+}
+
+private[tail] trait IterantInstances0 {
   /** Provides a Cats type class instances for [[Iterant]]. */
-  implicit def catsInstances[F[_]](implicit F: Sync[F]): CatsInstances[F] =
-    new CatsInstances[F]()
+  implicit def catsInstances[F[_]](implicit F: Sync[F]): CatsSyncInstances[F] =
+    new CatsSyncInstances[F]()
 
   /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
-  class CatsInstances[F[_]](implicit F: Sync[F])
-    extends MonadError[({type λ[α] = Iterant[F, α]})#λ, Throwable]
+  class CatsSyncInstances[F[_]](implicit F: Sync[F])
+    extends Sync[({type λ[α] = Iterant[F, α]})#λ]
       with MonoidK[({type λ[α] = Iterant[F, α]})#λ]
       with CoflatMap[({type λ[α] = Iterant[F, α]})#λ] {
 
@@ -2238,5 +2444,8 @@ private[tail] trait IterantInstances1 {
 
     override def recoverWith[A](fa: Iterant[F, A])(pf: PartialFunction[Throwable, Iterant[F, A]]): Iterant[F, A] =
       fa.onErrorRecoverWith(pf)
+
+    override def suspend[A](thunk: => Iterant[F, A]): Iterant[F, A] =
+      Iterant.suspend(thunk)
   }
 }

@@ -344,7 +344,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     val dummy2 = DummyException("dummy2")
 
     val source = Observable.now(1L).endWithError(dummy1)
-    val obs: Observable[Long] = source.mapTask { i => Task.fork(Task.raiseError(dummy2)) }
+    val obs: Observable[Long] = source.mapTask { i => Task.raiseError(dummy2).executeAsync }
 
     var thrownError: Throwable = null
     var received = 0

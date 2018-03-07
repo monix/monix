@@ -17,10 +17,13 @@
 
 package monix.tail
 
+import cats.effect.IO
+import cats.syntax.eq._
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
+import monix.tail.batches.{Batch, BatchCursor}
 
 object IterantOnErrorSuite extends BaseTestSuite {
   test("fa.attempt <-> fa.map(Right) for successful streams") { implicit s =>
@@ -48,7 +51,8 @@ object IterantOnErrorSuite extends BaseTestSuite {
       val r = fae.flatMap(_.fold(
         e => Iterant[Coeval].raiseError[Int](e),
         a => Iterant[Coeval].pure(a)
-      ))
+      )
+      )
 
       r <-> fa
     }
@@ -79,8 +83,154 @@ object IterantOnErrorSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix.onErrorIgnore ++ error).onErrorHandleWith(ex => Iterant[Task].haltS[Int](Some(ex)))
-      stream <-> Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> prefix.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
+  }
+
+  test("Iterant[Task].onErrorHandleWith should protect against cursors broken in the middle") { implicit s =>
+    val dummy = DummyException("dummy")
+    val cursor = BatchCursor.fromIterator(semibrokenIterator(dummy))
+    val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
+    val result = error.onErrorHandleWith(_ => Iterant[Task].empty[Int])
+    assert(result.toListL === Task.now(List(0, 1, 2)))
+  }
+
+  def brokenTails: Array[Iterant[Coeval, Int]] = {
+    val dummy = DummyException("dummy")
+
+    def withError(ctor: (Coeval[Iterant[Coeval, Int]], Coeval[Unit]) => Iterant[Coeval, Int]) = {
+      ctor(Coeval.raiseError(dummy), Coeval.unit)
+    }
+
+    Array(
+      withError(Iterant.suspendS),
+      withError(Iterant.nextS(0, _, _)),
+      withError(Iterant.nextBatchS(Batch(0), _, _)),
+      withError(Iterant.nextCursorS(BatchCursor(0), _, _))
+    )
+  }
+
+  test("onErrorHandleWith should protect against broken continuations") { _ =>
+    val fallback = Seq(1, 2, 3)
+    for (broken <- brokenTails) {
+      val out = broken
+        .onErrorHandleWith(_ => Iterant[Coeval].fromSeq(fallback))
+        .toListL
+        .value
+
+      assertEquals(out.takeRight(fallback.length), fallback)
+    }
+  }
+
+  test("onErrorHandleWith should execute earlyStop of stream prior to error in continuation") { _ =>
+    var effect = 0
+
+    val errorInTail = Iterant[Coeval].nextS(1,
+      Coeval {
+        Iterant[Coeval].nextS(2,
+          Coeval { (throw DummyException("Dummy")) : Iterant[Coeval, Int]},
+          Coeval { effect = 2 }
+        )
+      },
+      Coeval { effect = 1 }
+    )
+    errorInTail.onErrorHandleWith(_ => Iterant[Coeval].empty[Int])
+      .completeL.value
+    assertEquals(effect, 2)
+  }
+
+  test("attempt should protect against broken continuations") { _ =>
+    for (broken <- brokenTails) {
+      val end = broken.attempt
+        .toListL
+        .value
+        .last
+
+      assertEquals(end, Left(DummyException("dummy")))
+    }
+  }
+
+  test("attempt should execute earlyStop of stream prior to error in continuation") { _ =>
+    var effect = 0
+
+    val errorInTail = Iterant[Coeval].nextS(1,
+      Coeval {
+        Iterant[Coeval].nextS(2,
+          Coeval { (throw DummyException("Dummy")) : Iterant[Coeval, Int]},
+          Coeval { effect = 2 }
+        )
+      },
+      Coeval { effect = 1 }
+    )
+    errorInTail.attempt.completeL.value
+    assertEquals(effect, 2)
+  }
+
+  test("onErrorIgnore should capture exceptions from eval, mapEval & liftF") { _ =>
+    val dummy = DummyException("dummy")
+    Iterant[IO]
+      .eval { throw dummy }
+      .onErrorIgnore.completeL.unsafeRunSync()
+
+    Iterant[IO].of(1)
+      .mapEval(_ => IO { throw dummy })
+      .onErrorIgnore.completeL.unsafeRunSync()
+
+    Iterant[IO].of(1)
+      .mapEval(_ => throw dummy)
+      .onErrorIgnore.completeL.unsafeRunSync()
+
+    Iterant[IO].liftF(IO { throw dummy })
+      .onErrorIgnore.completeL.unsafeRunSync()
+  }
+
+  test("attempt should capture exceptions from mapEval") { _ =>
+    val dummy = DummyException("dummy")
+    val result = Iterant[IO].of(1)
+      .mapEval(_ => IO(throw dummy))
+      .attempt.headOptionL.unsafeRunSync()
+
+    assertEquals(result, Some(Left(dummy)))
+  }
+
+  test("attempt should protect against broken batches") { _ =>
+    val dummy = DummyException("dummy")
+    val result = Iterant[IO].nextBatchS[Int](ThrowExceptionBatch(dummy), IO(Iterant[IO].empty), IO.unit)
+      .attempt.headOptionL.unsafeRunSync()
+
+    assertEquals(result, Some(Left(dummy)))
+  }
+
+  test("attempt should protect against broken cursor") { _ =>
+    val dummy = DummyException("dummy")
+    val result = Iterant[IO].nextCursorS[Int](ThrowExceptionCursor(dummy), IO(Iterant[IO].empty), IO.unit)
+      .attempt.headOptionL.unsafeRunSync()
+
+    assertEquals(result, Some(Left(dummy)))
+  }
+
+  //noinspection ScalaUnreachableCode
+  def semibrokenIterator(ex: Throwable): Iterator[Int] = {
+    def end: Iterator[Int] = new Iterator[Int] {
+      override def hasNext: Boolean = true
+      override def next(): Int = throw ex
+    }
+    Iterator(0, 1, 2) ++ end
+  }
+
+  test("attempt should protect against cursors broken in the middle") { _ =>
+    val dummy = DummyException("dummy")
+    val cursor = BatchCursor.fromIterator(semibrokenIterator(dummy))
+
+    val result = Iterant[IO].nextCursorS(cursor, IO(Iterant[IO].empty[Int]), IO.unit)
+      .attempt.toListL.unsafeRunSync()
+
+    assertEquals(result, List(
+      Right(0),
+      Right(1),
+      Right(2),
+      Left(dummy)
+    ))
   }
 
 }

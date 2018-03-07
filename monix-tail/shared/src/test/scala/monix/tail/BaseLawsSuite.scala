@@ -18,12 +18,14 @@
 package monix.tail
 
 import minitest.SimpleTestSuite
+import minitest.api.IgnoredException
 import minitest.laws.Checkers
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import org.scalacheck.Prop
 import org.scalacheck.Test.Parameters
 import org.typelevel.discipline.Laws
+
 import scala.concurrent.duration._
 
 /** Just a marker for what we need to extend in the tests
@@ -38,20 +40,30 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
 
   lazy val slowConfig: Parameters =
     Parameters.default
-      .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
-      .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
-      .withMaxSize(10)
+      .withMinSuccessfulTests(10)
+      .withMaxDiscardRatio(50.0f)
+      .withMaxSize(6)
 
   def checkAllAsync(name: String, config: Parameters = checkConfig)
     (f: TestScheduler => Laws#RuleSet): Unit = {
 
     val s = TestScheduler()
-    val ruleSet = f(s)
+    var catchErrors = true
+    try {
+      val ruleSet = f(s)
+      catchErrors = false
 
-    for ((id, prop: Prop) ← ruleSet.all.properties)
-      test(name + "." + id) {
-        s.tick(1.day)
-        check(prop)
-      }
+      for ((id, prop: Prop) ← ruleSet.all.properties)
+        test(s"$name.$id") {
+          s.tick(1.day)
+          check(prop, config)
+        }
+    } catch {
+      case e: IgnoredException if catchErrors =>
+        test(name) { throw e }
+    }
   }
+
+  val emptyRuleSet: Laws#RuleSet =
+    new Laws { val ref = new DefaultRuleSet("dummy", None) }.ref
 }

@@ -22,9 +22,9 @@ import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
-object TaskForkSuite extends BaseTestSuite {
-  test("Task.now.executeWithFork should execute async") { implicit s =>
-    val t = Task.now(10).executeWithFork
+object TaskExecuteAsyncSuite extends BaseTestSuite {
+  test("Task.now.executeAsync should execute async") { implicit s =>
+    val t = Task.now(10).executeAsync
     val f = t.runAsync
 
     assertEquals(f.value, None)
@@ -65,10 +65,10 @@ object TaskForkSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.fork should be stack safe, test 1") { implicit s =>
+  test("executeAsync should be stack safe, test 1") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
     var task = Task.eval(1)
-    for (_ <- 0 until count) task = Task.fork(task)
+    for (_ <- 0 until count) task = task.executeAsync
 
     val result = task.runAsync
     s.tick()
@@ -85,12 +85,12 @@ object TaskForkSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(1)))
   }
 
-  test("Task.fork should be stack safe, test 3") { implicit s =>
+  test("executeAsync should be stack safe, test 3") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
 
     def loop(n: Int): Task[Int] =
-      if (n <= 0) Task.fork(Task.now(0))
-      else Task.fork(Task.now(n)).flatMap(_ => loop(n-1))
+      if (n <= 0) Task.now(0).executeAsync
+      else Task.now(n).executeAsync.flatMap(_ => loop(n-1))
 
     val result = loop(count).runAsync
     s.tick()
@@ -100,7 +100,8 @@ object TaskForkSuite extends BaseTestSuite {
   test("Task.asyncBoundary should work") { implicit s =>
     val io = TestScheduler()
     var effect = 0
-    val f = Task.fork(Task.eval { effect += 1; effect }, io)
+    val f = Task.eval { effect += 1; effect }
+      .executeOn(io)
       .asyncBoundary
       .map(_ + 1)
       .runAsync
@@ -122,7 +123,8 @@ object TaskForkSuite extends BaseTestSuite {
     val s2 = TestScheduler()
 
     var effect = 0
-    val f = Task.fork(Task.eval { effect += 1; effect }, io)
+    val f = Task.eval { effect += 1; effect }
+      .executeOn(io)
       .asyncBoundary(s2)
       .map(_ + 1)
       .runAsync

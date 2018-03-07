@@ -20,7 +20,6 @@ package monix.eval
 import cats.Contravariant
 import monix.execution.misc.NonFatal
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -30,14 +29,17 @@ import scala.util.{Failure, Success, Try}
   *
   * The `onSuccess` method should be called only once, with the successful
   * result, whereas `onError` should be called if the result is an error.
+  *
+  * Obviously `Callback` describes unsafe side-effects, a fact that is
+  * highlighted by the usage of `Unit` as the return type. Obviously
+  * callbacks are unsafe to use in pure code, but are necessary for
+  * describing asynchronous processes, like in [[Task.create]].
   */
 abstract class Callback[-A] extends Listener[A] with ((Try[A]) => Unit) {
   def onSuccess(value: A): Unit
+
   def onError(ex: Throwable): Unit
 
-  /** An alias for [[onSuccess]], inherited
-    * from [[monix.execution.Listener]].
-    */
   final def onValue(value: A): Unit =
     onSuccess(value)
 

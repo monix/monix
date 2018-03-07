@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 package monix.reactive.observers
 
 import minitest.TestSuite

@@ -46,8 +46,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
   test("runAsync flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
     val maxCount = Platform.recommendedBatchSize * 4
-    val expected1 = Platform.recommendedBatchSize
-    val expected2 = Platform.recommendedBatchSize * 2 - 1
+    val expected = Platform.recommendedBatchSize
 
     def loop(count: AtomicInt): Task[Unit] =
       if (count.getAndIncrement() >= maxCount) Task.unit else
@@ -55,22 +54,22 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
     val atomic = Atomic(0)
     val f = loop(atomic)
-      .executeWithOptions(_.enableAutoCancelableRunLoops)
+      .cancelable
       .runAsync
 
-    assertEquals(atomic.get, expected1)
+    assertEquals(atomic.get, expected)
     f.cancel()
     s.tickOne()
-    assertEquals(atomic.get, expected2)
+    assertEquals(atomic.get, expected)
 
     s.tick()
-    assertEquals(atomic.get, expected2)
+    assertEquals(atomic.get, expected)
     assertEquals(f.value, None)
   }
 
   test("runAsync(callback) flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
     val maxCount = Platform.recommendedBatchSize * 4
-    val expected = Platform.recommendedBatchSize * 2 - 1
+    val expected = Platform.recommendedBatchSize
 
     def loop(count: AtomicInt): Task[Unit] =
       if (count.getAndIncrement() >= maxCount) Task.unit else
@@ -80,7 +79,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
     var result = Option.empty[Try[Unit]]
 
     val c = loop(atomic)
-      .executeWithOptions(_.enableAutoCancelableRunLoops)
+      .cancelable
       .runAsync(new Callback[Unit] {
         def onSuccess(value: Unit): Unit =
           result = Some(Success(value))

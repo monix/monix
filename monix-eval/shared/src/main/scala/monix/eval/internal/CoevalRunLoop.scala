@@ -18,7 +18,8 @@
 package monix.eval.internal
 
 import monix.eval.Coeval
-import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Map, Now, Once, Suspend}
+import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Map, Now, Suspend}
+import monix.execution.UncaughtExceptionReporter.LogExceptionsToStandardErr
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.NonFatal
 
@@ -72,16 +73,13 @@ private[eval] object CoevalRunLoop {
           try { current = thunk() }
           catch { case ex if NonFatal(ex) => current = Error(ex) }
 
-        case eval @ Once(_) =>
-          current = eval.run
-
         case ref @ Error(ex) =>
           findErrorHandler(bFirst, bRest) match {
             case null =>
               return ref
             case bind =>
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
-              try { current = bind.recover(ex) }
+              try { current = bind.recover(ex, LogExceptionsToStandardErr) }
               catch { case e if NonFatal(e) => current = Error(e) }
               bFirst = null
           }

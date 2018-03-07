@@ -40,7 +40,7 @@ object IterantDropLastSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropLast(10)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore.dropLast(10) ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -50,7 +50,7 @@ object IterantDropLastSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropLast(10)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore.dropLast(10) ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -89,7 +89,7 @@ object IterantDropLastSuite extends BaseTestSuite {
 
   test("Iterant.dropLast suspends side effects") { implicit s =>
     check1 { stream: Iterant[Task, Int] =>
-      stream <-> stream
+      stream.dropLast(1) <-> stream.dropLast(1)
     }
   }
 }

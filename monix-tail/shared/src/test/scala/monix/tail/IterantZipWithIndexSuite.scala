@@ -68,7 +68,7 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.zipWithIndex
-      received <-> Iterant[Task].haltS[(Int, Long)](Some(dummy))
+      received <-> iter.onErrorIgnore.zipWithIndex ++ Iterant[Task].haltS[(Int, Long)](Some(dummy))
     }
   }
 
@@ -78,7 +78,7 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.zipWithIndex
-      received <-> Iterant[Task].haltS[(Int, Long)](Some(dummy))
+      received <-> iter.onErrorIgnore.zipWithIndex ++ Iterant[Task].haltS[(Int, Long)](Some(dummy))
     }
   }
 

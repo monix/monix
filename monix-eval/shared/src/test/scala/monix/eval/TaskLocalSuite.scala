@@ -25,9 +25,9 @@ object TaskLocalSuite extends SimpleTestSuite {
   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
   testAsync("Local.apply") {
-    val local = TaskLocal(0)
     val test =
       for {
+        local <- TaskLocal(0)
         v1 <- local.read
         _ <- Task.now(assertEquals(v1, 0))
         _ <- local.write(100)
@@ -45,10 +45,10 @@ object TaskLocalSuite extends SimpleTestSuite {
 
   testAsync("Local.defaultLazy") {
     var i = 0
-    val local = TaskLocal.lazyDefault(Coeval { i += 1; i })
 
     val test =
       for {
+        local <- TaskLocal.lazyDefault(Coeval { i += 1; i })
         v1 <- local.read
         _ <- Task.now(assertEquals(v1, 1))
         _ <- local.write(100)
@@ -66,9 +66,9 @@ object TaskLocalSuite extends SimpleTestSuite {
 
 
   testAsync("TaskLocal!.bind") {
-    val local = TaskLocal(0)
     val test =
       for {
+        local <- TaskLocal(0)
         _ <- local.write(100)
         _ <- Task.shift
         v1 <- local.bind(200)(local.read.map(_ * 2))
@@ -81,9 +81,9 @@ object TaskLocalSuite extends SimpleTestSuite {
   }
 
   testAsync("TaskLocal!.bindL") {
-    val local = TaskLocal(0)
     val test =
       for {
+        local <- TaskLocal(0)
         _ <- local.write(100)
         _ <- Task.shift
         v1 <- local.bindL(Task.eval(200))(local.read.map(_ * 2))
@@ -96,15 +96,37 @@ object TaskLocalSuite extends SimpleTestSuite {
   }
 
   testAsync("TaskLocal!.bindClear") {
-    val local = TaskLocal(200)
     val test =
       for {
+        local <- TaskLocal(200)
         _ <- local.write(100)
         _ <- Task.shift
         v1 <- local.bindClear(local.read.map(_ * 2))
         _ <- Task.now(assertEquals(v1, 400))
         v2 <- local.read
         _ <- Task.now(assertEquals(v2, 100))
+      } yield ()
+
+    test.runAsyncOpt
+  }
+
+  testAsync("TaskLocal!.local") {
+    val test =
+      for {
+        taskLocal <- TaskLocal(200)
+        local <- taskLocal.local
+        v1 <- taskLocal.read
+        _ <- Task.now(assertEquals(local.get, v1))
+        _ <- taskLocal.write(100)
+        _ <- Task.now(assertEquals(local.get, 100))
+        _ <- Task.now(local.update(200))
+        v2 <- taskLocal.read
+        _ <- Task.now(assertEquals(v2, 200))
+        _ <- Task.shift
+        v3 <- taskLocal.bindClear(Task.now(local.get * 2))
+        _ <- Task.now(assertEquals(v3, 400))
+        v4 <- taskLocal.read
+        _ <- Task.now(assertEquals(v4, local.get))
       } yield ()
 
     test.runAsyncOpt

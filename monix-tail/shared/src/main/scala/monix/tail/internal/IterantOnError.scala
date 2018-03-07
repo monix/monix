@@ -22,7 +22,8 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.batches.BatchCursor
+import monix.tail.batches.{Batch, BatchCursor}
+
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantOnError {
@@ -48,18 +49,20 @@ private[tail] object IterantOnError {
       Suspend[F, A](next, stop)
     }
 
+    def tailGuard(ffa: F[Iterant[F, A]], stop: F[Unit]) =
+      ffa.handleError(sendError(stop, _))
+
     def loop(fa: Iterant[F, A]): Iterant[F, A] =
       try fa match {
         case Next(a, lt, stop) =>
-          Next(a, lt.map(loop), stop)
+          Next(a, tailGuard(lt, stop).map(loop), stop)
 
         case NextCursor(cursor, rest, stop) =>
           try {
             val array = extractBatch(cursor)
-            val next = if (cursor.hasNext())
-              F.pure(fa).map(loop)
-            else
-              rest.map(loop)
+            val next =
+              if (cursor.hasNext()) F.delay(loop(fa))
+              else tailGuard(rest, stop).map(loop)
 
             if (array.length != 0)
               NextCursor(BatchCursor.fromAnyArray(array), next, stop)
@@ -79,7 +82,7 @@ private[tail] object IterantOnError {
           }
 
         case Suspend(rest, stop) =>
-          Suspend(rest.map(loop), stop)
+          Suspend(tailGuard(rest, stop).map(loop), stop)
         case Last(_) | Halt(None) =>
           fa
         case Halt(Some(e)) =>
@@ -101,20 +104,53 @@ private[tail] object IterantOnError {
 
   /** Implementation for `Iterant.attempt`. */
   def attempt[F[_], A](fa: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] = {
-    def loop(fa: Iterant[F, A]): Iterant[F, Either[Throwable, A]] =
+    type Attempt = Either[Throwable, A]
+
+    def tailGuard(ffa: F[Iterant[F, Attempt]], stop: F[Unit]) =
+      ffa.handleErrorWith { ex =>
+        val end = Iterant.lastS[F, Attempt](Left(ex)).pure[F]
+        // this will swallow exception if earlyStop fails
+        stop.attempt *> end
+      }
+
+    def extractBatch(ref: BatchCursor[A]): Array[Attempt] = {
+      var size = ref.recommendedBatchSize
+      val buffer = ArrayBuffer.empty[Attempt]
+      while (size > 0 && ref.hasNext()) {
+        try {
+          buffer += Right(ref.next())
+          size -= 1
+        } catch {
+          case NonFatal(ex) =>
+            buffer += Left(ex)
+            size = 0
+        }
+      }
+      buffer.toArray[Attempt]
+    }
+
+    def loop(fa: Iterant[F, A]): Iterant[F, Attempt] =
       fa match {
         case Next(a, rest, stop) =>
-          Next(Right(a), rest.map(loop), stop)
+          Next(Right(a), tailGuard(rest.map(loop), stop), stop)
         case NextBatch(batch, rest, stop) =>
-          NextBatch(batch.map(Right.apply), rest.map(loop), stop)
-        case NextCursor(batch, rest, stop) =>
-          NextCursor(batch.map(Right.apply), rest.map(loop), stop)
+          loop(NextCursor(batch.cursor(), rest, stop))
+        case NextCursor(cursor, rest, stop) =>
+          val cb = extractBatch(cursor)
+          val batch = Batch.fromAnyArray(cb)
+          if (cb.length > 0 && cb.last.isLeft) {
+            NextBatch(batch, F.pure(Halt(None)), stop)
+          } else if (!cursor.hasNext()) {
+            NextBatch(batch, tailGuard(rest.map(loop), stop), stop)
+          } else {
+            NextBatch(batch, tailGuard(F.delay(loop(fa)), stop), stop)
+          }
         case Suspend(rest, stop) =>
-          Suspend(rest.map(loop), stop)
+          Suspend(tailGuard(rest.map(loop), stop), stop)
         case Last(a) =>
           Last(Right(a))
         case Halt(None) =>
-          fa.asInstanceOf[Iterant[F, Either[Throwable, A]]]
+          fa.asInstanceOf[Iterant[F, Attempt]]
         case Halt(Some(ex)) =>
           Last(Left(ex))
       }
@@ -123,7 +159,7 @@ private[tail] object IterantOnError {
       case NextBatch(_, _, _) | NextCursor(_, _, _) =>
         // Suspending execution in order to preserve laziness and
         // referential transparency
-        Suspend(F.delay(loop(fa)), fa.earlyStop)
+        Suspend(tailGuard(F.delay(loop(fa)), fa.earlyStop), fa.earlyStop)
       case _ =>
         loop(fa)
     }

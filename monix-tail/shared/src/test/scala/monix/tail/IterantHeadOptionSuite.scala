@@ -23,6 +23,8 @@ import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.{Batch, BatchCursor}
 
+import scala.util.Failure
+
 object IterantHeadOptionSuite extends BaseTestSuite {
   test("Iterant.headOptionL <-> List.headOption") { _ =>
     check2 { (list: List[Int], idx: Int) =>
@@ -60,10 +62,35 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val iter1: Iterant[Task, Int] = Iterant[Task].haltS(Some(dummy))
     val state1 = iter1.headOptionL
-    assertEquals(state1, Task.raiseError[Option[Int]](dummy))
+    val f = state1.runAsync
 
-    val iter2: Iterant[Task, Int] = Iterant[Task].haltS(None)
-    val state2 = iter2.headOptionL
-    assertEquals(state2, Task.pure(None))
+    s.tick()
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
+
+  test("Iterant.headOption earlyStop gets called for failing `rest` on Next node") { implicit s =>
+    var effect = 0
+
+    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
+    val dummy = DummyException("dummy")
+    val node3 = Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy), stop(3))
+    val node2 = Iterant[Coeval].suspendS[Int](Coeval(node3), stop(2))
+    val node1 = Iterant[Coeval].suspendS[Int](Coeval(node2), stop(1))
+
+    assertEquals(node1.headOptionL.runTry, Failure(dummy))
+    assertEquals(effect, 3)
+  }
+
+  test("protects against broken batches as first node") { implicit s =>
+    var effect = 0
+    val dummy = DummyException("dummy")
+
+    val fa = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
+      .doOnEarlyStop(Coeval { effect += 1 })
+      .headOptionL
+
+    assertEquals(effect, 0)
+    assertEquals(fa.runTry, Failure(dummy))
+    assertEquals(effect, 1)
   }
 }

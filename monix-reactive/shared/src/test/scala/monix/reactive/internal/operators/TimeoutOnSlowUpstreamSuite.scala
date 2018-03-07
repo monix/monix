@@ -1,4 +1,4 @@
-  /*
+/*
  * Copyright (c) 2014-2018 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
