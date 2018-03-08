@@ -17,10 +17,10 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.TimeUnit
 import monix.execution.cancelables.OrderedCancelable
 import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
 import monix.execution.{Cancelable, Scheduler}
+import scala.concurrent.duration.{TimeUnit, MILLISECONDS, NANOSECONDS}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 
@@ -32,8 +32,10 @@ import monix.execution.{ExecutionModel => ExecModel}
   * [[Scheduler.scheduleAtFixedRate]] for free.
   */
 trait ReferenceScheduler extends Scheduler {
-  override def currentTimeMillis(): Long =
-    System.currentTimeMillis()
+  override def clockRealTime(unit: TimeUnit): Long =
+    unit.convert(System.currentTimeMillis(), MILLISECONDS)
+  override def clockMonotonic(unit: TimeUnit): Long =
+    unit.convert(System.nanoTime(), NANOSECONDS)
 
   override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val sub = OrderedCancelable()
@@ -57,14 +59,14 @@ trait ReferenceScheduler extends Scheduler {
 
     def loop(initialDelayMs: Long, periodMs: Long): Unit =
       if (!sub.isCanceled) {
-        sub := scheduleOnce(initialDelayMs, TimeUnit.MILLISECONDS, new Runnable {
+        sub := scheduleOnce(initialDelayMs, MILLISECONDS, new Runnable {
           def run(): Unit = {
             // Measuring the duration of the task
-            val startedAtMillis = currentTimeMillis()
+            val startedAtMillis = clockMonotonic(MILLISECONDS)
             r.run()
 
             val delay = {
-              val durationMillis = currentTimeMillis() - startedAtMillis
+              val durationMillis = clockMonotonic(MILLISECONDS) - startedAtMillis
               val d = periodMs - durationMillis
               if (d >= 0) d else 0
             }
@@ -75,8 +77,8 @@ trait ReferenceScheduler extends Scheduler {
         })
       }
 
-    val initialMs = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
-    val periodMs = TimeUnit.MILLISECONDS.convert(period, unit)
+    val initialMs = MILLISECONDS.convert(initialDelay, unit)
+    val periodMs = MILLISECONDS.convert(period, unit)
     loop(initialMs, periodMs)
     sub
   }
@@ -104,8 +106,10 @@ object ReferenceScheduler {
       s.scheduleWithFixedDelay(initialDelay, delay, unit, r)
     override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable =
       s.scheduleAtFixedRate(initialDelay, period, unit, r)
-    override def currentTimeMillis(): Long =
-      s.currentTimeMillis()
+    override def clockRealTime(unit: TimeUnit): Long =
+      s.clockRealTime(unit)
+    override def clockMonotonic(unit: TimeUnit): Long =
+      s.clockMonotonic(unit)
     override def withExecutionModel(em: ExecModel): Scheduler =
       copy(s, em)
   }

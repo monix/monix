@@ -20,7 +20,7 @@ package schedulers
 
 import java.util.concurrent.TimeUnit
 import monix.execution.UncaughtExceptionReporter
-import monix.execution.schedulers.Timer.{clearTimeout, setTimeout}
+import monix.execution.schedulers.JSTimer.{clearTimeout, setTimeout, setImmediate}
 import monix.execution.{ExecutionModel => ExecModel}
 
 /** An `AsyncScheduler` schedules tasks to be executed asynchronously,
@@ -32,7 +32,7 @@ final class AsyncScheduler private (
   extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(r: Runnable): Unit =
-    setTimeout(0L, r, reporter)
+    setImmediate(r, reporter)
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val millis = {
@@ -63,4 +63,3 @@ object AsyncScheduler {
     executionModel: ExecModel): AsyncScheduler =
     new AsyncScheduler(reporter, executionModel)
 }
-

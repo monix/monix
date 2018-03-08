@@ -73,11 +73,11 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
   test("schedule for execution with delay") { case (s, u) =>
     import concurrent.duration._
     val p = Promise[Unit]()
-    val startAt = s.currentTimeMillis()
+    val startAt = s.clockRealTime(MILLISECONDS)
     s.scheduleOnce(100.millis)(p.success(()))
 
     u.tick(100.millis)
-    val duration = s.currentTimeMillis() - startAt
+    val duration = s.clockRealTime(MILLISECONDS) - startAt
     assert(duration >= 100, "duration >= 100")
     assert(p.future.isCompleted, "p.future.isCompleted")
   }

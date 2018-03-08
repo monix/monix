@@ -58,8 +58,10 @@ object TracingScheduler {
       underlying.scheduleAtFixedRate(initialDelay, period, unit, new TracingRunnable(r))
     override final def reportFailure(t: Throwable): Unit =
       underlying.reportFailure(t)
-    override final def currentTimeMillis(): Long =
-      underlying.currentTimeMillis()
+    override final def clockRealTime(unit: TimeUnit): Long =
+      underlying.clockRealTime(unit)
+    override def clockMonotonic(unit: TimeUnit): Long =
+      underlying.clockMonotonic(unit)
     override final def executionModel: ExecModel =
       underlying.executionModel
   }

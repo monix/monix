@@ -18,14 +18,16 @@
 package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
-import monix.execution.Ack.{Stop, Continue}
+
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.exceptions.DownstreamTimeoutException
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 private[reactive] final class DownstreamTimeoutObservable[+A](
   source: Observable[A], timeout: FiniteDuration)
@@ -46,7 +48,7 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
       private[this] var isDone = false
       // MUST BE synchronized by `self`
       private[this] var lastEmittedMillis: Long =
-        scheduler.currentTimeMillis()
+        scheduler.clockMonotonic(MILLISECONDS)
 
       locally {
         timeoutCheck := scheduler.scheduleOnce(timeout.length, timeout.unit, self)
@@ -54,7 +56,7 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
 
       def run(): Unit = self.synchronized {
         if (!isDone) {
-          val rightNow = scheduler.currentTimeMillis()
+          val rightNow = scheduler.clockMonotonic(MILLISECONDS)
           val sinceLastOnNextInMillis =
             if (!isProcessingOnNext) 0L else rightNow - lastEmittedMillis
 
@@ -84,7 +86,7 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
         self.synchronized {
           if (isDone) Stop else {
             isProcessingOnNext = true
-            lastEmittedMillis = scheduler.currentTimeMillis()
+            lastEmittedMillis = scheduler.clockMonotonic(MILLISECONDS)
 
             // Shenanigans for avoiding an unnecessary synchronize
             downstream.onNext(elem) match {

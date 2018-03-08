@@ -19,13 +19,14 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import scala.util.Success
 
 private[reactive] final
@@ -89,7 +90,7 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
             scheduleNext(timeoutMillis)
           }
           else {
-            val rightNow = scheduler.currentTimeMillis()
+            val rightNow = scheduler.clockMonotonic(MILLISECONDS)
             val sinceLastOnNext = rightNow - lastTSInMillis
 
             if (sinceLastOnNext >= timeoutMillis) {
@@ -108,7 +109,7 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
                       // the speed with which the downstream replied with Continue
                       // matters in this case, so we are measuring it and
                       // subtracting it from the period
-                      val executionTime = scheduler.currentTimeMillis() - rightNow
+                      val executionTime = scheduler.clockMonotonic(MILLISECONDS) - rightNow
                       val delay = if (timeoutMillis > executionTime)
                         timeoutMillis - executionTime else 0L
 
@@ -133,7 +134,7 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
       def onNext(elem: A): Future[Ack] = {
         def unfreeze(): Ack = {
           hasValue = true
-          lastTSInMillis = scheduler.currentTimeMillis()
+          lastTSInMillis = scheduler.clockMonotonic(MILLISECONDS)
           Continue
         }
 

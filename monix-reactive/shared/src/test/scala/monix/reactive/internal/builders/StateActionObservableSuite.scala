@@ -24,6 +24,8 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
+import scala.concurrent.duration.MILLISECONDS
+
 object StateActionObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
@@ -33,16 +35,16 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
 
   test("first execution is sync") { implicit s =>
     var received = 0
-    Observable.fromStateAction(int)(s.currentTimeMillis())
-      .take(1).subscribe { x => received += 1; Continue }
+    Observable.fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
+      .take(1).subscribe { _ => received += 1; Continue }
     assertEquals(received, 1)
   }
 
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
-    Observable.fromStateAction(int)(s.currentTimeMillis())
+    Observable.fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
       .take(Platform.recommendedBatchSize * 2)
-      .subscribe { x => received += 1; Continue }
+      .subscribe { _ => received += 1; Continue }
 
     assertEquals(received, Platform.recommendedBatchSize)
     s.tickOne()
@@ -55,7 +57,7 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    val cancelable = Observable.fromStateAction(int)(s.currentTimeMillis())
+    val cancelable = Observable.fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
       .unsafeSubscribeFn(
         new Subscriber[Int] {
           implicit val scheduler = s

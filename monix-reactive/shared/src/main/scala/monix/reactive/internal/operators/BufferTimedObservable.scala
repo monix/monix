@@ -18,14 +18,16 @@
 package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
+
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.{Duration, FiniteDuration, MILLISECONDS}
 
 private[reactive] final class BufferTimedObservable[+A](
   source: Observable[A],
@@ -49,7 +51,7 @@ private[reactive] final class BufferTimedObservable[+A](
         // MUST BE synchronized by `self`
         private[this] var buffer = ListBuffer.empty[A]
         // MUST BE synchronized by `self`
-        private[this] var expiresAt = scheduler.currentTimeMillis() + timespanMillis
+        private[this] var expiresAt = scheduler.clockMonotonic(MILLISECONDS) + timespanMillis
 
         locally {
           // Scheduling the first tick, in the constructor
@@ -58,7 +60,7 @@ private[reactive] final class BufferTimedObservable[+A](
 
         // Runs periodically, every `timespan`
         def run(): Unit = self.synchronized {
-          val now = scheduler.currentTimeMillis()
+          val now = scheduler.clockMonotonic(MILLISECONDS)
           // Do we still have time remaining?
           if (now < expiresAt) {
             // If we still have time remaining, it's either a scheduler
@@ -92,7 +94,7 @@ private[reactive] final class BufferTimedObservable[+A](
         }
 
         def onNext(elem: A): Future[Ack] = self.synchronized {
-          val now = scheduler.currentTimeMillis()
+          val now = scheduler.clockMonotonic(MILLISECONDS)
           buffer.append(elem)
 
           if (expiresAt <= now || (maxCount > 0 && maxCount <= buffer.length))

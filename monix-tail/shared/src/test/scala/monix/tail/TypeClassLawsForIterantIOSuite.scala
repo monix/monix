@@ -35,10 +35,6 @@ object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
     implicitly[Eq[EitherT[F, Throwable, Int]]]
 
   checkAllAsync("Async[Iterant[IO]]", slowConfig) { implicit ec =>
-    if (System.getenv("TRAVIS") == "true") {
-      ignore("Travis is too slow for this test")
-    }
-
     implicit val eqE = eqEitherT
     AsyncTests[F].async[Int, Int, Int]
   }
