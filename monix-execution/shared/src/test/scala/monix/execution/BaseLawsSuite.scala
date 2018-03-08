@@ -110,7 +110,7 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
         // Executes the whole pending queue of runnables
         ec.tick(1.day)
 
-        x.value match {
+        val pula = x.value match {
           case None =>
             y.value.isEmpty
           case Some(Success(a)) =>
@@ -118,14 +118,22 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
               case Some(Success(b)) => A.eqv(a, b)
               case _ => false
             }
-          case Some(Failure(ex1)) =>
+          case Some(Failure(_)) =>
             y.value match {
-              case Some(Failure(ex2)) =>
-                equalityThrowable.eqv(ex1, ex2)
+              case Some(Failure(_)) =>
+                // Exceptions aren't values, it's too hard to reason about
+                // throwable equality and all exceptions are essentially
+                // yielding non-terminating futures and tasks from a type
+                // theory point of view, so we simply consider them all equal
+                true
               case _ =>
                 false
             }
         }
+        if (!pula) {
+          println(s"${x.value} != ${y.value}")
+        }
+        pula
       }
     }
 

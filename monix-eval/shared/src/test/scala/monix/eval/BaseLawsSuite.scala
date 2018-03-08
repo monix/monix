@@ -136,9 +136,4 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
     Cogen[Unit].contramap(_ => ())
   implicit def cogenForCoeval[A](implicit A: Numeric[A]): Cogen[Coeval[A]] =
     Cogen((x: Coeval[A]) => A.toLong(x.value))
-
-//  implicit val isoTask: Isomorphisms[Task] =
-//    Isomorphisms.invariant
-//  implicit val isoCoeval: Isomorphisms[Coeval] =
-//    Isomorphisms.invariant
 }

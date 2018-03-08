@@ -1261,7 +1261,7 @@ sealed abstract class Task[+A] extends Serializable {
     * See [[start]] for the equivalent that does not start the task with
     * a forced async boundary.
     */
-  final def fork: Task[Fiber[A]] =
+  final def fork: Task[Fiber[A @uV]] =
     executeAsync.start
 
   /** Start asynchronous execution of the source suspended in the `Task` context,
@@ -1554,7 +1554,7 @@ sealed abstract class Task[+A] extends Serializable {
     * See [[fork]] for the equivalent that does starts the task with
     * a forced async boundary.
     */
-  final def start: Task[Fiber[A]] =
+  final def start: Task[Fiber[A @uV]] =
     TaskStart(this)
 
   /** Converts the source `Task` to a `cats.effect.IO` value. */
@@ -2975,18 +2975,26 @@ object Task extends TaskInstancesLevel1 {
 }
 
 private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
-  /** Global instance for `cats.effect.Async`.
+  /** Global instance for `cats.effect.Async` and for `cats.effect.Concurrent`.
     *
-    * Implied are `cats.CoflatMap`, `cats.Applicative`, `cats.Monad`,
+    * Implied are also `cats.CoflatMap`, `cats.Applicative`, `cats.Monad`,
     * `cats.MonadError` and `cats.effect.Sync`.
+    *
+    * As trivia, it's named "catsAsync" and not "catsConcurrent" because
+    * it represents the `cats.effect.Async` lineage, up until
+    * `cats.effect.Effect`, which imposes extra restrictions, in our case
+    * the need for a `Scheduler` to be in scope (see [[Task.catsEffect]]).
+    * So by naming the lineage, not the concrete sub-type implemented, we avoid
+    * breaking compatibility whenever a new type class (that we can implement)
+    * gets added into Cats.
     *
     * Seek more info about Cats, the standard library for FP, at:
     *
     *  - [[https://typelevel.org/cats/ typelevel/cats]]
     *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
     */
-  implicit def catsAsync: CatsAsyncForTask =
-    CatsAsyncForTask
+  implicit def catsAsync: CatsConcurrentForTask =
+    CatsConcurrentForTask
 
   /** Global instance for `cats.Parallel`.
     *
@@ -3015,11 +3023,12 @@ private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
     * a `Monoid[Task[A]]` implementation.
     */
   implicit def catsMonoid[A](implicit A: Monoid[A]): Monoid[Task[A]] =
-    new CatsMonadToMonoid[Task, A]()(CatsAsyncForTask, A)
+    new CatsMonadToMonoid[Task, A]()(CatsConcurrentForTask, A)
 }
 
 private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
-  /** Global instance for `cats.effect.Effect`.
+  /** Global instance for `cats.effect.Effect` and for
+    * `cats.effect.ConcurrentEffect`.
     *
     * Implied are `cats.CoflatMap`, `cats.Applicative`, `cats.Monad`,
     * `cats.MonadError`, `cats.effect.Sync` and `cats.effect.Async`.
@@ -3029,18 +3038,25 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     * implicit [[monix.execution.Scheduler Scheduler]] in scope in
     * order to trigger the execution of a `Task`. It's also lower
     * priority in order to not trigger conflicts, because
-    * `Effect <: Async`
+    * `Effect <: Async` and `ConcurrentEffect <: Concurrent with Effect`.
+    *
+    * As trivia, it's named "catsEffect" and not "catsConcurrentEffect"
+    * because it represents the `cats.effect.Effect` lineage, as in the
+    * minimum that this value will support in the future. So by naming the
+    * lineage, not the concrete sub-type implemented, we avoid breaking
+    * compatibility whenever a new type class (that we can implement)
+    * gets added into Cats.
     *
     * Seek more info about Cats, the standard library for FP, at:
     *
     *  - [[https://typelevel.org/cats/ typelevel/cats]]
     *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
     *
-    * @param ec is a [[monix.execution.Scheduler Scheduler]] that needs
+    * @param s is a [[monix.execution.Scheduler Scheduler]] that needs
     *        to be available in scope
     */
-  implicit def catsEffect(implicit ec: Scheduler): CatsEffectForTask =
-    new CatsEffectForTask
+  implicit def catsEffect(implicit s: Scheduler): CatsConcurrentEffectForTask =
+    new CatsConcurrentEffectForTask
 
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
     * then this provides the evidence that `Task[A]` also has
@@ -3050,7 +3066,7 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     * in order to avoid conflicts.
     */
   implicit def catsSemigroup[A](implicit A: Semigroup[A]): Semigroup[Task[A]] =
-    new CatsMonadToSemigroup[Task, A]()(CatsAsyncForTask, A)
+    new CatsMonadToSemigroup[Task, A]()(CatsConcurrentForTask, A)
 }
 
 private[eval] abstract class TaskParallelNewtype extends TaskTimers {
