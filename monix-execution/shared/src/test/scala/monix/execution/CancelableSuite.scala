@@ -62,7 +62,7 @@ object CancelableSuite extends SimpleTestSuite {
 
     try {
       c.cancel()
-      fail("c.cance() should throw")
+      fail("c.cancel() should throw")
     } catch {
       case e: CompositeException =>
         assertEquals(e.errors.toList, (0 until 100).map(_ => dummy))

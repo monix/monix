@@ -28,9 +28,9 @@ import scala.collection.immutable.SortedSet
 import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
 import scala.util.Random
 
-/** [[Scheduler]] implementation meant and a provider of
-  * `cats.effect.Timer` instances, that can simulate async boundaries
-  * and time passage, useful for testing purposes.
+/** [[Scheduler]] and a provider of `cats.effect.Timer` instances,
+  * that can simulate async boundaries and time passage, useful for
+  * testing purposes.
   *
   * Usage for simulating an `ExecutionContext`:
   *
@@ -228,7 +228,7 @@ final class TestScheduler private (
     * {{{
     *   implicit val ec = TestScheduler()
     *
-    *   val f = Future(1 + 1).flatMap(_ + 1)
+    *   val f = Future(1 + 1).map(_ + 1)
     *   // Execution is momentarily suspended in TestContext
     *   assert(f.value == None)
     *
