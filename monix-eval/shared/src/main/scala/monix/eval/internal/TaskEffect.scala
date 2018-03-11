@@ -19,10 +19,10 @@ package monix.eval
 package internal
 
 import cats.effect.IO
-import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
 import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
-import monix.execution.internal.AttemptCallback
 import monix.execution.internal.AttemptCallback.noop
+import monix.execution.misc.NonFatal
+import monix.execution.{Cancelable, Scheduler}
 
 /** INTERNAL API
   *
@@ -36,9 +36,12 @@ private[eval] object TaskEffect {
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
     Task.unsafeCreate { (ctx, cb) =>
       implicit val sc = ctx.scheduler
-      k {
+      try k {
         case Right(a) => cb.asyncOnSuccess(a)
         case Left(e) => cb.asyncOnError(e)
+      } catch {
+        case NonFatal(e) =>
+          sc.reportFailure(e)
       }
     }
 
@@ -52,8 +55,14 @@ private[eval] object TaskEffect {
       val cancelable = SingleAssignCancelable()
       conn push cancelable
 
-      val io = k(new CreateCallback[A](conn, cb))
-      if (io != IO.unit) cancelable := new CancelableIO(io)
+      try {
+        val io = k(new CreateCallback[A](conn, cb))
+        if (io != IO.unit)
+          cancelable := Cancelable.fromIOUnsafe(io)
+      } catch {
+        case NonFatal(e) =>
+          sc.reportFailure(e)
+      }
     }
 
   /**
@@ -74,10 +83,14 @@ private[eval] object TaskEffect {
     (implicit sc: Scheduler) = {
 
     fa.runAsync(new Callback[A] {
+      private def signal(value: Either[Throwable, A]): Unit =
+        try cb(value).unsafeRunAsync(noop)
+        catch { case NonFatal(e) => sc.reportFailure(e) }
+
       def onSuccess(value: A): Unit =
-        cb(Right(value)).unsafeRunAsync(noop)
-      def onError(ex: Throwable): Unit =
-        cb(Left(ex)).unsafeRunAsync(noop)
+        signal(Right(value))
+      def onError(e: Throwable): Unit =
+        signal(Left(e))
     })
   }
 
@@ -90,18 +103,5 @@ private[eval] object TaskEffect {
       conn.pop()
       cb.asyncApply(value)
     }
-  }
-
-  /** Cancelable instance for converting `IO` references
-    *
-    * This does not guarantee idempotency, because we don't need to
-    * (the `SingleAssignCancelable` is enough).
-    */
-  private final class CancelableIO(io: IO[Unit])
-    (implicit val r: UncaughtExceptionReporter)
-    extends Cancelable {
-
-    def cancel(): Unit =
-      io.unsafeRunAsync(AttemptCallback.empty)
   }
 }

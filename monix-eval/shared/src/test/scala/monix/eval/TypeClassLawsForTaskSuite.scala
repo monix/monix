@@ -34,7 +34,7 @@ object TypeClassLawsForTaskSuite extends BaseLawsSuite {
     ConcurrentTests[Task].concurrent[Int, Int, Int]
   }
 
-  checkAllAsync("Effect[Task]") { implicit ec =>
+  checkAllAsync("ConcurrentEffect[Task]") { implicit ec =>
     ConcurrentEffectTests[Task].concurrentEffect[Int, Int, Int]
   }
 

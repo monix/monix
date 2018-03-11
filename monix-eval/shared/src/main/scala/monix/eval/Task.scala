@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect.{Effect, IO, Timer}
+import cats.effect._
 import cats.{Monoid, Semigroup}
 import monix.eval.instances._
 import monix.eval.internal._
@@ -483,7 +483,7 @@ import scala.util.{Failure, Success, Try}
   *         a parameter.
   */
 sealed abstract class Task[+A] extends Serializable {
-  import monix.eval.Task._
+  import monix.eval.Task.{Async => _, _}
 
   /** $runAsyncDesc
     *
@@ -1557,9 +1557,50 @@ sealed abstract class Task[+A] extends Serializable {
   final def start: Task[Fiber[A @uV]] =
     TaskStart(this)
 
-  /** Converts the source `Task` to a `cats.effect.IO` value. */
-  final def toIO(implicit s: Scheduler): IO[A] =
-    TaskConversions.toIO(this)(s)
+  /** Converts the source `Task` to any data type that implements
+    * either `cats.effect.Concurrent` or `cats.effect.Async`.
+    *
+    * This operation discriminates between `Concurrent` and `Async`
+    * data types by using their subtyping relationship
+    * (`Concurrent <: Async`), therefore:
+    *
+    *  - in case the `F` data type implements `cats.effect.Concurrent`,
+    *    then the resulting value is interruptible if the source task is
+    *    (e.g. a conversion to `cats.effect.IO` will preserve Monix's `Task`
+    *    cancelability)
+    *  - otherwise in case the `F` data type implements just
+    *    `cats.effect.Async`, then the conversion is still allowed,
+    *    however the source's cancellation logic gets lost
+    *
+    * Example:
+    *
+    * {{{
+    *   import cats.effect.IO
+    *
+    *   Task.eval(println("Hello!"))
+    *     .delayExecution(5.seconds)
+    *     .to[IO]
+    * }}}
+    *
+    * Note a [[monix.execution.Scheduler Scheduler]] is required
+    * because converting `Task` to something else means executing
+    * it.
+    */
+  final def to[F[_]](implicit F: Async[F], s: Scheduler): F[A @uV] =
+    TaskConversions.to[F, A](this)(F, s)
+
+  /** Converts the source to a `cats.effect.IO` value.
+    *
+    * {{{
+    *   val task = Task.eval(println("Hello!")).delayExecution(5.seconds)
+    *   val io = task.toIO
+    * }}}
+    *
+    * This is an alias for [[to]], but specialized for `IO`.
+    * You can use either with the same result.
+    */
+  final def toIO(implicit s: Scheduler): IO[A @uV] =
+    to[IO]
 
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
     * emits a single item on success, or just the error on failure.
@@ -1844,26 +1885,36 @@ object Task extends TaskInstancesLevel1 {
   /** A [[Task]] instance that upon evaluation will never complete. */
   def never[A]: Task[A] = neverRef
 
-  /** Builds a [[Task]] instance out of a `cats.Eval`. */
-  def fromEval[A](a: cats.Eval[A]): Task[A] =
-    Coeval.fromEval(a).task
-
-  /** Builds a [[Task]] instance out of a `cats.effect.IO`. */
-  def fromIO[A](a: IO[A]): Task[A] =
-    TaskConversions.fromIO(a)
-
-  /** Builds a [[Task]] instance out of any `F[_]` data type
-    * that implements the `cats.effect.Effect` type class.
+  /** Converts `IO[A]` values into `Task[A]`.
     *
-    * Example that works out of the box:
+    * Preserves cancelability, if the source `IO` value is cancelable.
+    */
+  def fromIO[A](ioa: IO[A]): Task[A] =
+    Concurrent.liftIO(ioa)
+
+  /** Builds a [[Task]] instance out of any data type that implements
+    * either `cats.effect.ConcurrentEffect` or `cats.effect.Effect`.
+    *
+    * Note that `ConcurrentEffect` is for cancelable data types. So
+    * for example when converting from `cats.effect.IO`, cancelability
+    * is preserved:
+    *
     * {{{
-    *   import cats.effect.IO
+    *   import cats.effect._
+    *   import cats.syntax.all._
     *
-    *   Task.fromEffect(IO("Hello!"))
+    *   val io = Timer[IO].sleep(5.seconds) *> IO(println("Hello!"))
+    *
+    *   // Resulting task is cancelable
+    *   val task: Task[Unit] = Task.fromEffect(io)
     * }}}
     */
   def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
-    TaskConversions.fromEffect(fa)(F)
+    TaskConversions.from(fa)
+
+  /** Builds a [[Task]] instance out of a `cats.Eval`. */
+  def fromEval[A](a: cats.Eval[A]): Task[A] =
+    Coeval.fromEval(a).task
 
   /** Builds a [[Task]] instance out of a Scala `Try`. */
   def fromTry[A](a: Try[A]): Task[A] =
@@ -3111,15 +3162,15 @@ private[eval] abstract class TaskTimers {
   /** Builds a `cats.effect.Timer` instance, given a
     * [[monix.execution.Scheduler Scheduler]] reference.
     */
-  def timer(sc: Scheduler): Timer[Task] =
+  def timer(s: Scheduler): Timer[Task] =
     new Timer[Task] {
       override def clockRealTime(unit: TimeUnit): Task[Long] =
-        Task.eval(sc.clockRealTime(unit))
+        Task.eval(s.clockRealTime(unit))
       override def clockMonotonic(unit: TimeUnit): Task[Long] =
-        Task.eval(sc.clockMonotonic(unit))
+        Task.eval(s.clockMonotonic(unit))
       override val shift: Task[Unit] =
-        Task.shift(sc)
+        Task.shift(s)
       override def sleep(duration: FiniteDuration): Task[Unit] =
-        Task.sleep(duration).executeOn(sc)
+        Task.sleep(duration).executeOn(s)
     }
 }

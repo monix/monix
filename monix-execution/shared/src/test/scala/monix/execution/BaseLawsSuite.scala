@@ -158,7 +158,7 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
 
       def eqv(x: Try[A], y: Try[A]): Boolean =
         if (x.isSuccess) optA.eqv(x.toOption, y.toOption)
-        else optT.eqv(x.failed.toOption, y.failed.toOption)
+        else y.isFailure
     }
 
   implicit def cogenForThrowable: Cogen[Throwable] =

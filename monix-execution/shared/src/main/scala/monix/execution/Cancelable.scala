@@ -89,6 +89,18 @@ object Cancelable {
       io.unsafeRunAsync(AttemptCallback.empty)
     }
 
+  /** Internal API — builds a `Cancelable` reference from an `IO[Unit]`,
+    * but without any protections for idempotency.
+    */
+  private[monix] def fromIOUnsafe(io: IO[Unit])
+    (implicit r: UncaughtExceptionReporter): Cancelable = {
+
+    new Cancelable {
+      def cancel(): Unit =
+        io.unsafeRunAsync(AttemptCallback.empty)
+    }
+  }
+
   /** Given a collection of cancelables, cancel them all.
     *
     * This function collects non-fatal exceptions and throws them all at the end as a
@@ -120,8 +132,7 @@ object Cancelable {
     def cancelIO: IO[Unit] =
       self match {
         case _: IsDummy => IO.unit
-        case _ =>
-          IO(self.cancel())
+        case _ => IO(self.cancel())
       }
   }
 
