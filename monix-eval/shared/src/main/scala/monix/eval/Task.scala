@@ -302,6 +302,11 @@ import scala.util.{Failure, Success, Try}
   *         whenever asynchronous boundaries are needed when
   *         evaluating the task
   *
+  * @define schedulerEvalDesc is the
+  *         [[monix.execution.Scheduler Scheduler]] needed in order
+  *         to evaluate the source, being required in Task's
+  *         [[runAsync(implicit* runAsync]]
+  *
   * @define callbackDesc is a callback that will be invoked upon
   *         completion
   *
@@ -1585,6 +1590,13 @@ sealed abstract class Task[+A] extends Serializable {
     * Note a [[monix.execution.Scheduler Scheduler]] is required
     * because converting `Task` to something else means executing
     * it.
+    *
+    * @param F is the `cats.effect.Async` instance required in order
+    *        to perform the conversions; and if this instance
+    *        is actually a `cats.effect.Concurrent`, then the
+    *        resulting value is also cancelable
+    *
+    * @param s $schedulerEvalDesc
     */
   final def to[F[_]](implicit F: Async[F], s: Scheduler): F[A @uV] =
     TaskConversions.to[F, A](this)(F, s)
@@ -1592,12 +1604,19 @@ sealed abstract class Task[+A] extends Serializable {
   /** Converts the source to a `cats.effect.IO` value.
     *
     * {{{
-    *   val task = Task.eval(println("Hello!")).delayExecution(5.seconds)
-    *   val io = task.toIO
+    *   val task: Task[Unit] = Task
+    *     .eval(println("Hello!"))
+    *     .delayExecution(5.seconds)
+    *
+    *   // Conversion; note the resulting IO is also
+    *   // cancelable if the source is
+    *   val io: IO[Unit] = task.toIO
     * }}}
     *
     * This is an alias for [[to]], but specialized for `IO`.
     * You can use either with the same result.
+    *
+    * @param s $schedulerEvalDesc
     */
   final def toIO(implicit s: Scheduler): IO[A @uV] =
     to[IO]
@@ -1888,6 +1907,21 @@ object Task extends TaskInstancesLevel1 {
   /** Converts `IO[A]` values into `Task[A]`.
     *
     * Preserves cancelability, if the source `IO` value is cancelable.
+    *
+    * {{{
+    *   import cats.effect._
+    *   import cats.syntax.all._
+    *   import scala.concurrent.duration._
+    *
+    *   val io: IO[Unit] =
+    *     IO.sleep(5.seconds) *> IO(println("Hello!"))
+    *
+    *   // Conversion; note the resulting task is also
+    *   // cancelable if the source is
+    *   val task: Task[Unit] = Task.fromIO(ioa)
+    * }}}
+    *
+    * Also see [[fromEffect]], the more generic conversion utility.
     */
   def fromIO[A](ioa: IO[A]): Task[A] =
     Concurrent.liftIO(ioa)
@@ -1895,9 +1929,18 @@ object Task extends TaskInstancesLevel1 {
   /** Builds a [[Task]] instance out of any data type that implements
     * either `cats.effect.ConcurrentEffect` or `cats.effect.Effect`.
     *
-    * Note that `ConcurrentEffect` is for cancelable data types. So
-    * for example when converting from `cats.effect.IO`, cancelability
-    * is preserved:
+    * This method discriminates between `Effect` and `ConcurrentEffect`
+    * using their subtype encoding (`ConcurrentEffect <: Effect`),
+    * such that:
+    *
+    *  - if the indicated type has a `ConcurrentEffect` implementation
+    *    and if the indicated value is cancelable, then the resulting
+    *    task is also cancelable
+    *  - otherwise, if the indicated type only implements `Effect`,
+    *    then the conversion is still possible, but the resulting task
+    *    isn't cancelable
+    *
+    * Example:
     *
     * {{{
     *   import cats.effect._
@@ -1908,6 +1951,11 @@ object Task extends TaskInstancesLevel1 {
     *   // Resulting task is cancelable
     *   val task: Task[Unit] = Task.fromEffect(io)
     * }}}
+    *
+    * @param F is the `cats.effect.Effect` type class instance necessary
+    *        for converting to `Task`; this instance can also be a
+    *        `cats.effect.Concurrent`, in which case the resulting
+    *        `Task` value is cancelable if the source is
     */
   def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
     TaskConversions.from(fa)
