@@ -29,10 +29,10 @@ import scala.util.{Failure, Success}
 
 private[eval] object TaskConversions {
   /** Implementation for `Task#to`. */
-  def to[F[_], A](source: Task[A])(implicit F: Async[F], sc: Scheduler): F[A] = {
+  def to[F[_], A](source: Task[A])(implicit F: Async[F], s: Scheduler): F[A] = {
     def suspend(task: Task[A])(implicit F: Async[F]): F[A] =
       F.suspend {
-        val f = task.runAsync(sc)
+        val f = task.runAsync(s)
         f.value match {
           case Some(value) =>
             value match {
@@ -115,7 +115,7 @@ private[eval] object TaskConversions {
 
   private final class CreateCallback[A](
     conn: StackedCancelable, cb: Callback[A])
-    (implicit sc: Scheduler)
+    (implicit s: Scheduler)
     extends (Either[Throwable, A] => IO[Unit]) {
 
     override def apply(value: Either[Throwable, A]) =

@@ -38,7 +38,7 @@ import monix.execution.Scheduler
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsEffectForTask(implicit sc: Scheduler)
+class CatsEffectForTask(implicit s: Scheduler)
   extends CatsBaseForTask with Effect[Task] {
 
   /** We need to mixin [[CatsAsyncForTask]], because if we
@@ -72,7 +72,7 @@ class CatsEffectForTask(implicit sc: Scheduler)
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsConcurrentEffectForTask(implicit sc: Scheduler)
+class CatsConcurrentEffectForTask(implicit s: Scheduler)
   extends CatsEffectForTask with ConcurrentEffect[Task] {
 
   /** We need to mixin [[CatsAsyncForTask]], because if we

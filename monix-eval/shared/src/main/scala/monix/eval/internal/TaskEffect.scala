@@ -69,23 +69,23 @@ private[eval] object TaskEffect {
     * `cats.effect.Effect#runAsync`
     */
   def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])
-    (implicit sc: Scheduler): IO[Unit] =
+    (implicit s: Scheduler): IO[Unit] =
     IO { execute(fa, cb); () }
 
   /**
     * `cats.effect.ConcurrentEffect#runCancelable`
     */
   def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])
-    (implicit sc: Scheduler): IO[IO[Unit]] =
+    (implicit s: Scheduler): IO[IO[Unit]] =
     IO(execute(fa, cb).cancelIO)
 
   private def execute[A](fa: Task[A], cb: Either[Throwable, A] => IO[Unit])
-    (implicit sc: Scheduler) = {
+    (implicit s: Scheduler) = {
 
     fa.runAsync(new Callback[A] {
       private def signal(value: Either[Throwable, A]): Unit =
         try cb(value).unsafeRunAsync(noop)
-        catch { case NonFatal(e) => sc.reportFailure(e) }
+        catch { case NonFatal(e) => s.reportFailure(e) }
 
       def onSuccess(value: A): Unit =
         signal(Right(value))
@@ -96,7 +96,7 @@ private[eval] object TaskEffect {
 
   private final class CreateCallback[A](
     conn: StackedCancelable, cb: Callback[A])
-    (implicit sc: Scheduler)
+    (implicit s: Scheduler)
     extends (Either[Throwable, A] => Unit) {
 
     override def apply(value: Either[Throwable, A]): Unit = {
