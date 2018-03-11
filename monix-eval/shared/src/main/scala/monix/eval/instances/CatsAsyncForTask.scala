@@ -18,9 +18,10 @@
 package monix.eval
 package instances
 
-import cats.effect.Async
+import cats.effect.{Async, Concurrent, IO}
+import monix.eval.internal.TaskEffect
 
-/** Cats type class instances for [[monix.eval.Task Task]]
+/** Cats type class instance of [[monix.eval.Task Task]]
   * for  `cats.effect.Async` and `CoflatMap` (and implicitly for
   * `Applicative`, `Monad`, `MonadError`, etc).
   *
@@ -35,12 +36,35 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
   override def suspend[A](fa: => Task[A]): Task[A] =
     Task.defer(fa)
   override def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): Task[A] =
-    Task.unsafeCreate { (_, cb) => k(r => cb(r)) }
+    TaskEffect.async(k)
 }
 
-/** Default and reusable instance for [[CatsAsyncForTask]].
+/** Cats type class instance of [[monix.eval.Task Task]]
+  * for  `cats.effect.Concurrent`.
+  *
+  * References:
+  *
+  *  - [[https://typelevel.org/cats/ typelevel/cats]]
+  *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
+  */
+class CatsConcurrentForTask extends CatsAsyncForTask with Concurrent[Task] {
+  override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
+    TaskEffect.cancelable(k)
+  override def uncancelable[A](fa: Task[A]): Task[A] =
+    fa.uncancelable
+  override def onCancelRaiseError[A](fa: Task[A], e: Throwable): Task[A] =
+    fa.onCancelRaiseError(e)
+  override def start[A](fa: Task[A]): Task[Fiber[A]] =
+    fa.start
+  override def racePair[A, B](fa: Task[A], fb: Task[B]): Task[Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    Task.racePair(fa, fb)
+  override def race[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
+    Task.race(fa, fb)
+}
+
+/** Default and reusable instance for [[CatsConcurrentForTask]].
   *
   * Globally available in scope, as it is returned by
   * [[monix.eval.Task.catsAsync Task.catsAsync]].
   */
-object CatsAsyncForTask extends CatsAsyncForTask
+object CatsConcurrentForTask extends CatsConcurrentForTask

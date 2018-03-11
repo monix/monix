@@ -45,6 +45,12 @@ private[monix] object AttemptCallback {
     case _ => ()
   }
 
+  /** Reusable callback reference that does absolutely nothing. */
+  val noop: Either[Throwable, Any] => Unit = {
+    case Left(e) => throw e
+    case _ => ()
+  }
+
   /** Converts an attempt callback into one that uses `Try`
     * (to be used with `Future.onComplete`).
     */

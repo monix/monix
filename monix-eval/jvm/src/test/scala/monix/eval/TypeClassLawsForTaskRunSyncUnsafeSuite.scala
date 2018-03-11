@@ -19,11 +19,13 @@ package monix.eval
 
 import cats.{Applicative, Eq}
 import cats.effect.IO
-import cats.effect.laws.discipline.{AsyncTests, EffectTests}
+import cats.effect.laws.discipline.{ConcurrentTests, ConcurrentEffectTests}
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
 import monix.eval.instances.CatsParallelForTask
-import monix.execution.Scheduler.Implicits.global
+import monix.execution.{Scheduler, UncaughtExceptionReporter}
+
+import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -32,6 +34,8 @@ import scala.util.Try
   */
 object TypeClassLawsForTaskRunSyncUnsafeSuite extends monix.execution.BaseLawsSuite
   with  ArbitraryInstancesBase {
+
+  implicit val sc = Scheduler(global, UncaughtExceptionReporter(_ => ()))
 
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 
@@ -60,11 +64,11 @@ object TypeClassLawsForTaskRunSyncUnsafeSuite extends monix.execution.BaseLawsSu
   checkAll("CoflatMap[Task]",
     CoflatMapTests[Task].coflatMap[Int,Int,Int])
 
-  checkAll("Async[Task]",
-    AsyncTests[Task].async[Int,Int,Int])
+  checkAll("Concurrent[Task]",
+    ConcurrentTests[Task].async[Int,Int,Int])
 
-  checkAll("Effect[Task]",
-    EffectTests[Task].effect[Int,Int,Int])
+  checkAll("ConcurrentEffect[Task]",
+    ConcurrentEffectTests[Task].effect[Int,Int,Int])
 
   checkAll("Applicative[Task.Par]",
     ApplicativeTests[Task.Par].applicative[Int, Int, Int])

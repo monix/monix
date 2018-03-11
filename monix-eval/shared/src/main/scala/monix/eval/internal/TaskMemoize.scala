@@ -67,7 +67,7 @@ private[eval] object TaskMemoize {
     /** Saves the final result on completion and triggers the registered
       * listeners.
       */
-    @tailrec def cacheValue(value: Try[A])(implicit sc: Scheduler): Unit = {
+    @tailrec def cacheValue(value: Try[A])(implicit s: Scheduler): Unit = {
       // Should we cache everything, error results as well,
       // or only successful results?
       if (self.cacheErrors || value.isSuccess) {
@@ -76,7 +76,7 @@ private[eval] object TaskMemoize {
             if (!p.tryComplete(value)) {
               // $COVERAGE-OFF$
               if (value.isFailure)
-                sc.reportFailure(value.failed.get)
+                s.reportFailure(value.failed.get)
               // $COVERAGE-ON$
             }
           case _ =>
@@ -107,7 +107,7 @@ private[eval] object TaskMemoize {
     }
 
     /** Builds a callback that gets used to cache the result. */
-    private def complete(implicit sc: Scheduler): Callback[A] =
+    private def complete(implicit s: Scheduler): Callback[A] =
       new Callback[A] {
         def onSuccess(value: A): Unit =
           self.cacheValue(Success(value))

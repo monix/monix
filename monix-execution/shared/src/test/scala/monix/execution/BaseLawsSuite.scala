@@ -118,10 +118,14 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
               case Some(Success(b)) => A.eqv(a, b)
               case _ => false
             }
-          case Some(Failure(ex1)) =>
+          case Some(Failure(_)) =>
             y.value match {
-              case Some(Failure(ex2)) =>
-                equalityThrowable.eqv(ex1, ex2)
+              case Some(Failure(_)) =>
+                // Exceptions aren't values, it's too hard to reason about
+                // throwable equality and all exceptions are essentially
+                // yielding non-terminating futures and tasks from a type
+                // theory point of view, so we simply consider them all equal
+                true
               case _ =>
                 false
             }
@@ -154,7 +158,7 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
 
       def eqv(x: Try[A], y: Try[A]): Boolean =
         if (x.isSuccess) optA.eqv(x.toOption, y.toOption)
-        else optT.eqv(x.failed.toOption, y.failed.toOption)
+        else y.isFailure
     }
 
   implicit def cogenForThrowable: Cogen[Throwable] =

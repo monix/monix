@@ -17,15 +17,17 @@
 
 package monix.eval
 
-import scala.util.Try
-
+import scala.util.{Either, Success, Try}
 import cats.Eq
-import cats.effect.IO
-import monix.execution.Cancelable
+import cats.effect.{Async, IO}
+import cats.effect.laws.discipline.arbitrary.{catsEffectLawsArbitraryForIO, catsEffectLawsCogenForIO}
 import monix.execution.schedulers.TestScheduler
-import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import org.scalacheck.{Arbitrary, Cogen, Gen}
+import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
 
+/**
+  * Base trait to inherit in all `monix-eval` tests that use ScalaCheck.
+  */
 trait BaseLawsSuite extends monix.execution.BaseLawsSuite with ArbitraryInstances
 
 trait ArbitraryInstances extends ArbitraryInstancesBase {
@@ -54,47 +56,91 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
     Arbitrary {
       for {
         a <- A.arbitrary
-        coeval <- Gen.oneOf(Coeval.now(a), Coeval.evalOnce(a), Coeval.eval(a))
+        coeval <- Gen.oneOf(
+          Coeval.now(a),
+          Coeval.evalOnce(a),
+          Coeval.eval(a),
+          Coeval.unit.map(_ => a),
+          Coeval.unit.flatMap(_ => Coeval.now(a)))
       } yield coeval
     }
 
-  implicit def arbitraryTask[A](implicit A: Arbitrary[A]): Arbitrary[Task[A]] =
-    Arbitrary {
-      for {
-        a <- A.arbitrary
-        task <- Gen.oneOf(
-          Task.now(a), Task.evalOnce(a), Task.eval(a),
-          Task.create[A] { (_, cb) =>
-            cb.onSuccess(a)
-            Cancelable.empty
-          })
-      } yield task
-    }
+  implicit def arbitraryTask[A : Arbitrary : Cogen]: Arbitrary[Task[A]] = {
+    def genPure: Gen[Task[A]] =
+      getArbitrary[A].map(Task.pure)
 
-  implicit def arbitraryTaskPar[A](implicit A: Arbitrary[A]): Arbitrary[Task.Par[A]] =
-    Arbitrary {
-      for {
-        a <- A.arbitrary
-        task <- Gen.oneOf(
-          Task.now(a), Task.evalOnce(a), Task.eval(a),
-          Task.create[A] { (_, cb) =>
-            cb.onSuccess(a)
-            Cancelable.empty
-          })
-      } yield Task.Par.apply(task)
-    }
+    def genApply: Gen[Task[A]] =
+      getArbitrary[A].map(Task.apply(_))
 
-  implicit def arbitraryIO[A](implicit A: Arbitrary[A]): Arbitrary[IO[A]] =
-    Arbitrary {
+    def genFail: Gen[Task[A]] =
+      getArbitrary[Throwable].map(Task.raiseError)
+
+    def genAsync: Gen[Task[A]] =
+      getArbitrary[(Either[Throwable, A] => Unit) => Unit].map(Async[Task].async)
+
+    def genCancelable: Gen[Task[A]] =
+      for (a <- getArbitrary[A]) yield
+        Task.unsafeCreate[A] { (ctx, cb) =>
+          implicit val ec = ctx.scheduler
+          ec.executeAsync{ () =>
+            if (!ctx.connection.isCanceled)
+              cb.asyncOnSuccess(a)
+          }
+        }
+
+    def genNestedAsync: Gen[Task[A]] =
+      getArbitrary[(Either[Throwable, Task[A]] => Unit) => Unit]
+        .map(k => Async[Task].async(k).flatMap(x => x))
+
+    def genBindSuspend: Gen[Task[A]] =
+      getArbitrary[A].map(Task.apply(_).flatMap(Task.pure))
+
+    def genSimpleTask = Gen.frequency(
+      1 -> genPure,
+      1 -> genApply,
+      1 -> genFail,
+      1 -> genAsync,
+      1 -> genNestedAsync,
+      1 -> genBindSuspend
+    )
+
+    def genFlatMap: Gen[Task[A]] =
       for {
-        a <- A.arbitrary
-        io <- Gen.oneOf(
-          IO.pure(a), IO(a),
-          IO.async[A](f =>
-            immediate.execute(new Runnable { def run() = f(Right(a)) })
-          ))
-      } yield io
-    }
+        ioa <- genSimpleTask
+        f <- getArbitrary[A => Task[A]]
+      } yield ioa.flatMap(f)
+
+    def getMapOne: Gen[Task[A]] =
+      for {
+        ioa <- genSimpleTask
+        f <- getArbitrary[A => A]
+      } yield ioa.map(f)
+
+    def getMapTwo: Gen[Task[A]] =
+      for {
+        ioa <- genSimpleTask
+        f1 <- getArbitrary[A => A]
+        f2 <- getArbitrary[A => A]
+      } yield ioa.map(f1).map(f2)
+
+    Arbitrary(Gen.frequency(
+      5 -> genPure,
+      5 -> genApply,
+      1 -> genFail,
+      5 -> genCancelable,
+      5 -> genBindSuspend,
+      5 -> genAsync,
+      5 -> genNestedAsync,
+      5 -> getMapOne,
+      5 -> getMapTwo,
+      10 -> genFlatMap))
+  }
+
+  implicit def arbitraryTaskPar[A : Arbitrary : Cogen]: Arbitrary[Task.Par[A]] =
+    Arbitrary(arbitraryTask[A].arbitrary.map(Task.Par(_)))
+
+  implicit def arbitraryIO[A : Arbitrary : Cogen]: Arbitrary[IO[A]] =
+    catsEffectLawsArbitraryForIO
 
   implicit def arbitraryExToA[A](implicit A: Arbitrary[A]): Arbitrary[Throwable => A] =
     Arbitrary {
@@ -132,13 +178,15 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
 
   implicit def cogenForTask[A]: Cogen[Task[A]] =
     Cogen[Unit].contramap(_ => ())
-  implicit def cogenForIO[A]: Cogen[IO[A]] =
-    Cogen[Unit].contramap(_ => ())
-  implicit def cogenForCoeval[A](implicit A: Numeric[A]): Cogen[Coeval[A]] =
-    Cogen((x: Coeval[A]) => A.toLong(x.value))
 
-//  implicit val isoTask: Isomorphisms[Task] =
-//    Isomorphisms.invariant
-//  implicit val isoCoeval: Isomorphisms[Coeval] =
-//    Isomorphisms.invariant
+  implicit def cogenForIO[A : Cogen]: Cogen[IO[A]] =
+    catsEffectLawsCogenForIO
+
+  implicit def cogenForCoeval[A](implicit cga: Cogen[A]): Cogen[Coeval[A]] =
+    Cogen { (seed, coeval) =>
+      coeval.runTry match {
+        case Success(a) => cga.perturb(seed, a)
+        case _ => seed
+      }
+    }
 }
