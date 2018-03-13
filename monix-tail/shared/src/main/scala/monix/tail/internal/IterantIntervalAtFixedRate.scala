@@ -17,37 +17,40 @@
 
 package monix.tail.internal
 
-import monix.eval.Task
-import monix.execution.Scheduler
+import cats.syntax.all._
+import cats.effect.{Async, Timer}
 import monix.tail.Iterant
 import monix.tail.Iterant.Suspend
-
 import scala.concurrent.duration._
 
 private[tail] object IterantIntervalAtFixedRate {
-  def apply(initialDelay: FiniteDuration, interval: FiniteDuration): Iterant[Task, Long] = {
-    def loop(index: Long, s: Scheduler): Iterant[Task, Long] = {
-      val startTime = s.currentTimeMillis()
-      Iterant.now(index) ++ Task.defer {
-        val elapsed = (s.currentTimeMillis() - startTime).millis
+  /**
+    * Implementation for `Iterant.intervalAtFixedRate`
+    */
+  def apply[F[_]](initialDelay: FiniteDuration, interval: FiniteDuration)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] = {
 
-        if (elapsed > interval) {
-          Task.now(loop(index + 1, s))
-        } else {
-          Task.now(loop(index + 1, s)).delayExecution(interval - elapsed)
+    def loop(time: F[Long], index: Long): F[Iterant[F, Long]] =
+      time.map { startTime =>
+        val rest = time.flatMap { endTime =>
+          val elapsed = (endTime - startTime).nanos
+          val timespan = interval - elapsed
+
+          if (timespan > Duration.Zero) {
+            F.flatMap(timer.sleep(timespan))(_ => loop(time, index + 1))
+          } else {
+            loop(time, index + 1)
+          }
         }
+        Iterant.nextS[F, Long](index, rest, F.unit)
       }
-    }
 
-    val loopTask = Task.deferAction { s =>
-      Task.now(loop(0, s))
-    }
-
+    val time = timer.clockMonotonic(NANOSECONDS)
     initialDelay match {
       case Duration.Zero =>
-        Suspend(loopTask, Task.unit)
+        Suspend(loop(time, 0), F.unit)
       case _ =>
-        Suspend(loopTask.delayExecution(initialDelay), Task.unit)
+        Suspend(F.flatMap(timer.sleep(initialDelay))(_ => loop(time, 0)), F.unit)
     }
   }
 }

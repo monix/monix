@@ -18,11 +18,9 @@
 package monix.eval
 
 import java.util.concurrent.CancellationException
-
 import cats.laws._
 import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
-
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -57,7 +55,7 @@ object TaskCancellationSuite extends BaseTestSuite {
   test("task.fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
     check1 { (task: Task[Int]) =>
       val fa = for {
-        forked <- task.asyncBoundary.cancelable.fork
+        forked <- task.attempt.asyncBoundary.cancelable.fork
         _ <- forked.cancel
         r <- forked.join
       } yield r

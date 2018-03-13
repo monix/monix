@@ -71,8 +71,10 @@ final class TrampolineScheduler(
     underlying.scheduleWithFixedDelay(initialDelay, delay, unit, r)
   override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable =
     underlying.scheduleAtFixedRate(initialDelay, period, unit, r)
-  override def currentTimeMillis(): Long =
-    underlying.currentTimeMillis()
+  override def clockRealTime(unit: TimeUnit): Long =
+    underlying.clockRealTime(unit)
+  override def clockMonotonic(unit: TimeUnit): Long =
+    underlying.clockMonotonic(unit)
   override def withExecutionModel(em: ExecModel): TrampolineScheduler =
     new TrampolineScheduler(underlying, em)
 }

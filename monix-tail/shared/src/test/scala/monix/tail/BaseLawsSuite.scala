@@ -17,6 +17,7 @@
 
 package monix.tail
 
+import cats.effect.laws.discipline.{Parameters => EffectParameters}
 import minitest.SimpleTestSuite
 import minitest.api.IgnoredException
 import minitest.laws.Checkers
@@ -43,6 +44,15 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       .withMinSuccessfulTests(10)
       .withMaxDiscardRatio(50.0f)
       .withMaxSize(6)
+
+  // Stack-safety tests are very taxing, so reducing burden
+  implicit val effectParams = EffectParameters(
+    stackSafeIterationsCount = {
+      if (Platform.isJS || System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+        100
+      else
+        1000
+    })
 
   def checkAllAsync(name: String, config: Parameters = checkConfig)
     (f: TestScheduler => Laws#RuleSet): Unit = {

@@ -219,7 +219,7 @@ final class TaskCircuitBreaker private (
                 else {
                   // We've gone over the permitted failures threshold,
                   // so we need to open the circuit breaker
-                  val update = Open(s.currentTimeMillis(), resetTimeout)
+                  val update = Open(s.clockMonotonic(MILLISECONDS), resetTimeout)
 
                   if (!stateRef.compareAndSet(current, update))
                     markFailure(s) // retry?
@@ -271,7 +271,7 @@ final class TaskCircuitBreaker private (
             value
         }
 
-        stateRef.set(Open(s.currentTimeMillis(), nextTimeout))
+        stateRef.set(Open(s.clockMonotonic(MILLISECONDS), nextTimeout))
         onOpen.flatMap(_ => Task.raiseError(ex))
     }
 
@@ -296,7 +296,7 @@ final class TaskCircuitBreaker private (
           }
 
         case current @ Open(_, timeout) =>
-          val now = s.currentTimeMillis()
+          val now = s.clockMonotonic(MILLISECONDS)
           val expiresAt = current.expiresAt
 
           if (now >= expiresAt) {
@@ -491,7 +491,7 @@ object TaskCircuitBreaker {
   }
 
   /** Type-alias to document timestamps specified in milliseconds, as returned by
-    * [[monix.execution.Scheduler.currentTimeMillis Scheduler.currentTimeMillis]].
+    * [[monix.execution.Scheduler.clockRealTime Scheduler.clockRealTime]].
     */
   type Timestamp = Long
 

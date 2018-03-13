@@ -154,15 +154,26 @@ object TracingSchedulerSuite extends SimpleTestSuite {
     assertEquals(ec.state.lastReportedError, dummy)
   }
 
-  test("currentTimeMillis") {
+  test("clockRealTime") {
     val ec = TestScheduler()
     val traced = TracingScheduler(ec)
 
-    assertEquals(traced.currentTimeMillis(), 0)
+    assertEquals(traced.clockRealTime(MILLISECONDS), 0)
     ec.tick(1.second)
-    assertEquals(traced.currentTimeMillis(), 1000)
+    assertEquals(traced.clockRealTime(MILLISECONDS), 1000)
     ec.tick(1.second)
-    assertEquals(traced.currentTimeMillis(), 2000)
+    assertEquals(traced.clockRealTime(MILLISECONDS), 2000)
+  }
+
+  test("clockMonotonic") {
+    val ec = TestScheduler()
+    val traced = TracingScheduler(ec)
+
+    assertEquals(traced.clockMonotonic(MILLISECONDS), 0)
+    ec.tick(1.second)
+    assertEquals(traced.clockMonotonic(MILLISECONDS), 1000)
+    ec.tick(1.second)
+    assertEquals(traced.clockMonotonic(MILLISECONDS), 2000)
   }
 
   test("executionModel") {

@@ -43,7 +43,7 @@ abstract class ConcurrentAtomicSuite[A, R <: Atomic[A]](
     }
 
     val f = Future.sequence(futures)
-    Await.result(f, 10.seconds)
+    Await.result(f, 30.seconds)
     assert(r.get == valueFromInt(500))
   }
 
@@ -55,7 +55,7 @@ abstract class ConcurrentAtomicSuite[A, R <: Atomic[A]](
     }
 
     val f = Future.sequence(futures)
-    Await.result(f, 10.seconds)
+    Await.result(f, 30.seconds)
     assert(r.get == valueFromInt(99))
   }
 }
@@ -69,7 +69,7 @@ abstract class ConcurrentAtomicBooleanSuite(strategy: PaddingStrategy, allowPlat
     val futures = for (_ <- 0 until 5) yield Future {
       r.flip(true)
     }
-    val result = Await.result(Future.sequence(futures), 10.seconds)
+    val result = Await.result(Future.sequence(futures), 30.seconds)
     assert(result.count(_ == true) == 1)
     assert(r.get)
   }
@@ -79,7 +79,7 @@ abstract class ConcurrentAtomicBooleanSuite(strategy: PaddingStrategy, allowPlat
     val futures = for (_ <- 0 until 5) yield Future {
       r.flip(true)
     }
-    val result = Await.result(Future.sequence(futures), 10.seconds)
+    val result = Await.result(Future.sequence(futures), 30.seconds)
     assert(result.forall(_ == false))
   }
 }

@@ -21,8 +21,8 @@ import minitest.TestSuite
 import monix.execution.atomic.Atomic
 import monix.execution.{ExecutionModel, Scheduler, UncaughtExceptionReporter}
 import monix.execution.schedulers.AsyncScheduler
-
 import scala.concurrent.Promise
+import scala.concurrent.duration._
 
 object AsyncSchedulerSuite extends TestSuite[Scheduler] {
   val lastReported = Atomic(null : Throwable)
@@ -79,12 +79,24 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
   testAsync("schedule for execution with delay") { implicit s =>
     import concurrent.duration._
     val p = Promise[Unit]()
-    val startAt = s.currentTimeMillis()
+    val startAt = s.clockMonotonic(MILLISECONDS)
     s.scheduleOnce(100.millis)(p.success(()))
 
     for (_ <- p.future) yield {
-      val duration = s.currentTimeMillis() - startAt
+      val duration = s.clockMonotonic(MILLISECONDS) - startAt
       assert(duration >= 100, "duration >= 100")
     }
+  }
+
+  test("clockRealTime") { s =>
+    val t1 = System.currentTimeMillis()
+    val t2 = s.clockRealTime(MILLISECONDS)
+    assert(t2 >= t1, "t2 >= t1")
+  }
+
+  test("clockMonotonic") {  s =>
+    val t1 = System.nanoTime()
+    val t2 = s.clockMonotonic(NANOSECONDS)
+    assert(t2 >= t1, "t2 >= t1")
   }
 }

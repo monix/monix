@@ -15,17 +15,18 @@
  * limitations under the License.
  */
 
-package monix.eval.instances
+package monix.eval
+package instances
 
-import cats.effect.{Effect, IO}
-import monix.eval.{Callback, Task}
+import cats.effect.{ConcurrentEffect, Effect, IO}
+import monix.eval.internal.TaskEffect
 import monix.execution.Scheduler
 
-/** Cats type class instances for [[monix.eval.Task Task]]
-  * for  `cats.effect.Effect` (and implicitly for
-  * `Applicative`, `Monad`, `MonadError`, `Sync`, etc).
+/** Cats type class instances of [[monix.eval.Task Task]] for
+  * `cats.effect.Effect` (and implicitly for `Applicative`, `Monad`,
+  * `MonadError`, `Sync`, etc).
   *
-  * Note this is a separate class from [[CatsAsyncForTask]], because we 
+  * Note this is a separate class from [[CatsAsyncForTask]], because we
   * need an implicit [[monix.execution.Scheduler Scheduler]] in scope 
   * in order to trigger the execution of a `Task`. However we cannot
   * inherit directly from `CatsAsyncForTask`, because it would create 
@@ -37,27 +38,17 @@ import monix.execution.Scheduler
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsEffectForTask(implicit ec: Scheduler)
+class CatsEffectForTask(implicit s: Scheduler)
   extends CatsBaseForTask with Effect[Task] {
-
-  override def runAsync[A](fa: Task[A])
-    (cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = {
-
-    import CatsEffectForTask.noop
-    IO(fa.runAsync(new Callback[A] {
-      def onSuccess(value: A): Unit =
-        cb(Right(value)).unsafeRunAsync(noop)
-      def onError(ex: Throwable): Unit =
-        cb(Left(ex)).unsafeRunAsync(noop)
-    }))
-  }
 
   /** We need to mixin [[CatsAsyncForTask]], because if we
     * inherit directly from it, the implicits priorities don't
     * work, triggering conflicts.
     */
-  private[this] val F = CatsAsyncForTask
+  private[this] val F = CatsConcurrentForTask
 
+  override def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+    TaskEffect.runAsync(fa)(cb)
   override def delay[A](thunk: => A): Task[A] =
     F.delay(thunk)
   override def suspend[A](fa: => Task[A]): Task[A] =
@@ -66,7 +57,42 @@ class CatsEffectForTask(implicit ec: Scheduler)
     F.async(k)
 }
 
-object CatsEffectForTask {
-  /** Reusable reference to an empty callback. */
-  private val noop = (_: Either[Throwable, Any]) => ()
+/** Cats type class instances of [[monix.eval.Task Task]] for
+  * `cats.effect.ConcurrentEffect`.
+  *
+  * Note this is a separate class from [[CatsConcurrentForTask]], because
+  * we need an implicit [[monix.execution.Scheduler Scheduler]] in scope
+  * in order to trigger the execution of a `Task`. However we cannot
+  * inherit directly from `CatsConcurrentForTask`, because it would create
+  * conflicts due to that one having a higher priority but being a
+  * super-type.
+  *
+  * References:
+  *
+  *  - [[https://typelevel.org/cats/ typelevel/cats]]
+  *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
+  */
+class CatsConcurrentEffectForTask(implicit s: Scheduler)
+  extends CatsEffectForTask with ConcurrentEffect[Task] {
+
+  /** We need to mixin [[CatsAsyncForTask]], because if we
+    * inherit directly from it, the implicits priorities don't
+    * work, triggering conflicts.
+    */
+  private[this] val F = CatsConcurrentForTask
+
+  override def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+    TaskEffect.runCancelable(fa)(cb)
+  override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
+    F.cancelable(k)
+  override def uncancelable[A](fa: Task[A]): Task[A] =
+    F.uncancelable(fa)
+  override def onCancelRaiseError[A](fa: Task[A], e: Throwable): Task[A] =
+    F.onCancelRaiseError(fa, e)
+  override def start[A](fa: Task[A]): Task[Fiber[A]] =
+    F.start(fa)
+  override def racePair[A, B](fa: Task[A], fb: Task[B]): Task[Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    F.racePair(fa, fb)
+  override def race[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
+    F.race(fa, fb)
 }

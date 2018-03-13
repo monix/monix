@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.Applicative
-import cats.effect.laws.discipline.{AsyncTests, EffectTests}
+import cats.effect.laws.discipline.{ConcurrentEffectTests, ConcurrentTests}
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
 import monix.eval.instances.CatsParallelForTask
@@ -30,12 +30,12 @@ object TypeClassLawsForTaskSuite extends BaseLawsSuite {
     CoflatMapTests[Task].coflatMap[Int, Int, Int]
   }
 
-  checkAllAsync("Async[Task]") { implicit ec =>
-    AsyncTests[Task].async[Int, Int, Int]
+  checkAllAsync("Concurrent[Task]") { implicit ec =>
+    ConcurrentTests[Task].concurrent[Int, Int, Int]
   }
 
-  checkAllAsync("Effect[Task]") { implicit ec =>
-    EffectTests[Task].effect[Int, Int, Int]
+  checkAllAsync("ConcurrentEffect[Task]") { implicit ec =>
+    ConcurrentEffectTests[Task].concurrentEffect[Int, Int, Int]
   }
 
   checkAllAsync("Applicative[Task.Par]") { implicit ec =>

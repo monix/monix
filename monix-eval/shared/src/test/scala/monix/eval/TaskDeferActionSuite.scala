@@ -26,8 +26,8 @@ object TaskDeferActionSuite extends BaseTestSuite {
   test("Task.deferAction works") { implicit s =>
     def measureLatency[A](source: Task[A]): Task[(A, Long)] =
       Task.deferAction { implicit s =>
-        val start = s.currentTimeMillis()
-        source.map(a => (a, s.currentTimeMillis() - start))
+        val start = s.clockMonotonic(MILLISECONDS)
+        source.map(a => (a, s.clockMonotonic(MILLISECONDS) - start))
       }
 
     val task = measureLatency(Task.now("hello").delayExecution(1.second))

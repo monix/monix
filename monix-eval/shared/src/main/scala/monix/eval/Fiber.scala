@@ -49,7 +49,7 @@ import monix.eval.internal.TaskCancellation
   *   }
   * }}}
   */
-trait Fiber[+A] {
+trait Fiber[A] extends cats.effect.Fiber[Task, A] {
   /**
     * Triggers the cancellation of the fiber.
     *
@@ -79,7 +79,7 @@ object Fiber {
   def apply[A](task: Task[A]): Fiber[A] =
     new Impl(task)
 
-  private final class Impl[+A](val join: Task[A]) extends Fiber[A] {
+  private final class Impl[A](val join: Task[A]) extends Fiber[A] {
     def cancel: Task[Unit] =
       TaskCancellation.signal(join)
   }

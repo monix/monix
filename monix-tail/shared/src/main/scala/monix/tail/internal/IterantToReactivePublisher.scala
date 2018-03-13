@@ -94,12 +94,10 @@ private[tail] object IterantToReactivePublisher {
     // optimization, to avoid going through `Effect` for `Task` and
     // `IO` and thus avoid some boxing.
     private val runAsync: (F[Iterant[F, A]], Callback[Iterant[F, A]]) => Unit = {
-      import cats.effect.IO.ioEffect
-
       F.asInstanceOf[Any] match {
         case _: CatsBaseForTask =>
           (fa, cb) => fa.asInstanceOf[Task[Iterant[F, A]]].runAsync(cb)
-        case `ioEffect` =>
+        case IO.ioConcurrentEffect =>
           (fa, cb) => fa.asInstanceOf[IO[Iterant[F, A]]].unsafeRunAsync(r => cb(r))
         case _ =>
           val cb = Callback.empty[Unit]
@@ -136,10 +134,8 @@ private[tail] object IterantToReactivePublisher {
     // optimization, to avoid going through `Effect` for `Task` and
     // `IO` and thus avoid some boxing.
     private val runAsync: F[Unit] => Unit = {
-      import cats.effect.IO.ioEffect
-
       F.asInstanceOf[Any] match {
-        case `ioEffect` =>
+        case IO.ioConcurrentEffect =>
           val cb = Callback.empty[Unit]
           val ecb: Either[Throwable, Unit] => Unit = r => cb(r)
           fa => fa.asInstanceOf[IO[Unit]].unsafeRunAsync(ecb)

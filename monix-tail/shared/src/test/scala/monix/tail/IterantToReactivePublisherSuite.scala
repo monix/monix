@@ -368,11 +368,11 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     def flatMap[A, B](fa: IO[A])(f: (A) => IO[B]): IO[B] =
       fa.flatMap(f)
     def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
-      IO.ioEffect.tailRecM(a)(f)
+      IO.ioConcurrentEffect.tailRecM(a)(f)
     def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
     def handleErrorWith[A](fa: IO[A])(f: (Throwable) => IO[A]): IO[A] =
-      IO.ioEffect.handleErrorWith(fa)(f)
+      IO.ioConcurrentEffect.handleErrorWith(fa)(f)
     def pure[A](x: A): IO[A] =
       IO.pure(x)
     override def liftIO[A](ioa: IO[A]): IO[A] =

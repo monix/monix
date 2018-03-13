@@ -73,7 +73,7 @@ private[eval] object TaskCancellation {
     waitsForResult: AtomicBoolean,
     conn: StackedCancelable,
     cb: Callback[A])
-    (implicit sc: Scheduler)
+    (implicit s: Scheduler)
     extends Callback[A] {
 
     def onSuccess(value: A): Unit =
@@ -86,7 +86,7 @@ private[eval] object TaskCancellation {
         conn.pop()
         cb.asyncOnError(e)
       } else {
-        sc.reportFailure(e)
+        s.reportFailure(e)
       }
   }
 
@@ -94,7 +94,7 @@ private[eval] object TaskCancellation {
     waitsForResult: AtomicBoolean,
     cb: Callback[A],
     e: Throwable)
-    (implicit sc: Scheduler)
+    (implicit s: Scheduler)
     extends Cancelable {
 
     override def cancel(): Unit =

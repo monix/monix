@@ -23,7 +23,7 @@ import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 private[reactive] final
@@ -52,7 +52,7 @@ class RepeatedValueObservable[A](initialDelay: FiniteDuration, period: FiniteDur
 
       def syncScheduleNext(): Unit = {
         val initialDelay = {
-          val duration = s.currentTimeMillis() - startedAt
+          val duration = s.clockMonotonic(MILLISECONDS) - startedAt
           val d = periodMs - duration
           if (d >= 0L) d else 0L
         }
@@ -70,7 +70,7 @@ class RepeatedValueObservable[A](initialDelay: FiniteDuration, period: FiniteDur
       }
 
       def run(): Unit = {
-        startedAt = s.currentTimeMillis()
+        startedAt = s.clockMonotonic(MILLISECONDS)
         val ack = subscriber.onNext(unit)
         if (ack == Continue)
           syncScheduleNext()
