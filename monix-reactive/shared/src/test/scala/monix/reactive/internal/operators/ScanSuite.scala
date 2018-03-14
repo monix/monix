@@ -17,6 +17,8 @@
 
 package monix.reactive.internal.operators
 
+import cats.laws._
+import cats.laws.discipline._
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
@@ -30,7 +32,7 @@ object ScanSuite extends BaseOperatorSuite {
   }
 
   def count(sourceCount: Int) =
-    sourceCount
+    sourceCount + 1
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
@@ -46,19 +48,19 @@ object ScanSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).scan(0L) { (acc, elem) =>
-      if (elem == sourceCount - 1)
+    val o = Observable.range(1, sourceCount + 1).scan(0L) { (acc, elem) =>
+      if (elem == sourceCount)
         throw ex
       else
         acc + elem
     }
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+    Sample(o, count(sourceCount-1), sum(sourceCount), Zero, Zero)
   }
 
   override def cancelableObservables() = {
     val sample =  Observable.range(1, 100)
-      .delayOnNext(1.second).scan(0L)(_ + _)
+      .scan(0L)(_ + _).delayOnNext(1.second)
 
     Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
   }
@@ -68,5 +70,14 @@ object ScanSuite extends BaseOperatorSuite {
     val obs = Observable(1,2,3,4).scan[Int](throw ex)(_+_)
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("should be consistent with collections scanLeft") { implicit s =>
+    check1 { (longs: Observable[Long]) =>
+      val obsScan = longs.scan(0L)(_ + _).toListL
+      val listScan = longs.toListL.map(_.scanLeft(0L)(_ + _))
+
+      obsScan <-> listScan
+    }
   }
 }
