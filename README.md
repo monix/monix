@@ -45,7 +45,7 @@ a project exemplifying Monix used both on the server and on the client.
 The packages are published on Maven Central.
 
 - Current stable release: `2.3.3`
-- Milestone release: `3.0.0-M4`
+- Milestone release: `3.0.0-RC1`
 - Development version: `3.0.0-$hash`
   (see [versioning scheme](https://github.com/monix/monix#versioning-scheme))
 
@@ -58,7 +58,7 @@ libraryDependencies += "io.monix" %% "monix" % "2.3.3"
 Or for the milestone (that works with Cats `1.0`):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.0.0-M4"
+libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC1"
 ```
 
 ### Sub-projects
@@ -98,10 +98,11 @@ your own risk.
 ## Documentation
 
 NOTE: The documentation is a work in progress.  All documentation is
-hosted at,
-[contributions are welcome](https://github.com/monix/monix.io):
+hosted at:
 
 - [Monix.io](https://monix.io/)
+
+([contributions are welcome](https://github.com/monix/monix.io))
 
 API Documentation:
 
@@ -116,13 +117,6 @@ Presentations:
 
 - [Monix Task: Lazy, Async &amp; Awesome](https://alexn.org/blog/2016/05/10/monix-task.html), flatMap(Oslo), 2016
 - [Akka &amp; Monix: Controlling Power Plants](https://alexn.org/blog/2016/05/15/monix-observable.html), Typelevel Summit, Oslo, 2016
-
-## Maintainers
-
-The current maintainers (people who can help you) are:
-
-- Alexandru Nedelcu ([@alexandru](https://github.com/alexandru))
-- Andrei Oprisan ([@aoprisan](https://github.com/aoprisan))
 
 ## Contributing
 
