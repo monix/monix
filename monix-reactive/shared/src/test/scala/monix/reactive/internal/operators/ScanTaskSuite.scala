@@ -19,6 +19,9 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
+import cats.laws._
+import cats.laws.discipline._
+
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
 import monix.reactive.Observable
@@ -216,5 +219,17 @@ object ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(f.value, None)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     assertEquals(s.state.lastReportedError, dummy)
+  }
+
+  test("scanTask0.headL <-> seed") { implicit s =>
+    check2 { (obs: Observable[Int], seed: Task[Int]) =>
+      obs.scanTask0(seed)((a, b) => Task.pure(a + b)).headL <-> seed
+    }
+  }
+
+  test("scanTask0.drop(1) <-> scanTask") { implicit s =>
+    check2 { (obs: Observable[Int], seed: Task[Int]) =>
+      obs.scanTask0(seed)((a, b) => Task.pure(a + b)).drop(1) <-> obs.scanTask(seed)((a, b) => Task.pure(a + b))
+    }
   }
 }
