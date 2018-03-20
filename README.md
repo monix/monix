@@ -114,9 +114,6 @@ API Documentation:
 
 - [3.0](https://monix.io/api/3.0/)
 - [2.3](https://monix.io/api/2.3/)
-- [2.2](https://monix.io/api/2.2/)
-- [2.1](https://monix.io/api/2.1/)
-- [2.0](https://monix.io/api/2.0/)
 - [1.2](https://monix.io/api/1.2/)
 
 ([contributions are welcome](https://github.com/monix/monix.io))
