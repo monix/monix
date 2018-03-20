@@ -146,33 +146,4 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     test.runAsyncOpt
   }
-
-  testAsync("Local.apply with different schedulers") {
-    val ec2: Scheduler = monix.execution.Scheduler.io()
-    val test =
-      for {
-        local <- TaskLocal(0).asyncBoundary(ec2)
-        _ <- local.write(800).asyncBoundary(ec)
-        v1 <- local.read.asyncBoundary(ec2)
-        v2 <- local.read
-        _ <- Task.now(assertEquals(v1, v2))
-      } yield ()
-
-    test.runAsyncOpt
-  }
-
-  testAsync("Local.apply with different schedulers with onExecute") {
-    val ec2: Scheduler = monix.execution.Scheduler.io()
-    val test =
-      for {
-        local <- TaskLocal(0)
-        _ <- local.write(1000).executeOn(ec2)
-        v1 <- local.read.executeOn(ec)
-        v2 <- local.read.executeOn(ec2)
-        _ <- Task.now(assertEquals(v1, 1000))
-        _ <- Task.now(assertEquals(v2, 1000))
-      } yield ()
-
-    test.runAsyncOpt
-  }
 }
