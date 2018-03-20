@@ -18,8 +18,10 @@
 package monix.eval
 
 import cats.Contravariant
-import monix.execution.misc.NonFatal
+import monix.eval.Task.Context
+import monix.execution.misc.{Local, NonFatal}
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -102,10 +104,25 @@ object Callback {
     */
   def async[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] =
     new Callback[A] {
-      def onSuccess(value: A): Unit =
-        s.executeTrampolined(() => cb.onSuccess(value))
+      def onSuccess(value: A): Unit = {
+        s.executeTrampolined { () =>
+          cb match {
+            case c: LocalAwareCallback if c.withLocal =>
+              c.setLocals()
+              c.onSuccess(value)
+            case c => c.onSuccess(value)
+          }
+        }
+      }
       def onError(ex: Throwable): Unit =
-        s.executeTrampolined(() => cb.onError(ex))
+        s.executeTrampolined { () =>
+          cb match {
+            case c: LocalAwareCallback if c.withLocal =>
+              c.setLocals()
+              c.onError(ex)
+            case c => c.onError(ex)
+          }
+        }
     }
 
   /** Turns `Either[Throwable, A] => Unit` callbacks into Monix
@@ -141,6 +158,15 @@ object Callback {
     /** Extension method that calls `apply` asynchronously. */
     def asyncApply(value: Either[Throwable, A])(implicit s: Scheduler): Unit =
       s.executeTrampolined(() => source(value))
+  }
+
+  private[eval] abstract class LocalAwareCallback(context: Context) extends Callback[Any] {
+    val withLocal = context.options.localContextPropagation
+    protected var savedLocals: Local.Context = _
+
+    def setLocals(): Unit =
+      savedLocals = Local.getContext()
+
   }
 
   /** An "empty" callback instance doesn't do anything `onSuccess` and
