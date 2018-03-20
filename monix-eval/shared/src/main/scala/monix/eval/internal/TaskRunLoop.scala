@@ -17,6 +17,7 @@
 
 package monix.eval.internal
 
+import monix.eval.Callback.LocalAwareCallback
 import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
@@ -513,21 +514,18 @@ private[eval] object TaskRunLoop {
     em.nextFrameIndex(0)
 
   private[internal] final class RestartCallback(context: Context, callback: Callback[Any])
-    extends Callback[Any] {
+    extends LocalAwareCallback(context) {
 
     private[this] var canCall = false
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
     private[this] val runLoopIndex = context.frameRef
-    private[this] val withLocal = context.options.localContextPropagation
-    private[this] var savedLocals: Local.Context = _
 
     def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
       canCall = true
       this.bFirst = bindCurrent
       this.bRest = bindRest
-      if (withLocal)
-        savedLocals = Local.getContext()
+      if (withLocal) setLocals()
     }
 
     def onSuccess(value: Any): Unit =
