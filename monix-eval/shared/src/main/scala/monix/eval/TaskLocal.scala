@@ -110,7 +110,7 @@ final class TaskLocal[A] private (default: => A) {
 
   /** Updates the local value. */
   def write(value: A): Task[Unit] =
-    Task.now(ref.update(value))
+    Task.eval(ref.update(value))
 
   /** Clears the local value, making it return its `default`. */
   def clear: Task[Unit] =
