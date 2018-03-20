@@ -58,4 +58,16 @@ object IterantScanSuite extends BaseTestSuite {
     val r = fa.scan(0)((_, _) => throw dummy).attempt.toListL
     assertEquals(r.value, List(Left(dummy)))
   }
+
+  test("scan0 emits seed as first element") { implicit s =>
+    check2 { (source: Iterant[Coeval, Int], seed: Int) =>
+      source.scan0(seed)(_ + _).headOptionL <-> Coeval.pure(Some(seed))
+    }
+  }
+
+  test("scan0.drop(1) <-> scan") { implicit s =>
+    check2 { (source: Iterant[Coeval, Int], seed: Int) =>
+      source.scan0(seed)(_ + _).drop(1) <-> source.scan(seed)(_ + _)
+    }
+  }
 }
