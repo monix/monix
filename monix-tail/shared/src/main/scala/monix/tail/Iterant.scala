@@ -1620,6 +1620,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *     .collect { case Current(a, _) => a }
     * }}}
     *
+    * @see [[scan0]] for the version that emits seed element at the beginning
+    *
     * @param seed is the initial state
     * @param op is the function that evolves the current state
     *
@@ -1628,6 +1630,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def scan[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): Iterant[F, S] =
     IterantScan(self, seed, op)
+
+/** Applies a binary operator to a start value and all elements of
+  * this `Iterant`, going left to right and returns a new
+  * `Iterant` that emits on each step the result of the applied
+  * function.
+  *
+  * This is a version of [[scan]] that emits seed element at the beginning,
+  * similar to `scanLeft` on Scala collections.
+  */
+  final def scan0[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): Iterant[F, S] =
+    suspend(F.map(F.delay(seed))(s => s +: scan(s)(op)))
 
   /** Applies a binary operator to a start value and all elements of
     * this `Iterant`, going left to right and returns a new
@@ -1674,6 +1687,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @see [[scan]] for the version that does not require using `F[_]`
     *      in the provided operator
     *
+    * @see [[scanEval0]] for the version that emits seed element at the
+    *      beginning
+    *
     * @param seed is the initial state
     * @param op is the function that evolves the current state
     *
@@ -1682,6 +1698,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def scanEval[S](seed: F[S])(op: (S, A) => F[S])(implicit F: Sync[F]): Iterant[F, S] =
     IterantScanEval(self, seed, op)
+
+/** Applies a binary operator to a start value and all elements of
+  * this `Iterant`, going left to right and returns a new
+  * `Iterant` that emits on each step the result of the applied
+  * function.
+  *
+  * This is a version of [[scanEval]] that emits seed element at the beginning,
+  * similar to `scanLeft` on Scala collections.
+  */
+  final def scanEval0[S](seed: F[S])(op: (S, A) => F[S])(implicit F: Sync[F]): Iterant[F, S] =
+    Iterant.suspend(F.map(seed)(s => s +: self.scanEval(F.pure(s))(op)))
 
   /** Given a mapping function that returns a `B` type for which we have
     * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
@@ -1703,6 +1730,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Iterant[Task].of(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
     * }}}
     *
+    * @see [[scanMap0]] for the version that emits empty element at the beginning
+    *
     * @param f is the mapping function applied to every incoming element of this `Iterant`
     *          before folding using `Monoid[B].combine`
     *
@@ -1711,6 +1740,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def scanMap[B](f: A => B)(implicit F: Sync[F], B: Monoid[B]): Iterant[F, B] =
     self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
+
+/** Given a mapping function that returns a `B` type for which we have
+  * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
+  * elements of the sources using the provided `Monoid[B].combine`, with the
+  * initial seed being the `Monoid[B].empty` value, emitting the generated values
+  * at each step.
+  *
+  * This is a version of [[scanMap]] that emits seed element at the beginning.
+  */
+  final def scanMap0[B](f: A => B)(implicit F: Sync[F], B: Monoid[B]): Iterant[F, B] =
+    B.empty +: self.scanMap(f)
 
   /** Skips over [[Iterant.Suspend]] states, along with
     * [[Iterant.NextCursor]] and [[Iterant.NextBatch]] states that
