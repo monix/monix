@@ -32,7 +32,7 @@ private[tail] object IterantMapBatch {
     * Implementation for `Iterant#mapBatch`
     */
   def apply[F[_], A, B](source: Iterant[F, A], f: A => Batch[B])
-                       (implicit F: Sync[F]): Iterant[F, B] = {
+    (implicit F: Sync[F]): Iterant[F, B] = {
 
     def processSeq(ref: NextCursor[F, A]): NextBatch[F, B] = {
       val NextCursor(cursor, rest, stop) = ref
