@@ -153,7 +153,7 @@ object Batch {
     *
     * @param array $paramArray
     */
-  def fromArray[A : ClassTag](array: Array[A]): ArrayBatch[A] =
+  def fromArray[A](array: Array[A]): ArrayBatch[A] =
     fromArray(array, 0, array.length)
 
   /** Builds a [[Batch]] from a standard `Array`, with strict
@@ -163,8 +163,10 @@ object Batch {
     * @param offset $paramArrayOffset
     * @param length $paramArrayLength
     */
-  def fromArray[A : ClassTag](array: Array[A], offset: Int, length: Int): ArrayBatch[A] =
-    new ArrayBatch[A](array, offset, length)
+  def fromArray[A](array: Array[A], offset: Int, length: Int): ArrayBatch[A] = {
+    val tp = ClassTag[A](array.getClass.getComponentType)
+    new ArrayBatch[A](array, offset, length)(tp)
+  }
 
   /** $fromAnyArrayDesc
     *
@@ -172,10 +174,8 @@ object Batch {
     * @param offset $paramArrayOffset
     * @param length $paramArrayLength
     */
-  def fromAnyArray[A](array: Array[_], offset: Int, length: Int): ArrayBatch[A] = {
-    val ref = new ArrayBatch[Any](array.asInstanceOf[Array[Any]], offset, length, arrayAnyBuilder)
-    ref.asInstanceOf[ArrayBatch[A]]
-  }
+  def fromAnyArray[A](array: Array[_], offset: Int, length: Int): ArrayBatch[A] =
+    fromArray(array, offset, length).asInstanceOf[ArrayBatch[A]]
 
   /** $fromAnyArrayDesc
     *

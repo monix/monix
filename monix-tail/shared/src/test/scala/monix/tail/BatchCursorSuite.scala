@@ -206,6 +206,18 @@ abstract class BatchCursorSuite[A : ClassTag](implicit
       cursor.recommendedBatchSize > 0
     }
   }
+
+  test("BatchCursor.fromArray") { _ =>
+    check1 { (array: Array[A]) =>
+      BatchCursor.fromArray(array).toArray.toSeq == array.toSeq
+    }
+  }
+
+  test("Batch.fromAnyArray") { _ =>
+    check1 { (array: Array[A]) =>
+      BatchCursor.fromAnyArray[A](array).toArray.toSeq == array.toSeq
+    }
+  }
 }
 
 object ArrayCursorSuite extends BatchCursorSuite[Int] {
