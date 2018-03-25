@@ -35,12 +35,15 @@ object IterantMapBatchSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].mapBatch works for functions producing big batches") { implicit s =>
-    check1 { (elem: Int) =>
-      val stream = Iterant[Task].nextS(elem, Task.delay(Iterant[Task].lastS(elem)), Task.unit)
-      val f: Int => List[Int] = _ => List.fill(batches.defaultBatchSize * 2)(elem)
-      stream.mapBatch(f andThen (Batch.fromSeq(_))).toListL <->
-        stream.toListL.map(_.flatMap(f))
+  test("Iterant[Task].mapBatch works for functions producing batches bigger than recommendedBatchSize") { implicit s =>
+    check2 { (list: List[Int], elem: Int) =>
+      val stream = Iterant[Task].nextBatchS(Batch.fromSeq(list, batches.defaultBatchSize), Task.delay(Iterant[Task].lastS[Int](elem)), Task.unit)
+      val f: Int => List[Int] = List.fill(batches.defaultBatchSize * 2)(_)
+
+      val received = stream.mapBatch(f andThen (Batch.fromSeq(_))).toListL
+      val expected = stream.toListL.map(_.flatMap(f))
+
+      received <-> expected
     }
   }
 

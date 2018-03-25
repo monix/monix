@@ -47,20 +47,21 @@ private[tail] object IterantMapBatch {
           buffer += cursorB.next()
           toProcess -= 1
         }
-
-        if(cursorB.hasNext())
-          nextRef = F.delay(NextCursor(cursorB, rest.map(loop), stop))
+        if (cursorB.hasNext()) {
+          val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
+          nextRef = F.delay(NextCursor(cursorB, next.map(loop), stop))
+        }
       }
 
       val next: F[Iterant[F, B]] =
         if (nextRef != null)
           nextRef
-        else if(cursor.hasNext())
+        else if (cursor.hasNext())
           F.pure(ref).map(loop)
         else
           rest.map(loop)
 
-      NextBatch(Batch.fromAnyArray(buffer.toArray[Any]), next, stop)
+      NextBatch(Batch.fromSeq(buffer, cursor.recommendedBatchSize), next, stop)
     }
 
     def loop(source: Iterant[F, A]): Iterant[F, B] =
@@ -74,7 +75,7 @@ private[tail] object IterantMapBatch {
         case Suspend(rest, stop) =>
           Suspend[F, B](rest.map(loop), stop)
         case Last(item) =>
-          NextBatch[F, B](f(item), F.delay(Halt[F, B](None)), F.unit)
+          processSeq(NextCursor[F, A](Batch(item).cursor(), F.delay(Halt[F, A](None)), F.unit))
         case empty@Halt(_) =>
           empty.asInstanceOf[Iterant[F, B]]
       } catch {
