@@ -25,8 +25,6 @@ import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.Batch
 import monix.tail.internal.IterantUtils.signalError
 
-import scala.collection.mutable.ArrayBuffer
-
 private[tail] object IterantMapBatch {
   /**
     * Implementation for `Iterant#mapBatch`
@@ -34,34 +32,15 @@ private[tail] object IterantMapBatch {
   def apply[F[_], A, B](source: Iterant[F, A], f: A => Batch[B])
     (implicit F: Sync[F]): Iterant[F, B] = {
 
-    def processSeq(ref: NextCursor[F, A]): NextBatch[F, B] = {
+    def processBatch(ref: NextCursor[F, A]): NextBatch[F, B] = {
       val NextCursor(cursor, rest, stop) = ref
-      val buffer = ArrayBuffer.empty[B]
-      var toProcess = cursor.recommendedBatchSize
-      var nextRef: F[Iterant[F, B]] = null.asInstanceOf[F[Iterant[F, B]]]
 
-      // protects against infinite cursors
-      while (toProcess > 0 && cursor.hasNext()) {
-        val cursorB = f(cursor.next()).cursor()
-        while (toProcess > 0 && cursorB.hasNext()) {
-          buffer += cursorB.next()
-          toProcess -= 1
-        }
-        if (cursorB.hasNext()) {
-          val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
-          nextRef = F.delay(NextCursor(cursorB, next.map(loop), stop))
-        }
-      }
+      val batch = if(cursor.hasNext()) f(cursor.next()) else Batch[B]()
+      val next: F[Iterant[F, A]] =
+        if (cursor.hasNext()) F.pure(ref)
+        else rest
 
-      val next: F[Iterant[F, B]] =
-        if (nextRef != null)
-          nextRef
-        else if (cursor.hasNext())
-          F.pure(ref).map(loop)
-        else
-          rest.map(loop)
-
-      NextBatch(Batch.fromSeq(buffer, cursor.recommendedBatchSize), next, stop)
+      NextBatch(batch, next.map(loop), stop)
     }
 
     def loop(source: Iterant[F, A]): Iterant[F, B] =
@@ -69,13 +48,13 @@ private[tail] object IterantMapBatch {
         case Next(head, tail, stop) =>
           NextBatch[F, B](f(head), tail.map(loop), stop)
         case ref@NextCursor(_, _, _) =>
-          processSeq(ref)
+          processBatch(ref)
         case NextBatch(batch, rest, stop) =>
-          processSeq(NextCursor(batch.cursor(), rest, stop))
+          processBatch(NextCursor(batch.cursor(), rest, stop))
         case Suspend(rest, stop) =>
           Suspend[F, B](rest.map(loop), stop)
         case Last(item) =>
-          processSeq(NextCursor[F, A](Batch(item).cursor(), F.delay(Halt[F, A](None)), F.unit))
+          NextBatch(f(item), F.delay(Halt[F, B](None)), F.unit)
         case empty@Halt(_) =>
           empty.asInstanceOf[Iterant[F, B]]
       } catch {
