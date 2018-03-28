@@ -1234,6 +1234,12 @@ sealed abstract class Task[+A] extends Serializable {
   final def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
     foreachL(f).runAsync(s)
 
+  /** Returns a new `Task` that executes the source repetitively.
+    *
+    */
+  final def forever: Task[A] =
+    flatMap(_ => this.forever)
+
   /** Start asynchronous execution of the source suspended in the `Task` context.
     *
     * This can be used for non-deterministic / concurrent execution.
