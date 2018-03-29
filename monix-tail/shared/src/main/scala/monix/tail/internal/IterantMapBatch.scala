@@ -32,15 +32,18 @@ private[tail] object IterantMapBatch {
   def apply[F[_], A, B](source: Iterant[F, A], f: A => Batch[B])
     (implicit F: Sync[F]): Iterant[F, B] = {
 
-    def processBatch(ref: NextCursor[F, A]): NextBatch[F, B] = {
+    def processBatch(ref: NextCursor[F, A]): Iterant[F, B] = {
       val NextCursor(cursor, rest, stop) = ref
 
-      val batch = if(cursor.hasNext()) f(cursor.next()) else Batch[B]()
-      val next: F[Iterant[F, A]] =
-        if (cursor.hasNext()) F.pure(ref)
-        else rest
+      if(cursor.hasNext()) {
+        val next: F[Iterant[F, A]] =
+          if (cursor.hasNext()) F.pure(ref)
+          else rest
 
-      NextBatch(batch, next.map(loop), stop)
+        NextBatch(f(cursor.next()), next.map(loop), stop)
+      } else {
+        Suspend(rest.map(loop), stop)
+      }
     }
 
     def loop(source: Iterant[F, A]): Iterant[F, B] =
