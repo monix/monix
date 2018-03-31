@@ -12,28 +12,32 @@ Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.
 
 ## Overview
 
-Monix is a high-performance Scala / Scala.js library for
-composing asynchronous and event-based programs using observable sequences
-that are exposed as asynchronous streams, expanding on the
-[observer pattern](https://en.wikipedia.org/wiki/Observer_pattern),
-strongly inspired by [ReactiveX](http://reactivex.io/),
-but designed from the ground up  for back-pressure and made to cleanly interact
-with Scala's standard library and compatible out-of-the-box with the
-[Reactive Streams](http://www.reactive-streams.org/) protocol.
+Monix is a high-performance Scala / Scala.js library for composing asynchronous,
+event-based programs.
+
+It started as a proper implementation of [ReactiveX](http://reactivex.io/),
+with stronger functional programming influences and designed from the ground up
+for  back-pressure and made to cleanly interact with Scala's standard library,
+compatible out-of-the-box with the [Reactive Streams](http://www.reactive-streams.org/)
+protocol. It then expanded to include abstractions for suspending side effects
+and for resource handling, being one of the parents and implementors of
+[cats-effect](https://typelevel.org/cats-effect/).
+
+<a href="https://typelevel.org/"><img src="https://monix.io/public/images/typelevel.png" width="150" style="float:right;" align="right" /></a>
+
+A [Typelevel project](http://typelevel.org/projects/), Monix proudly
+exemplifies pure, typeful, functional programming in Scala, while making no
+compromise on performance.
 
 Highlights:
 
-- exposes the kick-ass `Observable`, `Task` and `Coeval`
+- exposes the kick-ass `Observable`, `Iterant`, `Task` and `Coeval` data types,
+  along with all the support they need
 - modular, only use what you need
-- strives to be idiomatic Scala and encourages referential transparency,
-  being built for functional programming, but is built to be faster 
-  than alternatives
-- it is a [Typelevel project](https://typelevel.org/projects/)
-- has deep integration with [Typelevel Cats](https://typelevel.org/cats/)
-- designed for true asynchronicity, running on both the JVM and 
-  on top of Node.js and the browser, with [Scala.js](scala-js.org)
-- really good test coverage and API documentation as a project 
-  policy
+- designed for true asynchronicity, running on both the
+  JVM and [Scala.js](http://scala-js.org)
+- really good test coverage, code quality and API documentation
+  as a primary project policy
 
 ## Usage
 
@@ -44,33 +48,35 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Current stable release: `2.3.3`
-- Milestone release: `3.0.0-RC1`
-- Development version: `3.0.0-$hash`
-  (see [versioning scheme](https://github.com/monix/monix#versioning-scheme))
+- Current release: `3.0.0-RC1`
+- Stable release: `2.3.3`
 
-For the current stable release (use the `%%%` for Scala.js):
-
-```scala
-libraryDependencies += "io.monix" %% "monix" % "2.3.3"
-```
-
-Or for the milestone (that works with Cats `1.0`):
+For the 3.x series (that works with Cats `1.x` and Cats-Effect):
 
 ```scala
 libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC1"
 ```
 
+For the 2.x series:
+
+```scala
+libraryDependencies += "io.monix" %% "monix" % "2.3.3"
+```
+
 ### Sub-projects
 
-Monix 2.x is modular by design, so you can pick and choose:
+Monix 3.x is modular by design, so you can pick and choose:
 
-- `monix-execution` exposes the low-level execution environment, or more precisely
-  `Scheduler`, `Cancelable`, `Atomic` and `CancelableFuture`
-- `monix-eval` exposes `Task`, `Coeval`
-   and depends on `monix-execution`
-- `monix-reactive` exposes `Observable` streams
-   and depends on `monix-eval`
+- `monix-execution` exposes the low-level execution environment, or
+  more precisely `Scheduler`, `Cancelable`, `Atomic` and
+  `CancelableFuture`; depends on Cats 1.x and Cats-Effect
+- `monix-eval` exposes `Task`, `Coeval`;
+  depends on `monix-execution`
+- `monix-reactive` exposes `Observable` for modeling reactive,
+  push-based streams with back-pressure; depends on `monix-eval`
+- `monix-tail` exposes `Iterant` streams for purely functional pull
+  based streaming; depends on `monix-eval` and makes heavy use of
+  Cats-Effect
 - `monix` provides all of the above
 
 ### Versioning Scheme
@@ -97,26 +103,25 @@ your own risk.
 
 ## Documentation
 
-NOTE: The documentation is a work in progress.  All documentation is
-hosted at:
+See:
 
-- [Monix.io](https://monix.io/)
-
-([contributions are welcome](https://github.com/monix/monix.io))
+- Website: [Monix.io](https://monix.io/)
+- [Documentation for 3.x](https://monix.io/docs/3x/)
+- [Documentation for 2.x](https://monix.io/docs/2x/)
+- [Presentations](https://monix.io/presentations/)
 
 API Documentation:
 
 - [3.0](https://monix.io/api/3.0/)
 - [2.3](https://monix.io/api/2.3/)
-- [2.2](https://monix.io/api/2.2/)
-- [2.1](https://monix.io/api/2.1/)
-- [2.0](https://monix.io/api/2.0/)
 - [1.2](https://monix.io/api/1.2/)
 
-Presentations:
+([contributions are welcome](https://github.com/monix/monix.io))
 
-- [Monix Task: Lazy, Async &amp; Awesome](https://alexn.org/blog/2016/05/10/monix-task.html), flatMap(Oslo), 2016
-- [Akka &amp; Monix: Controlling Power Plants](https://alexn.org/blog/2016/05/15/monix-observable.html), Typelevel Summit, Oslo, 2016
+Related:
+
+- [Typelevel Cats](https://typelevel.org/cats/)
+- [Typelevel Cats-Effect](https://typelevel.org/cats-effect/)
 
 ## Contributing
 

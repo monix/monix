@@ -102,4 +102,18 @@ object IterantScanEvalSuite extends BaseTestSuite {
     assertEquals(r.value, List(Left(dummy)))
     assertEquals(effect, 1)
   }
+
+  test("scanEval0 emits seed as first element") { implicit s =>
+    check2 { (source: Iterant[Coeval, Int], seed: Coeval[Int]) =>
+      source.scanEval0(seed)((a, b) => Coeval.pure(a + b)).headOptionL <->
+        seed.map(Some(_))
+    }
+  }
+
+  test("scanEval0.drop(1) <-> scanEval") { implicit s =>
+    check2 { (source: Iterant[Coeval, Int], seed: Coeval[Int]) =>
+      source.scanEval0(seed)((a, b) => Coeval.pure(a + b)).drop(1) <->
+        source.scanEval(seed)((a, b) => Coeval.pure(a + b))
+    }
+  }
 }
