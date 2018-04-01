@@ -23,7 +23,6 @@ import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
 import scala.collection.immutable.LinearSeq
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.reflect.ClassTag
 
 /** Class defining curried `Iterant` builders, relieving the user from
   * specifying the `A` parameter explicitly.
@@ -111,7 +110,7 @@ class IterantBuildersApplicative[F[_]](implicit F: Applicative[F])
     Iterant.suspend(rest)(F)
 
   /** Aliased builder, see documentation for [[Iterant.fromArray]]. */
-  def fromArray[A : ClassTag](xs: Array[A]): Iterant[F, A] =
+  def fromArray[A](xs: Array[A]): Iterant[F, A] =
     Iterant.fromArray(xs)
 
   /** Aliased builder, see documentation for [[Iterant.fromList]]. */

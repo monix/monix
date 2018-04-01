@@ -58,7 +58,7 @@ private[tail] object IterantTakeWhile {
           }
         }
 
-        val bufferCursor = BatchCursor.fromAnyArray[A](buffer.toArray[Any])
+        val bufferCursor = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]]
         if (continue) {
           val next: F[Iterant[F, A]] = if (idx < batchSize) rest else F.pure(ref)
           NextCursor(bufferCursor, next.map(loop), stop)

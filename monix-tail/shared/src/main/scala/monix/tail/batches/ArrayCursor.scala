@@ -117,7 +117,8 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
       oldIndex += 1
     }
 
-    BatchCursor.fromAnyArray[B](buffer.result())
+    BatchCursor.fromArray(buffer.result())
+      .asInstanceOf[ArrayCursor[B]]
   }
 
   override def toGenerator: Batch[A] = {

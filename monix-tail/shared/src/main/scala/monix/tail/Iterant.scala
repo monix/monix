@@ -24,13 +24,13 @@ import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order, Parallel}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
 import monix.execution.misc.NonFatal
+import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
 import org.reactivestreams.Publisher
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.reflect.ClassTag
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
   * streaming of elements using a pull-based protocol.
@@ -2127,7 +2127,7 @@ object Iterant extends IterantInstances {
     IterantConcat.tailRecM(a)(f)
 
   /** Converts any standard `Array` into a stream. */
-  def fromArray[F[_], A: ClassTag](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
+  def fromArray[F[_], A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextBatch(Batch.fromArray(xs), F.pure(empty[F, A]), F.unit)
 
   /** Converts any `scala.collection.Seq` into a stream. */
@@ -2155,13 +2155,13 @@ object Iterant extends IterantInstances {
 
   /** Converts a `scala.collection.Iterable` into a stream. */
   def fromIterable[F[_], A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F, A] = {
-    val bs = if (xs.hasDefiniteSize) batches.defaultBatchSize else 1
+    val bs = if (xs.hasDefiniteSize) recommendedBatchSize else 1
     NextBatch(Batch.fromIterable(xs, bs), F.pure(empty[F, A]), F.unit)
   }
 
   /** Converts a `scala.collection.Iterator` into a stream. */
   def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] = {
-    val bs = if (xs.hasDefiniteSize) batches.defaultBatchSize else 1
+    val bs = if (xs.hasDefiniteSize) recommendedBatchSize else 1
     NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty), F.unit)
   }
 
@@ -2184,7 +2184,7 @@ object Iterant extends IterantInstances {
     */
   def fromStateAction[F[_], S, A](f: S => (A, S))(seed: => S)(implicit F: Sync[F]): Iterant[F, A] = {
     def loop(state: S): Iterant[F, A] = {
-      var toProcess = batches.defaultBatchSize
+      var toProcess = recommendedBatchSize
       var currentState = state
       val buffer = mutable.Buffer[A]()
 

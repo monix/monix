@@ -19,6 +19,7 @@ package monix.tail
 package batches
 
 import scala.reflect.ClassTag
+import monix.execution.internal.Platform.recommendedBatchSize
 
 /** The `Batch` is a [[BatchCursor]] factory, similar in spirit
   * with Scala's [[scala.collection.Iterable Iterable]].
@@ -123,15 +124,6 @@ abstract class Batch[+A] extends Serializable {
 
 /** [[Batch]] builders.
   *
-  * @define fromAnyArrayDesc Builds an [[ArrayBatch]] instance
-  *         from any array of boxed values.
-  *
-  *         This will have lower performance than working with
-  *         [[Batch.fromArray[A](array:Array[A])* Batch.fromArray]],
-  *         since the values are boxed, however there is no
-  *         requirement for a [[scala.reflect.ClassTag ClassTag]] and
-  *         thus it can be used in any generic context.
-  *
   * @define paramArray is the underlying reference to use for traversing
   *         and transformations
   *
@@ -168,25 +160,9 @@ object Batch {
     new ArrayBatch[A](array, offset, length)(tp)
   }
 
-  /** $fromAnyArrayDesc
-    *
-    * @param array $paramArray
-    * @param offset $paramArrayOffset
-    * @param length $paramArrayLength
-    */
-  def fromAnyArray[A](array: Array[_], offset: Int, length: Int): ArrayBatch[A] =
-    fromArray(array, offset, length).asInstanceOf[ArrayBatch[A]]
-
-  /** $fromAnyArrayDesc
-    *
-    * @param array $paramArray
-    */
-  def fromAnyArray[A](array: Array[_]): ArrayBatch[A] =
-    fromAnyArray(array, 0, array.length)
-
   /** Converts a Scala [[scala.collection.Iterable Iterable]] into a [[Batch]]. */
   def fromIterable[A](iter: Iterable[A]): Batch[A] =
-    fromIterable(iter, defaultBatchSize)
+    fromIterable(iter, recommendedBatchSize)
 
   /** Converts a Scala [[scala.collection.Iterable Iterable]]
     * into a [[Batch]].
@@ -205,7 +181,7 @@ object Batch {
     * semantics on transformations.
     */
   def fromSeq[A](seq: Seq[A]): Batch[A] = {
-    val bs = if (seq.hasDefiniteSize) defaultBatchSize else 1
+    val bs = if (seq.hasDefiniteSize) recommendedBatchSize else 1
     fromSeq(seq, bs)
   }
 

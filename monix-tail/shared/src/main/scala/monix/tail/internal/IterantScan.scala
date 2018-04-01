@@ -56,7 +56,7 @@ private[tail] object IterantScan {
           if (cursor.hasNext()) F.pure(NextCursor(cursor, rest, stop))
           else rest
 
-        val elems = BatchCursor.fromAnyArray[S](buffer.toArray[Any])
+        val elems = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[S]]
         NextCursor(elems, next.map(loop(newState)), stop)
       }
     }

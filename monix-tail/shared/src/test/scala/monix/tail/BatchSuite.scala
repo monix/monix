@@ -164,12 +164,6 @@ abstract class BatchSuite[A : ClassTag](implicit
       Batch.fromArray(array).toArray.toSeq == array.toSeq
     }
   }
-
-  test("Batch.fromAnyArray") { _ =>
-    check1 { (array: Array[A]) =>
-      Batch.fromAnyArray[A](array).toArray.toSeq == array.toSeq
-    }
-  }
 }
 
 object ArrayBatchSuite extends BatchSuite[Int] {

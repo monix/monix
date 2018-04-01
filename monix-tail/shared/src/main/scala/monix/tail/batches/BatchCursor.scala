@@ -18,6 +18,7 @@
 package monix.tail
 package batches
 
+import monix.execution.internal.Platform.recommendedBatchSize
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.reflect.ClassTag
 
@@ -282,7 +283,7 @@ object BatchCursor {
     *        to wrap in a `BatchCursor` instance
     */
   def fromIterator[A](iter: Iterator[A]): BatchCursor[A] = {
-    val bs = if (iter.hasDefiniteSize) defaultBatchSize else 1
+    val bs = if (iter.hasDefiniteSize) recommendedBatchSize else 1
     new IteratorCursor[A](iter, bs)
   }
 
@@ -339,7 +340,7 @@ object BatchCursor {
     * semantics on transformations.
     */
   def fromSeq[A](seq: Seq[A]): BatchCursor[A] = {
-    val bs = if (seq.hasDefiniteSize) defaultBatchSize else 1
+    val bs = if (seq.hasDefiniteSize) recommendedBatchSize else 1
     fromSeq(seq, bs)
   }
 
@@ -464,7 +465,7 @@ object BatchCursor {
     * @return the cursor producing values `from, from + step, ...` up to, but excluding `end`
     */
   def range(from: Int, until: Int, step: Int = 1): BatchCursor[Int] =
-    BatchCursor.fromIterator(Iterator.range(from, until, step), defaultBatchSize)
+    BatchCursor.fromIterator(Iterator.range(from, until, step), recommendedBatchSize)
 
   /** Creates an infinite-length iterator returning the results of evaluating
     * an expression. The expression is recomputed for every element.

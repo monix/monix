@@ -47,7 +47,10 @@ private[tail] object IterantZipWithIndex {
       }
 
       val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
-      NextCursor(BatchCursor.fromAnyArray(buffer.toArray[Any]), next.map(loop(idx)), stop)
+      NextCursor(
+        BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[(A, Long)]],
+        next.map(loop(idx)),
+        stop)
     }
 
     def loop(index: Long)(source: Iterant[F, A]): Iterant[F, (A, Long)] = {

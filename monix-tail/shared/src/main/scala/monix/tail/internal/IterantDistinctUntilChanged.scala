@@ -70,7 +70,7 @@ private[tail] object IterantDistinctUntilChanged {
         if (buffer.isEmpty)
           Suspend(next, stop)
         else {
-          val ref = BatchCursor.fromAnyArray[A](buffer.toArray[Any])
+          val ref = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]]
           NextCursor(ref, next, stop)
         }
       }

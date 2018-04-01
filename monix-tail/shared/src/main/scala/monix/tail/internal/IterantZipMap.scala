@@ -98,23 +98,32 @@ private[tail] object IterantZipMap {
             if (array.isEmpty)
               Suspend(A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromAnyArray(array), A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
+              NextBatch(
+                Batch.fromArray(array).asInstanceOf[Batch[C]],
+                A.map2(restA, restB)(loop),
+                stopBoth(stopA, stopB))
           }
           else if (isEmptyItemsA) {
             if (array.isEmpty)
               Suspend(restA.map(loop(_, refB)), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromAnyArray(array), restA.map(loop(_, refB)), stopBoth(stopA, stopB))
+              NextBatch(
+                Batch.fromArray(array).asInstanceOf[Batch[C]],
+                restA.map(loop(_, refB)),
+                stopBoth(stopA, stopB))
           }
           else if (isEmptyItemsB) {
             if (array.isEmpty)
               Suspend(restB.map(loop(refA, _)), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromAnyArray(array), restB.map(loop(refA, _)), stopBoth(stopA, stopB))
+              NextBatch(
+                Batch.fromArray(array).asInstanceOf[Batch[C]],
+                restB.map(loop(refA, _)),
+                stopBoth(stopA, stopB))
           }
           else {
             // We are not done, continue loop
-            NextBatch(Batch.fromAnyArray(array), F.delay(loop(refA, refB)), stopBoth(stopA, stopB))
+            NextBatch(Batch.fromArray(array).asInstanceOf[Batch[C]], F.delay(loop(refA, refB)), stopBoth(stopA, stopB))
           }
         }
         else if (!itemsA.hasNext)

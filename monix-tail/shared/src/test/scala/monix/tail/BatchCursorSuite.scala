@@ -212,12 +212,6 @@ abstract class BatchCursorSuite[A : ClassTag](implicit
       BatchCursor.fromArray(array).toArray.toSeq == array.toSeq
     }
   }
-
-  test("Batch.fromAnyArray") { _ =>
-    check1 { (array: Array[A]) =>
-      BatchCursor.fromAnyArray[A](array).toArray.toSeq == array.toSeq
-    }
-  }
 }
 
 object ArrayCursorSuite extends BatchCursorSuite[Int] {

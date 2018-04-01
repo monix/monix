@@ -54,7 +54,10 @@ private[tail] object IterantTakeEveryNth {
       }
 
       val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
-      NextCursor(BatchCursor.fromAnyArray(buffer.toArray[Any]), next.map(loop(idx)), stop)
+      NextCursor(
+        BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]],
+        next.map(loop(idx)),
+        stop)
     }
 
 
