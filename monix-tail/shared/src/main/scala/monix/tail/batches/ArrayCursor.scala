@@ -121,7 +121,7 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
       .asInstanceOf[ArrayCursor[B]]
   }
 
-  override def toGenerator: Batch[A] = {
+  override def toBatch: Batch[A] = {
     val newOffset = getNextIndex
     val newLength = limit - newOffset
     new ArrayBatch[A](_array, newOffset, newLength, newBuilder)

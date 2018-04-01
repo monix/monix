@@ -241,7 +241,7 @@ abstract class BatchCursor[+A] extends Serializable {
   /** Converts this cursor into a reusable array-backed [[Batch]],
     * consuming it in the process.
     */
-  def toGenerator: Batch[A] = {
+  def toBatch: Batch[A] = {
     val array = asInstanceOf[BatchCursor[AnyRef]].toArray
     Batch.fromArray(array).asInstanceOf[Batch[A]]
   }

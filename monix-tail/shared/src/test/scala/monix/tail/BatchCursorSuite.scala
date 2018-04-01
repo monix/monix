@@ -28,7 +28,7 @@ abstract class BatchCursorSuite[A : ClassTag](implicit
   extends BaseTestSuite {
 
   type Cursor <: BatchCursor[A]
-  
+
   def fromList(list: List[A]): Cursor
 
   test("cursor.toList") { _ =>
@@ -59,24 +59,24 @@ abstract class BatchCursorSuite[A : ClassTag](implicit
     }
   }
 
-  test("cursor.toGenerator") { _ =>
+  test("cursor.toBatch") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
-      cursor.toGenerator.cursor().toList == list
+      cursor.toBatch.cursor().toList == list
     }
   }
 
-  test("cursor.drop(2).toGenerator") { _ =>
+  test("cursor.drop(2).toBatch") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
-      cursor.drop(2).toGenerator.cursor().toList == list.drop(2)
+      cursor.drop(2).toBatch.cursor().toList == list.drop(2)
     }
   }
 
-  test("cursor.take(2).toGenerator") { _ =>
+  test("cursor.take(2).toBatch") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
-      cursor.take(2).toGenerator.cursor().toList == list.take(2)
+      cursor.take(2).toBatch.cursor().toList == list.take(2)
     }
   }
 

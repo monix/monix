@@ -21,6 +21,7 @@ import cats.Applicative
 import cats.effect.{Async, IO, Sync, Timer}
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
+
 import scala.collection.immutable.LinearSeq
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
@@ -157,43 +158,43 @@ class IterantBuildersSync[F[_]](implicit F: Sync[F])
   extends IterantBuildersApplicative[F] {
 
   /** Aliased builder, see documentation for [[Iterant.eval]]. */
-  def eval[A](a: => A)(implicit F: Sync[F]): Iterant[F,A] =
+  def eval[A](a: => A): Iterant[F,A] =
     Iterant.eval(a)(F)
 
   /** Aliased builder, see documentation for [[Iterant.bracket]] */
-  def bracket[A, B](acquire: F[A])(use: A => Iterant[F, B], release: A => F[Unit])(implicit F: Sync[F]): Iterant[F, B] =
+  def bracket[A, B](acquire: F[A])(use: A => Iterant[F, B], release: A => F[Unit]): Iterant[F, B] =
     Iterant.bracket(acquire)(use, release)
 
   /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](fa* Iterant.suspend]]. */
-  def suspend[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+  def suspend[A](fa: => Iterant[F, A]): Iterant[F, A] =
     Iterant.suspend(fa)(F)
 
   /** Aliased builder, see documentation for [[Iterant.defer]]. */
-  def defer[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+  def defer[A](fa: => Iterant[F, A]): Iterant[F, A] =
     Iterant.defer(fa)(F)
 
   /** Aliased builder, see documentation for [[Iterant.tailRecM]]. */
-  def tailRecM[A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Sync[F]): Iterant[F, B] =
+  def tailRecM[A, B](a: A)(f: A => Iterant[F, Either[A, B]]): Iterant[F, B] =
     Iterant.tailRecM(a)(f)(F)
 
   /** Aliased builder, see documentation for [[Iterant.fromStateAction]]. */
-  def fromStateAction[S, A](f: S => (A, S))(seed: => S)(implicit F: Sync[F]): Iterant[F, A] =
+  def fromStateAction[S, A](f: S => (A, S))(seed: => S): Iterant[F, A] =
     Iterant.fromStateAction(f)(seed)
 
   /** Aliased builder, see documentation for [[Iterant.fromStateActionL]]. */
-  def fromStateActionL[S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] =
+  def fromStateActionL[S, A](f: S => F[(A, S)])(seed: => F[S]): Iterant[F, A] =
     Iterant.fromStateActionL(f)(seed)
 
   /** Aliased builder, see documentation for [[Iterant.repeat]]. */
-  def repeat[A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] =
+  def repeat[A](elems: A*): Iterant[F, A] =
     Iterant.repeat(elems: _*)
 
   /** Aliased builder, see documentation for [[Iterant.repeatEval]]. */
-  def repeatEval[A](thunk: => A)(implicit F: Sync[F]): Iterant[F, A] =
+  def repeatEval[A](thunk: => A): Iterant[F, A] =
     Iterant.repeatEval(thunk)
 
   /** Aliased builder, see documentation for [[Iterant.repeatEvalF]]. */
-  def repeatEvalF[A](fa: F[A])(implicit F: Sync[F]): Iterant[F, A] =
+  def repeatEvalF[A](fa: F[A]): Iterant[F, A] =
     Iterant.repeatEvalF(fa)
 }
 

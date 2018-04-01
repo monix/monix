@@ -18,6 +18,7 @@
 package monix.tail
 
 import java.io.PrintStream
+
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order, Parallel}
@@ -28,6 +29,7 @@ import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
 import org.reactivestreams.Publisher
+
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -759,6 +761,24 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def map[B](f: A => B)(implicit F: Sync[F]): Iterant[F, B] =
     IterantMap(this, f)(F)
+
+  /** Returns a new stream by mapping the supplied function over the
+    * elements of the source yielding `Iterant` consisting of `NextBatch` nodes.
+    *
+    * {{{
+    *   // Yields 1, 2, 3, 4, 5
+    *   Iterant[Task].of(List(1, 2, 3), List(4), List(5)).mapBatch(Batch.fromSeq(_))
+    *   // Yields 2, 4, 6
+    *   Iterant[Task].of(1, 2, 3).mapBatch(x => Batch(x * 2))
+    * }}}
+    *
+    * @param f is the mapping function that transforms the source into batches.
+    *
+    * @return a new iterant that's the result of mapping the given
+    *         function over the source
+    */
+  final def mapBatch[B](f: A => Batch[B])(implicit F: Sync[F]): Iterant[F, B] =
+    IterantMapBatch(this, f)(F)
 
   /** Optionally selects the first element.
     *
