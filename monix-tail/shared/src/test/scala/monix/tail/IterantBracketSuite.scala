@@ -20,6 +20,7 @@ package monix.tail
 import cats.effect.IO
 import cats.laws._
 import cats.laws.discipline._
+import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 import monix.tail.BracketResult._
 import monix.tail.batches.{Batch, BatchCursor}
@@ -263,5 +264,23 @@ object IterantBracketSuite extends BaseTestSuite {
     }
     assertEquals(rs.acquired, completes.length * 3)
     assertEquals(rs.released, completes.length * 3)
+  }
+
+  test("Bracket does not require non-strict use") { _ =>
+    var log = Vector[String]()
+    def safeCloseable(key: String): Iterant[Coeval, Unit] =
+      Iterant[Coeval].bracket(Coeval { log :+= s"Start: $key" })(Iterant.pure,
+        _ => Coeval { log :+= s"Stop: $key" }
+      )
+
+    val iterant = for {
+      _ <- safeCloseable("Outer")
+      dummy = 42
+      _ <- safeCloseable("Inner")
+    } yield ()
+
+    iterant.completeL.value
+
+    assertEquals(log, Vector("Start: Outer", "Start: Inner", "Stop: Inner", "Stop: Outer"))
   }
 }

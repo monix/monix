@@ -55,9 +55,10 @@ private[tail] object IterantBracket {
             earlyRelease(a) *> stop
           )
 
-        case h @ Last(_) =>
+        case Last(value) =>
+          val done = F.suspend(release(a, Completed))
           Suspend[F, B](
-            F.suspend(release(a, Completed)).as(h),
+            F.pure(Iterant.nextS(value, done.as(Halt(None)), earlyRelease(a))),
             earlyRelease(a)
           )
 
