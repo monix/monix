@@ -1235,10 +1235,10 @@ sealed abstract class Task[+A] extends Serializable {
     foreachL(f).runAsync(s)
 
   /** Returns a new `Task` that executes the source repetitively
-    * and never produces a value.
+    * as long as it succeeds and never produces a value.
     */
-  final def forever: Task[Nothing] =
-    flatMap(_ => this.forever)
+  final def loopForever: Task[Nothing] =
+    flatMap(_ => this.loopForever)
 
   /** Start asynchronous execution of the source suspended in the `Task` context.
     *
