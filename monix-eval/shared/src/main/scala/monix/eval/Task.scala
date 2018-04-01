@@ -3154,7 +3154,7 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     * @param s is a [[monix.execution.Scheduler Scheduler]] that needs
     *        to be available in scope
     */
-  implicit def catsEffect(implicit s: Scheduler): CatsConcurrentEffectForTask =
+  implicit def catsEffect(implicit s: Scheduler, opts: Task.Options = Task.defaultOptions): CatsConcurrentEffectForTask =
     new CatsConcurrentEffectForTask
 
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
