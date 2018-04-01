@@ -43,7 +43,7 @@ private[eval] object TaskRunLoop {
     rcb: RestartCallback,
     bFirst: Bind,
     bRest: CallStack,
-    frameIndex: FrameIndex): Unit = {
+    frameIndex: FrameIndex): Unit = Local.bind(Local.getContext()){
 
     val cba = cb.asInstanceOf[Callback[Any]]
     val sc = context.scheduler
@@ -178,7 +178,7 @@ private[eval] object TaskRunLoop {
     source: Task[A],
     scheduler: Scheduler,
     opts: Task.Options,
-    cb: Callback[A]): Cancelable = {
+    cb: Callback[A]): Cancelable = Local.bind(Local.getContext()) {
 
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
@@ -288,7 +288,7 @@ private[eval] object TaskRunLoop {
     *
     * Function gets invoked by `Task.runAsync(implicit s: Scheduler)`.
     */
-  def startFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
+  def startFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = Local.bind(Local.getContext()){
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
     var bRest: CallStack = null

@@ -19,12 +19,14 @@ package monix.eval.internal
 
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
+
 import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.internal.TaskRunLoop._
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.internal.collection.ArrayStack
-import monix.execution.misc.NonFatal
+import monix.execution.misc.{Local, NonFatal}
+
 import scala.concurrent.blocking
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
@@ -32,7 +34,7 @@ private[eval] object TaskRunSyncUnsafe {
   /** Run-loop specialization that evaluates the given task and blocks for the result
     * if the given task is asynchronous.
     */
-  def apply[A](source: Task[A], timeout: Duration, scheduler: Scheduler, opts: Task.Options): A = {
+  def apply[A](source: Task[A], timeout: Duration, scheduler: Scheduler, opts: Task.Options): A = Local.bind(Local.getContext()){
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
     var bRest: CallStack = null
