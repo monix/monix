@@ -79,23 +79,35 @@ private[tail] object IterantInterleave {
             if (array.isEmpty)
               Suspend(F.map2(restA, restB)(loop), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromAnyArray(array), F.map2(restA, restB)(loop), stopBoth(stopA, stopB))
+              NextBatch(
+                Batch.fromArray(array).asInstanceOf[Batch[A]],
+                F.map2(restA, restB)(loop),
+                stopBoth(stopA, stopB))
           }
           else if (isEmptyItemsA) {
             if (array.isEmpty)
               Suspend(restA.map(loop(_, refB)), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromAnyArray(array), restA.map(loop(_, refB)), stopBoth(stopA, stopB))
+              NextBatch(
+                Batch.fromArray(array).asInstanceOf[Batch[A]],
+                restA.map(loop(_, refB)),
+                stopBoth(stopA, stopB))
           }
           else if (isEmptyItemsB) {
             if (array.isEmpty)
               Suspend(restB.map(loop(refA, _)), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromAnyArray(array), restB.map(loop(refA, _)), stopBoth(stopA, stopB))
+              NextBatch(
+                Batch.fromArray(array).asInstanceOf[Batch[A]],
+                restB.map(loop(refA, _)),
+                stopBoth(stopA, stopB))
           }
           else {
             // We are not done, continue loop
-            NextBatch(Batch.fromAnyArray(array), F.delay(loop(refA, refB)), stopBoth(stopA, stopB))
+            NextBatch(
+              Batch.fromArray(array).asInstanceOf[Batch[A]],
+              F.delay(loop(refA, refB)),
+              stopBoth(stopA, stopB))
           }
         }
         else if (!itemsA.hasNext)

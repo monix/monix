@@ -51,7 +51,7 @@ private[tail] object IterantIntersperse {
             continue = false
           }
         }
-        val batchCursor = BatchCursor.fromAnyArray[A](buffer.toArray[Any])
+        val batchCursor = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]]
         if (cursor.hasNext()) {
           // ref now contains mutated cursor, continue with it
           NextCursor(batchCursor, F.delay(loop(prepend = false)(ref)), stop)

@@ -65,7 +65,7 @@ private[tail] object IterantOnError {
               else tailGuard(rest, stop).map(loop)
 
             if (array.length != 0)
-              NextCursor(BatchCursor.fromAnyArray(array), next, stop)
+              NextCursor(BatchCursor.fromArray(array), next, stop)
             else
               Suspend(next, stop)
           } catch {
@@ -137,7 +137,7 @@ private[tail] object IterantOnError {
           loop(NextCursor(batch.cursor(), rest, stop))
         case NextCursor(cursor, rest, stop) =>
           val cb = extractBatch(cursor)
-          val batch = Batch.fromAnyArray(cb)
+          val batch = Batch.fromArray(cb)
           if (cb.length > 0 && cb.last.isLeft) {
             NextBatch(batch, F.pure(Halt(None)), stop)
           } else if (!cursor.hasNext()) {
