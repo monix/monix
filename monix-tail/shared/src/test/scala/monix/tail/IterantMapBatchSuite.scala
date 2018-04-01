@@ -22,8 +22,8 @@ import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
+import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.batches.{Batch, BatchCursor}
-
 import scala.util.Failure
 
 object IterantMapBatchSuite extends BaseTestSuite {
@@ -37,8 +37,8 @@ object IterantMapBatchSuite extends BaseTestSuite {
 
   test("Iterant[Task].mapBatch works for functions producing batches bigger than recommendedBatchSize") { implicit s =>
     check2 { (list: List[Int], elem: Int) =>
-      val stream = Iterant[Task].nextBatchS(Batch.fromSeq(list, batches.defaultBatchSize), Task.delay(Iterant[Task].lastS[Int](elem)), Task.unit)
-      val f: Int => List[Int] = List.fill(batches.defaultBatchSize * 2)(_)
+      val stream = Iterant[Task].nextBatchS(Batch.fromSeq(list, recommendedBatchSize), Task.delay(Iterant[Task].lastS[Int](elem)), Task.unit)
+      val f: Int => List[Int] = List.fill(recommendedBatchSize * 2)(_)
 
       val received = stream.mapBatch(f andThen (Batch.fromSeq(_))).toListL
       val expected = stream.toListL.map(_.flatMap(f))
