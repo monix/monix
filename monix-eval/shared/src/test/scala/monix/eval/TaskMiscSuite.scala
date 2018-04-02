@@ -53,6 +53,16 @@ object TaskMiscSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Failure(ex)))
   }
 
+  test("Task.forever") { implicit s =>
+    val ex = DummyException("dummy")
+    var effect = 0
+    val result = Task.eval { if (effect < 10) effect += 1 else throw ex }
+      .loopForever
+      .onErrorFallbackTo(Task.eval(effect))
+      .runAsync
+    assertEquals(result.value.get.get, 10)
+  }
+
   test("Task.restartUntil") { implicit s =>
     var effect = 0
     val r = Task { effect += 1; effect }.restartUntil(_ >= 10).runAsync

@@ -1234,6 +1234,23 @@ sealed abstract class Task[+A] extends Serializable {
   final def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
     foreachL(f).runAsync(s)
 
+  /** Returns a new `Task` that repeatedly executes the source as long
+    * as it continues to succeed. It never produces a terminal value.
+    *
+    * Example:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   Task.eval(println("Tick!"))
+    *     .delayExecution(1.second)
+    *     .loopForever
+    * }}}
+    *
+    */
+  final def loopForever: Task[Nothing] =
+    flatMap(_ => this.loopForever)
+
   /** Start asynchronous execution of the source suspended in the `Task` context.
     *
     * This can be used for non-deterministic / concurrent execution.
