@@ -1246,8 +1246,8 @@ sealed abstract class Task[+A] extends Serializable {
     *     for {
     *       fa <- ta.fork
     *       fb <- tb.fork
-    *        a <- fa
-    *        b <- fb
+    *        a <- fa.join
+    *        b <- fb.join
     *     } yield (a, b)
     * }}}
     *
