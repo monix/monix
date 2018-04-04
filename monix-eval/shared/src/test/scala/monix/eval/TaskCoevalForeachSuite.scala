@@ -18,6 +18,7 @@
 package monix.eval
 
 import minitest.TestSuite
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
 object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
@@ -47,6 +48,13 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 1)
     task.foreach(x => effect += x); s.tick()
     assertEquals(effect, 2)
+  }
+
+  test("Task.foreach reports exceptions using scheduler") { implicit s =>
+    val dummy = DummyException("dummy")
+    Task(1).foreach(_ => throw dummy)
+    s.tick()
+    assertEquals(s.state.lastReportedError, dummy)
   }
 
 

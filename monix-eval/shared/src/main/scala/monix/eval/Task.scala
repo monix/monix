@@ -1230,9 +1230,11 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * The application of this function has strict behavior, as the
     * task is immediately executed.
+    *
+    * Exceptions in `f` are reported using provided (implicit) Scheduler
     */
-  final def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
-    foreachL(f).runAsync(s)
+  final def foreach(f: A => Unit)(implicit s: Scheduler): Unit =
+    runAsync.foreach(f)
 
   /** Returns a new `Task` that repeatedly executes the source as long
     * as it continues to succeed. It never produces a terminal value.
