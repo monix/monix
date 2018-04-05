@@ -26,7 +26,7 @@ import monix.execution._
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
-import monix.execution.misc.ThreadLocal
+import monix.execution.misc.{Local, ThreadLocal}
 import monix.execution.schedulers.{CanBlock, TrampolinedRunnable}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
@@ -521,7 +521,13 @@ sealed abstract class Task[+A] extends Serializable {
     * @return $cancelableDesc
     */
   def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
-    TaskRunLoop.startFuture(this, s, opts)
+    if (opts.localContextPropagation) {
+      Local.bindCurrent {
+        TaskRunLoop.startFuture(this, s, opts)
+      }
+    } else {
+      TaskRunLoop.startFuture(this, s, opts)
+    }
 
   /** $runAsyncOptDesc
     *
@@ -530,8 +536,15 @@ sealed abstract class Task[+A] extends Serializable {
     * @param opts $optionsDesc
     * @return $cancelableDesc
     */
-  def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
-    TaskRunLoop.startLight(this, s, opts, cb)
+  def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
+    if (opts.localContextPropagation) {
+      Local.bindCurrent {
+        TaskRunLoop.startLight(this, s, opts, cb)
+      }
+    } else {
+      TaskRunLoop.startLight(this, s, opts, cb)
+    }
+  }
 
   /** $runSyncMaybeDesc
     *
@@ -579,7 +592,13 @@ sealed abstract class Task[+A] extends Serializable {
     */
   final def runSyncUnsafeOpt(timeout: Duration)
     (implicit s: Scheduler, opts: Options, permit: CanBlock): A =
-    TaskRunSyncUnsafe(this, timeout, s, opts)
+    if (opts.localContextPropagation) {
+      Local.bindCurrent {
+        TaskRunSyncUnsafe(this, timeout, s, opts)
+      }
+    } else {
+      TaskRunSyncUnsafe(this, timeout, s, opts)
+    }
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
@@ -3029,11 +3048,14 @@ object Task extends TaskInstancesLevel1 {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]]
     * and [[Task.executeAsync .executeAsync]].
     */
-  def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
+  def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit = {
+    val prevContext = if (context.options.localContextPropagation) Local.getContext() else null
     context.scheduler.execute(new TrampolinedRunnable {
-      def run(): Unit =
+      def run(): Unit = Local.bind(prevContext) {
         TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
+      }
     })
+  }
 
   /** Unsafe utility - starts the execution of a Task, by providing
     * the needed [[monix.execution.Scheduler Scheduler]],
@@ -3044,7 +3066,13 @@ object Task extends TaskInstancesLevel1 {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
+    if (context.options.localContextPropagation) {
+      Local.bindCurrent {
+        TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
+      }
+    } else {
+      TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
+    }
 
   private[this] final val neverRef: Async[Nothing] =
     Async((_,_) => ())

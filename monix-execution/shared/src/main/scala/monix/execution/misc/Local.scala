@@ -76,6 +76,12 @@ object Local {
   def bindClear[R](f: => R): R =
     macro Macros.localLetClear
 
+  /** Execute a block of code with a current state of `Local.Context`,
+    * but undo all changes made back to current state when complete.
+    */
+  def bindCurrent[R](f: => R): R =
+    macro Macros.localLetCurrent
+
   /** Convert a closure `() => R` into another closure of the same
     * type whose [[Local.Context]] is saved when calling closed
     * and restored upon invocation.
@@ -143,6 +149,16 @@ object Local {
         q"""
        val $saved = $Local.getContext()
        $Local.setContext($Map.empty)
+       try { $f } finally { $Local.setContext($saved) }
+       """)
+    }
+
+    def localLetCurrent(f: Tree): Tree = {
+      val saved = util.name("saved")
+      val Local = symbolOf[Local[_]].companion
+      resetTree(
+        q"""
+       val $saved = $Local.getContext()
        try { $f } finally { $Local.setContext($saved) }
        """)
     }
