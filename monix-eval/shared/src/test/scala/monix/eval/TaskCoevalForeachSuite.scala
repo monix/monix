@@ -55,9 +55,9 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
     val coeval = Coeval(1).foreachL(x => effect += x)
 
     assertEquals(effect, 0)
-    coeval.value
+    coeval.value()
     assertEquals(effect, 1)
-    coeval.value
+    coeval.value()
     assertEquals(effect, 2)
   }
 

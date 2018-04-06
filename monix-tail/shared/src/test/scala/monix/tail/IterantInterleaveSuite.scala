@@ -46,7 +46,7 @@ object IterantInterleaveSuite extends BaseTestSuite {
       val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
       val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
 
-      val expected = Coeval(list1.zip(list2).flatMap { case (a, b) => List(a, b) }).value
+      val expected = Coeval(list1.zip(list2).flatMap { case (a, b) => List(a, b) }).value()
       naiveImp(stream1, stream2).toListL.value <-> expected
     }
   }
@@ -66,7 +66,7 @@ object IterantInterleaveSuite extends BaseTestSuite {
     val source1 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val source2 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source1.interleave(source2)
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 2)
   }
 

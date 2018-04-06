@@ -87,7 +87,7 @@ object IterantBasicSuite extends BaseTestSuite {
         Iterant[Coeval].now[Either[Int, Int]](Right(a))
     }
 
-    val list = fa.toListL.value
+    val list = fa.toListL.value()
     assertEquals(list, (0 to 10).toList)
   }
 

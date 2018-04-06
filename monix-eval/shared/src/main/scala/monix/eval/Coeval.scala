@@ -210,7 +210,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * $unsafeRun
     */
-  def value: A = apply()
+  def value(): A = apply()
 
   /** Evaluates the underlying computation, reducing this `Coeval`
     * to a [[Coeval.Eager]] value, with successful results being
@@ -508,7 +508,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * behavior, as the coeval is immediately executed.
     */
   final def foreach(f: A => Unit): Unit =
-    foreachL(f).value
+    foreachL(f).value()
 
   /** Returns a new `Coeval` that applies the mapping function to
     * the element emitted by the source.
@@ -563,7 +563,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
       case Coeval.Now(value) => Eval.now(value)
       case Coeval.Error(e) => Eval.always(throw e)
       case Coeval.Always(thunk) => new cats.Always(thunk)
-      case other => Eval.always(other.value)
+      case other => Eval.always(other.value())
     }
 
   /** Converts the source [[Coeval]] into a `cats.effect.IO`. */
@@ -571,7 +571,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     this match {
       case Coeval.Now(value) => IO.pure(value)
       case Coeval.Error(e) => IO.raiseError(e)
-      case other => IO(other.value)
+      case other => IO(other.value())
     }
 
   /** Creates a new `Coeval` by applying the 'fa' function to the

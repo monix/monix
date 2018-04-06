@@ -154,7 +154,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
       val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
       intercept[DummyException] {
-        stream.mapBatch(Batch.apply(_)).toListL.value
+        stream.mapBatch(Batch.apply(_)).toListL.value()
       }
       cancelable.isCanceled
     }
@@ -227,7 +227,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.mapBatch(Batch.apply(_))
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 }

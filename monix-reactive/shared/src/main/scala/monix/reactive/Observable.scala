@@ -3908,7 +3908,7 @@ object Observable {
     value match {
       case Coeval.Now(a) => Observable.now(a)
       case Coeval.Error(e) => Observable.raiseError(e)
-      case other => Observable.eval(other.value)
+      case other => Observable.eval(other.value())
     }
 
   /** Converts a `cats.Eval` value into an `Observable`

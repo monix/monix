@@ -90,7 +90,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     val source1 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val source2 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source1.zip(source2)
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 2)
   }
 

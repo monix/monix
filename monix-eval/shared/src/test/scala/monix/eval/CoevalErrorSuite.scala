@@ -24,55 +24,55 @@ import scala.util.{Failure, Success}
 object CoevalErrorSuite extends BaseTestSuite {
   test("Coeval.attempt should expose error") { implicit s =>
     val dummy = DummyException("ex")
-    val r = Coeval.raiseError[Int](dummy).attempt.value
+    val r = Coeval.raiseError[Int](dummy).attempt.value()
     assertEquals(r, Left(dummy))
   }
 
   test("Coeval.attempt should expose successful value") { implicit s =>
-    val r = Coeval.now(10).attempt.value
+    val r = Coeval.now(10).attempt.value()
     assertEquals(r, Right(10))
   }
 
   test("Coeval.fail should expose error") { implicit s =>
     val dummy = DummyException("dummy")
-    val r = Coeval.raiseError[Int](dummy).failed.value
+    val r = Coeval.raiseError[Int](dummy).failed.value()
     assertEquals(r, dummy)
   }
 
   test("Coeval.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
-      Coeval.now(10).failed.value
+      Coeval.now(10).failed.value()
     }
   }
 
   test("Coeval.now.materialize") { implicit s =>
-    assertEquals(Coeval.now(10).materialize.value, Success(10))
+    assertEquals(Coeval.now(10).materialize.value(), Success(10))
   }
 
   test("Coeval.error.materialize") { implicit s =>
     val dummy = DummyException("dummy")
-    assertEquals(Coeval.raiseError[Int](dummy).materialize.value, Failure(dummy))
+    assertEquals(Coeval.raiseError[Int](dummy).materialize.value(), Failure(dummy))
   }
 
   test("Coeval.evalOnce.materialize") { implicit s =>
-    assertEquals(Coeval.evalOnce(10).materialize.value, Success(10))
+    assertEquals(Coeval.evalOnce(10).materialize.value(), Success(10))
   }
 
   test("Coeval.eval.materialize") { implicit s =>
-    assertEquals(Coeval.eval(10).materialize.value, Success(10))
+    assertEquals(Coeval.eval(10).materialize.value(), Success(10))
   }
 
   test("Coeval.defer.materialize") { implicit s =>
-    assertEquals(Coeval.defer(Coeval.now(10)).materialize.value, Success(10))
+    assertEquals(Coeval.defer(Coeval.now(10)).materialize.value(), Success(10))
   }
 
   test("Coeval.defer.flatMap.materialize") { implicit s =>
-    assertEquals(Coeval.defer(Coeval.now(10)).flatMap(Coeval.now).materialize.value, Success(10))
+    assertEquals(Coeval.defer(Coeval.now(10)).flatMap(Coeval.now).materialize.value(), Success(10))
   }
 
   test("Coeval.error.materialize") { implicit s =>
     val dummy = DummyException("dummy")
-    assertEquals(Coeval.raiseError[Int](dummy).materialize.value, Failure(dummy))
+    assertEquals(Coeval.raiseError[Int](dummy).materialize.value(), Failure(dummy))
   }
 
   test("Coeval.flatMap.materialize") { implicit s =>

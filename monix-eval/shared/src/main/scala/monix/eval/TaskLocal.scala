@@ -236,5 +236,5 @@ object TaskLocal {
     *        lazily evaluated and managed by [[Coeval]]
     */
   def lazyDefault[A](default: Coeval[A]): Task[TaskLocal[A]] =
-    Task.eval(new TaskLocal[A](default.value))
+    Task.eval(new TaskLocal[A](default.value()))
 }

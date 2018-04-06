@@ -33,7 +33,7 @@ object IterantDoOnEarlyStopSuite extends BaseTestSuite {
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
     val iterant = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnEarlyStop(ref2)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector(1, 2))
   }
 
@@ -49,7 +49,7 @@ object IterantDoOnEarlyStopSuite extends BaseTestSuite {
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
     val iterant = Iterant[Coeval].nextCursorS(BatchCursor.empty[Int], Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnEarlyStop(ref2)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector(1, 2))
   }
 
@@ -65,7 +65,7 @@ object IterantDoOnEarlyStopSuite extends BaseTestSuite {
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
     val iterant = Iterant[Coeval].nextBatchS(Batch.empty[Int], Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnEarlyStop(ref2)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector(1, 2))
   }
 
@@ -81,7 +81,7 @@ object IterantDoOnEarlyStopSuite extends BaseTestSuite {
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
     val iterant = Iterant[Coeval].suspendS(Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnEarlyStop(ref2)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector(1, 2))
   }
 
@@ -94,7 +94,7 @@ object IterantDoOnEarlyStopSuite extends BaseTestSuite {
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val iterant = Iterant[Coeval].lastS(1).doOnEarlyStop(ref1)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector.empty)
   }
 
@@ -107,7 +107,7 @@ object IterantDoOnEarlyStopSuite extends BaseTestSuite {
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val iterant = Iterant[Coeval].empty[Int].doOnEarlyStop(ref1)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector.empty)
   }
 }

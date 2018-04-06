@@ -44,7 +44,7 @@ object IterantIntersperseSuite extends BaseTestSuite {
       stop
     )
     val interspersed = source.intersperse(0)
-    interspersed.earlyStop.value
+    interspersed.earlyStop.value()
     assertEquals(effect, 1)
   }
 

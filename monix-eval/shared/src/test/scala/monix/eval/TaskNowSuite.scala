@@ -132,7 +132,7 @@ object TaskNowSuite extends BaseTestSuite {
   }
 
   test("Task.now.map should work") { implicit s =>
-    Coeval.now(1).map(_ + 1).value
+    Coeval.now(1).map(_ + 1).value()
     check1 { a: Int =>
       Task.now(a).map(_ + 1) <-> Task.now(a + 1)
     }
@@ -200,7 +200,7 @@ object TaskNowSuite extends BaseTestSuite {
   }
 
   test("Task.now.coeval") { implicit s =>
-    val result = Task.now(100).coeval.value
+    val result = Task.now(100).coeval.value()
     assertEquals(result, Right(100))
   }
 

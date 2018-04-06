@@ -129,7 +129,7 @@ object IterantDumpSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.dump("O", dummyOut(AtomicInt(0)))
-    stream.earlyStop.value
+    stream.earlyStop.value()
 
     assertEquals(effect, 1)
   }

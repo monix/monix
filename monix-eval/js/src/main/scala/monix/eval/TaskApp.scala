@@ -57,6 +57,6 @@ trait TaskApp {
 
   @JSExport
   final def main(args: Array[String]): Unit = {
-    run(args).runAsyncOpt(scheduler.value, options.value)
+    run(args).runAsyncOpt(scheduler.value(), options.value())
   }
 }
