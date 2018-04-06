@@ -34,11 +34,11 @@ class EvalOnCompleteOperator[A](task: Task[Unit]) extends Operator[A,A] {
       def onError(ex: Throwable): Unit = out.onError(ex)
 
       def onComplete(): Unit =
-        task.attempt.foreach {
+        task.attempt.map {
           case Right(()) =>
             out.onComplete()
           case Left(ex) =>
             out.onError(ex)
-        }
+        }.runAsync
     }
 }
