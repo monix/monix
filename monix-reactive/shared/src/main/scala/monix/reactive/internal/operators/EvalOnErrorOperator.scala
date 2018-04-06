@@ -37,13 +37,13 @@ class EvalOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] 
       def onError(ex: Throwable): Unit = {
         try {
           val task = try cb(ex) catch { case err if NonFatal(err) => Task.raiseError(err) }
-          task.attempt.foreach {
+          task.attempt.map {
             case Right(()) =>
               out.onError(ex)
             case Left(err) =>
               scheduler.reportFailure(err)
               out.onError(ex)
-          }
+          }.runAsync
         }
         catch {
           case err if NonFatal(err) =>
