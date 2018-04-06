@@ -93,26 +93,26 @@ object IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 0)
     assertEquals(emitted, 0)
 
-    assertEquals(all.headOptionL.value, Some(1))
+    assertEquals(all.headOptionL.value(), Some(1))
     assertEquals(effect, 1)
     assertEquals(emitted, 1)
 
     emitted = 0
     effect = 0
 
-    assertEquals(all.take(2).toListL.value, List(1, 2))
+    assertEquals(all.take(2).toListL.value(), List(1, 2))
     assertEquals(effect, 2)
     assertEquals(emitted, 2)
 
     emitted = 0
     effect = 0
 
-    assertEquals(all.take(3).toListL.value, List(1, 2, 3))
+    assertEquals(all.take(3).toListL.value(), List(1, 2, 3))
     assertEquals(effect, 3)
     assertEquals(emitted, 3)
 
     effect = 0
-    assertEquals(all.take(4).toListL.value, List(1, 2, 3, 4))
+    assertEquals(all.take(4).toListL.value(), List(1, 2, 3, 4))
     assertEquals(effect, 100)
   }
 

@@ -95,7 +95,7 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
   }
 
   test("Task.eval.coeval") { implicit s =>
-    val result = Task.eval(100).coeval.value
+    val result = Task.eval(100).coeval.value()
     assertEquals(result, Right(100))
   }
 

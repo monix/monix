@@ -32,12 +32,12 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
     val Right(semaphore) = TaskSemaphore(maxParallelism = 4).runSyncMaybe
     val future = semaphore.greenLight(Task(1)).runAsync
 
-    assertEquals(semaphore.activeCount.value, 1)
+    assertEquals(semaphore.activeCount.value(), 1)
     assert(!future.isCompleted, "!future.isCompleted")
 
     s.tick()
     assertEquals(future.value, Some(Success(1)))
-    assertEquals(semaphore.activeCount.value, 0)
+    assertEquals(semaphore.activeCount.value(), 0)
   }
 
   test("should release on cancel") { implicit s =>
@@ -50,11 +50,11 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
       .runAsync
 
     s.tick()
-    assertEquals(semaphore.activeCount.value, 1)
+    assertEquals(semaphore.activeCount.value(), 1)
     assertEquals(future.value, None)
 
     future.cancel(); s.tick()
-    assertEquals(semaphore.activeCount.value, 0)
+    assertEquals(semaphore.activeCount.value(), 0)
     assertEquals(future.value, None)
     assertEquals(effect, 0)
   }
@@ -123,16 +123,16 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
 
     val p3 = semaphore.acquire.runAsync
     assert(!p3.isCompleted, "!p3.isCompleted")
-    assertEquals(semaphore.activeCount.value, 2)
+    assertEquals(semaphore.activeCount.value(), 2)
 
     p3.cancel()
     semaphore.release.runAsync
-    assertEquals(semaphore.activeCount.value, 1)
+    assertEquals(semaphore.activeCount.value(), 1)
     semaphore.release.runAsync
-    assertEquals(semaphore.activeCount.value, 0)
+    assertEquals(semaphore.activeCount.value(), 0)
 
     s.tick()
-    assertEquals(semaphore.activeCount.value, 0)
+    assertEquals(semaphore.activeCount.value(), 0)
     assert(!p3.isCompleted, "!p3.isCompleted")
   }
 }

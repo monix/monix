@@ -80,7 +80,7 @@ object IterantCollectSuite extends BaseTestSuite {
     val state = iter.collect { case _ => effect += 1; 1 }
 
     assertEquals(effect, 0)
-    assertEquals(state.toListL.value, List(1))
+    assertEquals(state.toListL.value(), List(1))
     assertEquals(effect, 1)
   }
 
@@ -90,7 +90,7 @@ object IterantCollectSuite extends BaseTestSuite {
     val state = iter.collect { case _ => effect += 1; 1 }
 
     assertEquals(effect, 0)
-    assertEquals(state.toListL.value, List(1))
+    assertEquals(state.toListL.value(), List(1))
     assertEquals(effect, 1)
   }
 
@@ -110,7 +110,7 @@ object IterantCollectSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.collect { case x => x }
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 }

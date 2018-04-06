@@ -55,6 +55,6 @@ trait TaskApp {
     Coeval.evalOnce(Task.defaultOptions)
 
   final def main(args: Array[String]): Unit = {
-    run(args).runSyncUnsafeOpt(Inf)(scheduler.value, options.value, implicitly)
+    run(args).runSyncUnsafeOpt(Inf)(scheduler.value(), options.value(), implicitly)
   }
 }

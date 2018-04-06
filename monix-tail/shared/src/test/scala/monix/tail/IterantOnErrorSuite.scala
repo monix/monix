@@ -30,8 +30,8 @@ object IterantOnErrorSuite extends BaseTestSuite {
     val i = Iterant[Coeval].of(1, 2, 3)
 
     assertEquals(
-      i.attempt.toListL.value,
-      i.map(Right.apply).toListL.value
+      i.attempt.toListL.value(),
+      i.map(Right.apply).toListL.value()
     )
   }
 
@@ -40,7 +40,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     val i = Iterant[Coeval].of(1, 2, 3) ++ Iterant[Coeval].raiseError[Int](dummy)
 
     assertEquals(
-      i.attempt.toListL.value,
+      i.attempt.toListL.value(),
       List(Right(1), Right(2), Right(3), Left(dummy))
     )
   }
@@ -72,7 +72,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     val iter2 = Iterant[Coeval].fromArray(Array(4, 5, 6))
 
     assertEquals(
-      iter1.onErrorHandleWith(_ => iter2).toListL.value,
+      iter1.onErrorHandleWith(_ => iter2).toListL.value(),
       List(1, 2, 3, 4, 5, 6)
     )
   }
@@ -116,7 +116,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
       val out = broken
         .onErrorHandleWith(_ => Iterant[Coeval].fromSeq(fallback))
         .toListL
-        .value
+        .value()
 
       assertEquals(out.takeRight(fallback.length), fallback)
     }
@@ -135,7 +135,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
       Coeval { effect = 1 }
     )
     errorInTail.onErrorHandleWith(_ => Iterant[Coeval].empty[Int])
-      .completeL.value
+      .completeL.value()
     assertEquals(effect, 2)
   }
 
@@ -143,7 +143,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     for (broken <- brokenTails) {
       val end = broken.attempt
         .toListL
-        .value
+        .value()
         .last
 
       assertEquals(end, Left(DummyException("dummy")))
@@ -162,7 +162,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
       },
       Coeval { effect = 1 }
     )
-    errorInTail.attempt.completeL.value
+    errorInTail.attempt.completeL.value()
     assertEquals(effect, 2)
   }
 

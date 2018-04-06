@@ -279,7 +279,7 @@ object IterantBracketSuite extends BaseTestSuite {
       _ <- safeCloseable("Inner")
     } yield ()
 
-    iterant.completeL.value
+    iterant.completeL.value()
 
     assertEquals(log, Vector("Start: Outer", "Start: Inner", "Stop: Inner", "Stop: Outer"))
   }

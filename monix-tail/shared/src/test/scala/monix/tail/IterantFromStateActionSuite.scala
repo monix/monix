@@ -48,14 +48,14 @@ object IterantFromStateActionSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val received = Iterant[Coeval].fromStateAction[Int, Int](e => (e, e))(throw dummy).attempt.toListL
 
-    assertEquals(received.value, List(Left(dummy)))
+    assertEquals(received.value(), List(Left(dummy)))
   }
 
   test("Iterant.fromStateAction protects against exceptions in f") { implicit s =>
     val dummy = DummyException("dummy")
     val received = Iterant[Coeval].fromStateAction[Int, Int](_ => (throw dummy, throw dummy))(0).attempt.toListL
 
-    assertEquals(received.value, List(Left(dummy)))
+    assertEquals(received.value(), List(Left(dummy)))
   }
 
   test("Iterant.fromStateActionL should evolve state") { implicit s =>
@@ -92,6 +92,6 @@ object IterantFromStateActionSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val received = Iterant[Coeval].fromStateActionL[Int, Int](_ => throw dummy)(Coeval.pure(0)).attempt.toListL
 
-    assertEquals(received.value, List(Left(dummy)))
+    assertEquals(received.value(), List(Left(dummy)))
   }
 }
