@@ -171,7 +171,7 @@ final class TaskLocal[A] private (default: => A) {
       val saved = r.value
       value.bracket { v =>
         r.update(v)
-        task.doOnFinish(_ => restore(saved))
+        task
       }(_ => restore(saved))
     }
 
