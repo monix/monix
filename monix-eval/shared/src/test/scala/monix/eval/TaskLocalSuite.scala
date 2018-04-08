@@ -19,12 +19,11 @@ package monix.eval
 
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
-import monix.execution.schedulers.TracingScheduler
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val opts: Task.Options = Task.defaultOptions.enableLocalContextPropagation
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
-  val ec2: Scheduler = TracingScheduler(Scheduler.trampoline())
+  val ec2: Scheduler = Scheduler.trampoline()
 
   testAsync("Local.apply") {
     val test =
