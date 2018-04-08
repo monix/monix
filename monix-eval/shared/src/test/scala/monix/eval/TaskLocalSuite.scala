@@ -147,7 +147,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runAsyncOpt
   }
 
-  testAsync("Local.apply with different schedulers") {
+  testAsync("TaskLocal.apply with different schedulers") {
     val ec2: Scheduler = monix.execution.Scheduler.io()
     val test =
       for {
@@ -161,7 +161,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runAsyncOpt
   }
 
-  testAsync("Local.apply with different schedulers with onExecute") {
+  testAsync("TaskLocal.apply with different schedulers with onExecute") {
     val ec2: Scheduler = monix.execution.Scheduler.io()
     val test =
       for {
@@ -174,5 +174,24 @@ object TaskLocalSuite extends SimpleTestSuite {
       } yield ()
 
     test.runAsyncOpt
+  }
+
+  test("TaskLocal.bind cleanup without async boundary") {
+    import scala.concurrent.duration.Duration
+
+    val local: TaskLocal[Boolean] = TaskLocal[Boolean](false).runSyncUnsafeOpt(Duration.Inf)
+
+    def loop(n: Int = 1000): Task[Unit] =
+      if (n > 0) attempt.flatMap(_ => loop(n - 1))
+      else Task.unit
+
+
+    def attempt = local.read flatMap {
+      case false => local.bind(true)(Task.unit)
+      case true => Task.now(fail())
+    }
+
+    loop(5).runSyncUnsafeOpt(Duration.Inf)
+    assert(!local.read.runSyncUnsafeOpt(Duration.Inf))
   }
 }
