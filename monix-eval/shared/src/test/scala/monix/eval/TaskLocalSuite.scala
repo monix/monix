@@ -23,7 +23,7 @@ import monix.execution.schedulers.TracingScheduler
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.traced
-  val ec2: Scheduler = TracingScheduler(Scheduler.computation(4, "ec2"))
+  val ec2: Scheduler = TracingScheduler(Scheduler.trampoline())
 
   testAsync("Local.apply") {
     val test =
