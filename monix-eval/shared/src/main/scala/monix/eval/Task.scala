@@ -2849,6 +2849,13 @@ object Task extends TaskInstancesLevel1 {
     def shouldCancel: Boolean =
       options.autoCancelableRunLoops &&
       connection.isCanceled
+
+    /** Helper that returns a new [[monix.eval.Task.Context]] given a new [[monix.execution.Scheduler]]
+      * It will create a [[monix.execution.schedulers.TracingScheduler]] if the localContextPropagation
+      * is enabled.
+      */
+    def withScheduler(sch: Scheduler): Context =
+      copy(scheduler = if (options.localContextPropagation) sch.trace else sch)
   }
 
   object Context {
@@ -2860,7 +2867,8 @@ object Task extends TaskInstancesLevel1 {
     def apply(scheduler: Scheduler, options: Options, connection: StackedCancelable): Context = {
       val em = scheduler.executionModel
       val frameRef = FrameIndexRef(em)
-      Context(scheduler, options, connection, frameRef)
+      val sch = if (options.localContextPropagation) scheduler.trace else scheduler
+      Context(sch, options, connection, frameRef)
     }
   }
 
