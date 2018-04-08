@@ -22,7 +22,8 @@ import monix.execution.Scheduler
 import monix.execution.schedulers.TracingScheduler
 
 object TaskLocalSuite extends SimpleTestSuite {
-  implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.traced
+  implicit val opts: Task.Options = Task.defaultOptions.enableLocalContextPropagation
+  implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
   val ec2: Scheduler = TracingScheduler(Scheduler.trampoline())
 
   testAsync("Local.apply") {
@@ -41,7 +42,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 0))
       } yield ()
 
-    test.runAsync
+    test.runAsyncOpt
   }
 
   testAsync("Local.defaultLazy") {
@@ -62,7 +63,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 2))
       } yield ()
 
-    test.runAsync
+    test.runAsyncOpt
   }
 
 
@@ -78,7 +79,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsync
+    test.runAsyncOpt
   }
 
   testAsync("TaskLocal!.bindL") {
@@ -93,7 +94,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsync
+    test.runAsyncOpt
   }
 
   testAsync("TaskLocal!.bindClear") {
@@ -108,7 +109,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsync
+    test.runAsyncOpt
   }
 
   testAsync("Local canceled") {
@@ -123,7 +124,7 @@ object TaskLocalSuite extends SimpleTestSuite {
       _ <- Task.now(assertEquals(s, "Good"))
     } yield ()
     
-    test.runAsync
+    test.runAsyncOpt
   }
 
   testAsync("TaskLocal!.local") {
@@ -145,7 +146,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v4, local.get))
       } yield ()
 
-    test.runAsync
+    test.runAsyncOpt
   }
 
   testAsync("TaskLocal.apply with different schedulers") {
@@ -158,7 +159,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v1, v2))
       } yield ()
 
-    test.runAsync
+    test.runAsyncOpt
   }
 
   testAsync("TaskLocal.apply with different schedulers with onExecute") {
@@ -172,6 +173,6 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 1000))
       } yield ()
 
-    test.runAsync
+    test.runAsyncOpt
   }
 }
