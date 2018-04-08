@@ -174,23 +174,4 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     test.runAsync
   }
-
-  test("TaskLocal.bind cleanup without async boundary") {
-    import scala.concurrent.duration.Duration
-
-    val local: TaskLocal[Boolean] = TaskLocal[Boolean](false).runSyncUnsafe(Duration.Inf)
-
-    def loop(n: Int = 1000): Task[Unit] =
-      if (n > 0) attempt.flatMap(_ => loop(n - 1))
-      else Task.unit
-
-
-    def attempt = local.read flatMap {
-      case false => local.bind(true)(Task.unit)
-      case true => Task.now(fail())
-    }
-
-    loop(5).runSyncUnsafe(Duration.Inf)
-    assert(!local.read.runSyncUnsafe(Duration.Inf))
-  }
 }
