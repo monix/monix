@@ -17,7 +17,6 @@
 
 package monix.eval.internal
 
-import monix.eval.Callback.LocalAwareCallback
 import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
@@ -514,7 +513,7 @@ private[eval] object TaskRunLoop {
     em.nextFrameIndex(0)
 
   private[internal] final class RestartCallback(context: Context, callback: Callback[Any])
-    extends LocalAwareCallback(context) {
+    extends Callback[Any] {
 
     private[this] var canCall = false
     private[this] var bFirst: Bind = _
@@ -525,23 +524,18 @@ private[eval] object TaskRunLoop {
       canCall = true
       this.bFirst = bindCurrent
       this.bRest = bindRest
-      if (withLocal) setLocals()
     }
 
     def onSuccess(value: Any): Unit =
       if (canCall && !context.shouldCancel) {
         canCall = false
-        Local.bind(savedLocals) {
-          startFull(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
-        }
+        startFull(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
       }
 
     def onError(ex: Throwable): Unit = {
       if (canCall && !context.shouldCancel) {
         canCall = false
-        Local.bind(savedLocals) {
-          startFull(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())
-        }
+        startFull(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())
       } else {
         // $COVERAGE-OFF$
         context.scheduler.reportFailure(ex)
