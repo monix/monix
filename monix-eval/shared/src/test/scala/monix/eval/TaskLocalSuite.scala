@@ -19,10 +19,11 @@ package monix.eval
 
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
+import monix.execution.schedulers.TracingScheduler
 
 object TaskLocalSuite extends SimpleTestSuite {
-  implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
-  implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.traced
+  val ec2: Scheduler = TracingScheduler(Scheduler.computation(4, "ec2"))
 
   testAsync("Local.apply") {
     val test =
@@ -40,7 +41,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 0))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("Local.defaultLazy") {
@@ -61,7 +62,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 2))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
 
@@ -77,7 +78,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("TaskLocal!.bindL") {
@@ -92,7 +93,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("TaskLocal!.bindClear") {
@@ -107,7 +108,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("Local canceled") {
@@ -122,7 +123,7 @@ object TaskLocalSuite extends SimpleTestSuite {
       _ <- Task.now(assertEquals(s, "Good"))
     } yield ()
     
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("TaskLocal!.local") {
@@ -144,11 +145,10 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v4, local.get))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("TaskLocal.apply with different schedulers") {
-    val ec2: Scheduler = monix.execution.Scheduler.io()
     val test =
       for {
         local <- TaskLocal(0).asyncBoundary(ec2)
@@ -158,11 +158,10 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v1, v2))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("TaskLocal.apply with different schedulers with onExecute") {
-    val ec2: Scheduler = monix.execution.Scheduler.io()
     val test =
       for {
         local <- TaskLocal(0)
@@ -173,13 +172,13 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 1000))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   test("TaskLocal.bind cleanup without async boundary") {
     import scala.concurrent.duration.Duration
 
-    val local: TaskLocal[Boolean] = TaskLocal[Boolean](false).runSyncUnsafeOpt(Duration.Inf)
+    val local: TaskLocal[Boolean] = TaskLocal[Boolean](false).runSyncUnsafe(Duration.Inf)
 
     def loop(n: Int = 1000): Task[Unit] =
       if (n > 0) attempt.flatMap(_ => loop(n - 1))
@@ -191,7 +190,7 @@ object TaskLocalSuite extends SimpleTestSuite {
       case true => Task.now(fail())
     }
 
-    loop(5).runSyncUnsafeOpt(Duration.Inf)
-    assert(!local.read.runSyncUnsafeOpt(Duration.Inf))
+    loop(5).runSyncUnsafe(Duration.Inf)
+    assert(!local.read.runSyncUnsafe(Duration.Inf))
   }
 }
