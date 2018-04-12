@@ -18,14 +18,15 @@
 package monix.execution
 
 import java.util.concurrent.Executor
+
 import cats.effect.{IO, LiftIO, Timer}
 import monix.execution.internal.AttemptCallback.RunnableTick
 import monix.execution.internal.RunnableAction
-import monix.execution.schedulers.SchedulerCompanionImpl
+import monix.execution.schedulers.{SchedulerCompanionImpl, TracingScheduler}
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, TimeUnit, MILLISECONDS}
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, TimeUnit}
 
 /** A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can
   * schedule the execution of units of work to run with a delay or periodically.
@@ -280,6 +281,14 @@ object Scheduler extends SchedulerCompanionImpl {
               .cancelIO
           })
       }
+
+    /**
+      * Creates a [[monix.execution.schedulers.TracingScheduler]] from the source scheduler.
+      */
+    def trace: TracingScheduler = source match {
+      case s: TracingScheduler => s
+      case s => TracingScheduler(s)
+    }
 
     /** Schedules a task to run in the future, after `initialDelay`.
       *

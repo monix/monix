@@ -20,7 +20,7 @@ package monix.eval.internal
 import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
-import monix.execution.misc.{Local, NonFatal}
+import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
 import scala.concurrent.Promise
 
@@ -145,10 +145,6 @@ private[eval] object TaskRunLoop {
     bindCurrent: Bind,
     bindRest: CallStack): Unit = {
 
-    val savedLocals =
-      if (context.options.localContextPropagation) Local.getContext()
-      else null
-
     context.scheduler.executeAsync { () =>
       // Checking for the cancellation status after the async boundary;
       // This is consistent with the behavior on `Async` tasks, i.e. check
@@ -159,11 +155,8 @@ private[eval] object TaskRunLoop {
       if (!context.shouldCancel) {
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
-        // Transporting the current context if localContextPropagation == true.
-        Local.bind(savedLocals) {
-          // Using frameIndex = 1 to ensure at least one cycle gets executed
-          startFull(source, context, cb, rcb, bindCurrent, bindRest, 1)
-        }
+        // Using frameIndex = 1 to ensure at least one cycle gets executed
+        startFull(source, context, cb, rcb, bindCurrent, bindRest, 1)
       }
     }
   }
@@ -519,31 +512,23 @@ private[eval] object TaskRunLoop {
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
     private[this] val runLoopIndex = context.frameRef
-    private[this] val withLocal = context.options.localContextPropagation
-    private[this] var savedLocals: Local.Context = _
 
     def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
       canCall = true
       this.bFirst = bindCurrent
       this.bRest = bindRest
-      if (withLocal)
-        savedLocals = Local.getContext()
     }
 
     def onSuccess(value: Any): Unit =
       if (canCall && !context.shouldCancel) {
         canCall = false
-        Local.bind(savedLocals) {
-          startFull(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
-        }
+        startFull(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
       }
 
     def onError(ex: Throwable): Unit = {
       if (canCall && !context.shouldCancel) {
         canCall = false
-        Local.bind(savedLocals) {
-          startFull(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())
-        }
+        startFull(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())
       } else {
         // $COVERAGE-OFF$
         context.scheduler.reportFailure(ex)

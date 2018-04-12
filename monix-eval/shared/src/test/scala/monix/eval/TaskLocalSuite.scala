@@ -21,8 +21,9 @@ import minitest.SimpleTestSuite
 import monix.execution.Scheduler
 
 object TaskLocalSuite extends SimpleTestSuite {
+  implicit val opts: Task.Options = Task.defaultOptions.enableLocalContextPropagation
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
-  implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  val ec2: Scheduler = Scheduler.trampoline()
 
   testAsync("Local.apply") {
     val test =
@@ -142,6 +143,33 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 400))
         v4 <- taskLocal.read
         _ <- Task.now(assertEquals(v4, local.get))
+      } yield ()
+
+    test.runAsyncOpt
+  }
+
+  testAsync("TaskLocal.apply with different schedulers") {
+    val test =
+      for {
+        local <- TaskLocal(0).asyncBoundary(ec2)
+        _ <- local.write(800).asyncBoundary(ec)
+        v1 <- local.read.asyncBoundary(ec2)
+        v2 <- local.read
+        _ <- Task.now(assertEquals(v1, v2))
+      } yield ()
+
+    test.runAsyncOpt
+  }
+
+  testAsync("TaskLocal.apply with different schedulers with onExecute") {
+    val test =
+      for {
+        local <- TaskLocal(0)
+        _ <- local.write(1000).executeOn(ec2)
+        v1 <- local.read.executeOn(ec)
+        v2 <- local.read.executeOn(ec2)
+        _ <- Task.now(assertEquals(v1, 1000))
+        _ <- Task.now(assertEquals(v2, 1000))
       } yield ()
 
     test.runAsyncOpt

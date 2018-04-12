@@ -167,9 +167,10 @@ final class TaskLocal[A] private (default: => A) {
     *        reset to the previous value
     */
   def bindL[R](value: Task[A])(task: Task[R]): Task[R] =
-    Task.eval(ref.value).flatMap { saved =>
+    local.flatMap { r =>
+      val saved = r.value
       value.bracket { v =>
-        ref.update(v)
+        r.update(v)
         task
       }(_ => restore(saved))
     }
@@ -193,9 +194,9 @@ final class TaskLocal[A] private (default: => A) {
     *        the local gets reset to the previous value
     */
   def bindClear[R](task: Task[R]): Task[R] =
-    Task.suspend {
-      val saved = ref.value
-      ref.clear()
+    local.flatMap { r =>
+      val saved = r.value
+      r.clear()
       Task.unit.bracket(_ => task)(_ => restore(saved))
     }
 
