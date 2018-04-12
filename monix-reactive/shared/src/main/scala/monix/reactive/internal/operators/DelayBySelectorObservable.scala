@@ -94,7 +94,8 @@ class DelayBySelectorObservable[A,S](source: Observable[A], selector: A => Obser
 
       def onComplete(): Unit = {
         completeTriggered = true
-        ack.future.syncTryFlatten.syncOnContinue {
+        val ackFuture = if (ack ne null) ack.future else Continue
+        ackFuture.syncTryFlatten.syncOnContinue {
           if (!isDone) {
             isDone = true
             out.onComplete()
