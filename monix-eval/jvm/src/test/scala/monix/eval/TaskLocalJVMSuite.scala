@@ -36,21 +36,26 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val ec = Scheduler.computation(4, "ec1")
     val ec2 = Scheduler.computation(4, "ec2")
 
-    val task =
-      for {
-        local <- TaskLocal(0)
-        _ <- local.write(100).executeOn(ec2)
-        v1 <- local.read.executeOn(ec)
-        _ <- Task.shift(Scheduler.global)
-        v2 <- local.read.executeOn(ec2)
-        _ <- Task.shift
-        v3 <- local.read.executeOn(ec2)
-        _ <- createShift(ec2)
-        v4 <- local.read
-        v5 <- local.read.executeOn(ec)
-      } yield v1 :: v2 :: v3 :: v4 :: v5 :: Nil
+    try {
+      val task =
+        for {
+          local <- TaskLocal(0)
+          _ <- local.write(100).executeOn(ec2)
+          v1 <- local.read.executeOn(ec)
+          _ <- Task.shift(Scheduler.global)
+          v2 <- local.read.executeOn(ec2)
+          _ <- Task.shift
+          v3 <- local.read.executeOn(ec2)
+          _ <- createShift(ec2)
+          v4 <- local.read
+          v5 <- local.read.executeOn(ec)
+        } yield v1 :: v2 :: v3 :: v4 :: v5 :: Nil
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
-    assertEquals(r, List(100, 100, 100, 100, 100))
+      val r = task.runSyncUnsafeOpt(Duration.Inf)
+      assertEquals(r, List(100, 100, 100, 100, 100))
+    } finally {
+      ec.shutdown()
+      ec2.shutdown()
+    }
   }
 }
