@@ -34,7 +34,7 @@ private[eval] object TaskCancellation {
       // Continues the execution of `fa` using an already cancelled
       // cancelable, which will ensure that all future registrations
       // will be cancelled immediately and that `isCanceled == false`
-      val ctx2 = ctx.copy(connection = StackedCancelable.alreadyCanceled)
+      val ctx2 = ctx.withConnection(StackedCancelable.alreadyCanceled)
       // Light async boundary to avoid stack overflows
       ctx.scheduler.execute(new TrampolinedRunnable {
         def run(): Unit = {
@@ -53,7 +53,7 @@ private[eval] object TaskCancellation {
     */
   def uncancelable[A](fa: Task[A]): Task[A] =
     Async { (ctx, cb) =>
-      val ctx2 = ctx.copy(connection = StackedCancelable.uncancelable)
+      val ctx2 = ctx.withConnection(StackedCancelable.uncancelable)
       Task.unsafeStartTrampolined(fa, ctx2, Callback.async(cb)(ctx2.scheduler))
     }
 

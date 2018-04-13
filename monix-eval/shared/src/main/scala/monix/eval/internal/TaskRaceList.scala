@@ -42,7 +42,7 @@ private[eval] object TaskRaceList {
       while (index < taskArray.length) {
         val task = taskArray(index)
         val taskCancelable = cancelableArray(index)
-        val taskContext = context.copy(connection = taskCancelable)
+        val taskContext = context.withConnection(taskCancelable)
         index += 1
 
         Task.unsafeStartAsync(task, taskContext, new Callback[A] {

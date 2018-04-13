@@ -126,7 +126,7 @@ private[eval] object TaskGather {
             while (idx < tasksCount && isActive) {
               val currentTask = idx
               val stacked = StackedCancelable()
-              val childContext = context.copy(connection = stacked)
+              val childContext = context.withConnection(stacked)
               allCancelables += stacked
 
               // Light asynchronous boundary

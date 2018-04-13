@@ -18,94 +18,36 @@
 package monix.eval
 
 import monix.execution.Cancelable
-import monix.execution.atomic.Atomic
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
 import monix.execution.exceptions.DummyException
-import monix.execution.internal.Platform
-
 import scala.util.{Failure, Success, Try}
 
 object TaskCreateSuite extends BaseTestSuite {
-  test("Task.create should be stack safe, take 1") { implicit s =>
-    // Describing basically mapBoth
-    def sum(t1: Task[Int], t2: Task[Int]): Task[Int] =
-      Task.create { (s, cb) =>
-        implicit val scheduler = s
-        val state = Atomic(null : Either[Int,Int])
-        val composite = CompositeCancelable()
+  test("Task.create should be stack safe on repeated, right-associated binds") { implicit s =>
+    def signal[A](a: A): Task[A] = Task.create[A] { (_, cb) =>
+      cb.onSuccess(a)
+      Cancelable.empty
+    }
 
-        composite += t1.runAsync(new Callback[Int] {
-          def onSuccess(v1: Int): Unit =
-            state.get match {
-              case null =>
-                if (!state.compareAndSet(null, Left(v1))) onSuccess(v1)
-              case Right(v2) =>
-                cb.onSuccess(v1 + v2)
-              case Left(_) =>
-                throw new IllegalStateException
-            }
-
-          def onError(ex: Throwable): Unit =
-            cb.onError(ex)
-        })
-
-        composite += t2.runAsync(new Callback[Int] {
-          def onSuccess(v2: Int): Unit =
-            state.get match {
-              case null =>
-                if (!state.compareAndSet(null, Right(v2))) onSuccess(v2)
-              case Left(v1) =>
-                cb.onSuccess(v1 + v2)
-              case Right(_) =>
-                throw new IllegalStateException
-            }
-
-          def onError(ex: Throwable): Unit =
-            cb.onError(ex)
-        })
-      }
-
-    def sumAll(tasks: Seq[Task[Int]]): Task[Int] =
-      tasks.foldLeft(Task(0))(sum)
-
-    val count = if (Platform.isJVM) 100000 else 10000
-    val receivedT = sumAll((0 until count).map(n => Task(n)))
-    val receivedF = receivedT.runAsync
-
+    val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => acc.flatMap(x => signal(x + 1)))
+    val f = task.runAsync
     s.tick()
-    assertEquals(receivedF.value, Some(Success(count * (count - 1) / 2)))
+
+    assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.create should be stack safe, take 2") { implicit s =>
-    // Describing basically mapBoth
-    def sum(t1: Task[Int], t2: Task[Int]): Task[Int] =
-      Task.create { (s, cb) =>
-        implicit val scheduler = s
-        val c = MultiAssignCancelable()
+  test("Task.create should be stack safe on repeated, left-associated binds") { implicit s =>
+    def signal[A](a: A): Task[A] = Task.create[A] { (_, cb) =>
+      cb.onSuccess(a)
+      Cancelable.empty
+    }
 
-        c := t1.runAsync(new Callback[Int] {
-          def onSuccess(v1: Int): Unit =
-            c := t2.runAsync(new Callback[Int] {
-              def onSuccess(v2: Int): Unit = cb.onSuccess(v1 + v2)
-              def onError(ex: Throwable): Unit = cb.onError(ex)
-            })
-
-          def onError(ex: Throwable): Unit =
-            cb.onError(ex)
-        })
-      }
-
-    def sumAll(tasks: Seq[Task[Int]]): Task[Int] =
-      tasks.foldLeft(Task(0))(sum)
-
-    val count = if (Platform.isJVM) 100000 else 10000
-    val receivedT = sumAll((0 until count).map(n => Task.eval(n)))
-    val receivedF = receivedT.runAsync
-
+    val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => signal(1).flatMap(x => acc.map(y => x + y)))
+    val f = task.runAsync
     s.tick()
-    assertEquals(receivedF.value, Some(Success(count * (count - 1) / 2)))
-  }
 
+    assertEquals(f.value, Some(Success(10000)))
+  }
+  
   test("Task.create should work onSuccess") { implicit s =>
     val t = Task.create[Int] { (_,cb) => cb.onSuccess(10); Cancelable.empty }
     val f = t.runAsync

@@ -27,7 +27,7 @@ import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.ThreadLocal
-import monix.execution.schedulers.{CanBlock, TrampolinedRunnable}
+import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
@@ -2171,7 +2171,11 @@ object Task extends TaskInstancesLevel1 {
     */
   def shift(ec: ExecutionContext): Task[Unit] =
     Async[Unit] { (context, cb) =>
-      val ec2 = if (ec eq null) context.scheduler else ec
+      val ec2 =
+        if (ec eq null) context.scheduler
+        else if (context.options.localContextPropagation) TracingScheduler(ec)
+        else ec
+
       ec2.execute(new Runnable {
         def run(): Unit = {
           context.frameRef.reset()
@@ -2848,17 +2852,31 @@ object Task extends TaskInstancesLevel1 {
     *        behavior upon evaluation.
     */
   final case class Context(
-    scheduler: Scheduler,
+    @deprecatedName('scheduler)
+    private val schedulerRef: Scheduler,
     options: Options,
     connection: StackedCancelable,
     frameRef: FrameIndexRef) {
+
+    /** The [[monix.execution.Scheduler Scheduler]] in charge of triggering
+      * async boundaries, on the evaluation that happens via `runAsync`.
+      */
+    val scheduler: Scheduler =
+      if (options.localContextPropagation)
+        TracingScheduler(schedulerRef)
+      else
+        schedulerRef
 
     /** Helper that returns the
       * [[monix.execution.ExecutionModel ExecutionModel]]
       * specified by the [[scheduler]].
       */
-    def executionModel: ExecutionModel =
-      scheduler.executionModel
+    @deprecated("Use scheduler.executionModel", "3.0.0")
+    def executionModel: ExecutionModel = {
+      // $COVERAGE-OFF$
+      schedulerRef.executionModel
+      // $COVERAGE-ON$
+    }
 
     /** Helper that returns `true` if the current `Task` run-loop
       * should be canceled or `false` otherwise.
@@ -2866,6 +2884,18 @@ object Task extends TaskInstancesLevel1 {
     def shouldCancel: Boolean =
       options.autoCancelableRunLoops &&
       connection.isCanceled
+
+    def withScheduler(s: Scheduler): Context =
+      new Context(s, options, connection, frameRef)
+
+    def withExecutionModel(em: ExecutionModel): Context =
+      new Context(schedulerRef.withExecutionModel(em), options, connection, frameRef)
+
+    def withOptions(opts: Options): Context =
+      new Context(schedulerRef, opts, connection, frameRef)
+
+    def withConnection(conn: StackedCancelable): Context =
+      new Context(schedulerRef, options, conn, frameRef)
   }
 
   object Context {
@@ -2877,7 +2907,7 @@ object Task extends TaskInstancesLevel1 {
     def apply(scheduler: Scheduler, options: Options, connection: StackedCancelable): Context = {
       val em = scheduler.executionModel
       val frameRef = FrameIndexRef(em)
-      Context(scheduler, options, connection, frameRef)
+      new Context(scheduler, options, connection, frameRef)
     }
   }
 

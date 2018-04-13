@@ -79,9 +79,9 @@ private[eval] object TaskMapBoth {
         // for synchronizing the results
         val state = Atomic.withPadding(null: AnyRef, LeftRight128)
         val task1 = StackedCancelable()
-        val context1 = context.copy(connection = task1)
+        val context1 = context.withConnection(task1)
         val task2 = StackedCancelable()
-        val context2 = context.copy(connection = task2)
+        val context2 = context.withConnection(task2)
         mainConn push Cancelable.collection(Array(task1, task2))
 
         // Light asynchronous boundary; with most scheduler implementations

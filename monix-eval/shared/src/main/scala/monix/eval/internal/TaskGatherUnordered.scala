@@ -112,7 +112,7 @@ private[eval] object TaskGatherUnordered {
             continue = count % batchSize != 0 || stateRef.get.isActive
 
             val stacked = StackedCancelable()
-            val childCtx = context.copy(connection = stacked)
+            val childCtx = context.withConnection(stacked)
             allCancelables += stacked
 
             // Light asynchronous boundary

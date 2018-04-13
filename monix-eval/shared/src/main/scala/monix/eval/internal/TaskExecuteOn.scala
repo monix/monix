@@ -27,7 +27,7 @@ private[eval] object TaskExecuteOn {
     */
   def apply[A](source: Task[A], s: Scheduler, forceAsync: Boolean): Task[A] =
     Async { (ctx, cb) =>
-      val ctx2 = ctx.copy(scheduler = s)
+      val ctx2 = ctx.withScheduler(s)
       val cb2 = Callback.async(cb)(s)
 
       if (forceAsync)

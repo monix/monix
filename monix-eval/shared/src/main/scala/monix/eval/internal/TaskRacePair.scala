@@ -39,8 +39,8 @@ private[eval] object TaskRacePair {
       val connB = StackedCancelable()
       conn push CompositeCancelable(connA, connB)
 
-      val contextA = context.copy(connection = connA)
-      val contextB = context.copy(connection = connB)
+      val contextA = context.withConnection(connA)
+      val contextB = context.withConnection(connB)
 
       // First task: A
       Task.unsafeStartAsync(fa, contextA, new Callback[A] {

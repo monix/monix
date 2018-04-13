@@ -30,7 +30,7 @@ private[eval] object TaskExecuteWithOptions {
       implicit val s = context.scheduler
       var streamErrors = true
       try {
-        val context2 = context.copy(options = f(context.options))
+        val context2 = context.withOptions(f(context.options))
         streamErrors = false
         Task.unsafeStartTrampolined[A](self, context2, Callback.async(cb))
       } catch {

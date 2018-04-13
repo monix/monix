@@ -30,8 +30,7 @@ private[eval] object TaskExecuteWithModel {
     Task.unsafeCreate { (context, cb) =>
       var streamErrors = true
       try {
-        val s2 = context.scheduler.withExecutionModel(em)
-        val context2 = context.copy(scheduler = s2)
+        val context2 = context.withExecutionModel(em)
         val frame = context2.frameRef
         streamErrors = false
 
