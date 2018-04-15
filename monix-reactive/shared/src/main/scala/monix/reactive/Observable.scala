@@ -1291,7 +1291,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * error.
     */
   final def ++[B >: A](other: => Observable[B]): Observable[B] =
-    new ConcatObservable[B](self, other)
+    new ConcatObservable[B](self, Observable.defer(other))
 
   /** Emits the given exception instead of `onComplete`.
     *
