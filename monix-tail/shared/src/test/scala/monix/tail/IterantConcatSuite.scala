@@ -62,4 +62,20 @@ object IterantConcatSuite extends BaseTestSuite {
     assertEquals(nats.toListL.value(), List(1, 2, 3, 4))
   }
 
+  test("Iterant.concat(Iterant*)") { implicit s =>
+    check1 { (ll: List[List[Int]]) =>
+      val li = ll.map(Iterant[Coeval].fromList)
+      val concat = Iterant.concat(li: _*)
+      val expected = Iterant[Coeval].fromList(ll.flatten)
+      concat <-> expected
+    }
+  }
+
+  test("Iterant.concat is eager") { implicit s =>
+    lazy val i: Iterant[Coeval, Int] = Iterant.concat(Iterant[Coeval].now(1), i)
+    intercept[StackOverflowError] {
+      i.take(1).sumL.value()
+    }
+  }
+
 }

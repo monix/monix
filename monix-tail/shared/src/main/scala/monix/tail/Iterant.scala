@@ -2358,6 +2358,12 @@ object Iterant extends IterantInstances {
     (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
     IterantIntervalWithFixedDelay(initialDelay, delay)
 
+  /** Concatenates list of Iterants into a single stream
+    */
+  def concat[F[_], A](xs: Iterant[F, A]*)(implicit F: Applicative[F]): Iterant[F, A] = {
+    xs.foldLeft(Iterant.empty[F, A])(IterantConcat.concat(_, _)(F))
+  }
+
   /** $NextDesc
     *
     * @param item $headParamDesc
