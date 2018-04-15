@@ -56,4 +56,10 @@ object IterantConcatSuite extends BaseTestSuite {
       (i :+ e) <-> (i ++ Iterant[Coeval].pure(e))
     }
   }
+
+  test("Iterant ++ Iterant rhs by name") { implicit s =>
+    lazy val nats: Iterant[Coeval, Long] = Iterant[Coeval].of(1L) ++ nats.map(_ + 1L) take(4)
+    assertEquals(nats.toListL.value(), List(1, 2, 3, 4))
+  }
+
 }

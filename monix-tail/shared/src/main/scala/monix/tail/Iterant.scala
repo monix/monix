@@ -171,7 +171,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param elem is the element to append at the end
     */
   final def :+[B >: A](elem: B)(implicit F: Applicative[F]): Iterant[F, B] =
-    ++(Next[F, B](elem, F.pure(Halt[F, B](None)), F.unit))(F)
+    IterantConcat.concat(this.upcast[B], Next[F, B](elem, F.pure(Halt[F, B](None)), F.unit))(F)
 
   /** Appends the given stream to the end of the source, effectively
     * concatenating them.
@@ -181,11 +181,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   Iterant[Task].of(1, 2) ++ Iterant[Task].of(3, 4)
     * }}}
     *
-    * @param rhs is the (right hand side) iterant to concatenate at
+    * @param rhs is the (right hand side) lazily evaluated iterant to concatenate at
     *        the end of this iterant.
     */
-  final def ++[B >: A](rhs: Iterant[F, B])(implicit F: Applicative[F]): Iterant[F, B] =
-    IterantConcat.concat(this.upcast[B], rhs)(F)
+  final def ++[B >: A](rhs: => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
+    IterantConcat.concat(this.upcast[B], Iterant.suspend(rhs)(F))(F)
 
   /** Explicit covariance operator.
     *
@@ -2514,7 +2514,7 @@ private[tail] trait IterantInstances0 {
       Iterant.empty
 
     override def combineK[A](x: Iterant[F, A], y: Iterant[F, A]): Iterant[F, A] =
-      x.++(y)(F)
+      IterantConcat.concat(x, y)(F)
 
     override def coflatMap[A, B](fa: Iterant[F, A])(f: (Iterant[F, A]) => B): Iterant[F, B] =
       Iterant.pure[F, B](f(fa))
