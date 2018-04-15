@@ -51,7 +51,9 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
     assertEquals(f.value, Some(Success(count.toLong * (count - 1) / 2)))
   }
 
-  val nats: Observable[Long] = Observable.now(1L) ++ nats.map(_ + 1)
+  val nats: Observable[Long] = Observable.defer {
+    Observable.now(1L) ++ nats.map(_ + 1)
+  }
 
   test("laziness of ++'s param") { implicit s =>
     val count = 10000
