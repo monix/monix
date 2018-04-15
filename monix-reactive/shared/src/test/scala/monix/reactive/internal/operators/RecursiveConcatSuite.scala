@@ -56,7 +56,7 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
   test("laziness of ++'s param") { implicit s =>
     val count = 10000
 
-    import concurrent.duration._
-    assertEquals(nats.take(count).sumL.runSyncUnsafe(1.second), (1 to count).sum)
+    val f = nats.take(count).sumL.runAsync; s.tick()
+    assertEquals(f.value, Some(Success((1 to count).sum)))
   }
 }
