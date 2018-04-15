@@ -19,7 +19,7 @@ package monix.reactive.subjects
 
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
-import monix.reactive.Observer
+import monix.reactive.{Consumer, Observable, Observer}
 
 object AsyncSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
@@ -217,5 +217,24 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     s.tick()
     c.cancel()
     assertEquals(result, 1)
+  }
+
+  test("Observable.publishLast should emit only the last element") { implicit s =>
+    var foreachSum = 0
+    var consumerSum = 0
+    var subscribeSum = 0
+
+    val observable = Observable(1, 2, 3, 4, 5, 6).publishLast
+
+    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runAsync
+    observable.foreach(e => foreachSum += e)
+    observable.subscribe { e => subscribeSum += e; Continue }
+
+    // Start the streaming
+    observable.connect()
+
+    assertEquals(foreachSum, 6)
+    assertEquals(consumerSum, 6)
+    assertEquals(subscribeSum, 6)
   }
 }
