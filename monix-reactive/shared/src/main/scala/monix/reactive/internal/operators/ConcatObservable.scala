@@ -28,7 +28,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 /** Implementation for observable concatenation `++`. */
-private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: Observable[A])
+private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: => Observable[A])
   extends ChainedObservable[A] {
 
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {

@@ -1285,12 +1285,12 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Concatenates the source with another observable.
     *
     * Ordering of subscription is preserved, so the second observable
-    * starts only after the source observable is completed
+    * is evaluated and started only after the source observable is completed
     * successfully with an `onComplete`. On the other hand, the second
-    * observable is never subscribed if the source completes with an
+    * observable is never evaluated if the source completes with an
     * error.
     */
-  final def ++[B >: A](other: Observable[B]): Observable[B] =
+  final def ++[B >: A](other: => Observable[B]): Observable[B] =
     new ConcatObservable[B](self, other)
 
   /** Emits the given exception instead of `onComplete`.
