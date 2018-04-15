@@ -320,7 +320,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * then it also emits the given element (appended to the stream).
     */
   final def :+[B >: A](elem: B): Observable[B] =
-    self ++ Observable.now(elem)
+    Observable.concat(this, Observable.now(elem))
 
   /** Given the source observable and another `Observable`, emits all of
     * the items from the first of these Observables to emit an item
@@ -1280,7 +1280,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * then it also emits the given elements (appended to the stream).
     */
   final def endWith[B >: A](elems: Seq[B]): Observable[B] =
-    self ++ Observable.fromIterable(elems)
+    Observable.concat(self, Observable.fromIterable(elems))
 
   /** Concatenates the source with another observable.
     *
@@ -2275,7 +2275,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * it also emits the events of the source (prepend operation).
     */
   final def startWith[B >: A](elems: Seq[B]): Observable[B] =
-    Observable.fromIterable(elems) ++ self
+    Observable.concat(Observable.fromIterable(elems), self)
 
   /** Returns a new Observable that uses the specified `Scheduler` for
     * initiating the subscription.
@@ -4641,7 +4641,7 @@ object Observable {
     override def pure[A](a: A): Observable[A] =
       Observable.now(a)
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
-      x ++ y
+      Observable.concat(x, y)
     override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
       fa.flatMap(f)
     override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
