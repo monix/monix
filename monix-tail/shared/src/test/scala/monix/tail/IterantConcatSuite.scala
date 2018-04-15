@@ -71,11 +71,4 @@ object IterantConcatSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.concat is eager") { implicit s =>
-    lazy val i: Iterant[Coeval, Int] = Iterant.concat(Iterant[Coeval].now(1), i)
-    intercept[StackOverflowError] {
-      i.take(1).sumL.value()
-    }
-  }
-
 }
