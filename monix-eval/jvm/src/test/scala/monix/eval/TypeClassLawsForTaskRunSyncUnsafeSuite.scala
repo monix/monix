@@ -17,11 +17,11 @@
 
 package monix.eval
 
-import cats.{Applicative, Eq}
 import cats.effect.IO
-import cats.effect.laws.discipline.{ConcurrentTests, ConcurrentEffectTests}
+import cats.effect.laws.discipline._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
+import cats.{Applicative, Eq}
 import monix.eval.instances.CatsParallelForTask
 import monix.execution.{Scheduler, UncaughtExceptionReporter}
 
@@ -36,27 +36,39 @@ object TypeClassLawsForTaskRunSyncUnsafeSuite extends monix.execution.BaseLawsSu
   with  ArbitraryInstancesBase {
 
   implicit val sc = Scheduler(global, UncaughtExceptionReporter(_ => ()))
-
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 
+  val timeout = {
+    if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+      5.minutes
+    else
+      10.seconds
+  }
+
+  implicit val params = Parameters.default.copy(
+    // Disabling non-terminating tests (that test equivalence with Task.never)
+    // because they'd behave really badly with an Eq[Task] that depends on
+    // blocking threads
+    allowNonTerminationLaws = false)
+  
   implicit def equalityTask[A](implicit A: Eq[A]): Eq[Task[A]] =
     Eq.instance { (a, b) =>
-      val ta = Try(a.runSyncUnsafe(5.minutes))
-      val tb = Try(b.runSyncUnsafe(5.minutes))
+      val ta = Try(a.runSyncUnsafe(timeout))
+      val tb = Try(b.runSyncUnsafe(timeout))
       equalityTry[A].eqv(ta, tb)
     }
 
   implicit def equalityTaskPar[A](implicit A: Eq[A]): Eq[Task.Par[A]] =
     Eq.instance { (a, b) =>
       import Task.Par.unwrap
-      val ta = Try(unwrap(a).runSyncUnsafe(5.minutes))
-      val tb = Try(unwrap(b).runSyncUnsafe(5.minutes))
+      val ta = Try(unwrap(a).runSyncUnsafe(timeout))
+      val tb = Try(unwrap(b).runSyncUnsafe(timeout))
       equalityTry[A].eqv(ta, tb)
     }
 
   implicit def equalityIO[A](implicit A: Eq[A]): Eq[IO[A]] =
     Eq.instance { (a, b) =>
-      val ta = Try(a.unsafeRunSync())
+      val ta = Try(a.unsafeRunSync()) 
       val tb = Try(b.unsafeRunSync())
       equalityTry[A].eqv(ta, tb)
     }

@@ -315,6 +315,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def bufferSliding(count: Int, skip: Int)(implicit F: Sync[F]): Iterant[F, Seq[A]] =
     IterantBuffer.sliding(self, count, skip)
 
+  final def bracketCase[B](use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit])
+    (implicit F: Sync[F]): Iterant[F, B] = {
+    ???
+  }
+
   /** Builds a new iterant by applying a partial function to all
     * elements of the source on which the function is defined.
     *
@@ -2007,23 +2012,22 @@ object Iterant extends IterantInstances {
     release: A => F[Unit]
   )(
     implicit F: Sync[F]
-  ): Iterant[F, B] =
-    bracketA(acquire)(use, (a, _) => release(a))
+  ): Iterant[F, B] = {
+    bracketCase(acquire)(use, (a, _) => release(a))
+  }
 
   /** A more powerful version of bracket that also provides information
     * whether the stream has completed successfully, was terminated early
     * or terminated with an error.
-    *
-    * BracketResult may be superseded by ADT in cats-effect#113,
-    * this method is private until then
     */
-  private[tail] def bracketA[F[_], A, B](acquire: F[A])(
+  def bracketCase[F[_], A, B](acquire: F[A])(
     use: A => Iterant[F, B],
-    release: (A, BracketResult) => F[Unit]
+    release: (A, ExitCase[Throwable]) => F[Unit]
   )(
     implicit F: Sync[F]
-  ): Iterant[F, B] =
-    IterantBracket(acquire, use, release)
+  ): Iterant[F, B] = {
+    IterantBracket.exitCaseF(acquire, use, release)
+  }
 
   /** Lifts a strict value into the stream context, returning a
     * stream of one element.

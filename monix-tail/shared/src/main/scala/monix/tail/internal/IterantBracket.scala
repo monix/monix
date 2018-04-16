@@ -17,26 +17,26 @@
 
 package monix.tail.internal
 
-import cats.effect.Sync
+import cats.effect.{ExitCase, Sync}
+import cats.effect.ExitCase.{Completed, Canceled, Error}
 import cats.syntax.functor._
 import cats.syntax.apply._
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.{BracketResult, Iterant}
-import monix.tail.BracketResult._
+import monix.tail.Iterant
 
 private[tail] object IterantBracket {
   /**
-    * Implementation for `Iterant.bracketA`
+    * Implementation for `Iterant.bracketCaseF`
     */
-  def apply[F[_], A, B](
+  def exitCaseF[F[_], A, B](
     acquire: F[A],
     use: A => Iterant[F, B],
-    release: (A, BracketResult) => F[Unit]
-  )(implicit F: Sync[F]): Iterant[F, B] = {
+    release: (A, ExitCase[Throwable]) => F[Unit])
+    (implicit F: Sync[F]): Iterant[F, B] = {
 
     def earlyRelease(a: A) =
-      F.suspend(release(a, EarlyStop))
+      F.suspend(release(a, Canceled(None)))
 
     def loop(a: A, sourceF: F[Iterant[F, B]]): F[Iterant[F, B]] =
       sourceF.map {
@@ -82,5 +82,16 @@ private[tail] object IterantBracket {
       }
 
     Suspend(F.flatMap(acquire)(begin), F.unit)
+  }
+
+  def effect[F[_], A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit])
+    (implicit F: Sync[F]): Iterant[F, B] = {
+
+    acquire.flatMap { a =>
+      use(a).doOnFinish {
+        case None => release(a, Completed).completeL
+        case Some(e) => release(a, Error(e)).completeL
+      }
+    }
   }
 }
