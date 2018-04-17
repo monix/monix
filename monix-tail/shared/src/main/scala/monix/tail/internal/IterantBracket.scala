@@ -27,7 +27,7 @@ import monix.tail.Iterant
 
 private[tail] object IterantBracket {
   /**
-    * Implementation for `Iterant.bracketCaseF`
+    * Implementation for `Iterant.bracketCase`
     */
   def exitCaseF[F[_], A, B](
     acquire: F[A],
@@ -84,14 +84,16 @@ private[tail] object IterantBracket {
     Suspend(F.flatMap(acquire)(begin), F.unit)
   }
 
-  def effect[F[_], A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit])
+  /**
+    * Implementation for `cats.effect.Bracket`
+    */
+  def effect[F[_], A, B](acquire: Iterant[F, A])
+    (use: A => Iterant[F, B])
+    (release: (A, ExitCase[Throwable]) => Iterant[F, Unit])
     (implicit F: Sync[F]): Iterant[F, B] = {
 
     acquire.flatMap { a =>
-      use(a).doOnFinish {
-        case None => release(a, Completed).completeL
-        case Some(e) => release(a, Error(e)).completeL
-      }
+      use(a).doOnExitCase(release(a, _).completeL)
     }
   }
 }

@@ -46,14 +46,14 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       .withMaxSize(6)
 
   // Stack-safety tests are very taxing, so reducing burden
-  implicit val effectParams = EffectParameters(
-    stackSafeIterationsCount = {
-      if (Platform.isJS ||
-      )
-        100
-      else
-        1000
-    })
+  implicit val effectParams =
+    EffectParameters.default.copy(
+      stackSafeIterationsCount = {
+        if (Platform.isJS || System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+          100
+        else
+          1000
+      })
 
   def checkAllAsync(name: String, config: Parameters = checkConfig)
     (f: TestScheduler => Laws#RuleSet): Unit = {

@@ -22,7 +22,7 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
-import monix.tail.BracketResult._
+import cats.effect.ExitCase._
 import monix.tail.batches.{Batch, BatchCursor}
 
 object IterantBracketSuite extends BaseTestSuite {
@@ -75,7 +75,7 @@ object IterantBracketSuite extends BaseTestSuite {
     val bracketed = Iterant.bracketCase(rs.acquire)(
       _ => Iterant.range(1, 10),
       (_, result) => rs.release.flatMap(_ => IO {
-        assertEquals(result, EarlyStop)
+        assertEquals(result, Canceled(None))
       })
     ).take(1)
     runIterant(bracketed)

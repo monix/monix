@@ -315,10 +315,29 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def bufferSliding(count: Int, skip: Int)(implicit F: Sync[F]): Iterant[F, Seq[A]] =
     IterantBuffer.sliding(self, count, skip)
 
+  /** Implementation of `bracket` from `cats.effect.Bracket`.
+    *
+    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
+    *
+    * NOTE: this is different from [[Iterant$.bracket Iterant.bracket]],
+    * described on the companion object, as that variant is meant to work
+    * specifically for streaming and has different signature and behavior.
+    */
+  final def bracket[B](use: A => Iterant[F, B])(release: A => Iterant[F, Unit])
+    (implicit F: Sync[F]): Iterant[F, B] =
+    bracketCase(use)((a, _) => release(a))
+
+  /** Implementation of `bracketCase` from `cats.effect.Bracket`.
+    *
+    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
+    *
+    * NOTE: this is different from [[Iterant$.bracketCase Iterant.bracketCase]],
+    * described on the companion object, as that variant is meant to work
+    * specifically for streaming and has different signature and behavior.
+    */
   final def bracketCase[B](use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit])
-    (implicit F: Sync[F]): Iterant[F, B] = {
-    ???
-  }
+    (implicit F: Sync[F]): Iterant[F, B] =
+    IterantBracket.effect(this)(use)(release)
 
   /** Builds a new iterant by applying a partial function to all
     * elements of the source on which the function is defined.
@@ -485,13 +504,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param f is the function to execute on early stop
     */
   final def doOnEarlyStop(f: F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
-    IterantStop.doOnEarlyStop(this, f)(F)
+    IterantExitCallback.doOnEarlyStop(this, f)(F)
 
-  /** Returns a new enumerator in which `f` is scheduled to be executed
+  /** Returns a new iterant in which `f` is scheduled to be executed
     * on [[Iterant.Halt halt]] or on [[earlyStop]].
-    *
-    * This would typically be used to release any resources acquired
-    * by this enumerator.
     *
     * Note that [[doOnEarlyStop]] is subsumed under this operation,
     * the given `f` being evaluated on both reaching the end or
@@ -507,10 +523,45 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   })
     * }}}
     *
-    * @param f is the function to execute on early stop
+    * @see [[doOnExitCase]]
+    *
+    * @param f is the function to execute on halt or on early stop
     */
   final def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
-    IterantStop.doOnFinish(this, f)(F)
+    doOnExitCase(c => f(c match {
+      case ExitCase.Error(e) => Some(e)
+      case _ => None
+    }))
+
+  /** Returns a new iterant in which `f` is scheduled to be executed
+    * on [[Iterant.Halt halt]] or on [[earlyStop]].
+    *
+    * This would typically be used to release any resources acquired
+    * by this enumerator.
+    *
+    * Note that [[doOnEarlyStop]] is subsumed under this operation,
+    * the given `f` being evaluated on both reaching the end or
+    * canceling early.
+    *
+    * Example: {{{
+    *   import cats.effect.ExitCase
+    *
+    *   iterant.doOnExitCase(err => Task.eval {
+    *     err match {
+    *       case ExitCase.Completed =>
+    *         logger.info("Completed successfully!")
+    *       case Exit.Error(e) =>
+    *         logger.error("Completed in error!", e)
+    *       case Exit.Canceled(_) =>
+    *         logger.info("Was stopped early!")
+    *     }
+    *   })
+    * }}}
+    *
+    * @param f is the function to execute on early stop
+    */
+  final def doOnExitCase(f: ExitCase[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
+    IterantExitCallback.doOnExitCase(this, f)
 
   /** Drops the first `n` elements (from the start).
     *
@@ -2546,5 +2597,11 @@ private[tail] trait IterantInstances0 {
 
     override def suspend[A](thunk: => Iterant[F, A]): Iterant[F, A] =
       Iterant.suspend(thunk)
+
+    override def bracket[A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: A => Iterant[F, Unit]): Iterant[F, B] =
+      acquire.bracket(use)(release)
+
+    override def bracketCase[A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit]): Iterant[F, B] =
+      acquire.bracketCase(use)(release)
   }
 }

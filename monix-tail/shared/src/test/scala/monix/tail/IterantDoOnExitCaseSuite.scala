@@ -17,14 +17,14 @@
 
 package monix.tail
 
+import cats.effect.ExitCase
 import cats.laws._
 import cats.laws.discipline._
-
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 import monix.tail.batches._
 
-object IterantDoOnFinishSuite extends BaseTestSuite {
+object IterantDoOnExitCaseSuite extends BaseTestSuite {
   test("Next.doOnFinish for early stop") { _ =>
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
@@ -148,11 +148,43 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     assertEquals(effect, Vector(1))
   }
 
-  test("doOnFinish protects against user error") { _ =>
+  test("doOnExitCase protects against user error") { _ =>
     check1 { (stream: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val received = stream.doOnFinish(_ => throw dummy)
-      received <-> stream.onErrorIgnore ++ Iterant[Coeval].raiseError[Int](dummy)
+      val received = stream.doOnExitCase {
+        case ExitCase.Completed | ExitCase.Error(_) => throw dummy
+        case _ => Coeval.unit
+      }
+      received <-> stream ++ Iterant[Coeval].raiseError[Int](dummy)
+    }
+  }
+
+  test("bracketCase") { _ =>
+    def bracketReleaseCalledForSuccess[A, B](
+      fa: Iterant[Coeval, A],
+      fb: Iterant[Coeval, B], g: A => A, a1: A) = {
+
+      import cats.laws._
+
+      var input = a1
+      val update = (e: ExitCase[Throwable]) => {
+        Iterant[Coeval].eval { println(s"$e -> $input -> ${g(input)}"); input = g(input) }
+      }
+      val read = Iterant[Coeval].eval(input)
+
+      fa.bracketCase(_ => fb)((_, e) => update(e)).flatMap(_ => read) <->
+        fa.flatMap(_ => fb).flatMap(_ => Iterant[Coeval].pure(g(a1)))
+    }
+
+    check4 { (fa: Iterant[Coeval, Int], fb: Iterant[Coeval, Int], g: Int => Int, a1: Int) =>
+      val eq = bracketReleaseCalledForSuccess(fa, fb, g, a1)
+      println("---")
+      val left = eq.lhs.attempt.toListL.value()
+      val right = eq.rhs.attempt.toListL.value()
+      if (left != right) {
+        println(s"$left != $right")
+      }
+      left == right
     }
   }
 }
