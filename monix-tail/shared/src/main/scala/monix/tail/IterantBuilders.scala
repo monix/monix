@@ -161,6 +161,10 @@ class IterantBuildersSync[F[_]](implicit F: Sync[F])
   def eval[A](a: => A): Iterant[F,A] =
     Iterant.eval(a)(F)
 
+  /** Aliased builder, see documentation for [[Iterant.eval]]. */
+  def delay[A](a: => A): Iterant[F,A] =
+    Iterant.delay(a)(F)
+
   /** Aliased builder, see documentation for [[Iterant.bracket]] */
   def bracket[A, B](acquire: F[A])(use: A => Iterant[F, B], release: A => F[Unit]): Iterant[F, B] =
     Iterant.bracket(acquire)(use, release)

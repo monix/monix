@@ -118,16 +118,15 @@ private[tail] object IterantExitCallback {
           val fa = tailGuard(rest, stop).map(loop)
           Suspend(fa, stop.flatMap(_ => f(canceled)))
 
-        case Last(elem)  =>
-          val rest = F.suspend(f(ExitCase.Completed).map(_ => Iterant.empty[F, A]))
-          Next(elem, rest, f(canceled))
+        case Last(_)  =>
+          Suspend(f(ExitCase.Completed).map(_ => fa), f(canceled))
 
         case Halt(None) =>
           Suspend(f(ExitCase.Completed).map(_ => fa), f(canceled))
 
         case Halt(Some(e)) =>
           // In case `f` throws, we must still throw the original error
-          try Suspend(f(ExitCase.Error(e)).map(_ => fa), f(canceled))
+          try Suspend(f(ExitCase.Error(e)).attempt.map(_ => fa), f(canceled))
           catch { case err if NonFatal(err) => fa }
 
       } catch {

@@ -18,7 +18,6 @@
 package monix.eval.internal
 
 import java.util.concurrent.CancellationException
-
 import cats.effect.ExitCase
 import monix.eval.Task
 import monix.execution.UncaughtExceptionReporter

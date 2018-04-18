@@ -151,40 +151,11 @@ object IterantDoOnExitCaseSuite extends BaseTestSuite {
   test("doOnExitCase protects against user error") { _ =>
     check1 { (stream: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val received = stream.doOnExitCase {
+      val received = stream.onErrorIgnore.doOnExitCase {
         case ExitCase.Completed | ExitCase.Error(_) => throw dummy
         case _ => Coeval.unit
       }
-      received <-> stream ++ Iterant[Coeval].raiseError[Int](dummy)
-    }
-  }
-
-  test("bracketCase") { _ =>
-    def bracketReleaseCalledForSuccess[A, B](
-      fa: Iterant[Coeval, A],
-      fb: Iterant[Coeval, B], g: A => A, a1: A) = {
-
-      import cats.laws._
-
-      var input = a1
-      val update = (e: ExitCase[Throwable]) => {
-        Iterant[Coeval].eval { println(s"$e -> $input -> ${g(input)}"); input = g(input) }
-      }
-      val read = Iterant[Coeval].eval(input)
-
-      fa.bracketCase(_ => fb)((_, e) => update(e)).flatMap(_ => read) <->
-        fa.flatMap(_ => fb).flatMap(_ => Iterant[Coeval].pure(g(a1)))
-    }
-
-    check4 { (fa: Iterant[Coeval, Int], fb: Iterant[Coeval, Int], g: Int => Int, a1: Int) =>
-      val eq = bracketReleaseCalledForSuccess(fa, fb, g, a1)
-      println("---")
-      val left = eq.lhs.attempt.toListL.value()
-      val right = eq.rhs.attempt.toListL.value()
-      if (left != right) {
-        println(s"$left != $right")
-      }
-      left == right
+      received.completeL <-> Coeval.raiseError(dummy)
     }
   }
 }

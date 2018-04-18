@@ -2099,7 +2099,11 @@ object Iterant extends IterantInstances {
     * stream of one element that is lazily evaluated.
     */
   def eval[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
-    Suspend(F.delay(nextS[F, A](a, F.pure(Halt(None)), F.unit)), F.unit)
+    Suspend(F.delay(lastS[F, A](a)), F.unit)
+
+  /** Alias for [[eval]]. */
+  def delay[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
+    eval(a)(F)
 
   /** Lifts a value from monadic context into the stream context,
     * returning a stream of one element
@@ -2597,6 +2601,9 @@ private[tail] trait IterantInstances0 {
 
     override def suspend[A](thunk: => Iterant[F, A]): Iterant[F, A] =
       Iterant.suspend(thunk)
+
+    override def delay[A](thunk: => A): Iterant[F, A] =
+      Iterant.eval(thunk)
 
     override def bracket[A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: A => Iterant[F, Unit]): Iterant[F, B] =
       acquire.bracket(use)(release)
