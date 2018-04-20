@@ -3113,7 +3113,7 @@ object Task extends TaskInstancesLevel1 {
   private object AttemptTask extends StackFrame[Any, Task[Either[Throwable, Any]]] {
     override def apply(a: Any): Task[Either[Throwable, Any]] =
       new Now(new Right(a))
-    override def recover(e: Throwable, r: UncaughtExceptionReporter): Task[Either[Throwable, Any]] =
+    override def recover(e: Throwable): Task[Either[Throwable, Any]] =
       new Now(new Left(e))
   }
 
@@ -3121,7 +3121,7 @@ object Task extends TaskInstancesLevel1 {
   private object MaterializeTask extends StackFrame[Any, Task[Try[Any]]] {
     override def apply(a: Any): Task[Try[Any]] =
       new Now(new Success(a))
-    override def recover(e: Throwable, r: UncaughtExceptionReporter): Task[Try[Any]] =
+    override def recover(e: Throwable): Task[Try[Any]] =
       new Now(new Failure(e))
   }
 }

@@ -23,7 +23,6 @@ import cats.kernel.Semigroup
 import monix.eval.Coeval._
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal.{CoevalBracket, CoevalRunLoop, LazyVal, StackFrame}
-import monix.execution.UncaughtExceptionReporter
 import monix.execution.misc.NonFatal
 import monix.execution.internal.Platform.fusionMaxStackDepth
 
@@ -1201,7 +1200,7 @@ object Coeval extends CoevalInstancesLevel0 {
   private object AttemptCoeval extends StackFrame[Any, Coeval[Either[Throwable, Any]]] {
     override def apply(a: Any): Coeval[Either[Throwable, Any]] =
       new Now(Right(a))
-    override def recover(e: Throwable, r: UncaughtExceptionReporter): Coeval[Either[Throwable, Any]] =
+    override def recover(e: Throwable): Coeval[Either[Throwable, Any]] =
       new Now(Left(e))
   }
 
@@ -1209,7 +1208,7 @@ object Coeval extends CoevalInstancesLevel0 {
   private object MaterializeCoeval extends StackFrame[Any, Coeval[Try[Any]]] {
     override def apply(a: Any): Coeval[Try[Any]] =
       new Now(Success(a))
-    override def recover(e: Throwable, r: UncaughtExceptionReporter): Coeval[Try[Any]] =
+    override def recover(e: Throwable): Coeval[Try[Any]] =
       new Now(Failure(e))
   }
 

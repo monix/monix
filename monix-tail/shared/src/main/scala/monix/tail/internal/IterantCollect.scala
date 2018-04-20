@@ -50,7 +50,7 @@ private[tail] object IterantCollect {
           Suspend(rest.map(loop), stop)
 
         case Last(item) =>
-          if (pf.isDefinedAt(item)) Last(pf(item)) else Halt(None)
+          if (pf.isDefinedAt(item)) Last(pf(item)) else Iterant.empty
 
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]

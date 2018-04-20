@@ -41,7 +41,7 @@ private[tail] object IterantBuffer {
 
     build[F, A, A](self, count, count,
       (seq, rest, stop) => NextBatch(Batch.fromArray(seq), rest, stop),
-      seq => NextBatch(Batch.fromArray(seq), F.pure(Halt(None)), F.unit))
+      seq => NextBatch(Batch.fromArray(seq), F.pure(Iterant.empty), F.unit))
   }
 
   private def build[F[_], A, B](

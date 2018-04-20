@@ -318,10 +318,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Implementation of `bracket` from `cats.effect.Bracket`.
     *
     * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
-    *
-    * NOTE: this is different from [[Iterant$.bracket Iterant.bracket]],
-    * described on the companion object, as that variant is meant to work
-    * specifically for streaming and has different signature and behavior.
     */
   final def bracket[B](use: A => Iterant[F, B])(release: A => Iterant[F, Unit])
     (implicit F: Sync[F]): Iterant[F, B] =
@@ -330,14 +326,14 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Implementation of `bracketCase` from `cats.effect.Bracket`.
     *
     * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
-    *
-    * NOTE: this is different from [[Iterant$.bracketCase Iterant.bracketCase]],
-    * described on the companion object, as that variant is meant to work
-    * specifically for streaming and has different signature and behavior.
     */
   final def bracketCase[B](use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit])
-    (implicit F: Sync[F]): Iterant[F, B] =
-    IterantBracket.effect(this)(use)(release)
+    (implicit F: Sync[F]): Iterant[F, B] = {
+
+    self.flatMap { a =>
+      use(a).doOnExitCase(release(a, _).completeL)
+    }
+  }
 
   /** Builds a new iterant by applying a partial function to all
     * elements of the source on which the function is defined.
@@ -2040,13 +2036,12 @@ object Iterant extends IterantInstances {
     * Typical use-cases are working with files or network sockets
     *
     * @param acquire resource to acquire at the start of the stream
-    * @param use function that uses the resource to generate a stream of outputs
     * @param release function that releases the acquired resource
     *
     * Example:
     * {{{
     *   val writeLines =
-    *     Iterant.bracket(IO { new PrintWriter("./lines.txt") })(
+    *     Iterant.resource(IO { new PrintWriter("./lines.txt") })(
     *       writer => Iterant[IO]
     *         .fromIterator(Iterator.from(1))
     *         .mapEval(i => IO { writer.println(s"Line #\$i") }),
@@ -2058,26 +2053,34 @@ object Iterant extends IterantInstances {
     *   writeLines.take(100).completeL.unsafeRunSync()
     * }}}
     */
-  def bracket[F[_], A, B](acquire: F[A])(
-    use: A => Iterant[F, B],
-    release: A => F[Unit]
-  )(
-    implicit F: Sync[F]
-  ): Iterant[F, B] = {
-    bracketCase(acquire)(use, (a, _) => release(a))
+  def resource[F[_], A](acquire: F[A])
+    (release: A => F[Unit])
+    (implicit F: Sync[F]): Iterant[F, A] = {
+
+    resourceCase(acquire)((a, _) => release(a))
   }
 
   /** A more powerful version of bracket that also provides information
     * whether the stream has completed successfully, was terminated early
     * or terminated with an error.
     */
-  def bracketCase[F[_], A, B](acquire: F[A])(
-    use: A => Iterant[F, B],
-    release: (A, ExitCase[Throwable]) => F[Unit]
-  )(
-    implicit F: Sync[F]
-  ): Iterant[F, B] = {
-    IterantBracket.exitCaseF(acquire, use, release)
+  def resourceCase[F[_], A](acquire: F[A])
+    (release: (A, ExitCase[Throwable]) => F[Unit])
+    (implicit F: Sync[F]): Iterant[F, A] = {
+
+    suspendS(
+      F.map(acquire) { a =>
+        nextS[F, A](a, F.pure(Iterant.empty), F.unit)
+          .doOnExitCase(release(a, _))
+      },
+      F.unit)
+  }
+
+  def bracket[F[_], A, B](acquire: F[A])
+    (use: A => Iterant[F, B], release: A => F[Unit])
+    (implicit F: Sync[F]): Iterant[F, B] = {
+
+    resource(acquire)(release).flatMap(use)
   }
 
   /** Lifts a strict value into the stream context, returning a
@@ -2363,11 +2366,11 @@ object Iterant extends IterantInstances {
     * The stream will only terminate if an error is raised in F context
     */
   def repeatEvalF[F[_], A](fa: F[A])(implicit F: Sync[F]): Iterant[F, A] =
-    repeat(()).mapEval(_ => fa)
+    repeat[F, Unit](()).mapEval(_ => fa)
 
   /** Returns an empty stream. */
   def empty[F[_], A]: Iterant[F, A] =
-    Halt[F, A](None)
+    emptyRef.asInstanceOf[Iterant[F, A]]
 
   /** $intervalAtFixedRateDesc
     *
@@ -2503,6 +2506,7 @@ object Iterant extends IterantInstances {
       F.unit
   }
 
+  private[this] val emptyRef = Halt(None)
 }
 
 private[tail] trait IterantInstances extends IterantInstances1 {

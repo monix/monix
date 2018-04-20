@@ -128,4 +128,21 @@ private[monix] object Platform {
     */
   def await[A](fa: Awaitable[A], timeout: Duration)(implicit permit: CanBlock): A =
     Await.result(fa, timeout)
+
+  /** Composes multiple errors together, meant for those cases in which
+    * error suppression, due to a second error being triggered, is not
+    * acceptable.
+    *
+    * On top of the JVM this function uses `Throwable#addSuppressed`,
+    * available since Java 7. On top of JavaScript the function would return
+    * a `CompositeException`.
+    */
+  def composeErrors(first: Throwable, rest: Throwable*): Throwable =
+    if (rest.isEmpty) first else {
+      val cursor = rest.iterator
+      while (cursor.hasNext) {
+        first.addSuppressed(cursor.next())
+      }
+      first
+    }
 }

@@ -19,7 +19,7 @@ package monix.eval
 package internal
 
 import cats.effect.ExitCase
-import monix.execution.UncaughtExceptionReporter
+import monix.execution.internal.Platform
 import monix.execution.misc.NonFatal
 
 private[eval] object CoevalBracket {
@@ -59,8 +59,8 @@ private[eval] object CoevalBracket {
     def apply(b: B): Coeval[B] =
       release(a, ExitCase.Completed).map(_ => b)
 
-    def recover(e: Throwable, r: UncaughtExceptionReporter): Coeval[B] =
-      release(a, ExitCase.Error(e)).flatMap(new ReleaseRecover(e, r))
+    def recover(e: Throwable): Coeval[B] =
+      release(a, ExitCase.Error(e)).flatMap(new ReleaseRecover(e))
   }
 
   private final class ReleaseFrameE[A, B](
@@ -71,17 +71,17 @@ private[eval] object CoevalBracket {
     def apply(b: B): Coeval[B] =
       release(a, Right(b)).map(_ => b)
 
-    def recover(e: Throwable, r: UncaughtExceptionReporter): Coeval[B] =
-      release(a, Left(e)).flatMap(new ReleaseRecover(e, r))
+    def recover(e: Throwable): Coeval[B] =
+      release(a, Left(e)).flatMap(new ReleaseRecover(e))
   }
 
-  private final class ReleaseRecover(e: Throwable, r: UncaughtExceptionReporter)
+  private final class ReleaseRecover(e: Throwable)
     extends StackFrame[Unit, Coeval[Nothing]] {
 
     def apply(a: Unit): Coeval[Nothing] =
       Coeval.raiseError(e)
 
-    def recover(e2: Throwable, r: UncaughtExceptionReporter): Coeval[Nothing] =
-      Coeval(r.reportFailure(e2)).flatMap(_ => Coeval.raiseError(e))
+    def recover(e2: Throwable): Coeval[Nothing] =
+      Coeval.raiseError(Platform.composeErrors(e, e2))
   }
 }

@@ -20,7 +20,7 @@ package monix.eval.internal
 import java.util.concurrent.CancellationException
 import cats.effect.ExitCase
 import monix.eval.Task
-import monix.execution.UncaughtExceptionReporter
+import monix.execution.internal.Platform
 import monix.execution.misc.NonFatal
 
 private[eval] object TaskBracket {
@@ -60,9 +60,9 @@ private[eval] object TaskBracket {
     def apply(b: B): Task[B] =
       release(a, ExitCase.Completed).map(_ => b)
 
-    def recover(e: Throwable, r: UncaughtExceptionReporter): Task[B] = {
+    def recover(e: Throwable): Task[B] = {
       if (e ne isCancel)
-        release(a, ExitCase.Error(e)).flatMap(new ReleaseRecover(e, r))
+        release(a, ExitCase.Error(e)).flatMap(new ReleaseRecover(e))
       else
         release(a, canceled).flatMap(neverFn)
     }
@@ -76,22 +76,22 @@ private[eval] object TaskBracket {
     def apply(b: B): Task[B] =
       release(a, Right(b)).map(_ => b)
 
-    def recover(e: Throwable, r: UncaughtExceptionReporter): Task[B] = {
+    def recover(e: Throwable): Task[B] = {
       if (e ne isCancel)
-        release(a, Left(Some(e))).flatMap(new ReleaseRecover(e, r))
+        release(a, Left(Some(e))).flatMap(new ReleaseRecover(e))
       else
         release(a, leftNone).flatMap(neverFn)
     }
   }
 
-  private final class ReleaseRecover(e: Throwable, r: UncaughtExceptionReporter)
+  private final class ReleaseRecover(e: Throwable)
     extends StackFrame[Unit, Task[Nothing]] {
 
     def apply(a: Unit): Task[Nothing] =
       Task.raiseError(e)
 
-    def recover(e2: Throwable, r: UncaughtExceptionReporter): Task[Nothing] =
-      Task.eval(r.reportFailure(e2)).flatMap(_ => Task.raiseError(e))
+    def recover(e2: Throwable): Task[Nothing] =
+      Task.raiseError(Platform.composeErrors(e, e2))
   }
 
   private val isCancel = new CancellationException("bracket")

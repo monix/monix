@@ -78,7 +78,7 @@ private[tail] object IterantDropLast {
       }
 
       queueLoop(queue, length)
-      NextCursor(BatchCursor.fromSeq(buffer), F.pure(Halt(None)), F.unit)
+      NextCursor(BatchCursor.fromSeq(buffer), F.pure(Iterant.empty), F.unit)
     }
 
     def loop(length: Int, queue: Queue[A])(source: Iterant[F, A]): Iterant[F, A] = {

@@ -19,11 +19,14 @@ package monix.tail.internal
 
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.internal.Constants.canceledRef
 import monix.tail.internal.IterantUtils._
 import cats.syntax.all._
 import cats.effect.{ExitCase, Sync}
+import monix.execution.internal.Platform
 import monix.execution.misc.NonFatal
 import monix.tail.batches.BatchCursor
+
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantExitCallback {
@@ -61,28 +64,32 @@ private[tail] object IterantExitCallback {
       buffer.toArray[Any].asInstanceOf[Array[A]]
     }
 
-    def signalAndSendError(stop: F[Unit], e: Throwable): Iterant[F, A] = {
-      val next = stop.map { _ =>
+    def signalAndSendError(stop: F[Unit], e1: Throwable): Iterant[F, A] = {
+      val next = stop.attempt.map { result =>
+        val err1 = result match {
+          case Left(e2) => Platform.composeErrors(e1, e2)
+          case _ => e1
+        }
         try {
-          val stop = f(ExitCase.Error(e))
-          Suspend[F, A](stop.map(_ => Halt(Some(e))), stop)
+          val stop = f(ExitCase.Error(err1))
+          Suspend[F, A](stop.map(_ => Halt(Some(err1))), stop)
         } catch {
-          case err if NonFatal(err) =>
+          case err2 if NonFatal(err2) =>
             // In case `f` throws, we must still send the original error
-            Halt[F, A](Some(e))
+            Halt[F, A](Some(Platform.composeErrors(err1, err2)))
         }
       }
       Suspend[F, A](next, stop)
     }
 
     def tailGuard(ffa: F[Iterant[F, A]], stop: F[Unit]) =
-      ffa.handleError(signalAndSendError(stop.flatMap(_ => f(canceled)), _))
+      ffa.handleError(signalAndSendError(stop.flatMap(_ => f(canceledRef)), _))
 
     def loop(fa: Iterant[F, A]): Iterant[F, A] = {
       try fa match {
         case Next(a, lt, stop) =>
           val rest = tailGuard(lt, stop).map(loop)
-          Next(a, rest, stop.flatMap(_ => f(canceled)))
+          Next(a, rest, stop.flatMap(_ => f(canceledRef)))
 
         case NextCursor(cursor, rest, stop) =>
           try {
@@ -95,11 +102,11 @@ private[tail] object IterantExitCallback {
 
             array.length match {
               case 1 =>
-                Next(array(0), next, stop.flatMap(_ => f(canceled)))
+                Next(array(0), next, stop.flatMap(_ => f(canceledRef)))
               case 0 =>
-                Suspend(next, stop.flatMap(_ => f(canceled)))
+                Suspend(next, stop.flatMap(_ => f(canceledRef)))
               case _ =>
-                NextCursor(BatchCursor.fromArray(array), next, stop.flatMap(_ => f(canceled)))
+                NextCursor(BatchCursor.fromArray(array), next, stop.flatMap(_ => f(canceledRef)))
             }
           } catch {
             case e if NonFatal(e) =>
@@ -108,7 +115,7 @@ private[tail] object IterantExitCallback {
 
         case NextBatch(batch, rest, stop) =>
           try {
-            loop(NextCursor(batch.cursor(), rest, stop.flatMap(_ => f(canceled))))
+            loop(NextCursor(batch.cursor(), rest, stop.flatMap(_ => f(canceledRef))))
           } catch {
             case e if NonFatal(e) =>
               signalAndSendError(stop, e)
@@ -116,17 +123,21 @@ private[tail] object IterantExitCallback {
 
         case Suspend(rest, stop) =>
           val fa = tailGuard(rest, stop).map(loop)
-          Suspend(fa, stop.flatMap(_ => f(canceled)))
+          Suspend(fa, stop.flatMap(_ => f(canceledRef)))
 
         case Last(_)  =>
-          Suspend(f(ExitCase.Completed).map(_ => fa), f(canceled))
+          Suspend(
+            try f(ExitCase.Completed).map(_ => fa)
+            catch { case NonFatal(e) => F.pure(Halt(Some(e)))},
+            F.suspend(f(canceledRef))
+          )
 
         case Halt(None) =>
-          Suspend(f(ExitCase.Completed).map(_ => fa), f(canceled))
+          Suspend(f(ExitCase.Completed).map(_ => fa), F.suspend(f(canceledRef)))
 
         case Halt(Some(e)) =>
           // In case `f` throws, we must still throw the original error
-          try Suspend(f(ExitCase.Error(e)).attempt.map(_ => fa), f(canceled))
+          try Suspend(f(ExitCase.Error(e)).attempt.map(_ => fa), F.suspend(f(canceledRef)))
           catch { case err if NonFatal(err) => fa }
 
       } catch {
@@ -137,8 +148,6 @@ private[tail] object IterantExitCallback {
       }
     }
 
-    Suspend(F.delay(loop(fa)), fa.earlyStop.flatMap(_ => f(canceled)))
+    Suspend(F.delay(loop(fa)), fa.earlyStop.flatMap(_ => f(canceledRef)))
   }
-
-  private[this] val canceled: ExitCase[Throwable] = ExitCase.Canceled(None)
 }

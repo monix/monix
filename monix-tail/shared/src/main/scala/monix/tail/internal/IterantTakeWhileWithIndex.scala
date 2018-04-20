@@ -30,7 +30,7 @@ private[tail] object IterantTakeWhileWithIndex {
   def apply[F[_], A](source: Iterant[F, A], p: (A, Long) => Boolean) (implicit F: Sync[F]): Iterant[F, A] = {
 
     def finishWith(stop: F[Unit]): Iterant[F, A] =
-      Suspend(stop.map(_ => Halt(None)), stop)
+      Suspend(stop.map(_ => Iterant.empty), stop)
 
     def processCursor(index: Long, ref: NextCursor[F, A]): Iterant[F, A] = {
       val NextCursor(cursor, rest, stop) = ref
@@ -63,7 +63,7 @@ private[tail] object IterantTakeWhileWithIndex {
           val next: F[Iterant[F, A]] = if (cursorIndex < batchSize) rest else F.pure(ref)
           NextCursor(bufferCursor, next.map(loop(index + cursorIndex)), stop)
         } else {
-          NextCursor(bufferCursor, stop.map(_ => Halt(None)), stop)
+          NextCursor(bufferCursor, stop.map(_ => Iterant.empty), stop)
         }
       }
     }
@@ -80,7 +80,7 @@ private[tail] object IterantTakeWhileWithIndex {
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop(index)), stop)
         case Last(elem) =>
-          if (p(elem, index)) Last(elem) else Halt(None)
+          if (p(elem, index)) Last(elem) else Iterant.empty
         case halt @ Halt(_) =>
           halt
       } catch {

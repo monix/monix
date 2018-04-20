@@ -17,8 +17,6 @@
 
 package monix.eval.internal
 
-import monix.execution.UncaughtExceptionReporter
-
 /** A mapping function type that is also able to handle errors.
   *
   * Used in the `Task` and `Coeval` implementations to specify
@@ -28,7 +26,7 @@ private[eval] abstract class StackFrame[-A, +R]
   extends (A => R) { self =>
 
   def apply(a: A): R
-  def recover(e: Throwable, r: UncaughtExceptionReporter): R
+  def recover(e: Throwable): R
 }
 
 private[eval] object StackFrame {
@@ -40,7 +38,7 @@ private[eval] object StackFrame {
     extends StackFrame[A, R] {
 
     def apply(a: A): R = fa(a)
-    def recover(e: Throwable, r: UncaughtExceptionReporter): R = fe(e)
+    def recover(e: Throwable): R = fe(e)
   }
 
   /** Builds a [[StackFrame]] instance that only handles errors,
@@ -57,6 +55,6 @@ private[eval] object StackFrame {
     extends StackFrame[A, R] {
 
     def apply(a: A): R = fa(a)
-    def recover(e: Throwable, r: UncaughtExceptionReporter): R = fe(e)
+    def recover(e: Throwable): R = fe(e)
   }
 }

@@ -17,14 +17,13 @@
 
 package monix.tail
 
-import cats.effect.ExitCase
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 import monix.tail.batches._
 
-object IterantDoOnExitCaseSuite extends BaseTestSuite {
+object IterantDoOnFinishSuite extends BaseTestSuite {
   test("Next.doOnFinish for early stop") { _ =>
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
@@ -148,13 +147,10 @@ object IterantDoOnExitCaseSuite extends BaseTestSuite {
     assertEquals(effect, Vector(1))
   }
 
-  test("doOnExitCase protects against user error") { _ =>
+  test("doOnFinish protects against user error") { _ =>
     check1 { (stream: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val received = stream.onErrorIgnore.doOnExitCase {
-        case ExitCase.Completed | ExitCase.Error(_) => throw dummy
-        case _ => Coeval.unit
-      }
+      val received = stream.onErrorIgnore.doOnFinish(_ => throw dummy)
       received.completeL <-> Coeval.raiseError(dummy)
     }
   }

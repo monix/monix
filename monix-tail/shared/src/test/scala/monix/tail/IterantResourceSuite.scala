@@ -25,7 +25,7 @@ import monix.execution.exceptions.DummyException
 import cats.effect.ExitCase._
 import monix.tail.batches.{Batch, BatchCursor}
 
-object IterantBracketSuite extends BaseTestSuite {
+object IterantResourceSuite extends BaseTestSuite {
   class Resource(var acquired: Int = 0, var released: Int = 0) {
     def acquire = IO { acquired += 1 }
     def release = IO { released += 1 }
@@ -34,20 +34,16 @@ object IterantBracketSuite extends BaseTestSuite {
   def runIterant[A](iterant: Iterant[IO, A]): Unit =
     iterant.completeL.unsafeRunSync()
 
-  test("Bracket yields all elements `use` provides") { _ =>
+  test("Iterant.resource yields all elements `use` provides") { _ =>
     check1 { (source: Iterant[IO, Int]) =>
-      val bracketed = Iterant.bracketCase(IO.unit)(
-        _ => source,
-        (_, _) => IO.unit
-      )
-
+      val bracketed = Iterant.resourceCase(IO.unit)(_ => source, (_, _) => IO.unit)
       source <-> bracketed
     }
   }
 
-  test("Bracket preserves earlyStop of stream returned from `use`") { _ =>
+  test("Iterant.resource preserves earlyStop of stream returned from `use`") { _ =>
     var earlyStopDone = false
-    val bracketed = Iterant.bracketCase(IO.unit)(
+    val bracketed = Iterant.resourceCase(IO.unit)(
       _ => Iterant[IO].of(1, 2, 3).doOnEarlyStop(IO {
         earlyStopDone = true
       }),
@@ -57,9 +53,9 @@ object IterantBracketSuite extends BaseTestSuite {
     assert(earlyStopDone)
   }
 
-  test("Bracket releases resource on normal completion") { _ =>
+  test("Iterant.resource releases resource on normal completion") { _ =>
     val rs = new Resource
-    val bracketed = Iterant.bracketCase(rs.acquire)(
+    val bracketed = Iterant.resourceCase(rs.acquire)(
       _ => Iterant.range(1, 10),
       (_, result) => rs.release.flatMap(_ => IO {
         assertEquals(result, Completed)
@@ -70,9 +66,9 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.released, 1)
   }
 
-  test("Bracket releases resource on early stop") { _ =>
+  test("Iterant.resource releases resource on early stop") { _ =>
     val rs = new Resource
-    val bracketed = Iterant.bracketCase(rs.acquire)(
+    val bracketed = Iterant.resourceCase(rs.acquire)(
       _ => Iterant.range(1, 10),
       (_, result) => rs.release.flatMap(_ => IO {
         assertEquals(result, Canceled(None))
@@ -83,10 +79,10 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.released, 1)
   }
 
-  test("Bracket releases resource on exception") { _ =>
+  test("Iterant.resource releases resource on exception") { _ =>
     val rs = new Resource
     val error = DummyException("dummy")
-    val bracketed = Iterant.bracketCase(rs.acquire)(
+    val bracketed = Iterant.resourceCase(rs.acquire)(
       _ => Iterant.range[IO](1, 10) ++ Iterant.raiseError[IO, Int](error),
       (_, result) => rs.release.flatMap(_ => IO {
         assertEquals(result, Error(error))
@@ -99,10 +95,10 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.released, 1)
   }
 
-  test("Bracket releases resource if `use` throws") { _ =>
+  test("Iterant.resource releases resource if `use` throws") { _ =>
     val rs = new Resource
     val dummy = DummyException("dummy")
-    val bracketed = Iterant.bracketCase(rs.acquire)(
+    val bracketed = Iterant.resourceCase(rs.acquire)(
       _ => throw dummy,
       (_, result) => rs.release.flatMap(_ => IO {
         assertEquals(result, Error(dummy))
@@ -115,10 +111,10 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.released, 1)
   }
 
-  test("Bracket does not call `release` if `acquire` has an error") { _ =>
+  test("Iterant.resource does not call `release` if `acquire` has an error") { _ =>
     val rs = new Resource
     val dummy = DummyException("dummy")
-    val bracketed = Iterant.bracketCase(
+    val bracketed = Iterant.resourceCase(
       IO.raiseError(dummy).flatMap(_ => rs.acquire))(
       _ => Iterant.empty[IO, Int],
       (_, result) => rs.release.flatMap(_ => IO {
@@ -132,11 +128,11 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.released, 0)
   }
 
-  test("Bracket nesting: outer releases even if inner release fails") { _ =>
+  test("Iterant.resource nesting: outer releases even if inner release fails") { _ =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Iterant.bracketCase(IO.unit)(
-      _ => Iterant.bracketCase(IO.unit)(
+    val bracketed = Iterant.resourceCase(IO.unit)(
+      _ => Iterant.resourceCase(IO.unit)(
         _ => Iterant[IO].of(1, 2, 3),
         (_, _) => IO.raiseError(dummy)
       ),
@@ -149,11 +145,11 @@ object IterantBracketSuite extends BaseTestSuite {
     assert(released)
   }
 
-  test("Bracket nesting: inner releases even if outer release fails") { _ =>
+  test("Iterant.resource nesting: inner releases even if outer release fails") { _ =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Iterant.bracketCase(IO.unit)(
-      _ => Iterant.bracketCase(IO.unit)(
+    val bracketed = Iterant.resourceCase(IO.unit)(
+      _ => Iterant.resourceCase(IO.unit)(
         _ => Iterant[IO].of(1, 2, 3),
         (_, _) => IO { released = true }
       ),
@@ -166,11 +162,11 @@ object IterantBracketSuite extends BaseTestSuite {
     assert(released)
   }
 
-  test("Bracket handles broken batches & cursors") { _ =>
+  test("Iterant.resource handles broken batches & cursors") { _ =>
     val rs = new Resource
     val dummy = DummyException("dummy")
     def withEmpty(ctor: (IO[Iterant[IO, Int]], IO[Unit]) => Iterant[IO, Int]) =
-      Iterant.bracketCase(rs.acquire)(
+      Iterant.resourceCase(rs.acquire)(
         _ => ctor(IO(Iterant.empty), IO.unit),
         (_, _) => rs.release
       )
@@ -190,11 +186,11 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.released, brokens.length)
   }
 
-  test("Bracket handles broken `next` continuations") { _ =>
+  test("Iterant.resource handles broken `next` continuations") { _ =>
     val rs = new Resource
     val dummy = DummyException("dummy")
     def withError(ctor: (IO[Iterant[IO, Int]], IO[Unit]) => Iterant[IO, Int]) =
-      Iterant.bracketCase(rs.acquire)(
+      Iterant.resourceCase(rs.acquire)(
         _ => ctor(IO.raiseError(dummy), IO.unit),
         (_, _) => rs.release
       )
@@ -215,7 +211,7 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.released, brokens.length)
   }
 
-  test("Bracket releases resource on all completion methods") { _ =>
+  test("Iterant.resource releases resource on all completion methods") { _ =>
     val rs = new Resource
     val completes: Array[Iterant[IO, Int] => IO[Unit]] =
       Array(
@@ -227,7 +223,7 @@ object IterantBracketSuite extends BaseTestSuite {
         _.reduceL(_ + _).map(_ => ())
       )
 
-    val pure = Iterant.bracketCase(rs.acquire)(
+    val pure = Iterant.resourceCase(rs.acquire)(
       _ => Iterant[IO].of(1, 2, 3),
       (_, _) => rs.release
     )
@@ -239,7 +235,7 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.released, completes.length)
 
     val dummy = DummyException("dummy")
-    val faulty = Iterant.bracketCase(rs.acquire)(
+    val faulty = Iterant.resourceCase(rs.acquire)(
       _ => Iterant[IO].raiseError[Int](dummy),
       (_, _) => rs.release
     )
@@ -252,7 +248,7 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.acquired, completes.length * 2)
     assertEquals(rs.released, completes.length * 2)
 
-    val broken = Iterant.bracketCase(rs.acquire)(
+    val broken = Iterant.resourceCase(rs.acquire)(
       _ => Iterant[IO].suspendS[Int](IO.raiseError(dummy), IO.unit),
       (_, _) => rs.release
     )
@@ -266,10 +262,11 @@ object IterantBracketSuite extends BaseTestSuite {
     assertEquals(rs.released, completes.length * 3)
   }
 
-  test("Bracket does not require non-strict use") { _ =>
+  test("Iterant.resource does not require non-strict use") { _ =>
     var log = Vector[String]()
     def safeCloseable(key: String): Iterant[Coeval, Unit] =
-      Iterant[Coeval].bracket(Coeval { log :+= s"Start: $key" })(Iterant.pure,
+      Iterant[Coeval].resource(Coeval { log :+= s"Start: $key" })(
+        Iterant[Coeval].pure,
         _ => Coeval { log :+= s"Stop: $key" }
       )
 
