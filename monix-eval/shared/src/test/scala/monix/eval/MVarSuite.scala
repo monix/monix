@@ -44,7 +44,9 @@ object MVarSuite extends BaseTestSuite {
       r2 <- Task.mapBoth(av.take, av.put(20))((r,_) => r)
     } yield List(r1,r2)
 
-    assertEquals(task.runSyncMaybe, Right(List(10,20)))
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, Some(Success(List(10,20))))
   }
 
   test("empty; put; put; put; take; take; take") { implicit s =>
@@ -123,7 +125,8 @@ object MVarSuite extends BaseTestSuite {
       av <- MVar.empty[Int]
       r  <- Task.mapBoth(av.read, av.put(10))((r, _) => r)
     } yield r
-    assertEquals(task.runSyncMaybe, Right(10))
+    val f = task.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(10)))
   }
 
   test("put(null) throws NullPointerException") { implicit s =>
