@@ -19,6 +19,7 @@ package monix.tail.internal
 
 import cats.effect.{Async, Timer}
 import cats.syntax.apply._
+import monix.eval.Callback
 import monix.execution.misc.AsyncVar
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.tail.{Iterant, PullStrategy}
@@ -42,7 +43,7 @@ private[tail] object IterantFromReactivePublisher {
 
     val generate: F[Iterant[F, A]] = F.async[Iterant[F, A]] { cb =>
       result.take
-        .onComplete(try_ => cb(try_.toEither))(immediate)
+        .onComplete(Callback.fromAttempt(cb))(immediate)
     } <* timer.shift
 
     val stop: F[Unit] = F.delay {
