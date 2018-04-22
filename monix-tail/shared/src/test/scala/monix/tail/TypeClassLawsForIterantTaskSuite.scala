@@ -22,6 +22,7 @@ import cats.data.EitherT
 import cats.effect.laws.discipline.AsyncTests
 import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
 import monix.eval.Task
+import monix.execution.schedulers.TestScheduler
 
 object TypeClassLawsForIterantTaskSuite extends BaseLawsSuite {
   type F[α] = Iterant[Task, α]
@@ -30,16 +31,18 @@ object TypeClassLawsForIterantTaskSuite extends BaseLawsSuite {
   implicit val iso: SemigroupalTests.Isomorphisms[F] =
     SemigroupalTests.Isomorphisms.invariant
 
+  implicit val ec: TestScheduler = TestScheduler()
+
   // Explicit instance, since Scala can't figure it out below :-(
   val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
     implicitly[Eq[EitherT[F, Throwable, Int]]]
 
-  checkAllAsync("Async[Iterant[Task]]", slowConfig) { implicit ec =>
+  checkAllAsync("Async[Iterant[Task]]", slowConfig) { _ =>
     implicit val eqE = eqEitherT
     AsyncTests[F].async[Int, Int, Int]
   }
 
-  checkAllAsync("MonadError[Iterant[Task]]") { implicit ec =>
+  checkAllAsync("MonadError[Iterant[Task]]") { _ =>
     implicit val eqE = eqEitherT
     MonadErrorTests[F, Throwable].monadError[Int, Int, Int]
   }

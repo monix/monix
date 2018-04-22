@@ -2185,6 +2185,23 @@ object Iterant extends IterantInstances {
     NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty), F.unit)
   }
 
+  /** Given a `org.reactivestreams.Publisher`, converts it into a
+    * Monix Iterant.
+    *
+    * @see [[Iterant.toReactivePublisher]] for converting an `Iterant` to
+    *      a reactive publisher.
+    *
+    * @param publisher is the `org.reactivestreams.Publisher` reference to
+    *        wrap into a [[Publisher]]
+    *
+    * @param strategy is a [[PullStrategy]] that describes how elements are
+    *        requested from a [[Publisher]]
+    *
+    */
+  def fromReactivePublisher[F[_], A](publisher: Publisher[A])(implicit F: Async[F], timer: Timer[F], strategy: PullStrategy = PullStrategy.Default): Iterant[F, A] = {
+    IterantFromReactivePublisher(publisher, strategy)
+  }
+
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
     * `Iterant` that keeps generating `NextBatch` items produced

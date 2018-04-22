@@ -34,7 +34,7 @@ object IterantBracketSuite extends BaseTestSuite {
   def runIterant[A](iterant: Iterant[IO, A]): Unit =
     iterant.completeL.unsafeRunSync()
 
-  test("Bracket yields all elements `use` provides") { _ =>
+  test("Bracket yields all elements `use` provides") { implicit s =>
     check1 { (source: Iterant[IO, Int]) =>
       val bracketed = Iterant.bracketA(IO.unit)(
         _ => source,
