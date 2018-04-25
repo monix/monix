@@ -130,6 +130,23 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
+  test("Task.map2 runs effects in strict sequence") { implicit s =>
+    var effect1 = 0
+    var effect2 = 0
+    val ta = Task { effect1 += 1 }.delayExecution(1.millisecond)
+    val tb = Task { effect2 += 1 }.delayExecution(1.millisecond)
+    Task.map2(ta, tb)((_, _) => ()).runAsync
+    s.tick()
+    assertEquals(effect1, 0)
+    assertEquals(effect2, 0)
+    s.tick(1.millisecond)
+    assertEquals(effect1, 1)
+    assertEquals(effect2, 0)
+    s.tick(1.millisecond)
+    assertEquals(effect1, 1)
+    assertEquals(effect2, 1)
+  }
+
   test("Task.parMap2 works") { implicit s =>
     val fa = Task.parMap2(Task(1), Task(2))(_ + _).runAsync
     s.tick()
