@@ -17,10 +17,14 @@
 
 package monix.execution
 
+import cats.effect.IO
 import monix.execution.atomic.AtomicAny
 import monix.execution.exceptions.CompositeException
+import monix.execution.internal.AttemptCallback
 import monix.execution.misc.NonFatal
+
 import scala.collection.immutable.Queue
+import scala.concurrent.Promise
 
 /** Represents a one-time idempotent action that can be used
   * to cancel async computations, or to release resources that
@@ -63,6 +67,40 @@ object Cancelable {
   def collection(refs: Iterable[Cancelable]): Cancelable =
     apply { () => cancelAll(refs) }
 
+  /** Builds a [[Cancelable]] out of a Scala `Promise`, completing the
+    * promise with the given `Throwable` on cancel.
+    */
+  def fromPromise[A](p: Promise[A], e: Throwable): Cancelable =
+    new Cancelable {
+      def cancel(): Unit =
+        p.tryFailure(e)
+    }
+
+  /** Builds a [[Cancelable]] reference from an `IO[Unit]`.
+    *
+    * Guarantees idempotency and reports any uncaught errors.
+    *
+    * @param io is the `IO` value to evaluate on `cancel`
+    * @param r is an exception reporter that's used in case our `IO`
+    *        value is throwing an error on evaluation
+    */
+  def fromIO(io: IO[Unit])(implicit r: UncaughtExceptionReporter): Cancelable =
+    Cancelable { () =>
+      io.unsafeRunAsync(AttemptCallback.empty)
+    }
+
+  /** Internal API — builds a `Cancelable` reference from an `IO[Unit]`,
+    * but without any protections for idempotency.
+    */
+  private[monix] def fromIOUnsafe(io: IO[Unit])
+    (implicit r: UncaughtExceptionReporter): Cancelable = {
+
+    new Cancelable {
+      def cancel(): Unit =
+        io.unsafeRunAsync(AttemptCallback.empty)
+    }
+  }
+
   /** Given a collection of cancelables, cancel them all.
     *
     * This function collects non-fatal exceptions and throws them all at the end as a
@@ -83,6 +121,20 @@ object Cancelable {
 
   /** Marker for cancelables that are dummies that can be ignored. */
   trait IsDummy { self: Cancelable => }
+
+  /** Extension methods for [[Cancelable]]. */
+  implicit final class Extensions(val self: Cancelable) extends AnyVal {
+    /** Given a [[Cancelable]] reference, turn it into an `IO[Unit]`
+      * that will trigger [[Cancelable.cancel cancel]] on evaluation.
+      *
+      * Useful when working with the `IO.cancelable` builder.
+      */
+    def cancelIO: IO[Unit] =
+      self match {
+        case _: IsDummy => IO.unit
+        case _ => IO(self.cancel())
+      }
+  }
 
   private final class CancelableTask(cb: () => Unit)
     extends Cancelable {

@@ -94,12 +94,10 @@ private[tail] object IterantToReactivePublisher {
     // optimization, to avoid going through `Effect` for `Task` and
     // `IO` and thus avoid some boxing.
     private val runAsync: (F[Iterant[F, A]], Callback[Iterant[F, A]]) => Unit = {
-      import cats.effect.IO.ioEffect
-
       F.asInstanceOf[Any] match {
         case _: CatsBaseForTask =>
           (fa, cb) => fa.asInstanceOf[Task[Iterant[F, A]]].runAsync(cb)
-        case `ioEffect` =>
+        case IO.ioConcurrentEffect =>
           (fa, cb) => fa.asInstanceOf[IO[Iterant[F, A]]].unsafeRunAsync(r => cb(r))
         case _ =>
           val cb = Callback.empty[Unit]
@@ -136,10 +134,8 @@ private[tail] object IterantToReactivePublisher {
     // optimization, to avoid going through `Effect` for `Task` and
     // `IO` and thus avoid some boxing.
     private val runAsync: F[Unit] => Unit = {
-      import cats.effect.IO.ioEffect
-
       F.asInstanceOf[Any] match {
-        case `ioEffect` =>
+        case IO.ioConcurrentEffect =>
           val cb = Callback.empty[Unit]
           val ecb: Either[Throwable, Unit] => Unit = r => cb(r)
           fa => fa.asInstanceOf[IO[Unit]].unsafeRunAsync(ecb)
@@ -162,8 +158,7 @@ private[tail] object IterantToReactivePublisher {
       if (isInfinite || processed < requested) {
         val n2 = if (!isInfinite) processed else 0
         rest.flatMap(loop(requested, n2))
-      }
-      else {
+      } else {
         // Happens-before relationship with the `requested` decrement!
         cursor = rest
         // Remaining items to process
@@ -248,8 +243,7 @@ private[tail] object IterantToReactivePublisher {
               case Some(e) => out.onError(e)
             }
             F.unit
-        }
-        catch {
+        } catch {
           case e if NonFatal(e) =>
             source.earlyStop.map { _ =>
               if (streamErrors) out.onError(e)
@@ -285,16 +279,17 @@ private[tail] object IterantToReactivePublisher {
             "n must be strictly positive, according to " +
             "the Reactive Streams contract, rule 3.9"
           )))
-      }
-      else {
+      } else {
         // Incrementing the current request count w/ overflow check
         val prev = requested.getAndTransform { nr =>
           val n2 = nr + n
           // Checking for overflow
           if (nr > 0 && n2 < 0) Long.MaxValue else n2
         }
-
-        if (prev == 0) startLoop(n)
+        // Guard against starting a concurrent loop
+        if (prev == 0) {
+          startLoop(n)
+        }
       }
     }
 
@@ -310,7 +305,7 @@ private[tail] object IterantToReactivePublisher {
       // Faking a `request(1)` is fine because we check the
       // `concurrentEndSignal` after we notice that we have
       // new requests (the combo of `goNext` + `loop`)
-      startLoop(1)
+      request(1)
     }
   }
 }

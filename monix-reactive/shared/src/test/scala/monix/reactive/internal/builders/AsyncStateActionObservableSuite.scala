@@ -26,8 +26,8 @@ import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-
 import scala.util.Failure
+import scala.concurrent.duration.MILLISECONDS
 
 object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -38,7 +38,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
 
   test("first execution can be sync") { implicit s =>
     var received = 0
-    Observable.fromAsyncStateAction(intNow)(s.currentTimeMillis())
+    Observable.fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
       .take(1).subscribe { x => received += 1; Continue }
 
     assertEquals(received, 1)
@@ -46,7 +46,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
 
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
-    Observable.fromAsyncStateAction(intNow)(s.currentTimeMillis())
+    Observable.fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
       .take(Platform.recommendedBatchSize * 3)
       .subscribe { x => received += 1; Continue }
 
@@ -59,7 +59,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
 
   test("should do async execution") { implicit s =>
     var received = 0
-    Observable.fromAsyncStateAction(intAsync)(s.currentTimeMillis())
+    Observable.fromAsyncStateAction(intAsync)(s.clockMonotonic(MILLISECONDS))
       .take(Platform.recommendedBatchSize * 2)
       .subscribe { x => received += 1; Continue }
 
@@ -71,7 +71,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    val cancelable = Observable.fromAsyncStateAction(intNow)(s.currentTimeMillis())
+    val cancelable = Observable.fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
       .unsafeSubscribeFn(
         new Subscriber[Int] {
           implicit val scheduler = s
@@ -87,13 +87,13 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, s.executionModel.recommendedBatchSize - 1)
+    assertEquals(sum, s.executionModel.recommendedBatchSize / 2)
     assert(!wasCompleted)
   }
 
   test("should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Observable.fromAsyncStateAction(intError(ex))(s.currentTimeMillis())
+    val f = Observable.fromAsyncStateAction(intError(ex))(s.clockMonotonic(MILLISECONDS))
       .runAsyncGetFirst
 
     s.tick()
@@ -105,7 +105,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
 
     var received = 0
     val cancelable = Observable
-      .fromAsyncStateAction(intNow)(s.currentTimeMillis())
+      .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
       .subscribe { _ => received += 1; Continue }
 
     assertEquals(received, 0)
@@ -115,7 +115,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 2)
 
     cancelable.cancel(); s.tick()
-    assertEquals(received, 3)
+    assertEquals(received, 2)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 

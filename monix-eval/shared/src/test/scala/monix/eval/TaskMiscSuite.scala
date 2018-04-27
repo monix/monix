@@ -19,6 +19,7 @@ package monix.eval
 
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Subscriber, Subscription}
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
@@ -36,15 +37,13 @@ object TaskMiscSuite extends BaseTestSuite {
 
   test("Task.fail should expose error") { implicit s =>
     val dummy = DummyException("dummy")
-    check1 { (fa: Task[Int]) =>
-      val r = fa.map(_ => throw dummy).failed.coeval.value
-      r == Right(dummy)
-    }
+    val f = Task.raiseError(dummy).failed.runAsync
+    assertEquals(f.value, Some(Success(dummy)))
   }
 
   test("Task.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
-      Task.eval(10).failed.coeval.value
+      Task.eval(10).failed.coeval.value()
     }
   }
 
@@ -52,6 +51,16 @@ object TaskMiscSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val result = Task.now(1).map(_ => throw ex).runAsync
     assertEquals(result.value, Some(Failure(ex)))
+  }
+
+  test("Task.forever") { implicit s =>
+    val ex = DummyException("dummy")
+    var effect = 0
+    val result = Task.eval { if (effect < 10) effect += 1 else throw ex }
+      .loopForever
+      .onErrorFallbackTo(Task.eval(effect))
+      .runAsync
+    assertEquals(result.value.get.get, 10)
   }
 
   test("Task.restartUntil") { implicit s =>

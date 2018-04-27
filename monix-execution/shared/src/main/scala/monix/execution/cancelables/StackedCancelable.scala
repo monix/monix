@@ -106,6 +106,12 @@ object StackedCancelable {
   final val alreadyCanceled: StackedCancelable =
     new AlreadyCanceled
 
+  /** Reusable [[StackedCancelable]] reference that cannot be
+    * cancelled.
+    */
+  final val uncancelable: StackedCancelable =
+    new Uncancelable
+
   /** Implementation for [[StackedCancelable]] backed by a
     * cache-line padded atomic reference for synchronization.
     */
@@ -245,5 +251,18 @@ object StackedCancelable {
 
     override def pushList(list: List[Cancelable]): Unit =
       Cancelable.cancelAll(list)
+  }
+
+  /** [[StackedCancelable]] implementation that cannot be cancelled. */
+  private final class Uncancelable extends StackedCancelable {
+    override def cancel(): Unit = ()
+    override def isCanceled: Boolean = false
+    override def pop(): Cancelable = Cancelable.empty
+    override def pushList(list: List[Cancelable]): Unit = ()
+    override def push(value: Cancelable): Unit = ()
+    override def popAndPushList(list: List[Cancelable]): Cancelable =
+      Cancelable.empty
+    override def popAndPush(value: Cancelable): Cancelable =
+      Cancelable.empty
   }
 }

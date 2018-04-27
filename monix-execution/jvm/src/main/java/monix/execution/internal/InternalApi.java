@@ -25,7 +25,7 @@ import static java.lang.annotation.ElementType.*;
 import static java.lang.annotation.RetentionPolicy.CLASS;
 
 /**
- * Marks APIs that are considered internal to Akka and may change at
+ * Marks APIs that are considered internal to Monix and may change at
  * any point in time without any warning.
  *
  * For example, this annotation should be used when the Scala

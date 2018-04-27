@@ -95,6 +95,15 @@ import monix.execution.misc.Local
 final class TaskLocal[A] private (default: => A) {
   private[this] val ref = new Local(default)
 
+  /** Returns [[monix.execution.misc.Local]] instance used in this [[TaskLocal]].
+    *
+    * Note that `TaskLocal.bind` will restore the original local value
+    * on the thread where the `Task's` run-loop ends up so it might lead
+    * to leaving local modified in other thread.
+    */
+  def local: Task[Local[A]] =
+    Task.eval(ref)
+
   /** Returns the current local value (in the `Task` context). */
   def read: Task[A] =
     Task.eval(ref.get)
@@ -111,13 +120,13 @@ final class TaskLocal[A] private (default: => A) {
     * `task` execution.
     *
     * {{{
-    *   val local = TaskLocal(0)
-    *
     *   // Should yield 200 on execution, regardless of what value
     *   // we have in `local` at the time of evaluation
-    *   val task = local.bind(100)(Task {
-    *     local.get * 2
-    *   })
+    *   val task: Task[Int] =
+    *     for {
+    *       local <- TaskLocal(0)
+    *       value <- local.bind(100)(local.read.map(_ * 2))
+    *     } yield value
     * }}}
     *
     * @see [[bindL]] for the version with a lazy `value`.
@@ -131,24 +140,20 @@ final class TaskLocal[A] private (default: => A) {
     *        reset to the previous value
     */
   def bind[R](value: A)(task: Task[R]): Task[R] =
-    Task.suspend {
-      val saved = ref.value
-      ref.update(value)
-      task.doOnFinish(_ => restore(saved))
-    }
+    bindL(Task.now(value))(task)
 
   /** Binds the local var to a `value` for the duration of the given
     * `task` execution, the `value` itself being lazily evaluated
     * in the [[Task]] context.
     *
     * {{{
-    *   val local = TaskLocal(0)
-    *
     *   // Should yield 200 on execution, regardless of what value
     *   // we have in `local` at the time of evaluation
-    *   val task = local.bindL(Task.eval(100))(Task {
-    *     local.get * 2
-    *   })
+    *   val task: Task[Int] =
+    *     for {
+    *       local <- TaskLocal(0)
+    *       value <- local.bindL(Task.eval(100))(local.read.map(_ * 2))
+    *     } yield value
     * }}}
     *
     * @see [[bind]] for the version with a strict `value`.
@@ -162,25 +167,24 @@ final class TaskLocal[A] private (default: => A) {
     *        reset to the previous value
     */
   def bindL[R](value: Task[A])(task: Task[R]): Task[R] =
-    value.flatMap { value =>
-      val saved = ref.value
-      ref.update(value)
-      task.doOnFinish(_ => restore(saved))
+    Task.eval(ref.value).flatMap { saved =>
+      value.bracket { v =>
+        ref.update(v)
+        task
+      }(_ => restore(saved))
     }
 
   /** Clears the local var to the default for the duration of the
     * given `task` execution.
     *
     * {{{
-    *   val local = TaskLocal(0)
-    *
-    *   //...
-    *
     *   // Should yield 0 on execution, regardless of what value
     *   // we have in `local` at the time of evaluation
-    *   val task = local.bindClear(Task {
-    *     local.get * 2
-    *   })
+    *   val task: Task[Int] =
+    *     for {
+    *       local <- TaskLocal(0)
+    *       value <- local.bindClear(local.read.map(_ * 2))
+    *     } yield value
     * }}}
     *
     * @param task is the [[Task]] to wrap, having the local cleared,
@@ -192,7 +196,7 @@ final class TaskLocal[A] private (default: => A) {
     Task.suspend {
       val saved = ref.value
       ref.clear()
-      task.doOnFinish(_ => restore(saved))
+      Task.unit.bracket(_ => task)(_ => restore(saved))
     }
 
   private def restore(value: Option[A]): Task[Unit] =
@@ -232,5 +236,5 @@ object TaskLocal {
     *        lazily evaluated and managed by [[Coeval]]
     */
   def lazyDefault[A](default: Coeval[A]): Task[TaskLocal[A]] =
-    Task.eval(new TaskLocal[A](default.value))
+    Task.eval(new TaskLocal[A](default.value()))
 }

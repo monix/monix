@@ -54,10 +54,10 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
   test("naiveImp smoke test") { implicit s =>
     val input = List(2, 3, 4, 5, 6)
     val iter = Iterant[Coeval].fromList(input)
-    assertEquals(naiveImp(iter, (_: Int, _) => true).toListL.value, input)
-    assertEquals(naiveImp(iter, (_: Int, idx) => idx != 3).toListL.value, List(2, 3, 4))
-    assertEquals(naiveImp(iter, (a: Int, _) => a % 2 == 0).toListL.value, List(2))
-    assertEquals(naiveImp(iter, (_: Int, _) => false).toListL.value, List.empty[Int])
+    assertEquals(naiveImp(iter, (_: Int, _) => true).toListL.value(), input)
+    assertEquals(naiveImp(iter, (_: Int, idx) => idx != 3).toListL.value(), List(2, 3, 4))
+    assertEquals(naiveImp(iter, (a: Int, _) => a % 2 == 0).toListL.value(), List(2))
+    assertEquals(naiveImp(iter, (_: Int, _) => false).toListL.value(), List.empty[Int])
   }
 
   test("Iterant[Task].takeWhileWithIndex((_, _) => true) mirrors the source") { implicit s =>
@@ -97,7 +97,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.takeWhileWithIndex((_, _) => true)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -107,7 +107,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.takeWhileWithIndex((_, _) => true)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -127,7 +127,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
-      intercept[DummyException] { stream.takeWhileWithIndex((_, _) => true).toListL.value }
+      intercept[DummyException] { stream.takeWhileWithIndex((_, _) => true).toListL.value() }
       cancelable.isCanceled
     }
   }
@@ -137,7 +137,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.takeWhileWithIndex((_, _) => true)
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 }

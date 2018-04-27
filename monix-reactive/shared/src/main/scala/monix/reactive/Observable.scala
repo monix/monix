@@ -355,7 +355,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * For `count` and `skip` there are 3 possibilities:
     *
     *  1. in case `skip == count`, then there are no items dropped and
-    *     no overlap, the call being equivalent to `buffer(count)`
+    *     no overlap, the call being equivalent to `bufferTumbling(count)`
     *  1. in case `skip < count`, then overlap between buffers
     *     happens, with the number of elements being repeated being
     *     `count - skip`
@@ -367,7 +367,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param skip how many items emitted by the source observable should
     *        be skipped before starting a new buffer. Note that when
     *        skip and count are equal, this is the same operation as
-    *        `buffer(count)`
+    *        `bufferTumbling(count)`
     */
   final def bufferSliding(count: Int, skip: Int): Observable[Seq[A]] =
     liftByOperator(new BufferSlidingOperator(count, skip))
@@ -1352,9 +1352,20 @@ abstract class Observable[+A] extends Serializable { self =>
     * producing and concatenating observables along the way.
     *
     * It's the combination between [[scan]] and [[flatMap]].
+    *
+    * @see [[flatScan0]] for the version that emits seed element at the beginning
     */
   final def flatScan[R](seed: => R)(op: (R, A) => Observable[R]): Observable[R] =
     new FlatScanObservable[A, R](self, seed _, op, delayErrors = false)
+
+  /** Applies a binary operator to a start value and to elements
+    * produced by the source observable, going from left to right,
+    * producing and concatenating observables along the way.
+    *
+    * It's the combination between [[scan0]] and [[flatMap]].
+    */
+  final def flatScan0[R](seed: => R)(op: (R, A) => Observable[R]): Observable[R] =
+    Observable.eval(seed).flatMap(s => s +: flatScan(s)(op))
 
   /** Applies a binary operator to a start value and to elements
     * produced by the source observable, going from left to right,
@@ -1367,6 +1378,18 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def flatScanDelayErrors[R](seed: => R)(op: (R, A) => Observable[R]): Observable[R] =
     new FlatScanObservable[A, R](self, seed _, op, delayErrors = true)
+
+  /** Applies a binary operator to a start value and to elements
+    * produced by the source observable, going from left to right,
+    * producing and concatenating observables along the way.
+    *
+    * This version of [[flatScan0]] delays all errors until `onComplete`,
+    * when it will finally emit a
+    * [[monix.execution.exceptions.CompositeException CompositeException]].
+    * It's the combination between [[scan0]] and [[flatMapDelayErrors]].
+    */
+  final def flatScan0DelayErrors[R](seed: => R)(op: (R, A) => Observable[R]): Observable[R] =
+    Observable.eval(seed).flatMap(s => s +: flatScanDelayErrors(s)(op))
 
   /** $concatDescription
     *
@@ -2051,9 +2074,22 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Similar to [[foldLeftF]], but emits the state on each
     * step. Useful for modeling finite state machines.
+    *
+    * @see [[scan0]] for the version that emits seed element at the beginning
     */
   final def scan[S](seed: => S)(op: (S, A) => S): Observable[S] =
     new ScanObservable[A, S](self, seed _, op)
+
+  /** Applies a binary operator to a start value and all elements of
+    * this Observable, going left to right and returns a new
+    * Observable that emits on each step the result of the applied
+    * function.
+    *
+    * This is a version of [[scan]] that emits seed element at the beginning,
+    * similar to `scanLeft` on Scala collections
+    */
+  final def scan0[S](seed: => S)(op: (S, A) => S): Observable[S] =
+    Observable.eval(seed).flatMap(s => s +: scan(s)(op))
 
   /** Applies a binary operator to a start value and all elements of
     * this stream, going left to right and returns a new stream that
@@ -2099,6 +2135,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *     .collect { case Current(a, _) => a }
     * }}}
     *
+    * @see [[scanEval0]] for the version that emits seed element at the beginning
+    *
     * @see [[scan]] for the synchronous, non-lazy version, or
     *      [[scanTask]] for the [[monix.eval.Task Task]]-specialized
     *      version.
@@ -2116,6 +2154,16 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def scanEval[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: Effect[F]): Observable[S] =
     scanTask(Task.fromEffect(seed)(F))((s, a) => Task.fromEffect(op(s, a))(F))
+
+/** Applies a binary operator to a start value and all elements of
+  * this stream, going left to right and returns a new stream that
+  * emits on each step the result of the applied function.
+  *
+  * This is a version of [[scanEval]] that emits seed element at the beginning,
+  * similar to `scanLeft` on Scala collections
+  */
+  final def scanEval0[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: Effect[F]): Observable[S] =
+    Observable.fromEffect(seed).flatMap(s => s +: scanEval(F.pure(s))(op))
 
   /** Given a mapping function that returns a `B` type for which we have
     * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
@@ -2145,6 +2193,17 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def scanMap[B](f: A => B)(implicit B: Monoid[B]): Observable[B] =
     self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
+
+  /** Given a mapping function that returns a `B` type for which we have
+    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
+    * elements of the sources using the provided `Monoid[B].combine`, with the
+    * initial seed being the `Monoid[B].empty` value, emitting the generated values
+    * at each step.
+    *
+    * This is a version of [[scanMap]] that emits seed element at the beginning.
+    */
+  final def scanMap0[B](f: A => B)(implicit B: Monoid[B]): Observable[B] =
+    B.empty +: scanMap(f)
 
   /** Applies a binary operator to a start value and all elements of
     * this stream, going left to right and returns a new stream that
@@ -2186,6 +2245,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *     .collect { case Current(a, _) => a }
     * }}}
     *
+    * @see [[scanTask0]] for the version that emits seed element at the beginning
     * @see [[scan]] for the version that does not require using `Task`
     *      in the provided operator
     *
@@ -2197,6 +2257,15 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def scanTask[S](seed: Task[S])(op: (S, A) => Task[S]): Observable[S] =
     new ScanTaskObservable(self, seed, op)
+
+  /** Applies a binary operator to a start value and all elements of
+    * this stream, going left to right and returns a new stream that
+    * emits on each step the result of the applied function.
+    *
+    * This is a version of [[scanTask]] that emits seed element at the beginning.
+    */
+  final def scanTask0[S](seed: Task[S])(op: (S, A) => Task[S]): Observable[S] =
+    Observable.fromTask(seed).flatMap(s => s +: scanTask(Task.pure(s))(op))
 
   /** Creates a new Observable that emits the given elements and then
     * it also emits the events of the source (prepend operation).
@@ -3869,7 +3938,7 @@ object Observable {
     value match {
       case Coeval.Now(a) => Observable.now(a)
       case Coeval.Error(e) => Observable.raiseError(e)
-      case other => Observable.eval(other.value)
+      case other => Observable.eval(other.value())
     }
 
   /** Converts a `cats.Eval` value into an `Observable`
@@ -4041,6 +4110,13 @@ object Observable {
     */
   def repeatEval[A](task: => A): Observable[A] =
     new builders.RepeatEvalObservable(task)
+
+  /** Repeats the evaluation of given effectful value, emitting
+    * the results indefinitely.
+    *
+    */
+  def repeatEvalF[F[_], A](fa: F[A])(implicit F: Effect[F]): Observable[A] =
+    repeat(()).mapEval(_ => fa)
 
   /** Creates an Observable that emits items in the given range.
     *

@@ -17,6 +17,7 @@
 
 package monix.tail
 
+import cats.Monoid
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
@@ -35,6 +36,12 @@ object IterantScanMapSuite extends BaseTestSuite {
         .takeWhile(_ < 10)
 
       fa1.toListL <-> fa2.toListL
+    }
+  }
+
+  test("Iterant.scanMap0 starts with empty element") { implicit s =>
+    check1 { (source: Iterant[Coeval, Int]) =>
+      source.scanMap0(x => x).headOptionL <-> Coeval(Some(Monoid[Int].empty))
     }
   }
 }

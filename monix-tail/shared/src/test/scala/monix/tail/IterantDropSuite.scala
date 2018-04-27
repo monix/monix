@@ -67,7 +67,7 @@ object IterantDropSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.drop(1)
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 
@@ -82,7 +82,7 @@ object IterantDropSuite extends BaseTestSuite {
 
     val source = Iterant[Coeval].nextBatchS(batch, Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
     assertEquals(effect, 0)
-    assertEquals(source.foldLeftL(0)(_ + _).value, 3)
+    assertEquals(source.foldLeftL(0)(_ + _).value(), 3)
     assertEquals(effect, 1)
   }
 
@@ -98,7 +98,7 @@ object IterantDropSuite extends BaseTestSuite {
     val source = Iterant[Coeval].nextCursorS(cursor, Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
     assertEquals(effect, 0)
 
-    assertEquals(source.foldLeftL(0)(_ + _).value, 3)
+    assertEquals(source.foldLeftL(0)(_ + _).value(), 3)
     assertEquals(effect, 2)
   }
 }

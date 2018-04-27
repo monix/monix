@@ -34,7 +34,9 @@ object IterantIntersperseSuite extends BaseTestSuite {
   }
 
   test("Iterant.intersperse(x) preserves the source earlyStop") { implicit s =>
-    import IterantOfCoeval._
+    val builders = Iterant[Coeval]
+    import builders._
+
     var effect = 0
     val stop = Coeval(effect += 1)
     val source = suspendS(
@@ -42,12 +44,13 @@ object IterantIntersperseSuite extends BaseTestSuite {
       stop
     )
     val interspersed = source.intersperse(0)
-    interspersed.earlyStop.value
+    interspersed.earlyStop.value()
     assertEquals(effect, 1)
   }
 
   test("Iterant.intersperse(x) protects against broken batches") { implicit s =>
-    import IterantOfCoeval._
+    val builders = Iterant[Coeval]
+    import builders._
 
     val dummy = DummyException("dummy")
     val stream = of(1, 2, 3) ++ nextBatchS(
@@ -63,7 +66,8 @@ object IterantIntersperseSuite extends BaseTestSuite {
   }
 
   test("Iterant.intersperse(x) protects against broken cursors") { implicit s =>
-    import IterantOfCoeval._
+    val builders = Iterant[Coeval]
+    import builders._
 
     val dummy = DummyException("dummy")
     val stream = of(1, 2, 3) ++ nextCursorS(

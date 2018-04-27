@@ -140,7 +140,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix.onErrorIgnore ++ error).mapEval(x => Task.now(x))
-      stream <-> Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> prefix.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -150,7 +150,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionBatch(dummy)
       val error = Iterant[Task].nextBatchS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix.onErrorIgnore ++ error).mapEval(x => Task.now(x))
-      stream <-> Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> prefix.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -244,7 +244,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
       val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
-      stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
+      stream <-> prefix ++ Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -254,7 +254,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val cursor: Batch[Int] = new ThrowExceptionBatch(dummy)
       val error = Iterant[Coeval].nextBatchS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
-      stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
+      stream <-> prefix ++ Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -314,7 +314,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.mapEval(x => Coeval.now(x))
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 }

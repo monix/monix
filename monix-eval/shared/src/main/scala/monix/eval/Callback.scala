@@ -20,7 +20,6 @@ package monix.eval
 import cats.Contravariant
 import monix.execution.misc.NonFatal
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -30,14 +29,17 @@ import scala.util.{Failure, Success, Try}
   *
   * The `onSuccess` method should be called only once, with the successful
   * result, whereas `onError` should be called if the result is an error.
+  *
+  * Obviously `Callback` describes unsafe side-effects, a fact that is
+  * highlighted by the usage of `Unit` as the return type. Obviously
+  * callbacks are unsafe to use in pure code, but are necessary for
+  * describing asynchronous processes, like in [[Task.create]].
   */
-abstract class Callback[-A] extends Listener[A] with ((Try[A]) => Unit) {
+abstract class Callback[-A] extends Listener[A] with (Try[A] => Unit) {
   def onSuccess(value: A): Unit
+
   def onError(ex: Throwable): Unit
 
-  /** An alias for [[onSuccess]], inherited
-    * from [[monix.execution.Listener]].
-    */
   final def onValue(value: A): Unit =
     onSuccess(value)
 
@@ -106,6 +108,18 @@ object Callback {
         s.executeTrampolined(() => cb.onError(ex))
     }
 
+  /** Turns `Either[Throwable, A] => Unit` callbacks into Monix
+    * callbacks.
+    *
+    * These are common within Cats' implementation, used for
+    * example in `cats.effect.IO`.
+    */
+  def fromAttempt[A](cb: Either[Throwable, A] => Unit): Callback[A] =
+    new Callback[A] {
+      def onSuccess(value: A): Unit = cb(Right(value))
+      def onError(ex: Throwable): Unit = cb(Left(ex))
+    }
+
   /** Useful extension methods for [[Callback]]. */
   implicit final class Extensions[-A](val source: Callback[A]) extends AnyVal {
     /** Extension method that calls `onSuccess` asynchronously. */
@@ -122,6 +136,10 @@ object Callback {
 
     /** Extension method that calls `apply` asynchronously. */
     def asyncApply(value: Try[A])(implicit s: Scheduler): Unit =
+      s.executeTrampolined(() => source(value))
+
+    /** Extension method that calls `apply` asynchronously. */
+    def asyncApply(value: Either[Throwable, A])(implicit s: Scheduler): Unit =
       s.executeTrampolined(() => source(value))
   }
 

@@ -17,6 +17,10 @@
 
 package monix.execution.internal
 
+import monix.execution.schedulers.CanBlock
+
+import scala.concurrent.{Await, Awaitable}
+import scala.concurrent.duration.Duration
 import scala.util.Try
 
 private[monix] object Platform {
@@ -116,4 +120,12 @@ private[monix] object Platform {
       .filter(_ > 0)
       .map(_ - 1)
       .getOrElse(127)
+
+  /** Blocks for the result of `fa`.
+    *
+    * This operation is only supported on top of the JVM, whereas for
+    * JavaScript a dummy is provided.
+    */
+  def await[A](fa: Awaitable[A], timeout: Duration)(implicit permit: CanBlock): A =
+    Await.result(fa, timeout)
 }

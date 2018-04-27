@@ -40,7 +40,7 @@ object IterantTailSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.tail
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore.tail ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -50,7 +50,7 @@ object IterantTailSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.tail
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore.tail ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -63,7 +63,7 @@ object IterantTailSuite extends BaseTestSuite {
       .tail
 
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
-    intercept[DummyException](iter.toListL.value)
+    intercept[DummyException](iter.toListL.value())
   }
 
   test("Iterant.tail suspends execution for NextBatch") { implicit s =>
@@ -75,7 +75,7 @@ object IterantTailSuite extends BaseTestSuite {
       .tail
 
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
-    intercept[DummyException](iter.toListL.value)
+    intercept[DummyException](iter.toListL.value())
   }
 
   test("Iterant.tail preserves the source earlyStop") { implicit s =>
@@ -83,7 +83,7 @@ object IterantTailSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.tail
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 }

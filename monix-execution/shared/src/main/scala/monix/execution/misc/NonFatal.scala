@@ -29,6 +29,9 @@ object NonFatal {
   def apply(t: Throwable): Boolean = t match {
     // VirtualMachineError includes OutOfMemoryError and StackOverflowError
     case _: VirtualMachineError => false
+    case _: InterruptedException =>
+      Thread.currentThread().interrupt()
+      true
     case _ => true
   }
 

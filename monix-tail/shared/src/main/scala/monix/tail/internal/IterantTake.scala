@@ -52,7 +52,10 @@ private[tail] object IterantTake {
 
       if (idx > 0) {
         val restRef: F[Iterant[F, A]] = if (idx < toTake) rest else F.pure(ref)
-        NextCursor(BatchCursor.fromAnyArray(buffer.toArray[Any]), nextOrStop(restRef, stop, n, idx), stop)
+        NextCursor(
+          BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]],
+          nextOrStop(restRef, stop, n, idx),
+          stop)
       }
       else
         Suspend(nextOrStop(rest, stop, n, idx), stop)

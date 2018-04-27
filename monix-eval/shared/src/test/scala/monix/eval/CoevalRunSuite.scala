@@ -29,14 +29,14 @@ object CoevalRunSuite extends BaseTestSuite {
     assertEquals(eager1.toTry, Success(30))
     assertEquals(eager1.toEither, Right(30))
     assertEquals(eager1.run, eager1)
-    assertEquals(eager1.value, 30)
+    assertEquals(eager1.value(), 30)
     assertEquals(eager1(), 30)
     assert(eager1.isSuccess, "eager1.isSuccess")
     assert(!eager1.isError, "!eager1.isError")
 
     assertEquals(fa1.runAttempt, Right(30))
     assertEquals(fa1.runTry, Success(30))
-    assertEquals(fa1.value, 30)
+    assertEquals(fa1.value(), 30)
 
     val dummy = new DummyException("dummy")
     val fa2 = build(() => throw dummy)
@@ -46,14 +46,14 @@ object CoevalRunSuite extends BaseTestSuite {
     assertEquals(eager2.toTry, Failure(dummy))
     assertEquals(eager2.toEither, Left(dummy))
     assertEquals(eager2.run, eager2)
-    intercept[DummyException] { eager2.value }
+    intercept[DummyException] { eager2.value() }
     intercept[DummyException] { eager2() }
     assert(!eager2.isSuccess, "!eager2.isSuccess")
     assert(eager2.isError, "!eager2.isSuccess")
 
     assertEquals(fa2.runAttempt, Left(dummy))
     assertEquals(fa2.runTry, Failure(dummy))
-    intercept[DummyException] { fa2.value }
+    intercept[DummyException] { fa2.value() }
   }
 
   test("Coeval.Always") { _ =>

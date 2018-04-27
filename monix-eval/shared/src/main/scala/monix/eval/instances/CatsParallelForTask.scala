@@ -34,7 +34,7 @@ import monix.eval.Task
 class CatsParallelForTask extends Parallel[Task, Task.Par] {
 
   override def applicative: Applicative[Task.Par] = CatsParallelForTask.NondetApplicative
-  override def monad: Monad[Task] = CatsAsyncForTask
+  override def monad: Monad[Task] = CatsConcurrentForTask
 
   override val sequential: Task.Par  ~> Task = new (Task.Par ~> Task) {
     def apply[A](fa: Task.Par[A]): Task[A] = Task.Par.unwrap(fa)

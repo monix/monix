@@ -19,17 +19,14 @@ package monix.eval.internal
 
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
-
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, MemoizeSuspend, Now, Suspend}
+import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.internal.TaskRunLoop._
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.NonFatal
-
 import scala.concurrent.blocking
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.util.{Failure, Success}
 
 private[eval] object TaskRunSyncUnsafe {
   /** Run-loop specialization that evaluates the given task and blocks for the result
@@ -88,28 +85,13 @@ private[eval] object TaskRunSyncUnsafe {
             case null => throw error
             case bind =>
               // Try/catch described as statement to prevent ObjectRef ;-)
-              try { current = bind.recover(error) }
+              try { current = bind.recover(error, scheduler) }
               catch { case e if NonFatal(e) => current = Error(e) }
               bFirst = null
           }
 
         case Async(register) =>
           return blockForResult(current, register, timeout, scheduler, opts, bFirst, bRest)
-
-        case ref: MemoizeSuspend[_] =>
-          // Already processed?
-          ref.value match {
-            case Some(materialized) =>
-              materialized match {
-                case Success(value) =>
-                  unboxed = value.asInstanceOf[AnyRef]
-                  hasUnboxed = true
-                case Failure(error) =>
-                  current = Error(error)
-              }
-            case None =>
-              return blockForResult(current, null, timeout, scheduler, opts, bFirst, bRest)
-          }
       }
 
       if (hasUnboxed) {

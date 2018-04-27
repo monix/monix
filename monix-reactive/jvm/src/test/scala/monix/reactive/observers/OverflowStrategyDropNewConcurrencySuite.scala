@@ -18,29 +18,17 @@
 package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
-import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.SchedulerService
-import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.DropNew
 import monix.reactive.observers.buffers.DropNewBufferedSubscriber
-import monix.reactive.{Observable, Observer}
-
+import monix.reactive.{BaseConcurrencySuite, Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
-object OverflowStrategyDropNewConcurrencySuite extends TestSuite[SchedulerService] {
-  def setup() =
-    Scheduler.computation(name="monix-drop-new-test")
-
-  def tearDown(env: SchedulerService) = {
-    env.shutdown()
-    Await.result(env.awaitTermination(1.hour, Scheduler.global), Duration.Inf)
-  }
-
+object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
   test("merge test should work") { implicit s =>
     val num = 100000
     val source = Observable.repeat(1L).take(num)

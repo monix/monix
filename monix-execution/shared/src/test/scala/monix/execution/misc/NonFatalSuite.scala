@@ -15,16 +15,25 @@
  * limitations under the License.
  */
 
-package monix.tail
+package monix.execution.misc
 
-import monix.execution.internal.Platform
-import scala.collection.mutable.ArrayBuilder
+import minitest.TestSuite
+import monix.execution.schedulers.TestScheduler
 
-package object batches {
-  /** Reusable `ArrayBuilder` instance. */
-  private[tail] final val arrayAnyBuilder =
-    () => ArrayBuilder.make[Any]()
+object NonFatalSuite extends TestSuite[TestScheduler] {
+  override def setup(): TestScheduler = TestScheduler()
 
-  private[tail] final val defaultBatchSize: Int =
-    Platform.recommendedBatchSize
+  override def tearDown(env: TestScheduler): Unit = assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
+
+  test("handling InterruptedException") { implicit s =>
+    try {
+      throw new InterruptedException
+    } catch {
+      case NonFatal(e) =>
+        assert(e.isInstanceOf[InterruptedException])
+        assertEquals(Thread.interrupted(), true)
+      case _: Throwable =>
+        fail("Exception wast't caught by NonFatal")
+    }
+  }
 }

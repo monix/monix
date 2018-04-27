@@ -40,8 +40,8 @@ private[tail] object IterantBuffer {
     (implicit F: Sync[F]): Iterant[F, A] = {
 
     build[F, A, A](self, count, count,
-      (seq, rest, stop) => NextBatch(Batch.fromAnyArray(seq), rest, stop),
-      seq => NextBatch(Batch.fromAnyArray(seq), F.pure(Halt(None)), F.unit))
+      (seq, rest, stop) => NextBatch(Batch.fromArray(seq), rest, stop),
+      seq => NextBatch(Batch.fromArray(seq), F.pure(Halt(None)), F.unit))
   }
 
   private def build[F[_], A, B](

@@ -23,7 +23,12 @@ import scala.scalajs.js
 /** Utils for quickly using Javascript's `setTimeout` and
   * `clearTimeout`.
   */
-private[schedulers] object Timer {
+private[schedulers] object JSTimer {
+  def setImmediate(r: Runnable, reporter: UncaughtExceptionReporter): Unit =
+    setImmediateRef(() =>
+      try r.run()
+      catch { case e: Throwable => reporter.reportFailure(e) })
+
   def setTimeout(delayMillis: Long, r: Runnable, reporter: UncaughtExceptionReporter): js.Dynamic = {
     val lambda: js.Function = () =>
       try { r.run() } catch { case t: Throwable =>
@@ -35,5 +40,12 @@ private[schedulers] object Timer {
 
   def clearTimeout(task: js.Dynamic): js.Dynamic = {
     js.Dynamic.global.clearTimeout(task)
+  }
+
+  private final val setImmediateRef: js.Dynamic = {
+    if (!js.isUndefined(js.Dynamic.global.setImmediate))
+      js.Dynamic.global.setImmediate
+    else
+      js.Dynamic.global.setTimeout
   }
 }

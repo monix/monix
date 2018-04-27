@@ -15,45 +15,143 @@
  * limitations under the License.
  */
 
-package monix.execution.schedulers
+package monix.execution
+package schedulers
 
-import monix.execution.Cancelable
 import monix.execution.atomic.AtomicAny
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.misc.NonFatal
 import monix.execution.schedulers.TestScheduler._
-// Prevents conflict with the deprecated symbol
-import monix.execution.{ExecutionModel => ExecModel}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
 import scala.util.Random
 
-/** A scheduler meant for testing purposes. */
+/** [[Scheduler]] and a provider of `cats.effect.Timer` instances,
+  * that can simulate async boundaries and time passage, useful for
+  * testing purposes.
+  *
+  * Usage for simulating an `ExecutionContext`:
+  *
+  * {{{
+  *   implicit val ec = TestScheduler()
+  *
+  *   ec.execute(new Runnable { def run() = println("task1") })
+  *
+  *   ex.execute(new Runnable {
+  *     def run() = {
+  *       println("outer")
+  *
+  *       ec.execute(new Runnable {
+  *         def run() = println("inner")
+  *       })
+  *     }
+  *   })
+  *
+  *   // Nothing executes until `tick` gets called
+  *   ec.tick()
+  *
+  *   // Testing the resulting state
+  *   assert(ec.state.tasks.isEmpty)
+  *   assert(ec.state.lastReportedError == null)
+  * }}}
+  *
+  * `TestScheduler` can also simulate the passage of time:
+  *
+  * {{{
+  *   val ctx = TestScheduler()
+  *   val f = Task(1 + 1).delayExecution(10.seconds).runAsync
+  *
+  *   // This only triggers immediate execution, so nothing happens yet
+  *   ctx.tick()
+  *   assert(f.value == None)
+  *
+  *   // Simulating the passage of 5 seconds, nothing happens yet
+  *   ctx.tick(5.seconds)
+  *   assert(f.value == None)
+  *
+  *   // Simulating another 5 seconds, now we're done!
+  *   assert(f.value == Some(Success(2)))
+  * }}}
+  *
+  * We are also able to build a `cats.effect.Timer` from any `Scheduler`
+  * and for any data type:
+  *
+  *
+  * {{{
+  *   val ctx = TestScheduler()
+  *
+  *   val timer: Timer[IO] = ctx.timer[IO]
+  * }}}
+  *
+  * We can now simulate time passage for `cats.effect.IO` as well:
+  *
+  * {{{
+  *   val io = timer.sleep(10.seconds) *> IO(1 + 1)
+  *   val f = io.unsafeToFuture()
+  *
+  *   // This invariant holds true, because our IO is async
+  *   assert(f.value == None)
+  *
+  *   // Not yet completed, because this does not simulate time passing:
+  *   ctx.tick()
+  *   assert(f.value == None)
+  *
+  *   // Simulating time passing:
+  *   ctx.tick(10.seconds)
+  *   assert(f.value == Some(Success(2))
+  * }}}
+  *
+  * Simulating time makes this pretty useful for testing race conditions:
+  *
+  * {{{
+  *   val timeoutError = new TimeoutException
+  *   val timeout = Task.raiseError[Int](timeoutError)
+  *     .delayExecution(10.seconds)
+  *
+  *   val pair = (Task.never, timeout).parMapN(_ + _)
+  *
+  *   // Not yet
+  *   ctx.tick()
+  *   assert(f.value == None)
+  *
+  *   // Not yet
+  *   ctx.tick(5.seconds)
+  *   assert(f.value == None)
+  *
+  *   // Good to go:
+  *   ctx.tick(5.seconds)
+  *   assert(f.value == Some(Failure(timeoutError)))
+  * }}}
+  */
 final class TestScheduler private (
   private[this] val stateRef: AtomicAny[State],
-  override val executionModel: ExecModel)
+  override val executionModel: ExecutionModel)
   extends ReferenceScheduler with BatchingScheduler {
 
-  /** Returns the internal state of the [[TestScheduler]]. */
+  /**
+    * Returns the internal state of the `TestScheduler`, useful for testing
+    * that certain execution conditions have been met.
+    */
   def state: State = stateRef.get
 
-  override def currentTimeMillis(): Long =
-    stateRef.get.clock.toMillis
-
-  @tailrec
-  private def cancelTask(t: Task): Unit = {
-    val current: State = stateRef.get
-    val update = current.copy(tasks = current.tasks - t)
-    if (!stateRef.compareAndSet(current, update)) cancelTask(t)
+  override def clockRealTime(unit: TimeUnit): Long = {
+    val d: FiniteDuration = stateRef.get.clock
+    unit.convert(d.length, d.unit)
   }
+
+  override def clockMonotonic(unit: TimeUnit): Long =
+    clockRealTime(unit)
 
   @tailrec
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val current: State = stateRef.get
-    val (cancelable, newState) =
-      current.scheduleOnce(FiniteDuration(initialDelay, unit), r, cancelTask)
+    val (cancelable, newState) = TestScheduler.scheduleOnce(
+      current,
+      FiniteDuration(initialDelay, unit),
+      r, cancelTask)
+
     if (stateRef.compareAndSet(current, newState)) cancelable else
       scheduleOnce(initialDelay, unit, r)
   }
@@ -61,7 +159,7 @@ final class TestScheduler private (
   @tailrec
   protected override def executeAsync(r: Runnable): Unit = {
     val current: State = stateRef.get
-    val update = current.execute(r)
+    val update = TestScheduler.execute(current, r)
     if (!stateRef.compareAndSet(current, update)) executeAsync(r)
   }
 
@@ -72,28 +170,31 @@ final class TestScheduler private (
     if (!stateRef.compareAndSet(current, update)) reportFailure(t)
   }
 
-  override def withExecutionModel(em: ExecModel): TestScheduler =
+  override def withExecutionModel(em: ExecutionModel): TestScheduler =
     new TestScheduler(stateRef, em)
 
-  private[this] def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] = {
-    current.tasks.headOption.filter(_.runsAt <= clock) match {
-      case Some(value) =>
-        val firstTick = value.runsAt
-        val forExecution = {
-          val arr = current.tasks.iterator.takeWhile(_.runsAt == firstTick).take(10).toArray
-          arr(Random.nextInt(arr.length))
-        }
-
-        val remaining = current.tasks - forExecution
-        Some((forExecution, remaining))
-
-      case None =>
-        None
-    }
-  }
-
-  @tailrec
-  def tickOne(): Boolean = {
+  /**
+    * Executes just one tick, one task, from the internal queue, useful
+    * for testing that some runnable will definitely be executed next.
+    *
+    * Returns a boolean indicating that tasks were available and that
+    * the head of the queue has been executed, so normally you have
+    * this equivalence:
+    *
+    * {{{
+    *   while (ec.tickOne()) {}
+    *   // ... is equivalent with:
+    *   ec.tick()
+    * }}}
+    *
+    * Note that task extraction has a random factor, the behavior being like
+    * [[tick]], in order to simulate non-determinism. So you can't rely on
+    * some ordering of execution if multiple tasks are waiting execution.
+    *
+    * @return `true` if a task was available in the internal queue, and
+    *        was executed, or `false` otherwise
+    */
+  @tailrec def tickOne(): Boolean = {
     val current = stateRef.get
 
     // extracting one task by taking the immediate tasks
@@ -116,6 +217,45 @@ final class TestScheduler private (
     }
   }
 
+  /**
+    * Triggers execution by going through the queue of scheduled tasks and
+    * executing them all, until no tasks remain in the queue to execute.
+    *
+    * Order of execution isn't guaranteed, the queued `Runnable`s are
+    * being shuffled in order to simulate the needed non-determinism
+    * that happens with multi-threading.
+    *
+    * {{{
+    *   implicit val ec = TestScheduler()
+    *
+    *   val f = Future(1 + 1).map(_ + 1)
+    *   // Execution is momentarily suspended in TestContext
+    *   assert(f.value == None)
+    *
+    *   // Simulating async execution:
+    *   ec.tick()
+    *   assert(f.value, Some(Success(2)))
+    * }}}
+    *
+    * The optional parameter can be used for simulating time:
+    *
+    * {{{
+    *   implicit val ec = TestScheduler()
+    *
+    *   val f = Task.sleep(10.seconds).map(_ => 10).runAsync
+    *
+    *   // Not yet completed, because this does not simulate time passing:
+    *   ctx.tick()
+    *   assert(f.value == None)
+    *
+    *   // Simulating time passing:
+    *   ctx.tick(10.seconds)
+    *   assert(f.value == Some(Success(10))
+    * }}}
+    *
+    * @param time is an optional parameter for simulating time passing
+    *
+    */
   def tick(time: FiniteDuration = Duration.Zero): Unit = {
     @tailrec
     def loop(time: FiniteDuration, result: Boolean): Unit = {
@@ -146,15 +286,39 @@ final class TestScheduler private (
 
     loop(time, result = false)
   }
+
+  @tailrec
+  private def cancelTask(t: Task): Unit = {
+    val current: State = stateRef.get
+    val update = current.copy(tasks = current.tasks - t)
+    if (!stateRef.compareAndSet(current, update)) cancelTask(t)
+  }
+
+  private def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] = {
+    current.tasks.headOption.filter(_.runsAt <= clock) match {
+      case Some(value) =>
+        val firstTick = value.runsAt
+        val forExecution = {
+          val arr = current.tasks.iterator.takeWhile(_.runsAt == firstTick).take(10).toArray
+          arr(Random.nextInt(arr.length))
+        }
+
+        val remaining = current.tasks - forExecution
+        Some((forExecution, remaining))
+
+      case None =>
+        None
+    }
+  }
 }
 
 object TestScheduler {
   /** Builder for [[TestScheduler]]. */
   def apply(): TestScheduler =
-    apply(ExecModel.Default)
+    apply(ExecutionModel.Default)
 
   /** Builder for [[TestScheduler]]. */
-  def apply(executionModel: ExecModel): TestScheduler = {
+  def apply(executionModel: ExecutionModel): TestScheduler = {
     val state = AtomicAny(State(
       lastID = 0,
       clock = Duration.Zero,
@@ -168,9 +332,13 @@ object TestScheduler {
   /** Used internally by [[TestScheduler]], represents a
     * unit of work pending execution.
     */
-  case class Task(id: Long, task: Runnable, runsAt: FiniteDuration)
+  final case class Task(id: Long, task: Runnable, runsAt: FiniteDuration)
 
   object Task {
+    /**
+      * Total ordering, making `Task` amendable for usage with an
+      * `OrderedSet`.
+      */
     implicit val ordering: Ordering[Task] =
       new Ordering[Task] {
         val longOrd = implicitly[Ordering[Long]]
@@ -188,40 +356,46 @@ object TestScheduler {
   /** Used internally by [[TestScheduler]], represents the internal
     * state used for task scheduling and execution.
     */
-  case class State(
+  final case class State(
     lastID: Long,
     clock: FiniteDuration,
     tasks: SortedSet[Task],
     lastReportedError: Throwable) {
 
-    assert(!tasks.headOption.exists(_.runsAt < clock),
+    // $COVERAGE-OFF$
+    assert(
+      !tasks.headOption.exists(_.runsAt < clock),
       "The runsAt for any task must never be in the past")
+    // $COVERAGE-ON$
+  }
 
-    /** Returns a new state with the runnable scheduled for execution. */
-    def execute(runnable: Runnable): State = {
-      val newID = lastID + 1
-      val task = Task(newID, runnable, clock)
-      copy(lastID = newID, tasks = tasks + task)
-    }
+  private def execute(state: State, runnable: Runnable): State = {
+    val newID = state.lastID + 1
+    val task = Task(newID, runnable, state.clock)
+    state.copy(lastID = newID, tasks = state.tasks + task)
+  }
 
-    /** Returns a new state with a scheduled task included. */
-    def scheduleOnce(delay: FiniteDuration, r: Runnable, cancelTask: Task => Unit): (Cancelable, State) = {
-      require(delay >= Duration.Zero, "The given delay must be positive")
+  private def scheduleOnce(state: State, delay: FiniteDuration, r: Runnable, cancelTask: Task => Unit): (Cancelable, State) = {
+    // $COVERAGE-OFF$
+    require(delay >= Duration.Zero, "The given delay must be positive")
+    // $COVERAGE-ON$
 
-      val newID = lastID + 1
-      SingleAssignCancelable()
+    val newID = state.lastID + 1
+    SingleAssignCancelable()
 
-      val task = Task(newID, r, this.clock + delay)
-      val cancelable = new Cancelable {
-        def cancel(): Unit = cancelTask(task)
-        override def toString =
-          s"monix.execution.schedulers.TestScheduler.TaskCancelable@$hashCode"
+    val task = Task(newID, r, state.clock + delay)
+    val cancelable = new Cancelable {
+      def cancel(): Unit = cancelTask(task)
+      override def toString = {
+        // $COVERAGE-OFF$
+        s"monix.execution.schedulers.TestScheduler.TaskCancelable@$hashCode"
+        // $COVERAGE-ON$
       }
-
-      (cancelable, copy(
-        lastID = newID,
-        tasks = tasks + task
-      ))
     }
+
+    (cancelable, state.copy(
+      lastID = newID,
+      tasks = state.tasks + task
+    ))
   }
 }

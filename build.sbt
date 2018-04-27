@@ -9,12 +9,12 @@ addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
-val catsVersion = "1.0.1"
-val catsEffectVersion = "0.8"
+val catsVersion = "1.1.0"
+val catsEffectVersion = "0.10"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
-val minitestVersion = "2.0.0"
+val minitestVersion = "2.1.1"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -270,6 +270,10 @@ lazy val testSettings = Seq(
   )
 )
 
+lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
+  name := "monix-java"
+)
+
 lazy val scalaJSSettings = Seq(
   coverageExcludedFiles := ".*"
 )
@@ -297,8 +301,8 @@ lazy val monix = project.in(file("."))
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM)
-  .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM)
+  .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
@@ -314,7 +318,7 @@ lazy val coreJS = project.in(file("monix/js"))
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
   name := "monix-execution",
   // Filtering out breaking changes from 3.0.0
-  libraryDependencies += "org.typelevel" %%% "cats-core" % catsVersion
+  libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
@@ -337,10 +341,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-eval",
-    // Filtering out breaking changes from 3.0.0
-    libraryDependencies +=
-      "org.typelevel" %%% "cats-effect" % catsEffectVersion
+    name := "monix-eval"
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -394,6 +395,12 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 
+lazy val javaJVM = project.in(file("monix-java"))
+  .configure(profile)
+  .dependsOn(executionJVM % "provided->compile; test->test")
+  .dependsOn(evalJVM % "provided->compile; test->test")
+  .settings(javaExtensionsSettings)
+
 lazy val reactiveTests = project.in(file("reactiveTests"))
   .configure(profile)
   .dependsOn(coreJVM)
@@ -425,12 +432,6 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
 
 //------------- For Release
 
-useGpg := false
-usePgpKeyHex("2673B174C4071B0E")
-pgpPublicRing := baseDirectory.value / "project" / ".gnupg" / "pubring.gpg"
-pgpSecretRing := baseDirectory.value / "project" / ".gnupg" / "secring.gpg"
-pgpPassphrase := sys.env.get("PGP_PASS").map(_.toArray)
-
 enablePlugins(GitVersioning)
 
 /* The BaseVersion setting represents the in-development (upcoming) version,
@@ -438,7 +439,7 @@ enablePlugins(GitVersioning)
  */
 git.baseVersion := "3.0.0"
 
-val ReleaseTag = """^v(\d+\.\d+\.\d+(?:[-.]\w+)?)$""".r
+val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {
   case ReleaseTag(v) => Some(v)
   case _ => None

@@ -31,7 +31,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
     val iterant = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector(1, 2))
   }
 
@@ -41,7 +41,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
     val iterant = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
-    assertEquals(iterant.foldLeftL(0)(_+_).value, 1)
+    assertEquals(iterant.foldLeftL(0)(_ + _).value(), 1)
     assertEquals(effect, Vector(2))
   }
 
@@ -56,7 +56,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
       ref1)
       .doOnFinish(_ => ref2)
     
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector(1, 2))
   }
 
@@ -66,7 +66,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
     val iterant = Iterant[Coeval].nextCursorS(BatchCursor(1), Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
-    assertEquals(iterant.foldLeftL(0)(_+_).value, 1)
+    assertEquals(iterant.foldLeftL(0)(_ + _).value(), 1)
     assertEquals(effect, Vector(2))
   }
 
@@ -76,7 +76,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
     val iterant = Iterant[Coeval].nextBatchS(Batch(1), Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector(1, 2))
   }
 
@@ -86,7 +86,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
     val iterant = Iterant[Coeval].nextBatchS(Batch(1), Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
-    assertEquals(iterant.foldLeftL(0)(_+_).value, 1)
+    assertEquals(iterant.foldLeftL(0)(_ + _).value(), 1)
     assertEquals(effect, Vector(2))
   }
 
@@ -97,7 +97,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
 
     val suspended = Iterant[Coeval].now(1)
     val iterant = Iterant[Coeval].suspendS(Coeval.now(suspended), ref1).doOnFinish(_ => ref2)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector(1, 2))
   }
 
@@ -108,7 +108,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
 
     val suspended = Iterant[Coeval].now(1)
     val iterant = Iterant[Coeval].suspendS(Coeval.now(suspended), ref1).doOnFinish(_ => ref2)
-    assertEquals(iterant.foldLeftL(0)(_+_).value, 1)
+    assertEquals(iterant.foldLeftL(0)(_ + _).value(), 1)
     assertEquals(effect, Vector(2))
   }
 
@@ -117,7 +117,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref1 = Coeval.eval { effect = effect :+ 1 }
 
     val iterant = Iterant[Coeval].lastS(1).doOnFinish(_ => ref1)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector(1))
   }
 
@@ -126,7 +126,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref1 = Coeval.eval { effect = effect :+ 1 }
 
     val iterant = Iterant[Coeval].lastS(1).doOnFinish(_ => ref1)
-    assertEquals(iterant.foldLeftL(0)(_+_).value, 1)
+    assertEquals(iterant.foldLeftL(0)(_ + _).value(), 1)
     assertEquals(effect, Vector(1))
   }
 
@@ -135,7 +135,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref1 = Coeval.eval { effect = effect :+ 1 }
 
     val iterant = Iterant[Coeval].haltS[Int](None).doOnFinish(_ => ref1)
-    iterant.earlyStop.value
+    iterant.earlyStop.value()
     assertEquals(effect, Vector(1))
   }
 
@@ -144,7 +144,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref1 = Coeval.eval { effect = effect :+ 1 }
 
     val iterant = Iterant[Coeval].haltS[Int](None).doOnFinish(_ => ref1)
-    assertEquals(iterant.foldLeftL(0)(_+_).value, 0)
+    assertEquals(iterant.foldLeftL(0)(_ + _).value(), 0)
     assertEquals(effect, Vector(1))
   }
 
@@ -152,7 +152,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     check1 { (stream: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val received = stream.doOnFinish(_ => throw dummy)
-      received <-> Iterant[Coeval].raiseError(dummy)
+      received <-> stream.onErrorIgnore ++ Iterant[Coeval].raiseError[Int](dummy)
     }
   }
 }

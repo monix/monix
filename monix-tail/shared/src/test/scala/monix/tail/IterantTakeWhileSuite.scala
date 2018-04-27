@@ -81,7 +81,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.takeWhile(_ => true)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -91,7 +91,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.takeWhile(_ => true)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -111,7 +111,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
-      intercept[DummyException] { stream.takeWhile(_ => true).toListL.value }
+      intercept[DummyException] { stream.takeWhile(_ => true).toListL.value() }
       cancelable.isCanceled
     }
   }
@@ -121,7 +121,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.takeWhile(_ => true)
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 }

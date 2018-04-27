@@ -17,20 +17,25 @@
 
 package monix.tail.internal
 
-import monix.eval.Task
+import cats.effect.{Async, Timer}
 import monix.tail.Iterant
-import monix.tail.Iterant.Suspend
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration._
 
 private[tail] object IterantIntervalWithFixedDelay {
-  /** Implementation for `Iterant[Task].intervalWithFixedDelay`. */
-  def apply(initialDelay: FiniteDuration, delay: FiniteDuration): Iterant[Task, Long] = {
+  /**
+    * Implementation for `Iterant.intervalWithFixedDelay`.
+    */
+  def apply[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] = {
+
     // Recursive loop
-    def loop(index: Long): Iterant[Task, Long] =
-      Iterant.now(index) ++ Task.eval(loop(index + 1)).delayExecution(delay)
+    def loop(index: Long): Iterant[F, Long] = {
+      val next = F.map(timer.sleep(delay))(_ => loop(index + 1))
+      Iterant.nextS[F, Long](index, next, F.unit)
+    }
 
     if (initialDelay > Duration.Zero)
-      Suspend(Task.eval(loop(0)).delayExecution(initialDelay), Task.unit)
+      Iterant.suspendS(F.map(timer.sleep(initialDelay))(_ => loop(0)), F.unit)
     else
       loop(0)
   }

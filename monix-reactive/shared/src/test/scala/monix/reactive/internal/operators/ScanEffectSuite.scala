@@ -17,6 +17,8 @@
 
 package monix.reactive.internal.operators
 
+import cats.laws._
+import cats.laws.discipline._
 import cats.effect.IO
 import monix.reactive.Observable
 import scala.concurrent.duration._
@@ -67,5 +69,18 @@ object ScanEffectSuite extends BaseOperatorSuite {
       Sample(sample, 0, 0, 0.seconds, 0.seconds),
       Sample(sample, 1, 1, 1.seconds, 0.seconds)
     )
+  }
+
+
+  test("scanEval0.headL.toIO <-> seed") { implicit s =>
+    check2 { (obs: Observable[Int], seed: IO[Int]) =>
+      obs.scanEval0(seed)((a, b) => IO.pure(a + b)).headL.toIO <-> seed
+    }
+  }
+
+  test("scanEval0.drop(1) <-> scanEval") { implicit s =>
+    check2 { (obs: Observable[Int], seed: IO[Int]) =>
+      obs.scanEval0(seed)((a, b) => IO.pure(a + b)).drop(1) <-> obs.scanEval(seed)((a, b) => IO.pure(a + b))
+    }
   }
 }

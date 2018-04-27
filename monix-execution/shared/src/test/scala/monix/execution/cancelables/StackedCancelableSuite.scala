@@ -265,4 +265,57 @@ object StackedCancelableSuite extends SimpleTestSuite {
     assert(c3.isCanceled, "c3.isCanceled")
     assert(c4.isCanceled, "c4.isCanceled")
   }
+  
+  test("uncanceled returns same reference") {
+    val ref1 = StackedCancelable.uncancelable
+    val ref2 = StackedCancelable.uncancelable
+    assertEquals(ref1, ref2)
+  }
+
+  test("uncancelable reference cannot be seen in cancelled state") {
+    val ref = StackedCancelable.uncancelable
+    assert(!ref.isCanceled, "!ref.isCanceled")
+    ref.cancel()
+    assert(!ref.isCanceled, "!ref.isCanceled")
+  }
+
+  test("uncancelable.pop") {
+    val ref = StackedCancelable.uncancelable
+    assertEquals(ref.pop(), Cancelable.empty)
+  }
+
+  test("uncancelable.push does not cancel the given cancelable") {
+    val ref = StackedCancelable.uncancelable
+    val c = BooleanCancelable()
+    ref.push(c)
+    assert(!c.isCanceled, "!c.isCanceled")
+  }
+
+  test("uncancelable.popAndPush does not cancel the given cancelable") {
+    val ref = StackedCancelable.uncancelable
+    val c = BooleanCancelable()
+
+    assertEquals(ref.popAndPush(c), Cancelable.empty)
+    assert(!c.isCanceled, "!c.isCanceled")
+  }
+
+  test("uncancelable.pushList cancels the given list") {
+    val ref = StackedCancelable.uncancelable
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+    ref.pushList(List(c1, c2))
+
+    assert(!c1.isCanceled, "!c1.isCanceled")
+    assert(!c2.isCanceled, "!c2.isCanceled")
+  }
+
+  test("uncancelable.popAndPushList cancels the given list") {
+    val ref = StackedCancelable.uncancelable
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+
+    assertEquals(ref.popAndPushList(List(c1, c2)), Cancelable.empty)
+    assert(!c1.isCanceled, "!c1.isCanceled")
+    assert(!c2.isCanceled, "!c2.isCanceled")
+  }
 }

@@ -40,7 +40,7 @@ object IterantDropLastSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropLast(10)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore.dropLast(10) ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -50,7 +50,7 @@ object IterantDropLastSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropLast(10)
-      received <-> Iterant[Task].haltS[Int](Some(dummy))
+      received <-> iter.onErrorIgnore.dropLast(10) ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -59,7 +59,7 @@ object IterantDropLastSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.dropLast(3)
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 
@@ -71,7 +71,7 @@ object IterantDropLastSuite extends BaseTestSuite {
       val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
       intercept[DummyException] {
-        stream.dropLast(1).toListL.value
+        stream.dropLast(1).toListL.value()
       }
       cancelable.isCanceled
     }

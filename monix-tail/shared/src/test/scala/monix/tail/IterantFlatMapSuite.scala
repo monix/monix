@@ -164,7 +164,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix.onErrorIgnore ++ error).flatMap(x => Iterant[Task].now(x))
-      stream <-> Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> prefix.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -174,7 +174,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val generator = new ThrowExceptionBatch(dummy)
       val error = Iterant[Task].nextBatchS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix.onErrorIgnore ++ error).flatMap(x => Iterant[Task].now(x))
-      stream <-> Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> prefix.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -232,7 +232,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       for (x <- stream1; y <- stream2; z <- stream3)
         yield x + y + z
 
-    assertEquals(composed.headOptionL.value, Some(6))
+    assertEquals(composed.headOptionL.value(), Some(6))
     assertEquals(effects, Vector(3,2,1))
   }
 
@@ -264,10 +264,10 @@ object IterantFlatMapSuite extends BaseTestSuite {
       for (x <- stream1; y <- stream2; z <- stream3)
         yield x + y + z
 
-    firstNext(composed).value match {
+    firstNext(composed).value() match {
       case Iterant.NextCursor(head, _, stop) =>
         assertEquals(head.toList, List(6))
-        assertEquals(stop.value, ())
+        assertEquals(stop.value(), ())
         assertEquals(effects, Vector(3,2,1))
       case state =>
         fail(s"Invalid state: $state")
@@ -300,7 +300,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix.onErrorIgnore ++ error).flatMap(x => Iterant[Coeval].now(x))
-      stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
+      stream <-> prefix.onErrorIgnore ++ Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -310,7 +310,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionBatch(dummy)
       val error = Iterant[Coeval].nextBatchS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Coeval].now(x))
-      stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
+      stream <-> prefix ++ Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -319,7 +319,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.flatMap(x => Iterant[Coeval].now(x))
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 

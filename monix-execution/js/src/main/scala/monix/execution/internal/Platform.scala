@@ -17,6 +17,10 @@
 
 package monix.execution.internal
 
+import monix.execution.schedulers.CanBlock
+import scala.concurrent.Awaitable
+import scala.concurrent.duration.Duration
+
 private[monix] object Platform {
   /**
     * Returns `true` in case Monix is running on top of Scala.js,
@@ -67,4 +71,14 @@ private[monix] object Platform {
     * as an optimization.
     */
   final val fusionMaxStackDepth = 31
+
+  /** Blocks for the result of `fa`.
+    *
+    * This operation is only supported on top of the JVM, whereas for
+    * JavaScript a dummy is provided.
+    */
+  def await[A](fa: Awaitable[A], timeout: Duration)(implicit permit: CanBlock): A =
+    throw new UnsupportedOperationException(
+      "Blocking operations are not supported on top of JavaScript"
+    )
 }

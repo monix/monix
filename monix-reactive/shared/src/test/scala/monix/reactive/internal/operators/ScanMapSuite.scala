@@ -17,6 +17,10 @@
 
 package monix.reactive.internal.operators
 
+import cats.Monoid
+import cats.laws._
+import cats.laws.discipline._
+import monix.eval.Task
 import monix.reactive.{BaseTestSuite, Observable}
 
 object ScanMapSuite extends BaseTestSuite {
@@ -28,5 +32,17 @@ object ScanMapSuite extends BaseTestSuite {
     val f2 = obs2.runAsyncGetLast
     s.tick()
     assertEquals(f1.value, f2.value)
+  }
+
+  test("Observable.scanMap0.drop(1) <-> Observable.scanMap") { implicit s =>
+    check1 { (obs: Observable[Int]) =>
+      obs.scanMap0(x => x).drop(1) <-> obs.scanMap(x => x)
+    }
+  }
+
+  test("Observable.scanMap0 emits empty element as head") { implicit s =>
+    check1 { (obs: Observable[Int]) =>
+      obs.scanMap0(x => x).headL <-> Task.pure(Monoid[Int].empty)
+    }
   }
 }

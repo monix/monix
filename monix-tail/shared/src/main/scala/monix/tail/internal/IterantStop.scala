@@ -60,9 +60,8 @@ private[tail] object IterantStop {
         NextBatch(items, rest.map(doOnFinish[F, A](_, f)), stop.flatMap(_ => f(None)))
       case Suspend(rest, stop) =>
         Suspend(rest.map(doOnFinish[F, A](_, f)), stop.flatMap(_ => f(None)))
-      case last @ Last(_) =>
-        val ref = f(None)
-        Suspend[F,A](F.map(ref)(_ => last), ref)
+      case Last(item) =>
+        Next(item, F.delay(doOnFinish(Halt(None), f)), F.suspend(f(None)))
       case halt @ Halt(ex) =>
         val ref = f(ex)
         Suspend[F,A](F.map(ref)(_ => halt), ref)

@@ -18,10 +18,14 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
+
+import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.Cancelable
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
+
 import scala.concurrent.duration._
+import scala.util.Success
 
 object ReferenceSchedulerSuite extends SimpleTestSuite {
   class DummyScheduler(
@@ -36,10 +40,16 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
       underlying.scheduleOnce(initialDelay, unit, r)
   }
 
-  test("current time") {
+  test("clockRealTime") {
     val s = new DummyScheduler
     val ws = s.withExecutionModel(SynchronousExecution)
-    assert(ws.currentTimeMillis() > 0)
+    assert(ws.clockRealTime(MILLISECONDS) > 0)
+  }
+
+  test("clockMonotonic") {
+    val s = new DummyScheduler
+    val ws = s.withExecutionModel(SynchronousExecution)
+    assert(ws.clockMonotonic(MILLISECONDS) > 0)
   }
 
   test("schedule with fixed delay") {
@@ -129,5 +139,46 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
     s.tick()
     assertEquals(s.underlying.state.lastReportedError, dummy)
+  }
+
+  test("timer.clockMonotonic") {
+    val s = new DummyScheduler
+    val timer = s.timer[IO]
+
+    val clock = timer.clockMonotonic(MILLISECONDS).unsafeRunSync()
+    assert(clock > 0)
+  }
+
+  test("timer.clockRealTime") {
+    val s = new DummyScheduler
+    val timer = s.timer[IO]
+
+    val clock = timer.clockRealTime(MILLISECONDS).unsafeRunSync()
+    assert(clock > 0)
+  }
+
+  test("timer.shift") {
+    val s = new DummyScheduler
+    val timer = s.timer[IO]
+
+    val f = timer.shift.unsafeToFuture()
+    assertEquals(f.value, None)
+
+    s.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("timer.sleep") {
+    val s = new DummyScheduler
+    val timer = s.timer[IO]
+
+    val f = timer.sleep(10.seconds).unsafeToFuture()
+    assertEquals(f.value, None)
+
+    s.tick(5.seconds)
+    assertEquals(f.value, None)
+
+    s.tick(5.seconds)
+    assertEquals(f.value, Some(Success(())))
   }
 }
