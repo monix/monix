@@ -78,9 +78,11 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     // Buffer for signaling new elements downstream preserving original order
     private[this] val queue = new ConcurrentLinkedQueue[CancelableFuture[B]]
     // This lock makes sure that only one thread at the time sends processed elements downstream
+    // Note that we only use `tryLock()` - we never wait for acquiring lock
     private[this] val sendDownstreamLock = new ReentrantLock()
 
     private def sendDownstreamOrdered(): Unit = {
+      // If there is a thread already checking for head completion we don't need to wait for the lock
       if (sendDownstreamLock.tryLock()) {
         while (!isDone && !queue.isEmpty && queue.peek().isCompleted) {
           val head = queue.poll()
@@ -131,7 +133,8 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
           case Success(_) =>
             // We can only send current head element to downstream subscriber
             sendDownstreamOrdered()
-            // Computation is complete so we can accept new ones
+            // Regardless if we can send new elements downstream,
+            // the computation is complete so we can accept new ones
             semaphore.release()
 
           case Failure(error) =>

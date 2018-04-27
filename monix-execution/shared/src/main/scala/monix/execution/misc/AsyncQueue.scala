@@ -17,16 +17,16 @@
 
 package monix.execution.misc
 
-import scala.concurrent.{Future, Promise}
-import scala.collection.immutable.Queue
-import monix.execution.atomic.AtomicAny
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.misc.AsyncQueue.State
-import scala.annotation.tailrec
 
-/** And asynchronous queue implementation.
+import scala.annotation.tailrec
+import scala.collection.immutable.Queue
+import scala.concurrent.{Future, Promise}
+
+/** An asynchronous queue implementation.
   *
-  * On `poll`, if there are queued elements, it returns oe
+  * On `poll`, if there are queued elements, it returns one
   * immediately, otherwise it returns a `Future`
   */
 final class AsyncQueue[A] private (elems: Queue[A]) extends Serializable {
