@@ -90,11 +90,11 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     val ref = Iterant[Coeval].of(1, 2, 3, 4).doOnEarlyStop(Coeval { effect += 1 })
 
     val r1 = exists(ref, _ == 6)
-    assertEquals(r1.runTry, Success(false))
+    assertEquals(r1.runTry(), Success(false))
     assertEquals(effect, 0)
 
     val r2 = exists(ref, _ == 3)
-    assertEquals(r2.runTry, Success(true))
+    assertEquals(r2.runTry(), Success(true))
     assertEquals(effect, 1)
   }
 
@@ -103,11 +103,11 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     val ref = Iterant[Coeval].of(1, 2, 3, 4).doOnEarlyStop(Coeval { effect += 1 })
 
     val r1 = existsEval(ref, _ == 6)
-    assertEquals(r1.runTry, Success(false))
+    assertEquals(r1.runTry(), Success(false))
     assertEquals(effect, 0)
 
     val r2 = existsEval(ref, _ == 3)
-    assertEquals(r2.runTry, Success(true))
+    assertEquals(r2.runTry(), Success(true))
     assertEquals(effect, 1)
   }
 
@@ -120,7 +120,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .doOnEarlyStop(Coeval { effect += 1 })
       .foldWhileLeftL((throw dummy) : Int)((acc, i) => Left(acc + i))
 
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 0)
   }
 
@@ -133,7 +133,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .foldWhileLeftL(0)((_, _) => throw dummy)
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -146,7 +146,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .foldWhileLeftL(0)((a, e) => Left(a + e))
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -159,7 +159,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .foldWhileLeftL(0)((a, e) => Left(a + e))
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -172,7 +172,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .doOnEarlyStop(Coeval { effect += 1 })
       .foldWhileLeftEvalL(Coeval.raiseError[Int](dummy))((acc, i) => Coeval(Left(acc + i)))
 
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 0)
   }
 
@@ -185,7 +185,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .foldWhileLeftEvalL(Coeval(0))((_, _) => throw dummy)
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -198,7 +198,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .foldWhileLeftEvalL(Coeval(0))((_, _) => Coeval.raiseError(dummy))
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -211,7 +211,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .foldWhileLeftEvalL(Coeval(0))((a, e) => Coeval(Left(a + e)))
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -224,7 +224,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .foldWhileLeftEvalL(Coeval(0))((a, e) => Coeval(Left(a + e)))
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -239,7 +239,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
 
     val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
-    val r = ref.existsL(_ == 2).runTry
+    val r = ref.existsL(_ == 2).runTry()
 
     assertEquals(r, Success(true))
     assertEquals(effect, 1)
@@ -250,7 +250,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
 
     val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
-    val r = ref.existsL(_ == 10).runTry
+    val r = ref.existsL(_ == 10).runTry()
 
     assertEquals(r, Success(false))
     assertEquals(effect, 0)
@@ -261,7 +261,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
 
     val ref = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
-    val r = ref.existsL(_ => throw dummy).runTry
+    val r = ref.existsL(_ => throw dummy).runTry()
 
     assertEquals(r, Failure(dummy))
     assertEquals(effect, 1)
@@ -278,7 +278,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
 
     val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
-    val r = ref.forallL(_ == 1).runTry
+    val r = ref.forallL(_ == 1).runTry()
 
     assertEquals(r, Success(false))
     assertEquals(effect, 1)
@@ -288,7 +288,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
 
     val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
-    val r = ref.forallL(_ < 10).runTry
+    val r = ref.forallL(_ < 10).runTry()
 
     assertEquals(r, Success(true))
     assertEquals(effect, 0)
@@ -299,7 +299,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
 
     val ref = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
-    val r = ref.forallL(_ => throw dummy).runTry
+    val r = ref.forallL(_ => throw dummy).runTry()
 
     assertEquals(r, Failure(dummy))
     assertEquals(effect, 1)
@@ -316,7 +316,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
 
     val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
-    val r = ref.findL(_ == 2).runTry
+    val r = ref.findL(_ == 2).runTry()
 
     assertEquals(r, Success(Some(2)))
     assertEquals(effect, 1)
@@ -327,7 +327,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
 
     val ref = Iterant[Coeval].of(1, 2, 3, 4, 5).doOnEarlyStop(Coeval { effect += 1 })
-    val r = ref.findL(_ == 10).runTry
+    val r = ref.findL(_ == 10).runTry()
 
     assertEquals(r, Success(None))
     assertEquals(effect, 0)
@@ -338,7 +338,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
 
     val ref = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
-    val r = ref.findL(_ => throw dummy).runTry
+    val r = ref.findL(_ => throw dummy).runTry()
 
     assertEquals(r, Failure(dummy))
     assertEquals(effect, 1)
@@ -353,7 +353,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
 
-    assertEquals(node1.foldWhileLeftL(0)((_, _) => Left(0)).runTry, Failure(dummy))
+    assertEquals(node1.foldWhileLeftL(0)((_, _) => Left(0)).runTry(), Failure(dummy))
     assertEquals(effect, 3)
   }
 
@@ -366,7 +366,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
 
-    assertEquals(node1.foldWhileLeftL(0)((_, el) => if (el == 3) throw dummy else Left(0)).runTry, Failure(dummy))
+    assertEquals(node1.foldWhileLeftL(0)((_, el) => if (el == 3) throw dummy else Left(0)).runTry(), Failure(dummy))
     assertEquals(effect, 0)
   }
 
@@ -379,7 +379,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
 
-    assertEquals(node1.foldWhileLeftEvalL(Coeval(0))((_, _) => Coeval(Left(0))).runTry, Failure(dummy))
+    assertEquals(node1.foldWhileLeftEvalL(Coeval(0))((_, _) => Coeval(Left(0))).runTry(), Failure(dummy))
     assertEquals(effect, 3)
   }
 
@@ -392,7 +392,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
 
-    assertEquals(node1.foldWhileLeftEvalL(Coeval(0))((_, el) => if (el == 3) throw dummy else Coeval(Left(0))).runTry, Failure(dummy))
+    assertEquals(node1.foldWhileLeftEvalL(Coeval(0))((_, el) => if (el == 3) throw dummy else Coeval(Left(0))).runTry(), Failure(dummy))
     assertEquals(effect, 0)
   }
 

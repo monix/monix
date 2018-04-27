@@ -17,9 +17,9 @@
 
 package monix.tail.internal
 
-import cats.Applicative
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.internal.Platform
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
@@ -52,10 +52,26 @@ private[tail] object IterantConcat {
   def unsafeFlatMap[F[_], A, B](source: Iterant[F, A])(f: A => Iterant[F, B])
     (implicit F: Sync[F]): Iterant[F, B] = {
 
+    def doOnEarlyStopOrError[T](f: F[Unit])(source: Iterant[F, T]): Iterant[F,T] =
+      source match {
+        case Next(head, rest, stop) =>
+          Next(head, rest.map(doOnEarlyStopOrError(f)), stop.flatMap(_ => f))
+        case NextCursor(items, rest, stop) =>
+          NextCursor(items, rest.map(doOnEarlyStopOrError(f)), stop.flatMap(_ => f))
+        case Suspend(rest, stop) =>
+          Suspend(rest.map(doOnEarlyStopOrError(f)), stop.flatMap(_ => f))
+        case NextBatch(items, rest, stop) =>
+          NextBatch(items, rest.map(doOnEarlyStopOrError(f)), stop.flatMap(_ => f))
+        case Halt(Some(e)) =>
+          Suspend(f.attempt.map(r => Halt(Some(Platform.composeErrors(e, r)))), f)
+        case _ =>
+          source // nothing to do
+      }
+
     def generate(item: A, rest: F[Iterant[F, B]], stop: F[Unit]): Iterant[F, B] =
       f(item) match {
         case next @ (Next(_,_,_) | NextCursor(_,_,_) | NextBatch(_,_,_) | Suspend(_,_)) =>
-          concat(next.doOnEarlyStop(stop), Suspend(rest, stop))
+          concat(doOnEarlyStopOrError(stop)(next), Suspend(rest, stop))
         case Last(value) =>
           Next(value, rest, stop)
         case Halt(None) =>
@@ -108,7 +124,7 @@ private[tail] object IterantConcat {
     * Implementation for `Iterant#++`
     */
   def concat[F[_], A](lhs: Iterant[F, A], rhs: Iterant[F, A])
-    (implicit F: Applicative[F]): Iterant[F, A] = {
+    (implicit F: Sync[F]): Iterant[F, A] = {
 
     lhs match {
       case Next(a, lt, stop) =>

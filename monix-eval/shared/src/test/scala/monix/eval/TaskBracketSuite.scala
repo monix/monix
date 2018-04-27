@@ -40,9 +40,9 @@ object TaskBracketSuite extends BaseTestSuite {
   test("equivalence with flatMap + transformWith") { implicit sc =>
     check3 { (acquire: Task[Int], f: Int => Task[Int], release: Int => Task[Unit]) =>
       val expected = acquire.flatMap { a =>
-        f(a).transformWith(
-          s => release(a) *> Task.pure(s),
-          e => release(a) *> Task.raiseError(e)
+        f(a).redeemWith(
+          e => release(a) *> Task.raiseError(e),
+          s => release(a) *> Task.pure(s)
         )
       }
 

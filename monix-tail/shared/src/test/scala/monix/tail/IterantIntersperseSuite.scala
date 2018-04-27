@@ -60,7 +60,7 @@ object IterantIntersperseSuite extends BaseTestSuite {
     )
 
     assertEquals(
-      stream.intersperse(0).toListL.runAttempt,
+      stream.intersperse(0).toListL.runAttempt(),
       Left(dummy)
     )
   }
@@ -77,7 +77,7 @@ object IterantIntersperseSuite extends BaseTestSuite {
     )
 
     assertEquals(
-      stream.intersperse(0).toListL.runAttempt,
+      stream.intersperse(0).toListL.runAttempt(),
       Left(dummy)
     )
   }

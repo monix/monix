@@ -207,7 +207,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     val iter1: Iterant[Coeval, Int] = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].haltS[Int](Some(dummy))), Coeval.unit)
     val state1 = iter1.repeat
 
-    assertEquals(state1.toListL.runTry, iter1.toListL.runTry)
+    assertEquals(state1.toListL.runTry(), iter1.toListL.runTry())
   }
 
   test("Iterant.repeat builder terminates on exception") { implicit s =>

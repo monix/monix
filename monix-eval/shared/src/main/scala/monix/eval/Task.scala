@@ -1233,7 +1233,7 @@ sealed abstract class Task[+A] extends Serializable {
     * `NoSuchElementException`.
     */
   final def failed: Task[Throwable] =
-    transformWith(_ => Error(new NoSuchElementException("failed")), e => Now(e))
+    Task.FlatMap(this, Task.Failed)
 
   /** Creates a new Task by applying a function to the successful result
     * of the source Task, and returns a task equivalent to the result
@@ -1351,10 +1351,7 @@ sealed abstract class Task[+A] extends Serializable {
     * canceling a task.
     */
   final def doOnFinish(f: Option[Throwable] => Task[Unit]): Task[A] =
-    transformWith(
-      a => f(None).map(_ => a),
-      e => f(Some(e)).flatMap(_ => Error(e))
-    )
+    Task.FlatMap(this, new Task.DoOnFinish[A](f))
 
   /** Returns a new `Task` that will mirror the source, but that will
     * execute the given `callback` if the task gets canceled before
@@ -1435,7 +1432,7 @@ sealed abstract class Task[+A] extends Serializable {
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   final def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
-    FlatMap(this, StackFrame.errorHandler(nowConstructor, f))
+    FlatMap(this, new StackFrame.ErrorHandler(f, nowConstructor))
 
   /** Creates a new task that in case of error will fallback to the
     * given backup task.
@@ -1713,30 +1710,88 @@ sealed abstract class Task[+A] extends Serializable {
       s"Task.$n$$${System.identityHashCode(this)}"
   }
 
-  /** Creates a new `Task` by applying the 'fa' function to the successful result of
-    * this future, or the 'fe' function to the potential errors that might happen.
+  /** Returns a new value that transforms the result of the source,
+    * given the `recover` or `map` functions, which get executed depending
+    * on whether the result is successful or if it ends in error.
     *
-    * This function is similar with [[map]], except that it can also transform
-    * errors and not just successful results.
+    * This is an optimization on usage of [[attempt]] and [[map]],
+    * this equivalence being true:
     *
-    * @param fa function that transforms a successful result of the receiver
-    * @param fe function that transforms an error of the receiver
+    * {{{
+    *   task.redeem(recover, map) <-> task.attempt.map(_.fold(recover, map))
+    * }}}
+    *
+    * Usage of `redeem` subsumes `onErrorHandle` because:
+    *
+    * {{{
+    *   task.redeem(fe, id) <-> task.onErrorHandle(fe)
+    * }}}
+    *
+    * @param recover is a function used for error recover in case the
+    *        source ends in error
+    * @param map is a function used for mapping the result of the source
+    *        in case it ends in success
     */
-  final def transform[R](fa: A => R, fe: Throwable => R): Task[R] =
-    transformWith(fa.andThen(nowConstructor), fe.andThen(nowConstructor))
+  def redeem[B](recover: Throwable => B, map: A => B): Task[B] =
+    Task.FlatMap(this, new Task.Redeem(recover, map))
 
-  /** Creates a new `Task` by applying the 'fa' function to the successful result of
-    * this future, or the 'fe' function to the potential errors that might happen.
+  /** Returns a new value that transforms the result of the source,
+    * given the `recover` or `bind` functions, which get executed depending
+    * on whether the result is successful or if it ends in error.
     *
-    * This function is similar with [[flatMap]], except that it can also transform
-    * errors and not just successful results.
+    * This is an optimization on usage of [[attempt]] and [[flatMap]],
+    * this equivalence being available:
     *
-    * @param fa function that transforms a successful result of the receiver
-    * @param fe function that transforms an error of the receiver
+    * {{{
+    *   task.redeemWith(recover, bind) <-> task.attempt.flatMap(_.fold(recover, bind))
+    * }}}
+    *
+    * Usage of `redeemWith` subsumes `onErrorHandleWith` because:
+    *
+    * {{{
+    *   task.redeemWith(fe, F.pure) <-> task.onErrorHandleWith(fe)
+    * }}}
+    *
+    * Usage of `redeemWith` also subsumes [[flatMap]] because:
+    *
+    * {{{
+    *   task.redeemWith(Task.raiseError, fs) <-> task.flatMap(fs)
+    * }}}
+    *
+    * @param recover is the function that gets called to recover the source
+    *        in case of error
+    * @param bind is the function that gets to transform the source
+    *        in case of success
     */
-  final def transformWith[R](fa: A => Task[R], fe: Throwable => Task[R]): Task[R] =
-    FlatMap(this, StackFrame.fold(fa, fe))
+  def redeemWith[B](recover: Throwable => Task[B], bind: A => Task[B]): Task[B] =
+    Task.FlatMap(this, new StackFrame.RedeemWith(recover, bind))
 
+  /** Deprecated — use [[redeem]] instead.
+    *
+    * [[Task.redeem]] is the same operation, but with a different name and the
+    * function parameters in an inverted order, to make it consistent with `fold`
+    * on `Either` and others (i.e. the function for error recovery is at the left).
+    */
+  @deprecated("Please use `Task.redeem`", since = "3.0.0-RC2")
+  final def transform[R](fa: A => R, fe: Throwable => R): Task[R] = {
+    // $COVERAGE-OFF$
+    redeem(fe, fa)
+    // $COVERAGE-ON$
+  }
+
+  /** Deprecated — use [[redeemWith]] instead.
+    *
+    * [[Task.redeemWith]] is the same operation, but with a different name and the
+    * function parameters in an inverted order, to make it consistent with `fold`
+    * on `Either` and others (i.e. the function for error recovery is at the left).
+    */
+  @deprecated("Please use `Task.redeemWith`", since = "3.0.0-RC2")
+  final def transformWith[R](fa: A => Task[R], fe: Throwable => Task[R]): Task[R] = {
+    // $COVERAGE-OFF$
+    redeemWith(fe, fa)
+    // $COVERAGE-ON$
+  }
+  
   /** Makes the source `Task` uninterruptible such that a `cancel` signal
     * (e.g. [[Fiber.cancel]]) has no effect.
     *
@@ -3108,6 +3163,32 @@ object Task extends TaskInstancesLevel1 {
   /** Internal, reusable reference. */
   private final val raiseConstructor: (Throwable => Task[Nothing]) =
     e => new Error(e)
+
+  /** Used as optimization by [[Task.failed]]. */
+  private object Failed extends StackFrame[Any, Task[Throwable]] {
+    def apply(a: Any): Task[Throwable] =
+      Error(new NoSuchElementException("failed"))
+    def recover(e: Throwable): Task[Throwable] =
+      Now(e)
+  }
+
+  /** Used as optimization by [[Task.doOnFinish]]. */
+  private final class DoOnFinish[A](f: Option[Throwable] => Task[Unit])
+    extends StackFrame[A, Task[A]] {
+
+    def apply(a: A): Task[A] =
+      f(None).map(_ => a)
+    def recover(e: Throwable): Task[A] =
+      f(Some(e)).flatMap(_ => Task.Error(e))
+  }
+
+  /** Used as optimization by [[Task.redeem]]. */
+  private final class Redeem[A, B](fe: Throwable => B, fs: A => B)
+    extends StackFrame[A, Task[B]] {
+
+    def apply(a: A): Task[B] = Task.Now(fs(a))
+    def recover(e: Throwable): Task[B] = Task.Now(fe(e))
+  }
 
   /** Used as optimization by [[Task.attempt]]. */
   private object AttemptTask extends StackFrame[Any, Task[Either[Throwable, Any]]] {

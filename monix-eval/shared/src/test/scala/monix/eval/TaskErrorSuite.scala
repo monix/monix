@@ -26,12 +26,12 @@ import scala.util.{Failure, Success}
 object TaskErrorSuite extends BaseTestSuite {
   test("Task.attempt should expose error") { implicit s =>
     val dummy = DummyException("dummy")
-    val r = Task.raiseError[Int](dummy).attempt.coeval.runTry
+    val r = Task.raiseError[Int](dummy).attempt.coeval.runTry()
     assertEquals(r, Success(Right(Left(dummy))))
   }
 
   test("Task.attempt should work for successful values") { implicit s =>
-    val r = Task.now(10).attempt.coeval.runTry
+    val r = Task.now(10).attempt.coeval.runTry()
     assertEquals(r, Success(Right(Right(10))))
   }
 

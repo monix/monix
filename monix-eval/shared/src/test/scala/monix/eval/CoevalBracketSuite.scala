@@ -39,9 +39,9 @@ object CoevalBracketSuite extends BaseTestSuite {
   test("equivalence with flatMap + transformWith") { _ =>
     check3 { (acquire: Coeval[Int], f: Int => Coeval[Int], release: Int => Coeval[Unit]) =>
       val expected = acquire.flatMap { a =>
-        f(a).transformWith(
-          s => release(a) *> Coeval.pure(s),
-          e => release(a) *> Coeval.raiseError(e)
+        f(a).redeemWith(
+          e => release(a) *> Coeval.raiseError(e),
+          s => release(a) *> Coeval.pure(s)
         )
       }
 
@@ -58,7 +58,7 @@ object CoevalBracketSuite extends BaseTestSuite {
       Coeval.eval { input = Some((a, i)) }
     }
 
-    val result = coeval.runTry
+    val result = coeval.runTry()
     assertEquals(input, Some((1, Left(dummy))))
     assertEquals(result, Failure(dummy))
   }
@@ -69,7 +69,7 @@ object CoevalBracketSuite extends BaseTestSuite {
       Coeval.eval { input = Some((a, i)) }
     }
 
-    val result = coeval.runTry
+    val result = coeval.runTry()
     assertEquals(input, Some((1, Right(2))))
     assertEquals(result, Success(2))
   }
@@ -82,7 +82,7 @@ object CoevalBracketSuite extends BaseTestSuite {
       Coeval.eval { input = Some((a, i)) }
     }
 
-    val result = coeval.runTry
+    val result = coeval.runTry()
     assertEquals(input, Some((1, Left(dummy))))
     assertEquals(result, Failure(dummy))
   }
@@ -97,7 +97,7 @@ object CoevalBracketSuite extends BaseTestSuite {
       Coeval.raiseError(releaseError)
     }
 
-    coeval.runTry match {
+    coeval.runTry() match {
       case Failure(error) =>
         if (Platform.isJVM) {
           assertEquals(error, useError)

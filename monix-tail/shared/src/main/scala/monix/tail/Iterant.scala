@@ -143,7 +143,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * @param rhs is the iterant to append at the end of our source.
     */
-  final def ++[B >: A](rhs: F[Iterant[F, B]])(implicit F: Applicative[F]): Iterant[F, B] =
+  final def ++[B >: A](rhs: F[Iterant[F, B]])(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.concat(self.upcast[B], Suspend(rhs, F.unit))
 
   /** Prepends an element to the iterant, returning a new
@@ -170,7 +170,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * @param elem is the element to append at the end
     */
-  final def :+[B >: A](elem: B)(implicit F: Applicative[F]): Iterant[F, B] =
+  final def :+[B >: A](elem: B)(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.concat(this.upcast[B], Next[F, B](elem, F.pure(Halt[F, B](None)), F.unit))(F)
 
   /** Appends the given stream to the end of the source, effectively
@@ -2057,21 +2057,10 @@ object Iterant extends IterantInstances {
     (release: A => F[Unit])
     (implicit F: Sync[F]): Iterant[F, A] = {
 
-    resourceCase(acquire)((a, _) => release(a))
-  }
-
-  /** A more powerful version of bracket that also provides information
-    * whether the stream has completed successfully, was terminated early
-    * or terminated with an error.
-    */
-  def resourceCase[F[_], A](acquire: F[A])
-    (release: (A, ExitCase[Throwable]) => F[Unit])
-    (implicit F: Sync[F]): Iterant[F, A] = {
-
     suspendS(
       F.map(acquire) { a =>
         nextS[F, A](a, F.pure(Iterant.empty), F.unit)
-          .doOnExitCase(release(a, _))
+          .doOnExitCase(_ => release(a))
       },
       F.unit)
   }
@@ -2422,7 +2411,7 @@ object Iterant extends IterantInstances {
 
   /** Concatenates list of Iterants into a single stream
     */
-  def concat[F[_], A](xs: Iterant[F, A]*)(implicit F: Applicative[F]): Iterant[F, A] = {
+  def concat[F[_], A](xs: Iterant[F, A]*)(implicit F: Sync[F]): Iterant[F, A] = {
     xs.foldLeft(Iterant.empty[F, A])(IterantConcat.concat(_, _)(F))
   }
 

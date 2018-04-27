@@ -93,5 +93,15 @@ private[monix] object Platform {
     * a `CompositeException`.
     */
   def composeErrors(first: Throwable, rest: Throwable*): Throwable =
-    CompositeException(first +: rest)
+    if (rest.isEmpty) first
+    else CompositeException(first +: rest)
+
+  /** Useful utility that combines an `Either` result, which is what
+    * `MonadError#attempt` returns.
+    */
+  def composeErrors(first: Throwable, second: Either[Throwable, _]): Throwable =
+    second match {
+      case Left(e2) => CompositeException(Seq(first, e2))
+      case _ => first
+    }
 }

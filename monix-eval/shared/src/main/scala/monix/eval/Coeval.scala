@@ -233,7 +233,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * $unsafeRun
     */
-  def run: Coeval.Eager[A] =
+  def run(): Coeval.Eager[A] =
     CoevalRunLoop.start(this)
 
   /** Evaluates the underlying computation and returns the result or
@@ -258,8 +258,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * $unsafeRun
     */
-  def runAttempt: Either[Throwable, A] =
-    run match {
+  def runAttempt(): Either[Throwable, A] =
+    run() match {
       case Coeval.Now(a) => Right(a)
       case Coeval.Error(e) => Left(e)
     }
@@ -285,8 +285,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * $unsafeRun
     */
-  def runTry: Try[A] =
-    run.toTry
+  def runTry(): Try[A] =
+    run().toTry
 
   /** Memoizes (caches) the result of the source and reuses it on
     * subsequent invocations of `value`.
@@ -353,7 +353,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * transformations.
     *
     * Also see [[materialize]] for working with Scala's
-    * [[scala.util.Try Try]] or [[transformWith]] for an alternative.
+    * [[scala.util.Try Try]] or [[redeemWith]] for an alternative.
     */
   final def attempt: Coeval[Either[Throwable, A]] =
     FlatMap(this, AttemptCoeval.asInstanceOf[A => Coeval[Either[Throwable, A]]])
@@ -484,7 +484,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * `NoSuchElementException`.
     */
   final def failed: Coeval[Throwable] =
-    self.transformWith(_ => Error(new NoSuchElementException("failed")), e => new Now(e))
+    Coeval.FlatMap(this, Coeval.Failed)
 
   /** Creates a new `Coeval` by applying a function to the successful result
     * of the source, and returns a new instance equivalent
@@ -569,7 +569,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * the source.
     *
     * Also see [[attempt]] for working with Scala's
-    * [[scala.Either Either]] or [[transformWith]] for an alternative.
+    * [[scala.Either Either]] or [[redeemWith]] for an alternative.
     */
   final def materialize: Coeval[Try[A]] =
     FlatMap(this, MaterializeCoeval.asInstanceOf[A => Coeval[Try[A]]])
@@ -605,53 +605,87 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
       case other => IO(other.value())
     }
 
-  /** Creates a new `Coeval` by applying the 'fa' function to the
-    * successful result of this future, or the 'fe' function to the
-    * potential errors that might happen.
+  /** Returns a new value that transforms the result of the source,
+    * given the `recover` or `map` functions, which get executed depending
+    * on whether the result is successful or if it ends in error.
     *
-    * This function is similar with [[map]], except that it can also
-    * transform errors and not just successful results.
-    *
-    * For example [[attempt]] can be expressed in terms of `transform`:
+    * This is an optimization on usage of [[attempt]] and [[map]],
+    * this equivalence being true:
     *
     * {{{
-    *   source.transform(v => Right(v), e => Left(e))
+    *   coeval.redeem(recover, map) <-> coeval.attempt.map(_.fold(recover, map))
     * }}}
     *
-    * And [[materialize]] too:
+    * Usage of `redeem` subsumes `onErrorHandle` because:
     *
     * {{{
-    *   source.transform(v => Success(v), e => Failure(e))
+    *   coeval.redeem(fe, id) <-> coeval.onErrorHandle(fe)
     * }}}
     *
-    * @param fa function that transforms a successful result of the receiver
-    * @param fe function that transforms an error of the receiver
+    * @param recover is a function used for error recover in case the
+    *        source ends in error
+    * @param map is a function used for mapping the result of the source
+    *        in case it ends in success
     */
-  final def transform[R](fa: A => R, fe: Throwable => R): Coeval[R] =
-    transformWith(fa.andThen(nowConstructor), fe.andThen(nowConstructor))
+  def redeem[B](recover: Throwable => B, map: A => B): Coeval[B] =
+    Coeval.FlatMap(this, new Coeval.Redeem(recover, map))
 
-  /** Creates a new `Coeval` by applying the 'fa' function to the
-    * successful result of this future, or the 'fe' function to the
-    * potential errors that might happen.
+  /** Returns a new value that transforms the result of the source,
+    * given the `recover` or `bind` functions, which get executed depending
+    * on whether the result is successful or if it ends in error.
     *
-    * This function is similar with [[flatMap]], except that it can
-    * also transform errors and not just successful results.
-    *
-    * For example [[attempt]] can be expressed in terms of
-    * `transformWith`:
+    * This is an optimization on usage of [[attempt]] and [[flatMap]],
+    * this equivalence being available:
     *
     * {{{
-    *   source.transformWith(
-    *     v => Coeval.now(Right(v)),
-    *     e => Coeval.now(Left(e))
-    *   )
+    *   coeval.redeemWith(recover, bind) <-> coeval.attempt.flatMap(_.fold(recover, bind))
     * }}}
     *
-    * @param fa function that transforms a successful result of the receiver
-    * @param fe function that transforms an error of the receiver
+    * Usage of `redeemWith` subsumes `onErrorHandleWith` because:
+    *
+    * {{{
+    *   coeval.redeemWith(fe, F.pure) <-> coeval.onErrorHandleWith(fe)
+    * }}}
+    *
+    * Usage of `redeemWith` also subsumes [[flatMap]] because:
+    *
+    * {{{
+    *   coeval.redeemWith(Coeval.raiseError, fs) <-> coeval.flatMap(fs)
+    * }}}
+    *
+    * @param recover is the function that gets called to recover the source
+    *        in case of error
+    * @param bind is the function that gets to transform the source
+    *        in case of success
     */
-  final def transformWith[R](fa: A => Coeval[R], fe: Throwable => Coeval[R]): Coeval[R] =
-    FlatMap(this, StackFrame.fold(fa, fe))
+  def redeemWith[B](recover: Throwable => Coeval[B], bind: A => Coeval[B]): Coeval[B] =
+    Coeval.FlatMap(this, new StackFrame.RedeemWith(recover, bind))
+
+  /** Deprecated — use [[redeem]] instead.
+    *
+    * [[Coeval.redeem]] is the same operation, but with a different name and the
+    * function parameters in an inverted order, to make it consistent with `fold`
+    * on `Either` and others (i.e. the function for error recovery is at the left).
+    */
+  @deprecated("Please use `Coeval.redeem`", since = "3.0.0-RC2")
+  final def transform[R](fa: A => R, fe: Throwable => R): Coeval[R] = {
+    // $COVERAGE-OFF$
+    redeem(fe, fa)
+    // $COVERAGE-ON$
+  }
+
+  /** Deprecated — use [[redeemWith]] instead.
+    *
+    * [[Coeval.redeemWith]] is the same operation, but with a different name and the
+    * function parameters in an inverted order, to make it consistent with `fold`
+    * on `Either` and others (i.e. the function for error recovery is at the left).
+    */
+  @deprecated("Please use `Coeval.redeemWith`", since = "3.0.0-RC2")
+  final def transformWith[R](fa: A => Coeval[R], fe: Throwable => Coeval[R]): Coeval[R] = {
+    // $COVERAGE-OFF$
+    redeemWith(fe, fa)
+    // $COVERAGE-ON$
+  }
 
   /** Given a predicate function, keep retrying the
     * coeval until the function returns true.
@@ -673,7 +707,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   final def onErrorHandleWith[B >: A](f: Throwable => Coeval[B]): Coeval[B] =
-    FlatMap(this, StackFrame.errorHandler(nowConstructor, f))
+    FlatMap(this, new StackFrame.ErrorHandler(f, nowConstructor))
 
   /** Creates a new coeval that in case of error will fallback to the
     * given backup coeval.
@@ -760,9 +794,9 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * `Coeval`.
     */
   final def doOnFinish(f: Option[Throwable] => Coeval[Unit]): Coeval[A] =
-    transformWith(
-      a => f(None).map(_ => a),
-      e => f(Some(e)).flatMap(_ => Error(e))
+    redeemWith(
+      e => f(Some(e)).flatMap(_ => Error(e)),
+      a => f(None).map(_ => a)
     )
 
   /** Zips the values of `this` and `that` coeval, and creates a new coeval
@@ -1143,9 +1177,9 @@ object Coeval extends CoevalInstancesLevel0 {
     */
   final case class Now[+A](override val value: A) extends Eager[A] {
     override def apply(): A = value
-    override def run: Now[A] = this
-    override def runAttempt: Right[Nothing, A] = Right(value)
-    override def runTry: Success[A] = Success(value)
+    override def run(): Now[A] = this
+    override def runAttempt(): Right[Nothing, A] = Right(value)
+    override def runTry(): Success[A] = Success(value)
   }
 
   /** Constructs an eager [[Coeval]] instance for
@@ -1153,9 +1187,9 @@ object Coeval extends CoevalInstancesLevel0 {
     */
   final case class Error(error: Throwable) extends Eager[Nothing] {
     override def apply(): Nothing = throw error
-    override def run: Error = this
-    override def runAttempt: Either[Throwable, Nothing] = Left(error)
-    override def runTry: Try[Nothing] = Failure(error)
+    override def run(): Error = this
+    override def runAttempt(): Either[Throwable, Nothing] = Left(error)
+    override def runTry(): Try[Nothing] = Failure(error)
   }
 
   /** Constructs a lazy [[Coeval]] instance.
@@ -1166,11 +1200,11 @@ object Coeval extends CoevalInstancesLevel0 {
   final case class Always[+A](f: () => A) extends Coeval[A] {
     override def apply(): A = f()
 
-    override def run: Eager[A] =
+    override def run(): Eager[A] =
       try Now(f()) catch { case e if NonFatal(e) => Error(e) }
-    override def runAttempt: Either[Throwable, A] =
+    override def runAttempt(): Either[Throwable, A] =
       try Right(f()) catch { case e if NonFatal(e) => Left (e) }
-    override def runTry: Try[A] =
+    override def runTry(): Try[A] =
       try Success(f()) catch { case e if NonFatal(e) => Failure(e) }
   }
 
@@ -1195,6 +1229,22 @@ object Coeval extends CoevalInstancesLevel0 {
     ((a: Any) => new Now(a)).asInstanceOf[Any => Coeval[Nothing]]
   private final val raiseConstructor: (Throwable => Coeval[Nothing]) =
     (e: Throwable) => new Error(e)
+
+  /** Used as optimization by [[Coeval.failed]]. */
+  private object Failed extends StackFrame[Any, Coeval[Throwable]] {
+    def apply(a: Any): Coeval[Throwable] =
+      Error(new NoSuchElementException("failed"))
+    def recover(e: Throwable): Coeval[Throwable] =
+      Now(e)
+  }
+
+  /** Used as optimization by [[Coeval.redeem]]. */
+  private final class Redeem[A, B](fe: Throwable => B, fs: A => B)
+    extends StackFrame[A, Coeval[B]] {
+
+    def apply(a: A): Coeval[B] = Coeval.Now(fs(a))
+    def recover(e: Throwable): Coeval[B] = Coeval.Now(fe(e))
+  }
 
   /** Used as optimization by [[Coeval.attempt]]. */
   private object AttemptCoeval extends StackFrame[Any, Coeval[Either[Throwable, Any]]] {

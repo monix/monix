@@ -169,10 +169,6 @@ class IterantBuildersSync[F[_]](implicit F: Sync[F])
   def resource[A](acquire: F[A])(release: A => F[Unit]): Iterant[F, A] =
     Iterant.resource(acquire)(release)
 
-  /** Aliased builder, see documentation for [[Iterant.resourceCase]]. */
-  def resourceCase[A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, A] =
-    Iterant.resourceCase(acquire)(release)
-
   /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](fa* Iterant.suspend]]. */
   def suspend[A](fa: => Iterant[F, A]): Iterant[F, A] =
     Iterant.suspend(fa)(F)

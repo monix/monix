@@ -145,4 +145,13 @@ private[monix] object Platform {
       }
       first
     }
+
+  /** Useful utility that combines an `Either` result, which is what
+    * `MonadError#attempt` returns.
+    */
+  def composeErrors(first: Throwable, second: Either[Throwable, _]): Throwable =
+    second match {
+      case Left(e2) => composeErrors(first, e2)
+      case _ => first
+    }
 }
