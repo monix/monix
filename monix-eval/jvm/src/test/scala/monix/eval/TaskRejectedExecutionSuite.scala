@@ -20,24 +20,36 @@ package monix.eval
 import java.util.concurrent.{ArrayBlockingQueue, RejectedExecutionException, ThreadPoolExecutor, TimeUnit}
 
 import minitest.SimpleTestSuite
-import monix.execution.Scheduler
+import monix.execution.{Scheduler, UncaughtExceptionReporter}
+import monix.execution.Scheduler.Implicits.global
 
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
 object TaskRejectedExecutionSuite extends SimpleTestSuite {
+  val failOnError = UncaughtExceptionReporter { ex =>
+    fail("Exceptions should not be reported using scheduler")
+  }
+
   val limited = Scheduler(
-    new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS, new ArrayBlockingQueue[Runnable](1))
+    new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS, new ArrayBlockingQueue[Runnable](1)),
+    failOnError
   )
 
-  def testRejected[A](task: Task[A])(implicit sc: Scheduler): Unit =
+  def testRejected[A](task: Task[A]): Unit =
     intercept[RejectedExecutionException] {
-      Task.gather(List.fill(100)(task)).runSyncUnsafe(3.seconds)
+
+      val f = Future.traverse(1 to 10) { _ =>
+        task.runAsync(limited)
+      }
+
+      Await.result(f, 3.seconds)
     }
 
   test("Tasks should propagate RejectedExecutionException") {
-    testRejected(Task.pure(0).executeAsync)(limited)
-    testRejected(Task.shift)(limited)
-    testRejected(Task.pure(0).asyncBoundary(limited))(Scheduler.global)
-    testRejected(Task.pure(0).executeOn(limited))(Scheduler.global)
+    testRejected(Task.pure(0).executeAsync)
+    testRejected(Task.shift(limited))
+    testRejected(Task.pure(0).asyncBoundary(limited))
+    testRejected(Task.pure(0).executeOn(limited))
   }
 }
