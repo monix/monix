@@ -31,7 +31,7 @@ object TaskRejectedExecutionSuite extends SimpleTestSuite {
 
   def testRejected[A](task: Task[A])(implicit sc: Scheduler): Unit =
     intercept[RejectedExecutionException] {
-      Task.gather(List.fill(4)(task)).runSyncUnsafe(3.seconds)
+      Task.gather(List.fill(100)(task)).runSyncUnsafe(3.seconds)
     }
 
   test("Tasks should propagate RejectedExecutionException") {
