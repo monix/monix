@@ -17,6 +17,8 @@
 
 package monix.eval
 
+import java.util.concurrent.RejectedExecutionException
+
 import cats.effect._
 import cats.{Monoid, Semigroup}
 import monix.eval.instances._
@@ -2174,12 +2176,17 @@ object Task extends TaskInstancesLevel1 {
   def shift(ec: ExecutionContext): Task[Unit] =
     Async[Unit] { (context, cb) =>
       val ec2 = if (ec eq null) context.scheduler else ec
-      ec2.execute(new Runnable {
-        def run(): Unit = {
-          context.frameRef.reset()
-          cb.onSuccess(())
-        }
-      })
+      try {
+        ec2.execute(new Runnable {
+          def run(): Unit = {
+            context.frameRef.reset()
+            cb.onSuccess(())
+          }
+        })
+      } catch {
+        case ex: RejectedExecutionException =>
+          cb.onError(ex)
+      }
     }
 
   /** Creates a new `Task` that will sleep for the given duration,

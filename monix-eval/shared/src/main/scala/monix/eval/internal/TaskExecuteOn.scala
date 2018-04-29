@@ -17,6 +17,8 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.RejectedExecutionException
+
 import monix.eval.{Callback, Task}
 import monix.eval.Task.Async
 import monix.execution.Scheduler
@@ -30,9 +32,14 @@ private[eval] object TaskExecuteOn {
       val ctx2 = ctx.copy(scheduler = s)
       val cb2 = Callback.async(cb)(s)
 
-      if (forceAsync)
-        Task.unsafeStartAsync(source, ctx2, cb2)
-      else
-        Task.unsafeStartTrampolined(source, ctx2, cb2)
+      try {
+        if (forceAsync)
+          Task.unsafeStartAsync(source, ctx2, cb2)
+        else
+          Task.unsafeStartTrampolined(source, ctx2, cb2)
+      } catch {
+        case ex: RejectedExecutionException =>
+          cb.onError(ex)
+      }
     }
 }
