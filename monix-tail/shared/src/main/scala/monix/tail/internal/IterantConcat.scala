@@ -51,19 +51,22 @@ private[tail] object IterantConcat {
     */
   def unsafeFlatMap[F[_], A, B](source: Iterant[F, A])(f: A => Iterant[F, B])
     (implicit F: Sync[F]): Iterant[F, B] = {
+    
+    def stopBoth(childStop: F[Unit], parentStop: F[Unit]): F[Unit] =
+      childStop.attempt.flatMap(_ => parentStop)
 
-    def doOnEarlyStopOrError[T](f: F[Unit])(source: Iterant[F, T]): Iterant[F,T] =
+    def doOnEarlyStopOrError[T](parentStop: F[Unit])(source: Iterant[F, T]): Iterant[F,T] =
       source match {
-        case Next(head, rest, stop) =>
-          Next(head, rest.map(doOnEarlyStopOrError(f)), stop.flatMap(_ => f))
-        case NextCursor(items, rest, stop) =>
-          NextCursor(items, rest.map(doOnEarlyStopOrError(f)), stop.flatMap(_ => f))
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(doOnEarlyStopOrError(f)), stop.flatMap(_ => f))
-        case NextBatch(items, rest, stop) =>
-          NextBatch(items, rest.map(doOnEarlyStopOrError(f)), stop.flatMap(_ => f))
+        case Next(head, rest, childStop) =>
+          Next(head, rest.map(doOnEarlyStopOrError(parentStop)), stopBoth(childStop, parentStop))
+        case NextCursor(items, rest, childStop) =>
+          NextCursor(items, rest.map(doOnEarlyStopOrError(parentStop)), stopBoth(childStop, parentStop))
+        case Suspend(rest, childStop) =>
+          Suspend(rest.map(doOnEarlyStopOrError(parentStop)), stopBoth(childStop, parentStop))
+        case NextBatch(items, rest, childStop) =>
+          NextBatch(items, rest.map(doOnEarlyStopOrError(parentStop)), stopBoth(childStop, parentStop))
         case Halt(Some(e)) =>
-          Suspend(f.attempt.map(r => Halt(Some(Platform.composeErrors(e, r)))), f)
+          Suspend(parentStop.attempt.map(r => Halt(Some(Platform.composeErrors(e, r)))), parentStop)
         case _ =>
           source // nothing to do
       }

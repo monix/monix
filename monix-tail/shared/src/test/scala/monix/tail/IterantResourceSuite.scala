@@ -17,10 +17,11 @@
 
 package monix.tail
 
-//import cats.laws._
-//import cats.laws.discipline._
+import cats.laws._
+import cats.laws.discipline._
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
+import monix.tail.batches.{Batch, BatchCursor}
 
 object IterantResourceSuite extends BaseTestSuite {
   class Resource(var acquired: Int = 0, var released: Int = 0) {
@@ -32,98 +33,98 @@ object IterantResourceSuite extends BaseTestSuite {
     def release = Coeval { r.released += 1 }
   }
 
-//  test("Iterant.resource.flatMap(use) yields all elements `use` provides") { _ =>
-//    check1 { (source: Iterant[Coeval, Int]) =>
-//      val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.unit).flatMap(_ => source)
-//      source <-> bracketed
-//    }
-//  }
-//
-//  test("Iterant.resource.flatMap(use) preserves earlyStop of stream returned from `use`") { _ =>
-//    var earlyStopDone = false
-//    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.unit)
-//      .flatMap(_ => Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval {
-//        earlyStopDone = true
-//      }))
-//
-//    bracketed.take(1).completeL.value()
-//    assert(earlyStopDone)
-//  }
-//
-//  test("Iterant.resource releases resource on normal completion") { _ =>
-//    val rs = new Resource
-//    val bracketed = Iterant.resource(rs.acquire)(_.release)
-//      .flatMap(_ => Iterant.range(1, 10))
-//
-//    bracketed.completeL.value()
-//    assertEquals(rs.acquired, 1)
-//    assertEquals(rs.released, 1)
-//  }
-//
-//  test("Iterant.resource releases resource on early stop") { _ =>
-//    val rs = new Resource
-//    val bracketed = Iterant
-//      .resource(rs.acquire)(_.release)
-//      .flatMap(_ => Iterant.range(1, 10))
-//      .take(1)
-//
-//    bracketed.completeL.value()
-//    assertEquals(rs.acquired, 1)
-//    assertEquals(rs.released, 1)
-//  }
-//
-//  test("Iterant.resource releases resource on exception") { _ =>
-//    val rs = new Resource
-//    val error = DummyException("dummy")
-//
-//    val bracketed = Iterant.resource(rs.acquire)(_.release)
-//      .flatMap { _ =>
-//        Iterant.range[Coeval](1, 10) ++ Iterant.raiseError[Coeval, Int](error)
-//      }
-//
-//    intercept[DummyException] {
-//      bracketed.completeL.value()
-//    }
-//    assertEquals(rs.acquired, 1)
-//    assertEquals(rs.released, 1)
-//  }
-//
-//  test("Iterant.resource.flatMap(use) releases resource if `use` throws") { _ =>
-//    val rs = new Resource
-//    val dummy = DummyException("dummy")
-//    val bracketed = Iterant.resource(rs.acquire)(_.release)
-//      .flatMap { _ => throw dummy }
-//
-//    intercept[DummyException] {
-//      bracketed.completeL.value()
-//    }
-//    assertEquals(rs.acquired, 1)
-//    assertEquals(rs.released, 1)
-//  }
-//
-//  test("Iterant.resource does not call `release` if `acquire` has an error") { _ =>
-//    val rs = new Resource
-//    val dummy = DummyException("dummy")
-//    val bracketed = Iterant
-//      .resource(Coeval.raiseError(dummy).flatMap(_ => rs.acquire))(_.release)
-//      .flatMap { _ =>
-//        Iterant.empty[Coeval, Int]
-//      }
-//
-//    intercept[DummyException] {
-//      bracketed.completeL.value()
-//    }
-//    assertEquals(rs.acquired, 0)
-//    assertEquals(rs.released, 0)
-//  }
-//
-//  test("resource(r)(_ => raiseError(e)).flatMap(_ => fa) <-> fa ++ raiseError(e)") { _ =>
-//    val dummy = DummyException("dummy")
-//    check1 { (fa: Iterant[Coeval, Int]) =>
-//      val lh = Iterant.resource(Coeval.unit)(_ => Coeval.raiseError(dummy)).flatMap(_ => fa)
-//      lh <-> fa ++ Iterant.raiseError[Coeval, Int](dummy)
-//    }
-//  }
+  test("Iterant.resource.flatMap(use) yields all elements `use` provides") { _ =>
+    check1 { (source: Iterant[Coeval, Int]) =>
+      val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.unit).flatMap(_ => source)
+      source <-> bracketed
+    }
+  }
+
+  test("Iterant.resource.flatMap(use) preserves earlyStop of stream returned from `use`") { _ =>
+    var earlyStopDone = false
+    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.unit)
+      .flatMap(_ => Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval {
+        earlyStopDone = true
+      }))
+
+    bracketed.take(1).completeL.value()
+    assert(earlyStopDone)
+  }
+
+  test("Iterant.resource releases resource on normal completion") { _ =>
+    val rs = new Resource
+    val bracketed = Iterant.resource(rs.acquire)(_.release)
+      .flatMap(_ => Iterant.range(1, 10))
+
+    bracketed.completeL.value()
+    assertEquals(rs.acquired, 1)
+    assertEquals(rs.released, 1)
+  }
+
+  test("Iterant.resource releases resource on early stop") { _ =>
+    val rs = new Resource
+    val bracketed = Iterant
+      .resource(rs.acquire)(_.release)
+      .flatMap(_ => Iterant.range(1, 10))
+      .take(1)
+
+    bracketed.completeL.value()
+    assertEquals(rs.acquired, 1)
+    assertEquals(rs.released, 1)
+  }
+
+  test("Iterant.resource releases resource on exception") { _ =>
+    val rs = new Resource
+    val error = DummyException("dummy")
+
+    val bracketed = Iterant.resource(rs.acquire)(_.release)
+      .flatMap { _ =>
+        Iterant.range[Coeval](1, 10) ++ Iterant.raiseError[Coeval, Int](error)
+      }
+
+    intercept[DummyException] {
+      bracketed.completeL.value()
+    }
+    assertEquals(rs.acquired, 1)
+    assertEquals(rs.released, 1)
+  }
+
+  test("Iterant.resource.flatMap(use) releases resource if `use` throws") { _ =>
+    val rs = new Resource
+    val dummy = DummyException("dummy")
+    val bracketed = Iterant.resource(rs.acquire)(_.release)
+      .flatMap { _ => throw dummy }
+
+    intercept[DummyException] {
+      bracketed.completeL.value()
+    }
+    assertEquals(rs.acquired, 1)
+    assertEquals(rs.released, 1)
+  }
+
+  test("Iterant.resource does not call `release` if `acquire` has an error") { _ =>
+    val rs = new Resource
+    val dummy = DummyException("dummy")
+    val bracketed = Iterant
+      .resource(Coeval.raiseError(dummy).flatMap(_ => rs.acquire))(_.release)
+      .flatMap { _ =>
+        Iterant.empty[Coeval, Int]
+      }
+
+    intercept[DummyException] {
+      bracketed.completeL.value()
+    }
+    assertEquals(rs.acquired, 0)
+    assertEquals(rs.released, 0)
+  }
+
+  test("resource(r)(_ => raiseError(e)).flatMap(_ => fa) <-> fa ++ raiseError(e)") { _ =>
+    val dummy = DummyException("dummy")
+    check1 { (fa: Iterant[Coeval, Int]) =>
+      val lh = Iterant.resource(Coeval.unit)(_ => Coeval.raiseError(dummy)).flatMap(_ => fa)
+      lh <-> fa ++ Iterant.raiseError[Coeval, Int](dummy)
+    }
+  }
 
   test("Iterant.resource nesting: outer releases even if inner release fails") { _ =>
     var released = false
@@ -145,8 +146,7 @@ object IterantResourceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval { released = true })
       .flatMap { _ =>
-        Iterant[Coeval].of(1, 2, 3) ++
-          Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy), Coeval.raiseError(dummy))
+        Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy), Coeval.raiseError(dummy))
       }
 
     intercept[DummyException] {
@@ -155,137 +155,126 @@ object IterantResourceSuite extends BaseTestSuite {
     assert(released)
   }
 
-//  test("Iterant.resource nesting: inner releases even if outer release fails") { _ =>
-//    var released = false
-//    val dummy = DummyException("dummy")
-//    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.raiseError(dummy))
-//      .flatMap { _ =>
-//        Iterant.resource(Coeval.unit)(_ => Coeval { released = true })
-//          .flatMap(_ => Iterant[Coeval].of(1, 2, 3))
-//      }
-//
-//    intercept[DummyException] {
-//      bracketed.completeL.value()
-//    }
-//    assert(released)
-//  }
-//
-//  test("Iterant.resource handles broken batches & cursors") { _ =>
-//    val rs = new Resource
-//    val dummy = DummyException("dummy")
-//    def withEmpty(ctor: (Coeval[Iterant[Coeval, Int]], Coeval[Unit]) => Iterant[Coeval, Int]) =
-//      Iterant.resourceCase(rs.acquire)(
-//        _ => ctor(Coeval(Iterant.empty), Coeval.unit),
-//        (_, _) => rs.release
-//      )
-//
-//    val brokens = Array(
-//      withEmpty(Iterant.nextBatchS(ThrowExceptionBatch(dummy), _, _)),
-//      withEmpty(Iterant.nextCursorS(ThrowExceptionCursor(dummy), _, _))
-//    )
-//
-//    for (broken <- brokens) {
-//      intercept[DummyException] {
-//        broken.completeL.unsafeRunSync()
-//      }
-//    }
-//
-//    assertEquals(rs.acquired, brokens.length)
-//    assertEquals(rs.released, brokens.length)
-//  }
-//
-//  test("Iterant.resource handles broken `next` continuations") { _ =>
-//    val rs = new Resource
-//    val dummy = DummyException("dummy")
-//    def withError(ctor: (Coeval[Iterant[Coeval, Int]], Coeval[Unit]) => Iterant[Coeval, Int]) =
-//      Iterant.resourceCase(rs.acquire)(
-//        _ => ctor(Coeval.raiseError(dummy), Coeval.unit),
-//        (_, _) => rs.release
-//      )
-//
-//    val brokens = Array(
-//      withError(Iterant.nextS(0, _, _)),
-//      withError(Iterant.nextBatchS(Batch(1, 2, 3), _, _)),
-//      withError(Iterant.nextCursorS(BatchCursor(1, 2, 3), _, _)),
-//      withError(Iterant.suspendS)
-//    )
-//
-//    for (broken <- brokens) {
-//      intercept[DummyException] {
-//        runIterant(broken)
-//      }
-//    }
-//    assertEquals(rs.acquired, brokens.length)
-//    assertEquals(rs.released, brokens.length)
-//  }
-//
-//  test("Iterant.resource releases resource on all completion methods") { _ =>
-//    val rs = new Resource
-//    val completes: Array[Iterant[Coeval, Int] => Coeval[Unit]] =
-//      Array(
-//        _.completeL,
-//        _.foldLeftL(())((_, _) => ()),
-//        _.foldWhileLeftL(())((_, _) => Left(())),
-//        _.foldWhileLeftEvalL(Coeval.unit)((_, _) => Coeval(Left(()))),
-//        _.headOptionL.map(_ => ()),
-//        _.reduceL(_ + _).map(_ => ())
-//      )
-//
-//    val pure = Iterant.resourceCase(rs.acquire)(
-//      _ => Iterant[Coeval].of(1, 2, 3),
-//      (_, _) => rs.release
-//    )
-//
-//    for (method <- completes) {
-//      method(pure).unsafeRunSync()
-//    }
-//    assertEquals(rs.acquired, completes.length)
-//    assertEquals(rs.released, completes.length)
-//
-//    val dummy = DummyException("dummy")
-//    val faulty = Iterant.resourceCase(rs.acquire)(
-//      _ => Iterant[Coeval].raiseError[Int](dummy),
-//      (_, _) => rs.release
-//    )
-//
-//    for (method <- completes) {
-//      intercept[DummyException] {
-//        method(faulty).unsafeRunSync()
-//      }
-//    }
-//    assertEquals(rs.acquired, completes.length * 2)
-//    assertEquals(rs.released, completes.length * 2)
-//
-//    val broken = Iterant.resourceCase(rs.acquire)(
-//      _ => Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy), Coeval.unit),
-//      (_, _) => rs.release
-//    )
-//
-//    for (method <- completes) {
-//      intercept[DummyException] {
-//        method(broken).unsafeRunSync()
-//      }
-//    }
-//    assertEquals(rs.acquired, completes.length * 3)
-//    assertEquals(rs.released, completes.length * 3)
-//  }
-//
-//  test("Iterant.resource does not require non-strict use") { _ =>
-//    var log = Vector[String]()
-//    def safeCloseable(key: String): Iterant[Coeval, Unit] =
-//      Iterant[Coeval].resource(Coeval { log :+= s"Start: $key" })(
-//        Iterant[Coeval].pure,
-//        _ => Coeval { log :+= s"Stop: $key" }
-//      )
-//
-//    val iterant = for {
-//      _ <- safeCloseable("Outer")
-//      dummy = 42
-//      _ <- safeCloseable("Inner")
-//    } yield ()
-//
-//    iterant.completeL.value()
-//
-//    assertEquals(log, Vector("Start: Outer", "Start: Inner", "Stop: Inner", "Stop: Outer"))
-//  }
+  test("Iterant.resource nesting: inner releases even if outer release fails") { _ =>
+    var released = false
+    val dummy = DummyException("dummy")
+    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.raiseError(dummy))
+      .flatMap { _ =>
+        Iterant.resource(Coeval.unit)(_ => Coeval { released = true })
+          .flatMap(_ => Iterant[Coeval].of(1, 2, 3))
+      }
+
+    intercept[DummyException] {
+      bracketed.completeL.value()
+    }
+    assert(released)
+  }
+
+  test("Iterant.resource handles broken batches & cursors") { _ =>
+    val rs = new Resource
+    val dummy = DummyException("dummy")
+    def withEmpty(ctor: (Coeval[Iterant[Coeval, Int]], Coeval[Unit]) => Iterant[Coeval, Int]) =
+      Iterant.resource(rs.acquire)(_.release)
+        .flatMap(_ => ctor(Coeval(Iterant.empty), Coeval.unit))
+
+    val broken = Array(
+      withEmpty(Iterant.nextBatchS(ThrowExceptionBatch(dummy), _, _)),
+      withEmpty(Iterant.nextCursorS(ThrowExceptionCursor(dummy), _, _))
+    )
+
+    for (iter <- broken) {
+      intercept[DummyException] {
+        iter.completeL.value()
+      }
+    }
+
+    assertEquals(rs.acquired, broken.length)
+    assertEquals(rs.released, broken.length)
+  }
+
+  test("Iterant.resource handles broken `next` continuations") { _ =>
+    val rs = new Resource
+    val dummy = DummyException("dummy")
+    def withError(ctor: (Coeval[Iterant[Coeval, Int]], Coeval[Unit]) => Iterant[Coeval, Int]) =
+      Iterant.resource(rs.acquire)(_.release)
+        .flatMap(_ => ctor(Coeval.raiseError(dummy), Coeval.unit))
+
+    val broken = Array(
+      withError(Iterant.nextS(0, _, _)),
+      withError(Iterant.nextBatchS(Batch(1, 2, 3), _, _)),
+      withError(Iterant.nextCursorS(BatchCursor(1, 2, 3), _, _)),
+      withError(Iterant.suspendS)
+    )
+
+    for (iter <- broken) {
+      intercept[DummyException] {
+        iter.completeL.value()
+      }
+    }
+    assertEquals(rs.acquired, broken.length)
+    assertEquals(rs.released, broken.length)
+  }
+
+  test("Iterant.resource releases resource on all completion methods") { _ =>
+    val rs = new Resource
+    val completes: Array[Iterant[Coeval, Int] => Coeval[Unit]] =
+      Array(
+        _.completeL,
+        _.foldLeftL(())((_, _) => ()),
+        _.foldWhileLeftL(())((_, _) => Left(())),
+        _.foldWhileLeftEvalL(Coeval.unit)((_, _) => Coeval(Left(()))),
+        _.headOptionL.map(_ => ()),
+        _.reduceL(_ + _).map(_ => ())
+      )
+
+    val pure = Iterant.resource(rs.acquire)(_.release)
+      .flatMap(_ => Iterant[Coeval].of(1, 2, 3))
+
+    for (method <- completes) {
+      method(pure).value()
+    }
+
+    assertEquals(rs.acquired, completes.length)
+    assertEquals(rs.released, completes.length)
+
+    val dummy = DummyException("dummy")
+    val faulty = Iterant.resource(rs.acquire)(_.release)
+      .flatMap(_ => Iterant[Coeval].raiseError[Int](dummy))
+
+    for (method <- completes) {
+      intercept[DummyException] {
+        method(faulty).value()
+      }
+    }
+    assertEquals(rs.acquired, completes.length * 2)
+    assertEquals(rs.released, completes.length * 2)
+
+    val broken = Iterant.resource(rs.acquire)(_.release)
+      .flatMap(_ => Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy), Coeval.unit))
+
+    for (method <- completes) {
+      intercept[DummyException] {
+        method(broken).value()
+      }
+    }
+
+    assertEquals(rs.acquired, completes.length * 3)
+    assertEquals(rs.released, completes.length * 3)
+  }
+
+  test("Iterant.resource does not require non-strict use") { _ =>
+    var log = Vector[String]()
+    def safeCloseable(key: String): Iterant[Coeval, Unit] =
+      Iterant[Coeval]
+        .resource(Coeval { log :+= s"Start: $key" })(_ => Coeval { log :+= s"Stop: $key" })
+        .flatMap(Iterant[Coeval].pure)
+
+    val iterant = for {
+      _ <- safeCloseable("Outer")
+      _ <- safeCloseable("Inner")
+    } yield ()
+
+    iterant.completeL.value()
+    assertEquals(log, Vector("Start: Outer", "Start: Inner", "Stop: Inner", "Stop: Outer"))
+  }
 }

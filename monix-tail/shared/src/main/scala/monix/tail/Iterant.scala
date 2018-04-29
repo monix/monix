@@ -2040,13 +2040,20 @@ object Iterant extends IterantInstances {
     *
     * Example:
     * {{{
-    *   val writeLines =
-    *     Iterant.resource(IO { new PrintWriter("./lines.txt") })(
-    *       writer => Iterant[IO]
-    *         .fromIterator(Iterator.from(1))
-    *         .mapEval(i => IO { writer.println(s"Line #\$i") }),
-    *       writer => IO { writer.close() }
-    *     )
+    *   val printer =
+    *     Iterant.resource {
+    *       IO(new PrintWriter("./lines.txt"))
+    *     } { writer =>
+    *       IO(writer.close())
+    *     }
+    *
+    *   // Safely use the resource, because the release is
+    *   // scheduled to happen afterwards
+    *   val writeLines = printer.flatMap { writer =>
+    *     Iterant[IO]
+    *       .fromIterator(Iterator.from(1))
+    *       .mapEval(i => IO { writer.println(s"Line #\$i") })
+    *   }
     *
     *   // Write 100 numbered lines to the file
     *   // closing the writer when finished
@@ -2065,12 +2072,18 @@ object Iterant extends IterantInstances {
       F.unit)
   }
 
+  /** DEPRECATED — please use [[Iterant.resource]].
+    *
+    * The `Iterant.bracket` operation was meant for streams, but
+    * this name in `Iterant` now refers to the semantics of the
+    * `cats.effect.Bracket` type class, implemented in
+    * [[Iterant!.bracket bracket]].
+    */
+  @deprecated("Use Iterant.resource", since="3.0.0-RC2")
   def bracket[F[_], A, B](acquire: F[A])
     (use: A => Iterant[F, B], release: A => F[Unit])
-    (implicit F: Sync[F]): Iterant[F, B] = {
-
+    (implicit F: Sync[F]): Iterant[F, B] =
     resource(acquire)(release).flatMap(use)
-  }
 
   /** Lifts a strict value into the stream context, returning a
     * stream of one element.

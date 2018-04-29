@@ -141,7 +141,9 @@ private[monix] object Platform {
     if (rest.isEmpty) first else {
       val cursor = rest.iterator
       while (cursor.hasNext) {
-        first.addSuppressed(cursor.next())
+        val next = cursor.next()
+        if (first ne next)
+          first.addSuppressed(next)
       }
       first
     }
@@ -151,7 +153,10 @@ private[monix] object Platform {
     */
   def composeErrors(first: Throwable, second: Either[Throwable, _]): Throwable =
     second match {
-      case Left(e2) => composeErrors(first, e2)
-      case _ => first
+      case Left(e2) if first ne e2 =>
+        first.addSuppressed(e2)
+        first
+      case _ =>
+        first
     }
 }

@@ -488,7 +488,8 @@ import scala.util.{Failure, Success, Try}
   *         a parameter.
   */
 sealed abstract class Task[+A] extends Serializable {
-  import monix.eval.Task.{Async => _, _}
+  import monix.eval.Task._
+  import cats.effect.Async
 
   /** $runAsyncDesc
     *
@@ -568,7 +569,9 @@ sealed abstract class Task[+A] extends Serializable {
     */
   final def runSyncUnsafe(timeout: Duration)
     (implicit s: Scheduler, permit: CanBlock): A =
+    /*_*/
     TaskRunSyncUnsafe(this, timeout, s, defaultOptions)
+    /*_*/
 
   /** $runSyncUnsafeDesc
     *
@@ -579,7 +582,9 @@ sealed abstract class Task[+A] extends Serializable {
     */
   final def runSyncUnsafeOpt(timeout: Duration)
     (implicit s: Scheduler, opts: Options, permit: CanBlock): A =
+    /*_*/
     TaskRunSyncUnsafe(this, timeout, s, opts)
+    /*_*/
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
