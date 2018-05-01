@@ -21,8 +21,8 @@ import cats.effect.IO
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
+import monix.execution.BracketResult.{Completed, EarlyStop, Error}
 import monix.execution.exceptions.DummyException
-import monix.tail.BracketResult._
 import monix.tail.batches.{Batch, BatchCursor}
 
 object IterantBracketSuite extends BaseTestSuite {

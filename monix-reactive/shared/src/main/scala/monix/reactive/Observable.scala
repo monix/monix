@@ -4366,6 +4366,15 @@ object Observable {
   def empty[A]: Observable[A] =
     builders.EmptyObservable
 
+  def bracketTask[A, B](acquire: Task[A])(use: A => Observable[B], release: A => Task[Unit]): Observable[B] =
+    bracketA(acquire)(use, (a, _) => release(a))
+
+  private[reactive] def bracketA[A, B](acquire: Task[A])(
+    use: A => Observable[B],
+    release: (A, BracketResult) => Task[Unit]
+  ): Observable[B] =
+    Observable.fromTask(acquire).flatMap(a => new BracketObservable(use(a))(a, release))
+
   /** Creates a combined observable from 2 source observables.
     *
     * This operator behaves in a similar way to [[zip2]],

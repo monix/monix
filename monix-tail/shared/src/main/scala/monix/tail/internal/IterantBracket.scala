@@ -20,10 +20,11 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.functor._
 import cats.syntax.apply._
+import monix.execution.BracketResult
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.{BracketResult, Iterant}
-import monix.tail.BracketResult._
+import monix.tail.Iterant
+import monix.execution.BracketResult._
 
 private[tail] object IterantBracket {
   /**

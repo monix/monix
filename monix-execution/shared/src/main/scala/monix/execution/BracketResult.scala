@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package monix.tail
+package monix.execution
 
 /** An ADT representing the way evaluation of a stream
-  * had completed, used in [[Iterant$.bracket]]
+  * had completed, used in [[Iterant$.bracket]] and [[Observable$.bracket]]
   *
   * The following values of `BracketResult` exist:
   *
@@ -31,9 +31,9 @@ package monix.tail
   * [[BracketResult]] may be superseded by ADT in cats-effect#113,
   * this method is private until then
   */
-private[tail] sealed abstract class BracketResult
+private[monix] sealed abstract class BracketResult
 
-private[tail] object BracketResult {
+private[monix] object BracketResult {
   case object Completed extends BracketResult
   case object EarlyStop extends BracketResult
   final case class Error(e: Throwable) extends BracketResult
