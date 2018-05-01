@@ -25,27 +25,27 @@ import scala.util.{Failure, Success}
 
 object CoevalMiscSuite extends BaseTestSuite {
   test("Coeval.now.attempt should succeed") { implicit s =>
-    val result = Coeval.now(1).attempt.value
+    val result = Coeval.now(1).attempt.value()
     assertEquals(result, Right(1))
   }
 
   test("Coeval.raiseError.attempt should expose error") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Coeval.raiseError[Int](ex).attempt.value
+    val result = Coeval.raiseError[Int](ex).attempt.value()
     assertEquals(result, Left(ex))
   }
 
   test("Coeval.fail should expose error") { implicit s =>
     val dummy = DummyException("dummy")
     check1 { (fa: Coeval[Int]) =>
-      val r = fa.map(_ => throw dummy).failed.value
+      val r = fa.map(_ => throw dummy).failed.value()
       r == dummy
     }
   }
 
   test("Coeval.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
-      Coeval.eval(10).failed.value
+      Coeval.eval(10).failed.value()
     }
   }
 
@@ -68,7 +68,9 @@ object CoevalMiscSuite extends BaseTestSuite {
 
   test("Coeval.restartUntil") { implicit s =>
     var i = 0
-    val r = Coeval { i += 1; i }.restartUntil(_ > 10).value
+    val r = Coeval {
+      i += 1; i
+    }.restartUntil(_ > 10).value()
     assertEquals(r, 11)
   }
 
@@ -80,9 +82,9 @@ object CoevalMiscSuite extends BaseTestSuite {
     var i = 0
     val fa = Coeval.delay { i += 1; i }
 
-    assertEquals(fa.value, 1)
-    assertEquals(fa.value, 2)
-    assertEquals(fa.value, 3)
+    assertEquals(fa.value(), 1)
+    assertEquals(fa.value(), 2)
+    assertEquals(fa.value(), 3)
   }
 
   test("Coeval.flatten is equivalent with flatMap") { implicit s =>

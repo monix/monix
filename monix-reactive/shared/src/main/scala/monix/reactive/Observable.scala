@@ -355,7 +355,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * For `count` and `skip` there are 3 possibilities:
     *
     *  1. in case `skip == count`, then there are no items dropped and
-    *     no overlap, the call being equivalent to `buffer(count)`
+    *     no overlap, the call being equivalent to `bufferTumbling(count)`
     *  1. in case `skip < count`, then overlap between buffers
     *     happens, with the number of elements being repeated being
     *     `count - skip`
@@ -367,7 +367,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param skip how many items emitted by the source observable should
     *        be skipped before starting a new buffer. Note that when
     *        skip and count are equal, this is the same operation as
-    *        `buffer(count)`
+    *        `bufferTumbling(count)`
     */
   final def bufferSliding(count: Int, skip: Int): Observable[Seq[A]] =
     liftByOperator(new BufferSlidingOperator(count, skip))
@@ -3908,7 +3908,7 @@ object Observable {
     value match {
       case Coeval.Now(a) => Observable.now(a)
       case Coeval.Error(e) => Observable.raiseError(e)
-      case other => Observable.eval(other.value)
+      case other => Observable.eval(other.value())
     }
 
   /** Converts a `cats.Eval` value into an `Observable`

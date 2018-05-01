@@ -19,8 +19,9 @@ package monix.reactive.subjects
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.reactive.Observer
 import monix.execution.exceptions.DummyException
+import monix.reactive.{Consumer, Observable, Observer}
+
 import scala.concurrent.Future
 import scala.util.Success
 
@@ -202,5 +203,41 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     s.tick()
     c.cancel()
     assertEquals(result, 1)
+  }
+
+  test("Observable.replay should replay all of the elements") { implicit s =>
+    var foreachSum = 0
+    var consumerSum = 0
+    var subscribeSum = 0
+
+    val observable = Observable(1, 2, 3, 4, 5, 6).replay
+    // Start the streaming
+    observable.connect()
+
+    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runAsync
+    observable.foreach(e => foreachSum += e)
+    observable.subscribe { e => subscribeSum += e; Continue }
+
+    assertEquals(foreachSum, 21)
+    assertEquals(consumerSum, 21)
+    assertEquals(subscribeSum, 21)
+  }
+
+  test("Observable.replay(bufferSize) should replay elements from the end up to the buffer size") { implicit s =>
+    var foreachSum = 0
+    var consumerSum = 0
+    var subscribeSum = 0
+
+    val observable = Observable(1, 2, 3, 4, 5, 6).replay(3)
+    // Start the streaming
+    observable.connect()
+
+    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runAsync
+    observable.foreach(e => foreachSum += e)
+    observable.subscribe { e => subscribeSum += e; Continue }
+
+    assertEquals(foreachSum, 15)
+    assertEquals(consumerSum, 15)
+    assertEquals(subscribeSum, 15)
   }
 }

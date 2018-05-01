@@ -48,7 +48,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val source = Iterant[Coeval].raiseError[Int](ex).switchIfEmpty(backupStream)
     intercept[DummyException] {
-      source.toListL.value
+      source.toListL.value()
     }
   }
 
@@ -56,7 +56,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     val cancelable = BooleanCancelable()
     val left = emptyInts.doOnFinish(_ => Coeval { cancelable.cancel() })
 
-    left.switchIfEmpty(backupStream).toListL.value
+    left.switchIfEmpty(backupStream).toListL.value()
 
     assert(cancelable.isCanceled)
   }
@@ -65,7 +65,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     val cancelable = BooleanCancelable()
     val right = emptyInts.doOnFinish(_ => Coeval { cancelable.cancel() })
 
-    backupStream.switchIfEmpty(right).toListL.value
+    backupStream.switchIfEmpty(right).toListL.value()
 
     assert(!cancelable.isCanceled)
   }
@@ -101,7 +101,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
       ThrowExceptionBatch[Int](dummy), Coeval(emptyInts), Coeval.unit
     )
     assertEquals(
-      iterant.switchIfEmpty(backupStream).toListL.runAttempt,
+      iterant.switchIfEmpty(backupStream).toListL.runAttempt(),
       Left(dummy)
     )
   }

@@ -19,8 +19,8 @@ package monix.reactive.subjects
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.reactive.Observer
 import monix.execution.exceptions.DummyException
+import monix.reactive.{Consumer, Observable, Observer}
 
 import scala.concurrent.Future
 import scala.util.Success
@@ -167,5 +167,24 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     s.tick()
     c.cancel()
     assertEquals(result, 1)
+  }
+
+  test("Observable.behavior should emit only the latest element") { implicit s =>
+    var foreachSum = 0
+    var consumerSum = 0
+    var subscribeSum = 0
+
+    val observable = Observable(1, 2, 3, 4, 5, 6).behavior(0)
+
+    // Start the streaming
+    observable.connect()
+
+    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runAsync
+    observable.foreach(e => foreachSum += e)
+    observable.subscribe { e => subscribeSum += e; Continue }
+
+    assertEquals(foreachSum, 6)
+    assertEquals(consumerSum, 6)
+    assertEquals(subscribeSum, 6)
   }
 }

@@ -58,7 +58,7 @@ object IterantTakeLastSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.takeLast(3)
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 }

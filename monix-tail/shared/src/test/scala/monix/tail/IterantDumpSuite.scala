@@ -92,7 +92,7 @@ object IterantDumpSuite extends BaseTestSuite {
     out.completeL.runAsync
     s.tick()
 
-    assertEquals(counter.get, 1)
+    assertEquals(counter.get, 2)
   }
 
   test("Iterant.dump works for Last") { implicit s =>
@@ -102,7 +102,7 @@ object IterantDumpSuite extends BaseTestSuite {
       out.completeL.runAsync
       s.tick()
 
-      counter.get <-> 2
+      counter.get <-> 1
     }
   }
 
@@ -116,29 +116,14 @@ object IterantDumpSuite extends BaseTestSuite {
     assertEquals(counter.get, 1)
   }
 
-  test("Iterant.dump doesn't touch Halt") { _ =>
-    val dummy = DummyException("dummy")
-    val stream: Iterant[Coeval, Int] = Iterant[Coeval].haltS[Int](Some(dummy))
-    val state = stream.dump("O", dummyOut(AtomicInt(0)))
-
-    assertEquals(state, stream)
-  }
-
   test("Iterant.dump preserves the source earlyStop") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.dump("O", dummyOut(AtomicInt(0)))
-    stream.earlyStop.value
+    stream.earlyStop.value()
 
     assertEquals(effect, 1)
-  }
-
-  test("Iterant[Task].dump can handle errors") { implicit s =>
-    val dummy = DummyException("dummy")
-    val stream = Iterant[Task].raiseError[Int](dummy)
-
-    assertEquals(stream, stream.dump("O", dummyOut(AtomicInt(0))))
   }
 
   test("Iterant.dump protects against broken batches") { implicit s =>

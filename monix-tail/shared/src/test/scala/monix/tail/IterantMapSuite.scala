@@ -117,7 +117,7 @@ object IterantMapSuite extends BaseTestSuite {
     var isCanceled = false
 
     val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
-    val result = stream.map[Int](_ => throw dummy).toListL.runTry
+    val result = stream.map[Int](_ => throw dummy).toListL.runTry()
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
@@ -128,7 +128,7 @@ object IterantMapSuite extends BaseTestSuite {
     var isCanceled = false
 
     val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
-    val result = stream.map[Int](_ => throw dummy).toListL.runTry
+    val result = stream.map[Int](_ => throw dummy).toListL.runTry()
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
@@ -169,7 +169,7 @@ object IterantMapSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.map(x => x)
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 

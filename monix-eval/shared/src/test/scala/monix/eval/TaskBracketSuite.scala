@@ -20,7 +20,9 @@ package monix.eval
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
-import monix.execution.exceptions.DummyException
+import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.internal.Platform
+
 import scala.util.{Failure, Success}
 
 object TaskBracketSuite extends BaseTestSuite {
@@ -38,9 +40,9 @@ object TaskBracketSuite extends BaseTestSuite {
   test("equivalence with flatMap + transformWith") { implicit sc =>
     check3 { (acquire: Task[Int], f: Int => Task[Int], release: Int => Task[Unit]) =>
       val expected = acquire.flatMap { a =>
-        f(a).transformWith(
-          s => release(a) *> Task.pure(s),
-          e => release(a) *> Task.raiseError(e)
+        f(a).redeemWith(
+          e => release(a) *> Task.raiseError(e),
+          s => release(a) *> Task.pure(s)
         )
       }
 
@@ -124,7 +126,25 @@ object TaskBracketSuite extends BaseTestSuite {
     val f = task.runAsync
     sc.tick()
 
-    assertEquals(f.value, Some(Failure(useError)))
-    assertEquals(sc.state.lastReportedError, releaseError)
+    f.value match {
+      case Some(Failure(error)) =>
+        if (Platform.isJVM) {
+          assertEquals(error, useError)
+          error.getSuppressed match {
+            case Array(error2) =>
+              assertEquals(error2, releaseError)
+            case _ =>
+              fail("Unexpected suppressed errors list: " + error.getSuppressed.toList)
+          }
+        } else error match {
+          case CompositeException(Seq(`useError`, `releaseError`)) =>
+            () // pass
+          case _ =>
+            fail(s"Unexpected error: $error")
+        }
+
+      case other =>
+        fail(s"Unexpected result: $other")
+    }
   }
 }

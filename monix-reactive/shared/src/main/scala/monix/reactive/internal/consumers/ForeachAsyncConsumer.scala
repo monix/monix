@@ -38,7 +38,7 @@ final class ForeachAsyncConsumer[A](f: A => Task[Unit])
 
       def onNext(elem: A): Future[Ack] = {
         try {
-          f(elem).coeval.value match {
+          f(elem).coeval.value() match {
             case Left(future) =>
               future.map(_ => Continue)
             case Right(()) =>

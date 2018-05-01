@@ -52,10 +52,10 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
   test("naiveImp smoke test") { implicit s =>
     val input = List(1, 2, 3, 4, 5, 6)
     val iter = Iterant[Coeval].fromList(input)
-    assertEquals(naiveImp(iter, 1).toListL.value, input)
-    assertEquals(naiveImp(iter, 2).toListL.value, List(2, 4, 6))
-    assertEquals(naiveImp(iter, 3).toListL.value, List(3, 6))
-    assertEquals(naiveImp(iter, input.length + 1).toListL.value, List.empty[Int])
+    assertEquals(naiveImp(iter, 1).toListL.value(), input)
+    assertEquals(naiveImp(iter, 2).toListL.value(), List(2, 4, 6))
+    assertEquals(naiveImp(iter, 3).toListL.value(), List(3, 6))
+    assertEquals(naiveImp(iter, input.length + 1).toListL.value(), List.empty[Int])
   }
 
   test("Iterant[Task].takeEveryNth equivalence with naiveImp") { implicit s =>
@@ -99,7 +99,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
-      assertEquals(stream.takeEveryNth(1).toListL.runTry, Failure(dummy))
+      assertEquals(stream.takeEveryNth(1).toListL.runTry(), Failure(dummy))
       cancelable.isCanceled
     }
   }
@@ -109,7 +109,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.takeEveryNth(1)
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 
@@ -121,11 +121,11 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
   test("Iterant.takeEveryNth suspends execution for NextCursor or NextBatch") { _ =>
     val iter1 = Iterant[Coeval].nextBatchS(Batch(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
     assert(iter1.takeEveryNth(2).isInstanceOf[Suspend[Coeval, Int]], "NextBatch should be suspended")
-    assertEquals(iter1.takeEveryNth(2).toListL.value, List(2))
+    assertEquals(iter1.takeEveryNth(2).toListL.value(), List(2))
 
     val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
     assert(iter2.takeEveryNth(2).isInstanceOf[Suspend[Coeval, Int]], "NextCursor should be suspended")
-    assertEquals(iter2.takeEveryNth(2).toListL.value, List(2))
+    assertEquals(iter2.takeEveryNth(2).toListL.value(), List(2))
   }
 
 }

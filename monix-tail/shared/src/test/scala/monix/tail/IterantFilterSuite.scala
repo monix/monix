@@ -60,7 +60,7 @@ object IterantFilterSuite extends BaseTestSuite {
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
-    assertEquals(state.toListL.runTry, Failure(dummy))
+    assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
   test("Iterant.filter suspends the evaluation for NextCursor") { _ =>
@@ -71,21 +71,21 @@ object IterantFilterSuite extends BaseTestSuite {
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
-    assertEquals(state.toListL.runTry, Failure(dummy))
+    assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
   test("Iterant.filter protects against user code for Next") { _ =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
     val state = iter.filter { _ => (throw dummy) : Boolean }
-    assertEquals(state.toListL.runTry, Failure(dummy))
+    assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
   test("Iterant.filter protects against user code for Last") { _ =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval].lastS(1)
     val state = iter.filter { _ => throw dummy }
-    assertEquals(state.toListL.runTry, Failure(dummy))
+    assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
   test("Iterant.filter doesn't touch Halt") { _ =>
@@ -104,7 +104,7 @@ object IterantFilterSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.filter(_ => true)
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 }

@@ -18,7 +18,7 @@
 package monix.eval
 package instances
 
-import cats.effect.{ConcurrentEffect, Effect, IO}
+import cats.effect.{ConcurrentEffect, Effect, ExitCase, IO}
 import monix.eval.internal.TaskEffect
 import monix.execution.Scheduler
 
@@ -38,7 +38,7 @@ import monix.execution.Scheduler
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsEffectForTask(implicit s: Scheduler)
+class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
   extends CatsBaseForTask with Effect[Task] {
 
   /** We need to mixin [[CatsAsyncForTask]], because if we
@@ -55,6 +55,10 @@ class CatsEffectForTask(implicit s: Scheduler)
     F.suspend(fa)
   override def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): Task[A] =
     F.async(k)
+  override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(release: A => Task[Unit]): Task[B] =
+    F.bracket(acquire)(use)(release)
+  override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
+    F.bracketCase(acquire)(use)(release)
 }
 
 /** Cats type class instances of [[monix.eval.Task Task]] for
@@ -72,7 +76,7 @@ class CatsEffectForTask(implicit s: Scheduler)
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsConcurrentEffectForTask(implicit s: Scheduler)
+class CatsConcurrentEffectForTask(implicit s: Scheduler, opts: Task.Options)
   extends CatsEffectForTask with ConcurrentEffect[Task] {
 
   /** We need to mixin [[CatsAsyncForTask]], because if we

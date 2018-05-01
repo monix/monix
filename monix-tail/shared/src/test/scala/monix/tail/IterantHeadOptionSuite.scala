@@ -52,10 +52,10 @@ object IterantHeadOptionSuite extends BaseTestSuite {
 
   test("Iterant.headOption works for empty NextCursor or NextBatch") { _ =>
     val iter1 = Iterant[Coeval].nextBatchS(Batch[Int](), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    assertEquals(iter1.headOptionL.value, None)
+    assertEquals(iter1.headOptionL.value(), None)
 
     val iter2 = Iterant[Coeval].nextCursorS(BatchCursor[Int](), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    assertEquals(iter2.headOptionL.value, None)
+    assertEquals(iter2.headOptionL.value(), None)
   }
 
   test("Iterant.headOption doesn't touch Halt") { implicit s =>
@@ -77,7 +77,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].suspendS[Int](Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].suspendS[Int](Coeval(node2), stop(1))
 
-    assertEquals(node1.headOptionL.runTry, Failure(dummy))
+    assertEquals(node1.headOptionL.runTry(), Failure(dummy))
     assertEquals(effect, 3)
   }
 
@@ -90,7 +90,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
       .headOptionL
 
     assertEquals(effect, 0)
-    assertEquals(fa.runTry, Failure(dummy))
+    assertEquals(fa.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 }

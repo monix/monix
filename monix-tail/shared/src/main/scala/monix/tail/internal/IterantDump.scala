@@ -31,58 +31,59 @@ private[tail] object IterantDump {
     * Implementation for `Iterant#dump`
     */
   def apply[F[_], A](source: Iterant[F, A], prefix: String, out: PrintStream = System.out)
-                    (implicit F: Sync[F]): Iterant[F, A] = {
+    (implicit F: Sync[F]): Iterant[F, A] = {
+
+    def moveNext(pos: Long, rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
+      rest.attempt.flatMap {
+        case Left(e) =>
+          out.println(s"$pos: $prefix --> effect error --> $e")
+          F.raiseError(e)
+        case Right(next) =>
+          F.pure(loop(pos)(next))
+      }
 
     def loop(pos: Long)(source: Iterant[F, A]): Iterant[F, A] =
       try source match {
         case Next(item, rest, stop) =>
-          out.println(s"$pos: $prefix --> $item")
-          Next[F, A](item, rest.map(loop(pos + 1)), stop)
+          out.println(s"$pos: $prefix --> next --> $item")
+          Next[F, A](item, moveNext(pos + 1, rest), stop)
 
         case NextCursor(cursor, rest, stop) =>
           var cursorPos = pos
           val dumped = cursor.map { el =>
-            out.println(s"$cursorPos: $prefix --> $el")
+            out.println(s"$cursorPos: $prefix --> next-cursor --> $el")
             cursorPos += 1
             el
           }
-          NextCursor[F, A](dumped, rest.map(loop(cursorPos)), stop)
+          NextCursor[F, A](dumped, moveNext(cursorPos, rest), stop)
 
         case NextBatch(batch, rest, stop) =>
           var batchPos = pos
           val dumped = batch.map { el =>
-            out.println(s"$batchPos: $prefix --> $el")
+            out.println(s"$batchPos: $prefix --> next-batch --> $el")
             batchPos += 1
             el
           }
-          NextBatch[F, A](dumped, rest.map(loop(batchPos)), stop)
+          NextBatch[F, A](dumped, moveNext(batchPos, rest), stop)
 
         case Suspend(rest, stop) =>
-          Suspend[F, A](rest.map(loop(pos)), stop)
+          out.println(s"$pos: $prefix --> suspend")
+          Suspend[F, A](moveNext(pos + 1, rest), stop)
 
         case Last(item) =>
-          out.println(s"$pos: $prefix --> $item")
-          out.println(s"${pos + 1}: $prefix completed")
+          out.println(s"$pos: $prefix --> last --> $item")
           Last(item)
 
-        case empty@Halt(_) =>
-          out.println(s"$pos: $prefix completed")
-          empty.asInstanceOf[Iterant[F, A]]
+        case Halt(error) =>
+          out.println(s"$pos: $prefix --> halt --> ${error.map(_.toString).getOrElse("no error")}")
+          source
 
       } catch {
         case ex if NonFatal(ex) =>
-          out.println(s"$pos: $prefix --> $ex")
+          out.println(s"$pos: $prefix --> unexpected error --> $ex")
           signalError(source, ex)
       }
 
-    source match {
-      case Suspend(_, _) | Halt(_) => loop(0)(source)
-      case _ =>
-        // Suspending execution in order to preserve laziness and
-        // referential transparency, since the provided PrintStream can
-        // be side effecting and because processing NextBatch and
-        // NextCursor states can have side effects
-        Suspend(F.delay(loop(0)(source)), source.earlyStop)
-    }
+    Suspend(F.delay(loop(0)(source)), source.earlyStop)
   }
 }

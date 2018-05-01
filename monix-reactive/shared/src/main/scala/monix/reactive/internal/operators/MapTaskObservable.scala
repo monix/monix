@@ -152,7 +152,7 @@ private[reactive] final class MapTaskObservable[A,B]
       if (!isActive.get) {
         Stop
       } else try {
-        val task = f(elem).transformWith(childOnSuccess, childOnError)
+        val task = f(elem).redeemWith(childOnError, childOnSuccess)
         // No longer allowed to stream errors downstream
         streamErrors = false
 

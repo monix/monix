@@ -100,7 +100,7 @@ private[eval] object TaskRunLoop {
                 return
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
-                try { current = bind.recover(error, sc) }
+                try { current = bind.recover(error) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 currentIndex = em.nextFrameIndex(currentIndex)
                 bFirstRef = null
@@ -227,7 +227,7 @@ private[eval] object TaskRunLoop {
                 return Cancelable.empty
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
-                try { current = bind.recover(error, scheduler) }
+                try { current = bind.recover(error) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null
@@ -340,7 +340,7 @@ private[eval] object TaskRunLoop {
                 return CancelableFuture.failed(error)
               case bind =>
                 // Try/catch described as statement to prevent ObjectRef ;-)
-                try { current = bind.recover(error, scheduler) }
+                try { current = bind.recover(error) }
                 catch { case e if NonFatal(e) => current = Error(e) }
                 frameIndex = em.nextFrameIndex(frameIndex)
                 bFirst = null

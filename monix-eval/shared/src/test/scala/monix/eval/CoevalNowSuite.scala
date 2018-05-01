@@ -51,7 +51,7 @@ object CoevalNowSuite extends BaseTestSuite {
   }
 
   test("Coeval.now.map should work") { implicit s =>
-    Coeval.now(1).map(_ + 1).value
+    Coeval.now(1).map(_ + 1).value()
     check1 { a: Int =>
       Coeval.now(a).map(_ + 1) <-> Coeval.now(a + 1)
     }
@@ -99,13 +99,13 @@ object CoevalNowSuite extends BaseTestSuite {
 
   test("Coeval.now.materialize should work") { implicit s =>
     val task = Coeval.now(1).materialize
-    assertEquals(task.value, Success(1))
+    assertEquals(task.value(), Success(1))
   }
 
 
   test("Coeval.error.materialize should work") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Coeval.raiseError(dummy).materialize
-    assertEquals(task.value, Failure(dummy))
+    assertEquals(task.value(), Failure(dummy))
   }
 }

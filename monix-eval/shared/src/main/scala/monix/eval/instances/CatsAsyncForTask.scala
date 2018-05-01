@@ -18,7 +18,7 @@
 package monix.eval
 package instances
 
-import cats.effect.{Async, Concurrent, IO}
+import cats.effect.{Async, Concurrent, ExitCase, IO}
 import monix.eval.internal.TaskEffect
 
 /** Cats type class instance of [[monix.eval.Task Task]]
@@ -37,6 +37,10 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
     Task.defer(fa)
   override def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): Task[A] =
     TaskEffect.async(k)
+  override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(release: A => Task[Unit]): Task[B] =
+    acquire.bracket(use)(release)
+  override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
+    acquire.bracketCase(use)(release)
 }
 
 /** Cats type class instance of [[monix.eval.Task Task]]

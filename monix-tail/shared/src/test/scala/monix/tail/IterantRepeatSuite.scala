@@ -34,9 +34,13 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (effect == 6) throw dummy else {
-        effect += 1; values ::= x; x
-      }}.toListL.value}
+      source.repeat.map { x =>
+        if (effect == 6) throw dummy else {
+          effect += 1;
+          values ::= x;
+          x
+        }
+      }.toListL.value()}
 
     assertEquals(values, expectedValues)
   }
@@ -66,7 +70,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.repeat
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 
@@ -78,7 +82,7 @@ object IterantRepeatSuite extends BaseTestSuite {
       val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
       intercept[DummyException] {
-        stream.repeat.toListL.value
+        stream.repeat.toListL.value()
       }
       cancelable.isCanceled
     }
@@ -91,9 +95,12 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (values.size == 6) throw dummy else {
-        values ::= x; x
-      }}.toListL.value}
+      source.repeat.map { x =>
+        if (values.size == 6) throw dummy else {
+          values ::= x;
+          x
+        }
+      }.toListL.value()}
 
     assertEquals(values, expectedValues)
   }
@@ -106,9 +113,12 @@ object IterantRepeatSuite extends BaseTestSuite {
       Coeval(Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)), Coeval.unit)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (values.size == 6) throw dummy else {
-        values ::= x; x
-      }}.toListL.value}
+      source.repeat.map { x =>
+        if (values.size == 6) throw dummy else {
+          values ::= x;
+          x
+        }
+      }.toListL.value()}
 
     assertEquals(values, expectedValues)
   }
@@ -120,9 +130,12 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (values.size == 6) throw dummy else {
-        values ::= x; x
-      }}.toListL.value}
+      source.repeat.map { x =>
+        if (values.size == 6) throw dummy else {
+          values ::= x;
+          x
+        }
+      }.toListL.value()}
 
     assertEquals(values, expectedValues)
   }
@@ -135,9 +148,12 @@ object IterantRepeatSuite extends BaseTestSuite {
       Coeval(Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)), Coeval.unit)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (values.size == 6) throw dummy else {
-        values ::= x; x
-      }}.toListL.value}
+      source.repeat.map { x =>
+        if (values.size == 6) throw dummy else {
+          values ::= x;
+          x
+        }
+      }.toListL.value()}
 
     assertEquals(values, expectedValues)
   }
@@ -149,9 +165,12 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source = Iterant[Coeval].lastS(1)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (values.size == 6) throw dummy else {
-        values ::= x; x
-      }}.toListL.value}
+      source.repeat.map { x =>
+        if (values.size == 6) throw dummy else {
+          values ::= x;
+          x
+        }
+      }.toListL.value()}
 
     assertEquals(values, expectedValues)
   }
@@ -163,9 +182,12 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source = Iterant[Coeval].suspendS[Int](Coeval(Iterant.nextS(1, Coeval(Iterant.empty), Coeval.unit)), Coeval.unit)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (values.size == 6) throw dummy else {
-        values ::= x; x
-      }}.toListL.value}
+      source.repeat.map { x =>
+        if (values.size == 6) throw dummy else {
+          values ::= x;
+          x
+        }
+      }.toListL.value()}
 
     assertEquals(values, expectedValues)
   }
@@ -175,9 +197,9 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source2 = Iterant[Coeval].suspendS(Coeval(source1), Coeval.unit)
     val source3 = Iterant[Coeval].nextCursorS[Int](BatchCursor(), Coeval(source1), Coeval.unit)
 
-    assertEquals(source1.repeat.toListL.value, List.empty[Int])
-    assertEquals(source2.repeat.toListL.value, List.empty[Int])
-    assertEquals(source3.repeat.toListL.value, List.empty[Int])
+    assertEquals(source1.repeat.toListL.value(), List.empty[Int])
+    assertEquals(source2.repeat.toListL.value(), List.empty[Int])
+    assertEquals(source3.repeat.toListL.value(), List.empty[Int])
   }
 
   test("Iterant.repeat doesn't touch Halt") { implicit s =>
@@ -185,7 +207,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     val iter1: Iterant[Coeval, Int] = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].haltS[Int](Some(dummy))), Coeval.unit)
     val state1 = iter1.repeat
 
-    assertEquals(state1.toListL.runTry, iter1.toListL.runTry)
+    assertEquals(state1.toListL.runTry(), iter1.toListL.runTry())
   }
 
   test("Iterant.repeat builder terminates on exception") { implicit s =>
@@ -195,9 +217,12 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source = Iterant[Coeval].repeat(1)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (values.size == 6) throw dummy else {
-        values ::= x; x
-      }}.toListL.value}
+      source.repeat.map { x =>
+        if (values.size == 6) throw dummy else {
+          values ::= x;
+          x
+        }
+      }.toListL.value()}
 
     assertEquals(values, expectedValues)
   }
@@ -209,9 +234,12 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source = Iterant[Coeval].repeat(List(1, 2, 3): _*)
 
     intercept[DummyException] {
-      source.repeat.map { x => if (values.size == 6) throw dummy else {
-        values ::= x; x
-      }}.toListL.value}
+      source.repeat.map { x =>
+        if (values.size == 6) throw dummy else {
+          values ::= x;
+          x
+        }
+      }.toListL.value()}
 
     assertEquals(values, expectedValues)
   }
@@ -246,7 +274,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     var effect = 0
     val increment = Coeval { effect += 1 }
     Iterant[Coeval].repeatEvalF(increment).take(repeats)
-      .completeL.value
+      .completeL.value()
     assertEquals(effect, repeats)
   }
 

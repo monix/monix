@@ -18,8 +18,9 @@
 package monix.eval.instances
 
 import cats.{CoflatMap, Eval}
-import cats.effect.Sync
+import cats.effect.{ExitCase, Sync}
 import monix.eval.Coeval
+
 import scala.util.Try
 
 /** Cats type class instances for [[monix.eval.Coeval Coeval]].
@@ -77,6 +78,10 @@ class CatsSyncForCoeval extends Sync[Coeval] with CoflatMap[Coeval] {
     Coeval.now(f(fa))
   override def coflatten[A](fa: Coeval[A]): Coeval[Coeval[A]] =
     Coeval.now(fa)
+  override def bracket[A, B](acquire: Coeval[A])(use: A => Coeval[B])(release: A => Coeval[Unit]): Coeval[B] =
+    acquire.bracket(use)(release)
+  override def bracketCase[A, B](acquire: Coeval[A])(use: A => Coeval[B])(release: (A, ExitCase[Throwable]) => Coeval[Unit]): Coeval[B] =
+    acquire.bracketCase(use)(release)
 }
 
 /** Default and reusable instance for [[CatsSyncForCoeval]].

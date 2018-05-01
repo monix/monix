@@ -41,14 +41,14 @@ final class FoldLeftTaskConsumer[A,R](initial: () => R, f: (R,A) => Task[R])
         // Protects calls to user code from within the operator,
         // as a matter of contract.
         try {
-          val task = f(state, elem).transform(
-            update => {
-              state = update
-              Continue
-            },
+          val task = f(state, elem).redeem(
             error => {
               onError(error)
               Stop
+            },
+            update => {
+              state = update
+              Continue
             })
 
           task.runAsync

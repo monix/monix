@@ -90,7 +90,7 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
       val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
       intercept[DummyException] {
-        stream.zipWithIndex.toListL.value
+        stream.zipWithIndex.toListL.value()
       }
       cancelable.isCanceled
     }
@@ -102,7 +102,7 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.zipWithIndex
 
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 }

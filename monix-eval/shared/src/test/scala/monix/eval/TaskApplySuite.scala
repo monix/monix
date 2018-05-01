@@ -110,7 +110,7 @@ object TaskApplySuite extends BaseTestSuite {
   }
 
   test("Task.apply.coeval") { implicit s =>
-    Task(100).coeval.value match {
+    Task(100).coeval.value() match {
       case Left(result) =>
         assertEquals(result.value, None)
         s.tick()

@@ -26,29 +26,29 @@ import scala.util.{Failure, Success}
 object TaskErrorSuite extends BaseTestSuite {
   test("Task.attempt should expose error") { implicit s =>
     val dummy = DummyException("dummy")
-    val r = Task.raiseError[Int](dummy).attempt.coeval.runTry
+    val r = Task.raiseError[Int](dummy).attempt.coeval.runTry()
     assertEquals(r, Success(Right(Left(dummy))))
   }
 
   test("Task.attempt should work for successful values") { implicit s =>
-    val r = Task.now(10).attempt.coeval.runTry
+    val r = Task.now(10).attempt.coeval.runTry()
     assertEquals(r, Success(Right(Right(10))))
   }
 
   test("Task.fail should expose error") { implicit s =>
     val dummy = DummyException("dummy")
-    val r = Task.raiseError[Int](dummy).failed.coeval.value
+    val r = Task.raiseError[Int](dummy).failed.coeval.value()
     assertEquals(r, Right(dummy))
   }
 
   test("Task.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
-      Task.now(10).failed.coeval.value
+      Task.now(10).failed.coeval.value()
     }
   }
 
   test("Task.now.materialize") { implicit s =>
-    assertEquals(Task.now(10).materialize.coeval.value, Right(Success(10)))
+    assertEquals(Task.now(10).materialize.coeval.value(), Right(Success(10)))
   }
 
   test("Task.error.materialize") { implicit s =>
@@ -57,7 +57,7 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task.evalOnce.materialize") { implicit s =>
-    assertEquals(Task.evalOnce(10).materialize.coeval.value, Right(Success(10)))
+    assertEquals(Task.evalOnce(10).materialize.coeval.value(), Right(Success(10)))
   }
 
   test("Task.evalOnce.materialize should be stack safe") { implicit s =>
@@ -74,25 +74,25 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task.eval.materialize") { implicit s =>
-    assertEquals(Task.eval(10).materialize.coeval.value, Right(Success(10)))
+    assertEquals(Task.eval(10).materialize.coeval.value(), Right(Success(10)))
   }
 
   test("Task.defer.materialize") { implicit s =>
-    assertEquals(Task.defer(Task.now(10)).materialize.coeval.value, Right(Success(10)))
+    assertEquals(Task.defer(Task.now(10)).materialize.coeval.value(), Right(Success(10)))
   }
 
   test("Task.defer.flatMap.materialize") { implicit s =>
-    assertEquals(Task.defer(Task.now(10)).flatMap(Task.now).materialize.coeval.value, Right(Success(10)))
+    assertEquals(Task.defer(Task.now(10)).flatMap(Task.now).materialize.coeval.value(), Right(Success(10)))
   }
 
   test("Task.error.materialize") { implicit s =>
     val dummy = DummyException("dummy")
-    assertEquals(Task.raiseError[Int](dummy).materialize.coeval.value, Right(Failure(dummy)))
+    assertEquals(Task.raiseError[Int](dummy).materialize.coeval.value(), Right(Failure(dummy)))
   }
 
   test("Task.flatMap.materialize") { implicit s =>
     assertEquals(Task.eval(10).flatMap(x => Task.now(x))
-      .materialize.coeval.value, Right(Success(10)))
+      .materialize.coeval.value(), Right(Success(10)))
   }
 
   test("Task.apply.materialize") { implicit s =>

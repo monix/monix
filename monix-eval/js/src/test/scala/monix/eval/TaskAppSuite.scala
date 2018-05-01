@@ -28,7 +28,7 @@ object TaskAppSuite extends SimpleTestSuite {
     var wasExecuted = false
 
     val app = new TaskApp {
-      override val scheduler = Coeval.now(testS)
+      override val scheduler = testS
       override def runl(args: List[String]) =
         Task { wasExecuted = args.headOption.getOrElse("false") == "true" }
     }
@@ -42,7 +42,7 @@ object TaskAppSuite extends SimpleTestSuite {
     var wasExecuted = false
 
     val app = new TaskApp {
-      override val scheduler = Coeval.now(testS)
+      override val scheduler = testS
       override def runc = Task { wasExecuted = true }
     }
 
@@ -65,7 +65,7 @@ object TaskAppSuite extends SimpleTestSuite {
       }
 
     val app = new TaskApp {
-      override val options = Coeval(opts2)
+      override val options = opts2
       override def runc =
         exposeOpts.map { x => p.success(x) }
     }

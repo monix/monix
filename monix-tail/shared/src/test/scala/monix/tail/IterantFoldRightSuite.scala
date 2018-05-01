@@ -69,11 +69,11 @@ object IterantFoldRightSuite extends BaseTestSuite {
     val ref = Iterant[Coeval].of(1, 2, 3, 4).doOnEarlyStop(Coeval { effect += 1 })
 
     val r1 = exists(ref, _ == 6)
-    assertEquals(r1.runTry, Success(false))
+    assertEquals(r1.runTry(), Success(false))
     assertEquals(effect, 0)
 
     val r2 = exists(ref, _ == 3)
-    assertEquals(r2.runTry, Success(true))
+    assertEquals(r2.runTry(), Success(true))
     assertEquals(effect, 1)
   }
 
@@ -93,26 +93,26 @@ object IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 0)
     assertEquals(emitted, 0)
 
-    assertEquals(all.headOptionL.value, Some(1))
+    assertEquals(all.headOptionL.value(), Some(1))
     assertEquals(effect, 1)
     assertEquals(emitted, 1)
 
     emitted = 0
     effect = 0
 
-    assertEquals(all.take(2).toListL.value, List(1, 2))
+    assertEquals(all.take(2).toListL.value(), List(1, 2))
     assertEquals(effect, 2)
     assertEquals(emitted, 2)
 
     emitted = 0
     effect = 0
 
-    assertEquals(all.take(3).toListL.value, List(1, 2, 3))
+    assertEquals(all.take(3).toListL.value(), List(1, 2, 3))
     assertEquals(effect, 3)
     assertEquals(emitted, 3)
 
     effect = 0
-    assertEquals(all.take(4).toListL.value, List(1, 2, 3, 4))
+    assertEquals(all.take(4).toListL.value(), List(1, 2, 3, 4))
     assertEquals(effect, 100)
   }
 
@@ -125,7 +125,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
       .foldRightL(Coeval(0))((_, _, _) => throw dummy)
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -138,7 +138,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
       .foldRightL(Coeval(0))((a, acc, _) => acc.map(_ + a))
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -151,7 +151,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
       .foldRightL(Coeval(0))((a, acc, _) => acc.map(_ + a))
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 }

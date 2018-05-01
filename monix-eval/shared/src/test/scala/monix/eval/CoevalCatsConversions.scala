@@ -84,22 +84,22 @@ object CoevalCatsConversions extends BaseTestSuite {
     val effect = Atomic(0)
     val eval = Coeval.fromEval(Eval.always(effect.incrementAndGet()))
 
-    assertEquals(eval.value, 1)
-    assertEquals(eval.value, 2)
-    assertEquals(eval.value, 3)
+    assertEquals(eval.value(), 1)
+    assertEquals(eval.value(), 2)
+    assertEquals(eval.value(), 3)
   }
 
   test("Coeval.fromEval(Eval.later(v))") { _ =>
     val effect = Atomic(0)
     val eval = Coeval.fromEval(Eval.later(effect.incrementAndGet()))
 
-    assertEquals(eval.value, 1)
-    assertEquals(eval.value, 1)
+    assertEquals(eval.value(), 1)
+    assertEquals(eval.value(), 1)
   }
 
   test("Coeval.fromEval protects against user error") { implicit s =>
     val dummy = new DummyException("dummy")
     val eval = Coeval.fromEval(Eval.always { throw dummy })
-    assertEquals(eval.runTry, Failure(dummy))
+    assertEquals(eval.runTry(), Failure(dummy))
   }
 }

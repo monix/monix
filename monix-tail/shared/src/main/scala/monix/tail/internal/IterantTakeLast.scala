@@ -32,7 +32,7 @@ private[tail] object IterantTakeLast {
 
     def finalCursor(buffer: DropHeadOnOverflowQueue[A]): F[Iterant[F, A]] = {
       val cursor = BatchCursor.fromIterator(buffer.iterator(true), Int.MaxValue)
-      F.pure(NextCursor(cursor, F.pure(Halt(None)), F.unit))
+      F.pure(NextCursor(cursor, F.pure(Iterant.empty), F.unit))
     }
 
     def loop(buffer: DropHeadOnOverflowQueue[A])(source: Iterant[F, A]): F[Iterant[F, A]] = {
@@ -62,7 +62,7 @@ private[tail] object IterantTakeLast {
     // Current earlyStop has to be preserved
     val stopRef = source.earlyStop
     if (n < 1)
-      Suspend(stopRef.map(_ => Halt(None)), stopRef)
+      Suspend(stopRef.map(_ => Iterant.empty), stopRef)
     else {
       // Suspending execution, because pushing into our buffer
       // is side-effecting

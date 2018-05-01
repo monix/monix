@@ -91,7 +91,7 @@ private[tail] object IterantDistinctUntilChanged {
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop(prev)), stop)
         case Last(a) =>
-          if (K.neqv(prev, f(a))) self else Halt(None)
+          if (K.neqv(prev, f(a))) self else Iterant.empty
         case Halt(_) =>
           self
       } catch {

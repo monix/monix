@@ -197,7 +197,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     var isCanceled = false
 
     val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
-    val result = stream.flatMap[Int](_ => throw dummy).toListL.runTry
+    val result = stream.flatMap[Int](_ => throw dummy).toListL.runTry()
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
@@ -208,7 +208,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     var isCanceled = false
 
     val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
-    val result = stream.flatMap[Int](_ => throw dummy).toListL.runTry
+    val result = stream.flatMap[Int](_ => throw dummy).toListL.runTry()
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
@@ -232,7 +232,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       for (x <- stream1; y <- stream2; z <- stream3)
         yield x + y + z
 
-    assertEquals(composed.headOptionL.value, Some(6))
+    assertEquals(composed.headOptionL.value(), Some(6))
     assertEquals(effects, Vector(3,2,1))
   }
 
@@ -264,10 +264,10 @@ object IterantFlatMapSuite extends BaseTestSuite {
       for (x <- stream1; y <- stream2; z <- stream3)
         yield x + y + z
 
-    firstNext(composed).value match {
+    firstNext(composed).value() match {
       case Iterant.NextCursor(head, _, stop) =>
         assertEquals(head.toList, List(6))
-        assertEquals(stop.value, ())
+        assertEquals(stop.value(), ())
         assertEquals(effects, Vector(3,2,1))
       case state =>
         fail(s"Invalid state: $state")
@@ -319,7 +319,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.flatMap(x => Iterant[Coeval].now(x))
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 

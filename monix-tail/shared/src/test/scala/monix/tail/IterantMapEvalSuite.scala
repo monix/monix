@@ -192,28 +192,28 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant[Coeval].next.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].now(1)
-    val result = stream.mapEval[Int](_ => throw dummy).toListL.runTry
+    val result = stream.mapEval[Int](_ => throw dummy).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
 
   test("Iterant[Coeval].nextCursor.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].fromList(List(1,2,3))
-    val result = stream.mapEval[Int](_ => throw dummy).toListL.runTry
+    val result = stream.mapEval[Int](_ => throw dummy).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
 
   test("Iterant[Coeval].next.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].now(1)
-    val result = stream.mapEval[Int](_ => Coeval.raiseError(dummy)).toListL.runTry
+    val result = stream.mapEval[Int](_ => Coeval.raiseError(dummy)).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
 
   test("Iterant[Coeval].nextCursor.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].fromList(List(1,2,3))
-    val result = stream.mapEval[Int](_ => Coeval.raiseError(dummy)).toListL.runTry
+    val result = stream.mapEval[Int](_ => Coeval.raiseError(dummy)).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
 
@@ -314,7 +314,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
     val stream = source.mapEval(x => Coeval.now(x))
-    stream.earlyStop.value
+    stream.earlyStop.value()
     assertEquals(effect, 1)
   }
 }

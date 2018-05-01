@@ -23,12 +23,14 @@ import cats.laws.discipline._
 import scala.util.{Failure, Success}
 
 object TaskMapBothSuite extends BaseTestSuite {
-  test("if both tasks are synchronous, then mapBoth is also synchronous") { implicit s =>
+  test("if both tasks are synchronous, then mapBoth does forking asynchronous") { implicit s =>
     val ta = Task.eval(1)
     val tb = Task.eval(2)
 
     val r = Task.mapBoth(ta,tb)(_ + _)
     val f = r.runAsync
+    assertEquals(f.value, None)
+    s.tickOne()
     assertEquals(f.value, Some(Success(3)))
   }
 
