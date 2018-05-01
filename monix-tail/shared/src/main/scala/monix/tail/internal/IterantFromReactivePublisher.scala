@@ -21,10 +21,10 @@ import cats.effect.{Async, Timer}
 import cats.syntax.apply._
 import monix.eval.Callback
 import monix.execution.misc.AsyncVar
+import monix.execution.rstreams.ReactivePullStrategy
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import monix.tail.{Iterant, PullStrategy}
+import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Next, NextBatch}
-import monix.tail.PullStrategy.Batched
 import monix.tail.batches.Batch
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
@@ -42,8 +42,10 @@ private[tail] object IterantFromReactivePublisher {
       if (bufferSize == 1) null else new Array(bufferSize)
 
     val generate: F[Iterant[F, A]] = F.async[Iterant[F, A]] { cb =>
-      result.take
-        .onComplete(Callback.fromAttempt(cb))(immediate)
+      result.unsafeTake(Callback.fromAttempt(cb)) match {
+        case null => ()
+        case a => cb(Right(a))
+      }
     } <* timer.shift
 
     val stop: F[Unit] = F.delay {
@@ -99,11 +101,11 @@ private[tail] object IterantFromReactivePublisher {
     }
   }
 
-  def apply[F[_]: Async: Timer, A](publisher: Publisher[A], strategy: PullStrategy): Iterant[F, A] =
+  def apply[F[_]: Async: Timer, A](publisher: Publisher[A], strategy: ReactivePullStrategy): Iterant[F, A] =
     Iterant.suspend[F, A] {
       Async[F].suspend {
         strategy match {
-          case Batched(size) =>
+          case ReactivePullStrategy.Batched(size) =>
             val unfold = new UnfoldSubscriber[F, A](size)
             publisher.subscribe(unfold)
             unfold.generate

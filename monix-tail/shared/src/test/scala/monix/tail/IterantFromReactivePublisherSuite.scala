@@ -25,8 +25,9 @@ import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import org.scalacheck.{Arbitrary, Gen}
-
 import scala.util.Failure
+
+import monix.execution.rstreams.ReactivePullStrategy
 
 
 object IterantFromReactivePublisherSuite extends BaseTestSuite {
@@ -42,14 +43,14 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
 
   test("fromReactivePublisher emits values in correct order") { implicit s =>
     check1 { range: Range =>
-      implicit val pullStrategy = PullStrategy.Single
+      implicit val pullStrategy: ReactivePullStrategy = ReactivePullStrategy.Single
       val publisher = new RangePublisher(range, None)
       Iterant[IO].fromReactivePublisher(publisher) <-> Iterant[IO].fromSeq(range)
     }
   }
 
   test("fromReactivePublisher cancels subscription on earlyStop") { implicit s =>
-    implicit val pullStrategy = PullStrategy.Batched(8)
+    implicit val pullStrategy: ReactivePullStrategy = ReactivePullStrategy.Batched(8)
     val publisher = new RangePublisher(1 to 64, None)
     Iterant[Task].fromReactivePublisher(publisher)
       .take(5)
