@@ -39,7 +39,7 @@ private[eval] object TaskExecuteOn {
           Task.unsafeStartTrampolined(source, ctx2, cb2)
       } catch {
         case ex: RejectedExecutionException =>
-          cb.onError(ex)
+          cb2.onError(ex)
       }
     }
 }

@@ -2185,7 +2185,7 @@ object Task extends TaskInstancesLevel1 {
         })
       } catch {
         case ex: RejectedExecutionException =>
-          cb.onError(ex)
+          cb.asyncOnError(ex)(context.scheduler)
       }
     }
 
