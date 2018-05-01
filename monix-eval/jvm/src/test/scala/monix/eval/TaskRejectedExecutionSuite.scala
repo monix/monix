@@ -17,24 +17,21 @@
 
 package monix.eval
 
-import java.util.concurrent.{ArrayBlockingQueue, RejectedExecutionException, ThreadPoolExecutor, TimeUnit}
-
+import java.util.concurrent.RejectedExecutionException
 import minitest.SimpleTestSuite
-import monix.execution.{Scheduler, UncaughtExceptionReporter}
+import monix.execution.Scheduler
 import monix.execution.Scheduler.Implicits.global
-
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
 object TaskRejectedExecutionSuite extends SimpleTestSuite {
-  val failOnError = UncaughtExceptionReporter { ex =>
-    fail("Exceptions should not be reported using scheduler")
-  }
 
   val limited = Scheduler(
-    new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS, new ArrayBlockingQueue[Runnable](1)),
-    failOnError
-  )
+    new ExecutionContext {
+      def execute(runnable: Runnable): Unit = throw new RejectedExecutionException()
+      def reportFailure(cause: Throwable): Unit =
+        fail("Exceptions should not be reported using scheduler")
+    })
 
   def testRejected[A](task: Task[A]): Unit =
     intercept[RejectedExecutionException] {
