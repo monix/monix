@@ -93,7 +93,7 @@ private[tail] object IterantBuffer {
             if (seq != null && seq.length > 0)
               last(seq)
             else
-              Halt(None)
+              Iterant.empty
           }
 
         case ref @ Halt(_) =>

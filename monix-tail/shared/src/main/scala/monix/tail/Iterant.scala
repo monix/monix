@@ -28,6 +28,7 @@ import monix.execution.misc.NonFatal
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
+import monix.tail.internal.Constants.emptyRef
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
@@ -2513,8 +2514,6 @@ object Iterant extends IterantInstances {
     def earlyStop(implicit F: Applicative[F]): F[Unit] =
       F.unit
   }
-
-  private[this] val emptyRef = Halt(None)
 }
 
 private[tail] trait IterantInstances extends IterantInstances1 {

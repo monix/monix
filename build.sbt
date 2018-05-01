@@ -295,7 +295,12 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.TaskInstancesLevel0.catsEffect"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.this"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.this"),
-      // Internals ...
+    // Breakage - TaskApp
+    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.options"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.scheduler"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.options"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.scheduler"),
+    // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#AttemptCoeval.recover"),

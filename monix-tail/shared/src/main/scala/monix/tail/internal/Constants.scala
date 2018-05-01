@@ -20,9 +20,13 @@ package internal
 
 import cats.effect.ExitCase
 import cats.effect.ExitCase.Canceled
+import monix.tail.Iterant.Halt
 
 private[tail] object Constants {
 
   /** Internal API — reusable reference. */
   val canceledRef: ExitCase[Throwable] = Canceled(None)
+
+  /** Internal API — reusable reference. */
+  val emptyRef = Halt(None)
 }
