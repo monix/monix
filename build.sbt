@@ -1,4 +1,6 @@
 import com.typesafe.sbt.GitVersioning
+import com.typesafe.tools.mima.core._
+import com.typesafe.tools.mima.core.ProblemFilters._
 import sbt.Keys.version
 // For getting Scoverage out of the generated POM
 import scala.xml.Elem
@@ -10,7 +12,7 @@ addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.1.0"
-val catsEffectVersion = "0.10"
+val catsEffectVersion = "1.0.0-RC"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
@@ -18,7 +20,7 @@ val minitestVersion = "2.1.1"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0"
+val monixSeries = "3.0.0-RC1"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -115,7 +117,10 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   // Turning off fatal warnings for ScalaDoc, otherwise we can't release.
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
 
-  // ScalaDoc settings
+  // For working with partially-applied types
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.6" cross CrossVersion.binary),
+
+    // ScalaDoc settings
   autoAPIMappings := true,
   scalacOptions in ThisBuild ++= Seq(
     // Note, this is used by the doc-source-url feature to determine the
@@ -282,7 +287,41 @@ lazy val cmdlineProfile =
   sys.env.getOrElse("SBT_PROFILE", "")
 
 def mimaSettings(projectName: String) = Seq(
-  // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
+  mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
+  mimaBinaryIssueFilters ++= Seq(
+    // Breakage — changed Task#foreach signature
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Task.foreach"),
+    // Breakage — extra implicit param
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskInstancesLevel0.catsEffect"),
+    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.this"),
+    // Breakage - TaskApp
+    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.options"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.scheduler"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.options"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.scheduler"),
+    // Internals ...
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#AttemptCoeval.recover"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#AttemptTask.recover"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.StackFrame.recover"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.internal.StackFrame.recover"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.StackFrame.errorHandler"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.StackFrame.fold"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskBracket#ReleaseRecover.recover"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskBracket#ReleaseRecover.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalBracket#ReleaseRecover.recover"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalBracket#ReleaseRecover.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskBracket.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.runAsync"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.runCancelable"),
+    exclude[MissingClassProblem]("monix.eval.internal.CoevalBracket$ReleaseFrame"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseFrame"),
+    exclude[MissingClassProblem]("monix.eval.internal.StackFrame$Fold"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.StackFrame#ErrorHandler.recover"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalBracket.apply")
+  )
 )
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
@@ -419,7 +458,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    libraryDependencies += "io.monix" %% "monix-reactive" % "2.3.2"
+    libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC1"
   )
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))

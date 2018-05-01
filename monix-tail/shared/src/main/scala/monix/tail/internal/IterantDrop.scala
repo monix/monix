@@ -56,7 +56,7 @@ private[tail] object IterantDrop {
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop(toDrop)), stop)
         case Last(_) =>
-          Halt(None)
+          Iterant.empty
         case halt @ Halt(_) =>
           halt
       } catch {

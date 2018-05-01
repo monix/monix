@@ -61,7 +61,7 @@ object IterantBufferSuite extends BaseTestSuite {
       .bufferTumbling(10)
 
     assertEquals(effect, 0)
-    assertEquals(stream.toListL.runTry, Failure(dummy))
+    assertEquals(stream.toListL.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -74,7 +74,7 @@ object IterantBufferSuite extends BaseTestSuite {
       .bufferTumbling(10)
 
     assertEquals(effect, 0)
-    assertEquals(stream.toListL.runTry, Failure(dummy))
+    assertEquals(stream.toListL.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 }

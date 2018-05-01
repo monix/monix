@@ -95,28 +95,40 @@ object TaskFlatMapSuite extends BaseTestSuite {
     assertEquals(atomic.get, expected)
   }
 
-  test("transformWith equivalence with flatMap") { implicit s =>
+  test("redeemWith derives flatMap") { implicit s =>
     check2 { (fa: Task[Int], f: Int => Task[Int]) =>
-      fa.transformWith(f, Task.raiseError) <-> fa.flatMap(f)
+      fa.redeemWith(Task.raiseError, f) <-> fa.flatMap(f)
     }
   }
 
-  test("transform equivalence with map") { implicit s =>
+  test("redeemWith derives onErrorHandleWith") { implicit s =>
+    check2 { (fa: Task[Int], f: Throwable => Task[Int]) =>
+      fa.redeemWith(f, Task.pure) <-> fa.onErrorHandleWith(f)
+    }
+  }
+
+  test("redeem derives map") { implicit s =>
     check2 { (fa: Task[Int], f: Int => Int) =>
-      fa.transform(f, ex => throw ex) <-> fa.map(f)
+      fa.redeem(e => throw e, f) <-> fa.map(f)
     }
   }
 
-  test("transformWith can recover") { implicit s =>
+  test("redeem derives onErrorHandle") { implicit s =>
+    check2 { (fa: Task[Int], f: Throwable => Int) =>
+      fa.redeem(f, x => x) <-> fa.onErrorHandle(f)
+    }
+  }
+
+  test("redeemWith can recover") { implicit s =>
     val dummy = new DummyException("dummy")
-    val task = Task.raiseError[Int](dummy).transformWith(Task.now, _ => Task.now(1))
+    val task = Task.raiseError[Int](dummy).redeemWith(_ => Task.now(1), Task.now)
     val f = task.runAsync
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("transform can recover") { implicit s =>
+  test("redeem can recover") { implicit s =>
     val dummy = new DummyException("dummy")
-    val task = Task.raiseError[Int](dummy).transform(identity, _ => 1)
+    val task = Task.raiseError[Int](dummy).redeem(_ => 1, identity)
     val f = task.runAsync
     assertEquals(f.value, Some(Success(1)))
   }

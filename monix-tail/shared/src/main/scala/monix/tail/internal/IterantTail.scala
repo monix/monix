@@ -48,7 +48,7 @@ private[tail] object IterantTail {
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop), stop)
         case Last(_) =>
-          Halt(None)
+          Iterant.empty
         case halt @ Halt(_) =>
           halt
       } catch {

@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import cats.effect.{Effect, IO}
+import cats.effect.{Effect, ExitCase, IO}
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
@@ -27,6 +27,7 @@ import monix.execution.internal.Platform
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.batches.Batch
 import org.reactivestreams.{Subscriber, Subscription}
+
 import scala.util.{Failure, Success}
 
 object IterantToReactivePublisherSuite extends BaseTestSuite {
@@ -377,5 +378,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       IO.pure(x)
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
+    override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+      acquire.bracketCase(use)(release)
   }
 }

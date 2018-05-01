@@ -77,7 +77,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].suspendS[Int](Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].suspendS[Int](Coeval(node2), stop(1))
 
-    assertEquals(node1.headOptionL.runTry, Failure(dummy))
+    assertEquals(node1.headOptionL.runTry(), Failure(dummy))
     assertEquals(effect, 3)
   }
 
@@ -90,7 +90,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
       .headOptionL
 
     assertEquals(effect, 0)
-    assertEquals(fa.runTry, Failure(dummy))
+    assertEquals(fa.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 }

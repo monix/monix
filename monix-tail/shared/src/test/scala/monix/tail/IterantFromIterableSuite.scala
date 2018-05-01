@@ -70,7 +70,7 @@ object IterantFromIterableSuite extends BaseTestSuite {
       def next(): Int = throw dummy
     }
 
-    val result = Iterant[Coeval].fromIterator(iterator).toListL.runTry
+    val result = Iterant[Coeval].fromIterator(iterator).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
 }

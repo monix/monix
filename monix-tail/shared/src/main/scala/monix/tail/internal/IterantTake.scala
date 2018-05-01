@@ -35,7 +35,7 @@ private[tail] object IterantTake {
 
     def nextOrStop(rest: F[Iterant[F, A]], stop: F[Unit], n: Int, taken: Int): F[Iterant[F, A]] = {
       if (n > taken) rest.map(loop(n - taken))
-      else stop.map(_ => Halt(None))
+      else stop.map(_ => Iterant.empty)
     }
 
     def processSeq(n: Int, ref: NextCursor[F, A]): Iterant[F, A] = {
@@ -79,7 +79,7 @@ private[tail] object IterantTake {
           theEnd
         case other =>
           val stop = other.earlyStop
-          Suspend(stop.map(_ => Halt(None)), stop)
+          Suspend(stop.map(_ => Iterant.empty), stop)
       }
       catch {
         case ex if NonFatal(ex) =>

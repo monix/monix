@@ -48,7 +48,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     val p = Promise[Option[Throwable]]()
 
     val coeval = Coeval(10).doOnFinish(s => Coeval(p.success(s)))
-    val result = coeval.runTry
+    val result = coeval.runTry()
 
     assertEquals(result, Success(10))
     assertEquals(p.future.value, Some(Success(None)))
@@ -59,7 +59,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     val p = Promise[Option[Throwable]]()
 
     val coeval = Coeval.raiseError[Int](ex).doOnFinish(s => Coeval(p.success(s)))
-    val result = coeval.runTry
+    val result = coeval.runTry()
 
     assertEquals(result, Failure(ex))
     assertEquals(p.future.value, Some(Success(Some(ex))))

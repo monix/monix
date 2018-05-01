@@ -19,9 +19,11 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.internal.Platform
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+
 import scala.runtime.ObjectRef
 
 private[tail] object IterantCompleteL {
@@ -65,10 +67,13 @@ private[tail] object IterantCompleteL {
       // Reference to keep track of latest `earlyStop` value
       val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
       // Catch-all exceptions, ensuring latest `earlyStop` gets called
-      F.handleErrorWith(loop(stopRef)(source)) { ex =>
+      F.handleErrorWith(loop(stopRef)(source)) { err1 =>
         stopRef.elem match {
-          case null => F.raiseError(ex)
-          case stop => stop *> F.raiseError(ex)
+          case null => F.raiseError(err1)
+          case stop =>
+            stop.attempt.flatMap { r =>
+              F.raiseError(Platform.composeErrors(err1, r))
+            }
         }
       }
     }

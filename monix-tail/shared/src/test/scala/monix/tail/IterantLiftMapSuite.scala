@@ -53,7 +53,7 @@ object IterantLiftMapSuite extends BaseTestSuite {
     val source = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
     val r = source.liftMap[Coeval](_ => throw dummy, x => x)
 
-    assertEquals(r.completeL.runTry, Failure(dummy))
+    assertEquals(r.completeL.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
