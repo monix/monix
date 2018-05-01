@@ -75,7 +75,7 @@ object IterantReduceSuite extends BaseTestSuite {
       .reduceL(_ + _)
 
     assertEquals(effect, 0)
-    assertEquals(stream.runTry, Failure(dummy))
+    assertEquals(stream.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -92,7 +92,7 @@ object IterantReduceSuite extends BaseTestSuite {
       .reduceL(_ + _)
 
     assertEquals(effect, 0)
-    assertEquals(stream.runTry, Failure(dummy))
+    assertEquals(stream.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -105,7 +105,7 @@ object IterantReduceSuite extends BaseTestSuite {
       .reduceL(_ + _)
 
     assertEquals(effect, 0)
-    assertEquals(stream.runTry, Failure(dummy))
+    assertEquals(stream.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -122,7 +122,7 @@ object IterantReduceSuite extends BaseTestSuite {
       .reduceL(_ + _)
 
     assertEquals(effect, 0)
-    assertEquals(stream.runTry, Failure(dummy))
+    assertEquals(stream.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -135,7 +135,7 @@ object IterantReduceSuite extends BaseTestSuite {
       .reduceL((_, _) => (throw dummy) : Int)
 
     assertEquals(effect, 0)
-    assertEquals(stream.runTry, Failure(dummy))
+    assertEquals(stream.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -148,7 +148,7 @@ object IterantReduceSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
 
-    assertEquals(node1.reduceL((_, el) => el).runTry, Failure(dummy))
+    assertEquals(node1.reduceL((_, el) => el).runTry(), Failure(dummy))
     assertEquals(effect, 3)
   }
 
@@ -161,7 +161,7 @@ object IterantReduceSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(node2), stop(1))
 
-    assertEquals(node1.reduceL((_, el) => el).runTry, Failure(dummy))
+    assertEquals(node1.reduceL((_, el) => el).runTry(), Failure(dummy))
     assertEquals(effect, 3)
   }
 
@@ -174,7 +174,7 @@ object IterantReduceSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
 
-    assertEquals(node1.reduceL((_, el) => if (el == 3) throw dummy else el).runTry, Failure(dummy))
+    assertEquals(node1.reduceL((_, el) => if (el == 3) throw dummy else el).runTry(), Failure(dummy))
     assertEquals(effect, 0)
   }
 }

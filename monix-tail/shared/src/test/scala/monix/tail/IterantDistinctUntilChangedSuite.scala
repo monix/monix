@@ -77,7 +77,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
       .completeL
 
     assertEquals(effect, 0)
-    assertEquals(fa.runTry, Failure(dummy))
+    assertEquals(fa.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -94,7 +94,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
       .completeL
 
     assertEquals(effect, 0)
-    assertEquals(fa.runTry, Failure(dummy))
+    assertEquals(fa.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -108,7 +108,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
       .completeL
 
     assertEquals(effect, 0)
-    assertEquals(fa.runTry, Failure(dummy))
+    assertEquals(fa.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -125,7 +125,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
       .completeL
 
     assertEquals(effect, 0)
-    assertEquals(fa.runTry, Failure(dummy))
+    assertEquals(fa.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 }

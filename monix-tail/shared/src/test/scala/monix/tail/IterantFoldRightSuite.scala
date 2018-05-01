@@ -69,11 +69,11 @@ object IterantFoldRightSuite extends BaseTestSuite {
     val ref = Iterant[Coeval].of(1, 2, 3, 4).doOnEarlyStop(Coeval { effect += 1 })
 
     val r1 = exists(ref, _ == 6)
-    assertEquals(r1.runTry, Success(false))
+    assertEquals(r1.runTry(), Success(false))
     assertEquals(effect, 0)
 
     val r2 = exists(ref, _ == 3)
-    assertEquals(r2.runTry, Success(true))
+    assertEquals(r2.runTry(), Success(true))
     assertEquals(effect, 1)
   }
 
@@ -125,7 +125,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
       .foldRightL(Coeval(0))((_, _, _) => throw dummy)
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -138,7 +138,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
       .foldRightL(Coeval(0))((a, acc, _) => acc.map(_ + a))
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -151,7 +151,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
       .foldRightL(Coeval(0))((a, acc, _) => acc.map(_ + a))
 
     assertEquals(effect, 0)
-    assertEquals(ref.runTry, Failure(dummy))
+    assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 }

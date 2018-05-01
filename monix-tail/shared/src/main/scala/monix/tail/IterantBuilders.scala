@@ -18,7 +18,7 @@
 package monix.tail
 
 import cats.Applicative
-import cats.effect.{Async, IO, Sync, Timer}
+import cats.effect._
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
 import org.reactivestreams.Publisher
@@ -163,9 +163,13 @@ class IterantBuildersSync[F[_]](implicit F: Sync[F])
   def eval[A](a: => A): Iterant[F,A] =
     Iterant.eval(a)(F)
 
-  /** Aliased builder, see documentation for [[Iterant.bracket]] */
-  def bracket[A, B](acquire: F[A])(use: A => Iterant[F, B], release: A => F[Unit]): Iterant[F, B] =
-    Iterant.bracket(acquire)(use, release)
+  /** Aliased builder, see documentation for [[Iterant.eval]]. */
+  def delay[A](a: => A): Iterant[F,A] =
+    Iterant.delay(a)(F)
+
+  /** Aliased builder, see documentation for [[Iterant.resource]]. */
+  def resource[A](acquire: F[A])(release: A => F[Unit]): Iterant[F, A] =
+    Iterant.resource(acquire)(release)
 
   /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](fa* Iterant.suspend]]. */
   def suspend[A](fa: => Iterant[F, A]): Iterant[F, A] =

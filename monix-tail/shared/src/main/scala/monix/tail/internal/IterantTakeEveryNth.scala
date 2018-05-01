@@ -73,7 +73,7 @@ private[tail] object IterantTakeEveryNth {
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop(index)), stop)
         case last @ Last(_) =>
-          if (index == 1) last else Halt(None)
+          if (index == 1) last else Iterant.empty
         case halt @ Halt(_) =>
           halt
       }

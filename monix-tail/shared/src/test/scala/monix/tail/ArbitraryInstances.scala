@@ -27,6 +27,8 @@ import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.{Arbitrary, Cogen}
 
 trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
+  import ArbitraryInstances.materialize
+
   def arbitraryListToIterant[F[_], A](list: List[A], idx: Int, allowErrors: Boolean = true)
     (implicit F: Sync[F]): Iterant[F, A] = {
 
@@ -92,24 +94,55 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
   implicit def isEqIterantCoeval[A](implicit A: Eq[A]): Eq[Iterant[Coeval, A]] =
     new Eq[Iterant[Coeval, A]] {
       def eqv(lh: Iterant[Coeval,  A], rh: Iterant[Coeval,  A]): Boolean = {
-        lh.attempt.toListL === rh.attempt.toListL
+        materialize(lh) === materialize(rh)
       }
     }
 
   implicit def isEqIterantTask[A](implicit A: Eq[A], sc: TestScheduler): Eq[Iterant[Task, A]] =
     new Eq[Iterant[Task, A]] {
       def eqv(lh: Iterant[Task,  A], rh: Iterant[Task,  A]): Boolean = {
-        lh.attempt.toListL === rh.attempt.toListL
+        materialize(lh) === materialize(rh)
       }
     }
 
   implicit def isEqIterantIO[A](implicit A: Eq[A], sc: TestScheduler): Eq[Iterant[IO, A]] =
     new Eq[Iterant[IO, A]] {
       def eqv(lh: Iterant[IO,  A], rh: Iterant[IO,  A]): Boolean = {
-        lh.attempt.toListL === rh.attempt.toListL
+        materialize(lh) === materialize(rh)
       }
     }
 
   implicit def cogenForIterant[F[_], A]: Cogen[Iterant[F, A]] =
     Cogen[Unit].contramap(_ => ())
+}
+
+object ArbitraryInstances {
+  /**
+    * Materializes an `Iterant` in something that can be compared,
+    * i.e. a `List` that only signals when an error happened but not
+    * what error it was.
+    */
+  private def materialize[F[_], A](fa: Iterant[F, A])
+    (implicit F: Sync[F]): F[List[Notification[A]]] = {
+
+    fa.attempt.map {
+      case Right(a) => Notification.Elem(a)
+      case Left(_) => Notification.Error
+    }.toListL
+  }
+
+  /** To be used for materializing `Iterant` values. */
+  private sealed trait Notification[+A]
+    extends Product with Serializable
+
+  private object Notification {
+    final case class Elem[+A](a: A) extends Notification[A]
+    case object Error extends Notification[Nothing]
+
+    implicit def equality[A : Eq]: Eq[Notification[A]] =
+      new Eq[Notification[A]] {
+        def eqv(x: Notification[A], y: Notification[A]): Boolean =
+          x == y
+      }
+  }
 }

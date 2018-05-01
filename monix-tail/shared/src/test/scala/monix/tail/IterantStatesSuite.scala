@@ -35,7 +35,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Coeval].suspend(Coeval(list))") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
-    val result = Iterant[Coeval].suspend(deferred).toListL.runTry
+    val result = Iterant[Coeval].suspend(deferred).toListL.runTry()
     assertEquals(result, Success(list))
   }
 
@@ -50,7 +50,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Coeval].suspend(LazyStream)") { implicit s =>
     val list = List(1,2,3)
     val deferred = Iterant[Coeval].fromSeq[Int](list)
-    val result = Iterant[Coeval].suspend(deferred).toListL.runTry
+    val result = Iterant[Coeval].suspend(deferred).toListL.runTry()
     assertEquals(result, Success(list))
   }
 
@@ -65,7 +65,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Coeval].next") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
-    val result = Iterant[Coeval].nextS(0, deferred, Coeval.unit).toListL.runTry
+    val result = Iterant[Coeval].nextS(0, deferred, Coeval.unit).toListL.runTry()
     assertEquals(result, Success(0 :: list))
   }
 
@@ -80,7 +80,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Coeval].nextCursor") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
-    val result = Iterant[Coeval].nextCursorS(BatchCursor(0), deferred, Coeval.unit).toListL.runTry
+    val result = Iterant[Coeval].nextCursorS(BatchCursor(0), deferred, Coeval.unit).toListL.runTry()
     assertEquals(result, Success(0 :: list))
   }
 
@@ -91,7 +91,7 @@ object IterantStatesSuite extends BaseTestSuite {
   }
 
   test("Iterant[Coeval].halt(None)") { implicit s =>
-    val result = Iterant[Coeval].haltS(None).toListL.runTry
+    val result = Iterant[Coeval].haltS(None).toListL.runTry()
     assertEquals(result, Success(Nil))
   }
 
@@ -104,7 +104,7 @@ object IterantStatesSuite extends BaseTestSuite {
 
   test("Iterant[Coeval].halt(Some(ex))") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Iterant[Coeval].haltS(Some(ex)).toListL.runTry
+    val result = Iterant[Coeval].haltS(Some(ex)).toListL.runTry()
     assertEquals(result, Failure(ex))
   }
 }

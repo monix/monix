@@ -26,25 +26,25 @@ import scala.util.Success
 object CoevalFlatMapSuite extends BaseTestSuite {
   test("transformWith equivalence with flatMap") { implicit s =>
     check2 { (fa: Coeval[Int], f: Int => Coeval[Int]) =>
-      fa.transformWith(f, Coeval.raiseError) <-> fa.flatMap(f)
+      fa.redeemWith(Coeval.raiseError, f) <-> fa.flatMap(f)
     }
   }
 
   test("transform equivalence with map") { implicit s =>
     check2 { (fa: Coeval[Int], f: Int => Int) =>
-      fa.transform(f, ex => throw ex) <-> fa.map(f)
+      fa.redeem(ex => throw ex, f) <-> fa.map(f)
     }
   }
 
   test("transformWith can recover") { implicit s =>
     val dummy = new DummyException("dummy")
-    val coeval = Coeval.raiseError[Int](dummy).transformWith(Coeval.now, _ => Coeval.now(1))
-    assertEquals(coeval.runTry, Success(1))
+    val coeval = Coeval.raiseError[Int](dummy).redeemWith(_ => Coeval.now(1), Coeval.now)
+    assertEquals(coeval.runTry(), Success(1))
   }
 
   test("transform can recover") { implicit s =>
     val dummy = new DummyException("dummy")
-    val coeval = Coeval.raiseError[Int](dummy).transform(identity, _ => 1)
-    assertEquals(coeval.runTry, Success(1))
+    val coeval = Coeval.raiseError[Int](dummy).redeem(_ => 1, identity)
+    assertEquals(coeval.runTry(), Success(1))
   }
 }

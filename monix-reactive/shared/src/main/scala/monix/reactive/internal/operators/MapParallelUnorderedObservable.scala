@@ -98,7 +98,12 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
         composite += subscription
 
         val task = {
-          val ref = f(elem).transform(
+          val ref = f(elem).redeem(
+            error => {
+              lastAck = Stop
+              composite -= subscription
+              self.onError(error)
+            },
             value => buffer.onNext(value).syncOnComplete {
               case Success(Stop) =>
                 lastAck = Stop
@@ -110,13 +115,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
                 lastAck = Stop
                 composite -= subscription
                 self.onError(ex)
-            },
-            error => {
-              lastAck = Stop
-              composite -= subscription
-              self.onError(error)
-            }
-          )
+            })
 
           ref.doOnCancel(releaseTask)
         }

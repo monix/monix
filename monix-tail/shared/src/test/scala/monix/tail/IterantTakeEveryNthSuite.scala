@@ -99,7 +99,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
-      assertEquals(stream.takeEveryNth(1).toListL.runTry, Failure(dummy))
+      assertEquals(stream.takeEveryNth(1).toListL.runTry(), Failure(dummy))
       cancelable.isCanceled
     }
   }

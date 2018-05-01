@@ -51,7 +51,7 @@ private[tail] object IterantFilter {
           Suspend(rest.map(loop), stop)
 
         case last @ Last(item) =>
-          if (p(item)) last else Halt(None)
+          if (p(item)) last else Iterant.empty
 
         case halt @ Halt(_) =>
           halt

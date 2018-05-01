@@ -137,7 +137,7 @@ private[reactive] final class ScanTaskObservable[A, S](
       if (!isActive.get) {
         Stop
       } else try {
-        val task = op(currentS, elem).transformWith(childOnSuccess, childOnError)
+        val task = op(currentS, elem).redeemWith(childOnError, childOnSuccess)
         // No longer allowed to stream errors downstream
         streamErrors = false
 

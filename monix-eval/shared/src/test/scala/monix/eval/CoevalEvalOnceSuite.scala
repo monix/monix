@@ -31,14 +31,14 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     val task = Coeval.evalOnce(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
-    val f = task.runTry
+    val f = task.runTry()
     assert(wasTriggered, "wasTriggered")
     assertEquals(f, Success("result"))
   }
 
   test("Coeval.evalOnce should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Coeval.evalOnce[Int](if (1 == 1) throw ex else 1).runTry
+    val f = Coeval.evalOnce[Int](if (1 == 1) throw ex else 1).runTry()
 
     assertEquals(f, Failure(ex))
     assertEquals(s.state.lastReportedError, null)
@@ -70,7 +70,7 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20
-    val f = loop(iterations, 0).runTry
+    val f = loop(iterations, 0).runTry()
     s.tick()
     assertEquals(f, Success(iterations * 2))
   }
@@ -80,23 +80,23 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val task = Coeval.evalOnce[Int] { effect += 1; throw dummy }.memoize
 
-    val f1 = task.runTry
+    val f1 = task.runTry()
     assertEquals(f1, Failure(dummy))
-    val f2 = task.runTry
+    val f2 = task.runTry()
     assertEquals(f2, Failure(dummy))
     assertEquals(effect, 1)
   }
 
   test("Coeval.evalOnce.materialize should work for success") { implicit s =>
     val task = Coeval.evalOnce(1).materialize
-    val f = task.runTry
+    val f = task.runTry()
     assertEquals(f, Success(Success(1)))
   }
 
   test("Coeval.evalOnce.materialize should work for failure") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Coeval.evalOnce[Int](throw dummy).materialize
-    val f = task.runTry
+    val f = task.runTry()
     assertEquals(f, Success(Failure(dummy)))
   }
 
@@ -108,7 +108,7 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
   test("Coeval.evalOnce.runTry override") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Coeval.evalOnce { if (1 == 1) throw dummy else 10 }
-    val f = task.runTry
+    val f = task.runTry()
     assertEquals(f, Failure(dummy))
   }
 }

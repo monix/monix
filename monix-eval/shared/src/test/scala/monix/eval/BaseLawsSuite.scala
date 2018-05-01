@@ -172,7 +172,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def equalityCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
     new Eq[Coeval[A]] {
       def eqv(lh: Coeval[A], rh: Coeval[A]): Boolean = {
-        Eq[Try[A]].eqv(lh.runTry, rh.runTry)
+        Eq[Try[A]].eqv(lh.runTry(), rh.runTry())
       }
     }
 
@@ -184,7 +184,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
 
   implicit def cogenForCoeval[A](implicit cga: Cogen[A]): Cogen[Coeval[A]] =
     Cogen { (seed, coeval) =>
-      coeval.runTry match {
+      coeval.runTry() match {
         case Success(a) => cga.perturb(seed, a)
         case _ => seed
       }
