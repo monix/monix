@@ -429,7 +429,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * In comparison with the simpler [[bracket]] version, this one
     * allows the caller to differentiate between normal termination and
-    * termination in error via an [[ExitCase]] parameter.
+    * termination in error via an `ExitCase` parameter.
     *
     * @see [[bracket]] and [[bracketE]]
     *

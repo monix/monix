@@ -841,7 +841,7 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * In comparison with the simpler [[bracket]] version, this one
     * allows the caller to differentiate between normal termination,
-    * termination in error and cancelation via an [[ExitCase]]
+    * termination in error and cancelation via an `ExitCase`
     * parameter.
     *
     * @see [[bracket]] and [[bracketE]]
