@@ -43,18 +43,16 @@ trait TaskApp {
   /** Scheduler for executing the [[Task]] action.
     * Defaults to `global`, but can be overridden.
     */
-  protected val scheduler: Coeval[Scheduler] =
-    Coeval.evalOnce(Scheduler.global)
+  protected def scheduler: Scheduler = Scheduler.global
 
   /** [[monix.eval.Task.Options Options]] for executing the
     * [[Task]] action. The default value is defined in
     * [[monix.eval.Task.defaultOptions defaultOptions]],
     * but can be overridden.
     */
-  protected val options: Coeval[Task.Options] =
-    Coeval.evalOnce(Task.defaultOptions)
+  protected def options: Task.Options = Task.defaultOptions
 
   final def main(args: Array[String]): Unit = {
-    run(args).runSyncUnsafeOpt(Inf)(scheduler.value(), options.value(), implicitly)
+    run(args).runSyncUnsafeOpt(Inf)(scheduler, options, implicitly)
   }
 }

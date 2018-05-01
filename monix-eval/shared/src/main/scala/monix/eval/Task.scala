@@ -2435,7 +2435,8 @@ object Task extends TaskInstancesLevel1 {
     * See [[Task.parMap2]] for parallel processing.
     */
   def map2[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] =
-    fa1.zipMap(fa2)(f)
+    for (a1 <- fa1; a2 <- fa2)
+      yield f(a1, a2)
 
   /** Pairs 3 `Task` values, applying the given mapping function.
     *

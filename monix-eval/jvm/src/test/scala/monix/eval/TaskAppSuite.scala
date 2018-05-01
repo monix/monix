@@ -58,7 +58,7 @@ object TaskAppSuite extends SimpleTestSuite {
       }
 
     val app = new TaskApp {
-      override val options = Coeval(opts2)
+      override val options = opts2
       override def runc =
         exposeOpts.map { x => p.success(x) }
     }
