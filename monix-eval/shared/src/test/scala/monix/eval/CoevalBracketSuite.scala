@@ -17,13 +17,11 @@
 
 package monix.eval
 
-import java.io.{ByteArrayOutputStream, PrintStream}
-
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
-import monix.execution.exceptions.DummyException
-
+import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.internal.Platform
 import scala.util.{Failure, Success}
 
 object CoevalBracketSuite extends BaseTestSuite {
@@ -41,9 +39,9 @@ object CoevalBracketSuite extends BaseTestSuite {
   test("equivalence with flatMap + transformWith") { _ =>
     check3 { (acquire: Coeval[Int], f: Int => Coeval[Int], release: Int => Coeval[Unit]) =>
       val expected = acquire.flatMap { a =>
-        f(a).transformWith(
-          s => release(a) *> Coeval.pure(s),
-          e => release(a) *> Coeval.raiseError(e)
+        f(a).redeemWith(
+          e => release(a) *> Coeval.raiseError(e),
+          s => release(a) *> Coeval.pure(s)
         )
       }
 
@@ -60,7 +58,7 @@ object CoevalBracketSuite extends BaseTestSuite {
       Coeval.eval { input = Some((a, i)) }
     }
 
-    val result = coeval.runTry
+    val result = coeval.runTry()
     assertEquals(input, Some((1, Left(dummy))))
     assertEquals(result, Failure(dummy))
   }
@@ -71,7 +69,7 @@ object CoevalBracketSuite extends BaseTestSuite {
       Coeval.eval { input = Some((a, i)) }
     }
 
-    val result = coeval.runTry
+    val result = coeval.runTry()
     assertEquals(input, Some((1, Right(2))))
     assertEquals(result, Success(2))
   }
@@ -84,35 +82,40 @@ object CoevalBracketSuite extends BaseTestSuite {
       Coeval.eval { input = Some((a, i)) }
     }
 
-    val result = coeval.runTry
+    val result = coeval.runTry()
     assertEquals(input, Some((1, Left(dummy))))
     assertEquals(result, Failure(dummy))
   }
 
   test("if both use and release throw, report release error, signal use error") { _ =>
-    val errRef = System.err
-    try {
-      val outStream = new ByteArrayOutputStream()
-      val fakeErr = new PrintStream(outStream)
-      System.setErr(fakeErr)
+    val useError = new DummyException("use")
+    val releaseError = new DummyException("release")
 
-      val useError = new DummyException("use")
-      val releaseError = new DummyException("release")
+    val coeval = Coeval(1).bracket[Int] { _ =>
+      Coeval.raiseError(useError)
+    } { _ =>
+      Coeval.raiseError(releaseError)
+    }
 
-      val coeval = Coeval(1).bracket[Int] { _ =>
-        Coeval.raiseError(useError)
-      } { _ =>
-        Coeval.raiseError(releaseError)
-      }
+    coeval.runTry() match {
+      case Failure(error) =>
+        if (Platform.isJVM) {
+          assertEquals(error, useError)
+          error.getSuppressed match {
+            case Array(error2) =>
+              assertEquals(error2, releaseError)
+            case _ =>
+              fail("Unexpected suppressed errors list: " + error.getSuppressed.toList)
+          }
+        } else error match {
+          case CompositeException(Seq(`useError`, `releaseError`)) =>
+            () // pass
+          case _ =>
+            fail(s"Unexpected error: $error")
+        }
 
-      assertEquals(coeval.runTry, Failure(useError))
-      fakeErr.close()
-      val reported = outStream.toString("utf-8")
-
-      assert(reported.contains("DummyException"), "reported.contains(\"DummyException\")")
-      assert(reported.contains("release"), "reported.contains(\"release\")")
-    } finally {
-      System.setErr(errRef)
+      case other =>
+        fail(s"Unexpected result: $other")
     }
   }
 }

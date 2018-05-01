@@ -32,3 +32,8 @@ with asynchronous execution:
  - [[monix.reactive.subjects]] exposes [[monix.reactive.subjects.Subject Subject]]
    and [[monix.reactive.subjects.ConcurrentSubject ConcurrentSubject]],
    which are implementations of hot observables that function both as input and output
+
+'''[[monix.tail]]''' exposes [[monix.tail.Iterant Iterant]] for purely functional pull based streaming.
+
+You can control evaluation with type you choose - be it [[monix.eval.Task Task]], [[monix.eval.Coeval Coeval]], [[https://typelevel.org/cats-effect/api/cats/effect/IO.html cats.effect.IO]]
+or your own as long as you provide correct [[https://typelevel.org/cats-effect/typeclasses/ cats-effect]] or [[https://typelevel.org/cats/typeclasses.html cats]] typeclass instance.

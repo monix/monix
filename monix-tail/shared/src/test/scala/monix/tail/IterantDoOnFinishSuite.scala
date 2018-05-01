@@ -19,7 +19,6 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 import monix.tail.batches._
@@ -151,8 +150,8 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
   test("doOnFinish protects against user error") { _ =>
     check1 { (stream: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val received = stream.doOnFinish(_ => throw dummy)
-      received <-> stream.onErrorIgnore ++ Iterant[Coeval].raiseError[Int](dummy)
+      val received = stream.onErrorIgnore.doOnFinish(_ => throw dummy)
+      received.completeL <-> Coeval.raiseError(dummy)
     }
   }
 }

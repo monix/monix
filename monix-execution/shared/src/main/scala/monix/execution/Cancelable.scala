@@ -22,8 +22,6 @@ import monix.execution.atomic.AtomicAny
 import monix.execution.exceptions.CompositeException
 import monix.execution.internal.AttemptCallback
 import monix.execution.misc.NonFatal
-
-import scala.collection.immutable.Queue
 import scala.concurrent.Promise
 
 /** Represents a one-time idempotent action that can be used
@@ -108,15 +106,21 @@ object Cancelable {
     * thus making sure that all references get canceled.
     */
   def cancelAll(seq: Iterable[Cancelable]): Unit = {
-    var errors = Queue.empty[Throwable]
+    var errors = List.empty[Throwable]
     val cursor = seq.iterator
     while (cursor.hasNext) {
       try cursor.next().cancel()
-      catch { case ex if NonFatal(ex) => errors = errors.enqueue(ex) }
+      catch { case ex if NonFatal(ex) => errors = ex :: errors }
     }
 
-    if (errors.nonEmpty)
-      throw new CompositeException(errors)
+    errors match {
+      case one :: Nil =>
+        throw one
+      case _ :: _ =>
+        throw new CompositeException(errors)
+      case _ =>
+        () // Nothing
+    }
   }
 
   /** Marker for cancelables that are dummies that can be ignored. */

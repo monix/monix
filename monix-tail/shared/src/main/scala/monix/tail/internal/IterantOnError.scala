@@ -20,10 +20,10 @@ package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.internal.Platform
 import monix.execution.misc.NonFatal
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
-
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantOnError {
@@ -39,11 +39,15 @@ private[tail] object IterantOnError {
       buffer.toArray[Any].asInstanceOf[Array[A]]
     }
 
-    def sendError(stop: F[Unit], e: Throwable): Iterant[F, A] = {
-      val next = stop.map { _ =>
-        try f(e) catch {
-          case err if NonFatal(err) =>
-            Halt[F, A](Some(err))
+    def sendError(stop: F[Unit], e1: Throwable): Iterant[F, A] = {
+      val next = stop.attempt.map { result =>
+        val err1 = result match {
+          case Left(e2) => Platform.composeErrors(e1, e2)
+          case _ => e1
+        }
+        try f(err1) catch {
+          case err2 if NonFatal(err2) =>
+            Halt[F, A](Some(Platform.composeErrors(err1, err2)))
         }
       }
       Suspend[F, A](next, stop)
@@ -139,7 +143,7 @@ private[tail] object IterantOnError {
           val cb = extractBatch(cursor)
           val batch = Batch.fromArray(cb)
           if (cb.length > 0 && cb.last.isLeft) {
-            NextBatch(batch, F.pure(Halt(None)), stop)
+            NextBatch(batch, F.pure(Iterant.empty), stop)
           } else if (!cursor.hasNext()) {
             NextBatch(batch, tailGuard(rest.map(loop), stop), stop)
           } else {

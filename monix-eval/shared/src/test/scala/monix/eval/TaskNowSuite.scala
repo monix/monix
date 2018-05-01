@@ -206,7 +206,7 @@ object TaskNowSuite extends BaseTestSuite {
 
   test("Task.raiseError.coeval") { implicit s =>
     val dummy = DummyException("dummy")
-    val result = Task.raiseError(dummy).coeval.runTry
+    val result = Task.raiseError(dummy).coeval.runTry()
     assertEquals(result, Failure(dummy))
   }
 }

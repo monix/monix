@@ -73,7 +73,7 @@ private[tail] object IterantDropWhileWithIndex {
           Suspend(rest.map(loop(index)), stop)
 
         case last@Last(elem) =>
-          if (p(elem, index)) Halt(None) else last
+          if (p(elem, index)) Iterant.empty else last
 
         case halt@Halt(_) =>
           halt

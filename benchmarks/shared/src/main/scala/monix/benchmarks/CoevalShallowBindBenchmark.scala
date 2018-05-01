@@ -49,7 +49,7 @@ class CoevalShallowBindBenchmark {
       if (i < size) Coeval.now(i + 1).flatMap(loop)
       else Coeval.now(i)
 
-    Coeval.now(0).flatMap(loop).value()
+    Coeval.now(0).flatMap(loop).value
   }
 
   @Benchmark
@@ -60,6 +60,6 @@ class CoevalShallowBindBenchmark {
       if (i < size) Coeval.eval(i + 1).flatMap(loop)
       else Coeval.eval(i)
 
-    Coeval.eval(0).flatMap(loop).value()
+    Coeval.eval(0).flatMap(loop).value
   }
 }

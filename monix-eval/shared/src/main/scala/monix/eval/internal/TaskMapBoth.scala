@@ -84,9 +84,8 @@ private[eval] object TaskMapBoth {
         val context2 = context.copy(connection = task2)
         mainConn push Cancelable.collection(Array(task1, task2))
 
-        // Light asynchronous boundary; with most scheduler implementations
-        // it will not fork a new (logical) thread!
-        Task.unsafeStartTrampolined(fa1, context1, new Callback[A1] {
+        // Start first task with a "hard" async boundary to ensure parallel evaluation
+        Task.unsafeStartAsync(fa1, context1, new Callback[A1] {
           @tailrec def onSuccess(a1: A1): Unit =
             state.get match {
               case null => // null means this is the first task to complete
@@ -105,7 +104,8 @@ private[eval] object TaskMapBoth {
             sendError(mainConn, state, cb, ex)(s)
         })
 
-        // Light asynchronous boundary
+        // Light asynchronous boundary; with most scheduler implementations
+        // it will not fork a new (logical) thread!
         Task.unsafeStartTrampolined(fa2, context2, new Callback[A2] {
           @tailrec def onSuccess(a2: A2): Unit =
             state.get match {

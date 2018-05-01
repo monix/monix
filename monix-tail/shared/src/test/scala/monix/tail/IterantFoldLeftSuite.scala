@@ -146,7 +146,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val r = b.nextS(1, Coeval(b.nextS(2, Coeval(b.raiseError[Int](dummy)), c)), c).toListL.runTry
+    val r = b.nextS(1, Coeval(b.nextS(2, Coeval(b.raiseError[Int](dummy)), c)), c).toListL.runTry()
 
     assertEquals(r, Failure(dummy))
     assert(!wasCanceled, "wasCanceled should not be true")
@@ -157,7 +157,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
     val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), c)
-    val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runTry
+    val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runTry()
     assertEquals(result, Failure(dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
@@ -243,7 +243,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
 
-    assertEquals(node1.toListL.runTry, Failure(dummy))
+    assertEquals(node1.toListL.runTry(), Failure(dummy))
     assertEquals(effect, 3)
   }
 
@@ -256,7 +256,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
     val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
 
-    assertEquals(node1.foldLeftL(0)((_, el) => if (el == 3) throw dummy else el).runTry, Failure(dummy))
+    assertEquals(node1.foldLeftL(0)((_, el) => if (el == 3) throw dummy else el).runTry(), Failure(dummy))
     assertEquals(effect, 0)
   }
 
