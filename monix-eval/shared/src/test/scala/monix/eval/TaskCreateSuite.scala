@@ -18,6 +18,8 @@
 package monix.eval
 
 import cats.effect.IO
+import monix.execution.Cancelable
+import monix.execution.exceptions.DummyException
 
 import scala.util.Success
 import scala.concurrent.duration._
@@ -157,5 +159,31 @@ object TaskCreateSuite extends BaseTestSuite {
     f.cancel()
     sc.tick(1.second)
     assertEquals(f.value, None)
+  }
+
+  test("throwing error when returning Unit reports it") { implicit sc =>
+    val dummy = DummyException("dummy")
+    val task = Task.create[Int] { (_, _) =>
+      (throw dummy) : Unit
+    }
+
+    val f = task.runAsync
+    sc.tick()
+
+    assertEquals(f.value, None)
+    assertEquals(sc.state.lastReportedError, dummy)
+  }
+
+  test("throwing error when returning Cancelable reports it") { implicit sc =>
+    val dummy = DummyException("dummy")
+    val task = Task.create[Int] { (_, _) =>
+      (throw dummy) : Cancelable
+    }
+
+    val f = task.runAsync
+    sc.tick()
+
+    assertEquals(f.value, None)
+    assertEquals(sc.state.lastReportedError, dummy)
   }
 }

@@ -40,8 +40,11 @@ private[eval] abstract class TaskBinCompatCompanion {
     * binary backwards compatibility.
     */
   @deprecated("Changed signature", since="3.0.0-M2")
-  private[internal] def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+  private[internal] def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
+    // $COVERAGE-OFF$
     TaskCreate.cancelable(register)
+    // $COVERAGE-ON$
+  }
 
   /** Internal API — deprecated due to being very error prone for usage,
     * switch to [[Task.cancelable[A](start* Task.cancelable]] instead.

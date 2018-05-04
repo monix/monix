@@ -35,8 +35,13 @@ private[eval] object TaskExecuteWithOptions {
         Task.unsafeStartTrampolined[A](self, context2, Callback.async(cb))
       } catch {
         case ex if NonFatal(ex) =>
-          if (streamErrors) cb.asyncOnError(ex)
-          else context.scheduler.reportFailure(ex)
+          if (streamErrors)
+            cb.asyncOnError(ex)
+          else {
+            // $COVERAGE-OFF$
+            context.scheduler.reportFailure(ex)
+            // $COVERAGE-ON$
+          }
       }
     }
 }

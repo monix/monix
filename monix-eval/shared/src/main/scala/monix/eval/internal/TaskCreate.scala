@@ -134,53 +134,9 @@ private[eval] object TaskCreate {
           cb.onError(e)
         }
       } else {
+        // $COVERAGE-OFF$
         s.reportFailure(e)
-      }
-  }
-
-  // Wraps a callback into an implementation that pops the stack
-  // before calling onSuccess/onError, also restoring the `Local`
-  // context in case the option is enabled
-  private final class AsyncCallback[A](
-    options: Task.Options,
-    cb: Callback[A])
-    (implicit s: Scheduler)
-    extends Callback[A] {
-
-    // Light protection against multiple calls — obviously it's not
-    // synchronized and can only protect in cases where there's ordering guaranteed,
-    // but fails to protect in race conditions. We don't care about those though.
-    private[this] var awaitsResult = true
-
-    // Capturing current context, in case the option is active, as we need
-    // to restore it due to async boundaries triggered in `Async` that might
-    // have invalidated our local context
-    private[this] val locals =
-      if (options.localContextPropagation) Local.getContext()
-      else null
-
-    def onSuccess(value: A): Unit =
-      if (awaitsResult) {
-        awaitsResult = false
-        s.executeTrampolined { () =>
-          // Restoring context if available, because un-traced
-          // async boundaries might have happened
-          if (locals ne null) Local.setContext(locals)
-          cb.onSuccess(value)
-        }
-      }
-
-    def onError(e: Throwable): Unit =
-      if (awaitsResult) {
-        awaitsResult = false
-        s.executeTrampolined { () =>
-          // Restoring context if available, because un-traced
-          // async boundaries might have happened
-          if (locals ne null) Local.setContext(locals)
-          cb.onError(e)
-        }
-      } else {
-        s.reportFailure(e)
+        // $COVERAGE-ON$
       }
   }
 }

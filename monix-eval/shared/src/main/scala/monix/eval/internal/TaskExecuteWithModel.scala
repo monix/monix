@@ -28,26 +28,18 @@ private[eval] object TaskExecuteWithModel {
     */
   def apply[A](self: Task[A], em: ExecutionModel): Task[A] =
     Task.Async { (context, cb) =>
-      var streamErrors = true
-      try {
-        val context2 = context.withExecutionModel(em)
-        val frame = context2.frameRef
-        streamErrors = false
+      val context2 = context.withExecutionModel(em)
+      val frame = context2.frameRef
 
-        // Increment the frame index because we have a changed
-        // execution model, or otherwise we risk not following it
-        // for the next step in our evaluation
-        val nextIndex = em match {
-          case BatchedExecution(_) =>
-            em.nextFrameIndex(frame())
-          case AlwaysAsyncExecution | SynchronousExecution =>
-            em.nextFrameIndex(0)
-        }
-        TaskRunLoop.startFull[A](self, context2, cb, null, null, null, nextIndex)
-      } catch {
-        case ex if NonFatal(ex) =>
-          if (streamErrors) cb.onError(ex)
-          else context.scheduler.reportFailure(ex)
+      // Increment the frame index because we have a changed
+      // execution model, or otherwise we risk not following it
+      // for the next step in our evaluation
+      val nextIndex = em match {
+        case BatchedExecution(_) =>
+          em.nextFrameIndex(frame())
+        case AlwaysAsyncExecution | SynchronousExecution =>
+          em.nextFrameIndex(0)
       }
+      TaskRunLoop.startFull[A](self, context2, cb, null, null, null, nextIndex)
     }
 }

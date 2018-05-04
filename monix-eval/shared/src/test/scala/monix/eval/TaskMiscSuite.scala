@@ -187,4 +187,11 @@ object TaskMiscSuite extends BaseTestSuite {
     s.tick()
     assertEquals(p.future.value, Some(Failure(ex)))
   }
+
+  test("task.executeWithOptions protects against user error") { implicit s =>
+    val ex = DummyException("dummy")
+    val task = Task.now(1).executeWithOptions(_ => throw ex)
+    val f = task.runAsync
+    assertEquals(f.value, Some(Failure(ex)))
+  }
 }

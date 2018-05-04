@@ -32,11 +32,15 @@ private[eval] object TaskDeferAction {
         val fa = f(ec)
         streamErrors = false
         Task.unsafeStartTrampolined(fa, context, callback)
-      }
-      catch {
+      } catch {
         case ex if NonFatal(ex) =>
-          if (streamErrors) callback.asyncOnError(ex)
-          else ec.reportFailure(ex)
+          if (streamErrors)
+            callback.asyncOnError(ex)
+          else {
+            // $COVERAGE-OFF$
+            ec.reportFailure(ex)
+            // $COVERAGE-ON$
+          }
       }
     }
 }
