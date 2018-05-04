@@ -34,7 +34,7 @@ private[eval] object TaskEffect {
     * `cats.effect.Async#async`
     */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
-    Task.unsafeCreate { (ctx, cb) =>
+    Task.Async { (ctx, cb) =>
       implicit val sc = ctx.scheduler
       try k {
         case Right(a) => cb.asyncOnSuccess(a)
@@ -49,7 +49,7 @@ private[eval] object TaskEffect {
     * `cats.effect.Concurrent#cancelable`
     */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
-    Task.unsafeCreate { (ctx, cb) =>
+    Task.Async { (ctx, cb) =>
       implicit val sc = ctx.scheduler
       val conn = ctx.connection
       val cancelable = SingleAssignCancelable()

@@ -189,7 +189,7 @@ final class TaskCircuitBreaker private (
     * triggering the `Open` state if necessary.
     */
   private[this] val maybeMarkOrResetFailures: (Option[Throwable] => Task[Unit]) =
-    exOpt => Task.unsafeCreate[Unit] { (context, callback) =>
+    exOpt => Task.Async[Unit] { (context, callback) =>
       // Recursive function because of going into CAS loop
       @tailrec def markFailure(s: Scheduler): Task[Unit] =
         stateRef.get match {
@@ -319,7 +319,7 @@ final class TaskCircuitBreaker private (
           }
       }
 
-    Task.unsafeCreate { (context, callback) =>
+    Task.Async { (context, callback) =>
       val s = context.scheduler
       s.executeTrampolined { () =>
         val loop = execute()(s)

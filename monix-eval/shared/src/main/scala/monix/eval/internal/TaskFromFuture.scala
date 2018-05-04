@@ -33,10 +33,10 @@ private[eval] object TaskFromFuture {
           // Do we have a CancelableFuture?
           case cf: CancelableFuture[A] @unchecked =>
             // Cancelable future, needs canceling
-            Task.unsafeCreate(startCancelable(_, _, cf, cf.cancelable))
+            Task.Async(startCancelable(_, _, cf, cf.cancelable))
           case _ =>
             // Simple future, convert directly
-            Task.unsafeCreate(startSimple(_, _, f))
+            Task.Async(startSimple(_, _, f))
         }
       case Some(value) =>
         Task.fromTry(value)
@@ -45,7 +45,7 @@ private[eval] object TaskFromFuture {
 
   /** Implementation for `Task.deferFutureAction`. */
   def deferAction[A](f: Scheduler => Future[A]): Task[A] =
-    Task.unsafeCreate[A] { (context, callback) =>
+    Task.Async[A] { (context, callback) =>
       implicit val sc = context.scheduler
       // Prevents violations of the Callback contract
       var streamErrors = true
@@ -79,7 +79,7 @@ private[eval] object TaskFromFuture {
     // in which case we're already there
     f.value match {
       case None =>
-        Task.unsafeCreate(startCancelable(_, _, f, c))
+        Task.Async(startCancelable(_, _, f, c))
       case Some(value) =>
         Task.fromTry(value)
     }

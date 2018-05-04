@@ -24,7 +24,7 @@ import monix.execution.misc.NonFatal
 private[eval] object TaskDeferAction {
   /** Implementation for `Task.deferAction`. */
   def apply[A](f: Scheduler => Task[A]): Task[A] =
-    Task.unsafeCreate { (context, callback) =>
+    Task.Async { (context, callback) =>
       implicit val ec = context.scheduler
       var streamErrors = true
 

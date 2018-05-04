@@ -27,7 +27,7 @@ private[eval] object TaskExecuteWithModel {
     * Implementation for `Task.executeWithModel`
     */
   def apply[A](self: Task[A], em: ExecutionModel): Task[A] =
-    Task.unsafeCreate { (context, cb) =>
+    Task.Async { (context, cb) =>
       var streamErrors = true
       try {
         val context2 = context.withExecutionModel(em)

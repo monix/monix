@@ -27,7 +27,7 @@ private[eval] object TaskRaceList {
     * Implementation for `Task.raceList`
     */
   def apply[A](tasks: TraversableOnce[Task[A]]): Task[A] =
-    Task.unsafeCreate { (context, callback) =>
+    Task.Async { (context, callback) =>
       implicit val s = context.scheduler
       val conn = context.connection
 

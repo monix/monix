@@ -27,7 +27,7 @@ private[eval] object TaskRacePair {
     * Implementation for `Task.racePair`.
     */
   def apply[A, B](fa: Task[A], fb: Task[B]): Task[Either[(A, Fiber[B]), (Fiber[A], B)]] =
-    Task.unsafeCreate { (context, cb) =>
+    Task.Async { (context, cb) =>
       implicit val s = context.scheduler
       val conn = context.connection
 

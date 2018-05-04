@@ -289,6 +289,8 @@ lazy val cmdlineProfile =
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
   mimaBinaryIssueFilters ++= Seq(
+    // Breakage — relaxed requirement
+    exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TracingScheduler.apply"),
     // Breakage — changed Task#foreach signature
     exclude[IncompatibleResultTypeProblem]("monix.eval.Task.foreach"),
     // Breakage — extra implicit param
@@ -320,7 +322,8 @@ def mimaSettings(projectName: String) = Seq(
     exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseFrame"),
     exclude[MissingClassProblem]("monix.eval.internal.StackFrame$Fold"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.StackFrame#ErrorHandler.recover"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalBracket.apply")
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalBracket.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.apply")
   )
 )
 

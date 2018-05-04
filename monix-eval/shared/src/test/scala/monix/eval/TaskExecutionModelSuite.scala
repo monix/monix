@@ -89,7 +89,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(0)))
   }
 
-  test("Task.apply.flatMap loops should work with AlwaysAsyncExecution") { s =>
+  test("Task.flatMap loops should work with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
 
     def loop(count: Int): Task[Int] =

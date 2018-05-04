@@ -84,7 +84,7 @@ private[eval] object TaskConversions {
     }
 
   private def fromAsync0[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
-    Task.unsafeCreate { (ctx, cb) =>
+    Task.Async { (ctx, cb) =>
       try {
         val io = F.runAsync(fa) {
           case Right(a) => IO(cb.onSuccess(a))
@@ -98,7 +98,7 @@ private[eval] object TaskConversions {
     }
 
   private def fromConcurrent0[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] =
-    Task.unsafeCreate { (ctx, cb) =>
+    Task.Async { (ctx, cb) =>
       try {
         implicit val sc = ctx.scheduler
         val conn = ctx.connection

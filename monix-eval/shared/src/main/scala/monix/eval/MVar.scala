@@ -130,14 +130,14 @@ object MVar {
   /** [[MVar]] implementation based on [[monix.execution.misc.AsyncVar]] */
   private final class AsyncMVarImpl[A](av: AsyncVar[A]) extends MVar[A] {
     def put(a: A): Task[Unit] =
-      Task.unsafeCreate { (ctx, cb) =>
+      Task.Async { (ctx, cb) =>
         val async = Callback.async(cb)(ctx.scheduler)
         // Execution could be synchronous
         if (av.unsafePut(a, async)) async.onSuccess(())
       }
 
     def take: Task[A] =
-      Task.unsafeCreate { (ctx, cb) =>
+      Task.Async { (ctx, cb) =>
         val async = Callback.async(cb)(ctx.scheduler)
         // Execution could be synchronous (e.g. result is null or not)
         av.unsafeTake(async) match {
@@ -147,7 +147,7 @@ object MVar {
       }
 
     def read: Task[A] =
-      Task.unsafeCreate { (ctx, cb) =>
+      Task.Async { (ctx, cb) =>
         val async = Callback.async(cb)(ctx.scheduler)
         // Execution could be synchronous (e.g. result is null or not)
         av.unsafeRead(async) match {

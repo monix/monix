@@ -323,7 +323,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   }
 
   def sum[F[_]](stream: Iterant[F, Int], request: Long)(implicit F: Effect[F]): Task[Long] =
-    Task.create { (scheduler, cb) =>
+    Task.cancelable { (scheduler, cb) =>
       implicit val ec = scheduler
       val subscription = SingleAssignSubscription()
 

@@ -17,22 +17,23 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
-import monix.execution.UncaughtExceptionReporter.LogExceptionsToStandardErr
-import monix.execution.{ExecutionModel => ExecModel}
+import monix.execution.{Scheduler, SchedulerCompanion, ExecutionModel => ExecModel}
+import scala.concurrent.ExecutionContext
 
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   /** [[monix.execution.Scheduler Scheduler]] builder.
     *
-    * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+    * @param context is the `scala.concurrent.ExecutionContext` that gets used
+    *        for executing `Runnable` values and for reporting errors
+    *
     * @param executionModel is the preferred
     *        [[monix.execution.ExecutionModel ExecutionModel]],
     *        a guideline for run-loops and producers of data.
     */
   def apply(
-    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    context: ExecutionContext = StandardContext,
     executionModel: ExecModel = ExecModel.Default): Scheduler =
-    AsyncScheduler(reporter, executionModel)
+    AsyncScheduler(context, executionModel)
 
   /** Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
     *
@@ -70,9 +71,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       * on top of `global.setTimeout`.
       */
     implicit lazy val global: Scheduler =
-      AsyncScheduler(
-        UncaughtExceptionReporter.LogExceptionsToStandardErr,
-        ExecModel.Default)
+      apply()
 
     /** A [[monix.execution.Scheduler Scheduler]] instance that does
       * propagation of [[monix.execution.misc.Local.Context Local.Context]]

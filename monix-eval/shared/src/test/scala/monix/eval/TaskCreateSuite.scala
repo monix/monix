@@ -17,62 +17,145 @@
 
 package monix.eval
 
-import monix.execution.Cancelable
-import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success, Try}
+import cats.effect.IO
+
+import scala.util.Success
+import scala.concurrent.duration._
 
 object TaskCreateSuite extends BaseTestSuite {
-  test("Task.create should be stack safe on repeated, right-associated binds") { implicit s =>
-    def signal[A](a: A): Task[A] = Task.create[A] { (_, cb) =>
-      cb.onSuccess(a)
-      Cancelable.empty
+  test("can use Unit as return type") { implicit sc =>
+    val task = Task.create[Int]((_, cb) => cb.onSuccess(1))
+    val f = task.runAsync
+
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("returning Unit yields non-cancelable tasks") { implicit sc =>
+    val task = Task.create[Int] { (sc, cb) =>
+      sc.scheduleOnce(1.second)(cb.onSuccess(1))
+      ()
     }
 
-    val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => acc.flatMap(x => signal(x + 1)))
     val f = task.runAsync
-    s.tick()
+    sc.tick()
+    assertEquals(f.value, None)
 
-    assertEquals(f.value, Some(Success(10000)))
+    f.cancel()
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.create should be stack safe on repeated, left-associated binds") { implicit s =>
-    def signal[A](a: A): Task[A] = Task.create[A] { (_, cb) =>
-      cb.onSuccess(a)
-      Cancelable.empty
+  test("can use Cancelable as return type") { implicit sc =>
+    val task = Task.create[Int] { (sc, cb) =>
+      sc.scheduleOnce(1.second)(cb.onSuccess(1))
     }
 
-    val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => signal(1).flatMap(x => acc.map(y => x + y)))
     val f = task.runAsync
-    s.tick()
+    sc.tick()
+    assertEquals(f.value, None)
 
-    assertEquals(f.value, Some(Success(10000)))
-  }
-  
-  test("Task.create should work onSuccess") { implicit s =>
-    val t = Task.create[Int] { (_,cb) => cb.onSuccess(10); Cancelable.empty }
-    val f = t.runAsync
-    s.tick()
-    assertEquals(f.value, Some(Success(10)))
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.create should work onError") { implicit s =>
-    val dummy = DummyException("dummy")
-    val t = Task.create[Int] { (_,cb) => cb.onError(dummy); Cancelable.empty }
-    val f = t.runAsync
-    s.tick()
-    assertEquals(f.value, Some(Failure(dummy)))
+  test("returning Cancelable yields a cancelable task") { implicit sc =>
+    val task = Task.create[Int] { (sc, cb) =>
+      sc.scheduleOnce(1.second)(cb.onSuccess(1))
+    }
+
+    val f = task.runAsync
+    sc.tick()
+    assertEquals(f.value, None)
+
+    f.cancel()
+    sc.tick(1.second)
+    assertEquals(f.value, None)
   }
 
-  test("Task.create should execute immediately when executed as future") { implicit s =>
-    val t = Task.create[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
-    val result = t.runAsync
-    assertEquals(result.value, Some(Success(100)))
+  test("can use IO[Unit] as return type") { implicit sc =>
+    val task = Task.create[Int] { (sc, cb) =>
+      val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
+      IO(c.cancel())
+    }
+
+    val f = task.runAsync
+    sc.tick()
+    assertEquals(f.value, None)
+
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.create should execute immediately when executed with callback") { implicit s =>
-    var result = Option.empty[Try[Int]]
-    val t = Task.create[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
-    t.runOnComplete { r => result = Some(r) }
-    assertEquals(result, Some(Success(100)))
+  test("returning IO[Unit] yields a cancelable task") { implicit sc =>
+    val task = Task.create[Int] { (sc, cb) =>
+      val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
+      IO(c.cancel())
+    }
+
+    val f = task.runAsync
+    sc.tick()
+    assertEquals(f.value, None)
+
+    f.cancel()
+    sc.tick(1.second)
+    assertEquals(f.value, None)
+  }
+
+  test("can use Task[Unit] as return type") { implicit sc =>
+    val task = Task.create[Int] { (sc, cb) =>
+      val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
+      Task(c.cancel())
+    }
+
+    val f = task.runAsync
+    sc.tick()
+    assertEquals(f.value, None)
+
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("returning Task[Unit] yields a cancelable task") { implicit sc =>
+    val task = Task.create[Int] { (sc, cb) =>
+      val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
+      Task(c.cancel())
+    }
+
+    val f = task.runAsync
+    sc.tick()
+    assertEquals(f.value, None)
+
+    f.cancel()
+    sc.tick(1.second)
+    assertEquals(f.value, None)
+  }
+
+  test("can use Coeval[Unit] as return type") { implicit sc =>
+    val task = Task.create[Int] { (sc, cb) =>
+      val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
+      Coeval(c.cancel())
+    }
+
+    val f = task.runAsync
+    sc.tick()
+    assertEquals(f.value, None)
+
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("returning Coeval[Unit] yields a cancelable task") { implicit sc =>
+    val task = Task.create[Int] { (sc, cb) =>
+      val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
+      Coeval(c.cancel())
+    }
+
+    val f = task.runAsync
+    sc.tick()
+    assertEquals(f.value, None)
+
+    f.cancel()
+    sc.tick(1.second)
+    assertEquals(f.value, None)
   }
 }

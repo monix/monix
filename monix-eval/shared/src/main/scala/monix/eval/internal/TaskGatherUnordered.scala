@@ -32,7 +32,7 @@ private[eval] object TaskGatherUnordered {
     * Implementation for `Task.gatherUnordered`
     */
   def apply[A](in: TraversableOnce[Task[A]]): Task[List[A]] = {
-    Task.unsafeCreate { (context, finalCallback) =>
+    Task.Async { (context, finalCallback) =>
       // Forced asynchronous boundary
       context.scheduler.executeTrampolined { () =>
         @inline def maybeSignalFinal(

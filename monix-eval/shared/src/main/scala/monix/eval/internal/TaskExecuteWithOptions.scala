@@ -26,7 +26,7 @@ private[eval] object TaskExecuteWithOptions {
     * Implementation for `Task.executeWithOptions`
     */
   def apply[A](self: Task[A], f: Options => Options): Task[A] =
-    Task.unsafeCreate { (context, cb) =>
+    Task.Async { (context, cb) =>
       implicit val s = context.scheduler
       var streamErrors = true
       try {

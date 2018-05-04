@@ -26,7 +26,7 @@ object TaskOptionsSuite extends SimpleTestSuite {
   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
   def extractOptions[A](fa: Task[A]): Task[Options] =
-    Task.unsafeCreate { (ctx, cb) => cb.onSuccess(ctx.options) }
+    Task.Async { (ctx, cb) => cb.onSuccess(ctx.options) }
 
   testAsync("change options with future") {
     val task = extractOptions(Task.now(1)).map { r =>

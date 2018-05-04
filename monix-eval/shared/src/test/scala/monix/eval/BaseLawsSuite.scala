@@ -70,7 +70,10 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
       getArbitrary[A].map(Task.pure)
 
     def genApply: Gen[Task[A]] =
-      getArbitrary[A].map(Task.apply(_))
+      getArbitrary[A].map(Task(_))
+
+    def genEval: Gen[Task[A]] =
+      getArbitrary[A].map(Task.eval(_))
 
     def genFail: Gen[Task[A]] =
       getArbitrary[Throwable].map(Task.raiseError)
@@ -80,7 +83,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
 
     def genCancelable: Gen[Task[A]] =
       for (a <- getArbitrary[A]) yield
-        Task.unsafeCreate[A] { (ctx, cb) =>
+        Task.Async[A] { (ctx, cb) =>
           implicit val ec = ctx.scheduler
           ec.executeAsync{ () =>
             if (!ctx.connection.isCanceled)
@@ -93,10 +96,11 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
         .map(k => Async[Task].async(k).flatMap(x => x))
 
     def genBindSuspend: Gen[Task[A]] =
-      getArbitrary[A].map(Task.apply(_).flatMap(Task.pure))
+      getArbitrary[A].map(Task(_).flatMap(Task.pure))
 
     def genSimpleTask = Gen.frequency(
       1 -> genPure,
+      1 -> genEval,
       1 -> genApply,
       1 -> genFail,
       1 -> genAsync,
@@ -126,6 +130,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
     Arbitrary(Gen.frequency(
       5 -> genPure,
       5 -> genApply,
+      1 -> genEval,
       1 -> genFail,
       5 -> genCancelable,
       5 -> genBindSuspend,

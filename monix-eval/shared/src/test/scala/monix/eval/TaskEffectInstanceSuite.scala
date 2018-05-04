@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 
 object TaskEffectInstanceSuite extends BaseTestSuite {
   test("Effect instance should make use of implicit TaskOptions") { implicit sc =>
-    val readOptions: Task[Task.Options] = Task.unsafeCreate { (ctx, cb) =>
+    val readOptions: Task[Task.Options] = Task.Async { (ctx, cb) =>
       cb.onSuccess(ctx.options)
     }
 

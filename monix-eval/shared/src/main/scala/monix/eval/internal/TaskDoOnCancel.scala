@@ -25,7 +25,7 @@ private[eval] object TaskDoOnCancel {
     * Implementation for `Task.doOnCancel`
     */
   def apply[A](self: Task[A], callback: Task[Unit]): Task[A] =
-    Task.unsafeCreate { (context, onFinish) =>
+    Task.Async { (context, onFinish) =>
       implicit val s = context.scheduler
       implicit val o = context.options
 

@@ -71,7 +71,7 @@ private[eval] object TaskMapBoth {
     }
 
     // The resulting task will be executed asynchronously
-    Task.unsafeCreate { (context, cb) =>
+    Task.Async { (context, cb) =>
       // Initial asynchronous boundary
       context.scheduler.executeTrampolined { () =>
         implicit val s = context.scheduler

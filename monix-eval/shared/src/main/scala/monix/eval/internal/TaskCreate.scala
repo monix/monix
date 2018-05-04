@@ -17,27 +17,69 @@
 
 package monix.eval.internal
 
-import monix.eval.{Callback, Task}
+import cats.effect.IO
+import monix.eval.{Callback, Coeval, Task}
 import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
 import monix.execution.misc.{Local, NonFatal}
 import monix.execution.{Cancelable, Scheduler}
 
 private[eval] object TaskCreate {
   /**
-    * Implementation for `Task.create`
+    * Implementation for `Task.cancelable`
     */
-  def apply[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
-    Task.unsafeCreate { (ctx, cb) =>
+  def cancelable[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+    Task.Async { (ctx, cb) =>
       val s = ctx.scheduler
       val conn = ctx.connection
       val cancelable = SingleAssignCancelable()
       conn push cancelable
 
       try {
-        val ref = register(s, new CreateCallback(conn, ctx.options, cb)(s))
+        val ref = start(s, new CreateCallback(conn, ctx.options, cb)(s))
         // Optimization to skip the assignment, as it's expensive
         if (!ref.isInstanceOf[Cancelable.IsDummy])
           cancelable := ref
+      } catch {
+        case ex if NonFatal(ex) =>
+          // We cannot stream the error, because the callback might have
+          // been called already and we'd be violating its contract,
+          // hence the only thing possible is to log the error.
+          s.reportFailure(ex)
+      }
+    }
+
+  /**
+    * Implementation for `Task.create`, used via `TaskBuilder`.
+    */
+  def cancelableIO[A](start: (Scheduler, Callback[A]) => IO[Unit]): Task[A] =
+    cancelable { (sc, cb) => Cancelable.fromIO(start(sc, cb))(sc) }
+
+  /**
+    * Implementation for `Task.create`, used via `TaskBuilder`.
+    */
+  def cancelableTask[A](start: (Scheduler, Callback[A]) => Task[Unit]): Task[A] =
+    cancelable { (sc, cb) =>
+      val task = start(sc, cb)
+      Cancelable(() => task.runAsync(Callback.empty(sc))(sc))
+    }
+
+  /**
+    * Implementation for `Task.create`, used via `TaskBuilder`.
+    */
+  def cancelableCoeval[A](start: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
+    cancelable { (sc, cb) =>
+      val task = start(sc, cb)
+      Cancelable(task.value _)
+    }
+
+  /**
+    * Implementation for `Task.async`
+    */
+  def simple[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
+    Task.Async { (ctx, cb) =>
+      val s = ctx.scheduler
+      try {
+        start(s, new CreateCallback(null, ctx.options, cb)(s))
       } catch {
         case ex if NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
@@ -72,7 +114,7 @@ private[eval] object TaskCreate {
     def onSuccess(value: A): Unit =
       if (awaitsResult) {
         awaitsResult = false
-        conn.pop()
+        if (conn ne null) conn.pop()
         s.executeTrampolined { () =>
           // Restoring context if available, because un-traced
           // async boundaries might have happened
@@ -84,7 +126,53 @@ private[eval] object TaskCreate {
     def onError(e: Throwable): Unit =
       if (awaitsResult) {
         awaitsResult = false
-        conn.pop()
+        if (conn ne null) conn.pop()
+        s.executeTrampolined { () =>
+          // Restoring context if available, because un-traced
+          // async boundaries might have happened
+          if (locals ne null) Local.setContext(locals)
+          cb.onError(e)
+        }
+      } else {
+        s.reportFailure(e)
+      }
+  }
+
+  // Wraps a callback into an implementation that pops the stack
+  // before calling onSuccess/onError, also restoring the `Local`
+  // context in case the option is enabled
+  private final class AsyncCallback[A](
+    options: Task.Options,
+    cb: Callback[A])
+    (implicit s: Scheduler)
+    extends Callback[A] {
+
+    // Light protection against multiple calls — obviously it's not
+    // synchronized and can only protect in cases where there's ordering guaranteed,
+    // but fails to protect in race conditions. We don't care about those though.
+    private[this] var awaitsResult = true
+
+    // Capturing current context, in case the option is active, as we need
+    // to restore it due to async boundaries triggered in `Async` that might
+    // have invalidated our local context
+    private[this] val locals =
+      if (options.localContextPropagation) Local.getContext()
+      else null
+
+    def onSuccess(value: A): Unit =
+      if (awaitsResult) {
+        awaitsResult = false
+        s.executeTrampolined { () =>
+          // Restoring context if available, because un-traced
+          // async boundaries might have happened
+          if (locals ne null) Local.setContext(locals)
+          cb.onSuccess(value)
+        }
+      }
+
+    def onError(e: Throwable): Unit =
+      if (awaitsResult) {
+        awaitsResult = false
         s.executeTrampolined { () =>
           // Restoring context if available, because un-traced
           // async boundaries might have happened

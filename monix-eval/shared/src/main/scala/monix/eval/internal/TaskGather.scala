@@ -30,7 +30,7 @@ private[eval] object TaskGather {
     * Implementation for `Task.gather`
     */
   def apply[A, M[X] <: TraversableOnce[X]](in: TraversableOnce[Task[A]], bldrBldr: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
-    Task.unsafeCreate { (context, finalCallback) =>
+    Task.Async { (context, finalCallback) =>
       // We need a monitor to synchronize on, per evaluation!
       val lock = new AnyRef
       val mainConn = context.connection
