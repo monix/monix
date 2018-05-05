@@ -816,7 +816,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * @param f is the function to execute on early stop
     */
-  def doOnExitCaseTask(f: ExitCase[Throwable] => Task[Unit]): Observable[A] =
+  final def doOnExitCaseTask(f: ExitCase[Throwable] => Task[Unit]): Observable[A] =
     new DoOnExitCaseObservable(self)(f)
 
   /** Executes the given callback when the connection is being
