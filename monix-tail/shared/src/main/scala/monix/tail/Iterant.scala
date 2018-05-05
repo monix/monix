@@ -23,12 +23,12 @@ import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order, Parallel}
 import monix.eval.{Coeval, Task}
-import monix.execution.{BracketResult, Scheduler}
-import monix.execution.misc.NonFatal
+import monix.execution.Scheduler
 import monix.execution.internal.Platform.recommendedBatchSize
+import monix.execution.misc.NonFatal
 import monix.tail.batches.{Batch, BatchCursor}
-import monix.tail.internal._
 import monix.tail.internal.Constants.emptyRef
+import monix.tail.internal._
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
