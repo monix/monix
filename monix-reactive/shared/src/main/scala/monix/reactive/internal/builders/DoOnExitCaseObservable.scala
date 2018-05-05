@@ -17,17 +17,20 @@
 
 package monix.reactive.internal.builders
 
+import cats.effect.ExitCase
+import cats.effect.ExitCase.{Completed, Error}
 import monix.eval.Task
-import monix.execution.BracketResult._
 import monix.execution.atomic.Atomic
 import monix.execution.misc.NonFatal
-import monix.execution.{Ack, BracketResult, Cancelable, Scheduler}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive] final class BracketObservable[A, B](source: Observable[B])(a: A, release: (A, BracketResult) => Task[Unit]) extends Observable[B] {
+private[reactive] final class DoOnExitCaseObservable[A, B](
+  source: Observable[B])(
+  release: ExitCase[Throwable] => Task[Unit]) extends Observable[B] {
 
   override def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     // Calling release might be concurrent so
@@ -39,34 +42,50 @@ private[reactive] final class BracketObservable[A, B](source: Observable[B])(a: 
 
       def onError(ex: Throwable): Unit = {
         out.onError(ex)
-        try release(a, Error(ex)).runAsync catch {
-          case err if NonFatal(err) =>
-            scheduler.reportFailure(err)
-//            out.onError(err)
-        }
+        if (active.getAndSet(false))
+          try {
+            release(Error(ex)).runAsync
+          } catch {
+            case err if NonFatal(err) =>
+              scheduler.reportFailure(err)
+          }
       }
 
       def onComplete(): Unit = {
-        out.onComplete()
-        try release(a, Completed).runAsync catch {
-          case err if NonFatal(err) =>
-            scheduler.reportFailure(err)
-            out.onError(err)
-        }
+        if (active.getAndSet(false))
+          try {
+            release(Completed)
+              .attempt
+              .map {
+                case Left(e) =>
+                  scheduler.reportFailure(e)
+                  out.onError(e)
+                case _ =>
+                  out.onComplete()
+              }.runAsync
+          } catch {
+            case err if NonFatal(err) =>
+              scheduler.reportFailure(err)
+              out.onError(err)
+          }
       }
 
       def onNext(elem: B): Future[Ack] = {
         out.onNext(elem).syncOnStopOrFailure {
-          case Some(_) =>
+          case Some(ex) =>
             if (active.getAndSet(false))
-              try release(a, EarlyStop).runAsync catch {
+              try {
+                release(Error(ex)).runAsync
+              } catch {
                 case err if NonFatal(err) =>
                   scheduler.reportFailure(err)
                   out.onError(err)
               }
           case None =>
             if (active.getAndSet(false))
-              try release(a, EarlyStop).runAsync catch {
+              try {
+                release(ExitCase.canceled).runAsync
+              } catch {
                 case err if NonFatal(err) =>
                   scheduler.reportFailure(err)
                   out.onError(err)
@@ -78,7 +97,9 @@ private[reactive] final class BracketObservable[A, B](source: Observable[B])(a: 
     Cancelable { () =>
       try downstream.cancel() finally {
         if (active.getAndSet(false))
-          try release(a, EarlyStop).runAsync(out.scheduler) catch {
+          try {
+            release(ExitCase.canceled).runAsync(out.scheduler)
+          } catch {
             case err if NonFatal(err) =>
               out.scheduler.reportFailure(err)
           }
