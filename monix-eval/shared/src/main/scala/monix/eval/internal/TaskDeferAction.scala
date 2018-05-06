@@ -35,7 +35,7 @@ private[eval] object TaskDeferAction {
       } catch {
         case ex if NonFatal(ex) =>
           if (streamErrors)
-            callback.asyncOnError(ex)
+            callback.onError(ex)
           else {
             // $COVERAGE-OFF$
             ec.reportFailure(ex)

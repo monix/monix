@@ -47,7 +47,7 @@ private[eval] object TaskRunSyncUnsafe {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          bFirst = bindNext
+          /*_*/bFirst = bindNext/*_*/
           current = fa
 
         case Now(value) =>
@@ -90,8 +90,8 @@ private[eval] object TaskRunSyncUnsafe {
               bFirst = null
           }
 
-        case Async(register) =>
-          return blockForResult(current, register, timeout, scheduler, opts, bFirst, bRest)
+        case Async(register, restoreLocals) =>
+          return blockForResult(current, register, restoreLocals, timeout, scheduler, opts, bFirst, bRest)
       }
 
       if (hasUnboxed) {
@@ -119,6 +119,7 @@ private[eval] object TaskRunSyncUnsafe {
   private def blockForResult[A](
     source: Current,
     register: (Context, Callback[Any]) => Unit = null,
+    restoreLocals: Boolean,
     limit: Duration,
     scheduler: Scheduler,
     opts: Task.Options,
@@ -131,8 +132,8 @@ private[eval] object TaskRunSyncUnsafe {
 
     // Starting actual execution
     if (register ne null) {
-      val rcb = new RestartCallback(context, cb)
-      executeAsyncTask(context, register, cb, rcb, bFirst, bRest, 1)
+      val rcb = RestartCallback(context, cb)
+      executeAsyncTask(context, register, restoreLocals, cb, rcb, bFirst, bRest, 1)
     } else {
       val fa = source.asInstanceOf[Task[A]]
       startFull(fa, context, cb, null, bFirst, bRest, 1)

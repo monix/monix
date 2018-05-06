@@ -18,15 +18,15 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.eval.Task.Async
+import monix.eval.Task.{Async, Context}
 import monix.execution.Scheduler
 
 private[eval] object TaskExecuteOn {
   /**
     * Implementation for `Task.executeOn`.
     */
-  def apply[A](source: Task[A], s: Scheduler, forceAsync: Boolean): Task[A] =
-    Async { (ctx, cb) =>
+  def apply[A](source: Task[A], s: Scheduler, forceAsync: Boolean): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
       val ctx2 = ctx.withScheduler(s)
       val cb2 = Callback.async(cb)(s)
 
@@ -35,4 +35,9 @@ private[eval] object TaskExecuteOn {
       else
         Task.unsafeStartTrampolined(source, ctx2, cb2)
     }
+
+    // When an `executeOn` is evaluated, whatever locals are set within it
+    // would get lost if we allowed the default behavior
+    Async(start, restoreLocalsAfter = false)
+  }
 }

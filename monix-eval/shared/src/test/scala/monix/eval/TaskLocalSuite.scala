@@ -65,7 +65,6 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runAsyncOpt
   }
 
-
   testAsync("TaskLocal!.bind") {
     val test =
       for {
@@ -122,7 +121,7 @@ object TaskLocalSuite extends SimpleTestSuite {
       s <- local.read
       _ <- Task.now(assertEquals(s, "Good"))
     } yield ()
-    
+
     test.runAsyncOpt
   }
 
@@ -148,7 +147,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runAsyncOpt
   }
 
-  test("TaskLocals get restored in Task.create on error") {
+  testAsync("TaskLocals get restored in Task.create on error") {
     val dummy = DummyException("dummy")
     val task = Task.create[Int] { (_, cb) =>
       ec.execute(new Runnable {

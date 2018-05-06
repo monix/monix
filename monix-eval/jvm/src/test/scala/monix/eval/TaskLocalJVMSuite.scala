@@ -18,7 +18,9 @@
 package monix.eval
 
 import minitest.SimpleTestSuite
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{Cancelable, Scheduler}
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 
@@ -29,7 +31,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       Cancelable.empty
     }
 
-  test("locals get transported over async boundaries") {
+  test("locals get transported with executeOn and shift") {
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     import Scheduler.Implicits.global
 
@@ -58,4 +60,37 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       ec2.shutdown()
     }
   }
+
+  test("locals get transported with executeWithModel") {
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    import Scheduler.Implicits.global
+
+    val task =
+      for {
+        local <- TaskLocal(0)
+        _ <- local.write(100).executeWithModel(AlwaysAsyncExecution)
+        _ <- Task.shift
+        v <- local.read
+      } yield v
+
+    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    assertEquals(r, 100)
+  }
+
+  test("locals get transported with executeWithOptions") {
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    import Scheduler.Implicits.global
+
+    val task =
+      for {
+        local <- TaskLocal(0)
+        _ <- local.write(100).executeWithOptions(_.enableAutoCancelableRunLoops)
+        _ <- Task.shift
+        v <- local.read
+      } yield v
+
+    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    assertEquals(r, 100)
+  }
+
 }

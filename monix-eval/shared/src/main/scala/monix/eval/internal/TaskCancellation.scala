@@ -79,12 +79,12 @@ private[eval] object TaskCancellation {
     def onSuccess(value: A): Unit =
       if (waitsForResult.getAndSet(false)) {
         conn.pop()
-        cb.asyncOnSuccess(value)
+        cb.onSuccess(value)
       }
     def onError(e: Throwable): Unit =
       if (waitsForResult.getAndSet(false)) {
         conn.pop()
-        cb.asyncOnError(e)
+        cb.onError(e)
       } else {
         s.reportFailure(e)
       }

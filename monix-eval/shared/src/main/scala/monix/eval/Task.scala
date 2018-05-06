@@ -3177,6 +3177,7 @@ object Task extends TaskInstancesLevel1 {
     connection: StackedCancelable,
     frameRef: FrameIndexRef) {
 
+
     /** The [[monix.execution.Scheduler Scheduler]] in charge of triggering
       * async boundaries, on the evaluation that happens via `runAsync`.
       */
@@ -3186,14 +3187,14 @@ object Task extends TaskInstancesLevel1 {
       else
         schedulerRef
 
-    /** Helper that returns the
-      * [[monix.execution.ExecutionModel ExecutionModel]]
-      * specified by the [[scheduler]].
+    /** DEPRECATED - scheduled for removal!
+      *
+      * Use `context.scheduler.executionModel`.
       */
     @deprecated("Use scheduler.executionModel", "3.0.0")
     def executionModel: ExecutionModel = {
       // $COVERAGE-OFF$
-      schedulerRef.executionModel
+      scheduler.executionModel
       // $COVERAGE-ON$
     }
 
@@ -3208,13 +3209,13 @@ object Task extends TaskInstancesLevel1 {
       new Context(s, options, connection, frameRef)
 
     def withExecutionModel(em: ExecutionModel): Context =
-      new Context(schedulerRef.withExecutionModel(em), options, connection, frameRef)
+      new Context(scheduler.withExecutionModel(em), options, connection, frameRef)
 
     def withOptions(opts: Options): Context =
-      new Context(schedulerRef, opts, connection, frameRef)
+      new Context(scheduler, opts, connection, frameRef)
 
     def withConnection(conn: StackedCancelable): Context =
-      new Context(schedulerRef, options, conn, frameRef)
+      new Context(scheduler, options, conn, frameRef)
   }
 
   object Context {
@@ -3369,8 +3370,15 @@ object Task extends TaskInstancesLevel1 {
     * Unsafe to build directly, only use if you know what you're doing.
     * For building `Async` instances safely, see [[cancelable]].
     */
-  private[eval] final case class Async[+A](register: (Context, Callback[A]) => Unit)
+  private[eval] final case class Async[+A](
+    register: (Context, Callback[A]) => Unit,
+    restoreLocalsAfter: Boolean = true)
     extends Task[A]
+
+//  private[eval] final case class ContextSwitch[+A](
+//    source: Task[A],
+//    f: Context => Context)
+//    extends Task[A]
 
   /** Internal API — starts the execution of a Task with a guaranteed
     * asynchronous boundary, by providing

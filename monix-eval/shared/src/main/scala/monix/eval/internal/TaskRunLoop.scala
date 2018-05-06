@@ -20,7 +20,7 @@ package monix.eval.internal
 import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
-import monix.execution.misc.NonFatal
+import monix.execution.misc.{Local, NonFatal}
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
 import scala.concurrent.Promise
 
@@ -106,8 +106,8 @@ private[eval] object TaskRunLoop {
                 bFirstRef = null
             }
 
-          case Async(register) =>
-            executeAsyncTask(context, register, cba, rcb, bFirstRef, bRestRef, currentIndex)
+          case Async(register, restoreLocalsAfter) =>
+            executeAsyncTask(context, register, restoreLocalsAfter, cba, rcb, bFirstRef, bRestRef, currentIndex)
             return
         }
 
@@ -145,6 +145,10 @@ private[eval] object TaskRunLoop {
     bindCurrent: Bind,
     bindRest: CallStack): Unit = {
 
+    val savedLocals =
+      if (context.options.localContextPropagation) Local.getContext()
+      else null
+
     context.scheduler.executeAsync { () =>
       // Checking for the cancellation status after the async boundary;
       // This is consistent with the behavior on `Async` tasks, i.e. check
@@ -155,8 +159,12 @@ private[eval] object TaskRunLoop {
       if (!context.shouldCancel) {
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
-        // Using frameIndex = 1 to ensure at least one cycle gets executed
-        startFull(source, context, cb, rcb, bindCurrent, bindRest, 1)
+
+        // Transporting the current context if localContextPropagation == true.
+        Local.bind(savedLocals) {
+          // Using frameIndex = 1 to ensure at least one cycle gets executed
+          startFull(source, context, cb, rcb, bindCurrent, bindRest, 1)
+        }
       }
     }
   }
@@ -233,14 +241,17 @@ private[eval] object TaskRunLoop {
                 bFirst = null
             }
 
-          case Async(register) =>
+          case Async(register, restoreLocalsAfter) =>
             return goAsyncForLightCB(
               current,
               register,
+              restoreLocalsAfter,
               scheduler,
               opts,
               cb.asInstanceOf[Callback[Any]],
-              bFirst, bRest, frameIndex,
+              bFirst,
+              bRest,
+              frameIndex,
               forceAsync = false)
         }
 
@@ -263,8 +274,11 @@ private[eval] object TaskRunLoop {
       else {
         // Force async boundary
         return goAsyncForLightCB(
-          current, null,
-          scheduler, opts,
+          current,
+          register = null,
+          restoreLocalsAfter = true,
+          scheduler,
+          opts,
           cb.asInstanceOf[Callback[Any]],
           bFirst, bRest, frameIndex,
           forceAsync = true)
@@ -300,7 +314,7 @@ private[eval] object TaskRunLoop {
               if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
-            bFirst = bindNext
+            /*_*/bFirst = bindNext/*_*/
             current = fa
 
           case Now(value) =>
@@ -346,11 +360,15 @@ private[eval] object TaskRunLoop {
                 bFirst = null
             }
 
-          case Async(register) =>
+          case Async(register, restoreLocalsAfter) =>
             return goAsync4Future(
-              current, register,
-              scheduler, opts,
-              bFirst, bRest,
+              current,
+              register,
+              restoreLocalsAfter,
+              scheduler,
+              opts,
+              bFirst,
+              bRest,
               frameIndex,
               forceAsync = false)
         }
@@ -376,7 +394,9 @@ private[eval] object TaskRunLoop {
       } else {
         // Force async boundary
         return goAsync4Future(
-          current, null,
+          current,
+          register = null,
+          restoreLocalsAfter = true,
           scheduler, opts,
           bFirst, bRest,
           frameIndex,
@@ -391,6 +411,7 @@ private[eval] object TaskRunLoop {
   private[internal] def executeAsyncTask(
     context: Context,
     register: (Context, Callback[Any]) => Unit,
+    restoreLocalsAfter: Boolean,
     cb: Callback[Any],
     rcb: RestartCallback,
     bFirst: Bind,
@@ -409,8 +430,8 @@ private[eval] object TaskRunLoop {
     context.frameRef := nextFrame
 
     // rcb reference might be null, so initializing
-    val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
-    restartCallback.prepare(bFirst, bRest)
+    val restartCallback = if (rcb != null) rcb else RestartCallback(context, cb)
+    restartCallback.prepare(bFirst, bRest, restoreLocalsAfter)
     register(context, restartCallback)
   }
 
@@ -420,6 +441,7 @@ private[eval] object TaskRunLoop {
   private def goAsyncForLightCB(
     source: Current,
     register: (Context, Callback[Any]) => Unit,
+    restoreLocalsAfter: Boolean,
     scheduler: Scheduler,
     opts: Task.Options,
     cb: Callback[Any],
@@ -430,7 +452,7 @@ private[eval] object TaskRunLoop {
 
     val context = Context(scheduler, opts)
     if (register ne null)
-      executeAsyncTask(context, register, cb, null, bFirst, bRest, 1)
+      executeAsyncTask(context, register, restoreLocalsAfter, cb, null, bFirst, bRest, 1)
     else if (forceAsync)
       restartAsync(source, context, cb, null, bFirst, bRest)
     else
@@ -443,6 +465,7 @@ private[eval] object TaskRunLoop {
   private def goAsync4Future[A](
     source: Current,
     register: (Context, Callback[Any]) => Unit,
+    restoreLocalsAfter: Boolean,
     scheduler: Scheduler,
     opts: Task.Options,
     bFirst: Bind,
@@ -456,7 +479,7 @@ private[eval] object TaskRunLoop {
     val context = Context(scheduler, opts)
 
     if (register ne null)
-      executeAsyncTask(context, register, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
+      executeAsyncTask(context, register, restoreLocalsAfter, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
     else if (forceAsync)
       restartAsync(fa, context, cb, null, bFirst, bRest)
     else
@@ -504,36 +527,4 @@ private[eval] object TaskRunLoop {
 
   private def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
-
-  private[internal] final class RestartCallback(context: Context, callback: Callback[Any])
-    extends Callback[Any] {
-
-    private[this] var canCall = false
-    private[this] var bFirst: Bind = _
-    private[this] var bRest: CallStack = _
-    private[this] val runLoopIndex = context.frameRef
-
-    def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
-      canCall = true
-      this.bFirst = bindCurrent
-      this.bRest = bindRest
-    }
-
-    def onSuccess(value: Any): Unit =
-      if (canCall && !context.shouldCancel) {
-        canCall = false
-        startFull(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
-      }
-
-    def onError(ex: Throwable): Unit = {
-      if (canCall && !context.shouldCancel) {
-        canCall = false
-        startFull(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())
-      } else {
-        // $COVERAGE-OFF$
-        context.scheduler.reportFailure(ex)
-        // $COVERAGE-ON$
-      }
-    }
-  }
 }

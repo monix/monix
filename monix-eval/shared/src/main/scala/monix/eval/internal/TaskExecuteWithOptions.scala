@@ -18,15 +18,15 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.eval.Task.Options
+import monix.eval.Task.{Context, Options}
 import monix.execution.misc.NonFatal
 
 private[eval] object TaskExecuteWithOptions {
   /**
     * Implementation for `Task.executeWithOptions`
     */
-  def apply[A](self: Task[A], f: Options => Options): Task[A] =
-    Task.Async { (context, cb) =>
+  def apply[A](self: Task[A], f: Options => Options): Task[A] = {
+    val start = (context: Context, cb: Callback[A]) => {
       implicit val s = context.scheduler
       var streamErrors = true
       try {
@@ -44,4 +44,7 @@ private[eval] object TaskExecuteWithOptions {
           }
       }
     }
+    
+    Task.Async(start, restoreLocalsAfter = false)
+  }
 }

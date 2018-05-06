@@ -36,7 +36,7 @@ import scala.util.{Failure, Success, Try}
   * describing asynchronous processes, like in
   * [[Task.cancelable[A](start* Task.cancelable]].
   */
-abstract class Callback[-A] extends Listener[A] with (Try[A] => Unit) {
+abstract class Callback[-A] extends Listener[A] with (Either[Throwable, A] => Unit) {
   def onSuccess(value: A): Unit
 
   def onError(ex: Throwable): Unit

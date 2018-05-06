@@ -91,7 +91,7 @@ private[eval] object TaskFromFuture {
         // Short-circuit the processing, as future is already complete
         cb.asyncApply(value)(ctx.scheduler)
       case None =>
-        f.onComplete(cb)(immediate)
+        f.onComplete(cb(_))(immediate)
     }
   }
 
