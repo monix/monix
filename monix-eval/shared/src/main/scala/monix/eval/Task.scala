@@ -1146,7 +1146,7 @@ sealed abstract class Task[+A] extends Serializable {
     *        with which the source will get evaluated on `runAsync`
     */
   final def executeWithModel(em: ExecutionModel): Task[A] =
-    TaskExecuteWithModel(this, em)
+    Task.ContextSwitch(this, ctx => ctx.withExecutionModel(em))
 
   /** Returns a new task that will execute the source with a different
     * set of [[Task.Options Options]].
@@ -1163,7 +1163,7 @@ sealed abstract class Task[+A] extends Serializable {
     *        upon `runAsync`
     */
   final def executeWithOptions(f: Options => Options): Task[A] =
-    TaskExecuteWithOptions(this, f)
+    Task.ContextSwitch(this, ctx => ctx.withOptions(f(ctx.options)))
 
   /** Returns a new task that is cancelable.
     *
@@ -3187,23 +3187,29 @@ object Task extends TaskInstancesLevel1 {
       else
         schedulerRef
 
-    /** DEPRECATED - scheduled for removal!
-      *
-      * Use `context.scheduler.executionModel`.
-      */
-    @deprecated("Use scheduler.executionModel", "3.0.0")
-    def executionModel: ExecutionModel = {
-      // $COVERAGE-OFF$
-      scheduler.executionModel
-      // $COVERAGE-ON$
-    }
-
     /** Helper that returns `true` if the current `Task` run-loop
       * should be canceled or `false` otherwise.
       */
     def shouldCancel: Boolean =
       options.autoCancelableRunLoops &&
       connection.isCanceled
+
+    /** Returns the context's [[monix.execution.ExecutionModel ExecutionModel]]. */
+    def executionModel: ExecutionModel =
+      schedulerRef.executionModel
+
+    /** Returns the index of the starting frame, to be used in case of a
+      * context switch.
+      */
+    private[monix] def startFrame(currentFrame: FrameIndex = frameRef()): FrameIndex = {
+      val em = schedulerRef.executionModel
+      em match {
+        case BatchedExecution(_) =>
+          currentFrame
+        case AlwaysAsyncExecution | SynchronousExecution =>
+          em.nextFrameIndex(0)
+      }
+    }
 
     def withScheduler(s: Scheduler): Context =
       new Context(s, options, connection, frameRef)
@@ -3375,10 +3381,10 @@ object Task extends TaskInstancesLevel1 {
     restoreLocalsAfter: Boolean = true)
     extends Task[A]
 
-//  private[eval] final case class ContextSwitch[+A](
-//    source: Task[A],
-//    f: Context => Context)
-//    extends Task[A]
+  private[eval] final case class ContextSwitch[+A](
+    source: Task[A],
+    f: Context => Context)
+    extends Task[A]
 
   /** Internal API — starts the execution of a Task with a guaranteed
     * asynchronous boundary, by providing

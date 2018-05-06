@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
+import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.{Local, NonFatal}
@@ -38,7 +38,7 @@ private[eval] object TaskRunLoop {
     */
   def startFull[A](
     source: Task[A],
-    context: Context,
+    contextInit: Context,
     cb: Callback[A],
     rcb: RestartCallback,
     bFirst: Bind,
@@ -46,8 +46,6 @@ private[eval] object TaskRunLoop {
     frameIndex: FrameIndex): Unit = {
 
     val cba = cb.asInstanceOf[Callback[Any]]
-    val sc = context.scheduler
-    val em = sc.executionModel
     var current: Current = source
     var bFirstRef = bFirst
     var bRestRef = bRest
@@ -55,6 +53,10 @@ private[eval] object TaskRunLoop {
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
     var currentIndex = frameIndex
+
+    // Depends on context
+    var context = contextInit
+    var em = context.scheduler.executionModel
 
     do {
       if (currentIndex != 0) {
@@ -109,6 +111,18 @@ private[eval] object TaskRunLoop {
           case Async(register, restoreLocalsAfter) =>
             executeAsyncTask(context, register, restoreLocalsAfter, cba, rcb, bFirstRef, bRestRef, currentIndex)
             return
+
+          case ContextSwitch(next, f) =>
+            try {
+              current = next
+              context = f(context)
+              em = context.scheduler.executionModel
+              currentIndex = context.startFrame(currentIndex)
+              if (context.shouldCancel) return
+            } catch {
+              case e if NonFatal(e) =>
+                current = Error(e)
+            }
         }
 
         if (hasUnboxed) {
@@ -246,6 +260,21 @@ private[eval] object TaskRunLoop {
               current,
               register,
               restoreLocalsAfter,
+              contextSwitch = null,
+              scheduler,
+              opts,
+              cb.asInstanceOf[Callback[Any]],
+              bFirst,
+              bRest,
+              frameIndex,
+              forceAsync = false)
+
+          case ContextSwitch(next, contextSwitch) =>
+            return goAsyncForLightCB(
+              next,
+              register = null,
+              restoreLocalsAfter = false,
+              contextSwitch,
               scheduler,
               opts,
               cb.asInstanceOf[Callback[Any]],
@@ -277,6 +306,7 @@ private[eval] object TaskRunLoop {
           current,
           register = null,
           restoreLocalsAfter = true,
+          contextSwitch = null,
           scheduler,
           opts,
           cb.asInstanceOf[Callback[Any]],
@@ -365,6 +395,20 @@ private[eval] object TaskRunLoop {
               current,
               register,
               restoreLocalsAfter,
+              contextSwitch = null,
+              scheduler,
+              opts,
+              bFirst,
+              bRest,
+              frameIndex,
+              forceAsync = false)
+
+          case ContextSwitch(next, contextSwitch) =>
+            return goAsync4Future(
+              next,
+              register = null,
+              restoreLocalsAfter = false,
+              contextSwitch,
               scheduler,
               opts,
               bFirst,
@@ -397,6 +441,7 @@ private[eval] object TaskRunLoop {
           current,
           register = null,
           restoreLocalsAfter = true,
+          contextSwitch = null,
           scheduler, opts,
           bFirst, bRest,
           frameIndex,
@@ -442,6 +487,7 @@ private[eval] object TaskRunLoop {
     source: Current,
     register: (Context, Callback[Any]) => Unit,
     restoreLocalsAfter: Boolean,
+    contextSwitch: Context => Context,
     scheduler: Scheduler,
     opts: Task.Options,
     cb: Callback[Any],
@@ -450,13 +496,27 @@ private[eval] object TaskRunLoop {
     nextFrame: FrameIndex,
     forceAsync: Boolean): Cancelable = {
 
-    val context = Context(scheduler, opts)
-    if (register ne null)
-      executeAsyncTask(context, register, restoreLocalsAfter, cb, null, bFirst, bRest, 1)
+    var current = source
+    var registerRef = register
+    var context = Context(scheduler, opts)
+    var frameIndex = nextFrame
+    try{
+      if (contextSwitch ne null) {
+        context = contextSwitch(context)
+        frameIndex = context.startFrame(frameIndex)
+      }
+    } catch {
+      case e if NonFatal(e) =>
+        current = Error(e)
+        registerRef = null
+    }
+
+    if (registerRef ne null)
+      executeAsyncTask(context, registerRef, restoreLocalsAfter, cb, null, bFirst, bRest, 1)
     else if (forceAsync)
       restartAsync(source, context, cb, null, bFirst, bRest)
     else
-      startFull(source, context, cb, null, bFirst, bRest, nextFrame)
+      startFull(source, context, cb, null, bFirst, bRest, frameIndex)
 
     context.connection
   }
@@ -466,6 +526,7 @@ private[eval] object TaskRunLoop {
     source: Current,
     register: (Context, Callback[Any]) => Unit,
     restoreLocalsAfter: Boolean,
+    contextSwitch: Context => Context,
     scheduler: Scheduler,
     opts: Task.Options,
     bFirst: Bind,
@@ -475,15 +536,27 @@ private[eval] object TaskRunLoop {
 
     val p = Promise[A]()
     val cb = Callback.fromPromise(p)
-    val fa = source.asInstanceOf[Task[A]]
-    val context = Context(scheduler, opts)
+    var context = Context(scheduler, opts)
+    var current = source.asInstanceOf[Task[A]]
+    var frameIndex = nextFrame
+    var registerRef = register
 
-    if (register ne null)
-      executeAsyncTask(context, register, restoreLocalsAfter, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
+    if (contextSwitch ne null)
+      try {
+        context = contextSwitch(context)
+        frameIndex = context.startFrame(frameIndex)
+      } catch {
+        case e if NonFatal(e) =>
+          current = Error(e)
+          registerRef = null
+      }
+
+    if (registerRef ne null)
+      executeAsyncTask(context, registerRef, restoreLocalsAfter, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
     else if (forceAsync)
-      restartAsync(fa, context, cb, null, bFirst, bRest)
+      restartAsync(current, context, cb, null, bFirst, bRest)
     else
-      startFull(fa, context, cb, null, bFirst, bRest, nextFrame)
+      startFull(current, context, cb, null, bFirst, bRest, frameIndex)
 
     CancelableFuture(p.future, context.connection)
   }

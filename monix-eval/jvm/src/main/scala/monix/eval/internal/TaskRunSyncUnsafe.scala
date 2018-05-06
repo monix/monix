@@ -19,12 +19,14 @@ package monix.eval.internal
 
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
+
+import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.internal.TaskRunLoop._
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.NonFatal
+
 import scala.concurrent.blocking
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
@@ -91,7 +93,28 @@ private[eval] object TaskRunSyncUnsafe {
           }
 
         case Async(register, restoreLocals) =>
-          return blockForResult(current, register, restoreLocals, timeout, scheduler, opts, bFirst, bRest)
+          return blockForResult(
+            current,
+            register,
+            restoreLocals,
+            contextSwitch = null,
+            timeout,
+            scheduler,
+            opts,
+            bFirst,
+            bRest)
+
+        case ContextSwitch(next, contextSwitch) =>
+          return blockForResult(
+            next,
+            register = null,
+            restoreLocals = false,
+            contextSwitch,
+            timeout,
+            scheduler,
+            opts,
+            bFirst,
+            bRest)
       }
 
       if (hasUnboxed) {
@@ -120,6 +143,7 @@ private[eval] object TaskRunSyncUnsafe {
     source: Current,
     register: (Context, Callback[Any]) => Unit = null,
     restoreLocals: Boolean,
+    contextSwitch: Context => Context,
     limit: Duration,
     scheduler: Scheduler,
     opts: Task.Options,
@@ -128,15 +152,25 @@ private[eval] object TaskRunSyncUnsafe {
 
     val latch = new OneShotLatch
     val cb = new BlockingCallback[Any](latch)
-    val context = Context(scheduler, opts)
+    var context = Context(scheduler, opts)
+    var registerRef = register
+    var current = source.asInstanceOf[Task[A]]
+
+    if (contextSwitch ne null)
+      try {
+        context = contextSwitch(context)
+      } catch {
+        case e if NonFatal(e) =>
+          current = Error(e)
+          registerRef = null
+      }
 
     // Starting actual execution
-    if (register ne null) {
+    if (registerRef ne null) {
       val rcb = RestartCallback(context, cb)
-      executeAsyncTask(context, register, restoreLocals, cb, rcb, bFirst, bRest, 1)
+      executeAsyncTask(context, registerRef, restoreLocals, cb, rcb, bFirst, bRest, 1)
     } else {
-      val fa = source.asInstanceOf[Task[A]]
-      startFull(fa, context, cb, null, bFirst, bRest, 1)
+      startFull(current, context, cb, null, bFirst, bRest, 1)
     }
 
     val isFinished = limit match {
