@@ -1146,7 +1146,7 @@ sealed abstract class Task[+A] extends Serializable {
     *        with which the source will get evaluated on `runAsync`
     */
   final def executeWithModel(em: ExecutionModel): Task[A] =
-    Task.ContextSwitch(this, ctx => ctx.withExecutionModel(em))
+    TaskExecuteWithModel(this, em)
 
   /** Returns a new task that will execute the source with a different
     * set of [[Task.Options Options]].
@@ -1163,7 +1163,7 @@ sealed abstract class Task[+A] extends Serializable {
     *        upon `runAsync`
     */
   final def executeWithOptions(f: Options => Options): Task[A] =
-    Task.ContextSwitch(this, ctx => ctx.withOptions(f(ctx.options)))
+    TaskExecuteWithOptions(this, f)
 
   /** Returns a new task that is cancelable.
     *
@@ -1224,7 +1224,7 @@ sealed abstract class Task[+A] extends Serializable {
     * but not the subsequent `flatMap` operation.
     */
   def cancelable: Task[A] =
-    executeWithOptions(_.enableAutoCancelableRunLoops)
+    TaskCancellation.makeCancelable(this)
 
   /** Returns a failed projection of this task.
     *
@@ -2094,7 +2094,7 @@ object Task extends TaskInstancesLevel1 {
     }
 
   /** A `Task[Unit]` provided for convenience. */
-  final val unit: Task[Unit] = Now(())
+  val unit: Task[Unit] = Now(())
 
   /** Transforms a [[Coeval]] into a [[Task]]. */
   def coeval[A](a: Coeval[A]): Task[A] =
@@ -2390,7 +2390,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * $shiftDesc
     */
-  final val shift: Task[Unit] =
+  val shift: Task[Unit] =
     shift(null)
 
   /** Asynchronous boundary described as an effectful `Task` that
@@ -2911,6 +2911,14 @@ object Task extends TaskInstancesLevel1 {
   def zip6[A1,A2,A3,A4,A5,A6](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6]): Task[(A1,A2,A3,A4,A5,A6)] =
     parMap6(fa1,fa2,fa3,fa4,fa5,fa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
 
+  /** Returns the current [[Task.Options]] configuration, which determine the
+    * task's run-loop behavior.
+    *
+    * @see [[Task.executeWithOptions]]
+    */
+  val readOptions: Task[Options] =
+    Task.Async((ctx, cb) => cb.onSuccess(ctx.options))
+
   /** Set of options for customizing the task's behavior.
     *
     * See [[Task.defaultOptions]] for the default `Options` instance
@@ -3381,11 +3389,6 @@ object Task extends TaskInstancesLevel1 {
     restoreLocalsAfter: Boolean = true)
     extends Task[A]
 
-  private[eval] final case class ContextSwitch[+A](
-    source: Task[A],
-    f: Context => Context)
-    extends Task[A]
-
   /** Internal API — starts the execution of a Task with a guaranteed
     * asynchronous boundary, by providing
     * the needed [[monix.execution.Scheduler Scheduler]],
@@ -3426,12 +3429,14 @@ object Task extends TaskInstancesLevel1 {
   private[monix] def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
 
-  private[this] final val neverRef: Async[Nothing] =
+  /** Internal, reusable reference. */
+  private[this] val neverRef: Async[Nothing] =
     Async((_,_) => ())
 
   /** Internal, reusable reference. */
   private final val nowConstructor: (Any => Task[Nothing]) =
     ((a: Any) => new Now(a)).asInstanceOf[Any => Task[Nothing]]
+
   /** Internal, reusable reference. */
   private final val raiseConstructor: (Throwable => Task[Nothing]) =
     e => new Error(e)

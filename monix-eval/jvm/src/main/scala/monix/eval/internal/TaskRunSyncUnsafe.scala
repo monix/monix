@@ -20,7 +20,7 @@ package monix.eval.internal
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
 
-import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
+import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.internal.TaskRunLoop._
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
@@ -97,19 +97,6 @@ private[eval] object TaskRunSyncUnsafe {
             current,
             register,
             restoreLocals,
-            contextSwitch = null,
-            timeout,
-            scheduler,
-            opts,
-            bFirst,
-            bRest)
-
-        case ContextSwitch(next, contextSwitch) =>
-          return blockForResult(
-            next,
-            register = null,
-            restoreLocals = false,
-            contextSwitch,
             timeout,
             scheduler,
             opts,
@@ -143,7 +130,6 @@ private[eval] object TaskRunSyncUnsafe {
     source: Current,
     register: (Context, Callback[Any]) => Unit = null,
     restoreLocals: Boolean,
-    contextSwitch: Context => Context,
     limit: Duration,
     scheduler: Scheduler,
     opts: Task.Options,
@@ -152,23 +138,13 @@ private[eval] object TaskRunSyncUnsafe {
 
     val latch = new OneShotLatch
     val cb = new BlockingCallback[Any](latch)
-    var context = Context(scheduler, opts)
-    var registerRef = register
-    var current = source.asInstanceOf[Task[A]]
-
-    if (contextSwitch ne null)
-      try {
-        context = contextSwitch(context)
-      } catch {
-        case e if NonFatal(e) =>
-          current = Error(e)
-          registerRef = null
-      }
+    val context = Context(scheduler, opts)
+    val current = source.asInstanceOf[Task[A]]
 
     // Starting actual execution
-    if (registerRef ne null) {
+    if (register ne null) {
       val rcb = RestartCallback(context, cb)
-      executeAsyncTask(context, registerRef, restoreLocals, cb, rcb, bFirst, bRest, 1)
+      executeAsyncTask(context, register, restoreLocals, cb, rcb, bFirst, bRest, 1)
     } else {
       startFull(current, context, cb, null, bFirst, bRest, 1)
     }

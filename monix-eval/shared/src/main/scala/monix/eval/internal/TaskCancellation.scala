@@ -49,12 +49,18 @@ private[eval] object TaskCancellation {
     }
 
   /**
+    * Implementation for `Task#cancelable`.
+    */
+  def makeCancelable[A](fa: Task[A]): Task[A] =
+    fa.executeWithOptions(enableCancelation)
+
+  /**
     * Implementation for `Task.uncancelable`.
     */
   def uncancelable[A](fa: Task[A]): Task[A] =
     Async { (ctx, cb) =>
       val ctx2 = ctx.withConnection(StackedCancelable.uncancelable)
-      Task.unsafeStartTrampolined(fa, ctx2, Callback.async(cb)(ctx2.scheduler))
+      Task.unsafeStartNow(fa, ctx2, Callback.async(cb)(ctx2.scheduler))
     }
 
   /**
@@ -102,4 +108,7 @@ private[eval] object TaskCancellation {
         cb.asyncOnError(e)
       }
   }
+
+  private[this] val enableCancelation: Task.Options => Task.Options =
+    _.enableAutoCancelableRunLoops
 }
