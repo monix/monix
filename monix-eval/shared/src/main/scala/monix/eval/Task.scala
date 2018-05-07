@@ -1804,6 +1804,7 @@ sealed abstract class Task[+A] extends Serializable {
     *   val cancelable = Task
     *     .eval(println("Hello!"))
     *     .delayExecution(10.seconds)
+    *     .uncancelable
     *     .runAsync
     *
     *   // No longer works
