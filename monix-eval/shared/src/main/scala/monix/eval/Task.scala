@@ -1801,14 +1801,14 @@ sealed abstract class Task[+A] extends Serializable {
     * (e.g. [[Fiber.cancel]]) has no effect.
     *
     * {{{
-    *   val cancelable = Task
+    *   val uncancelable = Task
     *     .eval(println("Hello!"))
     *     .delayExecution(10.seconds)
     *     .uncancelable
     *     .runAsync
     *
     *   // No longer works
-    *   cancelable.cancel()
+    *   uncancelable.cancel()
     *
     *   // After 10 seconds
     *   //=> Hello!
