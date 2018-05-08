@@ -19,24 +19,27 @@ package monix.eval.internal
 
 import monix.eval.{Callback, Task}
 import monix.eval.Task.{Async, Context}
-import monix.execution.Scheduler
+import monix.execution.schedulers.TracingScheduler
+import scala.concurrent.ExecutionContext
 
-private[eval] object TaskExecuteOn {
+private[eval] object TaskShift {
   /**
-    * Implementation for `Task.executeOn`.
+    * Implementation for `Task.shift`
     */
-  def apply[A](source: Task[A], s: Scheduler, forceAsync: Boolean): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
-      val ctx2 = ctx.withScheduler(s)
-      if (forceAsync)
-        Task.unsafeStartAsync(source, ctx2, cb)
-      else
-        Task.unsafeStartNow(source, ctx2, cb)
+  def apply(ec: ExecutionContext): Task[Unit] = {
+    val start = (context: Context, cb: Callback[Unit]) => {
+      val ec2 =
+        if (ec eq null) context.scheduler
+        else if (context.options.localContextPropagation) TracingScheduler(ec)
+        else ec
+
+      ec2.execute(new Runnable {
+        def run(): Unit = {
+          context.frameRef.reset()
+          cb.onSuccess(())
+        }
+      })
     }
-    Async(
-      start,
-      trampolineBefore = !forceAsync,
-      trampolineAfter = true,
-      restoreLocals = false)
+    Async(start, trampolineAfter = false)
   }
 }

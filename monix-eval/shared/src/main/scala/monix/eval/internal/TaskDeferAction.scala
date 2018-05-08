@@ -15,16 +15,17 @@
  * limitations under the License.
  */
 
-package monix.eval.internal
+package monix.eval
+package internal
 
-import monix.eval.Task
+import monix.eval.Task.Context
 import monix.execution.Scheduler
 import monix.execution.misc.NonFatal
 
 private[eval] object TaskDeferAction {
   /** Implementation for `Task.deferAction`. */
-  def apply[A](f: Scheduler => Task[A]): Task[A] =
-    Task.Async { (context, callback) =>
+  def apply[A](f: Scheduler => Task[A]): Task[A] = {
+    val start = (context: Context, callback: Callback[A]) => {
       implicit val ec = context.scheduler
       var streamErrors = true
 
@@ -43,4 +44,10 @@ private[eval] object TaskDeferAction {
           }
       }
     }
+    Task.Async(
+      start,
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = false)
+  }
 }

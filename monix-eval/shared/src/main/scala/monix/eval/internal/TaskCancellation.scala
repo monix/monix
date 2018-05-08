@@ -21,32 +21,29 @@ package internal
 import monix.eval.Task.{Async, Context}
 import monix.execution.atomic.{Atomic, AtomicBoolean}
 import monix.execution.cancelables.StackedCancelable
-import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Cancelable, Scheduler}
 
 private[eval] object TaskCancellation {
   /**
     * Implementation for `Task.cancel`.
     */
-  def signal[A](fa: Task[A]): Task[Unit] =
-    Task.Async { (ctx: Context, cb: Callback[Unit]) =>
+  def signal[A](fa: Task[A]): Task[Unit] = {
+    val start = (ctx: Context, cb: Callback[Unit]) => {
       implicit val sc = ctx.scheduler
       // Continues the execution of `fa` using an already cancelled
       // cancelable, which will ensure that all future registrations
       // will be cancelled immediately and that `isCanceled == false`
       val ctx2 = ctx.withConnection(StackedCancelable.alreadyCanceled)
-      // Light async boundary to avoid stack overflows
-      ctx.scheduler.execute(new TrampolinedRunnable {
-        def run(): Unit = {
-          Task.unsafeStartNow(fa, ctx2, Callback.empty)
-          // Signaling that cancellation has been triggered; given
-          // the synchronous execution of `fa`, what this means is that
-          // cancellation succeeded or an asynchronous boundary has
-          // been hit in `fa`
-          cb.onSuccess(())
-        }
-      })
+      // Starting task
+      Task.unsafeStartNow(fa, ctx2, Callback.empty)
+      // Signaling that cancellation has been triggered; given
+      // the synchronous execution of `fa`, what this means is that
+      // cancellation succeeded or an asynchronous boundary has
+      // been hit in `fa`
+      cb.onSuccess(())
     }
+    Async(start, trampolineBefore = true, trampolineAfter = false)
+  }
 
   /**
     * Implementation for `Task#cancelable`.
@@ -57,23 +54,27 @@ private[eval] object TaskCancellation {
   /**
     * Implementation for `Task.uncancelable`.
     */
-  def uncancelable[A](fa: Task[A]): Task[A] =
-    Async { (ctx, cb) =>
+  def uncancelable[A](fa: Task[A]): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
       val ctx2 = ctx.withConnection(StackedCancelable.uncancelable)
-      Task.unsafeStartNow(fa, ctx2, Callback.async(cb)(ctx2.scheduler))
+      Task.unsafeStartNow(fa, ctx2, cb)
     }
+    Async(start, trampolineBefore = true, trampolineAfter = true, restoreLocals = false)
+  }
 
   /**
     * Implementation for `Task.onCancelRaiseError`.
     */
-  def raiseError[A](fa: Task[A], e: Throwable): Task[A] =
-    Async { (ctx, cb) =>
+  def raiseError[A](fa: Task[A], e: Throwable): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
       implicit val sc = ctx.scheduler
       val waitsForResult = Atomic(true)
       val conn = ctx.connection
       conn.push(new RaiseCancelable(waitsForResult, cb, e))
-      Task.unsafeStartTrampolined(fa, ctx, new RaiseCallback(waitsForResult, conn, cb))
+      Task.unsafeStartNow(fa, ctx, new RaiseCallback(waitsForResult, conn, cb))
     }
+    Async(start, trampolineBefore = true, trampolineAfter = true, restoreLocals = false)
+  }
 
   private final class RaiseCallback[A](
     waitsForResult: AtomicBoolean,
@@ -105,7 +106,7 @@ private[eval] object TaskCancellation {
 
     override def cancel(): Unit =
       if (waitsForResult.getAndSet(false)) {
-        cb.asyncOnError(e)
+        cb.onError(e)
       }
   }
 

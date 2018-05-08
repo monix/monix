@@ -17,11 +17,11 @@
 
 package monix.eval.internal
 
+import monix.eval.Task.Async
 import monix.eval.{Callback, Task}
 import monix.execution.misc.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-
 import scala.concurrent.Future
 
 private[eval] object TaskFromFuture {
@@ -45,7 +45,7 @@ private[eval] object TaskFromFuture {
 
   /** Implementation for `Task.deferFutureAction`. */
   def deferAction[A](f: Scheduler => Future[A]): Task[A] =
-    Task.Async[A] { (context, callback) =>
+    Async { (context, callback) =>
       implicit val sc = context.scheduler
       // Prevents violations of the Callback contract
       var streamErrors = true
@@ -57,10 +57,10 @@ private[eval] object TaskFromFuture {
           case Some(value) =>
             // Already completed future, streaming value immediately,
             // but with light async boundary to prevent stack overflows
-            callback.asyncApply(value)
+            callback(value)
           case None =>
             future match {
-              case cf: CancelableFuture[A] @unchecked =>
+              case cf: CancelableFuture[A]@unchecked =>
                 startCancelable(context, callback, cf, cf.cancelable)
               case _ =>
                 startSimple(context, callback, future)
@@ -68,7 +68,7 @@ private[eval] object TaskFromFuture {
         }
       } catch {
         case ex if NonFatal(ex) =>
-          if (streamErrors) callback.asyncOnError(ex)
+          if (streamErrors) callback.onError(ex)
           else sc.reportFailure(ex)
       }
     }
@@ -85,21 +85,20 @@ private[eval] object TaskFromFuture {
     }
   }
 
-  private def startSimple[A](ctx: Task.Context, cb: Callback[A], f: Future[A]) = {
+  private def startSimple[A](ctx: Task.Context, cb: Callback[A], f: Future[A]) =
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete
-        cb.asyncApply(value)(ctx.scheduler)
+        cb(value)
       case None =>
         f.onComplete(cb(_))(immediate)
     }
-  }
 
   private def startCancelable[A](ctx: Task.Context, cb: Callback[A], f: Future[A], c: Cancelable): Unit = {
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete
-        cb.asyncApply(value)(ctx.scheduler)
+        cb(value)
 
       case None =>
         // Given a cancelable future, we should use it

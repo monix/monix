@@ -2403,19 +2403,7 @@ object Task extends TaskInstancesLevel1 {
     * $shiftDesc
     */
   def shift(ec: ExecutionContext): Task[Unit] =
-    Async[Unit] { (context, cb) =>
-      val ec2 =
-        if (ec eq null) context.scheduler
-        else if (context.options.localContextPropagation) TracingScheduler(ec)
-        else ec
-
-      ec2.execute(new Runnable {
-        def run(): Unit = {
-          context.frameRef.reset()
-          cb.onSuccess(())
-        }
-      })
-    }
+    TaskShift(ec)
 
   /** Creates a new `Task` that will sleep for the given duration,
     * emitting a tick when that time span is over.
@@ -3387,25 +3375,13 @@ object Task extends TaskInstancesLevel1 {
     * @param register is the side-effecting, callback-enabled function
     *        that starts the asynchronous computation and registers
     *        the callback to be called on completion
-    *
-    * @param boundaryType specifies the boundaries that need to be created
-    *        upon execution of this `Async` task - `BEFORE` evaluation,
-    *        `AFTER` evaluation, if it should be `FORKED` or not.
     */
   private[eval] final case class Async[+A](
     register: (Context, Callback[A]) => Unit,
-    beforeBoundary: Async.BoundaryType = Async.NONE,
-    afterBoundary: Boolean = true,
+    trampolineBefore: Boolean = false,
+    trampolineAfter: Boolean = true,
     restoreLocals: Boolean = true)
     extends Task[A]
-
-  private[eval] object Async {
-    type BoundaryType = Int
-
-    final val NONE: BoundaryType = 0
-    final val LIGHT: BoundaryType = 1
-    final val FORKED: BoundaryType = 2
-  }
 
   /** Internal API — starts the execution of a Task with a guaranteed
     * asynchronous boundary, by providing

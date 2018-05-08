@@ -26,8 +26,6 @@ import monix.execution.schedulers.TrampolinedRunnable
 private[internal] abstract class TaskRestartCallback(context: Context, callback: Callback[Any])
   extends Callback[Any] with TrampolinedRunnable { self =>
 
-  import Task.Async._
-
   private[this] val runLoopIndex = context.frameRef
   private[this] val scheduler = context.scheduler
 
@@ -41,25 +39,18 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
   // onSuccessRun and onErrorRun
   private[this] var value: Any = _
   private[this] var error: Throwable = _
-  private[this] var afterBoundary: Boolean = true
-
-  // Created on demand
-  private[this] var forkedStartRef: Runnable = _
-  private def forkedStart: Runnable = {
-    if (forkedStartRef eq null) forkedStartRef = new Runnable { def run() = self.run() }
-    forkedStartRef
-  }
+  private[this] var trampolineAfter: Boolean = true
 
   final def start(task: Task.Async[Any], bindCurrent: Bind, bindRest: CallStack): Unit = {
     canCall = true
     this.bFirst = bindCurrent
     this.bRest = bindRest
+    this.trampolineAfter = task.trampolineAfter
     prepareStart(task)
 
-    if (task.beforeBoundary != 0) {
+    if (task.trampolineBefore) {
       this.register = task.register
-      context.scheduler.execute(
-        if (task.beforeBoundary == LIGHT) this else forkedStart)
+      context.scheduler.execute(this)
     } else {
       task.register(context, this)
     }
@@ -73,7 +64,7 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
     if (canCall && !context.shouldCancel) {
       canCall = false
       self.value = value
-      if (afterBoundary)
+      if (trampolineAfter)
         scheduler.execute(onSuccessRun)
       else
         onSuccessRun.run()
@@ -83,7 +74,7 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
     if (canCall && !context.shouldCancel) {
       canCall = false
       self.error = error
-      if (afterBoundary)
+      if (trampolineAfter)
         scheduler.execute(onErrorRun)
       else
         onErrorRun.run()

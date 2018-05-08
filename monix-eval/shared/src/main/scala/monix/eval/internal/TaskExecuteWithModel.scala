@@ -42,12 +42,10 @@ private[eval] object TaskExecuteWithModel {
       }
       TaskRunLoop.startFull[A](self, context2, cb, null, null, null, nextIndex)
     }
-
-    import Async._
     Async(
       start,
-      beforeBoundary = NONE,
-      afterBoundary = true,
+      trampolineBefore = false,
+      trampolineAfter = true,
       restoreLocals = false)
   }
 }

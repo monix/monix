@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
 object TaskExecuteWithOptionsSuite extends BaseTestSuite {
@@ -50,4 +51,20 @@ object TaskExecuteWithOptionsSuite extends BaseTestSuite {
       assertEquals(v, 100)
     }
   }
+
+  test("executeWithOptions is stack safe in flatMap loops") { implicit sc =>
+    val sc2 = TestScheduler()
+
+    def loop(n: Int, acc: Long): Task[Long] =
+      Task.unit.executeWithOptions(_.enableAutoCancelableRunLoops).flatMap { _ =>
+        if (n > 0)
+          loop(n - 1, acc + 1)
+        else
+          Task.now(acc)
+      }
+
+    val f = loop(10000, 0).runAsync; sc.tick()
+    assertEquals(f.value, Some(Success(10000)))
+  }
+
 }

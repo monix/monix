@@ -42,11 +42,10 @@ private[eval] object TaskExecuteWithOptions {
           }
       }
     }
-    import Task.Async._
     Async(
       start,
-      beforeBoundary = NONE,
-      afterBoundary = true,
+      trampolineBefore = false,
+      trampolineAfter = true,
       restoreLocals = false)
   }
 }
