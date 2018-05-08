@@ -20,7 +20,7 @@ package monix.eval
 import scala.util.Success
 
 object TaskExecuteWithOptionsSuite extends BaseTestSuite {
-  test("executeWithOptions") { implicit s =>
+  test("executeWithOptions works") { implicit s =>
     val task = Task.eval(1).flatMap(_ => Task.eval(2))
       .flatMap(_ => Task.readOptions)
       .executeWithOptions(_.enableLocalContextPropagation)
@@ -32,5 +32,22 @@ object TaskExecuteWithOptionsSuite extends BaseTestSuite {
     val Some(Success((opt1, opt2))) = f.value
     assert(opt1.localContextPropagation, "opt1.localContextPropagation")
     assert(!opt2.localContextPropagation, "!opt2.localContextPropagation")
+  }
+
+  testAsync("local.write.executeWithOptions") { _ =>
+    import monix.execution.Scheduler.Implicits.global
+
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+
+    val task = for {
+      l <- TaskLocal(10)
+      _ <- l.write(100).executeWithOptions(_.enableAutoCancelableRunLoops)
+      _ <- Task.shift
+      v <- l.read
+    } yield v
+
+    for (v <- task.runAsyncOpt) yield {
+      assertEquals(v, 100)
+    }
   }
 }

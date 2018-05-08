@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.eval.Task.Context
+import monix.eval.Task.{Async, Context}
 import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 
@@ -42,6 +42,12 @@ private[eval] object TaskExecuteWithModel {
       }
       TaskRunLoop.startFull[A](self, context2, cb, null, null, null, nextIndex)
     }
-    Task.Async(start, restoreLocalsAfter = false)
+
+    import Async._
+    Async(
+      start,
+      beforeBoundary = NONE,
+      afterBoundary = true,
+      restoreLocals = false)
   }
 }

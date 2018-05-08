@@ -28,16 +28,16 @@ private[eval] object TaskExecuteOn {
   def apply[A](source: Task[A], s: Scheduler, forceAsync: Boolean): Task[A] = {
     val start = (ctx: Context, cb: Callback[A]) => {
       val ctx2 = ctx.withScheduler(s)
-      val cb2 = Callback.async(cb)(s)
-
       if (forceAsync)
-        Task.unsafeStartAsync(source, ctx2, cb2)
+        Task.unsafeStartAsync(source, ctx2, cb)
       else
-        Task.unsafeStartNow(source, ctx2, cb2)
+        Task.unsafeStartNow(source, ctx2, cb)
     }
-
-    // When an `executeOn` is evaluated, whatever locals are set within it
-    // would get lost if we allowed the default behavior
-    Async(start, restoreLocalsAfter = false)
+    import Async._
+    Async(
+      start,
+      beforeBoundary = if (forceAsync) NONE else LIGHT,
+      afterBoundary = true,
+      restoreLocals = false)
   }
 }

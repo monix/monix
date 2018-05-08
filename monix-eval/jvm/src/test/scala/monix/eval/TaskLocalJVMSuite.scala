@@ -93,4 +93,35 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     assertEquals(r, 100)
   }
 
+  test("local.write.executeOn(forceAsync = false) works") {
+    import Scheduler.Implicits.global
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    val ec = Scheduler.computation(4, "ec1")
+
+    val task = for {
+      l <- TaskLocal(10)
+      _ <- l.write(100).executeOn(ec, forceAsync = false)
+      _ <- Task.shift
+      v <- l.read
+    } yield v
+
+    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    assertEquals(r, 100)
+  }
+
+  test("local.write.executeOn(forceAsync = true) works") {
+    import monix.execution.Scheduler.Implicits.global
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    val ec = Scheduler.computation(4, "ec1")
+
+    val task = for {
+      l <- TaskLocal(10)
+      _ <- l.write(100).executeOn(ec)
+      _ <- Task.shift
+      v <- l.read
+    } yield v
+
+    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    assertEquals(r, 100)
+  }
 }

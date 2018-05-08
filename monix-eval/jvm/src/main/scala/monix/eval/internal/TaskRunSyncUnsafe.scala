@@ -92,11 +92,9 @@ private[eval] object TaskRunSyncUnsafe {
               bFirst = null
           }
 
-        case Async(register, restoreLocals) =>
+        case async =>
           return blockForResult(
-            current,
-            register,
-            restoreLocals,
+            async,
             timeout,
             scheduler,
             opts,
@@ -128,8 +126,6 @@ private[eval] object TaskRunSyncUnsafe {
 
   private def blockForResult[A](
     source: Current,
-    register: (Context, Callback[Any]) => Unit = null,
-    restoreLocals: Boolean,
     limit: Duration,
     scheduler: Scheduler,
     opts: Task.Options,
@@ -142,11 +138,12 @@ private[eval] object TaskRunSyncUnsafe {
     val current = source.asInstanceOf[Task[A]]
 
     // Starting actual execution
-    if (register ne null) {
-      val rcb = RestartCallback(context, cb)
-      executeAsyncTask(context, register, restoreLocals, cb, rcb, bFirst, bRest, 1)
-    } else {
-      startFull(current, context, cb, null, bFirst, bRest, 1)
+    source match {
+      case async: Async[Any] @unchecked =>
+        val rcb = TaskRestartCallback(context, cb)
+        executeAsyncTask(async, context, cb, rcb, bFirst, bRest, 1)
+      case _ =>
+        startFull(current, context, cb, null, bFirst, bRest, 1)
     }
 
     val isFinished = limit match {

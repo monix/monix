@@ -39,7 +39,7 @@ private[eval] object TaskMemoize {
       case Task.Eval(Coeval.Suspend(f: LazyVal[A @unchecked]))
         if !cacheErrors || f.cacheErrors =>
         source
-      case Task.Async(r: Register[A] @unchecked, _)
+      case Task.Async(r: Register[A] @unchecked, _, _, _)
         if !cacheErrors || r.cacheErrors =>
         source
       case _ =>

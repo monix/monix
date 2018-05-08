@@ -31,7 +31,7 @@ private[eval] object TaskDeferAction {
       try {
         val fa = f(ec)
         streamErrors = false
-        Task.unsafeStartTrampolined(fa, context, callback)
+        Task.unsafeStartNow(fa, context, callback)
       } catch {
         case ex if NonFatal(ex) =>
           if (streamErrors)

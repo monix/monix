@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.eval.Task.{Context, Options}
+import monix.eval.Task.{Async, Context, Options}
 import monix.execution.misc.NonFatal
 
 private[eval] object TaskExecuteWithOptions {
@@ -32,18 +32,21 @@ private[eval] object TaskExecuteWithOptions {
       try {
         val context2 = context.withOptions(f(context.options))
         streamErrors = false
-        Task.unsafeStartNow[A](self, context2, Callback.async(cb))
+        Task.unsafeStartNow[A](self, context2, cb)
       } catch {
         case ex if NonFatal(ex) =>
-          if (streamErrors)
-            cb.asyncOnError(ex)
-          else {
+          if (streamErrors) cb.onError(ex) else {
             // $COVERAGE-OFF$
             context.scheduler.reportFailure(ex)
             // $COVERAGE-ON$
           }
       }
     }
-    Task.Async(start, restoreLocalsAfter = false)
+    import Task.Async._
+    Async(
+      start,
+      beforeBoundary = NONE,
+      afterBoundary = true,
+      restoreLocals = false)
   }
 }

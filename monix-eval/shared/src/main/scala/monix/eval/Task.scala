@@ -3223,13 +3223,13 @@ object Task extends TaskInstancesLevel1 {
       new Context(s, options, connection, frameRef)
 
     def withExecutionModel(em: ExecutionModel): Context =
-      new Context(scheduler.withExecutionModel(em), options, connection, frameRef)
+      new Context(schedulerRef.withExecutionModel(em), options, connection, frameRef)
 
     def withOptions(opts: Options): Context =
-      new Context(scheduler, opts, connection, frameRef)
+      new Context(schedulerRef, opts, connection, frameRef)
 
     def withConnection(conn: StackedCancelable): Context =
-      new Context(scheduler, options, conn, frameRef)
+      new Context(schedulerRef, options, conn, frameRef)
   }
 
   object Context {
@@ -3383,11 +3383,29 @@ object Task extends TaskInstancesLevel1 {
     *
     * Unsafe to build directly, only use if you know what you're doing.
     * For building `Async` instances safely, see [[cancelable]].
+    *
+    * @param register is the side-effecting, callback-enabled function
+    *        that starts the asynchronous computation and registers
+    *        the callback to be called on completion
+    *
+    * @param boundaryType specifies the boundaries that need to be created
+    *        upon execution of this `Async` task - `BEFORE` evaluation,
+    *        `AFTER` evaluation, if it should be `FORKED` or not.
     */
   private[eval] final case class Async[+A](
     register: (Context, Callback[A]) => Unit,
-    restoreLocalsAfter: Boolean = true)
+    beforeBoundary: Async.BoundaryType = Async.NONE,
+    afterBoundary: Boolean = true,
+    restoreLocals: Boolean = true)
     extends Task[A]
+
+  private[eval] object Async {
+    type BoundaryType = Int
+
+    final val NONE: BoundaryType = 0
+    final val LIGHT: BoundaryType = 1
+    final val FORKED: BoundaryType = 2
+  }
 
   /** Internal API — starts the execution of a Task with a guaranteed
     * asynchronous boundary, by providing

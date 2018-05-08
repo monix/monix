@@ -30,30 +30,80 @@ object TaskExecuteOnSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("executeOn(forceAsync = true)") { implicit sc =>
-    val sc2 = TestScheduler()
-    val fa = Task.eval(1).executeOn(sc2)
-    val f = fa.runAsync
-
-    assertEquals(f.value, None)
-    sc.tick()
-    assertEquals(f.value, None)
-    sc2.tick()
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("executeOn is stack safe in flatMap loops for forceAsync = false") { implicit sc =>
-    val sc2 = TestScheduler()
-
-    def loop(n: Int, acc: Long): Task[Long] =
-      Task.unit.executeOn(sc2, forceAsync = false).flatMap { _ =>
-        if (n > 0)
-          loop(n - 1, acc + 1)
-        else
-          Task.now(acc)
-      }
-
-    val f = loop(10000, 0).runAsync; sc.tick()
-    assertEquals(f.value, Some(Success(10000)))
-  }
+//  test("executeOn(forceAsync = true)") { implicit sc =>
+//    val sc2 = TestScheduler()
+//    val fa = Task.eval(1).executeOn(sc2)
+//    val f = fa.runAsync
+//
+//    assertEquals(f.value, None)
+//    sc.tick()
+//    assertEquals(f.value, None)
+//    sc2.tick()
+//    assertEquals(f.value, Some(Success(1)))
+//  }
+//
+//  test("executeOn(forceAsync = false) is stack safe in flatMap loops, test 1") { implicit sc =>
+//    val sc2 = TestScheduler()
+//
+//    def loop(n: Int, acc: Long): Task[Long] =
+//      Task.unit.executeOn(sc2, forceAsync = false).flatMap { _ =>
+//        if (n > 0)
+//          loop(n - 1, acc + 1)
+//        else
+//          Task.now(acc)
+//      }
+//
+//    val f = loop(10000, 0).runAsync; sc.tick()
+//    assertEquals(f.value, Some(Success(10000)))
+//  }
+//
+//  test("executeOn(forceAsync = false) is stack safe in flatMap loops, test 2") { implicit sc =>
+//    val sc2 = TestScheduler()
+//
+//    def loop(n: Int, acc: Long): Task[Long] =
+//      Task.unit.flatMap { _ =>
+//        if (n > 0)
+//          loop(n - 1, acc + 1).executeOn(sc2, forceAsync = false)
+//        else
+//          Task.now(acc)
+//      }
+//
+//    val f = loop(10000, 0).runAsync
+//    sc.tick()
+//    sc2.tick()
+//
+//    assertEquals(f.value, Some(Success(10000)))
+//  }
+//
+//  testAsync("local.write.executeOn(forceAsync = false) works") { _ =>
+//    import monix.execution.Scheduler.Implicits.global
+//    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+//
+//    val task = for {
+//      l <- TaskLocal(10)
+//      _ <- l.write(100).executeOn(global, forceAsync = false)
+//      _ <- Task.shift
+//      v <- l.read
+//    } yield v
+//
+//    for (v <- task.runAsyncOpt) yield {
+//      assertEquals(v, 100)
+//    }
+//  }
+//
+//  testAsync("local.write.executeOn(forceAsync = true) works") { _ =>
+//    import monix.execution.Scheduler.Implicits.global
+//    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+//
+//    val task = for {
+//      l <- TaskLocal(10)
+//      _ <- l.write(100).executeOn(global)
+//      _ <- Task.shift
+//      v <- l.read
+//    } yield v
+//
+//    for (v <- task.runAsyncOpt) yield {
+//      assertEquals(v, 100)
+//    }
+//  }
 }

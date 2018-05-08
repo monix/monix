@@ -17,14 +17,16 @@
 
 package monix.eval.internal
 
-import monix.eval.Callback
 import monix.eval.Task.{Context, Error, Now}
 import monix.eval.internal.TaskRunLoop.{Bind, CallStack, startFull}
+import monix.eval.{Callback, Task}
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 
-private[internal] abstract class RestartCallback(context: Context, callback: Callback[Any])
-  extends Callback[Any] { self =>
+private[internal] abstract class TaskRestartCallback(context: Context, callback: Callback[Any])
+  extends Callback[Any] with TrampolinedRunnable { self =>
+
+  import Task.Async._
 
   private[this] val runLoopIndex = context.frameRef
   private[this] val scheduler = context.scheduler
@@ -33,44 +35,68 @@ private[internal] abstract class RestartCallback(context: Context, callback: Cal
   private[this] var canCall = false
   private[this] var bFirst: Bind = _
   private[this] var bRest: CallStack = _
+  private[this] var register: (Context, Callback[Any]) => Unit = _
 
   // Mutated in onSuccess and onError, just before scheduling
   // onSuccessRun and onErrorRun
   private[this] var value: Any = _
   private[this] var error: Throwable = _
+  private[this] var afterBoundary: Boolean = true
 
-  /** Saves the context that needs to be restored after the async boundary.
-    *
-    * @param restoreLocalsNext is a boolean indicating whether the current
-    *        local context should be restored after the async boundary or not
-    */
-  def prepare(bindCurrent: Bind, bindRest: CallStack, restoreLocalsNext: Boolean): Unit = {
+  // Created on demand
+  private[this] var forkedStartRef: Runnable = _
+  private def forkedStart: Runnable = {
+    if (forkedStartRef eq null) forkedStartRef = new Runnable { def run() = self.run() }
+    forkedStartRef
+  }
+
+  final def start(task: Task.Async[Any], bindCurrent: Bind, bindRest: CallStack): Unit = {
     canCall = true
     this.bFirst = bindCurrent
     this.bRest = bindRest
+    prepareStart(task)
+
+    if (task.beforeBoundary != 0) {
+      this.register = task.register
+      context.scheduler.execute(
+        if (task.beforeBoundary == LIGHT) this else forkedStart)
+    } else {
+      task.register(context, this)
+    }
+  }
+
+  final def run(): Unit = {
+    this.register(context, this)
   }
 
   final def onSuccess(value: Any): Unit =
     if (canCall && !context.shouldCancel) {
       canCall = false
       self.value = value
-      scheduler.execute(onSuccessRun)
+      if (afterBoundary)
+        scheduler.execute(onSuccessRun)
+      else
+        onSuccessRun.run()
     }
 
   final def onError(error: Throwable): Unit =
     if (canCall && !context.shouldCancel) {
       canCall = false
       self.error = error
-      scheduler.execute(onErrorRun)
+      if (afterBoundary)
+        scheduler.execute(onErrorRun)
+      else
+        onErrorRun.run()
     } else {
       // $COVERAGE-OFF$
       context.scheduler.reportFailure(error)
       // $COVERAGE-ON$
     }
 
-  protected def prepareCallback: Callback[Any]
+  protected def prepareStart(task: Task.Async[_]): Unit = ()
+  protected def prepareCallback: Callback[Any] = callback
   private[this] val wrappedCallback = prepareCallback
-  protected def afterFork(): Unit
+  protected def afterFork(): Unit = ()
 
   /** Reusable Runnable reference, to go lighter on memory allocations. */
   private[this] val onSuccessRun: TrampolinedRunnable =
@@ -96,7 +122,7 @@ private[internal] abstract class RestartCallback(context: Context, callback: Cal
         startFull(
           Error(self.error),
           context,
-          self.wrappedCallback,
+          callback,
           self,
           self.bFirst,
           self.bRest,
@@ -105,11 +131,11 @@ private[internal] abstract class RestartCallback(context: Context, callback: Cal
     }
 }
 
-private[internal] object RestartCallback {
-  /** Builder for [[RestartCallback]], returning a specific instance
+private[internal] object TaskRestartCallback {
+  /** Builder for [[TaskRestartCallback]], returning a specific instance
     * optimized for the passed in `Task.Options`.
     */
-  def apply(context: Context, callback: Callback[Any]): RestartCallback = {
+  def apply(context: Context, callback: Callback[Any]): TaskRestartCallback = {
     if (context.options.localContextPropagation)
       new WithLocals(context, callback)
     else
@@ -118,25 +144,21 @@ private[internal] object RestartCallback {
 
   /** `RestartCallback` class meant for `localContextPropagation == false`. */
   private final class NoLocals(context: Context, callback: Callback[Any])
-    extends RestartCallback(context, callback) {
-
-    def prepareCallback: Callback[Any] = callback
-    def afterFork(): Unit = ()
-  }
+    extends TaskRestartCallback(context, callback)
 
   /** `RestartCallback` class meant for `localContextPropagation == true`. */
   private final class WithLocals(context: Context, callback: Callback[Any])
-    extends RestartCallback(context, callback) {
+    extends TaskRestartCallback(context, callback) {
 
     private[this] var preparedLocals: Local.Context = _
     private[this] var previousLocals: Local.Context = _
 
-    override def prepare(bindCurrent: Bind, bindRest: CallStack, restoreLocalsNext: Boolean): Unit = {
-      super.prepare(bindCurrent, bindRest, restoreLocalsNext)
-      preparedLocals = if (restoreLocalsNext) Local.getContext() else null
+    override protected def prepareStart(task: Task.Async[_]): Unit = {
+      preparedLocals =
+        if (task.restoreLocals) Local.getContext() else null
     }
 
-    def prepareCallback: Callback[Any] =
+    override def prepareCallback: Callback[Any] =
       new Callback[Any] {
         def onSuccess(value: Any): Unit = {
           val locals = previousLocals
@@ -151,7 +173,7 @@ private[internal] object RestartCallback {
         }
       }
 
-    def afterFork(): Unit = {
+    override def afterFork(): Unit = {
       val preparedLocals = this.preparedLocals
       if (preparedLocals ne null) {
         previousLocals = Local.getContext()
