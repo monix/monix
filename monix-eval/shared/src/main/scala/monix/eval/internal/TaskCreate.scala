@@ -113,7 +113,7 @@ private[eval] object TaskCreate {
   // Wraps a callback into an implementation that pops the stack
   // before calling onSuccess/onError, also restoring the `Local`
   // context in case the option is enabled
-  private final class CancelableCallback[A](
+  private[internal] final class CancelableCallback[A](
     conn: StackedCancelable,
     cb: Callback[A])
     extends Callback[A] {

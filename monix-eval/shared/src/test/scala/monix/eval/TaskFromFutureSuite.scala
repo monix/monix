@@ -17,22 +17,14 @@
 
 package monix.eval
 
+import monix.execution.{Cancelable, CancelableFuture}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.execution.{Cancelable, CancelableFuture}
-
 import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
-import concurrent.duration._
 
-object TaskAsyncSuite extends BaseTestSuite {
-  test("Task.never should never complete") { implicit s =>
-    val t = Task.never[Int]
-    val f = t.runAsync
-    s.tick(365.days)
-    assertEquals(f.value, None)
-  }
-
+object TaskFromFutureSuite extends BaseTestSuite {
   test("Task.fromFuture should be faster for completed futures, success") { implicit s =>
     val t = Task.fromFuture(Future.successful(10))
     val f = t.runAsync
@@ -157,24 +149,5 @@ object TaskAsyncSuite extends BaseTestSuite {
     var result = Task.now(1).runAsync
     for (_ <- 0 until count) result = Task.fromFuture(result).runAsync
     assertEquals(result.value, Some(Success(1)))
-  }
-
-  test("Task.simple should execute") { implicit s =>
-    val task = Task.simple[Int] { (ec, cb) =>
-      ec.executeAsync { () => cb.onSuccess(1) }
-    }
-
-    val f = task.runAsync
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Task.simple should log errors") { implicit s =>
-    val ex = DummyException("dummy")
-    val task = Task.simple[Int]((_,_) => throw ex)
-    val result = task.runAsync; s.tick()
-    assertEquals(result.value, None)
-    assertEquals(s.state.lastReportedError, ex)
   }
 }
