@@ -323,7 +323,16 @@ def mimaSettings(projectName: String) = Seq(
     exclude[MissingClassProblem]("monix.eval.internal.StackFrame$Fold"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.StackFrame#ErrorHandler.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalBracket.apply"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.apply")
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.this"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskRunLoop$RestartCallback"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.executeAsyncTask"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.restartAsync"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.startFull"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.cancelable"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.async")
   )
 )
 
