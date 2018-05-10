@@ -87,6 +87,7 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     */
   val acquire: Task[Unit] =
     Task.Async { (context, cb) =>
+      import monix.execution.schedulers.TrampolineExecutionContext.immediate
       implicit val s = context.scheduler
       val f = semaphore.acquire()
 
@@ -100,7 +101,7 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
           context.frameRef.reset()
           conn.pop()
           cb(result)
-        }
+        }(immediate)
       }
     }
 

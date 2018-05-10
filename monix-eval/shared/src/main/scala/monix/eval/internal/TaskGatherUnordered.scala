@@ -17,6 +17,7 @@
 
 package monix.eval.internal
 
+import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
@@ -32,122 +33,124 @@ private[eval] object TaskGatherUnordered {
     * Implementation for `Task.gatherUnordered`
     */
   def apply[A](in: TraversableOnce[Task[A]]): Task[List[A]] = {
-    Task.Async { (context, finalCallback) =>
-      // Forced asynchronous boundary
-      context.scheduler.executeTrampolined { () =>
-        @inline def maybeSignalFinal(
-          ref: AtomicAny[State[A]],
-          currentState: State[A],
-          mainConn: StackedCancelable,
-          finalCallback: Callback[List[A]])
-          (implicit s: Scheduler): Unit = {
+    val start = (context: Context, finalCallback: Callback[List[A]]) => {
+      @inline def maybeSignalFinal(
+        ref: AtomicAny[State[A]],
+        currentState: State[A],
+        mainConn: StackedCancelable,
+        finalCallback: Callback[List[A]])
+        (implicit s: Scheduler): Unit = {
 
-          currentState match {
-            case State.Active(list, 0) =>
-              ref.lazySet(State.Complete)
-              mainConn.pop()
-              finalCallback.asyncOnSuccess(list)
-            case _ =>
-              () // invalid state
-          }
-        }
-
-        @inline def reportError(
-          stateRef: AtomicAny[State[A]],
-          mainConn: StackedCancelable,
-          ex: Throwable)(implicit s: Scheduler): Unit = {
-
-          val currentState = stateRef.getAndSet(State.Complete)
-          if (currentState != State.Complete) {
-            mainConn.pop().cancel()
-            finalCallback.asyncOnError(ex)
-          } else {
-            s.reportFailure(ex)
-          }
-        }
-
-        @tailrec def activate(stateRef: AtomicAny[State[A]], count: Int,
-          conn: StackedCancelable,
-          finalCallback: Callback[List[A]])
-          (implicit s: Scheduler): Unit = {
-
-          stateRef.get match {
-            case current @ State.Initializing(_,_) =>
-              val update = current.activate(count)
-              if (!stateRef.compareAndSet(current, update))
-                activate(stateRef, count, conn, finalCallback)(s)
-              else
-                maybeSignalFinal(stateRef, update, conn, finalCallback)(s)
-
-            case _ =>
-              () // do nothing
-          }
-        }
-
-        // Shared state for synchronization
-        val stateRef = Atomic.withPadding(State.empty[A], LeftRight128)
-
-        try {
-          implicit val s = context.scheduler
-          // Represents the collection of cancelables for all started tasks
-          val composite = CompositeCancelable()
-          val mainConn = context.connection
-          mainConn.push(composite)
-
-          // Collecting all cancelables in a buffer, because adding
-          // cancelables one by one in our `CompositeCancelable` is
-          // expensive, so we do it at the end
-          val allCancelables = ListBuffer.empty[StackedCancelable]
-          val batchSize = s.executionModel.recommendedBatchSize
-          val cursor = in.toIterator
-
-          var continue = true
-          var count = 0
-
-          // The `isActive` check short-circuits the process in case
-          // we have a synchronous task that just completed in error
-          while (cursor.hasNext && continue) {
-            val task = cursor.next()
-            count += 1
-            continue = count % batchSize != 0 || stateRef.get.isActive
-
-            val stacked = StackedCancelable()
-            val childCtx = context.withConnection(stacked)
-            allCancelables += stacked
-
-            // Light asynchronous boundary
-            Task.unsafeStartTrampolined(task, childCtx,
-              new Callback[A] {
-                @tailrec
-                def onSuccess(value: A): Unit = {
-                  val current = stateRef.get
-                  if (current.isActive) {
-                    val update = current.enqueue(value)
-                    if (!stateRef.compareAndSet(current, update))
-                      onSuccess(value) // retry
-                    else
-                      maybeSignalFinal(stateRef, update, context.connection, finalCallback)
-                  }
-                }
-
-                def onError(ex: Throwable): Unit =
-                  reportError(stateRef, mainConn, ex)
-              })
-          }
-
-          // Note that if an error happened, this should cancel all
-          // other active tasks.
-          composite ++= allCancelables
-          // We are done triggering tasks, now we can allow the final
-          // callback to be triggered
-          activate(stateRef, count, mainConn, finalCallback)(s)
-        }
-        catch {
-          case ex if NonFatal(ex) =>
-            reportError(stateRef, context.connection, ex)(context.scheduler)
+        currentState match {
+          case State.Active(list, 0) =>
+            ref.lazySet(State.Complete)
+            mainConn.pop()
+            finalCallback.onSuccess(list)
+          case _ =>
+            () // invalid state
         }
       }
+
+      @inline def reportError(
+        stateRef: AtomicAny[State[A]],
+        mainConn: StackedCancelable,
+        ex: Throwable)(implicit s: Scheduler): Unit = {
+
+        val currentState = stateRef.getAndSet(State.Complete)
+        if (currentState != State.Complete) {
+          mainConn.pop().cancel()
+          finalCallback.onError(ex)
+        } else {
+          s.reportFailure(ex)
+        }
+      }
+
+      @tailrec def activate(stateRef: AtomicAny[State[A]], count: Int,
+        conn: StackedCancelable,
+        finalCallback: Callback[List[A]])
+        (implicit s: Scheduler): Unit = {
+
+        stateRef.get match {
+          case current @ State.Initializing(_,_) =>
+            val update = current.activate(count)
+            if (!stateRef.compareAndSet(current, update))
+              activate(stateRef, count, conn, finalCallback)(s)
+            else
+              maybeSignalFinal(stateRef, update, conn, finalCallback)(s)
+
+          case _ =>
+            () // do nothing
+        }
+      }
+
+      // Shared state for synchronization
+      val stateRef = Atomic.withPadding(State.empty[A], LeftRight128)
+
+      try {
+        implicit val s = context.scheduler
+        // Represents the collection of cancelables for all started tasks
+        val composite = CompositeCancelable()
+        val mainConn = context.connection
+        mainConn.push(composite)
+
+        // Collecting all cancelables in a buffer, because adding
+        // cancelables one by one in our `CompositeCancelable` is
+        // expensive, so we do it at the end
+        val allCancelables = ListBuffer.empty[StackedCancelable]
+        val batchSize = s.executionModel.recommendedBatchSize
+        val cursor = in.toIterator
+
+        var continue = true
+        var count = 0
+
+        // The `isActive` check short-circuits the process in case
+        // we have a synchronous task that just completed in error
+        while (cursor.hasNext && continue) {
+          val task = cursor.next()
+          count += 1
+          continue = count % batchSize != 0 || stateRef.get.isActive
+
+          val stacked = StackedCancelable()
+          val childCtx = context.withConnection(stacked)
+          allCancelables += stacked
+
+          // Light asynchronous boundary
+          Task.unsafeStartTrampolined(task, childCtx,
+            new Callback[A] {
+              @tailrec
+              def onSuccess(value: A): Unit = {
+                val current = stateRef.get
+                if (current.isActive) {
+                  val update = current.enqueue(value)
+                  if (!stateRef.compareAndSet(current, update))
+                    onSuccess(value) // retry
+                  else
+                    maybeSignalFinal(stateRef, update, context.connection, finalCallback)
+                }
+              }
+
+              def onError(ex: Throwable): Unit =
+                reportError(stateRef, mainConn, ex)
+            })
+        }
+
+        // Note that if an error happened, this should cancel all
+        // other active tasks.
+        composite ++= allCancelables
+        // We are done triggering tasks, now we can allow the final
+        // callback to be triggered
+        activate(stateRef, count, mainConn, finalCallback)(s)
+      } catch {
+        case ex if NonFatal(ex) =>
+          reportError(stateRef, context.connection, ex)(context.scheduler)
+      }
     }
+
+    Async(
+      start,
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = true)
   }
 
   private sealed abstract class State[+A] {
