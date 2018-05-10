@@ -248,7 +248,8 @@ private[eval] object TaskRunLoop {
               cb.asInstanceOf[Callback[Any]],
               bFirst,
               bRest,
-              frameIndex)
+              frameIndex,
+              forceFork = false)
         }
 
         if (hasUnboxed) {
@@ -274,7 +275,10 @@ private[eval] object TaskRunLoop {
           scheduler,
           opts,
           cb.asInstanceOf[Callback[Any]],
-          bFirst, bRest, frameIndex)
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true)
       }
     } while (true)
     // $COVERAGE-OFF$
@@ -360,7 +364,8 @@ private[eval] object TaskRunLoop {
               opts,
               bFirst,
               bRest,
-              frameIndex)
+              frameIndex,
+              forceFork = false)
         }
 
         if (hasUnboxed) {
@@ -383,7 +388,7 @@ private[eval] object TaskRunLoop {
         }
       } else {
         // Force async boundary
-        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex)
+        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true)
       }
     } while (true)
     // $COVERAGE-OFF$
@@ -426,14 +431,15 @@ private[eval] object TaskRunLoop {
     cb: Callback[Any],
     bFirst: Bind,
     bRest: CallStack,
-    nextFrame: FrameIndex): Cancelable = {
+    nextFrame: FrameIndex,
+    forceFork: Boolean): Cancelable = {
 
     val context = Context(scheduler, opts)
-    source match {
-      case async: Async[Any] @unchecked =>
-        executeAsyncTask(async, context, cb, null, bFirst, bRest, 1)
-      case _ =>
-        restartAsync(source, context, cb, null, bFirst, bRest)
+
+    if (forceFork) {
+      restartAsync(source, context, cb, null, bFirst, bRest)
+    } else {
+      executeAsyncTask(source.asInstanceOf[Async[Any]], context, cb, null, bFirst, bRest, 1)
     }
     context.connection
   }
@@ -445,20 +451,19 @@ private[eval] object TaskRunLoop {
     opts: Task.Options,
     bFirst: Bind,
     bRest: CallStack,
-    nextFrame: FrameIndex): CancelableFuture[A] = {
+    nextFrame: FrameIndex,
+    forceFork: Boolean): CancelableFuture[A] = {
 
     val p = Promise[A]()
     val cb = Callback.fromPromise(p)
     val context = Context(scheduler, opts)
     val current = source.asInstanceOf[Task[A]]
 
-    source match {
-      case async: Async[Any] @unchecked =>
-        executeAsyncTask(async, context, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
-      case _ =>
-        restartAsync(current, context, cb, null, bFirst, bRest)
+    if (forceFork) {
+      restartAsync(current, context, cb, null, bFirst, bRest)
+    } else {
+      executeAsyncTask(source.asInstanceOf[Async[Any]], context, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
     }
-
     CancelableFuture(p.future, context.connection)
   }
 

@@ -3066,14 +3066,14 @@ object Task extends TaskInstancesLevel1 {
     *
     * @see [[FrameIndexRef]]
     */
-  private[monix] type FrameIndex = Int
+  type FrameIndex = Int
 
   /** Internal API — A reference that boxes a [[FrameIndex]] possibly
     * using a thread-local.
     *
     * This definition is of interest only when creating
-    * tasks with [[Task.Async]], which exposes internals and
-    * is considered unsafe to use.
+    * tasks with `Task.unsafeCreate`, which exposes internals,
+    * is considered unsafe to use and is now deprecated.
     *
     * In case the [[Task]] is executed with
     * [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]],
@@ -3092,7 +3092,7 @@ object Task extends TaskInstancesLevel1 {
     * instances executed by capable schedulers. This is why
     * [[FrameIndexRef]] is part of the [[Context]] of execution for
     * [[Task]], available for asynchronous tasks that get created with
-    * [[Task.Async]].
+    * `Task.unsafeCreate` (which is now deprecated).
     *
     * Note that in case the execution model is not
     * [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]]
@@ -3100,7 +3100,7 @@ object Task extends TaskInstancesLevel1 {
     * keeping a counter around, plus setting and fetching from a
     * `ThreadLocal` can be quite expensive.
     */
-  private[monix] sealed abstract class FrameIndexRef {
+  sealed abstract class FrameIndexRef {
     /** Returns the current [[FrameIndex]]. */
     def apply(): FrameIndex
 
@@ -3114,7 +3114,7 @@ object Task extends TaskInstancesLevel1 {
     def reset(): Unit
   }
 
-  private[monix] object FrameIndexRef {
+  object FrameIndexRef {
     /** Builds a [[FrameIndexRef]]. */
     def apply(em: ExecutionModel): FrameIndexRef =
       em match {
@@ -3142,8 +3142,8 @@ object Task extends TaskInstancesLevel1 {
     * be executed.
     *
     * This definition is of interest only when creating
-    * tasks with [[Task.Async]], which exposes internals and
-    * is considered unsafe to use.
+    * tasks with `Task.unsafeCreate`, which exposes internals,
+    * is considered unsafe to use and is now deprecated.
     *
     * @param schedulerRef is the [[monix.execution.Scheduler Scheduler]]
     *        in charge of evaluation on `runAsync`.
@@ -3166,7 +3166,7 @@ object Task extends TaskInstancesLevel1 {
     * @param options is a set of options for customizing the task's
     *        behavior upon evaluation.
     */
-  private[monix] final case class Context(
+  final case class Context(
     @deprecatedName('scheduler)
     private val schedulerRef: Scheduler,
     options: Options,

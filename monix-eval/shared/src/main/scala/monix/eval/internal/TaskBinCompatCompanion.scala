@@ -46,11 +46,23 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Internal API — deprecated due to being very error prone for usage,
-    * switch to [[Task.cancelable[A](start* Task.cancelable]] instead.
+  /** Deprecated due to being very error prone for usage.
+    *
+    * Alternatives:
+    *
+    *  - [[Task.cancelable[A](start* Task.cancelable]]
+    *  - [[Task.simple[A](start* Task.simple]]
+    *  - [[Task.create]]
+    *  - [[Task.deferAction]]
+    *
+    * Also see:
+    *
+    *  - [[Task.readOptions]] allows you to read the current [[Task.Options]]
+    *
+    * This method is scheduled for removal, migrate away from it ASAP.
     */
   @deprecated("Switch to Task.create", since = "3.0.0-RC2")
-  private[monix] def unsafeCreate[A](register: (Context, Callback[A]) => Unit): Task[A] = {
+  def unsafeCreate[A](register: (Context, Callback[A]) => Unit): Task[A] = {
     // $COVERAGE-OFF$
     Async(register)
     // $COVERAGE-ON$
