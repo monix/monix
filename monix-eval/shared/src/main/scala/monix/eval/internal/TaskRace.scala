@@ -44,14 +44,14 @@ private[eval] object TaskRace {
           if (isActive.getAndSet(false)) {
             connB.cancel()
             conn.pop()
-            cb.asyncOnSuccess(Left(valueA))
+            cb.onSuccess(Left(valueA))
           }
 
         def onError(ex: Throwable): Unit =
           if (isActive.getAndSet(false)) {
             conn.pop()
             connB.cancel()
-            cb.asyncOnError(ex)
+            cb.onError(ex)
           } else {
             sc.reportFailure(ex)
           }
@@ -63,14 +63,14 @@ private[eval] object TaskRace {
           if (isActive.getAndSet(false)) {
             connA.cancel()
             conn.pop()
-            cb.asyncOnSuccess(Right(valueB))
+            cb.onSuccess(Right(valueB))
           }
 
         def onError(ex: Throwable): Unit =
           if (isActive.getAndSet(false)) {
             conn.pop()
             connA.cancel()
-            cb.asyncOnError(ex)
+            cb.onError(ex)
           } else {
             sc.reportFailure(ex)
           }

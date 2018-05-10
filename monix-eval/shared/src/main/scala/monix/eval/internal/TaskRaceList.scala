@@ -59,13 +59,13 @@ private[eval] object TaskRaceList {
           def onSuccess(value: A): Unit =
             if (isActive.getAndSet(false)) {
               popAndCancelRest()
-              callback.asyncOnSuccess(value)
+              callback.onSuccess(value)
             }
 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               popAndCancelRest()
-              callback.asyncOnError(ex)
+              callback.onError(ex)
             } else {
               s.reportFailure(ex)
             }

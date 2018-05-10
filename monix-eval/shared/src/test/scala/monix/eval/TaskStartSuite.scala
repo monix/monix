@@ -19,7 +19,6 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
-
 import concurrent.duration._
 import scala.util.Success
 
@@ -49,5 +48,24 @@ object TaskStartSuite extends BaseTestSuite {
     val f = task.runAsync
     sc.tick()
     assertEquals(f.value, Some(Success(1)))
+  }
+
+  testAsync("task.start keeps current Local.Context on join") { _ =>
+    import monix.execution.Scheduler.Implicits.global
+    import cats.syntax.all._
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+
+    val task = for {
+      local <- TaskLocal(0)
+      _ <- local.write(100)
+      f <- (Task.shift *> local.read <* local.write(200)).start
+      v1 <- local.read
+      v2 <- f.join
+      v3 <- local.read
+    } yield (v1, v2, v3)
+
+    for (v <- task.runAsyncOpt) yield {
+      assertEquals(v, (100, 100, 100))
+    }
   }
 }

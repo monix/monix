@@ -48,7 +48,7 @@ private[eval] object TaskRacePair {
           if (isActive.getAndSet(false)) {
             val fiberB = Fiber(TaskFromFuture.lightBuild(pb.future, connB))
             conn.pop()
-            cb.asyncOnSuccess(Left((valueA, fiberB)))
+            cb.onSuccess(Left((valueA, fiberB)))
           } else {
             pa.success(valueA)
           }
@@ -57,7 +57,7 @@ private[eval] object TaskRacePair {
           if (isActive.getAndSet(false)) {
             conn.pop()
             connB.cancel()
-            cb.asyncOnError(ex)
+            cb.onError(ex)
           } else {
             pa.failure(ex)
           }
@@ -69,7 +69,7 @@ private[eval] object TaskRacePair {
           if (isActive.getAndSet(false)) {
             val fiberA = Fiber(TaskFromFuture.lightBuild(pa.future, connA))
             conn.pop()
-            cb.asyncOnSuccess(Right((fiberA, valueB)))
+            cb.onSuccess(Right((fiberA, valueB)))
           } else {
             pb.success(valueB)
           }
@@ -78,7 +78,7 @@ private[eval] object TaskRacePair {
           if (isActive.getAndSet(false)) {
             conn.pop()
             connA.cancel()
-            cb.asyncOnError(ex)
+            cb.onError(ex)
           } else {
             pb.failure(ex)
           }
