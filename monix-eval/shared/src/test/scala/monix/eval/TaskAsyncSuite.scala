@@ -52,7 +52,7 @@ object TaskAsyncSuite extends BaseTestSuite {
 
   test("Task.asyncS works for async successful value") { implicit sc =>
     val f = Task
-      .asyncS[Int]((s, cb) => s.execute(() => cb.onSuccess(1)))
+      .asyncS[Int]((s, cb) => s.executeAsync(() => cb.onSuccess(1)))
       .runAsync
 
     sc.tick()
@@ -62,7 +62,7 @@ object TaskAsyncSuite extends BaseTestSuite {
   test("Task.asyncS works for async error") { implicit sc =>
     val e = DummyException("dummy")
     val f = Task
-      .asyncS[Int]((s, cb) => s.execute(() => cb.onError(e)))
+      .asyncS[Int]((s, cb) => s.executeAsync(() => cb.onError(e)))
       .runAsync
 
     sc.tick()
