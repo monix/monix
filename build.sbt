@@ -57,8 +57,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-language:implicitConversions",
     "-language:experimental.macros",
     // possibly deprecated options
-    "-Ywarn-inaccessible",
-    "-Ywarn-value-discard"
+    "-Ywarn-inaccessible"
   ),
 
   // Force building with Java 8
