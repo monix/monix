@@ -2725,11 +2725,10 @@ object Task extends TaskInstancesLevel1 {
   /** Apply a mapping functions to the results of two tasks, nondeterministically
     * ordering their effects.
     *
-    * If the two tasks are synchronous, they'll get executed one
-    * after the other, with the result being available asynchronously.
     * If the two tasks are asynchronous, they'll get scheduled for execution
     * at the same time and in a multi-threading environment they'll execute
     * in parallel and have their results synchronized.
+    * If the two tasks are synchronous, they'll get forced async boundary to ensure parallel evaluation.
     */
   def mapBoth[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
     TaskMapBoth(fa1, fa2)(f)
