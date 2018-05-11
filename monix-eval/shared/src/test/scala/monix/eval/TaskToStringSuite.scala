@@ -43,7 +43,7 @@ object TaskToStringSuite extends SimpleTestSuite {
   }
 
   test("Task.Async") {
-    val ref = Task.cancelable[Int]((_,cb) => { cb.onSuccess(1); Cancelable.empty })
+    val ref = Task.cancelableS[Int]((_,cb) => { cb.onSuccess(1); Cancelable.empty })
     assertContains(ref, "Task.Async")
   }
 

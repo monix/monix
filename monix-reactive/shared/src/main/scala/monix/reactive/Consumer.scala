@@ -65,7 +65,7 @@ abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * by piggybacking on [[createSubscriber]].
     */
   final def apply(source: Observable[In]): Task[R] =
-    Task.cancelable { (scheduler, cb) =>
+    Task.cancelableS { (scheduler, cb) =>
       val (out, consumerSubscription) = createSubscriber(cb, scheduler)
       // Start consuming the stream
       val sourceSubscription = source.subscribe(out)

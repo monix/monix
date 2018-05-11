@@ -27,7 +27,7 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `Task.cancelable`
     */
-  def cancelable[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+  def cancelableS[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
     Task.Async { (ctx, cb) =>
       val s = ctx.scheduler
       val conn = ctx.connection
@@ -49,20 +49,20 @@ private[eval] object TaskCreate {
     }
 
   /** Implementation for `cats.effect.Concurrent#cancelable`. */
-  def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
-    cancelable { (sc, cb) => Cancelable.fromIO(k(cb))(sc) }
+  def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
+    cancelableS { (sc, cb) => Cancelable.fromIO(k(cb))(sc) }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableIO[A](start: (Scheduler, Callback[A]) => IO[Unit]): Task[A] =
-    cancelable { (sc, cb) => Cancelable.fromIO(start(sc, cb))(sc) }
+    cancelableS { (sc, cb) => Cancelable.fromIO(start(sc, cb))(sc) }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableTask[A](start: (Scheduler, Callback[A]) => Task[Unit]): Task[A] =
-    cancelable { (sc, cb) =>
+    cancelableS { (sc, cb) =>
       val task = start(sc, cb)
       Cancelable(() => task.runAsync(Callback.empty(sc))(sc))
     }
@@ -71,7 +71,7 @@ private[eval] object TaskCreate {
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableCoeval[A](start: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
-    cancelable { (sc, cb) =>
+    cancelableS { (sc, cb) =>
       val task = start(sc, cb)
       Cancelable(task.value _)
     }
@@ -79,7 +79,7 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `Task.simple`
     */
-  def simple[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
+  def asyncS[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
     Task.Async { (ctx, cb) =>
       val s = ctx.scheduler
       try {
@@ -99,7 +99,7 @@ private[eval] object TaskCreate {
     * It duplicates the implementation of `Task.simple` with the purpose
     * of avoiding extraneous callback allocations.
     */
-  def simple[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
+  def async[A](k: Callback[A] => Unit): Task[A] =
     Task.Async { (ctx, cb) =>
       try k(cb) catch {
         case ex if NonFatal(ex) =>

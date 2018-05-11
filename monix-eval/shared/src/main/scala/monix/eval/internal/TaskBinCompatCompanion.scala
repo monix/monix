@@ -23,16 +23,16 @@ import monix.execution.{Cancelable, Scheduler}
 
 private[eval] abstract class TaskBinCompatCompanion {
 
-  /** DEPRECATED — please switch to [[Task.cancelable[A](start* Task.cancelable]].
+  /** DEPRECATED — please switch to [[Task.cancelableS[A](start* Task.cancelableS]].
     *
     * The reason for the deprecation is that the `Task.async` builder
     * is now aligned to the meaning of `cats.effect.Async` and thus
     * must yield tasks that are not cancelable.
     */
-  @deprecated("Renamed to Task.cancelable", since="3.0.0-M2")
-  def async[A](@deprecatedName('register) start: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
+  @deprecated("Renamed to Task.cancelableS", since="3.0.0-M2")
+  private[internal] def async[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
     // $COVERAGE-OFF$
-    Task.cancelable(start)
+    Task.cancelableS(register)
     // $COVERAGE-ON$
   }
 
@@ -42,7 +42,7 @@ private[eval] abstract class TaskBinCompatCompanion {
   @deprecated("Changed signature", since="3.0.0-M2")
   private[internal] def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
     // $COVERAGE-OFF$
-    TaskCreate.cancelable(register)
+    TaskCreate.cancelableS(register)
     // $COVERAGE-ON$
   }
 
@@ -50,8 +50,8 @@ private[eval] abstract class TaskBinCompatCompanion {
     *
     * Alternatives:
     *
-    *  - [[Task.cancelable[A](start* Task.cancelable]]
-    *  - [[Task.simple[A](start* Task.simple]]
+    *  - [[Task.cancelableS[A](start* Task.cancelable]]
+    *  - [[Task.asyncS[A](start* Task.simple]]
     *  - [[Task.create]]
     *  - [[Task.deferAction]]
     *

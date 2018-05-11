@@ -39,7 +39,7 @@ package object eval {
       * in combination with [[Task.defer]]
       */
     def fromCompletableFuture[A](cf: CompletableFuture[A]): Task[A] =
-      Task.cancelable((_, cb) => {
+      Task.cancelableS((_, cb) => {
         cf.handle[Unit](new BiFunction[A, Throwable, Unit] {
           override def apply(result: A, err: Throwable): Unit = {
             err match {

@@ -130,7 +130,7 @@ object MVar {
   /** [[MVar]] implementation based on [[monix.execution.misc.AsyncVar]] */
   private final class AsyncMVarImpl[A](av: AsyncVar[A]) extends MVar[A] {
     def put(a: A): Task[Unit] =
-      Task.simple { (_, cb) =>
+      Task.asyncS { (_, cb) =>
         var streamError = true
         try {
           // Execution could be synchronous
@@ -145,7 +145,7 @@ object MVar {
       }
 
     def take: Task[A] =
-      Task.simple { (_, cb) =>
+      Task.asyncS { (_, cb) =>
         // Execution could be synchronous (e.g. result is null or not)
         av.unsafeTake(cb) match {
           case null => () // do nothing
@@ -154,7 +154,7 @@ object MVar {
       }
 
     def read: Task[A] =
-      Task.simple { (_, cb) =>
+      Task.asyncS { (_, cb) =>
         // Execution could be synchronous (e.g. result is null or not)
         av.unsafeRead(cb) match {
           case null => () // do nothing

@@ -184,7 +184,7 @@ import scala.util.{Failure, Success, Try}
   * canceled. When describing `Task` tasks with `Task.eval` nothing
   * can be cancelled, since there's nothing about a plain function
   * that you can cancel, but we can build cancelable tasks with
-  * [[monix.eval.Task.cancelable[A](start* Task.cancelable]].
+  * [[monix.eval.Task.cancelableS[A](start* Task.cancelable]].
   *
   * {{{
   *   import scala.concurrent.duration._
@@ -1012,7 +1012,7 @@ sealed abstract class Task[+A] extends Serializable {
     * given `thunk` immediately (on the current thread and call stack).
     *
     * By calling `executeOn(io)`, we are ensuring that the used
-    * `Scheduler` (injected in [[Task.cancelable[A](start* async tasks]])
+    * `Scheduler` (injected in [[Task.cancelableS[A](start* async tasks]])
     * will be `io`, a `Scheduler` that we intend to use for blocking
     * I/O actions. And we are also forcing an asynchronous boundary
     * right before execution, by passing the `forceAsync` parameter as
@@ -1170,7 +1170,7 @@ sealed abstract class Task[+A] extends Serializable {
     * Normally Monix Tasks have these characteristics:
     *
     *  - `flatMap` chains are not cancelable by default
-    *  - when creating [[Task.cancelable[A](start* async tasks]]
+    *  - when creating [[Task.cancelableS[A](start* async tasks]]
     *    the user has to specify explicit cancellation logic
     *
     * This operation returns a task that has [[Task.Options.autoCancelableRunLoops]]
@@ -2112,14 +2112,68 @@ object Task extends TaskInstancesLevel1 {
     * This operation is the implementation for `cats.effect.Async` and
     * is thus yielding non-cancelable tasks, being the simplified
     * version of [[Task.cancelable[A](start* Task.cancelable]].
-    *
-    * N.B. "simple" in this case means made of a "single element,
-    * not compound", or in other words the resulting task will have
-    * atomic execution, meaning that it will execute either all of it
-    * or nothing at all.
-    *
     * This can be used to translate from a callback-based API to pure
-    * `Task` values.
+    * `Task` values that cannot be canceled.
+    *
+    * See the the documentation for
+    * [[https://typelevel.org/cats-effect/typeclasses/async.html cats.effect.Async]].
+    *
+    * For example, in case we wouldn't have [[Task.deferFuture]]
+    * already defined, we could do this:
+    *
+    * {{{
+    *   import scala.concurrent.{Future, ExecutionContext}
+    *
+    *   def deferFuture[A](f: => Future[A])(implicit ec: ExecutionContext): Task[A] =
+    *     Task.async { cb =>
+    *       // N.B. we could do `f.onComplete(cb)` directly ;-)
+    *       f.onComplete {
+    *         case Success(a) => cb.onSuccess(a)
+    *         case Failure(e) => cb.onError(e)
+    *       }
+    *     }
+    * }}}
+    *
+    * Note that this function needs an explicit `ExecutionContext` in order
+    * to trigger `Future#complete`, however Monix's `Task` can inject
+    * a [[monix.execution.Scheduler Scheduler]] for you, thus allowing you
+    * to get rid of these pesky execution contexts being passed around explicitly.
+    * See [[Task.asyncS]].
+    *
+    * CONTRACT for `start`:
+    *
+    *  - the provided function is executed when the `Task` will be evaluated
+    *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
+    *  - the injected [[Callback]] can be called at most once, either with a
+    *    successful result, or with an error; calling it more than once is
+    *    a contract violation
+    *  - it can be assumed that the callback provides no protection when called
+    *    multiple times, the behavior being undefined
+    *
+    * @see [[Task.asyncS]] for a variant that also injects a
+    *      [[monix.execution.Scheduler Scheduler]] into the provided callback,
+    *      useful for forking, or delaying tasks or managing async boundaries
+    *
+    * @see [[Task.cancelable[A](start* Task.cancelable]] and [[Task.cancelableS]]
+    *      for creating cancelable tasks
+    *
+    * @see [[Task.create]] for the builder that does it all
+    */
+  def async[A](start: Callback[A] => Unit): Task[A] =
+    TaskCreate.async(start)
+
+  /** Create a non-cancelable `Task` from an asynchronous computation,
+    * which takes the form of a function with which we can register a
+    * callback to execute upon completion, a function that also injects a
+    * [[monix.execution.Scheduler Scheduler]] for managing async boundaries.
+    *
+    * This operation is the implementation for `cats.effect.Async` and
+    * is thus yielding non-cancelable tasks, being the simplified
+    * version of [[Task.cancelableS]]. It can be used to translate from a
+    * callback-based API to pure `Task` values that cannot be canceled.
+    *
+    * See the the documentation for
+    * [[https://typelevel.org/cats-effect/typeclasses/async.html cats.effect.Async]].
     *
     * For example, in case we wouldn't have [[Task.deferFuture]]
     * already defined, we could do this:
@@ -2128,8 +2182,8 @@ object Task extends TaskInstancesLevel1 {
     *   import scala.concurrent.Future
     *
     *   def deferFuture[A](f: => Future[A]): Task[A] =
-    *     Task.simple { (scheduler, cb) =>
-    *       // injected Scheduler is an ExecutionContext we can use with Future
+    *     Task.asyncS { (scheduler, cb) =>
+    *       // We are being given an ExecutionContext ;-)
     *       implicit val ec = scheduler
     *
     *       // N.B. we could do `f.onComplete(cb)` directly ;-)
@@ -2140,16 +2194,36 @@ object Task extends TaskInstancesLevel1 {
     *     }
     * }}}
     *
-    * Note that this function doesn't need an `ExecutionContext`
-    * parameter because our callback given to `Task.simple` is
-    * injecting a [[monix.execution.Scheduler]] for us, which we can
-    * use as an `ExecutionContext` for executing `Future#onComplete`.
+    * Note that this function doesn't need an implicit `ExecutionContext`.
+    * Compared with usage of [[Task.async[A](start* Task.async]], this
+    * function injects a [[monix.execution.Scheduler Scheduler]] for us to
+    * use for managing async boundaries.
     *
-    * @see [[Task.cancelable[A](start* Task.cancelable]] for 
-    *      creating cancelable tasks
+    * CONTRACT for `start`:
+    *
+    *  - the provided function is executed when the `Task` will be evaluated
+    *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
+    *  - the injected [[Callback]] can be called at most once, either with a
+    *    successful result, or with an error; calling it more than once is
+    *    a contract violation
+    *  - it can be assumed that the callback provides no protection when called
+    *    multiple times, the behavior being undefined
+    *
+    * NOTES on the naming:
+    *
+    *  - `async` comes from `cats.effect.Async#async`
+    *  - the `S` suffix comes from [[monix.execution.Scheduler Scheduler]]
+    *
+    * @see [[Task.async]] for a simpler variant that doesn't inject a
+    *      `Scheduler`, in case you don't need one
+    *
+    * @see [[Task.cancelable[A](start* Task.cancelable]] and [[Task.cancelableS]]
+    *      for creating cancelable tasks
+    *
+    * @see [[Task.create]] for the builder that does it all
     */
-  def simple[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
-    TaskCreate.simple(start)
+  def asyncS[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
+    TaskCreate.asyncS(start)
 
   /** Create a cancelable `Task` from an asynchronous computation that
     * can be canceled, taking the form of a function with which we can
@@ -2157,10 +2231,89 @@ object Task extends TaskInstancesLevel1 {
     *
     * This operation is the implementation for
     * `cats.effect.Concurrent#cancelable` and is thus yielding
-    * cancelable tasks.
+    * cancelable tasks. It can be used to translate from a callback-based
+    * API to pure `Task` values that can be canceled.
     *
-    * This can be used to translate from a callback-based API to pure
-    * `Task` values.
+    * See the the documentation for
+    * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html cats.effect.Concurrent]].
+    *
+    * For example, in case we wouldn't have [[Task.delayExecution]]
+    * already defined and we wanted to delay evaluation using a Java
+    * [[https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledExecutorService.html ScheduledExecutorService]]
+    * (no need for that because we've got [[monix.execution.Scheduler Scheduler]],
+    * but lets say for didactic purposes):
+    *
+    * {{{
+    *   import monix.execution.Cancelable
+    *   import scala.concurrent.ExecutionContext
+    *   import scala.concurrent.duration._
+    *   import java.util.concurrent.ScheduledExecutorService
+    *
+    *   def delayed[A](sc: ScheduledExecutorService, timespan: FiniteDuration)
+    *     (thunk: => A)
+    *     (implicit ec: ExecutionContext): Task[A] = {
+    *
+    *     Task.cancelable { (scheduler, cb) =>
+    *       val future = sc.schedule(
+    *         () => ec.execute(() => {
+    *           try
+    *             cb.onSuccess(thunk)
+    *           catch { case NonFatal(e) =>
+    *               cb.onError(e)
+    *           }
+    *         }),
+    *         timespan.length,
+    *         timespan.unit)
+    *
+    *       // Returning the cancelation token that is able to cancel the
+    *       // scheduling in case the active computation hasn't finished yet
+    *       Cancelable(() => future.cancel(false))
+    *     }
+    *   }
+    * }}}
+    *
+    * Note in this sample we are passing an implicit `ExecutionContext`
+    * in order to do the actual processing, the `ScheduledExecutorService`
+    * being in charge just of scheduling. We don't need to do that, as `Task`
+    * affords to have a [[monix.execution.Scheduler Scheduler]] injected
+    * instead via [[Task.cancelableS]].
+    *
+    * CONTRACT for `start`:
+    *
+    *  - the provided function is executed when the `Task` will be evaluated
+    *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
+    *  - the injected [[Callback]] can be called at most once, either with a
+    *    successful result, or with an error; calling it more than once is
+    *    a contract violation
+    *  - it can be assumed that the callback provides no protection when called
+    *    multiple times, the behavior being undefined
+    *
+    * @see [[Task.cancelableS]] for the version that also injects a
+    *      [[monix.execution.Scheduler Scheduler]] in that callback
+    *
+    * @see [[Task.asyncS]] and [[Task.async[A](start* Task.async]] for the
+    *      simpler versions of this builder that create non-cancelable tasks
+    *      from callback-based APIs
+    *
+    * @see [[Task.create]] for the builder that does it all
+    *
+    * @param start $registerParamDesc
+    */
+  def cancelable[A](start: Callback[A] => Cancelable): Task[A] =
+    cancelableS((_, cb) => start(cb))
+
+  /** Create a cancelable `Task` from an asynchronous computation,
+    * which takes the form of a function with which we can register a
+    * callback to execute upon completion, a function that also injects a
+    * [[monix.execution.Scheduler Scheduler]] for managing async boundaries.
+    *
+    * This operation is the implementation for
+    * `cats.effect.Concurrent#cancelable` and is thus yielding
+    * cancelable tasks. It can be used to translate from a callback-based API
+    * to pure `Task` values that can be canceled.
+    *
+    * See the the documentation for
+    * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html cats.effect.Concurrent]].
     *
     * For example, in case we wouldn't have [[Task.delayExecution]]
     * already defined and we wanted to delay evaluation using a Java
@@ -2173,16 +2326,18 @@ object Task extends TaskInstancesLevel1 {
     *   import scala.concurrent.duration._
     *   import java.util.concurrent.ScheduledExecutorService
     *
-    *   def delayed[A](sc: ScheduledExecutorService, timespan: FiniteDuration)(thunk: => A): Task[A] =
-    *     Task.cancelable { (scheduler, cb) =>
+    *   def delayed[A](sc: ScheduledExecutorService, timespan: FiniteDuration)
+    *     (thunk: => A): Task[A] = {
+    *
+    *     Task.cancelableS { (scheduler, cb) =>
     *       val future = sc.schedule(
-    *         () => {
+    *         () => scheduler.execute(() => {
     *           try
     *             cb.onSuccess(thunk)
     *           catch { case NonFatal(e) =>
     *               cb.onError(e)
     *           }
-    *         },
+    *         }),
     *         timespan.length,
     *         timespan.unit)
     *
@@ -2190,15 +2345,57 @@ object Task extends TaskInstancesLevel1 {
     *       // scheduling in case the active computation hasn't finished yet
     *       Cancelable(() => future.cancel(false))
     *     }
+    *   }
     * }}}
     *
-    * @see [[Task.simple]] for a simpler version of this builder that creates
-    *      non-cancelable tasks from callback-based APIs
+    * As can be seen, the passed function needs to pass a
+    * [[monix.execution.Cancelable Cancelable]] in order to specify cancelation
+    * logic.
+    *
+    * This is a sample given for didactic purposes. Our `cancelableS` is
+    * being injected a [[monix.execution.Scheduler Scheduler]] and it is
+    * perfectly capable of doing such delayed execution without help from
+    * Java's standard library:
+    *
+    * {{{
+    *   def delayed[A](timespan: FiniteDuration)(thunk: => A): Task[A] =
+    *     Task.cancelableS { (scheduler, cb) =>
+    *       // N.B. this already returns the Cancelable that we need!
+    *       scheduler.scheduleOnce(timespan) {
+    *         try cb.onSuccess(thunk)
+    *         catch { case NonFatal(e) => cb.onError(e) }
+    *       }
+    *     }
+    * }}}
+    *
+    * CONTRACT for `start`:
+    *
+    *  - the provided function is executed when the `Task` will be evaluated
+    *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
+    *  - the injected [[Callback]] can be called at most once, either with a
+    *    successful result, or with an error; calling it more than once is
+    *    a contract violation
+    *  - it can be assumed that the callback provides no protection when called
+    *    multiple times, the behavior being undefined
+    *
+    * NOTES on the naming:
+    *
+    *  - `cancelable` comes from `cats.effect.Concurrent#cancelable`
+    *  - the `S` suffix comes from [[monix.execution.Scheduler Scheduler]]
+    *
+    * @see [[Task.cancelable[A](start* Task.cancelable]] for the simpler
+    *      variant that doesn't inject the `Scheduler` in that callback
+    *
+    * @see [[Task.asyncS]] and [[Task.async[A](start* Task.async]] for the
+    *      simpler versions of this builder that create non-cancelable tasks
+    *      from callback-based APIs
+    *
+    * @see [[Task.create]] for the builder that does it all
     *
     * @param start $registerParamDesc
     */
-  def cancelable[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
-    TaskCreate.cancelable(start)
+  def cancelableS[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+    TaskCreate.cancelableS(start)
 
   /** Polymorphic `Task` builder that is able to describe asynchronous
     * tasks depending on the type of the given callback.
@@ -2207,7 +2404,7 @@ object Task extends TaskInstancesLevel1 {
     * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type technique]].
     *
     * Calling `create` with a callback that returns `Unit` is
-    * equivalent with [[Task.simple]]:
+    * equivalent with [[Task.asyncS]]:
     *
     * {{{
     *   Task.simple(f) <-> Task.create(f)
@@ -2226,7 +2423,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * We could return a [[monix.execution.Cancelable Cancelable]]
     * reference and thus make a cancelable task, thus for an `f` that
-    * can be passed to [[Task.cancelable]] this equivalence holds:
+    * can be passed to [[Task.cancelableS]] this equivalence holds:
     *
     * {{{
     *   Task.cancelable(f) <-> Task.create(f)
@@ -2977,10 +3174,10 @@ object Task extends TaskInstancesLevel1 {
     * in order to change its behavior based on the type of the
     * cancelation token.
     *
-    * In combination with the 
+    * In combination with the
     * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type technique]],
-    * this ends up providing a polymorphic [[Task.create]] that can 
-    * support multiple cancelation tokens optimally, i.e. without 
+    * this ends up providing a polymorphic [[Task.create]] that can
+    * support multiple cancelation tokens optimally, i.e. without
     * implicit conversions and that can be optimized depending on
     * the `CancelToken` used - for example if `Unit` is returned,
     * then the yielded task will not be cancelable and the internal
@@ -3014,7 +3211,7 @@ object Task extends TaskInstancesLevel1 {
     implicit val forUnit: AsyncBuilder[Unit] =
       new AsyncBuilder[Unit] {
         def create[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
-          TaskCreate.simple(start)
+          TaskCreate.asyncS(start)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -3024,7 +3221,7 @@ object Task extends TaskInstancesLevel1 {
     implicit val forCancelable: AsyncBuilder[Cancelable] =
       new AsyncBuilder[Cancelable] {
         def create[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
-          TaskCreate.cancelable(start)
+          TaskCreate.cancelableS(start)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -3370,7 +3567,7 @@ object Task extends TaskInstancesLevel1 {
     * be computed asynchronously.
     *
     * Unsafe to build directly, only use if you know what you're doing.
-    * For building `Async` instances safely, see [[cancelable]].
+    * For building `Async` instances safely, see [[cancelableS]].
     *
     * @param register is the side-effecting, callback-enabled function
     *        that starts the asynchronous computation and registers
@@ -3524,7 +3721,7 @@ private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
 
   /** Given an `A` type that has a `cats.Monoid[A]` implementation,
     * then this provides the evidence that `Task[A]` also has
-    * a `Monoid[Task[A]]` implementation.
+    * a `Monoid[ Task[A] ]` implementation.
     */
   implicit def catsMonoid[A](implicit A: Monoid[A]): Monoid[Task[A]] =
     new CatsMonadToMonoid[Task, A]()(CatsConcurrentForTask, A)
@@ -3564,7 +3761,7 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
 
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
     * then this provides the evidence that `Task[A]` also has
-    * a `Semigroup[Task[A]]` implementation.
+    * a `Semigroup[ Task[A] ]` implementation.
     *
     * This has a lower-level priority than [[Task.catsMonoid]]
     * in order to avoid conflicts.

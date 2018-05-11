@@ -30,7 +30,7 @@ object TaskSimpleSuite extends BaseTestSuite {
   }
 
   test("Task.simple should execute") { implicit s =>
-    val task = Task.simple[Int] { (ec, cb) =>
+    val task = Task.asyncS[Int] { (ec, cb) =>
       ec.executeAsync { () => cb.onSuccess(1) }
     }
 
@@ -42,14 +42,14 @@ object TaskSimpleSuite extends BaseTestSuite {
 
   test("Task.simple should log errors") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task.simple[Int]((_,_) => throw ex)
+    val task = Task.asyncS[Int]((_,_) => throw ex)
     val result = task.runAsync; s.tick()
     assertEquals(result.value, None)
     assertEquals(s.state.lastReportedError, ex)
   }
 
   test("Task.simple should be stack safe") { implicit s =>
-    def signal(n: Int) = Task.simple[Int]((_, cb) => cb.onSuccess(n))
+    def signal(n: Int) = Task.asyncS[Int]((_, cb) => cb.onSuccess(n))
     def loop(n: Int, acc: Int): Task[Int] =
       signal(1).flatMap { x =>
         if (n > 0) loop(n - 1, acc + x)

@@ -32,7 +32,7 @@ object FromObserverConsumerSuite extends BaseTestSuite {
   test("convert an observer into a consumer") { implicit s =>
     check1 { (source: Observable[Int]) =>
       val lh = source.sumL
-      val rh = Task.cancelable[Int] { (s, cb) =>
+      val rh = Task.cancelableS[Int] { (s, cb) =>
         implicit val scheduler = s
         var sum = 0
 
@@ -64,7 +64,7 @@ object FromObserverConsumerSuite extends BaseTestSuite {
       val ex = DummyException("dummy")
       val lh = Task.raiseError[Unit](ex)
 
-      val rh = Task.cancelable[Unit] { (s, cb) =>
+      val rh = Task.cancelableS[Unit] { (s, cb) =>
         implicit val scheduler = s
 
         val consumer = Consumer.fromObserver(_ =>
