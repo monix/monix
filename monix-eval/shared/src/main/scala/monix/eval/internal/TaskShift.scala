@@ -15,24 +15,31 @@
  * limitations under the License.
  */
 
-package monix.execution.schedulers
+package monix.eval.internal
 
+import monix.eval.{Callback, Task}
+import monix.eval.Task.{Async, Context}
+import monix.execution.schedulers.TracingScheduler
 import scala.concurrent.ExecutionContext
-import scala.scalajs.js
 
-/** Utils for quickly using Javascript's `setTimeout` and
-  * `clearTimeout`.
-  */
-private[schedulers] object JSTimer {
-  def setTimeout(ec: ExecutionContext, delayMillis: Long, r: Runnable): js.Dynamic = {
-    val lambda: js.Function = () =>
-      try { r.run() }
-      catch { case t: Throwable => ec.reportFailure(t) }
+private[eval] object TaskShift {
+  /**
+    * Implementation for `Task.shift`
+    */
+  def apply(ec: ExecutionContext): Task[Unit] = {
+    val start = (context: Context, cb: Callback[Unit]) => {
+      val ec2 =
+        if (ec eq null) context.scheduler
+        else if (context.options.localContextPropagation) TracingScheduler(ec)
+        else ec
 
-    js.Dynamic.global.setTimeout(lambda, delayMillis)
-  }
-
-  def clearTimeout(task: js.Dynamic): js.Dynamic = {
-    js.Dynamic.global.clearTimeout(task)
+      ec2.execute(new Runnable {
+        def run(): Unit = {
+          context.frameRef.reset()
+          cb.onSuccess(())
+        }
+      })
+    }
+    Async(start, trampolineAfter = false)
   }
 }

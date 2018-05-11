@@ -19,9 +19,7 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
-
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success}
 
 object TaskApplySuite extends BaseTestSuite {
@@ -54,7 +52,7 @@ object TaskApplySuite extends BaseTestSuite {
     check1 { a: Int =>
       val t1 = {
         var effect = 100
-        Task { effect += 100; effect + a }
+        Task.apply { effect += 100; effect + a }
       }
 
       val t2 = {
@@ -70,7 +68,7 @@ object TaskApplySuite extends BaseTestSuite {
     check1 { a: Int =>
       val t1 = {
         var effect = 100
-        Task { effect += 100; effect + a }
+        Task.apply { effect += 100; effect + a }
       }
 
       val t2 = {
@@ -90,9 +88,9 @@ object TaskApplySuite extends BaseTestSuite {
 
   test("Task.apply should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
-      Task.apply(idx).flatMap { idx =>
+      Task(idx).flatMap { idx =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
-          Task.apply(idx)
+          Task(idx)
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20

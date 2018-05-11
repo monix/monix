@@ -108,4 +108,15 @@ object CoevalNowSuite extends BaseTestSuite {
     val task = Coeval.raiseError(dummy).materialize
     assertEquals(task.value(), Failure(dummy))
   }
+
+  test("Coeval.now.task") { implicit s =>
+    val task = Coeval.now(100).task
+    assertEquals(task.coeval.value(), Right(100))
+  }
+
+  test("Coeval.raiseError.task") { implicit s =>
+    val dummy = DummyException("dummy")
+    val task = Coeval.raiseError(dummy).task
+    assertEquals(task.coeval.runAttempt(), Left(dummy))
+  }
 }

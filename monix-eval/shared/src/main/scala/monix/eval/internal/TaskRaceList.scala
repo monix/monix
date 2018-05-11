@@ -27,7 +27,7 @@ private[eval] object TaskRaceList {
     * Implementation for `Task.raceList`
     */
   def apply[A](tasks: TraversableOnce[Task[A]]): Task[A] =
-    Task.unsafeCreate { (context, callback) =>
+    Task.Async { (context, callback) =>
       implicit val s = context.scheduler
       val conn = context.connection
 
@@ -42,7 +42,7 @@ private[eval] object TaskRaceList {
       while (index < taskArray.length) {
         val task = taskArray(index)
         val taskCancelable = cancelableArray(index)
-        val taskContext = context.copy(connection = taskCancelable)
+        val taskContext = context.withConnection(taskCancelable)
         index += 1
 
         Task.unsafeStartAsync(task, taskContext, new Callback[A] {
@@ -59,13 +59,13 @@ private[eval] object TaskRaceList {
           def onSuccess(value: A): Unit =
             if (isActive.getAndSet(false)) {
               popAndCancelRest()
-              callback.asyncOnSuccess(value)
+              callback.onSuccess(value)
             }
 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               popAndCancelRest()
-              callback.asyncOnError(ex)
+              callback.onError(ex)
             } else {
               s.reportFailure(ex)
             }

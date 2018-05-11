@@ -15,28 +15,39 @@
  * limitations under the License.
  */
 
-package monix.eval.internal
+package monix.eval
+package internal
 
-import monix.eval.Task
+import monix.eval.Task.Context
 import monix.execution.Scheduler
 import monix.execution.misc.NonFatal
 
 private[eval] object TaskDeferAction {
   /** Implementation for `Task.deferAction`. */
-  def apply[A](f: Scheduler => Task[A]): Task[A] =
-    Task.unsafeCreate { (context, callback) =>
+  def apply[A](f: Scheduler => Task[A]): Task[A] = {
+    val start = (context: Context, callback: Callback[A]) => {
       implicit val ec = context.scheduler
       var streamErrors = true
 
       try {
         val fa = f(ec)
         streamErrors = false
-        Task.unsafeStartTrampolined(fa, context, callback)
-      }
-      catch {
+        Task.unsafeStartNow(fa, context, callback)
+      } catch {
         case ex if NonFatal(ex) =>
-          if (streamErrors) callback.asyncOnError(ex)
-          else ec.reportFailure(ex)
+          if (streamErrors)
+            callback.onError(ex)
+          else {
+            // $COVERAGE-OFF$
+            ec.reportFailure(ex)
+            // $COVERAGE-ON$
+          }
       }
     }
+    Task.Async(
+      start,
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = false)
+  }
 }

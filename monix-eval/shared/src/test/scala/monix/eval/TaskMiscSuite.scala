@@ -173,18 +173,25 @@ object TaskMiscSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Failure(ex)))
   }
 
-  test("Task.async.runAsync with Try-based callback for success") { implicit s =>
+  test("task.executeAsync.runAsync with Try-based callback for success") { implicit s =>
     val p = Promise[Int]()
     Task.now(1).executeAsync.runOnComplete(p.complete)
     s.tick()
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("Task.async.runAsync with Try-based callback for error") { implicit s =>
+  test("task.executeAsync.runAsync with Try-based callback for error") { implicit s =>
     val ex = DummyException("dummy")
     val p = Promise[Int]()
     Task.raiseError[Int](ex).executeAsync.runOnComplete(p.complete)
     s.tick()
     assertEquals(p.future.value, Some(Failure(ex)))
+  }
+
+  test("task.executeWithOptions protects against user error") { implicit s =>
+    val ex = DummyException("dummy")
+    val task = Task.now(1).executeWithOptions(_ => throw ex)
+    val f = task.runAsync
+    assertEquals(f.value, Some(Failure(ex)))
   }
 }

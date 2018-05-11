@@ -60,7 +60,7 @@ object TaskAppSuite extends SimpleTestSuite {
 
     val p = Promise[Options]()
     val exposeOpts =
-      Task.unsafeCreate[Task.Options] { (ctx, cb) =>
+      Task.Async[Task.Options] { (ctx, cb) =>
         cb.onSuccess(ctx.options)
       }
 

@@ -39,11 +39,11 @@ private[eval] object TaskMemoize {
       case Task.Eval(Coeval.Suspend(f: LazyVal[A @unchecked]))
         if !cacheErrors || f.cacheErrors =>
         source
-      case Task.Async(r: Register[A] @unchecked)
+      case Task.Async(r: Register[A] @unchecked, _, _, _)
         if !cacheErrors || r.cacheErrors =>
         source
       case _ =>
-        Task.Async(new Register(source, cacheErrors))
+        Task.Async(new Register(source, cacheErrors), restoreLocals = false)
     }
 
   /** Registration function, used in `Task.Async`. */
@@ -58,7 +58,7 @@ private[eval] object TaskMemoize {
       implicit val sc = ctx.scheduler
       state.get match {
         case result: Try[A] @unchecked =>
-          cb.asyncApply(result)
+          cb(result)
         case _ =>
           start(ctx, cb)
       }
@@ -158,7 +158,7 @@ private[eval] object TaskMemoize {
         case ref: Try[A] @unchecked =>
           // Race condition happened
           // $COVERAGE-OFF$
-          cb.asyncApply(ref)
+          cb(ref)
           // $COVERAGE-ON$
       }
     }

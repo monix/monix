@@ -24,7 +24,7 @@ import scala.util.{Failure, Success}
 import concurrent.duration._
 
 object TaskMemoizeSuite extends BaseTestSuite {
-  test("Task.apply.memoize should work asynchronously for first subscriber") { implicit s =>
+  test("Task.memoize should work asynchronously for first subscriber") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }.memoize
       .flatMap(Task.now).flatMap(Task.now)
@@ -35,7 +35,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.apply.memoize should work synchronously for next subscribers") { implicit s =>
+  test("Task.memoize should work synchronously for next subscribers") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }.memoize
       .flatMap(Task.now).flatMap(Task.now)
@@ -49,7 +49,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(1)))
   }
 
-  test("Task.apply.memoize should be stack safe") { implicit s =>
+  test("Task.memoize should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task(1)
     for (_ <- 0 until count) task = task.memoize
@@ -60,7 +60,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.apply.flatMap.memoize should be stack safe, test 1") { implicit s =>
+  test("Task.flatMap.memoize should be stack safe, test 1") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task(1)
     for (_ <- 0 until count) task = task.memoize.flatMap(x => Task.now(x))
@@ -71,7 +71,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.apply.flatMap.memoize should be stack safe, test 2") { implicit s =>
+  test("Task.flatMap.memoize should be stack safe, test 2") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task(1)
     for (_ <- 0 until count) task = task.memoize.flatMap(x => Task(x))
@@ -82,10 +82,10 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.apply(error).memoize should work") { implicit s =>
+  test("Task(error).memoize should work") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
-    val task = Task.apply[Int] { effect += 1; throw dummy }.memoize
+    val task = Task[Int] { effect += 1; throw dummy }.memoize
       .flatMap(Task.now).flatMap(Task.now)
 
     val f1 = task.runAsync; s.tick()
@@ -95,13 +95,13 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Task.apply.memoize.materialize") { implicit s =>
+  test("Task.memoize.materialize") { implicit s =>
     val f = Task(10).memoize.materialize.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(Success(10))))
   }
 
-  test("Task.apply(error).memoize.materialize") { implicit s =>
+  test("Task(error).memoize.materialize") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Task[Int](throw dummy).memoize.materialize.runAsync
     s.tick()
@@ -299,7 +299,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.apply.memoize effects, sequential") { implicit s =>
+  test("Task.memoize effects, sequential") { implicit s =>
     var effect = 0
     val task1 = Task { effect += 1; 3 }.memoize
     val task2 = task1.map { x => effect += 1; x + 1 }
@@ -313,7 +313,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(result2.value, Some(Success(4)))
   }
 
-  test("Task.apply.memoize effects, parallel") { implicit s =>
+  test("Task.memoize effects, parallel") { implicit s =>
     var effect = 0
     val task1 = Task { effect += 1; 3 }.memoize
     val task2 = task1.map { x => effect += 1; x + 1 }
@@ -632,5 +632,21 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("Task.eval.memoizeOnSuccess.memoize !== Task.eval.memoizeOnSuccess") { implicit s =>
     val task = Task.eval(1).memoizeOnSuccess
     assert(task != task.memoize, "task != task.memoize")
+  }
+
+  testAsync("local.write.memoize works") { _ =>
+    import monix.execution.Scheduler.Implicits.global
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+
+    val task = for {
+      local <- TaskLocal(0)
+      v1 <- (local.write(100).flatMap(_ => local.read)).memoize
+      _ <- Task.shift
+      v2 <- local.read
+    } yield (v1, v2)
+
+    for (v <- task.runAsyncOpt) yield {
+      assertEquals(v, (100, 100))
+    }
   }
 }

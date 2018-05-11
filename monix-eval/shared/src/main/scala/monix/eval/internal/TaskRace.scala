@@ -26,7 +26,7 @@ private[eval] object TaskRace {
     * Implementation for `Task.race`.
     */
   def apply[A,B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
-    Task.unsafeCreate { (context, cb) =>
+    Task.Async { (context, cb) =>
       implicit val sc = context.scheduler
       val conn = context.connection
 
@@ -35,8 +35,8 @@ private[eval] object TaskRace {
       val connB = StackedCancelable()
       conn push CompositeCancelable(connA, connB)
 
-      val contextA = context.copy(connection = connA)
-      val contextB = context.copy(connection = connB)
+      val contextA = context.withConnection(connA)
+      val contextB = context.withConnection(connB)
 
       // First task: A
       Task.unsafeStartAsync(fa, contextA, new Callback[A] {
@@ -44,14 +44,14 @@ private[eval] object TaskRace {
           if (isActive.getAndSet(false)) {
             connB.cancel()
             conn.pop()
-            cb.asyncOnSuccess(Left(valueA))
+            cb.onSuccess(Left(valueA))
           }
 
         def onError(ex: Throwable): Unit =
           if (isActive.getAndSet(false)) {
             conn.pop()
             connB.cancel()
-            cb.asyncOnError(ex)
+            cb.onError(ex)
           } else {
             sc.reportFailure(ex)
           }
@@ -63,14 +63,14 @@ private[eval] object TaskRace {
           if (isActive.getAndSet(false)) {
             connA.cancel()
             conn.pop()
-            cb.asyncOnSuccess(Right(valueB))
+            cb.onSuccess(Right(valueB))
           }
 
         def onError(ex: Throwable): Unit =
           if (isActive.getAndSet(false)) {
             conn.pop()
             connA.cancel()
-            cb.asyncOnError(ex)
+            cb.onError(ex)
           } else {
             sc.reportFailure(ex)
           }

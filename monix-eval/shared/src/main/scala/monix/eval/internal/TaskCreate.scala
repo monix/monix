@@ -17,55 +17,115 @@
 
 package monix.eval.internal
 
-import monix.eval.{Callback, Task}
+import cats.effect.IO
+import monix.eval.{Callback, Coeval, Task}
 import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
 import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, Scheduler}
 
 private[eval] object TaskCreate {
   /**
-    * Implementation for `Task.create`
+    * Implementation for `Task.cancelable`
     */
-  def apply[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
-    // Wraps a callback into an implementation that pops the stack
-    // before calling onSuccess/onError
-    final class CreateCallback(conn: StackedCancelable, cb: Callback[A])
-      (implicit s: Scheduler)
-      extends Callback[A] {
-
-      def onSuccess(value: A): Unit = {
-        conn.pop()
-        cb.asyncOnSuccess(value)
-      }
-
-      def onError(ex: Throwable): Unit = {
-        conn.pop()
-        cb.asyncOnError(ex)
-      }
-    }
-
-    Task.unsafeCreate { (context, cb) =>
-      val s = context.scheduler
-      val conn = context.connection
+  def cancelableS[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+    Task.Async { (ctx, cb) =>
+      val s = ctx.scheduler
+      val conn = ctx.connection
       val cancelable = SingleAssignCancelable()
       conn push cancelable
 
-      // Forcing a real asynchronous boundary,
-      // otherwise stack-overflows can happen
-      s.executeTrampolined(() =>
-        try {
-          val ref = register(s, new CreateCallback(conn, cb)(s))
-          // Optimization to skip the assignment, as it's expensive
-          if (!ref.isInstanceOf[Cancelable.IsDummy])
-            cancelable := ref
-        }
-        catch {
-          case ex if NonFatal(ex) =>
-            // We cannot stream the error, because the callback might have
-            // been called already and we'd be violating its contract,
-            // hence the only thing possible is to log the error.
-            s.reportFailure(ex)
-        })
+      try {
+        val ref = start(s, new CancelableCallback(conn, cb))
+        // Optimization to skip the assignment, as it's expensive
+        if (!ref.isInstanceOf[Cancelable.IsDummy])
+          cancelable := ref
+      } catch {
+        case ex if NonFatal(ex) =>
+          // We cannot stream the error, because the callback might have
+          // been called already and we'd be violating its contract,
+          // hence the only thing possible is to log the error.
+          s.reportFailure(ex)
+      }
+    }
+
+  /** Implementation for `cats.effect.Concurrent#cancelable`. */
+  def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
+    cancelableS { (sc, cb) => Cancelable.fromIO(k(cb))(sc) }
+
+  /**
+    * Implementation for `Task.create`, used via `TaskBuilder`.
+    */
+  def cancelableIO[A](start: (Scheduler, Callback[A]) => IO[Unit]): Task[A] =
+    cancelableS { (sc, cb) => Cancelable.fromIO(start(sc, cb))(sc) }
+
+  /**
+    * Implementation for `Task.create`, used via `TaskBuilder`.
+    */
+  def cancelableTask[A](start: (Scheduler, Callback[A]) => Task[Unit]): Task[A] =
+    cancelableS { (sc, cb) =>
+      val task = start(sc, cb)
+      Cancelable(() => task.runAsync(Callback.empty(sc))(sc))
+    }
+
+  /**
+    * Implementation for `Task.create`, used via `TaskBuilder`.
+    */
+  def cancelableCoeval[A](start: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
+    cancelableS { (sc, cb) =>
+      val task = start(sc, cb)
+      Cancelable(task.value _)
+    }
+
+  /**
+    * Implementation for `Task.simple`
+    */
+  def asyncS[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
+    Task.Async { (ctx, cb) =>
+      val s = ctx.scheduler
+      try {
+        start(s, cb)
+      } catch {
+        case ex if NonFatal(ex) =>
+          // We cannot stream the error, because the callback might have
+          // been called already and we'd be violating its contract,
+          // hence the only thing possible is to log the error.
+          s.reportFailure(ex)
+      }
+    }
+
+  /**
+    * Implementation for `cats.effect.Async#async`.
+    *
+    * It duplicates the implementation of `Task.simple` with the purpose
+    * of avoiding extraneous callback allocations.
+    */
+  def async[A](k: Callback[A] => Unit): Task[A] =
+    Task.Async { (ctx, cb) =>
+      try k(cb) catch {
+        case ex if NonFatal(ex) =>
+          // We cannot stream the error, because the callback might have
+          // been called already and we'd be violating its contract,
+          // hence the only thing possible is to log the error.
+          ctx.scheduler.reportFailure(ex)
+      }
+    }
+
+  // Wraps a callback into an implementation that pops the stack
+  // before calling onSuccess/onError, also restoring the `Local`
+  // context in case the option is enabled
+  private[internal] final class CancelableCallback[A](
+    conn: StackedCancelable,
+    cb: Callback[A])
+    extends Callback[A] {
+
+    def onSuccess(value: A): Unit = {
+      conn.pop()
+      cb.onSuccess(value)
+    }
+
+    def onError(e: Throwable): Unit = {
+      conn.pop()
+      cb.onError(e)
     }
   }
 }

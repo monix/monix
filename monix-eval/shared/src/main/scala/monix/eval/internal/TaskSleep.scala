@@ -18,14 +18,14 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.eval.Task.Context
+import monix.eval.Task.{Async, Context}
 import monix.execution.cancelables.SingleAssignCancelable
 
 import scala.concurrent.duration.Duration
 
 private[eval] object TaskSleep {
-  def apply(timespan: Duration): Task[Unit] =
-    Task.Async { (ctx, cb) =>
+  def apply(timespan: Duration): Task[Unit] = {
+    val start = (ctx: Context, cb: Callback[Unit]) => {
       val c = SingleAssignCancelable()
       ctx.connection.push(c)
 
@@ -33,7 +33,10 @@ private[eval] object TaskSleep {
         timespan.length,
         timespan.unit,
         new SleepRunnable(ctx, cb))
+      ()
     }
+    Async(start, trampolineAfter = false)
+  }
 
   private final class SleepRunnable(ctx: Context, cb: Callback[Unit])
     extends Runnable {

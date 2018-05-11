@@ -56,7 +56,7 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     */
   def greenLight[A](fa: Task[A]): Task[A] = {
     // Inlining doOnFinish + doOnCancel
-    val taskWithRelease = Task.unsafeCreate[A] { (context, cb) =>
+    val taskWithRelease = Task.Async[A] { (context, cb) =>
       implicit val s = context.scheduler
       val c = Cancelable(() => semaphore.release())
       val conn = context.connection
@@ -86,7 +86,8 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     * has been acquired.
     */
   val acquire: Task[Unit] =
-    Task.unsafeCreate { (context, cb) =>
+    Task.Async { (context, cb) =>
+      import monix.execution.schedulers.TrampolineExecutionContext.immediate
       implicit val s = context.scheduler
       val f = semaphore.acquire()
 
@@ -100,7 +101,7 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
           context.frameRef.reset()
           conn.pop()
           cb(result)
-        }
+        }(immediate)
       }
     }
 

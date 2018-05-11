@@ -18,25 +18,34 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.eval.Task.Options
+import monix.eval.Task.{Async, Context, Options}
 import monix.execution.misc.NonFatal
 
 private[eval] object TaskExecuteWithOptions {
   /**
     * Implementation for `Task.executeWithOptions`
     */
-  def apply[A](self: Task[A], f: Options => Options): Task[A] =
-    Task.unsafeCreate { (context, cb) =>
+  def apply[A](self: Task[A], f: Options => Options): Task[A] = {
+    val start = (context: Context, cb: Callback[A]) => {
       implicit val s = context.scheduler
       var streamErrors = true
       try {
-        val context2 = context.copy(options = f(context.options))
+        val context2 = context.withOptions(f(context.options))
         streamErrors = false
-        Task.unsafeStartTrampolined[A](self, context2, Callback.async(cb))
+        Task.unsafeStartNow[A](self, context2, cb)
       } catch {
         case ex if NonFatal(ex) =>
-          if (streamErrors) cb.asyncOnError(ex)
-          else context.scheduler.reportFailure(ex)
+          if (streamErrors) cb.onError(ex) else {
+            // $COVERAGE-OFF$
+            context.scheduler.reportFailure(ex)
+            // $COVERAGE-ON$
+          }
       }
     }
+    Async(
+      start,
+      trampolineBefore = false,
+      trampolineAfter = true,
+      restoreLocals = false)
+  }
 }

@@ -40,14 +40,13 @@ private[eval] object TaskRunLoop {
     source: Task[A],
     context: Context,
     cb: Callback[A],
-    rcb: RestartCallback,
+    rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
     frameIndex: FrameIndex): Unit = {
 
     val cba = cb.asInstanceOf[Callback[Any]]
-    val sc = context.scheduler
-    val em = sc.executionModel
+    val em = context.scheduler.executionModel
     var current: Current = source
     var bFirstRef = bFirst
     var bRestRef = bRest
@@ -106,8 +105,8 @@ private[eval] object TaskRunLoop {
                 bFirstRef = null
             }
 
-          case Async(register) =>
-            executeAsyncTask(context, register, cba, rcb, bFirstRef, bRestRef, currentIndex)
+          case async @ Async(_, _, _, _) =>
+            executeAsyncTask(async, context, cba, rcb, bFirstRef, bRestRef, currentIndex)
             return
         }
 
@@ -141,7 +140,7 @@ private[eval] object TaskRunLoop {
     source: Task[A],
     context: Context,
     cb: Callback[A],
-    rcb: RestartCallback,
+    rcb: TaskRestartCallback,
     bindCurrent: Bind,
     bindRest: CallStack): Unit = {
 
@@ -159,6 +158,7 @@ private[eval] object TaskRunLoop {
       if (!context.shouldCancel) {
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
+
         // Transporting the current context if localContextPropagation == true.
         Local.bind(savedLocals) {
           // Using frameIndex = 1 to ensure at least one cycle gets executed
@@ -240,15 +240,16 @@ private[eval] object TaskRunLoop {
                 bFirst = null
             }
 
-          case Async(register) =>
+          case async =>
             return goAsyncForLightCB(
-              current,
-              register,
+              async,
               scheduler,
               opts,
               cb.asInstanceOf[Callback[Any]],
-              bFirst, bRest, frameIndex,
-              forceAsync = false)
+              bFirst,
+              bRest,
+              frameIndex,
+              forceFork = false)
         }
 
         if (hasUnboxed) {
@@ -270,11 +271,14 @@ private[eval] object TaskRunLoop {
       else {
         // Force async boundary
         return goAsyncForLightCB(
-          current, null,
-          scheduler, opts,
+          current,
+          scheduler,
+          opts,
           cb.asInstanceOf[Callback[Any]],
-          bFirst, bRest, frameIndex,
-          forceAsync = true)
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true)
       }
     } while (true)
     // $COVERAGE-OFF$
@@ -307,7 +311,7 @@ private[eval] object TaskRunLoop {
               if (bRest eq null) bRest = new ArrayStack()
               bRest.push(bFirst)
             }
-            bFirst = bindNext
+            /*_*/bFirst = bindNext/*_*/
             current = fa
 
           case Now(value) =>
@@ -353,13 +357,15 @@ private[eval] object TaskRunLoop {
                 bFirst = null
             }
 
-          case Async(register) =>
+          case async =>
             return goAsync4Future(
-              current, register,
-              scheduler, opts,
-              bFirst, bRest,
+              async,
+              scheduler,
+              opts,
+              bFirst,
+              bRest,
               frameIndex,
-              forceAsync = false)
+              forceFork = false)
         }
 
         if (hasUnboxed) {
@@ -382,12 +388,7 @@ private[eval] object TaskRunLoop {
         }
       } else {
         // Force async boundary
-        return goAsync4Future(
-          current, null,
-          scheduler, opts,
-          bFirst, bRest,
-          frameIndex,
-          forceAsync = true)
+        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true)
       }
     } while (true)
     // $COVERAGE-OFF$
@@ -396,10 +397,10 @@ private[eval] object TaskRunLoop {
   }
 
   private[internal] def executeAsyncTask(
+    task: Task.Async[Any],
     context: Context,
-    register: (Context, Callback[Any]) => Unit,
     cb: Callback[Any],
-    rcb: RestartCallback,
+    rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
     nextFrame: FrameIndex): Unit = {
@@ -416,9 +417,8 @@ private[eval] object TaskRunLoop {
     context.frameRef := nextFrame
 
     // rcb reference might be null, so initializing
-    val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
-    restartCallback.prepare(bFirst, bRest)
-    register(context, restartCallback)
+    val restartCallback = if (rcb != null) rcb else TaskRestartCallback(context, cb)
+    restartCallback.start(task, bFirst, bRest)
   }
 
   /** Called when we hit the first async boundary in
@@ -426,49 +426,44 @@ private[eval] object TaskRunLoop {
     */
   private def goAsyncForLightCB(
     source: Current,
-    register: (Context, Callback[Any]) => Unit,
     scheduler: Scheduler,
     opts: Task.Options,
     cb: Callback[Any],
     bFirst: Bind,
     bRest: CallStack,
     nextFrame: FrameIndex,
-    forceAsync: Boolean): Cancelable = {
+    forceFork: Boolean): Cancelable = {
 
     val context = Context(scheduler, opts)
-    if (register ne null)
-      executeAsyncTask(context, register, cb, null, bFirst, bRest, 1)
-    else if (forceAsync)
-      restartAsync(source, context, cb, null, bFirst, bRest)
-    else
-      startFull(source, context, cb, null, bFirst, bRest, nextFrame)
 
+    if (forceFork) {
+      restartAsync(source, context, cb, null, bFirst, bRest)
+    } else {
+      executeAsyncTask(source.asInstanceOf[Async[Any]], context, cb, null, bFirst, bRest, 1)
+    }
     context.connection
   }
 
   /** Called when we hit the first async boundary in [[startFuture]]. */
   private def goAsync4Future[A](
     source: Current,
-    register: (Context, Callback[Any]) => Unit,
     scheduler: Scheduler,
     opts: Task.Options,
     bFirst: Bind,
     bRest: CallStack,
     nextFrame: FrameIndex,
-    forceAsync: Boolean): CancelableFuture[A] = {
+    forceFork: Boolean): CancelableFuture[A] = {
 
     val p = Promise[A]()
     val cb = Callback.fromPromise(p)
-    val fa = source.asInstanceOf[Task[A]]
     val context = Context(scheduler, opts)
+    val current = source.asInstanceOf[Task[A]]
 
-    if (register ne null)
-      executeAsyncTask(context, register, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
-    else if (forceAsync)
-      restartAsync(fa, context, cb, null, bFirst, bRest)
-    else
-      startFull(fa, context, cb, null, bFirst, bRest, nextFrame)
-
+    if (forceFork) {
+      restartAsync(current, context, cb, null, bFirst, bRest)
+    } else {
+      executeAsyncTask(source.asInstanceOf[Async[Any]], context, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
+    }
     CancelableFuture(p.future, context.connection)
   }
 
@@ -511,44 +506,4 @@ private[eval] object TaskRunLoop {
 
   private def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
-
-  private[internal] final class RestartCallback(context: Context, callback: Callback[Any])
-    extends Callback[Any] {
-
-    private[this] var canCall = false
-    private[this] var bFirst: Bind = _
-    private[this] var bRest: CallStack = _
-    private[this] val runLoopIndex = context.frameRef
-    private[this] val withLocal = context.options.localContextPropagation
-    private[this] var savedLocals: Local.Context = _
-
-    def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
-      canCall = true
-      this.bFirst = bindCurrent
-      this.bRest = bindRest
-      if (withLocal)
-        savedLocals = Local.getContext()
-    }
-
-    def onSuccess(value: Any): Unit =
-      if (canCall && !context.shouldCancel) {
-        canCall = false
-        Local.bind(savedLocals) {
-          startFull(Now(value), context, callback, this, bFirst, bRest, runLoopIndex())
-        }
-      }
-
-    def onError(ex: Throwable): Unit = {
-      if (canCall && !context.shouldCancel) {
-        canCall = false
-        Local.bind(savedLocals) {
-          startFull(Error(ex), context, callback, this, bFirst, bRest, runLoopIndex())
-        }
-      } else {
-        // $COVERAGE-OFF$
-        context.scheduler.reportFailure(ex)
-        // $COVERAGE-ON$
-      }
-    }
-  }
 }
