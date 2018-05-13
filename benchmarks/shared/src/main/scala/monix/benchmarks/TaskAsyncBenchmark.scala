@@ -25,13 +25,13 @@ import scala.concurrent.duration.Duration
 
 /** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark TaskDeepBindBenchmark
+  *     benchmarks/run-benchmark TaskAsyncBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TaskDeepBindBenchmark
+  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TaskAsyncBenchmark
   *
   * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
   * Please note that benchmarks should be usually executed at least in
@@ -40,40 +40,19 @@ import scala.concurrent.duration.Duration
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class TaskDeepBindBenchmark {
+class TaskAsyncBenchmark {
   @Param(Array("3000"))
   var size: Int = _
 
   @Benchmark
-  def pure(): Int = {
+  def lightAsyncBoundary(): Int = {
     def loop(i: Int): Task[Int] =
-      for {
-        j <- Task.pure(i)
-        _ <- if(j > size) Task.pure(j) else loop(j + 1)
-      } yield j
+      if (i < size)
+        Task.now(i + 1).executeWithOptions(x => x).flatMap(loop)
+      else
+        Task.pure(i)
 
-    Await.result(loop(0).runAsync, Duration.Inf)
-  }
-
-  @Benchmark
-  def delay(): Int = {
-    def loop(i: Int): Task[Int] =
-      for {
-        j <- Task.eval(i)
-        _ <- if(j > size) Task.eval(j) else loop(j + 1)
-      } yield j
-
-    Await.result(loop(0).runAsync, Duration.Inf)
-  }
-
-  @Benchmark
-  def async(): Int = {
-    def loop(i: Int): Task[Int] =
-      for {
-        j <- Task.shift.map(_ => i)
-        _ <- if(j > size) Task.eval(j) else loop(j + 1)
-      } yield j
-
-    Await.result(loop(0).runAsync, Duration.Inf)
+    val task = Task.pure(0).flatMap(loop)
+    Await.result(task.runAsync, Duration.Inf)
   }
 }
