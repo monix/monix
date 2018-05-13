@@ -17,7 +17,7 @@
 
 package monix.execution.cancelables
 import monix.execution.Cancelable
-import monix.execution.Cancelable.Empty
+import monix.execution.Cancelable.{Empty, IsDummy}
 
 /** Represents a class of cancelables that can hold
   * an internal reference to another cancelable (and thus
@@ -78,8 +78,8 @@ object AssignableCancelable {
     * internal state and that doesn't do anything, either
     * on assignment or on cancelation.
     */
-  val dummy: Multi with Empty =
-    new Multi with Empty {
+  val dummy: Multi =
+    new Multi with IsDummy {
       def isCanceled: Boolean = false
       def `:=`(value: Cancelable): this.type = this
       def cancel(): Unit = ()
