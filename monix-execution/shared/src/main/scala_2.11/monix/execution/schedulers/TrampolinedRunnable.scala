@@ -17,6 +17,8 @@
 
 package monix.execution.schedulers
 
+import scala.concurrent.OnCompleteRunnable
+
 /** A marker for callbacks that can be batched and executed
   * locally (on the current thread) by means of a trampoline
   * (if the execution context / scheduler allows it).

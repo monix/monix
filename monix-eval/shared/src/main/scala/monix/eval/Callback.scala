@@ -138,6 +138,14 @@ object Callback {
     (implicit s: Scheduler): Callback[A] =
     new TrampolinedWithConn[A](conn, cb)
 
+  /** DEPRECATED — renamed to [[Callback.trampolined[A](cb* trampolined]]. */
+  @deprecated("Renamed to Callback.trampolined", since = "3.0.0-RC2")
+  def async[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] = {
+    // $COVERAGE-OFF$
+    trampolined(cb)(s)
+    // $COVERAGE-ON$
+  }
+
   /** Turns `Either[Throwable, A] => Unit` callbacks into Monix
     * callbacks.
     *
