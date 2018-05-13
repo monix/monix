@@ -21,7 +21,7 @@ import scala.math.{ceil, round}
 
 private[monix] object math {
   /** Natural log of 2 */
-  final val lnOf2 = scala.math.log(2)
+  val lnOf2 = scala.math.log(2)
 
   /**
    * Calculates the base 2 logarithm of the given argument.

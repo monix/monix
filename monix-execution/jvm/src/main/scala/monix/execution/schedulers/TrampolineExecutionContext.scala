@@ -99,7 +99,7 @@ object TrampolineExecutionContext {
   /** Returns the `localContext`, allowing us to bypass calling
     * `BlockContext.withBlockContext`, as an optimization trick.
     */
-  private final val localContext: ThreadLocal[BlockContext] = {
+  private val localContext: ThreadLocal[BlockContext] = {
     try {
       val methods = BlockContext.getClass.getDeclaredMethods
         .filter(m => m.getParameterCount == 0 && m.getReturnType == classOf[ThreadLocal[_]])

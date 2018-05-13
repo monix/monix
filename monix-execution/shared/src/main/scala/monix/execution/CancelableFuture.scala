@@ -229,7 +229,7 @@ object CancelableFuture {
     failed(e)
 
   /** An already completed [[CancelableFuture]]. */
-  final val unit: CancelableFuture[Unit] =
+  val unit: CancelableFuture[Unit] =
     successful(())
 
   /** Returns a [[CancelableFuture]] instance that will never complete. */
@@ -423,7 +423,7 @@ object CancelableFuture {
   }
 
   // Reusable reference to use in `CatsInstances.attempt`
-  private[this] final val liftToEitherRef: (Try[Any] => CancelableFuture[Either[Throwable, Any]]) =
+  private[this] val liftToEitherRef: (Try[Any] => CancelableFuture[Either[Throwable, Any]]) =
     tryA => new Pure(Success(tryA match {
       case Success(a) => Right(a)
       case Failure(e) => Left(e)

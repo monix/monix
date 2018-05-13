@@ -54,8 +54,8 @@ object Cancelable {
     new CancelableTask(callback)
 
   /** Returns a dummy [[Cancelable]] that doesn't do anything. */
-  val empty: IsDummy =
-    new Cancelable with IsDummy {
+  val empty: Empty =
+    new Empty {
       def cancel(): Unit = ()
       override def toString = "monix.execution.Cancelable.empty"
     }
@@ -144,8 +144,11 @@ object Cancelable {
     }
   }
 
+  /** Interface for cancelables that are empty or already canceled. */
+  trait Empty extends Cancelable with IsDummy
+
   /** Marker for cancelables that are dummies that can be ignored. */
-  trait IsDummy extends Cancelable
+  trait IsDummy { self: Cancelable => }
 
   /** Extension methods for [[Cancelable]]. */
   implicit final class Extensions(val self: Cancelable) extends AnyVal {

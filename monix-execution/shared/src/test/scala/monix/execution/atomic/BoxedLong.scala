@@ -20,8 +20,8 @@ package monix.execution.atomic
 case class BoxedLong(value: Long)
 
 object BoxedLong {
-  final val MinValue = BoxedLong(Long.MinValue)
-  final val MaxValue = BoxedLong(Long.MaxValue)
+  val MinValue = BoxedLong(Long.MinValue)
+  val MaxValue = BoxedLong(Long.MaxValue)
 
   implicit val numeric = new Numeric[BoxedLong] {
     def plus(x: BoxedLong, y: BoxedLong): BoxedLong =

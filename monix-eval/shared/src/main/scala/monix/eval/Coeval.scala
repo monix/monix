@@ -1225,9 +1225,9 @@ object Coeval extends CoevalInstancesLevel0 {
       super[Coeval].toString
   }
 
-  private final val nowConstructor: (Any => Coeval[Nothing]) =
+  private val nowConstructor: (Any => Coeval[Nothing]) =
     ((a: Any) => new Now(a)).asInstanceOf[Any => Coeval[Nothing]]
-  private final val raiseConstructor: (Throwable => Coeval[Nothing]) =
+  private val raiseConstructor: (Throwable => Coeval[Nothing]) =
     (e: Throwable) => new Error(e)
 
   /** Used as optimization by [[Coeval.failed]]. */

@@ -54,9 +54,9 @@ object Ack {
     * consumer is interested in receiving more events.
     */
   case object Continue extends Ack { self =>
-    final val AsSuccess = Success(Continue)
-    final val value = Some(AsSuccess)
-    final val isCompleted = true
+    val AsSuccess = Success(Continue)
+    val value = Some(AsSuccess)
+    val isCompleted = true
 
     final def ready(atMost: Duration)(implicit permit: CanAwait) = self
     final def result(atMost: Duration)(implicit permit: CanAwait) = Continue
@@ -66,9 +66,9 @@ object Ack {
     * consumer is no longer interested in receiving events.
     */
   case object Stop extends Ack { self =>
-    final val AsSuccess = Success(Stop)
-    final val value = Some(AsSuccess)
-    final val isCompleted = true
+    val AsSuccess = Success(Stop)
+    val value = Some(AsSuccess)
+    val isCompleted = true
 
     final def ready(atMost: Duration)(implicit permit: CanAwait) = self
     final def result(atMost: Duration)(implicit permit: CanAwait) = Stop

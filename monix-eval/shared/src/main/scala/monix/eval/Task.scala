@@ -3549,11 +3549,11 @@ object Task extends TaskInstancesLevel1 {
     Async((_,_) => ())
 
   /** Internal, reusable reference. */
-  private final val nowConstructor: Any => Task[Nothing] =
+  private val nowConstructor: Any => Task[Nothing] =
     ((a: Any) => new Now(a)).asInstanceOf[Any => Task[Nothing]]
 
   /** Internal, reusable reference. */
-  private final val raiseConstructor: Throwable => Task[Nothing] =
+  private val raiseConstructor: Throwable => Task[Nothing] =
     e => new Error(e)
 
   /** Used as optimization by [[Task.failed]]. */

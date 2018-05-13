@@ -27,7 +27,7 @@ import scala.util.{Failure, Success, Try}
 private[monix] object AttemptCallback {
 
   /** Reusable reference for ticks. */
-  final val tick: Either[Throwable, Unit] = Right(())
+  val tick: Either[Throwable, Unit] = Right(())
 
   /** Reusable runnable that triggers a tick. */
   final class RunnableTick(cb: Either[Throwable, Unit] => Unit)
