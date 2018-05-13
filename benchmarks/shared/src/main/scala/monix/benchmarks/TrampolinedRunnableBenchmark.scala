@@ -18,20 +18,18 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-import monix.eval.Task
+import monix.execution.Scheduler.global
 import org.openjdk.jmh.annotations._
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 
 /** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark TaskAsyncBenchmark
+  *     benchmarks/run-benchmark TrampolinedRunnableBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TaskAsyncBenchmark
+  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TrampolinedRunnableBenchmark
   *
   * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
   * Please note that benchmarks should be usually executed at least in
@@ -40,31 +38,35 @@ import scala.concurrent.duration.Duration
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class TaskAsyncBenchmark {
+class TrampolinedRunnableBenchmark {
   @Param(Array("3000"))
   var size: Int = _
 
   @Benchmark
-  def shift(): Int = {
-    def loop(i: Int): Task[Int] =
-      if (i < size)
-        Task.shift.map(_ => i + 1).flatMap(loop)
-      else
-        Task.pure(i)
+  def shallow(): Long = {
+    var sum = 0L
 
-    val task = Task.pure(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    def loop(n: Int, acc: Long): Unit =
+      global.executeTrampolined { () =>
+        if (n > 0) loop(n - 1, acc + n)
+        else sum = acc
+      }
+
+    loop(size, 0)
+    sum
   }
 
-  @Benchmark
-  def executeWithOptions(): Int = {
-    def loop(i: Int): Task[Int] =
-      if (i < size)
-        Task.now(i + 1).executeWithOptions(x => x).flatMap(loop)
-      else
-        Task.pure(i)
-
-    val task = Task.pure(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
-  }
+//  @Benchmark
+//  def deep(): Long = {
+//    var sum = 0L
+//
+//    global.executeTrampolined { () =>
+//      var i = size
+//      while (i > 0) {
+//        global.executeTrampolined(() => sum += i)
+//        i += 1
+//      }
+//    }
+//    sum
+//  }
 }

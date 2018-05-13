@@ -18,10 +18,7 @@
 package monix.execution.schedulers
 
 
-import monix.execution.misc.NonFatal
-
-import scala.annotation.tailrec
-import scala.collection.mutable
+import monix.execution.internal.Trampoline
 import scala.concurrent.ExecutionContext
 
 /** A `scala.concurrentExecutionContext` implementation
@@ -57,57 +54,13 @@ import scala.concurrent.ExecutionContext
 final class TrampolineExecutionContext private (underlying: ExecutionContext)
   extends ExecutionContext {
 
-  private[this] var immediateQueue = mutable.Queue.empty[Runnable]
-  private[this] var withinLoop = false
+  private[this] val trampoline = new Trampoline(underlying)
 
-  override def execute(runnable: Runnable): Unit = {
-    if (!withinLoop) {
-      withinLoop = true
-      try immediateLoop(runnable) finally {
-        withinLoop = false
-      }
-    } else {
-      immediateQueue.enqueue(runnable)
-    }
-  }
-
-  private def forkTheRest(): Unit = {
-    final class ResumeRun(head: Runnable, rest: mutable.Queue[Runnable])
-      extends Runnable {
-
-      def run(): Unit = {
-        if (rest.nonEmpty) immediateQueue.enqueue(rest:_*)
-        immediateLoop(head)
-      }
-    }
-
-    if (immediateQueue.nonEmpty) {
-      val rest = immediateQueue
-      immediateQueue = mutable.Queue.empty[Runnable]
-      val head = rest.dequeue()
-      underlying.execute(new ResumeRun(head, rest))
-    }
-  }
-
-  @tailrec
-  private def immediateLoop(task: Runnable): Unit = {
-    try {
-      task.run()
-    } catch {
-      case ex: Throwable =>
-        forkTheRest()
-        if (NonFatal(ex)) reportFailure(ex)
-        else throw ex
-    }
-
-    if (immediateQueue.nonEmpty) {
-      val next = immediateQueue.dequeue()
-      immediateLoop(next)
-    }
-  }
-
+  override def execute(runnable: Runnable): Unit =
+    trampoline.execute(runnable)
   override def reportFailure(t: Throwable): Unit =
     underlying.reportFailure(t)
+
 }
 
 object TrampolineExecutionContext {

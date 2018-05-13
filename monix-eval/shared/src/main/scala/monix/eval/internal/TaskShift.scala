@@ -27,7 +27,10 @@ private[eval] object TaskShift {
     * Implementation for `Task.shift`
     */
   def apply(ec: ExecutionContext): Task[Unit] = {
-    Async(new Start(ec), trampolineAfter = false)
+    Async(
+      new Start(ec),
+      trampolineBefore = false,
+      trampolineAfter = false)
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
@@ -40,9 +43,12 @@ private[eval] object TaskShift {
 
     def apply(context: Context, cb: Callback[Unit]): Unit = {
       val ec2 =
-        if (ec eq null) context.scheduler
-        else if (context.options.localContextPropagation) TracingScheduler(ec)
-        else ec
+        if (ec eq null)
+          context.scheduler
+        else if (context.options.localContextPropagation)
+          TracingScheduler(ec)
+        else
+          ec
 
       ec2.execute(new Runnable {
         def run(): Unit = {

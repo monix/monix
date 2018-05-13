@@ -72,6 +72,21 @@ private[monix] final class ArrayStack[A] private (
     index += 1
   }
 
+  /** Pushes an entire iterator on the stack. */
+  def pushAll(cursor: Iterator[A]): Unit = {
+    while (cursor.hasNext) push(cursor.next())
+  }
+
+  /** Pushes an entire sequence on the stack. */
+  def pushAll(seq: Iterable[A]): Unit = {
+    pushAll(seq.iterator)
+  }
+
+  /** Pushes another `ArrayStack` on this stack. */
+  def pushAll(stack: ArrayStack[A]): Unit = {
+    pushAll(stack.iterator)
+  }
+
   /** Pops an item from the stack (in LIFO order).
     *
     * Returns `null` in case the stack is empty.
@@ -100,4 +115,17 @@ private[monix] final class ArrayStack[A] private (
     System.arraycopy(array, 0, copy, 0, index)
     new ArrayStack[A](copy, minCapacity, index)
   }
+
+  /** Returns an iterator that can traverse the whole stack. */
+  def iterator: Iterator[A] =
+    new Iterator[A] {
+      private[this] var i = 0
+      def hasNext: Boolean = i < index
+
+      def next(): A = {
+        val elem = array(i)
+        i += 1
+        elem.asInstanceOf[A]
+      }
+    }
 }
