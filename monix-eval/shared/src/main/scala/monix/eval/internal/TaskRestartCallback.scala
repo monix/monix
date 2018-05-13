@@ -20,17 +20,15 @@ package monix.eval.internal
 import monix.eval.Task.{Context, Error, Now}
 import monix.eval.internal.TaskRunLoop.{Bind, CallStack, startFull}
 import monix.eval.{Callback, Task}
+import monix.execution.atomic.Atomic
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 
 private[internal] abstract class TaskRestartCallback(context: Context, callback: Callback[Any])
-  extends Callback[Any] with TrampolinedRunnable { self =>
-
-  private[this] val runLoopIndex = context.frameRef
-  private[this] val scheduler = context.scheduler
+  extends Callback[Any] with TrampolinedRunnable {
 
   // Modified on prepare()
-  private[this] var canCall = false
+  private[this] val canCall = Atomic(false)
   private[this] var bFirst: Bind = _
   private[this] var bRest: CallStack = _
   private[this] var register: (Context, Callback[Any]) => Unit = _
@@ -42,11 +40,12 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
   private[this] var trampolineAfter: Boolean = true
 
   final def start(task: Task.Async[Any], bindCurrent: Bind, bindRest: CallStack): Unit = {
-    canCall = true
     this.bFirst = bindCurrent
     this.bRest = bindRest
     this.trampolineAfter = task.trampolineAfter
     prepareStart(task)
+
+    canCall.lazySet(true)
 
     if (task.trampolineBefore) {
       this.register = task.register
@@ -57,27 +56,29 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
   }
 
   final def run(): Unit = {
-    this.register(context, this)
+    val fn = this.register
+    this.register = null
+    fn(context, this)
   }
 
   final def onSuccess(value: Any): Unit =
-    if (canCall && !context.shouldCancel) {
-      canCall = false
-      self.value = value
-      if (trampolineAfter)
-        scheduler.execute(onSuccessRun)
-      else
-        onSuccessRun.run()
+    if (canCall.getAndSet(false) && !context.shouldCancel) {
+      if (trampolineAfter) {
+        this.value = value
+        context.scheduler.execute(onSuccessRun)
+      } else {
+        syncOnSuccess(value)
+      }
     }
 
   final def onError(error: Throwable): Unit =
-    if (canCall && !context.shouldCancel) {
-      canCall = false
-      self.error = error
-      if (trampolineAfter)
-        scheduler.execute(onErrorRun)
-      else
-        onErrorRun.run()
+    if (canCall.getAndSet(false) && !context.shouldCancel) {
+      if (trampolineAfter) {
+        this.error = error
+        context.scheduler.execute(onErrorRun)
+      } else {
+        syncOnError(error)
+      }
     } else {
       // $COVERAGE-OFF$
       context.scheduler.reportFailure(error)
@@ -87,39 +88,44 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
   protected def prepareStart(task: Task.Async[_]): Unit = ()
   protected def prepareCallback: Callback[Any] = callback
   private[this] val wrappedCallback = prepareCallback
-  protected def afterFork(): Unit = ()
+
+  protected def syncOnSuccess(value: Any): Unit = {
+    val bFirst = this.bFirst
+    val bRest = this.bRest
+    this.bFirst = null
+    this.bRest = null
+    startFull(
+      Now(value),
+      context,
+      wrappedCallback,
+      this,
+      bFirst,
+      bRest,
+      this.context.frameRef())
+  }
+
+  protected def syncOnError(error: Throwable): Unit = {
+    val bFirst = this.bFirst
+    val bRest = this.bRest
+    this.bFirst = null
+    this.bRest = null
+    startFull(
+      Error(error),
+      context,
+      this.wrappedCallback,
+      this,
+      bFirst,
+      bRest,
+      this.context.frameRef())
+  }
 
   /** Reusable Runnable reference, to go lighter on memory allocations. */
   private[this] val onSuccessRun: TrampolinedRunnable =
-    new TrampolinedRunnable {
-      def run(): Unit = {
-        afterFork()
-        startFull(
-          Now(self.value),
-          context,
-          self.wrappedCallback,
-          self,
-          self.bFirst,
-          self.bRest,
-          self.runLoopIndex())
-      }
-    }
+    new TrampolinedRunnable { def run(): Unit = syncOnSuccess(value) }
 
   /** Reusable Runnable reference, to go lighter on memory allocations. */
   private[this] val onErrorRun: TrampolinedRunnable =
-    new TrampolinedRunnable {
-      def run(): Unit = {
-        afterFork()
-        startFull(
-          Error(self.error),
-          context,
-          callback,
-          self,
-          self.bFirst,
-          self.bRest,
-          self.runLoopIndex())
-      }
-    }
+    new TrampolinedRunnable { def run(): Unit = syncOnError(error) }
 }
 
 private[internal] object TaskRestartCallback {
@@ -164,7 +170,17 @@ private[internal] object TaskRestartCallback {
         }
       }
 
-    override def afterFork(): Unit = {
+    override protected def syncOnSuccess(value: Any): Unit = {
+      setPreparedLocals()
+      super.syncOnSuccess(value)
+    }
+
+    override protected def syncOnError(error: Throwable): Unit = {
+      setPreparedLocals()
+      super.syncOnError(error)
+    }
+
+    def setPreparedLocals(): Unit = {
       val preparedLocals = this.preparedLocals
       if (preparedLocals ne null) {
         previousLocals = Local.getContext()

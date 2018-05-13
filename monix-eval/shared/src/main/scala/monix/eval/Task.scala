@@ -1444,7 +1444,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
   /** Given a predicate function, keep retrying the
     * task until the function returns true.
     */
-  final def restartUntil(p: (A) => Boolean): Task[A] =
+  final def restartUntil(p: A => Boolean): Task[A] =
     this.flatMap(a => if (p(a)) now(a) else this.restartUntil(p))
 
   /** Returns a new `Task` that applies the mapping function to
@@ -3168,7 +3168,7 @@ object Task extends TaskInstancesLevel1 {
     def create[A](start: (Scheduler, Callback[A]) => CancelToken): Task[A]
   }
 
-  object AsyncBuilder {
+  object AsyncBuilder extends AsyncBuilder0 {
     /** Returns the implicit `AsyncBuilder` available in scope for the
       * given `CancelToken` type.
       */
@@ -3194,14 +3194,14 @@ object Task extends TaskInstancesLevel1 {
           TaskCreate.asyncS(start)
       }
 
-    /** Implicit `AsyncBuilder` for cancelable tasks, using
-      * [[monix.execution.Cancelable Cancelable]] values for
-      * specifying cancelation actions.
+    /** Implicit `AsyncBuilder` for non-cancelable tasks built by a function
+      * returning a [[Cancelable.IsDummy]] — this is a case of applying a
+      * compile-time optimization trick.
       */
-    implicit val forCancelable: AsyncBuilder[Cancelable] =
-      new AsyncBuilder[Cancelable] {
-        def create[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
-          TaskCreate.cancelableS(start)
+    implicit val forCancelableDummy: AsyncBuilder[Cancelable.IsDummy] =
+      new AsyncBuilder[Cancelable.IsDummy] {
+        def create[A](start: (Scheduler, Callback[A]) => Cancelable.IsDummy): Task[A] =
+          TaskCreate.asyncS2(start)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -3230,6 +3230,18 @@ object Task extends TaskInstancesLevel1 {
       new AsyncBuilder[Coeval[Unit]] {
         def create[A](start: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
           TaskCreate.cancelableCoeval(start)
+      }
+  }
+
+  private[Task] abstract class AsyncBuilder0 {
+    /** Implicit `AsyncBuilder` for cancelable tasks, using
+      * [[monix.execution.Cancelable Cancelable]] values for
+      * specifying cancelation actions.
+      */
+    implicit val forCancelable: AsyncBuilder[Cancelable] =
+      new AsyncBuilder[Cancelable] {
+        def create[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+          TaskCreate.cancelableS(start)
       }
   }
 
@@ -3474,7 +3486,7 @@ object Task extends TaskInstancesLevel1 {
     *        that starts the asynchronous computation and registers
     *        the callback to be called on completion
     */
-  private[eval] final case class Async[+A](
+  private[monix] final case class Async[+A](
     register: (Context, Callback[A]) => Unit,
     trampolineBefore: Boolean = false,
     trampolineAfter: Boolean = true,
@@ -3537,11 +3549,11 @@ object Task extends TaskInstancesLevel1 {
     Async((_,_) => ())
 
   /** Internal, reusable reference. */
-  private final val nowConstructor: (Any => Task[Nothing]) =
+  private final val nowConstructor: Any => Task[Nothing] =
     ((a: Any) => new Now(a)).asInstanceOf[Any => Task[Nothing]]
 
   /** Internal, reusable reference. */
-  private final val raiseConstructor: (Throwable => Task[Nothing]) =
+  private final val raiseConstructor: Throwable => Task[Nothing] =
     e => new Error(e)
 
   /** Used as optimization by [[Task.failed]]. */

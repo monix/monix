@@ -33,7 +33,7 @@ private[monix] final class ArrayStack[A] private (
   private[this] var index = initialIndex
 
   def this(chunkSize: Int) = this(new Array[AnyRef](chunkSize), chunkSize, 0)
-  def this() = this(16)
+  def this() = this(8)
 
   /** Returns `true` if the stack is empty. */
   def isEmpty: Boolean =
@@ -81,6 +81,8 @@ private[monix] final class ArrayStack[A] private (
       }
     }
     val result = array(index).asInstanceOf[A]
+    // GC purposes
+    array(index) = null
     index -= 1
     result
   }

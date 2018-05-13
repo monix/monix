@@ -31,7 +31,6 @@ private[eval] object TaskEvalAsync {
       trampolineBefore = false,
       restoreLocals = true)
 
-
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is task that forks on evaluation
   private final class EvalAsyncStart[A](a: () => A) extends ForkedStart[A] {

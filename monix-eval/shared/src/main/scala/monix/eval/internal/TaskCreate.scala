@@ -73,13 +73,31 @@ private[eval] object TaskCreate {
   def cancelableCoeval[A](start: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
     cancelableS { (sc, cb) =>
       val task = start(sc, cb)
-      Cancelable(task.value _)
+      Cancelable(() => task.value())
     }
 
   /**
-    * Implementation for `Task.simple`
+    * Implementation for `Task.async`
     */
   def asyncS[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
+    Task.Async { (ctx, cb) =>
+      val s = ctx.scheduler
+      try {
+        start(s, cb)
+      } catch {
+        case ex if NonFatal(ex) =>
+          // We cannot stream the error, because the callback might have
+          // been called already and we'd be violating its contract,
+          // hence the only thing possible is to log the error.
+          s.reportFailure(ex)
+      }
+    }
+
+  /**
+    * Implementation for `Task.create` for the case the given callback
+    * returns an empty cancelable.
+    */
+  def asyncS2[A](start: (Scheduler, Callback[A]) => Cancelable.IsDummy): Task[A] =
     Task.Async { (ctx, cb) =>
       val s = ctx.scheduler
       try {
