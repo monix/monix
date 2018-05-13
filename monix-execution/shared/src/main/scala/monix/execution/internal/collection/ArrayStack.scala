@@ -22,7 +22,7 @@ package collection
   *
   * INTERNAL API.
   */
-private[monix] final class TrampolineStack[A] private (
+private[monix] final class ArrayStack[A] private (
   initialArray: Array[AnyRef],
   chunkSize: Int,
   initialIndex: Int)
@@ -63,7 +63,7 @@ private[monix] final class TrampolineStack[A] private (
   }
 
   /** Pushes an entire sequence on the stack. */
-  def pushAll(stack: TrampolineStack[A]): Unit = {
+  def pushAll(stack: ArrayStack[A]): Unit = {
     pushAll(stack.iteratorReversed)
   }
 
@@ -86,10 +86,10 @@ private[monix] final class TrampolineStack[A] private (
   }
 
   /** Returns a shallow copy of this stack. */
-  override def clone(): TrampolineStack[A] = {
+  override def clone(): ArrayStack[A] = {
     val copy = new Array[AnyRef](array.length)
     System.arraycopy(array, 0, copy, 0, index)
-    new TrampolineStack[A](copy, chunkSize, index)
+    new ArrayStack[A](copy, chunkSize, index)
   }
 
   /** Builds an iterator out of this stack. */
