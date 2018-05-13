@@ -114,8 +114,7 @@ object ArrayStackSuite extends SimpleTestSuite {
     val clone = stack.clone()
     var list = List.empty[Int]
     while (!clone.isEmpty) {
-      assert(!clone.isEmpty)
-      list = stack.pop() :: list
+      list = clone.pop() :: list
     }
 
     assertEquals(list, expected)

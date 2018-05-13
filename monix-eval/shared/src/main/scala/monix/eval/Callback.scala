@@ -218,21 +218,34 @@ object Callback {
     (implicit s: Scheduler)
     extends Callback[A] with Runnable {
 
+    private[this] var canCall = true
     private[this] var value: A = _
     private[this] var error: Throwable = _
 
     final def onSuccess(value: A): Unit = {
-      this.value = value
-      s.execute(this)
+      if (canCall) {
+        canCall = false
+        this.value = value
+        s.execute(this)
+      }
     }
     final def onError(e: Throwable): Unit = {
-      this.error = e
-      s.execute(this)
+      if (canCall) {
+        this.error = e
+        s.execute(this)
+      } else {
+        s.reportFailure(e)
+      }
     }
     def run() = {
       val e = error
-      if (e ne null) cb.onError(e)
-      else cb.onSuccess(value)
+      if (e ne null) {
+        cb.onError(e)
+        error = null
+      } else {
+        cb.onSuccess(value)
+        value = null.asInstanceOf[A]
+      }
     }
   }
 

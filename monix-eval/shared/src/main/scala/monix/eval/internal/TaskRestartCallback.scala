@@ -20,7 +20,6 @@ package monix.eval.internal
 import monix.eval.Task.{Context, Error, Now}
 import monix.eval.internal.TaskRunLoop.{Bind, CallStack, startFull}
 import monix.eval.{Callback, Task}
-import monix.execution.atomic.Atomic
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 
@@ -28,7 +27,6 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
   extends Callback[Any] with TrampolinedRunnable {
 
   // Modified on prepare()
-  private[this] val canCall = Atomic(false)
   private[this] var bFirst: Bind = _
   private[this] var bRest: CallStack = _
   private[this] var register: (Context, Callback[Any]) => Unit = _
@@ -45,8 +43,6 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
     this.trampolineAfter = task.trampolineAfter
     prepareStart(task)
 
-    canCall.lazySet(true)
-
     if (task.trampolineBefore) {
       this.register = task.register
       context.scheduler.execute(this)
@@ -62,7 +58,7 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
   }
 
   final def onSuccess(value: Any): Unit =
-    if (canCall.getAndSet(false) && !context.shouldCancel) {
+    if (!context.shouldCancel) {
       if (trampolineAfter) {
         this.value = value
         context.scheduler.execute(onSuccessRun)
@@ -72,7 +68,7 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
     }
 
   final def onError(error: Throwable): Unit =
-    if (canCall.getAndSet(false) && !context.shouldCancel) {
+    if (!context.shouldCancel) {
       if (trampolineAfter) {
         this.error = error
         context.scheduler.execute(onErrorRun)

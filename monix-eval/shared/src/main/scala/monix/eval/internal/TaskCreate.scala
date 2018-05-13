@@ -18,8 +18,9 @@
 package monix.eval.internal
 
 import cats.effect.IO
+import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Coeval, Task}
-import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
+import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, Scheduler}
 
@@ -27,15 +28,15 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `Task.cancelable`
     */
-  def cancelableS[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
-    Task.Async { (ctx, cb) =>
-      val s = ctx.scheduler
+  def cancelableS[A](fn: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
+      implicit val s = ctx.scheduler
       val conn = ctx.connection
       val cancelable = SingleAssignCancelable()
       conn push cancelable
 
       try {
-        val ref = start(s, new CancelableCallback(conn, cb))
+        val ref = fn(s, Callback.trampolined(conn, cb))
         // Optimization to skip the assignment, as it's expensive
         if (!ref.isInstanceOf[Cancelable.IsDummy])
           cancelable := ref
@@ -46,7 +47,10 @@ private[eval] object TaskCreate {
           // hence the only thing possible is to log the error.
           s.reportFailure(ex)
       }
-    }
+    } : Unit
+
+    Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
 
   /** Implementation for `cats.effect.Concurrent#cancelable`. */
   def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
@@ -79,11 +83,11 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `Task.async`
     */
-  def asyncS[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
-    Task.Async { (ctx, cb) =>
-      val s = ctx.scheduler
+  def asyncS[A](fn: (Scheduler, Callback[A]) => Unit): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
+      implicit val s = ctx.scheduler
       try {
-        start(s, cb)
+        fn(s, Callback.trampolined(cb))
       } catch {
         case ex if NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
@@ -92,16 +96,19 @@ private[eval] object TaskCreate {
           s.reportFailure(ex)
       }
     }
+    Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
 
   /**
     * Implementation for `Task.create` for the case the given callback
     * returns an empty cancelable.
     */
-  def asyncS2[A](start: (Scheduler, Callback[A]) => Cancelable.Empty): Task[A] =
-    Task.Async { (ctx, cb) =>
-      val s = ctx.scheduler
+  def asyncS2[A](fn: (Scheduler, Callback[A]) => Cancelable.Empty): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
+      implicit val s = ctx.scheduler
       try {
-        start(s, cb)
+        fn(s, Callback.trampolined(cb))
+        ()
       } catch {
         case ex if NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
@@ -110,6 +117,8 @@ private[eval] object TaskCreate {
           s.reportFailure(ex)
       }
     }
+    Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
 
   /**
     * Implementation for `cats.effect.Async#async`.
@@ -117,33 +126,19 @@ private[eval] object TaskCreate {
     * It duplicates the implementation of `Task.simple` with the purpose
     * of avoiding extraneous callback allocations.
     */
-  def async[A](k: Callback[A] => Unit): Task[A] =
-    Task.Async { (ctx, cb) =>
-      try k(cb) catch {
+  def async[A](k: Callback[A] => Unit): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
+      implicit val s = ctx.scheduler
+      try {
+        k(Callback.trampolined(cb))
+      } catch {
         case ex if NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
           // been called already and we'd be violating its contract,
           // hence the only thing possible is to log the error.
-          ctx.scheduler.reportFailure(ex)
+          s.reportFailure(ex)
       }
     }
-
-  // Wraps a callback into an implementation that pops the stack
-  // before calling onSuccess/onError, also restoring the `Local`
-  // context in case the option is enabled
-  private[internal] final class CancelableCallback[A](
-    conn: StackedCancelable,
-    cb: Callback[A])
-    extends Callback[A] {
-
-    def onSuccess(value: A): Unit = {
-      conn.pop()
-      cb.onSuccess(value)
-    }
-
-    def onError(e: Throwable): Unit = {
-      conn.pop()
-      cb.onError(e)
-    }
+    Async(start, trampolineBefore = false, trampolineAfter = false)
   }
 }
