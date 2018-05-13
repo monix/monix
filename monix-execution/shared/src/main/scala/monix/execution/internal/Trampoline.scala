@@ -17,13 +17,13 @@
 
 package monix.execution.internal
 
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.TrampolineStack
 import monix.execution.misc.NonFatal
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
 private[execution] class Trampoline(underlying: ExecutionContext) {
-  private[this] var immediateQueue = new ArrayStack[Runnable]()
+  private[this] var immediateQueue = new TrampolineStack[Runnable]()
   private[this] var withinLoop = false
 
   def startLoop(runnable: Runnable): Unit = {
@@ -42,7 +42,7 @@ private[execution] class Trampoline(underlying: ExecutionContext) {
   }
 
   protected final def forkTheRest(): Unit = {
-    final class ResumeRun(head: Runnable, rest: ArrayStack[Runnable])
+    final class ResumeRun(head: Runnable, rest: TrampolineStack[Runnable])
       extends Runnable {
 
       def run(): Unit = {
@@ -54,7 +54,7 @@ private[execution] class Trampoline(underlying: ExecutionContext) {
     val head = immediateQueue.pop()
     if (head ne null) {
       val rest = immediateQueue
-      immediateQueue = new ArrayStack[Runnable]
+      immediateQueue = new TrampolineStack[Runnable]
       underlying.execute(new ResumeRun(head, rest))
     }
   }
