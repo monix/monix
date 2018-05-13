@@ -26,7 +26,7 @@ private[monix] final class ArrayStack[A] private (
   initialArray: Array[AnyRef],
   chunkSize: Int,
   initialIndex: Int)
-  extends Serializable with Cloneable { self =>
+  extends Serializable { self =>
 
   private[this] val modulo = chunkSize - 1
   private[this] var array = initialArray
@@ -85,13 +85,6 @@ private[monix] final class ArrayStack[A] private (
     array(index) = null
     index -= 1
     result
-  }
-
-  /** Returns a shallow copy of this stack. */
-  override def clone(): ArrayStack[A] = {
-    val copy = new Array[AnyRef](array.length)
-    System.arraycopy(array, 0, copy, 0, index)
-    new ArrayStack[A](copy, chunkSize, index)
   }
 
   /** Builds an iterator out of this stack. */

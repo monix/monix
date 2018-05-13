@@ -105,21 +105,4 @@ object ArrayStackSuite extends SimpleTestSuite {
     for (i <- expected) stack.push(i)
     assertEquals(stack.iteratorReversed.toList, expected.reverse)
   }
-
-  test("clone") {
-    val stack = new ArrayStack[Int]()
-    val expected = (0 until 100).toList
-    for (i <- expected) stack.push(i)
-
-    val clone = stack.clone()
-    var list = List.empty[Int]
-    while (!clone.isEmpty) {
-      list = clone.pop() :: list
-    }
-
-    assertEquals(list, expected)
-    assert(clone.isEmpty, "clone.isEmpty")
-    assert(!stack.isEmpty, "!stack.isEmpty")
-    assertEquals(stack.iteratorReversed.toList.reverse, expected)
-  }
 }
