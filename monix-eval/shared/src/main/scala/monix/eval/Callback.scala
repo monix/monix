@@ -110,7 +110,7 @@ object Callback {
     * trampoline, thus execution being faster and immediate, but still avoiding
     * growing the call-stack and thus avoiding stack overflows.
     *
-    * @see [[trampolined]]
+    * @see [[Callback.trampolined[A](cb* trampolined]]
     */
   def forked[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] =
     new AsyncForkCallback[A](cb)

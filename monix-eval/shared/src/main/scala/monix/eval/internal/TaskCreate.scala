@@ -97,7 +97,7 @@ private[eval] object TaskCreate {
     * Implementation for `Task.create` for the case the given callback
     * returns an empty cancelable.
     */
-  def asyncS2[A](start: (Scheduler, Callback[A]) => Cancelable.IsDummy): Task[A] =
+  def asyncS2[A](start: (Scheduler, Callback[A]) => Cancelable.Empty): Task[A] =
     Task.Async { (ctx, cb) =>
       val s = ctx.scheduler
       try {

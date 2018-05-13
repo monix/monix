@@ -32,6 +32,12 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
+  test("can use Cancelable.empty as return type") { implicit sc =>
+    val task = Task.create[Int] { (_, cb) => cb.onSuccess(1); Cancelable.empty }
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(1)))
+  }
+
   test("returning Unit yields non-cancelable tasks") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       sc.scheduleOnce(1.second)(cb.onSuccess(1))

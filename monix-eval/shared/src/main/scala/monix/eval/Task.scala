@@ -3273,12 +3273,15 @@ object Task extends TaskInstancesLevel1 {
       }
 
     /** Implicit `AsyncBuilder` for non-cancelable tasks built by a function
-      * returning a [[Cancelable.IsDummy]] — this is a case of applying a
-      * compile-time optimization trick.
+      * returning a [[monix.execution.Cancelable.Empty Cancelable.Empty]].
+      *
+      * This is a case of applying a compile-time optimization trick,
+      * completely ignoring the provided cancelable value, since we've got
+      * a guarantee that it doesn't do anything.
       */
-    implicit val forCancelableDummy: AsyncBuilder[Cancelable.IsDummy] =
-      new AsyncBuilder[Cancelable.IsDummy] {
-        def create[A](start: (Scheduler, Callback[A]) => Cancelable.IsDummy): Task[A] =
+    implicit val forCancelableDummy: AsyncBuilder[Cancelable.Empty] =
+      new AsyncBuilder[Cancelable.Empty] {
+        def create[A](start: (Scheduler, Callback[A]) => Cancelable.Empty): Task[A] =
           TaskCreate.asyncS2(start)
       }
 
