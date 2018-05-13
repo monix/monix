@@ -19,6 +19,8 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
+import monix.execution.internal.Platform
+
 import concurrent.duration._
 import scala.util.Success
 
@@ -67,5 +69,43 @@ object TaskStartSuite extends BaseTestSuite {
     for (v <- task.runAsyncOpt) yield {
       assertEquals(v, (100, 100, 100))
     }
+  }
+
+  test("task.start starts evaluation immediately") { implicit sc =>
+    val task = Task(1 + 1).start.flatMap(_.join)
+    assertEquals(task.runAsync.value, Some(Success(2)))
+  }
+
+  test("task.start is stack safe") { implicit sc =>
+    val count = if (Platform.isJVM) 10000 else 1000
+    def loop(n: Int): Task[Unit] =
+      if (n > 0)
+        Task(n - 1).start.flatMap(_.join).flatMap(loop)
+      else
+        Task.unit
+
+    val f = loop(count).runAsync; sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("task.fork executes asynchronously") { implicit sc =>
+    val task = Task(1 + 1).fork.flatMap(_.join)
+    val f = task.runAsync
+
+    assertEquals(f.value, None)
+    sc.tick()
+    assertEquals(f.value, Some(Success(2)))
+  }
+
+  test("task.fork is stack safe") { implicit sc =>
+    val count = if (Platform.isJVM) 10000 else 1000
+    def loop(n: Int): Task[Unit] =
+      if (n > 0)
+        Task(n - 1).fork.flatMap(_.join).flatMap(loop)
+      else
+        Task.unit
+
+    val f = loop(count).runAsync; sc.tick()
+    assertEquals(f.value, Some(Success(())))
   }
 }

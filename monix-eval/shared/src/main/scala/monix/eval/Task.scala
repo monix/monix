@@ -86,7 +86,7 @@ import scala.util.{Failure, Success, Try}
   * {{{
   *   import monix.execution.CancelableFuture
   *
-  *   val f: CancelableFuture[Unit] = sayHello.run()
+  *   val f: CancelableFuture[Unit] = sayHello.runAsync
   *   //=> Hello World!
   * }}}
   *
@@ -231,8 +231,8 @@ import scala.util.{Failure, Success, Try}
   * {{{
   *   import scala.concurrent.duration._
   *
-  *   val ta = Task.evalAsync(1)
-  *     .delayExecution(4.seconds)
+  *   val ta = Task(1 + 1).delayExecution(4.seconds)
+  *   
   *   val tb = Task.raiseError(new TimeoutException)
   *     .delayExecution(4.seconds)
   *
@@ -612,7 +612,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * {{{
     *   import scala.concurrent.CancellationException
     *
-    *   val source = Task.evalAsync(1).delayExecution(5.seconds)
+    *   val source = Task(1).delayExecution(5.seconds)
     *
     *   // Option 1: trigger error on cancellation
     *   val err = new CancellationException
@@ -649,7 +649,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * {{{
     *   import scala.concurrent.CancellationException
     *
-    *   val source = Task.evalAsync(1).delayExecution(5.seconds)
+    *   val source = Task(1).delayExecution(5.seconds)
     *
     *   // Option 1: trigger error on cancellation
     *   val err = new CancellationException
@@ -688,7 +688,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *   import monix.execution.Scheduler
     *   val io = Scheduler.io()
     *
-    *   val source = Task.evalAsync(1).executeOn(io).map(_ + 1)
+    *   val source = Task(1).executeOn(io).map(_ + 1)
     * }}}
     *
     * That task is being forced to execute on the `io` scheduler,
@@ -721,7 +721,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *   import monix.execution.Scheduler
     *   val io = Scheduler.io()
     *
-    *   val source = Task.evalAsync(1).executeOn(io).map(_ + 1)
+    *   val source = Task(1).executeOn(io).map(_ + 1)
     * }}}
     *
     * That task is being forced to execute on the `io` scheduler,
@@ -910,7 +910,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * doing that we're introducing a 3 seconds delay:
     *
     * {{{
-    *   Task.evalAsync(println("Hello!"))
+    *   Task(println("Hello!"))
     *     .delayExecution(3.seconds)
     * }}}
     *
@@ -1045,8 +1045,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * the `io` scheduler:
     *
     * {{{
-    *   Task.evalAsync("Hello, " + "World!")
-    *     .executeOn(io, forceAsync = false)
+    *   Task("Hello, " + "World!").executeOn(io, forceAsync = false)
     * }}}
     *
     * Also note that overriding the "default" scheduler can only
@@ -1321,7 +1320,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * a forced async boundary.
     */
   final def fork: Task[Fiber[A @uV]] =
-    executeAsync.start
+    TaskStart.forked(this)
 
   /** Start asynchronous execution of the source suspended in the `Task` context,
     * running it in the background and discarding the result.
@@ -1611,7 +1610,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * a forced async boundary.
     */
   final def start: Task[Fiber[A @uV]] =
-    TaskStart(this)
+    TaskStart.trampolined(this)
 
   /** Converts the source `Task` to any data type that implements
     * either `cats.effect.Concurrent` or `cats.effect.Async`.
@@ -1830,6 +1829,22 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
   *         {{{
   *           task.forEffect(Task.shift)
   *         }}}
+  *
+  * @define parallelismNote NOTE: the tasks get forked automatically so there's
+  *         no need to force asynchronous execution for immediate tasks,
+  *         parallelism being guaranteed when multi-threading is available!
+  *
+  *         All specified tasks get evaluated in parallel, regardless of their
+  *         execution model ([[Task.eval]] vs [[Task.evalAsync]] doesn't matter).
+  *         Also the implementation tries to be smart about detecting forked
+  *         tasks so it can eliminate extraneous forks for the very obvious
+  *         cases.
+  *
+  * @define parallelismAdvice ADVICE: In a real life scenario the tasks should
+  *         be expensive in order to warrant parallel execution. Parallelism
+  *         doesn't magically speed up the code - it's usually fine for I/O-bound
+  *         tasks, however for CPU-bound tasks it can make things worse.
+  *         Performance improvements need to be verified.
   */
 object Task extends TaskInstancesLevel1 {
   /** Lifts the given thunk in the `Task` context, processing it synchronously
@@ -1849,7 +1864,7 @@ object Task extends TaskInstancesLevel1 {
     * [[Task.eval]] with [[Task.executeAsync]].
     */
   def apply[A](@deprecatedName('f) a: => A): Task[A] =
-    eval(a).executeAsync
+    eval(a)
 
   /** Returns a `Task` that on execution is always successful, emitting
     * the given strict value.
@@ -2501,9 +2516,11 @@ object Task extends TaskInstancesLevel1 {
     *
     * Similarly [[Task.timeoutTo]] is expressed in terms of `race`.
     *
-    * Also see [[racePair]] for a version that does not cancel
-    * the loser automatically on successful results. And [[raceMany]]
-    * for a version that races a whole list of tasks.
+    * $parallelismNote
+    *
+    * @see [[racePair]] for a version that does not cancel
+    *     the loser automatically on successful results and [[raceMany]]
+    *     for a version that races a whole list of tasks.
     */
   def race[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
     TaskRace(fa, fb)
@@ -2521,8 +2538,10 @@ object Task extends TaskInstancesLevel1 {
     *   val winner: Task[Int] = Task.raceMany(list)
     * }}}
     *
-    * See [[race]] or [[racePair]] for racing two tasks, for more
-    * control.
+    * $parallelismNote
+    *
+    * @see [[race]] or [[racePair]] for racing two tasks, for more
+    *      control.
     */
   def raceMany[A](tasks: TraversableOnce[Task[A]]): Task[A] =
     TaskRaceList(tasks)
@@ -2549,8 +2568,10 @@ object Task extends TaskInstancesLevel1 {
     *   }
     * }}}
     *
-    * See [[race]] for a simpler version that cancels the loser
-    * immediately or [[raceMany]] that races collections of tasks.
+    * $parallelismNote
+    *
+    * @see [[race]] for a simpler version that cancels the loser
+    *      immediately or [[raceMany]] that races collections of tasks.
     */
   def racePair[A,B](fa: Task[A], fb: Task[B]): Task[Either[(A, Fiber[B]), (Fiber[A], B)]] =
     TaskRacePair(fa, fb)
@@ -2641,6 +2662,18 @@ object Task extends TaskInstancesLevel1 {
     * Although the effects are unordered, we ensure the order of results
     * matches the order of the input sequence. Also see [[gatherUnordered]]
     * for the more efficient alternative.
+    *
+    * Example:
+    * {{{
+    *   val tasks = List(Task(1 + 1), Task(2 + 2), Task(3 + 3))
+    *
+    *   // Yields 2, 4, 6
+    *   Task.gather(tasks)
+    * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
     */
   def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
@@ -2662,16 +2695,18 @@ object Task extends TaskInstancesLevel1 {
     * for the more efficient alternative.
     *
     * It's a generalized version of [[gather]].
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
     */
   def wander[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
     (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] =
     Task.eval(in.map(f)).flatMap(col => TaskGather[B, M](col, () => cbf(in)))
 
-  /** Nondeterministically gather results from the given collection of tasks,
-    * without keeping the original ordering of results.
-    *
-    * If the tasks in the list are set to execute asynchronously, forking
-    * logical threads, then the tasks will execute in parallel.
+  /** Processes the given collection of tasks in parallel and
+    * nondeterministically gather the results without keeping the original
+    * ordering of the given tasks.
     *
     * This function is similar to [[gather]], but neither the effects nor the
     * results will be ordered. Useful when you don't need ordering because:
@@ -2679,6 +2714,18 @@ object Task extends TaskInstancesLevel1 {
     *  - it has non-blocking behavior (but not wait-free)
     *  - it can be more efficient (compared with [[gather]]), but not
     *    necessarily (if you care about performance, then test)
+    *
+    * Example:
+    * {{{
+    *   val tasks = List(Task(1 + 1), Task(2 + 2), Task(3 + 3))
+    *
+    *   // Yields 2, 4, 6 (but order is NOT guaranteed)
+    *   Task.gatherUnordered(tasks)
+    * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
     *
     * @param in is a list of tasks to execute
     */
@@ -2697,18 +2744,29 @@ object Task extends TaskInstancesLevel1 {
     *    necessarily (if you care about performance, then test)
     *
     * It's a generalized version of [[gatherUnordered]].
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
     */
   def wanderUnordered[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B]): Task[List[B]] =
     Task.eval(in.map(f)).flatMap(gatherUnordered)
 
-  /** Apply a mapping functions to the results of two tasks, nondeterministically
-    * ordering their effects.
+  /** Yields a task that on evaluation will process the given tasks
+    * in parallel, then apply the given mapping function on their results.
     *
-    * If the two tasks are synchronous, they'll get executed one
-    * after the other, with the result being available asynchronously.
-    * If the two tasks are asynchronous, they'll get scheduled for execution
-    * at the same time and in a multi-threading environment they'll execute
-    * in parallel and have their results synchronized.
+    * Example:
+    * {{{
+    *   val task1 = Task(1 + 1)
+    *   val task2 = Task(2 + 2)
+    *
+    *   // Yields 6
+    *   Task.mapBoth(task1, task2)((a, b) => a + b)
+    * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
     */
   def mapBoth[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
     TaskMapBoth(fa1, fa2)(f)
@@ -2724,8 +2782,8 @@ object Task extends TaskInstancesLevel1 {
     * operation being described in terms of [[Task.flatMap .flatMap]].
     *
     * {{{
-    *   val fa1 = Task.evalAsync(1)
-    *   val fa2 = Task.evalAsync(2)
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
     *
     *   // Yields Success(3)
     *   Task.map2(fa1, fa2) { (a, b) =>
@@ -2755,9 +2813,9 @@ object Task extends TaskInstancesLevel1 {
     * operation being described in terms of [[Task.flatMap .flatMap]].
     *
     * {{{
-    *   val fa1 = Task.evalAsync(1)
-    *   val fa2 = Task.evalAsync(2)
-    *   val fa3 = Task.evalAsync(3)
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
     *
     *   // Yields Success(6)
     *   Task.map3(fa1, fa2, fa3) { (a, b, c) =>
@@ -2790,10 +2848,10 @@ object Task extends TaskInstancesLevel1 {
     * operation being described in terms of [[Task.flatMap .flatMap]].
     *
     * {{{
-    *   val fa1 = Task.evalAsync(1)
-    *   val fa2 = Task.evalAsync(2)
-    *   val fa3 = Task.evalAsync(3)
-    *   val fa4 = Task.evalAsync(4)
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
     *
     *   // Yields Success(10)
     *   Task.map4(fa1, fa2, fa3, fa4) { (a, b, c, d) =>
@@ -2827,11 +2885,11 @@ object Task extends TaskInstancesLevel1 {
     * operation being described in terms of [[Task.flatMap .flatMap]].
     *
     * {{{
-    *   val fa1 = Task.evalAsync(1)
-    *   val fa2 = Task.evalAsync(2)
-    *   val fa3 = Task.evalAsync(3)
-    *   val fa4 = Task.evalAsync(4)
-    *   val fa5 = Task.evalAsync(5)
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
+    *   val fa5 = Task(5)
     *
     *   // Yields Success(15)
     *   Task.map5(fa1, fa2, fa3, fa4, fa5) { (a, b, c, d, e) =>
@@ -2865,12 +2923,12 @@ object Task extends TaskInstancesLevel1 {
     * operation being described in terms of [[Task.flatMap .flatMap]].
     *
     * {{{
-    *   val fa1 = Task.evalAsync(1)
-    *   val fa2 = Task.evalAsync(2)
-    *   val fa3 = Task.evalAsync(3)
-    *   val fa4 = Task.evalAsync(4)
-    *   val fa5 = Task.evalAsync(5)
-    *   val fa6 = Task.evalAsync(6)
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
+    *   val fa5 = Task(5)
+    *   val fa6 = Task(6)
     *
     *   // Yields Success(21)
     *   Task.map6(fa1, fa2, fa3, fa4, fa5, fa6) { (a, b, c, d, e, f) =>
@@ -2895,7 +2953,7 @@ object Task extends TaskInstancesLevel1 {
 
   /** Pairs 2 `Task` values, applying the given mapping function,
     * ordering the results, but not the side effects, the evaluation
-    * being done in parallel if the tasks are async.
+    * being done in parallel.
     *
     * This is a specialized [[Task.gather]] operation and as such
     * the tasks are evaluated in parallel, ordering the results.
@@ -2903,8 +2961,8 @@ object Task extends TaskInstancesLevel1 {
     * cancelled and the final result will be a failure.
     *
     * {{{
-    *   val fa1 = Task.evalAsync(1)
-    *   val fa2 = Task.evalAsync(2)
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
     *
     *   // Yields Success(3)
     *   Task.parMap2(fa1, fa2) { (a, b) =>
@@ -2917,6 +2975,10 @@ object Task extends TaskInstancesLevel1 {
     *   }
     * }}}
     *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
+    *
     * See [[Task.map2]] for sequential processing.
     */
   def parMap2[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
@@ -2924,7 +2986,7 @@ object Task extends TaskInstancesLevel1 {
 
   /** Pairs 3 `Task` values, applying the given mapping function,
     * ordering the results, but not the side effects, the evaluation
-    * being done in parallel if the tasks are async.
+    * being done in parallel.
     *
     * This is a specialized [[Task.gather]] operation and as such
     * the tasks are evaluated in parallel, ordering the results.
@@ -2932,9 +2994,9 @@ object Task extends TaskInstancesLevel1 {
     * cancelled and the final result will be a failure.
     *
     * {{{
-    *   val fa1 = Task.evalAsync(1)
-    *   val fa2 = Task.evalAsync(2)
-    *   val fa3 = Task.evalAsync(3)
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
     *
     *   // Yields Success(6)
     *   Task.parMap3(fa1, fa2, fa3) { (a, b, c) =>
@@ -2946,6 +3008,10 @@ object Task extends TaskInstancesLevel1 {
     *     a + b + c
     *   }
     * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
     *
     * See [[Task.map3]] for sequential processing.
     */
@@ -2964,10 +3030,10 @@ object Task extends TaskInstancesLevel1 {
     * cancelled and the final result will be a failure.
     *
     * {{{
-    *   val fa1 = Task.evalAsync(1)
-    *   val fa2 = Task.evalAsync(2)
-    *   val fa3 = Task.evalAsync(3)
-    *   val fa4 = Task.evalAsync(4)
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
     *
     *   // Yields Success(10)
     *   Task.parMap4(fa1, fa2, fa3, fa4) { (a, b, c, d) =>
@@ -2979,6 +3045,10 @@ object Task extends TaskInstancesLevel1 {
     *     (a, b, c, d) => a + b + c + d
     *   }
     * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
     *
     * See [[Task.map4]] for sequential processing.
     */
@@ -2997,11 +3067,11 @@ object Task extends TaskInstancesLevel1 {
     * cancelled and the final result will be a failure.
     *
     * {{{
-    *   val fa1 = Task.evalAsync(1)
-    *   val fa2 = Task.evalAsync(2)
-    *   val fa3 = Task.evalAsync(3)
-    *   val fa4 = Task.evalAsync(4)
-    *   val fa5 = Task.evalAsync(5)
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
+    *   val fa5 = Task(5)
     *
     *   // Yields Success(15)
     *   Task.parMap5(fa1, fa2, fa3, fa4, fa5) { (a, b, c, d, e) =>
@@ -3013,6 +3083,10 @@ object Task extends TaskInstancesLevel1 {
     *     (a, b, c, d, e) => a + b + c + d + e
     *   }
     * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
     *
     * See [[Task.map5]] for sequential processing.
     */
@@ -3031,12 +3105,12 @@ object Task extends TaskInstancesLevel1 {
     * cancelled and the final result will be a failure.
     *
     * {{{
-    *   val fa1 = Task.evalAsync(1)
-    *   val fa2 = Task.evalAsync(2)
-    *   val fa3 = Task.evalAsync(3)
-    *   val fa4 = Task.evalAsync(4)
-    *   val fa5 = Task.evalAsync(5)
-    *   val fa6 = Task.evalAsync(6)
+    *   val fa1 = Task(1)
+    *   val fa2 = Task(2)
+    *   val fa3 = Task(3)
+    *   val fa4 = Task(4)
+    *   val fa5 = Task(5)
+    *   val fa6 = Task(6)
     *
     *   // Yields Success(21)
     *   Task.parMap6(fa1, fa2, fa3, fa4, fa5, fa6) { (a, b, c, d, e, f) =>
@@ -3048,6 +3122,10 @@ object Task extends TaskInstancesLevel1 {
     *     (a, b, c, d, e, f) => a + b + c + d + e + f
     *   }
     * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
     *
     * See [[Task.map6]] for sequential processing.
     */
