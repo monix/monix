@@ -50,7 +50,7 @@ object TypeClassLawsForTaskRunSyncUnsafeSuite extends monix.execution.BaseLawsSu
     // because they'd behave really badly with an Eq[Task] that depends on
     // blocking threads
     allowNonTerminationLaws = false)
-  
+
   implicit def equalityTask[A](implicit A: Eq[A]): Eq[Task[A]] =
     Eq.instance { (a, b) =>
       val ta = Try(a.runSyncUnsafe(timeout))
@@ -68,7 +68,7 @@ object TypeClassLawsForTaskRunSyncUnsafeSuite extends monix.execution.BaseLawsSu
 
   implicit def equalityIO[A](implicit A: Eq[A]): Eq[IO[A]] =
     Eq.instance { (a, b) =>
-      val ta = Try(a.unsafeRunSync()) 
+      val ta = Try(a.unsafeRunSync())
       val tb = Try(b.unsafeRunSync())
       equalityTry[A].eqv(ta, tb)
     }

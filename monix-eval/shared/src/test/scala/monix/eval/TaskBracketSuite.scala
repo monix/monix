@@ -55,7 +55,7 @@ object TaskBracketSuite extends BaseTestSuite {
     val dummy = new DummyException("dummy")
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
 
-    val task = Task(1).bracketE(_ => throw dummy) { (a, i) =>
+    val task = Task.evalAsync(1).bracketE(_ => throw dummy) { (a, i) =>
       Task.eval { input = Some((a, i)) }
     }
 
@@ -68,7 +68,7 @@ object TaskBracketSuite extends BaseTestSuite {
 
   test("release is evaluated on success") { implicit sc =>
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
-    val task = Task(1).bracketE(x => Task(x + 1)) { (a, i) =>
+    val task = Task.evalAsync(1).bracketE(x => Task.evalAsync(x + 1)) { (a, i) =>
       Task.eval { input = Some((a, i)) }
     }
 
@@ -83,7 +83,7 @@ object TaskBracketSuite extends BaseTestSuite {
     val dummy = new DummyException("dummy")
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
 
-    val task = Task(1).bracketE(_ => Task.raiseError[Int](dummy)) { (a, i) =>
+    val task = Task.evalAsync(1).bracketE(_ => Task.raiseError[Int](dummy)) { (a, i) =>
       Task.eval { input = Some((a, i)) }
     }
 
@@ -98,8 +98,8 @@ object TaskBracketSuite extends BaseTestSuite {
     import scala.concurrent.duration._
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
 
-    val task = Task(1)
-      .bracketE(x => Task(x + 1).delayExecution(1.second)) { (a, i) =>
+    val task = Task.evalAsync(1)
+      .bracketE(x => Task.evalAsync(x + 1).delayExecution(1.second)) { (a, i) =>
         Task.eval { input = Some((a, i)) }
       }
 
@@ -117,7 +117,7 @@ object TaskBracketSuite extends BaseTestSuite {
     val useError = new DummyException("use")
     val releaseError = new DummyException("release")
 
-    val task = Task(1).bracket[Int] { _ =>
+    val task = Task.evalAsync(1).bracket[Int] { _ =>
       Task.raiseError(useError)
     } { _ =>
       Task.raiseError(releaseError)

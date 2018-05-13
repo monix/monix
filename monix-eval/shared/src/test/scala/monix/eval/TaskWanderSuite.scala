@@ -28,7 +28,7 @@ object TaskWanderSuite extends BaseTestSuite {
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task.wander(seq) {
       case (i, d) =>
-        Task(i + 1).delayExecution(d.seconds)
+        Task.evalAsync(i + 1).delayExecution(d.seconds)
     }.runAsync
 
     s.tick()
@@ -44,7 +44,7 @@ object TaskWanderSuite extends BaseTestSuite {
     val seq = Seq((1, 3), (-1, 1), (3, 2), (3, 1))
     val f = Task.wander(seq) {
       case (i, d) =>
-        Task(if (i < 0) throw ex else i + 1)
+        Task.evalAsync(if (i < 0) throw ex else i + 1)
           .delayExecution(d.seconds)
     }.runAsync
 
@@ -57,7 +57,7 @@ object TaskWanderSuite extends BaseTestSuite {
   test("Task.wander should be canceled") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task.wander(seq) {
-      case (i, d) => Task(i + 1).delayExecution(d.seconds)
+      case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
     }.runAsync
 
     s.tick()
@@ -82,7 +82,7 @@ object TaskWanderSuite extends BaseTestSuite {
   test("Task.wander runAsync multiple times") { implicit s =>
     var effect = 0
 
-    val task1 = Task { effect += 1; 3 }.memoize
+    val task1 = Task.evalAsync { effect += 1; 3 }.memoize
 
     val task2 = Task.wander(Seq(0,0,0)) { _ =>
       task1 map { x => effect += 1; x + 1 }

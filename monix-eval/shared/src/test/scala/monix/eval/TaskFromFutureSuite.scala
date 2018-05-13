@@ -136,7 +136,7 @@ object TaskFromFutureSuite extends BaseTestSuite {
 
   test("Task.fromFuture should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
-    var result = Task(1).runAsync
+    var result = Task.evalAsync(1).runAsync
     for (_ <- 0 until count) result = Task.fromFuture(result).runAsync
 
     assertEquals(result.value, None)

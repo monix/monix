@@ -22,6 +22,8 @@ import monix.execution.atomic.AtomicAny
 import monix.execution.exceptions.CompositeException
 import monix.execution.internal.AttemptCallback
 import monix.execution.misc.NonFatal
+import monix.execution.schedulers.TrampolinedRunnable
+
 import scala.concurrent.Promise
 
 /** Represents a one-time idempotent action that can be used
@@ -62,8 +64,28 @@ object Cancelable {
   /** Builds a [[Cancelable]] reference from a sequence,
     * cancelling everything on `cancel`.
     */
-  def collection(refs: Iterable[Cancelable]): Cancelable =
-    apply { () => cancelAll(refs) }
+  def collection(refs: Cancelable*): Cancelable =
+    collection(refs)
+
+  /** Builds a [[Cancelable]] reference from a sequence,
+    * cancelling everything on `cancel`.
+    */
+  def collection(seq: Iterable[Cancelable]): Cancelable =
+    apply { () => cancelAll(seq) }
+
+  /** Wraps a collection of cancelable references into a `Cancelable`
+    * that will cancel them all by triggering a trampolined async
+    * boundary first, in order to prevent stack overflows.
+    */
+  def trampolined(refs: Cancelable*)(implicit s: Scheduler): Cancelable =
+    trampolined(refs)
+
+  /** Wraps a collection of cancelable references into a `Cancelable`
+    * that will cancel them all by triggering a trampolined async
+    * boundary first, in order to prevent stack overflows.
+    */
+  def trampolined(seq: Iterable[Cancelable])(implicit s: Scheduler): Cancelable =
+    new CollectionTrampolined(seq, s)
 
   /** Builds a [[Cancelable]] out of a Scala `Promise`, completing the
     * promise with the given `Throwable` on cancel.
@@ -151,6 +173,22 @@ object Cancelable {
       // collector to collect the task.
       val callback = callbackRef.getAndSet(null)
       if (callback != null) callback()
+    }
+  }
+
+  private final class CollectionTrampolined(
+    refs: Iterable[Cancelable],
+    sc: Scheduler)
+    extends Cancelable with TrampolinedRunnable {
+
+    private[this] val atomic = AtomicAny(refs)
+
+    def cancel(): Unit =
+      sc.execute(this)
+
+    def run(): Unit = {
+      val refs = atomic.getAndSet(null)
+      if (refs ne null) cancelAll(refs)
     }
   }
 }

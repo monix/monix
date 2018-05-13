@@ -24,7 +24,6 @@ import monix.execution.internal.AttemptCallback
 import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-
 import scala.util.{Failure, Success}
 
 private[eval] object TaskConversions {
@@ -121,7 +120,7 @@ private[eval] object TaskConversions {
     override def apply(value: Either[Throwable, A]) =
       IO {
         conn.pop()
-        cb.asyncApply(value)
+        cb(value)
       }
   }
 }

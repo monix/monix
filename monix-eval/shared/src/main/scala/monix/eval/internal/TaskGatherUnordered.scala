@@ -33,39 +33,63 @@ private[eval] object TaskGatherUnordered {
     * Implementation for `Task.gatherUnordered`
     */
   def apply[A](in: TraversableOnce[Task[A]]): Task[List[A]] = {
-    val start = (context: Context, finalCallback: Callback[List[A]]) => {
-      @inline def maybeSignalFinal(
-        ref: AtomicAny[State[A]],
-        currentState: State[A],
-        mainConn: StackedCancelable,
-        finalCallback: Callback[List[A]])
-        (implicit s: Scheduler): Unit = {
+    Async(
+      new Start(in),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = true)
+  }
 
-        currentState match {
-          case State.Active(list, 0) =>
-            ref.lazySet(State.Complete)
-            mainConn.pop()
+  // Implementing Async's "start" via `ForkedStart` in order to signal
+  // that this is a task that forks on evaluation.
+  //
+  // N.B. the contract is that the injected callback gets called after
+  // a full async boundary!
+  private final class Start[A](in: TraversableOnce[Task[A]])
+    extends ForkedStart[List[A]] {
+
+    def maybeSignalFinal(
+      ref: AtomicAny[State[A]],
+      currentState: State[A],
+      mainConn: StackedCancelable,
+      finalCallback: Callback[List[A]])
+      (implicit s: Scheduler): Unit = {
+
+      currentState match {
+        case State.Active(list, 0) =>
+          ref.lazySet(State.Complete)
+          mainConn.pop()
+          if (list ne Nil)
             finalCallback.onSuccess(list)
-          case _ =>
-            () // invalid state
-        }
+          else {
+            // Needs to force async execution in case we had no tasks,
+            // due to the contract of ForkedStart
+            s.executeAsync(() => finalCallback.onSuccess(list))
+          }
+        case _ =>
+          () // invalid state
       }
+    }
 
-      @inline def reportError(
+    def reportError(
+      stateRef: AtomicAny[State[A]],
+      mainConn: StackedCancelable,
+      ex: Throwable,
+      finalCallback: Callback[List[A]])(implicit s: Scheduler): Unit = {
+
+      val currentState = stateRef.getAndSet(State.Complete)
+      if (currentState != State.Complete) {
+        mainConn.pop().cancel()
+        finalCallback.onError(ex)
+      } else {
+        s.reportFailure(ex)
+      }
+    }
+
+    def apply(context: Context, finalCallback: Callback[List[A]]): Unit = {
+      @tailrec def activate(
         stateRef: AtomicAny[State[A]],
-        mainConn: StackedCancelable,
-        ex: Throwable)(implicit s: Scheduler): Unit = {
-
-        val currentState = stateRef.getAndSet(State.Complete)
-        if (currentState != State.Complete) {
-          mainConn.pop().cancel()
-          finalCallback.onError(ex)
-        } else {
-          s.reportFailure(ex)
-        }
-      }
-
-      @tailrec def activate(stateRef: AtomicAny[State[A]], count: Int,
+        count: Int,
         conn: StackedCancelable,
         finalCallback: Callback[List[A]])
         (implicit s: Scheduler): Unit = {
@@ -83,11 +107,11 @@ private[eval] object TaskGatherUnordered {
         }
       }
 
+      implicit val s = context.scheduler
       // Shared state for synchronization
       val stateRef = Atomic.withPadding(State.empty[A], LeftRight128)
 
       try {
-        implicit val s = context.scheduler
         // Represents the collection of cancelables for all started tasks
         val composite = CompositeCancelable()
         val mainConn = context.connection
@@ -115,7 +139,7 @@ private[eval] object TaskGatherUnordered {
           allCancelables += stacked
 
           // Light asynchronous boundary
-          Task.unsafeStartTrampolined(task, childCtx,
+          Task.unsafeStartEnsureAsync(task, childCtx,
             new Callback[A] {
               @tailrec
               def onSuccess(value: A): Unit = {
@@ -130,7 +154,7 @@ private[eval] object TaskGatherUnordered {
               }
 
               def onError(ex: Throwable): Unit =
-                reportError(stateRef, mainConn, ex)
+                reportError(stateRef, mainConn, ex, finalCallback)
             })
         }
 
@@ -142,15 +166,9 @@ private[eval] object TaskGatherUnordered {
         activate(stateRef, count, mainConn, finalCallback)(s)
       } catch {
         case ex if NonFatal(ex) =>
-          reportError(stateRef, context.connection, ex)(context.scheduler)
+          reportError(stateRef, context.connection, ex, finalCallback)
       }
     }
-
-    Async(
-      start,
-      trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = true)
   }
 
   private sealed abstract class State[+A] {

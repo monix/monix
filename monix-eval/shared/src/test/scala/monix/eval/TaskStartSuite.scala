@@ -42,7 +42,7 @@ object TaskStartSuite extends BaseTestSuite {
   }
 
   test("task.start is stack safe") { implicit sc =>
-    var task: Task[Any] = Task(1)
+    var task: Task[Any] = Task.evalAsync(1)
     for (_ <- 0 until 5000) task = task.start.flatMap(_.join)
 
     val f = task.runAsync

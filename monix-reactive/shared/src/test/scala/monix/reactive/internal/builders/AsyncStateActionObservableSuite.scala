@@ -119,7 +119,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  def intAsync(seed: Long) = Task(int(seed))
+  def intAsync(seed: Long) = Task.evalAsync(int(seed))
   def intNow(seed: Long) = Task.now(int(seed))
   def intError(ex: Throwable)(seed: Long) = Task.raiseError[(Int, Long)](ex)
 

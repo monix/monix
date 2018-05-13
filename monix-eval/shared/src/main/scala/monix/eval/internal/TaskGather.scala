@@ -30,8 +30,25 @@ private[eval] object TaskGather {
   /**
     * Implementation for `Task.gather`
     */
-  def apply[A, M[X] <: TraversableOnce[X]](in: TraversableOnce[Task[A]], bldrBldr: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
-    val start = (context: Context, finalCallback: Callback[M[A]]) => {
+  def apply[A, M[X] <: TraversableOnce[X]](in: TraversableOnce[Task[A]], makeBuilder: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
+    Async(
+      new Start(in, makeBuilder),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = true)
+  }
+
+  // Implementing Async's "start" via `ForkedStart` in order to signal
+  // that this is a task that forks on evaluation.
+  //
+  // N.B. the contract is that the injected callback gets called after
+  // a full async boundary!
+  private final class Start[A, M[X] <: TraversableOnce[X]](
+    in: TraversableOnce[Task[A]],
+    makeBuilder: () => mutable.Builder[A, M[A]])
+    extends ForkedStart[M[A]] {
+
+    def apply(context: Context, finalCallback: Callback[M[A]]): Unit = {
       // We need a monitor to synchronize on, per evaluation!
       val lock = new AnyRef
       val mainConn = context.connection
@@ -55,7 +72,7 @@ private[eval] object TaskGather {
           isActive = false
           mainConn.pop()
 
-          val builder = bldrBldr()
+          val builder = makeBuilder()
           var idx = 0
           while (idx < results.length) {
             builder += results(idx).asInstanceOf[A]
@@ -90,24 +107,18 @@ private[eval] object TaskGather {
         tasksCount = tasks.length
 
         if (tasksCount == 0) {
-          // With no tasks available, we need to return an empty sequence
-          finalCallback.onSuccess(bldrBldr().result())
+          // With no tasks available, we need to return an empty sequence;
+          // Needs to ensure full async delivery due to implementing ForkedStart!
+          context.scheduler.executeAsync(() =>
+            finalCallback.onSuccess(makeBuilder().result()))
         }
         else if (tasksCount == 1) {
           // If it's a single task, then execute it directly
-          val source = tasks(0).map(r => (bldrBldr() += r).result())
-          Task.unsafeStartNow(source, context, finalCallback)
+          val source = tasks(0).map(r => (makeBuilder() += r).result())
+          // Needs to ensure full async delivery due to implementing ForkedStart!
+          Task.unsafeStartEnsureAsync(source, context, finalCallback)
         }
-        else if (tasksCount == 2) {
-          // Optimizing for 2 tasks by calling `mapBoth`
-          val source = Task.mapBoth(tasks(0), tasks(1)) { (a1,a2) =>
-            val b = bldrBldr()
-            b += a1 += a2
-            b.result()
-          }
-
-          Task.unsafeStartNow(source, context, finalCallback)
-        } else {
+        else {
           results = new Array[AnyRef](tasksCount)
 
           // Collecting all cancelables in a buffer, because adding
@@ -128,7 +139,7 @@ private[eval] object TaskGather {
             allCancelables += stacked
 
             // Light asynchronous boundary
-            Task.unsafeStartTrampolined(tasks(idx), childContext,
+            Task.unsafeStartEnsureAsync(tasks(idx), childContext,
               new Callback[A] {
                 def onSuccess(value: A): Unit =
                   lock.synchronized {
@@ -157,11 +168,5 @@ private[eval] object TaskGather {
           reportError(context.connection, ex)(context.scheduler)
       }
     }
-
-    Async(
-      start,
-      trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = true)
   }
 }

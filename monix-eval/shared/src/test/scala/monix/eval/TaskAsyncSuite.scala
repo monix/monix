@@ -19,8 +19,47 @@ package monix.eval
 
 import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 object TaskAsyncSuite extends BaseTestSuite {
+  test("Task.never should never complete") { implicit s =>
+    val t = Task.never[Int]
+    val f = t.runAsync
+    s.tick(365.days)
+    assertEquals(f.value, None)
+  }
+
+  test("Task.async should execute") { implicit s =>
+    val task = Task.asyncS[Int] { (ec, cb) =>
+      ec.executeAsync { () => cb.onSuccess(1) }
+    }
+
+    val f = task.runAsync
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.async should log errors") { implicit s =>
+    val ex = DummyException("dummy")
+    val task = Task.asyncS[Int]((_,_) => throw ex)
+    val result = task.runAsync; s.tick()
+    assertEquals(result.value, None)
+    assertEquals(s.state.lastReportedError, ex)
+  }
+
+  test("Task.async should be stack safe") { implicit s =>
+    def signal(n: Int) = Task.asyncS[Int]((_, cb) => cb.onSuccess(n))
+    def loop(n: Int, acc: Int): Task[Int] =
+      signal(1).flatMap { x =>
+        if (n > 0) loop(n - 1, acc + x)
+        else Task.now(acc)
+      }
+
+    val f = loop(10000, 0).runAsync; s.tick()
+    assertEquals(f.value, Some(Success(10000)))
+  }
+  
   test("Task.async works for immediate successful value") { implicit sc =>
     val task = Task.async[Int](_.onSuccess(1))
     assertEquals(task.runAsync.value, Some(Success(1)))

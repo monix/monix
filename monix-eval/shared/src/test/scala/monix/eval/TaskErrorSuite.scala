@@ -96,18 +96,18 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task.materialize") { implicit s =>
-    val f = Task(10).materialize.runAsync
+    val f = Task.evalAsync(10).materialize.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(Success(10))))
   }
 
   test("Task.flatMap.materialize") { implicit s =>
-    val f = Task(10).flatMap(Task.now).materialize.runAsync
+    val f = Task.evalAsync(10).flatMap(Task.now).materialize.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(Success(10))))
   }
 
-  test("Task(error).flatMap.materialize") { implicit s =>
+  test("Task.evalAsync(error).flatMap.materialize") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Task[Int](throw dummy).flatMap(Task.now).materialize.runAsync
     s.tick()
@@ -144,7 +144,7 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task#onErrorRecover should mirror source on success") { implicit s =>
-    val task = Task(1).onErrorRecover { case _: Throwable => 99 }
+    val task = Task.evalAsync(1).onErrorRecover { case _: Throwable => 99 }
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -173,7 +173,7 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task#onErrorHandle should mirror source on success") { implicit s =>
-    val task = Task(1).onErrorHandle { _: Throwable => 99 }
+    val task = Task.evalAsync(1).onErrorHandle { _: Throwable => 99 }
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -202,7 +202,7 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task.onErrorFallbackTo should mirror source onSuccess") { implicit s =>
-    val task = Task(1).onErrorFallbackTo(Task(2))
+    val task = Task.evalAsync(1).onErrorFallbackTo(Task.evalAsync(2))
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -210,7 +210,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.onErrorFallbackTo should fallback to backup onError") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task(throw ex).onErrorFallbackTo(Task(2))
+    val task = Task.evalAsync(throw ex).onErrorFallbackTo(Task.evalAsync(2))
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(2)))
@@ -219,7 +219,7 @@ object TaskErrorSuite extends BaseTestSuite {
   test("Task.onErrorFallbackTo should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val err = DummyException("unexpected")
-    val task = Task(throw ex).onErrorFallbackTo(Task.defer(throw err))
+    val task = Task.evalAsync(throw ex).onErrorFallbackTo(Task.defer(throw err))
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Failure(err)))
@@ -322,7 +322,7 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task#onErrorRecoverWith should mirror source on success") { implicit s =>
-    val task = Task(1).onErrorRecoverWith { case _: Throwable => Task(99) }
+    val task = Task.evalAsync(1).onErrorRecoverWith { case _: Throwable => Task.evalAsync(99) }
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -331,7 +331,7 @@ object TaskErrorSuite extends BaseTestSuite {
   test("Task#onErrorRecoverWith should recover") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task[Int](throw ex).onErrorRecoverWith {
-      case _: DummyException => Task(99)
+      case _: DummyException => Task.evalAsync(99)
     }
 
     val f = task.runAsync
@@ -352,7 +352,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task#onErrorRecoverWith has a cancelable fallback") { implicit s =>
     val task = Task[Int](throw DummyException("dummy"))
-      .onErrorRecoverWith { case _: DummyException => Task(99).delayExecution(1.second) }
+      .onErrorRecoverWith { case _: DummyException => Task.evalAsync(99).delayExecution(1.second) }
 
     val f = task.runAsync
     assertEquals(f.value, None)
@@ -388,7 +388,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.flatMap.onErrorRecoverWith should work") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task(1).flatMap(_ => throw dummy)
+    val task = Task.evalAsync(1).flatMap(_ => throw dummy)
       .onErrorRecoverWith { case `dummy` => Task.now(10) }
 
     val f = task.runAsync; s.tick()
@@ -396,7 +396,7 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task.materialize should work for success") { implicit s =>
-    val task = Task(1).materialize
+    val task = Task.evalAsync(1).materialize
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(Success(1))))
@@ -412,8 +412,8 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.materialize should be stack safe") { implicit s =>
     def loop(n: Int): Task[Int] =
-      if (n <= 0) Task(n)
-      else Task(n).materialize.flatMap {
+      if (n <= 0) Task.evalAsync(n)
+      else Task.evalAsync(n).materialize.flatMap {
         case Success(_) => loop(n-1)
         case Failure(e) => Task.raiseError(e)
       }
@@ -512,7 +512,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
     def loop(task: Task[Int], n: Int): Task[Int] =
       task.onErrorRecoverWith {
-        case `ex` if n <= 0 => Task(count)
+        case `ex` if n <= 0 => Task.evalAsync(count)
         case `ex` => loop(task, n-1).executeAsync
       }
 

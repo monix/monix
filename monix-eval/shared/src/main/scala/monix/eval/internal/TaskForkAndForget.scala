@@ -28,7 +28,7 @@ private[eval] object TaskForkAndForget {
       // It needs its own context, its own cancelable
       val ctx2 = Task.Context(sc, ctx.options)
       // Starting actual execution of our newly created task forcing new async boundary
-      Task.unsafeStartAsync(fa, ctx2, Callback.empty)
+      Task.unsafeStartEnsureAsync(fa, ctx2, Callback.empty)
       cb.onSuccess(())
     }
 }

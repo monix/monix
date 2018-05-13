@@ -41,7 +41,7 @@ private[eval] object TaskToReactivePublisher {
               "the Reactive Streams contract, rule 3.9")
 
             if (isActive) {
-              Task.unsafeStartAsync[A](self, context,
+              Task.unsafeStartEnsureAsync[A](self, context,
                 Callback.safe(new Callback[A] {
                   def onError(ex: Throwable): Unit =
                     out.onError(ex)

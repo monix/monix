@@ -213,23 +213,6 @@ object CallbackSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Failure(err)))
   }
 
-  test("callback.asyncApply(Right(a))") { implicit s =>
-    val p = Promise[Int]()
-    val cb = Callback.fromPromise(p)
-
-    cb.asyncApply(Right(10))
-    assertEquals(p.future.value, Some(Success(10)))
-  }
-
-  test("callback.asyncApply(Left(e))") { implicit s =>
-    val p = Promise[Int]()
-    val cb = Callback.fromPromise(p)
-    val err = DummyException("dummy")
-
-    cb.asyncApply(Left(err))
-    assertEquals(p.future.value, Some(Failure(err)))
-  }
-
   test("fromAttempt success") { _ =>
     val p = Promise[Int]()
     val cb = Callback.fromAttempt[Int] {

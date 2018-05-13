@@ -24,7 +24,7 @@ import monix.tail.batches.BatchCursor
 import scala.util.{Failure, Success}
 
 object IterantStatesSuite extends BaseTestSuite {
-  test("Iterant[Task].suspend(Task(list))") { implicit s =>
+  test("Iterant[Task].suspend(Task.evalAsync(list))") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
     val result = Iterant[Task].suspend(deferred).toListL.runAsync

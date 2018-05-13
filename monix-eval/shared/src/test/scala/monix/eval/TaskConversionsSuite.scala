@@ -83,7 +83,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromEffect(task) == task") { implicit s =>
-    val ref = Task(1)
+    val ref = Task.evalAsync(1)
     assertEquals(Task.fromEffect(ref), ref)
   }
 

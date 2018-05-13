@@ -187,7 +187,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
   }
 
   test("doOnCancel is stack safe in flatMap loops") { implicit sc =>
-    val onCancel = Task(throw DummyException("dummy"))
+    val onCancel = Task.evalAsync(throw DummyException("dummy"))
 
     def loop(n: Int, acc: Long): Task[Long] =
       Task.unit.doOnCancel(onCancel).flatMap { _ =>
@@ -204,7 +204,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
   testAsync("local.write.doOnCancel works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-    val onCancel = Task(throw DummyException("dummy"))
+    val onCancel = Task.evalAsync(throw DummyException("dummy"))
 
     val task = for {
       l <- TaskLocal(10)

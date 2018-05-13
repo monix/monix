@@ -106,7 +106,7 @@ object TaskCreateSuite extends BaseTestSuite {
   test("can use Task[Unit] as return type") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
-      Task(c.cancel())
+      Task.evalAsync(c.cancel())
     }
 
     val f = task.runAsync
@@ -120,7 +120,7 @@ object TaskCreateSuite extends BaseTestSuite {
   test("returning Task[Unit] yields a cancelable task") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
-      Task(c.cancel())
+      Task.evalAsync(c.cancel())
     }
 
     val f = task.runAsync

@@ -49,7 +49,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
 
     for (_ <- 0 until 100) {
       val sum = Observable.range(0, count)
-        .scanTask(Task.now(0L))((_, x) => Task(x * 3))
+        .scanTask(Task.now(0L))((_, x) => Task.evalAsync(x * 3))
         .sumL
         .runAsync
 
@@ -111,7 +111,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
         .doOnError(p.tryFailure)
         .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
         .doOnEarlyStop(() => p.trySuccess(()))
-        .scanTask(Task.now(0L))((_, x) => Task(x))
+        .scanTask(Task.now(0L))((_, x) => Task.evalAsync(x))
         .subscribe()
 
       // Creating race condition

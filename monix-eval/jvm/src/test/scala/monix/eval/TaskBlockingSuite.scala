@@ -25,8 +25,8 @@ import scala.concurrent.duration._
 
 object TaskBlockingSuite extends SimpleTestSuite {
   test("blocking on future should work") {
-    val source1 = Task(100)
-    val source2 = Task(200).onErrorHandleWith { case e: Exception => Task.raiseError(e) }
+    val source1 = Task.evalAsync(100)
+    val source2 = Task.evalAsync(200).onErrorHandleWith { case e: Exception => Task.raiseError(e) }
 
     val derived = source1.map { x =>
       val r = Await.result(source2.runAsync, 10.seconds)
@@ -39,21 +39,21 @@ object TaskBlockingSuite extends SimpleTestSuite {
 
   test("blocking on async") {
     for (_ <- 0 until 1000) {
-      val task = Task(1)
+      val task = Task.evalAsync(1)
       assertEquals(task.runSyncUnsafe(Duration.Inf), 1)
     }
   }
 
   test("blocking on async.flatMap") {
     for (_ <- 0 until 1000) {
-      val task = Task(1).flatMap(_ => Task(2))
+      val task = Task.evalAsync(1).flatMap(_ => Task.evalAsync(2))
       assertEquals(task.runSyncUnsafe(Duration.Inf), 2)
     }
   }
 
   test("blocking on memoize") {
     for (_ <- 0 until 1000) {
-      val task = Task(1).flatMap(_ => Task(2)).memoize
+      val task = Task.evalAsync(1).flatMap(_ => Task.evalAsync(2)).memoize
       assertEquals(task.runSyncUnsafe(Duration.Inf), 2)
       assertEquals(task.runSyncUnsafe(Duration.Inf), 2)
     }

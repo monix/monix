@@ -28,7 +28,8 @@ private[eval] object TaskStart {
   def apply[A](fa: Task[A]): Task[Fiber[A]] =
     fa match {
       // There's no point in evaluating strict stuff
-      case Task.Now(_) | Task.Error(_) => Task.Now(Fiber(fa))
+      case Task.Now(_) | Task.Error(_) =>
+        Task.Now(Fiber(fa))
       case _ =>
         val start = (ctx: Context, cb: Callback[Fiber[A]]) => {
           implicit val sc = ctx.scheduler
@@ -40,9 +41,7 @@ private[eval] object TaskStart {
           val ctx2 = Task.Context(ctx.scheduler, ctx.options)
           val task = TaskFromFuture.lightBuild(p.future, ctx2.connection)
           // Starting actual execution of our newly created task;
-          // This might block the current thread until completion or
-          // first async boundary is hit, whichever comes first
-          Task.unsafeStartNow(fa, ctx2, Callback.fromPromise(p))
+          Task.unsafeStartEnsureAsync(fa, ctx2, Callback.fromPromise(p))
           // Signal the created Task reference
           cb.onSuccess(Fiber(task))
         }
