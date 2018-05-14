@@ -49,7 +49,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
 
     for (_ <- 0 until 100) {
       val sum = Observable.range(0, count)
-        .mapTask(x => Task(3 * x))
+        .mapTask(x => Task.evalAsync(3 * x))
         .sumL
         .runAsync
 
@@ -113,7 +113,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
         .doOnError(p.tryFailure)
         .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
         .doOnEarlyStop(() => p.trySuccess(()))
-        .mapTask(x => Task(x))
+        .mapTask(x => Task.evalAsync(x))
         .subscribe()
 
       // Creating race condition

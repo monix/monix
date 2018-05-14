@@ -39,6 +39,8 @@ object TaskExecuteOnSuite extends BaseTestSuite {
     sc.tick()
     assertEquals(f.value, None)
     sc2.tick()
+    assertEquals(f.value, None)
+    sc.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 

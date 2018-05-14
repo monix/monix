@@ -28,7 +28,7 @@ import monix.eval.internal.TaskCancellation
   * For example a `Fiber` value is the result of evaluating [[Task.start]]:
   *
   * {{{
-  *   val task = Task(println("Hello!"))
+  *   val task = Task.evalAsync(println("Hello!"))
   *
   *   val forked: Task[Fiber[Unit]] = task.start
   * }}}

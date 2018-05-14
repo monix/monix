@@ -173,10 +173,10 @@ object AsyncSemaphore {
     new AsyncSemaphore(maxParallelism)
 
   /** Internal. Reusable `Future` reference. */
-  private final val availablePermit =
+  private val availablePermit =
     CancelableFuture.successful(())
   /** Internal. Reusable initial state. */
-  private final val initialState: State =
+  private val initialState: State =
     State(0, Queue.empty, null)
 
   /** Internal. For keeping the state of our

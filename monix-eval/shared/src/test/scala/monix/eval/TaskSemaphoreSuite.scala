@@ -30,7 +30,7 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
 
   test("simple green-light") { implicit s =>
     val Right(semaphore) = TaskSemaphore(maxParallelism = 4).runSyncMaybe
-    val future = semaphore.greenLight(Task(1)).runAsync
+    val future = semaphore.greenLight(Task.evalAsync(1)).runAsync
 
     assertEquals(semaphore.activeCount.value(), 1)
     assert(!future.isCompleted, "!future.isCompleted")
@@ -66,7 +66,7 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
     val count = if (Platform.isJVM) 100000 else 1000
 
     val tasks = for (i <- 0 until count) yield
-      semaphore.greenLight(Task(i))
+      semaphore.greenLight(Task.evalAsync(i))
     val sum =
       Task.gatherUnordered(tasks).map(_.sum)
 

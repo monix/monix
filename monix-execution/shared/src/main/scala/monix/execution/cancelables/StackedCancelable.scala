@@ -103,13 +103,13 @@ object StackedCancelable {
   /** Reusable [[StackedCancelable]] reference that is already
     * cancelled.
     */
-  final val alreadyCanceled: StackedCancelable =
+  val alreadyCanceled: StackedCancelable =
     new AlreadyCanceled
 
   /** Reusable [[StackedCancelable]] reference that cannot be
     * cancelled.
     */
-  final val uncancelable: StackedCancelable =
+  val uncancelable: StackedCancelable =
     new Uncancelable
 
   /** Implementation for [[StackedCancelable]] backed by a

@@ -103,7 +103,7 @@ import scala.util.{Failure, Success}
   *   )
   *
   *   //...
-  *   val problematic = Task {
+  *   val problematic = Task.evalAsync {
   *     val nr = util.Random.nextInt()
   *     if (nr % 2 == 0) nr else
   *       throw new RuntimeException("dummy")

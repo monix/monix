@@ -33,12 +33,12 @@ import scala.concurrent.Future
   *
   * Example of what we want to achieve:
   * {{{
-  *   observable.mapTask(x => Task(x + 1))
+  *   observable.mapTask(x => Task.evalAsync(x + 1))
   * }}}
   *
   * This is basically equivalent with:
   * {{{
-  *   observable.concatMap(x => Observable.fromTask(Task(x + 1)))
+  *   observable.concatMap(x => Observable.fromTask(Task.evalAsync(x + 1)))
   * }}}
   *
   * The implementation has to be faster than `concatMap`.

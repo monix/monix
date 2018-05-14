@@ -22,6 +22,7 @@ import monix.execution.atomic.AtomicAny
 import monix.execution.exceptions.CompositeException
 import monix.execution.internal.AttemptCallback
 import monix.execution.misc.NonFatal
+import monix.execution.schedulers.TrampolinedRunnable
 import scala.concurrent.Promise
 
 /** Represents a one-time idempotent action that can be used
@@ -53,17 +54,37 @@ object Cancelable {
     new CancelableTask(callback)
 
   /** Returns a dummy [[Cancelable]] that doesn't do anything. */
-  val empty: Cancelable =
-    new Cancelable with IsDummy {
-      def cancel() = ()
+  val empty: Empty =
+    new Empty {
+      def cancel(): Unit = ()
       override def toString = "monix.execution.Cancelable.empty"
     }
 
   /** Builds a [[Cancelable]] reference from a sequence,
     * cancelling everything on `cancel`.
     */
-  def collection(refs: Iterable[Cancelable]): Cancelable =
-    apply { () => cancelAll(refs) }
+  def collection(refs: Cancelable*): Cancelable =
+    collection(refs)
+
+  /** Builds a [[Cancelable]] reference from a sequence,
+    * cancelling everything on `cancel`.
+    */
+  def collection(seq: Iterable[Cancelable]): Cancelable =
+    apply { () => cancelAll(seq) }
+
+  /** Wraps a collection of cancelable references into a `Cancelable`
+    * that will cancel them all by triggering a trampolined async
+    * boundary first, in order to prevent stack overflows.
+    */
+  def trampolined(refs: Cancelable*)(implicit s: Scheduler): Cancelable =
+    trampolined(refs)
+
+  /** Wraps a collection of cancelable references into a `Cancelable`
+    * that will cancel them all by triggering a trampolined async
+    * boundary first, in order to prevent stack overflows.
+    */
+  def trampolined(seq: Iterable[Cancelable])(implicit s: Scheduler): Cancelable =
+    new CollectionTrampolined(seq, s)
 
   /** Builds a [[Cancelable]] out of a Scala `Promise`, completing the
     * promise with the given `Throwable` on cancel.
@@ -123,6 +144,9 @@ object Cancelable {
     }
   }
 
+  /** Interface for cancelables that are empty or already canceled. */
+  trait Empty extends Cancelable with IsDummy
+
   /** Marker for cancelables that are dummies that can be ignored. */
   trait IsDummy { self: Cancelable => }
 
@@ -143,14 +167,34 @@ object Cancelable {
   private final class CancelableTask(cb: () => Unit)
     extends Cancelable {
 
-    private[this] val callbackRef = AtomicAny(cb)
+    private[this] val callbackRef = /*_*/AtomicAny(cb)/*_*/
 
     def cancel(): Unit = {
       // Setting the callback to null with a `getAndSet` is solving
       // two problems: `cancel` is idempotent, plus we allow the garbage
       // collector to collect the task.
+      /*_*/
       val callback = callbackRef.getAndSet(null)
       if (callback != null) callback()
+      /*_*/
+    }
+  }
+
+  private final class CollectionTrampolined(
+    refs: Iterable[Cancelable],
+    sc: Scheduler)
+    extends Cancelable with TrampolinedRunnable {
+
+    private[this] val atomic = /*_*/AtomicAny(refs)/*_*/
+
+    def cancel(): Unit =
+      sc.execute(this)
+
+    def run(): Unit = {
+      /*_*/
+      val refs = atomic.getAndSet(null)
+      if (refs ne null) cancelAll(refs)
+      /*_*/
     }
   }
 }

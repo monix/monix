@@ -52,10 +52,10 @@ object MVarSuite extends BaseTestSuite {
   test("empty; put; put; put; take; take; take") { implicit s =>
     val task = for {
       av    <- MVar.empty[Int]
-      take3  = Task.zip3(av.take, av.take, av.take)
-      put3   = Task.zip3(av.put(10), av.put(20), av.put(30))
+      take3  = Task.parZip3(av.take, av.take, av.take)
+      put3   = Task.parZip3(av.put(10), av.put(20), av.put(30))
       result <- Task.mapBoth(put3,take3) { case (_, (r1,r2,r3)) =>
-        List(r1,r2,r3)
+        List(r1,r2,r3).sorted
       }
     } yield result
 
@@ -67,9 +67,9 @@ object MVarSuite extends BaseTestSuite {
   test("empty; take; take; take; put; put; put") { implicit s =>
     val task = for {
       av     <- MVar.empty[Int]
-      take3   = Task.zip3(av.take, av.take, av.take)
-      put3    = Task.zip3(av.put(10), av.put(20), av.put(30))
-      result <- Task.mapBoth(take3, put3) { case ((r1,r2,r3), _) => List(r1,r2,r3) }
+      take3   = Task.parZip3(av.take, av.take, av.take)
+      put3    = Task.parZip3(av.put(10), av.put(20), av.put(30))
+      result <- Task.mapBoth(take3, put3) { case ((r1,r2,r3), _) => List(r1,r2,r3).sorted }
     } yield result
 
     val f = task.runAsync; s.tick()

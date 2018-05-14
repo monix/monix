@@ -65,13 +65,13 @@ object TaskMiscSuite extends BaseTestSuite {
 
   test("Task.restartUntil") { implicit s =>
     var effect = 0
-    val r = Task { effect += 1; effect }.restartUntil(_ >= 10).runAsync
+    val r = Task.evalAsync { effect += 1; effect }.restartUntil(_ >= 10).runAsync
     s.tick()
     assertEquals(r.value.get.get, 10)
   }
 
   test("Task.toReactivePublisher should end in success") { implicit s =>
-    val publisher = Task(1).toReactivePublisher
+    val publisher = Task.evalAsync(1).toReactivePublisher
     var received: Int = 0
     var wasCompleted = false
 

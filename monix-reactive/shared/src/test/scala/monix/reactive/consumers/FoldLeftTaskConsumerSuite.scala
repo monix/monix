@@ -30,7 +30,7 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
     val count = 10000L
     val obs = Observable.range(0, count)
     val f = obs.consumeWith(Consumer
-      .foldLeftTask(0L)((s,a) => Task(s+a)))
+      .foldLeftTask(0L)((s,a) => Task.evalAsync(s+a)))
       .runAsync
 
     s.tick()
@@ -41,7 +41,7 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     val f = obs.consumeWith(Consumer
-      .foldLeftTask(0L)((s,a) => Task(s+a)))
+      .foldLeftTask(0L)((s,a) => Task.evalAsync(s+a)))
       .runAsync
 
     s.tick()
@@ -70,7 +70,7 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
 
   test("foldLeftTask <-> foldLeftEval") { implicit s =>
     check1 { (source: Observable[Int]) =>
-      val fa1 = source.consumeWith(Consumer.foldLeftTask(0L)((s,a) => Task(s+a)))
+      val fa1 = source.consumeWith(Consumer.foldLeftTask(0L)((s,a) => Task.evalAsync(s+a)))
       val fa2 = source.consumeWith(Consumer.foldLeftEval(0L)((s,a) => IO(s + a)))
       fa1 <-> fa2
     }

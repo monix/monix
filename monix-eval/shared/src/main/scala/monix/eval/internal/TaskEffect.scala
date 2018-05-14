@@ -20,7 +20,6 @@ package internal
 
 import cats.effect.IO
 import monix.execution.Scheduler
-import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.AttemptCallback.noop
 import monix.execution.misc.NonFatal
 
@@ -57,16 +56,5 @@ private[eval] object TaskEffect {
       def onError(e: Throwable): Unit =
         signal(Left(e))
     })
-  }
-
-  private final class CreateCallback[A](
-    conn: StackedCancelable, cb: Callback[A])
-    (implicit s: Scheduler)
-    extends (Either[Throwable, A] => Unit) {
-
-    override def apply(value: Either[Throwable, A]): Unit = {
-      conn.pop()
-      cb.asyncApply(value)
-    }
   }
 }

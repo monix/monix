@@ -17,8 +17,8 @@
 
 package monix.eval.internal
 
-import monix.eval.{Callback, Task}
 import monix.eval.Task.{Async, Context}
+import monix.eval.{Callback, Task}
 import monix.execution.schedulers.TracingScheduler
 import scala.concurrent.ExecutionContext
 
@@ -27,11 +27,28 @@ private[eval] object TaskShift {
     * Implementation for `Task.shift`
     */
   def apply(ec: ExecutionContext): Task[Unit] = {
-    val start = (context: Context, cb: Callback[Unit]) => {
+    Async(
+      new Register(ec),
+      trampolineBefore = false,
+      trampolineAfter = false)
+  }
+
+  // Implementing Async's "start" via `ForkedStart` in order to signal
+  // that this is a task that forks on evaluation.
+  //
+  // N.B. the contract is that the injected callback gets called after
+  // a full async boundary!
+  private final class Register(ec: ExecutionContext)
+    extends ForkedRegister[Unit] {
+
+    def apply(context: Context, cb: Callback[Unit]): Unit = {
       val ec2 =
-        if (ec eq null) context.scheduler
-        else if (context.options.localContextPropagation) TracingScheduler(ec)
-        else ec
+        if (ec eq null)
+          context.scheduler
+        else if (context.options.localContextPropagation)
+          TracingScheduler(ec)
+        else
+          ec
 
       ec2.execute(new Runnable {
         def run(): Unit = {
@@ -40,6 +57,5 @@ private[eval] object TaskShift {
         }
       })
     }
-    Async(start, trampolineAfter = false)
   }
 }

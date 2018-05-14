@@ -93,9 +93,9 @@ object TaskExecutionModelSuite extends BaseTestSuite {
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
 
     def loop(count: Int): Task[Int] =
-      Task(count).flatMap { nr =>
+      Task.evalAsync(count).flatMap { nr =>
         if (nr > 0) loop(count-1)
-        else Task(nr)
+        else Task.evalAsync(nr)
       }
 
     val task = loop(100)

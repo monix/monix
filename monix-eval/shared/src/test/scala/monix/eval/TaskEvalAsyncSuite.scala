@@ -22,12 +22,12 @@ import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success}
 
-object TaskApplySuite extends BaseTestSuite {
-  test("Task.apply should work, on different thread") { implicit s =>
+object TaskEvalAsyncSuite extends BaseTestSuite {
+  test("Task.evalAsync should work, on different thread") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task(trigger())
+    val task = Task.evalAsync(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -39,7 +39,7 @@ object TaskApplySuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success("result")))
   }
 
-  test("Task.apply should protect against user code errors") { implicit s =>
+  test("Task.evalAsync should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
     val f = Task[Int](if (1 == 1) throw ex else 1).runAsync
 
@@ -48,11 +48,11 @@ object TaskApplySuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  test("Task.apply is equivalent with Task.eval") { implicit s =>
+  test("Task.evalAsync is equivalent with Task.eval") { implicit s =>
     check1 { a: Int =>
       val t1 = {
         var effect = 100
-        Task.apply { effect += 100; effect + a }
+        Task.evalAsync { effect += 100; effect + a }
       }
 
       val t2 = {
@@ -64,11 +64,11 @@ object TaskApplySuite extends BaseTestSuite {
     }
   }
 
-  test("Task.apply is equivalent with Task.evalOnce on first run") { implicit s =>
+  test("Task.evalAsync is equivalent with Task.evalOnce on first run") { implicit s =>
     check1 { a: Int =>
       val t1 = {
         var effect = 100
-        Task.apply { effect += 100; effect + a }
+        Task.evalAsync { effect += 100; effect + a }
       }
 
       val t2 = {
@@ -80,17 +80,17 @@ object TaskApplySuite extends BaseTestSuite {
     }
   }
 
-  test("Task.apply.flatMap should protect against user code") { implicit s =>
+  test("Task.evalAsync.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val t = Task(1).flatMap[Int](_ => throw ex)
+    val t = Task.evalAsync(1).flatMap[Int](_ => throw ex)
     check(t <-> Task.raiseError(ex))
   }
 
-  test("Task.apply should be tail recursive") { implicit s =>
+  test("Task.evalAsync should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
-      Task(idx).flatMap { idx =>
+      Task.evalAsync(idx).flatMap { idx =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
-          Task(idx)
+          Task.evalAsync(idx)
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20
@@ -100,15 +100,15 @@ object TaskApplySuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(iterations * 2)))
   }
 
-  test("Task.apply.flatten is equivalent with flatMap") { implicit s =>
+  test("Task.evalAsync.flatten is equivalent with flatMap") { implicit s =>
     check1 { a: Int =>
-      val t = Task(Task.eval(a))
+      val t = Task.evalAsync(Task.eval(a))
       t.flatMap(identity) <-> t.flatten
     }
   }
 
-  test("Task.apply.coeval") { implicit s =>
-    Task(100).coeval.value() match {
+  test("Task.evalAsync.coeval") { implicit s =>
+    Task.evalAsync(100).coeval.value() match {
       case Left(result) =>
         assertEquals(result.value, None)
         s.tick()

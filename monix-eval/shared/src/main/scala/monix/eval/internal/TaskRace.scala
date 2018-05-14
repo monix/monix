@@ -18,6 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
+import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables._
 
@@ -26,20 +27,30 @@ private[eval] object TaskRace {
     * Implementation for `Task.race`.
     */
   def apply[A,B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
-    Task.Async { (context, cb) =>
+    Task.Async(new Register(fa, fb), trampolineBefore = true, trampolineAfter = true)
+
+  // Implementing Async's "start" via `ForkedStart` in order to signal
+  // that this is a task that forks on evaluation.
+  //
+  // N.B. the contract is that the injected callback gets called after
+  // a full async boundary!
+  private final class Register[A, B](fa: Task[A], fb: Task[B])
+    extends ForkedRegister[Either[A, B]] {
+
+    def apply(context: Task.Context, cb: Callback[Either[A, B]]): Unit = {
       implicit val sc = context.scheduler
       val conn = context.connection
 
       val isActive = Atomic(true)
       val connA = StackedCancelable()
       val connB = StackedCancelable()
-      conn push CompositeCancelable(connA, connB)
+      conn.push(Cancelable.trampolined(connA, connB))
 
       val contextA = context.withConnection(connA)
       val contextB = context.withConnection(connB)
 
       // First task: A
-      Task.unsafeStartAsync(fa, contextA, new Callback[A] {
+      Task.unsafeStartEnsureAsync(fa, contextA, new Callback[A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
             connB.cancel()
@@ -58,7 +69,7 @@ private[eval] object TaskRace {
       })
 
       // Second task: B
-      Task.unsafeStartAsync(fb, contextB, new Callback[B] {
+      Task.unsafeStartEnsureAsync(fb, contextB, new Callback[B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
             connA.cancel()
@@ -76,4 +87,5 @@ private[eval] object TaskRace {
           }
       })
     }
+  }
 }

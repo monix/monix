@@ -33,6 +33,21 @@ private[eval] object TaskMapBoth {
     * Implementation for `Task.mapBoth`.
     */
   def apply[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] = {
+    Async(
+      new Register(fa1, fa2, f),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = true)
+  }
+
+  // Implementing Async's "start" via `ForkedStart` in order to signal
+  // that this is a task that forks on evaluation.
+  //
+  // N.B. the contract is that the injected callback gets called after
+  // a full async boundary!
+  private final class Register[A1, A2, R](fa1: Task[A1], fa2: Task[A2], f: (A1,A2) => R)
+    extends ForkedRegister[R] {
+
     /* For signaling the values after the successful completion of both tasks. */
     def sendSignal(mainConn: StackedCancelable, cb: Callback[R], a1: A1, a2: A2)
       (implicit s: Scheduler): Unit = {
@@ -42,13 +57,13 @@ private[eval] object TaskMapBoth {
         val r = f(a1, a2)
         streamErrors = false
         mainConn.pop()
-        cb.asyncOnSuccess(r)
+        cb.onSuccess(r)
       } catch {
         case NonFatal(ex) if streamErrors =>
           // Both tasks completed by this point, so we don't need
           // to worry about the `state` being a `Stop`
           mainConn.pop()
-          cb.asyncOnError(ex)
+          cb.onError(ex)
       }
     }
 
@@ -67,24 +82,26 @@ private[eval] object TaskMapBoth {
             sendError(mainConn, state, cb, ex)(s) // retry
           else {
             mainConn.pop().cancel()
-            cb.asyncOnError(ex)(s)
+            cb.onError(ex)
           }
       }
     }
 
-    val start = (context: Context, cb: Callback[R]) => {
+    def apply(context: Context, cb: Callback[R]): Unit = {
       implicit val s = context.scheduler
       val mainConn = context.connection
       // for synchronizing the results
       val state = Atomic.withPadding(null: AnyRef, LeftRight128)
-      val task1 = StackedCancelable()
-      val context1 = context.withConnection(task1)
-      val task2 = StackedCancelable()
-      val context2 = context.withConnection(task2)
-      mainConn push Cancelable.collection(Array(task1, task2))
 
-      // Start first task with a "hard" async boundary to ensure parallel evaluation
-      Task.unsafeStartAsync(fa1, context1, new Callback[A1] {
+      val task1 = StackedCancelable()
+      val task2 = StackedCancelable()
+      val context1 = context.withConnection(task1)
+      val context2 = context.withConnection(task2)
+      mainConn.push(Cancelable.trampolined(task1, task2))
+
+      // Light asynchronous boundary; with most scheduler implementations
+      // it will not fork a new (logical) thread!
+      Task.unsafeStartEnsureAsync(fa1, context1, new Callback[A1] {
         @tailrec def onSuccess(a1: A1): Unit =
           state.get match {
             case null => // null means this is the first task to complete
@@ -103,9 +120,8 @@ private[eval] object TaskMapBoth {
           sendError(mainConn, state, cb, ex)(s)
       })
 
-      // Light asynchronous boundary; with most scheduler implementations
-      // it will not fork a new (logical) thread!
-      Task.unsafeStartTrampolined(fa2, context2, new Callback[A2] {
+      // Start first task with a "hard" async boundary to ensure parallel evaluation
+      Task.unsafeStartEnsureAsync(fa2, context2, new Callback[A2] {
         @tailrec def onSuccess(a2: A2): Unit =
           state.get match {
             case null => // null means this is the first task to complete
@@ -124,11 +140,5 @@ private[eval] object TaskMapBoth {
           sendError(mainConn, state, cb, ex)(s)
       })
     }
-
-    Async(
-      start,
-      trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = true)
   }
 }

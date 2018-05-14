@@ -32,7 +32,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       .start
       .flatMap(_.cancel)
 
-    task.runAsync
+    task.runAsync; ec.tick()
     assert(wasCancelled, "wasCancelled")
     assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
   }
@@ -41,7 +41,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     implicit val opts = Task.defaultOptions.enableAutoCancelableRunLoops
 
     var effect = 0
-    val task = Task(1).flatMap(x => Task(2).map(_ + x))
+    val task = Task.evalAsync(1).flatMap(x => Task.evalAsync(2).map(_ + x))
       .foreachL { x => effect = x }
       .start
       .flatMap(_.cancel)
@@ -83,7 +83,7 @@ object TaskCancellationSuite extends BaseTestSuite {
   }
 
   test("uncancelable works for autoCancelableRunLoops") { implicit ec =>
-    val task = Task(1)
+    val task = Task.evalAsync(1)
     val source = task.flatMap(x => task.map(_ + x))
       .executeWithOptions(_.enableAutoCancelableRunLoops)
 
@@ -113,7 +113,7 @@ object TaskCancellationSuite extends BaseTestSuite {
   }
 
   test("uncancelable is stack safe in flatMap loop, take 2") { implicit ec =>
-    var task = Task(1)
+    var task = Task.evalAsync(1)
     for (_ <- 0 until 10000) task = task.uncancelable
 
     val f = task.runAsync

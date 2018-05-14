@@ -44,7 +44,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("Iterant[Task].toListL (foldLeftL, async)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromIterable(list)
-        .mapEval(x => Task(x)).toListL
+        .mapEval(x => Task.evalAsync(x)).toListL
 
       result <-> Task.now(list)
     }
@@ -54,9 +54,9 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val b = Iterant[Task]
     val dummy = DummyException("dummy")
     var wasCanceled = false
-    val stopT = Task { wasCanceled = true }
+    val stopT = Task.evalAsync { wasCanceled = true }
 
-    val r = b.nextS(1, Task(b.nextS(2, Task(b.raiseError[Int](dummy)), stopT)), stopT).toListL.runAsync
+    val r = b.nextS(1, Task.evalAsync(b.nextS(2, Task.evalAsync(b.raiseError[Int](dummy)), stopT)), stopT).toListL.runAsync
     assert(!wasCanceled, "wasCanceled should not be true")
 
     s.tick()
@@ -67,7 +67,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("Iterant[Task].foldLeftL protects against user code in the seed") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
-    val c = Task { wasCanceled = true }
+    val c = Task.evalAsync { wasCanceled = true }
     val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]), c)
     val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runAsync
     s.tick()
@@ -78,7 +78,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("Iterant[Task].foldLeftL protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
-    val c = Task { wasCanceled = true }
+    val c = Task.evalAsync { wasCanceled = true }
     val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]), c)
     val result = stream.foldLeftL(0)((_, _) => throw dummy)
     s.tick()
@@ -89,9 +89,9 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("Iterant[Task].foldLeftL (async) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
-    val c = Task { wasCanceled = true }
-    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].nextCursorS(BatchCursor(2,3), Task.now(Iterant[Task].empty[Int]), c)), c)
-      .mapEval(x => Task(x))
+    val c = Task.evalAsync { wasCanceled = true }
+    val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].nextCursorS(BatchCursor(2,3), Task.now(Iterant[Task].empty[Int]), c)), c)
+      .mapEval(x => Task.evalAsync(x))
 
     val result = stream.foldLeftL(0)((_, _) => throw dummy)
     check(result <-> Task.raiseError[Int](dummy))

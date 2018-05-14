@@ -293,6 +293,8 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TracingScheduler.apply"),
     // Breakage — changed Task#foreach signature
     exclude[IncompatibleResultTypeProblem]("monix.eval.Task.foreach"),
+    // Breakage - changed type
+    exclude[IncompatibleResultTypeProblem]("monix.execution.Cancelable.empty"),
     // Breakage — extra implicit param
     exclude[DirectMissingMethodProblem]("monix.eval.TaskInstancesLevel0.catsEffect"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.this"),
@@ -302,6 +304,10 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.scheduler"),
     exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.options"),
     exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.scheduler"),
+    // Breakage - moved deprecated methods back into Task's class for better compatibility
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.DeprecatedExtensions"),
+    exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions"),
+    exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions$"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
@@ -332,7 +338,14 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.restartAsync"),
     exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.startFull"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.cancelable"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.async")
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.async"),
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.collection.ArrayStack.currentCapacity"),
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.collection.ArrayStack.minimumCapacity"),
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.collection.ArrayStack.size"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskStart.apply"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskEffect$CreateCallback"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.internal.collection.ArrayStack.clone"),
+    exclude[MissingTypesProblem]("monix.execution.internal.collection.ArrayStack")
   )
 )
 

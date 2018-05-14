@@ -391,6 +391,6 @@ private[observers] object AbstractEvictingBufferedSubscriber {
   private final case class Buffer[+A](
     length: Int,
     queue: Queue[A])
-  private final val emptyBuffer =
+  private val emptyBuffer =
     Buffer(0, Queue.empty)
 }

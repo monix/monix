@@ -80,5 +80,5 @@ object CanBlock {
   /** Global `CanBlock` value visible when compiling for the JVM,
     * but not available for JavaScript.
     */
-  implicit final val permit: CanBlock = new CanBlock
+  implicit val permit: CanBlock = new CanBlock
 }

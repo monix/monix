@@ -109,7 +109,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(100)))
   }
 
-  test("Task(throw).materialize (callback)") { implicit s =>
+  test("Task.evalAsync(throw).materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).materialize.map {
       case Failure(`dummy`) => 100
@@ -123,7 +123,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(100)))
   }
 
-  test("Task(throw).materialize (future)") { implicit s =>
+  test("Task.evalAsync(throw).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).materialize.map {
       case Failure(`dummy`) => 100
@@ -135,7 +135,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
   }
 
 
-  test("Task(throw).map(...).materialize (future)") { implicit s =>
+  test("Task.evalAsync(throw).map(...).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).map(_ + 1).materialize.map {
       case Failure(`dummy`) => 100
@@ -146,7 +146,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(100)))
   }
 
-  test("Task(throw).map(...).materialize (callback)") { implicit s =>
+  test("Task.evalAsync(throw).map(...).materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).map(_ + 1).materialize.map {
       case Failure(`dummy`) => 100
@@ -211,7 +211,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(100)))
   }
   
-  test("Task(throw).memoize.materialize (callback)") { implicit s =>
+  test("Task.evalAsync(throw).memoize.materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).memoize.materialize.map {
       case Failure(`dummy`) => 100
@@ -225,7 +225,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(100)))
   }
 
-  test("Task(throw).memoize.materialize (future)") { implicit s =>
+  test("Task.evalAsync(throw).memoize.materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).memoize.materialize.map {
       case Failure(`dummy`) => 100
@@ -237,7 +237,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
   }
 
 
-  test("Task(throw).memoize.map(...).materialize (future)") { implicit s =>
+  test("Task.evalAsync(throw).memoize.map(...).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).memoize.map(_ + 1).materialize.map {
       case Failure(`dummy`) => 100
@@ -248,7 +248,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(100)))
   }
 
-  test("Task(throw).memoize.map(...).materialize (callback)") { implicit s =>
+  test("Task.evalAsync(throw).memoize.map(...).materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).memoize.map(_ + 1).materialize.map {
       case Failure(`dummy`) => 100
