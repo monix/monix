@@ -37,7 +37,7 @@ import scala.util.{Failure, Success, Try}
   * highlighted by the usage of `Unit` as the return type. Obviously
   * callbacks are unsafe to use in pure code, but are necessary for
   * describing asynchronous processes, like in
-  * [[Task.cancelableS[A](start* Task.cancelable]].
+  * [[Task.cancelableS[A](register* Task.cancelable]].
   */
 abstract class Callback[-A] extends Listener[A] with (Either[Throwable, A] => Unit) {
   def onSuccess(value: A): Unit

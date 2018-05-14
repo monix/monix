@@ -34,7 +34,7 @@ private[eval] object TaskGatherUnordered {
     */
   def apply[A](in: TraversableOnce[Task[A]]): Task[List[A]] = {
     Async(
-      new Start(in),
+      new Register(in),
       trampolineBefore = true,
       trampolineAfter = true,
       restoreLocals = true)
@@ -45,8 +45,8 @@ private[eval] object TaskGatherUnordered {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Start[A](in: TraversableOnce[Task[A]])
-    extends ForkedStart[List[A]] {
+  private final class Register[A](in: TraversableOnce[Task[A]])
+    extends ForkedRegister[List[A]] {
 
     def maybeSignalFinal(
       ref: AtomicAny[State[A]],

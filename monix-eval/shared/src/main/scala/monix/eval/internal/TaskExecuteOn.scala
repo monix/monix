@@ -28,7 +28,7 @@ private[eval] object TaskExecuteOn {
   def apply[A](source: Task[A], s: Scheduler, forceAsync: Boolean): Task[A] = {
     val withTrampoline = !forceAsync
     val start =
-      if (forceAsync) new AsyncStart(source, s)
+      if (forceAsync) new AsyncRegister(source, s)
       else new TrampolinedStart(source, s)
 
     Async(
@@ -40,8 +40,8 @@ private[eval] object TaskExecuteOn {
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is task that forks on evaluation
-  private final class AsyncStart[A](source: Task[A], s: Scheduler)
-    extends ForkedStart[A] {
+  private final class AsyncRegister[A](source: Task[A], s: Scheduler)
+    extends ForkedRegister[A] {
 
     def apply(ctx: Context, cb: Callback[A]): Unit = {
       val oldS = ctx.scheduler

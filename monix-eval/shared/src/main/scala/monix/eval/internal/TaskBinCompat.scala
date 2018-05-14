@@ -119,7 +119,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
 
 private[eval] abstract class TaskBinCompatCompanion {
 
-  /** DEPRECATED — please switch to [[Task.cancelableS[A](start* Task.cancelableS]].
+  /** DEPRECATED — please switch to [[Task.cancelableS[A](register* Task.cancelableS]].
     *
     * The reason for the deprecation is that the `Task.async` builder
     * is now aligned to the meaning of `cats.effect.Async` and thus
@@ -146,8 +146,8 @@ private[eval] abstract class TaskBinCompatCompanion {
     *
     * Alternatives:
     *
-    *  - [[Task.cancelableS[A](start* Task.cancelable]]
-    *  - [[Task.asyncS[A](start* Task.simple]]
+    *  - [[Task.cancelableS[A](register* Task.cancelable]]
+    *  - [[Task.asyncS[A](register* Task.simple]]
     *  - [[Task.create]]
     *  - [[Task.deferAction]]
     *

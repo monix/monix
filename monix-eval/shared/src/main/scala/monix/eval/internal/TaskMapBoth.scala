@@ -34,7 +34,7 @@ private[eval] object TaskMapBoth {
     */
   def apply[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] = {
     Async(
-      new Start(fa1, fa2, f),
+      new Register(fa1, fa2, f),
       trampolineBefore = true,
       trampolineAfter = true,
       restoreLocals = true)
@@ -45,8 +45,8 @@ private[eval] object TaskMapBoth {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Start[A1, A2, R](fa1: Task[A1], fa2: Task[A2], f: (A1,A2) => R)
-    extends ForkedStart[R] {
+  private final class Register[A1, A2, R](fa1: Task[A1], fa2: Task[A2], f: (A1,A2) => R)
+    extends ForkedRegister[R] {
 
     /* For signaling the values after the successful completion of both tasks. */
     def sendSignal(mainConn: StackedCancelable, cb: Callback[R], a1: A1, a2: A2)

@@ -27,15 +27,15 @@ private[eval] object TaskRaceList {
     * Implementation for `Task.raceList`
     */
   def apply[A](tasks: TraversableOnce[Task[A]]): Task[A] =
-    Task.Async(new Start(tasks), trampolineBefore = true, trampolineAfter = true)
+    Task.Async(new Register(tasks), trampolineBefore = true, trampolineAfter = true)
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is a task that forks on evaluation.
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Start[A](tasks: TraversableOnce[Task[A]])
-    extends ForkedStart[A] {
+  private final class Register[A](tasks: TraversableOnce[Task[A]])
+    extends ForkedRegister[A] {
 
     def apply(context: Task.Context, callback: Callback[A]): Unit = {
       implicit val s = context.scheduler

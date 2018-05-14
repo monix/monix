@@ -27,15 +27,15 @@ private[eval] object TaskRace {
     * Implementation for `Task.race`.
     */
   def apply[A,B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
-    Task.Async(new Start(fa, fb), trampolineBefore = true, trampolineAfter = true)
+    Task.Async(new Register(fa, fb), trampolineBefore = true, trampolineAfter = true)
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is a task that forks on evaluation.
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Start[A, B](fa: Task[A], fb: Task[B])
-    extends ForkedStart[Either[A, B]] {
+  private final class Register[A, B](fa: Task[A], fb: Task[B])
+    extends ForkedRegister[Either[A, B]] {
 
     def apply(context: Task.Context, cb: Callback[Either[A, B]]): Unit = {
       implicit val sc = context.scheduler

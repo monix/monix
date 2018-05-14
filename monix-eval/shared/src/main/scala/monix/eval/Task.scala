@@ -184,7 +184,7 @@ import scala.util.{Failure, Success, Try}
   * canceled. When describing `Task` tasks with `Task.eval` nothing
   * can be cancelled, since there's nothing about a plain function
   * that you can cancel, but we can build cancelable tasks with
-  * [[monix.eval.Task.cancelableS[A](start* Task.cancelable]].
+  * [[monix.eval.Task.cancelableS[A](register* Task.cancelable]].
   *
   * {{{
   *   import scala.concurrent.duration._
@@ -1012,7 +1012,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * given `thunk` immediately (on the current thread and call stack).
     *
     * By calling `executeOn(io)`, we are ensuring that the used
-    * `Scheduler` (injected in [[Task.cancelableS[A](start* async tasks]])
+    * `Scheduler` (injected in [[Task.cancelableS[A](register* async tasks]])
     * will be `io`, a `Scheduler` that we intend to use for blocking
     * I/O actions. And we are also forcing an asynchronous boundary
     * right before execution, by passing the `forceAsync` parameter as
@@ -1169,7 +1169,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * Normally Monix Tasks have these characteristics:
     *
     *  - `flatMap` chains are not cancelable by default
-    *  - when creating [[Task.cancelableS[A](start* async tasks]]
+    *  - when creating [[Task.cancelableS[A](register* async tasks]]
     *    the user has to specify explicit cancellation logic
     *
     * This operation returns a task that has [[Task.Options.autoCancelableRunLoops]]
@@ -1600,7 +1600,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *
     * IMPORTANT — this operation does start with an asynchronous boundary.
     * You can either use [[fork]] as an alternative, or use [[executeAsync]]
-    * just before calling `start`, as in general this law holds:
+    * just before calling `register`, as in general this law holds:
     *
     * {{{
     *   fa.fork <-> fa.executeAsync.start
@@ -2106,7 +2106,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * This operation is the implementation for `cats.effect.Async` and
     * is thus yielding non-cancelable tasks, being the simplified
-    * version of [[Task.cancelable[A](start* Task.cancelable]].
+    * version of [[Task.cancelable[A](register* Task.cancelable]].
     * This can be used to translate from a callback-based API to pure
     * `Task` values that cannot be canceled.
     *
@@ -2135,7 +2135,7 @@ object Task extends TaskInstancesLevel1 {
     * to get rid of these pesky execution contexts being passed around explicitly.
     * See [[Task.asyncS]].
     *
-    * CONTRACT for `start`:
+    * CONTRACT for `register`:
     *
     *  - the provided function is executed when the `Task` will be evaluated
     *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
@@ -2149,13 +2149,13 @@ object Task extends TaskInstancesLevel1 {
     *      [[monix.execution.Scheduler Scheduler]] into the provided callback,
     *      useful for forking, or delaying tasks or managing async boundaries
     *
-    * @see [[Task.cancelable[A](start* Task.cancelable]] and [[Task.cancelableS]]
+    * @see [[Task.cancelable[A](register* Task.cancelable]] and [[Task.cancelableS]]
     *      for creating cancelable tasks
     *
     * @see [[Task.create]] for the builder that does it all
     */
-  def async[A](start: Callback[A] => Unit): Task[A] =
-    TaskCreate.async(start)
+  def async[A](register: Callback[A] => Unit): Task[A] =
+    TaskCreate.async(register)
 
   /** Create a non-cancelable `Task` from an asynchronous computation,
     * which takes the form of a function with which we can register a
@@ -2190,11 +2190,11 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     *
     * Note that this function doesn't need an implicit `ExecutionContext`.
-    * Compared with usage of [[Task.async[A](start* Task.async]], this
+    * Compared with usage of [[Task.async[A](register* Task.async]], this
     * function injects a [[monix.execution.Scheduler Scheduler]] for us to
     * use for managing async boundaries.
     *
-    * CONTRACT for `start`:
+    * CONTRACT for `register`:
     *
     *  - the provided function is executed when the `Task` will be evaluated
     *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
@@ -2212,13 +2212,13 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.async]] for a simpler variant that doesn't inject a
     *      `Scheduler`, in case you don't need one
     *
-    * @see [[Task.cancelable[A](start* Task.cancelable]] and [[Task.cancelableS]]
+    * @see [[Task.cancelable[A](register* Task.cancelable]] and [[Task.cancelableS]]
     *      for creating cancelable tasks
     *
     * @see [[Task.create]] for the builder that does it all
     */
-  def asyncS[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
-    TaskCreate.asyncS(start)
+  def asyncS[A](register: (Scheduler, Callback[A]) => Unit): Task[A] =
+    TaskCreate.asyncS(register)
 
   /** Create a cancelable `Task` from an asynchronous computation that
     * can be canceled, taking the form of a function with which we can
@@ -2273,7 +2273,7 @@ object Task extends TaskInstancesLevel1 {
     * affords to have a [[monix.execution.Scheduler Scheduler]] injected
     * instead via [[Task.cancelableS]].
     *
-    * CONTRACT for `start`:
+    * CONTRACT for `register`:
     *
     *  - the provided function is executed when the `Task` will be evaluated
     *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
@@ -2286,16 +2286,16 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.cancelableS]] for the version that also injects a
     *      [[monix.execution.Scheduler Scheduler]] in that callback
     *
-    * @see [[Task.asyncS]] and [[Task.async[A](start* Task.async]] for the
+    * @see [[Task.asyncS]] and [[Task.async[A](register* Task.async]] for the
     *      simpler versions of this builder that create non-cancelable tasks
     *      from callback-based APIs
     *
     * @see [[Task.create]] for the builder that does it all
     *
-    * @param start $registerParamDesc
+    * @param register $registerParamDesc
     */
-  def cancelable[A](start: Callback[A] => Cancelable): Task[A] =
-    cancelableS((_, cb) => start(cb))
+  def cancelable[A](register: Callback[A] => Cancelable): Task[A] =
+    cancelableS((_, cb) => register(cb))
 
   /** Create a cancelable `Task` from an asynchronous computation,
     * which takes the form of a function with which we can register a
@@ -2363,7 +2363,7 @@ object Task extends TaskInstancesLevel1 {
     *     }
     * }}}
     *
-    * CONTRACT for `start`:
+    * CONTRACT for `register`:
     *
     *  - the provided function is executed when the `Task` will be evaluated
     *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
@@ -2378,19 +2378,19 @@ object Task extends TaskInstancesLevel1 {
     *  - `cancelable` comes from `cats.effect.Concurrent#cancelable`
     *  - the `S` suffix comes from [[monix.execution.Scheduler Scheduler]]
     *
-    * @see [[Task.cancelable[A](start* Task.cancelable]] for the simpler
+    * @see [[Task.cancelable[A](register* Task.cancelable]] for the simpler
     *      variant that doesn't inject the `Scheduler` in that callback
     *
-    * @see [[Task.asyncS]] and [[Task.async[A](start* Task.async]] for the
+    * @see [[Task.asyncS]] and [[Task.async[A](register* Task.async]] for the
     *      simpler versions of this builder that create non-cancelable tasks
     *      from callback-based APIs
     *
     * @see [[Task.create]] for the builder that does it all
     *
-    * @param start $registerParamDesc
+    * @param register $registerParamDesc
     */
-  def cancelableS[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
-    TaskCreate.cancelableS(start)
+  def cancelableS[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+    TaskCreate.cancelableS(register)
 
   /** Polymorphic `Task` builder that is able to describe asynchronous
     * tasks depending on the type of the given callback.
@@ -3246,7 +3246,7 @@ object Task extends TaskInstancesLevel1 {
     * increasing performance.
     */
   abstract class AsyncBuilder[CancelToken] {
-    def create[A](start: (Scheduler, Callback[A]) => CancelToken): Task[A]
+    def create[A](register: (Scheduler, Callback[A]) => CancelToken): Task[A]
   }
 
   object AsyncBuilder extends AsyncBuilder0 {
@@ -3263,16 +3263,16 @@ object Task extends TaskInstancesLevel1 {
     private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true)
       extends AnyVal {
 
-      def apply[CancelToken](start: (Scheduler, Callback[A]) => CancelToken)
+      def apply[CancelToken](register: (Scheduler, Callback[A]) => CancelToken)
         (implicit B: AsyncBuilder[CancelToken]): Task[A] =
-        B.create(start)
+        B.create(register)
     }
 
     /** Implicit `AsyncBuilder` for non-cancelable tasks. */
     implicit val forUnit: AsyncBuilder[Unit] =
       new AsyncBuilder[Unit] {
-        def create[A](start: (Scheduler, Callback[A]) => Unit): Task[A] =
-          TaskCreate.asyncS(start)
+        def create[A](register: (Scheduler, Callback[A]) => Unit): Task[A] =
+          TaskCreate.asyncS(register)
       }
 
     /** Implicit `AsyncBuilder` for non-cancelable tasks built by a function
@@ -3284,8 +3284,8 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forCancelableDummy: AsyncBuilder[Cancelable.Empty] =
       new AsyncBuilder[Cancelable.Empty] {
-        def create[A](start: (Scheduler, Callback[A]) => Cancelable.Empty): Task[A] =
-          TaskCreate.asyncS(start)
+        def create[A](register: (Scheduler, Callback[A]) => Cancelable.Empty): Task[A] =
+          TaskCreate.asyncS(register)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -3294,8 +3294,8 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forIO: AsyncBuilder[IO[Unit]] =
       new AsyncBuilder[IO[Unit]] {
-        def create[A](start: (Scheduler, Callback[A]) => IO[Unit]): Task[A] =
-          TaskCreate.cancelableIO(start)
+        def create[A](register: (Scheduler, Callback[A]) => IO[Unit]): Task[A] =
+          TaskCreate.cancelableIO(register)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -3303,8 +3303,8 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forTask: AsyncBuilder[Task[Unit]] =
       new AsyncBuilder[Task[Unit]] {
-        def create[A](start: (Scheduler, Callback[A]) => Task[Unit]): Task[A] =
-          TaskCreate.cancelableTask(start)
+        def create[A](register: (Scheduler, Callback[A]) => Task[Unit]): Task[A] =
+          TaskCreate.cancelableTask(register)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -3312,8 +3312,8 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forCoeval: AsyncBuilder[Coeval[Unit]] =
       new AsyncBuilder[Coeval[Unit]] {
-        def create[A](start: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
-          TaskCreate.cancelableCoeval(start)
+        def create[A](register: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
+          TaskCreate.cancelableCoeval(register)
       }
   }
 
@@ -3324,8 +3324,8 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forCancelable: AsyncBuilder[Cancelable] =
       new AsyncBuilder[Cancelable] {
-        def create[A](start: (Scheduler, Callback[A]) => Cancelable): Task[A] =
-          TaskCreate.cancelableS(start)
+        def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+          TaskCreate.cancelableS(register)
       }
   }
 
@@ -3569,6 +3569,10 @@ object Task extends TaskInstancesLevel1 {
     * @param register is the side-effecting, callback-enabled function
     *        that starts the asynchronous computation and registers
     *        the callback to be called on completion
+    *        
+    * @param trampolineBefore is an optimization that instructs the 
+    *        run-loop to insert a trampolined async boundary before
+    *        evaluating the `register` function
     */
   private[monix] final case class Async[+A](
     register: (Context, Callback[A]) => Unit,
@@ -3595,7 +3599,7 @@ object Task extends TaskInstancesLevel1 {
     * an extraneous async boundary.
     */
   private[monix] def unsafeStartEnsureAsync[A](source: Task[A], context: Context, cb: Callback[A]): Unit = {
-    if (ForkedStart.detect(source))
+    if (ForkedRegister.detect(source))
       unsafeStartNow(source, context, cb)
     else
       unsafeStartAsync(source, context, cb)

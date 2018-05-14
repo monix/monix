@@ -28,7 +28,7 @@ private[eval] object TaskShift {
     */
   def apply(ec: ExecutionContext): Task[Unit] = {
     Async(
-      new Start(ec),
+      new Register(ec),
       trampolineBefore = false,
       trampolineAfter = false)
   }
@@ -38,8 +38,8 @@ private[eval] object TaskShift {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Start(ec: ExecutionContext)
-    extends ForkedStart[Unit] {
+  private final class Register(ec: ExecutionContext)
+    extends ForkedRegister[Unit] {
 
     def apply(context: Context, cb: Callback[Unit]): Unit = {
       val ec2 =

@@ -32,20 +32,20 @@ import scala.runtime.AbstractFunction2
   * is that the injected `Callback` MUST BE called after a full
   * asynchronous boundary.
   */
-private[eval] abstract class ForkedStart[A]
+private[eval] abstract class ForkedRegister[A]
   extends AbstractFunction2[Context, Callback[A], Unit] {
 
   def apply(context: Context, cb: Callback[A]): Unit
 }
 
-private[eval] object ForkedStart {
+private[eval] object ForkedRegister {
   /**
     * Returns `true` if the given task is known to fork execution,
     * or `false` otherwise.
     */
   @tailrec def detect(task: Task[_], limit: Int = 8): Boolean = {
     if (limit > 0) task match {
-      case Async(_: ForkedStart[_], _, _, _) => true
+      case Async(_: ForkedRegister[_], _, _, _) => true
       case FlatMap(other, _) => detect(other, limit - 1)
       case Map(other, _, _) => detect(other, limit - 1)
       case _ => false

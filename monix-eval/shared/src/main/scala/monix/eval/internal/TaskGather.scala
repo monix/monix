@@ -32,7 +32,7 @@ private[eval] object TaskGather {
     */
   def apply[A, M[X] <: TraversableOnce[X]](in: TraversableOnce[Task[A]], makeBuilder: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
     Async(
-      new Start(in, makeBuilder),
+      new Register(in, makeBuilder),
       trampolineBefore = true,
       trampolineAfter = true,
       restoreLocals = true)
@@ -43,10 +43,10 @@ private[eval] object TaskGather {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Start[A, M[X] <: TraversableOnce[X]](
+  private final class Register[A, M[X] <: TraversableOnce[X]](
     in: TraversableOnce[Task[A]],
     makeBuilder: () => mutable.Builder[A, M[A]])
-    extends ForkedStart[M[A]] {
+    extends ForkedRegister[M[A]] {
 
     def apply(context: Context, finalCallback: Callback[M[A]]): Unit = {
       // We need a monitor to synchronize on, per evaluation!
