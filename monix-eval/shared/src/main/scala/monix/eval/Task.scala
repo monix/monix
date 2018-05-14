@@ -3282,7 +3282,7 @@ object Task extends TaskInstancesLevel1 {
     implicit val forCancelableDummy: AsyncBuilder[Cancelable.Empty] =
       new AsyncBuilder[Cancelable.Empty] {
         def create[A](start: (Scheduler, Callback[A]) => Cancelable.Empty): Task[A] =
-          TaskCreate.asyncS2(start)
+          TaskCreate.asyncS(start)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using

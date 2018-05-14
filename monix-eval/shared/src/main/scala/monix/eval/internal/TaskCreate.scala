@@ -83,27 +83,7 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `Task.async`
     */
-  def asyncS[A](fn: (Scheduler, Callback[A]) => Unit): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
-      implicit val s = ctx.scheduler
-      try {
-        fn(s, Callback.trampolined(cb))
-      } catch {
-        case ex if NonFatal(ex) =>
-          // We cannot stream the error, because the callback might have
-          // been called already and we'd be violating its contract,
-          // hence the only thing possible is to log the error.
-          s.reportFailure(ex)
-      }
-    }
-    Async(start, trampolineBefore = false, trampolineAfter = false)
-  }
-
-  /**
-    * Implementation for `Task.create` for the case the given callback
-    * returns an empty cancelable.
-    */
-  def asyncS2[A](fn: (Scheduler, Callback[A]) => Cancelable.Empty): Task[A] = {
+  def asyncS[A](fn: (Scheduler, Callback[A]) => Any): Task[A] = {
     val start = (ctx: Context, cb: Callback[A]) => {
       implicit val s = ctx.scheduler
       try {
