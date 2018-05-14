@@ -60,9 +60,11 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   // Force building with Java 8
   initialize := {
-    val required = "1.8"
-    val current  = sys.props("java.specification.version")
-    assert(current == required, s"Unsupported build JDK: java.specification.version $current != $required")
+    if (sys.props("monix.requireJava8") != "false") {
+      val required = "1.8"
+      val current  = sys.props("java.specification.version")
+      assert(current == required, s"Unsupported build JDK: java.specification.version $current != $required")
+    }
   },
 
   // Targeting Java 6, but only for Scala <= 2.11
