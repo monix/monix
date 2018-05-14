@@ -43,7 +43,10 @@ private[eval] object TaskMemoize {
         if !cacheErrors || r.cacheErrors =>
         source
       case _ =>
-        Task.Async(new Register(source, cacheErrors), restoreLocals = false)
+        Task.Async(new Register(source, cacheErrors),
+          trampolineBefore = false,
+          trampolineAfter = true,
+          restoreLocals = false)
     }
 
   /** Registration function, used in `Task.Async`. */

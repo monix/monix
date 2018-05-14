@@ -3160,7 +3160,10 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.executeWithOptions]]
     */
   val readOptions: Task[Options] =
-    Task.Async((ctx, cb) => cb.onSuccess(ctx.options))
+    Task.Async(
+      (ctx, cb) => cb.onSuccess(ctx.options),
+      trampolineBefore = false,
+      trampolineAfter = true)
 
   /** Set of options for customizing the task's behavior.
     *
@@ -3627,7 +3630,7 @@ object Task extends TaskInstancesLevel1 {
 
   /** Internal, reusable reference. */
   private[this] val neverRef: Async[Nothing] =
-    Async((_,_) => ())
+    Async((_,_) => (), trampolineBefore = false, trampolineAfter = false)
 
   /** Internal, reusable reference. */
   private val nowConstructor: Any => Task[Nothing] =

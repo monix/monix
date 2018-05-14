@@ -31,7 +31,7 @@ private[eval] object TaskRacePair {
     * Implementation for `Task.racePair`.
     */
   def apply[A, B](fa: Task[A], fb: Task[B]): Task[RaceEither[A, B]] =
-    Task.Async(new Start(fa, fb), trampolineBefore = true)
+    Task.Async(new Start(fa, fb), trampolineBefore = true, trampolineAfter = true)
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is a task that forks on evaluation.

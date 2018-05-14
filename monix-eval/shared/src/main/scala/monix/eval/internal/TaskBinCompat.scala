@@ -160,7 +160,7 @@ private[eval] abstract class TaskBinCompatCompanion {
   @deprecated("Switch to Task.create", since = "3.0.0-RC2")
   def unsafeCreate[A](register: (Context, Callback[A]) => Unit): Task[A] = {
     // $COVERAGE-OFF$
-    Async(register)
+    Async(register, trampolineBefore = false, trampolineAfter = false)
     // $COVERAGE-ON$
   }
 

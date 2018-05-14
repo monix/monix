@@ -102,8 +102,8 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     * that upon evaluation will only complete after a permit
     * has been acquired.
     */
-  val acquire: Task[Unit] =
-    Task.Async { (context, cb) =>
+  val acquire: Task[Unit] = {
+    val start = (context: Context, cb: Callback[Unit]) => {
       import monix.execution.schedulers.TrampolineExecutionContext.immediate
       implicit val s = context.scheduler
       val f = semaphore.acquire()
@@ -121,6 +121,8 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
         }(immediate)
       }
     }
+    Task.Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
 
   /** Returns a task that upon evaluation will release a permit,
     * returning it to the pool.
