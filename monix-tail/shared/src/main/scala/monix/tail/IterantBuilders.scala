@@ -21,9 +21,11 @@ import cats.Applicative
 import cats.effect._
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
-
+import org.reactivestreams.Publisher
 import scala.collection.immutable.LinearSeq
 import scala.concurrent.duration.{Duration, FiniteDuration}
+
+import monix.execution.rstreams.ReactivePullStrategy
 
 /** Class defining curried `Iterant` builders, relieving the user from
   * specifying the `A` parameter explicitly.
@@ -283,6 +285,12 @@ class IterantBuildersAsync[F[_]](implicit F: Async[F])
   def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)
     (implicit timer: Timer[F]): Iterant[F, Long] =
     Iterant.intervalWithFixedDelay(initialDelay, delay)
+
+
+  /** Aliased builder, see documentation for [[Iterant.fromReactivePublisher]]. */
+  def fromReactivePublisher[A](publisher: Publisher[A])(implicit timer: Timer[F], strategy: ReactivePullStrategy = ReactivePullStrategy.Default): Iterant[F, A] =
+    Iterant.fromReactivePublisher(publisher)
+
 }
 
 object IterantBuilders {

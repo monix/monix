@@ -98,18 +98,16 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
       }
     }
 
-  implicit def isEqIterantTask[A](implicit A: Eq[A]): Eq[Iterant[Task, A]] =
+  implicit def isEqIterantTask[A](implicit A: Eq[A], sc: TestScheduler): Eq[Iterant[Task, A]] =
     new Eq[Iterant[Task, A]] {
       def eqv(lh: Iterant[Task,  A], rh: Iterant[Task,  A]): Boolean = {
-        implicit val s = TestScheduler()
         materialize(lh) === materialize(rh)
       }
     }
 
-  implicit def isEqIterantIO[A](implicit A: Eq[A]): Eq[Iterant[IO, A]] =
+  implicit def isEqIterantIO[A](implicit A: Eq[A], sc: TestScheduler): Eq[Iterant[IO, A]] =
     new Eq[Iterant[IO, A]] {
       def eqv(lh: Iterant[IO,  A], rh: Iterant[IO,  A]): Boolean = {
-        implicit val s = TestScheduler()
         materialize(lh) === materialize(rh)
       }
     }

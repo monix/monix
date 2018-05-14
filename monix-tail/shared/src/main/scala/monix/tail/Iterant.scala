@@ -18,7 +18,6 @@
 package monix.tail
 
 import java.io.PrintStream
-
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order, Parallel}
@@ -30,10 +29,11 @@ import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
 import monix.tail.internal.Constants.emptyRef
 import org.reactivestreams.Publisher
-
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
+
+import monix.execution.rstreams.ReactivePullStrategy
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
   * streaming of elements using a pull-based protocol.
@@ -2248,6 +2248,23 @@ object Iterant extends IterantInstances {
   def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] = {
     val bs = if (xs.hasDefiniteSize) recommendedBatchSize else 1
     NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty), F.unit)
+  }
+
+  /** Given an `org.reactivestreams.Publisher`, converts it into a
+    * Monix Iterant.
+    *
+    * @see [[Iterant.toReactivePublisher]] for converting an `Iterant` to
+    *      a reactive publisher.
+    *
+    * @param publisher is the `org.reactivestreams.Publisher` reference to
+    *                  wrap into an [[Iterant]]
+    *
+    * @param strategy  is a [[monix.execution.rstreams.ReactivePullStrategy ReactivePullStrategy]]
+    *                  that describes how elements are requested from a `Publisher`
+    *
+    */
+  def fromReactivePublisher[F[_], A](publisher: Publisher[A])(implicit F: Async[F], timer: Timer[F], strategy: ReactivePullStrategy = ReactivePullStrategy.Default): Iterant[F, A] = {
+    IterantFromReactivePublisher(publisher, strategy)
   }
 
   /** Given an initial state and a generator function that produces the
