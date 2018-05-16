@@ -77,28 +77,57 @@ private[eval] object TaskBracket {
       new ReleaseFrameCase(ctx, value, release)
   }
 
+  /**
+    * Implementation optimized for usage in `TaskLocal`
+    */
+  def forLocals[B](
+    acquire: Task[Unit],
+    use: Unit => Task[B],
+    release: Task[Unit]): Task[B] = {
+
+    Task.Async(
+      new StartCaseWithLocals(acquire, use, release),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = false)
+  }
+
+  private final class StartCaseWithLocals[A, B](
+    acquire: Task[A],
+    use: A => Task[B],
+    release: Task[Unit])
+    extends BaseStart(acquire, use) {
+
+    def makeReleaseFrame(ctx: Context, value: A) =
+      new ReleaseFrameLocals(ctx, value, release)
+    override def contextSwitch(ctx: Context): Context =
+      ctx.copy(options = ctx.options.enableLocalContextPropagation)
+  }
+
   private abstract class BaseStart[A, B](
     acquire: Task[A],
     use: A => Task[B])
     extends ((Context, Callback[B]) => Unit) {
 
     protected def makeReleaseFrame(ctx: Context, value: A): BaseReleaseFrame[A, B]
+    protected def contextSwitch(ctx: Context): Context = ctx
 
     final def apply(ctx: Context, cb: Callback[B]): Unit = {
       // Async boundary needed, but it is guaranteed via Task.Async below
       Task.unsafeStartNow(acquire, ctx, new Callback[A] {
         def onSuccess(value: A): Unit = {
-          implicit val sc = ctx.scheduler
-          val conn = ctx.connection
+          val ctx2 = contextSwitch(ctx)
+          implicit val sc = ctx2.scheduler
+          val conn = ctx2.connection
 
-          val releaseFrame = makeReleaseFrame(ctx, value)
+          val releaseFrame = makeReleaseFrame(ctx2, value)
           val onNext = {
             val fb = try use(value) catch { case NonFatal(e) => Task.raiseError(e) }
             fb.flatMap(releaseFrame)
           }
 
           conn.push(releaseFrame)
-          Task.unsafeStartNow(onNext, ctx, Callback.trampolined(conn, cb))
+          Task.unsafeStartNow(onNext, ctx2, Callback.trampolined(conn, cb))
         }
 
         def onError(ex: Throwable): Unit =
@@ -133,6 +162,20 @@ private[eval] object TaskBracket {
       release(a, Error(e))
     def releaseOnCancel(a: A): Task[Unit] =
       release(a, canceled)
+  }
+
+  private final class ReleaseFrameLocals[A, B](
+    ctx: Context,
+    a: A,
+    release: Task[Unit])
+    extends BaseReleaseFrame[A, B](ctx, a) {
+
+    def releaseOnSuccess(a: A, b: B): Task[Unit] =
+      release
+    def releaseOnError(a: A, e: Throwable): Task[Unit] =
+      release
+    def releaseOnCancel(a: A): Task[Unit] =
+      release
   }
 
   private abstract class BaseReleaseFrame[A, B](ctx: Context, a: A)

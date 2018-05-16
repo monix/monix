@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.eval.internal.TaskBracket
 import monix.execution.misc.Local
 
 /** A `TaskLocal` is like a
@@ -140,7 +141,11 @@ final class TaskLocal[A] private (default: => A) {
     *        reset to the previous value
     */
   def bind[R](value: A)(task: Task[R]): Task[R] =
-    bindL(Task.now(value))(task)
+    local.flatMap { r =>
+      val saved = r.value
+      val acquire = Task.eval(r.update(value))
+      TaskBracket.forLocals(acquire, _ => task, restore(saved))
+    }
 
   /** Binds the local var to a `value` for the duration of the given
     * `task` execution, the `value` itself being lazily evaluated
@@ -169,10 +174,8 @@ final class TaskLocal[A] private (default: => A) {
   def bindL[R](value: Task[A])(task: Task[R]): Task[R] =
     local.flatMap { r =>
       val saved = r.value
-      value.bracket { v =>
-        r.update(v)
-        task
-      }(_ => restore(saved))
+      val acquire = value.map(a => r.update(a))
+      TaskBracket.forLocals(acquire, _ => task, restore(saved))
     }
 
   /** Clears the local var to the default for the duration of the
@@ -196,8 +199,8 @@ final class TaskLocal[A] private (default: => A) {
   def bindClear[R](task: Task[R]): Task[R] =
     local.flatMap { r =>
       val saved = r.value
-      r.clear()
-      Task.unit.bracket(_ => task)(_ => restore(saved))
+      val acquire = Task.eval(r.clear())
+      TaskBracket.forLocals(acquire, _ => task, restore(saved))
     }
 
   private def restore(value: Option[A]): Task[Unit] =
