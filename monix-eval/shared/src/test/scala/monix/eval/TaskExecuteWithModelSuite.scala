@@ -38,7 +38,6 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
 
   testAsync("local.write.executeWithModel(AlwaysAsyncExecution) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
     val task = for {
       l <- TaskLocal(10)
@@ -47,14 +46,13 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runAsync) yield {
       assertEquals(v, 100)
     }
   }
 
   testAsync("local.write.executeWithModel(SynchronousExecution) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
     val task = for {
       l <- TaskLocal(10)
@@ -63,7 +61,7 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runAsync) yield {
       assertEquals(v, 100)
     }
   }

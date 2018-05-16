@@ -35,9 +35,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)
-    val f = loop(atomic)
-      .executeWithOptions(_.disableAutoCancelableRunLoops)
-      .runAsync
+    val f = loop(atomic).runAsync
 
     f.cancel(); s.tick()
     assertEquals(atomic.get, maxCount)

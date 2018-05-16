@@ -24,8 +24,8 @@ import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 import monix.execution._
 import monix.execution.cancelables.StackedCancelable
+import monix.execution.internal.Newtype1
 import monix.execution.internal.Platform.fusionMaxStackDepth
-import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.ThreadLocal
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
 
@@ -487,8 +487,8 @@ import scala.util.{Failure, Success, Try}
   *         a parameter.
   */
 sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
-  import monix.eval.Task._
   import cats.effect.Async
+  import monix.eval.Task._
 
   /** $runAsyncDesc
     *
@@ -503,7 +503,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *         a running task.
     */
   def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-    TaskRunLoop.startFuture(this, s, defaultOptions)
+    TaskRunLoop.startFuture(this, s, Task.defaultOptions)
 
   /** $runAsyncDesc
     *
@@ -512,43 +512,15 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * @return $cancelableDesc
     */
   def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
-    TaskRunLoop.startLight(this, s, defaultOptions, cb)
-
-  /** $runAsyncOptDesc
-    *
-    * @param s $schedulerDesc
-    * @param opts $optionsDesc
-    * @return $cancelableDesc
-    */
-  def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
-    TaskRunLoop.startFuture(this, s, opts)
-
-  /** $runAsyncOptDesc
-    *
-    * @param cb $callbackDesc
-    * @param s $schedulerDesc
-    * @param opts $optionsDesc
-    * @return $cancelableDesc
-    */
-  def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
-    TaskRunLoop.startLight(this, s, opts, cb)
+    TaskRunLoop.startLight(this, s, Task.defaultOptions, cb)
 
   /** $runSyncMaybeDesc
     *
     * @param s $schedulerDesc
     * @return $runSyncMaybeReturn
     */
-  final def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] =
-    runSyncMaybeOpt(s, defaultOptions)
-
-  /** $runSyncMaybeDesc
-    *
-    * @param s $schedulerDesc
-    * @param opts $optionsDesc
-    * @return $runSyncMaybeReturn
-    */
-  final def runSyncMaybeOpt(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
-    val future = runAsyncOpt(s, opts)
+  final def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
+    val future = TaskRunLoop.startFuture(this, s, Task.defaultOptions)
     future.value match {
       case Some(value) =>
         value match {
@@ -570,19 +542,6 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     (implicit s: Scheduler, permit: CanBlock): A =
     /*_*/
     TaskRunSyncUnsafe(this, timeout, s, defaultOptions)
-    /*_*/
-
-  /** $runSyncUnsafeDesc
-    *
-    * @param timeout $runSyncUnsafeTimeout
-    * @param s $schedulerDesc
-    * @param opts $optionsDesc
-    * @param permit $runSyncUnsafePermit
-    */
-  final def runSyncUnsafeOpt(timeout: Duration)
-    (implicit s: Scheduler, opts: Options, permit: CanBlock): A =
-    /*_*/
-    TaskRunSyncUnsafe(this, timeout, s, opts)
     /*_*/
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
@@ -618,7 +577,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *   val err = new CancellationException
     *   val cached1 = source.onCancelRaiseError(err).memoize
     *
-    *   // Option 2: make it uninterruptible
+    *   // Option 2: make it non-cancelable
     *   val cached2 = source.uncancelable.memoize
     * }}}
     *
@@ -1146,23 +1105,6 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   final def executeWithModel(em: ExecutionModel): Task[A] =
     TaskExecuteWithModel(this, em)
-
-  /** Returns a new task that will execute the source with a different
-    * set of [[Task.Options Options]].
-    *
-    * This allows fine-tuning the default options. Example:
-    *
-    * {{{
-    *   task.executeWithOptions(_.enableAutoCancelableRunLoops)
-    * }}}
-    *
-    * @param f is a function that takes the source's current set of
-    *        [[Task.Options options]] and returns a modified set of
-    *        options that will be used to execute the source
-    *        upon `runAsync`
-    */
-  final def executeWithOptions(f: Options => Options): Task[A] =
-    TaskExecuteWithOptions(this, f)
 
   /** Returns a new task that is cancelable.
     *
@@ -3183,8 +3125,6 @@ object Task extends TaskInstancesLevel1 {
 
   /** Returns the current [[Task.Options]] configuration, which determine the
     * task's run-loop behavior.
-    *
-    * @see [[Task.executeWithOptions]]
     */
   val readOptions: Task[Options] =
     Task.Async(
@@ -3196,6 +3136,10 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[Task.defaultOptions]] for the default `Options` instance
     * used by [[Task!.runAsync(implicit* .runAsync]].
+    *
+    * '''WARN:''' along with the deprecation of `executeWithOptions`, this
+    * value, along with [[Options]] will be eventually made package private
+    * when those deprecated methods will get removed.
     *
     * @param autoCancelableRunLoops should be set to `true` in
     *        case you want `flatMap` driven loops to be
@@ -3235,29 +3179,22 @@ object Task extends TaskInstancesLevel1 {
       copy(localContextPropagation = false)
   }
 
-  /** Default [[Options]] to use for [[Task]] evaluation,
-    * thus:
+  /** Default [[Options]] to use for [[Task]] evaluation, thus:
     *
     *  - `autoCancelableRunLoops` is `false` by default
     *  - `localContextPropagation` is `false` by default
     *
-    * On top of the JVM the default can be overridden by
-    * setting the following system properties:
-    *
-    *  - `monix.environment.autoCancelableRunLoops`
-    *    (`true`, `yes` or `1` for enabling)
-    *
-    *  - `monix.environment.localContextPropagation`
-    *    (`true`, `yes` or `1` for enabling)
-    *
-    * @see [[Task.Options]]
+    * '''WARN:''' along with the deprecation of `executeWithOptions`, this
+    * value, along with [[Options]] will be eventually made package private
+    * when those deprecated methods will get removed.
     */
   val defaultOptions: Options =
     Options(
       // N.B. this value needs to be false by default, otherwise Task
       // violates the cats.effect.Concurrent laws
       autoCancelableRunLoops = false,
-      localContextPropagation = Platform.localContextPropagation
+      // Starts with `false` by default, but is automatically set to true.
+      localContextPropagation = false
     )
 
   /** The `AsyncBuilder` is a type used by the [[Task.create]] builder,
@@ -3608,6 +3545,16 @@ object Task extends TaskInstancesLevel1 {
     trampolineBefore: Boolean = false,
     trampolineAfter: Boolean = true,
     restoreLocals: Boolean = true)
+    extends Task[A]
+
+  /** For changing the context for the rest of the run-loop.
+    *
+    * WARNING: this is entirely internal API and shouldn't be exposed.
+    */
+  private[monix] final case class ContextSwitch[+A](
+    source: Task[A],
+    modify: Context => Context,
+    restore: (Context, Context) => Context)
     extends Task[A]
 
   /** Internal API — starts the execution of a Task with a guaranteed

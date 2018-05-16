@@ -308,8 +308,6 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.Task.DeprecatedExtensions"),
     exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions"),
     exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions$"),
-    // Breakage - removed due to unsafety
-    exclude[DirectMissingMethodProblem]("monix.execution.internal.Platform.autoCancelableRunLoops"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
@@ -347,7 +345,9 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskStart.apply"),
     exclude[MissingClassProblem]("monix.eval.internal.TaskEffect$CreateCallback"),
     exclude[IncompatibleResultTypeProblem]("monix.execution.internal.collection.ArrayStack.clone"),
-    exclude[MissingTypesProblem]("monix.execution.internal.collection.ArrayStack")
+    exclude[MissingTypesProblem]("monix.execution.internal.collection.ArrayStack"),
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.Platform.autoCancelableRunLoops"),
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.Platform.localContextPropagation")
   )
 )
 

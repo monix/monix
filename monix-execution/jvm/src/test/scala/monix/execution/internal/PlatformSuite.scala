@@ -29,10 +29,6 @@ object PlatformSuite extends SimpleTestSuite {
     assertEquals(Platform.recommendedBatchSize, 1024)
   }
 
-  test("localContextPropagation") {
-    assert(!Platform.localContextPropagation)
-  }
-
   test("fusionMaxStackDepth") {
     assertEquals(Platform.fusionMaxStackDepth, 127)
   }

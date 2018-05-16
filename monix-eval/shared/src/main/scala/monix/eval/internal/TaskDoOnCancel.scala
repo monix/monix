@@ -31,7 +31,7 @@ private[eval] object TaskDoOnCancel {
         implicit val s = context.scheduler
         implicit val o = context.options
 
-        val c = Cancelable(() => callback.runAsyncOpt(Callback.empty))
+        val c = Cancelable(() => TaskRunLoop.startLight(callback, s, o, Callback.empty))
         val conn = context.connection
         conn.push(c)
         Task.unsafeStartNow(self, context, Callback.trampolined(conn, onFinish))

@@ -265,4 +265,16 @@ object StackedCancelable {
     override def popAndPush(value: Cancelable): Cancelable =
       Cancelable.empty
   }
+
+  private final class UncancelableDeferred extends StackedCancelable {
+    override def cancel(): Unit = ()
+    override def isCanceled: Boolean = false
+    override def pop(): Cancelable = Cancelable.empty
+    override def pushList(list: List[Cancelable]): Unit = ()
+    override def push(value: Cancelable): Unit = ()
+    override def popAndPushList(list: List[Cancelable]): Cancelable =
+      Cancelable.empty
+    override def popAndPush(value: Cancelable): Cancelable =
+      Cancelable.empty
+  }
 }

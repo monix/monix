@@ -17,7 +17,9 @@
 
 package monix.eval
 
+import monix.eval.internal.TaskRunLoop
 import monix.execution.Scheduler
+
 import scala.scalajs.js.annotation.JSExport
 
 /** Safe `App` type that runs a [[Task]] action.
@@ -55,6 +57,6 @@ trait TaskApp {
 
   @JSExport
   final def main(args: Array[String]): Unit = {
-    run(args).runAsyncOpt(scheduler, options)
+    TaskRunLoop.startLight(run(args), scheduler, options, Callback.empty(scheduler))
   }
 }

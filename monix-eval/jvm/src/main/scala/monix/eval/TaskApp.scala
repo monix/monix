@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.eval.internal.TaskRunSyncUnsafe
 import monix.execution.Scheduler
 import scala.concurrent.duration.Duration.Inf
 
@@ -53,6 +54,6 @@ trait TaskApp {
   protected def options: Task.Options = Task.defaultOptions
 
   final def main(args: Array[String]): Unit = {
-    run(args).runSyncUnsafeOpt(Inf)(scheduler, options, implicitly)
+    TaskRunSyncUnsafe(run(args), Inf, scheduler, options)
   }
 }

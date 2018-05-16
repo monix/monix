@@ -636,8 +636,6 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
   testAsync("local.write.memoize works") { _ =>
     import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-
     val task = for {
       local <- TaskLocal(0)
       v1 <- (local.write(100).flatMap(_ => local.read)).memoize
@@ -645,7 +643,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
       v2 <- local.read
     } yield (v1, v2)
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runAsync) yield {
       assertEquals(v, (100, 100))
     }
   }

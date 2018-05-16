@@ -49,19 +49,6 @@ object TaskOverloadsSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("Now.runAsyncOpt(scheduler)") { implicit s =>
-    val task = Task.now(1)
-    val f = task.runAsyncOpt(s, Task.defaultOptions)
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Now.runAsyncOpt(callback)") { implicit s =>
-    val task = Task.now(1)
-    val p = Promise[Int]()
-    task.runAsyncOpt(Callback.fromPromise(p))(s, Task.defaultOptions)
-    assertEquals(p.future.value, Some(Success(1)))
-  }
-
   test("Error.runAsync(scheduler)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
@@ -87,21 +74,6 @@ object TaskOverloadsSuite extends BaseTestSuite {
     assertEquals(p.future.value, None)
 
     s2.tick()
-    assertEquals(p.future.value, Some(Failure(dummy)))
-  }
-
-  test("Error.runAsyncOpt(scheduler)") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Task.raiseError(dummy)
-    val f = task.runAsyncOpt(s, Task.defaultOptions)
-    assertEquals(f.value, Some(Failure(dummy)))
-  }
-
-  test("Error.runAsyncOpt(callback)") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Task.raiseError(dummy)
-    val p = Promise[Int]()
-    task.runAsyncOpt(Callback.fromPromise(p))(s, Task.defaultOptions)
     assertEquals(p.future.value, Some(Failure(dummy)))
   }
 }
