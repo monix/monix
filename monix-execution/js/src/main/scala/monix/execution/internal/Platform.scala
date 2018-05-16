@@ -53,12 +53,6 @@ private[monix] object Platform {
   final val recommendedBatchSize: Int = 512
 
   /**
-    * Auto cancelable run loops are set to `false` if Monix
-    * is running on top of Scala.js.
-    */
-  final val autoCancelableRunLoops: Boolean = false
-
-  /**
     * Local context propagation is set to `false` if Monix
     * is running on top of Scala.js given that it is single
     * threaded.

@@ -3227,7 +3227,9 @@ object Task extends TaskInstancesLevel1 {
     */
   val defaultOptions: Options =
     Options(
-      autoCancelableRunLoops = Platform.autoCancelableRunLoops,
+      // N.B. this value needs to be false by default, otherwise Task
+      // violates the cats.effect.Concurrent laws
+      autoCancelableRunLoops = false,
       localContextPropagation = Platform.localContextPropagation
     )
 

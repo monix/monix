@@ -29,10 +29,6 @@ object PlatformSuite extends SimpleTestSuite {
     assertEquals(Platform.recommendedBatchSize, 1024)
   }
 
-  test("autoCancelableRunLoops") {
-    assert(!Platform.autoCancelableRunLoops)
-  }
-
   test("localContextPropagation") {
     assert(!Platform.localContextPropagation)
   }
