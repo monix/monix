@@ -144,38 +144,32 @@ private[eval] object TaskBracket {
     protected def releaseOnError(a: A, e: Throwable): Task[Unit]
     protected def releaseOnCancel(a: A): Task[Unit]
 
-    private final def applyAutoCancelable(b: B): Task[B] = {
-      // Has to suspend this set and protect the continuation with `uncancelable`
-      // otherwise it won't work
-      Task.delay(waitsForResult.compareAndSet(expect = true, update = false))
-        .flatMap(r => if (r) releaseOnSuccess(a, b).map(_ => b) else Task.never)
-        .uncancelable
-    }
-
-    final def apply(b: B): Task[B] = {
-      if (ctx.options.autoCancelableRunLoops)
-        applyAutoCancelable(b)
-      else if (waitsForResult.compareAndSet(expect = true, update = false))
+    private final def applyEffect(b: B): Task[B] = {
+      if (waitsForResult.compareAndSet(expect = true, update = false))
         releaseOnSuccess(a, b).map(_ => b)
       else
         Task.never
     }
 
-    private final def recoverAutoCancelable(e: Throwable): Task[B] = {
-      // Has to suspend this set and protect the continuation with `uncancelable`
-      // otherwise it won't work
-      Task.delay(waitsForResult.compareAndSet(expect = true, update = false))
-        .flatMap(r => if (r) releaseOnError(a, e).flatMap(new ReleaseRecover(e)) else Task.never)
-        .uncancelable
+    final def apply(b: B): Task[B] = {
+      if (ctx.options.autoCancelableRunLoops)
+        Task.suspend(applyEffect(b)).uncancelable
+      else
+        applyEffect(b)
+    }
+
+    private final def recoverEffect(e: Throwable): Task[B] = {
+      if (waitsForResult.compareAndSet(expect = true, update = false))
+        releaseOnError(a, e).flatMap(new ReleaseRecover(e))
+      else
+        Task.never
     }
 
     final def recover(e: Throwable): Task[B] = {
       if (ctx.options.autoCancelableRunLoops)
-        recoverAutoCancelable(e)
-      else if (waitsForResult.compareAndSet(expect = true, update = false))
-        releaseOnError(a, e).flatMap(new ReleaseRecover(e))
+        Task.suspend(recoverEffect(e)).uncancelable
       else
-        Task.never
+        recoverEffect(e)
     }
 
     final def cancel(): Unit =
