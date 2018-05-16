@@ -161,4 +161,20 @@ object TaskBracketSuite extends BaseTestSuite {
     sc.tick()
     assertEquals(f.value, Some(Success(())))
   }
+
+  test("bracket works with auto-cancelable run-loops") { implicit sc =>
+    import concurrent.duration._
+
+    var effect = 0
+    val task = Task(1).bracket(_ => Task.sleep(1.second))(_ => Task(effect += 1))
+      .autoCancelable
+
+    val f = task.runAsync
+    sc.tick()
+    assertEquals(f.value, None)
+
+    f.cancel()
+    assertEquals(f.value, None)
+    assertEquals(effect, 1)
+  }
 }

@@ -1222,7 +1222,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * the `cancelable` transformation to it, the `println` will execute,
     * but not the subsequent `flatMap` operation.
     */
-  def cancelable: Task[A] =
+  def autoCancelable: Task[A] =
     TaskCancellation.makeCancelable(this)
 
   /** Returns a failed projection of this task.
