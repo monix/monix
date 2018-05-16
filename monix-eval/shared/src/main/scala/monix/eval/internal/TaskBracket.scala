@@ -38,7 +38,7 @@ private[eval] object TaskBracket {
     Task.Async(
       new StartE(acquire, use, release),
       trampolineBefore = true,
-      trampolineAfter = true,
+      trampolineAfter = false,
       restoreLocals = false)
   }
 
