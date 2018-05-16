@@ -49,18 +49,13 @@ private[eval] object TaskCancellation {
     * Implementation for `Task#cancelable`.
     */
   def makeCancelable[A](fa: Task[A]): Task[A] =
-    fa.executeWithOptions(enableCancelation)
+    Task.ContextSwitch(fa, enableAutoCancelableRunLoops, disableAutoCancelableRunLoops)
 
   /**
     * Implementation for `Task.uncancelable`.
     */
-  def uncancelable[A](fa: Task[A]): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
-      val ctx2 = ctx.withConnection(StackedCancelable.uncancelable)
-      Task.unsafeStartNow(fa, ctx2, cb)
-    }
-    Async(start, trampolineBefore = true, trampolineAfter = true, restoreLocals = false)
-  }
+  def uncancelable[A](fa: Task[A]): Task[A] =
+    Task.ContextSwitch(fa, withConnectionUncancelable, restoreConnection)
 
   /**
     * Implementation for `Task.onCancelRaiseError`.
@@ -110,6 +105,18 @@ private[eval] object TaskCancellation {
       }
   }
 
-  private[this] val enableCancelation: Task.Options => Task.Options =
-    _.enableAutoCancelableRunLoops
+  private[this] val enableAutoCancelableRunLoops: Context => Context =
+    ctx => {
+      if (ctx.options.autoCancelableRunLoops) ctx
+      else ctx.withOptions(ctx.options.enableAutoCancelableRunLoops)
+    }
+
+  private[this] val disableAutoCancelableRunLoops: (Context, Context) => Context =
+    (old, current) => current.withOptions(old.options)
+
+  private[this] val withConnectionUncancelable: Context => Context =
+    ct => ct.withConnection(StackedCancelable.uncancelable)
+
+  private[this] val restoreConnection: (Context, Context) => Context =
+    (old, current) => current.withConnection(old.connection)
 }

@@ -203,7 +203,6 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
 
   testAsync("local.write.doOnCancel works") { _ =>
     import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     val onCancel = Task.evalAsync(throw DummyException("dummy"))
 
     val task = for {
@@ -213,7 +212,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runAsync) yield {
       assertEquals(v, 100)
     }
   }

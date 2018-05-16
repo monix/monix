@@ -32,7 +32,6 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     }
 
   test("locals get transported with executeOn and shift") {
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     import Scheduler.Implicits.global
 
     val ec = Scheduler.computation(4, "ec1")
@@ -53,7 +52,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           v5 <- local.read.executeOn(ec)
         } yield v1 :: v2 :: v3 :: v4 :: v5 :: Nil
 
-      val r = task.runSyncUnsafeOpt(Duration.Inf)
+      val r = task.runSyncUnsafe(Duration.Inf)
       assertEquals(r, List(100, 100, 100, 100, 100))
     } finally {
       ec.shutdown()
@@ -62,7 +61,6 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
   }
 
   test("locals get transported with executeWithModel") {
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     import Scheduler.Implicits.global
 
     val task =
@@ -73,29 +71,27 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
         v <- local.read
       } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
-  test("locals get transported with executeWithOptions") {
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  test("locals get transported") {
     import Scheduler.Implicits.global
 
     val task =
       for {
         local <- TaskLocal(0)
-        _ <- local.write(100).executeWithOptions(_.enableAutoCancelableRunLoops)
+        _ <- local.write(100).autoCancelable
         _ <- Task.shift
         v <- local.read
       } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
   test("local.write.executeOn(forceAsync = false) works") {
     import Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     val ec = Scheduler.computation(4, "ec1")
 
     val task = for {
@@ -105,13 +101,12 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       v <- l.read
     } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
   test("local.write.executeOn(forceAsync = true) works") {
     import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     val ec = Scheduler.computation(4, "ec1")
 
     val task = for {
@@ -121,7 +116,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       v <- l.read
     } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 }

@@ -23,7 +23,6 @@ import monix.execution.exceptions.DummyException
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
-  implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
   testAsync("Local.apply") {
     val test =
@@ -41,7 +40,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 0))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("Local.defaultLazy") {
@@ -62,7 +61,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 2))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("TaskLocal!.bind") {
@@ -77,7 +76,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("TaskLocal!.bindL") {
@@ -92,7 +91,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("TaskLocal!.bindClear") {
@@ -107,7 +106,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("Local canceled") {
@@ -122,7 +121,7 @@ object TaskLocalSuite extends SimpleTestSuite {
       _ <- Task.now(assertEquals(s, "Good"))
     } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("TaskLocal!.local") {
@@ -144,7 +143,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v4, local.get))
       } yield ()
 
-    test.runAsyncOpt
+    test.runAsync
   }
 
   testAsync("TaskLocals get restored in Task.create on error") {
@@ -164,6 +163,6 @@ object TaskLocalSuite extends SimpleTestSuite {
       _ <- Task.eval(assertEquals(l, 10))
     } yield ()
 
-    t.runAsyncOpt
+    t.runAsync
   }
 }

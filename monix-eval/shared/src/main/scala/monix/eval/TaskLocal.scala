@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.eval.Task.{Context, ContextSwitch}
 import monix.execution.misc.Local
 
 /** A `TaskLocal` is like a
@@ -29,29 +30,7 @@ import monix.execution.misc.Local
   * Just like a `ThreadLocal`, usage of a `TaskLocal` is safe,
   * the state of all current locals being transported over
   * async boundaries (aka when threads get forked) by the `Task`
-  * run-loop implementation, but only when the `Task` reference
-  * gets executed with [[Task.Options.localContextPropagation]]
-  * set to `true`.
-  *
-  * One way to achieve this is with [[Task.executeWithOptions]],
-  * a single call is sufficient just before `runAsync`:
-  *
-  * {{{
-  *   task.executeWithOptions(_.enableLocalContextPropagation)
-  *     // triggers the actual execution
-  *     .runAsync
-  * }}}
-  *
-  * Another possibility is to use
-  * [[Task.runAsyncOpt(implicit* .runAsyncOpt]] instead of `runAsync`
-  * and specify the set of options implicitly:
-  *
-  * {{{
-  *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-  *
-  *   // Options passed implicitly
-  *   val f = task.runAsyncOpt
-  * }}}
+  * run-loop implementation.
   *
   * Full example:
   *
@@ -93,6 +72,7 @@ import monix.execution.misc.Local
   * }}}
   */
 final class TaskLocal[A] private (default: => A) {
+  import TaskLocal.withPropagation
   private[this] val ref = new Local(default)
 
   /** Returns [[monix.execution.misc.Local]] instance used in this [[TaskLocal]].
@@ -110,11 +90,11 @@ final class TaskLocal[A] private (default: => A) {
 
   /** Updates the local value. */
   def write(value: A): Task[Unit] =
-    Task.eval(ref.update(value))
+    withPropagation(Task.eval(ref.update(value)))
 
   /** Clears the local value, making it return its `default`. */
   def clear: Task[Unit] =
-    Task.eval(ref.clear())
+    withPropagation(Task.eval(ref.clear()))
 
   /** Binds the local var to a `value` for the duration of the given
     * `task` execution.
@@ -140,7 +120,11 @@ final class TaskLocal[A] private (default: => A) {
     *        reset to the previous value
     */
   def bind[R](value: A)(task: Task[R]): Task[R] =
-    bindL(Task.now(value))(task)
+    withPropagation(local.flatMap { r =>
+      val saved = r.value
+      val acquire = Task.eval(r.update(value))
+      acquire.bracket(_ => task)(_ => restore(saved))
+    })
 
   /** Binds the local var to a `value` for the duration of the given
     * `task` execution, the `value` itself being lazily evaluated
@@ -167,13 +151,11 @@ final class TaskLocal[A] private (default: => A) {
     *        reset to the previous value
     */
   def bindL[R](value: Task[A])(task: Task[R]): Task[R] =
-    local.flatMap { r =>
+    withPropagation(local.flatMap { r =>
       val saved = r.value
-      value.bracket { v =>
-        r.update(v)
-        task
-      }(_ => restore(saved))
-    }
+      val acquire = value.map(a => r.update(a))
+      acquire.bracket(_ => task)(_ => restore(saved))
+    })
 
   /** Clears the local var to the default for the duration of the
     * given `task` execution.
@@ -194,11 +176,11 @@ final class TaskLocal[A] private (default: => A) {
     *        the local gets reset to the previous value
     */
   def bindClear[R](task: Task[R]): Task[R] =
-    local.flatMap { r =>
+    withPropagation(local.flatMap { r =>
       val saved = r.value
-      r.clear()
-      Task.unit.bracket(_ => task)(_ => restore(saved))
-    }
+      val acquire = Task.eval(r.clear())
+      acquire.bracket(_ => task)(_ => restore(saved))
+    })
 
   private def restore(value: Option[A]): Task[Unit] =
     Task.eval(ref.value = value)
@@ -221,7 +203,7 @@ object TaskLocal {
     *        or in case it was cleared (with [[TaskLocal.clear]])
     */
   def apply[A](default: A): Task[TaskLocal[A]] =
-    Task.eval(new TaskLocal(default))
+    withPropagation(Task.eval(new TaskLocal(default)))
 
   /** Builds a [[TaskLocal]] reference with the given `default`,
     * being lazily evaluated, using [[Coeval]] to manage evaluation.
@@ -237,5 +219,16 @@ object TaskLocal {
     *        lazily evaluated and managed by [[Coeval]]
     */
   def lazyDefault[A](default: Coeval[A]): Task[TaskLocal[A]] =
-    Task.eval(new TaskLocal[A](default.value()))
+    withPropagation(Task.eval(new TaskLocal[A](default.value())))
+
+  private def withPropagation[A](task: Task[A]): Task[A] =
+    ContextSwitch(task, enablePropagation, null)
+
+  private val enablePropagation: Context => Context =
+    ctx => {
+      if (!ctx.options.localContextPropagation)
+        ctx.withOptions(ctx.options.enableLocalContextPropagation)
+      else
+        ctx
+    }
 }

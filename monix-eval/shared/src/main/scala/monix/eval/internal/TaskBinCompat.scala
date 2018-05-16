@@ -18,8 +18,12 @@
 package monix.eval
 package internal
 
-import monix.eval.Task.{Async, Context}
-import monix.execution.{Cancelable, Scheduler}
+import monix.eval.Task.{Async, Context, Options}
+import monix.execution.schedulers.CanBlock
+import monix.execution.{Cancelable, CancelableFuture, Scheduler}
+
+import scala.concurrent.duration.Duration
+import scala.util.{Failure, Success}
 
 private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   /** Deprecated — use [[redeem]] instead.
@@ -114,6 +118,97 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     // $COVERAGE-OFF$
     self.flatMap(a => selector(a).map(_ => a))
     // $COVERAGE-OFF$
+  }
+
+  /** DEPRECATED — renamed to [[autoCancelable]]. */
+  @deprecated("Renamed to autoCancelable", "3.0.0")
+  def cancelable: Task[A] = {
+    // $COVERAGE-OFF$
+    autoCancelable
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — scheduled for removal.
+    *
+    * In order to activate auto-cancelable run-loops, please use
+    * [[Task.autoCancelable autoCancelable]].
+    *
+    * NOTE: you no longer need to enable `localContextPropagation`,
+    * the implementation can enable that by itself.
+    */
+  @deprecated("Scheduled for removal, see ScalaDoc", "3.0.0")
+  def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
+    // $COVERAGE-OFF$
+    TaskRunLoop.startFuture(this, s, opts)
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — scheduled for removal.
+    *
+    * In order to activate auto-cancelable run-loops, please use
+    * [[Task.autoCancelable autoCancelable]].
+    *
+    * NOTE: you no longer need to enable `localContextPropagation`,
+    * the implementation can enable that by itself.
+    */
+  @deprecated("Scheduled for removal, see ScalaDoc", "3.0.0")
+  def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
+    TaskRunLoop.startLight(this, s, opts, cb)
+
+  /** DEPRECATED — scheduled for removal.
+    *
+    * In order to activate auto-cancelable run-loops, please use
+    * [[Task.autoCancelable autoCancelable]].
+    *
+    * NOTE: you no longer need to enable `localContextPropagation`,
+    * the implementation can enable that by itself.
+    */
+  @deprecated("Scheduled for removal, see ScalaDoc", "3.0.0")
+  final def runSyncMaybeOpt(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
+    // $COVERAGE-OFF$
+    val future = TaskRunLoop.startFuture(this, s, opts)
+    future.value match {
+      case Some(value) =>
+        value match {
+          case Success(a) => Right(a)
+          case Failure(e) => throw e
+        }
+      case None =>
+        Left(future)
+    }
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — scheduled for removal.
+    *
+    * In order to activate auto-cancelable run-loops, please use
+    * [[Task.autoCancelable autoCancelable]].
+    *
+    * NOTE: you no longer need to enable `localContextPropagation`,
+    * the implementation can enable that by itself.
+    */
+  @deprecated("Scheduled for removal, see ScalaDoc", "3.0.0")
+  final def runSyncUnsafeOpt(timeout: Duration)
+    (implicit s: Scheduler, opts: Options, permit: CanBlock): A = {
+    // $COVERAGE-OFF$
+    /*_*/TaskRunSyncUnsafe(this, timeout, s, opts)/*_*/
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — scheduled for removal.
+    *
+    * In order to activate auto-cancelable run-loops, please use
+    * [[Task.autoCancelable autoCancelable]].
+    *
+    * NOTE: you no longer need to enable `localContextPropagation`,
+    * the implementation can enable that by itself automatically,
+    * whenever you use a `TaskLocal`.
+    */
+  @deprecated("Scheduled for removal, see ScalaDoc", "3.0.0")
+  final def executeWithOptions(f: Options => Options): Task[A] = {
+    // $COVERAGE-OFF$
+    TaskExecuteWithOptions(this, f)
+    // $COVERAGE-ON$
   }
 }
 

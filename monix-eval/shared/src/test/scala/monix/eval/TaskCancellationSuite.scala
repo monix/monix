@@ -38,15 +38,14 @@ object TaskCancellationSuite extends BaseTestSuite {
   }
 
   test("cancellation works for autoCancelableRunLoops") { implicit ec =>
-    implicit val opts = Task.defaultOptions.enableAutoCancelableRunLoops
-
     var effect = 0
     val task = Task.evalAsync(1).flatMap(x => Task.evalAsync(2).map(_ + x))
       .foreachL { x => effect = x }
       .start
       .flatMap(_.cancel)
+      .autoCancelable
 
-    val f = task.runAsyncOpt
+    val f = task.runAsync
     ec.tick()
     assertEquals(f.value, Some(Success(())))
     assertEquals(effect, 0)
@@ -55,7 +54,7 @@ object TaskCancellationSuite extends BaseTestSuite {
   test("task.fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
     check1 { (task: Task[Int]) =>
       val fa = for {
-        forked <- task.attempt.asyncBoundary.cancelable.fork
+        forked <- task.attempt.asyncBoundary.autoCancelable.fork
         _ <- forked.cancel
         r <- forked.join
       } yield r
@@ -84,8 +83,7 @@ object TaskCancellationSuite extends BaseTestSuite {
 
   test("uncancelable works for autoCancelableRunLoops") { implicit ec =>
     val task = Task.evalAsync(1)
-    val source = task.flatMap(x => task.map(_ + x))
-      .executeWithOptions(_.enableAutoCancelableRunLoops)
+    val source = task.flatMap(x => task.map(_ + x)).autoCancelable
 
     val f1 = source.uncancelable.runAsync
     val f2 = source.runAsync
@@ -186,7 +184,6 @@ object TaskCancellationSuite extends BaseTestSuite {
 
   testAsync("local.write.uncancelable works") { _ =>
     import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
     val task = for {
       l <- TaskLocal(10)
@@ -195,7 +192,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runAsync) yield {
       assertEquals(v, 100)
     }
   }
@@ -212,7 +209,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runAsync) yield {
       assertEquals(v, 100)
     }
   }

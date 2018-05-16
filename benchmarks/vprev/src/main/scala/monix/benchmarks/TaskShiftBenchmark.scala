@@ -95,10 +95,10 @@ class TaskShiftBenchmark {
   }
 
   @Benchmark
-  def executeWithOptions(): Int = {
+  def autoCancelable(): Int = {
     def loop(i: Int): Task[Int] =
       if (i < size)
-        Task.now(i + 1).executeWithOptions(x => x).flatMap(loop)
+        Task.now(i + 1).executeWithOptions(_.enableLocalContextPropagation).flatMap(loop)
       else
         Task.pure(i)
 

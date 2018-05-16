@@ -35,9 +35,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)
-    val f = loop(atomic)
-      .executeWithOptions(_.disableAutoCancelableRunLoops)
-      .runAsync
+    val f = loop(atomic).runAsync
 
     f.cancel(); s.tick()
     assertEquals(atomic.get, maxCount)
@@ -54,7 +52,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
     val atomic = Atomic(0)
     val f = loop(atomic)
-      .cancelable
+      .autoCancelable
       .runAsync
 
     assertEquals(atomic.get, expected)
@@ -79,7 +77,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
     var result = Option.empty[Try[Unit]]
 
     val c = loop(atomic)
-      .cancelable
+      .autoCancelable
       .runAsync(new Callback[Unit] {
         def onSuccess(value: Unit): Unit =
           result = Some(Success(value))

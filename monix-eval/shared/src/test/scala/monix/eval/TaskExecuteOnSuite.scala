@@ -79,7 +79,6 @@ object TaskExecuteOnSuite extends BaseTestSuite {
 
   testAsync("local.write.executeOn(forceAsync = false) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
     val task = for {
       l <- TaskLocal(10)
@@ -88,14 +87,13 @@ object TaskExecuteOnSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runAsync) yield {
       assertEquals(v, 100)
     }
   }
 
   testAsync("local.write.executeOn(forceAsync = true) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
     val task = for {
       l <- TaskLocal(10)
@@ -104,7 +102,7 @@ object TaskExecuteOnSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runAsync) yield {
       assertEquals(v, 100)
     }
   }

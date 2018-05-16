@@ -55,7 +55,6 @@ object TaskStartSuite extends BaseTestSuite {
   testAsync("task.start keeps current Local.Context on join") { _ =>
     import monix.execution.Scheduler.Implicits.global
     import cats.syntax.all._
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
     val task = for {
       local <- TaskLocal(0)
@@ -66,7 +65,7 @@ object TaskStartSuite extends BaseTestSuite {
       v3 <- local.read
     } yield (v1, v2, v3)
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runAsync) yield {
       assertEquals(v, (100, 100, 100))
     }
   }

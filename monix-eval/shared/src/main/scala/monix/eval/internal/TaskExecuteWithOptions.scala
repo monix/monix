@@ -26,6 +26,7 @@ private[eval] object TaskExecuteWithOptions {
     * Implementation for `Task.executeWithOptions`
     */
   def apply[A](self: Task[A], f: Options => Options): Task[A] = {
+    // $COVERAGE-OFF$
     val start = (context: Context, cb: Callback[A]) => {
       implicit val s = context.scheduler
       var streamErrors = true
@@ -47,5 +48,6 @@ private[eval] object TaskExecuteWithOptions {
       trampolineBefore = false,
       trampolineAfter = true,
       restoreLocals = false)
+    // $COVERAGE-ON$
   }
 }
