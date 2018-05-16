@@ -115,6 +115,14 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     self.flatMap(a => selector(a).map(_ => a))
     // $COVERAGE-OFF$
   }
+
+  /** DEPRECATED — renamed to [[autoCancelable]]. */
+  @deprecated("Renamed to autoCancelable", "3.0.0")
+  def cancelable: Task[A] = {
+    // $COVERAGE-OFF$
+    autoCancelable
+    // $COVERAGE-ON$
+  }
 }
 
 private[eval] abstract class TaskBinCompatCompanion {

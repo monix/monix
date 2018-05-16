@@ -55,7 +55,7 @@ object TaskCancellationSuite extends BaseTestSuite {
   test("task.fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
     check1 { (task: Task[Int]) =>
       val fa = for {
-        forked <- task.attempt.asyncBoundary.cancelable.fork
+        forked <- task.attempt.asyncBoundary.autoCancelable.fork
         _ <- forked.cancel
         r <- forked.join
       } yield r

@@ -1198,7 +1198,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *           Task.now(a)
     *       }
     *
-    *     loop(n, 0, 1).cancelable
+    *     loop(n, 0, 1).autoCancelable
     *   }
     * }}}
     *
@@ -1214,15 +1214,42 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *
     * {{{
     *   Task.evalAsync(println("Hello ..."))
-    *     .cancelable
+    *     .autoCancelable
     *     .flatMap(_ => Task.eval(println("World!")))
     * }}}
     *
     * Normally [[Task.apply]] does not yield a cancelable task, but by applying
     * the `cancelable` transformation to it, the `println` will execute,
     * but not the subsequent `flatMap` operation.
+    *
+    * '''WARNING:''' auto-cancelable tasks can violate the laws of the
+    * [[https://typelevel.org/cats-effect/ Cats-Effect Type Classes]] related
+    * to cancellation, so make sure you know what you're doing!
+    *
+    * Auto-cancelable tasks are no different than other cancelable tasks,
+    * however polymorphic logic that works with the assumptions in Cats-Effect
+    * could rely on finalizers in a task composition that will never run due to
+    * `flatMap` operations themselves becoming cancelable.
+    *
+    * As an example this common pattern no longer works:
+    * {{{
+    *   task.onCancelRaiseError(wasCanceled)
+    *     .onErrorHandleWith { _ => release() *> Task.raiseError(e) }
+    *     .autoCancelable
+    * }}}
+    *
+    * The reason is that `onErrorHandleWith` is essentially `flatMap` and
+    * because our `task2` has been made auto-cancelable, between the
+    * raising of `wasCanceled` and the execution of `onErrorHandleWith`,
+    * the bind chain can get interrupted so the specified `release()`
+    * never runs.
+    *
+    * On the other hand `autoCancelable` only affects the task on which it is
+    * called, not its bind continuation. And if the task being made auto-cancelable
+    * correctly uses [[bracket]] for specifying finalizers in a bind chain,
+    * then it isn't a problem.
     */
-  def cancelable: Task[A] =
+  def autoCancelable: Task[A] =
     TaskCancellation.makeCancelable(this)
 
   /** Returns a failed projection of this task.
@@ -2106,7 +2133,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * This operation is the implementation for `cats.effect.Async` and
     * is thus yielding non-cancelable tasks, being the simplified
-    * version of [[Task.cancelable[A](register* Task.cancelable]].
+    * version of [[Task.autoCancelable[A](register* Task.cancelable]].
     * This can be used to translate from a callback-based API to pure
     * `Task` values that cannot be canceled.
     *
@@ -2149,7 +2176,7 @@ object Task extends TaskInstancesLevel1 {
     *      [[monix.execution.Scheduler Scheduler]] into the provided callback,
     *      useful for forking, or delaying tasks or managing async boundaries
     *
-    * @see [[Task.cancelable[A](register* Task.cancelable]] and [[Task.cancelableS]]
+    * @see [[Task.autoCancelable[A](register* Task.cancelable]] and [[Task.cancelableS]]
     *      for creating cancelable tasks
     *
     * @see [[Task.create]] for the builder that does it all
@@ -2212,7 +2239,7 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.async]] for a simpler variant that doesn't inject a
     *      `Scheduler`, in case you don't need one
     *
-    * @see [[Task.cancelable[A](register* Task.cancelable]] and [[Task.cancelableS]]
+    * @see [[Task.autoCancelable[A](register* Task.cancelable]] and [[Task.cancelableS]]
     *      for creating cancelable tasks
     *
     * @see [[Task.create]] for the builder that does it all
@@ -2378,7 +2405,7 @@ object Task extends TaskInstancesLevel1 {
     *  - `cancelable` comes from `cats.effect.Concurrent#cancelable`
     *  - the `S` suffix comes from [[monix.execution.Scheduler Scheduler]]
     *
-    * @see [[Task.cancelable[A](register* Task.cancelable]] for the simpler
+    * @see [[Task.autoCancelable[A](register* Task.cancelable]] for the simpler
     *      variant that doesn't inject the `Scheduler` in that callback
     *
     * @see [[Task.asyncS]] and [[Task.async[A](register* Task.async]] for the
