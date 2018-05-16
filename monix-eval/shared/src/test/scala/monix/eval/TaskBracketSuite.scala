@@ -166,7 +166,8 @@ object TaskBracketSuite extends BaseTestSuite {
     import concurrent.duration._
 
     var effect = 0
-    val task = Task(1).bracket(_ => Task.sleep(1.second))(_ => Task(effect += 1))
+    val task = Task(1)
+      .bracket(_ => Task.sleep(1.second))(_ => Task(effect += 1))
       .autoCancelable
 
     val f = task.runAsync
