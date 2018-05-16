@@ -38,7 +38,7 @@ private[eval] object TaskBracket {
     Task.Async(
       new StartE(acquire, use, release),
       trampolineBefore = true,
-      trampolineAfter = false,
+      trampolineAfter = true,
       restoreLocals = false)
   }
 
@@ -98,7 +98,7 @@ private[eval] object TaskBracket {
           }
 
           conn.push(releaseFrame)
-          Task.unsafeStartNow(onNext, ctx, Callback.trampolined(conn, cb))
+          Task.unsafeStartNow(onNext, ctx, cb)
         }
 
         def onError(ex: Throwable): Unit =
@@ -146,10 +146,12 @@ private[eval] object TaskBracket {
     protected def releaseOnCancel(a: A): Task[Unit]
 
     private final def applyEffect(b: B): Task[B] = {
-      if (waitsForResult.compareAndSet(expect = true, update = false))
+      if (waitsForResult.compareAndSet(expect = true, update = false)) {
+        ctx.connection.pop()
         releaseOnSuccess(a, b).map(_ => b)
-      else
+      } else {
         Task.never
+      }
     }
 
     final def apply(b: B): Task[B] = {
@@ -160,10 +162,12 @@ private[eval] object TaskBracket {
     }
 
     private final def recoverEffect(e: Throwable): Task[B] = {
-      if (waitsForResult.compareAndSet(expect = true, update = false))
+      if (waitsForResult.compareAndSet(expect = true, update = false)) {
+        ctx.connection.pop()
         releaseOnError(a, e).flatMap(new ReleaseRecover(e))
-      else
+      } else {
         Task.never
+      }
     }
 
     final def recover(e: Throwable): Task[B] = {
