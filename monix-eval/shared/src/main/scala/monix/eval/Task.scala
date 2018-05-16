@@ -2133,7 +2133,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * This operation is the implementation for `cats.effect.Async` and
     * is thus yielding non-cancelable tasks, being the simplified
-    * version of [[Task.autoCancelable[A](register* Task.cancelable]].
+    * version of [[Task.cancelable[A](register* Task.cancelable]].
     * This can be used to translate from a callback-based API to pure
     * `Task` values that cannot be canceled.
     *
@@ -2176,7 +2176,7 @@ object Task extends TaskInstancesLevel1 {
     *      [[monix.execution.Scheduler Scheduler]] into the provided callback,
     *      useful for forking, or delaying tasks or managing async boundaries
     *
-    * @see [[Task.autoCancelable[A](register* Task.cancelable]] and [[Task.cancelableS]]
+    * @see [[Task.cancelable[A](register* Task.cancelable]] and [[Task.cancelableS]]
     *      for creating cancelable tasks
     *
     * @see [[Task.create]] for the builder that does it all
@@ -2239,7 +2239,7 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.async]] for a simpler variant that doesn't inject a
     *      `Scheduler`, in case you don't need one
     *
-    * @see [[Task.autoCancelable[A](register* Task.cancelable]] and [[Task.cancelableS]]
+    * @see [[Task.cancelable[A](register* Task.cancelable]] and [[Task.cancelableS]]
     *      for creating cancelable tasks
     *
     * @see [[Task.create]] for the builder that does it all
@@ -2405,7 +2405,7 @@ object Task extends TaskInstancesLevel1 {
     *  - `cancelable` comes from `cats.effect.Concurrent#cancelable`
     *  - the `S` suffix comes from [[monix.execution.Scheduler Scheduler]]
     *
-    * @see [[Task.autoCancelable[A](register* Task.cancelable]] for the simpler
+    * @see [[Task.cancelable[A](register* Task.cancelable]] for the simpler
     *      variant that doesn't inject the `Scheduler` in that callback
     *
     * @see [[Task.asyncS]] and [[Task.async[A](register* Task.async]] for the
