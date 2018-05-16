@@ -147,4 +147,18 @@ object TaskBracketSuite extends BaseTestSuite {
         fail(s"Unexpected result: $other")
     }
   }
+
+  test("bracket is stack safe") { implicit sc =>
+    def loop(n: Int): Task[Unit] =
+      if (n > 0)
+        Task(n).bracket(n => Task(n - 1))(_ => Task.unit).flatMap(loop)
+      else
+        Task.unit
+
+    val count = if (Platform.isJVM) 10000 else 1000
+    val f = loop(count).runAsync
+
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
 }
