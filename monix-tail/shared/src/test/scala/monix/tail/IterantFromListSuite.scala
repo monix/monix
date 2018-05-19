@@ -31,7 +31,7 @@ object IterantFromListSuite extends BaseTestSuite {
 
   test("Iterant[Task].fromList (async)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = Iterant[Task].fromList(list).mapEval(x => Task(x)).toListL
+      val result = Iterant[Task].fromList(list).mapEval(x => Task.evalAsync(x)).toListL
       result <-> Task.now(list)
     }
   }

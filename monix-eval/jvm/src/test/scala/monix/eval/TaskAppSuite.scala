@@ -26,7 +26,7 @@ object TaskAppSuite extends SimpleTestSuite {
     var wasExecuted = false
     val app = new TaskApp {
       override def runl(args: List[String]) =
-        Task { wasExecuted = args.headOption.getOrElse("unknown") == "true" }
+        Task.evalAsync { wasExecuted = args.headOption.getOrElse("unknown") == "true" }
     }
 
     app.main(Array("true"))
@@ -36,7 +36,8 @@ object TaskAppSuite extends SimpleTestSuite {
   test("runc works") {
     var wasExecuted = false
     val app = new TaskApp {
-      override def runc = Task { wasExecuted = true }
+      override def runc =
+        Task.evalAsync { wasExecuted = true }
     }
 
     app.main(Array.empty)
@@ -53,7 +54,7 @@ object TaskAppSuite extends SimpleTestSuite {
 
     val p = Promise[Options]()
     val exposeOpts =
-      Task.unsafeCreate[Task.Options] { (ctx, cb) =>
+      Task.Async[Task.Options] { (ctx, cb) =>
         cb.onSuccess(ctx.options)
       }
 

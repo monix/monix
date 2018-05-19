@@ -49,7 +49,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
 
     for (_ <- 0 until 100) {
       val sum = Observable.range(0, count)
-        .scanTask(Task.now(0L))((_, x) => Task(x * 3))
+        .scanTask(Task.now(0L))((_, x) => Task.evalAsync(x * 3))
         .sumL
         .runAsync
 
@@ -61,7 +61,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
   test(s"scanTask should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
     def never(): (Future[Unit], Task[Int]) = {
       val isCancelled = Promise[Unit]()
-      val ref = Task.create[Int]((_, _) => Cancelable(() => isCancelled.success(())))
+      val ref = Task.cancelableS[Int]((_, _) => Cancelable(() => isCancelled.success(())))
       (isCancelled.future, ref)
     }
 
@@ -81,7 +81,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
 
   test(s"scanTask should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
     def one(p: Promise[Unit])(acc: Long, x: Long): Task[Long] =
-      Task.create { (sc, cb) =>
+      Task.cancelableS { (sc, cb) =>
         val ref = BooleanCancelable(() => p.trySuccess(()))
         sc.executeAsync(() => if (!ref.isCanceled) cb.onSuccess(x))
         ref
@@ -111,7 +111,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
         .doOnError(p.tryFailure)
         .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
         .doOnEarlyStop(() => p.trySuccess(()))
-        .scanTask(Task.now(0L))((_, x) => Task(x))
+        .scanTask(Task.now(0L))((_, x) => Task.evalAsync(x))
         .subscribe()
 
       // Creating race condition

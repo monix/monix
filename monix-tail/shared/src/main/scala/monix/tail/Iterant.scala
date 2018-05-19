@@ -18,7 +18,6 @@
 package monix.tail
 
 import java.io.PrintStream
-
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order, Parallel}
@@ -28,11 +27,13 @@ import monix.execution.misc.NonFatal
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
+import monix.tail.internal.Constants.emptyRef
 import org.reactivestreams.Publisher
-
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
+
+import monix.execution.rstreams.ReactivePullStrategy
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
   * streaming of elements using a pull-based protocol.
@@ -143,7 +144,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * @param rhs is the iterant to append at the end of our source.
     */
-  final def ++[B >: A](rhs: F[Iterant[F, B]])(implicit F: Applicative[F]): Iterant[F, B] =
+  final def ++[B >: A](rhs: F[Iterant[F, B]])(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.concat(self.upcast[B], Suspend(rhs, F.unit))
 
   /** Prepends an element to the iterant, returning a new
@@ -170,7 +171,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * @param elem is the element to append at the end
     */
-  final def :+[B >: A](elem: B)(implicit F: Applicative[F]): Iterant[F, B] =
+  final def :+[B >: A](elem: B)(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.concat(this.upcast[B], Next[F, B](elem, F.pure(Halt[F, B](None)), F.unit))(F)
 
   /** Appends the given stream to the end of the source, effectively
@@ -314,6 +315,26 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def bufferSliding(count: Int, skip: Int)(implicit F: Sync[F]): Iterant[F, Seq[A]] =
     IterantBuffer.sliding(self, count, skip)
+
+  /** Implementation of `bracket` from `cats.effect.Bracket`.
+    *
+    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
+    */
+  final def bracket[B](use: A => Iterant[F, B])(release: A => Iterant[F, Unit])
+    (implicit F: Sync[F]): Iterant[F, B] =
+    bracketCase(use)((a, _) => release(a))
+
+  /** Implementation of `bracketCase` from `cats.effect.Bracket`.
+    *
+    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
+    */
+  final def bracketCase[B](use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit])
+    (implicit F: Sync[F]): Iterant[F, B] = {
+
+    self.flatMap { a =>
+      use(a).doOnExitCase(release(a, _).completeL)
+    }
+  }
 
   /** Builds a new iterant by applying a partial function to all
     * elements of the source on which the function is defined.
@@ -480,13 +501,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param f is the function to execute on early stop
     */
   final def doOnEarlyStop(f: F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
-    IterantStop.doOnEarlyStop(this, f)(F)
+    IterantExitCallback.doOnEarlyStop(this, f)(F)
 
-  /** Returns a new enumerator in which `f` is scheduled to be executed
+  /** Returns a new iterant in which `f` is scheduled to be executed
     * on [[Iterant.Halt halt]] or on [[earlyStop]].
-    *
-    * This would typically be used to release any resources acquired
-    * by this enumerator.
     *
     * Note that [[doOnEarlyStop]] is subsumed under this operation,
     * the given `f` being evaluated on both reaching the end or
@@ -502,10 +520,45 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   })
     * }}}
     *
-    * @param f is the function to execute on early stop
+    * @see [[doOnExitCase]]
+    *
+    * @param f is the function to execute on halt or on early stop
     */
   final def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
-    IterantStop.doOnFinish(this, f)(F)
+    doOnExitCase(c => f(c match {
+      case ExitCase.Error(e) => Some(e)
+      case _ => None
+    }))
+
+  /** Returns a new iterant in which `f` is scheduled to be executed
+    * on [[Iterant.Halt halt]] or on [[earlyStop]].
+    *
+    * This would typically be used to release any resources acquired
+    * by this enumerator.
+    *
+    * Note that [[doOnEarlyStop]] is subsumed under this operation,
+    * the given `f` being evaluated on both reaching the end or
+    * canceling early.
+    *
+    * Example: {{{
+    *   import cats.effect.ExitCase
+    *
+    *   iterant.doOnExitCase(err => Task.eval {
+    *     err match {
+    *       case ExitCase.Completed =>
+    *         logger.info("Completed successfully!")
+    *       case Exit.Error(e) =>
+    *         logger.error("Completed in error!", e)
+    *       case Exit.Canceled(_) =>
+    *         logger.info("Was stopped early!")
+    *     }
+    *   })
+    * }}}
+    *
+    * @param f is the function to execute on early stop
+    */
+  final def doOnExitCase(f: ExitCase[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
+    IterantExitCallback.doOnExitCase(this, f)
 
   /** Drops the first `n` elements (from the start).
     *
@@ -1984,46 +2037,54 @@ object Iterant extends IterantInstances {
     * Typical use-cases are working with files or network sockets
     *
     * @param acquire resource to acquire at the start of the stream
-    * @param use function that uses the resource to generate a stream of outputs
     * @param release function that releases the acquired resource
     *
     * Example:
     * {{{
-    *   val writeLines =
-    *     Iterant.bracket(IO { new PrintWriter("./lines.txt") })(
-    *       writer => Iterant[IO]
-    *         .fromIterator(Iterator.from(1))
-    *         .mapEval(i => IO { writer.println(s"Line #\$i") }),
-    *       writer => IO { writer.close() }
-    *     )
+    *   val printer =
+    *     Iterant.resource {
+    *       IO(new PrintWriter("./lines.txt"))
+    *     } { writer =>
+    *       IO(writer.close())
+    *     }
+    *
+    *   // Safely use the resource, because the release is
+    *   // scheduled to happen afterwards
+    *   val writeLines = printer.flatMap { writer =>
+    *     Iterant[IO]
+    *       .fromIterator(Iterator.from(1))
+    *       .mapEval(i => IO { writer.println(s"Line #\$i") })
+    *   }
     *
     *   // Write 100 numbered lines to the file
     *   // closing the writer when finished
     *   writeLines.take(100).completeL.unsafeRunSync()
     * }}}
     */
-  def bracket[F[_], A, B](acquire: F[A])(
-    use: A => Iterant[F, B],
-    release: A => F[Unit]
-  )(
-    implicit F: Sync[F]
-  ): Iterant[F, B] =
-    bracketA(acquire)(use, (a, _) => release(a))
+  def resource[F[_], A](acquire: F[A])
+    (release: A => F[Unit])
+    (implicit F: Sync[F]): Iterant[F, A] = {
 
-  /** A more powerful version of bracket that also provides information
-    * whether the stream has completed successfully, was terminated early
-    * or terminated with an error.
+    suspendS(
+      F.map(acquire) { a =>
+        nextS[F, A](a, F.pure(Iterant.empty), F.unit)
+          .doOnExitCase(_ => release(a))
+      },
+      F.unit)
+  }
+
+  /** DEPRECATED — please use [[Iterant.resource]].
     *
-    * BracketResult may be superseded by ADT in cats-effect#113,
-    * this method is private until then
+    * The `Iterant.bracket` operation was meant for streams, but
+    * this name in `Iterant` now refers to the semantics of the
+    * `cats.effect.Bracket` type class, implemented in
+    * [[Iterant!.bracket bracket]].
     */
-  private[tail] def bracketA[F[_], A, B](acquire: F[A])(
-    use: A => Iterant[F, B],
-    release: (A, BracketResult) => F[Unit]
-  )(
-    implicit F: Sync[F]
-  ): Iterant[F, B] =
-    IterantBracket(acquire, use, release)
+  @deprecated("Use Iterant.resource", since="3.0.0-RC2")
+  def bracket[F[_], A, B](acquire: F[A])
+    (use: A => Iterant[F, B], release: A => F[Unit])
+    (implicit F: Sync[F]): Iterant[F, B] =
+    resource(acquire)(release).flatMap(use)
 
   /** Lifts a strict value into the stream context, returning a
     * stream of one element.
@@ -2044,7 +2105,11 @@ object Iterant extends IterantInstances {
     * stream of one element that is lazily evaluated.
     */
   def eval[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
-    Suspend(F.delay(nextS[F, A](a, F.pure(Halt(None)), F.unit)), F.unit)
+    Suspend(F.delay(lastS[F, A](a)), F.unit)
+
+  /** Alias for [[eval]]. */
+  def delay[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
+    eval(a)(F)
 
   /** Lifts a value from monadic context into the stream context,
     * returning a stream of one element
@@ -2185,6 +2250,23 @@ object Iterant extends IterantInstances {
     NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty), F.unit)
   }
 
+  /** Given an `org.reactivestreams.Publisher`, converts it into a
+    * Monix Iterant.
+    *
+    * @see [[Iterant.toReactivePublisher]] for converting an `Iterant` to
+    *      a reactive publisher.
+    *
+    * @param publisher is the `org.reactivestreams.Publisher` reference to
+    *                  wrap into an [[Iterant]]
+    *
+    * @param strategy  is a [[monix.execution.rstreams.ReactivePullStrategy ReactivePullStrategy]]
+    *                  that describes how elements are requested from a `Publisher`
+    *
+    */
+  def fromReactivePublisher[F[_], A](publisher: Publisher[A])(implicit F: Async[F], timer: Timer[F], strategy: ReactivePullStrategy = ReactivePullStrategy.Default): Iterant[F, A] = {
+    IterantFromReactivePublisher(publisher, strategy)
+  }
+
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
     * `Iterant` that keeps generating `NextBatch` items produced
@@ -2304,11 +2386,11 @@ object Iterant extends IterantInstances {
     * The stream will only terminate if an error is raised in F context
     */
   def repeatEvalF[F[_], A](fa: F[A])(implicit F: Sync[F]): Iterant[F, A] =
-    repeat(()).mapEval(_ => fa)
+    repeat[F, Unit](()).mapEval(_ => fa)
 
   /** Returns an empty stream. */
   def empty[F[_], A]: Iterant[F, A] =
-    Halt[F, A](None)
+    emptyRef.asInstanceOf[Iterant[F, A]]
 
   /** $intervalAtFixedRateDesc
     *
@@ -2360,7 +2442,7 @@ object Iterant extends IterantInstances {
 
   /** Concatenates list of Iterants into a single stream
     */
-  def concat[F[_], A](xs: Iterant[F, A]*)(implicit F: Applicative[F]): Iterant[F, A] = {
+  def concat[F[_], A](xs: Iterant[F, A]*)(implicit F: Sync[F]): Iterant[F, A] = {
     xs.foldLeft(Iterant.empty[F, A])(IterantConcat.concat(_, _)(F))
   }
 
@@ -2449,7 +2531,6 @@ object Iterant extends IterantInstances {
     def earlyStop(implicit F: Applicative[F]): F[Unit] =
       F.unit
   }
-
 }
 
 private[tail] trait IterantInstances extends IterantInstances1 {
@@ -2548,5 +2629,14 @@ private[tail] trait IterantInstances0 {
 
     override def suspend[A](thunk: => Iterant[F, A]): Iterant[F, A] =
       Iterant.suspend(thunk)
+
+    override def delay[A](thunk: => A): Iterant[F, A] =
+      Iterant.eval(thunk)
+
+    override def bracket[A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: A => Iterant[F, Unit]): Iterant[F, B] =
+      acquire.bracket(use)(release)
+
+    override def bracketCase[A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit]): Iterant[F, B] =
+      acquire.bracketCase(use)(release)
   }
 }

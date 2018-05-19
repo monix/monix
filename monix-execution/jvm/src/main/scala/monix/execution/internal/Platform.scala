@@ -57,7 +57,7 @@ private[monix] object Platform {
     *        ...
     * </pre>
     */
-  final val recommendedBatchSize: Int = {
+  val recommendedBatchSize: Int = {
     Option(System.getProperty("monix.environment.batchSize", ""))
       .filter(s => s != null && s.nonEmpty)
       .flatMap(s => Try(s.toInt).toOption)
@@ -72,7 +72,7 @@ private[monix] object Platform {
     *  - `monix.environment.autoCancelableRunLoops`
     *    (`true`, `yes` or `1` for enabling)
     */
-  final val autoCancelableRunLoops: Boolean =
+  val autoCancelableRunLoops: Boolean =
     Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
       .map(_.toLowerCase)
       .exists(v => v == "yes" || v == "true" || v == "1")
@@ -85,7 +85,7 @@ private[monix] object Platform {
     *  - `monix.environment.localContextPropagation`
     *    (`true`, `yes` or `1` for enabling)
     */
-  final val localContextPropagation: Boolean =
+  val localContextPropagation: Boolean =
     Option(System.getProperty("monix.environment.localContextPropagation", ""))
       .map(_.toLowerCase)
       .exists(v => v == "yes" || v == "true" || v == "1")
@@ -113,7 +113,7 @@ private[monix] object Platform {
     *        ...
     * </pre>
     */
-  final val fusionMaxStackDepth =
+  val fusionMaxStackDepth =
     Option(System.getProperty("monix.environment.fusionMaxStackDepth"))
       .filter(s => s != null && s.nonEmpty)
       .flatMap(s => Try(s.toInt).toOption)
@@ -128,4 +128,35 @@ private[monix] object Platform {
     */
   def await[A](fa: Awaitable[A], timeout: Duration)(implicit permit: CanBlock): A =
     Await.result(fa, timeout)
+
+  /** Composes multiple errors together, meant for those cases in which
+    * error suppression, due to a second error being triggered, is not
+    * acceptable.
+    *
+    * On top of the JVM this function uses `Throwable#addSuppressed`,
+    * available since Java 7. On top of JavaScript the function would return
+    * a `CompositeException`.
+    */
+  def composeErrors(first: Throwable, rest: Throwable*): Throwable =
+    if (rest.isEmpty) first else {
+      val cursor = rest.iterator
+      while (cursor.hasNext) {
+        val next = cursor.next()
+        if (first ne next)
+          first.addSuppressed(next)
+      }
+      first
+    }
+
+  /** Useful utility that combines an `Either` result, which is what
+    * `MonadError#attempt` returns.
+    */
+  def composeErrors(first: Throwable, second: Either[Throwable, _]): Throwable =
+    second match {
+      case Left(e2) if first ne e2 =>
+        first.addSuppressed(e2)
+        first
+      case _ =>
+        first
+    }
 }

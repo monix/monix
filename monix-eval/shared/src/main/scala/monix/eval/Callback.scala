@@ -18,8 +18,11 @@
 package monix.eval
 
 import cats.Contravariant
+import monix.execution.cancelables.StackedCancelable
 import monix.execution.misc.NonFatal
+import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -33,9 +36,10 @@ import scala.util.{Failure, Success, Try}
   * Obviously `Callback` describes unsafe side-effects, a fact that is
   * highlighted by the usage of `Unit` as the return type. Obviously
   * callbacks are unsafe to use in pure code, but are necessary for
-  * describing asynchronous processes, like in [[Task.create]].
+  * describing asynchronous processes, like in
+  * [[Task.cancelableS[A](register* Task.cancelable]].
   */
-abstract class Callback[-A] extends Listener[A] with (Try[A] => Unit) {
+abstract class Callback[-A] extends Listener[A] with (Either[Throwable, A] => Unit) {
   def onSuccess(value: A): Unit
 
   def onError(ex: Throwable): Unit
@@ -50,7 +54,7 @@ abstract class Callback[-A] extends Listener[A] with (Try[A] => Unit) {
     }
 
   final def apply(result: Coeval[A]): Unit =
-    result.run match {
+    result.run() match {
       case Coeval.Now(a) => onSuccess(a)
       case Coeval.Error(e) => onError(e)
     }
@@ -98,15 +102,49 @@ object Callback {
 
   /** Given a [[Callback]] wraps it into an implementation that
     * calls `onSuccess` and `onError` asynchronously, using the
-    * given `ExecutionContext`.
+    * given [[monix.execution.Scheduler Scheduler]].
+    *
+    * The async boundary created is "light", in the sense that a
+    * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]]
+    * is used and supporting schedulers can execute these using an internal
+    * trampoline, thus execution being faster and immediate, but still avoiding
+    * growing the call-stack and thus avoiding stack overflows.
+    *
+    * @see [[Callback.trampolined[A](cb* trampolined]]
     */
-  def async[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] =
-    new Callback[A] {
-      def onSuccess(value: A): Unit =
-        s.executeTrampolined(() => cb.onSuccess(value))
-      def onError(ex: Throwable): Unit =
-        s.executeTrampolined(() => cb.onError(ex))
-    }
+  def forked[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] =
+    new AsyncForkCallback[A](cb)
+
+  /** Given a [[Callback]] wraps it into an implementation that
+    * calls `onSuccess` and `onError` asynchronously, using the
+    * given [[monix.execution.Scheduler Scheduler]].
+    *
+    * The async boundary created is "light", in the sense that a
+    * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]]
+    * is used and supporting schedulers can execute these using an internal
+    * trampoline, thus execution being faster and immediate, but still avoiding
+    * growing the call-stack and thus avoiding stack overflows.
+    *
+    * @see [[forked]]
+    */
+  def trampolined[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] =
+    new TrampolinedCallback[A](cb)
+
+  /** A variant of [[trampolined[A](cb* Callback.trampolined]] that also pops a
+    * [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
+    * just before calling the underlying callback.
+    */
+  def trampolined[A](conn: StackedCancelable, cb: Callback[A])
+    (implicit s: Scheduler): Callback[A] =
+    new TrampolinedWithConn[A](conn, cb)
+
+  /** DEPRECATED — renamed to [[Callback.trampolined[A](cb* trampolined]]. */
+  @deprecated("Renamed to Callback.trampolined", since = "3.0.0-RC2")
+  def async[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] = {
+    // $COVERAGE-OFF$
+    trampolined(cb)(s)
+    // $COVERAGE-ON$
+  }
 
   /** Turns `Either[Throwable, A] => Unit` callbacks into Monix
     * callbacks.
@@ -120,27 +158,95 @@ object Callback {
       def onError(ex: Throwable): Unit = cb(Left(ex))
     }
 
-  /** Useful extension methods for [[Callback]]. */
   implicit final class Extensions[-A](val source: Callback[A]) extends AnyVal {
-    /** Extension method that calls `onSuccess` asynchronously. */
-    def asyncOnSuccess(value: A)(implicit s: Scheduler): Unit =
-      s.executeTrampolined(() => source.onSuccess(value))
+    @deprecated("Switch to Callback.trampolined", since="3.0.0-RC2")
+    def asyncOnSuccess(value: A)(implicit s: Scheduler): Unit = {
+      // $COVERAGE-OFF$
+      /*_*/s.executeTrampolined(() => source.onSuccess(value))/*_*/
+      // $COVERAGE-ON$
+    }
 
-    /** Extension method that calls `onError` asynchronously. */
-    def asyncOnError(ex: Throwable)(implicit s: Scheduler): Unit =
-      s.executeTrampolined(() => source.onError(ex))
+    @deprecated("Switch to Callback.trampolined", since="3.0.0-RC2")
+    def asyncOnError(ex: Throwable)(implicit s: Scheduler): Unit = {
+      // $COVERAGE-OFF$
+      /*_*/s.executeTrampolined(() => source.onError(ex))/*_*/
+      // $COVERAGE-ON$
+    }
 
-    /** Extension method that calls `apply` asynchronously. */
-    def asyncApply(value: Coeval[A])(implicit s: Scheduler): Unit =
-      s.executeTrampolined(() => source(value))
+    @deprecated("Switch to Callback.trampolined", since="3.0.0-RC2")
+    def asyncApply(value: Coeval[A])(implicit s: Scheduler): Unit = {
+      // $COVERAGE-OFF$
+      /*_*/s.executeTrampolined(() => source(value))/*_*/
+      // $COVERAGE-ON$
+    }
 
-    /** Extension method that calls `apply` asynchronously. */
-    def asyncApply(value: Try[A])(implicit s: Scheduler): Unit =
-      s.executeTrampolined(() => source(value))
+    @deprecated("Switch to Callback.trampolined", since="3.0.0-RC2")
+    def asyncApply(value: Try[A])(implicit s: Scheduler): Unit = {
+      // $COVERAGE-OFF$
+      /*_*/s.executeTrampolined(() => source(value))/*_*/
+      // $COVERAGE-ON$
+    }
 
-    /** Extension method that calls `apply` asynchronously. */
-    def asyncApply(value: Either[Throwable, A])(implicit s: Scheduler): Unit =
-      s.executeTrampolined(() => source(value))
+    @deprecated("Switch to Callback.trampolined", since="3.0.0-RC2")
+    def asyncApply(value: Either[Throwable, A])(implicit s: Scheduler): Unit = {
+      // $COVERAGE-OFF$
+      /*_*/s.executeTrampolined(() => source(value))/*_*/
+      // $COVERAGE-ON$
+    }
+  }
+
+  private final class AsyncForkCallback[A](cb: Callback[A])
+    (implicit s: Scheduler)
+    extends BaseCallback[A](cb)(s)
+
+  private final class TrampolinedCallback[A](cb: Callback[A])
+    (implicit s: Scheduler)
+    extends BaseCallback[A](cb)(s) with TrampolinedRunnable
+
+  private final class TrampolinedWithConn[A](conn: StackedCancelable, cb: Callback[A])
+    (implicit s: Scheduler)
+    extends BaseCallback[A](cb)(s) with TrampolinedRunnable {
+
+    override def run(): Unit = {
+      conn.pop()
+      super.run()
+    }
+  }
+
+  /** Base implementation for `trampolined` and `forked`. */
+  private class BaseCallback[A](cb: Callback[A])
+    (implicit s: Scheduler)
+    extends Callback[A] with Runnable {
+
+    private[this] var canCall = true
+    private[this] var value: A = _
+    private[this] var error: Throwable = _
+
+    final def onSuccess(value: A): Unit = {
+      if (canCall) {
+        canCall = false
+        this.value = value
+        s.execute(this)
+      }
+    }
+    final def onError(e: Throwable): Unit = {
+      if (canCall) {
+        this.error = e
+        s.execute(this)
+      } else {
+        s.reportFailure(e)
+      }
+    }
+    def run() = {
+      val e = error
+      if (e ne null) {
+        cb.onError(e)
+        error = null
+      } else {
+        cb.onSuccess(value)
+        value = null.asInstanceOf[A]
+      }
+    }
   }
 
   /** An "empty" callback instance doesn't do anything `onSuccess` and

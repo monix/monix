@@ -109,9 +109,9 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(100)))
   }
 
-  test("Task.apply(throw).materialize (callback)") { implicit s =>
+  test("Task.evalAsync(throw).materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.apply[Int](throw dummy).materialize.map {
+    val task = Task[Int](throw dummy).materialize.map {
       case Failure(`dummy`) => 100
       case _ => 0
     }
@@ -123,9 +123,9 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(100)))
   }
 
-  test("Task.apply(throw).materialize (future)") { implicit s =>
+  test("Task.evalAsync(throw).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.apply[Int](throw dummy).materialize.map {
+    val task = Task[Int](throw dummy).materialize.map {
       case Failure(`dummy`) => 100
       case _ => 0
     }
@@ -135,9 +135,9 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
   }
 
 
-  test("Task.apply(throw).map(...).materialize (future)") { implicit s =>
+  test("Task.evalAsync(throw).map(...).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.apply[Int](throw dummy).map(_ + 1).materialize.map {
+    val task = Task[Int](throw dummy).map(_ + 1).materialize.map {
       case Failure(`dummy`) => 100
       case _ => 0
     }
@@ -146,9 +146,9 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(100)))
   }
 
-  test("Task.apply(throw).map(...).materialize (callback)") { implicit s =>
+  test("Task.evalAsync(throw).map(...).materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.apply[Int](throw dummy).map(_ + 1).materialize.map {
+    val task = Task[Int](throw dummy).map(_ + 1).materialize.map {
       case Failure(`dummy`) => 100
       case _ => 0
     }
@@ -211,7 +211,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(100)))
   }
   
-  test("Task(throw).memoize.materialize (callback)") { implicit s =>
+  test("Task.evalAsync(throw).memoize.materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).memoize.materialize.map {
       case Failure(`dummy`) => 100
@@ -225,7 +225,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(100)))
   }
 
-  test("Task(throw).memoize.materialize (future)") { implicit s =>
+  test("Task.evalAsync(throw).memoize.materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).memoize.materialize.map {
       case Failure(`dummy`) => 100
@@ -237,7 +237,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
   }
 
 
-  test("Task(throw).memoize.map(...).materialize (future)") { implicit s =>
+  test("Task.evalAsync(throw).memoize.map(...).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).memoize.map(_ + 1).materialize.map {
       case Failure(`dummy`) => 100
@@ -248,7 +248,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(100)))
   }
 
-  test("Task(throw).memoize.map(...).materialize (callback)") { implicit s =>
+  test("Task.evalAsync(throw).memoize.map(...).materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).memoize.map(_ + 1).materialize.map {
       case Failure(`dummy`) => 100
@@ -324,7 +324,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
           Coeval.raiseError(ex)
       }
 
-    val f = loop(Coeval.eval("value"), count).runTry
+    val f = loop(Coeval.eval("value"), count).runTry()
     assertEquals(f, Success("value"))
   }
 
@@ -340,7 +340,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       }
     }
 
-    assertEquals(loop.runTry, Success(count))
+    assertEquals(loop.runTry(), Success(count))
   }
 
   test("Coeval.eval(throw).materialize") { _ =>
@@ -350,7 +350,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    assertEquals(coeval.runTry, Success(100))
+    assertEquals(coeval.runTry(), Success(100))
   }
 
   test("Coeval.eval(throw).map(...).materialize") { _ =>
@@ -360,7 +360,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    assertEquals(coeval.runTry, Success(100))
+    assertEquals(coeval.runTry(), Success(100))
   }
 
   test("Coeval.apply(throw).materialize") { _ =>
@@ -370,7 +370,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    assertEquals(coeval.runTry, Success(100))
+    assertEquals(coeval.runTry(), Success(100))
   }
 
   test("Coeval.apply(throw).map(...).materialize") { _ =>
@@ -380,7 +380,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    assertEquals(coeval.runTry, Success(100))
+    assertEquals(coeval.runTry(), Success(100))
   }
 
   test("Coeval.suspend(throw).materialize") { _ =>
@@ -390,7 +390,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    assertEquals(coeval.runTry, Success(100))
+    assertEquals(coeval.runTry(), Success(100))
   }
 
   test("Coeval.suspend(throw).map(...).materialize") { _ =>
@@ -400,7 +400,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    assertEquals(coeval.runTry, Success(100))
+    assertEquals(coeval.runTry(), Success(100))
   }
 
   test("Coeval(throw).memoize.materialize") { _ =>
@@ -410,7 +410,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    assertEquals(coeval.runTry, Success(100))
+    assertEquals(coeval.runTry(), Success(100))
   }
 
   test("Coeval(throw).memoize.map(...).materialize") { _ =>
@@ -420,7 +420,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    assertEquals(coeval.runTry, Success(100))
+    assertEquals(coeval.runTry(), Success(100))
   }
 
   test("Coeval.raiseError.materialize (future)") { _ =>
@@ -430,7 +430,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    assertEquals(coeval.runTry, Success(100))
+    assertEquals(coeval.runTry(), Success(100))
   }
 
   test("Coeval.raiseError.map(...).materialize (future)") { _ =>
@@ -440,6 +440,6 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    assertEquals(coeval.runTry, Success(100))
+    assertEquals(coeval.runTry(), Success(100))
   }
 }

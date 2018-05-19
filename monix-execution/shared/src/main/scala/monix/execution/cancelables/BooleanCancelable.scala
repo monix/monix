@@ -18,6 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
+import monix.execution.Cancelable.Empty
 import monix.execution.atomic.AtomicAny
 
 /** Represents a Cancelable that can be queried
@@ -53,8 +54,8 @@ object BooleanCancelable {
   /** Returns an instance of a [[BooleanCancelable]] that's
     * already canceled.
     */
-  final val alreadyCanceled: BooleanCancelable =
-    new BooleanCancelable with Cancelable.IsDummy {
+  val alreadyCanceled: BooleanCancelable with Empty =
+    new BooleanCancelable with Empty {
       val isCanceled = true
       def cancel() = ()
     }
@@ -64,7 +65,7 @@ object BooleanCancelable {
     * Useful as a low-overhead instance whose `isCanceled` value
     * is always `false`, thus similar in spirit with [[alreadyCanceled]].
     */
-  final val dummy: BooleanCancelable =
+  val dummy: BooleanCancelable =
     new BooleanCancelable with Cancelable.IsDummy {
       val isCanceled = false
       def cancel() = ()

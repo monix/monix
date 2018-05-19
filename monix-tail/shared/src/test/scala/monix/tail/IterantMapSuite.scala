@@ -42,7 +42,7 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].empty[Int]), Task { isCanceled = true })
+    val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].empty[Int]), Task.evalAsync { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -54,7 +54,7 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextCursorS(BatchCursor(1,2,3), Task(Iterant[Task].empty[Int]), Task { isCanceled = true })
+    val stream = Iterant[Task].nextCursorS(BatchCursor(1,2,3), Task.evalAsync(Iterant[Task].empty[Int]), Task.evalAsync { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -117,7 +117,7 @@ object IterantMapSuite extends BaseTestSuite {
     var isCanceled = false
 
     val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
-    val result = stream.map[Int](_ => throw dummy).toListL.runTry
+    val result = stream.map[Int](_ => throw dummy).toListL.runTry()
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
@@ -128,7 +128,7 @@ object IterantMapSuite extends BaseTestSuite {
     var isCanceled = false
 
     val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
-    val result = stream.map[Int](_ => throw dummy).toListL.runTry
+    val result = stream.map[Int](_ => throw dummy).toListL.runTry()
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")

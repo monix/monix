@@ -60,7 +60,7 @@ object IterantCollectSuite extends BaseTestSuite {
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
-    assertEquals(state.toListL.runTry, Failure(dummy))
+    assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
   test("Iterant.collect suspends the evaluation for NextCursor") { _ =>
@@ -71,7 +71,7 @@ object IterantCollectSuite extends BaseTestSuite {
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
-    assertEquals(state.toListL.runTry, Failure(dummy))
+    assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
   test("Iterant.collect suspends the evaluation for Next") { _ =>

@@ -19,22 +19,24 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
-
+import monix.execution.internal.Platform
 import scala.util.{Failure, Success}
 
 object TaskMapBothSuite extends BaseTestSuite {
-  test("if both tasks are synchronous, then mapBoth is also synchronous") { implicit s =>
+  test("if both tasks are synchronous, then mapBoth forks") { implicit s =>
     val ta = Task.eval(1)
     val tb = Task.eval(2)
 
     val r = Task.mapBoth(ta,tb)(_ + _)
     val f = r.runAsync
+    assertEquals(f.value, None)
+    s.tick()
     assertEquals(f.value, Some(Success(3)))
   }
 
   test("sum two async tasks") { implicit s =>
-    val ta = Task(1)
-    val tb = Task(2)
+    val ta = Task.evalAsync(1)
+    val tb = Task.evalAsync(2)
 
     val r = Task.mapBoth(ta, tb)(_ + _)
     val f = r.runAsync; s.tick()
@@ -64,7 +66,7 @@ object TaskMapBothSuite extends BaseTestSuite {
 
   test("should be stack-safe for asynchronous tasks") { implicit s =>
     val count = 10000
-    val tasks = (0 until count).map(x => Task(x))
+    val tasks = (0 until count).map(x => Task.evalAsync(x))
     val init = Task.eval(0L)
 
     val sum = tasks.foldLeft(init)((acc,t) => Task.mapBoth(acc, t)(_ + _))
@@ -72,6 +74,21 @@ object TaskMapBothSuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(result.value.get, Success(count * (count-1) / 2))
+  }
+
+  test("should have a stack safe cancelable") { implicit sc =>
+    val count = if (Platform.isJVM) 10000 else 1000
+
+    val tasks = (0 until count).map(_ => Task.never[Int])
+    val all = tasks.foldLeft(Task.now(0))((acc, t) => Task.mapBoth(acc, t)(_ + _))
+    val f = all.runAsync
+
+    sc.tick()
+    f.cancel()
+    sc.tick()
+
+    assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
+    assertEquals(f.value, None)
   }
 
   test("sum random synchronous tasks") { implicit s =>
@@ -83,8 +100,8 @@ object TaskMapBothSuite extends BaseTestSuite {
 
   test("sum random asynchronous tasks") { implicit s =>
     check1 { (numbers: List[Int]) =>
-      val sum = numbers.foldLeft(Task(0))((acc,t) => Task.mapBoth(acc, Task(t))(_+_))
-      sum <-> Task(numbers.sum)
+      val sum = numbers.foldLeft(Task.evalAsync(0))((acc,t) => Task.mapBoth(acc, Task.evalAsync(t))(_+_))
+      sum <-> Task.evalAsync(numbers.sum)
     }
   }
 

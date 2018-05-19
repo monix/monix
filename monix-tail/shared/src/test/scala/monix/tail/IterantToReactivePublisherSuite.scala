@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import cats.effect.{Effect, IO}
+import cats.effect.{Effect, ExitCase, IO}
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
@@ -27,6 +27,7 @@ import monix.execution.internal.Platform
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.batches.Batch
 import org.reactivestreams.{Subscriber, Subscription}
+
 import scala.util.{Failure, Success}
 
 object IterantToReactivePublisherSuite extends BaseTestSuite {
@@ -97,7 +98,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     val subscription = SingleAssignSubscription()
 
     Iterant[Task].range(0, count)
-      .doOnEarlyStop(Task { wasStopped += 1 })
+      .doOnEarlyStop(Task.evalAsync { wasStopped += 1 })
       .mapEval(x => Task.eval { emitted += 1; x })
       .toReactivePublisher
       .subscribe(new Subscriber[Int] {
@@ -140,7 +141,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     var wasStopped = false
 
     val source = Iterant[Task].range(0, count)
-      .doOnEarlyStop(Task { wasStopped = true })
+      .doOnEarlyStop(Task.evalAsync { wasStopped = true })
       .mapEval(_ => Task.eval { effect += 1; 1 })
 
     val f = sum(source, Long.MaxValue).runAsync
@@ -164,7 +165,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
 
     val batch = Batch.fromIterable(Iterable.range(0, count), Int.MaxValue)
     val source = Iterant[Task].nextBatchS(batch, Task.pure(Iterant[Task].empty[Int]), Task.unit)
-      .doOnEarlyStop(Task { wasStopped = true })
+      .doOnEarlyStop(Task.evalAsync { wasStopped = true })
       .map { _ => effect += 1; 1 }
 
     val f = sum(source, 16).runAsync
@@ -192,7 +193,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     val subscription = SingleAssignSubscription()
 
     Iterant[Task].range(0, count)
-      .doOnEarlyStop(Task { wasStopped += 1 })
+      .doOnEarlyStop(Task.evalAsync { wasStopped += 1 })
       .mapEval(_ => Task.eval { emitted += 1; 1 })
       .toReactivePublisher
       .subscribe(new Subscriber[Int] {
@@ -322,7 +323,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   }
 
   def sum[F[_]](stream: Iterant[F, Int], request: Long)(implicit F: Effect[F]): Task[Long] =
-    Task.create { (scheduler, cb) =>
+    Task.cancelableS { (scheduler, cb) =>
       implicit val ec = scheduler
       val subscription = SingleAssignSubscription()
 
@@ -377,5 +378,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       IO.pure(x)
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
+    override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+      acquire.bracketCase(use)(release)
   }
 }

@@ -17,8 +17,10 @@
 
 package monix.eval
 
+import monix.eval.Task.Context
 import monix.execution.Cancelable
 import monix.execution.misc.AsyncSemaphore
+import monix.execution.schedulers.TrampolinedRunnable
 
 /** The `TaskSemaphore` is an asynchronous semaphore implementation that
   * limits the parallelism on task execution.
@@ -56,28 +58,43 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     */
   def greenLight[A](fa: Task[A]): Task[A] = {
     // Inlining doOnFinish + doOnCancel
-    val taskWithRelease = Task.unsafeCreate[A] { (context, cb) =>
+    val start = (context: Context, cb: Callback[A]) => {
       implicit val s = context.scheduler
       val c = Cancelable(() => semaphore.release())
       val conn = context.connection
       conn.push(c)
 
-      // Light asynchronous boundary
-      Task.unsafeStartTrampolined(fa, context, new Callback[A] {
-        def onSuccess(value: A): Unit = {
-          conn.pop()
-          semaphore.release()
-          cb.asyncOnSuccess(value)
-        }
+      Task.unsafeStartNow(fa, context,
+        new Callback[A] with TrampolinedRunnable {
+          private[this] var value: A = _
+          private[this] var error: Throwable = _
 
-        def onError(ex: Throwable): Unit = {
-          conn.pop()
-          semaphore.release()
-          cb.asyncOnError(ex)
-        }
-      })
+          def onSuccess(value: A): Unit = {
+            this.value = value
+            s.execute(this)
+          }
+          def onError(ex: Throwable): Unit = {
+            this.error = ex
+            s.execute(this)
+          }
+          def run() = {
+            conn.pop()
+            semaphore.release()
+            val e = error
+            if (e eq null) cb.onSuccess(value)
+            else cb.onError(e)
+          }
+        })
     }
 
+    val taskWithRelease = Task.Async(
+      start,
+      trampolineBefore = true,
+      trampolineAfter = false,
+      restoreLocals = false)
+
+    // TODO: make sure this works with auto-cancelable tasks, or fix it!
+    // Probably needs bracket!
     acquire.flatMap { _ => taskWithRelease }
   }
 
@@ -85,13 +102,14 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     * that upon evaluation will only complete after a permit
     * has been acquired.
     */
-  val acquire: Task[Unit] =
-    Task.unsafeCreate { (context, cb) =>
+  val acquire: Task[Unit] = {
+    val start = (context: Context, cb: Callback[Unit]) => {
+      import monix.execution.schedulers.TrampolineExecutionContext.immediate
       implicit val s = context.scheduler
       val f = semaphore.acquire()
 
       if (f.isCompleted)
-        cb.asyncApply(f.value.get)
+        cb(f.value.get)
       else {
         val conn = context.connection
         conn.push(f)
@@ -100,9 +118,11 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
           context.frameRef.reset()
           conn.pop()
           cb(result)
-        }
+        }(immediate)
       }
     }
+    Task.Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
 
   /** Returns a task that upon evaluation will release a permit,
     * returning it to the pool.

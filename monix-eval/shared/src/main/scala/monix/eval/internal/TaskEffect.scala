@@ -19,10 +19,9 @@ package monix.eval
 package internal
 
 import cats.effect.IO
-import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
+import monix.execution.Scheduler
 import monix.execution.internal.AttemptCallback.noop
 import monix.execution.misc.NonFatal
-import monix.execution.{Cancelable, Scheduler}
 
 /** INTERNAL API
   *
@@ -30,41 +29,6 @@ import monix.execution.{Cancelable, Scheduler}
   * instance, provided in `monix.eval.instances`.
   */
 private[eval] object TaskEffect {
-  /**
-    * `cats.effect.Async#async`
-    */
-  def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
-    Task.unsafeCreate { (ctx, cb) =>
-      implicit val sc = ctx.scheduler
-      try k {
-        case Right(a) => cb.asyncOnSuccess(a)
-        case Left(e) => cb.asyncOnError(e)
-      } catch {
-        case NonFatal(e) =>
-          sc.reportFailure(e)
-      }
-    }
-
-  /**
-    * `cats.effect.Concurrent#cancelable`
-    */
-  def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
-    Task.unsafeCreate { (ctx, cb) =>
-      implicit val sc = ctx.scheduler
-      val conn = ctx.connection
-      val cancelable = SingleAssignCancelable()
-      conn push cancelable
-
-      try {
-        val io = k(new CreateCallback[A](conn, cb))
-        if (io != IO.unit)
-          cancelable := Cancelable.fromIOUnsafe(io)
-      } catch {
-        case NonFatal(e) =>
-          sc.reportFailure(e)
-      }
-    }
-
   /**
     * `cats.effect.Effect#runAsync`
     */
@@ -92,16 +56,5 @@ private[eval] object TaskEffect {
       def onError(e: Throwable): Unit =
         signal(Left(e))
     })
-  }
-
-  private final class CreateCallback[A](
-    conn: StackedCancelable, cb: Callback[A])
-    (implicit s: Scheduler)
-    extends (Either[Throwable, A] => Unit) {
-
-    override def apply(value: Either[Throwable, A]): Unit = {
-      conn.pop()
-      cb.asyncApply(value)
-    }
   }
 }

@@ -17,12 +17,13 @@
 
 package monix.eval
 
-import cats.effect.{ConcurrentEffect, Effect, IO}
+import cats.effect.{ConcurrentEffect, Effect, ExitCase, IO}
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
 import cats.{Eval, effect}
 import monix.execution.exceptions.DummyException
+
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
@@ -82,7 +83,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromEffect(task) == task") { implicit s =>
-    val ref = Task(1)
+    val ref = Task.evalAsync(1)
     assertEquals(Task.fromEffect(ref), ref)
   }
 
@@ -275,6 +276,8 @@ object TaskConversionsSuite extends BaseTestSuite {
       CIO(IO.pure(x))
     override def liftIO[A](ioa: IO[A]): CIO[A] =
       CIO(ioa)
+    override def bracketCase[A, B](acquire: CIO[A])(use: A => CIO[B])(release: (A, ExitCase[Throwable]) => CIO[Unit]): CIO[B] =
+      CIO(acquire.io.bracketCase(a => use(a).io)((a, e) => release(a, e).io))
   }
 
   class CustomConcurrentEffect extends CustomEffect with ConcurrentEffect[CIO] {

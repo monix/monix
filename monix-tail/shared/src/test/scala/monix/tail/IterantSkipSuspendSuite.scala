@@ -69,7 +69,7 @@ object IterantSkipSuspendSuite extends BaseTestSuite {
       Coeval.raiseError(dummy),
       Coeval { stopCalled = true }
     )
-    val result = brokenIterant.skipSuspendL.runTry
+    val result = brokenIterant.skipSuspendL.runTry()
     assertEquals(result, Success(Iterant.Halt[Coeval, Int](Some(dummy))))
     assert(stopCalled)
   }

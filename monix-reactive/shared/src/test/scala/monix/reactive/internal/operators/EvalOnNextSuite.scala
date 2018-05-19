@@ -54,7 +54,7 @@ object EvalOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNextTask(x => Task(sum += x))
+    Observable.range(0, 20).doOnNextTask(x => Task.evalAsync(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -87,7 +87,7 @@ object EvalOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.now(10L).doOnNextTask(x => Task(sum += x))
+    Observable.now(10L).doOnNextTask(x => Task.evalAsync(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -141,7 +141,7 @@ object EvalOnNextSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0L
     var errorThrown: Throwable = null
 
-    Observable.range(1,10).doOnNextTask(x => Task(throw dummy))
+    Observable.range(1,10).doOnNextTask(x => Task.evalAsync(throw dummy))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = errorThrown = ex

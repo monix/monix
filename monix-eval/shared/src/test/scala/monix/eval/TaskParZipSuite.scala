@@ -18,13 +18,12 @@
 package monix.eval
 
 import monix.execution.exceptions.DummyException
-
 import concurrent.duration._
 import scala.util.{Failure, Random, Success}
 
-object TaskZipSuite extends BaseTestSuite{
-  test("Task#zip should work if source finishes first") { implicit s =>
-    val f = Task(1).zip(Task(2).delayExecution(1.second)).runAsync
+object TaskParZipSuite extends BaseTestSuite{
+  test("Task.parZip2 should work if source finishes first") { implicit s =>
+    val f = Task.parZip2(Task(1), Task(2).delayExecution(1.second)).runAsync
 
     s.tick()
     assertEquals(f.value, None)
@@ -32,8 +31,8 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(f.value, Some(Success((1,2))))
   }
 
-  test("Task#zip should work if other finishes first") { implicit s =>
-    val f = Task(1).delayExecution(1.second).zip(Task(2)).runAsync
+  test("Task.parZip2 should work if other finishes first") { implicit s =>
+    val f = Task.parZip2(Task(1).delayExecution(1.second), Task(2)).runAsync
 
     s.tick()
     assertEquals(f.value, None)
@@ -41,8 +40,8 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(f.value, Some(Success((1,2))))
   }
 
-  test("Task#zip should cancel both") { implicit s =>
-    val f = Task(1).delayExecution(1.second).zip(Task(2).delayExecution(2.seconds)).runAsync
+  test("Task.parZip2 should cancel both") { implicit s =>
+    val f = Task.parZip2(Task(1).delayExecution(1.second), Task(2).delayExecution(2.seconds)).runAsync
 
     s.tick()
     assertEquals(f.value, None)
@@ -52,8 +51,8 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(f.value, None)
   }
 
-  test("Task#zip should cancel just the source") { implicit s =>
-    val f = Task(1).delayExecution(1.second).zip(Task(2).delayExecution(2.seconds)).runAsync
+  test("Task.parZip2 should cancel just the source") { implicit s =>
+    val f = Task.parZip2(Task(1).delayExecution(1.second), Task(2).delayExecution(2.seconds)).runAsync
 
     s.tick(1.second)
     assertEquals(f.value, None)
@@ -63,8 +62,8 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(f.value, None)
   }
 
-  test("Task#zip should cancel just the other") { implicit s =>
-    val f = Task(1).delayExecution(2.second).zip(Task(2).delayExecution(1.seconds)).runAsync
+  test("Task.parZip2 should cancel just the other") { implicit s =>
+    val f = Task.parZip2(Task(1).delayExecution(2.second), Task(2).delayExecution(1.seconds)).runAsync
 
     s.tick(1.second)
     assertEquals(f.value, None)
@@ -74,41 +73,41 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(f.value, None)
   }
 
-  test("Task#zip should onError from the source before other") { implicit s =>
+  test("Task.parZip2 should onError from the source before other") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task[Int](throw ex).delayExecution(1.second).zip(Task(2).delayExecution(2.seconds)).runAsync
+    val f = Task.parZip2(Task[Int](throw ex).delayExecution(1.second), Task(2).delayExecution(2.seconds)).runAsync
 
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task#zip should onError from the source after other") { implicit s =>
+  test("Task.parZip2 should onError from the source after other") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task[Int](throw ex).delayExecution(2.second).zip(Task(2).delayExecution(1.seconds)).runAsync
+    val f = Task.parZip2(Task[Int](throw ex).delayExecution(2.second), Task(2).delayExecution(1.seconds)).runAsync
 
     s.tick(2.second)
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task#zip should onError from the other after the source") { implicit s =>
+  test("Task.parZip2 should onError from the other after the source") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task(1).delayExecution(1.second).zip(Task(throw ex).delayExecution(2.seconds)).runAsync
+    val f = Task.parZip2(Task(1).delayExecution(1.second), Task(throw ex).delayExecution(2.seconds)).runAsync
 
     s.tick(2.second)
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task#zip should onError from the other before the source") { implicit s =>
+  test("Task.parZip2 should onError from the other before the source") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task(1).delayExecution(2.second).zip(Task(throw ex).delayExecution(1.seconds)).runAsync
+    val f = Task.parZip2(Task(1).delayExecution(2.second), Task(throw ex).delayExecution(1.seconds)).runAsync
 
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task#zipMap works") { implicit s =>
-    val f1 = Task(1).zip(Task(2)).runAsync
-    val f2 = Task(1).zipMap(Task(2))((a,b) => (a,b)).runAsync
+  test("Task.parZip2 works") { implicit s =>
+    val f1 = Task.parZip2(Task(1), Task(2)).runAsync
+    val f2 = Task.parMap2(Task(1), Task(2))((a,b) => (a,b)).runAsync
     s.tick()
     assertEquals(f1.value.get, f2.value.get)
   }
@@ -133,8 +132,8 @@ object TaskZipSuite extends BaseTestSuite{
   test("Task.map2 runs effects in strict sequence") { implicit s =>
     var effect1 = 0
     var effect2 = 0
-    val ta = Task { effect1 += 1 }.delayExecution(1.millisecond)
-    val tb = Task { effect2 += 1 }.delayExecution(1.millisecond)
+    val ta = Task.evalAsync { effect1 += 1 }.delayExecution(1.millisecond)
+    val tb = Task.evalAsync { effect2 += 1 }.delayExecution(1.millisecond)
     Task.map2(ta, tb)((_, _) => ()).runAsync
     s.tick()
     assertEquals(effect1, 0)
@@ -164,9 +163,9 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task#zip3 works") { implicit s =>
+  test("Task.parZip23 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.zip3(n(1),n(2),n(3))
+    val t = Task.parZip3(n(1),n(2),n(3))
     val r = t.runAsync
     s.tick(3.seconds)
     assertEquals(r.value, Some(Success((1,2,3))))
@@ -190,9 +189,9 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(r.value, Some(Success((1,2,3))))
   }
 
-  test("Task#zip4 works") { implicit s =>
+  test("Task.parZip24 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.zip4(n(1),n(2),n(3),n(4))
+    val t = Task.parZip4(n(1),n(2),n(3),n(4))
     val r = t.runAsync
     s.tick(4.seconds)
     assertEquals(r.value, Some(Success((1,2,3,4))))
@@ -216,9 +215,9 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(r.value, Some(Success((1,2,3,4))))
   }
 
-  test("Task#zip5 works") { implicit s =>
+  test("Task.parZip25 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.zip5(n(1),n(2),n(3),n(4),n(5))
+    val t = Task.parZip5(n(1),n(2),n(3),n(4),n(5))
     val r = t.runAsync
     s.tick(5.seconds)
     assertEquals(r.value, Some(Success((1,2,3,4,5))))
@@ -242,9 +241,9 @@ object TaskZipSuite extends BaseTestSuite{
     assertEquals(r.value, Some(Success((1,2,3,4,5))))
   }
 
-  test("Task#zip6 works") { implicit s =>
+  test("Task.parZip26 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.zip6(n(1),n(2),n(3),n(4),n(5),n(6))
+    val t = Task.parZip6(n(1),n(2),n(3),n(4),n(5),n(6))
     val r = t.runAsync
     s.tick(6.seconds)
     assertEquals(r.value, Some(Success((1,2,3,4,5,6))))

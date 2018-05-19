@@ -26,7 +26,7 @@ import scala.util.{Failure, Success, Try}
 
 object TaskGatherUnorderedSuite extends BaseTestSuite {
   test("Task.gatherUnordered should execute in parallel") { implicit s =>
-    val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
+    val seq = Seq(Task.evalAsync(1).delayExecution(2.seconds), Task.evalAsync(2).delayExecution(1.second), Task.evalAsync(3).delayExecution(3.seconds))
     val f = Task.gatherUnordered(seq).runAsync
 
     s.tick()
@@ -40,10 +40,10 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
   test("Task.gatherUnordered should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq(
-      Task(3).delayExecution(3.seconds),
-      Task(2).delayExecution(1.second),
-      Task(throw ex).delayExecution(2.seconds),
-      Task(3).delayExecution(1.seconds))
+      Task.evalAsync(3).delayExecution(3.seconds),
+      Task.evalAsync(2).delayExecution(1.second),
+      Task.evalAsync(throw ex).delayExecution(2.seconds),
+      Task.evalAsync(3).delayExecution(1.seconds))
 
     val f = Task.gatherUnordered(seq).runAsync
 
@@ -54,7 +54,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
   }
 
   test("Task.gatherUnordered should be canceled") { implicit s =>
-    val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
+    val seq = Seq(Task.evalAsync(1).delayExecution(2.seconds), Task.evalAsync(2).delayExecution(1.second), Task.evalAsync(3).delayExecution(3.seconds))
     val f = Task.gatherUnordered(seq).runAsync
 
     s.tick()
@@ -139,7 +139,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
 
   test("Task.gatherUnordered runAsync multiple times") { implicit s =>
     var effect = 0
-    val task1 = Task { effect += 1; 3 }.memoize
+    val task1 = Task.evalAsync { effect += 1; 3 }.memoize
     val task2 = task1 map { x => effect += 1; x + 1 }
     val task3 = Task.gatherUnordered(List(task2, task2, task2))
 

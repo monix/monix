@@ -21,6 +21,8 @@ import scala.util.{Either, Success, Try}
 import cats.Eq
 import cats.effect.{Async, IO}
 import cats.effect.laws.discipline.arbitrary.{catsEffectLawsArbitraryForIO, catsEffectLawsCogenForIO}
+import monix.execution.Cancelable
+import monix.execution.atomic.Atomic
 import monix.execution.schedulers.TestScheduler
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
@@ -69,8 +71,14 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
     def genPure: Gen[Task[A]] =
       getArbitrary[A].map(Task.pure)
 
-    def genApply: Gen[Task[A]] =
-      getArbitrary[A].map(Task.apply(_))
+    def genEvalAsync: Gen[Task[A]] =
+      getArbitrary[A].map(Task.evalAsync(_))
+
+    def genEval: Gen[Task[A]] =
+      Gen.frequency(
+        1 -> getArbitrary[A].map(Task.eval(_)),
+        1 -> getArbitrary[A].map(Task(_))
+      )
 
     def genFail: Gen[Task[A]] =
       getArbitrary[Throwable].map(Task.raiseError)
@@ -80,12 +88,13 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
 
     def genCancelable: Gen[Task[A]] =
       for (a <- getArbitrary[A]) yield
-        Task.unsafeCreate[A] { (ctx, cb) =>
-          implicit val ec = ctx.scheduler
-          ec.executeAsync{ () =>
-            if (!ctx.connection.isCanceled)
-              cb.asyncOnSuccess(a)
+        Task.cancelableS[A] { (sc, cb) =>
+          val isActive = Atomic(true)
+          sc.executeAsync { () =>
+            if (isActive.getAndSet(false))
+              cb.onSuccess(a)
           }
+          Cancelable(() => isActive.set(false))
         }
 
     def genNestedAsync: Gen[Task[A]] =
@@ -93,11 +102,12 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
         .map(k => Async[Task].async(k).flatMap(x => x))
 
     def genBindSuspend: Gen[Task[A]] =
-      getArbitrary[A].map(Task.apply(_).flatMap(Task.pure))
+      getArbitrary[A].map(Task.evalAsync(_).flatMap(Task.pure))
 
     def genSimpleTask = Gen.frequency(
       1 -> genPure,
-      1 -> genApply,
+      1 -> genEval,
+      1 -> genEvalAsync,
       1 -> genFail,
       1 -> genAsync,
       1 -> genNestedAsync,
@@ -125,7 +135,8 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
 
     Arbitrary(Gen.frequency(
       5 -> genPure,
-      5 -> genApply,
+      5 -> genEvalAsync,
+      5 -> genEval,
       1 -> genFail,
       5 -> genCancelable,
       5 -> genBindSuspend,
@@ -172,7 +183,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def equalityCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
     new Eq[Coeval[A]] {
       def eqv(lh: Coeval[A], rh: Coeval[A]): Boolean = {
-        Eq[Try[A]].eqv(lh.runTry, rh.runTry)
+        Eq[Try[A]].eqv(lh.runTry(), rh.runTry())
       }
     }
 
@@ -184,7 +195,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
 
   implicit def cogenForCoeval[A](implicit cga: Cogen[A]): Cogen[Coeval[A]] =
     Cogen { (seed, coeval) =>
-      coeval.runTry match {
+      coeval.runTry() match {
         case Success(a) => cga.perturb(seed, a)
         case _ => seed
       }

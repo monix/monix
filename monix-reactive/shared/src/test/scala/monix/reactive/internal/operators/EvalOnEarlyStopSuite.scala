@@ -72,7 +72,7 @@ object EvalOnEarlyStopSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnEarlyStopTask(Task { wasCanceled += 1 })
+    Observable.now(1).doOnEarlyStopTask(Task.evalAsync { wasCanceled += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Future(Stop)

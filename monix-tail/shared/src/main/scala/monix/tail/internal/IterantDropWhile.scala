@@ -64,7 +64,7 @@ private[tail] object IterantDropWhile {
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop), stop)
         case last @ Last(elem) =>
-          if (p(elem)) Halt(None) else last
+          if (p(elem)) Iterant.empty else last
         case halt @ Halt(_) =>
           halt
       } catch {

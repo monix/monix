@@ -101,7 +101,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
       ThrowExceptionBatch[Int](dummy), Coeval(emptyInts), Coeval.unit
     )
     assertEquals(
-      iterant.switchIfEmpty(backupStream).toListL.runAttempt,
+      iterant.switchIfEmpty(backupStream).toListL.runAttempt(),
       Left(dummy)
     )
   }
