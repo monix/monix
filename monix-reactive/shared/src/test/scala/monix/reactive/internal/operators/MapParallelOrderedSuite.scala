@@ -78,7 +78,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     assertEquals(counterList, List[Int]())
     s.tick(4.second)
     assertEquals(counterList, List[Int]())
-    s.tick(1.second)
+    s.tick(2.second)
     assertEquals(counterList, List[Int](1, 2, 3, 4, 5))
   }
 

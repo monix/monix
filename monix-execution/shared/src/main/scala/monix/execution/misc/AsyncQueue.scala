@@ -19,7 +19,7 @@ package monix.execution.misc
 
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.misc.AsyncQueue.State
-
+import monix.execution.atomic.AtomicAny
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.{Future, Promise}
