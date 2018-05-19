@@ -20,7 +20,10 @@ package monix.eval
 import java.util.concurrent.CancellationException
 import cats.laws._
 import cats.laws.discipline._
+import cats.syntax.all._
 import monix.execution.exceptions.DummyException
+import monix.execution.internal.Platform
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -137,6 +140,50 @@ object TaskCancellationSuite extends BaseTestSuite {
 
       received <-> Task.raiseError(e)
     }
+  }
+
+  test("cancelBoundary happy path") { implicit ec =>
+    check1 { (task: Task[Int]) =>
+      task <* Task.cancelBoundary <-> task
+    }
+  }
+
+  test("cancelBoundary execution is immediate") { implicit ec =>
+    val task = Task.cancelBoundary *> Task(1)
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("cancelBoundary is stack safe") { implicit ec =>
+    def loop(n: Int): Task[Unit] =
+      if (n > 0) Task.cancelBoundary.flatMap(_ => loop(n - 1))
+      else Task.pure(())
+
+    val count = if (Platform.isJVM) 10000 else 1000
+    val f = loop(count).runAsync; ec.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("cancelBoundary cancels") { implicit ec =>
+    check1 { (task: Task[Int]) =>
+      (Task.cancelBoundary *> task)
+        .fork
+        .flatMap(f => f.cancel *> f.join) <-> Task.never
+    }
+  }
+
+  test("onCancelRaiseError resets cancellation flag") { implicit ec =>
+    val err = DummyException("dummy")
+    val task = Task.never[Int].onCancelRaiseError(err)
+      .onErrorRecoverWith {
+        case `err` => Task.cancelBoundary *> Task(10)
+      }
+      .start
+      .flatMap(f => f.cancel *> f.join)
+
+    val f = task.runAsync
+    ec.tick()
+    assertEquals(f.value, Some(Success(10)))
   }
 
   test("errors raised after cancel get reported") { implicit sc =>

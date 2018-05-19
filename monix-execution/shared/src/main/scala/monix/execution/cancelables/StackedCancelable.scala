@@ -80,6 +80,16 @@ sealed abstract class StackedCancelable extends BooleanCancelable {
     * @return the cancelable reference that was removed.
     */
   def pop(): Cancelable
+
+  /**
+    * Tries to reset a `StackedCancelable`, from a cancelled state,
+    * back to a pristine state, but only if possible.
+    *
+    * Returns `true` on success, or `false` if there was a race
+    * condition (i.e. the connection wasn't cancelled) or if
+    * the type of the connection cannot be reactivated.
+    */
+  def tryReactivate(): Boolean
 }
 
 object StackedCancelable {
@@ -179,6 +189,7 @@ object StackedCancelable {
             // $COVERAGE-ON$
           }
       }
+
     }
 
     @tailrec def pushList(list: List[Cancelable]): Unit = {
@@ -228,12 +239,16 @@ object StackedCancelable {
         case Nil => current
         case x :: xs => concatList(xs, x :: current)
       }
+
+    def tryReactivate(): Boolean =
+      state.compareAndSet(null, Nil)
   }
 
   /** [[StackedCancelable]] implementation that is already cancelled. */
   private final class AlreadyCanceled extends StackedCancelable {
     override def cancel(): Unit = ()
     override def isCanceled: Boolean = true
+    override def tryReactivate(): Boolean = false
     override def pop(): Cancelable = Cancelable.empty
 
     override def push(value: Cancelable): Unit =
@@ -257,6 +272,7 @@ object StackedCancelable {
   private final class Uncancelable extends StackedCancelable {
     override def cancel(): Unit = ()
     override def isCanceled: Boolean = false
+    override def tryReactivate(): Boolean = true
     override def pop(): Cancelable = Cancelable.empty
     override def pushList(list: List[Cancelable]): Unit = ()
     override def push(value: Cancelable): Unit = ()

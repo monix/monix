@@ -1223,7 +1223,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * but not the subsequent `flatMap` operation.
     */
   def autoCancelable: Task[A] =
-    TaskCancellation.makeCancelable(this)
+    TaskCancellation.autoCancelable(this)
 
   /** Returns a failed projection of this task.
     *
@@ -2391,6 +2391,37 @@ object Task extends TaskInstancesLevel1 {
     */
   def cancelableS[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
     TaskCreate.cancelableS(register)
+
+  /**
+    * Returns a cancelable boundary — a `Task` that checks for the
+    * cancellation status of the run-loop and does not allow for the
+    * bind continuation to keep executing in case cancellation happened.
+    *
+    * This operation is very similar to `Task.shift`, as it can be dropped
+    * in `flatMap` chains in order to make loops cancelable.
+    *
+    * Example:
+    *
+    * {{{
+    *  def fib(n: Int, a: Long, b: Long): Task[Long] =
+    *    Task.suspend {
+    *      if (n <= 0) Task.pure(a) else {
+    *        val next = fib(n - 1, b, a + b)
+    *
+    *        // Every 100-th cycle, check cancellation status
+    *        if (n % 100 == 0)
+    *          Task.cancelBoundary *> next
+    *        else
+    *          next
+    *      }
+    *    }
+    * }}}
+    *
+    * Note that an alternative to doing this would be usage of
+    * [[Task.autoCancelable]], which does the same thing, but automatically.
+    */
+  val cancelBoundary: Task[Unit] =
+    Task.Async { (ctx, cb) => if (!ctx.connection.isCanceled) cb.onSuccess(()) }
 
   /** Polymorphic `Task` builder that is able to describe asynchronous
     * tasks depending on the type of the given callback.
@@ -3579,6 +3610,16 @@ object Task extends TaskInstancesLevel1 {
     trampolineBefore: Boolean = false,
     trampolineAfter: Boolean = true,
     restoreLocals: Boolean = true)
+    extends Task[A]
+
+  /** For changing the context for the rest of the run-loop.
+    *
+    * WARNING: this is entirely internal API and shouldn't be exposed.
+    */
+  private[monix] final case class ContextSwitch[+A](
+    source: Task[A],
+    modify: Context => Context,
+    restore: (Context, Context) => Context)
     extends Task[A]
 
   /** Internal API — starts the execution of a Task with a guaranteed

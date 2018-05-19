@@ -17,11 +17,12 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
+import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.{Local, NonFatal}
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
+
 import scala.concurrent.Promise
 
 
@@ -38,15 +39,14 @@ private[eval] object TaskRunLoop {
     */
   def startFull[A](
     source: Task[A],
-    context: Context,
+    contextInit: Context,
     cb: Callback[A],
-    rcb: TaskRestartCallback,
+    rcbInit: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
     frameIndex: FrameIndex): Unit = {
 
     val cba = cb.asInstanceOf[Callback[Any]]
-    val em = context.scheduler.executionModel
     var current: Current = source
     var bFirstRef = bFirst
     var bRestRef = bRest
@@ -54,6 +54,11 @@ private[eval] object TaskRunLoop {
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
     var currentIndex = frameIndex
+
+    // Can change due to ContextSwitch
+    var context = contextInit
+    var em = context.scheduler.executionModel
+    var rcb = rcbInit
 
     do {
       if (currentIndex != 0) {
@@ -108,6 +113,19 @@ private[eval] object TaskRunLoop {
           case async @ Async(_, _, _, _) =>
             executeAsyncTask(async, context, cba, rcb, bFirstRef, bRestRef, currentIndex)
             return
+
+          case ContextSwitch(next, modify, restore) =>
+            val old = context
+            context = modify(context)
+            if (context ne old) {
+              em = context.scheduler.executionModel
+              rcb = TaskRestartCallback(context, cba)
+              current =
+                if (restore ne null) FlatMap(next, new RestoreContext(old, restore))
+                else next
+            } else {
+              current = next
+            }
         }
 
         if (hasUnboxed) {
@@ -436,10 +454,13 @@ private[eval] object TaskRunLoop {
 
     val context = Context(scheduler, opts)
 
-    if (forceFork) {
-      restartAsync(source, context, cb, null, bFirst, bRest)
+    if (!forceFork) source match {
+      case async: Async[Any] =>
+        executeAsyncTask(async, context, cb, null, bFirst, bRest, 1)
+      case _ =>
+        startFull(source, context, cb, null, bFirst, bRest, nextFrame)
     } else {
-      executeAsyncTask(source.asInstanceOf[Async[Any]], context, cb, null, bFirst, bRest, 1)
+      restartAsync(source, context, cb, null, bFirst, bRest)
     }
     context.connection
   }
@@ -455,14 +476,17 @@ private[eval] object TaskRunLoop {
     forceFork: Boolean): CancelableFuture[A] = {
 
     val p = Promise[A]()
-    val cb = Callback.fromPromise(p)
+    val cb = Callback.fromPromise(p).asInstanceOf[Callback[Any]]
     val context = Context(scheduler, opts)
     val current = source.asInstanceOf[Task[A]]
 
-    if (forceFork) {
-      restartAsync(current, context, cb, null, bFirst, bRest)
+    if (!forceFork) source match {
+      case async: Async[Any] =>
+        executeAsyncTask(async, context, cb, null, bFirst, bRest, 1)
+      case _ =>
+        startFull(source, context, cb, null, bFirst, bRest, nextFrame)
     } else {
-      executeAsyncTask(source.asInstanceOf[Async[Any]], context, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
+      restartAsync(current, context, cb, null, bFirst, bRest)
     }
     CancelableFuture(p.future, context.connection)
   }
@@ -506,4 +530,13 @@ private[eval] object TaskRunLoop {
 
   private def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
+
+  private final class RestoreContext(old: Context, restore: (Context, Context) => Context)
+    extends StackFrame[Any, Task[Any]] {
+
+    def apply(a: Any): Task[Any] =
+      ContextSwitch(Now(a), current => restore(old, current), null)
+    def recover(e: Throwable): Task[Any] =
+      ContextSwitch(Error(e), current => restore(old, current), null)
+  }
 }
