@@ -93,6 +93,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
                   lastAck = Stop
                   composite.cancel()
                 case Success(Continue) =>
+                  semaphore.release()
                   composite -= head.cancelable
                 case Failure(ex) =>
                   lastAck = Stop
@@ -133,9 +134,6 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
           case Success(_) =>
             // We can only send current head element to downstream subscriber
             sendDownstreamOrdered()
-            // Regardless if we can send new elements downstream,
-            // the computation is complete so we can accept new ones
-            semaphore.release()
 
           case Failure(error) =>
             lastAck = Stop
