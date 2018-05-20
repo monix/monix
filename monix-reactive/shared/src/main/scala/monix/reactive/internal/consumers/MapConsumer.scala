@@ -20,7 +20,7 @@ package monix.reactive.internal.consumers
 import monix.eval.Callback
 import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 

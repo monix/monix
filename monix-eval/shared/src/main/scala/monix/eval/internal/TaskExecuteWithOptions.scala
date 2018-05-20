@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import monix.eval.{Callback, Task}
 import monix.eval.Task.{Async, Context, Options}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 private[eval] object TaskExecuteWithOptions {
   /**

@@ -22,7 +22,7 @@ import java.io.PrintStream
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.internal.rstreams._
 import monix.reactive.observers.Subscriber
 import org.reactivestreams.{Subscriber => RSubscriber}

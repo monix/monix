@@ -21,7 +21,7 @@ import monix.eval.{Callback, Task}
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.internal.util.Instances._
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber

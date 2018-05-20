@@ -20,7 +20,7 @@ package internal
 
 import cats.effect.ExitCase
 import monix.execution.internal.Platform
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 private[eval] object CoevalBracket {
   /**

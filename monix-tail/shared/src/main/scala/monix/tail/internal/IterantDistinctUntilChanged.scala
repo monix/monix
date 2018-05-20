@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor

@@ -18,7 +18,7 @@
 package monix.tail.internal
 
 import cats.effect.Sync
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.internal.IterantUtils.signalError

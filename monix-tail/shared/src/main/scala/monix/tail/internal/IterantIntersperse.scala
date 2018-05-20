@@ -21,7 +21,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import cats.effect.Sync
 import cats.syntax.functor._
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.batches.BatchCursor

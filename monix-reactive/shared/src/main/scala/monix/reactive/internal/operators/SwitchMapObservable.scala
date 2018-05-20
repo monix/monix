@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SerialCancelable, SingleAssignCancelable}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}

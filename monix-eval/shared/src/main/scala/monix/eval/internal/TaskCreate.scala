@@ -21,7 +21,7 @@ import cats.effect.IO
 import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Cancelable, Scheduler}
 
 private[eval] object TaskCreate {

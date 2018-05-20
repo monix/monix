@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Cancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
