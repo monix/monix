@@ -19,14 +19,15 @@ package monix.eval.internal
 
 import cats.effect.ExitCase
 import cats.effect.ExitCase.{Completed, Error}
-import monix.eval.Task.Context
+import monix.eval.Task.{Context, ContextSwitch}
 import monix.eval.{Callback, Task}
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
+import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 import monix.execution.misc.NonFatal
 
-private[eval] object TaskBracket {
+private[monix] object TaskBracket {
   /**
     * Implementation for `Task.bracketE`.
     */
@@ -85,25 +86,26 @@ private[eval] object TaskBracket {
     protected def makeReleaseFrame(ctx: Context, value: A): BaseReleaseFrame[A, B]
 
     final def apply(ctx: Context, cb: Callback[B]): Unit = {
-      // Async boundary needed, but it is guaranteed via Task.Async below
-      Task.unsafeStartNow(acquire, ctx, new Callback[A] {
-        def onSuccess(value: A): Unit = {
-          implicit val sc = ctx.scheduler
-          val conn = ctx.connection
+      // Async boundary needed, but it is guaranteed via Task.Async below;
+      Task.unsafeStartNow(acquire, ctx.withConnection(StackedCancelable.uncancelable),
+        new Callback[A] {
+          def onSuccess(value: A): Unit = {
+            implicit val sc = ctx.scheduler
+            val conn = ctx.connection
 
-          val releaseFrame = makeReleaseFrame(ctx, value)
-          val onNext = {
-            val fb = try use(value) catch { case NonFatal(e) => Task.raiseError(e) }
-            fb.flatMap(releaseFrame)
+            val releaseFrame = makeReleaseFrame(ctx, value)
+            val onNext = {
+              val fb = try use(value) catch { case NonFatal(e) => Task.raiseError(e) }
+              fb.flatMap(releaseFrame)
+            }
+
+            conn.push(releaseFrame)
+            Task.unsafeStartNow(onNext, ctx, cb)
           }
 
-          conn.push(releaseFrame)
-          Task.unsafeStartNow(onNext, ctx, cb)
-        }
-
-        def onError(ex: Throwable): Unit =
-          cb.onError(ex)
-      })
+          def onError(ex: Throwable): Unit =
+            cb.onError(ex)
+        })
     }
   }
 
@@ -155,10 +157,13 @@ private[eval] object TaskBracket {
     }
 
     final def apply(b: B): Task[B] = {
-      if (ctx.options.autoCancelableRunLoops)
-        Task.suspend(applyEffect(b)).uncancelable
-      else
-        applyEffect(b)
+      val task =
+        if (ctx.options.autoCancelableRunLoops)
+          Task.suspend(applyEffect(b))
+        else
+          applyEffect(b)
+
+      ContextSwitch(task, withConnectionUncancelable, null)
     }
 
     private final def recoverEffect(e: Throwable): Task[B] = {
@@ -171,10 +176,13 @@ private[eval] object TaskBracket {
     }
 
     final def recover(e: Throwable): Task[B] = {
-      if (ctx.options.autoCancelableRunLoops)
-        Task.suspend(recoverEffect(e)).uncancelable
-      else
-        recoverEffect(e)
+      val task =
+        if (ctx.options.autoCancelableRunLoops)
+          Task.suspend(recoverEffect(e))
+        else
+          recoverEffect(e)
+
+      ContextSwitch(task, withConnectionUncancelable, null)
     }
 
     final def cancel(): Unit =
@@ -202,4 +210,7 @@ private[eval] object TaskBracket {
 
   private val leftNone = Left(None)
   private val canceled = ExitCase.canceled[Throwable]
+
+  private[this] val withConnectionUncancelable: Context => Context =
+    _.withConnection(StackedCancelable.uncancelable)
 }

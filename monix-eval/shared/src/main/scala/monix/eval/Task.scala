@@ -822,7 +822,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *        as input the resource that needs to be released
     */
   final def bracket[B](use: A => Task[B])(release: A => Task[Unit]): Task[B] =
-    bracketE(use)((a, _) => release(a))
+    bracketCase(use)((a, _) => release(a))
 
   /** Returns a new task that treats the source task as the
     * acquisition of a resource, which is then exploited by the `use`
@@ -3616,10 +3616,10 @@ object Task extends TaskInstancesLevel1 {
     *
     * WARNING: this is entirely internal API and shouldn't be exposed.
     */
-  private[monix] final case class ContextSwitch[+A](
+  private[monix] final case class ContextSwitch[A](
     source: Task[A],
     modify: Context => Context,
-    restore: (Context, Context) => Context)
+    restore: (A, Throwable, Context, Context) => Context)
     extends Task[A]
 
   /** Internal API — starts the execution of a Task with a guaranteed

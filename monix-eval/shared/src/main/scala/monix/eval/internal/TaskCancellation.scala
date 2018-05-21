@@ -140,12 +140,12 @@ private[eval] object TaskCancellation {
       else ctx.withOptions(ctx.options.enableAutoCancelableRunLoops)
     }
 
-  private[this] val disableAutoCancelableRunLoops: (Context, Context) => Context =
-    (old, current) => current.withOptions(old.options)
+  private[this] val disableAutoCancelableRunLoops: (Any, Throwable, Context, Context) => Context =
+    (_, _, old, current) => current.withOptions(old.options)
 
   private[this] val withConnectionUncancelable: Context => Context =
     ct => ct.withConnection(StackedCancelable.uncancelable)
 
-  private[this] val restoreConnection: (Context, Context) => Context =
-    (old, current) => current.withConnection(old.connection)
+  private[this] val restoreConnection: (Any, Throwable, Context, Context) => Context =
+    (_, _, old, current) => current.withConnection(old.connection)
 }

@@ -121,10 +121,10 @@ private[eval] object TaskRunLoop {
               em = context.scheduler.executionModel
               rcb = TaskRestartCallback(context, cba)
               current =
-                if (restore ne null) FlatMap(next, new RestoreContext(old, restore))
-                else next
-            } else {
-              current = next
+                if (restore ne null)
+                  FlatMap(next, new RestoreContext(old, restore))
+                else
+                  next
             }
         }
 
@@ -531,12 +531,14 @@ private[eval] object TaskRunLoop {
   private def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
 
-  private final class RestoreContext(old: Context, restore: (Context, Context) => Context)
+  private final class RestoreContext(
+    old: Context,
+    restore: (Any, Throwable, Context, Context) => Context)
     extends StackFrame[Any, Task[Any]] {
 
     def apply(a: Any): Task[Any] =
-      ContextSwitch(Now(a), current => restore(old, current), null)
+      ContextSwitch(Now(a), current => restore(a, null, old, current), null)
     def recover(e: Throwable): Task[Any] =
-      ContextSwitch(Error(e), current => restore(old, current), null)
+      ContextSwitch(Error(e), current => restore(null, e, old, current), null)
   }
 }
