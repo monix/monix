@@ -20,9 +20,11 @@ package monix.eval.internal
 import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
-import monix.execution.misc.{Local, NonFatal}
+import monix.execution.misc.Local
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
+
 import scala.concurrent.Promise
+import scala.util.control.NonFatal
 
 
 private[eval] object TaskRunLoop {

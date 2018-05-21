@@ -18,7 +18,7 @@
 package scala.concurrent
 
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import scala.util.Try
 
 object MonixInternals {

@@ -18,7 +18,9 @@
 package monix.eval
 
 import monix.execution.atomic.PaddingStrategy
-import monix.execution.misc.{AsyncVar, NonFatal}
+import monix.execution.misc.AsyncVar
+
+import scala.util.control.NonFatal
 
 /** A mutable location, that is either empty or contains
   * a value of type `A`.

@@ -21,7 +21,7 @@ package internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.Platform
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
 import scala.collection.mutable.ArrayBuffer

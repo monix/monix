@@ -24,7 +24,7 @@ import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
 import monix.execution.exceptions.APIContractViolationException
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.annotation.tailrec

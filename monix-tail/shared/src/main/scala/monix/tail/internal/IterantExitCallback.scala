@@ -24,7 +24,7 @@ import monix.tail.internal.IterantUtils._
 import cats.syntax.all._
 import cats.effect.{ExitCase, Sync}
 import monix.execution.internal.Platform
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.tail.batches.BatchCursor
 import scala.collection.mutable.ArrayBuffer
 

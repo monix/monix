@@ -20,7 +20,7 @@ package monix.execution.schedulers
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.{ExecutorService, ScheduledExecutorService}
 import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThreadFactory, StandardWorkerThreadFactory}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
 import scala.concurrent.{ExecutionContext, Future, Promise, blocking}
 // Prevents conflict with the deprecated symbol

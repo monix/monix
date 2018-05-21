@@ -20,7 +20,7 @@ package schedulers
 
 import monix.execution.atomic.AtomicAny
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.schedulers.TestScheduler._
 
 import scala.annotation.tailrec

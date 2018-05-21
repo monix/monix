@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import java.io.PrintStream
 
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber

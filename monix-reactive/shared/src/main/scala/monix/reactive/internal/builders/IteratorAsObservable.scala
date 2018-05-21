@@ -24,7 +24,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.APIContractViolationException
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.{Failure, Success}

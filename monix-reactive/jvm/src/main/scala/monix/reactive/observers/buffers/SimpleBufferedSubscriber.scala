@@ -23,7 +23,7 @@ import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 import monix.execution.exceptions.BufferOverflowException
 import monix.execution.internal.math.nextPowerOf2
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
 import scala.concurrent.Future

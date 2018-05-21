@@ -27,7 +27,7 @@ import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.internal.Platform
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.rstreams.Subscription
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import org.reactivestreams.{Publisher, Subscriber}

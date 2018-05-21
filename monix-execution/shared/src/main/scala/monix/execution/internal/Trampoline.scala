@@ -18,7 +18,7 @@
 package monix.execution.internal
 
 import monix.execution.internal.collection.ArrayStack
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 

@@ -18,7 +18,7 @@
 package monix.reactive
 
 import monix.execution.Scheduler
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
 import monix.reactive.Pipe.{LiftedPipe, TransformedPipe}

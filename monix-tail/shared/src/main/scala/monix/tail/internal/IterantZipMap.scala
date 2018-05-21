@@ -21,7 +21,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import cats.{Applicative, Parallel}
 import monix.eval.instances.ParallelApplicative
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}

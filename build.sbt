@@ -345,7 +345,10 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskStart.apply"),
     exclude[MissingClassProblem]("monix.eval.internal.TaskEffect$CreateCallback"),
     exclude[IncompatibleResultTypeProblem]("monix.execution.internal.collection.ArrayStack.clone"),
-    exclude[MissingTypesProblem]("monix.execution.internal.collection.ArrayStack")
+    exclude[MissingTypesProblem]("monix.execution.internal.collection.ArrayStack"),
+    // PR #675: switch to standard NonFatal
+    exclude[MissingClassProblem]("monix.execution.misc.NonFatal$"),
+    exclude[MissingClassProblem]("monix.execution.misc.NonFatal")
   )
 )
 
