@@ -42,15 +42,15 @@ private[tail] object IterantIntervalAtFixedRate {
             loop(time, index + 1)
           }
         }
-        Iterant.nextS[F, Long](index, rest, F.unit)
+        Iterant.nextS[F, Long](index, rest)
       }
 
     val time = timer.clockMonotonic(NANOSECONDS)
     initialDelay match {
       case Duration.Zero =>
-        Suspend(loop(time, 0), F.unit)
+        Suspend(loop(time, 0))
       case _ =>
-        Suspend(F.flatMap(timer.sleep(initialDelay))(_ => loop(time, 0)), F.unit)
+        Suspend(F.flatMap(timer.sleep(initialDelay))(_ => loop(time, 0)))
     }
   }
 }

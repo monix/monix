@@ -20,11 +20,12 @@ package monix.tail.internal
 import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
+
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
-import monix.tail.internal.IterantUtils.signalError
+
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantDistinctUntilChanged {
@@ -33,16 +34,16 @@ private[tail] object IterantDistinctUntilChanged {
     (implicit F: Sync[F], K: Eq[K]): Iterant[F, A] = {
 
     def processCursor(prev: K, self: NextCursor[F, A]) = {
-      val NextCursor(cursor, rest, stop) = self
+      val NextCursor(cursor, rest) = self
 
       if (!cursor.hasNext()) {
-        Suspend(rest.map(loop(prev)), stop)
+        Suspend(rest.map(loop(prev)))
       }
       else if (cursor.recommendedBatchSize <= 1) {
         val a = cursor.next()
         val k = f(a)
-        if (K.neqv(prev, k)) Next(a, F.delay(loop(k)(self)), stop)
-        else Suspend(F.delay(loop(prev)(self)), stop)
+        if (K.neqv(prev, k)) Next(a, F.delay(loop(k)(self)))
+        else Suspend(F.delay(loop(prev)(self)))
       }
       else {
         val buffer = ArrayBuffer.empty[A]
@@ -68,35 +69,38 @@ private[tail] object IterantDistinctUntilChanged {
             rest.map(loop(current))
 
         if (buffer.isEmpty)
-          Suspend(next, stop)
+          Suspend(next)
         else {
           val ref = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]]
-          NextCursor(ref, next, stop)
+          NextCursor(ref, next)
         }
       }
     }
 
     def loop(prev: K)(self: Iterant[F, A]): Iterant[F, A] = {
       try self match {
-        case Next(a, rest, stop) =>
+        case s @ Scope(_, _, _) =>
+          s.runMap(loop(prev))
+
+        case Next(a, rest) =>
           val k = f(a)
-          if (K.neqv(prev, k)) Next(a, rest.map(loop(k)), stop)
-          else Suspend(rest.map(loop(prev)), stop)
+          if (K.neqv(prev, k)) Next(a, rest.map(loop(k)))
+          else Suspend(rest.map(loop(prev)))
 
-        case node @ NextCursor(_, _, _) =>
+        case node @ NextCursor(_, _) =>
           processCursor(prev, node)
-        case NextBatch(ref, rest, stop) =>
-          processCursor(prev, NextCursor(ref.cursor(), rest, stop))
+        case NextBatch(ref, rest) =>
+          processCursor(prev, NextCursor(ref.cursor(), rest))
 
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(prev)), stop)
+        case Suspend(rest) =>
+          Suspend(rest.map(loop(prev)))
         case Last(a) =>
           if (K.neqv(prev, f(a))) self else Iterant.empty
         case Halt(_) =>
           self
       } catch {
         case e if NonFatal(e) =>
-          signalError(self, e)
+          Iterant.raiseError(e)
       }
     }
 
@@ -104,30 +108,33 @@ private[tail] object IterantDistinctUntilChanged {
     // and I'd hate to use `null` for `prev` or box it in `Option`
     def start(self: Iterant[F, A]): Iterant[F, A] = {
       try self match {
-        case Next(a, rest, stop) =>
-          Next(a, rest.map(loop(f(a))), stop)
-        case node @ NextCursor(ref, rest, stop) =>
+        case s @ Scope(_, _, _) =>
+          s.runMap(start)
+
+        case Next(a, rest) =>
+          Next(a, rest.map(loop(f(a))))
+        case node @ NextCursor(ref, rest) =>
           if (!ref.hasNext())
-            Suspend(rest.map(start), stop)
+            Suspend(rest.map(start))
           else {
             val a = ref.next()
             val k = f(a)
-            Next(a, F.delay(loop(k)(node)), stop)
+            Next(a, F.delay(loop(k)(node)))
           }
-        case NextBatch(ref, rest, stop) =>
-          start(NextCursor(ref.cursor(), rest, stop))
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(start), stop)
+        case NextBatch(ref, rest) =>
+          start(NextCursor(ref.cursor(), rest))
+        case Suspend(rest) =>
+          Suspend(rest.map(start))
         case Last(_) | Halt(_) =>
           self
       } catch {
         case e if NonFatal(e) =>
-          signalError(self, e)
+          Iterant.raiseError(e)
       }
     }
 
     self match {
-      case Suspend(_, _) | Halt(_) =>
+      case Scope(_, _, _) | Suspend(_) | Halt(_) =>
         // Fast-path
         start(self)
       case _ =>
@@ -135,7 +142,7 @@ private[tail] object IterantDistinctUntilChanged {
         // referential transparency, since the provided function can
         // be side effecting and because processing NextBatch and
         // NextCursor states can have side effects
-        Suspend(F.delay(start(self)), self.earlyStop)
+        Suspend(F.delay(start(self)))
     }
   }
 }

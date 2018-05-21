@@ -29,19 +29,16 @@ private[tail] object IterantTakeWhile {
   def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
     (implicit F: Sync[F]): Iterant[F, A] = {
 
-    def finishWith(stop: F[Unit]): Iterant[F, A] =
-      Suspend(stop.map(_ => Iterant.empty), stop)
-
     def processCursor(ref: NextCursor[F, A]): Iterant[F, A] = {
-      val NextCursor(cursor, rest, stop) = ref
+      val NextCursor(cursor, rest) = ref
       val batchSize = cursor.recommendedBatchSize
 
       if (!cursor.hasNext())
-        Suspend(rest.map(loop), stop)
+        Suspend(rest.map(loop))
       else if (batchSize <= 1) {
         val item = cursor.next()
-        if (p(item)) Next(item, F.pure(ref).map(loop), stop)
-        else finishWith(stop)
+        if (p(item)) Next(item, F.pure(ref).map(loop))
+        else Iterant.empty
       }
       else {
         val buffer = ArrayBuffer.empty[A]
@@ -61,43 +58,44 @@ private[tail] object IterantTakeWhile {
         val bufferCursor = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]]
         if (continue) {
           val next: F[Iterant[F, A]] = if (idx < batchSize) rest else F.pure(ref)
-          NextCursor(bufferCursor, next.map(loop), stop)
+          NextCursor(bufferCursor, next.map(loop))
         } else {
-          NextCursor(bufferCursor, stop.map(_ => Iterant.empty), stop)
+          NextCursor(bufferCursor, F.pure(Iterant.empty))
         }
       }
     }
 
     def loop(source: Iterant[F, A]): Iterant[F, A] = {
       try source match {
-        case Next(item, rest, stop) =>
-          if (p(item)) Next(item, rest.map(loop), stop)
-          else finishWith(stop)
-        case ref @ NextCursor(_, _, _) =>
+        case s @ Scope(_, _, _) =>
+          s.runMap(loop)
+        case Next(item, rest) =>
+          if (p(item)) Next(item, rest.map(loop))
+          else Iterant.empty
+        case ref @ NextCursor(_, _) =>
           processCursor(ref)
-        case NextBatch(batch, rest, stop) =>
-          processCursor(NextCursor(batch.cursor(), rest, stop))
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop), stop)
+        case NextBatch(batch, rest) =>
+          processCursor(NextCursor(batch.cursor(), rest))
+        case Suspend(rest) =>
+          Suspend(rest.map(loop))
         case Last(elem) =>
           if (p(elem)) Last(elem) else Iterant.empty
         case halt @ Halt(_) =>
           halt
       } catch {
         case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.map(_ => Halt(Some(ex))), stop)
+          Halt(Some(ex))
       }
     }
 
     source match {
-      case Suspend(_, _) | Halt(_) => loop(source)
+      case Scope(_, _, _) | Suspend(_) | Halt(_) => loop(source)
       case _ =>
         // Suspending execution in order to preserve laziness and
         // referential transparency, since the provided function can
         // be side effecting and because processing NextBatch and
         // NextCursor states can have side effects
-        Suspend(F.delay(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)))
     }
   }
 }

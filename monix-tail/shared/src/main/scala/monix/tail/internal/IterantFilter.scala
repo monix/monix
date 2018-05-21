@@ -20,9 +20,9 @@ package monix.tail.internal
 import cats.syntax.all._
 import cats.effect.Sync
 import scala.util.control.NonFatal
+
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.internal.IterantUtils._
+import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
 
 private[tail] object IterantFilter {
   /**
@@ -33,22 +33,25 @@ private[tail] object IterantFilter {
 
     def loop(source: Iterant[F,A]): Iterant[F,A] = {
       try source match {
-        case Next(item, rest, stop) =>
-          if (p(item)) Next(item, rest.map(loop), stop)
-          else Suspend(rest.map(loop), stop)
+        case b @ Scope(_, _, _) =>
+          b.runMap(loop)
 
-        case NextCursor(items, rest, stop) =>
+        case Next(item, rest) =>
+          if (p(item)) Next(item, rest.map(loop))
+          else Suspend(rest.map(loop))
+
+        case NextCursor(items, rest) =>
           val filtered = items.filter(p)
           if (filtered.hasNext())
-            NextCursor(filtered, rest.map(loop), stop)
+            NextCursor(filtered, rest.map(loop))
           else
-            Suspend(rest.map(loop), stop)
+            Suspend(rest.map(loop))
 
-        case NextBatch(items, rest, stop) =>
-          NextBatch(items.filter(p), rest.map(loop), stop)
+        case NextBatch(items, rest) =>
+          NextBatch(items.filter(p), rest.map(loop))
 
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop), stop)
+        case Suspend(rest) =>
+          Suspend(rest.map(loop))
 
         case last @ Last(item) =>
           if (p(item)) last else Iterant.empty
@@ -57,18 +60,18 @@ private[tail] object IterantFilter {
           halt
       }
       catch {
-        case ex if NonFatal(ex) => signalError(source, ex)
+        case ex if NonFatal(ex) => Iterant.raiseError(ex)
       }
     }
 
     source match {
-      case Suspend(_, _) | Halt(_) => loop(source)
+      case Suspend(_) | Halt(_) => loop(source)
       case _ =>
         // Suspending execution in order to preserve laziness and
         // referential transparency, since the provided function can
         // be side effecting and because processing NextBatch and
         // NextCursor states can have side effects
-        Suspend(F.delay(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)))
     }
   }
 }

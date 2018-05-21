@@ -19,9 +19,10 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
 
 import scala.annotation.tailrec
@@ -35,7 +36,7 @@ private[tail] object IterantDropLast {
   def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Sync[F]): Iterant[F, A] = {
 
     def processCursor(length: Int, queue: Queue[A], ref: NextCursor[F, A]): Iterant[F, A] = {
-      val NextCursor(cursor, rest, stop) = ref
+      val NextCursor(cursor, rest) = ref
       val limit = cursor.recommendedBatchSize
 
       val buffer = mutable.Buffer[A]()
@@ -60,7 +61,7 @@ private[tail] object IterantDropLast {
 
       val finalQueue = queueLoop(queue, limit)
       val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
-      NextCursor(BatchCursor.fromSeq(buffer), next.map(loop(queueLength, finalQueue)), stop)
+      NextCursor(BatchCursor.fromSeq(buffer), next.map(loop(queueLength, finalQueue)))
     }
 
     def finalCursor(length: Int, queue: Queue[A]): Iterant[F, A] = {
@@ -78,27 +79,30 @@ private[tail] object IterantDropLast {
       }
 
       queueLoop(queue, length)
-      NextCursor(BatchCursor.fromSeq(buffer), F.pure(Iterant.empty), F.unit)
+      NextCursor(BatchCursor.fromSeq(buffer), F.pure(Iterant.empty))
     }
 
     def loop(length: Int, queue: Queue[A])(source: Iterant[F, A]): Iterant[F, A] = {
       try if (n <= 0) source else source match {
-        case Next(item, rest, stop) =>
+        case s @ Scope(_, _, _) =>
+          s.runMap(loop(length, queue))
+
+        case Next(item, rest) =>
           val updatedQueue = queue.enqueue(item)
           if (length >= n) {
             val (nextItem, dequeuedQueue) = updatedQueue.dequeue
-            Next(nextItem, rest.map(loop(length, dequeuedQueue)), stop)
+            Next(nextItem, rest.map(loop(length, dequeuedQueue)))
           }
-          else Suspend(rest.map(loop(length + 1, updatedQueue)), stop)
+          else Suspend(rest.map(loop(length + 1, updatedQueue)))
 
-        case ref@NextCursor(_, _, _) =>
+        case ref@NextCursor(_, _) =>
           processCursor(length, queue, ref)
 
-        case NextBatch(batch, rest, stop) =>
-          processCursor(length, queue, NextCursor(batch.cursor(), rest, stop))
+        case NextBatch(batch, rest) =>
+          processCursor(length, queue, NextCursor(batch.cursor(), rest))
 
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(length, queue)), stop)
+        case Suspend(rest) =>
+          Suspend(rest.map(loop(length, queue)))
 
         case Last(item) =>
           finalCursor(length + 1, queue.enqueue(item))
@@ -110,16 +114,15 @@ private[tail] object IterantDropLast {
           halt
       } catch {
         case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.map(_ => Halt(Some(ex))), stop)
+          Iterant.raiseError(ex)
       }
     }
 
     source match {
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
+      case NextBatch(_, _) | NextCursor(_, _) =>
         // We can have side-effects with NextBatch/NextCursor
         // processing, so suspending execution in this case
-        Suspend(F.delay(loop(0, Queue.empty[A])(source)), source.earlyStop)
+        Suspend(F.delay(loop(0, Queue.empty[A])(source)))
       case _ =>
         loop(0, Queue.empty[A])(source)
     }

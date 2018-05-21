@@ -21,17 +21,16 @@ package internal
 import cats.effect.Sync
 import cats.syntax.all._
 import scala.util.control.NonFatal
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.batches.BatchCursor
 
-import scala.runtime.ObjectRef
+import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.batches.BatchCursor
 
 private[tail] object IterantFoldWhileLeft {
   /** Implementation for `Iterant.foldWhileLeftL`. */
   def strict[F[_], A, S](self: Iterant[F, A], seed: => S, f: (S, A) => Either[S, S])
     (implicit F: Sync[F]): F[S] = {
 
-    def process(stopRef: ObjectRef[F[Unit]])(state: S, cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+    def process(state: S, cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
       var hasResult = false
       var s = state
 
@@ -45,35 +44,33 @@ private[tail] object IterantFoldWhileLeft {
       }
 
       if (hasResult)
-        stop.map(_ => s)
+        F.pure(s)
       else
-        rest.flatMap(loop(stopRef, s))
+        rest.flatMap(loop(s))
     }
 
-    def loop(stopRef: ObjectRef[F[Unit]], state: S)(self: Iterant[F, A]): F[S] = {
+    def loop(state: S)(self: Iterant[F, A]): F[S] = {
       try self match {
-        case Next(a, rest, stop) =>
-          stopRef.elem = stop
+        case b @ Scope(_, _, _) =>
+          b.runFold(loop(state))
+
+        case Next(a, rest) =>
           f(state, a) match {
-            case Left(s) => rest.flatMap(loop(stopRef, s))
-            case Right(s) => stop.map(_ => s)
+            case Left(s) => rest.flatMap(loop(s))
+            case Right(s) => F.pure(s)
           }
 
-        case NextCursor(cursor, rest, stop) =>
-          stopRef.elem = stop
-          process(stopRef)(state, cursor, rest, stop)
+        case NextCursor(cursor, rest) =>
+          process(state, cursor, rest)
 
-        case NextBatch(batch, rest, stop) =>
-          stopRef.elem = stop
+        case NextBatch(batch, rest) =>
           val cursor = batch.cursor()
-          process(stopRef)(state, cursor, rest, stop)
+          process(state, cursor, rest)
 
-        case Suspend(rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(loop(stopRef, state))
+        case Suspend(rest) =>
+          rest.flatMap(loop(state))
 
         case Last(a) =>
-          stopRef.elem = null.asInstanceOf[F[Unit]]
           F.pure(f(state, a) match {
             case Left(s) => s
             case Right(s) => s
@@ -84,7 +81,6 @@ private[tail] object IterantFoldWhileLeft {
             case None =>
               F.pure(state)
             case Some(e) =>
-              stopRef.elem = null.asInstanceOf[F[Unit]]
               F.raiseError(e)
           }
       }
@@ -95,15 +91,7 @@ private[tail] object IterantFoldWhileLeft {
     }
 
     F.suspend {
-      // Reference to keep track of latest `earlyStop` value
-      val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
-      // Catch-all exceptions, ensuring latest `earlyStop` gets called
-      F.handleErrorWith(loop(stopRef, seed)(self)) { ex =>
-        stopRef.elem match {
-          case null => F.raiseError(ex)
-          case stop => stop *> F.raiseError(ex)
-        }
-      }
+      loop(seed)(self)
     }
   }
 
@@ -111,42 +99,40 @@ private[tail] object IterantFoldWhileLeft {
   def eval[F[_], A, S](self: Iterant[F, A], seed: F[S], f: (S, A) => F[Either[S, S]])
     (implicit F: Sync[F]): F[S] = {
 
-    def process(stopRef: ObjectRef[F[Unit]])(state: S, stop: F[Unit], rest: F[Iterant[F, A]], a: A): F[S] = {
+    def process(state: S, rest: F[Iterant[F, A]], a: A): F[S] = {
       val fs = f(state, a)
 
       fs.flatMap {
-        case Left(s) => rest.flatMap(loop(stopRef, s))
-        case Right(s) => stop.map(_ => s)
+        case Left(s) => rest.flatMap(loop(s))
+        case Right(s) => F.pure(s)
       }
     }
 
-    def loop(stopRef: ObjectRef[F[Unit]], state: S)(self: Iterant[F, A]): F[S] = {
+    def loop(state: S)(self: Iterant[F, A]): F[S] = {
       try self match {
-        case Next(a, rest, stop) =>
-          stopRef.elem = stop
-          process(stopRef)(state, stop, rest, a)
+        case b @ Scope(_, _, _) =>
+          b.runFold(loop(state))
 
-        case NextCursor(cursor, rest, stop) =>
-          stopRef.elem = stop
-          if (!cursor.hasNext()) rest.flatMap(loop(stopRef, state)) else {
+        case Next(a, rest) =>
+          process(state, rest, a)
+
+        case NextCursor(cursor, rest) =>
+          if (!cursor.hasNext()) rest.flatMap(loop(state)) else {
             val a = cursor.next()
-            process(stopRef)(state, stop, F.pure(self), a)
+            process(state, F.pure(self), a)
           }
 
-        case NextBatch(batch, rest, stop) =>
-          stopRef.elem = stop
+        case NextBatch(batch, rest) =>
           val cursor = batch.cursor()
-          if (!cursor.hasNext()) rest.flatMap(loop(stopRef, state)) else {
+          if (!cursor.hasNext()) rest.flatMap(loop(state)) else {
             val a = cursor.next()
-            process(stopRef)(state, stop, F.pure(NextCursor(cursor, rest, stop)), a)
+            process(state, F.pure(NextCursor(cursor, rest)), a)
           }
 
-        case Suspend(rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(loop(stopRef, state))
+        case Suspend(rest) =>
+          rest.flatMap(loop(state))
 
         case Last(a) =>
-          stopRef.elem = null.asInstanceOf[F[Unit]]
           f(state, a).map {
             case Left(s) => s
             case Right(s) => s
@@ -157,7 +143,6 @@ private[tail] object IterantFoldWhileLeft {
             case None =>
               F.pure(state)
             case Some(e) =>
-              stopRef.elem = null.asInstanceOf[F[Unit]]
               F.raiseError(e)
           }
       }
@@ -168,15 +153,7 @@ private[tail] object IterantFoldWhileLeft {
     }
 
     F.suspend {
-      // Reference to keep track of latest `earlyStop` value
-      val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
-      // Catch-all exceptions, ensuring latest `earlyStop` gets called
-      F.handleErrorWith(seed.flatMap(s => loop(stopRef, s)(self))) { ex =>
-        stopRef.elem match {
-          case null => F.raiseError(ex)
-          case stop => stop *> F.raiseError(ex)
-        }
-      }
+      seed.flatMap(s => loop(s)(self))
     }
   }
 }

@@ -59,6 +59,8 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
     F.bracket(acquire)(use)(release)
   override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     F.bracketCase(acquire)(use)(release)
+
+  override def runSyncStep[A](fa: Task[A]): IO[Either[Task[A], A]] = IO(Left(fa)) // TODO
 }
 
 /** Cats type class instances of [[monix.eval.Task Task]] for

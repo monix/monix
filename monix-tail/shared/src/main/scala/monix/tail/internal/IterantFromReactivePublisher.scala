@@ -18,18 +18,21 @@
 package monix.tail.internal
 
 import cats.effect.{Async, Timer}
-import cats.syntax.apply._
+import cats.syntax.all._
 import monix.eval.Callback
 import monix.execution.misc.AsyncVar
 import monix.execution.rstreams.ReactivePullStrategy
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Next, NextBatch}
+import monix.tail.Iterant.{Halt, Next, NextBatch, Scope}
 import monix.tail.batches.Batch
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
+// TODO: this can be migrated to cats-effect MVar, but would require Effect[F]
 private[tail] object IterantFromReactivePublisher {
-  class UnfoldSubscriber[F[_], A] (bufferSize: Int)(implicit
+  class UnfoldSubscriber[F[_], A] (
+    bufferSize: Int
+  )(implicit
     F: Async[F],
     timer: Timer[F]
   )
@@ -41,18 +44,22 @@ private[tail] object IterantFromReactivePublisher {
     private[this] var buffer: Array[Any] =
       if (bufferSize == 1) null else new Array(bufferSize)
 
-    val generate: F[Iterant[F, A]] = F.async[Iterant[F, A]] { cb =>
+    private[this] val take: F[Iterant[F, A]] = F.async[Iterant[F, A]] { cb =>
       result.unsafeTake(Callback.fromAttempt(cb)) match {
         case null => ()
         case a => cb(Right(a))
       }
     } <* timer.shift
 
-    val stop: F[Unit] = F.delay {
-      if (subscription ne null)
-        subscription.cancel()
-      subscription = null
-    }
+    val generate = Scope(
+      F.unit,
+      take.map(_ ++ take),
+      _ => F.delay {
+        if (subscription ne null)
+          subscription.cancel()
+        subscription = null
+      }
+    )
 
     def onSubscribe(s: Subscription): Unit = {
       subscription = s
@@ -61,7 +68,7 @@ private[tail] object IterantFromReactivePublisher {
 
     def onNext(t: A): Unit = {
       if (bufferSize == 1) {
-        result.put(Next(t, generate, stop))
+        result.put(Next(t, take))
           .foreach(_ =>
             if (subscription ne null) {
               subscription.request(1)
@@ -74,7 +81,7 @@ private[tail] object IterantFromReactivePublisher {
           val batch = Batch.fromArray(buffer).asInstanceOf[Batch[A]]
           offset = 0
           buffer = new Array(bufferSize)
-          result.put(NextBatch(batch, generate, stop))
+          result.put(NextBatch(batch, take))
             .foreach(_ =>
               if (subscription ne null) {
                 subscription.request(bufferSize)
@@ -86,7 +93,7 @@ private[tail] object IterantFromReactivePublisher {
     private def completeWith(iterant: Iterant[F, A]) = {
       if (offset > 0) {
         val batch = Batch.fromArray(buffer, 0, offset).asInstanceOf[Batch[A]]
-        result.put(NextBatch(batch, F.pure(iterant), F.unit))
+        result.put(NextBatch(batch, F.pure(iterant)))
       } else {
         result.put(iterant)
       }
@@ -103,13 +110,11 @@ private[tail] object IterantFromReactivePublisher {
 
   def apply[F[_]: Async: Timer, A](publisher: Publisher[A], strategy: ReactivePullStrategy): Iterant[F, A] =
     Iterant.suspend[F, A] {
-      Async[F].suspend {
-        strategy match {
-          case ReactivePullStrategy.Batched(size) =>
-            val unfold = new UnfoldSubscriber[F, A](size)
-            publisher.subscribe(unfold)
-            unfold.generate
-        }
+      strategy match {
+        case ReactivePullStrategy.Batched(size) =>
+          val unfold = new UnfoldSubscriber[F, A](size)
+          /*_*/publisher.subscribe(unfold)/*_*/
+          unfold.generate
       }
     }
 }

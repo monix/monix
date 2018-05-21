@@ -22,8 +22,9 @@ import cats.arrow.FunctionK
 import cats.effect.Sync
 import cats.syntax.all._
 import scala.util.control.NonFatal
+
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
 
 private[tail] object IterantLiftMap {
   /** Implementation for `Iterant#liftMap`. */
@@ -38,14 +39,16 @@ private[tail] object IterantLiftMap {
 
     def loop(fa: Iterant[F, A]): Iterant[G, A] =
       fa match {
-        case Next(a, rest, stop) =>
-          Next[G, A](a, f(rest).map(loop), f(stop))
-        case NextBatch(a, rest, stop) =>
-          NextBatch[G, A](a, f(rest).map(loop), f(stop))
-        case NextCursor(a, rest, stop) =>
-          NextCursor[G, A](a, f(rest).map(loop), f(stop))
-        case Suspend(rest, stop) =>
-          Suspend(f(rest).map(loop), f(stop))
+        case Scope(acquire, use, release) =>
+          Scope(f(acquire), f(use).map(loop), exitCase => f(release(exitCase)))
+        case Next(a, rest) =>
+          Next[G, A](a, f(rest).map(loop))
+        case NextBatch(a, rest) =>
+          NextBatch[G, A](a, f(rest).map(loop))
+        case NextCursor(a, rest) =>
+          NextCursor[G, A](a, f(rest).map(loop))
+        case Suspend(rest) =>
+          Suspend(f(rest).map(loop))
         case Last(_) | Halt(_) =>
           fa.asInstanceOf[Iterant[G, A]]
       }
@@ -65,19 +68,21 @@ private[tail] object IterantLiftMap {
 
     def loop(fa: Iterant[F, A]): Iterant[G, A] =
       try fa match {
-        case Next(a, rest, stop) =>
-          Next[G, A](a, f(rest).map(loop), g(stop))
-        case NextBatch(a, rest, stop) =>
-          NextBatch[G, A](a, f(rest).map(loop), g(stop))
-        case NextCursor(a, rest, stop) =>
-          NextCursor[G, A](a, f(rest).map(loop), g(stop))
-        case Suspend(rest, stop) =>
-          Suspend(f(rest).map(loop), g(stop))
+        case Scope(acquire, use, release) =>
+          Scope(g(acquire), f(use).map(loop), exitCase => g(release(exitCase)))
+        case Next(a, rest) =>
+          Next[G, A](a, f(rest).map(loop))
+        case NextBatch(a, rest) =>
+          NextBatch[G, A](a, f(rest).map(loop))
+        case NextCursor(a, rest) =>
+          NextCursor[G, A](a, f(rest).map(loop))
+        case Suspend(rest) =>
+          Suspend(f(rest).map(loop))
         case Last(_) | Halt(_) =>
           fa.asInstanceOf[Iterant[G, A]]
       } catch {
         case e if NonFatal(e) =>
-          Suspend[G, A](g(fa.earlyStop).map(_ => Halt(Some(e))), G.unit)
+          Halt(Some(e))
       }
 
     loop(self)

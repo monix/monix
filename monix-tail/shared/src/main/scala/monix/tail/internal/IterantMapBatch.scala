@@ -19,11 +19,11 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.Batch
-import monix.tail.internal.IterantUtils.signalError
 
 private[tail] object IterantMapBatch {
   /**
@@ -33,45 +33,47 @@ private[tail] object IterantMapBatch {
     (implicit F: Sync[F]): Iterant[F, B] = {
 
     def processBatch(ref: NextCursor[F, A]): Iterant[F, B] = {
-      val NextCursor(cursor, rest, stop) = ref
+      val NextCursor(cursor, rest) = ref
 
       if(cursor.hasNext()) {
         val next: F[Iterant[F, A]] =
           if (cursor.hasNext()) F.pure(ref)
           else rest
 
-        NextBatch(f(cursor.next()), next.map(loop), stop)
+        NextBatch(f(cursor.next()), next.map(loop))
       } else {
-        Suspend(rest.map(loop), stop)
+        Suspend(rest.map(loop))
       }
     }
 
     def loop(source: Iterant[F, A]): Iterant[F, B] =
       try source match {
-        case Next(head, tail, stop) =>
-          NextBatch[F, B](f(head), tail.map(loop), stop)
-        case ref@NextCursor(_, _, _) =>
+        case s @ Scope(_, _, _) =>
+          s.runMap(loop)
+        case Next(head, tail) =>
+          NextBatch[F, B](f(head), tail.map(loop))
+        case ref@NextCursor(_, _) =>
           processBatch(ref)
-        case NextBatch(batch, rest, stop) =>
-          processBatch(NextCursor(batch.cursor(), rest, stop))
-        case Suspend(rest, stop) =>
-          Suspend[F, B](rest.map(loop), stop)
+        case NextBatch(batch, rest) =>
+          processBatch(NextCursor(batch.cursor(), rest))
+        case Suspend(rest) =>
+          Suspend[F, B](rest.map(loop))
         case Last(item) =>
-          NextBatch(f(item), F.delay(Halt[F, B](None)), F.unit)
+          NextBatch(f(item), F.delay(Halt[F, B](None)))
         case empty@Halt(_) =>
           empty.asInstanceOf[Iterant[F, B]]
       } catch {
-        case ex if NonFatal(ex) => signalError(source, ex)
+        case ex if NonFatal(ex) => Iterant.raiseError(ex)
       }
 
     source match {
-      case Suspend(_, _) | Halt(_) => loop(source)
+      case Scope(_, _, _) | Suspend(_) | Halt(_) => loop(source)
       case _ =>
         // Suspending execution in order to preserve laziness and
         // referential transparency, since the provided function can
         // be side effecting and because processing NextBatch and
         // NextCursor states can have side effects
-        Suspend(F.delay(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)))
     }
   }
 }

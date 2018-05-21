@@ -19,11 +19,9 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.Platform
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
-import monix.tail.internal.IterantUtils.signalError
 import scala.util.control.NonFatal
 
 private[tail] object IterantConcat {
@@ -34,7 +32,7 @@ private[tail] object IterantConcat {
     (implicit F: Sync[F]): Iterant[F, B] = {
 
     source match {
-      case Suspend(_, _) | Halt(_) =>
+      case Suspend(_) | Halt(_) =>
         // Fast-path
         unsafeFlatMap(source)(f)
       case _ =>
@@ -42,7 +40,7 @@ private[tail] object IterantConcat {
         // referential transparency, since the provided function can
         // be side effecting and because processing NextBatch and
         // NextCursor states can have side effects
-        Suspend(F.delay(unsafeFlatMap(source)(f)), source.earlyStop)
+        Suspend(F.delay(unsafeFlatMap(source)(f)))
     }
   }
 
@@ -51,41 +49,22 @@ private[tail] object IterantConcat {
     */
   def unsafeFlatMap[F[_], A, B](source: Iterant[F, A])(f: A => Iterant[F, B])
     (implicit F: Sync[F]): Iterant[F, B] = {
-    
-    def stopBoth(childStop: F[Unit], parentStop: F[Unit]): F[Unit] =
-      childStop.attempt.flatMap(_ => parentStop)
 
-    def doOnEarlyStopOrError[T](parentStop: F[Unit])(source: Iterant[F, T]): Iterant[F,T] =
-      source match {
-        case Next(head, rest, childStop) =>
-          Next(head, rest.map(doOnEarlyStopOrError(parentStop)), stopBoth(childStop, parentStop))
-        case NextCursor(items, rest, childStop) =>
-          NextCursor(items, rest.map(doOnEarlyStopOrError(parentStop)), stopBoth(childStop, parentStop))
-        case Suspend(rest, childStop) =>
-          Suspend(rest.map(doOnEarlyStopOrError(parentStop)), stopBoth(childStop, parentStop))
-        case NextBatch(items, rest, childStop) =>
-          NextBatch(items, rest.map(doOnEarlyStopOrError(parentStop)), stopBoth(childStop, parentStop))
-        case Halt(Some(e)) =>
-          Suspend(parentStop.attempt.map(r => Halt(Some(Platform.composeErrors(e, r)))), parentStop)
-        case _ =>
-          source // nothing to do
-      }
-
-    def generate(item: A, rest: F[Iterant[F, B]], stop: F[Unit]): Iterant[F, B] =
+    def generate(item: A, rest: F[Iterant[F, B]]): Iterant[F, B] =
       f(item) match {
-        case next @ (Next(_,_,_) | NextCursor(_,_,_) | NextBatch(_,_,_) | Suspend(_,_)) =>
-          concat(doOnEarlyStopOrError(stop)(next), Suspend(rest, stop))
+        case next @ (Scope(_, _, _) | Next(_,_) | NextCursor(_,_) | NextBatch(_,_) | Suspend(_)) =>
+          concat(next, Suspend(rest))
         case Last(value) =>
-          Next(value, rest, stop)
+          Next(value, rest)
         case Halt(None) =>
-          Suspend(rest, stop)
-        case Halt(Some(ex)) =>
-          signalError(source, ex)
+          Suspend(rest)
+        case i @ Halt(Some(_)) =>
+          i.asInstanceOf[Iterant[F, B]]
       }
 
-    def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+    def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
       if (!cursor.hasNext) {
-        Suspend(rest.map(unsafeFlatMap(_)(f)), stop)
+        Suspend(rest.map(unsafeFlatMap(_)(f)))
       }
       else {
         val item = cursor.next()
@@ -94,24 +73,27 @@ private[tail] object IterantConcat {
           if (cursor.hasNext()) F.delay(flatMap(ref, f))
           else rest.map(unsafeFlatMap(_)(f))
 
-        generate(item, tail, stop)
+        generate(item, tail)
       }
     }
 
     try source match {
-      case Next(item, rest, stop) =>
-        generate(item, rest.map(unsafeFlatMap(_)(f)), stop)
+      case s @ Scope(_, _, _) =>
+        s.runMap(unsafeFlatMap(_)(f))
 
-      case ref @ NextCursor(cursor, rest, stop) =>
-        evalNextCursor(ref, cursor, rest, stop)
+      case Next(item, rest) =>
+        generate(item, rest.map(unsafeFlatMap(_)(f)))
 
-      case Suspend(rest, stop) =>
-        Suspend(rest.map(unsafeFlatMap(_)(f)), stop)
+      case ref @ NextCursor(cursor, rest) =>
+        evalNextCursor(ref, cursor, rest)
 
-      case NextBatch(gen, rest, stop) =>
+      case Suspend(rest) =>
+        Suspend(rest.map(unsafeFlatMap(_)(f)))
+
+      case NextBatch(gen, rest) =>
         val cursor = gen.cursor()
-        val ref = NextCursor(cursor, rest, stop)
-        evalNextCursor(ref, cursor, rest, stop)
+        val ref = NextCursor(cursor, rest)
+        evalNextCursor(ref, cursor, rest)
 
       case Last(item) =>
         f(item)
@@ -119,10 +101,12 @@ private[tail] object IterantConcat {
       case empty @ Halt(_) =>
         empty.asInstanceOf[Iterant[F, B]]
     } catch {
-      case ex if NonFatal(ex) => signalError(source, ex)
+      case ex if NonFatal(ex) =>
+        Iterant.raiseError(ex)
     }
   }
 
+  // TODO: Scope is completely broken
   /**
     * Implementation for `Iterant#++`
     */
@@ -130,16 +114,19 @@ private[tail] object IterantConcat {
     (implicit F: Sync[F]): Iterant[F, A] = {
 
     lhs match {
-      case Next(a, lt, stop) =>
-        Next(a, lt.map(concat(_, rhs)), stop)
-      case NextCursor(seq, lt, stop) =>
-        NextCursor(seq, lt.map(concat(_, rhs)), stop)
-      case NextBatch(gen, rest, stop) =>
-        NextBatch(gen, rest.map(concat(_, rhs)), stop)
-      case Suspend(lt, stop) =>
-        Suspend(lt.map(concat(_, rhs)), stop)
+      case s @ Scope(_, _, _) =>
+        s.runMap(concat(_, rhs))
+
+      case Next(a, lt) =>
+        Next(a, lt.map(concat(_, rhs)))
+      case NextCursor(seq, lt) =>
+        NextCursor(seq, lt.map(concat(_, rhs)))
+      case NextBatch(gen, rest) =>
+        NextBatch(gen, rest.map(concat(_, rhs)))
+      case Suspend(lt) =>
+        Suspend(lt.map(concat(_, rhs)))
       case Last(item) =>
-        Next(item, F.pure(rhs), rhs.earlyStop)
+        Next(item, F.pure(rhs))
       case Halt(None) =>
         rhs
       case error @ Halt(Some(_)) =>
@@ -158,11 +145,11 @@ private[tail] object IterantConcat {
         case Right(b) =>
           Last(b)
         case Left(nextA) =>
-          Suspend(F.delay(loop(nextA)), F.unit)
+          Suspend(F.delay(loop(nextA)))
       }
 
     // Function `f` may be side-effecting, or it might trigger
     // side-effects, so we must suspend it
-    Suspend(F.delay(loop(a)), F.unit)
+    Suspend(F.delay(loop(a)))
   }
 }

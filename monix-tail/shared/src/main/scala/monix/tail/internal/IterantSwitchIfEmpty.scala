@@ -23,33 +23,35 @@ import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 
+// TODO Scope will be left open until backup is consumed - although empty scopes are unlikely
 private[tail] object IterantSwitchIfEmpty {
   def apply[F[_], A](primary: Iterant[F, A], backup: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] = {
     def loop(source: Iterant[F, A]): Iterant[F, A] =
       try source match {
-        case Suspend(rest, stop) => Suspend(rest.map(loop), stop)
-        case NextBatch(batch, rest, stop) =>
+        case s @ Scope(_, _, _) =>
+          s.runMap(loop)
+        case Suspend(rest) => Suspend(rest.map(loop))
+        case NextBatch(batch, rest) =>
           val cursor = batch.cursor()
           if (!cursor.hasNext()) {
-            Suspend(rest.map(loop), stop)
+            Suspend(rest.map(loop))
           } else {
-            NextCursor(cursor, rest, stop)
+            NextCursor(cursor, rest)
           }
 
-        case NextCursor(cursor, rest, stop) if !cursor.hasNext() =>
-          Suspend(rest.map(loop), stop)
+        case NextCursor(cursor, rest) if !cursor.hasNext() =>
+          Suspend(rest.map(loop))
 
         case Halt(None) => backup
         case _ => source
       } catch {
         case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.as(Halt(Some(ex))), stop)
+          Halt(Some(ex))
       }
 
     primary match {
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        Suspend(F.delay(loop(primary)), primary.earlyStop)
+      case NextBatch(_, _) | NextCursor(_, _) =>
+        Suspend(F.delay(loop(primary)))
       case _ => loop(primary)
     }
   }

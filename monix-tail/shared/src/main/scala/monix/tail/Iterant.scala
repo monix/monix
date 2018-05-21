@@ -20,10 +20,11 @@ package monix.tail
 import java.io.PrintStream
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
-import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order, Parallel}
+import cats.{Applicative, CoflatMap, Eq, Functor, Monoid, MonoidK, Order, Parallel}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
 import scala.util.control.NonFatal
+
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
@@ -145,7 +146,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param rhs is the iterant to append at the end of our source.
     */
   final def ++[B >: A](rhs: F[Iterant[F, B]])(implicit F: Sync[F]): Iterant[F, B] =
-    IterantConcat.concat(self.upcast[B], Suspend(rhs, F.unit))
+    IterantConcat.concat(self.upcast[B], Suspend(rhs))
 
   /** Prepends an element to the iterant, returning a new
     * iterant that will start with the given `head` and then
@@ -160,7 +161,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        this iterant
     */
   final def +:[B >: A](head: B)(implicit F: Applicative[F]): Iterant[F, B] =
-    Next(head, F.pure(self.upcast[B]), earlyStop)
+    Next(head, F.pure(self.upcast[B]))
 
   /** Appends the right hand side element to the end of this iterant.
     *
@@ -172,7 +173,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param elem is the element to append at the end
     */
   final def :+[B >: A](elem: B)(implicit F: Sync[F]): Iterant[F, B] =
-    IterantConcat.concat(this.upcast[B], Next[F, B](elem, F.pure(Halt[F, B](None)), F.unit))(F)
+    IterantConcat.concat(this.upcast[B], Next[F, B](elem, F.pure(Halt[F, B](None))))(F)
 
   /** Appends the given stream to the end of the source, effectively
     * concatenating them.
@@ -501,10 +502,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param f is the function to execute on early stop
     */
   final def doOnEarlyStop(f: F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
-    IterantExitCallback.doOnEarlyStop(this, f)(F)
+    doOnExitCase {
+      case ExitCase.Error(_) | ExitCase.Canceled(_) => f
+      case _ => F.unit
+    }
 
   /** Returns a new iterant in which `f` is scheduled to be executed
-    * on [[Iterant.Halt halt]] or on [[earlyStop]].
+    * on [[Iterant.Halt halt]] or on early stop.
     *
     * Note that [[doOnEarlyStop]] is subsumed under this operation,
     * the given `f` being evaluated on both reaching the end or
@@ -531,7 +535,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     }))
 
   /** Returns a new iterant in which `f` is scheduled to be executed
-    * on [[Iterant.Halt halt]] or on [[earlyStop]].
+    * on [[Iterant.Halt halt]] or on early stop.
     *
     * This would typically be used to release any resources acquired
     * by this enumerator.
@@ -557,8 +561,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * @param f is the function to execute on early stop
     */
-  final def doOnExitCase(f: ExitCase[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
-    IterantExitCallback.doOnExitCase(this, f)
+  final def doOnExitCase(f: ExitCase[Throwable] => F[Unit])(implicit F: Applicative[F]): Iterant[F, A] =
+    Scope(F.unit, F.pure(this), f)
 
   /** Drops the first `n` elements (from the start).
     *
@@ -648,14 +652,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def dump(prefix: String, out: PrintStream = System.out)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDump(this, prefix, out)
-
-  /** Returns a computation that should be evaluated in case the
-    * streaming must stop before reaching the end.
-    *
-    * This is useful to release any acquired resources, like opened
-    * file handles or network sockets.
-    */
-  def earlyStop(implicit F: Applicative[F]): F[Unit]
 
   /** Returns `true` in case the given predicate is satisfied by any
     * of the emitted items, or `false` in case the end of the stream
@@ -1084,7 +1080,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        the `earlyStop` routine, to chain in case
     *        short-circuiting should happen (third param)
     */
-  final def foldRightL[B](b: F[B])(f: (A, F[B], F[Unit]) => F[B])(implicit F: Sync[F]): F[B] =
+  final def foldRightL[B](b: F[B])(f: (A, F[B]) => F[B])(implicit F: Sync[F]): F[B] =
     IterantFoldRightL(self, b, f)(F)
 
   /** Creates a new stream from the source that will emit a specific `separator`
@@ -2067,10 +2063,9 @@ object Iterant extends IterantInstances {
 
     suspendS(
       F.map(acquire) { a =>
-        nextS[F, A](a, F.pure(Iterant.empty), F.unit)
+        nextS[F, A](a, F.pure(Iterant.empty))
           .doOnExitCase(_ => release(a))
-      },
-      F.unit)
+      })
   }
 
   /** DEPRECATED — please use [[Iterant.resource]].
@@ -2105,7 +2100,7 @@ object Iterant extends IterantInstances {
     * stream of one element that is lazily evaluated.
     */
   def eval[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
-    Suspend(F.delay(lastS[F, A](a)), F.unit)
+    Suspend(F.delay(lastS[F, A](a)))
 
   /** Alias for [[eval]]. */
   def delay[F[_], A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
@@ -2114,8 +2109,8 @@ object Iterant extends IterantInstances {
   /** Lifts a value from monadic context into the stream context,
     * returning a stream of one element
     */
-  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    Suspend(F.map(fa)(lastS), F.unit)
+  def liftF[F[_], A](fa: F[A])(implicit F: Functor[F]): Iterant[F, A] =
+    Suspend(F.map(fa)(lastS))
 
   /** Builds a stream state equivalent with [[Iterant.Next]].
     *
@@ -2123,10 +2118,9 @@ object Iterant extends IterantInstances {
     *
     * @param item $headParamDesc
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
     */
-  def nextS[F[_], A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Next[F, A](item, rest, stop)
+  def nextS[F[_], A](item: A, rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Next[F, A](item, rest)
 
   /** Builds a stream state equivalent with [[Iterant.NextCursor]].
     *
@@ -2134,10 +2128,9 @@ object Iterant extends IterantInstances {
     *
     * @param items $cursorParamDesc
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
     */
-  def nextCursorS[F[_], A](items: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    NextCursor[F, A](items, rest, stop)
+  def nextCursorS[F[_], A](items: BatchCursor[A], rest: F[Iterant[F, A]]): Iterant[F, A] =
+    NextCursor[F, A](items, rest)
 
   /** Builds a stream state equivalent with [[Iterant.NextBatch]].
     *
@@ -2145,10 +2138,9 @@ object Iterant extends IterantInstances {
     *
     * @param items $generatorParamDesc
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
     */
-  def nextBatchS[F[_], A](items: Batch[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    NextBatch[F, A](items, rest, stop)
+  def nextBatchS[F[_], A](items: Batch[A], rest: F[Iterant[F, A]]): Iterant[F, A] =
+    NextBatch[F, A](items, rest)
 
   /** Builds a stream state equivalent with [[Iterant.Halt]].
     *
@@ -2183,18 +2175,17 @@ object Iterant extends IterantInstances {
     *
     * @param rest $restParamDesc
     */
-  def suspend[F[_], A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] =
-    suspendS[F, A](rest, F.unit)
+  def suspend[F[_], A](rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Suspend[F, A](rest)
 
   /** Builds a stream state equivalent with [[Iterant.NextCursor]].
     *
     * $SuspendDesc
     *
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
     */
-  def suspendS[F[_], A](rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Suspend[F, A](rest, stop)
+  def suspendS[F[_], A](rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Suspend[F, A](rest)
 
   /** Returns an empty stream that ends with an error. */
   def raiseError[F[_], A](ex: Throwable): Iterant[F, A] =
@@ -2213,7 +2204,7 @@ object Iterant extends IterantInstances {
 
   /** Converts any standard `Array` into a stream. */
   def fromArray[F[_], A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    NextBatch(Batch.fromArray(xs), F.pure(empty[F, A]), F.unit)
+    NextBatch(Batch.fromArray(xs), F.pure(empty[F, A]))
 
   /** Converts any `scala.collection.Seq` into a stream. */
   def fromSeq[F[_], A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
@@ -2230,24 +2221,24 @@ object Iterant extends IterantInstances {
     * a stream.
     */
   def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    NextBatch(Batch.fromSeq(xs), F.pure(empty[F, A]), F.unit)
+    NextBatch(Batch.fromSeq(xs), F.pure(empty[F, A]))
 
   /** Converts any Scala `collection.IndexedSeq` into a stream
     * (e.g. `Vector`).
     */
   def fromIndexedSeq[F[_], A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    NextBatch(Batch.fromIndexedSeq(xs), F.pure(empty[F, A]), F.unit)
+    NextBatch(Batch.fromIndexedSeq(xs), F.pure(empty[F, A]))
 
   /** Converts a `scala.collection.Iterable` into a stream. */
   def fromIterable[F[_], A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F, A] = {
     val bs = if (xs.hasDefiniteSize) recommendedBatchSize else 1
-    NextBatch(Batch.fromIterable(xs, bs), F.pure(empty[F, A]), F.unit)
+    NextBatch(Batch.fromIterable(xs, bs), F.pure(empty[F, A]))
   }
 
   /** Converts a `scala.collection.Iterator` into a stream. */
   def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] = {
     val bs = if (xs.hasDefiniteSize) recommendedBatchSize else 1
-    NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty), F.unit)
+    NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty))
   }
 
   /** Given an `org.reactivestreams.Publisher`, converts it into a
@@ -2296,7 +2287,7 @@ object Iterant extends IterantInstances {
         currentState = newState
         toProcess -= 1
       }
-      NextBatch[F, A](Batch.fromSeq(buffer), F.delay(loop(currentState)), F.unit)
+      NextBatch[F, A](Batch.fromSeq(buffer), F.delay(loop(currentState)))
     }
     try loop(seed)
     catch { case e if NonFatal(e) => Halt(Some(e)) }
@@ -2323,12 +2314,12 @@ object Iterant extends IterantInstances {
     def loop(state: S): F[Iterant[F, A]] =
       try {
         f(state).map { case (elem, newState) =>
-          Next(elem, F.suspend(loop(newState)), F.unit)
+          Next(elem, F.suspend(loop(newState)))
         }
       } catch {
         case e if NonFatal(e) => F.pure(Halt(Some(e)))
       }
-    Suspend(F.suspend(seed.flatMap(loop)), F.unit)
+    Suspend(F.suspend(seed.flatMap(loop)))
   }
 
   /** Builds a stream that on evaluation will produce equally spaced
@@ -2342,7 +2333,7 @@ object Iterant extends IterantInstances {
     *         to, but excluding `until`
     */
   def range[F[_]](from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
-    NextBatch(Batch.range(from, until, step), F.pure(empty[F, Int]), F.unit)
+    NextBatch(Batch.range(from, until, step), F.pure(empty[F, Int]))
 
   /** Builds a stream that repeats the items provided in argument.
     *
@@ -2354,11 +2345,11 @@ object Iterant extends IterantInstances {
       // trick to optimize recursion, see Optimisation section at:
       // https://japgolly.blogspot.com.by/2017/12/practical-awesome-recursion-ch-02.html
       var result: Iterant[F, A] = null
-      result = Next[F, A](elem, F.delay(result), F.unit)
+      result = Next[F, A](elem, F.delay(result))
       result
     case _ =>
       var result: Iterant[F, A] = null
-      result = NextBatch(Batch(elems: _*), F.delay(result), F.unit)
+      result = NextBatch(Batch(elems: _*), F.delay(result))
       result
   }
 
@@ -2450,86 +2441,61 @@ object Iterant extends IterantInstances {
     *
     * @param item $headParamDesc
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
     */
-  final case class Next[F[_], A](
-    item: A,
-    rest: F[Iterant[F, A]],
-    stop: F[Unit])
-    extends Iterant[F, A] {
-
-    def earlyStop(implicit F: Applicative[F]): F[Unit] =
-      stop
-  }
+  final case class Next[F[_], A](item: A, rest: F[Iterant[F, A]])
+    extends Iterant[F, A]
 
   /** $LastDesc
     *
     * @param item $lastParamDesc
     */
   final case class Last[F[_], A](item: A)
-    extends Iterant[F, A] {
-
-    def earlyStop(implicit F: Applicative[F]): F[Unit] =
-      F.unit
-  }
+    extends Iterant[F, A]
 
   /** $NextCursorDesc
     *
     * @param cursor $cursorParamDesc
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
     */
-  final case class NextCursor[F[_], A](
-    cursor: BatchCursor[A],
-    rest: F[Iterant[F, A]],
-    stop: F[Unit])
-    extends Iterant[F, A] {
-
-    def earlyStop(implicit F: Applicative[F]): F[Unit] =
-      stop
-  }
+  final case class NextCursor[F[_], A](cursor: BatchCursor[A], rest: F[Iterant[F, A]])
+    extends Iterant[F, A]
 
   /** $NextBatchDesc
     *
     * @param batch $generatorParamDesc
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
     */
-  final case class NextBatch[F[_], A](
-    batch: Batch[A],
-    rest: F[Iterant[F, A]],
-    stop: F[Unit])
-    extends Iterant[F, A] {
-
-    def earlyStop(implicit F: Applicative[F]): F[Unit] =
-      stop
-  }
+  final case class NextBatch[F[_], A](batch: Batch[A], rest: F[Iterant[F, A]])
+    extends Iterant[F, A]
 
   /** Builds a stream state equivalent with [[Iterant.NextCursor]].
     *
     * $SuspendDesc
     *
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
     */
-  final case class Suspend[F[_], A](
-    rest: F[Iterant[F, A]],
-    stop: F[Unit])
-    extends Iterant[F, A] {
-
-    def earlyStop(implicit F: Applicative[F]): F[Unit] =
-      stop
-  }
+  final case class Suspend[F[_], A](rest: F[Iterant[F, A]])
+    extends Iterant[F, A]
 
   /** $HaltDesc
     *
     * @param e $exParamDesc
     */
   final case class Halt[F[_], A](e: Option[Throwable])
-    extends Iterant[F, A] {
+    extends Iterant[F, A]
 
-    def earlyStop(implicit F: Applicative[F]): F[Unit] =
-      F.unit
+  final case class Scope[F[_], A](
+    open: F[Unit],
+    rest: F[Iterant[F, A]],
+    close: ExitCase[Throwable] => F[Unit]
+  ) extends Iterant[F, A] {
+    private[tail] def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]) =
+      copy(rest = F.map(rest)(f))
+    private[tail] def runFlatMap[B](f: Iterant[F, A] => F[Iterant[F, B]])(implicit F: Sync[F]): F[Iterant[F, B]] =
+      F.pure(copy(rest = F.flatMap(rest)(f)))
+
+    private[tail] def runFold[B](f: Iterant[F, A] => F[B])(implicit F: Sync[F]): F[B] =
+      F.bracketCase(open)(_ => F.flatMap(rest)(f))((_, exitCase) => close(exitCase))
   }
 }
 
@@ -2561,10 +2527,12 @@ private[tail] trait IterantInstances1 extends IterantInstances0 {
   /** Provides the `cats.effect.Async` instance for [[Iterant]]. */
   class CatsAsyncInstances[F[_]](implicit F: Async[F])
     extends CatsSyncInstances[F]
-      with Async[({type λ[α] = Iterant[F, α]})#λ] {
+      with Async[Iterant[F, ?]] {
 
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Iterant[F, A] =
       Iterant.liftF(F.async(k))
+
+
   }
 }
 
@@ -2575,9 +2543,9 @@ private[tail] trait IterantInstances0 {
 
   /** Provides the `cats.effect.Sync` instance for [[Iterant]]. */
   class CatsSyncInstances[F[_]](implicit F: Sync[F])
-    extends Sync[({type λ[α] = Iterant[F, α]})#λ]
-      with MonoidK[({type λ[α] = Iterant[F, α]})#λ]
-      with CoflatMap[({type λ[α] = Iterant[F, α]})#λ] {
+    extends Sync[Iterant[F, ?]]
+      with MonoidK[Iterant[F, ?]]
+      with CoflatMap[Iterant[F, ?]] {
 
     override def pure[A](a: A): Iterant[F, A] =
       Iterant.pure(a)
@@ -2638,5 +2606,7 @@ private[tail] trait IterantInstances0 {
 
     override def bracketCase[A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit]): Iterant[F, B] =
       acquire.bracketCase(use)(release)
+
+
   }
 }
