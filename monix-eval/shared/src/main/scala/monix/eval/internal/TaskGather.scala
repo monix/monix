@@ -21,7 +21,7 @@ import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer

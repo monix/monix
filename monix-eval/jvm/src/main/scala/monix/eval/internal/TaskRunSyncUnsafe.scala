@@ -25,7 +25,7 @@ import monix.eval.internal.TaskRunLoop._
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.internal.collection.ArrayStack
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 import scala.concurrent.blocking
 import scala.concurrent.duration.{Duration, FiniteDuration}

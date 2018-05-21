@@ -24,7 +24,7 @@ import monix.execution.exceptions.CompositeException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.execution.atomic.Atomic
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 import scala.collection.mutable
 

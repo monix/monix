@@ -62,9 +62,11 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   // Force building with Java 8
   initialize := {
-    val required = "1.8"
-    val current  = sys.props("java.specification.version")
-    assert(current == required, s"Unsupported build JDK: java.specification.version $current != $required")
+    if (sys.props("monix.requireJava8") != "false") {
+      val required = "1.8"
+      val current  = sys.props("java.specification.version")
+      assert(current == required, s"Unsupported build JDK: java.specification.version $current != $required")
+    }
   },
 
   // Targeting Java 6, but only for Scala <= 2.11
@@ -308,7 +310,10 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.Task.DeprecatedExtensions"),
     exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions"),
     exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions$"),
-    // Semi-Breakage - new method in sealed class
+    // Breakage - PR #675: switch to standard NonFatal
+    exclude[MissingClassProblem]("monix.execution.misc.NonFatal$"),
+    exclude[MissingClassProblem]("monix.execution.misc.NonFatal"),
+      // Semi-Breakage - new method in sealed class
     exclude[ReversedMissingMethodProblem]("monix.execution.cancelables.StackedCancelable.tryReactivate"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),

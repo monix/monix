@@ -20,7 +20,7 @@ package internal
 
 import monix.eval.Task.Context
 import monix.execution.Scheduler
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 private[eval] object TaskDeferAction {
   /** Implementation for `Task.deferAction`. */

@@ -23,7 +23,7 @@ import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Eq, Monoid, MonoidK, Order, Parallel}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._

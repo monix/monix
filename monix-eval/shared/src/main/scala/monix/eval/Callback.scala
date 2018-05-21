@@ -19,7 +19,7 @@ package monix.eval
 
 import cats.Contravariant
 import monix.execution.cancelables.StackedCancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
 

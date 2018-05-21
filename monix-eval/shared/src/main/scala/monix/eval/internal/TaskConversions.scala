@@ -22,7 +22,7 @@ import monix.eval.Task.Context
 import monix.eval.{Callback, Task}
 import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
 import monix.execution.internal.AttemptCallback
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.schedulers.TrampolinedRunnable

@@ -21,7 +21,7 @@ package internal
 import cats.effect.IO
 import monix.execution.Scheduler
 import monix.execution.internal.AttemptCallback.noop
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 /** INTERNAL API
   *

@@ -19,7 +19,7 @@ package monix.execution.schedulers
 
 
 import monix.execution.internal.Trampoline
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
 
 /** A `scala.concurrentExecutionContext` implementation

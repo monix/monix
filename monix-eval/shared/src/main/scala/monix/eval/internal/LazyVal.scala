@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import monix.eval.Coeval
 import monix.eval.Coeval.{Error, Now}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 /** `LazyVal` boxes a function and memoizes its result on its first invocation,
   * to be reused for subsequent invocations.

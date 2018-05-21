@@ -18,7 +18,7 @@
 package monix.execution
 
 import java.util.concurrent.TimeoutException
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, MonixInternals, Promise}

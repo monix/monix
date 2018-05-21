@@ -20,7 +20,7 @@ package monix.reactive.observers.buffers
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.internal.collection.{ArrayQueue, _}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 

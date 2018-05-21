@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import monix.eval.Task.Context
 import monix.eval.{Callback, Task}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 

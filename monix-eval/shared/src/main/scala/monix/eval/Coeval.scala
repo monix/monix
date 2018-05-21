@@ -23,7 +23,7 @@ import cats.kernel.Semigroup
 import monix.eval.Coeval._
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal.{CoevalBracket, CoevalRunLoop, LazyVal, StackFrame}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.internal.Platform.fusionMaxStackDepth
 
 import scala.collection.generic.CanBuildFrom

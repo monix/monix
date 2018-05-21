@@ -21,7 +21,7 @@ import cats.effect.IO
 import monix.execution.atomic.AtomicAny
 import monix.execution.exceptions.CompositeException
 import monix.execution.internal.AttemptCallback
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolinedRunnable
 import scala.concurrent.Promise
 
