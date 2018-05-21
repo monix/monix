@@ -1203,7 +1203,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * }}}
     *
     * Normally this isn't cancelable and it might take a long time, but
-    * by calling `cancelable` on the result, we ensure that when cancellation
+    * by calling `autoCancelable` on the result, we ensure that when cancellation
     * is observed, at async boundaries, the loop will stop with the task
     * becoming a non-terminating one.
     *
@@ -1219,10 +1219,10 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * }}}
     *
     * Normally [[Task.apply]] does not yield a cancelable task, but by applying
-    * the `cancelable` transformation to it, the `println` will execute,
+    * the `autoCancelable` transformation to it, the `println` will execute,
     * but not the subsequent `flatMap` operation.
     */
-  def cancelable: Task[A] =
+  def autoCancelable: Task[A] =
     TaskCancellation.makeCancelable(this)
 
   /** Returns a failed projection of this task.
