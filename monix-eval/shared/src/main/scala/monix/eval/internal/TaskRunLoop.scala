@@ -118,14 +118,12 @@ private[eval] object TaskRunLoop {
           case ContextSwitch(next, modify, restore) =>
             val old = context
             context = modify(context)
+            current = next
             if (context ne old) {
               em = context.scheduler.executionModel
               rcb = TaskRestartCallback(context, cba)
-              current =
-                if (restore ne null)
-                  FlatMap(next, new RestoreContext(old, restore))
-                else
-                  next
+              if (restore ne null)
+                current = FlatMap(next, new RestoreContext(old, restore))
             }
         }
 

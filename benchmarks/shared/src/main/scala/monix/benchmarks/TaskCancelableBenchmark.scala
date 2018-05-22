@@ -71,7 +71,7 @@ class TaskCancelableBenchmark {
   def bracket(): Int = {
     var effect = 0
     def loop(i: Int): Task[Int] =
-      Task.eval(i).bracket(Task.eval(_))(_ => Task { effect += 1 })
+      Task.eval(i).bracket(Task.eval(_))(_ => Task.eval { effect += 1 })
         .flatMap { i =>
           if (i > 0) loop(i - 1)
           else Task.now(effect)
