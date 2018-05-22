@@ -42,7 +42,7 @@ private[eval] object TaskRunLoop {
     source: Task[A],
     contextInit: Context,
     cb: Callback[A],
-    rcbInit: TaskRestartCallback,
+    rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
     frameIndex: FrameIndex): Unit = {
@@ -59,7 +59,6 @@ private[eval] object TaskRunLoop {
     // Can change due to ContextSwitch
     var context = contextInit
     var em = context.scheduler.executionModel
-    var rcb = rcbInit
 
     do {
       if (currentIndex != 0) {
