@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
+import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.Local
@@ -40,7 +40,7 @@ private[eval] object TaskRunLoop {
     */
   def startFull[A](
     source: Task[A],
-    context: Context,
+    contextInit: Context,
     cb: Callback[A],
     rcb: TaskRestartCallback,
     bFirst: Bind,
@@ -48,7 +48,6 @@ private[eval] object TaskRunLoop {
     frameIndex: FrameIndex): Unit = {
 
     val cba = cb.asInstanceOf[Callback[Any]]
-    val em = context.scheduler.executionModel
     var current: Current = source
     var bFirstRef = bFirst
     var bRestRef = bRest
@@ -56,6 +55,10 @@ private[eval] object TaskRunLoop {
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
     var currentIndex = frameIndex
+
+    // Can change due to ContextSwitch
+    var context = contextInit
+    var em = context.scheduler.executionModel
 
     do {
       if (currentIndex != 0) {
@@ -110,6 +113,17 @@ private[eval] object TaskRunLoop {
           case async @ Async(_, _, _, _) =>
             executeAsyncTask(async, context, cba, rcb, bFirstRef, bRestRef, currentIndex)
             return
+
+          case ContextSwitch(next, modify, restore) =>
+            val old = context
+            context = modify(context)
+            current = next
+            if (context ne old) {
+              em = context.scheduler.executionModel
+              if (rcb ne null) rcb.contextSwitch(context)
+              if (restore ne null)
+                current = FlatMap(next, new RestoreContext(old, restore))
+            }
         }
 
         if (hasUnboxed) {
@@ -438,10 +452,13 @@ private[eval] object TaskRunLoop {
 
     val context = Context(scheduler, opts)
 
-    if (forceFork) {
-      restartAsync(source, context, cb, null, bFirst, bRest)
+    if (!forceFork) source match {
+      case async: Async[Any] =>
+        executeAsyncTask(async, context, cb, null, bFirst, bRest, 1)
+      case _ =>
+        startFull(source, context, cb, null, bFirst, bRest, nextFrame)
     } else {
-      executeAsyncTask(source.asInstanceOf[Async[Any]], context, cb, null, bFirst, bRest, 1)
+      restartAsync(source, context, cb, null, bFirst, bRest)
     }
     context.connection
   }
@@ -457,14 +474,17 @@ private[eval] object TaskRunLoop {
     forceFork: Boolean): CancelableFuture[A] = {
 
     val p = Promise[A]()
-    val cb = Callback.fromPromise(p)
+    val cb = Callback.fromPromise(p).asInstanceOf[Callback[Any]]
     val context = Context(scheduler, opts)
     val current = source.asInstanceOf[Task[A]]
 
-    if (forceFork) {
-      restartAsync(current, context, cb, null, bFirst, bRest)
+    if (!forceFork) source match {
+      case async: Async[Any] =>
+        executeAsyncTask(async, context, cb, null, bFirst, bRest, 1)
+      case _ =>
+        startFull(source, context, cb, null, bFirst, bRest, nextFrame)
     } else {
-      executeAsyncTask(source.asInstanceOf[Async[Any]], context, cb.asInstanceOf[Callback[Any]], null, bFirst, bRest, 1)
+      restartAsync(current, context, cb, null, bFirst, bRest)
     }
     CancelableFuture(p.future, context.connection)
   }
@@ -508,4 +528,15 @@ private[eval] object TaskRunLoop {
 
   private def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
+
+  private final class RestoreContext(
+    old: Context,
+    restore: (Any, Throwable, Context, Context) => Context)
+    extends StackFrame[Any, Task[Any]] {
+
+    def apply(a: Any): Task[Any] =
+      ContextSwitch(Now(a), current => restore(a, null, old, current), null)
+    def recover(e: Throwable): Task[Any] =
+      ContextSwitch(Error(e), current => restore(null, e, old, current), null)
+  }
 }

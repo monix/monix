@@ -80,6 +80,16 @@ sealed abstract class StackedCancelable extends BooleanCancelable {
     * @return the cancelable reference that was removed.
     */
   def pop(): Cancelable
+
+  /**
+    * Tries to reset a `StackedCancelable`, from a cancelled state,
+    * back to a pristine state, but only if possible.
+    *
+    * Returns `true` on success, or `false` if there was a race
+    * condition (i.e. the connection wasn't cancelled) or if
+    * the type of the connection cannot be reactivated.
+    */
+  def tryReactivate(): Boolean
 }
 
 object StackedCancelable {
@@ -117,6 +127,14 @@ object StackedCancelable {
     */
   private final class Impl(initial: List[Cancelable])
     extends StackedCancelable {
+
+    /**
+     * Biasing the implementation for single threaded usage
+     * in push/pop — this value is caching the last value seen,
+     * in order to safe a `state.get` instruction before the
+     * `compareAndSet` happens.
+     */
+    private[this] var cache = initial
 
     private[this] val state =
       AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)
@@ -179,6 +197,7 @@ object StackedCancelable {
             // $COVERAGE-ON$
           }
       }
+
     }
 
     @tailrec def pushList(list: List[Cancelable]): Unit = {
@@ -194,46 +213,58 @@ object StackedCancelable {
       }
     }
 
-    @tailrec def push(value: Cancelable): Unit = {
-      state.get match {
-        case null =>
-          value.cancel()
-        case stack =>
-          if (!state.compareAndSet(stack, value :: stack)) {
-            // $COVERAGE-OFF$
-            push(value) // retry
-            // $COVERAGE-ON$
-          }
+    @tailrec
+    private def pushLoop(current: List[Cancelable], value: Cancelable): Unit = {
+      if (current eq null) {
+        cache = null
+        value.cancel()
+      } else {
+        val update = value :: current
+        if (!state.compareAndSet(current, update))
+          pushLoop(state.get, value) // retry
+        else
+          cache = update
       }
     }
 
-    @tailrec def pop(): Cancelable = {
-      state.get match {
-        case null => Cancelable.empty
-        case Nil => Cancelable.empty
+    def push(value: Cancelable): Unit =
+      pushLoop(cache, value)
+
+    @tailrec
+    private def popLoop(current: List[Cancelable], isFresh: Boolean = false): Cancelable = {
+      current match {
+        case null | Nil =>
+          if (isFresh) Cancelable.empty
+          else popLoop(state.get, isFresh = true)
         case ref @ (head :: tail) =>
           if (state.compareAndSet(ref, tail)) {
+            cache = tail
             head
           } else {
-            // $COVERAGE-OFF$
-            pop() // retry
-            // $COVERAGE-ON$
+            popLoop(state.get, isFresh = true) // retry
           }
       }
     }
 
-    @tailrec private[this]
-    def concatList(list: List[Cancelable], current: List[Cancelable]): List[Cancelable] =
+    def pop(): Cancelable =
+      popLoop(cache)
+
+    @tailrec
+    private def concatList(list: List[Cancelable], current: List[Cancelable]): List[Cancelable] =
       list match {
         case Nil => current
         case x :: xs => concatList(xs, x :: current)
       }
+
+    def tryReactivate(): Boolean =
+      state.compareAndSet(null, Nil)
   }
 
   /** [[StackedCancelable]] implementation that is already cancelled. */
   private final class AlreadyCanceled extends StackedCancelable {
     override def cancel(): Unit = ()
     override def isCanceled: Boolean = true
+    override def tryReactivate(): Boolean = false
     override def pop(): Cancelable = Cancelable.empty
 
     override def push(value: Cancelable): Unit =
@@ -257,6 +288,7 @@ object StackedCancelable {
   private final class Uncancelable extends StackedCancelable {
     override def cancel(): Unit = ()
     override def isCanceled: Boolean = false
+    override def tryReactivate(): Boolean = true
     override def pop(): Cancelable = Cancelable.empty
     override def pushList(list: List[Cancelable]): Unit = ()
     override def push(value: Cancelable): Unit = ()

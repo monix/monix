@@ -310,6 +310,11 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.Task.DeprecatedExtensions"),
     exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions"),
     exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions$"),
+    // Breakage - PR #675: switch to standard NonFatal
+    exclude[MissingClassProblem]("monix.execution.misc.NonFatal$"),
+    exclude[MissingClassProblem]("monix.execution.misc.NonFatal"),
+      // Semi-Breakage - new method in sealed class
+    exclude[ReversedMissingMethodProblem]("monix.execution.cancelables.StackedCancelable.tryReactivate"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
@@ -348,9 +353,8 @@ def mimaSettings(projectName: String) = Seq(
     exclude[MissingClassProblem]("monix.eval.internal.TaskEffect$CreateCallback"),
     exclude[IncompatibleResultTypeProblem]("monix.execution.internal.collection.ArrayStack.clone"),
     exclude[MissingTypesProblem]("monix.execution.internal.collection.ArrayStack"),
-    // PR #675: switch to standard NonFatal
-    exclude[MissingClassProblem]("monix.execution.misc.NonFatal$"),
-    exclude[MissingClassProblem]("monix.execution.misc.NonFatal")
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation#RaiseCancelable.this"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover")
   )
 )
 

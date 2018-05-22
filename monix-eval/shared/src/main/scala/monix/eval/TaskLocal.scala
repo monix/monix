@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.eval.Task.{Context, ContextSwitch}
 import monix.execution.misc.Local
 
 /** A `TaskLocal` is like a
@@ -221,7 +222,7 @@ object TaskLocal {
     *        or in case it was cleared (with [[TaskLocal.clear]])
     */
   def apply[A](default: A): Task[TaskLocal[A]] =
-    Task.eval(new TaskLocal(default))
+    withPropagation(Task.eval(new TaskLocal(default)))
 
   /** Builds a [[TaskLocal]] reference with the given `default`,
     * being lazily evaluated, using [[Coeval]] to manage evaluation.
@@ -237,5 +238,16 @@ object TaskLocal {
     *        lazily evaluated and managed by [[Coeval]]
     */
   def lazyDefault[A](default: Coeval[A]): Task[TaskLocal[A]] =
-    Task.eval(new TaskLocal[A](default.value()))
+    withPropagation(Task.eval(new TaskLocal[A](default.value())))
+
+  private def withPropagation[A](task: Task[A]): Task[A] =
+    ContextSwitch(task, enablePropagation, null)
+
+  private val enablePropagation: Context => Context =
+    ctx => {
+      if (!ctx.options.localContextPropagation)
+        ctx.withOptions(ctx.options.enableLocalContextPropagation)
+      else
+        ctx
+    }
 }
