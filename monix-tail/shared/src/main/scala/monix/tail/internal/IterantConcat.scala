@@ -17,11 +17,12 @@
 
 package monix.tail.internal
 
-import cats.effect.Sync
+import cats.effect.{ExitCase, Sync}
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
+
 import scala.util.control.NonFatal
 
 private[tail] object IterantConcat {
@@ -106,31 +107,34 @@ private[tail] object IterantConcat {
     }
   }
 
-  // TODO: Scope is completely broken
+  def concat[F[_], A](lhs: Iterant[F, A], rhs: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+    concat(lhs, rhs, _ => F.unit)
+
+  // TODO: Check stack-safety of stack concats
   /**
     * Implementation for `Iterant#++`
     */
-  def concat[F[_], A](lhs: Iterant[F, A], rhs: Iterant[F, A])
+  def concat[F[_], A](lhs: Iterant[F, A], rhs: Iterant[F, A], close: ExitCase[Throwable] => F[Unit])
     (implicit F: Sync[F]): Iterant[F, A] = {
 
     lhs match {
-      case s @ Scope(_, _, _) =>
-        s.runMap(concat(_, rhs))
+      case s @ Scope(_, _, newClose) =>
+        s.runMap(concat(_, rhs, ec => close(ec) >> newClose(ec)))
 
       case Next(a, lt) =>
-        Next(a, lt.map(concat(_, rhs)))
+        Next(a, lt.map(concat(_, rhs, close)))
       case NextCursor(seq, lt) =>
-        NextCursor(seq, lt.map(concat(_, rhs)))
+        NextCursor(seq, lt.map(concat(_, rhs, close)))
       case NextBatch(gen, rest) =>
-        NextBatch(gen, rest.map(concat(_, rhs)))
+        NextBatch(gen, rest.map(concat(_, rhs, close)))
       case Suspend(lt) =>
-        Suspend(lt.map(concat(_, rhs)))
+        Suspend(lt.map(concat(_, rhs, close)))
       case Last(item) =>
-        Next(item, F.pure(rhs))
+        Suspend(close(ExitCase.complete).as(Iterant.nextS(item, F.pure(rhs))))
       case Halt(None) =>
-        rhs
-      case error @ Halt(Some(_)) =>
-        error
+        Suspend(close(ExitCase.complete).as(rhs))
+      case error @ Halt(Some(ex)) =>
+        Suspend(close(ExitCase.error(ex)).as(error))
     }
   }
 

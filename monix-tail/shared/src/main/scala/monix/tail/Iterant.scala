@@ -18,22 +18,24 @@
 package monix.tail
 
 import java.io.PrintStream
+
 import cats.arrow.FunctionK
+import cats.effect.concurrent.Ref
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Eq, Functor, Monoid, MonoidK, Order, Parallel}
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
-import scala.util.control.NonFatal
 
+import scala.util.control.NonFatal
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
 import monix.tail.internal.Constants.emptyRef
 import org.reactivestreams.Publisher
+
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
-
 import monix.execution.rstreams.ReactivePullStrategy
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
@@ -2060,12 +2062,16 @@ object Iterant extends IterantInstances {
   def resource[F[_], A](acquire: F[A])
     (release: A => F[Unit])
     (implicit F: Sync[F]): Iterant[F, A] = {
+    import cats.syntax.all._
 
     suspendS(
-      F.map(acquire) { a =>
-        nextS[F, A](a, F.pure(Iterant.empty))
-          .doOnExitCase(_ => release(a))
-      })
+      for {
+        ref <- Ref[F].of(none[A])
+        open  = acquire.flatMap(a => ref.set(a.some))
+        close = ref.getAndSet(none).flatMap(_.fold(F.unit)(release))
+        use   = ref.get.map(_.fold(Iterant.empty[F, A])(Iterant.pure))
+      } yield scopeS(open, use, _ => close)
+    )
   }
 
   /** DEPRECATED — please use [[Iterant.resource]].
@@ -2186,6 +2192,9 @@ object Iterant extends IterantInstances {
     */
   def suspendS[F[_], A](rest: F[Iterant[F, A]]): Iterant[F, A] =
     Suspend[F, A](rest)
+
+  def scopeS[F[_], A](open: F[Unit], use: F[Iterant[F, A]], close: ExitCase[Throwable] => F[Unit]): Iterant[F, A] =
+    Scope(open, use, close)
 
   /** Returns an empty stream that ends with an error. */
   def raiseError[F[_], A](ex: Throwable): Iterant[F, A] =
@@ -2486,16 +2495,17 @@ object Iterant extends IterantInstances {
 
   final case class Scope[F[_], A](
     open: F[Unit],
-    rest: F[Iterant[F, A]],
+    use: F[Iterant[F, A]],
     close: ExitCase[Throwable] => F[Unit]
   ) extends Iterant[F, A] {
     private[tail] def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]) =
-      copy(rest = F.map(rest)(f))
+      copy(use = F.map(use)(f))
+
     private[tail] def runFlatMap[B](f: Iterant[F, A] => F[Iterant[F, B]])(implicit F: Sync[F]): F[Iterant[F, B]] =
-      F.pure(copy(rest = F.flatMap(rest)(f)))
+      F.pure(copy(use = F.flatMap(use)(f)))
 
     private[tail] def runFold[B](f: Iterant[F, A] => F[B])(implicit F: Sync[F]): F[B] =
-      F.bracketCase(open)(_ => F.flatMap(rest)(f))((_, exitCase) => close(exitCase))
+      F.bracketCase(open)(_ => F.flatMap(use)(f))((_, exitCase) => close(exitCase))
   }
 }
 
