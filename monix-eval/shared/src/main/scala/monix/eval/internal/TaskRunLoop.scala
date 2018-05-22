@@ -121,7 +121,7 @@ private[eval] object TaskRunLoop {
             current = next
             if (context ne old) {
               em = context.scheduler.executionModel
-              rcb = TaskRestartCallback(context, cba)
+              if (rcb ne null) rcb.contextSwitch(context)
               if (restore ne null)
                 current = FlatMap(next, new RestoreContext(old, restore))
             }

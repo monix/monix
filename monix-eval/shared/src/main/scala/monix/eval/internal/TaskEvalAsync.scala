@@ -32,8 +32,10 @@ private[eval] object TaskEvalAsync {
       restoreLocals = true)
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is task that forks on evaluation
-  private final class EvalAsyncRegister[A](a: () => A) extends ForkedRegister[A] {
+  // that this is a task that forks on evaluation
+  private final class EvalAsyncRegister[A](a: () => A)
+    extends ForkedRegister[A] {
+
     def apply(ctx: Task.Context, cb: Callback[A]): Unit =
       ctx.scheduler.executeAsync(() => {
         ctx.frameRef.reset()

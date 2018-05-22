@@ -18,199 +18,218 @@
 package monix.eval.internal
 
 import cats.effect.ExitCase
-import cats.effect.ExitCase.{Completed, Error}
-import monix.eval.Task.{Context, ContextSwitch}
+import cats.effect.ExitCase.{Canceled, Completed, Error}
 import monix.eval.{Callback, Task}
-import monix.execution.Cancelable
-import monix.execution.atomic.Atomic
+import monix.eval.Task.{Context, ContextSwitch}
+import monix.execution.{Cancelable, Scheduler}
+import monix.execution.atomic.{Atomic, AtomicBoolean}
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
-import scala.util.control.NonFatal
 
 private[monix] object TaskBracket {
-  /**
-    * Implementation for `Task.bracketE`.
-    */
-  def either[A, B](
-    acquire: Task[A],
-    use: A => Task[B],
-    release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] = {
-
-    Task.Async(
-      new StartE(acquire, use, release),
-      trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = false)
-  }
-
-  private final class StartE[A, B](
-    acquire: Task[A],
-    use: A => Task[B],
-    release: (A, Either[Option[Throwable], B]) => Task[Unit])
-    extends BaseStart(acquire, use) {
-
-    def makeReleaseFrame(ctx: Context, value: A) =
-      new ReleaseFrameE(ctx, value, release)
-  }
+  // -----------------------------------------------------------------
+  // Task.bracketCase
+  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   /**
-    * Implementation for `Task.bracketCase`.
+    * Implementation for `Task#bracket`.
     */
-  def exitCase[A, B](
-    acquire: Task[A],
-    use: A => Task[B],
-    release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] = {
+  def exitCase[A, B](acquire: Task[A], use: A => Task[B], release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
+    Task.Suspend(new CaseStart(acquire, use, release))
 
-    Task.Async(
-      new StartCase(acquire, use, release),
-      trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = false)
-  }
-
-  private final class StartCase[A, B](
+  private final class CaseStart[A, B](
     acquire: Task[A],
     use: A => Task[B],
     release: (A, ExitCase[Throwable]) => Task[Unit])
-    extends BaseStart(acquire, use) {
+    extends BaseStart[A, B](acquire, use) {
 
-    def makeReleaseFrame(ctx: Context, value: A) =
-      new ReleaseFrameCase(ctx, value, release)
+    def makeFrame(isActive: AtomicBoolean, success: A): BaseFrameCase[A, B] =
+      new CaseFrame(isActive, success, release)
+
+    def makeCancelable(isActive: AtomicBoolean, a: A)
+      (implicit s: Scheduler): Cancelable =
+      new CaseCancelable(isActive, a, release)
   }
+
+  private final class CaseFrame[A, B](
+    isActive: AtomicBoolean,
+    resource: A,
+    finalizer: (A, ExitCase[Throwable]) => Task[Unit])
+    extends BaseFrameCase[A, B](isActive) {
+
+    def onSuccess(result: B): Task[Unit] =
+      finalizer(resource, Completed)
+    def onError(error: Throwable): Task[Unit] =
+      finalizer(resource, Error(error))
+  }
+
+  private final class CaseCancelable[A](
+    isActive: AtomicBoolean,
+    value: A,
+    finalizer: (A, ExitCase[Throwable]) => Task[Unit])
+    (implicit s: Scheduler)
+    extends Cancelable {
+
+    def cancel(): Unit = {
+      // Race condition with FrameCase described above
+      if (isActive.getAndSet(false))
+        finalizer(value, exitCaseCanceled).runAsync(Callback.empty)
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // Task.bracketCase
+  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+  /**
+    * Implementation for `Task#bracketE`.
+    */
+  def either[A, B](acquire: Task[A], use: A => Task[B], release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] =
+    Task.Suspend(new EitherStart(acquire, use, release))
+
+  private final class EitherStart[A, B](
+    acquire: Task[A],
+    use: A => Task[B],
+    release: (A, Either[Option[Throwable], B]) => Task[Unit])
+    extends BaseStart[A, B](acquire, use) {
+
+    def makeFrame(isActive: AtomicBoolean, success: A): BaseFrameCase[A, B] =
+      new EitherFrame(isActive, success, release)
+
+    def makeCancelable(isActive: AtomicBoolean, a: A)
+      (implicit s: Scheduler): Cancelable =
+      new EitherCancelable(isActive, a, release)
+  }
+
+  private final class EitherFrame[A, B](
+    isActive: AtomicBoolean,
+    resource: A,
+    finalizer: (A, Either[Option[Throwable], B]) => Task[Unit])
+    extends BaseFrameCase[A, B](isActive) {
+
+    def onSuccess(result: B): Task[Unit] =
+      finalizer(resource, Right(result))
+    def onError(error: Throwable): Task[Unit] =
+      finalizer(resource, Left(Some(error)))
+  }
+
+  private final class EitherCancelable[A, B](
+    isActive: AtomicBoolean,
+    value: A,
+    finalizer: (A, Either[Option[Throwable], B]) => Task[Unit])
+    (implicit s: Scheduler)
+    extends Cancelable {
+
+    def cancel(): Unit = {
+      // Race condition with FrameCase described above
+      if (isActive.getAndSet(false))
+        finalizer(value, eitherCanceled).runAsync(Callback.empty)
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // Base implementation
+  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   private abstract class BaseStart[A, B](
     acquire: Task[A],
     use: A => Task[B])
-    extends ((Context, Callback[B]) => Unit) {
+    extends Function0[Task[B]] {
 
-    protected def makeReleaseFrame(ctx: Context, value: A): BaseReleaseFrame[A, B]
+    protected def makeFrame(isActive: AtomicBoolean, a: A): BaseFrameCase[A, B]
 
-    final def apply(ctx: Context, cb: Callback[B]): Unit = {
-      // Async boundary needed, but it is guaranteed via Task.Async below;
-      Task.unsafeStartNow(acquire, ctx.withConnection(StackedCancelable.uncancelable),
-        new Callback[A] {
-          def onSuccess(value: A): Unit = {
-            implicit val sc = ctx.scheduler
-            val conn = ctx.connection
+    protected def makeCancelable(isActive: AtomicBoolean, a: A)
+      (implicit s: Scheduler): Cancelable
 
-            val releaseFrame = makeReleaseFrame(ctx, value)
-            val onNext = {
-              val fb = try use(value) catch { case NonFatal(e) => Task.raiseError(e) }
-              fb.flatMap(releaseFrame)
-            }
+    final def apply(): Task[B] = {
+      // Value used to synchronize between `flatMap` and `cancel`, ensuring
+      // idempotency in evaluating `release`
+      val isActive = Atomic(true)
 
-            conn.push(releaseFrame)
-            Task.unsafeStartNow(onNext, ctx, cb)
+      // Makes `acquire` execute in `uncancelable` mode, but then `uncancelable`
+      // is turned off right before evaluating `use`
+      val acquireTask = ContextSwitch(
+        acquire,
+        withConnectionUncancelable,
+        // Temporary release
+        (success: A, error: Throwable, oldCtx, currentCtx) => {
+          if (error ne null)
+            currentCtx.withConnection(oldCtx.connection)
+          else {
+            // Restoring old connection, but also push new cancelable immediately;
+            // this will ensure a lean transition between `acquire` and `use`
+            val ctx = currentCtx.withConnection(oldCtx.connection)
+            ctx.connection.push(makeCancelable(isActive, success)(ctx.scheduler))
+            ctx
           }
-
-          def onError(ex: Throwable): Unit =
-            cb.onError(ex)
         })
-    }
-  }
 
-  private final class ReleaseFrameE[A, B](
-    ctx: Context,
-    a: A,
-    release: (A, Either[Option[Throwable], B]) => Task[Unit])
-    extends BaseReleaseFrame[A, B](ctx, a) {
-
-    def releaseOnSuccess(a: A, b: B): Task[Unit] =
-      release(a, Right(b))
-    def releaseOnError(a: A, e: Throwable): Task[Unit] =
-      release(a, Left(Some(e)))
-    def releaseOnCancel(a: A): Task[Unit] =
-      release(a, leftNone)
-  }
-
-  private final class ReleaseFrameCase[A, B](
-    ctx: Context,
-    a: A,
-    release: (A, ExitCase[Throwable]) => Task[Unit])
-    extends BaseReleaseFrame[A, B](ctx, a) {
-
-    def releaseOnSuccess(a: A, b: B): Task[Unit] =
-      release(a, Completed)
-    def releaseOnError(a: A, e: Throwable): Task[Unit] =
-      release(a, Error(e))
-    def releaseOnCancel(a: A): Task[Unit] =
-      release(a, canceled)
-  }
-
-
-  private abstract class BaseReleaseFrame[A, B](ctx: Context, a: A)
-    extends StackFrame[B, Task[B]] with Cancelable {
-
-    private[this] val waitsForResult = Atomic(true)
-
-    protected def releaseOnSuccess(a: A, b: B): Task[Unit]
-    protected def releaseOnError(a: A, e: Throwable): Task[Unit]
-    protected def releaseOnCancel(a: A): Task[Unit]
-
-    private final def applyEffect(b: B): Task[B] = {
-      if (waitsForResult.compareAndSet(expect = true, update = false)) {
-        ctx.connection.pop()
-        releaseOnSuccess(a, b).map(_ => b)
-      } else {
-        Task.never
+      // Shouldn't be a problem if this `flatMap` gets interrupted, because
+      // we've already registered the cancelable in `acquireTask` above
+      acquireTask.flatMap { a =>
+        // FrameCase is in charge of `release`, if not canceled
+        use(a).flatMap(makeFrame(isActive, a))
       }
     }
-
-    final def apply(b: B): Task[B] = {
-      val task =
-        if (ctx.options.autoCancelableRunLoops)
-          Task.suspend(applyEffect(b))
-        else
-          applyEffect(b)
-
-      ContextSwitch(task, withConnectionUncancelable, null)
-    }
-
-    private final def recoverEffect(e: Throwable): Task[B] = {
-      if (waitsForResult.compareAndSet(expect = true, update = false)) {
-        ctx.connection.pop()
-        releaseOnError(a, e).flatMap(new ReleaseRecover(e))
-      } else {
-        Task.never
-      }
-    }
-
-    final def recover(e: Throwable): Task[B] = {
-      val task =
-        if (ctx.options.autoCancelableRunLoops)
-          Task.suspend(recoverEffect(e))
-        else
-          recoverEffect(e)
-
-      ContextSwitch(task, withConnectionUncancelable, null)
-    }
-
-    final def cancel(): Unit =
-      if (waitsForResult.compareAndSet(expect = true, update = false)) {
-        implicit val ec = ctx.scheduler
-        try {
-          val task = releaseOnCancel(a)
-          task.runAsync(Callback.empty)
-        } catch {
-          case NonFatal(e) =>
-            ec.reportFailure(e)
-        }
-      }
   }
 
-  private final class ReleaseRecover(e: Throwable)
-    extends StackFrame[Unit, Task[Nothing]] {
+  private abstract class BaseFrameCase[A, B](isActive: AtomicBoolean)
+    extends StackFrame[B, Task[B]] {
 
-    def apply(a: Unit): Task[Nothing] =
-      Task.raiseError(e)
+    protected def onSuccess(result: B): Task[Unit]
+    protected def onError(error: Throwable): Task[Unit]
 
-    def recover(e2: Throwable): Task[Nothing] =
-      Task.raiseError(Platform.composeErrors(e, e2))
+    private final def protect(task: Task[B]): Task[B] =
+      Task.suspend {
+        // Finalizer is made uncancelable; this means that by the time this
+        // `isActive` is set to `false`, the connection is in uncancelable mode
+        // already, which means that it is safe to execute
+        if (isActive.getAndSet(false)) task
+        else Task.never
+      }
+
+    final def apply(b: B): Task[B] =
+      ContextSwitch(
+        protect(onSuccess(b).map(_ => b)),
+        // Gets rid of `ReleaseCancelable`, but enters uncancelable mode
+        withConnectionPopThenUncancelable,
+        // Finally restores connection to the initial one
+        restoreConnection)
+
+    final def recover(e: Throwable): Task[B] =
+      ContextSwitch(
+        protect(onError(e).flatMap(new ReleaseFrameError(e))),
+        // Gets rid of `ReleaseCancelable`, but enters uncancelable mode
+        withConnectionPopThenUncancelable,
+        // Finally restores connection to the initial one
+        restoreConnection)
   }
 
-  private val leftNone = Left(None)
-  private val canceled = ExitCase.canceled[Throwable]
+  private final class ReleaseFrameError[B](error: Throwable)
+    extends StackFrame[Unit, Task[B]] {
+
+    def apply(unit: Unit): Task[B] =
+      Task.Error(error)
+
+    def recover(e: Throwable): Task[B] =
+      Task.Error(Platform.composeErrors(error, e))
+  }
+
+  private[this] val exitCaseCanceled: ExitCase[Throwable] =
+    Canceled(None)
+
+  private[this] val eitherCanceled =
+    Left(None)
 
   private[this] val withConnectionUncancelable: Context => Context =
     _.withConnection(StackedCancelable.uncancelable)
+
+  private[this] val withConnectionPopThenUncancelable: Context => Context =
+    ct => {
+      ct.connection.pop()
+      ct.withConnection(StackedCancelable.uncancelable)
+    }
+
+  private[this] val restoreConnection: (Any, Throwable, Context, Context) => Context =
+    (_, _, old, current) => current.withConnection(old.connection)
 }
