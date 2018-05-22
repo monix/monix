@@ -353,7 +353,8 @@ def mimaSettings(projectName: String) = Seq(
     exclude[MissingClassProblem]("monix.eval.internal.TaskEffect$CreateCallback"),
     exclude[IncompatibleResultTypeProblem]("monix.execution.internal.collection.ArrayStack.clone"),
     exclude[MissingTypesProblem]("monix.execution.internal.collection.ArrayStack"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation#RaiseCancelable.this")
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation#RaiseCancelable.this"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover")
   )
 )
 
