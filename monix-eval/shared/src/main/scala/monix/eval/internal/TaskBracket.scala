@@ -26,6 +26,8 @@ import monix.execution.atomic.{Atomic, AtomicBoolean}
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 
+import scala.util.control.NonFatal
+
 private[monix] object TaskBracket {
   // -----------------------------------------------------------------
   // Task.bracketCase
@@ -168,7 +170,8 @@ private[monix] object TaskBracket {
       // we've already registered the cancelable in `acquireTask` above
       acquireTask.flatMap { a =>
         // FrameCase is in charge of `release`, if not canceled
-        use(a).flatMap(makeFrame(isActive, a))
+        val useTask = try use(a) catch { case e if NonFatal(e) => Task.raiseError(e) }
+        useTask.flatMap(makeFrame(isActive, a))
       }
     }
   }
