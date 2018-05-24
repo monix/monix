@@ -246,7 +246,7 @@ lazy val requiredMacroDeps = Seq(
 lazy val unidocSettings = Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, evalJVM, tailJVM, reactiveJVM),
+    inProjects(executionJVM, evalJVM, reactiveJVM),
 
   // Exclude monix.*.internal from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
@@ -374,16 +374,16 @@ lazy val monix = project.in(file("."))
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
-  .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .dependsOn(executionJVM, evalJVM, reactiveJVM, javaJVM)
+  .aggregate(executionJVM, evalJVM, reactiveJVM, javaJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, evalJS, tailJS, reactiveJS)
-  .aggregate(executionJS, evalJS, tailJS, reactiveJS)
+  .dependsOn(executionJS, evalJS, reactiveJS)
+  .aggregate(executionJS, evalJS, reactiveJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -429,25 +429,6 @@ lazy val evalJS = project.in(file("monix-eval/js"))
   .dependsOn(executionJS % "compile->compile; test->test")
   .settings(scalaJSSettings)
   .settings(evalCommon)
-
-lazy val tailCommon =
-  crossSettings ++ testSettings ++ Seq(
-    name := "monix-tail"
-  )
-
-lazy val tailJVM = project.in(file("monix-tail/jvm"))
-  .configure(profile)
-  .dependsOn(evalJVM % "compile->compile; test->test")
-  .dependsOn(executionJVM)
-  .settings(tailCommon)
-
-lazy val tailJS = project.in(file("monix-tail/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .configure(profile)
-  .dependsOn(evalJS % "compile->compile; test->test")
-  .dependsOn(executionJS)
-  .settings(scalaJSSettings)
-  .settings(tailCommon)
 
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
