@@ -17,13 +17,13 @@
 
 package monix.tail.internal
 
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.Iterant
 import cats.syntax.all._
 import cats.effect.Sync
+
 import scala.util.control.NonFatal
 import monix.tail.batches.BatchCursor
-import monix.tail.internal.IterantUtils._
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -35,7 +35,7 @@ private[tail] object IterantTakeEveryNth {
     require(n > 0, "n must be strictly positive")
 
     def processSeq(index: Int, ref: NextCursor[F, A]): NextCursor[F, A] = {
-      val NextCursor(cursor, rest, stop) = ref
+      val NextCursor(cursor, rest) = ref
       val buffer = ArrayBuffer.empty[A]
 
       var idx = index
@@ -56,38 +56,39 @@ private[tail] object IterantTakeEveryNth {
       val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
       NextCursor(
         BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]],
-        next.map(loop(idx)),
-        stop)
+        next.map(loop(idx)))
     }
 
 
     def loop(index: Int)(source: Iterant[F,A]): Iterant[F,A] = {
       try source match {
-        case Next(item, rest, stop) =>
-          if (index == 1) Next(item, rest.map(loop(n)), stop)
-          else Suspend(rest.map(loop(index - 1)), stop)
-        case ref@NextCursor(_, _, _) =>
+        case s @ Scope(_, _, _) =>
+          s.runMap(loop(index))
+        case Next(item, rest) =>
+          if (index == 1) Next(item, rest.map(loop(n)))
+          else Suspend(rest.map(loop(index - 1)))
+        case ref@NextCursor(_, _) =>
           processSeq(index, ref)
-        case NextBatch(batch, rest, stop) =>
-          processSeq(index, NextCursor(batch.cursor(), rest, stop))
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(index)), stop)
+        case NextBatch(batch, rest) =>
+          processSeq(index, NextCursor(batch.cursor(), rest))
+        case Suspend(rest) =>
+          Suspend(rest.map(loop(index)))
         case last @ Last(_) =>
           if (index == 1) last else Iterant.empty
         case halt @ Halt(_) =>
           halt
       }
       catch {
-        case ex if NonFatal(ex) => signalError(source, ex)
+        case ex if NonFatal(ex) => Iterant.raiseError(ex)
       }
     }
 
     if (n == 1) source
     else source match {
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
+      case NextBatch(_, _) | NextCursor(_, _) =>
         // We can have side-effects with NextBatch/NextCursor
         // processing, so suspending execution in this case
-        Suspend(F.delay(loop(n)(source)), source.earlyStop)
+        Suspend(F.delay(loop(n)(source)))
       case _ =>
         loop(n)(source)
     }

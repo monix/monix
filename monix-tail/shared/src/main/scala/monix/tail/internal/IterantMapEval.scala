@@ -23,7 +23,6 @@ import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.batches.BatchCursor
-import monix.tail.internal.IterantUtils._
 
 private[tail] object IterantMapEval {
   /**
@@ -32,49 +31,51 @@ private[tail] object IterantMapEval {
   def apply[F[_], A, B](source: Iterant[F, A], ff: A => F[B])
     (implicit F: Sync[F]): Iterant[F, B] = {
 
-    def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+    def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
       if (!cursor.hasNext) {
-        Suspend[F, B](rest.map(loop), stop)
+        Suspend[F, B](rest.map(loop))
       } else {
         val head = cursor.next()
         val fb = try ff(head) catch { case NonFatal(e) => F.raiseError[B](e) }
         // If the iterator is empty, then we can skip a beat
         val tail = if (cursor.hasNext()) F.pure(ref: Iterant[F, A]) else rest
-        val suspended = fb.map(h => nextS(h, tail.map(loop), stop))
-        Suspend[F, B](suspended, stop)
+        val suspended = fb.map(h => nextS(h, tail.map(loop)))
+        Suspend[F, B](suspended)
       }
     }
 
     def loop(source: Iterant[F, A]): Iterant[F, B] =
       try source match {
-        case Next(head, tail, stop) =>
-          val rest = ff(head).map(h => nextS(h, tail.map(loop), stop))
-          Suspend(rest, stop)
-        case ref @ NextCursor(cursor, rest, stop) =>
-          evalNextCursor(ref, cursor, rest, stop)
-        case NextBatch(gen, rest, stop) =>
+        case s @ Scope(_, _, _) =>
+          s.runMap(loop)
+        case Next(head, tail) =>
+          val rest = ff(head).map(h => nextS(h, tail.map(loop)))
+          Suspend(rest)
+        case ref @ NextCursor(cursor, rest) =>
+          evalNextCursor(ref, cursor, rest)
+        case NextBatch(gen, rest) =>
           val cursor = gen.cursor()
-          val ref = NextCursor(cursor, rest, stop)
-          evalNextCursor(ref, cursor, rest, stop)
-        case Suspend(rest, stop) =>
-          Suspend[F,B](rest.map(loop), stop)
+          val ref = NextCursor(cursor, rest)
+          evalNextCursor(ref, cursor, rest)
+        case Suspend(rest) =>
+          Suspend[F,B](rest.map(loop))
         case Last(item) =>
-          Suspend(ff(item).map(h => lastS[F,B](h)), F.unit)
+          Suspend(ff(item).map(h => lastS[F,B](h)))
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]
       } catch {
         case ex if NonFatal(ex) =>
-          signalError(source, ex)
+          Iterant.raiseError(ex)
       }
 
     source match {
-      case Suspend(_, _) | Halt(_) => loop(source)
+      case Scope(_, _, _) | Suspend(_) | Halt(_) => loop(source)
       case _ =>
         // Suspending execution in order to preserve laziness and
         // referential transparency, since the provided function can
         // be side effecting and because processing NextBatch and
         // NextCursor states can have side effects
-        Suspend(F.delay(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)))
     }
   }
 }

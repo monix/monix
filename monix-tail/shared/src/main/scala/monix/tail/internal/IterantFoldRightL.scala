@@ -19,44 +19,43 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import scala.util.control.NonFatal
+
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
 
 private[tail] object IterantFoldRightL {
   /** Implementation for `Iterant.foldRightL`. */
-  def apply[F[_], A, B](self: Iterant[F, A], b: F[B], f: (A, F[B], F[Unit]) => F[B])
+  def apply[F[_], A, B](self: Iterant[F, A], b: F[B], f: (A, F[B]) => F[B])
     (implicit F: Sync[F]): F[B] = {
 
     def loop(self: Iterant[F, A]): F[B] = {
-      try self match {
-        case Next(a, rest, stop) =>
-          f(a, rest.flatMap(loop), stop)
+      self match {
+        case b @ Scope(_, _, _) =>
+          b.runFold(loop)
 
-        case NextCursor(ref, rest, stop) =>
+        case Next(a, rest) =>
+          f(a, rest.flatMap(loop))
+
+        case NextCursor(ref, rest) =>
           if (!ref.hasNext())
             rest.flatMap(loop)
           else
-            f(ref.next(), F.suspend(loop(self)), stop)
+            f(ref.next(), F.suspend(loop(self)))
 
-        case NextBatch(ref, rest, stop) =>
-          loop(NextCursor(ref.cursor(), rest, stop))
+        case NextBatch(ref, rest) =>
+          loop(NextCursor(ref.cursor(), rest))
 
-        case Suspend(rest, _) =>
+        case Suspend(rest) =>
           rest.flatMap(loop)
 
         case Last(a) =>
-          f(a, b, F.unit)
+          f(a, b)
 
         case Halt(opt) =>
           opt match {
             case None => b
             case Some(e) => F.raiseError(e)
           }
-
-      } catch {
-        case e if NonFatal(e) =>
-          self.earlyStop.flatMap(_ => F.raiseError(e))
       }
     }
 

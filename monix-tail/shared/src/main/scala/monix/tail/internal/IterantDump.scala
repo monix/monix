@@ -18,13 +18,12 @@
 package monix.tail.internal
 
 import java.io.PrintStream
-
 import cats.effect.Sync
 import cats.syntax.all._
 import scala.util.control.NonFatal
+
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.internal.IterantUtils.signalError
+import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
 
 private[tail] object IterantDump {
   /**
@@ -44,31 +43,34 @@ private[tail] object IterantDump {
 
     def loop(pos: Long)(source: Iterant[F, A]): Iterant[F, A] =
       try source match {
-        case Next(item, rest, stop) =>
-          out.println(s"$pos: $prefix --> next --> $item")
-          Next[F, A](item, moveNext(pos + 1, rest), stop)
+        case b @ Scope(_, _, _) =>
+          b.runMap(loop(pos))
 
-        case NextCursor(cursor, rest, stop) =>
+        case Next(item, rest) =>
+          out.println(s"$pos: $prefix --> next --> $item")
+          Next[F, A](item, moveNext(pos + 1, rest))
+
+        case NextCursor(cursor, rest) =>
           var cursorPos = pos
           val dumped = cursor.map { el =>
             out.println(s"$cursorPos: $prefix --> next-cursor --> $el")
             cursorPos += 1
             el
           }
-          NextCursor[F, A](dumped, moveNext(cursorPos, rest), stop)
+          NextCursor[F, A](dumped, moveNext(cursorPos, rest))
 
-        case NextBatch(batch, rest, stop) =>
+        case NextBatch(batch, rest) =>
           var batchPos = pos
           val dumped = batch.map { el =>
             out.println(s"$batchPos: $prefix --> next-batch --> $el")
             batchPos += 1
             el
           }
-          NextBatch[F, A](dumped, moveNext(batchPos, rest), stop)
+          NextBatch[F, A](dumped, moveNext(batchPos, rest))
 
-        case Suspend(rest, stop) =>
+        case Suspend(rest) =>
           out.println(s"$pos: $prefix --> suspend")
-          Suspend[F, A](moveNext(pos + 1, rest), stop)
+          Suspend[F, A](moveNext(pos + 1, rest))
 
         case Last(item) =>
           out.println(s"$pos: $prefix --> last --> $item")
@@ -81,9 +83,9 @@ private[tail] object IterantDump {
       } catch {
         case ex if NonFatal(ex) =>
           out.println(s"$pos: $prefix --> unexpected error --> $ex")
-          signalError(source, ex)
+          Iterant.raiseError(ex)
       }
 
-    Suspend(F.delay(loop(0)(source)), source.earlyStop)
+    Suspend(F.delay(loop(0)(source)))
   }
 }

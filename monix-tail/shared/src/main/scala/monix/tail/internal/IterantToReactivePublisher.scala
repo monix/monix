@@ -27,9 +27,10 @@ import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.internal.Platform
+
 import scala.util.control.NonFatal
 import monix.execution.rstreams.Subscription
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import org.reactivestreams.{Publisher, Subscriber}
 
 private[tail] object IterantToReactivePublisher {
@@ -71,7 +72,7 @@ private[tail] object IterantToReactivePublisher {
     // or until we hit the end of the stream.
     private def reduceToNext(out: Subscriber[_ >: A])(self: Iterant[F, A]): F[Iterant[F, A]] =
       self match {
-        case Suspend(rest, _) =>
+        case Suspend(rest) =>
           rest.flatMap(reduceToNext(out))
 
         case Halt(opt) =>
@@ -152,7 +153,7 @@ private[tail] object IterantToReactivePublisher {
       }
     }
 
-    private def goNext(rest: F[Iterant[F, A]], stop: F[Unit], requested: Long, processed: Int): F[Unit] = {
+    private def goNext(rest: F[Iterant[F, A]], requested: Long, processed: Int): F[Unit] = {
       // Fast-path, avoids doing any volatile operations
       val isInfinite = requested == Long.MaxValue
       if (isInfinite || processed < requested) {
@@ -178,7 +179,7 @@ private[tail] object IterantToReactivePublisher {
       * Invariant: requested > processed!
       */
     private def processCursor(source: NextCursor[F, A], requested: Long, processed: Int): F[Unit] = {
-      val NextCursor(ref, rest, stop) = source
+      val NextCursor(ref, rest) = source
       val toTake = math.min(ref.recommendedBatchSize, requested - processed).toInt
       val modulus = math.min(ec.executionModel.batchedExecutionModulus, Platform.recommendedBatchSize - 1)
       var isActive = true
@@ -195,7 +196,7 @@ private[tail] object IterantToReactivePublisher {
       }
 
       val next = if (ref.hasNext()) F.pure(source : Iterant[F, A]) else rest
-      goNext(next, stop, requested, processed + i)
+      goNext(next, requested, processed + i)
     }
 
     /** Run-loop.
@@ -217,18 +218,21 @@ private[tail] object IterantToReactivePublisher {
         // the protocol.
         var streamErrors = true
         try source match {
-          case Next(a, rest, stop) =>
-            out.onNext(a)
-            goNext(rest, stop, requested, processed + 1)
+          case s @ Scope(_, _, _) =>
+            s.runFold(loop(requested, processed))
 
-          case ref @ NextCursor(_, _, _) =>
+          case Next(a, rest) =>
+            out.onNext(a)
+            goNext(rest, requested, processed + 1)
+
+          case ref @ NextCursor(_, _) =>
             processCursor(ref, requested, processed)
 
-          case NextBatch(ref, rest, stop) =>
-            processCursor(NextCursor(ref.cursor(), rest, stop), requested, processed)
+          case NextBatch(ref, rest) =>
+            processCursor(NextCursor(ref.cursor(), rest), requested, processed)
 
-          case Suspend(rest, stop) =>
-            goNext(rest, stop, requested, processed)
+          case Suspend(rest) =>
+            goNext(rest, requested, processed)
 
           case Last(a) =>
             out.onNext(a)
@@ -245,7 +249,7 @@ private[tail] object IterantToReactivePublisher {
             F.unit
         } catch {
           case e if NonFatal(e) =>
-            source.earlyStop.map { _ =>
+            F.delay {
               if (streamErrors) out.onError(e)
               else ec.reportFailure(e)
             }
@@ -254,12 +258,11 @@ private[tail] object IterantToReactivePublisher {
         // Subscription was cancelled, triggering early stop
         cursor = F.pure(Halt(cancelSignal))
         this.requested.set(0)
-        val next = source.earlyStop
 
         cancelSignal match {
-          case None => next
+          case None => F.unit
           case Some(e) =>
-            next.map(_ => out.onError(e))
+            F.delay(out.onError(e))
         }
       }
     }

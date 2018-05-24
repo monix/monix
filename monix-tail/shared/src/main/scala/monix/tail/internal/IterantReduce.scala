@@ -20,40 +20,36 @@ package internal
 
 import cats.syntax.all._
 import cats.effect.Sync
-import scala.util.control.NonFatal
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 
-import scala.runtime.ObjectRef
+import scala.util.control.NonFatal
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+
 
 private[tail] object IterantReduce {
   /** Implementation for `Iterant.reduce`. */
   def apply[F[_], A](self: Iterant[F, A], op: (A, A) => A)
     (implicit F: Sync[F]): F[Option[A]] = {
 
-    def loop(stopRef: ObjectRef[F[Unit]], state: A)(self: Iterant[F, A]): F[A] = {
+    def loop(state: A)(self: Iterant[F, A]): F[A] = {
       try self match {
-        case Next(a, rest, stop) =>
-          stopRef.elem = stop
+        case s @ Scope(_, _, _) =>
+          s.runFold(loop(state))
+        case Next(a, rest) =>
           val newState = op(state, a)
-          rest.flatMap(loop(stopRef, newState))
-        case NextCursor(cursor, rest, stop) =>
-          stopRef.elem = stop
+          rest.flatMap(loop(newState))
+        case NextCursor(cursor, rest) =>
           val newState = cursor.foldLeft(state)(op)
-          rest.flatMap(loop(stopRef, newState))
-        case NextBatch(gen, rest, stop) =>
-          stopRef.elem = stop
+          rest.flatMap(loop(newState))
+        case NextBatch(gen, rest) =>
           val newState = gen.foldLeft(state)(op)
-          rest.flatMap(loop(stopRef, newState))
-        case Suspend(rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(loop(stopRef, state))
+          rest.flatMap(loop(newState))
+        case Suspend(rest) =>
+          rest.flatMap(loop(state))
         case Last(item) =>
-          stopRef.elem = null.asInstanceOf[F[Unit]]
           F.pure(op(state, item))
         case Halt(None) =>
           F.pure(state)
         case Halt(Some(e)) =>
-          stopRef.elem = null.asInstanceOf[F[Unit]]
           F.raiseError(e)
       } catch {
         case e if NonFatal(e) =>
@@ -61,31 +57,28 @@ private[tail] object IterantReduce {
       }
     }
 
-    def start(stopRef: ObjectRef[F[Unit]])(self: Iterant[F, A]): F[Option[A]] = {
+    def start(self: Iterant[F, A]): F[Option[A]] = {
       try self match {
-        case Next(a, rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(loop(stopRef, a)).map(Some.apply)
+        case s @ Scope(_, _, _) =>
+          s.runFold(start)
+        case Next(a, rest) =>
+          rest.flatMap(loop(a)).map(Some.apply)
 
-        case NextCursor(cursor, rest, stop) =>
-          stopRef.elem = stop
+        case NextCursor(cursor, rest) =>
           if (!cursor.hasNext())
-            rest.flatMap(start(stopRef))
+            rest.flatMap(start)
           else {
             val a = cursor.next()
-            loop(stopRef, a)(self).map(Some.apply)
+            loop(a)(self).map(Some.apply)
           }
 
-        case NextBatch(batch, rest, stop) =>
-          stopRef.elem = stop
-          start(stopRef)(NextCursor(batch.cursor(), rest, stop))
+        case NextBatch(batch, rest) =>
+          start(NextCursor(batch.cursor(), rest))
 
-        case Suspend(rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(start(stopRef))
+        case Suspend(rest) =>
+          rest.flatMap(start)
 
         case Last(a) =>
-          stopRef.elem = null.asInstanceOf[F[Unit]]
           F.pure(Some(a))
 
         case Halt(opt) =>
@@ -93,7 +86,6 @@ private[tail] object IterantReduce {
             case None =>
               F.pure(None)
             case Some(e) =>
-              stopRef.elem = null.asInstanceOf[F[Unit]]
               F.raiseError(e)
           }
       } catch {
@@ -102,16 +94,6 @@ private[tail] object IterantReduce {
       }
     }
 
-    F.suspend{
-      // Reference to keep track of latest `earlyStop` value
-      val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
-      // Catch-all exceptions, ensuring latest `earlyStop` gets called
-      F.handleErrorWith(start(stopRef)(self)){ ex =>
-        stopRef.elem match {
-          case null => F.raiseError(ex)
-          case stop => stop *> F.raiseError(ex)
-        }
-      }
-    }
+    F.suspend { start(self) }
   }
 }
