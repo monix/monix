@@ -17,12 +17,11 @@
 
 package monix.tail.internal
 
-import cats.effect.{ExitCase, Sync}
+import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
-
 import scala.util.control.NonFatal
 
 private[tail] object IterantConcat {
@@ -53,14 +52,15 @@ private[tail] object IterantConcat {
 
     def generate(item: A, rest: F[Iterant[F, B]]): Iterant[F, B] =
       f(item) match {
-        case next @ (Scope(_, _, _) | Next(_,_) | NextCursor(_,_) | NextBatch(_,_) | Suspend(_)) =>
-          concat(next, Suspend(rest))
         case Last(value) =>
           Next(value, rest)
-        case Halt(None) =>
-          Suspend(rest)
-        case i @ Halt(Some(_)) =>
-          i.asInstanceOf[Iterant[F, B]]
+        case h @ Halt(e) =>
+          e match {
+            case None => Suspend(rest)
+            case _ => h.asInstanceOf[Iterant[F, B]]
+          }
+        case next =>
+          concat(next, rest)
       }
 
     def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
@@ -79,9 +79,6 @@ private[tail] object IterantConcat {
     }
 
     try source match {
-      case s @ Scope(_, _, _) =>
-        s.runMap(unsafeFlatMap(_)(f))
-
       case Next(item, rest) =>
         generate(item, rest.map(unsafeFlatMap(_)(f)))
 
@@ -101,40 +98,42 @@ private[tail] object IterantConcat {
 
       case empty @ Halt(_) =>
         empty.asInstanceOf[Iterant[F, B]]
+
+      case Scope(open, use, close) =>
+        Scope(open, use.map(unsafeFlatMap(_)(f)), close)
+
+      case Concat(lh, rh) =>
+        Concat(lh.map(unsafeFlatMap(_)(f)), rh.map(unsafeFlatMap(_)(f)))
+
     } catch {
       case ex if NonFatal(ex) =>
         Iterant.raiseError(ex)
     }
   }
 
-  def concat[F[_], A](lhs: Iterant[F, A], rhs: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
-    concat(lhs, rhs, _ => F.unit)
-
-  // TODO: Check stack-safety of stack concats
   /**
     * Implementation for `Iterant#++`
     */
-  def concat[F[_], A](lhs: Iterant[F, A], rhs: Iterant[F, A], close: ExitCase[Throwable] => F[Unit])
+  def concat[F[_], A](lhs: Iterant[F, A], rhs: F[Iterant[F, A]])
     (implicit F: Sync[F]): Iterant[F, A] = {
 
     lhs match {
-      case s @ Scope(_, _, newClose) =>
-        s.runMap(concat(_, rhs, ec => close(ec) >> newClose(ec)))
-
       case Next(a, lt) =>
-        Next(a, lt.map(concat(_, rhs, close)))
+        Next(a, lt.map(concat(_, rhs)))
       case NextCursor(seq, lt) =>
-        NextCursor(seq, lt.map(concat(_, rhs, close)))
+        NextCursor(seq, lt.map(concat(_, rhs)))
       case NextBatch(gen, rest) =>
-        NextBatch(gen, rest.map(concat(_, rhs, close)))
+        NextBatch(gen, rest.map(concat(_, rhs)))
       case Suspend(lt) =>
-        Suspend(lt.map(concat(_, rhs, close)))
+        Suspend(lt.map(concat(_, rhs)))
       case Last(item) =>
-        Suspend(close(ExitCase.complete).as(Iterant.nextS(item, F.pure(rhs))))
+        Next(item, rhs)
       case Halt(None) =>
-        Suspend(close(ExitCase.complete).as(rhs))
-      case error @ Halt(Some(ex)) =>
-        Suspend(close(ExitCase.error(ex)).as(error))
+        Suspend(rhs)
+      case error @ Halt(Some(_)) =>
+        error
+      case _ =>
+        Concat(F.pure(lhs), rhs)
     }
   }
 

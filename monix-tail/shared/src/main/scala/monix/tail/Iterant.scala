@@ -148,7 +148,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param rhs is the iterant to append at the end of our source.
     */
   final def ++[B >: A](rhs: F[Iterant[F, B]])(implicit F: Sync[F]): Iterant[F, B] =
-    IterantConcat.concat(self.upcast[B], Suspend(rhs))
+    IterantConcat.concat(self.upcast[B], rhs)
 
   /** Prepends an element to the iterant, returning a new
     * iterant that will start with the given `head` and then
@@ -175,7 +175,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param elem is the element to append at the end
     */
   final def :+[B >: A](elem: B)(implicit F: Sync[F]): Iterant[F, B] =
-    IterantConcat.concat(this.upcast[B], Next[F, B](elem, F.pure(Halt[F, B](None))))(F)
+    IterantConcat.concat(this.upcast[B], F.pure(Iterant.lastS(elem)))(F)
 
   /** Appends the given stream to the end of the source, effectively
     * concatenating them.
@@ -189,7 +189,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        the end of this iterant.
     */
   final def ++[B >: A](rhs: => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
-    IterantConcat.concat(this.upcast[B], Iterant.suspend(rhs)(F))(F)
+    IterantConcat.concat(this.upcast[B], F.delay(rhs))(F)
 
   /** Explicit covariance operator.
     *
@@ -2442,9 +2442,8 @@ object Iterant extends IterantInstances {
 
   /** Concatenates list of Iterants into a single stream
     */
-  def concat[F[_], A](xs: Iterant[F, A]*)(implicit F: Sync[F]): Iterant[F, A] = {
-    xs.foldLeft(Iterant.empty[F, A])(IterantConcat.concat(_, _)(F))
-  }
+  def concat[F[_], A](xs: Iterant[F, A]*)(implicit F: Sync[F]): Iterant[F, A] =
+    xs.foldLeft(Iterant.empty[F, A])((acc, e) => IterantConcat.concat(acc, F.pure(e))(F))
 
   /** $NextDesc
     *
@@ -2507,6 +2506,9 @@ object Iterant extends IterantInstances {
     private[tail] def runFold[B](f: Iterant[F, A] => F[B])(implicit F: Sync[F]): F[B] =
       F.bracketCase(open)(_ => F.flatMap(use)(f))((_, exitCase) => close(exitCase))
   }
+
+  final case class Concat[F[_], A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]])
+    extends Iterant[F, A]
 }
 
 private[tail] trait IterantInstances extends IterantInstances1 {
@@ -2541,8 +2543,6 @@ private[tail] trait IterantInstances1 extends IterantInstances0 {
 
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Iterant[F, A] =
       Iterant.liftF(F.async(k))
-
-
   }
 }
 
@@ -2579,7 +2579,7 @@ private[tail] trait IterantInstances0 {
       Iterant.empty
 
     override def combineK[A](x: Iterant[F, A], y: Iterant[F, A]): Iterant[F, A] =
-      IterantConcat.concat(x, y)(F)
+      IterantConcat.concat(x, F.pure(y))(F)
 
     override def coflatMap[A, B](fa: Iterant[F, A])(f: (Iterant[F, A]) => B): Iterant[F, B] =
       Iterant.pure[F, B](f(fa))

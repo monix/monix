@@ -19,10 +19,9 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 
 private[tail] object IterantCompleteL {
@@ -32,33 +31,39 @@ private[tail] object IterantCompleteL {
   final def apply[F[_], A](source: Iterant[F, A])
     (implicit F: Sync[F]): F[Unit] = {
 
-    def loop(source: Iterant[F, A]): F[Unit] = {
-      try source match {
-        case s @ Scope(_, _, _) =>
-          s.runFold(loop)
-        case Next(_, rest) =>
-          rest.flatMap(loop)
-        case NextCursor(cursor, rest) =>
-          while (cursor.hasNext()) cursor.next()
-          rest.flatMap(loop)
-        case NextBatch(gen, rest) =>
-          val cursor = gen.cursor()
-          while (cursor.hasNext()) cursor.next()
-          rest.flatMap(loop)
-        case Suspend(rest) =>
-          rest.flatMap(loop)
-        case Last(_) =>
-          F.unit
-        case Halt(None) =>
-          F.unit
-        case Halt(Some(ex)) =>
-          F.raiseError(ex)
-      } catch {
-        case ex if NonFatal(ex) =>
-          F.raiseError(ex)
-      }
-    }
-
-    F.suspend { loop(source) }
+    F.suspend(loop[F, A](Nil)(source))
   }
+
+  private def loop[F[_], A](stack: List[F[Iterant[F, A]]])
+    (source: Iterant[F, A])
+    (implicit F: Sync[F]): F[Unit] = {
+
+    try source match {
+      case Next(_, rest) =>
+        rest.flatMap(loop(stack))
+      case NextCursor(cursor, rest) =>
+        while (cursor.hasNext()) cursor.next()
+        rest.flatMap(loop(stack))
+      case NextBatch(gen, rest) =>
+        val cursor = gen.cursor()
+        while (cursor.hasNext()) cursor.next()
+        rest.flatMap(loop(stack))
+      case Suspend(rest) =>
+        rest.flatMap(loop(stack))
+      case Last(_) =>
+        F.unit
+      case Halt(None) =>
+        F.unit
+      case Halt(Some(ex)) =>
+        F.raiseError(ex)
+      case s @ Scope(_, _, _) =>
+        s.runFold(loop(stack))
+      case Concat(lh, rh) =>
+        lh.flatMap(loop(rh :: stack))
+    } catch {
+      case ex if NonFatal(ex) =>
+        F.raiseError(ex)
+    }
+  }
+
 }

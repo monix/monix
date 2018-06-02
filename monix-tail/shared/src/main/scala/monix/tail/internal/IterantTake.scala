@@ -17,7 +17,7 @@
 
 package monix.tail.internal
 
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.Iterant
 import cats.syntax.all._
 import cats.effect.Sync
@@ -34,12 +34,14 @@ private[tail] object IterantTake {
   def apply[F[_], A](source: Iterant[F, A], n: Int)
     (implicit F: Sync[F]): Iterant[F, A] = {
 
-    def nextOrEmpty(rest: F[Iterant[F, A]], n: Int, taken: Int): F[Iterant[F, A]] = {
-      if (n > taken) rest.map(loop(n - taken))
+    type Stack = List[F[Iterant[F, A]]]
+
+    def nextOrEmpty(rest: F[Iterant[F, A]], n: Int, taken: Int, stack: Stack): F[Iterant[F, A]] = {
+      if (n > taken) rest.map(loop(n - taken, stack))
       else F.pure(Iterant.empty)
     }
 
-    def processSeq(n: Int, ref: NextCursor[F, A]): Iterant[F, A] = {
+    def processSeq(n: Int, ref: NextCursor[F, A], stack: Stack): Iterant[F, A] = {
       val NextCursor(cursor, rest) = ref
       // Aggregate cursor into an ArrayBuffer
       val toTake = math.min(cursor.recommendedBatchSize, n)
@@ -55,31 +57,42 @@ private[tail] object IterantTake {
         val restRef: F[Iterant[F, A]] = if (idx < toTake) rest else F.pure(ref)
         NextCursor(
           BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]],
-          nextOrEmpty(restRef, n, idx))
+          nextOrEmpty(restRef, n, idx, stack))
       }
       else
-        Suspend(nextOrEmpty(rest, n, idx))
+        Suspend(nextOrEmpty(rest, n, idx, stack))
     }
 
-    def loop(n: Int)(source: Iterant[F, A]): Iterant[F, A] = {
+    def loop(n: Int, stack: List[F[Iterant[F, A]]])(source: Iterant[F, A]): Iterant[F, A] = {
       try if (n > 0) source match {
-        case s @ Scope(_, _, _) =>
-          s.runMap(loop(n))
         case Next(elem, rest) =>
-          Next(elem, nextOrEmpty(rest, n, 1))
+          Next(elem, nextOrEmpty(rest, n, 1, stack))
         case current @ NextCursor(_, _) =>
-          processSeq(n, current)
+          processSeq(n, current, stack)
         case NextBatch(batch, rest) =>
-          processSeq(n, NextCursor(batch.cursor(), rest))
+          processSeq(n, NextCursor(batch.cursor(), rest), stack)
         case Suspend(rest) =>
-          Suspend(rest.map(loop(n)))
-        case theEnd @ (Last(_) | Halt(_)) =>
-          theEnd
+          Suspend(rest.map(loop(n, stack)))
+        case s @ Scope(_, _, _) =>
+          s.runMap(loop(n, stack))
+        case Concat(lh, rh) =>
+          Suspend(lh.map(loop(n, rh :: stack)))
+        case Last(a) =>
+          if (n == 1) source else
+            stack match {
+              case Nil => source
+              case x :: xs => Next(a, x.map(loop(n - 1, xs)))
+            }
+        case Halt(_) =>
+          stack match {
+            case Nil => source
+            case x :: xs => Suspend(x.map(loop(n - 1, xs)))
+          }
       }
       else source match {
-        case theEnd @ (Last(_) | Halt(_)) =>
+        case theEnd @ Halt(_) =>
           theEnd
-        case other =>
+        case _ =>
           Iterant.empty
       }
       catch {
@@ -92,9 +105,9 @@ private[tail] object IterantTake {
       case NextBatch(_, _) | NextCursor(_, _) =>
         // We can have side-effects with NextBatch/NextCursor
         // processing, so suspending execution in this case
-        Suspend(F.delay(loop(n)(source)))
+        Suspend(F.delay(loop(n, Nil)(source)))
       case _ =>
-        loop(n)(source)
+        loop(n, Nil)(source)
     }
   }
 }

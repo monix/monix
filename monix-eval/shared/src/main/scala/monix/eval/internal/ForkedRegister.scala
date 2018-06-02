@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context, FlatMap, Map}
+import monix.eval.Task.{Async, Context, ContextSwitch, FlatMap, Map}
 import monix.eval.{Callback, Task}
 
 import scala.annotation.tailrec
@@ -48,6 +48,7 @@ private[eval] object ForkedRegister {
       case Async(_: ForkedRegister[_], _, _, _) => true
       case FlatMap(other, _) => detect(other, limit - 1)
       case Map(other, _, _) => detect(other, limit - 1)
+      case ContextSwitch(other, _, _) => detect(other, limit - 1)
       case _ => false
     } else {
       false
