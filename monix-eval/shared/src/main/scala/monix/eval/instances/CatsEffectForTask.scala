@@ -55,12 +55,14 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
     F.suspend(fa)
   override def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): Task[A] =
     F.async(k)
+  override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
+    F.asyncF(k)
   override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(release: A => Task[Unit]): Task[B] =
     F.bracket(acquire)(use)(release)
   override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     F.bracketCase(acquire)(use)(release)
-
-  override def runSyncStep[A](fa: Task[A]): IO[Either[Task[A], A]] = IO(Left(fa)) // TODO
+  override def runSyncStep[A](fa: Task[A]): IO[Either[Task[A], A]] =
+    IO(fa.runSyncStepOpt(s, opts))
 }
 
 /** Cats type class instances of [[monix.eval.Task Task]] for
@@ -93,8 +95,6 @@ class CatsConcurrentEffectForTask(implicit s: Scheduler, opts: Task.Options)
     F.cancelable(k)
   override def uncancelable[A](fa: Task[A]): Task[A] =
     F.uncancelable(fa)
-  override def onCancelRaiseError[A](fa: Task[A], e: Throwable): Task[A] =
-    F.onCancelRaiseError(fa, e)
   override def start[A](fa: Task[A]): Task[Fiber[A]] =
     F.start(fa)
   override def racePair[A, B](fa: Task[A], fb: Task[B]): Task[Either[(A, Fiber[B]), (Fiber[A], B)]] =

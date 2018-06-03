@@ -12,7 +12,7 @@ addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.1.0"
-val catsEffectVersion = "1.0.0-RC2-b180a99"
+val catsEffectVersion = "1.0.0-RC2"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
@@ -432,7 +432,8 @@ lazy val evalJS = project.in(file("monix-eval/js"))
 
 lazy val tailCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-tail"
+    name := "monix-tail",
+    scalacOptions ~= (_ filterNot (_ == "-Xfatal-warnings"))
   )
 
 lazy val tailJVM = project.in(file("monix-tail/jvm"))

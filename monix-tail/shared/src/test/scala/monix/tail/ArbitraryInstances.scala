@@ -46,21 +46,21 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
         case ns =>
           math.abs(idx % 14) match {
             case 0 | 1 =>
-              Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx+1)), F.unit)
+              Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx+1)))
             case 2 | 3 =>
               Iterant[F].suspend(F.delay(loop(list, idx+1)))
             case 4 | 5 =>
-              Iterant[F].suspendS(F.delay(loop(ns, idx + 1)), F.unit)
+              Iterant[F].suspendS(F.delay(loop(ns, idx + 1)))
             case n @ (6 | 7 | 8) =>
               val (headSeq, tail) = list.splitAt(3)
               val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, n - 5)
-              Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx+1)), F.unit)
+              Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx+1)))
             case n @ (9 | 10 | 11) =>
               val (headSeq, tail) = list.splitAt(3)
               val batch = Batch.fromSeq(headSeq.toVector, n - 8)
-              Iterant[F].nextBatchS(batch, F.delay(loop(tail, idx + 1)), F.unit)
+              Iterant[F].nextBatchS(batch, F.delay(loop(tail, idx + 1)))
             case 12 | 13 =>
-              Iterant[F].nextBatchS(Batch.empty, F.delay(loop(ns, idx + 1)), F.unit)
+              Iterant[F].nextBatchS(Batch.empty, F.delay(loop(ns, idx + 1)))
           }
       }
 

@@ -15,24 +15,11 @@
  * limitations under the License.
  */
 
-package monix.tail
+package monix.eval
 
-import cats.laws._
-import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.Task.Context
 
-object IterantFromIndexedSeqSuite extends BaseTestSuite {
-//  test("Iterant[Task].fromIndexedSeq") { implicit s =>
-//    check1 { (list: List[Int]) =>
-//      val result = Iterant[Task].fromIndexedSeq(list.toVector).toListL
-//      result <-> Task.now(list)
-//    }
-//  }
-//
-//  test("Iterant[Coeval].fromIndexedSeq") { implicit s =>
-//    check1 { (list: List[Int]) =>
-//      val result = Iterant[Coeval].fromIndexedSeq(list.toVector).toListL
-//      result <-> Coeval.now(list)
-//    }
-//  }
+package object internal {
+  /** Handy alias for building `Task.Async` nodes. */
+  private[eval] type Start[+A] = (Context, Callback[A]) => Unit
 }

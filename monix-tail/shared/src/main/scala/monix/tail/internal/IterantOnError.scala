@@ -20,12 +20,10 @@ package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-
-import scala.util.control.NonFatal
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
-
 import scala.collection.mutable.ArrayBuffer
+import scala.util.control.NonFatal
 
 private[tail] object IterantOnError {
   /** Implementation for `Iterant.onErrorHandleWith`. */
@@ -42,14 +40,7 @@ private[tail] object IterantOnError {
 
     def loop(fa: Iterant[F, A]): Iterant[F, A] =
       try fa match {
-        // TODO: open uninterruptibly
-        // TODO: lift errors from close
-        case Scope(open, rest, close) => Suspend {
-          open.attempt.map {
-            case Right(_) => Scope(F.unit, rest.map(loop), close)
-            case Left(ex) => f(ex)
-          }
-        }
+
         case Next(a, lt) =>
           Next(a, lt.map(loop))
 
@@ -83,6 +74,31 @@ private[tail] object IterantOnError {
           fa
         case Halt(Some(e)) =>
           f(e)
+
+        case Concat(lh, rh) =>
+          Concat(lh.map(loop), rh.map(loop))
+
+        case Scope(open, rest, close) =>
+          Suspend {
+            open.attempt.map {
+              case Right(_) =>
+                var thrownRef: Throwable = null
+                val lh: Iterant[F, A] =
+                  Scope(F.unit, rest.map(loop), exit =>
+                    F.suspend(F.handleError(close(exit)) { e =>
+                      thrownRef = e
+                    }))
+
+                Concat(F.pure(lh), F.delay {
+                  if (thrownRef == null) Iterant.empty
+                  else Halt(Some(thrownRef))
+                })
+
+              case Left(ex) =>
+                f(ex)
+            }
+          }
+
       } catch {
         case e if NonFatal(e) =>
           try f(e) catch { case err if NonFatal(err) => Halt(Some(err)) }
@@ -106,27 +122,14 @@ private[tail] object IterantOnError {
       var size = ref.recommendedBatchSize
       val buffer = ArrayBuffer.empty[Attempt]
       while (size > 0 && ref.hasNext()) {
-        try {
-          buffer += Right(ref.next())
-          size -= 1
-        } catch {
-          case NonFatal(ex) =>
-            buffer += Left(ex)
-            size = 0
-        }
+        buffer += Right(ref.next())
+        size -= 1
       }
       buffer.toArray[Attempt]
     }
 
     def loop(fa: Iterant[F, A]): Iterant[F, Attempt] =
-      fa match {
-        // TODO: open uninterruptibly
-        case Scope(open, rest, close) => Suspend {
-          open.attempt.map {
-            case Right(_) => Scope(F.unit, rest.map(loop), close)
-            case l @ Left(_) => Last(l.asInstanceOf[Attempt])
-          }
-        }
+      try fa match {
         case Next(a, rest) =>
           Next(Right(a), rest.map(loop))
         case NextBatch(batch, rest) =>
@@ -149,6 +152,33 @@ private[tail] object IterantOnError {
           fa.asInstanceOf[Iterant[F, Attempt]]
         case Halt(Some(ex)) =>
           Last(Left(ex))
+
+        case Concat(lh, rh) =>
+          Concat(lh.map(loop), rh.map(loop))
+
+        case Scope(open, rest, close) =>
+          Suspend {
+            open.attempt.map {
+              case Right(_) =>
+                var thrownRef: Throwable = null
+                val lh: Iterant[F, Attempt] =
+                  Scope(F.unit, rest.map(loop), exit =>
+                    F.suspend(F.handleError(close(exit)) { e =>
+                      thrownRef = e
+                    }))
+
+                Concat(F.pure(lh), F.delay {
+                  if (thrownRef == null) Iterant.empty
+                  else Last(Left(thrownRef))
+                })
+
+              case left @ Left(_) =>
+                Last(left.asInstanceOf[Attempt])
+            }
+          }
+      } catch {
+        case e if NonFatal(e) =>
+          Last(Left(e))
       }
 
     Suspend(F.delay(loop(fa)).handleError(ex => Last(Left(ex))))

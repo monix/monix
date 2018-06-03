@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect.{ConcurrentEffect, Effect, ExitCase, IO}
+import cats.effect._
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
@@ -260,18 +260,27 @@ object TaskConversionsSuite extends BaseTestSuite {
   class CustomEffect extends Effect[CIO] {
     override def runAsync[A](fa: CIO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
       fa.io.runAsync(cb)
+
+    override def runSyncStep[A](fa: CIO[A]): IO[Either[CIO[A], A]] =
+      fa.io.runSyncStep.map {
+        case Right(a) => Right(a)
+        case Left(io) => Left(CIO(io))
+      }
+
     override def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): CIO[A] =
       CIO(IO.async(k))
+    override def asyncF[A](k: ((Either[Throwable, A]) => Unit) => CIO[Unit]): CIO[A] =
+      CIO(IO.asyncF(cb => k(cb).io))
     override def suspend[A](thunk: => CIO[A]): CIO[A] =
       CIO(IO.suspend(thunk.io))
     override def flatMap[A, B](fa: CIO[A])(f: (A) => CIO[B]): CIO[B] =
       CIO(fa.io.flatMap(a => f(a).io))
     override def tailRecM[A, B](a: A)(f: (A) => CIO[Either[A, B]]): CIO[B] =
-      CIO(IO.ioConcurrentEffect.tailRecM(a)(x => f(x).io))
+      CIO(IO.ioEffect.tailRecM(a)(x => f(x).io))
     override def raiseError[A](e: Throwable): CIO[A] =
       CIO(IO.raiseError(e))
     override def handleErrorWith[A](fa: CIO[A])(f: (Throwable) => CIO[A]): CIO[A] =
-      CIO(IO.ioConcurrentEffect.handleErrorWith(fa.io)(x => f(x).io))
+      CIO(IO.ioEffect.handleErrorWith(fa.io)(x => f(x).io))
     override def pure[A](x: A): CIO[A] =
       CIO(IO.pure(x))
     override def liftIO[A](ioa: IO[A]): CIO[A] =
@@ -280,15 +289,15 @@ object TaskConversionsSuite extends BaseTestSuite {
       CIO(acquire.io.bracketCase(a => use(a).io)((a, e) => release(a, e).io))
   }
 
-  class CustomConcurrentEffect extends CustomEffect with ConcurrentEffect[CIO] {
+  class CustomConcurrentEffect(implicit timer: Timer[IO])
+    extends CustomEffect with ConcurrentEffect[CIO] {
+
     override def runCancelable[A](fa: CIO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
       fa.io.runCancelable(cb)
     override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): CIO[A] =
       CIO(IO.cancelable(k))
     override def uncancelable[A](fa: CIO[A]): CIO[A] =
       CIO(fa.io.uncancelable)
-    override def onCancelRaiseError[A](fa: CIO[A], e: Throwable): CIO[A] =
-      CIO(fa.io.onCancelRaiseError(e))
     override def start[A](fa: CIO[A]): CIO[effect.Fiber[CIO, A]] =
       CIO(fa.io.start.map(fiberT))
     override def racePair[A, B](fa: CIO[A], fb: CIO[B]) =

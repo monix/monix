@@ -175,7 +175,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param elem is the element to append at the end
     */
   final def :+[B >: A](elem: B)(implicit F: Sync[F]): Iterant[F, B] =
-    IterantConcat.concat(this.upcast[B], F.pure(Iterant.lastS(elem)))(F)
+    IterantConcat.concat[F, B](this.upcast[B], F.pure(Iterant.lastS(elem)))(F)
 
   /** Appends the given stream to the end of the source, effectively
     * concatenating them.
@@ -505,7 +505,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def doOnEarlyStop(f: F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
     doOnExitCase {
-      case ExitCase.Error(_) | ExitCase.Canceled(_) => f
+      case ExitCase.Error(_) | ExitCase.Canceled => f
       case _ => F.unit
     }
 
@@ -2495,17 +2495,8 @@ object Iterant extends IterantInstances {
   final case class Scope[F[_], A](
     open: F[Unit],
     use: F[Iterant[F, A]],
-    close: ExitCase[Throwable] => F[Unit]
-  ) extends Iterant[F, A] {
-    private[tail] def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]) =
-      copy(use = F.map(use)(f))
-
-    private[tail] def runFlatMap[B](f: Iterant[F, A] => F[Iterant[F, B]])(implicit F: Sync[F]): F[Iterant[F, B]] =
-      F.pure(copy(use = F.flatMap(use)(f)))
-
-    private[tail] def runFold[B](f: Iterant[F, A] => F[B])(implicit F: Sync[F]): F[B] =
-      F.bracketCase(open)(_ => F.flatMap(use)(f))((_, exitCase) => close(exitCase))
-  }
+    close: ExitCase[Throwable] => F[Unit])
+    extends Iterant[F, A]
 
   final case class Concat[F[_], A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]])
     extends Iterant[F, A]
@@ -2543,6 +2534,8 @@ private[tail] trait IterantInstances1 extends IterantInstances0 {
 
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Iterant[F, A] =
       Iterant.liftF(F.async(k))
+    override def asyncF[A](k: (Either[Throwable, A] => Unit) => Iterant[F, Unit]): Iterant[F, A] =
+      Iterant.liftF(F.asyncF(cb => k(cb).completeL))
   }
 }
 

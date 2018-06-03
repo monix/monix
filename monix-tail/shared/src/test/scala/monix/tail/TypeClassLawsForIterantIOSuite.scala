@@ -27,31 +27,31 @@ import monix.execution.schedulers.TestScheduler
 object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
   type F[α] = Iterant[IO, α]
 
-  // Explicit instance due to weird implicit resolution problem
-  implicit val iso: SemigroupalTests.Isomorphisms[F] =
-    SemigroupalTests.Isomorphisms.invariant
-
-  implicit val ec: TestScheduler = TestScheduler()
-
-  // Explicit instance, since Scala can't figure it out below :-(
-  val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
-    implicitly[Eq[EitherT[F, Throwable, Int]]]
-
-  checkAllAsync("Async[Iterant[IO]]", slowConfig) { _ =>
-    implicit val eqE = eqEitherT
-    AsyncTests[F].async[Int, Int, Int]
-  }
-
-  checkAllAsync("MonadError[Iterant[IO]]") { _ =>
-    implicit val eqE = eqEitherT
-    MonadErrorTests[F, Throwable].monadError[Int, Int, Int]
-  }
-
-  checkAllAsync("MonoidK[Iterant[IO]]") { implicit ec =>
-    MonoidKTests[F].monoidK[Int]
-  }
-
-  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
-    CoflatMapTests[F].coflatMap[Int, Int, Int]
-  }
+//  // Explicit instance due to weird implicit resolution problem
+//  implicit val iso: SemigroupalTests.Isomorphisms[F] =
+//    SemigroupalTests.Isomorphisms.invariant
+//
+//  implicit val ec: TestScheduler = TestScheduler()
+//
+//  // Explicit instance, since Scala can't figure it out below :-(
+//  val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
+//    implicitly[Eq[EitherT[F, Throwable, Int]]]
+//
+//  checkAllAsync("Async[Iterant[IO]]", slowConfig) { _ =>
+//    implicit val eqE = eqEitherT
+//    AsyncTests[F].async[Int, Int, Int]
+//  }
+//
+//  checkAllAsync("MonadError[Iterant[IO]]") { _ =>
+//    implicit val eqE = eqEitherT
+//    MonadErrorTests[F, Throwable].monadError[Int, Int, Int]
+//  }
+//
+//  checkAllAsync("MonoidK[Iterant[IO]]") { implicit ec =>
+//    MonoidKTests[F].monoidK[Int]
+//  }
+//
+//  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
+//    CoflatMapTests[F].coflatMap[Int, Int, Int]
+//  }
 }

@@ -16,13 +16,25 @@
  */
 
 package monix.tail
-package internal
 
-import monix.tail.Iterant.Halt
+import cats.effect.Sync
+import monix.tail.Iterant.Scope
 
-private[tail] object Constants {
+package object internal {
   /**
-    * Internal API — reusable reference.
+    * Internal API — extension methods used in the implementation.
     */
-  val emptyRef = Halt(None)
+  private[tail] implicit class ScopeExtensions[F[_], A](
+    val self: Scope[F, A])
+    extends AnyVal {
+
+    def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]) =
+      self.copy(use = F.map(self.use)(f))
+
+    def runFlatMap[B](f: Iterant[F, A] => F[Iterant[F, B]])(implicit F: Sync[F]): F[Iterant[F, B]] =
+      F.pure(self.copy(use = F.flatMap(self.use)(f)))
+
+    def runFold[B](f: Iterant[F, A] => F[B])(implicit F: Sync[F]): F[B] =
+      F.bracketCase(self.open)(_ => F.flatMap(self.use)(f))((_, exitCase) => self.close(exitCase))
+  }
 }

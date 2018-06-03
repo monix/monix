@@ -41,6 +41,8 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
     acquire.bracket(use)(release)
   override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     acquire.bracketCase(use)(release)
+  override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
+    Task.asyncF(k)
 }
 
 /** Cats type class instance of [[monix.eval.Task Task]]
@@ -56,8 +58,6 @@ class CatsConcurrentForTask extends CatsAsyncForTask with Concurrent[Task] {
     TaskCreate.cancelableEffect(k)
   override def uncancelable[A](fa: Task[A]): Task[A] =
     fa.uncancelable
-  override def onCancelRaiseError[A](fa: Task[A], e: Throwable): Task[A] =
-    fa.onCancelRaiseError(e)
   override def start[A](fa: Task[A]): Task[Fiber[A]] =
     fa.start
   override def racePair[A, B](fa: Task[A], fb: Task[B]): Task[Either[(A, Fiber[B]), (Fiber[A], B)]] =

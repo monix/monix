@@ -28,7 +28,7 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `Task.cancelable`
     */
-  def cancelableS[A](fn: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
+  def cancelable0[A](fn: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
     val start = (ctx: Context, cb: Callback[A]) => {
       implicit val s = ctx.scheduler
       val conn = ctx.connection
@@ -54,19 +54,19 @@ private[eval] object TaskCreate {
 
   /** Implementation for `cats.effect.Concurrent#cancelable`. */
   def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
-    cancelableS { (sc, cb) => Cancelable.fromIO(k(cb))(sc) }
+    cancelable0 { (sc, cb) => Cancelable.fromIO(k(cb))(sc) }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableIO[A](start: (Scheduler, Callback[A]) => IO[Unit]): Task[A] =
-    cancelableS { (sc, cb) => Cancelable.fromIO(start(sc, cb))(sc) }
+    cancelable0 { (sc, cb) => Cancelable.fromIO(start(sc, cb))(sc) }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableTask[A](start: (Scheduler, Callback[A]) => Task[Unit]): Task[A] =
-    cancelableS { (sc, cb) =>
+    cancelable0 { (sc, cb) =>
       val task = start(sc, cb)
       Cancelable(() => task.runAsync(Callback.empty(sc))(sc))
     }
@@ -75,7 +75,7 @@ private[eval] object TaskCreate {
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableCoeval[A](start: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
-    cancelableS { (sc, cb) =>
+    cancelable0 { (sc, cb) =>
       val task = start(sc, cb)
       Cancelable(() => task.value())
     }
@@ -83,7 +83,7 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `Task.async`
     */
-  def asyncS[A](fn: (Scheduler, Callback[A]) => Any): Task[A] = {
+  def async0[A](fn: (Scheduler, Callback[A]) => Any): Task[A] = {
     val start = (ctx: Context, cb: Callback[A]) => {
       implicit val s = ctx.scheduler
       try {
@@ -111,6 +111,32 @@ private[eval] object TaskCreate {
       implicit val s = ctx.scheduler
       try {
         k(Callback.trampolined(cb))
+      } catch {
+        case ex if NonFatal(ex) =>
+          // We cannot stream the error, because the callback might have
+          // been called already and we'd be violating its contract,
+          // hence the only thing possible is to log the error.
+          s.reportFailure(ex)
+      }
+    }
+    Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
+
+  /**
+    * Implementation for `Task.asyncF`.
+    */
+  def asyncF[A](k: Callback[A] => Task[Unit]): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
+      implicit val s = ctx.scheduler
+      try {
+        // Creating new connection, because we can have a race condition
+        // between the bind continuation and executing the generated task
+        val ctx2 = Context(ctx.scheduler, ctx.options)
+        val conn = ctx.connection
+        conn.push(ctx2.connection)
+        // Provided callback takes care of `conn.pop()`
+        val task = k(Callback.trampolined(conn, cb))
+        Task.unsafeStartNow(task, ctx2, Callback.empty)
       } catch {
         case ex if NonFatal(ex) =>
           // We cannot stream the error, because the callback might have

@@ -24,50 +24,50 @@ import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 
 object IterantScanSuite extends BaseTestSuite {
-  test("scan evolves state") { implicit s =>
-    check1 { (source: Iterant[Coeval, Int]) =>
-      sealed trait State[+A] { def count: Int }
-      case object Init extends State[Nothing] { def count = 0 }
-      case class Current[A](current: A, count: Int) extends State[A]
-
-      val scanned = source.scan(Init : State[Int]) { (acc, a) =>
-        acc match {
-          case Init => Current(a, 1)
-          case Current(_, count) => Current(a, count + 1)
-        }
-      }
-
-      val fa = scanned
-        .takeWhile(_.count < 10)
-        .collect { case Current(a, _) => a }
-
-      fa.toListL <-> source.take(10).toListL.map(_.take(9))
-    }
-  }
-
-  test("scan protects against exceptions initial") { implicit s =>
-    val dummy = DummyException("dummy")
-    val fa = Iterant[Coeval].of(1, 2, 3)
-    val r = fa.scan((throw dummy) : Int)((_, e) => e).attempt.toListL
-    assertEquals(r.value(), List(Left(dummy)))
-  }
-
-  test("scan protects against exceptions in f") { implicit s =>
-    val dummy = DummyException("dummy")
-    val fa = Iterant[Coeval].of(1, 2, 3)
-    val r = fa.scan(0)((_, _) => throw dummy).attempt.toListL
-    assertEquals(r.value(), List(Left(dummy)))
-  }
-
-  test("scan0 emits seed as first element") { implicit s =>
-    check2 { (source: Iterant[Coeval, Int], seed: Int) =>
-      source.scan0(seed)(_ + _).headOptionL <-> Coeval.pure(Some(seed))
-    }
-  }
-
-  test("scan0.drop(1) <-> scan") { implicit s =>
-    check2 { (source: Iterant[Coeval, Int], seed: Int) =>
-      source.scan0(seed)(_ + _).drop(1) <-> source.scan(seed)(_ + _)
-    }
-  }
+//  test("scan evolves state") { implicit s =>
+//    check1 { (source: Iterant[Coeval, Int]) =>
+//      sealed trait State[+A] { def count: Int }
+//      case object Init extends State[Nothing] { def count = 0 }
+//      case class Current[A](current: A, count: Int) extends State[A]
+//
+//      val scanned = source.scan(Init : State[Int]) { (acc, a) =>
+//        acc match {
+//          case Init => Current(a, 1)
+//          case Current(_, count) => Current(a, count + 1)
+//        }
+//      }
+//
+//      val fa = scanned
+//        .takeWhile(_.count < 10)
+//        .collect { case Current(a, _) => a }
+//
+//      fa.toListL <-> source.take(10).toListL.map(_.take(9))
+//    }
+//  }
+//
+//  test("scan protects against exceptions initial") { implicit s =>
+//    val dummy = DummyException("dummy")
+//    val fa = Iterant[Coeval].of(1, 2, 3)
+//    val r = fa.scan((throw dummy) : Int)((_, e) => e).attempt.toListL
+//    assertEquals(r.value(), List(Left(dummy)))
+//  }
+//
+//  test("scan protects against exceptions in f") { implicit s =>
+//    val dummy = DummyException("dummy")
+//    val fa = Iterant[Coeval].of(1, 2, 3)
+//    val r = fa.scan(0)((_, _) => throw dummy).attempt.toListL
+//    assertEquals(r.value(), List(Left(dummy)))
+//  }
+//
+//  test("scan0 emits seed as first element") { implicit s =>
+//    check2 { (source: Iterant[Coeval, Int], seed: Int) =>
+//      source.scan0(seed)(_ + _).headOptionL <-> Coeval.pure(Some(seed))
+//    }
+//  }
+//
+//  test("scan0.drop(1) <-> scan") { implicit s =>
+//    check2 { (source: Iterant[Coeval, Int], seed: Int) =>
+//      source.scan0(seed)(_ + _).drop(1) <-> source.scan(seed)(_ + _)
+//    }
+//  }
 }

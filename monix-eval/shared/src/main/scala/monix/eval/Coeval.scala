@@ -23,6 +23,8 @@ import cats.kernel.Semigroup
 import monix.eval.Coeval._
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal.{CoevalBracket, CoevalRunLoop, LazyVal, StackFrame}
+import monix.execution.annotations.UnsafeBecauseImpure
+
 import scala.util.control.NonFatal
 import monix.execution.internal.Platform.fusionMaxStackDepth
 
@@ -195,6 +197,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * $unsafeRun
     */
+  @UnsafeBecauseImpure
   override def apply(): A =
     CoevalRunLoop.start(this) match {
       case Now(value) => value
@@ -209,6 +212,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * $unsafeRun
     */
+  @UnsafeBecauseImpure
   def value(): A = apply()
 
   /** Evaluates the underlying computation, reducing this `Coeval`
@@ -233,6 +237,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * $unsafeRun
     */
+  @UnsafeBecauseImpure
   def run(): Coeval.Eager[A] =
     CoevalRunLoop.start(this)
 
@@ -258,6 +263,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * $unsafeRun
     */
+  @UnsafeBecauseImpure
   def runAttempt(): Either[Throwable, A] =
     run() match {
       case Coeval.Now(a) => Right(a)
@@ -285,6 +291,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * $unsafeRun
     */
+  @UnsafeBecauseImpure
   def runTry(): Try[A] =
     run().toTry
 
@@ -300,6 +307,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * @see [[memoizeOnSuccess]] for a version that only caches
     *     successful results
     */
+  @UnsafeBecauseImpure
   final def memoize: Coeval[A] =
     self match {
       case Now(_) | Error(_) =>
@@ -322,6 +330,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * @see [[memoize]] for a version that caches both successful
     *     results and failures
     */
+  @UnsafeBecauseImpure
   final def memoizeOnSuccess: Coeval[A] =
     self match {
       case Now(_) | Error(_) =>

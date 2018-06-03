@@ -22,31 +22,31 @@ import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 
 object IterantFromListSuite extends BaseTestSuite {
-  test("Iterant[Task].fromList") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = Iterant[Task].fromList(list).toListL
-      result <-> Task.now(list)
-    }
-  }
-
-  test("Iterant[Task].fromList (async)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = Iterant[Task].fromList(list).mapEval(x => Task.evalAsync(x)).toListL
-      result <-> Task.now(list)
-    }
-  }
-
-  test("Iterant[Coeval].fromList") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = Iterant[Coeval].fromList(list).toListL
-      result <-> Coeval.now(list)
-    }
-  }
-
-  test("Iterant[Coeval].fromList (async)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = Iterant[Coeval].fromList(list).mapEval(x => Coeval(x)).toListL
-      result <-> Coeval.now(list)
-    }
-  }
+//  test("Iterant[Task].fromList") { implicit s =>
+//    check1 { (list: List[Int]) =>
+//      val result = Iterant[Task].fromList(list).toListL
+//      result <-> Task.now(list)
+//    }
+//  }
+//
+//  test("Iterant[Task].fromList (async)") { implicit s =>
+//    check1 { (list: List[Int]) =>
+//      val result = Iterant[Task].fromList(list).mapEval(x => Task.evalAsync(x)).toListL
+//      result <-> Task.now(list)
+//    }
+//  }
+//
+//  test("Iterant[Coeval].fromList") { implicit s =>
+//    check1 { (list: List[Int]) =>
+//      val result = Iterant[Coeval].fromList(list).toListL
+//      result <-> Coeval.now(list)
+//    }
+//  }
+//
+//  test("Iterant[Coeval].fromList (async)") { implicit s =>
+//    check1 { (list: List[Int]) =>
+//      val result = Iterant[Coeval].fromList(list).mapEval(x => Coeval(x)).toListL
+//      result <-> Coeval.now(list)
+//    }
+//  }
 }

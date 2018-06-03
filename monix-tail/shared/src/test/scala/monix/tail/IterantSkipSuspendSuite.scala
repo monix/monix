@@ -28,49 +28,49 @@ import org.scalacheck.Test.Parameters
 import scala.util.Success
 
 object IterantSkipSuspendSuite extends BaseTestSuite {
-  override lazy val checkConfig: Parameters = {
-    if (Platform.isJVM)
-      Test.Parameters.default.withMaxSize(256)
-    else
-      Test.Parameters.default.withMaxSize(32)
-  }
-
-  test("Iterant[Task].skipSuspend mirrors the source") { implicit s =>
-    check2 { (list: List[Int], idx: Int) =>
-      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
-      Iterant[Task].suspend(stream.skipSuspendL) <-> stream
-    }
-  }
-
-  test("Iterant.skipSuspend protects against broken batches") { implicit s =>
-    check1 { (iter: Iterant[Task, Int]) =>
-      val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter.onErrorIgnore ++ suffix
-      val received = stream.skipSuspendL
-      Iterant[Task].suspend(received) <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
-    }
-  }
-
-  test("Iterant.skipSuspend protects against broken cursors") { implicit s =>
-    check1 { (iter: Iterant[Task, Int]) =>
-      val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
-      val stream = iter.onErrorIgnore ++ suffix
-      val received = stream.skipSuspendL
-      Iterant[Task].suspend(received) <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
-    }
-  }
-
-  test("Iterant.skipSuspend on broken nodes calls earlyStop and reports errors as Halt") { implicit s =>
-    val dummy = DummyException("dummy")
-    var stopCalled = false
-    val brokenIterant = Iterant[Coeval].suspendS[Int](
-      Coeval.raiseError(dummy),
-      Coeval { stopCalled = true }
-    )
-    val result = brokenIterant.skipSuspendL.runTry()
-    assertEquals(result, Success(Iterant.Halt[Coeval, Int](Some(dummy))))
-    assert(stopCalled)
-  }
+//  override lazy val checkConfig: Parameters = {
+//    if (Platform.isJVM)
+//      Test.Parameters.default.withMaxSize(256)
+//    else
+//      Test.Parameters.default.withMaxSize(32)
+//  }
+//
+//  test("Iterant[Task].skipSuspend mirrors the source") { implicit s =>
+//    check2 { (list: List[Int], idx: Int) =>
+//      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
+//      Iterant[Task].suspend(stream.skipSuspendL) <-> stream
+//    }
+//  }
+//
+//  test("Iterant.skipSuspend protects against broken batches") { implicit s =>
+//    check1 { (iter: Iterant[Task, Int]) =>
+//      val dummy = DummyException("dummy")
+//      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
+//      val stream = iter.onErrorIgnore ++ suffix
+//      val received = stream.skipSuspendL
+//      Iterant[Task].suspend(received) <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
+//    }
+//  }
+//
+//  test("Iterant.skipSuspend protects against broken cursors") { implicit s =>
+//    check1 { (iter: Iterant[Task, Int]) =>
+//      val dummy = DummyException("dummy")
+//      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
+//      val stream = iter.onErrorIgnore ++ suffix
+//      val received = stream.skipSuspendL
+//      Iterant[Task].suspend(received) <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
+//    }
+//  }
+//
+//  test("Iterant.skipSuspend on broken nodes calls earlyStop and reports errors as Halt") { implicit s =>
+//    val dummy = DummyException("dummy")
+//    var stopCalled = false
+//    val brokenIterant = Iterant[Coeval].suspendS[Int](
+//      Coeval.raiseError(dummy),
+//      Coeval { stopCalled = true }
+//    )
+//    val result = brokenIterant.skipSuspendL.runTry()
+//    assertEquals(result, Success(Iterant.Halt[Coeval, Int](Some(dummy))))
+//    assert(stopCalled)
+//  }
 }

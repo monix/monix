@@ -52,14 +52,17 @@ private[tail] object IterantCompleteL {
         rest.flatMap(loop(stack))
       case Last(_) =>
         F.unit
-      case Halt(None) =>
-        F.unit
-      case Halt(Some(ex)) =>
-        F.raiseError(ex)
       case s @ Scope(_, _, _) =>
         s.runFold(loop(stack))
       case Concat(lh, rh) =>
         lh.flatMap(loop(rh :: stack))
+      case Halt(None) =>
+        stack match {
+          case Nil => F.unit
+          case x :: xs => x.flatMap(loop(xs))
+        }
+      case Halt(Some(ex)) =>
+        F.raiseError(ex)
     } catch {
       case ex if NonFatal(ex) =>
         F.raiseError(ex)
