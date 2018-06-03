@@ -24,8 +24,8 @@ import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success, Try}
 
 object TaskCancelableSuite extends BaseTestSuite {
-  test("Task.cancelableS should be stack safe on repeated, right-associated binds") { implicit s =>
-    def signal[A](a: A): Task[A] = Task.cancelableS[A] { (_, cb) =>
+  test("Task.cancelable0 should be stack safe on repeated, right-associated binds") { implicit s =>
+    def signal[A](a: A): Task[A] = Task.cancelable0[A] { (_, cb) =>
       cb.onSuccess(a)
       Cancelable.empty
     }
@@ -37,8 +37,8 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.cancelableS should be stack safe on repeated, left-associated binds") { implicit s =>
-    def signal[A](a: A): Task[A] = Task.cancelableS[A] { (_, cb) =>
+  test("Task.cancelable0 should be stack safe on repeated, left-associated binds") { implicit s =>
+    def signal[A](a: A): Task[A] = Task.cancelable0[A] { (_, cb) =>
       cb.onSuccess(a)
       Cancelable.empty
     }
@@ -50,30 +50,30 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10000)))
   }
   
-  test("Task.cancelableS should work onSuccess") { implicit s =>
-    val t = Task.cancelableS[Int] { (_,cb) => cb.onSuccess(10); Cancelable.empty }
+  test("Task.cancelable0 should work onSuccess") { implicit s =>
+    val t = Task.cancelable0[Int] { (_,cb) => cb.onSuccess(10); Cancelable.empty }
     val f = t.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.cancelableS should work onError") { implicit s =>
+  test("Task.cancelable0 should work onError") { implicit s =>
     val dummy = DummyException("dummy")
-    val t = Task.cancelableS[Int] { (_,cb) => cb.onError(dummy); Cancelable.empty }
+    val t = Task.cancelable0[Int] { (_,cb) => cb.onError(dummy); Cancelable.empty }
     val f = t.runAsync
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.cancelableS should execute immediately when executed as future") { implicit s =>
-    val t = Task.cancelableS[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
+  test("Task.cancelable0 should execute immediately when executed as future") { implicit s =>
+    val t = Task.cancelable0[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
     val result = t.runAsync
     assertEquals(result.value, Some(Success(100)))
   }
 
-  test("Task.cancelableS should execute immediately when executed with callback") { implicit s =>
+  test("Task.cancelable0 should execute immediately when executed with callback") { implicit s =>
     var result = Option.empty[Try[Int]]
-    val t = Task.cancelableS[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
+    val t = Task.cancelable0[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
     t.runOnComplete { r => result = Some(r) }
     assertEquals(result, Some(Success(100)))
   }

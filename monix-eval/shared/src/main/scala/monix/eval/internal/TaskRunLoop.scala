@@ -302,6 +302,119 @@ private[eval] object TaskRunLoop {
     // $COVERAGE-ON$
   }
 
+  /** A run-loop version that evaluates the given task until the
+    * first async boundary or until completion.
+    */
+  def startStep[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): Either[Task[A], A] = {
+    var current = source.asInstanceOf[Task[Any]]
+    var bFirst: Bind = null
+    var bRest: CallStack = null
+    // Values from Now, Always and Once are unboxed in this var, for code reuse
+    var hasUnboxed: Boolean = false
+    var unboxed: AnyRef = null
+    // Keeps track of the current frame, used for forced async boundaries
+    val em = scheduler.executionModel
+    var frameIndex = frameStart(em)
+
+    do {
+      if (frameIndex != 0) {
+        current match {
+          case FlatMap(fa, bindNext) =>
+            if (bFirst ne null) {
+              if (bRest eq null) bRest = new ArrayStack()
+              bRest.push(bFirst)
+            }
+            /*_*/bFirst = bindNext/*_*/
+            current = fa
+
+          case Now(value) =>
+            unboxed = value.asInstanceOf[AnyRef]
+            hasUnboxed = true
+
+          case Eval(thunk) =>
+            try {
+              unboxed = thunk().asInstanceOf[AnyRef]
+              hasUnboxed = true
+              current = null
+            } catch {
+              case e if NonFatal(e) =>
+                current = Error(e)
+            }
+
+          case bindNext @ Map(fa, _, _) =>
+            if (bFirst ne null) {
+              if (bRest eq null) bRest = new ArrayStack()
+              bRest.push(bFirst)
+            }
+            bFirst = bindNext
+            current = fa
+
+          case Suspend(thunk) =>
+            // Try/catch described as statement to prevent ObjectRef ;-)
+            try {
+              current = thunk()
+            }
+            catch {
+              case ex if NonFatal(ex) => current = Error(ex)
+            }
+
+          case Error(error) =>
+            findErrorHandler(bFirst, bRest) match {
+              case null => throw error
+              case bind =>
+                // Try/catch described as statement to prevent ObjectRef ;-)
+                try { current = bind.recover(error) }
+                catch { case e if NonFatal(e) => current = Error(e) }
+                frameIndex = em.nextFrameIndex(frameIndex)
+                bFirst = null
+            }
+
+          case async =>
+            return goAsync4Step(
+              async,
+              scheduler,
+              opts,
+              bFirst,
+              bRest,
+              frameIndex,
+              forceFork = false)
+        }
+
+        if (hasUnboxed) {
+          popNextBind(bFirst, bRest) match {
+            case null =>
+              return Right(unboxed.asInstanceOf[A])
+            case bind =>
+              // Try/catch described as statement to prevent ObjectRef ;-)
+              try {
+                current = bind(unboxed)
+              }
+              catch {
+                case ex if NonFatal(ex) => current = Error(ex)
+              }
+              frameIndex = em.nextFrameIndex(frameIndex)
+              hasUnboxed = false
+              unboxed = null
+              bFirst = null
+          }
+        }
+      } else {
+        // Force async boundary
+        return goAsync4Step(
+          current,
+          scheduler,
+          opts,
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true)
+      }
+    } while (true)
+    // $COVERAGE-OFF$
+    null
+    // $COVERAGE-ON$
+  }
+
   /** A run-loop that attempts to complete a `CancelableFuture`
     * synchronously falling back to [[startFull]] and actual
     * asynchronous execution in case of an asynchronous boundary.
@@ -487,6 +600,32 @@ private[eval] object TaskRunLoop {
       restartAsync(current, context, cb, null, bFirst, bRest)
     }
     CancelableFuture(p.future, context.connection)
+  }
+
+  /** Called when we hit the first async boundary in [[startStep]]. */
+  private def goAsync4Step[A](
+    source: Current,
+    scheduler: Scheduler,
+    opts: Task.Options,
+    bFirst: Bind,
+    bRest: CallStack,
+    nextFrame: FrameIndex,
+    forceFork: Boolean): Either[Task[A], A] = {
+
+    val ctx = Context(scheduler, opts)
+    val start: Start[Any] =
+      if (!forceFork) {
+        ctx.frameRef := nextFrame
+        (ctx, cb) => startFull(source, ctx, cb, null, bFirst, bRest, ctx.frameRef())
+      } else {
+        (ctx, cb) => ctx.scheduler.executeAsync(() =>
+          startFull(source, ctx, cb, null, bFirst, bRest, 1))
+      }
+
+    Left(Async(
+      start.asInstanceOf[Start[A]],
+      trampolineBefore = false,
+      trampolineAfter = false))
   }
 
   private[internal] def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
