@@ -37,49 +37,43 @@ object IterantCompleteLSuite extends BaseTestSuite {
       fa <-> Coeval.now(1)
     }
   }
-//
-//  test("BatchCursor.completeL protects against errors") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    val cursor = ThrowExceptionCursor[Int](dummy)
-//    var earlyStop = false
-//
-//    val fa = Iterant[Coeval].nextCursorS(
-//      cursor,
-//      Coeval(Iterant[Coeval].empty[Int]),
-//      Coeval { earlyStop = true }
-//    )
-//
-//    assertEquals(fa.completeL.runTry(), Failure(dummy))
-//    assert(earlyStop, "earlyStop")
-//  }
-//
-//  test("Batch.completeL protects against errors") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    val batch = ThrowExceptionBatch[Int](dummy)
-//    var earlyStop = false
-//
-//    val fa = Iterant[Coeval].nextBatchS(
-//      batch,
-//      Coeval(Iterant[Coeval].empty[Int]),
-//      Coeval { earlyStop = true }
-//    )
-//
-//    assertEquals(fa.completeL.runTry(), Failure(dummy))
-//    assert(earlyStop, "earlyStop")
-//  }
-//
-//  test("earlyStop gets called for failing `rest` on Next node") { implicit s =>
-//    var effect = 0
-//
-//    def stop(i: Int): Coeval[Unit] =
-//      Coeval { effect = i }
-//
-//    val dummy = new DummyException("dummy")
-//    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy), stop(3))
-//    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
-//    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
-//
-//    assertEquals(node1.completeL.runTry(), Failure(dummy))
-//    assertEquals(effect, 3)
-//  }
+
+  test("BatchCursor.completeL protects against errors") { implicit s =>
+    val dummy = DummyException("dummy")
+    val cursor = ThrowExceptionCursor[Int](dummy)
+    var earlyStop = false
+
+    val fa = Iterant[Coeval].resource(Coeval.unit)(_ => Coeval { earlyStop = true })
+      .flatMap(_ => Iterant[Coeval].fromBatchCursor(cursor))
+
+    assertEquals(fa.completeL.runTry(), Failure(dummy))
+    assert(earlyStop, "earlyStop")
+  }
+
+  test("Batch.completeL protects against errors") { implicit s =>
+    val dummy = DummyException("dummy")
+    val batch = ThrowExceptionBatch[Int](dummy)
+    var earlyStop = false
+
+    val fa = Iterant[Coeval].resource(Coeval.unit)(_ => Coeval { earlyStop = true })
+      .flatMap(_ => Iterant[Coeval].fromBatch(batch))
+
+    assertEquals(fa.completeL.runTry(), Failure(dummy))
+    assert(earlyStop, "earlyStop")
+  }
+
+  test("resource gets released for failing `rest` on Next node") { implicit s =>
+    var effect = 0
+
+    def stop(i: Int): Coeval[Unit] =
+      Coeval { effect += i }
+
+    val dummy = new DummyException("dummy")
+    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy)).guarantee(stop(3))
+    val node2 = Iterant[Coeval].nextS(2, Coeval(node3)).guarantee(stop(2))
+    val node1 = Iterant[Coeval].nextS(1, Coeval(node2)).guarantee(stop(1))
+
+    assertEquals(node1.completeL.runTry(), Failure(dummy))
+    assertEquals(effect, 6)
+  }
 }

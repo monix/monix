@@ -99,13 +99,10 @@ private[tail] object IterantConcat {
       case empty @ Halt(_) =>
         empty.asInstanceOf[Iterant[F, B]]
 
-      case Scope(open, use, close) =>
-        Scope(open, use.map(unsafeFlatMap(_)(f)), close)
-
-      case Concat(lh, rh) =>
-        Concat(lh.map(unsafeFlatMap(_)(f)), rh.map(unsafeFlatMap(_)(f)))
-
-    } catch {
+      case node =>
+        node.runMap(unsafeFlatMap(_)(f))
+    }
+    catch {
       case ex if NonFatal(ex) =>
         Iterant.raiseError(ex)
     }

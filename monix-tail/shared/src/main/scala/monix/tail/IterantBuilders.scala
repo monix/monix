@@ -132,6 +132,14 @@ class IterantBuildersApplicative[F[_]](implicit F: Applicative[F])
   def fromIterable[A](xs: Iterable[A]): Iterant[F, A] =
     Iterant.fromIterable(xs)(F)
 
+  /** Aliased builder, see documentation for [[Iterant.fromBatchCursor]]. */
+  def fromBatchCursor[A](xs: BatchCursor[A]): Iterant[F, A] =
+    Iterant.fromBatchCursor(xs)
+
+  /** Aliased builder, see documentation for [[Iterant.fromBatch]]. */
+  def fromBatch[A](xs: Batch[A]): Iterant[F, A] =
+    Iterant.fromBatch(xs)
+
   /** Aliased builder, see documentation for [[Iterant.fromIterator]]. */
   def fromIterator[A](xs: Iterator[A]): Iterant[F, A] =
     Iterant.fromIterator(xs)(F)

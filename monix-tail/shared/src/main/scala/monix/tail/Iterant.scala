@@ -227,7 +227,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * }}}
     */
   final def attempt(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] =
-    IterantOnError.attempt(self)
+    IterantAttempt(self)
 
   /** Optimizes the access to the source by periodically gathering
     * items emitted into batches of the specified size and emitting
@@ -335,7 +335,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     (implicit F: Sync[F]): Iterant[F, B] = {
 
     self.flatMap { a =>
-      use(a).doOnExitCase(release(a, _).completeL)
+      use(a).guaranteeCase(release(a, _).completeL)
     }
   }
 
@@ -492,64 +492,34 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def distinctUntilChangedByKey[K](key: A => K)(implicit F: Sync[F], K: Eq[K]): Iterant[F, A] =
     IterantDistinctUntilChanged(self, key)(F, K)
 
-  /** Given a routine make sure to execute it whenever
-    * the consumer executes the current `stop` action.
+  /** Given a routine make sure to execute it whenever the current
+    * stream reaches the end, successfully, in error, or canceled.
+    *
+    * Implements `cats.effect.Bracket.guarantee`.
     *
     * Example: {{{
-    *   iterant.doOnEarlyStop(Task.eval {
-    *     println("Was stopped early!")
+    *   iterant.guarantee(Task.eval {
+    *     println("Releasing resources!")
     *   })
     * }}}
     *
     * @param f is the function to execute on early stop
     */
-  final def doOnEarlyStop(f: F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
-    doOnExitCase {
-      case ExitCase.Error(_) | ExitCase.Canceled => f
-      case _ => F.unit
-    }
+  final def guarantee(f: F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
+    guaranteeCase(_ => f)
 
   /** Returns a new iterant in which `f` is scheduled to be executed
-    * on [[Iterant.Halt halt]] or on early stop.
+    * on [[Iterant.Halt halt]] or if canceled.
     *
-    * Note that [[doOnEarlyStop]] is subsumed under this operation,
-    * the given `f` being evaluated on both reaching the end or
-    * canceling early.
+    * Implements `cats.effect.Bracket.guaranteeCase`.
     *
-    * Example: {{{
-    *   iterant.doOnEarlyStop(err => Task.eval {
-    *     err match {
-    *       case Some(e) => log.error(e)
-    *       case None =>
-    *         println("Was consumed successfully!")
-    *     }
-    *   })
-    * }}}
-    *
-    * @see [[doOnExitCase]]
-    *
-    * @param f is the function to execute on halt or on early stop
-    */
-  final def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
-    doOnExitCase(c => f(c match {
-      case ExitCase.Error(e) => Some(e)
-      case _ => None
-    }))
-
-  /** Returns a new iterant in which `f` is scheduled to be executed
-    * on [[Iterant.Halt halt]] or on early stop.
-    *
-    * This would typically be used to release any resources acquired
-    * by this enumerator.
-    *
-    * Note that [[doOnEarlyStop]] is subsumed under this operation,
-    * the given `f` being evaluated on both reaching the end or
-    * canceling early.
+    * This would typically be used to ensure that a finalizer
+    * will run at the end of the stream.
     *
     * Example: {{{
     *   import cats.effect.ExitCase
     *
-    *   iterant.doOnExitCase(err => Task.eval {
+    *   iterant.guaranteeCase(err => Task.eval {
     *     err match {
     *       case ExitCase.Completed =>
     *         logger.info("Completed successfully!")
@@ -561,9 +531,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   })
     * }}}
     *
-    * @param f is the function to execute on early stop
+    * @param f is the finalizer to execute when streaming is
+    *        terminated, by successful completion, error or
+    *        cancellation
     */
-  final def doOnExitCase(f: ExitCase[Throwable] => F[Unit])(implicit F: Applicative[F]): Iterant[F, A] =
+  final def guaranteeCase(f: ExitCase[Throwable] => F[Unit])(implicit F: Applicative[F]): Iterant[F, A] =
     Scope(F.unit, F.pure(this), f)
 
   /** Drops the first `n` elements (from the start).
@@ -2249,6 +2221,14 @@ object Iterant extends IterantInstances {
     val bs = if (xs.hasDefiniteSize) recommendedBatchSize else 1
     NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty))
   }
+
+  /** Converts a [[monix.tail.batches.Batch Batch]] into a stream. */
+  def fromBatch[F[_], A](xs: Batch[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    NextBatch(xs, F.pure(empty[F, A]))
+
+  /** Converts a [[monix.tail.batches.BatchCursor BatchCursor]] into a stream. */
+  def fromBatchCursor[F[_], A](xs: BatchCursor[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    NextCursor(xs, F.pure(empty[F, A]))
 
   /** Given an `org.reactivestreams.Publisher`, converts it into a
     * Monix Iterant.

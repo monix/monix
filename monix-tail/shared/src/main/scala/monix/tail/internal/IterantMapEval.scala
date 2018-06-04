@@ -46,8 +46,6 @@ private[tail] object IterantMapEval {
 
     def loop(source: Iterant[F, A]): Iterant[F, B] =
       try source match {
-        case s @ Scope(_, _, _) =>
-          s.runMap(loop)
         case Next(head, tail) =>
           val rest = ff(head).map(h => nextS(h, tail.map(loop)))
           Suspend(rest)
@@ -63,6 +61,10 @@ private[tail] object IterantMapEval {
           Suspend(ff(item).map(h => lastS[F,B](h)))
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]
+        case node @ Scope(_, _, _) =>
+          node.runMap(loop)
+        case node @ Concat(_, _) =>
+          node.runMap(loop)
       } catch {
         case ex if NonFatal(ex) =>
           Iterant.raiseError(ex)

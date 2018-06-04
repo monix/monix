@@ -110,7 +110,7 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
         // Executes the whole pending queue of runnables
         ec.tick(1.day)
 
-        x.value match {
+        val pula = x.value match {
           case None =>
             y.value.isEmpty
           case Some(Success(a)) =>
@@ -130,6 +130,11 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
                 false
             }
         }
+
+        if (!pula) {
+          println(s"${x.value} != ${y.value}")
+        }
+        pula
       }
     }
 

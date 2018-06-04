@@ -17,8 +17,9 @@
 
 package monix.tail
 
+import cats.syntax.all._
 import cats.effect.Sync
-import monix.tail.Iterant.Scope
+import monix.tail.Iterant.{Concat, Scope}
 
 package object internal {
   /**
@@ -36,5 +37,34 @@ package object internal {
 
     def runFold[B](f: Iterant[F, A] => F[B])(implicit F: Sync[F]): F[B] =
       F.bracketCase(self.open)(_ => F.flatMap(self.use)(f))((_, exitCase) => self.close(exitCase))
+  }
+
+  /**
+    * Internal API — extension methods used in the implementation.
+    */
+  private[tail] implicit class ConcatExtensions[F[_], A](
+    val self: Concat[F, A])
+    extends AnyVal {
+
+    def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]) =
+      Concat(self.lh.map(f), self.rh.map(f))
+  }
+
+  /**
+    * Internal API — extension methods used in the implementation.
+    */
+  private[tail] implicit class IterantExtensions[F[_], A](
+    val self: Iterant[F, A])
+    extends AnyVal {
+
+    def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]) =
+      self match {
+        case node @ Scope(_, use, _) =>
+          node.copy(use = use.map(f))
+        case Concat(lh, rh) =>
+          Concat(lh.map(f), rh.map(f))
+        case _ =>
+          f(self)
+      }
   }
 }

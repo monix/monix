@@ -19,9 +19,11 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+
 import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.batches.BatchCursor
 
 
 private[tail] object IterantCompleteL {
@@ -38,31 +40,31 @@ private[tail] object IterantCompleteL {
     (source: Iterant[F, A])
     (implicit F: Sync[F]): F[Unit] = {
 
+    def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
+      while (cursor.hasNext()) cursor.next()
+      rest.flatMap(loop(stack))
+    }
+
     try source match {
       case Next(_, rest) =>
         rest.flatMap(loop(stack))
       case NextCursor(cursor, rest) =>
-        while (cursor.hasNext()) cursor.next()
-        rest.flatMap(loop(stack))
+        processCursor(cursor, rest)
       case NextBatch(gen, rest) =>
-        val cursor = gen.cursor()
-        while (cursor.hasNext()) cursor.next()
-        rest.flatMap(loop(stack))
+        processCursor(gen.cursor(), rest)
       case Suspend(rest) =>
         rest.flatMap(loop(stack))
-      case Last(_) =>
-        F.unit
-      case s @ Scope(_, _, _) =>
-        s.runFold(loop(stack))
-      case Concat(lh, rh) =>
-        lh.flatMap(loop(rh :: stack))
-      case Halt(None) =>
+      case Halt(None) | Last(_) =>
         stack match {
           case Nil => F.unit
           case x :: xs => x.flatMap(loop(xs))
         }
       case Halt(Some(ex)) =>
         F.raiseError(ex)
+      case s @ Scope(_, _, _) =>
+        s.runFold(loop(stack))
+      case Concat(lh, rh) =>
+        lh.flatMap(loop(rh :: stack))
     } catch {
       case ex if NonFatal(ex) =>
         F.raiseError(ex)

@@ -26,23 +26,23 @@ import monix.tail.batches.BatchCursor
 import scala.util.Failure
 
 object IterantCollectSuite extends BaseTestSuite {
-//  test("Iterant.collect <=> List.collect") { implicit s =>
-//    check3 { (stream: Iterant[Task, Int], p: Int => Boolean, f: Int => Int) =>
-//      val pf: PartialFunction[Int,Int] = { case x if p(x) => f(x) }
-//      val received = stream.collect(pf).toListL
-//      val expected = stream.toListL.map(_.collect(pf))
-//      received <-> expected
-//    }
-//  }
-//
-//  test("Iterant.collect protects against user error") { implicit s =>
-//    check1 { (stream: Iterant[Task, Int]) =>
-//      val dummy = DummyException("dummy")
-//      val received = (stream.onErrorIgnore ++ Iterant[Task].now(1)).collect[Int] { case _ => throw dummy }
-//      received <-> Iterant[Task].raiseError(dummy)
-//    }
-//  }
-//
+  test("Iterant.collect <=> List.collect") { implicit s =>
+    check3 { (stream: Iterant[Task, Int], p: Int => Boolean, f: Int => Int) =>
+      val pf: PartialFunction[Int,Int] = { case x if p(x) => f(x) }
+      val received = stream.collect(pf).toListL
+      val expected = stream.toListL.map(_.collect(pf))
+      received <-> expected
+    }
+  }
+
+  test("Iterant.collect protects against user error") { implicit s =>
+    check1 { (stream: Iterant[Task, Int]) =>
+      val dummy = DummyException("dummy")
+      val received = (stream.onErrorIgnore ++ Iterant[Task].now(1)).collect[Int] { case _ => throw dummy }
+      received <-> Iterant[Task].raiseError(dummy)
+    }
+  }
+
 //  test("Iterant.collect flatMap equivalence") { implicit s =>
 //    check3 { (stream: Iterant[Task, Int], p: Int => Boolean, f: Int => Int) =>
 //      val pf: PartialFunction[Int,Int] = { case x if p(x) => f(x) }

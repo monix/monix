@@ -32,8 +32,6 @@ private[tail] object IterantCollect {
 
     def loop(source: Iterant[F,A]): Iterant[F,B] = {
       try source match {
-        case s @ Scope(_, _, _) =>
-          s.runMap(loop)
         case Next(item, rest) =>
           if (pf.isDefinedAt(item)) Next[F,B](pf(item), rest.map(loop))
           else Suspend(rest.map(loop))
@@ -46,16 +44,16 @@ private[tail] object IterantCollect {
 
         case NextBatch(items, rest) =>
           NextBatch(items.collect(pf), rest.map(loop))
-
         case Suspend(rest) =>
           Suspend(rest.map(loop))
-
         case Last(item) =>
           if (pf.isDefinedAt(item)) Last(pf(item)) else Iterant.empty
-
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]
-      } catch {
+        case node =>
+          node.runMap(loop)
+      }
+      catch {
         case ex if NonFatal(ex) =>
           Iterant.raiseError(ex)
       }

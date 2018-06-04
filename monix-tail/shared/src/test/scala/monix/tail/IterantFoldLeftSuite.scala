@@ -27,28 +27,22 @@ import monix.tail.batches.{Batch, BatchCursor}
 import scala.util.Failure
 
 object IterantFoldLeftSuite extends BaseTestSuite {
-//  test("Iterant[Task].toListL (foldLeftL)") { implicit s =>
-//    check1 { (list: List[Int]) =>
-//      val result = Iterant[Task].fromIterable(list).toListL
-//      result <-> Task.now(list)
-//    }
-//  }
-//
-//  test("Iterant[Task].toListL (foldLeftL)") { implicit s =>
-//    check1 { (list: List[Int]) =>
-//      val result = Iterant[Task].fromIterable(list).toListL
-//      result <-> Task.now(list)
-//    }
-//  }
-//
-//  test("Iterant[Task].toListL (foldLeftL, async)") { implicit s =>
-//    check1 { (list: List[Int]) =>
-//      val result = Iterant[Task].fromIterable(list)
-//        .mapEval(x => Task.evalAsync(x)).toListL
-//
-//      result <-> Task.now(list)
-//    }
-//  }
+  test("Iterant[Task].toListL (foldLeftL)") { implicit s =>
+    check2 { (list: List[Int], idx: Int) =>
+      val result = arbitraryListToIterant[Task, Int](list, idx, false).toListL
+      result <-> Task.now(list)
+    }
+  }
+
+  test("Iterant[Task].toListL (foldLeftL, async)") { implicit s =>
+    check2 { (list: List[Int], idx: Int) =>
+      val result = arbitraryListToIterant[Task, Int](list, idx, false)
+        .mapEval(x => Task.evalAsync(x))
+        .toListL
+
+      result <-> Task.now(list)
+    }
+  }
 //
 //  test("Iterant[Task].foldLeftL ends in error") { implicit s =>
 //    val b = Iterant[Task]

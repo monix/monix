@@ -19,9 +19,10 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 import scala.collection.mutable
 
@@ -32,27 +33,44 @@ private[tail] object IterantFoldLeft {
   final def apply[F[_], S, A](source: Iterant[F, A], seed: => S)(op: (S,A) => S)
     (implicit F: Sync[F]): F[S] = {
 
-    def loop(state: S)(self: Iterant[F, A]): F[S] = {
+    def continueWith(state: S, stack: List[F[Iterant[F, A]]]): F[S] =
+      stack match {
+        case Nil => F.pure(state)
+        case x :: xs => x.flatMap(loop(state, xs))
+      }
+
+    def loop(state: S, stack: List[F[Iterant[F, A]]])(self: Iterant[F, A]): F[S] = {
       try self match {
-        case b @ Scope(_, _, _) =>
-          b.runFold(loop(state))
         case Next(a, rest) =>
           val newState = op(state, a)
-          rest.flatMap(loop(newState))
+          rest.flatMap(loop(newState, stack))
+
         case NextCursor(cursor, rest) =>
           val newState = cursor.foldLeft(state)(op)
-          rest.flatMap(loop(newState))
+          rest.flatMap(loop(newState, stack))
+
         case NextBatch(gen, rest) =>
           val newState = gen.foldLeft(state)(op)
-          rest.flatMap(loop(newState))
+          rest.flatMap(loop(newState, stack))
+
         case Suspend(rest) =>
-          rest.flatMap(loop(state))
+          rest.flatMap(loop(state, stack))
+
         case Last(item) =>
-          F.pure(op(state,item))
+          continueWith(op(state, item), stack)
+
         case Halt(None) =>
-          F.pure(state)
+          continueWith(state, stack)
+
         case Halt(Some(ex)) =>
           F.raiseError(ex)
+
+        case b @ Scope(_, _, _) =>
+          b.runFold(loop(state, stack))
+
+        case Concat(lh, rh) =>
+          lh.flatMap(loop(state, rh :: stack))
+
       } catch {
         case ex if NonFatal(ex) =>
           F.raiseError(ex)
@@ -65,7 +83,7 @@ private[tail] object IterantFoldLeft {
         // handle exception in the seed
         val init = seed
         catchErrors = false
-        loop(init)(source)
+        loop(init, Nil)(source)
       } catch {
         case NonFatal(e) if catchErrors =>
           F.raiseError(e)
@@ -77,7 +95,7 @@ private[tail] object IterantFoldLeft {
     * Implementation for `Iterant#toListL`
     */
   def toListL[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[List[A]] = {
-    val buffer = IterantFoldLeft(source, mutable.ListBuffer.empty[A])((acc, a) => acc += a)
-    buffer.map(_.toList)
+    IterantFoldLeft(source, mutable.ListBuffer.empty[A])((acc, a) => acc += a)
+      .map(_.toList)
   }
 }

@@ -18,11 +18,12 @@
 package monix.tail
 
 import cats.Eq
-import cats.syntax.eq._
 import cats.effect.{IO, Sync}
+import cats.syntax.eq._
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
+import monix.tail.Iterant.{Halt, Last}
 import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.{Arbitrary, Cogen}
 
@@ -41,26 +42,38 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             Iterant[F].haltS(Some(DummyException("arbitrary")))
 
         case x :: Nil if math.abs(idx % 2) == 1 =>
-          Iterant[F].lastS(x)
+          if (idx % 4 == 1)
+            Iterant[F].lastS(x)
+          else
+            Iterant.Concat(F.delay(Iterant[F].lastS(x)), F.delay(Halt(None)))
 
         case ns =>
-          math.abs(idx % 14) match {
+          math.abs(idx % 16) match {
             case 0 | 1 =>
               Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx+1)))
             case 2 | 3 =>
               Iterant[F].suspend(F.delay(loop(list, idx+1)))
             case 4 | 5 =>
               Iterant[F].suspendS(F.delay(loop(ns, idx + 1)))
-            case n @ (6 | 7 | 8) =>
+            case n @ 6 =>
               val (headSeq, tail) = list.splitAt(3)
-              val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, n - 5)
+              val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, n - 2)
               Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx+1)))
-            case n @ (9 | 10 | 11) =>
+            case n @ (7 | 8 | 9) =>
               val (headSeq, tail) = list.splitAt(3)
-              val batch = Batch.fromSeq(headSeq.toVector, n - 8)
+              val batch = Batch.fromSeq(headSeq.toVector, n - 6)
               Iterant[F].nextBatchS(batch, F.delay(loop(tail, idx + 1)))
-            case 12 | 13 =>
+            case 10 | 11 =>
               Iterant[F].nextBatchS(Batch.empty, F.delay(loop(ns, idx + 1)))
+            case 12 | 13 =>
+              Iterant[F].resource(F.delay(1)) {
+                case 1 => F.unit
+                case a => F.raiseError(new IllegalStateException(s"$a"))
+              }.flatMap(_ => loop(list, idx + 1))
+            case 14 =>
+              Iterant.Concat(F.delay(Last(ns.head)), F.delay(loop(ns.tail, idx + 1)))
+            case 15 =>
+              Iterant.Concat(F.delay(Halt(None)), F.delay(loop(list, idx + 1)))
           }
       }
 

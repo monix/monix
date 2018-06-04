@@ -22,7 +22,7 @@ import cats.effect.Sync
 
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantMap {
   /**
@@ -33,8 +33,6 @@ private[tail] object IterantMap {
 
     def loop(source: Iterant[F, A]): Iterant[F, B] =
       try source match {
-        case s @ Scope(_, _, _) =>
-          s.runMap(loop)
         case Next(head, tail) =>
           Next[F, B](f(head), tail.map(loop))
         case NextCursor(cursor, rest) =>
@@ -45,9 +43,14 @@ private[tail] object IterantMap {
           Suspend[F, B](rest.map(loop))
         case Last(item) =>
           Last(f(item))
-        case empty@Halt(_) =>
+        case empty @ Halt(_) =>
           empty.asInstanceOf[Iterant[F, B]]
-      } catch {
+        case node @ Scope(_, _, _) =>
+          node.runMap(loop)
+        case node @ Concat(_, _) =>
+          node.runMap(loop)
+      }
+      catch {
         case ex if NonFatal(ex) => Iterant.raiseError(ex)
       }
 
