@@ -1342,7 +1342,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        throws an error.
     */
   final def onErrorHandleWith[B >: A](f: Throwable => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
-    IterantOnError.handleWith(self.upcast, f)
+    IterantOnErrorHandleWith(self.upcast, f)
 
   /** Returns an `Iterant` that mirrors the behavior of the source,
     * unless the source is terminated with an error, in which

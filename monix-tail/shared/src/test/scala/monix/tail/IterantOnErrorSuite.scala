@@ -165,6 +165,14 @@ object IterantOnErrorSuite extends BaseTestSuite {
     assertEquals(effect, 3)
   }
 
+  test("onErrorIgnore works") { _ =>
+    check2 { (list: List[Int], idx: Int) =>
+      val expected = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = true)
+      stream.onErrorIgnore.toListL <-> expected.toListL
+    }
+  }
+
   test("onErrorIgnore should capture exceptions from eval, mapEval & liftF") { _ =>
     val dummy = DummyException("dummy")
     Iterant[IO]

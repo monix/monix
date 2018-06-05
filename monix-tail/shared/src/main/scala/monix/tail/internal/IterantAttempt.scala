@@ -19,6 +19,7 @@ package monix.tail.internal
 
 import cats.effect.{ExitCase, Sync}
 import cats.syntax.all._
+import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
@@ -32,7 +33,14 @@ private[tail] object IterantAttempt {
     */
   def apply[F[_], A](fa: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] = {
     val loop = new AttemptLoop[F, A]
-    Suspend(F.delay(loop(fa)).handleError(ex => Last(Left(ex))))
+    fa match {
+      case NextBatch(_, _) | NextCursor(_, _) | Concat(_, _) =>
+        // Suspending execution in order to preserve laziness and
+        // referential transparency
+        Suspend(F.delay(loop(fa)))
+      case _ =>
+        loop(fa)
+    }
   }
 
   /**
@@ -44,6 +52,7 @@ private[tail] object IterantAttempt {
     loop =>
 
     type Attempt = Either[Throwable, A]
+    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
 
     def apply(node: Iterant[F, A]): Iterant[F, Attempt] =
       node match {
@@ -56,13 +65,13 @@ private[tail] object IterantAttempt {
         case Suspend(rest) =>
           Suspend(continueWith(rest))
         case Last(a) =>
-          Last(Right(a))
-        case Halt(None) =>
-          node.asInstanceOf[Iterant[F, Attempt]]
+          handleLast(a)
+        case node @ Halt(None) =>
+          handleHalt(node)
         case Halt(Some(ex)) =>
           Last(Left(ex))
-        case node@Concat(_, _) =>
-          node.runMap(loop)
+        case Concat(lh, rh) =>
+          handleConcat(lh, rh)
         case Scope(open, use, close) =>
           handleScope(open, use, close)
       }
@@ -74,6 +83,34 @@ private[tail] object IterantAttempt {
         case Right(iter) =>
           loop(iter)
       }
+
+    def handleConcat(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, Attempt] = {
+      if (stack == null) stack = new ArrayStack()
+      stack.push(rh)
+      Suspend(continueWith(lh))
+    }
+
+    def handleLast(a: A): Iterant[F, Attempt] = {
+      val next =
+        if (stack != null) stack.pop()
+        else null.asInstanceOf[F[Iterant[F, A]]]
+
+      next match {
+        case null => Last(Right(a))
+        case stream => Next(Right(a), continueWith(stream))
+      }
+    }
+
+    def handleHalt(node: Iterant.Halt[F, A]): Iterant[F, Attempt] = {
+      val next =
+        if (stack != null) stack.pop()
+        else null.asInstanceOf[F[Iterant[F, A]]]
+
+      next match {
+        case null => node.asInstanceOf[Iterant[F, Attempt]]
+        case stream => Suspend(continueWith(stream))
+      }
+    }
 
     def handleBatch(batch: Batch[A], rest: F[Iterant[F, A]]): Iterant[F, Attempt] = {
       var handleError = true

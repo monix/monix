@@ -20,18 +20,23 @@ package internal
 
 import cats.effect.{ExitCase, Sync}
 import cats.syntax.all._
+import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
-private[tail] object IterantOnError {
-  /** Implementation for `Iterant.onErrorHandleWith`. */
-  def handleWith[F[_], A](fa: Iterant[F, A], f: Throwable => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] = {
+private[tail] object IterantOnErrorHandleWith {
+  /**
+    * Implementation for `Iterant.onErrorHandleWith`.
+    */
+  def apply[F[_], A](fa: Iterant[F, A], f: Throwable => Iterant[F, A])
+    (implicit F: Sync[F]): Iterant[F, A] = {
+
     val loop = new HandleWithLoop(f)
     fa match {
-      case NextBatch(_, _) | NextCursor(_, _) =>
+      case NextBatch(_, _) | NextCursor(_, _) | Concat(_, _) =>
         // Suspending execution in order to preserve laziness and
         // referential transparency
         Suspend(F.delay(loop(fa)))
@@ -48,6 +53,8 @@ private[tail] object IterantOnError {
     (implicit F: Sync[F])
     extends (Iterant[F, A] => Iterant[F, A]) { loop =>
 
+    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
+
     def apply(node: Iterant[F, A]): Iterant[F, A] =
       try node match {
         case Next(a, rest) =>
@@ -59,16 +66,19 @@ private[tail] object IterantOnError {
         case Suspend(rest) =>
           Suspend(continueWith(rest))
         case Last(_) | Halt(None) =>
-          node
+          handleLast(node)
         case Halt(Some(e)) =>
           f(e)
-        case node @ Concat(_, _) =>
-          node.runMap(loop)
+        case Concat(lh, rh) =>
+          handleConcat(lh, rh)
         case Scope(open, use, close) =>
           handleScope(open, use, close)
       } catch {
         case e if NonFatal(e) => Halt(Some(e))
       }
+
+    def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
+      rest.handleError(f).map(this)
 
     def extractBatch(ref: BatchCursor[A]): Array[A] = {
       var size = ref.recommendedBatchSize
@@ -80,10 +90,7 @@ private[tail] object IterantOnError {
       buffer.toArray[Any].asInstanceOf[Array[A]]
     }
 
-    def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
-      rest.handleError(f).map(this)
-
-    def handleBatch(batch: Batch[A], rest: F[Iterant[F, A]]) = {
+    def handleBatch(batch: Batch[A], rest: F[Iterant[F, A]]): Iterant[F, A] = {
       var handleError = true
       try {
         val cursor = batch.cursor()
@@ -108,6 +115,27 @@ private[tail] object IterantOnError {
           Suspend(next)
       } catch {
         case e if NonFatal(e) => f(e)
+      }
+    }
+
+    def handleConcat(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] = {
+      if (stack == null) stack = new ArrayStack()
+      stack.push(rh)
+      Suspend(continueWith(lh))
+    }
+
+    def handleLast(node: Iterant[F, A]): Iterant[F, A] = {
+      val next =
+        if (stack != null) stack.pop()
+        else null.asInstanceOf[F[Iterant[F, A]]]
+
+      next match {
+        case null => node
+        case stream =>
+          node match {
+            case Last(a) => Next(a, continueWith(stream))
+            case _ => Suspend(continueWith(stream))
+          }
       }
     }
 

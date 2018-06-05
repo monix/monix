@@ -193,15 +193,15 @@ object IterantMapBatchSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-//  test("Iterant[Coeval].mapBatch should protect against direct exceptions") { implicit s =>
-//    check2 { (l: List[Int], idx: Int) =>
-//      val dummy = DummyException("dummy")
-//      val list = if (l.isEmpty) List(1) else l
-//      val iterant = arbitraryListToIterant[Coeval, Int](list, idx)
-//      val received = (iterant ++ Iterant[Coeval].now(1)).mapBatch[Int](_ => throw dummy)
-//      received <-> Iterant[Coeval].haltS[Int](Some(dummy))
-//    }
-//  }
+  test("Iterant[Coeval].mapBatch should protect against direct exceptions") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val iterant = arbitraryListToIterant[Coeval, Int](list, idx)
+      val received = (iterant ++ Iterant[Coeval].now(1)).mapBatch[Int](_ => throw dummy)
+      received <-> Iterant[Coeval].haltS[Int](Some(dummy))
+    }
+  }
 
   test("Iterant[Coeval].mapBatch should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
