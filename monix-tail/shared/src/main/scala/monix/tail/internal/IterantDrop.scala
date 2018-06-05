@@ -22,7 +22,7 @@ import cats.syntax.all._
 
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantDrop {
   /**
@@ -30,9 +30,13 @@ private[tail] object IterantDrop {
     */
   def apply[F[_], A](source: Iterant[F, A], n: Int)
     (implicit F: Sync[F]): Iterant[F, A] = {
+    Suspend(F.delay(new Loop(n).apply(source)))
+  }
 
+  private class Loop[F[_], A](private[this] var toDrop: Int)(implicit F: Sync[F])
+    extends (Iterant[F, A] => Iterant[F, A]) {
     // Reusable logic for NextCursor / NextBatch branches
-    def dropFromCursor(toDrop: Int, ref: NextCursor[F, A]): Iterant[F, A] = {
+    private[this] def dropFromCursor(ref: NextCursor[F, A]): Iterant[F, A] = {
       val NextCursor(cursor, rest) = ref
       val limit = math.min(cursor.recommendedBatchSize, toDrop)
       var droppedNow = 0
@@ -40,41 +44,35 @@ private[tail] object IterantDrop {
       while (droppedNow < limit && cursor.hasNext()) {
         cursor.next()
         droppedNow += 1
+        toDrop -= 1
       }
 
       val next: F[Iterant[F, A]] = if (droppedNow == limit && cursor.hasNext()) F.pure(ref) else rest
-      Suspend(next.map(loop(toDrop - droppedNow)))
+      Suspend(next.map(this))
     }
 
-    def loop(toDrop: Int)(source: Iterant[F, A]): Iterant[F, A] = {
+    def apply(source: Iterant[F, A]): Iterant[F, A] = {
       try if (toDrop <= 0) source else source match {
-        case s @ Scope(_, _, _) =>
-          s.runMap(loop(toDrop))
         case Next(_, rest) =>
-          Suspend(rest.map(loop(toDrop - 1)))
+          toDrop -= 1
+          Suspend(rest.map(this))
         case ref @ NextCursor(_, _) =>
-          dropFromCursor(toDrop, ref)
+          dropFromCursor(ref)
         case NextBatch(batch, rest) =>
-          dropFromCursor(toDrop, NextCursor(batch.cursor(), rest))
+          dropFromCursor(NextCursor(batch.cursor(), rest))
         case Suspend(rest) =>
-          Suspend(rest.map(loop(toDrop)))
+          Suspend(rest.map(this))
         case Last(_) =>
+          toDrop -= 1
           Iterant.empty
         case halt @ Halt(_) =>
           halt
+        case s @ (Scope(_, _, _) | Concat(_, _)) =>
+          s.runMap(this)
       } catch {
         case ex if NonFatal(ex) =>
           Iterant.raiseError(ex)
       }
-    }
-
-    source match {
-      case NextBatch(_, _) | NextCursor(_, _) =>
-        // We can have side-effects with NextBatch/NextCursor
-        // processing, so suspending execution in this case
-        Suspend(F.delay(loop(n)(source)))
-      case _ =>
-        loop(n)(source)
     }
   }
 }
