@@ -43,199 +43,201 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       result <-> Task.now(list)
     }
   }
-//
-//  test("Iterant[Task].foldLeftL ends in error") { implicit s =>
-//    val b = Iterant[Task]
-//    val dummy = DummyException("dummy")
-//    var wasCanceled = false
-//    val stopT = Task.evalAsync { wasCanceled = true }
-//
-//    val r = b.nextS(1, Task.evalAsync(b.nextS(2, Task.evalAsync(b.raiseError[Int](dummy)), stopT)), stopT).toListL.runAsync
-//    assert(!wasCanceled, "wasCanceled should not be true")
-//
-//    s.tick()
-//    assertEquals(r.value, Some(Failure(dummy)))
-//    assert(!wasCanceled, "wasCanceled should not be true")
-//  }
-//
-//  test("Iterant[Task].foldLeftL protects against user code in the seed") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    var wasCanceled = false
-//    val c = Task.evalAsync { wasCanceled = true }
-//    val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]), c)
-//    val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runAsync
-//    s.tick()
-//    assertEquals(result.value, Some(Failure(dummy)))
-//    assert(wasCanceled, "wasCanceled should be true")
-//  }
-//
-//  test("Iterant[Task].foldLeftL protects against user code in function f") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    var wasCanceled = false
-//    val c = Task.evalAsync { wasCanceled = true }
-//    val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]), c)
-//    val result = stream.foldLeftL(0)((_, _) => throw dummy)
-//    s.tick()
-//    check(result <-> Task.raiseError[Int](dummy))
-//    assert(wasCanceled, "wasCanceled should be true")
-//  }
-//
+
+  test("Iterant[Task].foldLeftL ends in error") { implicit s =>
+    val b = Iterant[Task]
+    val dummy = DummyException("dummy")
+    var effect = 0
+    val stopT = Task.evalAsync { effect += 1}
+
+    val r = b.nextS(1, Task.evalAsync(b.nextS(2, Task.evalAsync(b.raiseError[Int](dummy))).guarantee(stopT))).guarantee(stopT).toListL.runAsync
+    assertEquals(effect, 0)
+
+    s.tick()
+    assertEquals(r.value, Some(Failure(dummy)))
+    assertEquals(effect, 2)
+  }
+
+  test("Iterant[Task].foldLeftL protects against user code in the seed") { implicit s =>
+    val dummy = DummyException("dummy")
+    var wasCanceled = false
+    val c = Task.evalAsync { wasCanceled = true }
+    val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int])).guarantee(c)
+    val result = stream.foldLeftL[Int](throw dummy)((a, e) => a + e).runAsync
+    s.tick()
+    assertEquals(result.value, Some(Failure(dummy)))
+    assert(wasCanceled, "wasCanceled should be true")
+  }
+
+  test("Iterant[Task].foldLeftL protects against user code in function f") { implicit s =>
+    val dummy = DummyException("dummy")
+    var wasCanceled = false
+    val c = Task.evalAsync { wasCanceled = true }
+    val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int])).guarantee(c)
+    val result = stream.foldLeftL(0)((_, _) => throw dummy)
+    s.tick()
+    check(result <-> Task.raiseError[Int](dummy))
+    assert(wasCanceled, "wasCanceled should be true")
+  }
+
 //  test("Iterant[Task].foldLeftL (async) protects against user code in function f") { implicit s =>
 //    val dummy = DummyException("dummy")
-//    var wasCanceled = false
-//    val c = Task.evalAsync { wasCanceled = true }
-//    val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].nextCursorS(BatchCursor(2,3), Task.now(Iterant[Task].empty[Int]), c)), c)
+//    var effect = 0
+//    val c = Task.evalAsync { effect += 1}
+//    val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].nextCursorS(BatchCursor(2,3), Task.now(Iterant[Task].empty[Int])).guarantee(c)))
+//      .guarantee(c)
 //      .mapEval(x => Task.evalAsync(x))
 //
 //    val result = stream.foldLeftL(0)((_, _) => throw dummy)
 //    check(result <-> Task.raiseError[Int](dummy))
-//    assert(wasCanceled, "wasCanceled should be true")
+//    assertEquals(effect, 2)
 //  }
-//
-//  test("Iterant[Task].foldLeftL should protect against broken batches") { implicit s =>
-//    check1 { (prefix: Iterant[Task, Int]) =>
-//      val dummy = DummyException("dummy")
-//      val cursor = new ThrowExceptionCursor(dummy)
-//      val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
-//      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
-//      result <-> Task.raiseError[Int](dummy)
-//    }
-//  }
-//
-//  test("Iterant[Task].foldLeftL should protect against broken generators") { implicit s =>
-//    check1 { (prefix: Iterant[Task, Int]) =>
-//      val dummy = DummyException("dummy")
-//      val generator = new ThrowExceptionBatch(dummy)
-//      val error = Iterant[Task].nextBatchS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
-//      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
-//      result <-> Task.raiseError[Int](dummy)
-//    }
-//  }
-//
-//  test("Iterant[Coeval].toList (Comonad)") { implicit s =>
-//    check1 { (list: List[Int]) =>
-//      val result = Iterant[Coeval].fromIterable(list).toListL.value()
-//      result == list
-//    }
-//  }
-//
-//  test("Iterant[Coeval].foldLeft (Comonad)") { implicit s =>
-//    check1 { (list: List[Int]) =>
-//      val result = Iterant[Coeval].fromIterable(list).foldLeftL(0)(_ + _).value()
-//      result == list.sum
-//    }
-//  }
-//
-//  test("Iterant[Coeval].toListL (foldLeftL, lazy)") { implicit s =>
-//    check1 { (list: List[Int]) =>
-//      val result = Iterant[Coeval].fromIterable(list)
-//        .mapEval(x => Coeval(x)).toListL
-//
-//      result <-> Coeval.now(list)
-//    }
-//  }
-//
-//  test("Iterant[Coeval].foldLeftL ends in error") { implicit s =>
-//    val b = Iterant[Coeval]
-//    val dummy = DummyException("dummy")
-//    var wasCanceled = false
-//    val c = Coeval { wasCanceled = true }
-//    val r = b.nextS(1, Coeval(b.nextS(2, Coeval(b.raiseError[Int](dummy)), c)), c).toListL.runTry()
-//
-//    assertEquals(r, Failure(dummy))
-//    assert(!wasCanceled, "wasCanceled should not be true")
-//  }
-//
-//  test("Iterant[Coeval].foldLeftL protects against user code in the seed") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    var wasCanceled = false
-//    val c = Coeval { wasCanceled = true }
-//    val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), c)
-//    val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runTry()
-//    assertEquals(result, Failure(dummy))
-//    assert(wasCanceled, "wasCanceled should be true")
-//  }
-//
-//  test("Iterant[Coeval].foldLeftL protects against user code in function f") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    var wasCanceled = false
-//    val c = Coeval { wasCanceled = true }
-//    val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), c)
-//    val result = stream.foldLeftL(0)((_, _) => throw dummy)
-//    check(result <-> Coeval.raiseError[Int](dummy))
-//    assert(wasCanceled, "wasCanceled should be true")
-//  }
-//
-//  test("Iterant[Coeval].foldLeftL (batched) protects against user code in function f") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    var wasCanceled = false
-//    val c = Coeval { wasCanceled = true }
-//    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), c)
-//    val result = stream.foldLeftL(0)((_, _) => throw dummy)
-//    check(result <-> Coeval.raiseError[Int](dummy))
-//    assert(wasCanceled, "wasCanceled should be true")
-//  }
-//
+
+  test("Iterant[Task].foldLeftL should protect against broken batches") { implicit s =>
+    check1 { (prefix: Iterant[Task, Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]))
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
+      result <-> Task.raiseError[Int](dummy)
+    }
+  }
+
+  test("Iterant[Task].foldLeftL should protect against broken generators") { implicit s =>
+    check1 { (prefix: Iterant[Task, Int]) =>
+      val dummy = DummyException("dummy")
+      val generator = new ThrowExceptionBatch(dummy)
+      val error = Iterant[Task].nextBatchS(generator, Task.now(Iterant[Task].empty[Int]))
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
+      result <-> Task.raiseError[Int](dummy)
+    }
+  }
+
+  test("Iterant[Coeval].toList (Comonad)") { implicit s =>
+    check1 { (list: List[Int]) =>
+      val result = Iterant[Coeval].fromIterable(list).toListL.value()
+      result == list
+    }
+  }
+
+  test("Iterant[Coeval].foldLeft (Comonad)") { implicit s =>
+    check1 { (list: List[Int]) =>
+      val result = Iterant[Coeval].fromIterable(list).foldLeftL(0)(_ + _).value()
+      result == list.sum
+    }
+  }
+
+  test("Iterant[Coeval].toListL (foldLeftL, lazy)") { implicit s =>
+    check1 { (list: List[Int]) =>
+      val result = Iterant[Coeval].fromIterable(list)
+        .mapEval(x => Coeval(x)).toListL
+
+      result <-> Coeval.now(list)
+    }
+  }
+
+  test("Iterant[Coeval].foldLeftL ends in error") { implicit s =>
+    val b = Iterant[Coeval]
+    val dummy = DummyException("dummy")
+    var effect = 0
+    val c = Coeval { effect += 1 }
+    val r = b.nextS(1, Coeval(b.nextS(2, Coeval(b.raiseError[Int](dummy))).guarantee(c))).guarantee(c).toListL.runTry()
+
+    assertEquals(r, Failure(dummy))
+    assertEquals(effect, 2)
+  }
+
+  test("Iterant[Coeval].foldLeftL protects against user code in the seed") { implicit s =>
+    val dummy = DummyException("dummy")
+    var wasCanceled = false
+    val c = Coeval { wasCanceled = true }
+    val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c)
+    val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runTry()
+    assertEquals(result, Failure(dummy))
+    assert(wasCanceled, "wasCanceled should be true")
+  }
+
+  test("Iterant[Coeval].foldLeftL protects against user code in function f") { implicit s =>
+    val dummy = DummyException("dummy")
+    var wasCanceled = false
+    val c = Coeval { wasCanceled = true }
+    val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c)
+    val result = stream.foldLeftL(0)((_, _) => throw dummy)
+    check(result <-> Coeval.raiseError[Int](dummy))
+    assert(wasCanceled, "wasCanceled should be true")
+  }
+
+  test("Iterant[Coeval].foldLeftL (batched) protects against user code in function f") { implicit s =>
+    val dummy = DummyException("dummy")
+    var wasCanceled = false
+    val c = Coeval { wasCanceled = true }
+    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c)
+    val result = stream.foldLeftL(0)((_, _) => throw dummy)
+    check(result <-> Coeval.raiseError[Int](dummy))
+    assert(wasCanceled, "wasCanceled should be true")
+  }
+
 //  test("Iterant[Coeval].foldLeftL (async) protects against user code in function f") { implicit s =>
 //    val dummy = DummyException("dummy")
-//    var wasCanceled = false
-//    val c = Coeval { wasCanceled = true }
+//    var effect = 0
+//    val c = Coeval { effect += 1}
 //    val stream = Iterant[Coeval].nextS(1,
-//      Coeval(Iterant[Coeval].nextCursorS(BatchCursor(2,3), Coeval.now(Iterant[Coeval].empty[Int]), c)), c)
+//      Coeval(Iterant[Coeval].nextCursorS(BatchCursor(2,3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c)))
+//      .guarantee(c)
 //      .mapEval(x => Coeval(x))
 //
 //    val result = stream.foldLeftL(0)((_, _) => throw dummy)
 //    check(result <-> Coeval.raiseError[Int](dummy))
-//    assert(wasCanceled, "wasCanceled should be true")
+//    assertEquals(effect, 2)
 //  }
 //
-//  test("Iterant[Coeval].foldLeftL should protect against broken batches") { implicit s =>
-//    check1 { (prefix: Iterant[Coeval, Int]) =>
-//      val dummy = DummyException("dummy")
-//      val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
-//      val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-//      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
-//      result <-> Coeval.raiseError[Int](dummy)
-//    }
-//  }
-//
-//  test("Iterant[Coeval].foldLeftL should protect against broken generators") { implicit s =>
-//    check1 { (prefix: Iterant[Coeval, Int]) =>
-//      val dummy = DummyException("dummy")
-//      val generator: Batch[Int] = new ThrowExceptionBatch(dummy)
-//      val error = Iterant[Coeval].nextBatchS(generator, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-//      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
-//      result <-> Coeval.raiseError[Int](dummy)
-//    }
-//  }
-//
-//  test("Iterant[Coeval, Int].foldL is consistent with foldLeftL") { implicit s =>
-//    check1 { (stream: Iterant[Coeval, Int]) =>
-//      stream.foldL <-> stream.foldLeftL(0)(_ + _)
-//    }
-//  }
-//
-//  test("Iterant[Coeval, Int].sumL is consistent with foldLeftL") { implicit s =>
-//    check1 { (stream: Iterant[Coeval, Int]) =>
-//      stream.sumL <-> stream.foldLeftL(0)(_ + _)
-//    }
-//  }
-//
-//  test("Iterant.countL consistent with List.length") { implicit s =>
-//    check2 { (list: List[Int], idx: Int) =>
-//      val i = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
-//      i.countL <-> Coeval(list.length)
-//    }
-//  }
-//
+  test("Iterant[Coeval].foldLeftL should protect against broken batches") { implicit s =>
+    check1 { (prefix: Iterant[Coeval, Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
+      val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]))
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
+      result <-> Coeval.raiseError[Int](dummy)
+    }
+  }
+
+  test("Iterant[Coeval].foldLeftL should protect against broken generators") { implicit s =>
+    check1 { (prefix: Iterant[Coeval, Int]) =>
+      val dummy = DummyException("dummy")
+      val generator: Batch[Int] = new ThrowExceptionBatch(dummy)
+      val error = Iterant[Coeval].nextBatchS(generator, Coeval.now(Iterant[Coeval].empty[Int]))
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
+      result <-> Coeval.raiseError[Int](dummy)
+    }
+  }
+
+  test("Iterant[Coeval, Int].foldL is consistent with foldLeftL") { implicit s =>
+    check1 { (stream: Iterant[Coeval, Int]) =>
+      stream.foldL <-> stream.foldLeftL(0)(_ + _)
+    }
+  }
+
+  test("Iterant[Coeval, Int].sumL is consistent with foldLeftL") { implicit s =>
+    check1 { (stream: Iterant[Coeval, Int]) =>
+      stream.sumL <-> stream.foldLeftL(0)(_ + _)
+    }
+  }
+
+  test("Iterant.countL consistent with List.length") { implicit s =>
+    check2 { (list: List[Int], idx: Int) =>
+      val i = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      i.countL <-> Coeval(list.length)
+    }
+  }
+
 //  test("earlyStop gets called for failing `rest` on Next node") { implicit s =>
 //    var effect = 0
 //
 //    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
 //    val dummy = DummyException("dummy")
-//    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy), stop(3))
-//    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
-//    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
+//    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy)).guarantee(stop(3))
+//    val node2 = Iterant[Coeval].nextS(2, Coeval(node3)).guarantee(stop(2))
+//    val node1 = Iterant[Coeval].nextS(1, Coeval(node2)).guarantee(stop(1))
 //
 //    assertEquals(node1.toListL.runTry(), Failure(dummy))
 //    assertEquals(effect, 3)
@@ -247,8 +249,8 @@ object IterantFoldLeftSuite extends BaseTestSuite {
 //    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
 //    val dummy = DummyException("dummy")
 //    val node3 = Iterant[Coeval].lastS(3)
-//    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
-//    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
+//    val node2 = Iterant[Coeval].nextS(2, Coeval(node3)).guarantee(stop(2))
+//    val node1 = Iterant[Coeval].nextS(1, Coeval(node2)).guarantee(stop(1))
 //
 //    assertEquals(node1.foldLeftL(0)((_, el) => if (el == 3) throw dummy else el).runTry(), Failure(dummy))
 //    assertEquals(effect, 0)

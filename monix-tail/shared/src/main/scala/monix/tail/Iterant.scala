@@ -523,9 +523,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *     err match {
     *       case ExitCase.Completed =>
     *         logger.info("Completed successfully!")
-    *       case Exit.Error(e) =>
+    *       case ExitCase.Error(e) =>
     *         logger.error("Completed in error!", e)
-    *       case Exit.Canceled(_) =>
+    *       case ExitCase.Canceled =>
     *         logger.info("Was stopped early!")
     *     }
     *   })

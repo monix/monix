@@ -25,12 +25,13 @@ import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 import scala.collection.mutable
+import cats.effect.ExitCase
 
 private[tail] object IterantFoldLeft {
   /**
     * Implementation for `Iterant#foldLeftL`
     */
-  final def apply[F[_], S, A](source: Iterant[F, A], seed: => S)(op: (S,A) => S)
+  final def apply[F[_], S, A](source: Iterant[F, A], seed: => S)(op: (S, A) => S)
     (implicit F: Sync[F]): F[S] = {
 
     def continueWith(state: S, stack: List[F[Iterant[F, A]]]): F[S] =
@@ -86,7 +87,10 @@ private[tail] object IterantFoldLeft {
         loop(init, Nil)(source)
       } catch {
         case NonFatal(e) if catchErrors =>
-          F.raiseError(e)
+          source match {
+            case Scope(_, _, close) => close(ExitCase.Error(e)) *> F.raiseError(e)
+            case _ => F.raiseError(e)
+          }
       }
     }
   }

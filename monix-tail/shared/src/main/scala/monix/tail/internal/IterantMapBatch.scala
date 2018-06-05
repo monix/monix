@@ -31,6 +31,7 @@ private[tail] object IterantMapBatch {
     */
   def apply[F[_], A, B](source: Iterant[F, A], f: A => Batch[B])
     (implicit F: Sync[F]): Iterant[F, B] = {
+
     val loop = new MapBatchLoop[F, A, B](f)
     source match {
       case Scope(_, _, _) | Suspend(_) | Halt(_) => loop(source)
@@ -43,46 +44,46 @@ private[tail] object IterantMapBatch {
     }
   }
 
-    /**
-      * Describing the loop as a class because we can control memory
-      * allocation better this way.
-      */
-    private final class MapBatchLoop[F[_], A, B](f: A => Batch[B])
-      (implicit F: Sync[F])
-      extends (Iterant[F, A] => Iterant[F, B]) { loop =>
+  /**
+    * Describing the loop as a class because we can control memory
+    * allocation better this way.
+    */
+  private final class MapBatchLoop[F[_], A, B](f: A => Batch[B])
+    (implicit F: Sync[F])
+    extends (Iterant[F, A] => Iterant[F, B]) { loop =>
 
-      def apply(node: Iterant[F, A]): Iterant[F, B] =
-        try node match {
-          case Next(head, tail) =>
-            NextBatch[F, B](f(head), tail.map(loop))
-          case ref@NextCursor(_, _) =>
-            processBatch(ref)
-          case NextBatch(batch, rest) =>
-            processBatch(NextCursor(batch.cursor(), rest))
-          case Suspend(rest) =>
-            Suspend[F, B](rest.map(loop))
-          case s @ (Scope(_, _, _) | Concat(_, _)) =>
-            s.runMap(loop)
-          case Last(item) =>
-            NextBatch(f(item), F.delay(Halt[F, B](None)))
-          case empty@Halt(_) =>
-            empty.asInstanceOf[Iterant[F, B]]
-        } catch {
-          case ex if NonFatal(ex) => Iterant.raiseError(ex)
-        }
-
-      def processBatch(ref: NextCursor[F, A]): Iterant[F, B] = {
-        val NextCursor(cursor, rest) = ref
-
-        if (cursor.hasNext()) {
-          val next: F[Iterant[F, A]] =
-            if (cursor.hasNext()) F.pure(ref)
-            else rest
-
-          NextBatch(f(cursor.next()), next.map(loop))
-        } else {
-          Suspend(rest.map(loop))
-        }
+    def apply(node: Iterant[F, A]): Iterant[F, B] =
+      try node match {
+        case Next(head, tail) =>
+          NextBatch[F, B](f(head), tail.map(loop))
+        case ref@NextCursor(_, _) =>
+          processBatch(ref)
+        case NextBatch(batch, rest) =>
+          processBatch(NextCursor(batch.cursor(), rest))
+        case Suspend(rest) =>
+          Suspend[F, B](rest.map(loop))
+        case s@(Scope(_, _, _) | Concat(_, _)) =>
+          s.runMap(loop)
+        case Last(item) =>
+          NextBatch(f(item), F.delay(Halt[F, B](None)))
+        case empty@Halt(_) =>
+          empty.asInstanceOf[Iterant[F, B]]
+      } catch {
+        case ex if NonFatal(ex) => Iterant.raiseError(ex)
       }
+
+    def processBatch(ref: NextCursor[F, A]): Iterant[F, B] = {
+      val NextCursor(cursor, rest) = ref
+
+      if (cursor.hasNext()) {
+        val next: F[Iterant[F, A]] =
+          if (cursor.hasNext()) F.pure(ref)
+          else rest
+
+        NextBatch(f(cursor.next()), next.map(loop))
+      } else {
+        Suspend(rest.map(loop))
+      }
+    }
   }
 }
