@@ -139,8 +139,8 @@ feature, or have a question about the code. Pull requests are also
 gladly accepted. For more information, check out the
 [contributor guide](CONTRIBUTING.md).
 
-If you'd like to donate in order to help with ongoing maintenance
-**[Become a Patron!](https://www.patreon.com/bePatron?u=6102596)**
+If you'd like to donate in order to help with ongoing maintenance:
+[![Become a Patron!](https://c5.patreon.com/external/logo/become_a_patron_button@2x.png)](https://www.patreon.com/bePatron?u=6102596)
 
 ## License
 
