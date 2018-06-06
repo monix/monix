@@ -22,7 +22,7 @@ import cats.effect.Sync
 
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantSkipSuspend {
   /**
@@ -31,8 +31,14 @@ private[tail] object IterantSkipSuspend {
   def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[Iterant[F, A]] = {
     def loop(source: Iterant[F, A]): F[Iterant[F, A]] =
       try source match {
-        case s @ Scope(_, _, _) =>
-          s.runFlatMap(loop)
+        case Concat(lh, rh) =>
+          lh.flatMap(loop).flatMap {
+            case halt @ Halt(opt) =>
+              if (opt.isEmpty) rh.flatMap(loop)
+              else F.pure(halt)
+            case other =>
+              F.pure(Concat(F.pure(other), rh))
+          }
         case Next(_, _) =>
           F.pure(source)
         case NextCursor(cursor, rest) =>
@@ -43,7 +49,9 @@ private[tail] object IterantSkipSuspend {
           loop(NextCursor(cursor, rest))
         case Suspend(rest) =>
           rest.flatMap(loop)
-        case other @ (Halt(_) | Last(_)) =>
+        case other @ (Halt(_) | Last(_) | Scope(_, _, _)) =>
+          // We can't safely remove Suspend nodes inside a Scope,
+          // since their evaluation might rely on resources not yet acquired
           F.pure(other)
       } catch {
         case ex if NonFatal(ex) =>
@@ -51,5 +59,6 @@ private[tail] object IterantSkipSuspend {
       }
 
     F.suspend { loop(source) }
+      .handleError(ex => Halt(Some(ex)))
   }
 }
