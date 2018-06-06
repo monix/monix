@@ -21,7 +21,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.DropHeadOnOverflowQueue
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
 
 private[tail] object IterantTakeLast {
@@ -32,22 +32,24 @@ private[tail] object IterantTakeLast {
 
     def finalCursor(buffer: DropHeadOnOverflowQueue[A]): F[Iterant[F, A]] = {
       val cursor = BatchCursor.fromIterator(buffer.iterator(true), Int.MaxValue)
-      F.pure(NextCursor(cursor, F.pure(Iterant.empty), F.unit))
+      F.pure(NextCursor(cursor, F.pure(Iterant.empty)))
     }
 
     def loop(buffer: DropHeadOnOverflowQueue[A])(source: Iterant[F, A]): F[Iterant[F, A]] = {
       source match {
-        case Next(item, rest, _) =>
+        case s @ Scope(_, _, _) =>
+          s.runFlatMap(loop(buffer))
+        case Next(item, rest) =>
           buffer.offer(item)
           rest.flatMap(loop(buffer))
-        case NextCursor(cursor, rest, _) =>
+        case NextCursor(cursor, rest) =>
           while (cursor.hasNext()) buffer.offer(cursor.next())
           rest.flatMap(loop(buffer))
-        case NextBatch(batch, rest, _) =>
+        case NextBatch(batch, rest) =>
           val cursor = batch.cursor()
           while (cursor.hasNext()) buffer.offer(cursor.next())
           rest.flatMap(loop(buffer))
-        case Suspend(rest, _) =>
+        case Suspend(rest) =>
           rest.flatMap(loop(buffer))
         case Last(item) =>
           buffer.offer(item)
@@ -59,15 +61,13 @@ private[tail] object IterantTakeLast {
       }
     }
 
-    // Current earlyStop has to be preserved
-    val stopRef = source.earlyStop
     if (n < 1)
-      Suspend(stopRef.map(_ => Iterant.empty), stopRef)
+      Iterant.empty
     else {
       // Suspending execution, because pushing into our buffer
       // is side-effecting
       val buffer = F.delay(DropHeadOnOverflowQueue.boxed[A](n))
-      Suspend(buffer.flatMap(b => loop(b)(source)), stopRef)
+      Suspend(buffer.flatMap(b => loop(b)(source)))
     }
   }
 }

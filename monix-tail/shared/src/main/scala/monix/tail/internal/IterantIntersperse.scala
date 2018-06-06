@@ -30,12 +30,12 @@ import monix.tail.batches.BatchCursor
 private[tail] object IterantIntersperse {
   def apply[F[_], A](source: Iterant[F, A], separator: A)(implicit F: Sync[F]): Iterant[F, A] = {
     def processNonEmptyCursor(ref: NextCursor[F, A]): Iterant[F, A] = {
-      val NextCursor(cursor, rest, stop) = ref
+      val NextCursor(cursor, rest) = ref
       val batchSize = cursor.recommendedBatchSize
 
       if (batchSize <= 1) {
         val item = cursor.next()
-        Next(item, F.pure(ref).map(loop(prepend = true)), stop)
+        Next(item, F.pure(ref).map(loop(prepend = true)))
       } else {
         var appends = 0
         val maxAppends = batchSize / 2
@@ -54,60 +54,61 @@ private[tail] object IterantIntersperse {
         val batchCursor = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]]
         if (cursor.hasNext()) {
           // ref now contains mutated cursor, continue with it
-          NextCursor(batchCursor, F.delay(loop(prepend = false)(ref)), stop)
+          NextCursor(batchCursor, F.delay(loop(prepend = false)(ref)))
         } else {
-          NextCursor(batchCursor, rest.map(loop(prepend = true)), stop)
+          NextCursor(batchCursor, rest.map(loop(prepend = true)))
         }
       }
     }
 
     def loop(prepend: Boolean)(source: Iterant[F, A]): Iterant[F, A] = {
       try source match {
+        case b @ Scope(_, _, _) =>
+          b.runMap(loop(prepend))
+
         case halt @ Halt(_) => halt
 
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(prepend)), stop)
+        case Suspend(rest) =>
+          Suspend(rest.map(loop(prepend)))
 
-        case NextCursor(cursor, rest, stop) if !cursor.hasNext() =>
-          Suspend(rest.map(loop(prepend)), stop)
+        case NextCursor(cursor, rest) if !cursor.hasNext() =>
+          Suspend(rest.map(loop(prepend)))
 
-        case NextBatch(batch, rest, stop) =>
+        case NextBatch(batch, rest) =>
           val cursor = batch.cursor()
           if (cursor.hasNext()) {
             val processed =
-              processNonEmptyCursor(NextCursor(cursor, rest, stop))
+              processNonEmptyCursor(NextCursor(cursor, rest))
             if (prepend) {
-              Next(separator, F.pure(processed), stop)
+              Next(separator, F.pure(processed))
             } else {
               processed
             }
           } else {
-            Suspend(rest.map(loop(prepend)), stop)
+            Suspend(rest.map(loop(prepend)))
           }
 
         case _ if prepend => Next(
           separator,
-          F.pure(source).map(loop(prepend = false)),
-          source.earlyStop
+          F.pure(source).map(loop(prepend = false))
         )
 
-        case ref @ NextCursor(_, _, _) =>
+        case ref @ NextCursor(_, _) =>
           processNonEmptyCursor(ref)
 
-        case Next(item, rest, stop) =>
-          Next(item, rest.map(loop(prepend = true)), stop)
+        case Next(item, rest) =>
+          Next(item, rest.map(loop(prepend = true)))
 
         case last @ Last(_) => last
       } catch {
         case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.map(_ => Halt(Some(ex))), stop)
+          Halt(Some(ex))
       }
     }
 
     source match {
-      case NextCursor(_, _, _) | NextBatch(_, _, _) =>
-        Suspend(F.delay(loop(prepend = false)(source)), source.earlyStop)
+      case NextCursor(_, _) | NextBatch(_, _) =>
+        Suspend(F.delay(loop(prepend = false)(source)))
       case _ =>
         loop(prepend = false)(source)
     }

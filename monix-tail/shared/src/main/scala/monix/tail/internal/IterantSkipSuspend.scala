@@ -19,47 +19,37 @@ package monix.tail.internal
 
 import cats.syntax.all._
 import cats.effect.Sync
+
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-
-import scala.runtime.ObjectRef
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantSkipSuspend {
   /**
     * Implementation for `Iterant#skipSuspendL`
     */
   def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[Iterant[F, A]] = {
-    def loop(stopRef: ObjectRef[F[Unit]])(source: Iterant[F, A]): F[Iterant[F, A]] =
+    def loop(source: Iterant[F, A]): F[Iterant[F, A]] =
       try source match {
-        case Next(_, _, _) =>
+        case s @ Scope(_, _, _) =>
+          s.runFlatMap(loop)
+        case Next(_, _) =>
           F.pure(source)
-        case NextCursor(cursor, rest, stop) =>
-          stopRef.elem = stop
+        case NextCursor(cursor, rest) =>
           if (cursor.hasNext()) F.pure(source)
-          else rest.flatMap(loop(stopRef))
-        case NextBatch(batch, rest, stop) =>
-          stopRef.elem = stop
+          else rest.flatMap(loop)
+        case NextBatch(batch, rest) =>
           val cursor = batch.cursor()
-          loop(stopRef)(NextCursor(cursor, rest, stop))
-        case Suspend(rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(loop(stopRef))
+          loop(NextCursor(cursor, rest))
+        case Suspend(rest) =>
+          rest.flatMap(loop)
         case other @ (Halt(_) | Last(_)) =>
           F.pure(other)
       } catch {
         case ex if NonFatal(ex) =>
-          stopRef.elem.map(_ => Halt(Some(ex)))
+          F.pure(Halt(Some(ex)))
       }
 
-    F.suspend {
-      val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
-      loop(stopRef)(source).handleErrorWith { ex =>
-        stopRef.elem match {
-          case null => F.pure(Halt(Some(ex)))
-          case stop => stop *> F.pure(Halt(Some(ex)))
-        }
-      }
-    }
+    F.suspend { loop(source) }
   }
 }

@@ -18,59 +18,12 @@
 package monix.tail.internal
 
 import cats.effect.Sync
-import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.internal.IterantUtils.signalError
-import cats.syntax.all._
 
+// TODO: temporary implementation to handle Scope correctly
 private[tail] object IterantRepeat {
   /** Implementation for `Iterant.repeat`. */
   def apply[F[_], A, B](source: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] = {
-
-    def loop(isEmpty: Boolean)(self: Iterant[F, A]): Iterant[F, A] =
-      try self match {
-        case Next(head, tail, stop) =>
-          Next[F, A](head, tail.map(loop(isEmpty = false)), stop)
-
-        case NextCursor(cursor, rest, stop) =>
-          if (!isEmpty || cursor.hasNext())
-            NextCursor[F, A](cursor, rest.map(loop(isEmpty = false)), stop)
-          else
-            Suspend(rest.map(loop(isEmpty)), stop)
-
-        case NextBatch(gen, rest, stop) =>
-          if (isEmpty) {
-            val cursor = gen.cursor()
-            if (cursor.hasNext()) NextCursor[F, A](cursor, rest.map(loop(isEmpty = false)), stop)
-            else Suspend(rest.map(loop(isEmpty = true)), stop)
-          } else {
-            NextBatch[F, A](gen, rest.map(loop(isEmpty = false)), stop)
-          }
-
-        case Suspend(rest, stop) =>
-          Suspend[F, A](rest.map(loop(isEmpty)), stop)
-        case Last(item) =>
-          Next[F, A](item, F.delay(loop(isEmpty = false)(source)), F.unit)
-        case Halt(Some(ex)) =>
-          signalError(self, ex)
-        case Halt(None) =>
-          if (isEmpty) Iterant.empty
-          else Suspend(F.delay(loop(isEmpty)(source)), F.unit)
-      } catch {
-        case ex if NonFatal(ex) => signalError(source, ex)
-      }
-
-    source match {
-      // terminate if the source is empty
-      case empty@Halt(_) =>
-        empty
-      // We can have side-effects with NextBatch/NextCursor
-      // processing, so suspending execution in this case
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        Suspend(F.delay(loop(isEmpty = true)(source)), source.earlyStop)
-      case _ =>
-        loop(isEmpty = true)(source)
-    }
+    Iterant.fromIterator(Iterator.continually(())).flatMap(_ => source)
   }
 }

@@ -50,20 +50,20 @@ class IterantBuilders[F[_]] {
     Iterant.pure(a)
 
   /** Aliased builder, see documentation for [[Iterant.nextS]]. */
-  def nextS[A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Iterant.nextS(item, rest, stop)
+  def nextS[A](item: A, rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Iterant.nextS(item, rest)
 
   /** Aliased builder, see documentation for [[Iterant.nextCursorS]]. */
-  def nextCursorS[A](cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Iterant.nextCursorS(cursor, rest, stop)
+  def nextCursorS[A](cursor: BatchCursor[A], rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Iterant.nextCursorS(cursor, rest)
 
   /** Aliased builder, see documentation for [[Iterant.nextBatchS]]. */
-  def nextBatchS[A](batch: Batch[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Iterant.nextBatchS(batch, rest, stop)
+  def nextBatchS[A](batch: Batch[A], rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Iterant.nextBatchS(batch, rest)
 
   /** Aliased builder, see documentation for [[Iterant.suspendS]]. */
-  def suspendS[A](rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Iterant.suspendS(rest, stop)
+  def suspendS[A](rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Iterant.suspendS(rest)
 
   /** Aliased builder, see documentation for [[Iterant.lastS]]. */
   def lastS[A](item: A): Iterant[F, A] =
@@ -110,7 +110,7 @@ class IterantBuildersApplicative[F[_]](implicit F: Applicative[F])
 
   /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](rest* Iterant.suspend]]. */
   def suspend[A](rest: F[Iterant[F, A]]): Iterant[F, A] =
-    Iterant.suspend(rest)(F)
+    Iterant.suspend(rest)
 
   /** Aliased builder, see documentation for [[Iterant.fromArray]]. */
   def fromArray[A](xs: Array[A]): Iterant[F, A] =

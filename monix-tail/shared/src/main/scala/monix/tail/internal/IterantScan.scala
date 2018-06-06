@@ -20,10 +20,11 @@ package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+
 import scala.util.control.NonFatal
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
-import monix.tail.internal.IterantUtils._
+
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantScan {
@@ -31,16 +32,16 @@ private[tail] object IterantScan {
   def apply[F[_], A, S](fa: Iterant[F, A], initial: => S, f: (S, A) => S)
     (implicit F: Sync[F]): Iterant[F, S] = {
 
-    def processCursor(state: S, cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+    def processCursor(state: S, cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
       if (!cursor.hasNext())
-        Suspend(rest.map(loop(state)), stop)
+        Suspend(rest.map(loop(state)))
       else if (cursor.recommendedBatchSize <= 1) {
         val newState = f(state, cursor.next())
         val next: F[Iterant[F, A]] =
-          if (cursor.hasNext()) F.pure(NextCursor(cursor, rest, stop))
+          if (cursor.hasNext()) F.pure(NextCursor(cursor, rest))
           else rest
 
-        Next(newState, next.map(loop(newState)), stop)
+        Next(newState, next.map(loop(newState)))
       } else {
         val buffer = ArrayBuffer.empty[S]
         var toProcess = cursor.recommendedBatchSize
@@ -53,29 +54,32 @@ private[tail] object IterantScan {
         }
 
         val next: F[Iterant[F, A]] =
-          if (cursor.hasNext()) F.pure(NextCursor(cursor, rest, stop))
+          if (cursor.hasNext()) F.pure(NextCursor(cursor, rest))
           else rest
 
         val elems = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[S]]
-        NextCursor(elems, next.map(loop(newState)), stop)
+        NextCursor(elems, next.map(loop(newState)))
       }
     }
 
     def loop(state: S)(fa: Iterant[F, A]): Iterant[F, S] =
       try fa match {
-        case Next(a, rest, stop) =>
+        case s @ Scope(_, _, _) =>
+          s.runMap(loop(state))
+
+        case Next(a, rest) =>
           val newState = f(state, a)
-          Next(newState, rest.map(loop(newState)), stop)
+          Next(newState, rest.map(loop(newState)))
 
-        case NextCursor(cursor, rest, stop) =>
-          processCursor(state, cursor, rest, stop)
+        case NextCursor(cursor, rest) =>
+          processCursor(state, cursor, rest)
 
-        case NextBatch(batch, rest, stop) =>
+        case NextBatch(batch, rest) =>
           val cursor = batch.cursor()
-          processCursor(state, cursor, rest, stop)
+          processCursor(state, cursor, rest)
 
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(state)), stop)
+        case Suspend(rest) =>
+          Suspend(rest.map(loop(state)))
 
         case Last(a) =>
           Last(f(state, a))
@@ -85,7 +89,7 @@ private[tail] object IterantScan {
 
       } catch {
         case e if NonFatal(e) =>
-          signalError(fa, e)
+          Iterant.raiseError(e)
       }
 
     // Given that `initial` is a by-name value, we have
@@ -94,6 +98,6 @@ private[tail] object IterantScan {
       try loop(initial)(fa)
       catch { case e if NonFatal(e) => Halt[F, S](Some(e)) }
     }
-    Suspend(task, F.unit)
+    Suspend(task)
   }
 }
