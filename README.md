@@ -140,7 +140,8 @@ gladly accepted. For more information, check out the
 [contributor guide](CONTRIBUTING.md).
 
 If you'd like to donate in order to help with ongoing maintenance:
-[![Become a Patron!](https://c5.patreon.com/external/logo/become_a_patron_button@2x.png)](https://www.patreon.com/bePatron?u=6102596)
+
+<a href="https://www.patreon.com/bePatron?u=6102596"><img label="Become a Patron!" src="https://c5.patreon.com/external/logo/become_a_patron_button@2x.png" height="40" /></a>
 
 ## License
 
