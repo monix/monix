@@ -22,7 +22,7 @@ import cats.syntax.all._
 
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantSlice {
   /** Implementation for `Iterant#headOption`. */
@@ -31,9 +31,6 @@ private[tail] object IterantSlice {
 
     def loop(source: Iterant[F, A]): F[Option[A]] = {
       try source match {
-        case s @ Scope(_, _, _) =>
-          s.runFold(loop)
-
         case Next(a, _) =>
           a.some.pure[F]
 
@@ -48,6 +45,15 @@ private[tail] object IterantSlice {
 
         case Suspend(rest) =>
           rest.flatMap(loop)
+
+        case s @ Scope(_, _, _) =>
+          s.runFold(loop)
+
+        case Concat(lh, rh) =>
+          lh.flatMap(loop).flatMap {
+            case None => rh.flatMap(loop)
+            case s @ Some(_) => F.pure(s)
+          }
 
         case Last(a) =>
           F.pure(Some(a))
