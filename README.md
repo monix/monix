@@ -139,6 +139,9 @@ feature, or have a question about the code. Pull requests are also
 gladly accepted. For more information, check out the
 [contributor guide](CONTRIBUTING.md).
 
+If you'd like to donate in order to help with ongoing maintenance:
+<a href="https://www.patreon.com/bePatron?u=6102596" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+
 ## License
 
 All code in this repository is licensed under the Apache License,
