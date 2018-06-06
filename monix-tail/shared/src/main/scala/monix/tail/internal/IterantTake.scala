@@ -83,10 +83,11 @@ private[tail] object IterantTake {
               case Nil => source
               case x :: xs => Next(a, x.map(loop(n - 1, xs)))
             }
-        case Halt(_) =>
-          stack match {
+        case Halt(opt) =>
+          if (opt.nonEmpty) source
+          else stack match {
             case Nil => source
-            case x :: xs => Suspend(x.map(loop(n - 1, xs)))
+            case x :: xs => Suspend(x.map(loop(n, xs)))
           }
       }
       else source match {
