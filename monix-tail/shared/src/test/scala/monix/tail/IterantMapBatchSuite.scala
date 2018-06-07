@@ -224,7 +224,6 @@ object IterantMapBatchSuite extends BaseTestSuite {
   }
 
   test("Iterant[Coeval].mapBatch preserves the source guarantee") { implicit s =>
-    val dummy = DummyException("dummy")
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
