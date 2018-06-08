@@ -91,6 +91,8 @@ private[tail] object IterantTake {
           }
       }
       else source match {
+        case s @ Scope(_, _, _) =>
+          s.runMap(loop(n, stack))
         case theEnd @ Halt(_) =>
           theEnd
         case _ =>
