@@ -1795,15 +1795,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def scanMap0[B](f: A => B)(implicit F: Sync[F], B: Monoid[B]): Iterant[F, B] =
     B.empty +: self.scanMap(f)
 
-  /** Skips over [[Iterant.Suspend]] states, along with
-    * [[Iterant.NextCursor]] and [[Iterant.NextBatch]] states that
-    * signal empty collections.
-    *
-    * Will mirror the source, except that the emitted internal states
-    * might be different. Can be used as an optimization if necessary.
-    */
-  final def skipSuspendL(implicit F: Sync[F]): F[Iterant[F, A]] =
-    IterantSkipSuspend(self)
 
   /** Given evidence that type `A` has a `scala.math.Numeric` implementation,
     * sums the stream of elements.

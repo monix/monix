@@ -20,35 +20,91 @@ package monix.tail.internal
 import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
-
 import scala.util.control.NonFatal
-import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
-import monix.tail.batches.BatchCursor
 
+import monix.tail.Iterant
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.batches.BatchCursor
 import scala.collection.mutable.ArrayBuffer
+
+import monix.execution.internal.collection.ArrayStack
 
 private[tail] object IterantDistinctUntilChanged {
   /** Implementation for `distinctUntilChangedByKey`. */
   def apply[F[_], A, K](self: Iterant[F, A], f: A => K)
     (implicit F: Sync[F], K: Eq[K]): Iterant[F, A] = {
+    Suspend(F.delay(new Loop(f).apply(self)))
+  }
 
-    def processCursor(prev: K, self: NextCursor[F, A]) = {
+  private class Loop[F[_], A, K](f: A => K)(implicit F: Sync[F], K: Eq[K])
+    extends (Iterant[F, A] => Iterant[F, A]) {
+
+    private var current: K = null.asInstanceOf[K]
+    private val stack = new ArrayStack[F[Iterant[F, A]]]()
+
+    def apply(self: Iterant[F, A]): Iterant[F, A] = {
+      try self match {
+        case Next(a, rest) =>
+          val k = f(a)
+          if (current == null || K.neqv(current, k)) {
+            current = k
+            Next(a, rest.map(this))
+          } else {
+            Suspend(rest.map(this))
+          }
+
+        case node @ NextCursor(_, _) =>
+          processCursor(node)
+        case NextBatch(ref, rest) =>
+          processCursor(NextCursor(ref.cursor(), rest))
+
+        case Suspend(rest) =>
+          Suspend(rest.map(this))
+        case s @ Scope(_, _, _) =>
+          s.runMap(this)
+        case Concat(lh, rh) =>
+          stack.push(rh)
+          Suspend(lh.map(this))
+
+        case Last(a) =>
+          val k = f(a)
+          val rest = stack.pop()
+          if (current == null || K.neqv(current, k)) {
+            current = k
+            if (rest != null) Next(a, rest.map(this))
+            else self
+          } else {
+            if (rest != null) Suspend(rest.map(this))
+            else Iterant.empty
+          }
+        case Halt(opt) =>
+          val next = stack.pop()
+          if (opt.nonEmpty || next == null) self
+          else Suspend(next.map(this))
+      } catch {
+        case e if NonFatal(e) =>
+          Iterant.raiseError(e)
+      }
+    }
+
+    def processCursor(self: NextCursor[F, A]): Iterant[F, A] = {
       val NextCursor(cursor, rest) = self
 
       if (!cursor.hasNext()) {
-        Suspend(rest.map(loop(prev)))
+        Suspend(rest.map(this))
       }
       else if (cursor.recommendedBatchSize <= 1) {
         val a = cursor.next()
         val k = f(a)
-        if (K.neqv(prev, k)) Next(a, F.delay(loop(k)(self)))
-        else Suspend(F.delay(loop(prev)(self)))
+        if (current == null || K.neqv(current, k)) {
+          current = k
+          Next(a, F.delay(this(self)))
+        }
+        else Suspend(F.delay(this(self)))
       }
       else {
         val buffer = ArrayBuffer.empty[A]
         var count = cursor.recommendedBatchSize
-        var current: K = prev
 
         // We already know hasNext == true
         do {
@@ -56,7 +112,7 @@ private[tail] object IterantDistinctUntilChanged {
           val k = f(a)
           count -= 1
 
-          if (K.neqv(current, k)) {
+          if (current == null || K.neqv(current, k)) {
             current = k
             buffer += a
           }
@@ -64,9 +120,9 @@ private[tail] object IterantDistinctUntilChanged {
 
         val next =
           if (cursor.hasNext())
-            F.delay(loop(current)(self))
+            F.delay(this(self))
           else
-            rest.map(loop(current))
+            rest.map(this)
 
         if (buffer.isEmpty)
           Suspend(next)
@@ -75,74 +131,6 @@ private[tail] object IterantDistinctUntilChanged {
           NextCursor(ref, next)
         }
       }
-    }
-
-    def loop(prev: K)(self: Iterant[F, A]): Iterant[F, A] = {
-      try self match {
-        case s @ Scope(_, _, _) =>
-          s.runMap(loop(prev))
-
-        case Next(a, rest) =>
-          val k = f(a)
-          if (K.neqv(prev, k)) Next(a, rest.map(loop(k)))
-          else Suspend(rest.map(loop(prev)))
-
-        case node @ NextCursor(_, _) =>
-          processCursor(prev, node)
-        case NextBatch(ref, rest) =>
-          processCursor(prev, NextCursor(ref.cursor(), rest))
-
-        case Suspend(rest) =>
-          Suspend(rest.map(loop(prev)))
-        case Last(a) =>
-          if (K.neqv(prev, f(a))) self else Iterant.empty
-        case Halt(_) =>
-          self
-      } catch {
-        case e if NonFatal(e) =>
-          Iterant.raiseError(e)
-      }
-    }
-
-    // Starting function, needed because we don't have a start
-    // and I'd hate to use `null` for `prev` or box it in `Option`
-    def start(self: Iterant[F, A]): Iterant[F, A] = {
-      try self match {
-        case s @ Scope(_, _, _) =>
-          s.runMap(start)
-
-        case Next(a, rest) =>
-          Next(a, rest.map(loop(f(a))))
-        case node @ NextCursor(ref, rest) =>
-          if (!ref.hasNext())
-            Suspend(rest.map(start))
-          else {
-            val a = ref.next()
-            val k = f(a)
-            Next(a, F.delay(loop(k)(node)))
-          }
-        case NextBatch(ref, rest) =>
-          start(NextCursor(ref.cursor(), rest))
-        case Suspend(rest) =>
-          Suspend(rest.map(start))
-        case Last(_) | Halt(_) =>
-          self
-      } catch {
-        case e if NonFatal(e) =>
-          Iterant.raiseError(e)
-      }
-    }
-
-    self match {
-      case Scope(_, _, _) | Suspend(_) | Halt(_) =>
-        // Fast-path
-        start(self)
-      case _ =>
-        // Suspending execution in order to preserve laziness and
-        // referential transparency, since the provided function can
-        // be side effecting and because processing NextBatch and
-        // NextCursor states can have side effects
-        Suspend(F.delay(start(self)))
     }
   }
 }

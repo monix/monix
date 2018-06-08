@@ -63,7 +63,7 @@ object IterantTakeSuite extends BaseTestSuite {
         else math.abs(math.abs(nr) % length)
 
       stream.take(n).toListL.value == list.take(n) &&
-        (n == 0 || cancelable.isCanceled)
+        cancelable.isCanceled
     }
   }
 

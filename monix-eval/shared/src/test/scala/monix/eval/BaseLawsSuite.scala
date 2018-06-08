@@ -218,10 +218,6 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
       def eqv(lh: Coeval[A], rh: Coeval[A]): Boolean = {
         val lht = lh.runTry()
         val rht = rh.runTry()
-        if (lht != rht) {
-          println(lht)
-          println(rht)
-        }
         Eq[Try[A]].eqv(lht, rht)
       }
     }
