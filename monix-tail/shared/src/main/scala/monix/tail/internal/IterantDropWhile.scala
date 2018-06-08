@@ -79,7 +79,7 @@ private[tail] object IterantDropWhile {
 
         next match {
           case null => Next(elem, rest)
-          case stream => Next(elem, rest.map(_ ++ stream))
+          case stream => Next(elem, rest.map(_ ++ drainStack(stream)))
         }
       }
     }
@@ -111,7 +111,7 @@ private[tail] object IterantDropWhile {
 
       next match {
         case null => Next(elem, rest)
-        case stream => Next(elem, rest.map(_ ++ stream))
+        case stream => Next(elem, rest.map(_ ++ drainStack(stream)))
       }
     }
 
@@ -128,8 +128,19 @@ private[tail] object IterantDropWhile {
 
       next match {
         case null => if (p(elem)) Iterant.empty else Last(elem)
-        case stream => if (p(elem)) Suspend(stream.map(loop)) else Next(elem, stream)
+        case stream => if (p(elem)) Suspend(stream.map(loop)) else Next(elem, drainStack(stream))
       }
+    }
+
+    private def drainStack(stream: F[Iterant[F, A]]): F[Iterant[F, A]] = {
+      val iter = stack.iteratorReversed
+      var fullStack = stream
+      while(iter.hasNext) {
+        val next = iter.next()
+        fullStack = fullStack.map(_ ++ next)
+      }
+
+      fullStack
     }
 
     private def handleHalt(halt: Halt[F, A]): Iterant[F, A] = {

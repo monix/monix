@@ -22,6 +22,7 @@ import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+import monix.tail.IterantTakeSuite.arbitraryListToIterant
 import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
@@ -48,9 +49,10 @@ object IterantDropWhileSuite extends BaseTestSuite {
 
   test("Iterant.dropWhile equivalence with List.dropWhile") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
-      val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1, allowErrors = false)
-      val received = stream.dropWhile(p).toListL
-      val expected = stream.toListL.map(dropFromList(p))
+      val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1, allowErrors = false)
+      val stream = iter ++ Iterant[Coeval].of(1, 2, 3)
+      val received = stream.dropWhile(p).toListL.runTry()
+      val expected = stream.toListL.map(dropFromList(p)).runTry()
 
       received <-> expected
     }
