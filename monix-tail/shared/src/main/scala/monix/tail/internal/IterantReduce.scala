@@ -20,9 +20,10 @@ package internal
 
 import cats.syntax.all._
 import cats.effect.Sync
-
 import scala.util.control.NonFatal
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+
+import monix.execution.internal.collection.ArrayStack
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 
 private[tail] object IterantReduce {
@@ -30,25 +31,44 @@ private[tail] object IterantReduce {
   def apply[F[_], A](self: Iterant[F, A], op: (A, A) => A)
     (implicit F: Sync[F]): F[Option[A]] = {
 
-    def loop(state: A)(self: Iterant[F, A]): F[A] = {
+    F.suspend { new Loop[F, A](op).start(self) }
+  }
+
+  private class Loop[F[_], A](op: (A, A) => A)(implicit F: Sync[F])
+    extends (Iterant[F, A] => F[Option[A]]) {
+    private[this] var state: A = _
+    private[this] val stack = new ArrayStack[F[Iterant[F, A]]]()
+
+    def apply(self: Iterant[F, A]): F[Option[A]] = {
       try self match {
-        case s @ Scope(_, _, _) =>
-          s.runFold(loop(state))
         case Next(a, rest) =>
-          val newState = op(state, a)
-          rest.flatMap(loop(newState))
+          state = op(state, a)
+          rest.flatMap(this)
         case NextCursor(cursor, rest) =>
-          val newState = cursor.foldLeft(state)(op)
-          rest.flatMap(loop(newState))
+          state = cursor.foldLeft(state)(op)
+          rest.flatMap(this)
         case NextBatch(gen, rest) =>
-          val newState = gen.foldLeft(state)(op)
-          rest.flatMap(loop(newState))
+          state = gen.foldLeft(state)(op)
+          rest.flatMap(this)
         case Suspend(rest) =>
-          rest.flatMap(loop(state))
+          rest.flatMap(this)
+        case s @ Scope(_, _, _) =>
+          s.runFold(this)
+        case Concat(lh, rh) =>
+          stack.push(rh)
+          lh.flatMap(this)
         case Last(item) =>
-          F.pure(op(state, item))
+          stack.pop() match {
+            case null => F.pure(Some(op(state, item)))
+            case some =>
+              state = op(state, item)
+              some.flatMap(this)
+          }
         case Halt(None) =>
-          F.pure(state)
+          stack.pop() match {
+            case null => F.pure(Some(state))
+            case some => some.flatMap(this)
+          }
         case Halt(Some(e)) =>
           F.raiseError(e)
       } catch {
@@ -57,19 +77,18 @@ private[tail] object IterantReduce {
       }
     }
 
-    def start(self: Iterant[F, A]): F[Option[A]] = {
+    val start: Iterant[F, A] => F[Option[A]] = { self =>
       try self match {
-        case s @ Scope(_, _, _) =>
-          s.runFold(start)
         case Next(a, rest) =>
-          rest.flatMap(loop(a)).map(Some.apply)
+          state = a
+          rest.flatMap(this)
 
         case NextCursor(cursor, rest) =>
           if (!cursor.hasNext())
             rest.flatMap(start)
           else {
-            val a = cursor.next()
-            loop(a)(self).map(Some.apply)
+            state = cursor.next()
+            this(self)
           }
 
         case NextBatch(batch, rest) =>
@@ -78,22 +97,35 @@ private[tail] object IterantReduce {
         case Suspend(rest) =>
           rest.flatMap(start)
 
+        case s @ Scope(_, _, _) =>
+          s.runFold(start)
+
+        case Concat(lh, rh) =>
+          stack.push(rh)
+          lh.flatMap(start)
+
         case Last(a) =>
-          F.pure(Some(a))
+          stack.pop() match {
+            case null => F.pure(Some(a))
+            case some =>
+              state = a
+              some.flatMap(this)
+          }
 
         case Halt(opt) =>
+          val next = stack.pop()
           opt match {
-            case None =>
-              F.pure(None)
             case Some(e) =>
               F.raiseError(e)
+            case None if next == null =>
+              F.pure(None)
+            case None =>
+              next.flatMap(start)
           }
       } catch {
         case e if NonFatal(e) =>
           F.raiseError(e)
       }
     }
-
-    F.suspend { start(self) }
   }
 }
