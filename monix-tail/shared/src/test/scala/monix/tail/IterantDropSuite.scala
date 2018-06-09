@@ -22,6 +22,7 @@ import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+import monix.tail.IterantTakeSuite.arbitraryListToIterant
 import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
@@ -34,10 +35,10 @@ object IterantDropSuite extends BaseTestSuite {
       Test.Parameters.default.withMaxSize(32)
   }
 
-
   test("Iterant[Task].drop equivalence with List.drop") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
-      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
+      val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
+      val stream = iter ++ Iterant[Task].of(1, 2, 3)
       val n = math.abs(nr)
       stream.drop(n).toListL <-> stream.toListL.map(_.drop(n))
     }

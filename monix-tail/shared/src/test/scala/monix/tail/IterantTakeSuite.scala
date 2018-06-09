@@ -38,7 +38,8 @@ object IterantTakeSuite extends BaseTestSuite {
 
   test("Iterant[Task].take equivalence with List.take") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
-      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
+      val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
+      val stream = iter ++ Iterant[Task].of(1, 2, 3)
       val length = list.length
       val n =
         if (nr == 0) 0
