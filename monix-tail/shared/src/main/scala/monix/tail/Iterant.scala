@@ -2156,6 +2156,9 @@ object Iterant extends IterantInstances {
   def suspendS[F[_], A](rest: F[Iterant[F, A]]): Iterant[F, A] =
     Suspend[F, A](rest)
 
+  def concatS[F[_], A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] =
+    Concat[F, A](lh, rh)
+
   def scopeS[F[_], A](open: F[Unit], use: F[Iterant[F, A]], close: ExitCase[Throwable] => F[Unit]): Iterant[F, A] =
     Scope(open, use, close)
 

@@ -18,59 +18,64 @@
 package monix.tail.internal
 
 import java.io.PrintStream
+
 import cats.effect.Sync
 import cats.syntax.all._
-import scala.util.control.NonFatal
-
 import monix.tail.Iterant
-import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+
+import scala.util.control.NonFatal
 
 private[tail] object IterantDump {
   /**
     * Implementation for `Iterant#dump`
     */
   def apply[F[_], A](source: Iterant[F, A], prefix: String, out: PrintStream = System.out)
-    (implicit F: Sync[F]): Iterant[F, A] = {
+                    (implicit F: Sync[F]): Iterant[F, A] = {
+    Suspend(F.delay(new Loop(prefix, out).apply(source)))
+  }
 
-    def moveNext(pos: Long, rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
+  private class Loop[F[_], A](prefix: String, out: PrintStream)(implicit F: Sync[F])
+    extends (Iterant[F, A] => Iterant[F, A]) { loop =>
+
+    private[this] var pos = 0L
+
+    def moveNext(rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
       rest.attempt.flatMap {
         case Left(e) =>
           out.println(s"$pos: $prefix --> effect error --> $e")
           F.raiseError(e)
         case Right(next) =>
-          F.pure(loop(pos)(next))
+          F.pure(loop(next))
       }
 
-    def loop(pos: Long)(source: Iterant[F, A]): Iterant[F, A] =
+    def apply(source: Iterant[F, A]): Iterant[F, A] =
       try source match {
-        case b @ Scope(_, _, _) =>
-          b.runMap(loop(pos))
-
         case Next(item, rest) =>
           out.println(s"$pos: $prefix --> next --> $item")
-          Next[F, A](item, moveNext(pos + 1, rest))
+          pos += 1
+          Next[F, A](item, moveNext(rest))
 
         case NextCursor(cursor, rest) =>
-          var cursorPos = pos
           val dumped = cursor.map { el =>
-            out.println(s"$cursorPos: $prefix --> next-cursor --> $el")
-            cursorPos += 1
+            out.println(s"$pos: $prefix --> next-cursor --> $el")
+            pos += 1
             el
           }
-          NextCursor[F, A](dumped, moveNext(cursorPos, rest))
+          NextCursor[F, A](dumped, moveNext(rest))
 
         case NextBatch(batch, rest) =>
-          var batchPos = pos
           val dumped = batch.map { el =>
-            out.println(s"$batchPos: $prefix --> next-batch --> $el")
-            batchPos += 1
+            out.println(s"$pos: $prefix --> next-batch --> $el")
+            pos += 1
             el
           }
-          NextBatch[F, A](dumped, moveNext(batchPos, rest))
+          NextBatch[F, A](dumped, moveNext(rest))
 
         case Suspend(rest) =>
           out.println(s"$pos: $prefix --> suspend")
-          Suspend[F, A](moveNext(pos + 1, rest))
+          pos += 1
+          Suspend[F, A](moveNext(rest))
 
         case Last(item) =>
           out.println(s"$pos: $prefix --> last --> $item")
@@ -80,12 +85,21 @@ private[tail] object IterantDump {
           out.println(s"$pos: $prefix --> halt --> ${error.map(_.toString).getOrElse("no error")}")
           source
 
+        case c@Concat(lh, rh) =>
+          out.println(s"$pos: $prefix --> concat --> ($lh, $rh)")
+          pos += 1
+          c.runMap(loop)
+
+        case b@Scope(_, _, _) =>
+          out.println(s"$pos: $prefix --> scope --> $b")
+          pos += 1
+          b.runMap(loop)
+
       } catch {
         case ex if NonFatal(ex) =>
           out.println(s"$pos: $prefix --> unexpected error --> $ex")
           Iterant.raiseError(ex)
       }
 
-    Suspend(F.delay(loop(0)(source)))
   }
 }
