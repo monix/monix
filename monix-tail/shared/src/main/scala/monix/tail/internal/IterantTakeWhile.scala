@@ -30,12 +30,12 @@ import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantTakeWhile {
   def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
-                    (implicit F: Sync[F]): Iterant[F, A] = {
+    (implicit F: Sync[F]): Iterant[F, A] = {
     Suspend(F.delay(new Loop(p).apply(source)))
   }
 
   private class Loop[F[_], A](p: A => Boolean)
-                             (implicit F: Sync[F])
+    (implicit F: Sync[F])
     extends (Iterant[F, A] => Iterant[F, A]) { loop =>
     private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
 
@@ -51,8 +51,10 @@ private[tail] object IterantTakeWhile {
           Suspend(rest.map(loop))
         case Last(elem) =>
           handleLast(elem)
-        case halt@Halt(_) =>
+        case halt@Halt(None) =>
           handleHalt(halt)
+        case halt@Halt(Some(_)) =>
+          halt
         case s@Scope(_, _, _) =>
           s.runMap(loop)
         case Concat(lh, rh) =>
