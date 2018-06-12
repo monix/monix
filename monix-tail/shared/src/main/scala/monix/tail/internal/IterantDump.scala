@@ -86,12 +86,12 @@ private[tail] object IterantDump {
           source
 
         case c@Concat(lh, rh) =>
-          out.println(s"$pos: $prefix --> concat --> ($lh, $rh)")
+          out.println(s"$pos: $prefix --> concat")
           pos += 1
           c.runMap(loop)
 
         case b@Scope(_, _, _) =>
-          out.println(s"$pos: $prefix --> scope --> $b")
+          out.println(s"$pos: $prefix --> scope")
           pos += 1
           b.runMap(loop)
 
