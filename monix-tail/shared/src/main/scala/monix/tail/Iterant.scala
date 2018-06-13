@@ -2607,11 +2607,11 @@ object Iterant extends IterantInstances {
     def visit(ref: Halt[F, A]): R
 
     /** Processes unhandled errors. */
-    def handleError(e: Throwable): R
+    def fail(e: Throwable): R
 
     final def apply(fa: Iterant[F, A]): R =
       try fa.accept(this)
-      catch { case e if NonFatal(e) => handleError(e) }
+      catch { case e if NonFatal(e) => fail(e) }
   }
 }
 

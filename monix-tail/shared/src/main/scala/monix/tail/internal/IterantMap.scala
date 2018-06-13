@@ -19,8 +19,6 @@ package monix.tail.internal
 
 import cats.syntax.all._
 import cats.effect.Sync
-
-import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
@@ -31,29 +29,7 @@ private[tail] object IterantMap {
   def apply[F[_], A, B](source: Iterant[F, A], f: A => B)
     (implicit F: Sync[F]): Iterant[F, B] = {
 
-    def loop(source: Iterant[F, A]): Iterant[F, B] =
-      try source match {
-        case Next(head, tail) =>
-          Next[F, B](f(head), tail.map(loop))
-        case NextCursor(cursor, rest) =>
-          NextCursor[F, B](cursor.map(f), rest.map(loop))
-        case NextBatch(gen, rest) =>
-          NextBatch(gen.map(f), rest.map(loop))
-        case Suspend(rest) =>
-          Suspend[F, B](rest.map(loop))
-        case Last(item) =>
-          Last(f(item))
-        case empty @ Halt(_) =>
-          empty.asInstanceOf[Iterant[F, B]]
-        case node @ Scope(_, _, _) =>
-          node.runMap(loop)
-        case node @ Concat(_, _) =>
-          node.runMap(loop)
-      }
-      catch {
-        case ex if NonFatal(ex) => Iterant.raiseError(ex)
-      }
-
+    val loop = new Loop[F, A, B](f)
     source match {
       case Scope(_, _, _) | Suspend(_) | Halt(_) => loop(source)
       case _ =>
@@ -63,5 +39,38 @@ private[tail] object IterantMap {
         // NextCursor states can have side effects
         Suspend(F.delay(loop(source)))
     }
+  }
+
+  private final class Loop[F[_], A, B](f: A => B)
+    (implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, B]] {
+    loop =>
+
+    def visit(ref: Next[F, A]): Iterant[F, B] =
+      Next[F, B](f(ref.item), ref.rest.map(loop))
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, B] =
+      NextBatch(ref.batch.map(f), ref.rest.map(loop))
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, B] =
+      NextCursor(ref.cursor.map(f), ref.rest.map(loop))
+
+    def visit(ref: Suspend[F, A]): Iterant[F, B] =
+      Suspend(ref.rest.map(loop))
+
+    def visit(ref: Concat[F, A]): Iterant[F, B] =
+      ref.runMap(loop)
+
+    def visit(ref: Scope[F, A]): Iterant[F, B] =
+      ref.runMap(loop)
+
+    def visit(ref: Last[F, A]): Iterant[F, B] =
+      Last(f(ref.item))
+
+    def visit(ref: Halt[F, A]): Iterant[F, B] =
+      ref.asInstanceOf[Iterant[F, B]]
+
+    def fail(e: Throwable): Iterant[F, B] =
+      Iterant.raiseError(e)
   }
 }

@@ -102,7 +102,7 @@ private[tail] object IterantFoldLeft {
           F.raiseError(e)
       }
 
-    def handleError(e: Throwable): F[S] =
+    def fail(e: Throwable): F[S] =
       F.raiseError(e)
 
     private def continueOrFinish: F[S] = {

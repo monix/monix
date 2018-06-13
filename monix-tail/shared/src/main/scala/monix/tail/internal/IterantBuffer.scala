@@ -126,7 +126,7 @@ private[tail] object IterantBuffer {
       }
     }
 
-    def handleError(e: Throwable): F[Iterant[F, B]] =
+    def fail(e: Throwable): F[Iterant[F, B]] =
       F.pure(Iterant.raiseError(e))
 
     private def processCursor(fa: Iterant.NextCursor[F, A]): F[Iterant[F, B]] = {

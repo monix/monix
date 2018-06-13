@@ -126,7 +126,7 @@ private[tail] object IterantAttempt {
           Last(Left(error))
       }
 
-    def handleError(e: Throwable): Iterant[F, Either[Throwable, A]] =
+    def fail(e: Throwable): Iterant[F, Either[Throwable, A]] =
       Iterant.raiseError(e)
 
     private def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, Attempt]] =
