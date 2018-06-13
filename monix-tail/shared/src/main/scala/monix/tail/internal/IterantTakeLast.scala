@@ -19,9 +19,9 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.DropHeadOnOverflowQueue
+import monix.execution.internal.collection.{ArrayStack, DropHeadOnOverflowQueue}
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
 
 private[tail] object IterantTakeLast {
@@ -29,45 +29,72 @@ private[tail] object IterantTakeLast {
     * Implementation for `Iterant#takeLast`
     */
   def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Sync[F]): Iterant[F, A] = {
-
-    def finalCursor(buffer: DropHeadOnOverflowQueue[A]): F[Iterant[F, A]] = {
-      val cursor = BatchCursor.fromIterator(buffer.iterator(true), Int.MaxValue)
-      F.pure(NextCursor(cursor, F.pure(Iterant.empty)))
-    }
-
-    def loop(buffer: DropHeadOnOverflowQueue[A])(source: Iterant[F, A]): F[Iterant[F, A]] = {
-      source match {
-        case s @ Scope(_, _, _) =>
-          s.runFlatMap(loop(buffer))
-        case Next(item, rest) =>
-          buffer.offer(item)
-          rest.flatMap(loop(buffer))
-        case NextCursor(cursor, rest) =>
-          while (cursor.hasNext()) buffer.offer(cursor.next())
-          rest.flatMap(loop(buffer))
-        case NextBatch(batch, rest) =>
-          val cursor = batch.cursor()
-          while (cursor.hasNext()) buffer.offer(cursor.next())
-          rest.flatMap(loop(buffer))
-        case Suspend(rest) =>
-          rest.flatMap(loop(buffer))
-        case Last(item) =>
-          buffer.offer(item)
-          finalCursor(buffer)
-        case Halt(None) =>
-          finalCursor(buffer)
-        case halt @ Halt(Some(_)) =>
-          F.pure(halt)
-      }
-    }
-
     if (n < 1)
       Iterant.empty
     else {
-      // Suspending execution, because pushing into our buffer
-      // is side-effecting
-      val buffer = F.delay(DropHeadOnOverflowQueue.boxed[A](n))
-      Suspend(buffer.flatMap(b => loop(b)(source)))
+      Suspend(F.delay(new Loop(n).apply(source)))
     }
   }
+
+  private class Loop[F[_], A](n: Int)(implicit F: Sync[F])
+    extends (Iterant[F, A] => Iterant[F, A]) { loop =>
+
+    private val buffer = DropHeadOnOverflowQueue.boxed[A](n)
+    private val stack = new ArrayStack[F[Iterant[F, A]]]()
+
+    def apply(source: Iterant[F, A]): Iterant[F, A] = {
+      source match {
+        case Next(item, rest) =>
+          buffer.offer(item)
+          Suspend(rest.map(loop))
+        case NextCursor(cursor, rest) =>
+          while (cursor.hasNext()) buffer.offer(cursor.next())
+          Suspend(rest.map(loop))
+        case NextBatch(batch, rest) =>
+          val cursor = batch.cursor()
+          while (cursor.hasNext()) buffer.offer(cursor.next())
+          Suspend(rest.map(loop))
+        case Suspend(rest) =>
+          Suspend(rest.map(loop))
+        case Last(item) =>
+          handleLast(item)
+        case s@Scope(_, _, _) =>
+          s.runMap(loop)
+        case Concat(lh, rh) =>
+          handleConcat(lh, rh)
+        case Halt(None) =>
+          handleHalt()
+        case halt@Halt(Some(_)) =>
+          halt
+      }
+    }
+
+    private def handleLast(item: A): Iterant[F, A] = {
+      stack.pop() match {
+        case null =>
+          buffer.offer(item)
+          finalCursor()
+        case some =>
+          loop(Next(item, some))
+      }
+    }
+
+    private def handleConcat(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] = {
+      stack.push(rh)
+      Suspend(lh.map(loop))
+    }
+
+    private def handleHalt(): Iterant[F, A] = {
+      stack.pop() match {
+        case null => finalCursor()
+        case some => Suspend(some.map(loop))
+      }
+    }
+
+    private def finalCursor(): Iterant[F, A] = {
+      val cursor = BatchCursor.fromIterator(buffer.iterator(true), Int.MaxValue)
+      NextCursor(cursor, F.pure(Iterant.empty))
+    }
+  }
+
 }

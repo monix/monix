@@ -25,40 +25,41 @@ import monix.execution.exceptions.DummyException
 import monix.tail.batches.BatchCursor
 
 object IterantTakeLastSuite extends BaseTestSuite {
-//  test("Iterant.takeLast is equivalent with List.takeRight") { implicit s =>
-//    check3 { (list: List[Int], idx: Int, nr: Int) =>
-//      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1).onErrorIgnore
-//      val n = if (nr == 0) 0 else math.abs(math.abs(nr) % 20)
-//      stream.takeLast(n).toListL <-> stream.toListL.map(_.takeRight(n))
-//    }
-//  }
+  test("Iterant.takeLast is equivalent with List.takeRight") { implicit s =>
+    check3 { (list: List[Int], idx: Int, nr: Int) =>
+      val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1).onErrorIgnore
+      val stream = iter ++ Iterant[Task].of(1, 2, 3)
+      val n = if (nr == 0) 0 else math.abs(math.abs(nr) % 20)
+      stream.takeLast(n).toListL <-> stream.toListL.map(_.takeRight(n))
+    }
+  }
+
+  test("Iterant.takeLast protects against broken batches") { implicit s =>
+    check1 { (iter: Iterant[Task, Int]) =>
+      val dummy = DummyException("dummy")
+      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
+      val stream = iter.onErrorIgnore ++ suffix
+      val received = stream.takeLast(10)
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
+    }
+  }
+
+  test("Iterant.takeLast protects against broken cursors") { implicit s =>
+    check1 { (iter: Iterant[Task, Int]) =>
+      val dummy = DummyException("dummy")
+      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
+      val stream = iter.onErrorIgnore ++ suffix
+      val received = stream.takeLast(10)
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
+    }
+  }
 //
-//  test("Iterant.takeLast protects against broken batches") { implicit s =>
-//    check1 { (iter: Iterant[Task, Int]) =>
-//      val dummy = DummyException("dummy")
-//      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
-//      val stream = iter.onErrorIgnore ++ suffix
-//      val received = stream.takeLast(10)
-//      received <-> Iterant[Task].haltS[Int](Some(dummy))
-//    }
-//  }
-//
-//  test("Iterant.takeLast protects against broken cursors") { implicit s =>
-//    check1 { (iter: Iterant[Task, Int]) =>
-//      val dummy = DummyException("dummy")
-//      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
-//      val stream = iter.onErrorIgnore ++ suffix
-//      val received = stream.takeLast(10)
-//      received <-> Iterant[Task].haltS[Int](Some(dummy))
-//    }
-//  }
-//
-//  test("Iterant.takeLast preserves the source earlyStop") { implicit s =>
-//    var effect = 0
-//    val stop = Coeval.eval(effect += 1)
-//    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
-//    val stream = source.takeLast(3)
-//    stream.earlyStop.value()
-//    assertEquals(effect, 1)
-//  }
+  test("Iterant.takeLast preserves the source guarantee") { implicit s =>
+    var effect = 0
+    val stop = Coeval.eval(effect += 1)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
+    val stream = source.takeLast(3)
+    stream.completeL.value()
+    assertEquals(effect, 1)
+  }
 }

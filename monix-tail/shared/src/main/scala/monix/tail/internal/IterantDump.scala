@@ -85,7 +85,7 @@ private[tail] object IterantDump {
           out.println(s"$pos: $prefix --> halt --> ${error.map(_.toString).getOrElse("no error")}")
           source
 
-        case c@Concat(lh, rh) =>
+        case c@Concat(_, _) =>
           out.println(s"$pos: $prefix --> concat")
           pos += 1
           c.runMap(loop)
