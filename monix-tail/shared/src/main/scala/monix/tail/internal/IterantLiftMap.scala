@@ -21,10 +21,10 @@ import cats.Applicative
 import cats.arrow.FunctionK
 import cats.effect.Sync
 import cats.syntax.all._
-import scala.util.control.NonFatal
 
+import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantLiftMap {
   /** Implementation for `Iterant#liftMap`. */
@@ -39,8 +39,6 @@ private[tail] object IterantLiftMap {
 
     def loop(fa: Iterant[F, A]): Iterant[G, A] =
       fa match {
-        case Scope(acquire, use, release) =>
-          Scope(f(acquire), f(use).map(loop), exitCase => f(release(exitCase)))
         case Next(a, rest) =>
           Next[G, A](a, f(rest).map(loop))
         case NextBatch(a, rest) =>
@@ -48,7 +46,11 @@ private[tail] object IterantLiftMap {
         case NextCursor(a, rest) =>
           NextCursor[G, A](a, f(rest).map(loop))
         case Suspend(rest) =>
-          Suspend(f(rest).map(loop))
+          Suspend(G.suspend(f(rest).map(loop)))
+        case Scope(acquire, use, release) =>
+          Scope(f(acquire), f(use).map(loop), exitCase => f(release(exitCase)))
+        case Concat(lh, rh) =>
+          Concat(f(lh).map(loop), f(rh).map(loop))
         case Last(_) | Halt(_) =>
           fa.asInstanceOf[Iterant[G, A]]
       }
@@ -68,8 +70,6 @@ private[tail] object IterantLiftMap {
 
     def loop(fa: Iterant[F, A]): Iterant[G, A] =
       try fa match {
-        case Scope(acquire, use, release) =>
-          Scope(g(acquire), f(use).map(loop), exitCase => g(release(exitCase)))
         case Next(a, rest) =>
           Next[G, A](a, f(rest).map(loop))
         case NextBatch(a, rest) =>
@@ -78,6 +78,10 @@ private[tail] object IterantLiftMap {
           NextCursor[G, A](a, f(rest).map(loop))
         case Suspend(rest) =>
           Suspend(f(rest).map(loop))
+        case Scope(acquire, use, release) =>
+          Scope(g(acquire), G.suspend(f(use).map(loop)), exitCase => g(release(exitCase)))
+        case Concat(lh, rh) =>
+          Concat(f(lh).map(loop), f(rh).map(loop))
         case Last(_) | Halt(_) =>
           fa.asInstanceOf[Iterant[G, A]]
       } catch {

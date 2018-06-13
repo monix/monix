@@ -19,15 +19,92 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.internal.collection.ArrayStack
+
 import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.batches.BatchCursor
+
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantTakeWhile {
   def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
     (implicit F: Sync[F]): Iterant[F, A] = {
+    Suspend(F.delay(new Loop(p).apply(source)))
+  }
+
+  private class Loop[F[_], A](p: A => Boolean)
+    (implicit F: Sync[F])
+    extends (Iterant[F, A] => Iterant[F, A]) { loop =>
+    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
+
+    def apply(source: Iterant[F, A]): Iterant[F, A] = {
+      try source match {
+        case Next(item, rest) =>
+          handleNext(item, rest)
+        case ref@NextCursor(_, _) =>
+          processCursor(ref)
+        case NextBatch(batch, rest) =>
+          processCursor(NextCursor(batch.cursor(), rest))
+        case Suspend(rest) =>
+          Suspend(rest.map(loop))
+        case Last(elem) =>
+          handleLast(elem)
+        case halt@Halt(None) =>
+          handleHalt(halt)
+        case halt@Halt(Some(_)) =>
+          halt
+        case s@Scope(_, _, _) =>
+          s.runMap(loop)
+        case Concat(lh, rh) =>
+          handleConcat(lh, rh)
+      } catch {
+        case ex if NonFatal(ex) =>
+          Halt(Some(ex))
+      }
+    }
+
+    private def handleNext(elem: A, rest: F[Iterant[F, A]]): Iterant[F, A] = {
+      if (p(elem)) Next(elem, rest.map(loop))
+      else {
+        // gc relief
+        stack = null
+        Iterant.empty
+        }
+      }
+
+    private def handleLast(elem: A): Iterant[F, A] = {
+      if (p(elem)) {
+        val next =
+          if (stack != null) stack.pop()
+          else null.asInstanceOf[F[Iterant[F, A]]]
+
+        next match {
+          case null => Last(elem)
+          case stream => Next(elem, stream.map(loop))
+        }
+      } else {
+        Iterant.empty
+      }
+    }
+
+    private def handleHalt(halt: Halt[F, A]): Iterant[F, A] = {
+      val next =
+        if (stack != null) stack.pop()
+        else null.asInstanceOf[F[Iterant[F, A]]]
+
+      next match {
+        case null => halt
+        case stream => Suspend(stream.map(loop))
+      }
+    }
+
+    private def handleConcat(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] = {
+      if (stack == null) stack = new ArrayStack()
+      stack.push(rh)
+      Suspend(lh.map(loop))
+    }
 
     def processCursor(ref: NextCursor[F, A]): Iterant[F, A] = {
       val NextCursor(cursor, rest) = ref
@@ -64,38 +141,6 @@ private[tail] object IterantTakeWhile {
         }
       }
     }
-
-    def loop(source: Iterant[F, A]): Iterant[F, A] = {
-      try source match {
-        case s @ Scope(_, _, _) =>
-          s.runMap(loop)
-        case Next(item, rest) =>
-          if (p(item)) Next(item, rest.map(loop))
-          else Iterant.empty
-        case ref @ NextCursor(_, _) =>
-          processCursor(ref)
-        case NextBatch(batch, rest) =>
-          processCursor(NextCursor(batch.cursor(), rest))
-        case Suspend(rest) =>
-          Suspend(rest.map(loop))
-        case Last(elem) =>
-          if (p(elem)) Last(elem) else Iterant.empty
-        case halt @ Halt(_) =>
-          halt
-      } catch {
-        case ex if NonFatal(ex) =>
-          Halt(Some(ex))
-      }
-    }
-
-    source match {
-      case Scope(_, _, _) | Suspend(_) | Halt(_) => loop(source)
-      case _ =>
-        // Suspending execution in order to preserve laziness and
-        // referential transparency, since the provided function can
-        // be side effecting and because processing NextBatch and
-        // NextCursor states can have side effects
-        Suspend(F.delay(loop(source)))
-    }
   }
+
 }

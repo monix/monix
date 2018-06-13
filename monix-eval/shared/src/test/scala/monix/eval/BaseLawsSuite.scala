@@ -216,7 +216,9 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def equalityCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
     new Eq[Coeval[A]] {
       def eqv(lh: Coeval[A], rh: Coeval[A]): Boolean = {
-        Eq[Try[A]].eqv(lh.runTry(), rh.runTry())
+        val lht = lh.runTry()
+        val rht = rh.runTry()
+        Eq[Try[A]].eqv(lht, rht)
       }
     }
 

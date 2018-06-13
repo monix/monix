@@ -22,17 +22,17 @@ import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 
 object IterantFromIndexedSeqSuite extends BaseTestSuite {
-//  test("Iterant[Task].fromIndexedSeq") { implicit s =>
-//    check1 { (list: List[Int]) =>
-//      val result = Iterant[Task].fromIndexedSeq(list.toVector).toListL
-//      result <-> Task.now(list)
-//    }
-//  }
-//
-//  test("Iterant[Coeval].fromIndexedSeq") { implicit s =>
-//    check1 { (list: List[Int]) =>
-//      val result = Iterant[Coeval].fromIndexedSeq(list.toVector).toListL
-//      result <-> Coeval.now(list)
-//    }
-//  }
+  test("Iterant[Task].fromIndexedSeq") { implicit s =>
+    check1 { (list: List[Int]) =>
+      val result = Iterant[Task].fromIndexedSeq(list.toVector).toListL
+      result <-> Task.now(list)
+    }
+  }
+
+  test("Iterant[Coeval].fromIndexedSeq") { implicit s =>
+    check1 { (list: List[Int]) =>
+      val result = Iterant[Coeval].fromIndexedSeq(list.toVector).toListL
+      result <-> Coeval.now(list)
+    }
+  }
 }

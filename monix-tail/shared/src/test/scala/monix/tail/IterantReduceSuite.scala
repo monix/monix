@@ -26,155 +26,142 @@ import monix.tail.batches.Batch
 import scala.util.Failure
 
 object IterantReduceSuite extends BaseTestSuite {
-//  test("reduce is consistent with foldLeft") { implicit s =>
-//    check2 { (stream: Iterant[Coeval, Int], op: (Int, Int) => Int) =>
-//      val received = stream.reduceL(op)
-//      val expected = stream.foldLeftL(Option.empty[Int])((acc, e) => Some(acc.fold(e)(s => op(s, e))))
-//      received <-> expected
-//    }
-//  }
-//
-//  test("maxL is consistent with List.max") { implicit s =>
-//    check2 { (list: List[Int], idx: Int) =>
-//      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
-//      val expect = if (list.isEmpty) None else Some(list.max)
-//      stream.maxL <-> Coeval.pure(expect)
-//    }
-//  }
-//
-//  test("maxByL is consistent with List.maxBy") { implicit s =>
-//    check2 { (list: List[Int], idx: Int) =>
-//      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
-//      val expect = if (list.isEmpty) None else Some(list.maxBy(Math.pow(_, 2)))
-//      stream.maxByL(Math.pow(_, 2)) <-> Coeval.pure(expect)
-//    }
-//  }
-//
-//  test("minL is consistent with List.min") { implicit s =>
-//    check2 { (list: List[Int], idx: Int) =>
-//      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
-//      val expect = if (list.isEmpty) None else Some(list.min)
-//      stream.minL <-> Coeval.pure(expect)
-//    }
-//  }
-//
-//  test("minByL is consistent with List.minBy") { implicit s =>
-//    check2 { (list: List[Int], idx: Int) =>
-//      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
-//      val expect = if (list.isEmpty) None else Some(list.minBy(Math.pow(_, 2)))
-//      stream.minByL(Math.pow(_, 2)) <-> Coeval.pure(expect)
-//    }
-//  }
-//
-//  test("protects against broken cursor, as first node") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    var effect = 0
-//
-//    val stream = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-//      .doOnEarlyStop(Coeval { effect += 1 })
-//      .reduceL(_ + _)
-//
-//    assertEquals(effect, 0)
-//    assertEquals(stream.runTry(), Failure(dummy))
-//    assertEquals(effect, 1)
-//  }
-//
-//  test("protects against broken cursor, as second node") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    var effect = 0
-//
-//    val source =
-//      Iterant[Coeval].pure(1) ++
-//      Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-//
-//    val stream = source
-//      .doOnEarlyStop(Coeval { effect += 1 })
-//      .reduceL(_ + _)
-//
-//    assertEquals(effect, 0)
-//    assertEquals(stream.runTry(), Failure(dummy))
-//    assertEquals(effect, 1)
-//  }
-//
-//  test("protects against broken batch, as first node") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    var effect = 0
-//
-//    val stream = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-//      .doOnEarlyStop(Coeval { effect += 1 })
-//      .reduceL(_ + _)
-//
-//    assertEquals(effect, 0)
-//    assertEquals(stream.runTry(), Failure(dummy))
-//    assertEquals(effect, 1)
-//  }
-//
-//  test("protects against broken batch, as second node") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    var effect = 0
-//
-//    val source =
-//      Iterant[Coeval].pure(1) ++
-//      Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-//
-//    val stream = source
-//      .doOnEarlyStop(Coeval { effect += 1 })
-//      .reduceL(_ + _)
-//
-//    assertEquals(effect, 0)
-//    assertEquals(stream.runTry(), Failure(dummy))
-//    assertEquals(effect, 1)
-//  }
-//
-//  test("protects against broken op") { implicit s =>
-//    val dummy = DummyException("dummy")
-//    var effect = 0
-//
-//    val stream = Iterant[Coeval].of(1, 2)
-//      .doOnEarlyStop(Coeval { effect += 1 })
-//      .reduceL((_, _) => (throw dummy) : Int)
-//
-//    assertEquals(effect, 0)
-//    assertEquals(stream.runTry(), Failure(dummy))
-//    assertEquals(effect, 1)
-//  }
-//
-//  test("earlyStop gets called for failing `rest` on Next node") { implicit s =>
-//    var effect = 0
-//
-//    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
-//    val dummy = DummyException("dummy")
-//    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy), stop(3))
-//    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
-//    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
-//
-//    assertEquals(node1.reduceL((_, el) => el).runTry(), Failure(dummy))
-//    assertEquals(effect, 3)
-//  }
-//
-//  test("earlyStop gets called for failing `rest` on NextBatch node") { implicit s =>
-//    var effect = 0
-//
-//    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
-//    val dummy = DummyException("dummy")
-//    val node3 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval.raiseError(dummy), stop(3))
-//    val node2 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(node3), stop(2))
-//    val node1 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(node2), stop(1))
-//
-//    assertEquals(node1.reduceL((_, el) => el).runTry(), Failure(dummy))
-//    assertEquals(effect, 3)
-//  }
-//
-//  test("earlyStop doesn't get called for Last node") { implicit s =>
-//    var effect = 0
-//
-//    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
-//    val dummy = DummyException("dummy")
-//    val node3 = Iterant[Coeval].lastS(3)
-//    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
-//    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
-//
-//    assertEquals(node1.reduceL((_, el) => if (el == 3) throw dummy else el).runTry(), Failure(dummy))
-//    assertEquals(effect, 0)
-//  }
+  test("reduce is consistent with foldLeft") { implicit s =>
+    check2 { (stream: Iterant[Coeval, Int], op: (Int, Int) => Int) =>
+      val received = stream.reduceL(op)
+      val expected = stream.foldLeftL(Option.empty[Int])((acc, e) => Some(acc.fold(e)(s => op(s, e))))
+      received <-> expected
+    }
+  }
+
+  test("maxL is consistent with List.max") { implicit s =>
+    check2 { (list: List[Int], idx: Int) =>
+      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      val expect = if (list.isEmpty) None else Some(list.max)
+      stream.maxL <-> Coeval.pure(expect)
+    }
+  }
+
+  test("maxByL is consistent with List.maxBy") { implicit s =>
+    check2 { (list: List[Int], idx: Int) =>
+      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      val expect = if (list.isEmpty) None else Some(list.maxBy(Math.pow(_, 2)))
+      stream.maxByL(Math.pow(_, 2)) <-> Coeval.pure(expect)
+    }
+  }
+
+  test("minL is consistent with List.min") { implicit s =>
+    check2 { (list: List[Int], idx: Int) =>
+      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      val expect = if (list.isEmpty) None else Some(list.min)
+      stream.minL <-> Coeval.pure(expect)
+    }
+  }
+
+  test("minByL is consistent with List.minBy") { implicit s =>
+    check2 { (list: List[Int], idx: Int) =>
+      val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      val expect = if (list.isEmpty) None else Some(list.minBy(Math.pow(_, 2)))
+      stream.minByL(Math.pow(_, 2)) <-> Coeval.pure(expect)
+    }
+  }
+
+  test("protects against broken cursor, as first node") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val stream = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+      .guarantee(Coeval { effect += 1 })
+      .reduceL(_ + _)
+
+    assertEquals(effect, 0)
+    assertEquals(stream.runTry(), Failure(dummy))
+    assertEquals(effect, 1)
+  }
+
+  test("protects against broken cursor, as second node") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val source =
+      Iterant[Coeval].pure(1) ++
+      Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+
+    val stream = source
+      .guarantee(Coeval { effect += 1 })
+      .reduceL(_ + _)
+
+    assertEquals(effect, 0)
+    assertEquals(stream.runTry(), Failure(dummy))
+    assertEquals(effect, 1)
+  }
+
+  test("protects against broken batch, as first node") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val stream = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+      .guarantee(Coeval { effect += 1 })
+      .reduceL(_ + _)
+
+    assertEquals(effect, 0)
+    assertEquals(stream.runTry(), Failure(dummy))
+    assertEquals(effect, 1)
+  }
+
+  test("protects against broken batch, as second node") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val source =
+      Iterant[Coeval].pure(1) ++
+      Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+
+    val stream = source
+      .guarantee(Coeval { effect += 1 })
+      .reduceL(_ + _)
+
+    assertEquals(effect, 0)
+    assertEquals(stream.runTry(), Failure(dummy))
+    assertEquals(effect, 1)
+  }
+
+  test("protects against broken op") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val stream = Iterant[Coeval].of(1, 2)
+      .guarantee(Coeval { effect += 1 })
+      .reduceL((_, _) => (throw dummy) : Int)
+
+    assertEquals(effect, 0)
+    assertEquals(stream.runTry(), Failure(dummy))
+    assertEquals(effect, 1)
+  }
+
+  test("resources are released for failing `rest` on Next node") { implicit s =>
+    var effect = 0
+
+    def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
+    val dummy = DummyException("dummy")
+    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy)).guarantee(stop(3))
+    val node2 = Iterant[Coeval].nextS(2, Coeval(node3)).guarantee(stop(2))
+    val node1 = Iterant[Coeval].nextS(1, Coeval(node2)).guarantee(stop(1))
+
+    assertEquals(node1.reduceL((_, el) => el).runTry(), Failure(dummy))
+    assertEquals(effect, 6)
+  }
+
+  test("resources are released for failing `rest` on NextBatch node") { implicit s =>
+    var effect = 0
+
+    def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
+    val dummy = DummyException("dummy")
+    val node3 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval.raiseError(dummy)).guarantee(stop(3))
+    val node2 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(node3)).guarantee(stop(2))
+    val node1 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(node2)).guarantee(stop(1))
+
+    assertEquals(node1.reduceL((_, el) => el).runTry(), Failure(dummy))
+    assertEquals(effect, 6)
+  }
 }

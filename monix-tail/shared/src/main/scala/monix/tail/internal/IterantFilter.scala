@@ -19,10 +19,10 @@ package monix.tail.internal
 
 import cats.syntax.all._
 import cats.effect.Sync
-import scala.util.control.NonFatal
 
+import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantFilter {
   /**
@@ -31,27 +31,43 @@ private[tail] object IterantFilter {
   def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
     (implicit F: Sync[F]): Iterant[F,A] = {
 
-    def loop(source: Iterant[F,A]): Iterant[F,A] = {
-      try source match {
-        case b @ Scope(_, _, _) =>
-          b.runMap(loop)
+    val loop = new Loop[F, A](p)
 
+    source match {
+      case Suspend(_) | Halt(_) => loop(source)
+      case _ =>
+        // Suspending execution in order to preserve laziness and
+        // referential transparency, since the provided function can
+        // be side effecting and because processing NextBatch and
+        // NextCursor states can have side effects
+        Suspend(F.delay(loop(source)))
+    }
+  }
+
+  private class Loop[F[_], A](p: A => Boolean)(implicit F: Sync[F])
+    extends (Iterant[F, A] => Iterant[F, A])
+  {
+    def apply(source: Iterant[F,A]): Iterant[F,A] = {
+      try source match {
         case Next(item, rest) =>
-          if (p(item)) Next(item, rest.map(loop))
-          else Suspend(rest.map(loop))
+          if (p(item)) Next(item, rest.map(this))
+          else Suspend(rest.map(this))
 
         case NextCursor(items, rest) =>
           val filtered = items.filter(p)
           if (filtered.hasNext())
-            NextCursor(filtered, rest.map(loop))
+            NextCursor(filtered, rest.map(this))
           else
-            Suspend(rest.map(loop))
+            Suspend(rest.map(this))
 
         case NextBatch(items, rest) =>
-          NextBatch(items.filter(p), rest.map(loop))
+          NextBatch(items.filter(p), rest.map(this))
 
         case Suspend(rest) =>
-          Suspend(rest.map(loop))
+          Suspend(rest.map(this))
+
+        case node @ (Scope(_, _, _) | Concat(_, _)) =>
+          node.runMap(this)
 
         case last @ Last(item) =>
           if (p(item)) last else Iterant.empty
@@ -62,16 +78,6 @@ private[tail] object IterantFilter {
       catch {
         case ex if NonFatal(ex) => Iterant.raiseError(ex)
       }
-    }
-
-    source match {
-      case Suspend(_) | Halt(_) => loop(source)
-      case _ =>
-        // Suspending execution in order to preserve laziness and
-        // referential transparency, since the provided function can
-        // be side effecting and because processing NextBatch and
-        // NextCursor states can have side effects
-        Suspend(F.delay(loop(source)))
     }
   }
 }
