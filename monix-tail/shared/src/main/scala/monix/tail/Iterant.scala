@@ -133,7 +133,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   import Iterant._
 
   /** @see [[Iterant.Visitor]]. */
-  private[tail] def accept[B](visitor: Iterant.Visitor[F, A, B]): Iterant[F, B]
+  private[tail] def accept[R](visitor: Iterant.Visitor[F, A, R]): R
 
   /** Appends a stream to the end of the source, effectively
     * concatenating them.
@@ -2478,7 +2478,7 @@ object Iterant extends IterantInstances {
   final case class Next[F[_], A](item: A, rest: F[Iterant[F, A]])
     extends Iterant[F, A] {
 
-    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+    def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
   }
 
@@ -2489,7 +2489,7 @@ object Iterant extends IterantInstances {
   final case class Last[F[_], A](item: A)
     extends Iterant[F, A] {
 
-    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+    def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
   }
 
@@ -2501,7 +2501,7 @@ object Iterant extends IterantInstances {
   final case class NextCursor[F[_], A](cursor: BatchCursor[A], rest: F[Iterant[F, A]])
     extends Iterant[F, A] {
 
-    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+    def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
   }
 
@@ -2513,7 +2513,7 @@ object Iterant extends IterantInstances {
   final case class NextBatch[F[_], A](batch: Batch[A], rest: F[Iterant[F, A]])
     extends Iterant[F, A] {
 
-    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+    def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
   }
 
@@ -2526,7 +2526,7 @@ object Iterant extends IterantInstances {
   final case class Suspend[F[_], A](rest: F[Iterant[F, A]])
     extends Iterant[F, A] {
 
-    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+    def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
   }
 
@@ -2537,7 +2537,7 @@ object Iterant extends IterantInstances {
   final case class Halt[F[_], A](e: Option[Throwable])
     extends Iterant[F, A] {
 
-    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+    def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
   }
 
@@ -2553,7 +2553,7 @@ object Iterant extends IterantInstances {
     close: ExitCase[Throwable] => F[Unit])
     extends Iterant[F, A] {
 
-    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+    def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
   }
 
@@ -2565,7 +2565,7 @@ object Iterant extends IterantInstances {
   final case class Concat[F[_], A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]])
     extends Iterant[F, A] {
 
-    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+    def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
   }
 
@@ -2581,33 +2581,37 @@ object Iterant extends IterantInstances {
     * is great for performance, but breaks referential transparency,
     * so use with care.
     */
-  trait Visitor[F[_], A, B] extends (Iterant[F, A] => Iterant[F, B]) {
+  private[tail] trait Visitor[F[_], A, R] extends (Iterant[F, A] => R) {
     /** Processes [[Iterant.Next]]. */
-    def visit(ref: Next[F, A]): Iterant[F, B]
+    def visit(ref: Next[F, A]): R
 
     /** Processes [[Iterant.NextBatch]]. */
-    def visit(ref: NextBatch[F, A]): Iterant[F, B]
+    def visit(ref: NextBatch[F, A]): R
 
     /** Processes [[Iterant.NextCursor]]. */
-    def visit(ref: NextCursor[F, A]): Iterant[F, B]
+    def visit(ref: NextCursor[F, A]): R
 
     /** Processes [[Iterant.Suspend]]. */
-    def visit(ref: Suspend[F, A]): Iterant[F, B]
+    def visit(ref: Suspend[F, A]): R
 
     /** Processes [[Iterant.Concat]]. */
-    def visit(ref: Concat[F, A]): Iterant[F, B]
+    def visit(ref: Concat[F, A]): R
 
     /** Processes [[Iterant.Scope]]. */
-    def visit(ref: Scope[F, A]): Iterant[F, B]
+    def visit(ref: Scope[F, A]): R
 
     /** Processes [[Iterant.Last]]. */
-    def visit(ref: Last[F, A]): Iterant[F, B]
+    def visit(ref: Last[F, A]): R
 
     /** Processes [[Iterant.Halt]]. */
-    def visit(ref: Halt[F, A]): Iterant[F, B]
+    def visit(ref: Halt[F, A]): R
 
-    final def apply(fa: Iterant[F, A]): Iterant[F, B] =
-      fa.accept(this)
+    /** Processes unhandled errors. */
+    def handleError(e: Throwable): R
+
+    final def apply(fa: Iterant[F, A]): R =
+      try fa.accept(this)
+      catch { case e if NonFatal(e) => handleError(e) }
   }
 }
 

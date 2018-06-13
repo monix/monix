@@ -43,7 +43,7 @@ private[tail] object IterantAttempt {
   }
 
   private final class AttemptVisitor[F[_], A](implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Either[Throwable, A]] {
+    extends Iterant.Visitor[F, A, Iterant[F, Either[Throwable, A]]] {
     loop =>
 
     type Attempt = Either[Throwable, A]
@@ -125,6 +125,9 @@ private[tail] object IterantAttempt {
         case Some(error) =>
           Last(Left(error))
       }
+
+    def handleError(e: Throwable): Iterant[F, Either[Throwable, A]] =
+      Iterant.raiseError(e)
 
     private def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, Attempt]] =
       rest.attempt.map {
