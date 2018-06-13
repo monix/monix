@@ -17,13 +17,12 @@
 
 package monix.tail.internal
 
-import cats.effect.{ExitCase, Sync}
+import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
-
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
@@ -32,7 +31,7 @@ private[tail] object IterantAttempt {
     * Implementation for `Iterant.attempt`.
     */
   def apply[F[_], A](fa: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] = {
-    val loop = new AttemptLoop[F, A]
+    val loop = new AttemptVisitor[F, A]
     fa match {
       case NextBatch(_, _) | NextCursor(_, _) | Concat(_, _) =>
         // Suspending execution in order to preserve laziness and
@@ -43,76 +42,18 @@ private[tail] object IterantAttempt {
     }
   }
 
-  /**
-    * Describing the loop as a class because we can better control
-    * memory allocations this way.
-    */
-  private final class AttemptLoop[F[_], A](implicit F: Sync[F])
-    extends (Iterant[F, A] => Iterant[F, Either[Throwable, A]]) {
+  private final class AttemptVisitor[F[_], A](implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Either[Throwable, A]] {
     loop =>
 
     type Attempt = Either[Throwable, A]
     private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
 
-    def apply(node: Iterant[F, A]): Iterant[F, Attempt] =
-      node match {
-        case Next(a, rest) =>
-          Next(Right(a), continueWith(rest))
-        case NextBatch(batch, rest) =>
-          handleBatch(batch, rest)
-        case node@NextCursor(cursor, rest) =>
-          handleCursor(node, cursor, rest)
-        case Suspend(rest) =>
-          Suspend(continueWith(rest))
-        case Last(a) =>
-          handleLast(a)
-        case node @ Halt(None) =>
-          handleHalt(node)
-        case Halt(Some(ex)) =>
-          Last(Left(ex))
-        case Concat(lh, rh) =>
-          handleConcat(lh, rh)
-        case Scope(open, use, close) =>
-          handleScope(open, use, close)
-      }
+    def visit(ref: Next[F, A]): Iterant[F, Either[Throwable, A]] =
+      Next(Right(ref.item), continueWith(ref.rest))
 
-    def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, Attempt]] =
-      rest.attempt.map {
-        case error@Left(_) =>
-          Iterant.now(error.asInstanceOf[Attempt])
-        case Right(iter) =>
-          loop(iter)
-      }
-
-    def handleConcat(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, Attempt] = {
-      if (stack == null) stack = new ArrayStack()
-      stack.push(rh)
-      Suspend(continueWith(lh))
-    }
-
-    def handleLast(a: A): Iterant[F, Attempt] = {
-      val next =
-        if (stack != null) stack.pop()
-        else null.asInstanceOf[F[Iterant[F, A]]]
-
-      next match {
-        case null => Last(Right(a))
-        case stream => Next(Right(a), continueWith(stream))
-      }
-    }
-
-    def handleHalt(node: Iterant.Halt[F, A]): Iterant[F, Attempt] = {
-      val next =
-        if (stack != null) stack.pop()
-        else null.asInstanceOf[F[Iterant[F, A]]]
-
-      next match {
-        case null => node.asInstanceOf[Iterant[F, Attempt]]
-        case stream => Suspend(continueWith(stream))
-      }
-    }
-
-    def handleBatch(batch: Batch[A], rest: F[Iterant[F, A]]): Iterant[F, Attempt] = {
+    def visit(ref: NextBatch[F, A]): Iterant[F, Either[Throwable, A]] = {
+      val NextBatch(batch, rest) = ref
       var handleError = true
       try {
         val cursor = batch.cursor()
@@ -124,7 +65,80 @@ private[tail] object IterantAttempt {
       }
     }
 
-    def handleCursor(node: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]]): Iterant[F, Attempt] = {
+    def visit(ref: NextCursor[F, A]): Iterant[F, Either[Throwable, A]] =
+      handleCursor(ref, ref.cursor, ref.rest)
+
+    def visit(ref: Suspend[F, A]): Iterant[F, Either[Throwable, A]] =
+      Suspend(continueWith(ref.rest))
+
+    def visit(ref: Concat[F, A]): Iterant[F, Either[Throwable, A]] = {
+      if (stack == null) stack = new ArrayStack()
+      stack.push(ref.rh)
+      Suspend(continueWith(ref.lh))
+    }
+
+    def visit(ref: Scope[F, A]): Iterant[F, Either[Throwable, A]] = {
+      val Scope(open, use, close) = ref
+      Suspend {
+        open.attempt.map {
+          case Right(_) =>
+            var thrownRef: Throwable = null
+            val lh: Iterant[F, Attempt] =
+              Scope(F.unit, continueWith(use), exit =>
+                F.suspend(F.handleError(close(exit)) { e =>
+                  thrownRef = e
+                }))
+
+            Concat(F.pure(lh), F.delay {
+              if (thrownRef == null) Iterant.empty
+              else Last(Left(thrownRef))
+            })
+
+          case left@Left(_) =>
+            Last(left.asInstanceOf[Attempt])
+        }
+      }
+    }
+
+    def visit(ref: Last[F, A]): Iterant[F, Either[Throwable, A]] = {
+      val next =
+        if (stack != null) stack.pop()
+        else null.asInstanceOf[F[Iterant[F, A]]]
+
+      next match {
+        case null => Last(Right(ref.item))
+        case stream => Next(Right(ref.item), continueWith(stream))
+      }
+    }
+
+    def visit(ref: Halt[F, A]): Iterant[F, Either[Throwable, A]] =
+      ref.e match {
+        case None =>
+          val next =
+            if (stack != null) stack.pop()
+            else null.asInstanceOf[F[Iterant[F, A]]]
+
+          next match {
+            case null => ref.asInstanceOf[Iterant[F, Attempt]]
+            case stream => Suspend(continueWith(stream))
+          }
+        case Some(error) =>
+          Last(Left(error))
+      }
+
+    private def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, Attempt]] =
+      rest.attempt.map {
+        case error@Left(_) =>
+          Iterant.now(error.asInstanceOf[Attempt])
+        case Right(iter) =>
+          loop(iter)
+      }
+
+    private def handleCursor(
+      node: NextCursor[F, A],
+      cursor: BatchCursor[A],
+      rest: F[Iterant[F, A]]): Iterant[F, Attempt] = {
+
       try {
         val array = extractFromCursor(cursor)
         val next =
@@ -140,7 +154,7 @@ private[tail] object IterantAttempt {
       }
     }
 
-    def extractFromCursor(ref: BatchCursor[A]): Array[Attempt] = {
+    private def extractFromCursor(ref: BatchCursor[A]): Array[Attempt] = {
       var size = ref.recommendedBatchSize
       val buffer = ArrayBuffer.empty[Attempt]
       while (size > 0 && ref.hasNext()) {
@@ -149,26 +163,5 @@ private[tail] object IterantAttempt {
       }
       buffer.toArray[Attempt]
     }
-
-    def handleScope(open: F[Unit], rest: F[Iterant[F, A]], close: ExitCase[Throwable] => F[Unit]): Iterant[F, Attempt] =
-      Suspend {
-        open.attempt.map {
-          case Right(_) =>
-            var thrownRef: Throwable = null
-            val lh: Iterant[F, Attempt] =
-              Scope(F.unit, continueWith(rest), exit =>
-                F.suspend(F.handleError(close(exit)) { e =>
-                  thrownRef = e
-                }))
-
-            Concat(F.pure(lh), F.delay {
-              if (thrownRef == null) Iterant.empty
-              else Last(Left(thrownRef))
-            })
-
-          case left@Left(_) =>
-            Last(left.asInstanceOf[Attempt])
-        }
-      }
   }
 }

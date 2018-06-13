@@ -65,6 +65,14 @@ class IterantBuilders[F[_]] {
   def suspendS[A](rest: F[Iterant[F, A]]): Iterant[F, A] =
     Iterant.suspendS(rest)
 
+  /** Aliased builder, see documentation for [[Iterant.concatS]]. */
+  def concatS[A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] =
+    Iterant.concatS(lh, rh)
+
+  /** Aliased builder, see documentation for [[Iterant.scopeS]]. */
+  def scopeS[A](open: F[Unit], use: F[Iterant[F, A]], close: ExitCase[Throwable] => F[Unit]): Iterant[F, A] =
+    Iterant.scopeS(open, use, close)
+
   /** Aliased builder, see documentation for [[Iterant.lastS]]. */
   def lastS[A](item: A): Iterant[F, A] =
     Iterant.lastS(item)

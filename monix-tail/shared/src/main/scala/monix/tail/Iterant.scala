@@ -132,6 +132,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
   import Iterant._
 
+  /** @see [[Iterant.Visitor]]. */
+  private[tail] def accept[B](visitor: Iterant.Visitor[F, A, B]): Iterant[F, B]
+
   /** Appends a stream to the end of the source, effectively
     * concatenating them.
     *
@@ -1918,6 +1921,24 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         evaluated in the `F` context. It is useful to delay the
   *         evaluation of a stream by deferring to `F`.
   *
+  * @define ScopeDesc The [[monix.tail.Iterant.Scope Scope]] state
+  *         of the [[Iterant]] represents a stream that is able to
+  *         specify the acquisition and release of a resource, to
+  *         be used in generating stream events.
+  *
+  *         `Scope` is effectively the encoding of
+  *         [[https://typelevel.org/cats-effect/typeclasses/bracket.html Bracket]],
+  *         necessary for safe handling of resources. The `use`
+  *         parameter is supposed to trigger a side effectful action
+  *         that allocates resources, which are then used via `use`
+  *         and released via `close`.
+  *
+  *         Note that this is often used in combination with
+  *         [[Iterant.Suspend Suspend]] and data types like
+  *         [[https://typelevel.org/cats-effect/concurrency/ref.html cats.effect.concurrent.Ref]]
+  *         in order to communicate the acquired resources between
+  *         `open`, `use` and `close`.
+  *
   * @define LastDesc The [[monix.tail.Iterant.Last Last]] state of the
   *         [[Iterant]] represents a completion state as an alternative to
   *         [[monix.tail.Iterant.Halt Halt(None)]], describing one
@@ -1969,6 +1990,21 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *
   * @define suspendByNameParam is the by-name parameter that will generate
   *         the stream when evaluated
+  *
+  * @define openParamDesc is an effect that should allocate necessary
+  *         resources to be used in `use` and released in `close`
+  *
+  * @define useParamDesc is the stream created via this scope
+  *
+  * @define closeParamDesc is an effect that should deallocate
+  *         acquired resources via `open` and that will be executed
+  *         no matter what
+  *
+  * @define concatLhDesc is the left hand side of the concatenation,
+  *         to be processed before the right-hand side
+  *
+  * @define concatRhDesc is the rest of the stream, to be processed
+  *         after the left-hand side is
   *
   * @define intervalAtFixedRateDesc Creates an iterant that
   *         emits auto-incremented natural numbers (longs).
@@ -2165,8 +2201,26 @@ object Iterant extends IterantInstances {
   def suspendS[F[_], A](rest: F[Iterant[F, A]]): Iterant[F, A] =
     Suspend[F, A](rest)
 
+  /** Builds a stream state equivalent with [[Iterant.Scope]].
+    *
+    * $ScopeDesc
+    *
+    * @param open  $openParamDesc
+    * @param use   $useParamDesc
+    * @param close $closeParamDesc
+    */
   def scopeS[F[_], A](open: F[Unit], use: F[Iterant[F, A]], close: ExitCase[Throwable] => F[Unit]): Iterant[F, A] =
     Scope(open, use, close)
+
+  /** Builds a stream state equivalent with [[Iterant.Concat]].
+    *
+    * $ConcatDesc
+    *
+    * @param lh $concatLhDesc
+    * @param rh $concatRhDesc
+    */
+  def concatS[F[_], A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] =
+    Concat(lh, rh)
 
   /** Returns an empty stream that ends with an error. */
   def raiseError[F[_], A](ex: Throwable): Iterant[F, A] =
@@ -2431,14 +2485,22 @@ object Iterant extends IterantInstances {
     * @param rest $restParamDesc
     */
   final case class Next[F[_], A](item: A, rest: F[Iterant[F, A]])
-    extends Iterant[F, A]
+    extends Iterant[F, A] {
+
+    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+      visitor.visit(this)
+  }
 
   /** $LastDesc
     *
     * @param item $lastParamDesc
     */
   final case class Last[F[_], A](item: A)
-    extends Iterant[F, A]
+    extends Iterant[F, A] {
+
+    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+      visitor.visit(this)
+  }
 
   /** $NextCursorDesc
     *
@@ -2446,7 +2508,11 @@ object Iterant extends IterantInstances {
     * @param rest $restParamDesc
     */
   final case class NextCursor[F[_], A](cursor: BatchCursor[A], rest: F[Iterant[F, A]])
-    extends Iterant[F, A]
+    extends Iterant[F, A] {
+
+    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+      visitor.visit(this)
+  }
 
   /** $NextBatchDesc
     *
@@ -2454,7 +2520,11 @@ object Iterant extends IterantInstances {
     * @param rest $restParamDesc
     */
   final case class NextBatch[F[_], A](batch: Batch[A], rest: F[Iterant[F, A]])
-    extends Iterant[F, A]
+    extends Iterant[F, A] {
+
+    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+      visitor.visit(this)
+  }
 
   /** Builds a stream state equivalent with [[Iterant.NextCursor]].
     *
@@ -2463,23 +2533,91 @@ object Iterant extends IterantInstances {
     * @param rest $restParamDesc
     */
   final case class Suspend[F[_], A](rest: F[Iterant[F, A]])
-    extends Iterant[F, A]
+    extends Iterant[F, A] {
+
+    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+      visitor.visit(this)
+  }
 
   /** $HaltDesc
     *
     * @param e $exParamDesc
     */
   final case class Halt[F[_], A](e: Option[Throwable])
-    extends Iterant[F, A]
+    extends Iterant[F, A] {
 
+    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+      visitor.visit(this)
+  }
+
+  /** $ScopeDesc
+    *
+    * @param open  $openParamDesc
+    * @param use   $useParamDesc
+    * @param close $closeParamDesc
+    */
   final case class Scope[F[_], A](
     open: F[Unit],
     use: F[Iterant[F, A]],
     close: ExitCase[Throwable] => F[Unit])
-    extends Iterant[F, A]
+    extends Iterant[F, A] {
 
+    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+      visitor.visit(this)
+  }
+
+  /** $ConcatDesc
+    *
+    * @param lh $concatLhDesc
+    * @param rh $concatRhDesc
+    */
   final case class Concat[F[_], A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]])
-    extends Iterant[F, A]
+    extends Iterant[F, A] {
+
+    def accept[B](visitor: Visitor[F, A, B]): Iterant[F, B] =
+      visitor.visit(this)
+  }
+
+  /** Implements the
+    * [[https://en.wikipedia.org/wiki/Visitor_pattern Visitor Pattern]]
+    * for interpreting the `Iterant` data structure.
+    *
+    * This can be used as an alternative to pattern matching and is
+    * used in the implementation of `Iterant` for performance reasons.
+    *
+    * WARN: this being a class instead of a recursive function, it means
+    * that it often has to keep "shared state". Keeping shared state
+    * is great for performance, but breaks referential transparency,
+    * so use with care.
+    */
+  trait Visitor[F[_], A, B] extends (Iterant[F, A] => Iterant[F, B]) {
+    /** Processes [[Iterant.Next]]. */
+    def visit(ref: Next[F, A]): Iterant[F, B]
+
+    /** Processes [[Iterant.NextBatch]]. */
+    def visit(ref: NextBatch[F, A]): Iterant[F, B]
+
+    /** Processes [[Iterant.NextCursor]]. */
+    def visit(ref: NextCursor[F, A]): Iterant[F, B]
+
+    /** Processes [[Iterant.Suspend]]. */
+    def visit(ref: Suspend[F, A]): Iterant[F, B]
+
+    /** Processes [[Iterant.Concat]]. */
+    def visit(ref: Concat[F, A]): Iterant[F, B]
+
+    /** Processes [[Iterant.Scope]]. */
+    def visit(ref: Scope[F, A]): Iterant[F, B]
+
+    /** Processes [[Iterant.Last]]. */
+    def visit(ref: Last[F, A]): Iterant[F, B]
+
+    /** Processes [[Iterant.Halt]]. */
+    def visit(ref: Halt[F, A]): Iterant[F, B]
+
+    final def apply(fa: Iterant[F, A]): Iterant[F, B] =
+      fa.accept(this)
+  }
 }
 
 private[tail] trait IterantInstances extends IterantInstances1 {
@@ -2589,7 +2727,5 @@ private[tail] trait IterantInstances0 {
 
     override def bracketCase[A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit]): Iterant[F, B] =
       acquire.bracketCase(use)(release)
-
-
   }
 }
