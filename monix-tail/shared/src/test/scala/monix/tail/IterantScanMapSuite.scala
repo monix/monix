@@ -23,25 +23,25 @@ import cats.laws.discipline._
 import monix.eval.Coeval
 
 object IterantScanMapSuite extends BaseTestSuite {
-//
-//  test("Iterant.scanMap equivalence to Iterant.scan") { implicit s =>
-//    check1 { (source: Iterant[Coeval, Int]) =>
-//      val scanned1 = source.scanMap(x => x)
-//      val scanned2 = source.scan(0)(_ + _)
-//
-//      val fa1 = scanned1
-//        .takeWhile(_ < 10)
-//
-//      val fa2 = scanned2
-//        .takeWhile(_ < 10)
-//
-//      fa1.toListL <-> fa2.toListL
-//    }
-//  }
-//
-//  test("Iterant.scanMap0 starts with empty element") { implicit s =>
-//    check1 { (source: Iterant[Coeval, Int]) =>
-//      source.scanMap0(x => x).headOptionL <-> Coeval(Some(Monoid[Int].empty))
-//    }
-//  }
+
+  test("Iterant.scanMap equivalence to Iterant.scan") { implicit s =>
+    check1 { (source: Iterant[Coeval, Int]) =>
+      val scanned1 = source.scanMap(x => x)
+      val scanned2 = source.scan(0)(_ + _)
+
+      val fa1 = scanned1
+        .takeWhile(_ < 10)
+
+      val fa2 = scanned2
+        .takeWhile(_ < 10)
+
+      fa1.toListL <-> fa2.toListL
+    }
+  }
+
+  test("Iterant.scanMap0 starts with empty element") { implicit s =>
+    check1 { (source: Iterant[Coeval, Int]) =>
+      source.scanMap0(x => x).headOptionL <-> Coeval(Some(Monoid[Int].empty))
+    }
+  }
 }
