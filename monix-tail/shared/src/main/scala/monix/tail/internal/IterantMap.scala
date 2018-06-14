@@ -41,8 +41,7 @@ private[tail] object IterantMap {
     }
   }
 
-  private final class Loop[F[_], A, B](f: A => B)
-    (implicit F: Sync[F])
+  private final class Loop[F[_], A, B](f: A => B)(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, B]] {
     loop =>
 

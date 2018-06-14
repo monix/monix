@@ -22,7 +22,6 @@ import cats.syntax.all._
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
-
 import scala.util.control.NonFatal
 
 private[tail] object IterantConcat {
@@ -38,8 +37,7 @@ private[tail] object IterantConcat {
         source.asInstanceOf[Iterant[F, B]]
       case Suspend(rest) =>
         // Fast-path
-        val loop = new UnsafeFlatMapLoop[F, A, B](f)
-        Suspend(rest.map(loop))
+        Suspend(rest.map(new UnsafeFlatMapLoop[F, A, B](f)))
       case _ =>
         // Suspending execution in order to preserve laziness and
         // referential transparency, since the provided function can
@@ -142,33 +140,6 @@ private[tail] object IterantConcat {
       case _ =>
         Concat(F.pure(lhs), rhs)
     }
-  }
-
-  private final class ConcatLoop[F[_], A](rhs: F[Iterant[F, A]])
-    (implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, A]] {
-
-    def visit(ref: Next[F, A]): Iterant[F, A] =
-      Next(ref.item, ref.rest.map(this))
-    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
-      NextBatch(ref.batch, ref.rest.map(this))
-    def visit(ref: NextCursor[F, A]): Iterant[F, A] =
-      NextCursor(ref.cursor, ref.rest.map(this))
-    def visit(ref: Suspend[F, A]): Iterant[F, A] =
-      Suspend(ref.rest.map(this))
-    def visit(ref: Concat[F, A]): Iterant[F, A] =
-      Concat(F.pure(ref), rhs)
-    def visit(ref: Iterant.Scope[F, A]): Iterant[F, A] =
-      Concat(F.pure(ref), rhs)
-    def visit(ref: Last[F, A]): Iterant[F, A] =
-      Next(ref.item, rhs)
-    def visit(ref: Halt[F, A]): Iterant[F, A] =
-      ref.e match {
-        case None => Suspend(rhs)
-        case _ => ref
-      }
-    def fail(e: Throwable): Iterant[F, A] =
-      Iterant.raiseError(e)
   }
 
   /**
