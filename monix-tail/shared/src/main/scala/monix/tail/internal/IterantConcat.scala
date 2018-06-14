@@ -20,8 +20,9 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
+
 import scala.util.control.NonFatal
 
 private[tail] object IterantConcat {
@@ -32,15 +33,19 @@ private[tail] object IterantConcat {
     (implicit F: Sync[F]): Iterant[F, B] = {
 
     source match {
-      case Suspend(_) | Halt(_) =>
+      case Halt(_) =>
         // Fast-path
-        unsafeFlatMap(source)(f)
+        source.asInstanceOf[Iterant[F, B]]
+      case Suspend(rest) =>
+        // Fast-path
+        val loop = new UnsafeFlatMapLoop[F, A, B](f)
+        Suspend(rest.map(loop))
       case _ =>
         // Suspending execution in order to preserve laziness and
         // referential transparency, since the provided function can
         // be side effecting and because processing NextBatch and
         // NextCursor states can have side effects
-        Suspend(F.delay(unsafeFlatMap(source)(f)))
+        Suspend(F.delay(new UnsafeFlatMapLoop(f).apply(source)))
     }
   }
 
@@ -50,7 +55,48 @@ private[tail] object IterantConcat {
   def unsafeFlatMap[F[_], A, B](source: Iterant[F, A])(f: A => Iterant[F, B])
     (implicit F: Sync[F]): Iterant[F, B] = {
 
-    def generate(item: A, rest: F[Iterant[F, B]]): Iterant[F, B] =
+    source match {
+      case Last(item) =>
+        try f(item)
+        catch { case e if NonFatal(e) => Iterant.raiseError(e) }
+      case empty @ Halt(_) =>
+        empty.asInstanceOf[Iterant[F, B]]
+      case _ =>
+        new UnsafeFlatMapLoop(f).apply(source)
+    }
+  }
+
+  private final class UnsafeFlatMapLoop[F[_], A, B](f: A => Iterant[F, B])
+    (implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, B]] {
+    loop =>
+
+    def visit(ref: Next[F, A]): Iterant[F, B] =
+      generate(ref.item, ref.rest.map(loop))
+    def visit(ref: NextCursor[F, A]): Iterant[F, B] =
+      evalNextCursor(ref, ref.cursor, ref.rest)
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, B] = {
+      val cursor = ref.batch.cursor()
+      val rest = ref.rest
+      val nextRef = NextCursor(cursor, rest)
+      evalNextCursor(nextRef, cursor, rest)
+    }
+
+    def visit(ref: Suspend[F, A]): Iterant[F, B] =
+      Suspend(ref.rest.map(loop))
+    def visit(ref: Concat[F, A]): Iterant[F, B] =
+      ref.runMap(loop)
+    def visit(ref: Scope[F, A]): Iterant[F, B] =
+      ref.runMap(loop)
+    def visit(ref: Last[F, A]): Iterant[F, B] =
+      f(ref.item)
+    def visit(ref: Halt[F, A]): Iterant[F, B] =
+      ref.asInstanceOf[Iterant[F, B]]
+    def fail(e: Throwable): Iterant[F, B] =
+      Iterant.raiseError(e)
+
+    private def generate(item: A, rest: F[Iterant[F, B]]): Iterant[F, B] =
       f(item) match {
         case Last(value) =>
           Next(value, rest)
@@ -63,48 +109,19 @@ private[tail] object IterantConcat {
           concat(next, rest)
       }
 
-    def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
+    private def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
       if (!cursor.hasNext) {
-        Suspend(rest.map(unsafeFlatMap(_)(f)))
+        Suspend(rest.map(loop))
       }
       else {
         val item = cursor.next()
         // If iterator is empty then we can skip a beat
         val tail =
-          if (cursor.hasNext()) F.delay(flatMap(ref, f))
-          else rest.map(unsafeFlatMap(_)(f))
+          if (cursor.hasNext()) F.pure(ref).map(loop)
+          else rest.map(loop)
 
         generate(item, tail)
       }
-    }
-
-    try source match {
-      case Next(item, rest) =>
-        generate(item, rest.map(unsafeFlatMap(_)(f)))
-
-      case ref @ NextCursor(cursor, rest) =>
-        evalNextCursor(ref, cursor, rest)
-
-      case Suspend(rest) =>
-        Suspend(rest.map(unsafeFlatMap(_)(f)))
-
-      case NextBatch(gen, rest) =>
-        val cursor = gen.cursor()
-        val ref = NextCursor(cursor, rest)
-        evalNextCursor(ref, cursor, rest)
-
-      case Last(item) =>
-        f(item)
-
-      case empty @ Halt(_) =>
-        empty.asInstanceOf[Iterant[F, B]]
-
-      case node =>
-        node.runMap(unsafeFlatMap(_)(f))
-    }
-    catch {
-      case ex if NonFatal(ex) =>
-        Iterant.raiseError(ex)
     }
   }
 
@@ -115,23 +132,43 @@ private[tail] object IterantConcat {
     (implicit F: Sync[F]): Iterant[F, A] = {
 
     lhs match {
-      case Next(a, lt) =>
-        Next(a, lt.map(concat(_, rhs)))
-      case NextCursor(seq, lt) =>
-        NextCursor(seq, lt.map(concat(_, rhs)))
-      case NextBatch(gen, rest) =>
-        NextBatch(gen, rest.map(concat(_, rhs)))
-      case Suspend(lt) =>
-        Suspend(lt.map(concat(_, rhs)))
       case Last(item) =>
         Next(item, rhs)
-      case Halt(None) =>
-        Suspend(rhs)
-      case error @ Halt(Some(_)) =>
-        error
+      case Halt(e) =>
+        e match {
+          case None => Suspend(rhs)
+          case _ => lhs
+        }
       case _ =>
         Concat(F.pure(lhs), rhs)
     }
+  }
+
+  private final class ConcatLoop[F[_], A](rhs: F[Iterant[F, A]])
+    (implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+
+    def visit(ref: Next[F, A]): Iterant[F, A] =
+      Next(ref.item, ref.rest.map(this))
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      NextBatch(ref.batch, ref.rest.map(this))
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] =
+      NextCursor(ref.cursor, ref.rest.map(this))
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(this))
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      Concat(F.pure(ref), rhs)
+    def visit(ref: Iterant.Scope[F, A]): Iterant[F, A] =
+      Concat(F.pure(ref), rhs)
+    def visit(ref: Last[F, A]): Iterant[F, A] =
+      Next(ref.item, rhs)
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref.e match {
+        case None => Suspend(rhs)
+        case _ => ref
+      }
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
   }
 
   /**

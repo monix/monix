@@ -116,46 +116,4 @@ private[tail] object IterantFoldLeft {
       }
     }
   }
-
-  /*
-      def loop(state: S, stack: List[F[Iterant[F, A]]])(self: Iterant[F, A]): F[S] = {
-      try self match {
-        case Next(a, rest) =>
-          val newState = op(state, a)
-          rest.flatMap(loop(newState, stack))
-
-        case NextCursor(cursor, rest) =>
-          val newState = cursor.foldLeft(state)(op)
-          rest.flatMap(loop(newState, stack))
-
-        case NextBatch(gen, rest) =>
-          val newState = gen.foldLeft(state)(op)
-          rest.flatMap(loop(newState, stack))
-
-        case Suspend(rest) =>
-          rest.flatMap(loop(state, stack))
-
-        case Last(item) =>
-          continueWith(op(state, item), stack)
-
-        case Halt(None) =>
-          continueWith(state, stack)
-
-        case Halt(Some(ex)) =>
-          F.raiseError(ex)
-
-        case b @ Scope(_, _, _) =>
-          b.runFold(loop(state, stack))
-
-        case Concat(lh, rh) =>
-          lh.flatMap(loop(state, rh :: stack))
-
-      } catch {
-        case ex if NonFatal(ex) =>
-          F.raiseError(ex)
-      }
-    }
-
-
-   */
 }

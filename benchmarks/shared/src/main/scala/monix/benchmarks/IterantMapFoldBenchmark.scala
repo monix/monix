@@ -69,8 +69,8 @@ object IterantMapFoldBenchmark {
     var idx = 0
     while (idx < size) {
       val rest = stream
-      stream = Iterant[Coeval].range(0, 10) ++ rest
-      idx += 10
+      stream = rest ++ Iterant[Coeval].range(0, 10)
+      idx += 1
     }
     stream
   }
