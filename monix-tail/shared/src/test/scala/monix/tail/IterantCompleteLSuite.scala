@@ -68,7 +68,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     def stop(i: Int): Coeval[Unit] =
       Coeval { effect += i }
 
-    val dummy = new DummyException("dummy")
+    val dummy = DummyException("dummy")
     val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy)).guarantee(stop(3))
     val node2 = Iterant[Coeval].nextS(2, Coeval(node3)).guarantee(stop(2))
     val node1 = Iterant[Coeval].nextS(1, Coeval(node2)).guarantee(stop(1))

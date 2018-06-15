@@ -19,8 +19,7 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-
-import scala.util.control.NonFatal
+import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
@@ -32,42 +31,61 @@ private[tail] object IterantCompleteL {
   final def apply[F[_], A](source: Iterant[F, A])
     (implicit F: Sync[F]): F[Unit] = {
 
-    F.suspend(loop[F, A](Nil)(source))
+    F.suspend(new Loop[F, A]().apply(source))
   }
 
-  private def loop[F[_], A](stack: List[F[Iterant[F, A]]])
-    (source: Iterant[F, A])
-    (implicit F: Sync[F]): F[Unit] = {
+  private final class Loop[F[_], A](implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, F[Unit]] {
 
-    def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
+    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
+
+    def visit(ref: Next[F, A]): F[Unit] =
+      ref.rest.flatMap(this)
+
+    def visit(ref: NextBatch[F, A]): F[Unit] =
+      processCursor(ref.batch.cursor(), ref.rest)
+
+    def visit(ref: NextCursor[F, A]): F[Unit] =
+      processCursor(ref.cursor, ref.rest)
+
+    def visit(ref: Suspend[F, A]): F[Unit] =
+      ref.rest.flatMap(this)
+
+    def visit(ref: Concat[F, A]): F[Unit] = {
+      if (stack == null) stack = new ArrayStack()
+      stack.push(ref.rh)
+      ref.lh.flatMap(this)
+    }
+
+    def visit(ref: Scope[F, A]): F[Unit] =
+      ref.runFold(this)
+
+    def visit(ref: Last[F, A]): F[Unit] =
+      continueOrFinish
+
+    def visit(ref: Halt[F, A]): F[Unit] =
+      ref.e match {
+        case None => continueOrFinish
+        case Some(e) => F.raiseError(e)
+      }
+
+    def fail(e: Throwable): F[Unit] =
+      F.raiseError(e)
+
+    private def continueOrFinish: F[Unit] = {
+      val next =
+        if (stack != null) stack.pop()
+        else null.asInstanceOf[F[Iterant[F, A]]]
+
+      next match {
+        case null => F.unit
+        case rest => rest.flatMap(this)
+      }
+    }
+
+    private def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
       while (cursor.hasNext()) cursor.next()
-      rest.flatMap(loop(stack))
-    }
-
-    try source match {
-      case Next(_, rest) =>
-        rest.flatMap(loop(stack))
-      case NextCursor(cursor, rest) =>
-        processCursor(cursor, rest)
-      case NextBatch(gen, rest) =>
-        processCursor(gen.cursor(), rest)
-      case Suspend(rest) =>
-        rest.flatMap(loop(stack))
-      case Halt(None) | Last(_) =>
-        stack match {
-          case Nil => F.unit
-          case x :: xs => x.flatMap(loop(xs))
-        }
-      case Halt(Some(ex)) =>
-        F.raiseError(ex)
-      case s @ Scope(_, _, _) =>
-        s.runFold(loop(stack))
-      case Concat(lh, rh) =>
-        lh.flatMap(loop(rh :: stack))
-    } catch {
-      case ex if NonFatal(ex) =>
-        F.raiseError(ex)
+      rest.flatMap(this)
     }
   }
-
 }
