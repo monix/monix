@@ -19,16 +19,12 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import scala.util.control.NonFatal
-
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.collection.mutable
-
-import monix.execution.internal.collection.ArrayStack
 
 private[tail] object IterantDropLast {
   /**
@@ -39,69 +35,31 @@ private[tail] object IterantDropLast {
     else Suspend(F.delay(new Loop(n).apply(source)))
   }
 
-  class Loop[F[_], A](n: Int)(implicit F: Sync[F])
-    extends (Iterant[F, A] => Iterant[F, A])
-  {
-    private[this] val stack = new ArrayStack[F[Iterant[F, A]]]()
+  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+
     private[this] var queue = Queue[A]()
     private[this] var length = 0
 
-    def apply(source: Iterant[F, A]): Iterant[F, A] =
-      try source match {
-        case Next(item, rest) =>
-          queue = queue.enqueue(item)
-          if (length >= n) {
-            val (nextItem, nextQueue) = queue.dequeue
-            queue = nextQueue
-            Next(nextItem, rest.map(this))
-          }
-          else {
-            length += 1
-            Suspend(rest.map(this))
-          }
-
-        case ref@NextCursor(_, _) =>
-          processCursor(ref)
-
-        case NextBatch(batch, rest) =>
-          processCursor(NextCursor(batch.cursor(), rest))
-
-        case Suspend(rest) =>
-          Suspend(rest.map(this))
-
-        case s @ Scope(_, _, _) =>
-          s.runMap(this)
-
-        case Concat(lh, rh) =>
-          stack.push(rh)
-          Suspend(lh.map(this))
-
-        case Last(item) =>
-          stack.pop() match {
-            case null =>
-              queue = queue.enqueue(item)
-              finalCursor(length + 1)
-            case some =>
-              this(Next(item, some))
-          }
-
-        case Halt(None) =>
-          stack.pop() match {
-            case null => finalCursor(length)
-            case some => Suspend(some.map(this))
-          }
-
-        case halt@Halt(Some(_)) =>
-          halt
-      } catch {
-        case ex if NonFatal(ex) =>
-          Iterant.raiseError(ex)
+    def visit(ref: Next[F, A]): Iterant[F, A] = {
+      queue = queue.enqueue(ref.item)
+      if (length >= n) {
+        val (nextItem, nextQueue) = queue.dequeue
+        queue = nextQueue
+        Next(nextItem, ref.rest.map(this))
       }
+      else {
+        length += 1
+        Suspend(ref.rest.map(this))
+      }
+    }
 
-    def processCursor(ref: NextCursor[F, A]): Iterant[F, A] = {
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      visit(NextCursor(ref.batch.cursor(), ref.rest))
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
       val NextCursor(cursor, rest) = ref
       val limit = cursor.recommendedBatchSize
-
       val buffer = mutable.Buffer[A]()
 
       @tailrec
@@ -126,22 +84,31 @@ private[tail] object IterantDropLast {
       NextCursor(BatchCursor.fromSeq(buffer), next.map(this))
     }
 
-    def finalCursor(length: Int): Iterant[F, A] = {
-      val buffer = mutable.Buffer[A]()
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(this))
 
-      @tailrec
-      def queueLoop(queue: Queue[A], queueLength: Int): Queue[A] = {
-        if (queueLength <= n) {
-          queue
-        } else {
-          val (item, nextQueue) = queue.dequeue
-          buffer.append(item)
-          queueLoop(nextQueue, queueLength - 1)
-        }
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Scope[F, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] = {
+      queue = queue.enqueue(ref.item)
+      if (length >= n) {
+        val (nextItem, nextQueue) = queue.dequeue
+        queue = nextQueue
+        Last(nextItem)
+      } else {
+        length += 1
+        Halt(None)
       }
-
-      queueLoop(queue, length)
-      NextCursor(BatchCursor.fromSeq(buffer), F.pure(Iterant.empty))
     }
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
   }
 }
