@@ -19,8 +19,6 @@ package monix.tail.internal
 
 import cats.syntax.all._
 import cats.effect.Sync
-
-import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
@@ -32,7 +30,6 @@ private[tail] object IterantFilter {
     (implicit F: Sync[F]): Iterant[F,A] = {
 
     val loop = new Loop[F, A](p)
-
     source match {
       case Suspend(_) | Halt(_) => loop(source)
       case _ =>
@@ -45,39 +42,36 @@ private[tail] object IterantFilter {
   }
 
   private class Loop[F[_], A](p: A => Boolean)(implicit F: Sync[F])
-    extends (Iterant[F, A] => Iterant[F, A])
-  {
-    def apply(source: Iterant[F,A]): Iterant[F,A] = {
-      try source match {
-        case Next(item, rest) =>
-          if (p(item)) Next(item, rest.map(this))
-          else Suspend(rest.map(this))
+    extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-        case NextCursor(items, rest) =>
-          val filtered = items.filter(p)
-          if (filtered.hasNext())
-            NextCursor(filtered, rest.map(this))
-          else
-            Suspend(rest.map(this))
-
-        case NextBatch(items, rest) =>
-          NextBatch(items.filter(p), rest.map(this))
-
-        case Suspend(rest) =>
-          Suspend(rest.map(this))
-
-        case node @ (Scope(_, _, _) | Concat(_, _)) =>
-          node.runMap(this)
-
-        case last @ Last(item) =>
-          if (p(item)) last else Iterant.empty
-
-        case halt @ Halt(_) =>
-          halt
-      }
-      catch {
-        case ex if NonFatal(ex) => Iterant.raiseError(ex)
-      }
+    def visit(ref: Next[F, A]): Iterant[F, A] = {
+      val item = ref.item
+      if (p(item)) Next(item, ref.rest.map(this))
+      else Suspend(ref.rest.map(this))
     }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      NextBatch(ref.batch.filter(p), ref.rest.map(this))
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] =
+      NextCursor(ref.cursor.filter(p), ref.rest.map(this))
+
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Scope[F, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] =
+      if (p(ref.item)) ref else Halt(None)
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
   }
 }

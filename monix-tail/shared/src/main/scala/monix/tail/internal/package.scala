@@ -29,7 +29,7 @@ package object internal {
     val self: Scope[F, A])
     extends AnyVal {
 
-    def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]) =
+    def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]): Scope[F, B] =
       self.copy(use = F.map(self.use)(f))
 
     def runFlatMap[B](f: Iterant[F, A] => F[Iterant[F, B]])(implicit F: Sync[F]): F[Iterant[F, B]] =
@@ -46,25 +46,7 @@ package object internal {
     val self: Concat[F, A])
     extends AnyVal {
 
-    def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]) =
+    def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]): Concat[F, B] =
       Concat(self.lh.map(f), self.rh.map(f))
-  }
-
-  /**
-    * Internal API — extension methods used in the implementation.
-    */
-  private[tail] implicit class IterantExtensions[F[_], A](
-    val self: Iterant[F, A])
-    extends AnyVal {
-
-    def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]) =
-      self match {
-        case node @ Scope(_, use, _) =>
-          node.copy(use = use.map(f))
-        case Concat(lh, rh) =>
-          Concat(lh.map(f), rh.map(f))
-        case _ =>
-          f(self)
-      }
   }
 }

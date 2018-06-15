@@ -62,7 +62,9 @@ private[tail] object IterantMapBatch {
           processBatch(NextCursor(batch.cursor(), rest))
         case Suspend(rest) =>
           Suspend[F, B](rest.map(loop))
-        case s@(Scope(_, _, _) | Concat(_, _)) =>
+        case s@Scope(_, _, _) =>
+          s.runMap(loop)
+        case s@Concat(_, _) =>
           s.runMap(loop)
         case Last(item) =>
           NextBatch(f(item), F.delay(Halt[F, B](None)))

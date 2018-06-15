@@ -22,11 +22,9 @@ import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.tail.IterantTakeSuite.arbitraryListToIterant
 import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
-
 import scala.annotation.tailrec
 
 object IterantDropWhileSuite extends BaseTestSuite {
@@ -53,6 +51,10 @@ object IterantDropWhileSuite extends BaseTestSuite {
       val stream = iter ++ Iterant[Coeval].of(1, 2, 3)
       val received = stream.dropWhile(p).toListL.runTry()
       val expected = stream.toListL.map(dropFromList(p)).runTry()
+
+      if (received != expected) {
+        println(s"$received != $expected")
+      }
 
       received <-> expected
     }

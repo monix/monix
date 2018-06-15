@@ -19,11 +19,12 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import scala.util.control.NonFatal
 
+import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
+
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantZipWithIndex {
@@ -83,7 +84,10 @@ private[tail] object IterantZipWithIndex {
         case empty@Halt(_) =>
           empty.asInstanceOf[Iterant[F, (A, Long)]]
 
-        case node =>
+        case node @ Scope(_, _, _) =>
+          node.runMap(this)
+
+        case node @ Concat(_, _) =>
           node.runMap(this)
       }
       catch {
