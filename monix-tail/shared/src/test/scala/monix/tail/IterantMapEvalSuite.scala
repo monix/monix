@@ -62,12 +62,6 @@ object IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].mapEval can handle errors") { implicit s =>
-    val dummy = DummyException("dummy")
-    val stream = Iterant[Task].raiseError[Int](dummy)
-    assertEquals(stream, stream.mapEval(x => Task.evalAsync(x)))
-  }
-
   test("Iterant[Task].next.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].now(1)
@@ -183,12 +177,6 @@ object IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].mapEval can handle errors") { implicit s =>
-    val dummy = DummyException("dummy")
-    val stream = Iterant[Coeval].raiseError[Int](dummy)
-    assertEquals(stream, stream.mapEval(x => Coeval(x)))
-  }
-
   test("Iterant[Coeval].next.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].now(1)
@@ -296,17 +284,6 @@ object IterantMapEvalSuite extends BaseTestSuite {
 
     assert(state.isInstanceOf[Suspend[Task, Int]])
     assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
-  }
-
-  test("Iterant.mapEval doesn't touch Halt") { implicit s =>
-    val dummy = DummyException("dummy")
-    val iter1: Iterant[Task, Int] = Iterant[Task].haltS(Some(dummy))
-    val state1 = iter1.mapEval(Task.now)
-    assertEquals(state1, iter1)
-
-    val iter2: Iterant[Task, Int] = Iterant[Task].haltS(None)
-    val state2 = iter2.mapEval { _ => (throw dummy) : Task[Int] }
-    assertEquals(state2, iter2)
   }
 
   test("Iterant.mapEval preserves resource safety") { implicit s =>
