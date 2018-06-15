@@ -19,48 +19,85 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-
+import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
-import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantFoldRightL {
   /** Implementation for `Iterant.foldRightL`. */
   def apply[F[_], A, B](self: Iterant[F, A], b: F[B], f: (A, F[B]) => F[B])
-    (implicit F: Sync[F]): F[B] = {
+    (implicit F: Sync[F]): F[B] =
+    F.suspend(new Loop(b, f).apply(self))
 
-    def loop(self: Iterant[F, A]): F[B] = {
-      self match {
-        case b @ Scope(_, _, _) =>
-          b.runFold(loop)
+  private final class Loop[F[_], A, B](b: F[B], f: (A, F[B]) => F[B])
+    (implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, F[B]] { self =>
 
-        case Next(a, rest) =>
-          f(a, rest.flatMap(loop))
+    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var remainder: Iterant[F, A] = _
+    private[this] var suspendRef: F[B] = _
 
-        case NextCursor(ref, rest) =>
-          if (!ref.hasNext())
-            rest.flatMap(loop)
-          else
-            f(ref.next(), F.suspend(loop(self)))
+    def visit(ref: Next[F, A]): F[B] =
+      f(ref.item, ref.rest.flatMap(this))
 
-        case NextBatch(ref, rest) =>
-          loop(NextCursor(ref.cursor(), rest))
+    def visit(ref: NextBatch[F, A]): F[B] =
+      visit(NextCursor(ref.batch.cursor(), ref.rest))
 
-        case Suspend(rest) =>
-          rest.flatMap(loop)
-
-        case Last(a) =>
-          f(a, b)
-
-        case Halt(opt) =>
-          opt match {
-            case None => b
-            case Some(e) => F.raiseError(e)
-          }
-      }
+    def visit(ref: NextCursor[F, A]): F[B] = {
+      val cursor = ref.cursor
+      if (!cursor.hasNext())
+        ref.rest.flatMap(this)
+      else
+        f(cursor.next(), suspend(ref))
     }
 
-    // Processing NextBatch/NextCursor might break
-    // referential transparency, so suspending
-    F.suspend(loop(self))
+    def visit(ref: Suspend[F, A]): F[B] =
+      ref.rest.flatMap(this)
+
+    def visit(ref: Iterant.Concat[F, A]): F[B] = {
+      if (stack == null) stack = new ArrayStack()
+      stack.push(ref.rh)
+      ref.lh.flatMap(this)
+    }
+
+    def visit(ref: Scope[F, A]): F[B] =
+      ref.runFold(this)
+
+    def visit(ref: Last[F, A]): F[B] =
+      stackPop() match {
+        case null => f(ref.item, b)
+        case xs => f(ref.item, xs.flatMap(this))
+      }
+
+    def visit(ref: Halt[F, A]): F[B] =
+      ref.e match {
+        case None =>
+          stackPop() match {
+            case null => b
+            case xs => xs.flatMap(this)
+          }
+        case Some(e) =>
+          F.raiseError(e)
+      }
+
+    def fail(e: Throwable): F[B] =
+      F.raiseError(e)
+
+    private def stackPop(): F[Iterant[F, A]] = {
+      if (stack != null) stack.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+    }
+
+    private def suspend(node: Iterant[F, A]): F[B] = {
+      if (suspendRef == null) suspendRef =
+        F.suspend {
+          self.remainder match {
+            case null => fail(new NullPointerException("foldRight/remainder"))
+            case rest => apply(rest)
+          }
+        }
+      remainder = node
+      suspendRef
+    }
   }
 }
