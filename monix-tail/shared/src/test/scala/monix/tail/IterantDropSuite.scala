@@ -39,7 +39,7 @@ object IterantDropSuite extends BaseTestSuite {
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
       val stream = iter ++ Iterant[Task].of(1, 2, 3)
-      val n = math.abs(nr)
+      val n = Math.floorMod(nr, 50)
       stream.drop(n).toListL <-> stream.toListL.map(_.drop(n))
     }
   }

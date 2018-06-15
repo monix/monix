@@ -38,8 +38,8 @@ private[tail] object IterantDistinctUntilChanged {
   private class Loop[F[_], A, K](f: A => K)(implicit F: Sync[F], K: Eq[K])
     extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    private var current: K = null.asInstanceOf[K]
-    private var stack: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var current: K = null.asInstanceOf[K]
+    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       val a = ref.item
