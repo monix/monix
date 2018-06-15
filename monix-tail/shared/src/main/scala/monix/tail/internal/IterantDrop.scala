@@ -19,7 +19,6 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
@@ -35,88 +34,45 @@ private[tail] object IterantDrop {
   private class Loop[F[_], A](private[this] var toDrop: Int)(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
-
     def visit(ref: Next[F, A]): Iterant[F, A] =
-      if (toDrop <= 0) {
-        if (hasEmptyStack) ref
-        else Next(ref.item, ref.rest.map(this))
-      } else {
+      if (toDrop <= 0) ref else {
         toDrop -= 1
         Suspend(ref.rest.map(this))
       }
 
     def visit(ref: NextBatch[F, A]): Iterant[F, A] =
-      if (toDrop <= 0) {
-        if (hasEmptyStack) ref
-        else NextBatch(ref.batch, ref.rest.map(this))
-      } else {
+      if (toDrop <= 0) ref else {
         dropFromCursor(NextCursor(ref.batch.cursor(), ref.rest))
       }
 
     def visit(ref: NextCursor[F, A]): Iterant[F, A] =
-      if (toDrop <= 0) {
-        if (hasEmptyStack) ref
-        else NextCursor(ref.cursor, ref.rest.map(this))
-      } else {
+      if (toDrop <= 0) ref else {
         dropFromCursor(ref)
       }
 
     def visit(ref: Suspend[F, A]): Iterant[F, A] =
-      if (toDrop <= 0 && hasEmptyStack) ref
+      if (toDrop <= 0) ref
       else Suspend(ref.rest.map(this))
 
     def visit(ref: Concat[F, A]): Iterant[F, A] =
-      if (toDrop <= 0 && hasEmptyStack) ref else {
-        if (stack == null) stack = new ArrayStack()
-        stack.push(ref.rh)
-        Suspend(ref.lh.map(this))
-      }
-
-    def visit(ref: Scope[F, A]): Iterant[F, A] =
-      if (toDrop <= 0 && hasEmptyStack) ref
+      if (toDrop <= 0) ref
       else ref.runMap(this)
 
-    def visit(ref: Last[F, A]): Iterant[F, A] = {
-      val rest =
-        if (stack != null) stack.pop()
-        else null.asInstanceOf[F[Iterant[F, A]]]
+    def visit(ref: Scope[F, A]): Iterant[F, A] =
+      if (toDrop <= 0) ref
+      else ref.runMap(this)
 
-      rest match {
-        case null =>
-          if (toDrop <= 0) ref
-          else Iterant.empty
-
-        case xs =>
-          if (toDrop <= 0) {
-            Next(ref.item, xs.map(this))
-          } else {
-            toDrop -= 1
-            Suspend(xs.map(this))
-          }
+    def visit(ref: Last[F, A]): Iterant[F, A] =
+      if (toDrop <= 0) ref else {
+        toDrop -= 1
+        Iterant.empty
       }
-    }
 
     def visit(ref: Halt[F, A]): Iterant[F, A] =
-      ref.e match {
-        case None =>
-          val rest =
-            if (stack != null) stack.pop()
-            else null.asInstanceOf[F[Iterant[F, A]]]
-
-          rest match {
-            case null => ref
-            case xs => Suspend(xs.map(this))
-          }
-        case _ =>
-          ref
-      }
+      ref
 
     def fail(e: Throwable): Iterant[F, A] =
       Iterant.raiseError(e)
-
-    private def hasEmptyStack =
-      stack == null || stack.isEmpty
 
     // Reusable logic for NextCursor / NextBatch branches
     private def dropFromCursor(ref: NextCursor[F, A]): Iterant[F, A] = {
