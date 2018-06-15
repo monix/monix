@@ -20,7 +20,6 @@ package monix.tail.internal
 import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
@@ -39,7 +38,6 @@ private[tail] object IterantDistinctUntilChanged {
     extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
     private[this] var current: K = null.asInstanceOf[K]
-    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       val a = ref.item
@@ -61,11 +59,8 @@ private[tail] object IterantDistinctUntilChanged {
     def visit(ref: Suspend[F, A]): Iterant[F, A] =
       Suspend(ref.rest.map(this))
 
-    def visit(ref: Concat[F, A]): Iterant[F, A] = {
-      if (stack == null) stack = new ArrayStack()
-      stack.push(ref.rh)
-      Suspend(ref.lh.map(this))
-    }
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      ref.runMap(this)
 
     def visit(ref: Scope[F, A]): Iterant[F, A] =
       ref.runMap(this)
@@ -73,38 +68,20 @@ private[tail] object IterantDistinctUntilChanged {
     def visit(ref: Last[F, A]): Iterant[F, A] = {
       val a = ref.item
       val k = f(a)
-      val rest =
-        if (stack != null) stack.pop()
-        else null.asInstanceOf[F[Iterant[F, A]]]
 
       if (current == null || K.neqv(current, k)) {
         current = k
-        if (rest != null) Next(a, rest.map(this))
-        else ref
+        ref
       } else {
-        if (rest != null) Suspend(rest.map(this))
-        else Iterant.empty
+        Iterant.empty
       }
     }
 
     def visit(ref: Halt[F, A]): Iterant[F, A] =
-      ref.e match {
-        case None =>
-          val rest =
-            if (stack != null) stack.pop()
-            else null.asInstanceOf[F[Iterant[F, A]]]
-
-          rest match {
-            case null => ref
-            case xs => Suspend(xs.map(this))
-          }
-        case _ =>
-          ref
-      }
+      ref
 
     def fail(e: Throwable): Iterant[F, A] =
       Iterant.raiseError(e)
-
 
     private def processCursor(self: NextCursor[F, A]): Iterant[F, A] = {
       val NextCursor(cursor, rest) = self
