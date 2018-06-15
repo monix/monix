@@ -24,7 +24,6 @@ import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success}
 
 object IterantFoldWhileLeftSuite extends BaseTestSuite {
-  // TODO: fix test descriptions
   def exists(fa: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
     fa.foldWhileLeftL(false) { (default, e) =>
       if (p(e)) Right(true) else Left(default)
@@ -124,7 +123,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .foldWhileLeftL((throw dummy) : Int)((acc, i) => Left(acc + i))
 
     assertEquals(ref.runTry(), Failure(dummy))
-    assertEquals(effect, 1)
+    assertEquals(effect, 0)
   }
 
   test("foldWhileLeftL protects against broken op") { implicit s =>
@@ -176,7 +175,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       .foldWhileLeftEvalL(Coeval.raiseError[Int](dummy))((acc, i) => Coeval(Left(acc + i)))
 
     assertEquals(ref.runTry(), Failure(dummy))
-    assertEquals(effect, 1)
+    assertEquals(effect, 0)
   }
 
   test("foldWhileLeftEvalL protects against broken op") { implicit s =>
