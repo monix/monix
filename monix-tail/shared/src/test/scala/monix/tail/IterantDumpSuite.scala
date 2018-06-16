@@ -129,7 +129,7 @@ object IterantDumpSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dump works for Scope") { implicit s =>
+  test("Iterant.dump works for Resource") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out = Iterant.resourceS[Task, Unit, Int](Task.unit, _ => Task.pure(Iterant[Task].of(el)), (_, _) => Task.unit)
@@ -138,7 +138,7 @@ object IterantDumpSuite extends BaseTestSuite {
       stream.completeL.runAsync
       s.tick()
 
-      counter.get <-> 3
+      counter.get <-> 4
     }
   }
 
