@@ -820,7 +820,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *         `None` if it is empty, in the `F` context.
     */
   final def headOptionL(implicit F: Sync[F]): F[Option[A]] =
-    IterantSlice.headOptionL(self)(F)
+    IterantHeadOption(self)(F)
 
   /** Given a mapping function that returns a possibly lazy or
     * asynchronous result, applies it over the elements emitted by the
