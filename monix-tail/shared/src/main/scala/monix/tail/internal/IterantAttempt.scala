@@ -17,11 +17,17 @@
 
 package monix.tail.internal
 
+import java.util.concurrent.atomic.AtomicReference
+
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.internal.Platform
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
+
+import scala.annotation.tailrec
+import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
@@ -77,27 +83,35 @@ private[tail] object IterantAttempt {
           ref.rh.map(this)
       })
 
-    def visit(ref: Scope[F, A]): Iterant[F, Either[Throwable, A]] = {
-      val Scope(open, use, close) = ref
-      Suspend {
-        open.attempt.map {
-          case Right(_) =>
-            var thrownRef: Throwable = null
-            val lh: Iterant[F, Attempt] =
-              Scope(F.unit, continueWith(use), exit =>
-                F.suspend(F.handleError(close(exit)) { e =>
-                  thrownRef = e
-                }))
-
-            Concat(F.pure(lh), F.delay {
-              if (thrownRef == null) Iterant.empty
-              else Last(handleError(thrownRef))
+    def visit[S](ref: Resource[F, S, A]): Iterant[F, Attempt] = {
+      val Resource(acquire, use, release) = ref
+      Suspend(F.delay {
+        val errors = new AtomicReference(Queue.empty[Throwable])
+        val lh: Iterant[F, Attempt] =
+          Resource[F, S, Attempt](
+            acquire.handleErrorWith { e =>
+              pushError(errors, e)
+              F.raiseError(e)
+            },
+            AndThen(use).andThen(continueWith),
+            (s, exit) => {
+              F.suspend(F.handleError(release(s, exit)) { e =>
+                pushError(errors, e)
+              })
             })
 
-          case Left(e) =>
-            Last(handleError(e))
-        }
-      }
+        Concat(F.pure(lh), F.delay {
+          errors.getAndSet(null) match {
+            case null => Iterant.empty
+            case list =>
+              list.toList match {
+                case Nil => Iterant.empty
+                case x :: xs =>
+                  Last(handleError(Platform.composeErrors(x, xs:_*)))
+              }
+          }
+        })
+      })
     }
 
     def visit(ref: Last[F, A]): Iterant[F, Either[Throwable, A]] =
@@ -149,5 +163,14 @@ private[tail] object IterantAttempt {
       }
       buffer.toArray[Attempt]
     }
+
+    @tailrec
+    private def pushError(list: AtomicReference[Queue[Throwable]], e: Throwable): Unit =
+      list.get() match {
+        case null => throw e
+        case current =>
+          if (!list.compareAndSet(current, current.enqueue(e)))
+            pushError(list, e)
+      }
   }
 }

@@ -31,7 +31,7 @@ private[tail] object IterantCollect {
 
     val loop = new Loop[F, A, B](pf)
     source match {
-      case Scope(_, _, _) | Suspend(_) | Halt(_) | Concat(_, _) =>
+      case Resource(_, _, _) | Suspend(_) | Halt(_) | Concat(_, _) =>
         loop(source)
       case _ =>
         // Suspending execution in order to preserve laziness and
@@ -66,7 +66,7 @@ private[tail] object IterantCollect {
     def visit(ref: Concat[F, A]): Iterant[F, B] =
       ref.runMap(this)
 
-    def visit(ref: Scope[F, A]): Iterant[F, B] =
+    def visit[S](ref: Resource[F, S, A]): Iterant[F, B] =
       ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, B] = {

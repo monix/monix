@@ -19,24 +19,24 @@ package monix.tail
 
 import cats.syntax.all._
 import cats.effect.Sync
-import monix.tail.Iterant.{Concat, Scope}
+import monix.tail.Iterant.{Concat, Resource}
 
 package object internal {
   /**
     * Internal API — extension methods used in the implementation.
     */
-  private[tail] implicit class ScopeExtensions[F[_], A](
-    val self: Scope[F, A])
+  private[tail] implicit class ScopeExtensions[F[_], S, A](
+    val self: Resource[F, S, A])
     extends AnyVal {
 
-    def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]): Scope[F, B] =
-      self.copy(use = F.map(self.use)(f))
+    def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
+      self.copy(use = AndThen(self.use).andThen(F.map(_)(f)))
 
     def runFlatMap[B](f: Iterant[F, A] => F[Iterant[F, B]])(implicit F: Sync[F]): F[Iterant[F, B]] =
-      F.pure(self.copy(use = F.flatMap(self.use)(f)))
+      F.pure(self.copy(use = AndThen(self.use).andThen(F.flatMap(_)(f))))
 
     def runFold[B](f: Iterant[F, A] => F[B])(implicit F: Sync[F]): F[B] =
-      F.bracketCase(self.open)(_ => F.flatMap(self.use)(f))((_, exitCase) => self.close(exitCase))
+      F.bracketCase(self.acquire)(s => F.pure(s).flatMap(self.use).flatMap(f))(self.release)
   }
 
   /**

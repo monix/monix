@@ -24,7 +24,7 @@ import monix.eval.instances.ParallelApplicative
 import scala.util.control.NonFatal
 
 import monix.tail.Iterant
-import monix.tail.Iterant.{Scope, Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Resource, Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
 import scala.collection.mutable.ArrayBuffer
 
@@ -134,7 +134,7 @@ private[tail] object IterantZipMap {
 
       def processNextCursorA(lh: NextCursor[F, A], rh: Iterant[F, B]): Iterant[F, C] =
         rh match {
-          case b @ Scope(_, _, _) =>
+          case b @ Resource(_, _, _) =>
             b.runMap(processNextCursorA(lh, _))
           case Next(b, restB) =>
             processSeqAOneB(lh, rh, b, restB)
@@ -166,11 +166,11 @@ private[tail] object IterantZipMap {
       }
 
       try lh match {
-        case s @ Scope(_, _, _) =>
+        case s @ Resource(_, _, _) =>
           s.runMap(loop(_, rh))
         case Next(a, restA) =>
           rh match {
-            case b @ Scope(_, _, _) =>
+            case b @ Resource(_, _, _) =>
               b.runMap(loop(lh, _))
             case Next(b, restB) =>
               processPair(a, restA, b, restB)
@@ -208,7 +208,7 @@ private[tail] object IterantZipMap {
 
         case Last(a) =>
           rh match {
-            case s @ Scope(_, _, _) =>
+            case s @ Resource(_, _, _) =>
               s.runMap(loop(lh, _))
             case Next(b, _) =>
               Last[F, C](f(a, b))

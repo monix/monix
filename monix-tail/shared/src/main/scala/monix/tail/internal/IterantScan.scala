@@ -23,7 +23,7 @@ import cats.syntax.all._
 import monix.execution.internal.collection.ArrayStack
 
 import scala.util.control.NonFatal
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 import monix.tail.batches.BatchCursor
 
 import scala.collection.mutable.ArrayBuffer
@@ -76,7 +76,7 @@ private[tail] object IterantScan {
       Suspend(ref.lh.map(this))
     }
 
-    def visit(ref: Scope[F, A]): Iterant[F, S] =
+    def visit[R](ref: Resource[F, R, A]): Iterant[F, S] =
       ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, S] = {

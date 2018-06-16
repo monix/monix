@@ -18,9 +18,7 @@
 package monix.tail
 
 import java.io.PrintStream
-
 import cats.arrow.FunctionK
-import cats.effect.concurrent.Ref
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Eq, Functor, Monoid, MonoidK, Order, Parallel}
 import monix.eval.{Coeval, Task}
@@ -539,7 +537,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        cancellation
     */
   final def guaranteeCase(f: ExitCase[Throwable] => F[Unit])(implicit F: Applicative[F]): Iterant[F, A] =
-    Scope(F.unit, F.pure(this), f)
+    Resource[F, Unit, A](F.unit, _ => F.pure(this), (_, e) => f(e))
 
   /** Drops the first `n` elements (from the start).
     *
@@ -1089,33 +1087,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def intersperse(start: A, separator: A, end: A)(implicit F: Sync[F]): Iterant[F, A] =
     start +: IterantIntersperse(self, separator) :+ end
 
-  /** Given mapping functions from `F` to `G`, lifts the source into
-    * an iterant that is going to use the resulting `G` for evaluation.
-    *
-    * This can be used for replacing the underlying `F` type into
-    * something else. For example say we have an iterant that uses
-    * [[monix.eval.Coeval Coeval]], but we want to convert it into
-    * one that uses [[monix.eval.Task Task]] for evaluation:
-    *
-    * {{{
-    *   // Source is using Coeval for evaluation
-    *   val source = Iterant[Coeval].of(1, 2, 3, 4)
-    *
-    *   // Transformation to an iterant based on Task
-    *   source.liftMap(_.toTask, _.toTask)
-    * }}}
-    *
-    * @param f1 is the functor transformation used for transforming
-    *          `rest` references
-    * @param f2 is the mapping function for early `stop` references
-    *
-    * @tparam G is the data type that is going to drive the evaluation
-    *           of the resulting iterant
-    */
-  final def liftMap[G[_]](f1: F[Iterant[F, A]] => G[Iterant[F, A]], f2: F[Unit] => G[Unit])
-    (implicit F: Applicative[F], G: Sync[G]): Iterant[G, A] =
-    IterantLiftMap(self, f1, f2)(F, G)
-
   /** Given a functor transformation from `F` to `G`, lifts the source
     * into an iterant that is going to use the resulting `G` for
     * evaluation.
@@ -1147,7 +1118,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @tparam G is the data type that is going to drive the evaluation
     *           of the resulting iterant
     */
-  final def liftMapK[G[_]](f: FunctionK[F, G])(implicit G: Sync[G]): Iterant[G, A] =
+  final def liftMap[G[_]](f: FunctionK[F, G])(implicit G: Sync[G]): Iterant[G, A] =
     IterantLiftMap(self, f)(G)
 
   /** Takes the elements of the source iterant and emits the
@@ -1912,7 +1883,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         evaluated in the `F` context. It is useful to delay the
   *         evaluation of a stream by deferring to `F`.
   *
-  * @define ScopeDesc The [[monix.tail.Iterant.Scope Scope]] state
+  * @define ScopeDesc The [[monix.tail.Iterant.Resource Scope]] state
   *         of the [[Iterant]] represents a stream that is able to
   *         specify the acquisition and release of a resource, to
   *         be used in generating stream events.
@@ -2033,8 +2004,45 @@ object Iterant extends IterantInstances {
     *
     * Typical use-cases are working with files or network sockets
     *
+    * Example:
+    * {{{
+    *   val printer =
+    *     Iterant.resource {
+    *       IO(new PrintWriter("./lines.txt"))
+    *     } { writer =>
+    *       IO(writer.close())
+    *     }
+    *
+    *   // Safely use the resource, because the release is
+    *   // scheduled to happen afterwards
+    *   val writeLines = printer.flatMap { writer =>
+    *     Iterant[IO]
+    *       .fromIterator(Iterator.from(1))
+    *       .mapEval(i => IO { writer.println(s"Line #\$i") })
+    *   }
+    *
+    *   // Write 100 numbered lines to the file
+    *   // closing the writer when finished
+    *   writeLines.take(100).completeL.unsafeRunSync()
+    * }}}
+    *
     * @param acquire resource to acquire at the start of the stream
     * @param release function that releases the acquired resource
+    */
+  def resource[F[_], A](acquire: F[A])
+    (release: A => F[Unit])
+    (implicit F: Sync[F]): Iterant[F, A] = {
+
+    Resource[F, A, A](
+      acquire,
+      a => F.pure(Iterant.pure(a)),
+      (s, _) => release(s))
+  }
+
+  /** Creates a stream that depends on resource allocated by a
+    * monadic value, ensuring the resource is released.
+    *
+    * Typical use-cases are working with files or network sockets
     *
     * Example:
     * {{{
@@ -2057,20 +2065,18 @@ object Iterant extends IterantInstances {
     *   // closing the writer when finished
     *   writeLines.take(100).completeL.unsafeRunSync()
     * }}}
+    *
+    * @param acquire an effect that acquires an expensive resource
+    * @param release function that releases the acquired resource
     */
-  def resource[F[_], A](acquire: F[A])
-    (release: A => F[Unit])
+  def resourceCase[F[_], A](acquire: F[A])
+    (release: (A, ExitCase[Throwable]) => F[Unit])
     (implicit F: Sync[F]): Iterant[F, A] = {
-    import cats.syntax.all._
 
-    suspendS(
-      for {
-        ref <- Ref[F].of(none[A])
-        open  = acquire.flatMap(a => ref.set(a.some))
-        close = ref.getAndSet(none).flatMap(_.fold(F.unit)(release))
-        use   = ref.get.map(_.fold(Iterant.empty[F, A])(Iterant.pure))
-      } yield scopeS(open, use, _ => close)
-    )
+    Resource[F, A, A](
+      acquire,
+      a => F.pure(Iterant.pure(a)),
+      release)
   }
 
   /** DEPRECATED — please use [[Iterant.resource]].
@@ -2192,16 +2198,16 @@ object Iterant extends IterantInstances {
   def suspendS[F[_], A](rest: F[Iterant[F, A]]): Iterant[F, A] =
     Suspend[F, A](rest)
 
-  /** Builds a stream state equivalent with [[Iterant.Scope]].
+  /** Builds a stream state equivalent with [[Iterant.Resource]].
     *
     * $ScopeDesc
     *
-    * @param open  $openParamDesc
+    * @param acquire  $openParamDesc
     * @param use   $useParamDesc
-    * @param close $closeParamDesc
+    * @param release $closeParamDesc
     */
-  def scopeS[F[_], A](open: F[Unit], use: F[Iterant[F, A]], close: ExitCase[Throwable] => F[Unit]): Iterant[F, A] =
-    Scope(open, use, close)
+  def resourceS[F[_], A, B](acquire: F[A], use: A => F[Iterant[F, B]], release: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
+    Resource(acquire, use, release)
 
   /** Builds a stream state equivalent with [[Iterant.Concat]].
     *
@@ -2546,17 +2552,17 @@ object Iterant extends IterantInstances {
 
   /** $ScopeDesc
     *
-    * @param open  $openParamDesc
+    * @param acquire  $openParamDesc
     * @param use   $useParamDesc
-    * @param close $closeParamDesc
+    * @param release $closeParamDesc
     */
-  final case class Scope[F[_], A](
-    open: F[Unit],
-    use: F[Iterant[F, A]],
-    close: ExitCase[Throwable] => F[Unit])
-    extends Iterant[F, A] {
+  final case class Resource[F[_], A, B](
+    acquire: F[A],
+    use: A => F[Iterant[F, B]],
+    release: (A, ExitCase[Throwable]) => F[Unit])
+    extends Iterant[F, B] {
 
-    def accept[R](visitor: Visitor[F, A, R]): R =
+    def accept[R](visitor: Visitor[F, B, R]): R =
       visitor.visit(this)
   }
 
@@ -2600,8 +2606,8 @@ object Iterant extends IterantInstances {
     /** Processes [[Iterant.Concat]]. */
     def visit(ref: Concat[F, A]): R
 
-    /** Processes [[Iterant.Scope]]. */
-    def visit(ref: Scope[F, A]): R
+    /** Processes [[Iterant.Resource]]. */
+    def visit[S](ref: Resource[F, S, A]): R
 
     /** Processes [[Iterant.Last]]. */
     def visit(ref: Last[F, A]): R

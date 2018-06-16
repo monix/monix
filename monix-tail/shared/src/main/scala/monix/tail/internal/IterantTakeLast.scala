@@ -21,7 +21,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.{ArrayStack, DropHeadOnOverflowQueue}
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 import monix.tail.batches.BatchCursor
 
 private[tail] object IterantTakeLast {
@@ -76,7 +76,7 @@ private[tail] object IterantTakeLast {
       Suspend(ref.lh.map(this))
     }
 
-    def visit(ref: Scope[F, A]): Iterant[F, A] =
+    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] =
       ref.runMap(loop)
 
     def visit(ref: Last[F, A]): Iterant[F, A] =

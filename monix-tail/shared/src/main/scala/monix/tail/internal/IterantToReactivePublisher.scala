@@ -30,7 +30,7 @@ import monix.execution.internal.Platform
 
 import scala.util.control.NonFatal
 import monix.execution.rstreams.Subscription
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 import org.reactivestreams.{Publisher, Subscriber}
 
 private[tail] object IterantToReactivePublisher {
@@ -218,7 +218,7 @@ private[tail] object IterantToReactivePublisher {
         // the protocol.
         var streamErrors = true
         try source match {
-          case s @ Scope(_, _, _) =>
+          case s @ Resource(_, _, _) =>
             s.runFold(loop(requested, processed))
 
           case Next(a, rest) =>

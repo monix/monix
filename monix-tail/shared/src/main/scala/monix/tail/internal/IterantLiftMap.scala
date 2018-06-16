@@ -17,12 +17,11 @@
 
 package monix.tail.internal
 
-import cats.Applicative
 import cats.arrow.FunctionK
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 
 private[tail] object IterantLiftMap {
   /** Implementation for `Iterant#liftMap`. */
@@ -51,48 +50,11 @@ private[tail] object IterantLiftMap {
     def visit(ref: Concat[F, A]): Iterant[G, A] =
       Concat(f(ref.lh).map(this), f(ref.rh).map(this))
 
-    def visit(ref: Scope[F, A]): Iterant[G, A] =
-      Scope(f(ref.open), G.suspend(f(ref.use).map(this)), exitCase => f(ref.close(exitCase)))
-
-    def visit(ref: Last[F, A]): Iterant[G, A] =
-      ref.asInstanceOf[Iterant[G, A]]
-
-    def visit(ref: Halt[F, A]): Iterant[G, A] =
-      ref.asInstanceOf[Iterant[G, A]]
-
-    def fail(e: Throwable): Iterant[G, A] =
-      Iterant.raiseError(e)
-  }
-
-  /** Implementation for `Iterant#liftMap`. */
-  def apply[F[_], G[_], A](self: Iterant[F, A], f: F[Iterant[F, A]] => G[Iterant[F, A]], g: F[Unit] => G[Unit])
-    (implicit F: Applicative[F], G: Sync[G]): Iterant[G, A] = {
-
-    Suspend(G.delay(new LoopFG(f, g).apply(self)))
-  }
-
-  private final class LoopFG[F[_], G[_], A]
-    (f: F[Iterant[F, A]] => G[Iterant[F, A]], g: F[Unit] => G[Unit])
-    (implicit F: Applicative[F], G: Sync[G])
-    extends Iterant.Visitor[F, A, Iterant[G, A]] {
-
-    def visit(ref: Next[F, A]): Iterant[G, A] =
-      Next(ref.item, f(ref.rest).map(this))
-
-    def visit(ref: NextBatch[F, A]): Iterant[G, A] =
-      NextBatch(ref.batch, f(ref.rest).map(this))
-
-    def visit(ref: NextCursor[F, A]): Iterant[G, A] =
-      NextCursor(ref.cursor, f(ref.rest).map(this))
-
-    def visit(ref: Suspend[F, A]): Iterant[G, A] =
-      Suspend(f(ref.rest).map(this))
-
-    def visit(ref: Concat[F, A]): Iterant[G, A] =
-      Concat(f(ref.lh).map(this), f(ref.rh).map(this))
-
-    def visit(ref: Scope[F, A]): Iterant[G, A] =
-      Scope(g(ref.open), G.suspend(f(ref.use).map(this)), exitCase => g(ref.close(exitCase)))
+    def visit[S](ref: Resource[F, S, A]): Iterant[G, A] =
+      Resource[G, S, A](
+        f(ref.acquire),
+        s => G.suspend(f(ref.use(s)).map(this)),
+        (s, exitCase) => f(ref.release(s, exitCase)))
 
     def visit(ref: Last[F, A]): Iterant[G, A] =
       ref.asInstanceOf[Iterant[G, A]]

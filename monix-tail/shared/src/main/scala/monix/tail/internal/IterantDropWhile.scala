@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 
 private[tail] object IterantDropWhile {
   /**
@@ -79,7 +79,7 @@ private[tail] object IterantDropWhile {
     def visit(ref: Concat[F, A]): Iterant[F, A] =
       if (dropFinished) ref else ref.runMap(this)
 
-    def visit(ref: Scope[F, A]): Iterant[F, A] =
+    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] =
       if (dropFinished) ref else ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, A] =

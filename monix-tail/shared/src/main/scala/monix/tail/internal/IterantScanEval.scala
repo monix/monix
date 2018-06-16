@@ -76,7 +76,7 @@ private[tail] object IterantScanEval {
       Suspend(ref.lh.map(this))
     }
 
-    def visit(ref: Scope[F, A]): Iterant[F, S] =
+    def visit[R](ref: Resource[F, R, A]): Iterant[F, S] =
       ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, S] =

@@ -132,7 +132,7 @@ object IterantDumpSuite extends BaseTestSuite {
   test("Iterant.dump works for Scope") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
-      val out = Iterant.scopeS(Task.unit, Task.pure(Iterant[Task].of(el)), _ => Task.unit)
+      val out = Iterant.resourceS[Task, Unit, Int](Task.unit, _ => Task.pure(Iterant[Task].of(el)), (_, _) => Task.unit)
       val stream = out.dump("O", dummyOut(counter))
 
       stream.completeL.runAsync

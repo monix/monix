@@ -21,7 +21,7 @@ package internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ArrayStack
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 import monix.tail.batches.BatchCursor
 
 private[tail] object IterantFoldWhileLeft {
@@ -74,7 +74,7 @@ private[tail] object IterantFoldWhileLeft {
       ref.lh.flatMap(this)
     }
 
-    def visit(ref: Scope[F, A]): F[S] =
+    def visit[R](ref: Resource[F, R, A]): F[S] =
       ref.runFold(this)
 
     def visit(ref: Last[F, A]): F[S] =
@@ -172,7 +172,7 @@ private[tail] object IterantFoldWhileLeft {
       ref.lh.flatMap(this)
     }
 
-    def visit(ref: Scope[F, A]): F[S] =
+    def visit[R](ref: Resource[F, R, A]): F[S] =
       ref.runFold(this)
 
     def visit(ref: Last[F, A]): F[S] =
