@@ -21,7 +21,9 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
 import monix.eval.Coeval
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
+
 import scala.util.Failure
 
 object IterantCompleteLSuite extends BaseTestSuite {
@@ -75,5 +77,25 @@ object IterantCompleteLSuite extends BaseTestSuite {
 
     assertEquals(node1.completeL.runTry(), Failure(dummy))
     assertEquals(effect, 6)
+  }
+
+  test("completeL handles Resource correctly") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val lh = Iterant[Coeval].resourceS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.pure(1)),
+      (_, _) => Coeval(triggered.set(true))
+    )
+
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    assertEquals(stream.completeL.value(), ())
   }
 }

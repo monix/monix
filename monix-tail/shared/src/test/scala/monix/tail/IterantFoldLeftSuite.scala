@@ -20,8 +20,11 @@ package monix.tail
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
+import monix.tail.IterantCompleteLSuite.{assertEquals, test}
 import monix.tail.batches.{Batch, BatchCursor}
+
 import scala.util.Failure
 
 object IterantFoldLeftSuite extends BaseTestSuite {
@@ -253,5 +256,25 @@ object IterantFoldLeftSuite extends BaseTestSuite {
 
     assertEquals(node1.foldLeftL(0)((_, el) => if (el == 3) throw dummy else el).runTry(), Failure(dummy))
     assertEquals(effect, 3)
+  }
+
+  test("foldLeftL handles Resource correctly") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val lh = Iterant[Coeval].resourceS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.pure(1)),
+      (_, _) => Coeval(triggered.set(true))
+    )
+
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    assertEquals(stream.toListL.value(), List(1))
   }
 }

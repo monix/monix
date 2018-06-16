@@ -20,6 +20,7 @@ package monix.tail
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success}
 
@@ -323,22 +324,24 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
   test("findL can short-circuit, releasing only acquired resources") { implicit s =>
     var effect = 0
 
-    val ref = Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 }) ++
+    val ref =
+      Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 }) ++
       Iterant[Coeval].of(4, 5, 6).guarantee(Coeval { effect += 1 })
+
     val r = ref.findL(_ == 2).runTry()
 
     assertEquals(r, Success(Some(2)))
     assertEquals(effect, 1)
   }
 
-
   test("findL releases all resources when full stream is processed") { implicit s =>
     var effect = 0
 
-    val ref = Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 }) ++
+    val ref =
+      Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 }) ++
       Iterant[Coeval].of(4, 5, 6).guarantee(Coeval { effect += 1 })
-    val r = ref.findL(_ == 10).runTry()
 
+    val r = ref.findL(_ == 10).runTry()
     assertEquals(r, Success(None))
     assertEquals(effect, 2)
   }
@@ -380,4 +383,47 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     assertEquals(effect, 6)
   }
 
+  test("foldWhileLeftL handles Resource correctly") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val lh = Iterant[Coeval].resourceS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.pure(1)),
+      (_, _) => Coeval(triggered.set(true))
+    )
+
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    assertEquals(
+      stream.foldWhileLeftL(List.empty[Int])((acc, i) => Left(i :: acc)).value(),
+      List(1))
+  }
+
+  test("foldWhileLeftEvalL handles Resource correctly") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val lh = Iterant[Coeval].resourceS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.pure(1)),
+      (_, _) => Coeval(triggered.set(true))
+    )
+
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    assertEquals(
+      stream.foldWhileLeftEvalL(Coeval(List.empty[Int]))((acc, i) => Coeval(Left(i :: acc))).value(),
+      List(1))
+  }
 }

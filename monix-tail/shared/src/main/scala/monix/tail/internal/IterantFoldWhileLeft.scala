@@ -45,10 +45,26 @@ private[tail] object IterantFoldWhileLeft {
 
   private class StrictLoop[F[_], A, S](seed: S, f: (S, A) => Either[S, S])
     (implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, F[S]] {
+    extends Iterant.Visitor[F, A, F[S]] { self =>
 
     private[this] var state: S = seed
-    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+    private var isActive = true
+
+    private def stackPush(item: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(item)
+    }
+
+    private def stackPop(): F[Iterant[F, A]] = {
+      if (stackRef != null) stackRef.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+    }
+
+    private def complete(value: S): F[S] = {
+      isActive = false
+      F.pure(value)
+    }
 
     def visit(ref: Next[F, A]): F[S] =
       f(state, ref.item) match {
@@ -56,7 +72,7 @@ private[tail] object IterantFoldWhileLeft {
           state = s
           ref.rest.flatMap(this)
         case Right(s) =>
-          F.pure(s)
+          complete(s)
       }
 
     def visit(ref: NextBatch[F, A]): F[S] =
@@ -69,20 +85,35 @@ private[tail] object IterantFoldWhileLeft {
       ref.rest.flatMap(this)
 
     def visit(ref: Concat[F, A]): F[S] = {
-      if (stack == null) stack = new ArrayStack()
-      stack.push(ref.rh)
+      stackPush(ref.rh)
       ref.lh.flatMap(this)
     }
 
-    def visit[R](ref: Resource[F, R, A]): F[S] =
-      ref.runFold(this)
+    def visit[R](ref: Resource[F, R, A]): F[S] = {
+      val loop2 = new StrictLoop[F, A, S](state, f)
+
+      ref.runFold(loop2).flatMap { newState =>
+        if (!loop2.isActive)
+          complete(newState)
+        else {
+          self.state = newState
+          stackPop() match {
+            case null => complete(newState)
+            case xs => xs.flatMap(self)
+          }
+        }
+      }
+    }
 
     def visit(ref: Last[F, A]): F[S] =
       f(state, ref.item) match {
-        case Right(s) => F.pure(s)
+        case Right(s) => complete(s)
+
         case Left(s) =>
           stackPop() match {
-            case null => F.pure(s)
+            case null =>
+              // Not complete ;-)
+              F.pure(s)
             case xs =>
               state = s
               xs.flatMap(this)
@@ -93,21 +124,21 @@ private[tail] object IterantFoldWhileLeft {
       ref.e match {
         case None =>
           stackPop() match {
-            case null => F.pure(state)
-            case xs => xs.flatMap(this)
+            case null =>
+              // Not complete ;-)
+              F.pure(state)
+            case xs =>
+              xs.flatMap(this)
           }
         case Some(e) =>
+          isActive = false
           F.raiseError(e)
       }
 
-    def fail(e: Throwable): F[S] =
+    def fail(e: Throwable): F[S] = {
+      isActive = false
       F.raiseError(e)
-
-    private def stackPop(): F[Iterant[F, A]] = {
-      if (stack != null) stack.pop()
-      else null.asInstanceOf[F[Iterant[F, A]]]
     }
-
 
     def process(cursor: BatchCursor[A], rest: F[Iterant[F, A]]): F[S] = {
       var hasResult = false
@@ -122,19 +153,36 @@ private[tail] object IterantFoldWhileLeft {
         }
       }
 
-      if (hasResult)
-        F.pure(state)
-      else
+      if (hasResult) {
+        complete(state)
+      } else {
         rest.flatMap(this)
+      }
     }
   }
 
   private class LazyLoop[F[_], A, S](seed: S, f: (S, A) => F[Either[S, S]])
     (implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, F[S]] {
+    extends Iterant.Visitor[F, A, F[S]] { self =>
 
     private[this] var state: S = seed
-    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+    private var isActive = true
+
+    private def stackPush(item: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(item)
+    }
+
+    private def stackPop(): F[Iterant[F, A]] = {
+      if (stackRef != null) stackRef.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+    }
+
+    private def complete(value: S): F[S] = {
+      isActive = false
+      F.pure(value)
+    }
 
     def visit(ref: Next[F, A]): F[S] =
       f(state, ref.item).flatMap {
@@ -142,7 +190,7 @@ private[tail] object IterantFoldWhileLeft {
           state = s
           ref.rest.flatMap(this)
         case Right(s) =>
-          F.pure(s)
+          complete(s)
       }
 
     def visit(ref: NextBatch[F, A]): F[S] =
@@ -150,16 +198,16 @@ private[tail] object IterantFoldWhileLeft {
 
     def visit(ref: NextCursor[F, A]): F[S] = {
       val cursor = ref.cursor
-      if (cursor.hasNext()) {
-        val item = cursor.next()
-        f(state, item).flatMap {
-          case Right(s) => F.pure(s)
+      if (!cursor.hasNext()) {
+        ref.rest.flatMap(self)
+      } else {
+        f(state, cursor.next()).flatMap {
           case Left(s) =>
             state = s
-            visit(ref)
+            F.pure(ref).flatMap(this)
+          case Right(s) =>
+            complete(s)
         }
-      } else {
-        ref.rest.flatMap(this)
       }
     }
 
@@ -167,20 +215,33 @@ private[tail] object IterantFoldWhileLeft {
       ref.rest.flatMap(this)
 
     def visit(ref: Concat[F, A]): F[S] = {
-      if (stack == null) stack = new ArrayStack()
-      stack.push(ref.rh)
+      stackPush(ref.rh)
       ref.lh.flatMap(this)
     }
 
-    def visit[R](ref: Resource[F, R, A]): F[S] =
-      ref.runFold(this)
+    def visit[R](ref: Resource[F, R, A]): F[S] = {
+      val loop2 = new LazyLoop[F, A, S](state, f)
+
+      ref.runFold(loop2).flatMap { newState =>
+        if (!loop2.isActive)
+          complete(newState)
+        else {
+          self.state = newState
+          stackPop() match {
+            case null => complete(newState)
+            case xs => xs.flatMap(self)
+          }
+        }
+      }
+    }
 
     def visit(ref: Last[F, A]): F[S] =
       f(state, ref.item).flatMap {
-        case Right(s) => F.pure(s)
+        case Right(s) => complete(s)
+
         case Left(s) =>
           stackPop() match {
-            case null => F.pure(s)
+            case null => complete(s)
             case xs =>
               state = s
               xs.flatMap(this)
@@ -191,19 +252,19 @@ private[tail] object IterantFoldWhileLeft {
       ref.e match {
         case None =>
           stackPop() match {
-            case null => F.pure(state)
-            case xs => xs.flatMap(this)
+            case null =>
+              complete(state)
+            case xs =>
+              xs.flatMap(this)
           }
         case Some(e) =>
+          isActive = false
           F.raiseError(e)
       }
 
-    def fail(e: Throwable): F[S] =
+    def fail(e: Throwable): F[S] = {
+      isActive = false
       F.raiseError(e)
-
-    private def stackPop(): F[Iterant[F, A]] = {
-      if (stack != null) stack.pop()
-      else null.asInstanceOf[F[Iterant[F, A]]]
     }
   }
 }
