@@ -50,8 +50,7 @@ object IterantLiftMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val source = Iterant[Coeval].of(1, 2, 3)
-      .guarantee(Coeval { effect += 1 })
+    val source = Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 })
     val r = source.liftMap[Coeval](_ => throw dummy, x => x)
 
     assertEquals(r.completeL.runTry(), Failure(dummy))

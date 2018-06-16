@@ -21,8 +21,6 @@ import cats.Applicative
 import cats.arrow.FunctionK
 import cats.effect.Sync
 import cats.syntax.all._
-
-import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
@@ -31,64 +29,78 @@ private[tail] object IterantLiftMap {
   def apply[F[_], G[_], A](self: Iterant[F, A], f: FunctionK[F, G])
     (implicit G: Sync[G]): Iterant[G, A] = {
 
-    // Note we can't do exception handling in this loop, because
-    // if `f` throws then we are screwed since there's no way
-    // to convert our `stop` from `F[Unit]` to `G[Unit]`. And then
-    // we cannot signal a `Halt` without clean resource handling,
-    // hence behavior needs to be undefined (i.e. it's the user's fault)
+    Suspend(G.delay(new LoopK(f).apply(self)))
+  }
 
-    def loop(fa: Iterant[F, A]): Iterant[G, A] =
-      fa match {
-        case Next(a, rest) =>
-          Next[G, A](a, f(rest).map(loop))
-        case NextBatch(a, rest) =>
-          NextBatch[G, A](a, f(rest).map(loop))
-        case NextCursor(a, rest) =>
-          NextCursor[G, A](a, f(rest).map(loop))
-        case Suspend(rest) =>
-          Suspend(G.suspend(f(rest).map(loop)))
-        case Scope(acquire, use, release) =>
-          Scope(f(acquire), f(use).map(loop), exitCase => f(release(exitCase)))
-        case Concat(lh, rh) =>
-          Concat(f(lh).map(loop), f(rh).map(loop))
-        case Last(_) | Halt(_) =>
-          fa.asInstanceOf[Iterant[G, A]]
-      }
+  private final class LoopK[F[_], G[_], A](f: FunctionK[F, G])
+    (implicit G: Sync[G])
+    extends Iterant.Visitor[F, A, Iterant[G, A]] {
 
-    loop(self)
+    def visit(ref: Next[F, A]): Iterant[G, A] =
+      Next(ref.item, f(ref.rest).map(this))
+
+    def visit(ref: NextBatch[F, A]): Iterant[G, A] =
+      NextBatch(ref.batch, f(ref.rest).map(this))
+
+    def visit(ref: NextCursor[F, A]): Iterant[G, A] =
+      NextCursor(ref.cursor, f(ref.rest).map(this))
+
+    def visit(ref: Suspend[F, A]): Iterant[G, A] =
+      Suspend(f(ref.rest).map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[G, A] =
+      Concat(f(ref.lh).map(this), f(ref.rh).map(this))
+
+    def visit(ref: Scope[F, A]): Iterant[G, A] =
+      Scope(f(ref.open), G.suspend(f(ref.use).map(this)), exitCase => f(ref.close(exitCase)))
+
+    def visit(ref: Last[F, A]): Iterant[G, A] =
+      ref.asInstanceOf[Iterant[G, A]]
+
+    def visit(ref: Halt[F, A]): Iterant[G, A] =
+      ref.asInstanceOf[Iterant[G, A]]
+
+    def fail(e: Throwable): Iterant[G, A] =
+      Iterant.raiseError(e)
   }
 
   /** Implementation for `Iterant#liftMap`. */
   def apply[F[_], G[_], A](self: Iterant[F, A], f: F[Iterant[F, A]] => G[Iterant[F, A]], g: F[Unit] => G[Unit])
     (implicit F: Applicative[F], G: Sync[G]): Iterant[G, A] = {
 
-    // Note we can't do exception handling in this loop for `g`,
-    // because if `g` throws then we are screwed since there's no way
-    // to convert our `stop` from `F[Unit]` to `G[Unit]`. And then
-    // we cannot signal a `Halt` without clean resource handling,
-    // hence behavior needs to be undefined (i.e. it's the user's fault)
+    Suspend(G.delay(new LoopFG(f, g).apply(self)))
+  }
 
-    def loop(fa: Iterant[F, A]): Iterant[G, A] =
-      try fa match {
-        case Next(a, rest) =>
-          Next[G, A](a, f(rest).map(loop))
-        case NextBatch(a, rest) =>
-          NextBatch[G, A](a, f(rest).map(loop))
-        case NextCursor(a, rest) =>
-          NextCursor[G, A](a, f(rest).map(loop))
-        case Suspend(rest) =>
-          Suspend(f(rest).map(loop))
-        case Scope(acquire, use, release) =>
-          Scope(g(acquire), G.suspend(f(use).map(loop)), exitCase => g(release(exitCase)))
-        case Concat(lh, rh) =>
-          Concat(f(lh).map(loop), f(rh).map(loop))
-        case Last(_) | Halt(_) =>
-          fa.asInstanceOf[Iterant[G, A]]
-      } catch {
-        case e if NonFatal(e) =>
-          Halt(Some(e))
-      }
+  private final class LoopFG[F[_], G[_], A]
+    (f: F[Iterant[F, A]] => G[Iterant[F, A]], g: F[Unit] => G[Unit])
+    (implicit F: Applicative[F], G: Sync[G])
+    extends Iterant.Visitor[F, A, Iterant[G, A]] {
 
-    loop(self)
+    def visit(ref: Next[F, A]): Iterant[G, A] =
+      Next(ref.item, f(ref.rest).map(this))
+
+    def visit(ref: NextBatch[F, A]): Iterant[G, A] =
+      NextBatch(ref.batch, f(ref.rest).map(this))
+
+    def visit(ref: NextCursor[F, A]): Iterant[G, A] =
+      NextCursor(ref.cursor, f(ref.rest).map(this))
+
+    def visit(ref: Suspend[F, A]): Iterant[G, A] =
+      Suspend(f(ref.rest).map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[G, A] =
+      Concat(f(ref.lh).map(this), f(ref.rh).map(this))
+
+    def visit(ref: Scope[F, A]): Iterant[G, A] =
+      Scope(g(ref.open), G.suspend(f(ref.use).map(this)), exitCase => g(ref.close(exitCase)))
+
+    def visit(ref: Last[F, A]): Iterant[G, A] =
+      ref.asInstanceOf[Iterant[G, A]]
+
+    def visit(ref: Halt[F, A]): Iterant[G, A] =
+      ref.asInstanceOf[Iterant[G, A]]
+
+    def fail(e: Throwable): Iterant[G, A] =
+      Iterant.raiseError(e)
   }
 }
