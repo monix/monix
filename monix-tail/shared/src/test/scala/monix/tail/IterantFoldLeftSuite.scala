@@ -22,9 +22,7 @@ import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import monix.tail.IterantCompleteLSuite.{assertEquals, test}
 import monix.tail.batches.{Batch, BatchCursor}
-
 import scala.util.Failure
 
 object IterantFoldLeftSuite extends BaseTestSuite {

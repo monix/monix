@@ -21,6 +21,7 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.effect.Sync
 import monix.eval.Coeval
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success}
 
@@ -28,6 +29,11 @@ object IterantFoldRightSuite extends BaseTestSuite {
   def exists(ref: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
     ref.foldRightL(Coeval(false)) { (e, next) =>
       if (p(e)) Coeval(true) else next
+    }
+
+  def find(ref: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Option[Int]] =
+    ref.foldRightL(Coeval(Option.empty[Int])) { (e, next) =>
+      if (p(e)) Coeval(Some(e)) else next
     }
 
   def forall(ref: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
@@ -115,6 +121,71 @@ object IterantFoldRightSuite extends BaseTestSuite {
 
     assertEquals(effect, 0)
     assertEquals(ref.runTry(), Failure(dummy))
+    assertEquals(effect, 1)
+  }
+
+  test("foldRightL handles Resource correctly") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val lh = Iterant[Coeval].resourceS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.pure(1)),
+      (_, _) => Coeval(triggered.set(true))
+    )
+
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    val list = stream.foldRightL(Coeval(List.empty[Int])) { (e, list) =>
+      list.map(l => e :: l)
+    }
+    assertEquals(list.value(), List(1))
+  }
+
+  test("find (via foldRightL) is consistent with List.find") { implicit s =>
+    check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
+      val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
+      find(fa, p) <-> Coeval(list.find(p))
+    }
+  }
+
+  test("find (via foldRightL) can short-circuit, releasing only acquired resources") { implicit s =>
+    var effect = 0
+
+    val ref =
+      Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 }) ++
+        Iterant[Coeval].of(4, 5, 6).guarantee(Coeval { effect += 1 })
+
+    val r = find(ref, _ == 2).runTry()
+    assertEquals(r, Success(Some(2)))
+    assertEquals(effect, 1)
+  }
+
+  test("find (via foldRightL) releases all resources when full stream is processed") { implicit s =>
+    var effect = 0
+
+    val ref =
+      Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 }) ++
+        Iterant[Coeval].of(4, 5, 6).guarantee(Coeval { effect += 1 })
+
+    val r = find(ref, _ == 10).runTry()
+    assertEquals(r, Success(None))
+    assertEquals(effect, 2)
+  }
+
+  test("find (via foldRightL) protects against user errors") { implicit s =>
+    val dummy = DummyException("dummy")
+    var effect = 0
+
+    val ref = Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 })
+    val r = find(ref, _ => throw dummy).runTry()
+
+    assertEquals(r, Failure(dummy))
     assertEquals(effect, 1)
   }
 }

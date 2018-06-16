@@ -81,7 +81,7 @@ private[tail] object IterantFoldLeft {
       ref.lh.flatMap(loop).flatMap { _ => ref.rh.flatMap(loop) }
 
     def visit[R](ref: Resource[F, R, A]): F[S] =
-      ref.runFold(loop)
+      ref.runFold(this)
 
     def visit(ref: Last[F, A]): F[S] = {
       state = op(state, ref.item)

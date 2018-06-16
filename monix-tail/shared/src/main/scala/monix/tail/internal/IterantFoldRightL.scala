@@ -19,7 +19,6 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 
@@ -29,11 +28,10 @@ private[tail] object IterantFoldRightL {
     (implicit F: Sync[F]): F[B] =
     F.suspend(new Loop(b, f).apply(self))
 
-  private final class Loop[F[_], A, B](b: F[B], f: (A, F[B]) => F[B])
+  private final class Loop[F[_], A, B](fb: F[B], f: (A, F[B]) => F[B])
     (implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[B]] { self =>
 
-    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
     private[this] var remainder: Iterant[F, A] = _
     private[this] var suspendRef: F[B] = _
 
@@ -55,38 +53,25 @@ private[tail] object IterantFoldRightL {
       ref.rest.flatMap(this)
 
     def visit(ref: Iterant.Concat[F, A]): F[B] = {
-      if (stack == null) stack = new ArrayStack()
-      stack.push(ref.rh)
-      ref.lh.flatMap(this)
+      val loop2 = new Loop[F, A, B](ref.rh.flatMap(this), f)
+      ref.lh.flatMap(loop2)
     }
 
     def visit[S](ref: Resource[F, S, A]): F[B] =
       ref.runFold(this)
 
     def visit(ref: Last[F, A]): F[B] =
-      stackPop() match {
-        case null => f(ref.item, b)
-        case xs => f(ref.item, xs.flatMap(this))
-      }
+      f(ref.item, fb)
 
     def visit(ref: Halt[F, A]): F[B] =
       ref.e match {
-        case None =>
-          stackPop() match {
-            case null => b
-            case xs => xs.flatMap(this)
-          }
+        case None => fb
         case Some(e) =>
           F.raiseError(e)
       }
 
     def fail(e: Throwable): F[B] =
       F.raiseError(e)
-
-    private def stackPop(): F[Iterant[F, A]] = {
-      if (stack != null) stack.pop()
-      else null.asInstanceOf[F[Iterant[F, A]]]
-    }
 
     private def suspend(node: Iterant[F, A]): F[B] = {
       if (suspendRef == null) suspendRef =
