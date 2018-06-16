@@ -18,12 +18,11 @@
 package monix.tail
 package internal
 
-import cats.syntax.all._
 import cats.effect.Sync
-import scala.util.control.NonFatal
-
+import cats.syntax.all._
 import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import scala.util.control.NonFatal
 
 
 private[tail] object IterantReduce {
@@ -35,46 +34,66 @@ private[tail] object IterantReduce {
   }
 
   private class Loop[F[_], A](op: (A, A) => A)(implicit F: Sync[F])
-    extends (Iterant[F, A] => F[Option[A]]) {
-    private[this] var state: A = _
-    private[this] val stack = new ArrayStack[F[Iterant[F, A]]]()
+    extends Iterant.Visitor[F, A, F[Option[A]]] {
 
-    def apply(self: Iterant[F, A]): F[Option[A]] = {
-      try self match {
-        case Next(a, rest) =>
-          state = op(state, a)
-          rest.flatMap(this)
-        case NextCursor(cursor, rest) =>
-          state = cursor.foldLeft(state)(op)
-          rest.flatMap(this)
-        case NextBatch(gen, rest) =>
-          state = gen.foldLeft(state)(op)
-          rest.flatMap(this)
-        case Suspend(rest) =>
-          rest.flatMap(this)
-        case s @ Scope(_, _, _) =>
-          s.runFold(this)
-        case Concat(lh, rh) =>
-          stack.push(rh)
-          lh.flatMap(this)
-        case Last(item) =>
-          stack.pop() match {
-            case null => F.pure(Some(op(state, item)))
-            case some =>
-              state = op(state, item)
-              some.flatMap(this)
-          }
-        case Halt(None) =>
-          stack.pop() match {
+    private[this] var state: A = _
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+
+    def visit(ref: Next[F, A]): F[Option[A]] = {
+      state = op(state, ref.item)
+      ref.rest.flatMap(this)
+    }
+
+    def visit(ref: NextBatch[F, A]): F[Option[A]] = {
+      state = ref.batch.foldLeft(state)(op)
+      ref.rest.flatMap(this)
+    }
+
+    def visit(ref: NextCursor[F, A]): F[Option[A]] = {
+      state = ref.cursor.foldLeft(state)(op)
+      ref.rest.flatMap(this)
+    }
+
+    def visit(ref: Suspend[F, A]): F[Option[A]] =
+      ref.rest.flatMap(this)
+
+    def visit(ref: Concat[F, A]): F[Option[A]] = {
+      stackPush(ref.rh)
+      ref.lh.flatMap(this)
+    }
+
+    def visit(ref: Scope[F, A]): F[Option[A]] =
+      ref.runFold(this)
+
+    def visit(ref: Last[F, A]): F[Option[A]] =
+      stackPop() match {
+        case null => F.pure(Some(op(state, ref.item)))
+        case some =>
+          state = op(state, ref.item)
+          some.flatMap(this)
+      }
+
+    def visit(ref: Halt[F, A]): F[Option[A]] =
+      ref.e match {
+        case None =>
+          stackPop() match {
             case null => F.pure(Some(state))
             case some => some.flatMap(this)
           }
-        case Halt(Some(e)) =>
-          F.raiseError(e)
-      } catch {
-        case e if NonFatal(e) =>
+        case Some(e) =>
           F.raiseError(e)
       }
+
+    def fail(e: Throwable): F[Option[A]] =
+      F.raiseError(e)
+
+    def stackPop(): F[Iterant[F, A]] =
+      if (stackRef != null) stackRef.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+
+    def stackPush(fa: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(fa)
     }
 
     val start: Iterant[F, A] => F[Option[A]] = { self =>
@@ -101,11 +120,11 @@ private[tail] object IterantReduce {
           s.runFold(start)
 
         case Concat(lh, rh) =>
-          stack.push(rh)
+          stackPush(rh)
           lh.flatMap(start)
 
         case Last(a) =>
-          stack.pop() match {
+          stackPop() match {
             case null => F.pure(Some(a))
             case some =>
               state = a
@@ -113,14 +132,13 @@ private[tail] object IterantReduce {
           }
 
         case Halt(opt) =>
-          val next = stack.pop()
           opt match {
-            case Some(e) =>
-              F.raiseError(e)
-            case None if next == null =>
-              F.pure(None)
+            case Some(e) => F.raiseError(e)
             case None =>
-              next.flatMap(start)
+              stackPop() match {
+                case null => F.pure(None)
+                case next => next.flatMap(start)
+              }
           }
       } catch {
         case e if NonFatal(e) =>
