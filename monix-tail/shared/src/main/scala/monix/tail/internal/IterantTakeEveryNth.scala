@@ -17,14 +17,11 @@
 
 package monix.tail.internal
 
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
-import monix.tail.Iterant
-import cats.syntax.all._
 import cats.effect.Sync
-
-import scala.util.control.NonFatal
+import cats.syntax.all._
+import monix.tail.Iterant
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
-
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantTakeEveryNth {
@@ -32,9 +29,61 @@ private[tail] object IterantTakeEveryNth {
     * Implementation for `Iterant#takeEveryNth`
     */
   def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Sync[F]): Iterant[F, A] = {
-    require(n > 0, "n must be strictly positive")
+    if (n < 1)
+      Iterant.raiseError(new IllegalArgumentException(s"takeEveryNth($n)"))
+    else if (n == 1)
+      source
+    else
+      Suspend(F.delay(new Loop[F, A](n).apply(source)))
+  }
 
-    def processSeq(index: Int, ref: NextCursor[F, A]): NextCursor[F, A] = {
+  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+
+    private[this] var index = n
+
+    def visit(ref: Next[F, A]): Iterant[F, A] = {
+      if (index == 1) {
+        index = n
+        Next(ref.item, ref.rest.map(this))
+      } else {
+        index -= 1
+        Suspend(ref.rest.map(this))
+      }
+    }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      processSeq(index, ref.toNextCursor())
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] =
+      processSeq(index, ref)
+
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(this))
+
+    def visit(ref: Iterant.Concat[F, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Scope[F, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] = {
+      if (index == 1) {
+        index = n
+        ref
+      } else {
+        index -= 1
+        Iterant.empty
+      }
+    }
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
+
+    private def processSeq(index: Int, ref: NextCursor[F, A]): NextCursor[F, A] = {
       val NextCursor(cursor, rest) = ref
       val buffer = ArrayBuffer.empty[A]
 
@@ -54,43 +103,11 @@ private[tail] object IterantTakeEveryNth {
       }
 
       val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
+      this.index = idx
+
       NextCursor(
         BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]],
-        next.map(loop(idx)))
-    }
-
-
-    def loop(index: Int)(source: Iterant[F,A]): Iterant[F,A] = {
-      try source match {
-        case s @ Scope(_, _, _) =>
-          s.runMap(loop(index))
-        case Next(item, rest) =>
-          if (index == 1) Next(item, rest.map(loop(n)))
-          else Suspend(rest.map(loop(index - 1)))
-        case ref@NextCursor(_, _) =>
-          processSeq(index, ref)
-        case NextBatch(batch, rest) =>
-          processSeq(index, NextCursor(batch.cursor(), rest))
-        case Suspend(rest) =>
-          Suspend(rest.map(loop(index)))
-        case last @ Last(_) =>
-          if (index == 1) last else Iterant.empty
-        case halt @ Halt(_) =>
-          halt
-      }
-      catch {
-        case ex if NonFatal(ex) => Iterant.raiseError(ex)
-      }
-    }
-
-    if (n == 1) source
-    else source match {
-      case NextBatch(_, _) | NextCursor(_, _) =>
-        // We can have side-effects with NextBatch/NextCursor
-        // processing, so suspending execution in this case
-        Suspend(F.delay(loop(n)(source)))
-      case _ =>
-        loop(n)(source)
+        next.map(this))
     }
   }
 }
