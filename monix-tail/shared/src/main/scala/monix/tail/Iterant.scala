@@ -2515,6 +2515,9 @@ object Iterant extends IterantInstances {
 
     def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
+
+    def toNextCursor(): NextCursor[F, A] =
+      NextCursor(batch.cursor(), rest)
   }
 
   /** Builds a stream state equivalent with [[Iterant.NextCursor]].

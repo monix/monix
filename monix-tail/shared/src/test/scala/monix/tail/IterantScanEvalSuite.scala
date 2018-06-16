@@ -76,7 +76,7 @@ object IterantScanEvalSuite extends BaseTestSuite {
 
     assertEquals(effect, 0)
     assertEquals(r.value(), List(Left(dummy)))
-    assertEquals(effect, 1)
+    assertEquals(effect, 0)
   }
 
   test("scan protects against exceptions in f") { implicit s =>

@@ -42,58 +42,71 @@ private[tail] object IterantScan {
   }
 
   class Loop[F[_], A, S](initial: S, f: (S, A) => S)(implicit F: Sync[F])
-    extends (Iterant[F, A] => Iterant[F, S])
-  {
+    extends Iterant.Visitor[F, A, Iterant[F, S]] {
+
     private[this] var state = initial
-    private[this] val stack = new ArrayStack[F[Iterant[F, A]]]()
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
 
-    def apply(fa: Iterant[F, A]): Iterant[F, S] = try fa match {
-      case Next(a, rest) =>
-        state = f(state, a)
-        Next(state, rest.map(this))
-
-      case NextCursor(cursor, rest) =>
-        processCursor(cursor, rest)
-
-      case NextBatch(batch, rest) =>
-        val cursor = batch.cursor()
-        processCursor(cursor, rest)
-
-      case Suspend(rest) =>
-        Suspend(rest.map(this))
-
-      case s @ Scope(_, _, _) =>
-        s.runMap(this)
-
-      case Concat(lh, rh) =>
-        stack.push(rh)
-        Suspend(lh.map(this))
-
-      case Last(a) =>
-        state = f(state, a)
-        val next = stack.pop()
-        if (next == null) {
-          Last(state)
-        } else {
-          Next(state, next.map(this))
-        }
-
-      case halt @ Halt(opt) =>
-        val next = stack.pop()
-        if (opt.nonEmpty || next == null) {
-          halt.asInstanceOf[Iterant[F, S]]
-        } else {
-          Suspend(next.map(this))
-        }
-    } catch {
-      case e if NonFatal(e) =>
-        Iterant.raiseError(e)
+    private def stackPush(item: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(item)
     }
 
+    private def stackPop(): F[Iterant[F, A]] = {
+      if (stackRef != null) stackRef.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+    }
+
+    def visit(ref: Next[F, A]): Iterant[F, S] = {
+      state = f(state, ref.item)
+      Next(state, ref.rest.map(this))
+    }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, S] =
+      processCursor(ref.batch.cursor(), ref.rest)
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, S] =
+      processCursor(ref.cursor, ref.rest)
+
+    def visit(ref: Suspend[F, A]): Iterant[F, S] =
+      Suspend(ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, S] = {
+      stackPush(ref.rh)
+      Suspend(ref.lh.map(this))
+    }
+
+    def visit(ref: Scope[F, A]): Iterant[F, S] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, S] = {
+      state = f(state, ref.item)
+      stackPop() match {
+        case null => Last(state)
+        case next => Next(state, next.map(this))
+      }
+    }
+
+    def visit(ref: Halt[F, A]): Iterant[F, S] =
+      ref.e match {
+        case Some(_) =>
+          ref.asInstanceOf[Iterant[F, S]]
+        case None =>
+          stackPop() match {
+            case null =>
+              ref.asInstanceOf[Iterant[F, S]]
+            case next =>
+              Suspend(next.map(this))
+          }
+      }
+
+    def fail(e: Throwable): Iterant[F, S] =
+      Iterant.raiseError(e)
+
     private[this] def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
-      if (!cursor.hasNext())
+      if (!cursor.hasNext()) {
         Suspend(rest.map(this))
-      else if (cursor.recommendedBatchSize <= 1) {
+      } else if (cursor.recommendedBatchSize <= 1) {
         state = f(state, cursor.next())
         val next: F[Iterant[F, A]] =
           if (cursor.hasNext()) F.pure(NextCursor(cursor, rest))

@@ -55,7 +55,7 @@ private[tail] object IterantDropLast {
     }
 
     def visit(ref: NextBatch[F, A]): Iterant[F, A] =
-      visit(NextCursor(ref.batch.cursor(), ref.rest))
+      visit(ref.toNextCursor())
 
     def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
       val NextCursor(cursor, rest) = ref

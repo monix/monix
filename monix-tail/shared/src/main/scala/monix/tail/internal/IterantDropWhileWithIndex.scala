@@ -57,7 +57,7 @@ private[tail] object IterantDropWhileWithIndex {
 
     def visit(ref: NextBatch[F, A]): Iterant[F, A] =
       if (dropFinished) ref
-      else visit(NextCursor(ref.batch.cursor(), ref.rest))
+      else visit(ref.toNextCursor())
 
     def visit(ref: NextCursor[F, A]): Iterant[F, A] =
       if (dropFinished) ref else {

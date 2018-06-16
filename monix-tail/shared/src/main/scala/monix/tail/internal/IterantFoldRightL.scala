@@ -41,7 +41,7 @@ private[tail] object IterantFoldRightL {
       f(ref.item, ref.rest.flatMap(this))
 
     def visit(ref: NextBatch[F, A]): F[B] =
-      visit(NextCursor(ref.batch.cursor(), ref.rest))
+      visit(ref.toNextCursor())
 
     def visit(ref: NextCursor[F, A]): F[B] = {
       val cursor = ref.cursor

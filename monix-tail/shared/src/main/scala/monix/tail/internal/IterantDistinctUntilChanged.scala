@@ -51,7 +51,7 @@ private[tail] object IterantDistinctUntilChanged {
     }
 
     def visit(ref: NextBatch[F, A]): Iterant[F, A] =
-      processCursor(NextCursor(ref.batch.cursor(), ref.rest))
+      processCursor(ref.toNextCursor())
 
     def visit(ref: NextCursor[F, A]): Iterant[F, A] =
       processCursor(ref)

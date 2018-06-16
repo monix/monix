@@ -42,7 +42,7 @@ private[tail] object IterantDrop {
 
     def visit(ref: NextBatch[F, A]): Iterant[F, A] =
       if (toDrop <= 0) ref else {
-        dropFromCursor(NextCursor(ref.batch.cursor(), ref.rest))
+        dropFromCursor(ref.toNextCursor())
       }
 
     def visit(ref: NextCursor[F, A]): Iterant[F, A] =

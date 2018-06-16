@@ -51,7 +51,7 @@ private[tail] object IterantMapEval {
     }
 
     def visit(ref: NextBatch[F, A]): Iterant[F, B] =
-      visit(NextCursor(ref.batch.cursor(), ref.rest))
+      visit(ref.toNextCursor())
 
     def visit(ref: NextCursor[F, A]): Iterant[F, B] =
       processCursor(ref, ref.cursor, ref.rest)

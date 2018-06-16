@@ -74,7 +74,7 @@ private[tail] object IterantBuffer {
     }
 
     def visit(ref: NextBatch[F, A]): F[Iterant[F, B]] =
-      processCursor(NextCursor(ref.batch.cursor(), ref.rest))
+      processCursor(ref.toNextCursor())
 
     def visit(ref: NextCursor[F, A]): F[Iterant[F, B]] =
       processCursor(ref)

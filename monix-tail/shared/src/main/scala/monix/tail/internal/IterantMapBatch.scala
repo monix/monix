@@ -56,7 +56,7 @@ private[tail] object IterantMapBatch {
       NextBatch[F, B](f(ref.item), ref.rest.map(this))
 
     def visit(ref: NextBatch[F, A]): Iterant[F, B] =
-      processBatch(NextCursor(ref.batch.cursor(), ref.rest))
+      processBatch(ref.toNextCursor())
 
     def visit(ref: NextCursor[F, A]): Iterant[F, B] =
       processBatch(ref)

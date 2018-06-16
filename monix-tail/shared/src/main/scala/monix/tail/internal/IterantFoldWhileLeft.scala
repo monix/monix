@@ -146,7 +146,7 @@ private[tail] object IterantFoldWhileLeft {
       }
 
     def visit(ref: NextBatch[F, A]): F[S] =
-      visit(NextCursor(ref.batch.cursor(), ref.rest))
+      visit(ref.toNextCursor())
 
     def visit(ref: NextCursor[F, A]): F[S] = {
       val cursor = ref.cursor
