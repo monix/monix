@@ -53,7 +53,7 @@ object IterantTakeLastSuite extends BaseTestSuite {
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
-//
+
   test("Iterant.takeLast preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)

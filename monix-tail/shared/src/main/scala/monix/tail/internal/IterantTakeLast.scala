@@ -31,70 +31,80 @@ private[tail] object IterantTakeLast {
   def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Sync[F]): Iterant[F, A] = {
     if (n < 1)
       Iterant.empty
-    else {
+    else
       Suspend(F.delay(new Loop(n).apply(source)))
-    }
   }
 
   private class Loop[F[_], A](n: Int)(implicit F: Sync[F])
-    extends (Iterant[F, A] => Iterant[F, A]) { loop =>
+    extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
 
     private val buffer = DropHeadOnOverflowQueue.boxed[A](n)
-    private val stack = new ArrayStack[F[Iterant[F, A]]]()
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
 
-    def apply(source: Iterant[F, A]): Iterant[F, A] = {
-      source match {
-        case Next(item, rest) =>
-          buffer.offer(item)
-          Suspend(rest.map(loop))
-        case NextCursor(cursor, rest) =>
-          while (cursor.hasNext()) buffer.offer(cursor.next())
-          Suspend(rest.map(loop))
-        case NextBatch(batch, rest) =>
-          val cursor = batch.cursor()
-          while (cursor.hasNext()) buffer.offer(cursor.next())
-          Suspend(rest.map(loop))
-        case Suspend(rest) =>
-          Suspend(rest.map(loop))
-        case Last(item) =>
-          handleLast(item)
-        case s@Scope(_, _, _) =>
-          s.runMap(loop)
-        case Concat(lh, rh) =>
-          handleConcat(lh, rh)
-        case Halt(None) =>
-          handleHalt()
-        case halt@Halt(Some(_)) =>
-          halt
-      }
+    private def stackPush(item: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(item)
     }
 
-    private def handleLast(item: A): Iterant[F, A] = {
-      stack.pop() match {
+    private def stackPop(): F[Iterant[F, A]] = {
+      if (stackRef != null) stackRef.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+    }
+
+    def visit(ref: Next[F, A]): Iterant[F, A] = {
+      buffer.offer(ref.item)
+      Suspend(ref.rest.map(loop))
+    }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] = {
+      val cursor = ref.batch.cursor()
+      while (cursor.hasNext()) buffer.offer(cursor.next())
+      Suspend(ref.rest.map(loop))
+    }
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
+      val cursor = ref.cursor
+      while (cursor.hasNext()) buffer.offer(cursor.next())
+      Suspend(ref.rest.map(loop))
+    }
+
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(loop))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] = {
+      stackPush(ref.rh)
+      Suspend(ref.lh.map(this))
+    }
+
+    def visit(ref: Scope[F, A]): Iterant[F, A] =
+      ref.runMap(loop)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] =
+      stackPop() match {
         case null =>
-          buffer.offer(item)
+          buffer.offer(ref.item)
           finalCursor()
         case some =>
-          loop(Next(item, some))
+          loop(Next(ref.item, some))
       }
-    }
 
-    private def handleConcat(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] = {
-      stack.push(rh)
-      Suspend(lh.map(loop))
-    }
-
-    private def handleHalt(): Iterant[F, A] = {
-      stack.pop() match {
-        case null => finalCursor()
-        case some => Suspend(some.map(loop))
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref.e match {
+        case None =>
+          stackPop() match {
+            case null => finalCursor()
+            case some => Suspend(some.map(loop))
+          }
+        case _ =>
+          ref
       }
-    }
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
 
     private def finalCursor(): Iterant[F, A] = {
       val cursor = BatchCursor.fromIterator(buffer.iterator(true), Int.MaxValue)
       NextCursor(cursor, F.pure(Iterant.empty))
     }
   }
-
 }
