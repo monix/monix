@@ -19,7 +19,6 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 import monix.tail.batches.BatchCursor
@@ -37,8 +36,6 @@ private[tail] object IterantCompleteL {
   private final class Loop[F[_], A](implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Unit]] {
 
-    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
-
     def visit(ref: Next[F, A]): F[Unit] =
       ref.rest.flatMap(this)
 
@@ -51,37 +48,23 @@ private[tail] object IterantCompleteL {
     def visit(ref: Suspend[F, A]): F[Unit] =
       ref.rest.flatMap(this)
 
-    def visit(ref: Concat[F, A]): F[Unit] = {
-      if (stack == null) stack = new ArrayStack()
-      stack.push(ref.rh)
-      ref.lh.flatMap(this)
-    }
+    def visit(ref: Concat[F, A]): F[Unit] =
+      ref.lh.flatMap(this).flatMap(_ => ref.rh.flatMap(this))
 
     def visit[S](ref: Resource[F, S, A]): F[Unit] =
       ref.runFold(this)
 
     def visit(ref: Last[F, A]): F[Unit] =
-      continueOrFinish
+      F.unit
 
     def visit(ref: Halt[F, A]): F[Unit] =
       ref.e match {
-        case None => continueOrFinish
+        case None => F.unit
         case Some(e) => F.raiseError(e)
       }
 
     def fail(e: Throwable): F[Unit] =
       F.raiseError(e)
-
-    private def continueOrFinish: F[Unit] = {
-      val next =
-        if (stack != null) stack.pop()
-        else null.asInstanceOf[F[Iterant[F, A]]]
-
-      next match {
-        case null => F.unit
-        case rest => rest.flatMap(this)
-      }
-    }
 
     private def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
       while (cursor.hasNext()) cursor.next()

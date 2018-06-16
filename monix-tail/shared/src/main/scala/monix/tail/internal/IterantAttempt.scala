@@ -17,17 +17,15 @@
 
 package monix.tail.internal
 
-import java.util.concurrent.atomic.AtomicReference
-
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
 
 import scala.annotation.tailrec
-import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
@@ -85,30 +83,47 @@ private[tail] object IterantAttempt {
 
     def visit[S](ref: Resource[F, S, A]): Iterant[F, Attempt] = {
       val Resource(acquire, use, release) = ref
+
       Suspend(F.delay {
-        val errors = new AtomicReference(Queue.empty[Throwable])
+        val errors = Atomic(null : Throwable)
+
         val lh: Iterant[F, Attempt] =
-          Resource[F, S, Attempt](
-            acquire.handleErrorWith { e =>
-              pushError(errors, e)
-              F.raiseError(e)
-            },
-            AndThen(use).andThen(continueWith),
-            (s, exit) => {
-              F.suspend(F.handleError(release(s, exit)) { e =>
+          Resource[F, Either[Throwable, S], Attempt](
+            acquire.attempt,
+            es => F.pure(es).flatMap {
+              case Left(e) =>
                 pushError(errors, e)
-              })
+                F.pure(Iterant.empty)
+
+              case Right(s) =>
+                try {
+                  use(s).handleError { e =>
+                    pushError(errors, e)
+                    Iterant.empty
+                  }.map(this)
+                } catch { case NonFatal(e) =>
+                  pushError(errors, e)
+                  F.pure(Iterant.empty)
+                }
+            },
+            (es, exit) => {
+              es match {
+                case Left(_) => F.unit
+                case Right(s) =>
+                  try F.handleError(release(s, exit)) { e =>
+                    pushError(errors, e)
+                  } catch { case NonFatal(e) =>
+                    F.delay(pushError(errors, e))
+                  }
+              }
             })
 
         Concat(F.pure(lh), F.delay {
-          errors.getAndSet(null) match {
-            case null => Iterant.empty
-            case list =>
-              list.toList match {
-                case Nil => Iterant.empty
-                case x :: xs =>
-                  Last(handleError(Platform.composeErrors(x, xs:_*)))
-              }
+          val err = errors.getAndSet(null)
+          if (err != null) {
+            Last(handleError(err))
+          } else {
+            Iterant.empty
           }
         })
       })
@@ -126,13 +141,15 @@ private[tail] object IterantAttempt {
     def fail(e: Throwable): Iterant[F, Either[Throwable, A]] =
       Iterant.raiseError(e)
 
+    private[this] val continueMapRef: Either[Throwable, Iterant[F, A]] => Iterant[F, Attempt] = {
+      case Left(e) =>
+        Iterant.now(handleError(e))
+      case Right(iter) =>
+        self(iter)
+    }
+
     private def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, Attempt]] =
-      rest.attempt.map {
-        case Left(e) =>
-          Iterant.now(handleError(e))
-        case Right(iter) =>
-          self(iter)
-      }
+      rest.attempt.map(continueMapRef)
 
     private def handleCursor(
       node: NextCursor[F, A],
@@ -165,12 +182,14 @@ private[tail] object IterantAttempt {
     }
 
     @tailrec
-    private def pushError(list: AtomicReference[Queue[Throwable]], e: Throwable): Unit =
-      list.get() match {
-        case null => throw e
-        case current =>
-          if (!list.compareAndSet(current, current.enqueue(e)))
-            pushError(list, e)
+    private def pushError(ref: Atomic[Throwable], e: Throwable): Unit = {
+      val current = ref.get
+      val update = current match {
+        case null => e
+        case e0 => Platform.composeErrors(e0, e)
       }
+      if (!ref.compareAndSet(current, update))
+        pushError(ref, e)
+    }
   }
 }

@@ -20,10 +20,12 @@ package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
 
+import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
@@ -41,9 +43,10 @@ private[tail] object IterantOnErrorHandleWith {
     (implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] { self =>
 
-    private[this] var errorHandled = false
+    private[this] var wasErrorHandled = false
+
     private[this] val f = (e: Throwable) => {
-      self.errorHandled = true
+      self.wasErrorHandled = true
       try handler(e) catch { case e2 if NonFatal(e) =>
         Iterant.raiseError[F, A](Platform.composeErrors(e, e2))
       }
@@ -87,14 +90,59 @@ private[tail] object IterantOnErrorHandleWith {
 
     def visit(ref: Concat[F, A]): Iterant[F, A] =
       Concat(ref.lh.map(this), F.suspend {
-        if (self.errorHandled)
+        if (self.wasErrorHandled)
           F.pure(Iterant.empty[F, A])
         else
           ref.rh.map(this)
       })
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] =
-      ref.runMap(this)
+    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] = {
+      val Resource(acquire, use, release) = ref
+
+      Suspend(F.delay {
+        val errors = Atomic(null : Throwable)
+
+        val lh: Iterant[F, A] =
+          Resource[F, Either[Throwable, S], A](
+            acquire.attempt,
+            es => F.pure(es).flatMap {
+              case Left(e) =>
+                pushError(errors, e)
+                F.pure(Iterant.empty)
+
+              case Right(s) =>
+                try {
+                  use(s).handleError { e =>
+                    pushError(errors, e)
+                    Iterant.empty
+                  }.map(this)
+                } catch { case NonFatal(e) =>
+                  pushError(errors, e)
+                  F.pure(Iterant.empty)
+                }
+            },
+            (es, exit) => {
+              es match {
+                case Left(_) => F.unit
+                case Right(s) =>
+                  try F.handleError(release(s, exit)) { e =>
+                    pushError(errors, e)
+                  } catch { case NonFatal(e) =>
+                    F.delay(pushError(errors, e))
+                  }
+              }
+            })
+
+        Concat(F.pure(lh), F.delay {
+          val err = errors.getAndSet(null)
+          if (err != null) {
+            f(err)
+          } else {
+            Iterant.empty
+          }
+        })
+      })
+    }
 
     def visit(ref: Last[F, A]): Iterant[F, A] =
       ref
@@ -106,14 +154,14 @@ private[tail] object IterantOnErrorHandleWith {
       }
 
     def fail(e: Throwable): Iterant[F, A] = {
-      errorHandled = true
+      wasErrorHandled = true
       Iterant.raiseError(e)
     }
 
-    def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
+    private def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
       rest.handleError(f).map(this)
 
-    def extractFromCursor(ref: BatchCursor[A]): Array[A] = {
+    private def extractFromCursor(ref: BatchCursor[A]): Array[A] = {
       var size = ref.recommendedBatchSize
       val buffer = ArrayBuffer.empty[A]
       while (size > 0 && ref.hasNext()) {
@@ -121,6 +169,17 @@ private[tail] object IterantOnErrorHandleWith {
         size -= 1
       }
       buffer.toArray[Any].asInstanceOf[Array[A]]
+    }
+
+    @tailrec
+    private def pushError(ref: Atomic[Throwable], e: Throwable): Unit = {
+      val current = ref.get
+      val update = current match {
+        case null => e
+        case e0 => Platform.composeErrors(e0, e)
+      }
+      if (!ref.compareAndSet(current, update))
+        pushError(ref, e)
     }
   }
 }

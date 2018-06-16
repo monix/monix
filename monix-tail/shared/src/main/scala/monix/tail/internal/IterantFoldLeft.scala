@@ -19,12 +19,10 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-
-import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
 import scala.collection.mutable
-import monix.execution.internal.collection.ArrayStack
+import scala.util.control.NonFatal
 
 private[tail] object IterantFoldLeft {
   /**
@@ -60,7 +58,6 @@ private[tail] object IterantFoldLeft {
     extends Iterant.Visitor[F, A, F[S]] { loop =>
 
     private[this] var state = seed
-    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
 
     def visit(ref: Next[F, A]): F[S] = {
       state = op(state, ref.item)
@@ -80,40 +77,24 @@ private[tail] object IterantFoldLeft {
     def visit(ref: Suspend[F, A]): F[S] =
       ref.rest.flatMap(loop)
 
-    def visit(ref: Concat[F, A]): F[S] = {
-      if (stack == null) stack = new ArrayStack()
-      stack.push(ref.rh)
-      ref.lh.flatMap(loop)
-    }
+    def visit(ref: Concat[F, A]): F[S] =
+      ref.lh.flatMap(loop).flatMap { _ => ref.rh.flatMap(loop) }
 
     def visit[R](ref: Resource[F, R, A]): F[S] =
       ref.runFold(loop)
 
     def visit(ref: Last[F, A]): F[S] = {
       state = op(state, ref.item)
-      continueOrFinish
+      F.pure(state)
     }
 
     def visit(ref: Halt[F, A]): F[S] =
       ref.e match {
-        case None =>
-          continueOrFinish
-        case Some(e) =>
-          F.raiseError(e)
+        case None => F.pure(state)
+        case Some(e) => F.raiseError(e)
       }
 
     def fail(e: Throwable): F[S] =
       F.raiseError(e)
-
-    private def continueOrFinish: F[S] = {
-      val next =
-        if (stack ne null) stack.pop()
-        else null.asInstanceOf[F[Iterant[F, A]]]
-
-      next match {
-        case null => F.pure(state)
-        case x => F.flatMap(x)(loop)
-      }
-    }
   }
 }

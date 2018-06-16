@@ -72,6 +72,8 @@ private[tail] object IterantDump {
       val oldPrefix = prefix
       val oldPos = pos
       out.println(s"$pos: $prefix --> concat")
+      pos += 1
+
       Concat(
         F.suspend {
           prefix = s"$oldPrefix --> concat-lh ($oldPos)"
@@ -86,14 +88,18 @@ private[tail] object IterantDump {
     def visit[S](ref: Resource[F, S, A]): Iterant[F, A] = {
       val oldPrefix = prefix
       val oldPos = pos
-      out.println(s"$pos: $prefix --> scope")
+      out.println(s"$pos: $prefix --> resource")
+      pos += 1
+
       Resource[F, S, A](
         ref.acquire.map { v =>
-          prefix = s"$oldPrefix --> scope ($oldPos)"
+          prefix = s"$oldPrefix --> resource ($oldPos)"
           v
         },
         AndThen(ref.use).andThen(moveNext),
         (s, ec) => F.suspend {
+          out.println(s"$pos: $prefix --> release")
+          pos += 1
           prefix = oldPrefix
           ref.release(s, ec)
         })
@@ -101,25 +107,34 @@ private[tail] object IterantDump {
 
     def visit(ref: Last[F, A]): Iterant[F, A] = {
       out.println(s"$pos: $prefix --> last --> ${ref.item}")
+      pos += 1
       Last(ref.item)
     }
 
     def visit(ref: Halt[F, A]): Iterant[F, A] = {
       out.println(s"$pos: $prefix --> halt --> ${ref.e.map(_.toString).getOrElse("no error")}")
+      pos += 1
       ref
     }
 
     def fail(e: Throwable): Iterant[F, A] = {
       out.println(s"$pos: $prefix --> unexpected error --> $e")
+      pos += 1
       Iterant.raiseError(e)
     }
 
     def moveNext(rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
       F.guaranteeCase(rest) {
         case ExitCase.Error(e) =>
-          F.delay(out.println(s"$pos: $prefix --> effect error --> $e"))
+          F.delay {
+            out.println(s"$pos: $prefix --> effect error --> $e")
+            pos += 1
+          }
         case ExitCase.Canceled =>
-          F.delay(out.println(s"$pos: $prefix --> effect cancelled"))
+          F.delay {
+            out.println(s"$pos: $prefix --> effect cancelled")
+            pos += 1
+          }
         case ExitCase.Completed =>
           F.unit
       }.map(this)

@@ -22,7 +22,8 @@ import cats.syntax.eq._
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
-import monix.execution.exceptions.DummyException
+import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.internal.Platform
 import monix.tail.batches.{Batch, BatchCursor}
 
 object IterantOnErrorSuite extends BaseTestSuite {
@@ -238,5 +239,126 @@ object IterantOnErrorSuite extends BaseTestSuite {
       Right(2),
       Left(dummy)
     ))
+  }
+
+  test("Resource.attempt with broken acquire") { _ =>
+    val dummy = DummyException("dummy")
+    val stream = 1 +: Iterant[Coeval].resource(Coeval.raiseError[Int](dummy))(_ => Coeval.unit)
+
+    assertEquals(
+      (stream :+ 2).attempt.toListL.value(),
+      Right(1) :: Left(dummy) :: Nil
+    )
+  }
+
+  test("Resource.attempt with broken use") { _ =>
+    val dummy = DummyException("dummy")
+    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+      Coeval(1),
+      _ => Coeval.raiseError[Iterant[Coeval, Int]](dummy),
+      (_, _) => Coeval.unit
+    )
+
+    assertEquals(
+      (stream :+ 2).attempt.toListL.value(),
+      Right(1) :: Left(dummy) :: Nil
+    )
+  }
+
+  test("Resource.attempt with broken release") { _ =>
+    val dummy = DummyException("dummy")
+    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+      Coeval(1),
+      i => Coeval(Iterant.pure(i + 1)),
+      (_, _) => Coeval.raiseError[Unit](dummy)
+    )
+
+    assertEquals(
+      (stream :+ 3).attempt.toListL.value(),
+      Right(1) :: Right(2) :: Left(dummy) :: Nil
+    )
+  }
+
+  test("Resource.attempt with broken use and release") { _ =>
+    val dummy1 = DummyException("dummy1")
+    val dummy2 = DummyException("dummy2")
+
+    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+      Coeval(1),
+      _ => Coeval.raiseError[Iterant[Coeval, Int]](dummy1),
+      (_, _) => Coeval.raiseError[Unit](dummy2)
+    )
+
+    val list = (stream :+ 2).attempt.toListL.value()
+    if (Platform.isJVM) {
+      assertEquals(list, Right(1) :: Left(dummy1) :: Nil)
+      assertEquals(dummy1.getSuppressed.toList, List(dummy2))
+    } else {
+      assertEquals(list.length, 2)
+      assertEquals(list.head, Right(1))
+      val two = list(1)
+      assert(two.isLeft && two.left.get.isInstanceOf[CompositeException])
+    }
+  }
+
+  test("Resource.onErrorHandleWith with broken acquire") { _ =>
+    val dummy = DummyException("dummy")
+    val stream = 1 +: Iterant[Coeval].resource(Coeval.raiseError[Int](dummy))(_ => Coeval.unit)
+
+    assertEquals(
+      (stream :+ 2).map(Right(_)).onErrorHandle(Left(_)).toListL.value(),
+      Right(1) :: Left(dummy) :: Nil
+    )
+  }
+
+  test("Resource.onErrorHandleWith with broken use") { _ =>
+    val dummy = DummyException("dummy")
+    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+      Coeval(1),
+      _ => Coeval.raiseError[Iterant[Coeval, Int]](dummy),
+      (_, _) => Coeval.unit
+    )
+
+    assertEquals(
+      (stream :+ 2).map(Right(_)).onErrorHandle(Left(_)).toListL.value(),
+      Right(1) :: Left(dummy) :: Nil
+    )
+  }
+
+
+  test("Resource.onErrorHandleWith with broken release") { _ =>
+    val dummy = DummyException("dummy")
+    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+      Coeval(1),
+      i => Coeval(Iterant.pure(i + 1)),
+      (_, _) => Coeval.raiseError[Unit](dummy)
+    )
+
+    assertEquals(
+      (stream :+ 3).map(Right(_)).onErrorHandle(Left(_)).toListL.value(),
+      Right(1) :: Right(2) :: Left(dummy) :: Nil
+    )
+  }
+
+  test("Resource.onErrorHandleWith with broken use and release") { _ =>
+    val dummy1 = DummyException("dummy1")
+    val dummy2 = DummyException("dummy2")
+
+    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+      Coeval(1),
+      _ => Coeval.raiseError[Iterant[Coeval, Int]](dummy1),
+      (_, _) => Coeval.raiseError[Unit](dummy2)
+    )
+
+    val list = (stream :+ 2).map(Right(_)).onErrorHandle(Left(_)).toListL.value()
+    if (Platform.isJVM) {
+      assertEquals(list, Right(1) :: Left(dummy1) :: Nil)
+      assertEquals(dummy1.getSuppressed.toList, List(dummy2))
+    } else {
+      assertEquals(list.length, 2)
+      assertEquals(list.head, Right(1))
+      val two = list(1)
+      assert(two.isLeft && two.left.get.isInstanceOf[CompositeException])
+    }
   }
 }

@@ -2029,14 +2029,10 @@ object Iterant extends IterantInstances {
     * @param acquire resource to acquire at the start of the stream
     * @param release function that releases the acquired resource
     */
-  def resource[F[_], A](acquire: F[A])
-    (release: A => F[Unit])
+  def resource[F[_], A](acquire: F[A])(release: A => F[Unit])
     (implicit F: Sync[F]): Iterant[F, A] = {
 
-    Resource[F, A, A](
-      acquire,
-      a => F.pure(Iterant.pure(a)),
-      (s, _) => release(s))
+    resourceCase(acquire)((a, _) => release(a))
   }
 
   /** Creates a stream that depends on resource allocated by a
