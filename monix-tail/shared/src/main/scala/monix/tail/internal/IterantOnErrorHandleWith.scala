@@ -18,9 +18,9 @@
 package monix.tail
 package internal
 
-import cats.effect.{ExitCase, Sync}
+import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.Platform
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
 
@@ -34,80 +34,44 @@ private[tail] object IterantOnErrorHandleWith {
   def apply[F[_], A](fa: Iterant[F, A], f: Throwable => Iterant[F, A])
     (implicit F: Sync[F]): Iterant[F, A] = {
 
-    val loop = new HandleWithLoop(f)
-    fa match {
-      case NextBatch(_, _) | NextCursor(_, _) | Concat(_, _) =>
-        // Suspending execution in order to preserve laziness and
-        // referential transparency
-        Suspend(F.delay(loop(fa)))
-      case _ =>
-        loop(fa)
-    }
+    Suspend(F.delay(new Loop(f).apply(fa)))
   }
 
-  /**
-    * Describing the loop as a class because we can control memory
-    * allocation better this way.
-    */
-  private final class HandleWithLoop[F[_], A](f: Throwable => Iterant[F, A])
+  private final class Loop[F[_], A](handler: Throwable => Iterant[F, A])
     (implicit F: Sync[F])
-    extends (Iterant[F, A] => Iterant[F, A]) { loop =>
+    extends Iterant.Visitor[F, A, Iterant[F, A]] { self =>
 
-    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
-
-    def apply(node: Iterant[F, A]): Iterant[F, A] =
-      try node match {
-        case Next(a, rest) =>
-          Next(a, continueWith(rest))
-        case node @ NextCursor(cursor, rest) =>
-          handleCursor(node, cursor, rest)
-        case NextBatch(batch, rest) =>
-          handleBatch(batch, rest)
-        case Suspend(rest) =>
-          Suspend(continueWith(rest))
-        case Last(_) | Halt(None) =>
-          handleLast(node)
-        case Halt(Some(e)) =>
-          f(e)
-        case Concat(lh, rh) =>
-          handleConcat(lh, rh)
-        case Scope(open, use, close) =>
-          handleScope(open, use, close)
-      } catch {
-        case e if NonFatal(e) => Halt(Some(e))
+    private[this] var errorHandled = false
+    private[this] val f = (e: Throwable) => {
+      self.errorHandled = true
+      try handler(e) catch { case e2 if NonFatal(e) =>
+        Iterant.raiseError[F, A](Platform.composeErrors(e, e2))
       }
-
-    def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
-      rest.handleError(f).map(this)
-
-    def extractBatch(ref: BatchCursor[A]): Array[A] = {
-      var size = ref.recommendedBatchSize
-      val buffer = ArrayBuffer.empty[A]
-      while (size > 0 && ref.hasNext()) {
-        buffer += ref.next()
-        size -= 1
-      }
-      buffer.toArray[Any].asInstanceOf[Array[A]]
     }
 
-    def handleBatch(batch: Batch[A], rest: F[Iterant[F, A]]): Iterant[F, A] = {
+    def visit(ref: Next[F, A]): Iterant[F, A] =
+      Next(ref.item, continueWith(ref.rest))
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] = {
       var handleError = true
       try {
-        val cursor = batch.cursor()
+        val cursor = ref.batch.cursor()
         handleError = false
-        handleCursor(NextCursor(cursor, rest), cursor, rest)
+        visit(NextCursor(cursor, ref.rest))
       } catch {
         case e if NonFatal(e) && handleError =>
           f(e)
       }
     }
 
-    def handleCursor(node: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]]): Iterant[F, A] = {
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
       try {
-        val array = extractBatch(cursor)
+        val array = extractFromCursor(ref.cursor)
         val next =
-          if (cursor.hasNext()) F.delay(loop(node))
-          else continueWith(rest)
+          if (ref.cursor.hasNext())
+            F.pure(ref).map(this)
+          else
+            continueWith(ref.rest)
 
         if (array.length != 0)
           NextBatch(Batch.fromArray(array), next)
@@ -118,45 +82,45 @@ private[tail] object IterantOnErrorHandleWith {
       }
     }
 
-    def handleConcat(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] = {
-      if (stack == null) stack = new ArrayStack()
-      stack.push(rh)
-      Suspend(continueWith(lh))
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(continueWith(ref.rest))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      Concat(ref.lh.map(this), F.suspend {
+        if (self.errorHandled)
+          F.pure(Iterant.empty[F, A])
+        else
+          ref.rh.map(this)
+      })
+
+    def visit(ref: Scope[F, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] =
+      ref
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref.e match {
+        case None => ref
+        case Some(e) => f(e)
+      }
+
+    def fail(e: Throwable): Iterant[F, A] = {
+      errorHandled = true
+      Iterant.raiseError(e)
     }
 
-    def handleLast(node: Iterant[F, A]): Iterant[F, A] = {
-      val next =
-        if (stack != null) stack.pop()
-        else null.asInstanceOf[F[Iterant[F, A]]]
+    def continueWith(rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
+      rest.handleError(f).map(this)
 
-      next match {
-        case null => node
-        case stream =>
-          node match {
-            case Last(a) => Next(a, continueWith(stream))
-            case _ => Suspend(continueWith(stream))
-          }
+    def extractFromCursor(ref: BatchCursor[A]): Array[A] = {
+      var size = ref.recommendedBatchSize
+      val buffer = ArrayBuffer.empty[A]
+      while (size > 0 && ref.hasNext()) {
+        buffer += ref.next()
+        size -= 1
       }
+      buffer.toArray[Any].asInstanceOf[Array[A]]
     }
-
-    def handleScope(open: F[Unit], use: F[Iterant[F, A]], close: ExitCase[Throwable] => F[Unit]): Iterant[F, A] =
-      Suspend {
-        open.attempt.map {
-          case Right(_) =>
-            var thrownRef: Throwable = null
-            val lh: Iterant[F, A] =
-              Scope(F.unit, use.map(loop), exit =>
-                F.suspend(F.handleError(close(exit)) { e =>
-                  thrownRef = e
-                }))
-
-            Concat(F.pure(lh), F.delay {
-              if (thrownRef == null) Iterant.empty
-              else Halt(Some(thrownRef))
-            })
-          case Left(ex) =>
-            f(ex)
-        }
-      }
   }
 }
