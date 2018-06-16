@@ -31,8 +31,10 @@ private[tail] object IterantDrop {
     Suspend(F.delay(new Loop(n).apply(source)))
   }
 
-  private class Loop[F[_], A](private[this] var toDrop: Int)(implicit F: Sync[F])
+  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] {
+
+    private[this] var toDrop: Int = n
 
     def visit(ref: Next[F, A]): Iterant[F, A] =
       if (toDrop <= 0) ref else {
