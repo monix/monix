@@ -315,6 +315,11 @@ def mimaSettings(projectName: String) = Seq(
     exclude[MissingClassProblem]("monix.execution.misc.NonFatal"),
       // Semi-Breakage - new method in sealed class
     exclude[ReversedMissingMethodProblem]("monix.execution.cancelables.StackedCancelable.tryReactivate"),
+    // Cats-Effect RC2 Upgrade
+    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.onCancelRaiseError"),
+    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.shift"),
+    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsAsyncForTask.shift"),
+    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentForTask.onCancelRaiseError"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),

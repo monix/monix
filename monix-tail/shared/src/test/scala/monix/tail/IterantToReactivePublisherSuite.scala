@@ -17,20 +17,20 @@
 
 package monix.tail
 
-import cats.laws._
-import cats.laws.discipline._
-import cats.effect.{Effect, ExitCase, IO}
-import monix.eval.Task
-import monix.execution.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.exceptions.DummyException
-import monix.execution.internal.Platform
-import monix.execution.rstreams.SingleAssignSubscription
-import monix.tail.batches.Batch
-import org.reactivestreams.{Subscriber, Subscription}
-
-import scala.util.{Failure, Success}
+//import cats.laws._
+//import cats.laws.discipline._
+//import cats.effect.{Effect, ExitCase, IO}
+//import monix.eval.Task
+//import monix.execution.ExecutionModel.AlwaysAsyncExecution
+//import monix.execution.exceptions.DummyException
+//import monix.execution.internal.Platform
+//import monix.execution.rstreams.SingleAssignSubscription
+//import monix.tail.batches.Batch
+//import org.reactivestreams.{Subscriber, Subscription}
+//import scala.util.{Failure, Success}
 
 object IterantToReactivePublisherSuite extends BaseTestSuite {
+//
 //  test("sum with Task and request(1)") { implicit s =>
 //    check1 { (stream: Iterant[Task, Int]) =>
 //      sum(stream, 1) <-> stream.foldLeftL(0L)(_ + _)
