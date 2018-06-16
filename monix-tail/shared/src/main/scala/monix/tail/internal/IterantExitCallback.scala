@@ -17,15 +17,17 @@
 
 package monix.tail.internal
 
+import cats.effect.ExitCase.Canceled
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.internal.Constants.canceledRef
 import monix.tail.internal.IterantUtils._
 import cats.syntax.all._
 import cats.effect.{ExitCase, Sync}
 import monix.execution.internal.Platform
+
 import scala.util.control.NonFatal
 import monix.tail.batches.BatchCursor
+
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantExitCallback {
@@ -87,10 +89,10 @@ private[tail] object IterantExitCallback {
       try fa match {
         case Next(a, lt, stop) =>
           val rest = tailGuard(lt, stop).map(loop)
-          Next(a, rest, stop.flatMap(_ => f(canceledRef)))
+          Next(a, rest, stop.flatMap(_ => f(Canceled)))
 
         case NextCursor(cursor, rest, stop) =>
-          val stopE = stop.flatMap(_ => f(canceledRef))
+          val stopE = stop.flatMap(_ => f(Canceled))
           try {
             val array = extractBatch(cursor)
             val next =
@@ -113,7 +115,7 @@ private[tail] object IterantExitCallback {
           }
 
         case NextBatch(batch, rest, stop) =>
-          val stopE = stop.flatMap(_ => f(canceledRef))
+          val stopE = stop.flatMap(_ => f(Canceled))
           try {
             loop(NextCursor(batch.cursor(), rest, stopE))
           } catch {
@@ -123,12 +125,12 @@ private[tail] object IterantExitCallback {
 
         case Suspend(rest, stop) =>
           val fa = tailGuard(rest, stop).map(loop)
-          Suspend(fa, stop.flatMap(_ => f(canceledRef)))
+          Suspend(fa, stop.flatMap(_ => f(Canceled)))
 
         case Halt(Some(e)) =>
           // In case `f` throws, we must still throw the original error
           try
-            Suspend(f(ExitCase.Error(e)).attempt.map(_ => fa), F.suspend(f(canceledRef)))
+            Suspend(f(ExitCase.Error(e)).attempt.map(_ => fa), F.suspend(f(Canceled)))
           catch {
             case err if NonFatal(err) =>
               Halt(Some(Platform.composeErrors(e, err)))
@@ -145,7 +147,7 @@ private[tail] object IterantExitCallback {
               case NonFatal(e) =>
                 F.pure(Halt(Some(e)))
             },
-            F.suspend(f(canceledRef))
+            F.suspend(f(Canceled))
           )
 
       } catch {
@@ -156,6 +158,6 @@ private[tail] object IterantExitCallback {
       }
     }
 
-    Suspend(F.delay(loop(fa)), fa.earlyStop.flatMap(_ => f(canceledRef)))
+    Suspend(F.delay(loop(fa)), fa.earlyStop.flatMap(_ => f(Canceled)))
   }
 }

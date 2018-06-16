@@ -12,7 +12,7 @@ addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.1.0"
-val catsEffectVersion = "1.0.0-RC"
+val catsEffectVersion = "1.0.0-RC2"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
@@ -315,6 +315,11 @@ def mimaSettings(projectName: String) = Seq(
     exclude[MissingClassProblem]("monix.execution.misc.NonFatal"),
       // Semi-Breakage - new method in sealed class
     exclude[ReversedMissingMethodProblem]("monix.execution.cancelables.StackedCancelable.tryReactivate"),
+    // Cats-Effect RC2 Upgrade
+    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.onCancelRaiseError"),
+    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.shift"),
+    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsAsyncForTask.shift"),
+    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentForTask.onCancelRaiseError"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),

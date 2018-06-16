@@ -323,7 +323,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   }
 
   def sum[F[_]](stream: Iterant[F, Int], request: Long)(implicit F: Effect[F]): Task[Long] =
-    Task.cancelableS { (scheduler, cb) =>
+    Task.cancelable0 { (scheduler, cb) =>
       implicit val ec = scheduler
       val subscription = SingleAssignSubscription()
 
@@ -360,20 +360,24 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     }
 
   class CustomIOEffect extends Effect[IO] {
+    def runSyncStep[A](fa: IO[A]): IO[Either[IO[A], A]] =
+      fa.runSyncStep
     def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
       fa.runAsync(cb)
     def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
       IO.async(k)
+    def asyncF[A](k: ((Either[Throwable, A]) => Unit) => IO[Unit]): IO[A] =
+      IO.asyncF(k)
     def suspend[A](thunk: => IO[A]): IO[A] =
       IO.suspend(thunk)
     def flatMap[A, B](fa: IO[A])(f: (A) => IO[B]): IO[B] =
       fa.flatMap(f)
     def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
-      IO.ioConcurrentEffect.tailRecM(a)(f)
+      IO.ioEffect.tailRecM(a)(f)
     def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
     def handleErrorWith[A](fa: IO[A])(f: (Throwable) => IO[A]): IO[A] =
-      IO.ioConcurrentEffect.handleErrorWith(fa)(f)
+      IO.ioEffect.handleErrorWith(fa)(f)
     def pure[A](x: A): IO[A] =
       IO.pure(x)
     override def liftIO[A](ioa: IO[A]): IO[A] =

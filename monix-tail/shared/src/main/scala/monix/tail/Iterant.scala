@@ -2565,6 +2565,8 @@ private[tail] trait IterantInstances1 extends IterantInstances0 {
 
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Iterant[F, A] =
       Iterant.liftF(F.async(k))
+    override def asyncF[A](k: (Either[Throwable, A] => Unit) => Iterant[F, Unit]): Iterant[F, A] =
+      Iterant.liftF(F.asyncF(cb => k(cb).completeL))
   }
 }
 

@@ -19,6 +19,7 @@ package monix.eval
 package internal
 
 import monix.eval.Task.{Async, Context}
+import monix.execution.annotations.UnsafeProtocol
 import monix.execution.{Cancelable, Scheduler}
 
 private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
@@ -130,16 +131,16 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
 
 private[eval] abstract class TaskBinCompatCompanion {
 
-  /** DEPRECATED — please switch to [[Task.cancelableS[A](register* Task.cancelableS]].
+  /** DEPRECATED — please switch to [[Task.cancelable0[A](register* Task.cancelable0]].
     *
     * The reason for the deprecation is that the `Task.async` builder
     * is now aligned to the meaning of `cats.effect.Async` and thus
     * must yield tasks that are not cancelable.
     */
-  @deprecated("Renamed to Task.cancelableS", since="3.0.0-RC2")
+  @deprecated("Renamed to Task.cancelable0", since="3.0.0-RC2")
   private[internal] def async[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
     // $COVERAGE-OFF$
-    Task.cancelableS(register)
+    Task.cancelable0(register)
     // $COVERAGE-ON$
   }
 
@@ -149,7 +150,7 @@ private[eval] abstract class TaskBinCompatCompanion {
   @deprecated("Changed signature", since="3.0.0-RC2")
   private[internal] def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
     // $COVERAGE-OFF$
-    TaskCreate.cancelableS(register)
+    TaskCreate.cancelable0(register)
     // $COVERAGE-ON$
   }
 
@@ -157,8 +158,8 @@ private[eval] abstract class TaskBinCompatCompanion {
     *
     * Alternatives:
     *
-    *  - [[Task.cancelableS[A](register* Task.cancelable]]
-    *  - [[Task.asyncS[A](register* Task.simple]]
+    *  - [[Task.cancelable0[A](register* Task.cancelable]]
+    *  - [[Task.async0[A](register* Task.simple]]
     *  - [[Task.create]]
     *  - [[Task.deferAction]]
     *
@@ -168,6 +169,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     *
     * This method is scheduled for removal, migrate away from it ASAP.
     */
+  @UnsafeProtocol
   @deprecated("Switch to Task.create", since = "3.0.0-RC2")
   def unsafeCreate[A](register: (Context, Callback[A]) => Unit): Task[A] = {
     // $COVERAGE-OFF$

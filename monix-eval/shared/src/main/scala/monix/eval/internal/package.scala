@@ -15,14 +15,11 @@
  * limitations under the License.
  */
 
-package monix.tail
-package internal
+package monix.eval
 
-import monix.tail.Iterant.Halt
+import monix.eval.Task.Context
 
-private[tail] object Constants {
-  /**
-    * Internal API — reusable reference.
-    */
-  val emptyRef = Halt(None)
+package object internal {
+  /** Handy alias for building `Task.Async` nodes. */
+  private[eval] type Start[+A] = (Context, Callback[A]) => Unit
 }

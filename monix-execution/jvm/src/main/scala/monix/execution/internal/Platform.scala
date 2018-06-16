@@ -137,16 +137,10 @@ private[monix] object Platform {
     * available since Java 7. On top of JavaScript the function would return
     * a `CompositeException`.
     */
-  def composeErrors(first: Throwable, rest: Throwable*): Throwable =
-    if (rest.isEmpty) first else {
-      val cursor = rest.iterator
-      while (cursor.hasNext) {
-        val next = cursor.next()
-        if (first ne next)
-          first.addSuppressed(next)
-      }
-      first
-    }
+  def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
+    for (e <- rest; if e ne first) first.addSuppressed(e)
+    first
+  }
 
   /** Useful utility that combines an `Either` result, which is what
     * `MonadError#attempt` returns.

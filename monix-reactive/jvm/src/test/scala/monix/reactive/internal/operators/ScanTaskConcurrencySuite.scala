@@ -61,7 +61,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
   test(s"scanTask should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
     def never(): (Future[Unit], Task[Int]) = {
       val isCancelled = Promise[Unit]()
-      val ref = Task.cancelableS[Int]((_, _) => Cancelable(() => isCancelled.success(())))
+      val ref = Task.cancelable0[Int]((_, _) => Cancelable(() => isCancelled.success(())))
       (isCancelled.future, ref)
     }
 
@@ -81,7 +81,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
 
   test(s"scanTask should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
     def one(p: Promise[Unit])(acc: Long, x: Long): Task[Long] =
-      Task.cancelableS { (sc, cb) =>
+      Task.cancelable0 { (sc, cb) =>
         val ref = BooleanCancelable(() => p.trySuccess(()))
         sc.executeAsync(() => if (!ref.isCanceled) cb.onSuccess(x))
         ref

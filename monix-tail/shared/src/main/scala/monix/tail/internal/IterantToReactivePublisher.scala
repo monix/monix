@@ -97,7 +97,7 @@ private[tail] object IterantToReactivePublisher {
       F.asInstanceOf[Any] match {
         case _: CatsBaseForTask =>
           (fa, cb) => fa.asInstanceOf[Task[Iterant[F, A]]].runAsync(cb)
-        case IO.ioConcurrentEffect =>
+        case IO.ioEffect =>
           (fa, cb) => fa.asInstanceOf[IO[Iterant[F, A]]].unsafeRunAsync(r => cb(r))
         case _ =>
           val cb = Callback.empty[Unit]
@@ -135,7 +135,7 @@ private[tail] object IterantToReactivePublisher {
     // `IO` and thus avoid some boxing.
     private val runAsync: F[Unit] => Unit = {
       F.asInstanceOf[Any] match {
-        case IO.ioConcurrentEffect =>
+        case IO.ioEffect =>
           val cb = Callback.empty[Unit]
           val ecb: Either[Throwable, Unit] => Unit = r => cb(r)
           fa => fa.asInstanceOf[IO[Unit]].unsafeRunAsync(ecb)
