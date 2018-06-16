@@ -19,13 +19,9 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.ArrayStack
-
-import scala.util.control.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.batches.BatchCursor
-
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantTakeWhileWithIndex {
@@ -36,112 +32,96 @@ private[tail] object IterantTakeWhileWithIndex {
 
   private class Loop[F[_], A](p: (A, Long) => Boolean)
     (implicit F: Sync[F])
-    extends (Iterant[F, A] => Iterant[F, A]) { loop =>
+    extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
 
-    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
-    private[this] var index = 0L
+    private[this] var isActive = true
+    private[this] var index = 0
 
-    def apply(source: Iterant[F, A]): Iterant[F, A] = {
-      try source match {
-        case Next(item, rest) =>
-          handleNext(item, rest)
-        case ref@NextCursor(_, _) =>
-          processCursor(ref)
-        case NextBatch(batch, rest) =>
-          processCursor(NextCursor(batch.cursor(), rest))
-        case Suspend(rest) =>
-          Suspend(rest.map(loop))
-        case Last(elem) =>
-          handleLast(elem)
-        case halt@Halt(None) =>
-          handleHalt(halt)
-        case halt@Halt(Some(_)) =>
-          halt
-        case s@Scope(_, _, _) =>
-          s.runMap(loop)
-        case Concat(lh, rh) =>
-          handleConcat(lh, rh)
-      } catch {
-        case ex if NonFatal(ex) =>
-          Halt(Some(ex))
-      }
+    private def getAndIncrement(): Int = {
+      val old = index
+      index = old + 1
+      old
     }
 
-    private def handleNext(elem: A, rest: F[Iterant[F, A]]): Iterant[F, A] = {
-      if (p(elem, index)) {
-        index += 1L
-        Next(elem, rest.map(loop))
-      }
+    def visit(ref: Next[F, A]): Iterant[F, A] = {
+      val item = ref.item
+      if (p(item, getAndIncrement()))
+        Next(item, ref.rest.map(this))
       else {
-        // gc relief
-        stack = null
+        isActive = false
         Iterant.empty
       }
     }
 
-    private def handleLast(elem: A): Iterant[F, A] = {
-      if (p(elem, index)) {
-        val next =
-          if (stack != null) stack.pop()
-          else null.asInstanceOf[F[Iterant[F, A]]]
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      visit(ref.toNextCursor())
 
-        next match {
-          case null => Last(elem)
-          case stream => index += 1l; Next(elem, stream.map(loop))
-        }
-      } else {
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      Concat(
+        ref.lh.map(this),
+        F.suspend {
+          if (isActive)
+            ref.rh.map(this)
+          else
+            F.pure(Iterant.empty)
+        })
+
+    def visit(ref: Scope[F, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] = {
+      val item = ref.item
+      if (p(item, getAndIncrement())) ref else {
+        isActive = false
         Iterant.empty
       }
     }
 
-    private def handleHalt(halt: Halt[F, A]): Iterant[F, A] = {
-      val next =
-        if (stack != null) stack.pop()
-        else null.asInstanceOf[F[Iterant[F, A]]]
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref
 
-      next match {
-        case null => halt
-        case stream => Suspend(stream.map(loop))
-      }
-    }
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
 
-    private def handleConcat(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] = {
-      if (stack == null) stack = new ArrayStack()
-      stack.push(rh)
-      Suspend(lh.map(loop))
-    }
-
-    def processCursor(ref: NextCursor[F, A]): Iterant[F, A] = {
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
       val NextCursor(cursor, rest) = ref
       val batchSize = cursor.recommendedBatchSize
 
       if (!cursor.hasNext())
-        Suspend(rest.map(loop))
+        Suspend(rest.map(this))
       else if (batchSize <= 1) {
         val item = cursor.next()
-        if (p(item, index)) { index += 1L; Next(item, F.pure(ref).map(loop)) }
-        else Iterant.empty
+        if (p(item, getAndIncrement()))
+          Next(item, F.pure(ref).map(this))
+        else {
+          isActive = false
+          Iterant.empty
+        }
       }
       else {
         val buffer = ArrayBuffer.empty[A]
         var continue = true
-        var cursorIndex = 0
+        var idx = 0
 
-        while (continue && cursorIndex < batchSize && cursor.hasNext()) {
+        while (continue && idx < batchSize && cursor.hasNext()) {
           val item = cursor.next()
-          if (p(item, index + cursorIndex)) {
+          if (p(item, getAndIncrement())) {
             buffer += item
-            cursorIndex += 1
+            idx += 1
           } else {
             continue = false
           }
         }
 
         val bufferCursor = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]]
+        isActive = continue
+
         if (continue) {
-          val next: F[Iterant[F, A]] = if (cursorIndex < batchSize) rest else F.pure(ref)
-          index += cursorIndex
-          NextCursor(bufferCursor, next.map(loop))
+          val next: F[Iterant[F, A]] = if (idx < batchSize) rest else F.pure(ref)
+          NextCursor(bufferCursor, next.map(this))
         } else {
           NextCursor(bufferCursor, F.pure(Iterant.empty))
         }
