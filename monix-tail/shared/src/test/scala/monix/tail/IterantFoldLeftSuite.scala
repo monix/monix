@@ -256,7 +256,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assertEquals(effect, 3)
   }
 
-  test("foldLeftL handles Resource correctly") { implicit s =>
+  test("foldLeftL handles Scope's release before the rest of the stream") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 
@@ -274,5 +274,26 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     })
 
     assertEquals(stream.toListL.value(), List(1))
+  }
+
+  test("foldLeftL handles Scope's release after use is finished") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val stream = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(1 +: Iterant[Coeval].suspend {
+        if (triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }),
+      (_, _) => {
+        Coeval(triggered.set(true))
+      }
+    )
+
+
+    assertEquals((0 +: stream :+ 2).toListL.value(), List(0, 1, 2))
   }
 }

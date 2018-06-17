@@ -59,7 +59,11 @@ private[tail] object IterantFoldLeftL {
     (implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[S]] { loop =>
 
+    /** Current calculated state. */
     private[this] var state = seed
+
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Used in visit(Concat)
     private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
@@ -71,6 +75,13 @@ private[tail] object IterantFoldLeftL {
       if (stackRef != null) stackRef.pop()
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
+
+    private[this] val concatContinue: (S => F[S]) =
+      state => stackPop() match {
+        case null => F.pure(state)
+        case xs => xs.flatMap(loop)
+      }
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[S] = {
       state = op(state, ref.item)
@@ -90,9 +101,10 @@ private[tail] object IterantFoldLeftL {
     def visit(ref: Suspend[F, A]): F[S] =
       ref.rest.flatMap(loop)
 
+
     def visit(ref: Concat[F, A]): F[S] = {
       stackPush(ref.rh)
-      ref.lh.flatMap(loop)
+      ref.lh.flatMap(loop).flatMap(concatContinue)
     }
 
     def visit[R](ref: Scope[F, R, A]): F[S] =
@@ -100,24 +112,15 @@ private[tail] object IterantFoldLeftL {
 
     def visit(ref: Last[F, A]): F[S] = {
       state = op(state, ref.item)
-      stackPop() match {
-        case null => F.pure(state)
-        case xs => xs.flatMap(this)
-      }
+      F.pure(state)
     }
 
     def visit(ref: Halt[F, A]): F[S] =
       ref.e match {
-        case None =>
-          stackPop() match {
-            case null => F.pure(state)
-            case xs => xs.flatMap(this)
-          }
-        case Some(e) =>
-          F.raiseError(e)
+        case None => F.pure(state)
+        case Some(e) => F.raiseError(e)
       }
 
     def fail(e: Throwable): F[S] =
-      F.raiseError(e)
-  }
+      F.raiseError(e)}
 }

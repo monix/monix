@@ -36,7 +36,7 @@ package object internal {
       F.pure(self.copy(use = AndThen(self.use).andThen(F.flatMap(_)(f))))
 
     def runFold[B](f: Iterant[F, A] => F[B])(implicit F: Sync[F]): F[B] =
-      F.bracketCase(self.acquire)(self.use)(self.release).flatMap(f)
+      F.bracketCase(self.acquire)(AndThen(self.use).andThen(_.flatMap(f)))(self.release)
   }
 
   /**

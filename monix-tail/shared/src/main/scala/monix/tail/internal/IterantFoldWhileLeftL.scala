@@ -21,7 +21,7 @@ package internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ArrayStack
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Suspend, Scope}
 import monix.tail.batches.BatchCursor
 
 private[tail] object IterantFoldWhileLeftL {
@@ -31,7 +31,13 @@ private[tail] object IterantFoldWhileLeftL {
   def strict[F[_], A, S](self: Iterant[F, A], seed: => S, f: (S, A) => Either[S, S])
     (implicit F: Sync[F]): F[S] = {
 
-    F.delay(seed).flatMap { state => new StrictLoop(state, f).apply(self) }
+    F.delay(seed).flatMap { state =>
+      new StrictLoop(state, f).apply(self)
+        .map {
+          case Right(r) => r
+          case Left(l) => l
+        }
+    }
   }
 
   /**
@@ -40,14 +46,23 @@ private[tail] object IterantFoldWhileLeftL {
   def eval[F[_], A, S](self: Iterant[F, A], seed: F[S], f: (S, A) => F[Either[S, S]])
     (implicit F: Sync[F]): F[S] = {
 
-    seed.flatMap { state => new LazyLoop(state, f).apply(self) }
+    seed.flatMap { state =>
+      new LazyLoop(state, f).apply(self)
+        .map {
+          case Left(l) => l
+          case Right(r) => r
+        }
+    }
   }
 
   private class StrictLoop[F[_], A, S](seed: S, f: (S, A) => Either[S, S])
     (implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, F[S]] { self =>
+    extends Iterant.Visitor[F, A, F[Either[S, S]]] { self =>
 
     private[this] var state: S = seed
+
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Used in visit(Concat)
     private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
@@ -60,66 +75,64 @@ private[tail] object IterantFoldWhileLeftL {
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
 
-    def visit(ref: Next[F, A]): F[S] =
+    private[this] val concatContinue: (Either[S, S] => F[Either[S, S]]) = {
+      case left @ Left(_) =>
+        stackPop() match {
+          case null => F.pure(left)
+          case xs => xs.flatMap(self)
+        }
+      case right =>
+        F.pure(right)
+    }
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    def visit(ref: Next[F, A]): F[Either[S, S]] =
       f(state, ref.item) match {
         case Left(s) =>
           state = s
           ref.rest.flatMap(this)
-        case Right(s) =>
-          F.pure(s)
+        case value @ Right(s) =>
+          state = s
+          F.pure(value)
       }
 
-    def visit(ref: NextBatch[F, A]): F[S] =
+    def visit(ref: NextBatch[F, A]): F[Either[S, S]] =
       process(ref.batch.cursor(), ref.rest)
 
-    def visit(ref: NextCursor[F, A]): F[S] =
+    def visit(ref: NextCursor[F, A]): F[Either[S, S]] =
       process(ref.cursor, ref.rest)
 
-    def visit(ref: Suspend[F, A]): F[S] =
+    def visit(ref: Suspend[F, A]): F[Either[S, S]] =
       ref.rest.flatMap(this)
 
-    def visit(ref: Concat[F, A]): F[S] = {
+    def visit(ref: Concat[F, A]): F[Either[S, S]] = {
       stackPush(ref.rh)
-      ref.lh.flatMap(this)
+      ref.lh.flatMap(this).flatMap(concatContinue)
     }
 
-    def visit[R](ref: Scope[F, R, A]): F[S] =
+    def visit[R](ref: Scope[F, R, A]): F[Either[S, S]] =
       ref.runFold(this)
 
-    def visit(ref: Last[F, A]): F[S] =
+    def visit(ref: Last[F, A]): F[Either[S, S]] =
       f(state, ref.item) match {
-        case Right(s) => F.pure(s)
-
-        case Left(s) =>
-          stackPop() match {
-            case null =>
-              // Not complete ;-)
-              F.pure(s)
-            case xs =>
-              state = s
-              xs.flatMap(this)
-          }
+        case left @ Left(s) =>
+          state = s
+          F.pure(left)
+        case right @ Right(s) =>
+          state = s
+          F.pure(right)
       }
 
-    def visit(ref: Halt[F, A]): F[S] =
+    def visit(ref: Halt[F, A]): F[Either[S, S]] =
       ref.e match {
-        case None =>
-          stackPop() match {
-            case null =>
-              // Not complete ;-)
-              F.pure(state)
-            case xs =>
-              xs.flatMap(this)
-          }
-        case Some(e) =>
-          F.raiseError(e)
+        case None => F.pure(Left(state))
+        case Some(e) => F.raiseError(e)
       }
 
-    def fail(e: Throwable): F[S] = {
+    def fail(e: Throwable): F[Either[S, S]] =
       F.raiseError(e)
-    }
 
-    def process(cursor: BatchCursor[A], rest: F[Iterant[F, A]]): F[S] = {
+    def process(cursor: BatchCursor[A], rest: F[Iterant[F, A]]): F[Either[S, S]] = {
       var hasResult = false
 
       while (!hasResult && cursor.hasNext()) {
@@ -133,7 +146,7 @@ private[tail] object IterantFoldWhileLeftL {
       }
 
       if (hasResult) {
-        F.pure(state)
+        F.pure(Right(state))
       } else {
         rest.flatMap(this)
       }
@@ -142,9 +155,12 @@ private[tail] object IterantFoldWhileLeftL {
 
   private class LazyLoop[F[_], A, S](seed: S, f: (S, A) => F[Either[S, S]])
     (implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, F[S]] { self =>
+    extends Iterant.Visitor[F, A, F[Either[S, S]]] { self =>
 
     private[this] var state: S = seed
+
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Used in visit(Concat)
     private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
@@ -157,71 +173,74 @@ private[tail] object IterantFoldWhileLeftL {
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
 
-    def visit(ref: Next[F, A]): F[S] =
+    private[this] val concatContinue: (Either[S, S] => F[Either[S, S]]) = {
+      case left @ Left(_) =>
+        stackPop() match {
+          case null => F.pure(left)
+          case xs => xs.flatMap(self)
+        }
+      case right =>
+        F.pure(right)
+    }
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    def visit(ref: Next[F, A]): F[Either[S, S]] =
       f(state, ref.item).flatMap {
         case Left(s) =>
           state = s
           ref.rest.flatMap(this)
-        case Right(s) =>
-          F.pure(s)
+        case right @ Right(s) =>
+          state = s
+          F.pure(right)
       }
 
-    def visit(ref: NextBatch[F, A]): F[S] =
+    def visit(ref: NextBatch[F, A]): F[Either[S, S]] =
       visit(ref.toNextCursor())
 
-    def visit(ref: NextCursor[F, A]): F[S] = {
+    def visit(ref: NextCursor[F, A]): F[Either[S, S]] = {
       val cursor = ref.cursor
       if (!cursor.hasNext()) {
-        ref.rest.flatMap(self)
+        ref.rest.flatMap(this)
       } else {
         f(state, cursor.next()).flatMap {
-          case Left(s) =>
-            state = s
+          case Left(l) =>
+            state = l
             F.pure(ref).flatMap(this)
-          case Right(s) =>
-            F.pure(s)
+          case value @ Right(r) =>
+            state = r
+            F.pure(value)
         }
       }
     }
 
-    def visit(ref: Suspend[F, A]): F[S] =
+    def visit(ref: Suspend[F, A]): F[Either[S, S]] =
       ref.rest.flatMap(this)
 
-    def visit(ref: Concat[F, A]): F[S] = {
+    def visit(ref: Concat[F, A]): F[Either[S, S]] = {
       stackPush(ref.rh)
-      ref.lh.flatMap(this)
+      ref.lh.flatMap(this).flatMap(concatContinue)
     }
 
-    def visit[R](ref: Scope[F, R, A]): F[S] =
+    def visit[R](ref: Scope[F, R, A]): F[Either[S, S]] =
       ref.runFold(this)
 
-    def visit(ref: Last[F, A]): F[S] =
+    def visit(ref: Last[F, A]): F[Either[S, S]] =
       f(state, ref.item).flatMap {
-        case Right(s) => F.pure(s)
-
-        case Left(s) =>
-          stackPop() match {
-            case null => F.pure(s)
-            case xs =>
-              state = s
-              xs.flatMap(this)
-          }
+        case left @ Left(l) =>
+          state = l
+          F.pure(left)
+        case right @ Right(r) =>
+          state = r
+          F.pure(right)
       }
 
-    def visit(ref: Halt[F, A]): F[S] =
+    def visit(ref: Halt[F, A]): F[Either[S, S]] =
       ref.e match {
-        case None =>
-          stackPop() match {
-            case null =>
-              F.pure(state)
-            case xs =>
-              xs.flatMap(this)
-          }
-        case Some(e) =>
-          F.raiseError(e)
+        case None => F.pure(Left(state))
+        case Some(e) => F.raiseError(e)
       }
 
-    def fail(e: Throwable): F[S] =
+    def fail(e: Throwable): F[Either[S, S]] =
       F.raiseError(e)
   }
 }

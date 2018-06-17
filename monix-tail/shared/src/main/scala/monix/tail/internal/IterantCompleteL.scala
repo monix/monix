@@ -19,6 +19,7 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
@@ -36,6 +37,27 @@ private[tail] object IterantCompleteL {
   private final class Loop[F[_], A](implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Unit]] {
 
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Used in visit(Concat)
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+
+    private def stackPush(item: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(item)
+    }
+
+    private def stackPop(): F[Iterant[F, A]] = {
+      if (stackRef != null) stackRef.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+    }
+
+    private[this] val concatContinue: (Unit => F[Unit]) =
+      _ => stackPop() match {
+        case null => F.unit
+        case xs => xs.flatMap(this)
+      }
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
     def visit(ref: Next[F, A]): F[Unit] =
       ref.rest.flatMap(this)
 
@@ -48,8 +70,10 @@ private[tail] object IterantCompleteL {
     def visit(ref: Suspend[F, A]): F[Unit] =
       ref.rest.flatMap(this)
 
-    def visit(ref: Concat[F, A]): F[Unit] =
-      ref.lh.flatMap(this).flatMap(_ => ref.rh.flatMap(this))
+    def visit(ref: Concat[F, A]): F[Unit] = {
+      stackPush(ref.rh)
+      ref.lh.flatMap(this).flatMap(concatContinue)
+    }
 
     def visit[S](ref: Scope[F, S, A]): F[Unit] =
       ref.runFold(this)
