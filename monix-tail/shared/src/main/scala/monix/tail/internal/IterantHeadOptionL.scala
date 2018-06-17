@@ -42,6 +42,8 @@ private[tail] object IterantHeadOptionL {
   private final class Loop[F[_], A](implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Option[A]]] {
 
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Used in visit(Concat)
     private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
@@ -53,6 +55,17 @@ private[tail] object IterantHeadOptionL {
       if (stackRef != null) stackRef.pop()
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
+
+    private[this] val concatContinue: (Option[A] => F[Option[A]]) = {
+      case None =>
+        stackPop() match {
+          case null => F.pure(None)
+          case xs => xs.flatMap(this)
+        }
+      case some =>
+        F.pure(some)
+    }
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[Option[A]] =
       F.pure(Some(ref.item))
@@ -68,7 +81,7 @@ private[tail] object IterantHeadOptionL {
 
     def visit(ref: Concat[F, A]): F[Option[A]] = {
       stackPush(ref.rh)
-      ref.lh.flatMap(this)
+      ref.lh.flatMap(this).flatMap(concatContinue)
     }
 
     def visit[S](ref: Scope[F, S, A]): F[Option[A]] =
@@ -80,11 +93,7 @@ private[tail] object IterantHeadOptionL {
     def visit(ref: Halt[F, A]): F[Option[A]] =
       ref.e match {
         case Some(e) => F.raiseError(e)
-        case None =>
-          stackPop() match {
-            case null => F.pure(None)
-            case xs => xs.flatMap(this)
-          }
+        case None => F.pure(None)
       }
 
     def fail(e: Throwable): F[Option[A]] =

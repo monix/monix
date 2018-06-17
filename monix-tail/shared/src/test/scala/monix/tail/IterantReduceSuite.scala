@@ -20,9 +20,9 @@ package monix.tail
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.Batch
-
 import scala.util.Failure
 
 object IterantReduceSuite extends BaseTestSuite {
@@ -30,6 +30,13 @@ object IterantReduceSuite extends BaseTestSuite {
     check2 { (stream: Iterant[Coeval, Int], op: (Int, Int) => Int) =>
       val received = stream.reduceL(op)
       val expected = stream.foldLeftL(Option.empty[Int])((acc, e) => Some(acc.fold(e)(s => op(s, e))))
+
+      val l1 = received.runAttempt()
+      val l2 = expected.runAttempt()
+      if (l1 != l2) {
+        println(s"$l1 != $l2")
+      }
+
       received <-> expected
     }
   }
@@ -163,5 +170,45 @@ object IterantReduceSuite extends BaseTestSuite {
 
     assertEquals(node1.reduceL((_, el) => el).runTry(), Failure(dummy))
     assertEquals(effect, 6)
+  }
+
+  test("reduceL handles Scope's release before the rest of the stream") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val lh = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.pure(1)),
+      (_, _) => Coeval(triggered.set(true))
+    )
+
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    assertEquals(stream.reduceL(_ + _).value(), Some(1))
+  }
+
+  test("reduceL handles Scope's release after use is finished") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val stream = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(2 +: Iterant[Coeval].suspend {
+        if (triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }),
+      (_, _) => {
+        Coeval(triggered.set(true))
+      }
+    )
+
+    assertEquals((1 +: stream :+ 3).reduceL(_ + _).value(), Some(6))
   }
 }

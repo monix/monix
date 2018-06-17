@@ -124,29 +124,6 @@ object IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldRightL handles Resource correctly") { implicit s =>
-    val triggered = Atomic(false)
-    val fail = DummyException("fail")
-
-    val lh = Iterant[Coeval].scopeS[Unit, Int](
-      Coeval.unit,
-      _ => Coeval(Iterant.pure(1)),
-      (_, _) => Coeval(triggered.set(true))
-    )
-
-    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-      if (!triggered.getAndSet(true))
-        Iterant[Coeval].raiseError[Int](fail)
-      else
-        Iterant[Coeval].empty[Int]
-    })
-
-    val list = stream.foldRightL(Coeval(List.empty[Int])) { (e, list) =>
-      list.map(l => e :: l)
-    }
-    assertEquals(list.value(), List(1))
-  }
-
   test("find (via foldRightL) is consistent with List.find") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
       val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
@@ -187,5 +164,28 @@ object IterantFoldRightSuite extends BaseTestSuite {
 
     assertEquals(r, Failure(dummy))
     assertEquals(effect, 1)
+  }
+
+  test("foldRightL handles Scope's release before the rest of the stream") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val lh = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.pure(1)),
+      (_, _) => Coeval(triggered.set(true))
+    )
+
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    val list = stream.foldRightL(Coeval(List.empty[Int])) { (e, list) =>
+      list.map(l => e :: l)
+    }
+    assertEquals(list.value(), List(1))
   }
 }

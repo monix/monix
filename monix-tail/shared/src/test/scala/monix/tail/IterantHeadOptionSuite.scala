@@ -20,6 +20,7 @@ package monix.tail
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.{Batch, BatchCursor}
 
@@ -92,5 +93,47 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     assertEquals(effect, 0)
     assertEquals(fa.runTry(), Failure(dummy))
     assertEquals(effect, 1)
+  }
+
+  test("headOptionL handles Scope's release before the rest of the stream") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val lh = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.empty),
+      (_, _) => Coeval(triggered.set(true))
+    )
+
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    assertEquals(stream.headOptionL.value(), None)
+  }
+
+  test("headOptionL handles Scope's release after use is finished") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val stream = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.empty ++ Iterant[Coeval].suspend {
+        if (triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }),
+      (_, _) => {
+        Coeval(triggered.set(true))
+      }
+    )
+
+    assertEquals(
+      (stream ++ Iterant[Coeval].empty[Int]).headOptionL.value(),
+      None)
   }
 }
