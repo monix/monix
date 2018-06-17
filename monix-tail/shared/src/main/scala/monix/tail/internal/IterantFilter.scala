@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.syntax.all._
 import cats.effect.Sync
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantFilter {
   /**
@@ -62,7 +62,7 @@ private[tail] object IterantFilter {
     def visit(ref: Concat[F, A]): Iterant[F, A] =
       ref.runMap(this)
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] =
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
       ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, A] =

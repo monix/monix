@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantFoldRightL {
   /** Implementation for `Iterant.foldRightL`. */
@@ -57,7 +57,7 @@ private[tail] object IterantFoldRightL {
       ref.lh.flatMap(loop2)
     }
 
-    def visit[S](ref: Resource[F, S, A]): F[B] =
+    def visit[S](ref: Scope[F, S, A]): F[B] =
       ref.runFold(this)
 
     def visit(ref: Last[F, A]): F[B] =

@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
 import scala.collection.mutable.ArrayBuffer
 
@@ -64,7 +64,7 @@ private[tail] object IterantTakeEveryNth {
     def visit(ref: Iterant.Concat[F, A]): Iterant[F, A] =
       ref.runMap(this)
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] =
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
       ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, A] = {

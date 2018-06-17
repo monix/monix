@@ -69,9 +69,9 @@ class IterantBuilders[F[_]] {
   def concatS[A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] =
     Iterant.concatS(lh, rh)
 
-  /** Aliased builder, see documentation for [[Iterant.resourceS]]. */
-  def resourceS[A, B](acquire: F[A], use: A => F[Iterant[F, B]], close: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
-    Iterant.resourceS(acquire, use, close)
+  /** Aliased builder, see documentation for [[Iterant.scopeS]]. */
+  def scopeS[A, B](acquire: F[A], use: A => F[Iterant[F, B]], close: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
+    Iterant.scopeS(acquire, use, close)
 
   /** Aliased builder, see documentation for [[Iterant.lastS]]. */
   def lastS[A](item: A): Iterant[F, A] =

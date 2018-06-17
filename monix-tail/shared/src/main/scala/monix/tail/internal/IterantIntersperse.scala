@@ -64,7 +64,7 @@ private[tail] object IterantIntersperse {
           stack.push(rh)
           Suspend(lh.map(this))
 
-        case b @ Resource(_, _, _) =>
+        case b @ Scope(_, _, _) =>
           b.runMap(this)
 
         case _ if prepend =>

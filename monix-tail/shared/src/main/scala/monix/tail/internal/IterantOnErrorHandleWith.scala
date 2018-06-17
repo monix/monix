@@ -22,7 +22,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
 
 import scala.annotation.tailrec
@@ -96,14 +96,14 @@ private[tail] object IterantOnErrorHandleWith {
           ref.rh.map(this)
       })
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] = {
-      val Resource(acquire, use, release) = ref
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] = {
+      val Scope(acquire, use, release) = ref
 
       Suspend(F.delay {
         val errors = Atomic(null : Throwable)
 
         val lh: Iterant[F, A] =
-          Resource[F, Either[Throwable, S], A](
+          Scope[F, Either[Throwable, S], A](
             acquire.attempt,
             es => F.pure(es).flatMap {
               case Left(e) =>

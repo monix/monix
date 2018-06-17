@@ -21,7 +21,7 @@ import java.io.PrintStream
 import cats.effect.{ExitCase, Sync}
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantDump {
   /**
@@ -85,13 +85,13 @@ private[tail] object IterantDump {
         })
     }
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] = {
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] = {
       val oldPrefix = prefix
       val oldPos = pos
       out.println(s"$pos: $prefix --> resource")
       pos += 1
 
-      Resource[F, S, A](
+      Scope[F, S, A](
         ref.acquire.map { v =>
           prefix = s"$oldPrefix --> resource ($oldPos)"
           v

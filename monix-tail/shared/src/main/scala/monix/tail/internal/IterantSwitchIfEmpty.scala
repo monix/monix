@@ -101,7 +101,7 @@ private[tail] object IterantSwitchIfEmpty {
       Suspend(ref.lh.map(this))
     }
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] =
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
       ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, A] = {

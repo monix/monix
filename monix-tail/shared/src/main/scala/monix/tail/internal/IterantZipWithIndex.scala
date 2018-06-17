@@ -22,7 +22,7 @@ import cats.syntax.all._
 
 import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
 
 import scala.collection.mutable.ArrayBuffer
@@ -84,7 +84,7 @@ private[tail] object IterantZipWithIndex {
         case empty@Halt(_) =>
           empty.asInstanceOf[Iterant[F, (A, Long)]]
 
-        case node @ Resource(_, _, _) =>
+        case node @ Scope(_, _, _) =>
           node.runMap(this)
 
         case node @ Concat(_, _) =>

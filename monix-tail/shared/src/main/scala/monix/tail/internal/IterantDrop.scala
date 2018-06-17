@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantDrop {
   /**
@@ -60,7 +60,7 @@ private[tail] object IterantDrop {
       if (toDrop <= 0) ref
       else ref.runMap(this)
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] =
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
       if (toDrop <= 0) ref
       else ref.runMap(this)
 

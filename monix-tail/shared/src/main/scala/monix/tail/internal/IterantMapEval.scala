@@ -62,7 +62,7 @@ private[tail] object IterantMapEval {
     def visit(ref: Concat[F, A]): Iterant[F, B] =
       ref.runMap(this)
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, B] =
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, B] =
       ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, B] =

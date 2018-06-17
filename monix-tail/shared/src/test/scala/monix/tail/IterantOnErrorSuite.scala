@@ -253,7 +253,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
 
   test("Resource.attempt with broken use") { _ =>
     val dummy = DummyException("dummy")
-    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+    val stream = 1 +: Iterant[Coeval].scopeS[Int, Int](
       Coeval(1),
       _ => Coeval.raiseError[Iterant[Coeval, Int]](dummy),
       (_, _) => Coeval.unit
@@ -267,7 +267,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
 
   test("Resource.attempt with broken release") { _ =>
     val dummy = DummyException("dummy")
-    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+    val stream = 1 +: Iterant[Coeval].scopeS[Int, Int](
       Coeval(1),
       i => Coeval(Iterant.pure(i + 1)),
       (_, _) => Coeval.raiseError[Unit](dummy)
@@ -283,7 +283,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
-    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+    val stream = 1 +: Iterant[Coeval].scopeS[Int, Int](
       Coeval(1),
       _ => Coeval.raiseError[Iterant[Coeval, Int]](dummy1),
       (_, _) => Coeval.raiseError[Unit](dummy2)
@@ -313,7 +313,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
 
   test("Resource.onErrorHandleWith with broken use") { _ =>
     val dummy = DummyException("dummy")
-    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+    val stream = 1 +: Iterant[Coeval].scopeS[Int, Int](
       Coeval(1),
       _ => Coeval.raiseError[Iterant[Coeval, Int]](dummy),
       (_, _) => Coeval.unit
@@ -328,7 +328,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
 
   test("Resource.onErrorHandleWith with broken release") { _ =>
     val dummy = DummyException("dummy")
-    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+    val stream = 1 +: Iterant[Coeval].scopeS[Int, Int](
       Coeval(1),
       i => Coeval(Iterant.pure(i + 1)),
       (_, _) => Coeval.raiseError[Unit](dummy)
@@ -344,7 +344,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
-    val stream = 1 +: Iterant[Coeval].resourceS[Int, Int](
+    val stream = 1 +: Iterant[Coeval].scopeS[Int, Int](
       Coeval(1),
       _ => Coeval.raiseError[Iterant[Coeval, Int]](dummy1),
       (_, _) => Coeval.raiseError[Unit](dummy2)

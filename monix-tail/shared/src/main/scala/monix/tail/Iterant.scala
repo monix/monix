@@ -537,7 +537,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        cancellation
     */
   final def guaranteeCase(f: ExitCase[Throwable] => F[Unit])(implicit F: Applicative[F]): Iterant[F, A] =
-    Resource[F, Unit, A](F.unit, _ => F.pure(this), (_, e) => f(e))
+    Scope[F, Unit, A](F.unit, _ => F.pure(this), (_, e) => f(e))
 
   /** Drops the first `n` elements (from the start).
     *
@@ -1883,7 +1883,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         evaluated in the `F` context. It is useful to delay the
   *         evaluation of a stream by deferring to `F`.
   *
-  * @define ScopeDesc The [[monix.tail.Iterant.Resource Scope]] state
+  * @define ScopeDesc The [[monix.tail.Iterant.Scope Scope]] state
   *         of the [[Iterant]] represents a stream that is able to
   *         specify the acquisition and release of a resource, to
   *         be used in generating stream events.
@@ -2069,7 +2069,7 @@ object Iterant extends IterantInstances {
     (release: (A, ExitCase[Throwable]) => F[Unit])
     (implicit F: Sync[F]): Iterant[F, A] = {
 
-    Resource[F, A, A](
+    Scope[F, A, A](
       acquire,
       a => F.pure(Iterant.pure(a)),
       release)
@@ -2194,7 +2194,7 @@ object Iterant extends IterantInstances {
   def suspendS[F[_], A](rest: F[Iterant[F, A]]): Iterant[F, A] =
     Suspend[F, A](rest)
 
-  /** Builds a stream state equivalent with [[Iterant.Resource]].
+  /** Builds a stream state equivalent with [[Iterant.Scope]].
     *
     * $ScopeDesc
     *
@@ -2202,8 +2202,8 @@ object Iterant extends IterantInstances {
     * @param use   $useParamDesc
     * @param release $closeParamDesc
     */
-  def resourceS[F[_], A, B](acquire: F[A], use: A => F[Iterant[F, B]], release: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
-    Resource(acquire, use, release)
+  def scopeS[F[_], A, B](acquire: F[A], use: A => F[Iterant[F, B]], release: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
+    Scope(acquire, use, release)
 
   /** Builds a stream state equivalent with [[Iterant.Concat]].
     *
@@ -2552,7 +2552,7 @@ object Iterant extends IterantInstances {
     * @param use   $useParamDesc
     * @param release $closeParamDesc
     */
-  final case class Resource[F[_], A, B](
+  final case class Scope[F[_], A, B](
     acquire: F[A],
     use: A => F[Iterant[F, B]],
     release: (A, ExitCase[Throwable]) => F[Unit])
@@ -2602,8 +2602,8 @@ object Iterant extends IterantInstances {
     /** Processes [[Iterant.Concat]]. */
     def visit(ref: Concat[F, A]): R
 
-    /** Processes [[Iterant.Resource]]. */
-    def visit[S](ref: Resource[F, S, A]): R
+    /** Processes [[Iterant.Scope]]. */
+    def visit[S](ref: Scope[F, S, A]): R
 
     /** Processes [[Iterant.Last]]. */
     def visit(ref: Last[F, A]): R

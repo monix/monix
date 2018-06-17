@@ -22,7 +22,7 @@ import cats.syntax.all._
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
 
 import scala.annotation.tailrec
@@ -81,14 +81,14 @@ private[tail] object IterantAttempt {
           ref.rh.map(this)
       })
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, Attempt] = {
-      val Resource(acquire, use, release) = ref
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, Attempt] = {
+      val Scope(acquire, use, release) = ref
 
       Suspend(F.delay {
         val errors = Atomic(null : Throwable)
 
         val lh: Iterant[F, Attempt] =
-          Resource[F, Either[Throwable, S], Attempt](
+          Scope[F, Either[Throwable, S], Attempt](
             acquire.attempt,
             es => F.pure(es).flatMap {
               case Left(e) =>

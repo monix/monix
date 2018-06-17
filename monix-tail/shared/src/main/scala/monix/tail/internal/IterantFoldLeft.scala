@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
@@ -80,7 +80,7 @@ private[tail] object IterantFoldLeft {
     def visit(ref: Concat[F, A]): F[S] =
       ref.lh.flatMap(loop).flatMap { _ => ref.rh.flatMap(loop) }
 
-    def visit[R](ref: Resource[F, R, A]): F[S] =
+    def visit[R](ref: Scope[F, R, A]): F[S] =
       ref.runFold(this)
 
     def visit(ref: Last[F, A]): F[S] = {

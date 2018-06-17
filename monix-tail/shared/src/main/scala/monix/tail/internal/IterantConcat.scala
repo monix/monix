@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
 import scala.util.control.NonFatal
 
@@ -85,7 +85,7 @@ private[tail] object IterantConcat {
       Suspend(ref.rest.map(loop))
     def visit(ref: Concat[F, A]): Iterant[F, B] =
       ref.runMap(loop)
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, B] =
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, B] =
       ref.runMap(loop)
     def visit(ref: Last[F, A]): Iterant[F, B] =
       f(ref.item)

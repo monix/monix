@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.syntax.all._
 import cats.effect.Sync
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantMap {
   /**
@@ -31,7 +31,7 @@ private[tail] object IterantMap {
 
     val loop = new Loop[F, A, B](f)
     source match {
-      case Resource(_, _, _) | Suspend(_) | Halt(_) => loop(source)
+      case Scope(_, _, _) | Suspend(_) | Halt(_) => loop(source)
       case _ =>
         // Suspending execution in order to preserve laziness and
         // referential transparency, since the provided function can
@@ -60,7 +60,7 @@ private[tail] object IterantMap {
     def visit(ref: Concat[F, A]): Iterant[F, B] =
       ref.runMap(loop)
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, B] =
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, B] =
       ref.runMap(loop)
 
     def visit(ref: Last[F, A]): Iterant[F, B] =

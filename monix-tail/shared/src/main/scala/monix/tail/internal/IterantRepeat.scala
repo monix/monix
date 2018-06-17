@@ -22,7 +22,7 @@ import cats.syntax.all._
 import monix.execution.internal.Platform
 import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{BatchCursor, GenericBatch, GenericCursor}
 
 private[tail] object IterantRepeat {
@@ -88,7 +88,7 @@ private[tail] object IterantRepeat {
       Suspend(ref.lh.map(this))
     }
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[F, A] =
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
       ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, A] = {

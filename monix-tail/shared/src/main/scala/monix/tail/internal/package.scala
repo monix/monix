@@ -19,14 +19,14 @@ package monix.tail
 
 import cats.syntax.all._
 import cats.effect.Sync
-import monix.tail.Iterant.{Concat, Resource}
+import monix.tail.Iterant.{Concat, Scope}
 
 package object internal {
   /**
     * Internal API — extension methods used in the implementation.
     */
   private[tail] implicit class ScopeExtensions[F[_], S, A](
-    val self: Resource[F, S, A])
+    val self: Scope[F, S, A])
     extends AnyVal {
 
     def runMap[B](f: Iterant[F, A] => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =

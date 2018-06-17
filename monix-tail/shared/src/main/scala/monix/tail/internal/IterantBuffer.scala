@@ -21,7 +21,7 @@ package internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ArrayStack
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.Batch
 
 private[tail] object IterantBuffer {
@@ -87,7 +87,7 @@ private[tail] object IterantBuffer {
       ref.lh.flatMap(loop)
     }
 
-    def visit[S](ref: Resource[F, S, A]): F[Iterant[F, B]] =
+    def visit[S](ref: Scope[F, S, A]): F[Iterant[F, B]] =
       ref.runFlatMap(loop)
 
     def visit(ref: Last[F, A]): F[Iterant[F, B]] = {

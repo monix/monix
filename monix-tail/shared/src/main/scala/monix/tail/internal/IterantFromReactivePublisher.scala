@@ -24,7 +24,7 @@ import monix.execution.misc.AsyncVar
 import monix.execution.rstreams.ReactivePullStrategy
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Next, NextBatch, Resource}
+import monix.tail.Iterant.{Halt, Next, NextBatch, Scope}
 import monix.tail.batches.Batch
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
@@ -51,7 +51,7 @@ private[tail] object IterantFromReactivePublisher {
       }
     } <* timer.shift
 
-    val generate = Resource(
+    val generate = Scope(
       F.unit,
       (_: Unit) => take.map(_ ++ take),
       (_: Unit, _) => F.delay {

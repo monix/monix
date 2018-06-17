@@ -128,7 +128,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 
-    val lh = Iterant[Coeval].resourceS[Unit, Int](
+    val lh = Iterant[Coeval].scopeS[Unit, Int](
       Coeval.unit,
       _ => Coeval(Iterant.pure(1)),
       (_, _) => Coeval(triggered.set(true))

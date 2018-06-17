@@ -21,7 +21,7 @@ import cats.arrow.FunctionK
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Resource, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantLiftMap {
   /** Implementation for `Iterant#liftMap`. */
@@ -50,8 +50,8 @@ private[tail] object IterantLiftMap {
     def visit(ref: Concat[F, A]): Iterant[G, A] =
       Concat(f(ref.lh).map(this), f(ref.rh).map(this))
 
-    def visit[S](ref: Resource[F, S, A]): Iterant[G, A] =
-      Resource[G, S, A](
+    def visit[S](ref: Scope[F, S, A]): Iterant[G, A] =
+      Scope[G, S, A](
         f(ref.acquire),
         s => G.suspend(f(ref.use(s)).map(this)),
         (s, exitCase) => f(ref.release(s, exitCase)))
