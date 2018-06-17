@@ -19,12 +19,14 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
-private[tail] object IterantFoldLeft {
+private[tail] object IterantFoldLeftL {
   /**
     * Implementation for `Iterant#foldLeftL`
     */
@@ -49,7 +51,7 @@ private[tail] object IterantFoldLeft {
     * Implementation for `Iterant#toListL`
     */
   def toListL[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[List[A]] = {
-    IterantFoldLeft(source, mutable.ListBuffer.empty[A])((acc, a) => acc += a)
+    IterantFoldLeftL(source, mutable.ListBuffer.empty[A])((acc, a) => acc += a)
       .map(_.toList)
   }
 
@@ -58,6 +60,17 @@ private[tail] object IterantFoldLeft {
     extends Iterant.Visitor[F, A, F[S]] { loop =>
 
     private[this] var state = seed
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+
+    private def stackPush(item: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(item)
+    }
+
+    private def stackPop(): F[Iterant[F, A]] = {
+      if (stackRef != null) stackRef.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+    }
 
     def visit(ref: Next[F, A]): F[S] = {
       state = op(state, ref.item)
@@ -77,21 +90,31 @@ private[tail] object IterantFoldLeft {
     def visit(ref: Suspend[F, A]): F[S] =
       ref.rest.flatMap(loop)
 
-    def visit(ref: Concat[F, A]): F[S] =
-      ref.lh.flatMap(loop).flatMap { _ => ref.rh.flatMap(loop) }
+    def visit(ref: Concat[F, A]): F[S] = {
+      stackPush(ref.rh)
+      ref.lh.flatMap(loop)
+    }
 
     def visit[R](ref: Scope[F, R, A]): F[S] =
       ref.runFold(this)
 
     def visit(ref: Last[F, A]): F[S] = {
       state = op(state, ref.item)
-      F.pure(state)
+      stackPop() match {
+        case null => F.pure(state)
+        case xs => xs.flatMap(this)
+      }
     }
 
     def visit(ref: Halt[F, A]): F[S] =
       ref.e match {
-        case None => F.pure(state)
-        case Some(e) => F.raiseError(e)
+        case None =>
+          stackPop() match {
+            case null => F.pure(state)
+            case xs => xs.flatMap(this)
+          }
+        case Some(e) =>
+          F.raiseError(e)
       }
 
     def fail(e: Throwable): F[S] =

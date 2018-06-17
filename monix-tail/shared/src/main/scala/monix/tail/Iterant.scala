@@ -698,7 +698,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *         is empty
     */
   final def foldWhileLeftL[S](seed: => S)(op: (S, A) => Either[S, S])(implicit F: Sync[F]): F[S] =
-    IterantFoldWhileLeft.strict(self, seed, op)
+    IterantFoldWhileLeftL.strict(self, seed, op)
 
   /** Filters the iterant by the given predicate function, returning
     * only those elements that match.
@@ -818,7 +818,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *         `None` if it is empty, in the `F` context.
     */
   final def headOptionL(implicit F: Sync[F]): F[Option[A]] =
-    IterantHeadOption(self)(F)
+    IterantHeadOptionL(self)(F)
 
   /** Given a mapping function that returns a possibly lazy or
     * asynchronous result, applies it over the elements emitted by the
@@ -921,7 +921,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *         is empty.
     */
   final def foldLeftL[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): F[S] =
-    IterantFoldLeft(self, seed)(op)(F)
+    IterantFoldLeftL(self, seed)(op)(F)
 
   /** Left associative fold using the function `op` that can be
     * short-circuited.
@@ -972,7 +972,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *         is empty
     */
   final def foldWhileLeftEvalL[S](seed: F[S])(op: (S, A) => F[Either[S, S]])(implicit F: Sync[F]): F[S] =
-    IterantFoldWhileLeft.eval(self, seed, op)
+    IterantFoldWhileLeftL.eval(self, seed, op)
 
   /**
     * Lazily fold the stream to a single value from the right.
@@ -1791,7 +1791,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * probably blowing up with an out of memory error sooner or later.
     */
   final def toListL(implicit F: Sync[F]): F[List[A]] =
-    IterantFoldLeft.toListL(self)(F)
+    IterantFoldLeftL.toListL(self)(F)
 
   /** Lazily zip two iterants together.
     *

@@ -24,7 +24,7 @@ import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
 
-private[tail] object IterantFoldWhileLeft {
+private[tail] object IterantFoldWhileLeftL {
   /**
     * Implementation for `Iterant.foldWhileLeftL`.
     */

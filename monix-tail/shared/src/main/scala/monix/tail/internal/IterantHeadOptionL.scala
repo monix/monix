@@ -24,7 +24,7 @@ import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
 
-private[tail] object IterantHeadOption {
+private[tail] object IterantHeadOptionL {
   /**
     * Implementation for `Iterant#headOption`.
     */
