@@ -69,6 +69,37 @@ object IterantFoldRightSuite extends BaseTestSuite {
     }
   }
 
+  test("foldRightL flavored ++ does acquisition and releases in order") { implicit s =>
+    val state = Atomic(0)
+
+    val lh = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval {
+        if (!state.compareAndSet(0, 1))
+          throw new IllegalStateException("acquire 1")
+      },
+      _ => Coeval(Iterant.pure(1)),
+      (_, _) => Coeval {
+        if (!state.compareAndSet(1, 0))
+          throw new IllegalStateException("release 1")
+      }
+    )
+
+    val rh = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval {
+        if (!state.compareAndSet(0, 2))
+          throw new IllegalStateException("acquire 2")
+      },
+      _ => Coeval(Iterant.pure(2)),
+      (_, _) => Coeval {
+        if (!state.compareAndSet(2, 0))
+          throw new IllegalStateException("release 2")
+      }
+    )
+
+    val list = concat(lh, rh).toListL.value()
+    assertEquals(list, List(1, 2))
+  }
+
   test("foldRightL can short-circuit for exists") { implicit s =>
     var effect = 0
     val ref = Iterant[Coeval].of(1, 2, 3, 4) ++ Iterant[Coeval].suspend(Coeval {
@@ -164,28 +195,5 @@ object IterantFoldRightSuite extends BaseTestSuite {
 
     assertEquals(r, Failure(dummy))
     assertEquals(effect, 1)
-  }
-
-  test("foldRightL handles Scope's release before the rest of the stream") { implicit s =>
-    val triggered = Atomic(false)
-    val fail = DummyException("fail")
-
-    val lh = Iterant[Coeval].scopeS[Unit, Int](
-      Coeval.unit,
-      _ => Coeval(Iterant.pure(1)),
-      (_, _) => Coeval(triggered.set(true))
-    )
-
-    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-      if (!triggered.getAndSet(true))
-        Iterant[Coeval].raiseError[Int](fail)
-      else
-        Iterant[Coeval].empty[Int]
-    })
-
-    val list = stream.foldRightL(Coeval(List.empty[Int])) { (e, list) =>
-      list.map(l => e :: l)
-    }
-    assertEquals(list.value(), List(1))
   }
 }

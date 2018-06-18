@@ -19,6 +19,7 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
+import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
@@ -28,12 +29,33 @@ private[tail] object IterantFoldRightL {
     (implicit F: Sync[F]): F[B] =
     F.suspend(new Loop(b, f).apply(self))
 
-  private final class Loop[F[_], A, B](fb: F[B], f: (A, F[B]) => F[B])
+  private final class Loop[F[_], A, B](b: F[B], f: (A, F[B]) => F[B])
     (implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[B]] { self =>
 
     private[this] var remainder: Iterant[F, A] = _
     private[this] var suspendRef: F[B] = _
+
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Used in visit(Concat)
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+
+    private def stackPush(item: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(item)
+    }
+
+    private def finish(): F[B] = {
+      val rest =
+        if (stackRef != null) stackRef.pop()
+        else null.asInstanceOf[F[Iterant[F, A]]]
+
+      rest match {
+        case null => b
+        case xs => xs.flatMap(this)
+      }
+    }
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[B] =
       f(ref.item, ref.rest.flatMap(this))
@@ -53,19 +75,19 @@ private[tail] object IterantFoldRightL {
       ref.rest.flatMap(this)
 
     def visit(ref: Iterant.Concat[F, A]): F[B] = {
-      val loop2 = new Loop[F, A, B](ref.rh.flatMap(this), f)
-      ref.lh.flatMap(loop2)
+      stackPush(ref.rh)
+      ref.lh.flatMap(this)
     }
 
     def visit[S](ref: Scope[F, S, A]): F[B] =
       ref.runFold(this)
 
     def visit(ref: Last[F, A]): F[B] =
-      f(ref.item, fb)
+      f(ref.item, finish())
 
     def visit(ref: Halt[F, A]): F[B] =
       ref.e match {
-        case None => fb
+        case None => finish()
         case Some(e) =>
           F.raiseError(e)
       }
