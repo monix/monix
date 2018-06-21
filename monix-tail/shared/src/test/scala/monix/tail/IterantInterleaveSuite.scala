@@ -17,17 +17,14 @@
 
 package monix.tail
 
-import cats.effect.Sync
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.Coeval
 import monix.execution.internal.Platform
-import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
-
-import scala.concurrent.duration._
-import scala.util.Success
+import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
 
 object IterantInterleaveSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
@@ -37,51 +34,40 @@ object IterantInterleaveSuite extends BaseTestSuite {
       Test.Parameters.default.withMaxSize(32)
   }
 
-  private def naiveImp[F[_], A, B >: A](lh: Iterant[F, A], rh: Iterant[F, B])
-    (implicit F: Sync[F]): Iterant[F, B] =
-    lh.zip(rh).flatMap { case (a, b) => Iterant[F].pure(a) ++ Iterant[F].pure(b) }
+  def interleaveLists[A](lh: List[A], rh: List[A]): List[A] = {
+    @tailrec
+    def loop(lh: List[A], rh: List[A], acc: ListBuffer[A]): List[A] =
+      lh match {
+        case x :: xs =>
+          acc += x
+          loop(rh, xs, acc)
+        case Nil =>
+          acc.toList
+      }
 
-  test("naiveImp on iterants equivalence with List-based one") { implicit s =>
+    loop(lh, rh, ListBuffer.empty)
+  }
+
+  test("interleaveLists #1") { _ =>
+    val list1 = List(1, 2, 3, 4)
+    val list2 = List(1, 2)
+
+    assertEquals(interleaveLists(list1, list2), List(1, 1, 2, 2, 3))
+  }
+
+  test("interleaveLists #2") { _ =>
+    val list1 = List(1, 2)
+    val list2 = List(1, 2, 3)
+
+    assertEquals(interleaveLists(list1, list2), List(1, 1, 2, 2))
+  }
+
+  test("Iterant.interleave equivalence with interleaveLists") { implicit s =>
     check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
       val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
       val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
 
-      val expected = Coeval(list1.zip(list2).flatMap { case (a, b) => List(a, b) }).value()
-      naiveImp(stream1, stream2).toListL.value <-> expected
+      stream1.interleave(stream2).toListL.value <-> interleaveLists(list1, list2)
     }
   }
-
-  test("Iterant.interleave equivalence with naiveImp") { implicit s =>
-    check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
-      val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
-      val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
-
-      stream1.interleave(stream2).toListL.value <-> naiveImp(stream1, stream2).toListL.value
-    }
-  }
-
-//  test("Iterant.interleave preserves the source earlyStop") { implicit s =>
-//    var effect = 0
-//    val stop = Coeval.eval(effect += 1)
-//    val source1 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
-//    val source2 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
-//    val stream = source1.interleave(source2)
-//    stream.earlyStop.value()
-//    assertEquals(effect, 2)
-//  }
-//
-//  test("Iterant.interleave does not process in parallel") { implicit s =>
-//    val stream1 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(1)).delayExecution(1.second))
-//    val stream2 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(2)).delayExecution(1.second))
-//    val task = stream1.interleave(stream2).toListL
-//
-//    val f = task.runAsync
-//    assertEquals(f.value, None)
-//
-//    s.tick(1.second)
-//    assertEquals(f.value, None)
-//
-//    s.tick(1.second)
-//    assertEquals(f.value, Some(Success(List(1,2))))
-//  }
 }
