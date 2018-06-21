@@ -26,7 +26,6 @@ import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
-
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantZipMap {

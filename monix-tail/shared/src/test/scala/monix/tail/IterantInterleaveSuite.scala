@@ -30,36 +30,36 @@ import scala.concurrent.duration._
 import scala.util.Success
 
 object IterantInterleaveSuite extends BaseTestSuite {
-//  override lazy val checkConfig: Parameters = {
-//    if (Platform.isJVM)
-//      Test.Parameters.default.withMaxSize(256)
-//    else
-//      Test.Parameters.default.withMaxSize(32)
-//  }
-//
-//  private def naiveImp[F[_], A, B >: A](lh: Iterant[F, A], rh: Iterant[F, B])
-//                                       (implicit F: Sync[F]): Iterant[F, B] =
-//    lh.zip(rh).flatMap { case (a, b) => Iterant[F].pure(a) ++ Iterant[F].pure(b) }
-//
-//  test("naiveImp on iterants equivalence with List-based one") { implicit s =>
-//    check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
-//      val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
-//      val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
-//
-//      val expected = Coeval(list1.zip(list2).flatMap { case (a, b) => List(a, b) }).value()
-//      naiveImp(stream1, stream2).toListL.value <-> expected
-//    }
-//  }
-//
-//  test("Iterant.interleave equivalence with naiveImp") { implicit s =>
-//    check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
-//      val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
-//      val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
-//
-//      stream1.interleave(stream2).toListL.value <-> naiveImp(stream1, stream2).toListL.value
-//    }
-//  }
-//
+  override lazy val checkConfig: Parameters = {
+    if (Platform.isJVM)
+      Test.Parameters.default.withMaxSize(256)
+    else
+      Test.Parameters.default.withMaxSize(32)
+  }
+
+  private def naiveImp[F[_], A, B >: A](lh: Iterant[F, A], rh: Iterant[F, B])
+    (implicit F: Sync[F]): Iterant[F, B] =
+    lh.zip(rh).flatMap { case (a, b) => Iterant[F].pure(a) ++ Iterant[F].pure(b) }
+
+  test("naiveImp on iterants equivalence with List-based one") { implicit s =>
+    check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
+      val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
+      val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
+
+      val expected = Coeval(list1.zip(list2).flatMap { case (a, b) => List(a, b) }).value()
+      naiveImp(stream1, stream2).toListL.value <-> expected
+    }
+  }
+
+  test("Iterant.interleave equivalence with naiveImp") { implicit s =>
+    check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
+      val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
+      val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
+
+      stream1.interleave(stream2).toListL.value <-> naiveImp(stream1, stream2).toListL.value
+    }
+  }
+
 //  test("Iterant.interleave preserves the source earlyStop") { implicit s =>
 //    var effect = 0
 //    val stop = Coeval.eval(effect += 1)
