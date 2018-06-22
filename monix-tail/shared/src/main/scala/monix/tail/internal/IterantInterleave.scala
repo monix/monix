@@ -24,6 +24,9 @@ import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantInterleave {
+  /**
+    * Implementation for `Iterant.interleave`.
+    */
   def apply[F[_], A](l: Iterant[F, A], r: Iterant[F, A]) (implicit F: Sync[F]): Iterant[F, A] =
     Suspend(F.delay(new Loop().apply(l, r)))
 

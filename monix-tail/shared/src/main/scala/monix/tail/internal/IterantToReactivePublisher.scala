@@ -27,8 +27,7 @@ import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.internal.Platform
-
-import scala.util.control.NonFatal
+import monix.execution.internal.collection.ArrayStack
 import monix.execution.rstreams.Subscription
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import org.reactivestreams.{Publisher, Subscriber}
@@ -49,15 +48,18 @@ private[tail] object IterantToReactivePublisher {
       // Reactive Streams requirement
       if (out == null) throw null
 
+      // For dealing with Concat
+      val stack = new ArrayStack[F[Iterant[F, A]]]()
+
       // The `reduceToNext` call evaluates the source Iterant until
       // we hit an element to stream. Useful because we want to stream
       // `onComplete` for empty streams or `onError` for empty streams
       // that complete in error, without the subscriber having to
       // call `request(n)` (since we shouldn't back-pressure end events)
-      runAsync(reduceToNext(out)(source), new Callback[Iterant[F, A]] {
+      runAsync(reduceToNext(out, stack)(source), new Callback[Iterant[F, A]] {
         def onSuccess(start: Iterant[F, A]): Unit =
           if (start ne null) {
-            val sub: Subscription = new IterantSubscription[F, A](start, out)
+            val sub: Subscription = new IterantSubscription[F, A](start, out, stack)
             out.onSubscribe(sub)
           }
 
@@ -70,25 +72,48 @@ private[tail] object IterantToReactivePublisher {
     // states until we hit one of the states with an element to
     // stream (e.g. `Next`, `NextBatch`, `NextCursor` or `Last`),
     // or until we hit the end of the stream.
-    private def reduceToNext(out: Subscriber[_ >: A])(self: Iterant[F, A]): F[Iterant[F, A]] =
-      self match {
-        case Suspend(rest) =>
-          rest.flatMap(reduceToNext(out))
+    private def reduceToNext(out: Subscriber[_ >: A], stack: ArrayStack[F[Iterant[F, A]]]) =
+      new Iterant.Visitor[F, A, F[Iterant[F, A]]] {
+        def visit(ref: Next[F, A]): F[Iterant[F, A]] =
+          F.pure(ref)
+        def visit(ref: NextBatch[F, A]): F[Iterant[F, A]] =
+          F.pure(ref)
+        def visit(ref: NextCursor[F, A]): F[Iterant[F, A]] =
+          F.pure(ref)
 
-        case Halt(opt) =>
-          out.onSubscribe(Subscription.empty)
-          opt match {
-            case None => out.onComplete()
-            case Some(e) => out.onError(e)
+        def visit(ref: Suspend[F, A]): F[Iterant[F, A]] =
+          ref.rest.flatMap(this)
+
+        def visit(ref: Iterant.Concat[F, A]): F[Iterant[F, A]] = {
+          stack.push(ref.rh)
+          ref.lh.flatMap(this)
+        }
+
+        def visit[S](ref: Scope[F, S, A]): F[Iterant[F, A]] =
+          ref.runFold(this)
+
+        def visit(ref: Last[F, A]): F[Iterant[F, A]] =
+          F.pure(ref)
+
+        def visit(ref: Halt[F, A]): F[Iterant[F, A]] =
+          ref.e match {
+            case None =>
+              stack.pop() match {
+                case null =>
+                  out.onSubscribe(Subscription.empty)
+                  out.onComplete()
+                  F.pure(null)
+                case xs =>
+                  xs.flatMap(this)
+              }
+            case Some(e) =>
+              out.onSubscribe(Subscription.empty)
+              out.onError(e)
+              F.pure(null)
           }
 
-          // Returning `null` means that we've already signaled an
-          // end event and thus there's nothing left to do
-          F.pure(null)
-
-        case other =>
-          // We know we have an element to stream
-          F.pure(other)
+        def fail(e: Throwable): F[Iterant[F, A]] =
+          F.raiseError(e)
       }
 
     // Function for starting the run-loop of `F[_]`. This is a small
@@ -108,9 +133,12 @@ private[tail] object IterantToReactivePublisher {
     }
   }
 
-  private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[_ >: A])
+  private final class IterantSubscription[F[_], A](
+    source: Iterant[F, A],
+    out: Subscriber[_ >: A],
+    stack: ArrayStack[F[Iterant[F, A]]])
     (implicit F: Effect[F], ec: Scheduler)
-    extends Subscription {
+    extends Subscription { subscription =>
 
     // Keeps track of the currently requested items
     private[this] val requested = Atomic.withPadding(0L, LeftRight128)
@@ -153,126 +181,164 @@ private[tail] object IterantToReactivePublisher {
       }
     }
 
-    private def goNext(rest: F[Iterant[F, A]], requested: Long, processed: Int): F[Unit] = {
-      // Fast-path, avoids doing any volatile operations
-      val isInfinite = requested == Long.MaxValue
-      if (isInfinite || processed < requested) {
-        val n2 = if (!isInfinite) processed else 0
-        rest.flatMap(loop(requested, n2))
-      } else {
-        // Happens-before relationship with the `requested` decrement!
-        cursor = rest
-        // Remaining items to process
-        val n2 = this.requested.decrementAndGet(processed)
+    private[this] val runLoop = new Loop
 
-        // In case of zero, the loop needs to stop
-        // due to no more requests from downstream
-        if (n2 > 0)
-          rest.flatMap(loop(n2, 0))
-        else
-          F.unit // pauses loop until next request
-      }
-    }
+    private final class Loop extends Iterant.Visitor[F, A, F[Unit]] {
+      private[this] var requested: Long = 0
+      private[this] var processed: Int = 0
+      private[this] var streamErrors = true
+      private[this] val cancel = new RuntimeException("loop cancelled")
 
-    /** Processes the elements of a `BatchCursor`.
-      *
-      * Invariant: requested > processed!
-      */
-    private def processCursor(source: NextCursor[F, A], requested: Long, processed: Int): F[Unit] = {
-      val NextCursor(ref, rest) = source
-      val toTake = math.min(ref.recommendedBatchSize, requested - processed).toInt
-      val modulus = math.min(ec.executionModel.batchedExecutionModulus, Platform.recommendedBatchSize - 1)
-      var isActive = true
-      var i = 0
-
-      while (isActive && i < toTake && ref.hasNext()) {
-        val a = ref.next()
-        i += 1
-        out.onNext(a)
-
-        // Check if still active, but in batches, because reading
-        // from this shared variable can be an expensive operation
-        if ((i & modulus) == 0) isActive = this.concurrentEndSignal ne null
+      def start(requested: Long): this.type = {
+        this.requested = requested
+        this.processed = 0
+        this
       }
 
-      val next = if (ref.hasNext()) F.pure(source : Iterant[F, A]) else rest
-      goNext(next, requested, processed + i)
-    }
+      private def checkCancelSignal(): Unit = {
+        if (concurrentEndSignal ne null)
+          throw cancel
+      }
 
-    /** Run-loop.
-      *
-      * Invariant: requested > processed!
-      */
-    private def loop(requested: Long, processed: Int)(source: Iterant[F, A]): F[Unit] = {
-      // Checking `concurrentEndSignal` immediately, as due to the
-      // way `cancel()` works, we might end up pushing an extra
-      // element downstream, violating the protocol; but this value
-      // should be visible due to it being set before incrementing
-      // the requested counter (happens-before relationship)
-      val cancelSignal = this.concurrentEndSignal
+      def visit(ref: Next[F, A]): F[Unit] = {
+        checkCancelSignal()
+        out.onNext(ref.item)
+        goNext(ref.rest, 1)
+      }
 
-      if (cancelSignal eq null) {
-        // Guard for protocol violations. In case we've sent a final
-        // `onComplete` or `onError`, then we can no longer stream
-        // errors by means of `onError`, since that would violate
-        // the protocol.
-        var streamErrors = true
-        try source match {
-          case s @ Scope(_, _, _) =>
-            s.runFold(loop(requested, processed))
+      def visit(ref: NextBatch[F, A]): F[Unit] = {
+        checkCancelSignal()
+        processCursor(ref.toNextCursor())
+      }
 
-          case Next(a, rest) =>
-            out.onNext(a)
-            goNext(rest, requested, processed + 1)
+      def visit(ref: NextCursor[F, A]): F[Unit] = {
+        checkCancelSignal()
+        processCursor(ref)
+      }
 
-          case ref @ NextCursor(_, _) =>
-            processCursor(ref, requested, processed)
+      def visit(ref: Suspend[F, A]): F[Unit] = {
+        checkCancelSignal()
+        goNext(ref.rest, 0)
+      }
 
-          case NextBatch(ref, rest) =>
-            processCursor(NextCursor(ref.cursor(), rest), requested, processed)
+      def visit(ref: Iterant.Concat[F, A]): F[Unit] = {
+        checkCancelSignal()
+        stack.push(ref.rh)
+        goNext(ref.lh, 0)
+      }
 
-          case Suspend(rest) =>
-            goNext(rest, requested, processed)
+      def visit[S](ref: Scope[F, S, A]): F[Unit] = {
+        checkCancelSignal()
+        ref.runFold(this)
+      }
 
-          case Last(a) =>
-            out.onNext(a)
+      def visit(ref: Last[F, A]): F[Unit] = {
+        checkCancelSignal()
+        out.onNext(ref.item)
+        stack.pop() match {
+          case null =>
             streamErrors = false
             out.onComplete()
             F.unit
+          case xs =>
+            goNext(xs, 1)
+        }
+      }
 
-          case Halt(errorOpt) =>
-            streamErrors = false
-            errorOpt match {
-              case None => out.onComplete()
-              case Some(e) => out.onError(e)
+      def visit(ref: Halt[F, A]): F[Unit] = {
+        checkCancelSignal()
+        ref.e match {
+          case None =>
+            stack.pop() match {
+              case null =>
+                streamErrors = false
+                out.onComplete()
+                F.unit
+              case xs =>
+                goNext(xs, 0)
             }
+          case Some(e) =>
+            streamErrors = false
+            out.onError(e)
             F.unit
-        } catch {
-          case e if NonFatal(e) =>
+        }
+      }
+
+      def fail(e: Throwable): F[Unit] =
+        e match {
+          case `cancel` =>
+            val cancelSignal = concurrentEndSignal
+            // Subscription was cancelled, triggering early stop
+            cursor = F.pure(Halt(cancelSignal))
+            subscription.requested.set(0)
+
+            cancelSignal match {
+              case None => F.unit
+              case Some(e2) =>
+                F.delay(out.onError(e2))
+            }
+          case _ =>
             F.delay {
               if (streamErrors) out.onError(e)
               else ec.reportFailure(e)
             }
         }
-      } else {
-        // Subscription was cancelled, triggering early stop
-        cursor = F.pure(Halt(cancelSignal))
-        this.requested.set(0)
 
-        cancelSignal match {
-          case None => F.unit
-          case Some(e) =>
-            F.delay(out.onError(e))
+      private def goNext(rest: F[Iterant[F, A]], processedNow: Int): F[Unit] = {
+        val processed = this.processed + processedNow
+
+        // Fast-path, avoids doing any volatile operations
+        val isInfinite = requested == Long.MaxValue
+        if (isInfinite || processed < requested) {
+          this.processed = if (!isInfinite) processed else 0
+          rest.flatMap(this)
+        } else {
+          // Happens-before relationship with the `requested` decrement!
+          cursor = rest
+          // Remaining items to process
+          val n2 = subscription.requested.decrementAndGet(processed)
+
+          // In case of zero, the loop needs to stop
+          // due to no more requests from downstream
+          if (n2 > 0) {
+            this.requested = n2
+            this.processed = 0
+            rest.flatMap(this)
+          } else {
+            F.unit // pauses loop until next request
+          }
         }
+      }
+
+      private def processCursor(source: NextCursor[F, A]): F[Unit] = {
+        val NextCursor(ref, rest) = source
+        val toTake = math.min(ref.recommendedBatchSize, requested - processed).toInt
+        val modulus = math.min(ec.executionModel.batchedExecutionModulus, Platform.recommendedBatchSize - 1)
+        var isActive = true
+        var i = 0
+
+        while (isActive && i < toTake && ref.hasNext()) {
+          val a = ref.next()
+          i += 1
+          out.onNext(a)
+
+          // Check if still active, but in batches, because reading
+          // from this shared variable can be an expensive operation
+          if ((i & modulus) == 0)
+            isActive = subscription.concurrentEndSignal ne null
+        }
+
+        val next = if (ref.hasNext()) F.pure(source : Iterant[F, A]) else rest
+        goNext(next, i)
       }
     }
 
     private val startLoop: (Long => Unit) =
       ec.executionModel match {
         case SynchronousExecution =>
-          n => ec.executeTrampolined(() => runAsync(cursor.flatMap(loop(n, 0))))
+          n => ec.executeTrampolined(() => runAsync(cursor.flatMap(runLoop.start(n))))
         case _ =>
-          n => ec.executeAsync(() => runAsync(cursor.flatMap(loop(n, 0))))
+          n => ec.executeAsync(() => runAsync(cursor.flatMap(runLoop.start(n))))
       }
 
     def request(n: Long): Unit = {
