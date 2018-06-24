@@ -17,20 +17,21 @@
 
 package monix.tail
 
+import cats.effect.{Effect, ExitCase, IO}
 import cats.laws._
 import cats.laws.discipline._
-import cats.effect.{Effect, ExitCase, IO}
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.batches.Batch
 import org.reactivestreams.{Subscriber, Subscription}
+
 import scala.util.{Failure, Success}
 
 object IterantToReactivePublisherSuite extends BaseTestSuite {
-
   test("sum with Task and request(1)") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       sum(stream, 1) <-> stream.foldLeftL(0L)(_ + _)
@@ -111,7 +112,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       })
 
     s.tick()
-    assertEquals(emitted, 1)
+    assertEquals(emitted, 0)
     assertEquals(received, 0)
 
     subscription.request(10)
@@ -202,7 +203,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       })
 
     s.tick()
-    assertEquals(emitted, 1)
+    assertEquals(emitted, 0)
 
     subscription.request(10)
     s.tick()
@@ -215,7 +216,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     s.tick()
 
     assert(
-      wasCompleted.exists(_.isInstanceOf[IllegalArgumentException]),
+      Option(wasCompleted).flatten.exists(_.isInstanceOf[IllegalArgumentException]),
       "wasCompleted == Some(_: IllegalArgumentException)"
     )
   }
@@ -278,20 +279,29 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
 
   test("Iterant.raiseError completes immediately on subscribe") { implicit s =>
     val dummy = DummyException("dummy")
-    var wasCompleted: Option[Throwable] = null
+    val stream = Iterant[Task]
+      .raiseError[Long](dummy)
+      .toReactivePublisher
 
-    Iterant[Task].raiseError[Int](dummy).toReactivePublisher.subscribe(
-      new Subscriber[Int] {
-        def onSubscribe(s: Subscription): Unit = ()
-        def onNext(t: Int): Unit = ()
+    val init = Atomic(0)
+    var thrownError: Throwable = null
 
-        def onError(t: Throwable): Unit =
-          wasCompleted = Some(t)
-        def onComplete(): Unit =
-          wasCompleted = None
-      })
+    stream.subscribe(new Subscriber[Long] {
+      def onSubscribe(s: Subscription): Unit = {
+        assertEquals(init.getAndSet(1), 0)
+        s.request(1)
+      }
+      def onNext(elem: Long): Unit =
+        fail("shouldn't do onNext()")
+      def onError(ex: Throwable): Unit = {
+        assertEquals(init.getAndSet(1), 1)
+        thrownError = ex
+      }
+      def onComplete(): Unit =
+        fail("shouldn't complete()")
+    })
 
-    assertEquals(wasCompleted, Some(dummy))
+    assertEquals(thrownError, dummy)
   }
 
   test("Iterant.empty produces EmptySubscription") { implicit s =>

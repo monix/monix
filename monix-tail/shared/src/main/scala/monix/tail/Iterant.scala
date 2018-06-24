@@ -22,7 +22,6 @@ import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Eq, Functor, Monoid, MonoidK, Order, Parallel}
 import monix.eval.{Coeval, Task}
-import monix.execution.Scheduler
 
 import scala.util.control.NonFatal
 import monix.execution.internal.Platform.recommendedBatchSize
@@ -1608,8 +1607,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]
     * for details.
     */
-  final def toReactivePublisher(implicit F: Effect[F], ec: Scheduler): Publisher[A] =
-    IterantToReactivePublisher(self)(F, ec)
+  final def toReactivePublisher(implicit F: Effect[F]): Publisher[A] =
+    IterantToReactivePublisher(self)
 
   /** Applies a binary operator to a start value and all elements of
     * this `Iterant`, going left to right and returns a new
@@ -2614,7 +2613,7 @@ object Iterant extends IterantInstances {
     /** Processes unhandled errors. */
     def fail(e: Throwable): R
 
-    final def apply(fa: Iterant[F, A]): R =
+    def apply(fa: Iterant[F, A]): R =
       try fa.accept(this)
       catch { case e if NonFatal(e) => fail(e) }
   }

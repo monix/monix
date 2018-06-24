@@ -101,7 +101,6 @@ private[tail] object IterantFoldLeftL {
     def visit(ref: Suspend[F, A]): F[S] =
       ref.rest.flatMap(loop)
 
-
     def visit(ref: Concat[F, A]): F[S] = {
       stackPush(ref.rh)
       ref.lh.flatMap(loop).flatMap(concatContinue)

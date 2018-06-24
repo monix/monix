@@ -19,7 +19,6 @@ package monix.execution.schedulers
 
 import java.util.concurrent.{TimeUnit, CountDownLatch, Executors}
 import minitest.SimpleTestSuite
-import monix.execution.UncaughtExceptionReporter._
 import monix.execution.{UncaughtExceptionReporter, Scheduler}
 
 object TestSchedulerCompanionSuite extends SimpleTestSuite {
@@ -77,7 +76,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
 
   test("scheduler builder, apply, test 5") {
     val service = Executors.newSingleThreadScheduledExecutor()
-    val s: SchedulerService = Scheduler(service, LogExceptionsToStandardErr)
+    val s: SchedulerService = Scheduler(service, UncaughtExceptionReporter.default)
 
     try {
       val latch = new CountDownLatch(2)

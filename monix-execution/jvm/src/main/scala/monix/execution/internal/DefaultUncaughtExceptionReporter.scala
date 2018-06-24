@@ -15,17 +15,18 @@
  * limitations under the License.
  */
 
-package monix.execution.schedulers
+package monix.execution
+package internal
 
-import java.util.concurrent.{Executors, ScheduledExecutorService}
-import monix.execution.UncaughtExceptionReporter
+/**
+  * INTERNAL API — implements [[UncaughtExceptionReporter.default]].
+  */
+private[execution] object DefaultUncaughtExceptionReporter
+  extends UncaughtExceptionReporter {
 
-private[schedulers] object Defaults {
-  /**
-    * Internal. Provides the `Scheduler.DefaultScheduledExecutor` instance.
-    */
-  lazy val scheduledExecutor: ScheduledExecutorService =
-    Executors.newSingleThreadScheduledExecutor(
-      ThreadFactoryBuilder("monix-scheduler", UncaughtExceptionReporter.default, daemonic = true)
-    )
+  def reportFailure(e: Throwable): Unit =
+    Thread.getDefaultUncaughtExceptionHandler match {
+      case null => e.printStackTrace()
+      case h => h.uncaughtException(Thread.currentThread(), e)
+    }
 }
