@@ -30,6 +30,16 @@ import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 // TODO: this can be migrated to cats-effect MVar, but would require Effect[F]
 private[tail] object IterantFromReactivePublisher {
+  def apply[F[_]: Async: Timer, A](publisher: Publisher[A], strategy: ReactivePullStrategy): Iterant[F, A] =
+    Iterant.suspend[F, A] {
+      strategy match {
+        case ReactivePullStrategy.FixedWindow(size) =>
+          val unfold = new UnfoldSubscriber[F, A](size)
+          /*_*/publisher.subscribe(unfold)/*_*/
+          unfold.generate
+      }
+    }
+
   class UnfoldSubscriber[F[_], A] (
     bufferSize: Int
   )(implicit
@@ -107,14 +117,4 @@ private[tail] object IterantFromReactivePublisher {
       completeWith(Halt(None))
     }
   }
-
-  def apply[F[_]: Async: Timer, A](publisher: Publisher[A], strategy: ReactivePullStrategy): Iterant[F, A] =
-    Iterant.suspend[F, A] {
-      strategy match {
-        case ReactivePullStrategy.Batched(size) =>
-          val unfold = new UnfoldSubscriber[F, A](size)
-          /*_*/publisher.subscribe(unfold)/*_*/
-          unfold.generate
-      }
-    }
 }

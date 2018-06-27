@@ -18,6 +18,7 @@
 package monix.tail
 
 import java.io.PrintStream
+
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Eq, Functor, Monoid, MonoidK, Order, Parallel}
@@ -34,6 +35,7 @@ import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import monix.execution.rstreams.ReactivePullStrategy
+import monix.execution.rstreams.ReactivePullStrategy.StopAndWait
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
   * streaming of elements using a pull-based protocol.
@@ -2283,14 +2285,16 @@ object Iterant extends IterantInstances {
     *      a reactive publisher.
     *
     * @param publisher is the `org.reactivestreams.Publisher` reference to
-    *                  wrap into an [[Iterant]]
+    *        wrap into an [[Iterant]]
     *
-    * @param strategy  is a [[monix.execution.rstreams.ReactivePullStrategy ReactivePullStrategy]]
-    *                  that describes how elements are requested from a `Publisher`
-    *
+    * @param strategy is a
+    *        [[monix.execution.rstreams.ReactivePullStrategy ReactivePullStrategy]]
+    *        that describes how elements are requested from a `Publisher`
     */
-  def fromReactivePublisher[F[_], A](publisher: Publisher[A])(implicit F: Async[F], timer: Timer[F], strategy: ReactivePullStrategy = ReactivePullStrategy.Default): Iterant[F, A] = {
-    IterantFromReactivePublisher(publisher, strategy)
+  def fromReactivePublisher[F[_], A](publisher: Publisher[A], strategy: ReactivePullStrategy = StopAndWait)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, A] = {
+
+    IterantFromReactivePublisher2(publisher, strategy)
   }
 
   /** Given an initial state and a generator function that produces the

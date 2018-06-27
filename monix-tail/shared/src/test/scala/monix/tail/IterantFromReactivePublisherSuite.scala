@@ -22,33 +22,34 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
 import monix.execution.Scheduler
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import org.scalacheck.{Arbitrary, Gen}
-import scala.util.Failure
 
+import scala.util.Failure
 import monix.execution.rstreams.ReactivePullStrategy
+import monix.execution.rstreams.ReactivePullStrategy.StopAndWait
 
 
 object IterantFromReactivePublisherSuite extends BaseTestSuite {
 
-//  implicit val arbRange: Arbitrary[Range] = Arbitrary {
-//    for {
-//      i <- Gen.choose(-100, 100)
-//      j <- Gen.choose(-100, 100)
-//      Array(min, max) = Array(i, j).sorted
-//      step <- Gen.oneOf(1, 2, 3)
-//    } yield min to max by step
-//  }
-//
-//  test("fromReactivePublisher emits values in correct order") { implicit s =>
-//    check1 { range: Range =>
-//      implicit val pullStrategy: ReactivePullStrategy = ReactivePullStrategy.Single
-//      val publisher = new RangePublisher(range, None)
-//      Iterant[IO].fromReactivePublisher(publisher) <-> Iterant[IO].fromSeq(range)
-//    }
-//  }
-//
+  implicit val arbRange: Arbitrary[Range] = Arbitrary {
+    for {
+      i <- Gen.choose(-100, 100)
+      j <- Gen.choose(-100, 100)
+      Array(min, max) = Array(i, j).sorted
+      step <- Gen.oneOf(1, 2, 3)
+    } yield min to max by step
+  }
+
+  test("fromReactivePublisher emits values in correct order") { implicit s =>
+    check1 { range: Range =>
+      val publisher = new RangePublisher(range, None)
+      Iterant[IO].fromReactivePublisher(publisher, StopAndWait) <-> Iterant[IO].fromSeq(range)
+    }
+  }
+
 //  test("fromReactivePublisher cancels subscription on earlyStop") { implicit s =>
 //    implicit val pullStrategy: ReactivePullStrategy = ReactivePullStrategy.Batched(8)
 //    val publisher = new RangePublisher(1 to 64, None)
@@ -81,33 +82,50 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
 //    }
 //  }
 //
-//  class RangePublisher(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) extends Publisher[Int] {
-//    var cancelled = false
-//    var emitted = 0
-//
-//    def subscribe(s: Subscriber[_ >: Int]): Unit = {
-//      var rangeCopy = range
-//      s.onSubscribe(new Subscription {
-//        def request(n: Long): Unit = sc.execute(new Runnable {
-//          def run(): Unit = {
-//            var requested = n
-//            while (rangeCopy.nonEmpty && !cancelled && requested > 0) {
-//              s.onNext(rangeCopy.head)
-//              requested -= 1
-//              emitted += 1
-//              rangeCopy = rangeCopy.tail
-//            }
-//            if (rangeCopy.isEmpty) {
-//              finish.fold(s.onComplete())(s.onError)
-//            }
-//          }
-//        })
-//
-//        def cancel(): Unit = {
-//          cancelled = true
-//        }
-//      })
-//    }
-//  }
+  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable])
+    (implicit sc: Scheduler) extends Publisher[Int] {
 
+    def this(range: Range, finish: Option[Throwable]) =
+      this(range.start, range.end, range.step, finish)
+
+    def subscribe(s: Subscriber[_ >: Int]): Unit = {
+      s.onSubscribe(new Subscription { self =>
+        private[this] val cancelled = Atomic(false)
+        private[this] val requested = Atomic(0L)
+        private[this] var index = from
+
+        def request(n: Long): Unit = {
+          if (requested.getAndAdd(n) == 0)
+            sc.execute(new Runnable {
+              def run(): Unit = {
+                var requested = self.requested.get
+                var toSend = requested
+
+                while (toSend > 0 && index < from && !cancelled.get) {
+                  s.onNext(index)
+                  index += step
+                  toSend -= 1
+
+                  if (toSend == 0) {
+                    requested = self.requested.subtractAndGet(requested)
+                    toSend = requested
+                  }
+                }
+
+                if (index >= from)
+                  finish match {
+                    case None =>
+                      s.onComplete()
+                    case Some(e) =>
+                      s.onError(e)
+                  }
+              }
+            })
+        }
+
+        def cancel(): Unit =
+          cancelled.set(true)
+      })
+    }
+  }
 }
