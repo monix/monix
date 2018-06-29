@@ -34,8 +34,6 @@ import org.reactivestreams.Publisher
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import monix.execution.rstreams.ReactivePullStrategy
-import monix.execution.rstreams.ReactivePullStrategy.StopAndWait
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
   * streaming of elements using a pull-based protocol.
@@ -2278,8 +2276,7 @@ object Iterant extends IterantInstances {
   def fromBatchCursor[F[_], A](xs: BatchCursor[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextCursor(xs, F.pure(empty[F, A]))
 
-  /** Given an `org.reactivestreams.Publisher`, converts it into a
-    * Monix Iterant.
+  /** Given an `org.reactivestreams.Publisher`, converts it into an `Iterant`.
     *
     * @see [[Iterant.toReactivePublisher]] for converting an `Iterant` to
     *      a reactive publisher.
@@ -2287,15 +2284,17 @@ object Iterant extends IterantInstances {
     * @param publisher is the `org.reactivestreams.Publisher` reference to
     *        wrap into an [[Iterant]]
     *
-    * @param strategy is a
-    *        [[monix.execution.rstreams.ReactivePullStrategy ReactivePullStrategy]]
-    *        that describes how elements are requested from a `Publisher`
+    * @param requestCount a strictly positive number, representing the size
+    *        of the buffer used and the number of elements requested on each
+    *        cycle when communicating demand, compliant with the
+    *        reactive streams specification. If `Int.MaxValue` is given,
+    *        then no back-pressuring logic will be applied (e.g. an unbounded
+    *        buffer is used and the source has a license to stream as many
+    *        events as it wants).
     */
-  def fromReactivePublisher[F[_], A](publisher: Publisher[A], strategy: ReactivePullStrategy = StopAndWait)
-    (implicit F: Async[F], timer: Timer[F]): Iterant[F, A] = {
-
-    IterantFromReactivePublisher2(publisher, strategy)
-  }
+  def fromReactivePublisher[F[_], A](publisher: Publisher[A], requestCount: Int = 256)
+    (implicit F: Async[F]): Iterant[F, A] =
+    IterantFromReactivePublisher(publisher, requestCount)
 
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
