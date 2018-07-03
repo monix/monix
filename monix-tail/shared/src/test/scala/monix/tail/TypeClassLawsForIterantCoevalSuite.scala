@@ -19,31 +19,38 @@ package monix.tail
 
 import cats.Eq
 import cats.data.EitherT
-import cats.effect.laws.discipline.SyncTests
-import cats.laws.discipline.{CoflatMapTests, MonoidKTests, SemigroupalTests}
+import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
 import monix.eval.Coeval
 
 object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
   type F[α] = Iterant[Coeval, α]
 
-//  // Explicit instance due to weird implicit resolution problem
-//  implicit val iso: SemigroupalTests.Isomorphisms[F] =
-//    SemigroupalTests.Isomorphisms.invariant
-//
-//  // Explicit instance, since Scala can't figure it out below :-(
-//  val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
-//    implicitly[Eq[EitherT[F, Throwable, Int]]]
-//
-//  checkAllAsync("Sync[Iterant[Coeval]]") { implicit ec =>
-//    implicit val eqE = eqEitherT
-//    SyncTests[F].sync[Int, Int, Int]
-//  }
-//
-//  checkAllAsync("MonoidK[Iterant[Coeval]]") { implicit ec =>
-//    MonoidKTests[F].monoidK[Int]
-//  }
-//
-//  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
-//    CoflatMapTests[F].coflatMap[Int, Int, Int]
-//  }
+  // Explicit instance due to weird implicit resolution problem
+  implicit val iso: SemigroupalTests.Isomorphisms[F] =
+    SemigroupalTests.Isomorphisms.invariant
+
+  // Explicit instance, since Scala can't figure it out below :-(
+  val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
+    implicitly[Eq[EitherT[F, Throwable, Int]]]
+
+  // TODO: re-enable Sync[Iterant[Coeval]] after this PR:
+  // https://github.com/typelevel/cats-effect/pull/277
+  //
+  // checkAllAsync("Sync[Iterant[Coeval]]") { implicit ec =>
+  //   implicit val eqE = eqEitherT
+  //   SyncTests[F].sync[Int, Int, Int]
+  // }
+
+  checkAllAsync("MonadError[Iterant[Coeval]]") { implicit ec =>
+    implicit val eqE = eqEitherT
+    MonadErrorTests[F, Throwable].monadError[Int, Int, Int]
+  }
+
+  checkAllAsync("MonoidK[Iterant[Coeval]]") { implicit ec =>
+    MonoidKTests[F].monoidK[Int]
+  }
+
+  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
+    CoflatMapTests[F].coflatMap[Int, Int, Int]
+  }
 }

@@ -252,49 +252,37 @@ class IterantBuildersSync[F[_]](implicit F: Sync[F])
 class IterantBuildersAsync[F[_]](implicit F: Async[F])
   extends IterantBuildersSync[F] {
 
-  /** $intervalAtFixedRateDesc
-    *
-    * @param period period between 2 successive emitted values
-    * @param timer is the timer implementation used to generate
-    *        delays and to fetch the current time
+  /** Aliased builder, see documentation for [[Iterant.never]]. */
+  def never[A]: Iterant[F, A] =
+    Iterant.suspendS(F.never)
+
+  /**
+    * Aliased builder, see documentation for
+    * [[[Iterant.intervalAtFixedRate[F[_]](period* Iterant.intervalAtFixedRate]]].
     */
   def intervalAtFixedRate(period: FiniteDuration)
     (implicit timer: Timer[F]): Iterant[F, Long] =
-    Iterant.intervalAtFixedRate(Duration.Zero, period)
+    Iterant.intervalAtFixedRate(period)
 
-  /** $intervalAtFixedRateDesc
-    *
-    * This version of the `intervalAtFixedRate` allows specifying an
-    * `initialDelay` before first value is emitted
-    *
-    * @param initialDelay initial delay before emitting the first value
-    * @param period period between 2 successive emitted values
-    * @param timer is the timer implementation used to generate
-    *        delays and to fetch the current time
+  /**
+    * Aliased builder, see documentation for
+    * [[[Iterant.intervalAtFixedRate[F[_]](initialDelay* Iterant.intervalAtFixedRate]]].
     */
   def intervalAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)
     (implicit timer: Timer[F]): Iterant[F, Long] =
     Iterant.intervalAtFixedRate(initialDelay, period)
 
-  /** $intervalWithFixedDelayDesc
-    *
-    * Without having an initial delay specified, this overload
-    * will immediately emit the first item, without any delays.
-    *
-    * @param delay the time to wait between 2 successive events
-    * @param timer is the timer implementation used to generate
-    *        delays and to fetch the current time
+  /**
+    * Aliased builder, see documentation for
+    * [[[Iterant.intervalWithFixedDelay[F[_]](delay* Iterant.intervalAtFixedRate]]].
     */
   def intervalWithFixedDelay(delay: FiniteDuration)
     (implicit timer: Timer[F]): Iterant[F, Long] =
-    Iterant.intervalWithFixedDelay(Duration.Zero, delay)
+    Iterant.intervalWithFixedDelay(delay)
 
-  /** $intervalWithFixedDelayDesc
-    *
-    * @param initialDelay is the delay to wait before emitting the first event
-    * @param delay the time to wait between 2 successive events
-    * @param timer is the timer implementation used to generate
-    *        delays and to fetch the current time
+  /**
+    * Aliased builder, see documentation for
+    * [[[Iterant.intervalWithFixedDelay[F[_]](initialDelay* Iterant.intervalAtFixedRate]]].
     */
   def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)
     (implicit timer: Timer[F]): Iterant[F, Long] =

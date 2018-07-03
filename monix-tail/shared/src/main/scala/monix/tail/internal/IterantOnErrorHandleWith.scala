@@ -135,7 +135,7 @@ private[tail] object IterantOnErrorHandleWith {
 
         Concat(F.pure(lh), F.delay {
           val err = errors.getAndSet(null)
-          if (err != null) {
+          if (err != null && !wasErrorHandled) {
             f(err)
           } else {
             Iterant.empty

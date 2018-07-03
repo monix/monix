@@ -1853,10 +1853,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 /** Defines the standard [[Iterant]] builders.
   *
   * @define NextDesc The [[monix.tail.Iterant.Next Next]] state
-  *         of the [[Iterant]] represents a `head` / `rest`
-  *         cons pair, where the `head` is a strict value.
+  *         of the [[Iterant]] represents a `item` / `rest`
+  *         cons pair, where the head `item` is a strict value.
   *
-  *         Note the `head` being a strict value means that it is
+  *         Note that `item` being a strict value means that it is
   *         already known, whereas the `rest` is meant to be lazy and
   *         can have asynchronous behavior as well, depending on the `F`
   *         type used.
@@ -1881,6 +1881,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         of the [[Iterant]] represents a suspended stream to be
   *         evaluated in the `F` context. It is useful to delay the
   *         evaluation of a stream by deferring to `F`.
+  *
+  * @define ConcatDesc The [[monix.tail.Iterant.Concat Concat]] state
+  *         of the [[Iterant]] represents a state that specifies
+  *         the concatenation of two streams.
   *
   * @define ScopeDesc The [[monix.tail.Iterant.Scope Scope]] state
   *         of the [[Iterant]] represents a stream that is able to
@@ -1919,8 +1923,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         This state cannot be followed by any other element and
   *         represents the end of the stream.
   *
-  * @see [[Iterant.Last]] for an alternative that signals one
-  *              last item, as an optimisation
+  *         @see [[Iterant.Last]] for an alternative that signals one
+  *         last item, as an optimisation
   *
   * @define builderSuspendByName Promote a non-strict value representing a
   *         stream to a stream of the same type, effectively delaying
@@ -2421,6 +2425,12 @@ object Iterant extends IterantInstances {
   def empty[F[_], A]: Iterant[F, A] =
     emptyRef.asInstanceOf[Iterant[F, A]]
 
+  /**
+    * Returns a stream that never emits any event and never completes.
+    */
+  def never[F[_], A](implicit F: Async[F]): Iterant[F, A] =
+    Iterant.suspendS(F.never)
+
   /** $intervalAtFixedRateDesc
     *
     * @param period period between 2 successive emitted values
@@ -2656,6 +2666,8 @@ private[tail] trait IterantInstances1 extends IterantInstances0 {
       Iterant.liftF(F.async(k))
     override def asyncF[A](k: (Either[Throwable, A] => Unit) => Iterant[F, Unit]): Iterant[F, A] =
       Iterant.liftF(F.asyncF(cb => k(cb).completeL))
+    override def never[A]: Iterant[F, A] =
+      Iterant.never
   }
 }
 

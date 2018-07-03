@@ -19,7 +19,6 @@ package monix.tail
 
 import cats.Eq
 import cats.data.EitherT
-import cats.effect.laws.discipline.AsyncTests
 import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
 import monix.eval.Task
 import monix.execution.schedulers.TestScheduler
@@ -27,31 +26,34 @@ import monix.execution.schedulers.TestScheduler
 object TypeClassLawsForIterantTaskSuite extends BaseLawsSuite {
   type F[α] = Iterant[Task, α]
 
-//  // Explicit instance due to weird implicit resolution problem
-//  implicit val iso: SemigroupalTests.Isomorphisms[F] =
-//    SemigroupalTests.Isomorphisms.invariant
-//
-//  implicit val ec: TestScheduler = TestScheduler()
-//
-//  // Explicit instance, since Scala can't figure it out below :-(
-//  val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
-//    implicitly[Eq[EitherT[F, Throwable, Int]]]
-//
-//  checkAllAsync("Async[Iterant[Task]]", slowConfig) { _ =>
-//    implicit val eqE = eqEitherT
-//    AsyncTests[F].async[Int, Int, Int]
-//  }
-//
-//  checkAllAsync("MonadError[Iterant[Task]]") { _ =>
-//    implicit val eqE = eqEitherT
-//    MonadErrorTests[F, Throwable].monadError[Int, Int, Int]
-//  }
-//
-//  checkAllAsync("MonoidK[Iterant[Task]]") { implicit ec =>
-//    MonoidKTests[F].monoidK[Int]
-//  }
-//
-//  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
-//    CoflatMapTests[F].coflatMap[Int, Int, Int]
-//  }
+  // Explicit instance due to weird implicit resolution problem
+  implicit val iso: SemigroupalTests.Isomorphisms[F] =
+    SemigroupalTests.Isomorphisms.invariant
+
+  implicit val ec: TestScheduler = TestScheduler()
+
+  // Explicit instance, since Scala can't figure it out below :-(
+  val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
+    implicitly[Eq[EitherT[F, Throwable, Int]]]
+
+  // TODO: re-enable Async[Iterant[Task]] after this PR:
+  // https://github.com/typelevel/cats-effect/pull/277
+  //
+  // checkAllAsync("Async[Iterant[Task]]", slowConfig) { _ =>
+  //  implicit val eqE = eqEitherT
+  //  AsyncTests[F].async[Int, Int, Int]
+  // }
+
+  checkAllAsync("MonadError[Iterant[Task]]") { _ =>
+    implicit val eqE = eqEitherT
+    MonadErrorTests[F, Throwable].monadError[Int, Int, Int]
+  }
+
+  checkAllAsync("MonoidK[Iterant[Task]]") { implicit ec =>
+    MonoidKTests[F].monoidK[Int]
+  }
+
+  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
+    CoflatMapTests[F].coflatMap[Int, Int, Int]
+  }
 }

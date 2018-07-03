@@ -21,6 +21,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
+import monix.execution.UncaughtExceptionReporter.{default => Logger}
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
@@ -121,7 +122,12 @@ private[tail] object IterantAttempt {
         Concat(F.pure(lh), F.delay {
           val err = errors.getAndSet(null)
           if (err != null) {
-            Last(handleError(err))
+            if (!wasErrorHandled)
+              Last(handleError(err))
+            else {
+              Logger.reportFailure(err)
+              Iterant.empty
+            }
           } else {
             Iterant.empty
           }
