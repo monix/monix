@@ -12,7 +12,7 @@ addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.1.0"
-val catsEffectVersion = "1.0.0-RC2-3bfa830-SNAPSHOT"
+val catsEffectVersion = "1.0.0-RC2-93ac33d"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
@@ -57,7 +57,9 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-language:implicitConversions",
     "-language:experimental.macros",
     // possibly deprecated options
-    "-Ywarn-inaccessible"
+    "-Ywarn-inaccessible",
+    // absolutely necessary for Iterant
+    "-Ypartial-unification"
   ),
 
   // Force building with Java 8
@@ -442,14 +444,14 @@ lazy val tailCommon =
 
 lazy val tailJVM = project.in(file("monix-tail/jvm"))
   .configure(profile)
-  .dependsOn(evalJVM % "compile->compile; test->test")
+  .dependsOn(evalJVM % "test->test")
   .dependsOn(executionJVM)
   .settings(tailCommon)
 
 lazy val tailJS = project.in(file("monix-tail/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(evalJS % "compile->compile; test->test")
+  .dependsOn(evalJS % "test->test")
   .dependsOn(executionJS)
   .settings(scalaJSSettings)
   .settings(tailCommon)

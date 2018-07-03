@@ -19,7 +19,6 @@ package monix.tail.internal
 
 import cats.effect.Effect
 import cats.implicits._
-import monix.eval.Callback
 import monix.execution.Cancelable
 import monix.execution.UncaughtExceptionReporter.{default => Logger}
 import monix.execution.atomic.Atomic
@@ -148,12 +147,10 @@ private[tail] object IterantToReactivePublisher {
     def startLoop(): Unit = {
       val loop = new Loop
       cancelable := Cancelable(
-        F.toIO(loop(source)).unsafeRunCancelable(
-          new Callback[Unit] {
-            def onSuccess(value: Unit): Unit = ()
-            def onError(ex: Throwable): Unit =
-              Logger.reportFailure(ex)
-          }))
+        F.toIO(loop(source)).unsafeRunCancelable({
+          case Left(error) => Logger.reportFailure(error)
+          case _ => ()
+        }))
     }
 
     private final class Loop extends Iterant.Visitor[F, A, F[Unit]] {

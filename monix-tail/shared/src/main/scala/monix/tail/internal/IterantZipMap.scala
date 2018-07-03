@@ -20,12 +20,12 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import cats.{Applicative, Parallel}
-import monix.eval.instances.ParallelApplicative
-import monix.execution.internal.Platform
+import monix.execution.internal.{ParallelApplicative, Platform}
 import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{Batch, BatchCursor}
+
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantZipMap {

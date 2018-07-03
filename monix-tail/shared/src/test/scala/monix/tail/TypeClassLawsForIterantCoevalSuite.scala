@@ -19,6 +19,7 @@ package monix.tail
 
 import cats.Eq
 import cats.data.EitherT
+import cats.effect.laws.discipline.SyncTests
 import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
 import monix.eval.Coeval
 
@@ -26,20 +27,17 @@ object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
   type F[α] = Iterant[Coeval, α]
 
   // Explicit instance due to weird implicit resolution problem
-  implicit val iso: SemigroupalTests.Isomorphisms[F] =
+  implicit lazy val iso: SemigroupalTests.Isomorphisms[F] =
     SemigroupalTests.Isomorphisms.invariant
 
   // Explicit instance, since Scala can't figure it out below :-(
-  val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
+  lazy val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
     implicitly[Eq[EitherT[F, Throwable, Int]]]
 
-  // TODO: re-enable Sync[Iterant[Coeval]] after this PR:
-  // https://github.com/typelevel/cats-effect/pull/277
-  //
-  // checkAllAsync("Sync[Iterant[Coeval]]") { implicit ec =>
-  //   implicit val eqE = eqEitherT
-  //   SyncTests[F].sync[Int, Int, Int]
-  // }
+  checkAllAsync("Sync[Iterant[Coeval]]") { implicit ec =>
+    implicit val eqE = eqEitherT
+    SyncTests[F].sync[Int, Int, Int]
+  }
 
   checkAllAsync("MonadError[Iterant[Coeval]]") { implicit ec =>
     implicit val eqE = eqEitherT
