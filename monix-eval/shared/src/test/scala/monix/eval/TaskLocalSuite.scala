@@ -115,8 +115,8 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     val test: Task[Unit] = for {
       local <- TaskLocal[String]("Good")
-      forked <- Task.sleep(1.second).fork
-      _ <- local.bind("Bad!")(forked.cancel).fork
+      forked <- Task.sleep(1.second).start
+      _ <- local.bind("Bad!")(forked.cancel).start
       _ <- Task.sleep(1.second)
       s <- local.read
       _ <- Task.now(assertEquals(s, "Good"))
