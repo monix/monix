@@ -12,6 +12,8 @@ addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.1.0"
+// Hash version is safe, containing a laws fix over 1.0.0-RC2:
+// https://github.com/typelevel/cats-effect/pull/277
 val catsEffectVersion = "1.0.0-RC2-93ac33d"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
@@ -44,8 +46,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.4",
-  crossScalaVersions := Seq("2.11.12", "2.12.4"),
+  scalaVersion := "2.12.6",
+  crossScalaVersions := Seq("2.11.12", "2.12.6"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -299,6 +301,8 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleResultTypeProblem]("monix.eval.Task.foreach"),
     // Breakage - changed type
     exclude[IncompatibleResultTypeProblem]("monix.execution.Cancelable.empty"),
+    // Breackage — made CompositeException final
+    exclude[FinalClassProblem]("monix.execution.exceptions.CompositeException"),
     // Breakage — extra implicit param
     exclude[DirectMissingMethodProblem]("monix.eval.TaskInstancesLevel0.catsEffect"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.this"),
@@ -361,7 +365,9 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleResultTypeProblem]("monix.execution.internal.collection.ArrayStack.clone"),
     exclude[MissingTypesProblem]("monix.execution.internal.collection.ArrayStack"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation#RaiseCancelable.this"),
-    exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover")
+    exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover"),
+    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative$"),
+    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative")
   )
 )
 
