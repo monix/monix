@@ -86,8 +86,8 @@ class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
 
   implicit def equalityIO[A](implicit A: Eq[A]): Eq[IO[A]] =
     Eq.instance { (a, b) =>
-      val ta = Try(a.unsafeRunSync())
-      val tb = Try(b.unsafeRunSync())
+      val ta = Try(a.unsafeRunTimed(timeout).get)
+      val tb = Try(b.unsafeRunTimed(timeout).get)
       equalityTry[A].eqv(ta, tb)
     }
 
