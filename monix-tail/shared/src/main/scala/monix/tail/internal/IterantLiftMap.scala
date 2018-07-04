@@ -17,69 +17,52 @@
 
 package monix.tail.internal
 
-import cats.Applicative
 import cats.arrow.FunctionK
 import cats.effect.Sync
 import cats.syntax.all._
-import scala.util.control.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantLiftMap {
   /** Implementation for `Iterant#liftMap`. */
   def apply[F[_], G[_], A](self: Iterant[F, A], f: FunctionK[F, G])
     (implicit G: Sync[G]): Iterant[G, A] = {
 
-    // Note we can't do exception handling in this loop, because
-    // if `f` throws then we are screwed since there's no way
-    // to convert our `stop` from `F[Unit]` to `G[Unit]`. And then
-    // we cannot signal a `Halt` without clean resource handling,
-    // hence behavior needs to be undefined (i.e. it's the user's fault)
-
-    def loop(fa: Iterant[F, A]): Iterant[G, A] =
-      fa match {
-        case Next(a, rest, stop) =>
-          Next[G, A](a, f(rest).map(loop), f(stop))
-        case NextBatch(a, rest, stop) =>
-          NextBatch[G, A](a, f(rest).map(loop), f(stop))
-        case NextCursor(a, rest, stop) =>
-          NextCursor[G, A](a, f(rest).map(loop), f(stop))
-        case Suspend(rest, stop) =>
-          Suspend(f(rest).map(loop), f(stop))
-        case Last(_) | Halt(_) =>
-          fa.asInstanceOf[Iterant[G, A]]
-      }
-
-    loop(self)
+    Suspend(G.delay(new LoopK(f).apply(self)))
   }
 
-  /** Implementation for `Iterant#liftMap`. */
-  def apply[F[_], G[_], A](self: Iterant[F, A], f: F[Iterant[F, A]] => G[Iterant[F, A]], g: F[Unit] => G[Unit])
-    (implicit F: Applicative[F], G: Sync[G]): Iterant[G, A] = {
+  private final class LoopK[F[_], G[_], A](f: FunctionK[F, G])
+    (implicit G: Sync[G])
+    extends Iterant.Visitor[F, A, Iterant[G, A]] {
 
-    // Note we can't do exception handling in this loop for `g`,
-    // because if `g` throws then we are screwed since there's no way
-    // to convert our `stop` from `F[Unit]` to `G[Unit]`. And then
-    // we cannot signal a `Halt` without clean resource handling,
-    // hence behavior needs to be undefined (i.e. it's the user's fault)
+    def visit(ref: Next[F, A]): Iterant[G, A] =
+      Next(ref.item, f(ref.rest).map(this))
 
-    def loop(fa: Iterant[F, A]): Iterant[G, A] =
-      try fa match {
-        case Next(a, rest, stop) =>
-          Next[G, A](a, f(rest).map(loop), g(stop))
-        case NextBatch(a, rest, stop) =>
-          NextBatch[G, A](a, f(rest).map(loop), g(stop))
-        case NextCursor(a, rest, stop) =>
-          NextCursor[G, A](a, f(rest).map(loop), g(stop))
-        case Suspend(rest, stop) =>
-          Suspend(f(rest).map(loop), g(stop))
-        case Last(_) | Halt(_) =>
-          fa.asInstanceOf[Iterant[G, A]]
-      } catch {
-        case e if NonFatal(e) =>
-          Suspend[G, A](g(fa.earlyStop).map(_ => Halt(Some(e))), G.unit)
-      }
+    def visit(ref: NextBatch[F, A]): Iterant[G, A] =
+      NextBatch(ref.batch, f(ref.rest).map(this))
 
-    loop(self)
+    def visit(ref: NextCursor[F, A]): Iterant[G, A] =
+      NextCursor(ref.cursor, f(ref.rest).map(this))
+
+    def visit(ref: Suspend[F, A]): Iterant[G, A] =
+      Suspend(f(ref.rest).map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[G, A] =
+      Concat(f(ref.lh).map(this), f(ref.rh).map(this))
+
+    def visit[S](ref: Scope[F, S, A]): Iterant[G, A] =
+      Scope[G, S, A](
+        f(ref.acquire),
+        s => G.suspend(f(ref.use(s)).map(this)),
+        (s, exitCase) => f(ref.release(s, exitCase)))
+
+    def visit(ref: Last[F, A]): Iterant[G, A] =
+      ref.asInstanceOf[Iterant[G, A]]
+
+    def visit(ref: Halt[F, A]): Iterant[G, A] =
+      ref.asInstanceOf[Iterant[G, A]]
+
+    def fail(e: Throwable): Iterant[G, A] =
+      Iterant.raiseError(e)
   }
 }

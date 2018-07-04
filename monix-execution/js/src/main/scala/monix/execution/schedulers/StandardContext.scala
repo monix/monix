@@ -44,4 +44,4 @@ private[execution] class StandardContext(reporter: UncaughtExceptionReporter)
 }
 
 private[execution] object StandardContext
-  extends StandardContext(UncaughtExceptionReporter.LogExceptionsToStandardErr)
+  extends StandardContext(UncaughtExceptionReporter.default)

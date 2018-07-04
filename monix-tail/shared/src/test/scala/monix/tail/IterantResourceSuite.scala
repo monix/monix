@@ -43,7 +43,7 @@ object IterantResourceSuite extends BaseTestSuite {
   test("Iterant.resource.flatMap(use) preserves earlyStop of stream returned from `use`") { _ =>
     var earlyStopDone = false
     val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.unit)
-      .flatMap(_ => Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval {
+      .flatMap(_ => Iterant[Coeval].of(1, 2, 3).guarantee(Coeval {
         earlyStopDone = true
       }))
 
@@ -122,7 +122,8 @@ object IterantResourceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     check1 { (fa: Iterant[Coeval, Int]) =>
       val lh = Iterant.resource(Coeval.unit)(_ => Coeval.raiseError(dummy)).flatMap(_ => fa)
-      lh <-> fa ++ Iterant.raiseError[Coeval, Int](dummy)
+      val rh = fa ++ Iterant.raiseError[Coeval, Int](dummy)
+      lh <-> rh
     }
   }
 
@@ -145,8 +146,7 @@ object IterantResourceSuite extends BaseTestSuite {
     var released = false
     val dummy = DummyException("dummy")
     val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval { released = true })
-      .flatMap { _ =>
-        Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy), Coeval.raiseError(dummy))
+      .flatMap { _ => Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy))
       }
 
     intercept[DummyException] {
@@ -173,13 +173,13 @@ object IterantResourceSuite extends BaseTestSuite {
   test("Iterant.resource handles broken batches & cursors") { _ =>
     val rs = new Resource
     val dummy = DummyException("dummy")
-    def withEmpty(ctor: (Coeval[Iterant[Coeval, Int]], Coeval[Unit]) => Iterant[Coeval, Int]) =
-      Iterant.resource(rs.acquire)(_.release)
-        .flatMap(_ => ctor(Coeval(Iterant.empty), Coeval.unit))
+
+    def withEmpty(ctor: (Coeval[Iterant[Coeval, Int]]) => Iterant[Coeval, Int]) =
+      Iterant.resource(rs.acquire)(_.release).flatMap(_ => ctor(Coeval(Iterant.empty)))
 
     val broken = Array(
-      withEmpty(Iterant.nextBatchS(ThrowExceptionBatch(dummy), _, _)),
-      withEmpty(Iterant.nextCursorS(ThrowExceptionCursor(dummy), _, _))
+      withEmpty(Iterant.nextBatchS(ThrowExceptionBatch(dummy), _)),
+      withEmpty(Iterant.nextCursorS(ThrowExceptionCursor(dummy), _))
     )
 
     for (iter <- broken) {
@@ -195,14 +195,13 @@ object IterantResourceSuite extends BaseTestSuite {
   test("Iterant.resource handles broken `next` continuations") { _ =>
     val rs = new Resource
     val dummy = DummyException("dummy")
-    def withError(ctor: (Coeval[Iterant[Coeval, Int]], Coeval[Unit]) => Iterant[Coeval, Int]) =
-      Iterant.resource(rs.acquire)(_.release)
-        .flatMap(_ => ctor(Coeval.raiseError(dummy), Coeval.unit))
+    def withError(ctor: (Coeval[Iterant[Coeval, Int]]) => Iterant[Coeval, Int]) =
+      Iterant.resource(rs.acquire)(_.release).flatMap(_ => ctor(Coeval.raiseError(dummy)))
 
     val broken = Array(
-      withError(Iterant.nextS(0, _, _)),
-      withError(Iterant.nextBatchS(Batch(1, 2, 3), _, _)),
-      withError(Iterant.nextCursorS(BatchCursor(1, 2, 3), _, _)),
+      withError(Iterant.nextS(0, _)),
+      withError(Iterant.nextBatchS(Batch(1, 2, 3), _)),
+      withError(Iterant.nextCursorS(BatchCursor(1, 2, 3), _)),
       withError(Iterant.suspendS)
     )
 
@@ -250,7 +249,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.released, completes.length * 2)
 
     val broken = Iterant.resource(rs.acquire)(_.release)
-      .flatMap(_ => Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy), Coeval.unit))
+      .flatMap(_ => Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy)))
 
     for (method <- completes) {
       intercept[DummyException] {

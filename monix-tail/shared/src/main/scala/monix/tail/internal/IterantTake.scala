@@ -17,13 +17,11 @@
 
 package monix.tail.internal
 
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.Iterant
-import cats.syntax.all._
 import cats.effect.Sync
-import scala.util.control.NonFatal
+import cats.syntax.all._
+import monix.tail.Iterant
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
-
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantTake {
@@ -33,68 +31,85 @@ private[tail] object IterantTake {
   def apply[F[_], A](source: Iterant[F, A], n: Int)
     (implicit F: Sync[F]): Iterant[F, A] = {
 
-    def nextOrStop(rest: F[Iterant[F, A]], stop: F[Unit], n: Int, taken: Int): F[Iterant[F, A]] = {
-      if (n > taken) rest.map(loop(n - taken))
-      else stop.map(_ => Iterant.empty)
+    if (n > 0)
+      Suspend(F.delay(new Loop[F, A](n).apply(source)))
+    else
+      Iterant.empty
+  }
+
+  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+
+    private[this] var toTake = n
+
+    def visit(ref: Next[F, A]): Iterant[F, A] = {
+      toTake -= 1
+      if (toTake > 0)
+        Next(ref.item, ref.rest.map(this))
+      else
+        Last(ref.item)
     }
 
-    def processSeq(n: Int, ref: NextCursor[F, A]): Iterant[F, A] = {
-      val NextCursor(cursor, rest, stop) = ref
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      visit(ref.toNextCursor())
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
+      val NextCursor(cursor, rest) = ref
       // Aggregate cursor into an ArrayBuffer
-      val toTake = math.min(cursor.recommendedBatchSize, n)
+      val max = math.min(cursor.recommendedBatchSize, toTake)
       val buffer = ArrayBuffer.empty[A]
 
       var idx = 0
-      while (idx < toTake && cursor.hasNext()) {
+      while (idx < max && cursor.hasNext()) {
         buffer += cursor.next()
         idx += 1
       }
 
       if (idx > 0) {
-        val restRef: F[Iterant[F, A]] = if (idx < toTake) rest else F.pure(ref)
+        toTake -= idx
+        val restRef: F[Iterant[F, A]] =
+          if (toTake > 0) {
+            if (cursor.hasNext())
+              F.pure(ref).map(this)
+            else
+              rest.map(this)
+          } else {
+            F.pure(Iterant.empty)
+          }
+
         NextCursor(
           BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]],
-          nextOrStop(restRef, stop, n, idx),
-          stop)
-      }
-      else
-        Suspend(nextOrStop(rest, stop, n, idx), stop)
-    }
-
-    def loop(n: Int)(source: Iterant[F, A]): Iterant[F, A] = {
-      try if (n > 0) source match {
-        case Next(elem, rest, stop) =>
-          Next(elem, nextOrStop(rest, stop, n, 1), stop)
-        case current @ NextCursor(_, _, _) =>
-          processSeq(n, current)
-        case NextBatch(batch, rest, stop) =>
-          processSeq(n, NextCursor(batch.cursor(), rest, stop))
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(n)), stop)
-        case theEnd @ (Last(_) | Halt(_)) =>
-          theEnd
-      }
-      else source match {
-        case theEnd @ (Last(_) | Halt(_)) =>
-          theEnd
-        case other =>
-          val stop = other.earlyStop
-          Suspend(stop.map(_ => Iterant.empty), stop)
-      }
-      catch {
-        case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.map(_ => Halt(Some(ex))), stop)
+          restRef)
+      } else {
+        Suspend(rest.map(this))
       }
     }
 
-    source match {
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        // We can have side-effects with NextBatch/NextCursor
-        // processing, so suspending execution in this case
-        Suspend(F.delay(loop(n)(source)), source.earlyStop)
-      case _ =>
-        loop(n)(source)
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      Concat(
+        ref.lh.map(this),
+        F.suspend {
+          if (this.toTake > 0)
+            ref.rh.map(this)
+          else
+            F.pure(Iterant.empty)
+        })
+
+    def visit[R](ref: Scope[F, R, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] = {
+      toTake -= 1
+      ref
     }
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
   }
 }

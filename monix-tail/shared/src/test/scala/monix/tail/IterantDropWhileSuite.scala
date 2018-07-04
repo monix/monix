@@ -25,7 +25,6 @@ import monix.execution.internal.Platform
 import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
-
 import scala.annotation.tailrec
 
 object IterantDropWhileSuite extends BaseTestSuite {
@@ -48,15 +47,23 @@ object IterantDropWhileSuite extends BaseTestSuite {
 
   test("Iterant.dropWhile equivalence with List.dropWhile") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
-      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
-      stream.dropWhile(p).toListL <-> stream.toListL.map(dropFromList(p))
+      val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1, allowErrors = false)
+      val stream = iter ++ Iterant[Coeval].of(1, 2, 3)
+      val received = stream.dropWhile(p).toListL.runTry()
+      val expected = stream.toListL.map(dropFromList(p)).runTry()
+
+      if (received != expected) {
+        println(s"$received != $expected")
+      }
+
+      received <-> expected
     }
   }
 
   test("Iterant.dropWhile protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropWhile(_ => true)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
@@ -66,7 +73,7 @@ object IterantDropWhileSuite extends BaseTestSuite {
   test("Iterant.dropWhile protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropWhile(_ => true)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
@@ -76,7 +83,7 @@ object IterantDropWhileSuite extends BaseTestSuite {
   test("Iterant.dropWhile protects against user code") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextCursorS[Int](BatchCursor(1,2,3), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextCursorS[Int](BatchCursor(1,2,3), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropWhile(_ => throw dummy)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
@@ -86,9 +93,9 @@ object IterantDropWhileSuite extends BaseTestSuite {
   test("Iterant.dropWhile preserves the source earlyStop") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.dropWhile(_ => true)
-    stream.earlyStop.value()
+    stream.completeL.value()
     assertEquals(effect, 1)
   }
 }

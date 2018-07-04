@@ -19,38 +19,113 @@ package monix.tail.internal
 
 import cats.syntax.functor._
 import cats.effect.Sync
-import scala.util.control.NonFatal
+import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant._
 
 private[tail] object IterantSwitchIfEmpty {
-  def apply[F[_], A](primary: Iterant[F, A], backup: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] = {
-    def loop(source: Iterant[F, A]): Iterant[F, A] =
-      try source match {
-        case Suspend(rest, stop) => Suspend(rest.map(loop), stop)
-        case NextBatch(batch, rest, stop) =>
-          val cursor = batch.cursor()
-          if (!cursor.hasNext()) {
-            Suspend(rest.map(loop), stop)
-          } else {
-            NextCursor(cursor, rest, stop)
-          }
-
-        case NextCursor(cursor, rest, stop) if !cursor.hasNext() =>
-          Suspend(rest.map(loop), stop)
-
-        case Halt(None) => backup
-        case _ => source
-      } catch {
-        case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.as(Halt(Some(ex))), stop)
-      }
+  /**
+    * Implementation for `Iterant.switchIfEmpty`.
+    */
+  def apply[F[_], A](primary: Iterant[F, A], backup: Iterant[F, A])
+    (implicit F: Sync[F]): Iterant[F, A] = {
 
     primary match {
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        Suspend(F.delay(loop(primary)), primary.earlyStop)
-      case _ => loop(primary)
+      case Next(_, _) | Last(_) =>
+        primary
+      case Halt(e) =>
+        e match {
+          case None => backup
+          case _ => primary
+        }
+      case _ =>
+        Suspend(F.delay(new Loop[F, A](backup).apply(primary)))
     }
+  }
+
+  private final class Loop[F[_], A](backup: Iterant[F, A])
+    (implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] { self =>
+
+    private[this] var isEmpty = true
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+
+    private[this] def isStackEmpty: Boolean =
+      stackRef == null || stackRef.isEmpty
+
+    private def stackPush(item: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(item)
+    }
+
+    private def stackPop(): F[Iterant[F, A]] = {
+      if (stackRef != null) stackRef.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+    }
+
+    def visit(ref: Next[F, A]): Iterant[F, A] =
+      if (isStackEmpty) {
+        ref
+      } else {
+        isEmpty = false
+        Next(ref.item, ref.rest.map(this))
+      }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      if (!isEmpty) {
+        if (isStackEmpty) ref
+        else NextBatch(ref.batch, ref.rest.map(this))
+      } else {
+        visit(ref.toNextCursor())
+      }
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
+      val cursor = ref.cursor
+      if (!isEmpty || cursor.hasNext()) {
+        if (isStackEmpty) {
+          ref
+        } else {
+          isEmpty = false
+          NextCursor(cursor, ref.rest.map(this))
+        }
+      } else {
+        Suspend(ref.rest.map(this))
+      }
+    }
+
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] = {
+      stackPush(ref.rh)
+      Suspend(ref.lh.map(this))
+    }
+
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] = {
+      isEmpty = false
+      stackPop() match {
+        case null => ref
+        case xs => Next(ref.item, xs.map(this))
+      }
+    }
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref.e match {
+        case None =>
+          stackPop() match {
+            case null =>
+              if (isEmpty) backup else ref
+            case xs =>
+              Suspend(xs.map(this))
+          }
+        case _ =>
+          ref
+      }
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
   }
 }

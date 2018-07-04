@@ -20,10 +20,9 @@ package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import scala.util.control.NonFatal
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.execution.internal.collection.ArrayStack
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.Batch
-import monix.tail.internal.IterantUtils.signalError
 
 private[tail] object IterantBuffer {
   /** Implementation for `Iterant.bufferSliding`. */
@@ -31,7 +30,7 @@ private[tail] object IterantBuffer {
     (implicit F: Sync[F]): Iterant[F, Seq[A]] = {
 
     build[F, A, Seq[A]](self, count, skip,
-      (seq, rest, stop) => Next(seq, rest, stop),
+      (seq, rest) => Next(seq, rest),
       seq => Last(seq))
   }
 
@@ -40,79 +39,108 @@ private[tail] object IterantBuffer {
     (implicit F: Sync[F]): Iterant[F, A] = {
 
     build[F, A, A](self, count, count,
-      (seq, rest, stop) => NextBatch(Batch.fromArray(seq), rest, stop),
-      seq => NextBatch(Batch.fromArray(seq), F.pure(Iterant.empty), F.unit))
+      (seq, rest) => NextBatch(Batch.fromArray(seq), rest),
+      seq => NextBatch(Batch.fromArray(seq), F.pure(Iterant.empty)))
   }
 
   private def build[F[_], A, B](
     self: Iterant[F, A],
     count: Int,
     skip: Int,
-    f: (Array[A], F[Iterant[F, B]], F[Unit]) => Iterant[F, B],
+    f: (Array[A], F[Iterant[F, B]]) => Iterant[F, B],
     last: Array[A] => Iterant[F, B])
     (implicit F: Sync[F]): Iterant[F, B] = {
 
-    val buffer = new Buffer[A](count, skip)
+    Suspend(F.suspend(new BatchVisitor(count, skip, f, last).apply(self)))
+  }
 
-    def process(fa: Iterant[F, A]): F[Iterant[F, B]] = {
-      val NextCursor(cursor, rest, stop) = fa
+  private class BatchVisitor[F[_], A, B](
+    count: Int,
+    skip: Int,
+    f: (Array[A], F[Iterant[F, B]]) => Iterant[F, B],
+    last: Array[A] => Iterant[F, B])
+    (implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, F[Iterant[F, B]]] { loop =>
+
+    private[this] val buffer = new Buffer[A](count, skip)
+    private[this] val stack  = new ArrayStack[F[Iterant[F, A]]]()
+
+    def visit(ref: Next[F, A]): F[Iterant[F, B]] = {
+      val seq = buffer.push(ref.item)
+      if (seq != null)
+        F.pure(f(seq, ref.rest.flatMap(loop)))
+      else
+        ref.rest.flatMap(loop)
+    }
+
+    def visit(ref: NextBatch[F, A]): F[Iterant[F, B]] =
+      processCursor(ref.toNextCursor())
+
+    def visit(ref: NextCursor[F, A]): F[Iterant[F, B]] =
+      processCursor(ref)
+
+    def visit(ref: Suspend[F, A]): F[Iterant[F, B]] =
+      ref.rest.flatMap(loop)
+
+    def visit(ref: Concat[F, A]): F[Iterant[F, B]] = {
+      stack.push(ref.rh)
+      ref.lh.flatMap(loop)
+    }
+
+    def visit[S](ref: Scope[F, S, A]): F[Iterant[F, B]] =
+      ref.runFlatMap(loop)
+
+    def visit(ref: Last[F, A]): F[Iterant[F, B]] = {
+      var seq = buffer.push(ref.item)
+      if (stack.isEmpty) {
+        if (seq == null) seq = buffer.rest()
+        F.pure {
+          if (seq != null && seq.length > 0)
+            last(seq)
+          else
+            Iterant.empty
+        }
+      } else {
+        val rest = stack.pop()
+        if (seq != null) {
+          F.pure(f(seq, rest.flatMap(this)))
+        } else {
+          rest.flatMap(this)
+        }
+      }
+    }
+
+    def visit(ref: Halt[F, A]): F[Iterant[F, B]] = {
+      val e = ref.e
+      if (stack.isEmpty || e.isDefined) {
+        val self = ref.asInstanceOf[Iterant[F, B]]
+        val seq = buffer.rest()
+        F.pure {
+          if (seq != null && seq.length > 0)
+            f(seq, F.pure(self))
+          else
+            self
+        }
+      } else {
+        stack.pop().flatMap(this)
+      }
+    }
+
+    def fail(e: Throwable): F[Iterant[F, B]] =
+      F.pure(Iterant.raiseError(e))
+
+    private def processCursor(fa: Iterant.NextCursor[F, A]): F[Iterant[F, B]] = {
+      val NextCursor(cursor, rest) = fa
 
       while (cursor.hasNext()) {
         val seq = buffer.push(cursor.next())
         if (seq != null) {
-          val next = if (cursor.hasNext()) F.pure(fa) else rest
-          return F.pure(f(seq, next.flatMap(loop), stop))
+          val next = if (cursor.hasNext()) F.pure(fa: Iterant[F, A]) else rest
+          return F.pure(f(seq, next.flatMap(this)))
         }
       }
-
-      rest.flatMap(loop)
+      rest.flatMap(this)
     }
-
-    def loop(self: Iterant[F, A]): F[Iterant[F, B]] = {
-      try self match {
-        case Next(a, rest, stop) =>
-          val seq = buffer.push(a)
-          if (seq != null)
-            F.pure(f(seq, rest.flatMap(loop), stop))
-          else
-            rest.flatMap(loop)
-
-        case self@NextCursor(_, _, _) =>
-          process(self)
-
-        case NextBatch(batch, rest, stop) =>
-          process(NextCursor(batch.cursor(), rest, stop))
-
-        case Suspend(rest, _) =>
-          rest.flatMap(loop)
-
-        case Last(a) =>
-          var seq = buffer.push(a)
-          if (seq == null) seq = buffer.rest()
-          F.pure {
-            if (seq != null && seq.length > 0)
-              last(seq)
-            else
-              Iterant.empty
-          }
-
-        case ref @ Halt(_) =>
-          val self = ref.asInstanceOf[Iterant[F, B]]
-          val seq = buffer.rest()
-          F.pure {
-            if (seq != null && seq.length > 0)
-              f(seq, F.pure(self), F.unit)
-            else
-              self
-          }
-      }
-      catch {
-        case e if NonFatal(e) =>
-          F.pure(signalError(self, e))
-      }
-    }
-
-    Suspend(F.suspend(loop(self)), self.earlyStop)
   }
 
   private final class Buffer[A](count: Int, skip: Int) {

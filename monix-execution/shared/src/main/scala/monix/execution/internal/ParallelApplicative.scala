@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.eval.instances
+package monix.execution.internal
 
 import cats.{Applicative, Parallel}
 
@@ -23,7 +23,7 @@ import cats.{Applicative, Parallel}
   * a parallel `cats.Applicative[F]` out of it.
   */
 private[monix] final class ParallelApplicative[F[_], G[_]]
-  (implicit P: Parallel[F, G])
+(implicit P: Parallel[F, G])
   extends Applicative[F] {
 
   override def pure[A](x: A): F[A] =

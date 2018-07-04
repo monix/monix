@@ -18,59 +18,115 @@
 package monix.tail.internal
 
 import cats.effect.Sync
-import scala.util.control.NonFatal
-import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.internal.IterantUtils.signalError
 import cats.syntax.all._
+import monix.execution.internal.Platform
+import monix.execution.internal.collection.ArrayStack
+import monix.tail.Iterant
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.batches.{BatchCursor, GenericBatch, GenericCursor}
 
 private[tail] object IterantRepeat {
-  /** Implementation for `Iterant.repeat`. */
-  def apply[F[_], A, B](source: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] = {
+  /**
+    * Implementation for `Iterant.repeat`.
+    */
+  def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+    source match {
+      case Halt(_) => source
+      case Last(item) => repeatOne(item)
+      case _ =>
+        Suspend(F.delay(new Loop(source).apply(source)))
+    }
 
-    def loop(isEmpty: Boolean)(self: Iterant[F, A]): Iterant[F, A] =
-      try self match {
-        case Next(head, tail, stop) =>
-          Next[F, A](head, tail.map(loop(isEmpty = false)), stop)
+  private def repeatOne[F[_], A](item: A)
+    (implicit F: Sync[F]): Iterant[F, A] = {
 
-        case NextCursor(cursor, rest, stop) =>
-          if (!isEmpty || cursor.hasNext())
-            NextCursor[F, A](cursor, rest.map(loop(isEmpty = false)), stop)
-          else
-            Suspend(rest.map(loop(isEmpty)), stop)
+    val batch = new GenericBatch[A] {
+      def cursor(): BatchCursor[A] =
+        new GenericCursor[A] {
+          def hasNext(): Boolean = true
+          def next(): A = item
+          def recommendedBatchSize: Int =
+            Platform.recommendedBatchSize
+        }
+    }
+    NextBatch(batch, F.pure(Iterant.empty))
+  }
 
-        case NextBatch(gen, rest, stop) =>
-          if (isEmpty) {
-            val cursor = gen.cursor()
-            if (cursor.hasNext()) NextCursor[F, A](cursor, rest.map(loop(isEmpty = false)), stop)
-            else Suspend(rest.map(loop(isEmpty = true)), stop)
-          } else {
-            NextBatch[F, A](gen, rest.map(loop(isEmpty = false)), stop)
+  private final class Loop[F[_], A](source: Iterant[F, A])
+    (implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+
+    private[this] var isEmpty = true
+    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
+
+    def visit(ref: Next[F, A]): Iterant[F, A] = {
+      if (isEmpty) isEmpty = false
+      Next(ref.item, ref.rest.map(this))
+    }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] = {
+      if (isEmpty) {
+        val cursor = ref.batch.cursor()
+        visit(NextCursor(cursor, ref.rest))
+      } else {
+        NextBatch[F, A](ref.batch, ref.rest.map(this))
+      }
+    }
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
+      val cursor = ref.cursor
+      if (isEmpty) isEmpty = cursor.isEmpty
+      NextCursor[F, A](cursor, ref.rest.map(this))
+    }
+
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend[F, A](ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] = {
+      if (stack == null) stack = new ArrayStack()
+      stack.push(ref.rh)
+      Suspend(ref.lh.map(this))
+    }
+
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] = {
+      val next =
+        if (stack == null) null.asInstanceOf[F[Iterant[F, A]]]
+        else stack.pop()
+
+      next match {
+        case null =>
+          isEmpty = true
+          Next(ref.item, F.pure(source).map(this))
+        case rest =>
+          isEmpty = false
+          Next(ref.item, rest.map(this))
+      }
+    }
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref.e match {
+        case None =>
+          val next =
+            if (stack == null) null.asInstanceOf[F[Iterant[F, A]]]
+            else stack.pop()
+
+          next match {
+            case null =>
+              if (isEmpty) ref else {
+                isEmpty = true
+                Suspend(F.pure(source).map(this))
+              }
+            case rest =>
+              Suspend(rest.map(this))
           }
-
-        case Suspend(rest, stop) =>
-          Suspend[F, A](rest.map(loop(isEmpty)), stop)
-        case Last(item) =>
-          Next[F, A](item, F.delay(loop(isEmpty = false)(source)), F.unit)
-        case Halt(Some(ex)) =>
-          signalError(self, ex)
-        case Halt(None) =>
-          if (isEmpty) Iterant.empty
-          else Suspend(F.delay(loop(isEmpty)(source)), F.unit)
-      } catch {
-        case ex if NonFatal(ex) => signalError(source, ex)
+        case _ =>
+          ref
       }
 
-    source match {
-      // terminate if the source is empty
-      case empty@Halt(_) =>
-        empty
-      // We can have side-effects with NextBatch/NextCursor
-      // processing, so suspending execution in this case
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        Suspend(F.delay(loop(isEmpty = true)(source)), source.earlyStop)
-      case _ =>
-        loop(isEmpty = true)(source)
-    }
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
   }
 }

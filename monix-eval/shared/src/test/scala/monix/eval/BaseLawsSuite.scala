@@ -195,7 +195,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def arbitraryPfExToA[A](implicit A: Arbitrary[A]): Arbitrary[PartialFunction[Throwable, A]] =
     Arbitrary {
       val fun = implicitly[Arbitrary[Int => A]]
-      for (f <- fun.arbitrary) yield PartialFunction((t: Throwable) => f(t.hashCode()))
+      for (f <- fun.arbitrary) yield { case (t: Throwable) => f(t.hashCode()) }
     }
 
   implicit def arbitraryCoevalToLong[A, B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Coeval[A] => B] =
@@ -216,7 +216,9 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def equalityCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
     new Eq[Coeval[A]] {
       def eqv(lh: Coeval[A], rh: Coeval[A]): Boolean = {
-        Eq[Try[A]].eqv(lh.runTry(), rh.runTry())
+        val lht = lh.runTry()
+        val rht = rh.runTry()
+        Eq[Try[A]].eqv(lht, rht)
       }
     }
 

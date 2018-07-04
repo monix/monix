@@ -12,7 +12,9 @@ addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.1.0"
-val catsEffectVersion = "1.0.0-RC2"
+// Hash version is safe, containing a laws fix over 1.0.0-RC2:
+// https://github.com/typelevel/cats-effect/pull/277
+val catsEffectVersion = "1.0.0-RC2-93ac33d"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
@@ -44,8 +46,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.4",
-  crossScalaVersions := Seq("2.11.12", "2.12.4"),
+  scalaVersion := "2.12.6",
+  crossScalaVersions := Seq("2.11.12", "2.12.6"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -57,7 +59,9 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-language:implicitConversions",
     "-language:experimental.macros",
     // possibly deprecated options
-    "-Ywarn-inaccessible"
+    "-Ywarn-inaccessible",
+    // absolutely necessary for Iterant
+    "-Ypartial-unification"
   ),
 
   // Force building with Java 8
@@ -297,6 +301,8 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleResultTypeProblem]("monix.eval.Task.foreach"),
     // Breakage - changed type
     exclude[IncompatibleResultTypeProblem]("monix.execution.Cancelable.empty"),
+    // Breackage — made CompositeException final
+    exclude[FinalClassProblem]("monix.execution.exceptions.CompositeException"),
     // Breakage — extra implicit param
     exclude[DirectMissingMethodProblem]("monix.eval.TaskInstancesLevel0.catsEffect"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.this"),
@@ -359,7 +365,9 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleResultTypeProblem]("monix.execution.internal.collection.ArrayStack.clone"),
     exclude[MissingTypesProblem]("monix.execution.internal.collection.ArrayStack"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation#RaiseCancelable.this"),
-    exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover")
+    exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover"),
+    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative$"),
+    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative")
   )
 )
 
@@ -442,14 +450,14 @@ lazy val tailCommon =
 
 lazy val tailJVM = project.in(file("monix-tail/jvm"))
   .configure(profile)
-  .dependsOn(evalJVM % "compile->compile; test->test")
+  .dependsOn(evalJVM % "test->test")
   .dependsOn(executionJVM)
   .settings(tailCommon)
 
 lazy val tailJS = project.in(file("monix-tail/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(evalJS % "compile->compile; test->test")
+  .dependsOn(evalJS % "test->test")
   .dependsOn(executionJS)
   .settings(scalaJSSettings)
   .settings(tailCommon)

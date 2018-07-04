@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 
 object IterantIntersperseSuite extends BaseTestSuite {
@@ -28,23 +28,21 @@ object IterantIntersperseSuite extends BaseTestSuite {
   }
 
   test("Iterant.intersperse(x) inserts the separator between elem pairs") { implicit s =>
-    check2 { (stream: Iterant[Task, Int], elem: Int) =>
+    check2 { (stream: Iterant[Coeval, Int], elem: Int) =>
       stream.intersperse(elem).toListL <-> stream.toListL.map(intersperseList(elem))
     }
   }
 
-  test("Iterant.intersperse(x) preserves the source earlyStop") { implicit s =>
+  test("Iterant.intersperse(x) releases the source's resources") { implicit s =>
     val builders = Iterant[Coeval]
     import builders._
 
     var effect = 0
-    val stop = Coeval(effect += 1)
     val source = suspendS(
-      Coeval(of(1, 2, 3)),
-      stop
-    )
+      Coeval(of(1, 2, 3))
+    ).guarantee(Coeval(effect += 1))
     val interspersed = source.intersperse(0)
-    interspersed.earlyStop.value()
+    interspersed.completeL.value()
     assertEquals(effect, 1)
   }
 
@@ -55,8 +53,7 @@ object IterantIntersperseSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val stream = of(1, 2, 3) ++ nextBatchS(
       ThrowExceptionBatch(dummy),
-      Coeval(empty[Int]),
-      Coeval.unit
+      Coeval(empty[Int])
     )
 
     assertEquals(
@@ -72,8 +69,7 @@ object IterantIntersperseSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val stream = of(1, 2, 3) ++ nextCursorS(
       ThrowExceptionCursor(dummy),
-      Coeval(empty[Int]),
-      Coeval.unit
+      Coeval(empty[Int])
     )
 
     assertEquals(

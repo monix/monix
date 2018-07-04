@@ -37,7 +37,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
 
   test("Iterant[Task].mapBatch works for functions producing batches bigger than recommendedBatchSize") { implicit s =>
     check2 { (list: List[Int], elem: Int) =>
-      val stream = Iterant[Task].nextBatchS(Batch.fromSeq(list, recommendedBatchSize), Task.delay(Iterant[Task].lastS[Int](elem)), Task.unit)
+      val stream = Iterant[Task].nextBatchS(Batch.fromSeq(list, recommendedBatchSize), Task.delay(Iterant[Task].lastS[Int](elem)))
       val f: Int => List[Int] = List.fill(recommendedBatchSize * 2)(_)
 
       val received = stream.mapBatch(f andThen (Batch.fromSeq(_))).toListL
@@ -57,7 +57,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].empty[Int]), Task.evalAsync {
+    val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].empty[Int])).guarantee(Task.evalAsync {
       isCanceled = true
     })
     val result = stream.mapBatch[Int](_ => throw dummy).toListL.runAsync
@@ -71,9 +71,10 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextCursorS(BatchCursor(1, 2, 3), Task.evalAsync(Iterant[Task].empty[Int]), Task.evalAsync {
-      isCanceled = true
-    })
+    val stream = Iterant[Task].nextCursorS(BatchCursor(1, 2, 3), Task.evalAsync(Iterant[Task].empty[Int]))
+      .guarantee(Task.evalAsync {
+        isCanceled = true
+      })
     val result = stream.mapBatch[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -89,7 +90,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
       val list = if (l.isEmpty) List(1) else l
       val iterant = arbitraryListToIterant[Task, Int](list, idx)
       val received = (iterant ++ Iterant[Task].of(1, 2))
-        .doOnEarlyStop(Task.eval {
+        .guarantee(Task.eval {
           effect += 1
         })
         .mapBatch[Int](_ => throw dummy)
@@ -104,7 +105,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
-      val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
+      val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]))
       val stream = (prefix.onErrorIgnore ++ error).mapBatch(Batch.apply(_))
       stream <-> prefix.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -113,7 +114,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
   test("Iterant[Task].mapBatch protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.mapBatch(Batch.apply(_))
       received <-> iter.onErrorIgnore.mapBatch(Batch.apply(_)) ++ Iterant[Task].haltS[Int](Some(dummy))
@@ -124,7 +125,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionBatch(dummy)
-      val error = Iterant[Task].nextBatchS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
+      val error = Iterant[Task].nextBatchS(cursor, Task.now(Iterant[Task].empty[Int]))
       val stream = (prefix.onErrorIgnore ++ error).mapBatch(Batch.apply(_))
       stream <-> prefix.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -138,7 +139,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
 
   test("Iterant[Coeval].mapBatch works for infinite cursors") { implicit s =>
     check1 { (el: Int) =>
-      val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]))
       val received = stream.mapBatch(Batch.apply(_)).take(10).toListL
       val expected = Coeval(Stream.continually(el).take(10).toList)
 
@@ -146,12 +147,12 @@ object IterantMapBatchSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].mapBatch triggers early stop on exception") { _ =>
+  test("Iterant[Coeval].mapBatch triggers guarantee on exception") { _ =>
     check1 { (iter: Iterant[Coeval, Int]) =>
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
-      val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
+      val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty))
+      val stream = (iter.onErrorIgnore ++ suffix).guarantee(Coeval.eval(cancelable.cancel()))
 
       intercept[DummyException] {
         stream.mapBatch(Batch.apply(_)).toListL.value()
@@ -170,7 +171,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int]), Coeval {
+    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int])).guarantee(Coeval {
       isCanceled = true
     })
     val result = stream.mapBatch[Int](_ => throw dummy).toListL.runTry()
@@ -183,7 +184,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]), Coeval {
+    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval(Iterant[Coeval].empty[Int])).guarantee(Coeval {
       isCanceled = true
     })
     val result = stream.mapBatch[Int](_ => throw dummy).toListL.runTry()
@@ -206,7 +207,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
-      val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]))
       val stream = (prefix ++ error).mapBatch(Batch.apply(_))
       stream <-> prefix ++ Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -216,18 +217,18 @@ object IterantMapBatchSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor: Batch[Int] = new ThrowExceptionBatch(dummy)
-      val error = Iterant[Coeval].nextBatchS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val error = Iterant[Coeval].nextBatchS(cursor, Coeval.now(Iterant[Coeval].empty[Int]))
       val stream = (prefix ++ error).mapBatch(Batch.apply(_))
       stream <-> prefix ++ Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
-  test("Iterant[Coeval].mapBatch preserves the source earlyStop") { implicit s =>
+  test("Iterant[Coeval].mapBatch preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.mapBatch(Batch.apply(_))
-    stream.earlyStop.value()
+    stream.completeL.value()
     assertEquals(effect, 1)
   }
 }

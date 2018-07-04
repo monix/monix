@@ -19,216 +19,182 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import scala.util.control.NonFatal
+import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.batches.{Batch, BatchCursor}
-import scala.collection.mutable.ArrayBuffer
-
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantInterleave {
-  def apply[F[_], A](l: Iterant[F, A], r: Iterant[F, A]) (implicit F: Sync[F]): Iterant[F, A] = {
+  /**
+    * Implementation for `Iterant.interleave`.
+    */
+  def apply[F[_], A](l: Iterant[F, A], r: Iterant[F, A]) (implicit F: Sync[F]): Iterant[F, A] =
+    Suspend(F.delay(new Loop().apply(l, r)))
 
-    def loop(lh: Iterant[F, A], rh: Iterant[F, A]): Iterant[F, A] = {
-      def stopBoth(stopA: F[Unit], stopB: F[Unit]): F[Unit] =
-        stopA.flatMap(_ => stopB)
+  private final class Loop[F[_], A](implicit F: Sync[F])
+    extends ((Iterant[F, A], Iterant[F, A]) => Iterant[F, A]) {
+    loop =>
 
-      def processPair(a: A, restA: F[Iterant[F, A]], stopA: F[Unit], b: A, restB: F[Iterant[F, A]], stopB: F[Unit]) = {
-        val rest = F.delay(Iterant.nextS(b, F.map2(restA, restB)(loop), stopBoth(stopA, stopB)))
-        Next(a, rest, stopBoth(stopA, stopB))
-      }
+    def apply(lh: Iterant[F, A], rh: Iterant[F, A]): Iterant[F, A] =
+      lhLoop.visit(lh, rh)
 
-      def processOneASeqB(lh: Iterant[F, A], a: A, restA: F[Iterant[F, A]], stopA: F[Unit], refB: NextCursor[F, A]): Iterant[F, A] = {
-        val NextCursor(itemsB, restB, stopB) = refB
-        if (!itemsB.hasNext)
-          Suspend(restB.map(loop(lh, _)), stopBoth(stopA, stopB))
-        else
-          processPair(a, restA, stopA, itemsB.next(), F.pure(refB), stopB)
-      }
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Used by Concat:
 
-      def processSeqAOneB(refA: NextCursor[F, A], rh: Iterant[F, A], b: A, restB: F[Iterant[F, A]], stopB: F[Unit]): Iterant[F, A] = {
-        val NextCursor(itemsA, restA, stopA) = refA
-        if (!itemsA.hasNext)
-          Suspend(restA.map(loop(_, rh)), stopBoth(stopA, stopB))
-        else
-          processPair(itemsA.next(), F.pure(refA), stopA, b, restB, stopB)
-      }
+    private[this] var _lhStack: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var _rhStack: ArrayStack[F[Iterant[F, A]]] = _
 
-      def processSeqASeqB(refA: NextCursor[F, A], refB: NextCursor[F, A]): Iterant[F, A] = {
-        val NextCursor(itemsA, restA, stopA) = refA
-        val NextCursor(itemsB, restB, stopB) = refB
-
-        // Processing multiple batch at once, but only if the iterators
-        // aren't infinite, otherwise we have to process them lazily
-        val batchSize = math.min(itemsA.recommendedBatchSize, itemsB.recommendedBatchSize)
-        if (batchSize > 1) {
-          val buffer = ArrayBuffer.empty[A]
-          var toFetch = batchSize
-
-          while (toFetch > 0 && itemsA.hasNext() && itemsB.hasNext()) {
-            buffer += itemsA.next()
-            buffer += itemsB.next()
-            toFetch -= 1
-          }
-
-          val isEmptyItemsA = !itemsA.hasNext()
-          val isEmptyItemsB = !itemsB.hasNext()
-          val array = buffer.toArray[Any]
-
-          if (isEmptyItemsA && isEmptyItemsB) {
-            if (array.isEmpty)
-              Suspend(F.map2(restA, restB)(loop), stopBoth(stopA, stopB))
-            else
-              NextBatch(
-                Batch.fromArray(array).asInstanceOf[Batch[A]],
-                F.map2(restA, restB)(loop),
-                stopBoth(stopA, stopB))
-          }
-          else if (isEmptyItemsA) {
-            if (array.isEmpty)
-              Suspend(restA.map(loop(_, refB)), stopBoth(stopA, stopB))
-            else
-              NextBatch(
-                Batch.fromArray(array).asInstanceOf[Batch[A]],
-                restA.map(loop(_, refB)),
-                stopBoth(stopA, stopB))
-          }
-          else if (isEmptyItemsB) {
-            if (array.isEmpty)
-              Suspend(restB.map(loop(refA, _)), stopBoth(stopA, stopB))
-            else
-              NextBatch(
-                Batch.fromArray(array).asInstanceOf[Batch[A]],
-                restB.map(loop(refA, _)),
-                stopBoth(stopA, stopB))
-          }
-          else {
-            // We are not done, continue loop
-            NextBatch(
-              Batch.fromArray(array).asInstanceOf[Batch[A]],
-              F.delay(loop(refA, refB)),
-              stopBoth(stopA, stopB))
-          }
-        }
-        else if (!itemsA.hasNext)
-          Suspend(restA.map(loop(_, refB)), stopBoth(stopA, stopB))
-        else if (!itemsB.hasNext)
-          Suspend(restB.map(loop(refA, _)), stopBoth(stopA, stopB))
-        else {
-          val a = itemsA.next()
-          val b = itemsB.next()
-          val rest = F.delay(Iterant.nextS(b, F.delay(loop(refA, refB)), stopBoth(stopA, stopB)))
-          Next(a, rest, stopBoth(stopA, stopB))
-        }
-      }
-
-      def processLast(a: A, b: A, stop: F[Unit]): Iterant[F, A] = {
-        val last = Last[F, A](b)
-        Next(a, F.delay(Suspend(F.delay(last), stop)), stop)
-      }
-
-      def processNextCursorA(lh: NextCursor[F, A], rh: Iterant[F, A]): Iterant[F, A] =
-        rh match {
-          case Next(b, restB, stopB) =>
-            processSeqAOneB(lh, rh, b, restB, stopB)
-          case refB @ NextCursor(_, _, _) =>
-            processSeqASeqB(lh, refB)
-          case NextBatch(itemsB, restB, stopB) =>
-            val seqB = NextCursor(itemsB.cursor(), restB, stopB)
-            processSeqASeqB(lh, seqB)
-          case Suspend(restB, stopB) =>
-            Suspend(restB.map(loop(lh, _)), stopBoth(lh.earlyStop, stopB))
-          case Last(b) =>
-            val NextCursor(itemsA, restA, stopA) = lh
-            if (!itemsA.hasNext)
-              Suspend(restA.map(loop(_, rh)), stopA)
-            else {
-              val a = itemsA.next()
-              processLast(a, b, stopA)
-            }
-          case halt @ Halt(_) =>
-            Suspend(lh.earlyStop.map(_ => halt.asInstanceOf[Iterant[F, A]]), lh.earlyStop)
-        }
-
-      def processLastASeqB(a: A, itemsB: BatchCursor[A], restB: F[Iterant[F, A]], stopB: F[Unit]): Iterant[F, A] = {
-        if (!itemsB.hasNext())
-          Suspend(restB.map(loop(lh, _)), stopB)
-        else {
-          processLast(a, itemsB.next(), stopB)
-        }
-      }
-
-      try lh match {
-        case Next(a, restA, stopA) =>
-          rh match {
-            case Next(b, restB, stopB) =>
-              processPair(a, restA, stopA, b, restB, stopB)
-            case refB @ NextCursor(_, _, stopB) =>
-              processOneASeqB(lh, a, restA, stopB, refB)
-            case NextBatch(itemsB, restB, stopB) =>
-              val seq = NextCursor(itemsB.cursor(), restB, stopB)
-              processOneASeqB(lh, a, restA, stopB, seq)
-            case Suspend(restB, stopB) =>
-              Suspend(restB.map(loop(lh, _)), stopBoth(stopA, stopB))
-            case Last(b) =>
-              processLast(a, b, stopA)
-            case halt @ Halt(_) =>
-              Suspend(stopA.map(_ => halt.asInstanceOf[Iterant[F,A]]), stopA)
-          }
-
-        case refA @ NextCursor(_, _, _) =>
-          processNextCursorA(refA, rh)
-
-        case NextBatch(itemsA, restA, stopA) =>
-          val seq = NextCursor(itemsA.cursor(), restA, stopA)
-          processNextCursorA(seq, rh)
-
-        case Suspend(restA, stopA) =>
-          rh match {
-            case halt @ Halt(_) =>
-              Suspend(stopA.map(_ => halt.asInstanceOf[Iterant[F, A]]), stopA)
-            case Last(_) =>
-              Suspend(restA.map(loop(_, rh)), stopA)
-            case Suspend(restB, stopB) =>
-              Suspend(F.map2(restA, restB)(loop), stopBoth(stopA, stopB))
-            case _ =>
-              Suspend(restA.map(loop(_, rh)), stopBoth(stopA, rh.earlyStop))
-          }
-
-        case Last(a) =>
-          rh match {
-            case Next(b, _, stopB) =>
-              processLast(a, b, stopB)
-            case NextCursor(itemsB, restB, stopB) =>
-              processLastASeqB(a, itemsB, restB, stopB)
-            case NextBatch(itemsB, restB, stopB) =>
-              processLastASeqB(a, itemsB.cursor(), restB, stopB)
-            case Suspend(restB, stopB) =>
-              Suspend(restB.map(loop(lh, _)), stopB)
-            case l @ Last(b) =>
-              processLast(a, b, l.earlyStop)
-            case halt @ Halt(_) =>
-              halt.asInstanceOf[Iterant[F, A]]
-          }
-
-        case halt @ Halt(exA) =>
-          rh match {
-            case Halt(exB) =>
-              Halt(exA.orElse(exB))
-            case Last(_) =>
-              halt.asInstanceOf[Iterant[F, A]]
-            case _ =>
-              Suspend(rh.earlyStop.map(_ => halt.asInstanceOf[Iterant[F, A]]), rh.earlyStop)
-          }
-      } catch {
-        case ex if NonFatal(ex) =>
-          val stop = lh.earlyStop.flatMap(_ => rh.earlyStop)
-          Suspend(stop.map(_ => Halt(Some(ex))), stop)
-      }
+    private def lhStackPush(ref: F[Iterant[F, A]]): Unit = {
+      if (_lhStack == null) _lhStack = new ArrayStack()
+      _lhStack.push(ref)
     }
 
-    // Given function can be side-effecting, must suspend!
-    val stop = l.earlyStop.flatMap(_ => r.earlyStop)
-    Suspend(F.delay(loop(l, r)), stop)
+    private def lhStackPop(): F[Iterant[F, A]] =
+      if (_lhStack == null) null.asInstanceOf[F[Iterant[F, A]]]
+      else _lhStack.pop()
+
+    private def rhStackPush(ref: F[Iterant[F, A]]): Unit = {
+      if (_rhStack == null) _rhStack = new ArrayStack()
+      _rhStack.push(ref)
+    }
+
+    private def rhStackPop(): F[Iterant[F, A]] =
+      if (_rhStack == null) null.asInstanceOf[F[Iterant[F, A]]]
+      else _rhStack.pop()
+
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    private[this] val lhLoop = new LHLoop
+    private[this] val rhLoop = new RHLoop
+
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    private final class LHLoop extends Iterant.Visitor[F, A, Iterant[F, A]] {
+      protected var rhRef: F[Iterant[F, A]] = _
+
+      def continue(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): F[Iterant[F, A]] = {
+        rhRef = rh
+        lh.map(this)
+      }
+
+      def continueRight(lhRest: F[Iterant[F, A]]) =
+        rhLoop.continue(lhRest, rhRef)
+
+      def visit(lh: Iterant[F, A], rh: Iterant[F, A]): Iterant[F, A] = {
+        rhRef = F.pure(rh)
+        apply(lh)
+      }
+
+      def visit(ref: Next[F, A]): Iterant[F, A] =
+        Next(ref.item, continueRight(ref.rest))
+
+      def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+        visit(ref.toNextCursor())
+
+      def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
+        val cursor = ref.cursor
+        if (cursor.hasNext()) {
+          val item = cursor.next()
+          val rest: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else ref.rest
+          Next(item, continueRight(rest))
+        } else {
+          Suspend(ref.rest.map(this))
+        }
+      }
+
+      def visit(ref: Suspend[F, A]): Iterant[F, A] =
+        Suspend(ref.rest.map(this))
+
+      def visit(ref: Concat[F, A]): Iterant[F, A] = {
+        lhStackPush(ref.rh)
+        Suspend(ref.lh.map(this))
+      }
+
+      def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
+        ref.runMap(this)
+
+      def visit(ref: Last[F, A]): Iterant[F, A] =
+        lhStackPop() match {
+          case null =>
+            Next(ref.item, continueRight(F.pure(Iterant.empty)))
+          case xs =>
+            Next(ref.item, continueRight(xs))
+        }
+
+      def visit(ref: Halt[F, A]): Iterant[F, A] =
+        ref.e match {
+          case None =>
+            lhStackPop() match {
+              case null => ref
+              case xs => Suspend(xs.map(this))
+            }
+          case _ =>
+            ref
+        }
+
+      def fail(e: Throwable): Iterant[F, A] =
+        Iterant.raiseError(e)
+    }
+
+    private final class RHLoop extends Iterant.Visitor[F, A, Iterant[F, A]] {
+      protected var lhRef: F[Iterant[F, A]] = _
+
+      def continue(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): F[Iterant[F, A]] = {
+        lhRef = lh
+        rh.map(this)
+      }
+
+      def continueLeft(rhRest: F[Iterant[F, A]]) =
+        lhLoop.continue(lhRef, rhRest)
+
+      def visit(ref: Next[F, A]): Iterant[F, A] =
+        Next(ref.item, continueLeft(ref.rest))
+
+      def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+        visit(ref.toNextCursor())
+
+      def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
+        val cursor = ref.cursor
+        if (cursor.hasNext()) {
+          val item = cursor.next()
+          val rest: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else ref.rest
+          Next(item, continueLeft(rest))
+        } else {
+          Suspend(ref.rest.map(this))
+        }
+      }
+
+      def visit(ref: Suspend[F, A]): Iterant[F, A] =
+        Suspend(ref.rest.map(this))
+
+      def visit(ref: Concat[F, A]): Iterant[F, A] = {
+        rhStackPush(ref.rh)
+        Suspend(ref.lh.map(this))
+      }
+
+      def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
+        ref.runMap(this)
+
+      def visit(ref: Last[F, A]): Iterant[F, A] =
+        rhStackPop() match {
+          case null =>
+            Next(ref.item, continueLeft(F.pure(Iterant.empty)))
+          case xs =>
+            Next(ref.item, continueLeft(xs))
+        }
+
+      def visit(ref: Halt[F, A]): Iterant[F, A] =
+        ref.e match {
+          case None =>
+            rhStackPop() match {
+              case null => ref
+              case xs => Suspend(xs.map(this))
+            }
+          case _ =>
+            ref
+        }
+
+      def fail(e: Throwable): Iterant[F, A] =
+        Iterant.raiseError(e)
+    }
   }
 }
