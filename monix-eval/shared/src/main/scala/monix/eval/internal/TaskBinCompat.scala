@@ -22,6 +22,8 @@ import monix.eval.Task.{Async, Context}
 import monix.execution.annotations.UnsafeProtocol
 import monix.execution.{Cancelable, Scheduler}
 
+import scala.annotation.unchecked.uncheckedVariance
+
 private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   /** Deprecated — use [[redeem]] instead.
     *
@@ -127,6 +129,17 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     autoCancelable
     // $COVERAGE-ON$
   }
+
+  /**
+    * DEPRECATED - subsumed by [[start]].
+    *
+    * To be consistent with cats-effect 1.0.0, `start` now
+    * enforces an asynchronous boundary, being exactly the same
+    * as `fork` from 3.0.0-RC1
+    */
+  @deprecated("Replaced with start", since="3.0.0-RC2")
+  final def fork: Task[Fiber[A @uncheckedVariance]] =
+    this.start
 }
 
 private[eval] abstract class TaskBinCompatCompanion {

@@ -1395,48 +1395,13 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
   final def loopForever: Task[Nothing] =
     flatMap(_ => this.loopForever)
 
-  /** Start asynchronous execution of the source suspended in the `Task` context.
-    *
-    * This can be used for non-deterministic / concurrent execution.
-    * The following code is more or less equivalent with
-    * [[Task.parMap2]] (minus the behavior on error handling and
-    * cancellation, plus forced async execution):
-    *
-    * {{{
-    *   def par2[A, B](ta: Task[A], tb: Task[B]): Task[(A, B)] =
-    *     for {
-    *       fa <- ta.fork
-    *       fb <- tb.fork
-    *        a <- fa.join
-    *        b <- fb.join
-    *     } yield (a, b)
-    * }}}
-    *
-    * Note in such a case usage of [[Task.parMap2 parMap2]]
-    * (and [[Task.parMap3 parMap3]], etc.) is still recommended
-    * because of behavior on error and cancellation — consider that
-    * in the example above, if the first task finishes in error,
-    * the second task doesn't get cancelled.
-    *
-    * IMPORTANT — this operation forces an asynchronous boundary before
-    * execution, as in general this law holds:
-    * {{{
-    *   fa.fork <-> fa.executeAsync.start
-    * }}}
-    *
-    * See [[start]] for the equivalent that does not start the task with
-    * a forced async boundary.
-    */
-  final def fork: Task[Fiber[A @uV]] =
-    TaskStart.forked(this)
-
   /** Start asynchronous execution of the source suspended in the `Task` context,
     * running it in the background and discarding the result.
     *
-    * Similar to [[fork]] after mapping result to Unit. Below law holds:
+    * Similar to [[start]] after mapping result to Unit. Below law holds:
     *
     * {{{
-    *   task.forkAndForget <-> task.fork.map(_ => ())
+    *   task.forkAndForget <-> task.start.map(_ => ())
     * }}}
     *
     */
@@ -1706,19 +1671,10 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * in the example above, if the first task finishes in error,
     * the second task doesn't get cancelled.
     *
-    * IMPORTANT — this operation does start with an asynchronous boundary.
-    * You can either use [[fork]] as an alternative, or use [[executeAsync]]
-    * just before calling `register`, as in general this law holds:
-    *
-    * {{{
-    *   fa.fork <-> fa.executeAsync.start
-    * }}}
-    *
-    * See [[fork]] for the equivalent that does starts the task with
-    * a forced async boundary.
+    * This operation forces an asynchronous boundary before execution
     */
   final def start: Task[Fiber[A @uV]] =
-    TaskStart.trampolined(this)
+    TaskStart.forked(this)
 
   /** Converts the source `Task` to any data type that implements
     * either `cats.effect.Concurrent` or `cats.effect.Async`.
