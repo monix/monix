@@ -59,7 +59,7 @@ class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
     if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
       5.minutes
     else
-      10.seconds
+      5.seconds
   }
 
   implicit val params = Parameters(

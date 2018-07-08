@@ -290,7 +290,8 @@ import scala.util.{Failure, Success, Try}
   * @define schedulerDesc is an injected
   *         [[monix.execution.Scheduler Scheduler]] that gets used
   *         whenever asynchronous boundaries are needed when
-  *         evaluating the task
+  *         evaluating the task; a `Scheduler` is in general needed
+  *         when the `Task` needs to be evaluated via `runAsync`
   *
   * @define schedulerEvalDesc is the
   *         [[monix.execution.Scheduler Scheduler]] needed in order
@@ -1676,20 +1677,39 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
   final def start: Task[Fiber[A @uV]] =
     TaskStart.forked(this)
 
+  /** Generic conversion of `Task` to any data type for which there's
+    * a [[TaskLift]] implementation available.
+    *
+    * Supported data types:
+    *
+    *  - [[https://typelevel.org/cats-effect/datatypes/io.html cats.effect.IO]]
+    *  - any data type implementing [[https://typelevel.org/cats-effect/typeclasses/concurrent.html cats.effect.Concurrent]]
+    *  - any data type implementing [[https://typelevel.org/cats-effect/typeclasses/async.html cats.effect.Async]]
+    *  - any data type implementing [[https://typelevel.org/cats-effect/typeclasses/liftio.html cats.effect.LiftIO]]
+    *  - `monix.reactive.Observable`
+    *  - `monix.tail.Iterant`
+    *
+    * This conversion guarantees:
+    *
+    *  - referential transparency
+    *  - similar runtime characteristics (e.g. if the source doesn't
+    *    block threads on evaluation, then the result shouldn't block
+    *    threads either)
+    *  - interruptibility, if the target data type is cancelable
+    *
+    * Sample:
+    *
+    * {{{
+    *   Task(1 + 1)
+    *     .delayExecution(5.seconds)
+    *     .to[IO]
+    * }}}
+    */
+  final def to[F[_]](implicit F: TaskLift[F]): F[A @uV] =
+    F.taskLift(this)
+
   /** Converts the source `Task` to any data type that implements
-    * either `cats.effect.Concurrent` or `cats.effect.Async`.
-    *
-    * This operation discriminates between `Concurrent` and `Async`
-    * data types by using their subtyping relationship
-    * (`Concurrent <: Async`), therefore:
-    *
-    *  - in case the `F` data type implements `cats.effect.Concurrent`,
-    *    then the resulting value is interruptible if the source task is
-    *    (e.g. a conversion to `cats.effect.IO` will preserve Monix's `Task`
-    *    cancelability)
-    *  - otherwise in case the `F` data type implements just
-    *    `cats.effect.Async`, then the conversion is still allowed,
-    *    however the source's cancellation logic gets lost
+    * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]].
     *
     * Example:
     *
@@ -1701,19 +1721,73 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *     .to[IO]
     * }}}
     *
-    * Note a [[monix.execution.Scheduler Scheduler]] is required
-    * because converting `Task` to something else means executing
-    * it.
+    * A [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html ConcurrentEffect]]
+    * instance for `Task` is also needed in scope,
+    * which might need a [[monix.execution.Scheduler Scheduler]] to
+    * be available. Such a requirement is needed because the `Task`
+    * has to be evaluated in order to be converted.
     *
-    * @param F is the `cats.effect.Async` instance required in order
-    *        to perform the conversions; and if this instance
-    *        is actually a `cats.effect.Concurrent`, then the
-    *        resulting value is also cancelable
+    * NOTE: the resulting value is cancelable, via usage of
+    * `cats.effect.Concurrent`.
     *
-    * @param s $schedulerEvalDesc
+    * @see [[to]] that is able to convert to any data type that has
+    *      a [[TaskLift]] implementation
+    *
+    * @see [[toAsync]] that is able to convert to non-cancelable values via the
+    *       [[https://typelevel.org/cats-effect/typeclasses/async.html Async]]
+    *       type class.
+    *
+    * @param F is the `cats.effect.Concurrent` instance required in
+    *        order to perform the conversion
+    *
+    * @param eff is the `ConcurrentEffect[Task]` instance needed to
+    *        evaluate tasks; when evaluating tasks, this is the pure
+    *        alternative to demanding a `Scheduler`
     */
-  final def to[F[_]](implicit F: Async[F], s: Scheduler): F[A @uV] =
-    TaskConversions.to[F, A](this)(F, s)
+  final def toConcurrent[F[_]](implicit F: Concurrent[F], eff: ConcurrentEffect[Task]): F[A @uV] =
+    TaskConversions.toConcurrent(this)(F, eff)
+
+  /** Converts the source `Task` to any data type that implements
+    * [[https://typelevel.org/cats-effect/typeclasses/async.html Async]].
+    *
+    * Example:
+    *
+    * {{{
+    *   import cats.effect.IO
+    *
+    *   Task.eval(println("Hello!"))
+    *     .delayExecution(5.seconds)
+    *     .toAsync[IO]
+    * }}}
+    *
+    * An `Effect[Task]` instance is needed in scope,
+    * which might need a [[monix.execution.Scheduler Scheduler]] to
+    * be available. Such a requirement is needed because the `Task`
+    * has to be evaluated in order to be converted.
+    *
+    * NOTE: the resulting instance will NOT be cancelable, as in
+    * Task's cancelation token doesn't get carried over. This is
+    * implicit in the usage of `cats.effect.Async` type class.
+    * In the example above what this means is that the task will
+    * still print `"Hello!"` after 5 seconds, even if the resulting
+    * task gets cancelled.
+    *
+    * @see [[to]] that is able to convert to any data type that has
+    *      a [[TaskLift]] implementation
+    *
+    * @see [[toConcurrent]] that is able to convert to cancelable values via the
+    *      [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]]
+    *      type class.
+    *
+    * @param F is the `cats.effect.Async` instance required in
+    *        order to perform the conversion
+    *
+    * @param eff is the `Effect[Task]` instance needed to
+    *        evaluate tasks; when evaluating tasks, this is the pure
+    *        alternative to demanding a `Scheduler`
+    */
+  final def toAsync[F[_]](implicit F: Async[F], eff: Effect[Task]): F[A @uV] =
+    TaskConversions.toAsync(this)(F, eff)
 
   /** Converts the source to a `cats.effect.IO` value.
     *
@@ -1727,13 +1801,15 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *   val io: IO[Unit] = task.toIO
     * }}}
     *
-    * This is an alias for [[to]], but specialized for `IO`.
+    * This is an alias for [[toConcurrent]], but specialized for `IO`.
     * You can use either with the same result.
     *
-    * @param s $schedulerEvalDesc
+    * @param eff is the `ConcurrentEffect[Task]` instance needed to
+    *        evaluate tasks; when evaluating tasks, this is the pure
+    *        alternative to demanding a `Scheduler`
     */
-  final def toIO(implicit s: Scheduler): IO[A @uV] =
-    to[IO]
+  final def toIO(implicit eff: ConcurrentEffect[Task]): IO[A @uV] =
+    TaskConversions.toIO(this)(eff)
 
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
     * emits a single item on success, or just the error on failure.
@@ -2074,6 +2150,20 @@ object Task extends TaskInstancesLevel1 {
   /** A [[Task]] instance that upon evaluation will never complete. */
   def never[A]: Task[A] = neverRef
 
+  /** Converts to [[Task]] from any `F[_]` for which there exists
+    * a [[TaskLike]] implementation.
+    *
+    * Supported types:
+    *
+    *  - [[https://typelevel.org/cats-effect/typeclasses/effect.html Effect (Async)]]
+    *  - [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html (ConcurrentEffect)]]
+    *  - [[scala.concurrent.Future]]
+    *  - `cats.Comonad`
+    *  - `cats.Eval`
+    */
+  def from[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Task[A] =
+    F.toTask(fa)
+
   /** Converts `IO[A]` values into `Task[A]`.
     *
     * Preserves cancelability, if the source `IO` value is cancelable.
@@ -2091,24 +2181,14 @@ object Task extends TaskInstancesLevel1 {
     *   val task: Task[Unit] = Task.fromIO(ioa)
     * }}}
     *
-    * Also see [[fromEffect]], the more generic conversion utility.
+    * @see [[from]], [[fromAsync]] and [[fromConcurrent]]
     */
   def fromIO[A](ioa: IO[A]): Task[A] =
     Concurrent.liftIO(ioa)
 
   /** Builds a [[Task]] instance out of any data type that implements
-    * either `cats.effect.ConcurrentEffect` or `cats.effect.Effect`.
-    *
-    * This method discriminates between `Effect` and `ConcurrentEffect`
-    * using their subtype encoding (`ConcurrentEffect <: Effect`),
-    * such that:
-    *
-    *  - if the indicated type has a `ConcurrentEffect` implementation
-    *    and if the indicated value is cancelable, then the resulting
-    *    task is also cancelable
-    *  - otherwise, if the indicated type only implements `Effect`,
-    *    then the conversion is still possible, but the resulting task
-    *    isn't cancelable
+    * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]] and
+    * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html ConcurrentEffect]].
     *
     * Example:
     *
@@ -2122,13 +2202,60 @@ object Task extends TaskInstancesLevel1 {
     *   val task: Task[Unit] = Task.fromEffect(io)
     * }}}
     *
+    * Cancellation / finalization behavior is carried over, so the
+    * resulting task can be safely cancelled.
+    *
+    * @see [[Task.toConcurrent]] for its dual
+    *
+    * @see [[Task.fromAsync]] for a version that works with simpler,
+    *      non-cancelable `Async` data types
+    *
+    * @see [[Task.from]] for a more generic version that works with
+    *      any [[TaskLike]] data type
+    *
     * @param F is the `cats.effect.Effect` type class instance necessary
     *        for converting to `Task`; this instance can also be a
     *        `cats.effect.Concurrent`, in which case the resulting
     *        `Task` value is cancelable if the source is
     */
-  def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
-    TaskConversions.from(fa)
+  def fromConcurrent[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] =
+    TaskConversions.fromConcurrent(fa)(F)
+
+  /** Builds a [[Task]] instance out of any data type that implements
+    * [[https://typelevel.org/cats-effect/typeclasses/async.html Async]] and
+    * [[https://typelevel.org/cats-effect/typeclasses/effect.html Effect]].
+    *
+    * Example:
+    *
+    * {{{
+    *   import cats.effect._
+    *   import cats.syntax.all._
+    *
+    *   val io = IO(println("Hello!"))
+    *
+    *   val task: Task[Unit] = Task.fromAsync(io)
+    * }}}
+    *
+    * WARNING: the resulting task might not carry the source's
+    * cancelation behavior if the source is cancelable!
+    * This is implicit in the usage of `Effect`.
+    *
+    * @see [[Task.fromConcurrent]] for a version that can use
+    *      [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]]
+    *      for converting cancelable tasks.
+    *
+    * @see [[Task.from]] for a more generic version that works with
+    *      any [[TaskLike]] data type
+    *
+    * @see [[Task.toAsync]] for its dual
+    *
+    * @param F is the `cats.effect.Effect` type class instance necessary
+    *        for converting to `Task`; this instance can also be a
+    *        `cats.effect.Concurrent`, in which case the resulting
+    *        `Task` value is cancelable if the source is
+    */
+  def fromAsync[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
+    TaskConversions.fromAsync(fa)
 
   /** Builds a [[Task]] instance out of a `cats.Eval`. */
   def fromEval[A](a: cats.Eval[A]): Task[A] =

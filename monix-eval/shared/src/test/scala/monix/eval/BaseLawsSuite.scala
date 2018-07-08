@@ -20,7 +20,7 @@ package monix.eval
 import scala.util.{Either, Success, Try}
 import cats.Eq
 import cats.effect.laws.discipline.Parameters
-import cats.effect.{Async, IO}
+import cats.effect.{Async, IO, Timer}
 import cats.effect.laws.discipline.arbitrary.{catsEffectLawsArbitraryForIO, catsEffectLawsCogenForIO}
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
@@ -165,25 +165,25 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
       } yield ioa.map(f1).map(f2)
 
     Arbitrary(Gen.frequency(
-      5 -> genPure,
-      5 -> genEvalAsync,
-      5 -> genEval,
+      1 -> genPure,
+      1 -> genEvalAsync,
+      1 -> genEval,
       1 -> genFail,
       1 -> genContextSwitch,
       1 -> genAutoCancelable,
-      5 -> genCancelable,
-      5 -> genBindSuspend,
-      5 -> genAsync,
-      5 -> genNestedAsync,
-      5 -> getMapOne,
-      5 -> getMapTwo,
-      10 -> genFlatMap))
+      1 -> genCancelable,
+      1 -> genBindSuspend,
+      1 -> genAsync,
+      1 -> genNestedAsync,
+      1 -> getMapOne,
+      1 -> getMapTwo,
+      2 -> genFlatMap))
   }
 
   implicit def arbitraryTaskPar[A : Arbitrary : Cogen]: Arbitrary[Task.Par[A]] =
     Arbitrary(arbitraryTask[A].arbitrary.map(Task.Par(_)))
 
-  implicit def arbitraryIO[A : Arbitrary : Cogen]: Arbitrary[IO[A]] =
+  implicit def arbitraryIO[A : Arbitrary : Cogen](implicit t: Timer[IO]): Arbitrary[IO[A]] =
     catsEffectLawsArbitraryForIO
 
   implicit def arbitraryExToA[A](implicit A: Arbitrary[A]): Arbitrary[Throwable => A] =

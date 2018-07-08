@@ -19,84 +19,121 @@ package monix.eval.internal
 
 import cats.effect._
 import monix.eval.Task.Context
+import monix.eval.instances.CatsEffectForTaskParams
 import monix.eval.{Callback, Task}
 import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
-import monix.execution.internal.AttemptCallback
-import scala.util.control.NonFatal
-import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.schedulers.TrampolinedRunnable
+import monix.execution.{Cancelable, Scheduler}
 
-import scala.util.{Failure, Success}
+import scala.util.control.NonFatal
 
 private[eval] object TaskConversions {
-  /** Implementation for `Task#to`. */
-  def to[F[_], A](source: Task[A])(implicit F: Async[F], s: Scheduler): F[A] = {
-    def suspend(task: Task[A])(implicit F: Async[F]): F[A] =
-      F.suspend {
-        val f = task.runAsync(s)
-        f.value match {
-          case Some(value) =>
-            value match {
-              case Success(a) => F.pure(a)
-              case Failure(e) => F.raiseError(e)
-            }
-          case None =>
-            F match {
-              case ref: Concurrent[F] @unchecked =>
-                cancelable(f)(ref)
-              case _ =>
-                async(f)
-            }
-        }
-      }
-
-    def async(f: CancelableFuture[A])(implicit F: Async[F]): F[A] =
-      F.async { cb =>
-        f.underlying.onComplete(AttemptCallback.toTry(cb))(immediate)
-      }
-
-    def cancelable(f: CancelableFuture[A])(implicit F: Concurrent[F]): F[A] =
-      F.cancelable { cb =>
-        f.underlying.onComplete(AttemptCallback.toTry(cb))(immediate)
-        f.cancelable.cancelIO
-      }
-
+  /**
+    * Implementation for `Task#toIO`.
+    */
+  def toIO[A](source: Task[A])(implicit eff: ConcurrentEffect[Task]): IO[A] =
     source match {
-      case Task.Now(v) => F.pure(v)
+      case Task.Now(value) => IO.pure(value)
+      case Task.Error(e) => IO.raiseError(e)
+      case Task.Eval(thunk) => IO(thunk())
+      case task =>
+        eff match {
+          case ref: CatsEffectForTaskParams => toIO0(task, ref)
+          case _ => toIO1(source)(eff)
+        }
+    }
+
+  private def toIO0[A](source: Task[A], eff: CatsEffectForTaskParams): IO[A] =
+    IO.cancelable { cb =>
+      implicit val sc = eff.scheduler
+      implicit val opts = eff.options
+      source.runAsyncOpt(Callback.fromAttempt(cb)).cancelIO
+    }
+
+  private def toIO1[A](source: Task[A])(implicit eff: ConcurrentEffect[Task]): IO[A] =
+    IO.cancelable { cb =>
+      eff.runCancelable(source)(r => IO(cb(r))).unsafeRunSync()
+    }
+
+  /**
+    * Implementation for `Task#toConcurrent`.
+    */
+  def toConcurrent[F[_], A](source: Task[A])(implicit F: Concurrent[F], eff: ConcurrentEffect[Task]): F[A] =
+    source match {
+      case Task.Now(value) => F.pure(value)
       case Task.Error(e) => F.raiseError(e)
       case Task.Eval(thunk) => F.delay(thunk())
-      case Task.Suspend(thunk) => F.suspend(to(thunk()))
-      case other => suspend(other)(F)
+      case task =>
+        eff match {
+          case ref: CatsEffectForTaskParams => toConcurrent0(task, ref)(F)
+          case _ => toConcurrent1(source)(F, eff)
+        }
+    }
+
+  private def toConcurrent0[F[_], A](source: Task[A], eff: CatsEffectForTaskParams)
+    (implicit F: Concurrent[F]): F[A] = {
+
+    F.cancelable { cb =>
+      implicit val sc = eff.scheduler
+      implicit val opts = eff.options
+      source.runAsyncOpt(Callback.fromAttempt(cb)).cancelIO
     }
   }
 
-  /** Implementation for `Task.from`. */
-  def from[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
+  private def toConcurrent1[F[_], A](source: Task[A])
+    (implicit F: Concurrent[F], eff: ConcurrentEffect[Task]): F[A] = {
+
+    F.cancelable { cb =>
+      eff.runCancelable(source)(r => IO(cb(r))).unsafeRunSync()
+    }
+  }
+
+  /**
+    * Implementation for `Task#toAsync`.
+    */
+  def toAsync[F[_], A](source: Task[A])(implicit F: Async[F], eff: Effect[Task]): F[A] =
+    source match {
+      case Task.Now(value) => F.pure(value)
+      case Task.Error(e) => F.raiseError(e)
+      case Task.Eval(thunk) => F.delay(thunk())
+      case task =>
+        eff match {
+          case ref: CatsEffectForTaskParams => toAsync0(task, ref)(F)
+          case _ => toAsync1(source)(F, eff)
+        }
+    }
+
+  private def toAsync0[F[_], A](task: Task[A], eff: CatsEffectForTaskParams)(implicit F: Async[F]): F[A] =
+    F.async { cb =>
+      implicit val sc = eff.scheduler
+      implicit val opts = eff.options
+      task.runAsyncOpt(Callback.fromAttempt(cb))
+    }
+
+  private def toAsync1[F[_], A](task: Task[A])(implicit F: Async[F], eff: Effect[Task]): F[A] =
+    F.async { cb =>
+      eff.runAsync(task)(r => IO(cb(r))).unsafeRunSync()
+    }
+
+  /**
+    * Implementation for `Task.from`.
+    */
+  def fromAsync[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
     fa.asInstanceOf[AnyRef] match {
       case ref: Task[A] @unchecked => ref
       case io: IO[A] @unchecked => io.to[Task]
-      case _ =>
-        F match {
-          case ref: ConcurrentEffect[F] @unchecked =>
-            fromConcurrent0(fa)(ref)
-          case _ =>
-            fromAsync0(fa)(F)
-        }
+      case _ => F.toIO(fa).to[Task]
     }
 
-  private def fromAsync0[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
-      try {
-        val io = F.runAsync(fa)(new CreateCallback[A](null, cb)(ctx.scheduler))
-        io.unsafeRunAsync(AttemptCallback.noop)
-      } catch {
-        case e if NonFatal(e) =>
-          ctx.scheduler.reportFailure(e)
-      }
+  /**
+    * Implementation for `Task.fromConcurrent`.
+    */
+  def fromConcurrent[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] =
+    fa.asInstanceOf[AnyRef] match {
+      case ref: Task[A] @unchecked => ref
+      case io: IO[A] @unchecked => io.to[Task]
+      case _ => fromConcurrent0(fa)
     }
-    Task.Async(start, trampolineBefore = false, trampolineAfter = false)
-  }
 
   private def fromConcurrent0[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] = {
     val start = (ctx: Context, cb: Callback[A]) => {

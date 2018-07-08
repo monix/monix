@@ -14,7 +14,8 @@ addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned 
 val catsVersion = "1.1.0"
 // Hash version is safe, containing a laws fix over 1.0.0-RC2:
 // https://github.com/typelevel/cats-effect/pull/277
-val catsEffectVersion = "1.0.0-RC2-93ac33d"
+val catsEffectVersion = "1.0.0-RC2-35bac78"
+val catsEffectLawsVersion = "1.0.0-RC2-35bac78"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
@@ -277,7 +278,7 @@ lazy val testSettings = Seq(
   libraryDependencies ++= Seq(
     "io.monix" %%% "minitest-laws" % minitestVersion % Test,
     "org.typelevel" %%% "cats-laws" % catsVersion % Test,
-    "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion % Test
+    "org.typelevel" %%% "cats-effect-laws" % catsEffectLawsVersion % Test
   )
 )
 
