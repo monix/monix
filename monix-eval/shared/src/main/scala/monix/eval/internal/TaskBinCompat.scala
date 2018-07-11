@@ -189,7 +189,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     *
     * N.B. the entire underlying mechanism by which tasks get evaluated
     * might get a refactoring so the concept of a `Context` for example
-    * might dissapear. Exposing this function means exposing internal
+    * might disappear. Exposing this function means exposing internal
     * implementation details that are keeping us from evolving `Task`.
     *
     * Alternatives:

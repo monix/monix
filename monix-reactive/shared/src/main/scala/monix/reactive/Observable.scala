@@ -4597,7 +4597,7 @@ object Observable {
         def apply[A](fa: Observable[A]): CombineObservable.Type[A] = wrap(fa)
       }
   }
-  
+
   // -- DEPRECATIONS
 
   /** DEPRECATED — please use [[Observable!.executeAsync .executeAsync]].

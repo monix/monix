@@ -327,6 +327,33 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.shift"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsAsyncForTask.shift"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentForTask.onCancelRaiseError"),
+    // Hide Task.Context, change conversions (Cats-Effect RC2 upgrade, part 2)
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.frameRef"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.copy"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.copy$default$4"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.this"),
+    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$Local"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.toIO"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.to"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.apply"),
+    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef"),
+    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$Dummy$"),
+    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$"),
+    // Switched to TaskLike instead of Effect, in the implementation of observable
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.repeatEvalF"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.fromEffect"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.mapEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnErrorEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnTerminateEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.mapEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnCompleteEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.scanEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnNextEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnNextAckEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doAfterTerminateEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnEarlyStopEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.foreachEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.foldLeftEval"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
@@ -368,7 +395,9 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation#RaiseCancelable.this"),
     exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover"),
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative$"),
-    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative")
+    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.from"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.to")
   )
 )
 
