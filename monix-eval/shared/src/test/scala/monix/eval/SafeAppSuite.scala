@@ -25,18 +25,20 @@ import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
 object SafeAppSuite extends SimpleTestSuite {
-  test("run works") {
-    var wasExecuted = false
+  testAsync("run works") {
+    val wasExecuted = Promise[Boolean]()
     val app = new SafeApp {
       override def run(args: List[String]) =
         Task {
-          wasExecuted = args.headOption.getOrElse("unknown") == "true"
+          wasExecuted.success(args.headOption.getOrElse("unknown") == "true")
           ExitCode.Success
         }
     }
 
     app.main(Array("true"))
-    assert(wasExecuted, "wasExecuted")
+    for (f <- wasExecuted.future) yield {
+      assert(f, "wasExecuted")
+    }
   }
 
   testAsync("options are configurable") {
