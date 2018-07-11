@@ -22,30 +22,15 @@ import cats.effect.{ConcurrentEffect, Effect, ExitCase, IO}
 import monix.eval.internal.TaskEffect
 import monix.execution.Scheduler
 
-/**
-  * Utility exposing the underlying context for `Effect[Task]` instances,
-  * the values needed to trigger the evaluation of tasks ...
-  *
-  *  - the [[monix.execution.Scheduler]]
-  *  - the [[Task.Options]]
-  *
-  * This can be used for optimizations (e.g. avoiding usage of
-  * `Effect` and use Task's `runAsync` directly).
-  */
-trait CatsEffectForTaskParams { self: Effect[Task] =>
-  def scheduler: Scheduler
-  def options: Task.Options
-}
-
 /** Cats type class instances of [[monix.eval.Task Task]] for
   * `cats.effect.Effect` (and implicitly for `Applicative`, `Monad`,
   * `MonadError`, `Sync`, etc).
   *
   * Note this is a separate class from [[CatsAsyncForTask]], because we
-  * need an implicit [[monix.execution.Scheduler Scheduler]] in scope 
+  * need an implicit [[monix.execution.Scheduler Scheduler]] in scope
   * in order to trigger the execution of a `Task`. However we cannot
-  * inherit directly from `CatsAsyncForTask`, because it would create 
-  * conflicts due to that one having a higher priority but being a 
+  * inherit directly from `CatsAsyncForTask`, because it would create
+  * conflicts due to that one having a higher priority but being a
   * super-type.
   *
   * References:
@@ -54,15 +39,13 @@ trait CatsEffectForTaskParams { self: Effect[Task] =>
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
 class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
-  extends CatsBaseForTask with Effect[Task] with CatsEffectForTaskParams {
+  extends CatsBaseForTask with Effect[Task] {
 
   /** We need to mixin [[CatsAsyncForTask]], because if we
     * inherit directly from it, the implicits priorities don't
     * work, triggering conflicts.
     */
   private[this] val F = CatsConcurrentForTask
-  override def scheduler = s
-  override def options = opts
 
   override def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
     TaskEffect.runAsync(fa)(cb)
@@ -98,15 +81,13 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
 class CatsConcurrentEffectForTask(implicit s: Scheduler, opts: Task.Options)
-  extends CatsEffectForTask with ConcurrentEffect[Task] with CatsEffectForTaskParams {
+  extends CatsEffectForTask with ConcurrentEffect[Task] {
 
   /** We need to mixin [[CatsAsyncForTask]], because if we
     * inherit directly from it, the implicits priorities don't
     * work, triggering conflicts.
     */
   private[this] val F = CatsConcurrentForTask
-  override def scheduler = s
-  override def options = opts
 
   override def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
     TaskEffect.runCancelable(fa)(cb)

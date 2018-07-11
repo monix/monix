@@ -19,12 +19,10 @@ package monix.eval.internal
 
 import cats.effect._
 import monix.eval.Task.Context
-import monix.eval.instances.CatsEffectForTaskParams
 import monix.eval.{Callback, Task}
 import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Cancelable, Scheduler}
-
 import scala.util.control.NonFatal
 
 private[eval] object TaskConversions {
@@ -36,23 +34,10 @@ private[eval] object TaskConversions {
       case Task.Now(value) => IO.pure(value)
       case Task.Error(e) => IO.raiseError(e)
       case Task.Eval(thunk) => IO(thunk())
-      case task =>
-        eff match {
-          case ref: CatsEffectForTaskParams => toIO0(task, ref)
-          case _ => toIO1(source)(eff)
+      case _ =>
+        IO.cancelable { cb =>
+          eff.runCancelable(source)(r => { cb(r); IO.unit }).unsafeRunSync()
         }
-    }
-
-  private def toIO0[A](source: Task[A], eff: CatsEffectForTaskParams): IO[A] =
-    IO.cancelable { cb =>
-      implicit val sc = eff.scheduler
-      implicit val opts = eff.options
-      source.runAsyncOpt(Callback.fromAttempt(cb)).cancelIO
-    }
-
-  private def toIO1[A](source: Task[A])(implicit eff: ConcurrentEffect[Task]): IO[A] =
-    IO.cancelable { cb =>
-      eff.runCancelable(source)(r => IO(cb(r))).unsafeRunSync()
     }
 
   /**
@@ -63,30 +48,11 @@ private[eval] object TaskConversions {
       case Task.Now(value) => F.pure(value)
       case Task.Error(e) => F.raiseError(e)
       case Task.Eval(thunk) => F.delay(thunk())
-      case task =>
-        eff match {
-          case ref: CatsEffectForTaskParams => toConcurrent0(task, ref)(F)
-          case _ => toConcurrent1(source)(F, eff)
+      case _ =>
+        F.cancelable { cb =>
+          eff.runCancelable(source)(r => { cb(r); IO.unit }).unsafeRunSync()
         }
     }
-
-  private def toConcurrent0[F[_], A](source: Task[A], eff: CatsEffectForTaskParams)
-    (implicit F: Concurrent[F]): F[A] = {
-
-    F.cancelable { cb =>
-      implicit val sc = eff.scheduler
-      implicit val opts = eff.options
-      source.runAsyncOpt(Callback.fromAttempt(cb)).cancelIO
-    }
-  }
-
-  private def toConcurrent1[F[_], A](source: Task[A])
-    (implicit F: Concurrent[F], eff: ConcurrentEffect[Task]): F[A] = {
-
-    F.cancelable { cb =>
-      eff.runCancelable(source)(r => IO(cb(r))).unsafeRunSync()
-    }
-  }
 
   /**
     * Implementation for `Task#toAsync`.
@@ -97,22 +63,9 @@ private[eval] object TaskConversions {
       case Task.Error(e) => F.raiseError(e)
       case Task.Eval(thunk) => F.delay(thunk())
       case task =>
-        eff match {
-          case ref: CatsEffectForTaskParams => toAsync0(task, ref)(F)
-          case _ => toAsync1(source)(F, eff)
+        F.async { cb =>
+          eff.runAsync(task)(r => { cb(r); IO.unit }).unsafeRunSync()
         }
-    }
-
-  private def toAsync0[F[_], A](task: Task[A], eff: CatsEffectForTaskParams)(implicit F: Async[F]): F[A] =
-    F.async { cb =>
-      implicit val sc = eff.scheduler
-      implicit val opts = eff.options
-      task.runAsyncOpt(Callback.fromAttempt(cb))
-    }
-
-  private def toAsync1[F[_], A](task: Task[A])(implicit F: Async[F], eff: Effect[Task]): F[A] =
-    F.async { cb =>
-      eff.runAsync(task)(r => IO(cb(r))).unsafeRunSync()
     }
 
   /**
