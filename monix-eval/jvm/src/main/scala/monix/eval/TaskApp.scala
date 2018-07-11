@@ -20,19 +20,22 @@ package monix.eval
 import monix.execution.Scheduler
 import scala.concurrent.duration.Duration.Inf
 
-/** Safe `App` type that runs a [[Task]] action.
-  *
-  * Clients should implement `run`, `runl`, or `runc`.
-  *
-  * Also available for Scala.js, but without the ability
-  * to take arguments and without the blocking in main.
+/**
+  * DEPRECATED — switch to [[SafeApp]].
   */
+@deprecated("Switch to SafeApp", "3.0.0-RC2")
 trait TaskApp {
-  def run(args: Array[String]): Task[Unit] =
+  def run(args: Array[String]): Task[Unit] = {
+    // $COVERAGE-OFF$
     runl(args.toList)
+    // $COVERAGE-ON$
+  }
 
-  def runl(args: List[String]): Task[Unit] =
+  def runl(args: List[String]): Task[Unit] = {
+    // $COVERAGE-OFF$
     runc
+    // $COVERAGE-ON$
+  }
 
   def runc: Task[Unit] = {
     // $COVERAGE-OFF$
@@ -43,16 +46,26 @@ trait TaskApp {
   /** Scheduler for executing the [[Task]] action.
     * Defaults to `global`, but can be overridden.
     */
-  protected def scheduler: Scheduler = Scheduler.global
+  protected def scheduler: Scheduler = {
+    // $COVERAGE-OFF$
+    Scheduler.global
+    // $COVERAGE-ON$
+  }
 
   /** [[monix.eval.Task.Options Options]] for executing the
     * [[Task]] action. The default value is defined in
     * [[monix.eval.Task.defaultOptions defaultOptions]],
     * but can be overridden.
     */
-  protected def options: Task.Options = Task.defaultOptions
+  protected def options: Task.Options = {
+    // $COVERAGE-OFF$
+    Task.defaultOptions
+    // $COVERAGE-ON$
+  }
 
   final def main(args: Array[String]): Unit = {
+    // $COVERAGE-OFF$
     run(args).runSyncUnsafeOpt(Inf)(scheduler, options, implicitly)
+    // $COVERAGE-ON$
   }
 }
