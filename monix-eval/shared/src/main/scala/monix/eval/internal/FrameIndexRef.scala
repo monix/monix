@@ -54,7 +54,7 @@ import monix.execution.misc.ThreadLocal
   * keeping a counter around, plus setting and fetching from a
   * `ThreadLocal` can be quite expensive.
   */
-sealed abstract class FrameIndexRef {
+private[eval] sealed abstract class FrameIndexRef {
   /** Returns the current `FrameIndex`. */
   def apply(): FrameIndex
 
@@ -68,7 +68,7 @@ sealed abstract class FrameIndexRef {
   def reset(): Unit
 }
 
-object FrameIndexRef {
+private[eval] object FrameIndexRef {
   /** Builds a [[FrameIndexRef]]. */
   def apply(em: ExecutionModel): FrameIndexRef =
     em match {
