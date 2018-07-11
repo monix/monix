@@ -22,7 +22,7 @@ import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 import monix.execution.misc.ThreadLocal
 
-/** Internal API — A reference that boxes a [[FrameIndex]] possibly
+/** Internal API — A reference that boxes a `FrameIndex` possibly
   * using a thread-local.
   *
   * This definition is of interest only when creating
@@ -31,12 +31,12 @@ import monix.execution.misc.ThreadLocal
   *
   * In case the [[Task]] is executed with
   * [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]],
-  * this class boxes a [[FrameIndex]] in order to transport it over
+  * this class boxes a `FrameIndex` in order to transport it over
   * light async boundaries, possibly using a
   * [[monix.execution.misc.ThreadLocal ThreadLocal]], since this
   * index is not supposed to survive when threads get forked.
   *
-  * The [[FrameIndex]] is a counter that increments whenever a
+  * The `FrameIndex` is a counter that increments whenever a
   * `flatMap` operation is evaluated. And with `BatchedExecution`,
   * whenever that counter exceeds the specified threshold, an
   * asynchronous boundary is automatically inserted. However this
@@ -55,13 +55,13 @@ import monix.execution.misc.ThreadLocal
   * `ThreadLocal` can be quite expensive.
   */
 sealed abstract class FrameIndexRef {
-  /** Returns the current [[FrameIndex]]. */
+  /** Returns the current `FrameIndex`. */
   def apply(): FrameIndex
 
-  /** Stores a new [[FrameIndex]]. */
+  /** Stores a new `FrameIndex`. */
   def `:=`(update: FrameIndex): Unit
 
-  /** Resets the stored [[FrameIndex]] to 1, which is the
+  /** Resets the stored `FrameIndex` to 1, which is the
     * default value that should be used after an asynchronous
     * boundary happened.
     */
