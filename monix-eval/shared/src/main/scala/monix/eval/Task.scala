@@ -27,7 +27,6 @@ import monix.execution.annotations.{UnsafeBecauseBlocking, UnsafeBecauseImpure}
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
-import monix.execution.misc.ThreadLocal
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
@@ -454,8 +453,8 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     TaskRunLoop.startLight(this, s, defaultOptions, cb)
 
   /** Triggers the asynchronous execution, much like normal `runAsync`,
-    * but includes the ability to specify 
-    * [[monix.eval.Task.Options Options]] that can modify the behavior 
+    * but includes the ability to specify
+    * [[monix.eval.Task.Options Options]] that can modify the behavior
     * of the run-loop.
     *
     * $unsafeRun
@@ -1003,14 +1002,6 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   final def bracketE[B](use: A => Task[B])(release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] =
     TaskBracket.either(this, use, release)
-
-  /** Transforms a [[Task]] into a [[Coeval]] that tries to execute the
-    * source synchronously, returning either `Right(value)` in case a
-    * value is available immediately, or `Left(future)` in case we
-    * have an asynchronous boundary or an error.
-    */
-  final def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
-    Coeval.eval(runSyncMaybe(s))
 
   /** Returns a task that waits for the specified `timespan` before
     * executing and mirroring the result of the source.
@@ -3582,147 +3573,30 @@ object Task extends TaskInstancesLevel1 {
       }
   }
 
-  /** A run-loop frame index is a number representing the current run-loop
-    * cycle, being incremented whenever a `flatMap` evaluation happens.
+  /** Internal API — The `Context` under which [[Task]] is supposed to be executed.
     *
-    * It gets used for automatically forcing asynchronous boundaries, according to the
-    * [[monix.execution.ExecutionModel ExecutionModel]]
-    * injected by the [[monix.execution.Scheduler Scheduler]] when
-    * the task gets evaluated with `runAsync`.
-    *
-    * @see [[FrameIndexRef]]
+    * This has been hidden in version 3.0.0-RC2, becoming an internal
+    * implementation detail. Soon to be removed or changed completely.
     */
-  type FrameIndex = Int
-
-  /** Internal API — A reference that boxes a [[FrameIndex]] possibly
-    * using a thread-local.
-    *
-    * This definition is of interest only when creating
-    * tasks with `Task.unsafeCreate`, which exposes internals,
-    * is considered unsafe to use and is now deprecated.
-    *
-    * In case the [[Task]] is executed with
-    * [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]],
-    * this class boxes a [[FrameIndex]] in order to transport it over
-    * light async boundaries, possibly using a
-    * [[monix.execution.misc.ThreadLocal ThreadLocal]], since this
-    * index is not supposed to survive when threads get forked.
-    *
-    * The [[FrameIndex]] is a counter that increments whenever a
-    * `flatMap` operation is evaluated. And with `BatchedExecution`,
-    * whenever that counter exceeds the specified threshold, an
-    * asynchronous boundary is automatically inserted. However this
-    * capability doesn't blend well with light asynchronous
-    * boundaries, for example `Async` tasks that never fork logical threads or
-    * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]]
-    * instances executed by capable schedulers. This is why
-    * [[FrameIndexRef]] is part of the [[Context]] of execution for
-    * [[Task]], available for asynchronous tasks that get created with
-    * `Task.unsafeCreate` (which is now deprecated).
-    *
-    * Note that in case the execution model is not
-    * [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]]
-    * then this reference is just a dummy, since there's no point in
-    * keeping a counter around, plus setting and fetching from a
-    * `ThreadLocal` can be quite expensive.
-    */
-  sealed abstract class FrameIndexRef {
-    /** Returns the current [[FrameIndex]]. */
-    def apply(): FrameIndex
-
-    /** Stores a new [[FrameIndex]]. */
-    def `:=`(update: FrameIndex): Unit
-
-    /** Resets the stored [[FrameIndex]] to 1, which is the
-      * default value that should be used after an asynchronous
-      * boundary happened.
-      */
-    def reset(): Unit
-  }
-
-  object FrameIndexRef {
-    /** Builds a [[FrameIndexRef]]. */
-    def apply(em: ExecutionModel): FrameIndexRef =
-      em match {
-        case AlwaysAsyncExecution | SynchronousExecution => Dummy
-        case BatchedExecution(_) => new Local
-      }
-
-    // Keeps our frame index in a thread-local
-    private final class Local extends FrameIndexRef {
-      private[this] val local = ThreadLocal(1)
-      def apply(): FrameIndex = local.get()
-      def `:=`(update: FrameIndex): Unit = local.set(update)
-      def reset(): Unit = local.reset()
-    }
-
-    // Dummy implementation that doesn't do anything
-    private object Dummy extends FrameIndexRef {
-      def apply(): FrameIndex = 1
-      def `:=`(update: FrameIndex): Unit = ()
-      def reset(): Unit = ()
-    }
-  }
-
-  /** Internal API — The `Context` under which [[Task]] is supposed to
-    * be executed.
-    *
-    * This definition is of interest only when creating
-    * tasks with `Task.unsafeCreate`, which exposes internals,
-    * is considered unsafe to use and is now deprecated.
-    *
-    * @param schedulerRef is the [[monix.execution.Scheduler Scheduler]]
-    *        in charge of evaluation on `runAsync`.
-    *
-    * @param connection is the
-    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
-    *        that handles the cancellation on `runAsync`
-    *
-    * @param frameRef is a thread-local counter that keeps track
-    *        of the current frame index of the run-loop. The run-loop
-    *        is supposed to force an asynchronous boundary upon
-    *        reaching a certain threshold, when the task is evaluated
-    *        with
-    *        [[monix.execution.ExecutionModel.BatchedExecution]].
-    *        And this `frameIndexRef` should be reset whenever a real
-    *        asynchronous boundary happens.
-    *
-    *        See the description of [[FrameIndexRef]].
-    *
-    * @param options is a set of options for customizing the task's
-    *        behavior upon evaluation.
-    */
-  final case class Context(
-    @deprecatedName('scheduler)
+  private[eval] final case class Context(
     private val schedulerRef: Scheduler,
     options: Options,
     connection: StackedCancelable,
     frameRef: FrameIndexRef) {
 
-
-    /** The [[monix.execution.Scheduler Scheduler]] in charge of triggering
-      * async boundaries, on the evaluation that happens via `runAsync`.
-      */
     val scheduler: Scheduler =
       if (options.localContextPropagation)
         TracingScheduler(schedulerRef)
       else
         schedulerRef
 
-    /** Helper that returns `true` if the current `Task` run-loop
-      * should be canceled or `false` otherwise.
-      */
     def shouldCancel: Boolean =
       options.autoCancelableRunLoops &&
       connection.isCanceled
 
-    /** Returns the context's [[monix.execution.ExecutionModel ExecutionModel]]. */
     def executionModel: ExecutionModel =
       schedulerRef.executionModel
 
-    /** Returns the index of the starting frame, to be used in case of a
-      * context switch.
-      */
     private[monix] def startFrame(currentFrame: FrameIndex = frameRef()): FrameIndex = {
       val em = schedulerRef.executionModel
       em match {
@@ -3746,12 +3620,10 @@ object Task extends TaskInstancesLevel1 {
       new Context(schedulerRef, options, conn, frameRef)
   }
 
-  object Context {
-    /** Initialize fresh [[Context]] reference. */
+  private[eval] object Context {
     def apply(scheduler: Scheduler, options: Options): Context =
       apply(scheduler, options, StackedCancelable())
 
-    /** Initialize fresh [[Context]] reference. */
     def apply(scheduler: Scheduler, options: Options, connection: StackedCancelable): Context = {
       val em = scheduler.executionModel
       val frameRef = FrameIndexRef(em)
@@ -3822,8 +3694,8 @@ object Task extends TaskInstancesLevel1 {
     * @param register is the side-effecting, callback-enabled function
     *        that starts the asynchronous computation and registers
     *        the callback to be called on completion
-    *        
-    * @param trampolineBefore is an optimization that instructs the 
+    *
+    * @param trampolineBefore is an optimization that instructs the
     *        run-loop to insert a trampolined async boundary before
     *        evaluating the `register` function
     */

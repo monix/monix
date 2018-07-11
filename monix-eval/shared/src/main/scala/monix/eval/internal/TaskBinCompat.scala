@@ -21,7 +21,7 @@ package internal
 import cats.effect.{ConcurrentEffect, Effect}
 import monix.eval.Task.{Async, Context}
 import monix.execution.annotations.UnsafeProtocol
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 
 import scala.annotation.unchecked.uncheckedVariance
 
@@ -139,8 +139,24 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     * as `fork` from 3.0.0-RC1
     */
   @deprecated("Replaced with start", since="3.0.0-RC2")
-  final def fork: Task[Fiber[A @uncheckedVariance]] =
+  final def fork: Task[Fiber[A @uncheckedVariance]] = {
+    // $COVERAGE-OFF$
     this.start
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED - replace with usage of [[Task.runSyncMaybe]]:
+    *
+    * {{{
+    *   task.coeval <-> Coeval(task.runSyncMaybe)
+    * }}}
+    */
+  @deprecated("Replaced with start", since="3.0.0-RC2")
+  final def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] = {
+    // $COVERAGE-OFF$
+    Coeval.eval(runSyncMaybe(s))
+    // $COVERAGE-ON$
+  }
 }
 
 private[eval] abstract class TaskBinCompatCompanion {
@@ -168,7 +184,13 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Deprecated due to being very error prone for usage.
+  /** DEPRECATED (hard) — due to being very error prone for usage and scheduled
+    * for removal in future versions.
+    *
+    * N.B. the entire underlying mechanism by which tasks get evaluated
+    * might get a refactoring so the concept of a `Context` for example
+    * might dissapear. Exposing this function means exposing internal
+    * implementation details that are keeping us from evolving `Task`.
     *
     * Alternatives:
     *
@@ -180,12 +202,10 @@ private[eval] abstract class TaskBinCompatCompanion {
     * Also see:
     *
     *  - [[Task.readOptions]] allows you to read the current [[Task.Options]]
-    *
-    * This method is scheduled for removal, migrate away from it ASAP.
     */
   @UnsafeProtocol
   @deprecated("Switch to Task.create", since = "3.0.0-RC2")
-  def unsafeCreate[A](register: (Context, Callback[A]) => Unit): Task[A] = {
+  private[eval] def unsafeCreate[A](register: (Context, Callback[A]) => Unit): Task[A] = {
     // $COVERAGE-OFF$
     Async(register, trampolineBefore = false, trampolineAfter = false)
     // $COVERAGE-ON$

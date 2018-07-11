@@ -12,9 +12,9 @@ addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.1.0"
+val catsEffectVersion = "1.0.0-RC2"
 // Hash version is safe, containing a laws fix over 1.0.0-RC2:
 // https://github.com/typelevel/cats-effect/pull/277
-val catsEffectVersion = "1.0.0-RC2-35bac78"
 val catsEffectLawsVersion = "1.0.0-RC2-35bac78"
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
