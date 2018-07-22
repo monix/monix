@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import monix.execution.Scheduler
+import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.{Await, TimeoutException}
 import scala.concurrent.duration._
@@ -33,7 +33,7 @@ object TaskFromTrySuite extends BaseTestSuite {
       10
     }).timeout(5.second)
     intercept[TimeoutException]{
-      Await.result(t.runAsync(Scheduler.io()), 10.seconds)
+      Await.result(t.runAsync(TestScheduler()), 10.seconds)
       fail("Task should have raised a TimeoutException due lazy evaluation of the fromTry")
     }
   }
