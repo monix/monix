@@ -67,20 +67,20 @@ object FutureUtils {
   def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])
     (implicit s: Scheduler): Future[A] = {
 
-    val promise = Promise[Either[Unit, Try[A]]]()
+    val promise = Promise[Option[Try[A]]]()
     val task = s.scheduleOnce(atMost.length, atMost.unit,
-      new Runnable { def run() = promise.trySuccess(Left(())) })
+      new Runnable { def run() = promise.trySuccess(None) })
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
       // if the task has been executed already, this has no effect
       task.cancel()
-      promise.trySuccess(Right(r))
+      promise.trySuccess(Some(r))
     }
 
     promise.future.flatMap {
-      case Right(res) => Future.fromTry(res)
-      case Left(_) =>
+      case Some(res) => Future.fromTry(res)
+      case None =>
         // evaluate fallback only here to exclude possibility of race condition
         // between source and fallback when they are finishing at the same time
         fallback
