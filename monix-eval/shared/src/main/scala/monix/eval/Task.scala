@@ -2193,7 +2193,7 @@ object Task extends TaskInstancesLevel1 {
     }
 
   /** Builds a [[Task]] instance out of a Scala `Either`. */
-  def fromEither[E, A](a: Either[E, A])(f: E => Throwable): Task[A] =
+  def fromEither[E, A](f: E => Throwable)(a: Either[E, A]): Task[A] =
     a match {
       case Right(v) => Now(v)
       case Left(ex) => Error(f(ex))
