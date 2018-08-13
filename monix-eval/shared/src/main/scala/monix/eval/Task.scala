@@ -2185,6 +2185,20 @@ object Task extends TaskInstancesLevel1 {
       case Failure(ex) => Error(ex)
     }
 
+  /** Builds a [[Task]] instance out of a Scala `Either`. */
+  def fromEither[E <: Throwable, A](a: Either[E, A]): Task[A] =
+    a match {
+      case Right(v) => Now(v)
+      case Left(ex) => Error(ex)
+    }
+
+  /** Builds a [[Task]] instance out of a Scala `Either`. */
+  def fromEither[E, A](f: E => Throwable)(a: Either[E, A]): Task[A] =
+    a match {
+      case Right(v) => Now(v)
+      case Left(ex) => Error(f(ex))
+    }
+
   /** Keeps calling `f` until it returns a `Right` result.
     *
     * Based on Phil Freeman's
