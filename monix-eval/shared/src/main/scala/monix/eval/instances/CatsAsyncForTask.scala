@@ -18,7 +18,7 @@
 package monix.eval
 package instances
 
-import cats.effect.{Async, Concurrent, ExitCase, IO}
+import cats.effect.{Async, CancelToken, Concurrent, ExitCase}
 import monix.eval.internal.TaskCreate
 
 /** Cats type class instance of [[monix.eval.Task Task]]
@@ -54,7 +54,7 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
 class CatsConcurrentForTask extends CatsAsyncForTask with Concurrent[Task] {
-  override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
+  override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[Task]): Task[A] =
     TaskCreate.cancelableEffect(k)
   override def uncancelable[A](fa: Task[A]): Task[A] =
     fa.uncancelable

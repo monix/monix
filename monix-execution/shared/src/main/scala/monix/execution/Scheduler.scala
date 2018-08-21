@@ -18,14 +18,13 @@
 package monix.execution
 
 import java.util.concurrent.Executor
-import cats.effect.{IO, LiftIO, Timer}
+import cats.effect._
 import monix.execution.internal.AttemptCallback.RunnableTick
 import monix.execution.internal.RunnableAction
 import monix.execution.schedulers.SchedulerCompanionImpl
-
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, TimeUnit, MILLISECONDS}
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, TimeUnit}
 
 /** A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can
   * schedule the execution of units of work to run with a delay or periodically.
@@ -254,6 +253,19 @@ object Scheduler extends SchedulerCompanionImpl {
 
   /** Utilities complementing the `Scheduler` interface. */
   implicit final class Extensions(val source: Scheduler) extends AnyVal with schedulers.ExecuteExtensions {
+
+    /**
+      * Derives a `cats.effect.Clock` from [[Scheduler]] for any
+      * data type that has a `cats.effect.LiftIO` implementation.
+      */
+    def clock[F[_]](implicit F: LiftIO[F]): Clock[F] =
+      new Clock[F] {
+        override def realTime(unit: TimeUnit): F[Long] =
+          F.liftIO(IO(source.clockRealTime(unit)))
+        override def monotonic(unit: TimeUnit): F[Long] =
+          F.liftIO(IO(source.clockMonotonic(unit)))
+      }
+
     /**
       * Derives a `cats.effect.Timer` from [[Scheduler]] for any
       * data type that has a `cats.effect.LiftIO` implementation.
@@ -268,17 +280,35 @@ object Scheduler extends SchedulerCompanionImpl {
       */
     def timer[F[_]](implicit F: LiftIO[F]): Timer[F] =
       new Timer[F] {
-        override def clockRealTime(unit: TimeUnit): F[Long] =
-          F.liftIO(IO(source.clockRealTime(unit)))
-        override val shift: F[Unit] =
-          F.liftIO(IO.shift(source))
-        override def clockMonotonic(unit: TimeUnit): F[Long] =
-          F.liftIO(IO(source.clockMonotonic(unit)))
         override def sleep(d: FiniteDuration): F[Unit] =
           F.liftIO(IO.cancelable[Unit] { cb =>
             source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
               .cancelIO
           })
+        override def clock: Clock[F] = source.clock
+      }
+
+    /**
+      * Derives a `cats.effect.ContextShift` from [[Scheduler]] for any
+      * data type that has a `cats.effect.Effect` implementation.
+      *
+      * {{{
+      *   val contextShift: ContextShift[IO] = scheduler.contextShift[IO]
+      *   val executor = Executors.newCachedThreadPool()
+      *   val ec = ExecutionContext.fromExecutor(executor)
+      *
+      *   contextShift.evalOn(ec)(IO(println("I'm on different thread pool!"))
+      *     .flatMap { _ =>
+      *       IO(println("I came back to default"))
+      *     }
+      * }}}
+      */
+    def contextShift[F[_]](implicit F: Effect[F]): ContextShift[F] =
+      new ContextShift[F] {
+        override def shift: F[Unit] =
+          F.liftIO(IO.shift(source))
+        override def evalOn[A](ec: ExecutionContext)(fa: F[A]): F[A] =
+          F.liftIO(IO.contextShift(source).evalOn(ec)(F.toIO(fa)))
       }
 
     /** Schedules a task to run in the future, after `initialDelay`.
