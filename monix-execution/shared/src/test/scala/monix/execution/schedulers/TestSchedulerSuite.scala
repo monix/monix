@@ -293,9 +293,9 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   }
 
 
-  test("timer.clockMonotonic") { s =>
-    val timer = s.timer[IO]
-    val fetch = timer.clockMonotonic(MILLISECONDS)
+  test("clock.monotonic") { s =>
+    val clock = s.clock[IO]
+    val fetch = clock.monotonic(MILLISECONDS)
 
     assertEquals(fetch.unsafeRunSync(), 0L)
     s.tick(5.seconds)
@@ -306,9 +306,9 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(fetch.unsafeRunSync(), 10300L)
   }
 
-  test("timer.clockRealTime") { s =>
-    val timer = s.timer[IO]
-    val fetch = timer.clockRealTime(MILLISECONDS)
+  test("clock.realTime") { s =>
+    val clock = s.clock[IO]
+    val fetch = clock.realTime(MILLISECONDS)
 
     assertEquals(fetch.unsafeRunSync(), 0L)
     s.tick(5.seconds)
@@ -317,15 +317,6 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(fetch.unsafeRunSync(), 10000L)
     s.tick(300.millis)
     assertEquals(fetch.unsafeRunSync(), 10300L)
-  }
-
-  test("timer.shift") { s =>
-    val timer = s.timer[IO]
-
-    val f = timer.shift.unsafeToFuture()
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(())))
   }
 
   test("timer.sleep") { s =>
@@ -339,6 +330,32 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
     s.tick(5.seconds)
     assertEquals(f.value, Some(Success(())))
+  }
+
+  test("contextShift.shift") { s =>
+    val contextShift = s.contextShift[IO]
+
+    val f = contextShift.shift.unsafeToFuture()
+    assertEquals(f.value, None)
+
+    s.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("contextShift.evalOn") { s =>
+    val contextShift = s.contextShift[IO]
+    val s2 = TestScheduler()
+
+    val f = contextShift.evalOn(s2)(IO(1)).unsafeToFuture()
+    assertEquals(f.value, None)
+
+    s.tick()
+    assertEquals(f.value, None)
+
+    s2.tick()
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
   }
 
   def action(f: => Unit): Runnable =

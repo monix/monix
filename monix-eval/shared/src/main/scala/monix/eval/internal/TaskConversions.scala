@@ -59,7 +59,7 @@ private[eval] object TaskConversions {
     def cancelable(f: CancelableFuture[A])(implicit F: Concurrent[F]): F[A] =
       F.cancelable { cb =>
         f.underlying.onComplete(AttemptCallback.toTry(cb))(immediate)
-        f.cancelable.cancelIO
+        F.liftIO(f.cancelable.cancelIO)
       }
 
     source match {
@@ -88,8 +88,8 @@ private[eval] object TaskConversions {
   private def fromAsync0[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
     val start = (ctx: Context, cb: Callback[A]) => {
       try {
-        val io = F.runAsync(fa)(new CreateCallback[A](null, cb)(ctx.scheduler))
-        io.unsafeRunAsync(AttemptCallback.noop)
+        val syncIO = F.runAsync(fa)(new CreateCallback[A](null, cb)(ctx.scheduler))
+        syncIO.toIO.unsafeRunAsync(AttemptCallback.noop)
       } catch {
         case e if NonFatal(e) =>
           ctx.scheduler.reportFailure(e)
@@ -106,8 +106,8 @@ private[eval] object TaskConversions {
         val cancelable = SingleAssignCancelable()
         conn push cancelable
 
-        val io = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
-        cancelable := Cancelable.fromIOUnsafe(io.unsafeRunSync())
+        val syncIO = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
+        cancelable := Cancelable.fromIO(F.toIO(syncIO.unsafeRunSync()))
       } catch {
         case e if NonFatal(e) =>
           ctx.scheduler.reportFailure(e)

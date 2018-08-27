@@ -3429,15 +3429,15 @@ object Task extends TaskInstancesLevel1 {
     * implementation will not have to worry about managing it, thus
     * increasing performance.
     */
-  abstract class AsyncBuilder[CancelToken] {
-    def create[A](register: (Scheduler, Callback[A]) => CancelToken): Task[A]
+  abstract class AsyncBuilder[CancelationToken] {
+    def create[A](register: (Scheduler, Callback[A]) => CancelationToken): Task[A]
   }
 
   object AsyncBuilder extends AsyncBuilder0 {
     /** Returns the implicit `AsyncBuilder` available in scope for the
       * given `CancelToken` type.
       */
-    def apply[CancelToken](implicit ref: AsyncBuilder[CancelToken]): AsyncBuilder[CancelToken] = ref
+    def apply[CancelationToken](implicit ref: AsyncBuilder[CancelationToken]): AsyncBuilder[CancelationToken] = ref
 
     /** For partial application of type parameters in [[Task.create]].
       *
@@ -3447,8 +3447,8 @@ object Task extends TaskInstancesLevel1 {
     private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true)
       extends AnyVal {
 
-      def apply[CancelToken](register: (Scheduler, Callback[A]) => CancelToken)
-        (implicit B: AsyncBuilder[CancelToken]): Task[A] =
+      def apply[CancelationToken](register: (Scheduler, Callback[A]) => CancelationToken)
+        (implicit B: AsyncBuilder[CancelationToken]): Task[A] =
         B.create(register)
     }
 
@@ -3478,7 +3478,7 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forIO: AsyncBuilder[IO[Unit]] =
       new AsyncBuilder[IO[Unit]] {
-        def create[A](register: (Scheduler, Callback[A]) => IO[Unit]): Task[A] =
+        def create[A](register: (Scheduler, Callback[A]) => CancelToken[IO]): Task[A] =
           TaskCreate.cancelableIO(register)
       }
 
@@ -3976,7 +3976,7 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     new CatsMonadToSemigroup[Task, A]()(CatsConcurrentForTask, A)
 }
 
-private[eval] abstract class TaskParallelNewtype extends TaskTimers {
+private[eval] abstract class TaskParallelNewtype extends TaskContextShift {
   /** Newtype encoding for an `Task` data type that has a [[cats.Applicative]]
     * capable of doing parallel processing in `ap` and `map2`, needed
     * for implementing [[cats.Parallel]].
@@ -3996,7 +3996,35 @@ private[eval] abstract class TaskParallelNewtype extends TaskTimers {
   object Par extends Newtype1[Task]
 }
 
-private[eval] abstract class TaskTimers extends TaskBinCompatCompanion {
+private[eval] abstract class TaskContextShift extends TaskTimers {
+  /**
+    * Default, pure, globally visible `cats.effect.ContextShift`
+    * implementation that shifts the evaluation to `Task`'s default
+    * [[monix.execution.Scheduler Scheduler]]
+    * (that's being injected in [[Task.runAsync(implicit* runAsync]]).
+    */
+  implicit val contextShift: ContextShift[Task] =
+    new ContextShift[Task] {
+      override def shift: Task[Unit] =
+        Task.shift
+      override def evalOn[A](ec: ExecutionContext)(fa: Task[A]): Task[A] =
+        Task.shift(ec).bracket(_ => fa)(_ => Task.shift)
+    }
+
+  /** Builds a `cats.effect.ContextShift` instance, given a
+    * [[monix.execution.Scheduler Scheduler]] reference.
+    */
+  def contextShift(s: Scheduler): ContextShift[Task] =
+    new ContextShift[Task] {
+      override def shift: Task[Unit] =
+        Task.shift(s)
+      override def evalOn[A](ec: ExecutionContext)(fa: Task[A]): Task[A] =
+        Task.shift(ec).bracket(_ => fa)(_ => Task.shift(s))
+    }
+}
+
+private[eval] abstract class TaskTimers extends TaskClocks {
+
   /**
     * Default, pure, globally visible `cats.effect.Timer`
     * implementation that defers the evaluation to `Task`'s default
@@ -4005,14 +4033,10 @@ private[eval] abstract class TaskTimers extends TaskBinCompatCompanion {
     */
   implicit val timer: Timer[Task] =
     new Timer[Task] {
-      override def clockRealTime(unit: TimeUnit): Task[Long] =
-        Task.deferAction(sc => Task.now(sc.clockRealTime(unit)))
-      override def clockMonotonic(unit: TimeUnit): Task[Long] =
-        Task.deferAction(sc => Task.now(sc.clockMonotonic(unit)))
-      override def shift: Task[Unit] =
-        Task.shift
       override def sleep(duration: FiniteDuration): Task[Unit] =
         Task.sleep(duration)
+      override def clock: Clock[Task] =
+        Task.clock
     }
 
   /** Builds a `cats.effect.Timer` instance, given a
@@ -4020,13 +4044,37 @@ private[eval] abstract class TaskTimers extends TaskBinCompatCompanion {
     */
   def timer(s: Scheduler): Timer[Task] =
     new Timer[Task] {
-      override def clockRealTime(unit: TimeUnit): Task[Long] =
-        Task.eval(s.clockRealTime(unit))
-      override def clockMonotonic(unit: TimeUnit): Task[Long] =
-        Task.eval(s.clockMonotonic(unit))
-      override val shift: Task[Unit] =
-        Task.shift(s)
       override def sleep(duration: FiniteDuration): Task[Unit] =
         Task.sleep(duration).executeOn(s)
+      override def clock: Clock[Task] =
+        Task.clock(s)
+    }
+}
+
+private[eval] abstract class TaskClocks extends TaskBinCompatCompanion {
+
+  /**
+    * Default, pure, globally visible `cats.effect.Clock`
+    * implementation that defers the evaluation to `Task`'s default
+    * [[monix.execution.Scheduler Scheduler]]
+    * (that's being injected in [[Task.runAsync(implicit* runAsync]]).
+    */
+  implicit val clock: Clock[Task] =
+    new Clock[Task] {
+      override def realTime(unit: TimeUnit): Task[Long] =
+        Task.deferAction(sc => Task.now(sc.clockRealTime(unit)))
+      override def monotonic(unit: TimeUnit): Task[Long] =
+        Task.deferAction(sc => Task.now(sc.clockMonotonic(unit)))
+    }
+
+  /** Builds a `cats.effect.Clock` instance, given a
+    * [[monix.execution.Scheduler Scheduler]] reference.
+    */
+  def clock(s: Scheduler): Clock[Task] =
+    new Clock[Task] {
+      override def realTime(unit: TimeUnit): Task[Long] =
+        Task.eval(s.clockRealTime(unit))
+      override def monotonic(unit: TimeUnit): Task[Long] =
+        Task.eval(s.clockMonotonic(unit))
     }
 }
