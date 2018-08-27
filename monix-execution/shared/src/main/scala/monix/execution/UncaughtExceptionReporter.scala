@@ -43,7 +43,26 @@ object UncaughtExceptionReporter {
       def reportFailure(ex: Throwable) = reporter(ex)
     }
 
-  /** The default reporter. Simply prints stack traces on STDERR. */
-  val LogExceptionsToStandardErr =
+  /**
+    * Default instance that logs errors in a platform specific way.
+    *
+    * For the JVM logging is accomplished using the current
+    * [[https://docs.oracle.com/javase/8/docs/api/java/lang/Thread.UncaughtExceptionHandler.html Thread.UncaughtExceptionHandler]].
+    * If an `UncaughtExceptionHandler` is not currently set,
+    * then error is printed on stderr.
+    *
+    * For JS logging is done via `console.error`.
+    */
+  val default: UncaughtExceptionReporter =
+    internal.DefaultUncaughtExceptionReporter
+
+  /**
+    * DEPRECATED - use [[default]] instead.
+    */
+  @deprecated("Use UncaughtExceptionReporter.default", since="3.0.0")
+  val LogExceptionsToStandardErr = {
+    // $COVERAGE-OFF$
     UncaughtExceptionReporter(ExecutionContext.defaultReporter)
+    // $COVERAGE-ON$
+  }
 }

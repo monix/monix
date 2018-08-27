@@ -19,6 +19,9 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
+import cats.laws._
+import cats.laws.discipline._
+
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
 import monix.reactive.Observable
@@ -29,7 +32,7 @@ import scala.util.Failure
 object ScanTaskSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount).scanTask(Task.now(0L)) {
-      (s, x) => if (x % 2 == 0) Task(s + x) else Task.eval(s + x)
+      (s, x) => if (x % 2 == 0) Task.evalAsync(s + x) else Task.eval(s + x)
     }
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -47,7 +50,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
     if (sourceCount == 1) None else Some {
       val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
         .scanTask(Task.now(0L)) {
-          (s, x) => if (x % 2 == 0) Task(s + x) else Task.eval(s + x)
+          (s, x) => if (x % 2 == 0) Task.evalAsync(s + x) else Task.eval(s + x)
         }
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -59,7 +62,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
         if (i == sourceCount-1)
           throw ex
         else if (i % 2 == 0)
-          Task(s + i)
+          Task.evalAsync(s + i)
         else
           Task.eval(s + i)
       }
@@ -90,7 +93,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
     val obs = Observable.range(0, 100)
       .doOnTerminate(_ => { effect += 1 })
-      .scanTask(Task.raiseError[Long](dummy))((s, a) => Task(s + a))
+      .scanTask(Task.raiseError[Long](dummy))((s, a) => Task.evalAsync(s + a))
       .doOnError(_ => { effect += 1 })
       .lastL
 
@@ -136,7 +139,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
     val f = Observable.now(10).endWithError(dummy)
       .doOnError { _ => effect += 1 }
-      .scanTask(Task.now(11))((s, a) => Task(s + a).delayExecution(1.second))
+      .scanTask(Task.now(11))((s, a) => Task.evalAsync(s + a).delayExecution(1.second))
       .doOnNext { x => sum += x }
       .doOnError { _ => effect += 1 }
       .lastL
@@ -184,8 +187,8 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
   test("error in task after user cancelled") { implicit s =>
     def delay[A](ex: Throwable): Task[A] =
-      Task.unsafeCreate[A] { (ctx, cb) =>
-        ctx.scheduler.scheduleOnce(1, TimeUnit.SECONDS, new Runnable {
+      Task.async0 { (sc, cb) =>
+        sc.scheduleOnce(1, TimeUnit.SECONDS, new Runnable {
           def run() = cb.onError(ex)
         })
       }
@@ -216,5 +219,17 @@ object ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(f.value, None)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     assertEquals(s.state.lastReportedError, dummy)
+  }
+
+  test("scanTask0.headL <-> seed") { implicit s =>
+    check2 { (obs: Observable[Int], seed: Task[Int]) =>
+      obs.scanTask0(seed)((a, b) => Task.pure(a + b)).headL <-> seed
+    }
+  }
+
+  test("scanTask0.drop(1) <-> scanTask") { implicit s =>
+    check2 { (obs: Observable[Int], seed: Task[Int]) =>
+      obs.scanTask0(seed)((a, b) => Task.pure(a + b)).drop(1) <-> obs.scanTask(seed)((a, b) => Task.pure(a + b))
+    }
   }
 }

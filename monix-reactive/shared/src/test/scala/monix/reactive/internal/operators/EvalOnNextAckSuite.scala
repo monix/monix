@@ -55,7 +55,7 @@ object EvalOnNextAckSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNextAckTask((x,_) => Task(sum += x))
+    Observable.range(0, 20).doOnNextAckTask((x,_) => Task.evalAsync(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -88,7 +88,7 @@ object EvalOnNextAckSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.now(10L).doOnNextAckTask((x,_) => Task(sum += x))
+    Observable.now(10L).doOnNextAckTask((x,_) => Task.evalAsync(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()

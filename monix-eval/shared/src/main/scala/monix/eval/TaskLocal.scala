@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.eval.Task.{Context, ContextSwitch}
 import monix.execution.misc.Local
 
 /** A `TaskLocal` is like a
@@ -140,11 +141,7 @@ final class TaskLocal[A] private (default: => A) {
     *        reset to the previous value
     */
   def bind[R](value: A)(task: Task[R]): Task[R] =
-    Task.suspend {
-      val saved = ref.value
-      ref.update(value)
-      task.doOnFinish(_ => restore(saved))
-    }
+    bindL(Task.now(value))(task)
 
   /** Binds the local var to a `value` for the duration of the given
     * `task` execution, the `value` itself being lazily evaluated
@@ -171,10 +168,12 @@ final class TaskLocal[A] private (default: => A) {
     *        reset to the previous value
     */
   def bindL[R](value: Task[A])(task: Task[R]): Task[R] =
-    value.flatMap { value =>
-      val saved = ref.value
-      ref.update(value)
-      task.doOnFinish(_ => restore(saved))
+    local.flatMap { r =>
+      val saved = r.value
+      value.bracket { v =>
+        r.update(v)
+        task
+      }(_ => restore(saved))
     }
 
   /** Clears the local var to the default for the duration of the
@@ -196,10 +195,10 @@ final class TaskLocal[A] private (default: => A) {
     *        the local gets reset to the previous value
     */
   def bindClear[R](task: Task[R]): Task[R] =
-    Task.suspend {
-      val saved = ref.value
-      ref.clear()
-      task.doOnFinish(_ => restore(saved))
+    local.flatMap { r =>
+      val saved = r.value
+      r.clear()
+      Task.unit.bracket(_ => task)(_ => restore(saved))
     }
 
   private def restore(value: Option[A]): Task[Unit] =
@@ -223,7 +222,7 @@ object TaskLocal {
     *        or in case it was cleared (with [[TaskLocal.clear]])
     */
   def apply[A](default: A): Task[TaskLocal[A]] =
-    Task.eval(new TaskLocal(default))
+    withPropagation(Task.eval(new TaskLocal(default)))
 
   /** Builds a [[TaskLocal]] reference with the given `default`,
     * being lazily evaluated, using [[Coeval]] to manage evaluation.
@@ -239,5 +238,16 @@ object TaskLocal {
     *        lazily evaluated and managed by [[Coeval]]
     */
   def lazyDefault[A](default: Coeval[A]): Task[TaskLocal[A]] =
-    Task.eval(new TaskLocal[A](default.value))
+    withPropagation(Task.eval(new TaskLocal[A](default.value())))
+
+  private def withPropagation[A](task: Task[A]): Task[A] =
+    ContextSwitch(task, enablePropagation, null)
+
+  private val enablePropagation: Context => Context =
+    ctx => {
+      if (!ctx.options.localContextPropagation)
+        ctx.withOptions(ctx.options.enableLocalContextPropagation)
+      else
+        ctx
+    }
 }

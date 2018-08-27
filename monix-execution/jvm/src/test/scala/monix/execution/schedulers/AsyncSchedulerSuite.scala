@@ -174,6 +174,18 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     assertEquals(result, 2)
   }
 
+  test("clockRealTime") {
+    val t1 = System.currentTimeMillis()
+    val t2 = s.clockRealTime(MILLISECONDS)
+    assert(t2 >= t1, "t2 >= t1")
+  }
+
+  test("clockMonotonic") {
+    val t1 = System.nanoTime()
+    val t2 = s.clockMonotonic(NANOSECONDS)
+    assert(t2 >= t1, "t2 >= t1")
+  }
+
   def runnableAction(f: => Unit): Runnable =
     new Runnable { def run() = f }
 }

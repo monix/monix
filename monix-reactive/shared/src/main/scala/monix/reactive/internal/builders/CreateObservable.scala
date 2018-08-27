@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
 

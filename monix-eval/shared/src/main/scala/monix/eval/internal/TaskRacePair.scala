@@ -18,16 +18,30 @@
 package monix.eval
 package internal
 
+import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
-import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
+import monix.execution.cancelables.StackedCancelable
 import scala.concurrent.Promise
 
 private[eval] object TaskRacePair {
+  // Type aliasing the result only b/c it's a mouthful
+  type RaceEither[A, B] = Either[(A, Fiber[B]), (Fiber[A], B)]
+
   /**
     * Implementation for `Task.racePair`.
     */
-  def apply[A, B](fa: Task[A], fb: Task[B]): Task[Either[(A, Fiber[B]), (Fiber[A], B)]] =
-    Task.unsafeCreate { (context, cb) =>
+  def apply[A, B](fa: Task[A], fb: Task[B]): Task[RaceEither[A, B]] =
+    Task.Async(new Register(fa, fb), trampolineBefore = true, trampolineAfter = true)
+
+  // Implementing Async's "start" via `ForkedStart` in order to signal
+  // that this is a task that forks on evaluation.
+  //
+  // N.B. the contract is that the injected callback gets called after
+  // a full async boundary!
+  private final class Register[A, B](fa: Task[A], fb: Task[B])
+    extends ForkedRegister[RaceEither[A, B]] {
+
+    def apply(context: Task.Context, cb: Callback[RaceEither[A, B]]): Unit = {
       implicit val s = context.scheduler
       val conn = context.connection
 
@@ -37,18 +51,18 @@ private[eval] object TaskRacePair {
       val isActive = Atomic(true)
       val connA = StackedCancelable()
       val connB = StackedCancelable()
-      conn push CompositeCancelable(connA, connB)
+      conn.push(Cancelable.trampolined(connA, connB))
 
-      val contextA = context.copy(connection = connA)
-      val contextB = context.copy(connection = connB)
+      val contextA = context.withConnection(connA)
+      val contextB = context.withConnection(connB)
 
       // First task: A
-      Task.unsafeStartAsync(fa, contextA, new Callback[A] {
+      Task.unsafeStartEnsureAsync(fa, contextA, new Callback[A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
             val fiberB = Fiber(TaskFromFuture.lightBuild(pb.future, connB))
             conn.pop()
-            cb.asyncOnSuccess(Left((valueA, fiberB)))
+            cb.onSuccess(Left((valueA, fiberB)))
           } else {
             pa.success(valueA)
           }
@@ -57,19 +71,19 @@ private[eval] object TaskRacePair {
           if (isActive.getAndSet(false)) {
             conn.pop()
             connB.cancel()
-            cb.asyncOnError(ex)
+            cb.onError(ex)
           } else {
             pa.failure(ex)
           }
       })
 
       // Second task: B
-      Task.unsafeStartAsync(fb, contextB, new Callback[B] {
+      Task.unsafeStartEnsureAsync(fb, contextB, new Callback[B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
             val fiberA = Fiber(TaskFromFuture.lightBuild(pa.future, connA))
             conn.pop()
-            cb.asyncOnSuccess(Right((fiberA, valueB)))
+            cb.onSuccess(Right((fiberA, valueB)))
           } else {
             pb.success(valueB)
           }
@@ -78,10 +92,11 @@ private[eval] object TaskRacePair {
           if (isActive.getAndSet(false)) {
             conn.pop()
             connA.cancel()
-            cb.asyncOnError(ex)
+            cb.onError(ex)
           } else {
             pb.failure(ex)
           }
       })
     }
+  }
 }

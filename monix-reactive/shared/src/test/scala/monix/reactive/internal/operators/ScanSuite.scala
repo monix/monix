@@ -17,6 +17,8 @@
 
 package monix.reactive.internal.operators
 
+import cats.laws._
+import cats.laws.discipline._
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
@@ -68,5 +70,17 @@ object ScanSuite extends BaseOperatorSuite {
     val obs = Observable(1,2,3,4).scan[Int](throw ex)(_+_)
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("scan0 should emit the first element like std collections") { implicit s =>
+    check2 { (obs: Observable[Int], seed: Int) =>
+      obs.scan0(seed)(_ + _).toListL <-> obs.toListL.map(_.scanLeft(seed)(_ + _))
+    }
+  }
+
+  test("scan0.drop(1) <-> scan") { implicit s =>
+    check2 { (obs: Observable[Int], seed: Int) =>
+      obs.scan0(seed)(_ + _).drop(1) <-> obs.scan(seed)(_ + _)
+    }
   }
 }

@@ -20,6 +20,7 @@ package monix.tail
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.{Batch, BatchCursor}
 
@@ -42,20 +43,20 @@ object IterantHeadOptionSuite extends BaseTestSuite {
 
   test("Iterant.headOption suspends execution for NextCursor or NextBatch") { _ =>
     check1 { (list: List[Int]) =>
-      val iter1 = Iterant[Coeval].nextBatchS(Batch(list: _*), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val iter1 = Iterant[Coeval].nextBatchS(Batch(list: _*), Coeval.now(Iterant[Coeval].empty[Int]))
       iter1.headOptionL <-> Coeval.suspend(Coeval.now(list.headOption))
 
-      val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(list: _*), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(list: _*), Coeval.now(Iterant[Coeval].empty[Int]))
       iter2.headOptionL <-> Coeval.suspend(Coeval.now(list.headOption))
     }
   }
 
   test("Iterant.headOption works for empty NextCursor or NextBatch") { _ =>
-    val iter1 = Iterant[Coeval].nextBatchS(Batch[Int](), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    assertEquals(iter1.headOptionL.value, None)
+    val iter1 = Iterant[Coeval].nextBatchS(Batch[Int](), Coeval.now(Iterant[Coeval].empty[Int]))
+    assertEquals(iter1.headOptionL.value(), None)
 
-    val iter2 = Iterant[Coeval].nextCursorS(BatchCursor[Int](), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    assertEquals(iter2.headOptionL.value, None)
+    val iter2 = Iterant[Coeval].nextCursorS(BatchCursor[Int](), Coeval.now(Iterant[Coeval].empty[Int]))
+    assertEquals(iter2.headOptionL.value(), None)
   }
 
   test("Iterant.headOption doesn't touch Halt") { implicit s =>
@@ -71,26 +72,68 @@ object IterantHeadOptionSuite extends BaseTestSuite {
   test("Iterant.headOption earlyStop gets called for failing `rest` on Next node") { implicit s =>
     var effect = 0
 
-    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
+    def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
     val dummy = DummyException("dummy")
-    val node3 = Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy), stop(3))
-    val node2 = Iterant[Coeval].suspendS[Int](Coeval(node3), stop(2))
-    val node1 = Iterant[Coeval].suspendS[Int](Coeval(node2), stop(1))
+    val node3 = Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy)).guarantee(stop(3))
+    val node2 = Iterant[Coeval].suspendS[Int](Coeval(node3)).guarantee(stop(2))
+    val node1 = Iterant[Coeval].suspendS[Int](Coeval(node2)).guarantee(stop(1))
 
-    assertEquals(node1.headOptionL.runTry, Failure(dummy))
-    assertEquals(effect, 3)
+    assertEquals(node1.headOptionL.runTry(), Failure(dummy))
+    assertEquals(effect, 6)
   }
 
   test("protects against broken batches as first node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val fa = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-      .doOnEarlyStop(Coeval { effect += 1 })
+    val fa = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+      .guarantee(Coeval { effect += 1 })
       .headOptionL
 
     assertEquals(effect, 0)
-    assertEquals(fa.runTry, Failure(dummy))
+    assertEquals(fa.runTry(), Failure(dummy))
     assertEquals(effect, 1)
+  }
+
+  test("headOptionL handles Scope's release before the rest of the stream") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val lh = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.empty),
+      (_, _) => Coeval(triggered.set(true))
+    )
+
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    assertEquals(stream.headOptionL.value(), None)
+  }
+
+  test("headOptionL handles Scope's release after use is finished") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val stream = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.empty ++ Iterant[Coeval].suspend {
+        if (triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }),
+      (_, _) => {
+        Coeval(triggered.set(true))
+      }
+    )
+
+    assertEquals(
+      (stream ++ Iterant[Coeval].empty[Int]).headOptionL.value(),
+      None)
   }
 }

@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -94,7 +94,8 @@ class DelayBySelectorObservable[A,S](source: Observable[A], selector: A => Obser
 
       def onComplete(): Unit = {
         completeTriggered = true
-        ack.future.syncTryFlatten.syncOnContinue {
+        val ackFuture = if (ack ne null) ack.future else Continue
+        ackFuture.syncTryFlatten.syncOnContinue {
           if (!isDone) {
             isDone = true
             out.onComplete()

@@ -69,10 +69,12 @@ class TaskShallowBindBenchmark {
   @Benchmark
   def async(): Int = {
     def loop(i: Int): Task[Int] =
-      if (i < size) Task(i + 1).flatMap(loop)
-      else Task(i)
+      if (i < size)
+        Task.shift.map(_ => i + 1).flatMap(loop)
+      else
+        Task.shift.map(_ => i)
 
-    val task = Task(0).flatMap(loop)
+    val task = Task.now(0).flatMap(loop)
     Await.result(task.runAsync, Duration.Inf)
   }
 }

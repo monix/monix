@@ -21,7 +21,7 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
 import monix.execution.atomic.{Atomic, AtomicInt}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
 import scala.concurrent.Future

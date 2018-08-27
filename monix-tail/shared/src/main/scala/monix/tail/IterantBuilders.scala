@@ -18,21 +18,31 @@
 package monix.tail
 
 import cats.Applicative
-import cats.effect.Sync
-import monix.eval.{Coeval, Task}
+import cats.effect._
 import monix.tail.batches.{Batch, BatchCursor}
-import monix.tail.internal.{IterantIntervalAtFixedRate, IterantIntervalWithFixedDelay}
+import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
-import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.reflect.ClassTag
-import scala.util.Try
+import scala.concurrent.duration.FiniteDuration
 
-class IterantBuilders[F[_]] {
-  /** Given a list of elements build a stream out of it. */
-  def of[A](elems: A*)(implicit F: Applicative[F]): Iterant[F,A] =
-    Iterant.fromSeq(elems)(F)
-
+/** Class defining curried `Iterant` builders, relieving the user from
+  * specifying the `A` parameter explicitly.
+  *
+  * This is used to achieve the
+  * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]
+  * technique.
+  *
+  * So instead of having to do:
+  * {{{
+  *   Iterant.pure[Task, Int](1)
+  * }}}
+  *
+  * You can do:
+  * {{{
+  *   Iterant[Task].pure(1)
+  * }}}
+  */
+sealed trait IterantBuilders[F[_]] extends Any {
   /** Aliased builder, see documentation for [[Iterant.now]]. */
   def now[A](a: A): Iterant[F,A] =
     Iterant.now(a)
@@ -41,33 +51,29 @@ class IterantBuilders[F[_]] {
   def pure[A](a: A): Iterant[F,A] =
     Iterant.pure(a)
 
-  /** Aliased builder, see documentation for [[Iterant.eval]]. */
-  def eval[A](a: => A)(implicit F: Sync[F]): Iterant[F,A] =
-    Iterant.eval(a)(F)
-
-  /** Aliased builder, see documentation for [[Iterant.liftF]]. */
-  def liftF[A](a: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    Iterant.liftF(a)
-
-  /** Aliased builder, see documentation for [[Iterant.bracket]] */
-  def bracket[A, B](acquire: F[A])(use: A => Iterant[F, B], release: A => F[Unit])(implicit F: Sync[F]): Iterant[F, B] =
-    Iterant.bracket(acquire)(use, release)
-
   /** Aliased builder, see documentation for [[Iterant.nextS]]. */
-  def nextS[A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Iterant.nextS(item, rest, stop)
+  def nextS[A](item: A, rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Iterant.nextS(item, rest)
 
   /** Aliased builder, see documentation for [[Iterant.nextCursorS]]. */
-  def nextCursorS[A](cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Iterant.nextCursorS(cursor, rest, stop)
+  def nextCursorS[A](cursor: BatchCursor[A], rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Iterant.nextCursorS(cursor, rest)
 
   /** Aliased builder, see documentation for [[Iterant.nextBatchS]]. */
-  def nextBatchS[A](batch: Batch[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Iterant.nextBatchS(batch, rest, stop)
+  def nextBatchS[A](batch: Batch[A], rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Iterant.nextBatchS(batch, rest)
 
   /** Aliased builder, see documentation for [[Iterant.suspendS]]. */
-  def suspendS[A](rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Iterant.suspendS(rest, stop)
+  def suspendS[A](rest: F[Iterant[F, A]]): Iterant[F, A] =
+    Iterant.suspendS(rest)
+
+  /** Aliased builder, see documentation for [[Iterant.concatS]]. */
+  def concatS[A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): Iterant[F, A] =
+    Iterant.concatS(lh, rh)
+
+  /** Aliased builder, see documentation for [[Iterant.scopeS]]. */
+  def scopeS[A, B](acquire: F[A], use: A => F[Iterant[F, B]], close: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
+    Iterant.scopeS(acquire, use, close)
 
   /** Aliased builder, see documentation for [[Iterant.lastS]]. */
   def lastS[A](item: A): Iterant[F, A] =
@@ -77,18 +83,6 @@ class IterantBuilders[F[_]] {
   def haltS[A](e: Option[Throwable]): Iterant[F, A] =
     Iterant.haltS(e)
 
-  /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](fa* Iterant.suspend]]. */
-  def suspend[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
-    Iterant.suspend(fa)(F)
-
-  /** Aliased builder, see documentation for [[Iterant.defer]]. */
-  def defer[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
-    Iterant.defer(fa)(F)
-
-  /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](rest* Iterant.suspend]]. */
-  def suspend[A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] =
-    Iterant.suspend(rest)(F)
-
   /** Aliased builder, see documentation for [[Iterant.empty]]. */
   def empty[A]: Iterant[F, A] =
     Iterant.empty
@@ -97,12 +91,23 @@ class IterantBuilders[F[_]] {
   def raiseError[A](ex: Throwable): Iterant[F, A] =
     Iterant.raiseError(ex)
 
-  /** Aliased builder, see documentation for [[Iterant.tailRecM]]. */
-  def tailRecM[A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Sync[F]): Iterant[F, B] =
-    Iterant.tailRecM(a)(f)(F)
+  // -----------------------------------------------------------------
+  // -- Requiring Applicative
+
+  /** Given a list of elements build a stream out of it. */
+  def of[A](elems: A*)(implicit F: Applicative[F]): Iterant[F,A] =
+    Iterant.fromSeq(elems)(F)
+
+  /** Aliased builder, see documentation for [[Iterant.liftF]]. */
+  def liftF[A](a: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.liftF(a)
+
+  /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](rest* Iterant.suspend]]. */
+  def suspend[A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.suspend(rest)
 
   /** Aliased builder, see documentation for [[Iterant.fromArray]]. */
-  def fromArray[A : ClassTag](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
+  def fromArray[A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromArray(xs)
 
   /** Aliased builder, see documentation for [[Iterant.fromList]]. */
@@ -121,21 +126,60 @@ class IterantBuilders[F[_]] {
   def fromIterable[A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromIterable(xs)(F)
 
+  /** Aliased builder, see documentation for [[Iterant.fromBatchCursor]]. */
+  def fromBatchCursor[A](xs: BatchCursor[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.fromBatchCursor(xs)
+
+  /** Aliased builder, see documentation for [[Iterant.fromBatch]]. */
+  def fromBatch[A](xs: Batch[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.fromBatch(xs)
+
   /** Aliased builder, see documentation for [[Iterant.fromIterator]]. */
   def fromIterator[A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] =
     Iterant.fromIterator(xs)(F)
 
-  /** Aliased builder, see documentation for [[Iterant.fromStateAction]]. */
-  def fromStateAction[S, A](f: S => (A, S))(seed: => S)(implicit F: Sync[F]): Iterant[F, A] =
-    Iterant.fromStateAction(f)(seed)
-
-  /** Aliased builder, see documentation for [[Iterant.fromStateActionL]]. */
-  def fromStateActionL[S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] =
-    Iterant.fromStateActionL(f)(seed)
-
   /** Aliased builder, see documentation for [[Iterant.range]]. */
   def range(from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
     Iterant.range(from, until, step)(F)
+
+  // -----------------------------------------------------------------
+  // cats.effect.Sync
+
+  /** Aliased builder, see documentation for [[Iterant.eval]]. */
+  def eval[A](a: => A)(implicit F: Sync[F]): Iterant[F,A] =
+    Iterant.eval(a)(F)
+
+  /** Aliased builder, see documentation for [[Iterant.eval]]. */
+  def delay[A](a: => A)(implicit F: Sync[F]): Iterant[F,A] =
+    Iterant.delay(a)(F)
+
+  /** Aliased builder, see documentation for [[Iterant.resource]]. */
+  def resource[A](acquire: F[A])(release: A => F[Unit])
+    (implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.resource(acquire)(release)
+
+  /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](fa* Iterant.suspend]]. */
+  def suspend[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.suspend(fa)(F)
+
+  /** Aliased builder, see documentation for [[Iterant.defer]]. */
+  def defer[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.defer(fa)(F)
+
+  /** Aliased builder, see documentation for [[Iterant.tailRecM]]. */
+  def tailRecM[A, B](a: A)(f: A => Iterant[F, Either[A, B]])
+    (implicit F: Sync[F]): Iterant[F, B] =
+    Iterant.tailRecM(a)(f)(F)
+
+  /** Aliased builder, see documentation for [[Iterant.fromStateAction]]. */
+  def fromStateAction[S, A](f: S => (A, S))(seed: => S)
+    (implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.fromStateAction(f)(seed)
+
+  /** Aliased builder, see documentation for [[Iterant.fromStateActionL]]. */
+  def fromStateActionL[S, A](f: S => F[(A, S)])(seed: => F[S])
+    (implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.fromStateActionL(f)(seed)
 
   /** Aliased builder, see documentation for [[Iterant.repeat]]. */
   def repeat[A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] =
@@ -148,129 +192,60 @@ class IterantBuilders[F[_]] {
   /** Aliased builder, see documentation for [[Iterant.repeatEvalF]]. */
   def repeatEvalF[A](fa: F[A])(implicit F: Sync[F]): Iterant[F, A] =
     Iterant.repeatEvalF(fa)
+
+  // -----------------------------------------------------------------
+  // cats.effect.Async
+
+  /** Aliased builder, see documentation for [[Iterant.never]]. */
+  def never[A](implicit F: Async[F]): Iterant[F, A] =
+    Iterant.suspendS(F.never)
+
+  /**
+    * Aliased builder, see documentation for
+    * [[[Iterant.intervalAtFixedRate[F[_]](period* Iterant.intervalAtFixedRate]]].
+    */
+  def intervalAtFixedRate(period: FiniteDuration)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    Iterant.intervalAtFixedRate(period)
+
+  /**
+    * Aliased builder, see documentation for
+    * [[[Iterant.intervalAtFixedRate[F[_]](initialDelay* Iterant.intervalAtFixedRate]]].
+    */
+  def intervalAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    Iterant.intervalAtFixedRate(initialDelay, period)
+
+  /**
+    * Aliased builder, see documentation for
+    * [[[Iterant.intervalWithFixedDelay[F[_]](delay* Iterant.intervalAtFixedRate]]].
+    */
+  def intervalWithFixedDelay(delay: FiniteDuration)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    Iterant.intervalWithFixedDelay(delay)
+
+  /**
+    * Aliased builder, see documentation for
+    * [[[Iterant.intervalWithFixedDelay[F[_]](initialDelay* Iterant.intervalAtFixedRate]]].
+    */
+  def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)
+    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    Iterant.intervalWithFixedDelay(initialDelay, delay)
+
+
+  /** Aliased builder, see documentation for [[Iterant.fromReactivePublisher]]. */
+  def fromReactivePublisher[A](publisher: Publisher[A], requestCount: Int = 256)
+    (implicit F: Async[F]): Iterant[F, A] =
+    Iterant.fromReactivePublisher(publisher, requestCount)
 }
 
 object IterantBuilders {
-  /** Type-class for quickly finding a suitable type and [[IterantBuilders]]
-    * implementation for a given `F[_]` monadic context.
+  /**
+    * Returns an `IterantBuilders` value. Tries to be efficient
+    * about it.
     */
-  trait From[F[_]] {
-    type Builders <: IterantBuilders[F]
-    def instance: Builders
-  }
+  def apply[F[_]]: IterantBuilders[F] =
+    Ref.asInstanceOf[IterantBuilders[F]]
 
-  object From extends LowPriority {
-    /** Implicit [[From]] instance for building [[Iterant]]
-      * instances powered by [[monix.eval.Task Task]].
-      */
-    implicit val task: FromTask.type = FromTask
-
-    /** Implicit [[From]] instance for building [[Iterant]]
-      * instances powered by [[monix.eval.Coeval Coeval]].
-      */
-    implicit val coeval: FromCoeval.type = FromCoeval
-  }
-
-  private[tail] class LowPriority {
-    /** For building generic [[Iterant]] instances. */
-    implicit def fromAny[F[_]]: FromAny[F] =
-      genericFromAny.asInstanceOf[FromAny[F]]
-  }
-
-  /** For building [[Iterant]] instances powered by
-    * [[monix.eval.Task Task]].
-    */
-  object FromTask extends From[Task] {
-    type Builders = IterantOfTask.type
-    def instance: Builders = IterantOfTask
-  }
-
-  /** For building [[Iterant]] instances powered by
-    * [[monix.eval.Coeval Coeval]].
-    */
-  object FromCoeval extends From[Coeval] {
-    type Builders = IterantOfCoeval.type
-    def instance: Builders = IterantOfCoeval
-  }
-
-  /** For building generic [[Iterant]] instances. */
-  final class FromAny[F[_]] extends From[F] {
-    type Builders = IterantBuilders[F]
-
-    def instance: Builders =
-      genericBuildersInstance.asInstanceOf[IterantBuilders[F]]
-  }
-
-  // Relying on type-erasure to build a generic instance.
-  // Try here is being ignored.
-  private val genericFromAny: FromAny[Try] =
-    new FromAny[Try]
-
-  // Relying on type-erasure to build a generic instance.
-  // Try here is being ignored.
-  private final val genericBuildersInstance: IterantBuilders[Try] =
-    new IterantBuilders[Try]
+  private[this] object Ref extends IterantBuilders[IO]
 }
-
-/** Defines builders for [[Iterant]] instances powered by
-  * [[monix.eval.Coeval Coeval]].
-  */
-object IterantOfCoeval extends IterantBuilders[Coeval]
-
-/** Defines builders for [[Iterant]] instances powered by
-  * [[monix.eval.Task Task]].
-  *
-  * @define intervalAtFixedRateDesc Creates an iterant that
-  *         emits auto-incremented natural numbers (longs).
-  *         at a fixed rate, as given by the specified `period`.
-  *         The amount of time it takes to process an incoming
-  *         value gets subtracted from provided `period`, thus
-  *         created iterant tries to emit events spaced by the
-  *         given time interval, regardless of how long further
-  *         processing takes
-  *
-  * @define intervalWithFixedDelayDesc Creates an iterant that
-  *         emits auto-incremented natural numbers (longs) spaced
-  *         by a given time interval. Starts from 0 with no delay,
-  *         after which it emits incremented numbers spaced by the
-  *         `period` of time. The given `period` of time acts as a
-  *         fixed delay between successive events.
-  */
-object IterantOfTask extends IterantBuilders[Task] {
-  /** $intervalAtFixedRateDesc
-    *
-    * @param period period between 2 successive emitted values
-    */
-  def intervalAtFixedRate(period: FiniteDuration): Iterant[Task, Long] =
-    IterantIntervalAtFixedRate(Duration.Zero, period)
-
-  /** $intervalAtFixedRateDesc
-    *
-    * This version of the `intervalAtFixedRate` allows specifying an
-    * `initialDelay` before first value is emitted
-    *
-    * @param initialDelay initial delay before emitting the first value
-    * @param period period between 2 successive emitted values
-    */
-  def intervalAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration): Iterant[Task, Long] =
-    IterantIntervalAtFixedRate(initialDelay, period)
-
-  /** $intervalWithFixedDelayDesc
-    *
-    * Without having an initial delay specified, this overload
-    * will immediately emit the first item, without any delays.
-    *
-    * @param delay the time to wait between 2 successive events
-    */
-  def intervalWithFixedDelay(delay: FiniteDuration): Iterant[Task, Long] =
-    IterantIntervalWithFixedDelay(Duration.Zero, delay)
-
-  /** $intervalWithFixedDelayDesc
-    *
-    * @param initialDelay is the delay to wait before emitting the first event
-    * @param delay the time to wait between 2 successive events
-    */
-  def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration): Iterant[Task, Long] =
-    IterantIntervalWithFixedDelay(initialDelay, delay)
-}
-

@@ -17,6 +17,7 @@
 
 package monix.execution.internal
 
+import monix.execution.exceptions.CompositeException
 import monix.execution.schedulers.CanBlock
 import scala.concurrent.Awaitable
 import scala.concurrent.duration.Duration
@@ -81,4 +82,35 @@ private[monix] object Platform {
     throw new UnsupportedOperationException(
       "Blocking operations are not supported on top of JavaScript"
     )
+
+  /** Composes multiple errors together, meant for those cases in which
+    * error suppression, due to a second error being triggered, is not
+    * acceptable.
+    *
+    * On top of the JVM this function uses `Throwable#addSuppressed`,
+    * available since Java 7. On top of JavaScript the function would return
+    * a `CompositeException`.
+    */
+  def composeErrors(first: Throwable, rest: Throwable*): Throwable =
+    rest.filter(_ ne first).toList match {
+      case Nil => first
+      case nonEmpty =>
+        first match {
+          case CompositeException(errors) =>
+            val list = errors.toList
+            CompositeException(list ::: nonEmpty)
+          case _ =>
+            CompositeException(first :: nonEmpty)
+        }
+    }
+
+  /**
+    * Useful utility that combines an `Either` result, which is what
+    * `MonadError#attempt` returns.
+    */
+  def composeErrors(first: Throwable, second: Either[Throwable, _]): Throwable =
+    second match {
+      case Left(e2) => composeErrors(first, e2)
+      case _ => first
+    }
 }

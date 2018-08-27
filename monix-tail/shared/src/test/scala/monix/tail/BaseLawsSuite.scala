@@ -17,9 +17,11 @@
 
 package monix.tail
 
+import cats.effect.laws.discipline.{Parameters => EffectParameters}
 import minitest.SimpleTestSuite
 import minitest.api.IgnoredException
 import minitest.laws.Checkers
+import monix.eval.TestUtils
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import org.scalacheck.Prop
@@ -31,7 +33,9 @@ import scala.concurrent.duration._
 /** Just a marker for what we need to extend in the tests
   * of `monix-tail`.
   */
-trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstances {
+trait BaseLawsSuite extends SimpleTestSuite
+  with Checkers with ArbitraryInstances with TestUtils {
+
   override lazy val checkConfig: Parameters =
     Parameters.default
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
@@ -43,6 +47,16 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       .withMinSuccessfulTests(10)
       .withMaxDiscardRatio(50.0f)
       .withMaxSize(6)
+
+  // Stack-safety tests are very taxing, so reducing burden
+  implicit val effectParams =
+    EffectParameters.default.copy(
+      stackSafeIterationsCount = {
+        if (Platform.isJS || System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+          100
+        else
+          1000
+      })
 
   def checkAllAsync(name: String, config: Parameters = checkConfig)
     (f: TestScheduler => Laws#RuleSet): Unit = {
@@ -56,7 +70,7 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       for ((id, prop: Prop) ← ruleSet.all.properties)
         test(s"$name.$id") {
           s.tick(1.day)
-          check(prop, config)
+          silenceSystemErr(check(prop, config))
         }
     } catch {
       case e: IgnoredException if catchErrors =>

@@ -19,7 +19,7 @@ package monix.reactive.observers
 
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 import scala.concurrent.{Future, Promise}
 import scala.util.Try

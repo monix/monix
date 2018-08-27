@@ -17,13 +17,15 @@
 
 package monix.eval.internal
 
+import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.Stop
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.cancelables.StackedCancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Cancelable, Scheduler}
+
 import scala.annotation.tailrec
 
 private[eval] object TaskMapBoth {
@@ -31,6 +33,21 @@ private[eval] object TaskMapBoth {
     * Implementation for `Task.mapBoth`.
     */
   def apply[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] = {
+    Async(
+      new Register(fa1, fa2, f),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = true)
+  }
+
+  // Implementing Async's "start" via `ForkedStart` in order to signal
+  // that this is a task that forks on evaluation.
+  //
+  // N.B. the contract is that the injected callback gets called after
+  // a full async boundary!
+  private final class Register[A1, A2, R](fa1: Task[A1], fa2: Task[A2], f: (A1,A2) => R)
+    extends ForkedRegister[R] {
+
     /* For signaling the values after the successful completion of both tasks. */
     def sendSignal(mainConn: StackedCancelable, cb: Callback[R], a1: A1, a2: A2)
       (implicit s: Scheduler): Unit = {
@@ -40,13 +57,13 @@ private[eval] object TaskMapBoth {
         val r = f(a1, a2)
         streamErrors = false
         mainConn.pop()
-        cb.asyncOnSuccess(r)
+        cb.onSuccess(r)
       } catch {
         case NonFatal(ex) if streamErrors =>
           // Both tasks completed by this point, so we don't need
           // to worry about the `state` being a `Stop`
           mainConn.pop()
-          cb.asyncOnError(ex)
+          cb.onError(ex)
       }
     }
 
@@ -65,66 +82,63 @@ private[eval] object TaskMapBoth {
             sendError(mainConn, state, cb, ex)(s) // retry
           else {
             mainConn.pop().cancel()
-            cb.asyncOnError(ex)(s)
+            cb.onError(ex)
           }
       }
     }
 
-    // The resulting task will be executed asynchronously
-    Task.unsafeCreate { (context, cb) =>
-      // Initial asynchronous boundary
-      context.scheduler.executeTrampolined { () =>
-        implicit val s = context.scheduler
-        val mainConn = context.connection
-        // for synchronizing the results
-        val state = Atomic.withPadding(null: AnyRef, LeftRight128)
-        val task1 = StackedCancelable()
-        val context1 = context.copy(connection = task1)
-        val task2 = StackedCancelable()
-        val context2 = context.copy(connection = task2)
-        mainConn push Cancelable.collection(Array(task1, task2))
+    def apply(context: Context, cb: Callback[R]): Unit = {
+      implicit val s = context.scheduler
+      val mainConn = context.connection
+      // for synchronizing the results
+      val state = Atomic.withPadding(null: AnyRef, LeftRight128)
 
-        // Light asynchronous boundary; with most scheduler implementations
-        // it will not fork a new (logical) thread!
-        Task.unsafeStartTrampolined(fa1, context1, new Callback[A1] {
-          @tailrec def onSuccess(a1: A1): Unit =
-            state.get match {
-              case null => // null means this is the first task to complete
-                if (!state.compareAndSet(null, Left(a1))) onSuccess(a1)
-              case Right(a2) => // the other task completed, so we can send
-                sendSignal(mainConn, cb, a1, a2.asInstanceOf[A2])(s)
-              case Stop => // the other task triggered an error
-                () // do nothing
-              case s@Left(_) =>
-                // This task has triggered multiple onSuccess calls
-                // violating the protocol. Should never happen.
-                onError(new IllegalStateException(s.toString))
-            }
+      val task1 = StackedCancelable()
+      val task2 = StackedCancelable()
+      val context1 = context.withConnection(task1)
+      val context2 = context.withConnection(task2)
+      mainConn.push(Cancelable.trampolined(task1, task2))
 
-          def onError(ex: Throwable): Unit =
-            sendError(mainConn, state, cb, ex)(s)
-        })
+      // Light asynchronous boundary; with most scheduler implementations
+      // it will not fork a new (logical) thread!
+      Task.unsafeStartEnsureAsync(fa1, context1, new Callback[A1] {
+        @tailrec def onSuccess(a1: A1): Unit =
+          state.get match {
+            case null => // null means this is the first task to complete
+              if (!state.compareAndSet(null, Left(a1))) onSuccess(a1)
+            case Right(a2) => // the other task completed, so we can send
+              sendSignal(mainConn, cb, a1, a2.asInstanceOf[A2])(s)
+            case Stop => // the other task triggered an error
+              () // do nothing
+            case s@Left(_) =>
+              // This task has triggered multiple onSuccess calls
+              // violating the protocol. Should never happen.
+              onError(new IllegalStateException(s.toString))
+          }
 
-        // Light asynchronous boundary
-        Task.unsafeStartTrampolined(fa2, context2, new Callback[A2] {
-          @tailrec def onSuccess(a2: A2): Unit =
-            state.get match {
-              case null => // null means this is the first task to complete
-                if (!state.compareAndSet(null, Right(a2))) onSuccess(a2)
-              case Left(a1) => // the other task completed, so we can send
-                sendSignal(mainConn, cb, a1.asInstanceOf[A1], a2)(s)
-              case Stop => // the other task triggered an error
-                () // do nothing
-              case s@Right(_) =>
-                // This task has triggered multiple onSuccess calls
-                // violating the protocol. Should never happen.
-                onError(new IllegalStateException(s.toString))
-            }
+        def onError(ex: Throwable): Unit =
+          sendError(mainConn, state, cb, ex)(s)
+      })
 
-          def onError(ex: Throwable): Unit =
-            sendError(mainConn, state, cb, ex)(s)
-        })
-      }
+      // Start first task with a "hard" async boundary to ensure parallel evaluation
+      Task.unsafeStartEnsureAsync(fa2, context2, new Callback[A2] {
+        @tailrec def onSuccess(a2: A2): Unit =
+          state.get match {
+            case null => // null means this is the first task to complete
+              if (!state.compareAndSet(null, Right(a2))) onSuccess(a2)
+            case Left(a1) => // the other task completed, so we can send
+              sendSignal(mainConn, cb, a1.asInstanceOf[A1], a2)(s)
+            case Stop => // the other task triggered an error
+              () // do nothing
+            case s@Right(_) =>
+              // This task has triggered multiple onSuccess calls
+              // violating the protocol. Should never happen.
+              onError(new IllegalStateException(s.toString))
+          }
+
+        def onError(ex: Throwable): Unit =
+          sendError(mainConn, state, cb, ex)(s)
+      })
     }
   }
 }

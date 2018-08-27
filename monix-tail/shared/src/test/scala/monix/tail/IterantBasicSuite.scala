@@ -87,13 +87,13 @@ object IterantBasicSuite extends BaseTestSuite {
         Iterant[Coeval].now[Either[Int, Int]](Right(a))
     }
 
-    val list = fa.toListL.value
+    val list = fa.toListL.value()
     assertEquals(list, (0 to 10).toList)
   }
 
   test("tailRecM should protect against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val fa = Iterant[Coeval].tailRecM(0) { _ => throw dummy }
-    assertEquals(fa.completeL.runTry, Failure(dummy))
+    assertEquals(fa.completeL.runTry(), Failure(dummy))
   }
 }

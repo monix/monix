@@ -39,11 +39,14 @@ private[eval] object TaskMemoize {
       case Task.Eval(Coeval.Suspend(f: LazyVal[A @unchecked]))
         if !cacheErrors || f.cacheErrors =>
         source
-      case Task.Async(r: Register[A] @unchecked)
+      case Task.Async(r: Register[A] @unchecked, _, _, _)
         if !cacheErrors || r.cacheErrors =>
         source
       case _ =>
-        Task.Async(new Register(source, cacheErrors))
+        Task.Async(new Register(source, cacheErrors),
+          trampolineBefore = false,
+          trampolineAfter = true,
+          restoreLocals = false)
     }
 
   /** Registration function, used in `Task.Async`. */
@@ -58,7 +61,7 @@ private[eval] object TaskMemoize {
       implicit val sc = ctx.scheduler
       state.get match {
         case result: Try[A] @unchecked =>
-          cb.asyncApply(result)
+          cb(result)
         case _ =>
           start(ctx, cb)
       }
@@ -67,7 +70,7 @@ private[eval] object TaskMemoize {
     /** Saves the final result on completion and triggers the registered
       * listeners.
       */
-    @tailrec def cacheValue(value: Try[A])(implicit sc: Scheduler): Unit = {
+    @tailrec def cacheValue(value: Try[A])(implicit s: Scheduler): Unit = {
       // Should we cache everything, error results as well,
       // or only successful results?
       if (self.cacheErrors || value.isSuccess) {
@@ -76,7 +79,7 @@ private[eval] object TaskMemoize {
             if (!p.tryComplete(value)) {
               // $COVERAGE-OFF$
               if (value.isFailure)
-                sc.reportFailure(value.failed.get)
+                s.reportFailure(value.failed.get)
               // $COVERAGE-ON$
             }
           case _ =>
@@ -107,7 +110,7 @@ private[eval] object TaskMemoize {
     }
 
     /** Builds a callback that gets used to cache the result. */
-    private def complete(implicit sc: Scheduler): Callback[A] =
+    private def complete(implicit s: Scheduler): Callback[A] =
       new Callback[A] {
         def onSuccess(value: A): Unit =
           self.cacheValue(Success(value))
@@ -158,7 +161,7 @@ private[eval] object TaskMemoize {
         case ref: Try[A] @unchecked =>
           // Race condition happened
           // $COVERAGE-OFF$
-          cb.asyncApply(ref)
+          cb(ref)
           // $COVERAGE-ON$
       }
     }

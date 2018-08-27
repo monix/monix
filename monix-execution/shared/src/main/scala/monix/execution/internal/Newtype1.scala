@@ -17,7 +17,7 @@
 
 package monix.execution.internal
 
-/** INTERNAL API — Newtype encoding
+/** INTERNAL API — Newtype encoding for types with one type parameter.
   *
   * The `Newtype1` abstract class indirection is needed for Scala 2.10,
   * otherwise we could just define these types straight on the

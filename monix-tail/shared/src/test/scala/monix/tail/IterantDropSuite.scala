@@ -36,8 +36,9 @@ object IterantDropSuite extends BaseTestSuite {
 
   test("Iterant[Task].drop equivalence with List.drop") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
-      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
-      val n = math.abs(nr)
+      val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
+      val stream = iter ++ Iterant[Task].of(1, 2, 3)
+      val n = Math.floorMod(nr, 50)
       stream.drop(n).toListL <-> stream.toListL.map(_.drop(n))
     }
   }
@@ -45,7 +46,7 @@ object IterantDropSuite extends BaseTestSuite {
   test("Iterant.drop protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.drop(Int.MaxValue)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
@@ -55,19 +56,20 @@ object IterantDropSuite extends BaseTestSuite {
   test("Iterant.drop protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.drop(Int.MaxValue)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("Iterant.drop preserves the source earlyStop") { implicit s =>
+  test("Iterant.drop preserves resource safety") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
+      .guarantee(stop)
     val stream = source.drop(1)
-    stream.earlyStop.value
+    stream.completeL.value()
     assertEquals(effect, 1)
   }
 
@@ -80,9 +82,9 @@ object IterantDropSuite extends BaseTestSuite {
       }
     })
 
-    val source = Iterant[Coeval].nextBatchS(batch, Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
+    val source = Iterant[Coeval].nextBatchS(batch, Coeval(Iterant[Coeval].empty[Int]))
     assertEquals(effect, 0)
-    assertEquals(source.foldLeftL(0)(_ + _).value, 3)
+    assertEquals(source.foldLeftL(0)(_ + _).value(), 3)
     assertEquals(effect, 1)
   }
 
@@ -95,10 +97,10 @@ object IterantDropSuite extends BaseTestSuite {
     })
 
     assertEquals(effect, 0)
-    val source = Iterant[Coeval].nextCursorS(cursor, Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
+    val source = Iterant[Coeval].nextCursorS(cursor, Coeval(Iterant[Coeval].empty[Int]))
     assertEquals(effect, 0)
 
-    assertEquals(source.foldLeftL(0)(_ + _).value, 3)
+    assertEquals(source.foldLeftL(0)(_ + _).value(), 3)
     assertEquals(effect, 2)
   }
 }

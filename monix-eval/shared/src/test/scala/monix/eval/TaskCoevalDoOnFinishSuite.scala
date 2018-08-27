@@ -26,7 +26,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
   test("Task.doOnFinish should work for successful values") { implicit s =>
     val p = Promise[Option[Throwable]]()
 
-    val task = Task(10).doOnFinish(s => Task(p.success(s)))
+    val task = Task.evalAsync(10).doOnFinish(s => Task.evalAsync(p.success(s)))
     val f = task.runAsync; s.tick()
 
     assertEquals(f.value, Some(Success(10)))
@@ -37,7 +37,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val p = Promise[Option[Throwable]]()
 
-    val task = Task.raiseError[Int](ex).doOnFinish(s => Task(p.success(s)))
+    val task = Task.raiseError[Int](ex).doOnFinish(s => Task.evalAsync(p.success(s)))
     val f = task.runAsync; s.tick()
 
     assertEquals(f.value, Some(Failure(ex)))
@@ -48,7 +48,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     val p = Promise[Option[Throwable]]()
 
     val coeval = Coeval(10).doOnFinish(s => Coeval(p.success(s)))
-    val result = coeval.runTry
+    val result = coeval.runTry()
 
     assertEquals(result, Success(10))
     assertEquals(p.future.value, Some(Success(None)))
@@ -59,7 +59,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     val p = Promise[Option[Throwable]]()
 
     val coeval = Coeval.raiseError[Int](ex).doOnFinish(s => Coeval(p.success(s)))
-    val result = coeval.runTry
+    val result = coeval.runTry()
 
     assertEquals(result, Failure(ex))
     assertEquals(p.future.value, Some(Success(Some(ex))))

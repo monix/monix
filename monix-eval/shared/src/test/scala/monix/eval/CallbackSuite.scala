@@ -195,4 +195,44 @@ object CallbackSuite extends BaseTestSuite {
     safe.onError(dummy2)
     assertEquals(effect, 1)
   }
+
+  test("callback(Right(a))") { _ =>
+    val p = Promise[Int]()
+    val cb = Callback.fromPromise(p)
+
+    cb(Right(10))
+    assertEquals(p.future.value, Some(Success(10)))
+  }
+
+  test("callback(Left(e))") { _ =>
+    val p = Promise[Int]()
+    val cb = Callback.fromPromise(p)
+    val err = DummyException("dummy")
+
+    cb(Left(err))
+    assertEquals(p.future.value, Some(Failure(err)))
+  }
+
+  test("fromAttempt success") { _ =>
+    val p = Promise[Int]()
+    val cb = Callback.fromAttempt[Int] {
+      case Right(a) => p.success(a)
+      case Left(e) => p.failure(e)
+    }
+
+    cb.onSuccess(10)
+    assertEquals(p.future.value, Some(Success(10)))
+  }
+
+  test("fromAttempt error") { _ =>
+    val p = Promise[Int]()
+    val cb = Callback.fromAttempt[Int] {
+      case Right(a) => p.success(a)
+      case Left(e) => p.failure(e)
+    }
+
+    val err = DummyException("dummy")
+    cb.onError(err)
+    assertEquals(p.future.value, Some(Failure(err)))
+  }
 }

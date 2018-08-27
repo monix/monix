@@ -41,6 +41,8 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     s.tick()
     assertEquals(f.value, None)
     s2.tick()
+    assertEquals(f.value, None)
+    s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -54,7 +56,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
 
   test("Task.create.executeOn should execute async") { implicit s =>
     val s2 = TestScheduler()
-    val source = Task.create[Int] { (_, cb) => cb.onSuccess(10); Cancelable.empty }
+    val source = Task.cancelable0[Int] { (_, cb) => cb.onSuccess(10); Cancelable.empty }
     val t = source.executeOn(s2)
     val f = t.runAsync
 
@@ -62,6 +64,8 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     s.tick()
     assertEquals(f.value, None)
     s2.tick()
+    assertEquals(f.value, None)
+    s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -95,49 +99,5 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     val result = loop(count).runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0)))
-  }
-
-  test("Task.asyncBoundary should work") { implicit s =>
-    val io = TestScheduler()
-    var effect = 0
-    val f = Task.eval { effect += 1; effect }
-      .executeOn(io)
-      .asyncBoundary
-      .map(_ + 1)
-      .runAsync
-
-    assertEquals(effect, 0)
-    s.tick()
-    assertEquals(effect, 0)
-
-    io.tick()
-    assertEquals(effect, 1)
-    assertEquals(f.value, None)
-
-    s.tick()
-    assertEquals(f.value, Some(Success(2)))
-  }
-
-  test("Task.asyncBoundary(other) should work") { implicit s1 =>
-    val io = TestScheduler()
-    val s2 = TestScheduler()
-
-    var effect = 0
-    val f = Task.eval { effect += 1; effect }
-      .executeOn(io)
-      .asyncBoundary(s2)
-      .map(_ + 1)
-      .runAsync
-
-    assertEquals(effect, 0)
-    s1.tick()
-    assertEquals(effect, 0)
-
-    io.tick()
-    assertEquals(effect, 1)
-    assertEquals(f.value, None)
-
-    s2.tick()
-    assertEquals(f.value, Some(Success(2)))
   }
 }

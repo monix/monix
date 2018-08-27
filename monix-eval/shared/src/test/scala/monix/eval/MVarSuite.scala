@@ -44,16 +44,18 @@ object MVarSuite extends BaseTestSuite {
       r2 <- Task.mapBoth(av.take, av.put(20))((r,_) => r)
     } yield List(r1,r2)
 
-    assertEquals(task.runSyncMaybe, Right(List(10,20)))
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, Some(Success(List(10,20))))
   }
 
   test("empty; put; put; put; take; take; take") { implicit s =>
     val task = for {
       av    <- MVar.empty[Int]
-      take3  = Task.zip3(av.take, av.take, av.take)
-      put3   = Task.zip3(av.put(10), av.put(20), av.put(30))
+      take3  = Task.parZip3(av.take, av.take, av.take)
+      put3   = Task.parZip3(av.put(10), av.put(20), av.put(30))
       result <- Task.mapBoth(put3,take3) { case (_, (r1,r2,r3)) =>
-        List(r1,r2,r3)
+        List(r1,r2,r3).sorted
       }
     } yield result
 
@@ -65,9 +67,9 @@ object MVarSuite extends BaseTestSuite {
   test("empty; take; take; take; put; put; put") { implicit s =>
     val task = for {
       av     <- MVar.empty[Int]
-      take3   = Task.zip3(av.take, av.take, av.take)
-      put3    = Task.zip3(av.put(10), av.put(20), av.put(30))
-      result <- Task.mapBoth(take3, put3) { case ((r1,r2,r3), _) => List(r1,r2,r3) }
+      take3   = Task.parZip3(av.take, av.take, av.take)
+      put3    = Task.parZip3(av.put(10), av.put(20), av.put(30))
+      result <- Task.mapBoth(take3, put3) { case ((r1,r2,r3), _) => List(r1,r2,r3).sorted }
     } yield result
 
     val f = task.runAsync; s.tick()
@@ -123,7 +125,8 @@ object MVarSuite extends BaseTestSuite {
       av <- MVar.empty[Int]
       r  <- Task.mapBoth(av.read, av.put(10))((r, _) => r)
     } yield r
-    assertEquals(task.runSyncMaybe, Right(10))
+    val f = task.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(10)))
   }
 
   test("put(null) throws NullPointerException") { implicit s =>

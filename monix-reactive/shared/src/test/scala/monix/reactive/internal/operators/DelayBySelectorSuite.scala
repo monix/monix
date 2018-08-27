@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.reactive.Observable
 import scala.concurrent.duration._
+import scala.util.Success
 
 object DelayBySelectorSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -52,5 +53,16 @@ object DelayBySelectorSuite extends BaseOperatorSuite {
     val o = Observable.now(1L)
       .delayOnNextBySelector(x => Observable.now(x).delaySubscription(1.second))
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
+  }
+
+  test("should terminate immediately on empty observable") { implicit s =>
+    val f = Observable.empty[Int]
+      .delayOnNextBySelector(n => Observable.empty)
+      .completedL
+      .runAsync
+
+    s.tick(1.day)
+
+    assertEquals(f.value, Some(Success(())))
   }
 }

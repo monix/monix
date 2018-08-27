@@ -17,8 +17,6 @@
 
 package monix.eval.internal
 
-import monix.execution.UncaughtExceptionReporter
-
 /** A mapping function type that is also able to handle errors.
   *
   * Used in the `Task` and `Coeval` implementations to specify
@@ -28,35 +26,25 @@ private[eval] abstract class StackFrame[-A, +R]
   extends (A => R) { self =>
 
   def apply(a: A): R
-  def recover(e: Throwable, r: UncaughtExceptionReporter): R
+  def recover(e: Throwable): R
 }
 
 private[eval] object StackFrame {
-  /** Builds a [[StackFrame]] instance. */
-  def fold[A, R](fa: A => R, fe: Throwable => R): StackFrame[A, R] =
-    new Fold(fa, fe)
-
-  private final class Fold[-A, +R](fa: A => R, fe: Throwable => R)
+  /** [[StackFrame]] used in the implementation of `redeemWith`. */
+  final class RedeemWith[-A, +R](fe: Throwable => R, fa: A => R)
     extends StackFrame[A, R] {
 
     def apply(a: A): R = fa(a)
-    def recover(e: Throwable, r: UncaughtExceptionReporter): R = fe(e)
+    def recover(e: Throwable): R = fe(e)
   }
-
-  /** Builds a [[StackFrame]] instance that only handles errors,
-    * otherwise mirroring the value on `success`.
-    */
-  def errorHandler[F[_], A](fa: A => F[A], fe: Throwable => F[A]): StackFrame[A, F[A]] =
-    new ErrorHandler(fa, fe)
 
   /** [[StackFrame]] reference that only handles errors,
     * useful for quick filtering of `onErrorHandleWith` frames.
     */
-  final class ErrorHandler[-A, +R] private[StackFrame]
-    (fa: A => R, fe: Throwable => R)
+  final class ErrorHandler[-A, +R](fe: Throwable => R, fa: A => R)
     extends StackFrame[A, R] {
 
     def apply(a: A): R = fa(a)
-    def recover(e: Throwable, r: UncaughtExceptionReporter): R = fe(e)
+    def recover(e: Throwable): R = fe(e)
   }
 }

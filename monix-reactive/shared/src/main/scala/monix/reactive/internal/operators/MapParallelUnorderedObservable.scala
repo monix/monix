@@ -20,11 +20,13 @@ package monix.reactive.internal.operators
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.execution.misc.{AsyncSemaphore, NonFatal}
+import monix.execution.misc.AsyncSemaphore
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Implementation for a `mapTask`-like operator that can execute
@@ -98,7 +100,12 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
         composite += subscription
 
         val task = {
-          val ref = f(elem).transform(
+          val ref = f(elem).redeem(
+            error => {
+              lastAck = Stop
+              composite -= subscription
+              self.onError(error)
+            },
             value => buffer.onNext(value).syncOnComplete {
               case Success(Stop) =>
                 lastAck = Stop
@@ -110,13 +117,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
                 lastAck = Stop
                 composite -= subscription
                 self.onError(ex)
-            },
-            error => {
-              lastAck = Stop
-              composite -= subscription
-              self.onError(error)
-            }
-          )
+            })
 
           ref.doOnCancel(releaseTask)
         }

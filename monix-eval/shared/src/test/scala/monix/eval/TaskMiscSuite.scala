@@ -19,6 +19,7 @@ package monix.eval
 
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Subscriber, Subscription}
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
@@ -36,15 +37,13 @@ object TaskMiscSuite extends BaseTestSuite {
 
   test("Task.fail should expose error") { implicit s =>
     val dummy = DummyException("dummy")
-    check1 { (fa: Task[Int]) =>
-      val r = fa.map(_ => throw dummy).failed.coeval.value
-      r == Right(dummy)
-    }
+    val f = Task.raiseError(dummy).failed.runAsync
+    assertEquals(f.value, Some(Success(dummy)))
   }
 
   test("Task.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
-      Task.eval(10).failed.coeval.value
+      Task.eval(10).failed.coeval.value()
     }
   }
 
@@ -54,15 +53,25 @@ object TaskMiscSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Failure(ex)))
   }
 
+  test("Task.forever") { implicit s =>
+    val ex = DummyException("dummy")
+    var effect = 0
+    val result = Task.eval { if (effect < 10) effect += 1 else throw ex }
+      .loopForever
+      .onErrorFallbackTo(Task.eval(effect))
+      .runAsync
+    assertEquals(result.value.get.get, 10)
+  }
+
   test("Task.restartUntil") { implicit s =>
     var effect = 0
-    val r = Task { effect += 1; effect }.restartUntil(_ >= 10).runAsync
+    val r = Task.evalAsync { effect += 1; effect }.restartUntil(_ >= 10).runAsync
     s.tick()
     assertEquals(r.value.get.get, 10)
   }
 
   test("Task.toReactivePublisher should end in success") { implicit s =>
-    val publisher = Task(1).toReactivePublisher
+    val publisher = Task.evalAsync(1).toReactivePublisher
     var received: Int = 0
     var wasCompleted = false
 
@@ -164,18 +173,25 @@ object TaskMiscSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Failure(ex)))
   }
 
-  test("Task.async.runAsync with Try-based callback for success") { implicit s =>
+  test("task.executeAsync.runAsync with Try-based callback for success") { implicit s =>
     val p = Promise[Int]()
     Task.now(1).executeAsync.runOnComplete(p.complete)
     s.tick()
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("Task.async.runAsync with Try-based callback for error") { implicit s =>
+  test("task.executeAsync.runAsync with Try-based callback for error") { implicit s =>
     val ex = DummyException("dummy")
     val p = Promise[Int]()
     Task.raiseError[Int](ex).executeAsync.runOnComplete(p.complete)
     s.tick()
     assertEquals(p.future.value, Some(Failure(ex)))
+  }
+
+  test("task.executeWithOptions protects against user error") { implicit s =>
+    val ex = DummyException("dummy")
+    val task = Task.now(1).executeWithOptions(_ => throw ex)
+    val f = task.runAsync
+    assertEquals(f.value, Some(Failure(ex)))
   }
 }

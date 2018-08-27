@@ -20,9 +20,9 @@ package monix.tail
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.Batch
-
 import scala.util.Failure
 
 object IterantReduceSuite extends BaseTestSuite {
@@ -30,6 +30,13 @@ object IterantReduceSuite extends BaseTestSuite {
     check2 { (stream: Iterant[Coeval, Int], op: (Int, Int) => Int) =>
       val received = stream.reduceL(op)
       val expected = stream.foldLeftL(Option.empty[Int])((acc, e) => Some(acc.fold(e)(s => op(s, e))))
+
+      val l1 = received.runAttempt()
+      val l2 = expected.runAttempt()
+      if (l1 != l2) {
+        println(s"$l1 != $l2")
+      }
+
       received <-> expected
     }
   }
@@ -70,12 +77,12 @@ object IterantReduceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-      .doOnEarlyStop(Coeval { effect += 1 })
+    val stream = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+      .guarantee(Coeval { effect += 1 })
       .reduceL(_ + _)
 
     assertEquals(effect, 0)
-    assertEquals(stream.runTry, Failure(dummy))
+    assertEquals(stream.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -85,14 +92,14 @@ object IterantReduceSuite extends BaseTestSuite {
 
     val source =
       Iterant[Coeval].pure(1) ++
-      Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
+      Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
 
     val stream = source
-      .doOnEarlyStop(Coeval { effect += 1 })
+      .guarantee(Coeval { effect += 1 })
       .reduceL(_ + _)
 
     assertEquals(effect, 0)
-    assertEquals(stream.runTry, Failure(dummy))
+    assertEquals(stream.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -100,12 +107,12 @@ object IterantReduceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-      .doOnEarlyStop(Coeval { effect += 1 })
+    val stream = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+      .guarantee(Coeval { effect += 1 })
       .reduceL(_ + _)
 
     assertEquals(effect, 0)
-    assertEquals(stream.runTry, Failure(dummy))
+    assertEquals(stream.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -115,14 +122,14 @@ object IterantReduceSuite extends BaseTestSuite {
 
     val source =
       Iterant[Coeval].pure(1) ++
-      Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
+      Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
 
     val stream = source
-      .doOnEarlyStop(Coeval { effect += 1 })
+      .guarantee(Coeval { effect += 1 })
       .reduceL(_ + _)
 
     assertEquals(effect, 0)
-    assertEquals(stream.runTry, Failure(dummy))
+    assertEquals(stream.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
@@ -131,50 +138,77 @@ object IterantReduceSuite extends BaseTestSuite {
     var effect = 0
 
     val stream = Iterant[Coeval].of(1, 2)
-      .doOnEarlyStop(Coeval { effect += 1 })
+      .guarantee(Coeval { effect += 1 })
       .reduceL((_, _) => (throw dummy) : Int)
 
     assertEquals(effect, 0)
-    assertEquals(stream.runTry, Failure(dummy))
+    assertEquals(stream.runTry(), Failure(dummy))
     assertEquals(effect, 1)
   }
 
-  test("earlyStop gets called for failing `rest` on Next node") { implicit s =>
+  test("resources are released for failing `rest` on Next node") { implicit s =>
     var effect = 0
 
-    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
+    def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
     val dummy = DummyException("dummy")
-    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy), stop(3))
-    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
-    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
+    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy)).guarantee(stop(3))
+    val node2 = Iterant[Coeval].nextS(2, Coeval(node3)).guarantee(stop(2))
+    val node1 = Iterant[Coeval].nextS(1, Coeval(node2)).guarantee(stop(1))
 
-    assertEquals(node1.reduceL((_, el) => el).runTry, Failure(dummy))
-    assertEquals(effect, 3)
+    assertEquals(node1.reduceL((_, el) => el).runTry(), Failure(dummy))
+    assertEquals(effect, 6)
   }
 
-  test("earlyStop gets called for failing `rest` on NextBatch node") { implicit s =>
+  test("resources are released for failing `rest` on NextBatch node") { implicit s =>
     var effect = 0
 
-    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
+    def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
     val dummy = DummyException("dummy")
-    val node3 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval.raiseError(dummy), stop(3))
-    val node2 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(node3), stop(2))
-    val node1 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(node2), stop(1))
+    val node3 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval.raiseError(dummy)).guarantee(stop(3))
+    val node2 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(node3)).guarantee(stop(2))
+    val node1 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval(node2)).guarantee(stop(1))
 
-    assertEquals(node1.reduceL((_, el) => el).runTry, Failure(dummy))
-    assertEquals(effect, 3)
+    assertEquals(node1.reduceL((_, el) => el).runTry(), Failure(dummy))
+    assertEquals(effect, 6)
   }
 
-  test("earlyStop doesn't get called for Last node") { implicit s =>
-    var effect = 0
+  test("reduceL handles Scope's release before the rest of the stream") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
 
-    def stop(i: Int): Coeval[Unit] = Coeval { effect = i}
-    val dummy = DummyException("dummy")
-    val node3 = Iterant[Coeval].lastS(3)
-    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
-    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
+    val lh = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.pure(1)),
+      (_, _) => Coeval(triggered.set(true))
+    )
 
-    assertEquals(node1.reduceL((_, el) => if (el == 3) throw dummy else el).runTry, Failure(dummy))
-    assertEquals(effect, 0)
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    assertEquals(stream.reduceL(_ + _).value(), Some(1))
+  }
+
+  test("reduceL handles Scope's release after use is finished") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val stream = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(2 +: Iterant[Coeval].suspend {
+        if (triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }),
+      (_, _) => {
+        Coeval(triggered.set(true))
+      }
+    )
+
+    assertEquals((1 +: stream :+ 3).reduceL(_ + _).value(), Some(6))
   }
 }

@@ -17,38 +17,35 @@
 
 package monix.eval.internal
 
-import monix.eval.Task
+import monix.eval.{Callback, Task}
+import monix.eval.Task.{Async, Context}
 import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
-import monix.execution.misc.NonFatal
 
 private[eval] object TaskExecuteWithModel {
   /**
     * Implementation for `Task.executeWithModel`
     */
-  def apply[A](self: Task[A], em: ExecutionModel): Task[A] =
-    Task.unsafeCreate { (context, cb) =>
-      var streamErrors = true
-      try {
-        val s2 = context.scheduler.withExecutionModel(em)
-        val context2 = context.copy(scheduler = s2)
-        val frame = context2.frameRef
-        streamErrors = false
+  def apply[A](self: Task[A], em: ExecutionModel): Task[A] = {
+    val start = (context: Context, cb: Callback[A]) => {
+      val context2 = context.withExecutionModel(em)
+      val frame = context2.frameRef
 
-        // Increment the frame index because we have a changed
-        // execution model, or otherwise we risk not following it
-        // for the next step in our evaluation
-        val nextIndex = em match {
-          case BatchedExecution(_) =>
-            em.nextFrameIndex(frame())
-          case AlwaysAsyncExecution | SynchronousExecution =>
-            em.nextFrameIndex(0)
-        }
-        TaskRunLoop.startFull[A](self, context2, cb, null, null, null, nextIndex)
-      } catch {
-        case ex if NonFatal(ex) =>
-          if (streamErrors) cb.onError(ex)
-          else context.scheduler.reportFailure(ex)
+      // Increment the frame index because we have a changed
+      // execution model, or otherwise we risk not following it
+      // for the next step in our evaluation
+      val nextIndex = em match {
+        case BatchedExecution(_) =>
+          em.nextFrameIndex(frame())
+        case AlwaysAsyncExecution | SynchronousExecution =>
+          em.nextFrameIndex(0)
       }
+      TaskRunLoop.startFull[A](self, context2, cb, null, null, null, nextIndex)
     }
+    Async(
+      start,
+      trampolineBefore = false,
+      trampolineAfter = true,
+      restoreLocals = false)
+  }
 }

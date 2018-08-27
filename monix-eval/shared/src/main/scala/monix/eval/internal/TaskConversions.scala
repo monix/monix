@@ -17,66 +17,127 @@
 
 package monix.eval.internal
 
-import cats.effect.{Effect, IO}
-import monix.eval.Task
-import monix.eval.instances.CatsBaseForTask
-import monix.execution.Scheduler
-import monix.execution.misc.NonFatal
+import cats.effect._
+import monix.eval.Task.Context
+import monix.eval.{Callback, Task}
+import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
+import monix.execution.internal.AttemptCallback
+import scala.util.control.NonFatal
+import monix.execution.{Cancelable, CancelableFuture, Scheduler}
+import monix.execution.schedulers.TrampolineExecutionContext.immediate
+import monix.execution.schedulers.TrampolinedRunnable
+
 import scala.util.{Failure, Success}
 
 private[eval] object TaskConversions {
-  /** Implementation for `Task#toIO`. */
-  def toIO[A](source: Task[A])(implicit s: Scheduler): IO[A] =
-    source match {
-      case Task.Now(v) => IO.pure(v)
-      case Task.Error(e) => IO.raiseError(e)
-      case Task.Eval(thunk) => IO(thunk())
-      case _ => IO.suspend {
-        val f = source.runAsync
+  /** Implementation for `Task#to`. */
+  def to[F[_], A](source: Task[A])(implicit F: Async[F], s: Scheduler): F[A] = {
+    def suspend(task: Task[A])(implicit F: Async[F]): F[A] =
+      F.suspend {
+        val f = task.runAsync(s)
         f.value match {
-          case Some(tryA) => tryA match {
-            case Success(v) => IO.pure(v)
-            case Failure(e) => IO.raiseError(e)
-          }
-          case None => IO.async { cb =>
-            f.onComplete {
-              case Success(v) => cb(Right(v))
-              case Failure(e) => cb(Left(e))
+          case Some(value) =>
+            value match {
+              case Success(a) => F.pure(a)
+              case Failure(e) => F.raiseError(e)
             }
-          }
+          case None =>
+            F match {
+              case ref: Concurrent[F] @unchecked =>
+                cancelable(f)(ref)
+              case _ =>
+                async(f)
+            }
         }
       }
-    }
 
-  /** Implementation for `Task#fromIO`. */
-  def fromIO[A](io: IO[A]): Task[A] =
-    io.to[Task]
+    def async(f: CancelableFuture[A])(implicit F: Async[F]): F[A] =
+      F.async { cb =>
+        f.underlying.onComplete(AttemptCallback.toTry(cb))(immediate)
+      }
 
-  /** Implementation for `Task#fromEffect`. */
-  def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
-    import IO.ioEffect
-    F match {
-      case _: CatsBaseForTask =>
-        fa.asInstanceOf[Task[A]]
-      case `ioEffect` =>
-        fromIO(fa.asInstanceOf[IO[A]])
-      case _ =>
-        Task.unsafeCreate { (ctx, cb) =>
-          try {
-            val io = F.runAsync(fa) {
-              case Right(a) => cb.onSuccess(a); IO.unit
-              case Left(e) => cb.onError(e); IO.unit
-            }
-            io.unsafeRunAsync(unitCb)
-          } catch {
-            case e if NonFatal(e) =>
-              ctx.scheduler.reportFailure(e)
-          }
-        }
+    def cancelable(f: CancelableFuture[A])(implicit F: Concurrent[F]): F[A] =
+      F.cancelable { cb =>
+        f.underlying.onComplete(AttemptCallback.toTry(cb))(immediate)
+        f.cancelable.cancelIO
+      }
+
+    source match {
+      case Task.Now(v) => F.pure(v)
+      case Task.Error(e) => F.raiseError(e)
+      case Task.Eval(thunk) => F.delay(thunk())
+      case Task.Suspend(thunk) => F.suspend(to(thunk()))
+      case other => suspend(other)(F)
     }
   }
 
-  // Reusable instance to avoid extra allocations
-  private final val unitCb: (Either[Throwable, Unit] => Unit) =
-    _ => ()
+  /** Implementation for `Task.from`. */
+  def from[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
+    fa.asInstanceOf[AnyRef] match {
+      case ref: Task[A] @unchecked => ref
+      case io: IO[A] @unchecked => io.to[Task]
+      case _ =>
+        F match {
+          case ref: ConcurrentEffect[F] @unchecked =>
+            fromConcurrent0(fa)(ref)
+          case _ =>
+            fromAsync0(fa)(F)
+        }
+    }
+
+  private def fromAsync0[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
+      try {
+        val io = F.runAsync(fa)(new CreateCallback[A](null, cb)(ctx.scheduler))
+        io.unsafeRunAsync(AttemptCallback.noop)
+      } catch {
+        case e if NonFatal(e) =>
+          ctx.scheduler.reportFailure(e)
+      }
+    }
+    Task.Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
+
+  private def fromConcurrent0[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
+      try {
+        implicit val sc = ctx.scheduler
+        val conn = ctx.connection
+        val cancelable = SingleAssignCancelable()
+        conn push cancelable
+
+        val io = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
+        cancelable := Cancelable.fromIOUnsafe(io.unsafeRunSync())
+      } catch {
+        case e if NonFatal(e) =>
+          ctx.scheduler.reportFailure(e)
+      }
+    } : Unit
+
+    Task.Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
+
+  private final class CreateCallback[A](
+    conn: StackedCancelable, cb: Callback[A])
+    (implicit s: Scheduler)
+    extends (Either[Throwable, A] => IO[Unit]) with TrampolinedRunnable {
+
+    private[this] var canCall = true
+    private[this] var value: Either[Throwable, A] = _
+
+    def run(): Unit = {
+      if (canCall) {
+        canCall = false
+        if (conn ne null) conn.pop()
+        cb(value)
+        value = null
+      }
+    }
+
+    override def apply(value: Either[Throwable, A]) =
+      IO {
+        this.value = value
+        s.execute(this)
+      }
+  }
 }

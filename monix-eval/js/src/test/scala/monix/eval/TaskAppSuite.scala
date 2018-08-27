@@ -28,9 +28,9 @@ object TaskAppSuite extends SimpleTestSuite {
     var wasExecuted = false
 
     val app = new TaskApp {
-      override val scheduler = Coeval.now(testS)
+      override val scheduler = testS
       override def runl(args: List[String]) =
-        Task { wasExecuted = args.headOption.getOrElse("false") == "true" }
+        Task.evalAsync { wasExecuted = args.headOption.getOrElse("false") == "true" }
     }
 
     app.main(Array("true")); testS.tick()
@@ -42,8 +42,8 @@ object TaskAppSuite extends SimpleTestSuite {
     var wasExecuted = false
 
     val app = new TaskApp {
-      override val scheduler = Coeval.now(testS)
-      override def runc = Task { wasExecuted = true }
+      override val scheduler = testS
+      override def runc = Task.evalAsync { wasExecuted = true }
     }
 
     app.main(Array.empty); testS.tick()
@@ -60,12 +60,12 @@ object TaskAppSuite extends SimpleTestSuite {
 
     val p = Promise[Options]()
     val exposeOpts =
-      Task.unsafeCreate[Task.Options] { (ctx, cb) =>
+      Task.Async[Task.Options] { (ctx, cb) =>
         cb.onSuccess(ctx.options)
       }
 
     val app = new TaskApp {
-      override val options = Coeval(opts2)
+      override val options = opts2
       override def runc =
         exposeOpts.map { x => p.success(x) }
     }

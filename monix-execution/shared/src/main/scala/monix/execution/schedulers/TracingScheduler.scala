@@ -19,6 +19,7 @@ package monix.execution.schedulers
 
 import scala.concurrent.duration.TimeUnit
 import monix.execution.{Cancelable, Scheduler, ExecutionModel => ExecModel}
+import scala.concurrent.ExecutionContext
 
 /** The `TracingScheduler` is a [[monix.execution.Scheduler Scheduler]]
   * implementation that wraps another `Scheduler` reference, but
@@ -39,8 +40,12 @@ object TracingScheduler {
   /** Builds a [[TracingScheduler]] instance, wrapping the
     * `underlying` scheduler given.
     */
-  def apply(underlying: Scheduler): TracingScheduler =
-    new TracingScheduler(underlying)
+  def apply(underlying: ExecutionContext): TracingScheduler =
+    underlying match {
+      case ref: TracingScheduler => ref
+      case ref: Scheduler => new TracingScheduler(ref)
+      case _ => new TracingScheduler(Scheduler(underlying))
+    }
 
   /** Common implementation between [[TracingScheduler]]
     * and [[TracingSchedulerService]].
@@ -58,8 +63,10 @@ object TracingScheduler {
       underlying.scheduleAtFixedRate(initialDelay, period, unit, new TracingRunnable(r))
     override final def reportFailure(t: Throwable): Unit =
       underlying.reportFailure(t)
-    override final def currentTimeMillis(): Long =
-      underlying.currentTimeMillis()
+    override final def clockRealTime(unit: TimeUnit): Long =
+      underlying.clockRealTime(unit)
+    override def clockMonotonic(unit: TimeUnit): Long =
+      underlying.clockMonotonic(unit)
     override final def executionModel: ExecModel =
       underlying.executionModel
   }

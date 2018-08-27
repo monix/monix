@@ -1,4 +1,15 @@
-## Version 3.0.0-M4 (Feb 24, 2018)
+## Version 3.0.0-RC1 (Map 18, 2018)
+
+[https://typelevel.org/cats-effect/ Cats Effect] integration:
+
+- [PR #598](https://github.com/monix/monix/pull/598):
+  Integrates `cats.effect.Timer` and `IO.cancelable`
+- [PR #600](https://github.com/monix/monix/pull/600):
+  Add `Sync` & `Async` instances for `Iterant`
+- [PR #607](https://github.com/monix/monix/pull/607):
+  implement `ConcurrentEffect[Task]` (upgrade to cats-effect 0.10)
+- [PR #609](https://github.com/monix/monix/pull/609):
+  update Cats to 1.1.0 & Cats Effect to 0.10
 
 Features for `monix-execution`:
 
@@ -48,6 +59,10 @@ Features for `monix-eval`:
   Bracket for `Task` / `Coeval`, `Task.cancelable` and `Task.onCancelRaiseError`
 - [PR #596](https://github.com/monix/monix/pull/596):
   add `Fiber` interface, refactor `memoize` for `Task` and `Coeval`
+- [PR #602](https://github.com/monix/monix/pull/602):
+  `TaskLocal` should expose `Local`
+- [PR #603](https://github.com/monix/monix/pull/603):
+  Changed implementation `TaskLocal#bind` in terms of `Task#bracket`
 
 Features for `monix-reactive`:
 
@@ -168,11 +183,13 @@ Chores:
   (related to [#513](https://github.com/monix/monix/issues/513)):
   add `scalafmt.conf` configuration
 - [PR #565](https://github.com/monix/monix/pull/565):
-  correct small typo in doc of `Task#executeOn`
+  correct small typo in doc of `Task#executeOn`  
 - [PR #576](https://github.com/monix/monix/pull/576):
   fix comment mentioning Akka instead of Monix
 - [PR #588](https://github.com/monix/monix/pull/588):
   update copyright headers for Scala 2.11 source files
+- [PR #605](https://github.com/monix/monix/pull/605):
+  Make concurrent Atomic tests more resilient to timeouts 
 
 ## Version 2.3.3 (Jan 21, 2018)
 

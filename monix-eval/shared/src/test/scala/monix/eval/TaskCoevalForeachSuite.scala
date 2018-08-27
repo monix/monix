@@ -18,6 +18,7 @@
 package monix.eval
 
 import minitest.TestSuite
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
 object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
@@ -29,7 +30,7 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
 
   test("Task.foreachL") { implicit s =>
     var effect = 0
-    val task = Task(1).foreachL(x => effect += x)
+    val task = Task.evalAsync(1).foreachL(x => effect += x)
 
     assertEquals(effect, 0)
     task.runAsync; s.tick()
@@ -40,7 +41,7 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
 
   test("Task.foreach") { implicit s =>
     var effect = 0
-    val task = Task(1)
+    val task = Task.evalAsync(1)
 
     assertEquals(effect, 0)
     task.foreach(x => effect += x); s.tick()
@@ -49,15 +50,22 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 2)
   }
 
+  test("Task.foreach reports exceptions using scheduler") { implicit s =>
+    val dummy = DummyException("dummy")
+    Task.evalAsync(1).foreach(_ => throw dummy)
+    s.tick()
+    assertEquals(s.state.lastReportedError, dummy)
+  }
+
 
   test("Coeval.foreachL") { _ =>
     var effect = 0
     val coeval = Coeval(1).foreachL(x => effect += x)
 
     assertEquals(effect, 0)
-    coeval.value
+    coeval.value()
     assertEquals(effect, 1)
-    coeval.value
+    coeval.value()
     assertEquals(effect, 2)
   }
 
