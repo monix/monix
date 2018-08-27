@@ -69,6 +69,13 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   *  - [[monix.tail.Iterant.Suspend Suspend]] is for suspending the
   *    evaluation of a stream.
   *
+  *  - [[monix.tail.Iterant.Concat Concat]] represents concatenation
+  *    of two streams.
+  *
+  *  - [[monix.tail.Iterant.Scope Scope]] is to specify the acquisition
+  *    and release of resources. It is effectively encoding of
+  *    [[https://typelevel.org/cats-effect/typeclasses/bracket.html Bracket]].
+  *
   *  - [[monix.tail.Iterant.Halt Halt]] represents an empty stream,
   *    signaling the end, either in success or in error.
   *
