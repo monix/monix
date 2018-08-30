@@ -326,6 +326,9 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.shift"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsAsyncForTask.shift"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentForTask.onCancelRaiseError"),
+    // Breakage - PR #700: renamed methods
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscriptionWith"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscription"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
@@ -368,8 +371,6 @@ def mimaSettings(projectName: String) = Seq(
     exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover"),
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative$"),
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
-    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscriptionWith"),
-    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscription"),
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionByTimespanObservable"),
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable")
   )
