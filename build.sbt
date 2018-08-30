@@ -367,7 +367,11 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation#RaiseCancelable.this"),
     exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover"),
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative$"),
-    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative")
+    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscriptionWith"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscription"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionByTimespanObservable"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable")
   )
 )
 
