@@ -31,11 +31,11 @@ object WithLatestFrom2Suite extends BaseOperatorSuite {
     Some {
       val other = Observable.fromIterable(0 to 10)
       val o = if (sourceCount == 1)
-        Observable.now(1L).delaySubscription(1.second)
+        Observable.now(1L).delayExecution(1.second)
           .withLatestFrom2(other, other)(_ + _ + _)
       else
         Observable.range(1, sourceCount+1, 1)
-          .delaySubscription(1.second)
+          .delayExecution(1.second)
           .withLatestFrom2(other, other)(_ + _ + _)
 
       Sample(o, count(sourceCount), sum(sourceCount), 1.second, Zero)
@@ -45,11 +45,11 @@ object WithLatestFrom2Suite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val other = Observable.fromIterable(0 to 10)
     val o = if (sourceCount == 1)
-      Observable.now(1L).delaySubscription(1.second).endWithError(ex)
+      Observable.now(1L).delayExecution(1.second).endWithError(ex)
         .withLatestFrom2(other, other)(_ + _ + _)
     else
       Observable.range(1, sourceCount+1, 1)
-        .delaySubscription(1.second)
+        .delayExecution(1.second)
         .endWithError(ex)
         .withLatestFrom2(other, other)(_ + _ + _)
 
@@ -61,11 +61,11 @@ object WithLatestFrom2Suite extends BaseOperatorSuite {
     Some {
       val other = Observable.fromIterable(0 to 10)
       val o = if (sourceCount == 1)
-        Observable.now(1L).delaySubscription(1.second)
+        Observable.now(1L).delayExecution(1.second)
           .withLatestFrom2(other, other)((x1,x2,x3) => throw ex)
       else
         Observable.range(1, sourceCount+1, 1)
-          .delaySubscription(1.second)
+          .delayExecution(1.second)
           .withLatestFrom2(other,other) { (x1,x2,x3) =>
             if (x1 == sourceCount)
               throw ex
@@ -78,8 +78,8 @@ object WithLatestFrom2Suite extends BaseOperatorSuite {
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val other = Observable.now(1).delaySubscription(1.second)
-    val sample = Observable.now(1L).delaySubscription(2.seconds)
+    val other = Observable.now(1).delayExecution(1.second)
+    val sample = Observable.now(1L).delayExecution(2.seconds)
       .withLatestFrom2(other,other)(_+_+_)
 
     Seq(

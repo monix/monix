@@ -58,9 +58,9 @@ object MergeDelayErrorManySuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 =  Observable.range(1, 100)
-      .mergeMapDelayErrors(_ => Observable.range(0,100).delaySubscription(2.second))
+      .mergeMapDelayErrors(_ => Observable.range(0,100).delayExecution(2.second))
     val sample2 = Observable.range(0, 100).delayOnNext(1.second)
-      .mergeMapDelayErrors(_ => Observable.range(0,100).delaySubscription(2.second))
+      .mergeMapDelayErrors(_ => Observable.range(0,100).delayExecution(2.second))
 
     Seq(
       Sample(sample1, 0, 0, 0.seconds, 0.seconds),

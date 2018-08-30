@@ -30,11 +30,11 @@ object WithLatestFromSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = if (sourceCount == 1)
-        Observable.now(1L).delaySubscription(1.second)
+        Observable.now(1L).delayExecution(1.second)
           .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
       else
         Observable.range(1, sourceCount+1, 1)
-          .delaySubscription(1.second)
+          .delayExecution(1.second)
           .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
 
       Sample(o, count(sourceCount), sum(sourceCount), 1.second, Zero)
@@ -43,11 +43,11 @@ object WithLatestFromSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o = if (sourceCount == 1)
-      Observable.now(1L).delaySubscription(1.second).endWithError(ex)
+      Observable.now(1L).delayExecution(1.second).endWithError(ex)
         .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
     else
       Observable.range(1, sourceCount+1, 1)
-        .delaySubscription(1.second)
+        .delayExecution(1.second)
         .endWithError(ex)
         .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
 
@@ -58,11 +58,11 @@ object WithLatestFromSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = if (sourceCount == 1)
-        Observable.now(1L).delaySubscription(1.second)
+        Observable.now(1L).delayExecution(1.second)
             .withLatestFrom(Observable.now(1))((x,y) => throw ex)
       else
         Observable.range(1, sourceCount+1, 1)
-          .delaySubscription(1.second)
+          .delayExecution(1.second)
           .withLatestFrom(Observable.fromIterable(0 to 10)) { (x,y) =>
             if (x == sourceCount)
               throw ex
@@ -75,8 +75,8 @@ object WithLatestFromSuite extends BaseOperatorSuite {
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample = Observable.now(1L).delaySubscription(2.seconds)
-      .withLatestFrom(Observable.now(1).delaySubscription(1.second))(_+_)
+    val sample = Observable.now(1L).delayExecution(2.seconds)
+      .withLatestFrom(Observable.now(1).delayExecution(1.second))(_+_)
 
     Seq(
       Sample(sample, 0, 0, 0.seconds, 0.seconds),

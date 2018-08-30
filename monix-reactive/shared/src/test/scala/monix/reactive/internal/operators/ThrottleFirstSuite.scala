@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 object ThrottleFirstSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     if (sourceCount == 1) {
-      val o = Observable.now(100L).delaySubscription(500.millis).throttleFirst(1.second)
+      val o = Observable.now(100L).delayExecution(500.millis).throttleFirst(1.second)
       Sample(o, 1, 100, 500.millis, 1.second)
     }
     else {
