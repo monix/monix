@@ -85,7 +85,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   test("works with any Effect") { implicit s =>
     implicit val ioEffect: Effect[IO] = new CustomIOEffect()(IO.contextShift(s))
     check1 { (stream: Iterant[IO, Int]) =>
-      sum(stream, 1) <-> Task.fromAsync(stream.foldLeftL(0L)(_ + _))
+      sum(stream, 1) <-> Task.fromEffect(stream.foldLeftL(0L)(_ + _))
     }
   }
 

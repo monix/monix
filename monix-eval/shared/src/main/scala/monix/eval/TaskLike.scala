@@ -19,7 +19,8 @@ package monix.eval
 
 import cats.effect.{ConcurrentEffect, Effect, IO}
 import cats.implicits._
-import cats.{Bimonad, Eval, Monad}
+import cats.{Eval, Monad}
+import monix.eval.internal.TaskConversions
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.{ExecutionContext, Future}
@@ -105,7 +106,7 @@ object TaskLike extends ToTaskImplicits0 {
     }
 
   /**
-    * Converts to `Task` from [[Coeval]].
+    * Converts to `Task` from `cats.effect.Eval`.
     */
   implicit val fromEval: TaskLike[Eval] =
     new TaskLike[Eval] {
@@ -131,11 +132,11 @@ private[eval] abstract class ToTaskImplicits0 extends ToTaskImplicits1 {
     * Converts to `Task` from
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.ConcurrentEffect]].
     */
-  implicit def fromConcurrent[F[_]](implicit F: ConcurrentEffect[F]): TaskLike[F] =
+  implicit def fromConcurrentEffect[F[_]](implicit F: ConcurrentEffect[F]): TaskLike[F] =
     new TaskLike[F] {
       val monad = F
       def toTask[A](fa: F[A]): Task[A] =
-        Task.fromConcurrent(fa)
+        TaskConversions.fromConcurrentEffect(fa)
     }
 }
 
@@ -144,20 +145,10 @@ private[eval] abstract class ToTaskImplicits1 {
     * Converts to `Task` from
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.Async]].
     */
-  implicit def fromAsync[F[_]](implicit F: Effect[F]): TaskLike[F] =
+  implicit def fromEffect[F[_]](implicit F: Effect[F]): TaskLike[F] =
     new TaskLike[F] {
       val monad = F
       def toTask[A](fa: F[A]): Task[A] =
-        Task.fromAsync(fa)
-    }
-
-  /**
-    * Converts to `Task` from `cats.Bimonad`.
-    */
-  implicit def fromBimonad[F[_]](implicit F: Bimonad[F]): TaskLike[F] =
-    new TaskLike[F] {
-      val monad = F
-      def toTask[A](fa: F[A]): Task[A] =
-        Task(F.extract(fa))
+        Task.fromEffect(fa)
     }
 }

@@ -72,7 +72,7 @@ private[eval] object TaskConversions {
   /**
     * Implementation for `Task.from`.
     */
-  def fromAsync[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
+  def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
     fa.asInstanceOf[AnyRef] match {
       case ref: Task[A] @unchecked => ref
       case io: IO[A] @unchecked => io.to[Task]
@@ -82,14 +82,14 @@ private[eval] object TaskConversions {
   /**
     * Implementation for `Task.fromConcurrent`.
     */
-  def fromConcurrent[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] =
+  def fromConcurrentEffect[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] =
     fa.asInstanceOf[AnyRef] match {
       case ref: Task[A] @unchecked => ref
       case io: IO[A] @unchecked => io.to[Task]
-      case _ => fromConcurrent0(fa)
+      case _ => fromConcurrentEffect0(fa)
     }
 
-  private def fromConcurrent0[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] = {
+  private def fromConcurrentEffect0[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] = {
     val start = (ctx: Context, cb: Callback[A]) => {
       try {
         implicit val sc = ctx.scheduler

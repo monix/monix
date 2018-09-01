@@ -2135,7 +2135,7 @@ abstract class Observable[+A] extends Serializable { self =>
   * similar to `scanLeft` on Scala collections
   */
   final def scanEval0[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: TaskLike[F]): Observable[S] =
-    Observable.fromEffect(seed).flatMap(s => s +: scanEval(F.monad.pure(s))(op))
+    Observable.fromTaskLike(seed).flatMap(s => s +: scanEval(F.monad.pure(s))(op))
 
   /** Given a mapping function that returns a `B` type for which we have
     * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
@@ -3959,10 +3959,10 @@ object Observable {
     *
     *    val task = IO.sleep(5.seconds) *> IO(println("Hello!"))
     *
-    *    Observable.fromEffect(task)
+    *    Observable.fromTaskLike(task)
     *  }}}
     */
-  def fromEffect[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Observable[A] =
+  def fromTaskLike[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Observable[A] =
     fromTask(F.toTask(fa))
 
   /** Converts any `cats.effect.IO` value that implements into an

@@ -337,9 +337,14 @@ def mimaSettings(projectName: String) = Seq(
     exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef"),
     exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$Dummy$"),
     exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$"),
+    // Change TaskApp
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskApp.runl"),
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskApp.runc"),
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskApp.run"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.catsEffect"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.run"),
     // Switched to TaskLike instead of Effect, in the implementation of observable
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.repeatEvalF"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.fromEffect"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.mapEval"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnErrorEval"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnTerminateEval"),
@@ -352,6 +357,7 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnEarlyStopEval"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.foreachEval"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.foldLeftEval"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.fromEffect"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
@@ -395,7 +401,9 @@ def mimaSettings(projectName: String) = Seq(
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative$"),
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.from"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.to")
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.to"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsConcurrentEffectForTask.runCancelable"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsEffectForTask.runAsync")
   )
 )
 

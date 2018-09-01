@@ -85,29 +85,29 @@ object TaskConversionsSuite extends BaseTestSuite {
   test("Task.fromConcurrent(task.toConcurrent[IO]) == task") { implicit s =>
     implicit val cs = s.contextShift[IO]
     check1 { (task: Task[Int]) =>
-      Task.fromConcurrent(task.toConcurrent[IO]) <-> task
+      Task.fromConcurrentEffect(task.toConcurrent[IO]) <-> task
     }
   }
 
   test("Task.fromAsync(task.toAsync[IO]) == task") { implicit s =>
     check1 { (task: Task[Int]) =>
-      Task.fromAsync(task.toAsync[IO]) <-> task
+      Task.fromEffect(task.toAsync[IO]) <-> task
     }
   }
 
   test("Task.fromConcurrent(task) == task") { implicit s =>
     val ref = Task.evalAsync(1)
-    assertEquals(Task.fromConcurrent(ref), ref)
+    assertEquals(Task.fromConcurrentEffect(ref), ref)
   }
 
   test("Task.fromConcurrent(io)") { implicit s =>
     implicit val cs = s.contextShift[IO]
 
-    val f = Task.fromConcurrent(IO(1)).runAsync
+    val f = Task.fromConcurrentEffect(IO(1)).runAsync
     assertEquals(f.value, Some(Success(1)))
 
     val io2 = for (_ <- IO.shift; a <- IO(1)) yield a
-    val f2 = Task.fromConcurrent(io2).runAsync
+    val f2 = Task.fromConcurrentEffect(io2).runAsync
     assertEquals(f2.value, None); s.tick()
     assertEquals(f2.value, Some(Success(1)))
   }
@@ -116,16 +116,16 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val cs = s.contextShift[IO]
     implicit val ioEffect: Effect[CIO] = new CustomEffect
 
-    val f = Task.fromAsync(CIO(IO(1))).runAsync
+    val f = Task.fromEffect(CIO(IO(1))).runAsync
     assertEquals(f.value, Some(Success(1)))
 
     val io2 = for (_ <- CIO(IO.shift); a <- CIO(IO(1))) yield a
-    val f2 = Task.fromAsync(io2).runAsync
+    val f2 = Task.fromEffect(io2).runAsync
     assertEquals(f2.value, None); s.tick()
     assertEquals(f2.value, Some(Success(1)))
 
     val dummy = DummyException("dummy")
-    val f3 = Task.fromAsync(CIO(IO.raiseError(dummy))).runAsync
+    val f3 = Task.fromEffect(CIO(IO.raiseError(dummy))).runAsync
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
@@ -133,16 +133,16 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val cs = s.contextShift[IO]
     implicit val ioEffect: ConcurrentEffect[CIO] = new CustomConcurrentEffect()
 
-    val f = Task.fromConcurrent(CIO(IO(1))).runAsync
+    val f = Task.fromConcurrentEffect(CIO(IO(1))).runAsync
     assertEquals(f.value, Some(Success(1)))
 
     val io2 = for (_ <- CIO(IO.shift); a <- CIO(IO(1))) yield a
-    val f2 = Task.fromConcurrent(io2).runAsync
+    val f2 = Task.fromConcurrentEffect(io2).runAsync
     assertEquals(f2.value, None); s.tick()
     assertEquals(f2.value, Some(Success(1)))
 
     val dummy = DummyException("dummy")
-    val f3 = Task.fromConcurrent(CIO(IO.raiseError(dummy))).runAsync
+    val f3 = Task.fromConcurrentEffect(CIO(IO.raiseError(dummy))).runAsync
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
@@ -154,7 +154,7 @@ object TaskConversionsSuite extends BaseTestSuite {
           throw dummy
       }
 
-    val f = Task.fromAsync(CIO(IO(1))).runAsync
+    val f = Task.fromEffect(CIO(IO(1))).runAsync
     s.tick()
 
     // Conversion goes through IO and IO protects against such errors
@@ -169,7 +169,7 @@ object TaskConversionsSuite extends BaseTestSuite {
           throw dummy
       }
 
-    val f = Task.fromConcurrent(CIO(IO(1))).runAsync
+    val f = Task.fromConcurrentEffect(CIO(IO(1))).runAsync
     assertEquals(f.value, None); s.tick()
     assertEquals(f.value, None)
 
@@ -198,7 +198,7 @@ object TaskConversionsSuite extends BaseTestSuite {
 
     val timer = s.timer[IO]
     val io = timer.sleep(10.seconds)
-    val f = Task.fromConcurrent(io).runAsync
+    val f = Task.fromConcurrentEffect(io).runAsync
 
     s.tick()
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -218,7 +218,7 @@ object TaskConversionsSuite extends BaseTestSuite {
 
     val timer = s.timer[CIO]
     val io = timer.sleep(10.seconds)
-    val f = Task.fromConcurrent(io)(effect).runAsync
+    val f = Task.fromConcurrentEffect(io)(effect).runAsync
 
     s.tick()
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -236,7 +236,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val cs = s.contextShift[IO]
 
     val task0 = Task(1).delayExecution(10.seconds)
-    val task = Task.fromConcurrent(task0.toConcurrent[IO])
+    val task = Task.fromConcurrentEffect(task0.toConcurrent[IO])
 
     val f = task.runAsync
     s.tick()
@@ -256,7 +256,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val effect: ConcurrentEffect[CIO] = new CustomConcurrentEffect
 
     val task0 = Task(1).delayExecution(10.seconds)
-    val task = Task.fromConcurrent(task0.toConcurrent[CIO])
+    val task = Task.fromConcurrentEffect(task0.toConcurrent[CIO])
 
     val f = task.runAsync
     s.tick()
@@ -275,7 +275,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val cs = s.contextShift[IO]
 
     val task0 = Task(1).delayExecution(10.seconds)
-    val task = Task.fromAsync(task0.toConcurrent[IO])
+    val task = Task.fromEffect(task0.toConcurrent[IO])
 
     val f = task.runAsync
     s.tick()
@@ -289,13 +289,13 @@ object TaskConversionsSuite extends BaseTestSuite {
     s.tick(10.seconds)
     assertEquals(f.value, None)
   }
-  
+
   test("Task.fromConcurrent(task.toConcurrent[F]) <-> task (Effect)") { implicit s =>
     implicit val cs = s.contextShift[IO]
     implicit val effect = new CustomConcurrentEffect
 
     check1 { (task: Task[Int]) =>
-      Task.fromConcurrent(task.toConcurrent[CIO]) <-> task
+      Task.fromConcurrentEffect(task.toConcurrent[CIO]) <-> task
     }
   }
 
@@ -304,7 +304,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val effect = new CustomEffect
 
     check1 { (task: Task[Int]) =>
-      Task.fromAsync(task.toAsync[CIO]) <-> task
+      Task.fromEffect(task.toAsync[CIO]) <-> task
     }
   }
 
@@ -313,7 +313,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val effect = new CustomConcurrentEffect
 
     check1 { (task: Task[Int]) =>
-      Task.fromConcurrent(task.toConcurrent[CIO]) <-> task
+      Task.fromConcurrentEffect(task.toConcurrent[CIO]) <-> task
     }
   }
 

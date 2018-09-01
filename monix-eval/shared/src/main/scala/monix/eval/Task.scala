@@ -2172,7 +2172,7 @@ object Task extends TaskInstancesLevel1 {
     *   val task: Task[Unit] = Task.fromIO(ioa)
     * }}}
     *
-    * @see [[from]], [[fromAsync]] and [[fromConcurrent]]
+    * @see [[from]], [[fromEffect]] and [[fromConcurrentEffect]]
     */
   def fromIO[A](ioa: IO[A]): Task[A] =
     Concurrent.liftIO(ioa)
@@ -2198,7 +2198,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * @see [[Task.toConcurrent]] for its dual
     *
-    * @see [[Task.fromAsync]] for a version that works with simpler,
+    * @see [[Task.fromEffect]] for a version that works with simpler,
     *      non-cancelable `Async` data types
     *
     * @see [[Task.from]] for a more generic version that works with
@@ -2209,8 +2209,8 @@ object Task extends TaskInstancesLevel1 {
     *        `cats.effect.Concurrent`, in which case the resulting
     *        `Task` value is cancelable if the source is
     */
-  def fromConcurrent[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] =
-    TaskConversions.fromConcurrent(fa)(F)
+  def fromConcurrentEffect[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] =
+    TaskConversions.fromConcurrentEffect(fa)(F)
 
   /** Builds a [[Task]] instance out of any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/async.html Async]] and
@@ -2231,7 +2231,7 @@ object Task extends TaskInstancesLevel1 {
     * cancelation behavior if the source is cancelable!
     * This is implicit in the usage of `Effect`.
     *
-    * @see [[Task.fromConcurrent]] for a version that can use
+    * @see [[Task.fromConcurrentEffect]] for a version that can use
     *      [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]]
     *      for converting cancelable tasks.
     *
@@ -2245,8 +2245,8 @@ object Task extends TaskInstancesLevel1 {
     *        `cats.effect.Concurrent`, in which case the resulting
     *        `Task` value is cancelable if the source is
     */
-  def fromAsync[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
-    TaskConversions.fromAsync(fa)
+  def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
+    TaskConversions.fromEffect(fa)
 
   /** Builds a [[Task]] instance out of a `cats.Eval`. */
   def fromEval[A](a: cats.Eval[A]): Task[A] =

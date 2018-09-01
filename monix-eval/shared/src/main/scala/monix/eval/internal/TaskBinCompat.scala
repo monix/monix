@@ -18,11 +18,9 @@
 package monix.eval
 package internal
 
-import cats.effect.{ConcurrentEffect, Effect}
 import monix.eval.Task.{Async, Context}
 import monix.execution.annotations.UnsafeProtocol
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-
 import scala.annotation.unchecked.uncheckedVariance
 
 private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
@@ -270,25 +268,6 @@ private[eval] abstract class TaskBinCompatCompanion {
   def fork[A](fa: Task[A], s: Scheduler): Task[A] = {
     // $COVERAGE-OFF$
     fa.executeOn(s)
-    // $COVERAGE-ON$
-  }
-
-  /**
-    * DEPRECATED — replaced by:
-    *
-    *   - [[Task.from]]: a more generic conversion utility
-    *   - [[Task.fromAsync]]: for converting from `cats.effect.Async`,
-    *     but without the subtyping discrimination
-    *   - [[Task.fromConcurrent]]: for converting from
-    *     `cats.effect.Concurrent`
-    */
-  @deprecated("Please use Task.from", "3.0.0")
-  def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
-    // $COVERAGE-OFF$
-    F match {
-      case ref: ConcurrentEffect[F] @unchecked => Task.fromConcurrent(fa)(ref)
-      case _ => Task.fromAsync(fa)
-    }
     // $COVERAGE-ON$
   }
 }
