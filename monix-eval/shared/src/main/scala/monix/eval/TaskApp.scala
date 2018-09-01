@@ -27,7 +27,7 @@ import monix.execution.Scheduler
   * - If completed with `ExitCode.Success`, the main method exits and
   *   shutdown is handled by the platform.
   *
-  * - If completed with any other [[ExitCode]], `sys.exit` is called
+  * - If completed with any other `ExitCode`, `sys.exit` is called
   *   with the specified code.
   *
   * - If the `Task` raises an error, the stack trace is printed to
