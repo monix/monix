@@ -41,7 +41,7 @@ import monix.execution.Scheduler
   *   import monix.eval._
   *   import cats.implicits._
   *
-  *   object MyApp extends SafeApp {
+  *   object MyApp extends TaskApp {
   *     def run(args: List[String]): Task[ExitCode] =
   *       args.headOption match {
   *         case Some(name) =>
@@ -58,7 +58,8 @@ import monix.execution.Scheduler
   *
   * Works on top of JavaScript as well ;-)
   */
-trait SafeApp {
+trait TaskApp {
+  // To implement ...
   def run(args: List[String]): Task[ExitCode]
 
   /** Scheduler for executing the [[Task]] action.
@@ -83,7 +84,10 @@ trait SafeApp {
   final def main(args: Array[String]): Unit = {
     val self = this
     val app = new IOApp {
-      override lazy val timer: Timer[IO] = scheduler.timer[IO]
+      override lazy val timer: Timer[IO] =
+        scheduler.timer[IO]
+      override lazy val contextShift: ContextShift[IO] =
+        scheduler.contextShift[IO]
       def run(args: List[String]): IO[ExitCode] =
         self.run(args).toIO
     }

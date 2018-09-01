@@ -24,10 +24,10 @@ import monix.eval.Task.Options
 import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
-object SafeAppSuite extends SimpleTestSuite {
+object TaskAppSuite extends SimpleTestSuite {
   testAsync("run works") {
     val wasExecuted = Promise[Boolean]()
-    val app = new SafeApp {
+    val app = new TaskApp {
       override def run(args: List[String]) =
         Task {
           wasExecuted.success(args.headOption.getOrElse("unknown") == "true")
@@ -48,7 +48,7 @@ object SafeAppSuite extends SimpleTestSuite {
     assert(opts2.localContextPropagation, "opts2.localContextPropagation")
     val p = Promise[Options]()
 
-    val app = new SafeApp {
+    val app = new TaskApp {
       override val options = opts2
 
       def run(args: List[String]): Task[ExitCode] =
@@ -66,7 +66,7 @@ object SafeAppSuite extends SimpleTestSuite {
 
   testAsync("ConcurrentEffect[Task]") {
     val wasExecuted = Promise[Boolean]()
-    val app = new SafeApp {
+    val app = new TaskApp {
       def run(args: List[String]) = {
         Task.fromIO(
           Task.async[ExitCode] { cb => wasExecuted.success(true); cb.onSuccess(ExitCode.Success) }
