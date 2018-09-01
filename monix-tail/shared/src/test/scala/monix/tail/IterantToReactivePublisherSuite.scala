@@ -17,7 +17,7 @@
 
 package monix.tail
 
-import cats.effect.{Effect, ExitCase, IO}
+import cats.effect._
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
@@ -83,7 +83,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   }
 
   test("works with any Effect") { implicit s =>
-    implicit val ioEffect: Effect[IO] = new CustomIOEffect
+    implicit val ioEffect: Effect[IO] = new CustomIOEffect()(IO.contextShift(s))
     check1 { (stream: Iterant[IO, Int]) =>
       sum(stream, 1) <-> Task.fromAsync(stream.foldLeftL(0L)(_ + _))
     }
@@ -361,10 +361,8 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       subscription
     }
 
-  class CustomIOEffect extends Effect[IO] {
-    def runSyncStep[A](fa: IO[A]): IO[Either[IO[A], A]] =
-      fa.runSyncStep
-    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+  class CustomIOEffect(implicit contextShift: ContextShift[IO]) extends Effect[IO] {
+    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit]=
       fa.runAsync(cb)
     def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
       IO.async(k)
@@ -375,11 +373,11 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     def flatMap[A, B](fa: IO[A])(f: (A) => IO[B]): IO[B] =
       fa.flatMap(f)
     def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
-      IO.ioEffect.tailRecM(a)(f)
+      IO.ioConcurrentEffect.tailRecM(a)(f)
     def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
     def handleErrorWith[A](fa: IO[A])(f: (Throwable) => IO[A]): IO[A] =
-      IO.ioEffect.handleErrorWith(fa)(f)
+      IO.ioConcurrentEffect.handleErrorWith(fa)(f)
     def pure[A](x: A): IO[A] =
       IO.pure(x)
     override def liftIO[A](ioa: IO[A]): IO[A] =

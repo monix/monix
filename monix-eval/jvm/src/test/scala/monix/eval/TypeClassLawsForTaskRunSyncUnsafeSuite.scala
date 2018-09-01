@@ -53,6 +53,7 @@ class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
   with  ArbitraryInstancesBase {
 
   implicit val sc = Scheduler(global, UncaughtExceptionReporter(_ => ()))
+  implicit val cs = IO.contextShift(sc)
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 
   val timeout = {

@@ -18,7 +18,7 @@
 package monix.eval
 package instances
 
-import cats.effect.{ConcurrentEffect, Effect, ExitCase, IO}
+import cats.effect.{Fiber => _, _}
 import monix.eval.internal.TaskEffect
 import monix.execution.Scheduler
 
@@ -47,7 +47,7 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
     */
   private[this] val F = CatsConcurrentForTask
 
-  override def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+  override def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
     TaskEffect.runAsync(fa)(cb)
   override def delay[A](thunk: => A): Task[A] =
     F.delay(thunk)
@@ -61,8 +61,6 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
     F.bracket(acquire)(use)(release)
   override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     F.bracketCase(acquire)(use)(release)
-  override def runSyncStep[A](fa: Task[A]): IO[Either[Task[A], A]] =
-    IO(fa.runSyncStepOpt(s, opts))
 }
 
 /** Cats type class instances of [[monix.eval.Task Task]] for
@@ -89,9 +87,9 @@ class CatsConcurrentEffectForTask(implicit s: Scheduler, opts: Task.Options)
     */
   private[this] val F = CatsConcurrentForTask
 
-  override def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+  override def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[Task]] =
     TaskEffect.runCancelable(fa)(cb)
-  override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
+  override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[Task]): Task[A] =
     F.cancelable(k)
   override def uncancelable[A](fa: Task[A]): Task[A] =
     F.uncancelable(fa)

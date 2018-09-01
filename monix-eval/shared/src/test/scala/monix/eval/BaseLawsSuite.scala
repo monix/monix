@@ -17,17 +17,17 @@
 
 package monix.eval
 
-import scala.util.{Either, Success, Try}
 import cats.Eq
 import cats.effect.laws.discipline.Parameters
-import cats.effect.{Async, IO, Timer}
 import cats.effect.laws.discipline.arbitrary.{catsEffectLawsArbitraryForIO, catsEffectLawsCogenForIO}
+import cats.effect.{Async, IO}
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
+import org.scalacheck.{Arbitrary, Cogen, Gen}
+import scala.util.{Either, Success, Try}
 
 /**
   * Base trait to inherit in all `monix-eval` tests that use ScalaCheck.
@@ -183,7 +183,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def arbitraryTaskPar[A : Arbitrary : Cogen]: Arbitrary[Task.Par[A]] =
     Arbitrary(arbitraryTask[A].arbitrary.map(Task.Par(_)))
 
-  implicit def arbitraryIO[A : Arbitrary : Cogen](implicit t: Timer[IO]): Arbitrary[IO[A]] =
+  implicit def arbitraryIO[A : Arbitrary : Cogen]: Arbitrary[IO[A]] =
     catsEffectLawsArbitraryForIO
 
   implicit def arbitraryExToA[A](implicit A: Arbitrary[A]): Arbitrary[Throwable => A] =

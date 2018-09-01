@@ -36,7 +36,7 @@ private[eval] object TaskConversions {
       case Task.Eval(thunk) => IO(thunk())
       case _ =>
         IO.cancelable { cb =>
-          eff.runCancelable(source)(r => { cb(r); IO.unit }).unsafeRunSync()
+          toIO(eff.runCancelable(source)(r => { cb(r); IO.unit }).unsafeRunSync())
         }
     }
 
@@ -50,7 +50,8 @@ private[eval] object TaskConversions {
       case Task.Eval(thunk) => F.delay(thunk())
       case _ =>
         F.cancelable { cb =>
-          eff.runCancelable(source)(r => { cb(r); IO.unit }).unsafeRunSync()
+          val token = eff.runCancelable(source)(r => { cb(r); IO.unit }).unsafeRunSync()
+          toConcurrent(token)(F, eff)
         }
     }
 
@@ -96,8 +97,8 @@ private[eval] object TaskConversions {
         val cancelable = SingleAssignCancelable()
         conn push cancelable
 
-        val io = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
-        cancelable := Cancelable.fromIOUnsafe(io.unsafeRunSync())
+        val syncIO = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
+        cancelable := Cancelable.fromIO(F.toIO(syncIO.unsafeRunSync()))
       } catch {
         case e if NonFatal(e) =>
           ctx.scheduler.reportFailure(e)
