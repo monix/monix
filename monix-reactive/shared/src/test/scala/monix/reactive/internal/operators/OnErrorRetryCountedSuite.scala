@@ -47,7 +47,7 @@ object OnErrorRetryCountedSuite extends BaseOperatorSuite {
   override def cancelableObservables() = {
     val dummy = DummyException("dummy")
     val sample = Observable.range(0, 20).map(_ => 1L)
-      .endWithError(dummy).delaySubscription(1.second)
+      .endWithError(dummy).delayExecution(1.second)
       .onErrorRestart(100)
 
     Seq(
