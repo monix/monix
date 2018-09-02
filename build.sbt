@@ -306,11 +306,6 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.TaskInstancesLevel0.catsEffect"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.this"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.this"),
-    // Breakage - TaskApp
-    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.options"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.scheduler"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.options"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.scheduler"),
     // Breakage - moved deprecated methods back into Task's class for better compatibility
     exclude[DirectMissingMethodProblem]("monix.eval.Task.DeprecatedExtensions"),
     exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions"),
@@ -343,6 +338,11 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.TaskApp.run"),
     exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.catsEffect"),
     exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.run"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.TaskApp.run"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.options"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.scheduler"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.options"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.scheduler"),
     // Switched to TaskLike instead of Effect, in the implementation of observable
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.repeatEvalF"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.mapEval"),
