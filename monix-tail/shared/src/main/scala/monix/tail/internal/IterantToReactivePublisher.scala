@@ -19,7 +19,6 @@ package monix.tail.internal
 
 import cats.effect.Effect
 import cats.implicits._
-import monix.execution.Cancelable
 import monix.execution.UncaughtExceptionReporter.{default => Logger}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
@@ -27,6 +26,7 @@ import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.internal.Platform
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.rstreams.Subscription
+import monix.execution.{Cancelable, UncaughtExceptionReporter}
 import monix.tail.Iterant
 import monix.tail.Iterant.Halt
 import org.reactivestreams.{Publisher, Subscriber}
@@ -146,11 +146,11 @@ private[tail] object IterantToReactivePublisher {
 
     def startLoop(): Unit = {
       val loop = new Loop
-      cancelable := Cancelable(
+      cancelable := Cancelable.fromIO(
         F.toIO(loop(source)).unsafeRunCancelable({
           case Left(error) => Logger.reportFailure(error)
           case _ => ()
-        }))
+      }))(UncaughtExceptionReporter.default)
     }
 
     private final class Loop extends Iterant.Visitor[F, A, F[Unit]] {
