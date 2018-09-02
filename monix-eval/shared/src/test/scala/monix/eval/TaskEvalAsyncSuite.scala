@@ -108,7 +108,7 @@ object TaskEvalAsyncSuite extends BaseTestSuite {
   }
 
   test("Task.evalAsync.coeval") { implicit s =>
-    Task.evalAsync(100).coeval.value() match {
+    Task.evalAsync(100).runSyncMaybe match {
       case Left(result) =>
         assertEquals(result.value, None)
         s.tick()

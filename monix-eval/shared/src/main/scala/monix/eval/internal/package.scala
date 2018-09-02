@@ -22,4 +22,16 @@ import monix.eval.Task.Context
 package object internal {
   /** Handy alias for building `Task.Async` nodes. */
   private[eval] type Start[+A] = (Context, Callback[A]) => Unit
+
+  /** Internal API: A run-loop frame index is a number representing the current
+    * run-loop cycle, being incremented whenever a `flatMap` evaluation happens.
+    *
+    * It gets used for automatically forcing asynchronous boundaries, according to the
+    * [[monix.execution.ExecutionModel ExecutionModel]]
+    * injected by the [[monix.execution.Scheduler Scheduler]] when
+    * the task gets evaluated with `runAsync`.
+    *
+    * @see [[FrameIndexRef]]
+    */
+  private[eval] type FrameIndex = Int
 }

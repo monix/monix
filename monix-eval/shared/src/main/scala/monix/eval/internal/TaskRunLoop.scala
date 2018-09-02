@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, FrameIndex, Map, Now, Suspend}
+import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.Local

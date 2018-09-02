@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.{Eval, Monoid}
-import cats.effect.{ExitCase, IO}
+import cats.effect.{ExitCase, IO, SyncIO}
 import cats.kernel.Semigroup
 import monix.eval.Coeval._
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
@@ -136,7 +136,7 @@ import scala.util.{Failure, Success, Try}
   *         the error raised by `use` gets signaled and the error
   *         raised by `release` gets reported with `System.err` for
   *         [[Coeval]] or with
-  *         [[monix.execution.Scheduler.reportFailure Scheduler.reportFailure]] 
+  *         [[monix.execution.Scheduler.reportFailure Scheduler.reportFailure]]
   *         for [[Task]].
   *
   *         For example:
@@ -481,12 +481,12 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *        evaluation
     *
     * @param release is a function that gets called after `use` terminates,
-    *        either normally or in error, receiving as input the resource that 
+    *        either normally or in error, receiving as input the resource that
     *        needs that needs release, along with the result of `use`
     */
   final def bracketE[B](use: A => Coeval[B])(release: (A, Either[Throwable, B]) => Coeval[Unit]): Coeval[B] =
     CoevalBracket.either(this, use, release)
-  
+
   /** Returns a failed projection of this coeval.
     *
     * The failed projection is a `Coeval` holding a value of type `Throwable`,
@@ -916,16 +916,53 @@ object Coeval extends CoevalInstancesLevel0 {
   /** A `Coeval[Unit]` provided for convenience. */
   val unit: Coeval[Unit] = Now(())
 
-  /** Builds a `Coeval` out of a `cats.Eval` value. */
+  /**
+    * Converts any value that has a [[CoevalLike]] instance into a `Coeval`.
+    */
+  def from[F[_], A](fa: F[A])(implicit F: CoevalLike[F]): Coeval[A] =
+    F.toCoeval(fa)
+
+  /**
+    * Converts a `cats.Eval` into a [[Coeval]].
+    */
   def fromEval[A](a: Eval[A]): Coeval[A] =
     a match {
       case cats.Now(v) => Coeval.Now(v)
       case other => Coeval.eval(other.value)
     }
 
-  /** Builds a `Coeval` out of a Scala `Try` value. */
+  /**
+    * Converts a Scala `Try` into a [[Coeval]].
+    */
   def fromTry[A](a: Try[A]): Coeval[A] =
     Eager.fromTry(a)
+
+  /**
+    * Converts a Scala `Either` into a [[Coeval]].
+    */
+  def fromEither[E <: Throwable, A](a: Either[E, A]): Coeval[A] =
+    a match {
+      case Right(v) => Coeval.now(v)
+      case Left(ex) => Coeval.raiseError(ex)
+    }
+
+  /**
+    * Converts a Scala `Either` into a [[Coeval]].
+    *
+    * @param f is a function that knows how to convert into a `Throwable`
+    *        in order to throw that error in the `MonadError` context.
+    */
+  def fromEither[E, A](f: E => Throwable)(a: Either[E, A]): Coeval[A] =
+    a match {
+      case Right(v) => Coeval.now(v)
+      case Left(ex) => Coeval.raiseError(f(ex))
+    }
+
+  /**
+    * Converts a `cats.effect.SyncIO` into a `Coeval`.
+    */
+  def fromSyncIO[A](a: SyncIO[A]): Coeval[A] =
+    Coeval(a.unsafeRunSync())
 
   /** Keeps calling `f` until it returns a `Right` result.
     *
@@ -1194,11 +1231,12 @@ object Coeval extends CoevalInstancesLevel0 {
   /** Constructs an eager [[Coeval]] instance from a strict
     * value that's already known.
     */
-  final case class Now[+A](override val value: A) extends Eager[A] {
-    override def apply(): A = value
+  final case class Now[+A](a: A) extends Eager[A] {
+    override def value(): A = a
+    override def apply(): A = a
     override def run(): Now[A] = this
-    override def runAttempt(): Right[Nothing, A] = Right(value)
-    override def runTry(): Success[A] = Success(value)
+    override def runAttempt(): Right[Nothing, A] = Right(a)
+    override def runTry(): Success[A] = Success(a)
   }
 
   /** Constructs an eager [[Coeval]] instance for
