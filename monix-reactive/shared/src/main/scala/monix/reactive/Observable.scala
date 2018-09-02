@@ -20,7 +20,7 @@ package monix.reactive
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
 import cats.effect.IO
-import cats.{Apply, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
+import cats.{Apply, Applicative, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
 import monix.execution.Ack.{Continue, Stop}
@@ -43,6 +43,7 @@ import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success, Try}
 
 /** The `Observable` type that implements the Reactive Pattern.
   *
@@ -2134,8 +2135,9 @@ abstract class Observable[+A] extends Serializable { self =>
   * This is a version of [[scanEval]] that emits seed element at the beginning,
   * similar to `scanLeft` on Scala collections
   */
-  final def scanEval0[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: TaskLike[F]): Observable[S] =
-    Observable.fromTaskLike(seed).flatMap(s => s +: scanEval(F.monad.pure(s))(op))
+  final def scanEval0[F[_], S](seed: F[S])(op: (S, A) => F[S])
+    (implicit F: TaskLike[F], A: Applicative[F]): Observable[S] =
+    Observable.fromTaskLike(seed).flatMap(s => s +: scanEval(A.pure(s))(op))
 
   /** Given a mapping function that returns a `B` type for which we have
     * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
@@ -3772,6 +3774,32 @@ object Observable {
     (ref, ref)
   }
 
+  /** Converts to [[Observable]] from any `F[_]` that has an [[ObservableLike]]
+    * instance.
+    *
+    * Supported types includes, but is not necessarily limited to:
+    *
+    *  - [[https://typelevel.org/cats/datatypes/eval.html cats.Eval]]
+    *  - [[https://typelevel.org/cats-effect/datatypes/io.html cats.effect.IO]]
+    *  - [[https://typelevel.org/cats-effect/datatypes/syncio.html cats.effect.SyncIO]]
+    *  - [[https://typelevel.org/cats-effect/typeclasses/effect.html cats.effect.Effect (Async)]]
+    *  - [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.ConcurrentEffect]]
+    *  - [[https://www.reactive-streams.org/ org.reactivestreams.Publisher]]
+    *  - [[monix.eval.Coeval]]
+    *  - [[monix.eval.Task]]
+    *  - [[scala.Either]]
+    *  - [[scala.util.Try]]
+    *  - [[scala.concurrent.Future]]
+    */
+  def from[F[_], A](fa: F[A])(implicit F: ObservableLike[F]): Observable[A] =
+    F.toObservable(fa)
+
+  /**
+    * Converts any `Iterable` into an [[Observable]].
+    */
+  def fromIterable[A](iterable: Iterable[A]): Observable[A] =
+    new builders.IterableAsObservable[A](iterable)
+
   /** $fromIteratorDesc
     *
     * @param iterator to transform into an observable
@@ -3928,6 +3956,39 @@ object Observable {
     fa match {
       case cats.Now(v) => Observable.now(v)
       case _ => Observable.eval(fa.value)
+    }
+
+  /** Converts a Scala `Try` into an `Observable`.
+    *
+    * {{{
+    *   import scala.util.Try
+    *
+    *   val value = Try(1)
+    *   Observable.fromTry(value)
+    * }}}
+    */
+  def fromTry[A](a: Try[A]): Observable[A] =
+    a match {
+      case Success(v) => Observable.now(v)
+      case Failure(e) => Observable.raiseError(e)
+    }
+
+  /**
+    * Builds an `Observable` instance out of a Scala `Either`.
+    */
+  def fromEither[E <: Throwable, A](a: Either[E, A]): Observable[A] =
+    a match {
+      case Right(v) => Observable.now(v)
+      case Left(ex) => Observable.raiseError(ex)
+    }
+
+  /**
+    * Builds a [[Observable]] instance out of a Scala `Either`.
+    */
+  def fromEither[E, A](f: E => Throwable)(a: Either[E, A]): Observable[A] =
+    a match {
+      case Right(v) => Observable.now(v)
+      case Left(ex) => Observable.raiseError(f(ex))
     }
 
   /** Converts a Scala `Future` provided into an [[Observable]].
@@ -4161,10 +4222,6 @@ object Observable {
   def mergeDelayError[A](sources: Observable[A]*)
     (implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] =
     Observable.fromIterable(sources).mergeMapDelayErrors(identity)(os)
-
-  /** Converts any `Iterable` into an [[Observable]]. */
-  def fromIterable[A](iterable: Iterable[A]): Observable[A] =
-    new builders.IterableAsObservable[A](iterable)
 
   /** Concatenates the given list of ''observables'' into a single
     * observable.

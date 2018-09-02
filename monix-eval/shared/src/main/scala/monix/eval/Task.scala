@@ -2144,13 +2144,17 @@ object Task extends TaskInstancesLevel1 {
   /** Converts to [[Task]] from any `F[_]` for which there exists
     * a [[TaskLike]] implementation.
     *
-    * Supported types:
+    * Supported types includes, but is not necessarily limited to:
     *
-    *  - [[https://typelevel.org/cats-effect/typeclasses/effect.html Effect (Async)]]
-    *  - [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html (ConcurrentEffect)]]
+    *  - [[https://typelevel.org/cats/datatypes/eval.html cats.Eval]]
+    *  - [[https://typelevel.org/cats-effect/datatypes/io.html cats.effect.IO]]
+    *  - [[https://typelevel.org/cats-effect/datatypes/syncio.html cats.effect.SyncIO]]
+    *  - [[https://typelevel.org/cats-effect/typeclasses/effect.html cats.effect.Effect (Async)]]
+    *  - [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.ConcurrentEffect]]
+    *  - [[monix.eval.Coeval]]
+    *  - [[scala.Either]]
+    *  - [[scala.util.Try]]
     *  - [[scala.concurrent.Future]]
-    *  - `cats.Comonad`
-    *  - `cats.Eval`
     */
   def from[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Task[A] =
     F.toTask(fa)
@@ -4007,14 +4011,13 @@ private[eval] abstract class TaskTimers extends TaskClocks {
 }
 
 private[eval] abstract class TaskClocks extends TaskBinCompatCompanion {
-
   /**
     * Default, pure, globally visible `cats.effect.Clock`
     * implementation that defers the evaluation to `Task`'s default
     * [[monix.execution.Scheduler Scheduler]]
     * (that's being injected in [[Task.runAsync(implicit* runAsync]]).
     */
-  implicit val clock: Clock[Task] =
+  val clock: Clock[Task] =
     new Clock[Task] {
       override def realTime(unit: TimeUnit): Task[Long] =
         Task.deferAction(sc => Task.now(sc.clockRealTime(unit)))
@@ -4022,7 +4025,8 @@ private[eval] abstract class TaskClocks extends TaskBinCompatCompanion {
         Task.deferAction(sc => Task.now(sc.clockMonotonic(unit)))
     }
 
-  /** Builds a `cats.effect.Clock` instance, given a
+  /**
+    * Builds a `cats.effect.Clock` instance, given a
     * [[monix.execution.Scheduler Scheduler]] reference.
     */
   def clock(s: Scheduler): Clock[Task] =

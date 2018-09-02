@@ -17,13 +17,11 @@
 
 package monix.eval
 
-import cats.effect.{ConcurrentEffect, Effect, IO}
-import cats.implicits._
-import cats.{Eval, Monad}
-import monix.eval.internal.TaskConversions
-
+import cats.Eval
+import cats.effect.{ConcurrentEffect, Effect, IO, SyncIO}
 import scala.annotation.implicitNotFound
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 /** A lawless type class that provides conversions to [[Task]].
   *
@@ -33,19 +31,19 @@ import scala.concurrent.{ExecutionContext, Future}
   *   import cats.Eval
   *
   *   val source0 = Eval.always(1 + 1)
-  *   val task0 = ToTask[Eval].toTask(source)
+  *   val task0 = TaskLike[Eval].toTask(source)
   *
   *   // Conversion from Future
   *   import scala.concurrent.Future
   *
   *   val source1 = Future(1 + 1)
-  *   val task1 = ToTask[Future].toTask(source)
+  *   val task1 = TaskLike[Future].toTask(source)
   *
   *   // Conversion from IO
   *   import cats.effect.IO
   *
   *   val source2 = IO(1 + 1)
-  *   val task2 = ToTask[IO].toTask(source2)
+  *   val task2 = TaskLike[IO].toTask(source2)
   * }}}
   *
   * This is an alternative to usage of `cats.effect.Effect`
@@ -57,12 +55,6 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
 trait TaskLike[F[_]] {
   /**
-    * `ToTask` has a `Monad` restriction, expressed via composition
-    * instead of inheritance.
-    */
-  def monad: Monad[F]
-
-  /**
     * Converts from `F[A]` to `Task[A]`, preserving referential
     * transparency if `F[_]` is a pure data type and preserving
     * interruptibility if the source is cancelable.
@@ -70,7 +62,7 @@ trait TaskLike[F[_]] {
   def toTask[A](fa: F[A]): Task[A]
 }
 
-object TaskLike extends ToTaskImplicits0 {
+object TaskLike extends TaskLikeImplicits0 {
   /**
     * Returns the available instance for `F`.
     */
@@ -81,7 +73,6 @@ object TaskLike extends ToTaskImplicits0 {
     */
   implicit val fromTask: TaskLike[Task] =
     new TaskLike[Task] {
-      val monad = Monad[Task]
       def toTask[A](fa: Task[A]): Task[A] = fa
     }
 
@@ -90,7 +81,6 @@ object TaskLike extends ToTaskImplicits0 {
     */
   implicit def fromFuture(implicit ec: ExecutionContext): TaskLike[Future] =
     new TaskLike[Future] {
-      val monad = catsStdInstancesForFuture
       def toTask[A](fa: Future[A]): Task[A] =
         Task.fromFuture(fa)
     }
@@ -100,7 +90,6 @@ object TaskLike extends ToTaskImplicits0 {
     */
   implicit val fromCoeval: TaskLike[Coeval] =
     new TaskLike[Coeval] {
-      val monad = Monad[Coeval]
       def toTask[A](fa: Coeval[A]): Task[A] =
         Task.coeval(fa)
     }
@@ -110,7 +99,6 @@ object TaskLike extends ToTaskImplicits0 {
     */
   implicit val fromEval: TaskLike[Eval] =
     new TaskLike[Eval] {
-      val monad = Monad[Eval]
       def toTask[A](fa: Eval[A]): Task[A] =
         Task.fromEval(fa)
     }
@@ -121,33 +109,57 @@ object TaskLike extends ToTaskImplicits0 {
     */
   implicit val fromIO: TaskLike[IO] =
     new TaskLike[IO] {
-      val monad = Monad[IO]
       def toTask[A](fa: IO[A]): Task[A] =
         Task.fromIO(fa)
     }
+
+  /**
+    * Converts to `Task` from a `cats.effect.SyncIO`.
+    */
+  implicit val fromSyncIO: TaskLike[SyncIO] =
+    new TaskLike[SyncIO] {
+      def toTask[A](fa: SyncIO[A]): Task[A] =
+        Task.fromIO(fa.toIO)
+    }
+
+  /**
+    * Converts a `scala.util.Try` to a [[Task]].
+    */
+  implicit val fromTry: TaskLike[Try] =
+    new TaskLike[Try] {
+      def toTask[A](fa: Try[A]): Task[A] =
+        Task.fromTry(fa)
+    }
+
+  /**
+    * Converts a Scala `Either` to a [[Task]].
+    */
+  implicit def fromEither[E <: Throwable]: TaskLike[Either[E, ?]] =
+    new TaskLike[Either[E, ?]] {
+      def toTask[A](fa: Either[E, A]): Task[A] =
+        Task.fromEither(fa)
+    }
 }
 
-private[eval] abstract class ToTaskImplicits0 extends ToTaskImplicits1 {
+private[eval] abstract class TaskLikeImplicits0 extends TaskLikeImplicits1 {
   /**
     * Converts to `Task` from
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.ConcurrentEffect]].
     */
   implicit def fromConcurrentEffect[F[_]](implicit F: ConcurrentEffect[F]): TaskLike[F] =
     new TaskLike[F] {
-      val monad = F
       def toTask[A](fa: F[A]): Task[A] =
-        TaskConversions.fromConcurrentEffect(fa)
+        Task.fromConcurrentEffect(fa)
     }
 }
 
-private[eval] abstract class ToTaskImplicits1 {
+private[eval] abstract class TaskLikeImplicits1 {
   /**
     * Converts to `Task` from
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.Async]].
     */
   implicit def fromEffect[F[_]](implicit F: Effect[F]): TaskLike[F] =
     new TaskLike[F] {
-      val monad = F
       def toTask[A](fa: F[A]): Task[A] =
         Task.fromEffect(fa)
     }
