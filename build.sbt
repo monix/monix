@@ -406,7 +406,7 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.from"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.to"),
     exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsConcurrentEffectForTask.runCancelable"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsEffectForTask.runAsync")
+    exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsEffectForTask.runAsync"),
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionByTimespanObservable"),
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable")
