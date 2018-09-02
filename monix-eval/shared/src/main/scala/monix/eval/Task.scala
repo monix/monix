@@ -1439,7 +1439,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
 
   /** Dematerializes the source's result from a `Try`. */
   final def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
-    this.asInstanceOf[Task[Try[B]]].flatMap(fromTry)
+    this.asInstanceOf[Task[Try[B]]].flatMap(fromTry(_))
 
   /** Returns a new task that mirrors the source task for normal termination,
     * but that triggers the given error on cancellation.
@@ -2257,11 +2257,12 @@ object Task extends TaskInstancesLevel1 {
     Coeval.fromEval(a).task
 
   /** Builds a [[Task]] instance out of a Scala `Try`. */
-  def fromTry[A](a: Try[A]): Task[A] =
+  def fromTry[A](a: => Try[A]): Task[A] = Task {
     a match {
-      case Success(v) => Now(v)
-      case Failure(ex) => Error(ex)
+      case Success(v) => v
+      case Failure(ex) => throw ex
     }
+  }
 
   /** Builds a [[Task]] instance out of a Scala `Either`. */
   def fromEither[E <: Throwable, A](a: Either[E, A]): Task[A] =
