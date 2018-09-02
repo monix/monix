@@ -55,10 +55,10 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(effect, 0)
   }
 
-  test("task.fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
+  test("task.start.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
     check1 { (task: Task[Int]) =>
       val fa = for {
-        forked <- task.attempt.asyncBoundary.autoCancelable.fork
+        forked <- task.attempt.asyncBoundary.autoCancelable.start
         _ <- forked.cancel
         r <- forked.join
       } yield r
@@ -131,11 +131,11 @@ object TaskCancellationSuite extends BaseTestSuite {
     }
   }
 
-  test("fa.onCancelRaiseError(e).fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> raiseError(e)") { implicit ec =>
+  test("fa.onCancelRaiseError(e).start.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> raiseError(e)") { implicit ec =>
     check2 { (fa: Task[Int], e: Throwable) =>
       val received = fa
         .onCancelRaiseError(e)
-        .fork
+        .start
         .flatMap(fa => fa.cancel.flatMap(_ => fa.join))
 
       received <-> Task.raiseError(e)
@@ -167,7 +167,7 @@ object TaskCancellationSuite extends BaseTestSuite {
   test("cancelBoundary cancels") { implicit ec =>
     check1 { (task: Task[Int]) =>
       (Task.cancelBoundary *> task)
-        .fork
+        .start
         .flatMap(f => f.cancel *> f.join) <-> Task.never
     }
   }
