@@ -20,6 +20,7 @@ package monix.eval.internal
 import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Task}
 import monix.execution.schedulers.TracingScheduler
+import java.util.concurrent.RejectedExecutionException
 import scala.concurrent.ExecutionContext
 
 private[eval] object TaskShift {
@@ -50,12 +51,18 @@ private[eval] object TaskShift {
         else
           ec
 
-      ec2.execute(new Runnable {
-        def run(): Unit = {
-          context.frameRef.reset()
-          cb.onSuccess(())
-        }
-      })
+      try {
+        ec2.execute(new Runnable {
+          def run(): Unit = {
+            context.frameRef.reset()
+            cb.onSuccess(())
+          }
+        })
+      } catch {
+        case e: RejectedExecutionException =>
+          Callback.trampolined(cb)(context.scheduler)
+            .onError(e)
+      }
     }
   }
 }
