@@ -36,9 +36,12 @@ import monix.eval.internal.TaskCancellation
   * Usage example:
   *
   * {{{
+  *   val launchMissiles = Task(println("Missiles launched!"))
+  *   val runToBunker = Task(println("Run Lola run!"))
+  *
   *   for {
   *     fiber <- launchMissiles.start
-  *     _ <- runToBunker.handleErrorWith { error =>
+  *     _ <- runToBunker.onErrorHandleWith { error =>
   *       // Retreat failed, cancel launch (maybe we should
   *       // have retreated to our bunker before the launch?)
   *       fiber.cancel.flatMap(_ => Task.raiseError(error))
