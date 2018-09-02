@@ -26,7 +26,7 @@ import scala.util.Success
 object UncancelableSuite extends BaseTestSuite {
   test("uncancelable works") { implicit ec =>
     val obs = Observable.eval(1)
-      .delaySubscription(1.second)
+      .delayExecution(1.second)
       .uncancelable
 
     val f = obs.runAsyncGetFirst

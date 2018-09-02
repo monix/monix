@@ -358,6 +358,9 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.foreachEval"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.foldLeftEval"),
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.fromEffect"),
+    // Breakage - PR #700: renamed methods
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscriptionWith"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscription"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
@@ -403,7 +406,9 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.from"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.to"),
     exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsConcurrentEffectForTask.runCancelable"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsEffectForTask.runAsync")
+    exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsEffectForTask.runAsync"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionByTimespanObservable"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable")
   )
 )
 

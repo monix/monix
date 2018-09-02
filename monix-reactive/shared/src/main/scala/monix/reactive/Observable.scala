@@ -548,7 +548,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        item to be emitted by the resulting Observable
     */
   final def debounceTo[B](timeout: FiniteDuration, f: A => Observable[B]): Observable[B] =
-    self.switchMap(a => f(a).delaySubscription(timeout))
+    self.switchMap(a => f(a).delayExecution(timeout))
 
   /** Hold an Observer's subscription request for a specified amount of
     * time before passing it on to the source Observable.
@@ -556,8 +556,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param timespan is the time to wait before the subscription
     *        is being initiated.
     */
-  final def delaySubscription(timespan: FiniteDuration): Observable[A] =
-    new DelaySubscriptionByTimespanObservable(self, timespan)
+  final def delayExecution(timespan: FiniteDuration): Observable[A] =
+    new DelayExecutionByTimespanObservable(self, timespan)
 
   /** $switchMapDescription */
   final def switchMap[B](f: A => Observable[B]): Observable[B] =
@@ -647,8 +647,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param trigger the observable that must either emit an item or
     *        complete in order for the source to be subscribed.
     */
-  final def delaySubscriptionWith(trigger: Observable[Any]): Observable[A] =
-    new DelaySubscriptionWithTriggerObservable(self, trigger)
+  final def delayExecutionWith(trigger: Observable[Any]): Observable[A] =
+    new DelayExecutionWithTriggerObservable(self, trigger)
 
   /** Converts the source Observable that emits `Notification[A]` (the
     * result of [[materialize]]) back to an Observable that emits `A`.
@@ -3695,7 +3695,7 @@ object Observable {
     * but upon subscription delay its evaluation by the specified timespan
     */
   def evalDelayed[A](delay: FiniteDuration, a: => A): Observable[A] =
-    eval(a).delaySubscription(delay)
+    eval(a).delayExecution(delay)
 
   /** Creates an Observable that doesn't emit anything and that never
     * completes.
@@ -4690,5 +4690,21 @@ object Observable {
       self.executeAsync
       // $COVERAGE-ON$
     }
+    /** DEPRECATED - renamed to [[Observable.delayExecution delayExecution]].
+      *
+      * The reason for the deprecation is making the name more consistent
+      * with [[monix.eval.Task Task]].
+      */
+    @deprecated("Renamed to Observable!.delayExecution", "3.0.0")
+    def delaySubscription(timespan: FiniteDuration): Observable[A] =
+      self.delayExecution(timespan)
+    /** DEPRECATED - renamed to [[Observable.delayExecutionWith delayExecutionWith]].
+      *
+      * The reason for the deprecation is making the name more consistent
+      * with [[Observable.delayExecution delayExecution]].
+      */
+    @deprecated("Renamed to Observable!.delayExecutionWith", "3.0.0")
+    def delaySubscriptionWith(trigger: Observable[Any]): Observable[A] =
+      self.delayExecutionWith(trigger)
   }
 }

@@ -24,10 +24,10 @@ import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object DelaySubscriptionSuite extends BaseOperatorSuite {
+object DelayExecutionSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
-      .delaySubscription(1.second)
+      .delayExecution(1.second)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -43,7 +43,7 @@ object DelaySubscriptionSuite extends BaseOperatorSuite {
 
 
   test("it delays") { implicit s =>
-    val obs = Observable.now(1).delaySubscription(1.second)
+    val obs = Observable.now(1).delayExecution(1.second)
     var wasCompleted = false
     var received = 0
 
@@ -64,9 +64,9 @@ object DelaySubscriptionSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("delaySubscription.onFuture triggering an error") { implicit s =>
+  test("delayExecution.onFuture triggering an error") { implicit s =>
     val obs = Observable.now(1)
-      .delaySubscriptionWith(Observable.fromFuture(Future { throw new DummyException("dummy") }))
+      .delayExecutionWith(Observable.fromFuture(Future { throw new DummyException("dummy") }))
 
     var errorThrown: Throwable = null
     obs.unsafeSubscribeFn(new Observer[Int] {
@@ -83,7 +83,7 @@ object DelaySubscriptionSuite extends BaseOperatorSuite {
   }
 
   def cancelableObservables() = {
-    val o = Observable.range(0, 10).delaySubscription(1.second)
+    val o = Observable.range(0, 10).delayExecution(1.second)
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }
