@@ -75,10 +75,10 @@ import scala.util.{Failure, Success, Try}
   *
   * {{{
   *   val fa = Coeval.now(1)
-  *   fa.value //=> 1
+  *   fa.value() // => 1
   *
-  *   val fe = Coeval.raiseError(new DummyException("dummy"))
-  *   fe.value //=> throws DummyException
+  *   val fe = Coeval.raiseError(new RuntimeException("dummy"))
+  *   fe.failed // => has RuntimeException
   * }}}
   *
   * The "always" strategy is equivalent with a plain function:
@@ -86,23 +86,23 @@ import scala.util.{Failure, Success, Try}
   * {{{
   *   // For didactic purposes, don't use shared vars at home :-)
   *   var i = 0
-  *   val fa = Coeval.eval { i += 1; i }
+  *   val coeval = Coeval.eval { i += 1; i }
   *
-  *   fa.value //=> 1
-  *   fa.value //=> 2
-  *   fa.value //=> 3
+  *   coeval.value() // => 1
+  *   coeval.value() // => 2
+  *   coeval.value() // => 3
   * }}}
   *
   * The "once" strategy is equivalent with Scala's `lazy val`
   * (along with thread-safe idempotency guarantees):
   *
   * {{{
-  *   var i = 0
-  *   val fa = Coeval.evalOnce { i += 1; i }
+  *   var j = 0
+  *   val coevalOnce = Coeval.evalOnce { j += 1; j }
   *
-  *   fa.value //=> 1
-  *   fa.value //=> 1
-  *   fa.value //=> 1
+  *   coevalOnce.value() // => 1
+  *   coevalOnce.value() // => 1
+  *   coevalOnce.value() // => 1
   * }}}
   *
   * =Versus Task=
@@ -190,9 +190,9 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *   var i = 0
     *   val fa = Coeval { i += 1; i }
     *
-    *   fa() //=> 1
-    *   fa() //=> 2
-    *   fa() //=> 3
+    *   fa() // => 1
+    *   fa() // => 2
+    *   fa() // => 3
     * }}}
     *
     * $unsafeRun
@@ -274,6 +274,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * result or any triggered errors as a `scala.util.Try`.
     *
     * {{{
+    *   import scala.util._
+    *
     *   val fa = Coeval(10 * 2)
     *
     *   fa.runTry match {
@@ -346,12 +348,12 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * {{{
     *   val fa: Coeval[Int] =
-    *     Coeval.raiseError[Int](new DummyException("dummy"))
+    *     Coeval.raiseError[Int](new RuntimeException("dummy"))
     *
     *   val fe: Coeval[Either[Throwable, Int]] =
     *     fa.attempt
     *
-    *   fe.flatMap {
+    *   fe.map {
     *     case Left(_) => Int.MaxValue
     *     case Right(v) => v
     *   }
@@ -506,6 +508,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * Sample:
     *
     * {{{
+    *   import scala.util.Random
+    *
     *   def randomEven: Coeval[Int] =
     *     Coeval(Random.nextInt()).flatMap { x =>
     *       if (x < 0 || x % 2 == 1)
@@ -621,15 +625,15 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * This is an optimization on usage of [[attempt]] and [[map]],
     * this equivalence being true:
     *
-    * {{{
+    * ```scala
     *   coeval.redeem(recover, map) <-> coeval.attempt.map(_.fold(recover, map))
-    * }}}
+    * ```
     *
     * Usage of `redeem` subsumes `onErrorHandle` because:
     *
-    * {{{
+    * ```scala
     *   coeval.redeem(fe, id) <-> coeval.onErrorHandle(fe)
-    * }}}
+    * ```
     *
     * @param recover is a function used for error recover in case the
     *        source ends in error
@@ -646,21 +650,21 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * This is an optimization on usage of [[attempt]] and [[flatMap]],
     * this equivalence being available:
     *
-    * {{{
+    * ```scala
     *   coeval.redeemWith(recover, bind) <-> coeval.attempt.flatMap(_.fold(recover, bind))
-    * }}}
+    * ```
     *
     * Usage of `redeemWith` subsumes `onErrorHandleWith` because:
     *
-    * {{{
+    * ```scala
     *   coeval.redeemWith(fe, F.pure) <-> coeval.onErrorHandleWith(fe)
-    * }}}
+    * ```
     *
     * Usage of `redeemWith` also subsumes [[flatMap]] because:
     *
-    * {{{
+    * ```scala
     *   coeval.redeemWith(Coeval.raiseError, fs) <-> coeval.flatMap(fs)
-    * }}}
+    * ```
     *
     * @param recover is the function that gets called to recover the source
     *        in case of error
@@ -771,15 +775,21 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * of 10 times before giving up:
     *
     * {{{
-    *   import scala.concurrent.duration._
+    *   import scala.util.Random
     *
-    *   task.onErrorRestartLoop(10) { (err, maxRetries, retry) =>
+    *   val fa = Coeval {
+    *     if (Random.nextInt(20) > 10)
+    *       throw new RuntimeException("boo")
+    *     else 78
+    *   }
+    *
+    *   fa.onErrorRestartLoop(10) { (err, maxRetries, retry) =>
     *     if (maxRetries > 0)
     *       // Do next retry please
     *       retry(maxRetries - 1)
     *     else
     *       // No retries left, rethrow the error
-    *       Task.raiseError(err)
+    *       Coeval.raiseError(err)
     *   }
     * }}}
     *
@@ -975,7 +985,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *   }
     *
     *   // Yields Failure(e), because the second arg is a failure
-    *   Coeval.map2(fa1, Coeval.raiseError(e)) { (a, b) =>
+    *   Coeval.map2(fa1, Coeval.raiseError[Int](new RuntimeException("boo"))) { (a, b) =>
     *     a + b
     *   }
     * }}}
@@ -1000,7 +1010,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *   }
     *
     *   // Yields Failure(e), because the second arg is a failure
-    *   Coeval.map3(fa1, Coeval.raiseError(e), fa3) { (a, b, c) =>
+    *   Coeval.map3(fa1, Coeval.raiseError[Int](new RuntimeException("boo")), fa3) { (a, b, c) =>
     *     a + b + c
     *   }
     * }}}
@@ -1030,7 +1040,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *   }
     *
     *   // Yields Failure(e), because the second arg is a failure
-    *   Coeval.map4(fa1, Coeval.raiseError(e), fa3, fa4) {
+    *   Coeval.map4(fa1, Coeval.raiseError[Int](new RuntimeException("boo")), fa3, fa4) {
     *     (a, b, c, d) => a + b + c + d
     *   }
     * }}}
@@ -1062,7 +1072,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *   }
     *
     *   // Yields Failure(e), because the second arg is a failure
-    *   Coeval.map5(fa1, Coeval.raiseError(e), fa3, fa4, fa5) {
+    *   Coeval.map5(fa1, Coeval.raiseError[Int](new RuntimeException("boo")), fa3, fa4, fa5) {
     *     (a, b, c, d, e) => a + b + c + d + e
     *   }
     * }}}
@@ -1095,7 +1105,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *   }
     *
     *   // Yields Failure(e), because the second arg is a failure
-    *   Coeval.map6(fa1, Coeval.raiseError(e), fa3, fa4, fa5, fa6) {
+    *   Coeval.map6(fa1, Coeval.raiseError[Int](new RuntimeException("boo")), fa3, fa4, fa5, fa6) {
     *     (a, b, c, d, e, f) => a + b + c + d + e + f
     *   }
     * }}}

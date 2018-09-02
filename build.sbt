@@ -425,8 +425,14 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(requiredMacroDeps)
   .settings(executionCommon)
 
+lazy val doctestTestSettings = Seq(
+  doctestTestFramework := DoctestTestFramework.Minitest,
+  doctestIgnoreRegex := Some("^(?!.*?(?:(Coeval|Fiber))).*$"),
+  doctestOnlyCodeBlocksMode := true
+)
+
 lazy val evalCommon =
-  crossSettings ++ testSettings ++ Seq(
+  crossSettings ++ testSettings ++ doctestTestSettings ++ Seq(
     name := "monix-eval"
   )
 
