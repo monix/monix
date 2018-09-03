@@ -38,15 +38,15 @@ object ResourceObservableSuite extends BaseTestSuite {
   }
 
   test("Observable.resourceTask.flatMap(use) yields all elements `use` provides") { implicit s =>
-    check1 { (source: Observable[Int]) =>
-      val bracketed = Observable.resourceTask(Task.unit)(_ => Task.unit).flatMap(_ => source)
+    check1 { source: Observable[Int] =>
+      val bracketed = Observable.resource(Task.unit)(_ => Task.unit).flatMap(_ => source)
       source <-> bracketed
     }
   }
 
   test("Observable.resourceTask.flatMap(use) preserves earlyStop of stream returned from `use`") { implicit s =>
     var earlyStopDone = false
-    val bracketed = Observable.resourceTask(Task.unit)(_ => Task.unit)
+    val bracketed = Observable.resource(Task.unit)(_ => Task.unit)
       .flatMap(_ => Observable(1, 2, 3).doOnEarlyStopTask(Task {
         earlyStopDone = true
       }))
@@ -58,7 +58,7 @@ object ResourceObservableSuite extends BaseTestSuite {
 
   test("Observable.resourceTask releases resource on normal completion") { implicit s =>
     val rs = new Resource
-    val bracketed = Observable.resourceTask(rs.acquire)(_.release)
+    val bracketed = Observable.resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.range(1, 10))
 
     bracketed.completedL.runAsync
@@ -70,7 +70,7 @@ object ResourceObservableSuite extends BaseTestSuite {
   test("Observable.resourceTask releases resource on early stop") { implicit s =>
     val rs = new Resource
     val bracketed = Observable
-      .resourceTask(rs.acquire)(_.release)
+      .resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.range(1, 10))
       .take(1)
 
@@ -85,7 +85,7 @@ object ResourceObservableSuite extends BaseTestSuite {
     var wasCompleted = false
 
     val cancelable = Observable
-      .resourceTask(rs.acquire)(_.release)
+      .resource(rs.acquire)(_.release)
       .unsafeSubscribeFn(
         new Subscriber[Handle] {
           implicit val scheduler = s
@@ -107,7 +107,7 @@ object ResourceObservableSuite extends BaseTestSuite {
     val rs = new Resource
     val error = DummyException("dummy")
 
-    val bracketed = Observable.resourceTask(rs.acquire)(_.release)
+    val bracketed = Observable.resource(rs.acquire)(_.release)
       .flatMap { _ =>
         Observable.range(1, 10) ++ Observable.raiseError[Long](error)
       }
@@ -123,7 +123,7 @@ object ResourceObservableSuite extends BaseTestSuite {
   test("Observable.resourceTask.flatMap(use) releases resource if `use` throws") { implicit s =>
     val rs = new Resource
     val dummy = DummyException("dummy")
-    val bracketed = Observable.resourceTask(rs.acquire)(_.release)
+    val bracketed = Observable.resource(rs.acquire)(_.release)
       .flatMap { _ => throw dummy }
 
     val f = bracketed.completedL.runAsync
@@ -138,7 +138,7 @@ object ResourceObservableSuite extends BaseTestSuite {
     val rs = new Resource
     val dummy = DummyException("dummy")
     val bracketed = Observable
-      .resourceTask(Task.raiseError(dummy).flatMap(_ => rs.acquire))(_.release)
+      .resource(Task.raiseError(dummy).flatMap(_ => rs.acquire))(_.release)
       .flatMap { _ =>
         Observable.empty[Int]
       }
@@ -154,7 +154,7 @@ object ResourceObservableSuite extends BaseTestSuite {
   test("resourceTask(r)(_ => raiseError(e)).flatMap(_ => fa) <-> fa ++ raiseError(e)") { implicit s =>
     val dummy = DummyException("dummy")
     check1 { (fa: Observable[Int]) =>
-      val lh = Observable.resourceTask(Task.unit)(_ => Task.raiseError(dummy)).flatMap(_ => fa)
+      val lh = Observable.resource(Task.unit)(_ => Task.raiseError(dummy)).flatMap(_ => fa)
       lh <-> fa ++ Observable.raiseError[Int](dummy)
     }
   }
@@ -162,11 +162,11 @@ object ResourceObservableSuite extends BaseTestSuite {
   test("Observable.resourceTask nesting: outer releases even if inner release fails") { implicit s =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Observable.resourceTask(Task.unit)(_ => Task {
+    val bracketed = Observable.resource(Task.unit)(_ => Task {
       released = true
     })
       .flatMap { _ =>
-        Observable.resourceTask(Task.unit)(_ => Task.raiseError(dummy))
+        Observable.resource(Task.unit)(_ => Task.raiseError(dummy))
           .flatMap(_ => Observable(1, 2, 3))
       }
 
@@ -180,7 +180,7 @@ object ResourceObservableSuite extends BaseTestSuite {
   test("Observable.resourceTask.flatMap(child) calls release when child is broken") { implicit s =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Observable.resourceTask(Task.unit)(_ => Task {
+    val bracketed = Observable.resource(Task.unit)(_ => Task {
       released = true
     })
       .flatMap { _ =>
@@ -197,9 +197,9 @@ object ResourceObservableSuite extends BaseTestSuite {
   test("Observable.resourceTask nesting: inner releases even if outer release fails") { implicit s =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Observable.resourceTask(Task.unit)(_ => Task.raiseError(dummy))
+    val bracketed = Observable.resource(Task.unit)(_ => Task.raiseError(dummy))
       .flatMap { _ =>
-        Observable.resourceTask(Task.unit)(_ => Task {
+        Observable.resource(Task.unit)(_ => Task {
           released = true
         })
           .flatMap(_ => Observable(1, 2, 3))
@@ -234,7 +234,7 @@ object ResourceObservableSuite extends BaseTestSuite {
         _.sumL.map(_ => ())
       )
 
-    val pure = Observable.resourceTask(rs.acquire)(_.release)
+    val pure = Observable.resource(rs.acquire)(_.release)
       .flatMap(_ => Observable(1, 2, 3))
 
     for (method <- completes) {
@@ -246,7 +246,7 @@ object ResourceObservableSuite extends BaseTestSuite {
     assertEquals(rs.released, completes.length)
 
     val dummy = DummyException("dummy")
-    val faulty = Observable.resourceTask(rs.acquire)(_.release)
+    val faulty = Observable.resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.raiseError[Int](dummy))
 
     for (method <- completes) {
@@ -258,7 +258,7 @@ object ResourceObservableSuite extends BaseTestSuite {
     assertEquals(rs.acquired, completes.length * 2)
     assertEquals(rs.released, completes.length * 2)
 
-    val broken = Observable.resourceTask(rs.acquire)(_.release)
+    val broken = Observable.resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.suspend[Int](Observable.raiseError(dummy)))
 
     for (method <- completes) {
@@ -276,7 +276,7 @@ object ResourceObservableSuite extends BaseTestSuite {
 
     def safeCloseable(key: String): Observable[Unit] =
       Observable
-        .resourceTask(Task {
+        .resource(Task {
           log :+= s"Start: $key"
         })(_ => Task {
           log :+= s"Stop: $key"

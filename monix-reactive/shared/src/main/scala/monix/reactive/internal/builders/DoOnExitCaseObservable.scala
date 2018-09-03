@@ -21,12 +21,12 @@ import cats.effect.ExitCase
 import cats.effect.ExitCase.{Completed, Error}
 import monix.eval.Task
 import monix.execution.atomic.Atomic
-import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 private[reactive] final class DoOnExitCaseObservable[A, B](
   source: Observable[B])(
