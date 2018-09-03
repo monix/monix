@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import cats.laws._
 import cats.laws.discipline._
+import cats.effect.ExitCase
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
@@ -82,23 +83,28 @@ object ResourceObservableSuite extends BaseTestSuite {
 
   test("Observable.resource should be cancelable") { implicit s =>
     val rs = new Resource
-    var wasCompleted = false
+    var wasCanceled = false
 
     val cancelable = Observable
-      .resource(rs.acquire)(_.release)
+      .resourceCase(rs.acquire){
+        case (r, ExitCase.Canceled) =>
+         Task {wasCanceled = true}.flatMap(_ => r.release)
+        case (r, _) =>
+        r.release
+      }
       .unsafeSubscribeFn(
         new Subscriber[Handle] {
           implicit val scheduler = s
 
           def onNext(elem: Handle) = Continue
-          def onComplete() = wasCompleted = true
-          def onError(ex: Throwable) = wasCompleted = true
+          def onComplete() = ()
+          def onError(ex: Throwable) = ()
         })
 
     cancelable.cancel()
     s.tick()
 
-    assert(!wasCompleted)
+    assert(wasCanceled)
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
   }
