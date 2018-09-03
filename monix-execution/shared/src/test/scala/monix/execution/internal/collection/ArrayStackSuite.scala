@@ -20,131 +20,89 @@ package monix.execution.internal.collection
 import minitest.SimpleTestSuite
 
 object ArrayStackSuite extends SimpleTestSuite {
-  test("ArrayStack(1) push and pop") {
-    val stack = new ArrayStack[Int](1)
-    assertEquals(stack.currentCapacity, 1)
+  test("push and pop 8 items") {
+    val stack = new ArrayStack[Int]()
+    var times = 0
 
-    stack.push(1)
-    assertEquals(stack.currentCapacity, 1)
-    assertEquals(stack.pop(), 1)
-    assertEquals(stack.currentCapacity, 1)
+    while (times < 10) {
+      assert(stack.isEmpty, "stack.isEmpty")
+      for (i <- 0 until 8) stack.push(i)
 
-    stack.push(2)
-    assertEquals(stack.currentCapacity, 1)
-    assertEquals(stack.pop(), 2)
-    assertEquals(stack.currentCapacity, 1)
+      var list = List.empty[Int]
+      while (!stack.isEmpty) {
+        assert(!stack.isEmpty, "!stack.isEmpty")
+        list = stack.pop() :: list
+      }
 
-    stack.push(3)
-    assertEquals(stack.currentCapacity, 1)
-    assertEquals(stack.pop(), 3)
-    assertEquals(stack.currentCapacity, 1)
+      assertEquals(list, (0 until 8).toList)
+      assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+      assert(stack.isEmpty, "stack.isEmpty")
 
-    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
-  }
-
-  test("ArrayStack(1) unlimited push and pop") {
-    val stack = new ArrayStack[Int](1)
-    assert(stack.isEmpty, "stack.isEmpty")
-    assertEquals(stack.currentCapacity, 1)
-    assertEquals(stack.minimumCapacity, 1)
-
-    for (i <- 0 until 256) stack.push(i)
-    assertEquals(stack.currentCapacity, 256)
-    assertEquals(stack.size, 256)
-    assert(!stack.isEmpty, "!stack.isEmpty")
-
-    stack.push(256)
-    assertEquals(stack.size, 257)
-    assertEquals(stack.currentCapacity, 512)
-    assert(!stack.isEmpty, "!stack.isEmpty")
-
-    for (i <- 256.until(128, -1)) assertEquals(stack.pop(), i)
-    assertEquals(stack.currentCapacity, 512)
-    assertEquals(stack.size, 129)
-    assert(!stack.isEmpty, "!stack.isEmpty")
-
-    // should shrink
-    assertEquals(stack.pop(), 128)
-    assertEquals(stack.size, 128)
-    assertEquals(stack.currentCapacity, 256)
-    assert(!stack.isEmpty, "!stack.isEmpty")
-
-    for (i <- 127.to(0, -1)) assertEquals(stack.pop(), i)
-    assertEquals(stack.size, 0)
-    assertEquals(stack.currentCapacity, 1)
-    assert(stack.isEmpty, "stack.isEmpty")
-
-    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
-  }
-
-  test("ArrayStack(16) unlimited push and pop") {
-    val stack = new ArrayStack[Int](16)
-    assert(stack.isEmpty, "stack.isEmpty")
-    assertEquals(stack.currentCapacity, 16)
-    assertEquals(stack.minimumCapacity, 16)
-
-    for (i <- 0 until 256) stack.push(i)
-    assertEquals(stack.currentCapacity, 256)
-    assertEquals(stack.size, 256)
-    assert(!stack.isEmpty, "!stack.isEmpty")
-
-    stack.push(256)
-    assertEquals(stack.size, 257)
-    assertEquals(stack.currentCapacity, 512)
-    assert(!stack.isEmpty, "!stack.isEmpty")
-
-    for (i <- 256.until(128, -1)) assertEquals(stack.pop(), i)
-    assertEquals(stack.currentCapacity, 512)
-    assertEquals(stack.size, 129)
-    assert(!stack.isEmpty, "!stack.isEmpty")
-
-    // should shrink
-    assertEquals(stack.pop(), 128)
-    assertEquals(stack.size, 128)
-    assertEquals(stack.currentCapacity, 256)
-    assert(!stack.isEmpty, "!stack.isEmpty")
-
-    for (i <- 127.to(0, -1)) assertEquals(stack.pop(), i)
-    assertEquals(stack.size, 0)
-    assertEquals(stack.currentCapacity, 16)
-    assert(stack.isEmpty, "stack.isEmpty")
-
-    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
-  }
-
-  test("ArrayStack clone") {
-    val stack = new ArrayStack[Int](16)
-    assert(stack.isEmpty, "stack.isEmpty")
-    for (i <- 0 until 256) stack.push(i)
-
-    val cloned = stack.clone()
-    assertEquals(cloned.minimumCapacity, 16)
-    assertEquals(cloned.currentCapacity, 256)
-    assertEquals(cloned.size, 256)
-    for (i <- 255.to(0, -1)) assertEquals(cloned.pop(), i)
-  }
-
-  test("ArrayStack grows and shrinks") {
-    val stack = new ArrayStack[Int](8)
-    val count = 256
-
-    assertEquals(stack.minimumCapacity, 8)
-    assertEquals(stack.currentCapacity, 8)
-
-    for (i <- 1 to count) {
-      stack.push(i)
+      times += 1
     }
+  }
 
-    assertEquals(stack.currentCapacity, count)
-    assertEquals(stack.minimumCapacity, 8)
+  test("push and pop 100 items") {
+    val stack = new ArrayStack[Int]()
+    var times = 0
 
-    var sum = 0
+    while (times < 10) {
+      assert(stack.isEmpty, "stack.isEmpty")
+      for (i <- 0 until 100) stack.push(i)
+
+      var list = List.empty[Int]
+      while (!stack.isEmpty) {
+        assert(!stack.isEmpty, "!stack.isEmpty")
+        list = stack.pop() :: list
+      }
+
+      assertEquals(list, (0 until 100).toList)
+      assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+      assert(stack.isEmpty, "stack.isEmpty")
+
+      times += 1
+    }
+  }
+
+  test("pushAll(stack)") {
+    val stack = new ArrayStack[Int]()
+    val stack2 = new ArrayStack[Int]()
+
+    for (i <- 0 until 100) stack2.push(i)
+    stack.pushAll(stack2)
+
+    var list = List.empty[Int]
     while (!stack.isEmpty) {
-      sum += stack.pop()
+      assert(!stack.isEmpty)
+      list = stack.pop() :: list
     }
 
-    assertEquals(sum, count * (count + 1) / 2)
-    assertEquals(stack.currentCapacity, 8)
-    assertEquals(stack.minimumCapacity, 8)
+    assertEquals(list, (0 until 100).toList.reverse)
+    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+    assert(stack.isEmpty, "stack.isEmpty")
+    assert(!stack2.isEmpty, "!stack2.isEmpty")
+  }
+
+  test("pushAll(iterable)") {
+    val stack = new ArrayStack[Int]()
+    val expected = (0 until 100).toList
+    stack.pushAll(expected)
+
+    var list = List.empty[Int]
+    while (!stack.isEmpty) {
+      assert(!stack.isEmpty)
+      list = stack.pop() :: list
+    }
+
+    assertEquals(list, expected)
+    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+    assert(stack.isEmpty, "stack.isEmpty")
+  }
+
+  test("iterator") {
+    val stack = new ArrayStack[Int]()
+    val expected = (0 until 100).toList
+    for (i <- expected) stack.push(i)
+    assertEquals(stack.iteratorReversed.toList, expected.reverse)
   }
 }

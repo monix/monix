@@ -24,7 +24,7 @@ import monix.tail.batches.BatchCursor
 import scala.util.{Failure, Success}
 
 object IterantStatesSuite extends BaseTestSuite {
-  test("Iterant[Task].suspend(Task(list))") { implicit s =>
+  test("Iterant[Task].suspend(Task.evalAsync(list))") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
     val result = Iterant[Task].suspend(deferred).toListL.runAsync
@@ -57,7 +57,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Task].next") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
-    val result = Iterant[Task].nextS(0, deferred, Task.unit).toListL.runAsync
+    val result = Iterant[Task].nextS(0, deferred).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
@@ -65,14 +65,14 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Coeval].next") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
-    val result = Iterant[Coeval].nextS(0, deferred, Coeval.unit).toListL.runTry()
+    val result = Iterant[Coeval].nextS(0, deferred).toListL.runTry()
     assertEquals(result, Success(0 :: list))
   }
 
   test("Iterant[Task].nextCursor") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
-    val result = Iterant[Task].nextCursorS(BatchCursor(0), deferred, Task.unit).toListL.runAsync
+    val result = Iterant[Task].nextCursorS(BatchCursor(0), deferred).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
@@ -80,7 +80,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Coeval].nextCursor") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
-    val result = Iterant[Coeval].nextCursorS(BatchCursor(0), deferred, Coeval.unit).toListL.runTry()
+    val result = Iterant[Coeval].nextCursorS(BatchCursor(0), deferred).toListL.runTry()
     assertEquals(result, Success(0 :: list))
   }
 

@@ -19,9 +19,8 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.misc.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantDrop {
   /**
@@ -29,50 +28,68 @@ private[tail] object IterantDrop {
     */
   def apply[F[_], A](source: Iterant[F, A], n: Int)
     (implicit F: Sync[F]): Iterant[F, A] = {
+    Suspend(F.delay(new Loop(n).apply(source)))
+  }
+
+  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+
+    private[this] var toDrop: Int = n
+
+    def visit(ref: Next[F, A]): Iterant[F, A] =
+      if (toDrop <= 0) ref else {
+        toDrop -= 1
+        Suspend(ref.rest.map(this))
+      }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      if (toDrop <= 0) ref else {
+        dropFromCursor(ref.toNextCursor())
+      }
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] =
+      if (toDrop <= 0) ref else {
+        dropFromCursor(ref)
+      }
+
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      if (toDrop <= 0) ref
+      else Suspend(ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      if (toDrop <= 0) ref
+      else ref.runMap(this)
+
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
+      if (toDrop <= 0) ref
+      else ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] =
+      if (toDrop <= 0) ref else {
+        toDrop -= 1
+        Iterant.empty
+      }
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
 
     // Reusable logic for NextCursor / NextBatch branches
-    def dropFromCursor(toDrop: Int, ref: NextCursor[F, A]): Iterant[F, A] = {
-      val NextCursor(cursor, rest, stop) = ref
+    private def dropFromCursor(ref: NextCursor[F, A]): Iterant[F, A] = {
+      val NextCursor(cursor, rest) = ref
       val limit = math.min(cursor.recommendedBatchSize, toDrop)
       var droppedNow = 0
 
       while (droppedNow < limit && cursor.hasNext()) {
         cursor.next()
         droppedNow += 1
+        toDrop -= 1
       }
 
       val next: F[Iterant[F, A]] = if (droppedNow == limit && cursor.hasNext()) F.pure(ref) else rest
-      Suspend(next.map(loop(toDrop - droppedNow)), stop)
-    }
-
-    def loop(toDrop: Int)(source: Iterant[F, A]): Iterant[F, A] = {
-      try if (toDrop <= 0) source else source match {
-        case Next(_, rest, stop) =>
-          Suspend(rest.map(loop(toDrop - 1)), stop)
-        case ref @ NextCursor(_, _, _) =>
-          dropFromCursor(toDrop, ref)
-        case NextBatch(batch, rest, stop) =>
-          dropFromCursor(toDrop, NextCursor(batch.cursor(), rest, stop))
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(toDrop)), stop)
-        case Last(_) =>
-          Iterant.empty
-        case halt @ Halt(_) =>
-          halt
-      } catch {
-        case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.map(_ => Halt(Some(ex))), stop)
-      }
-    }
-
-    source match {
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        // We can have side-effects with NextBatch/NextCursor
-        // processing, so suspending execution in this case
-        Suspend(F.delay(loop(n)(source)), source.earlyStop)
-      case _ =>
-        loop(n)(source)
+      Suspend(next.map(this))
     }
   }
 }

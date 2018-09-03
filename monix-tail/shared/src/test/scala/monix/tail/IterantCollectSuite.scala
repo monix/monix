@@ -55,7 +55,7 @@ object IterantCollectSuite extends BaseTestSuite {
   test("Iterant.collect suspends the evaluation for NextBatch") { _ =>
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionBatch(dummy)
-    val iter = Iterant[Coeval].nextBatchS(items, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
+    val iter = Iterant[Coeval].nextBatchS(items, Coeval.now(Iterant.empty[Coeval, Int]))
     val state = iter.collect { case _ => (throw dummy): Int }
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
@@ -66,7 +66,7 @@ object IterantCollectSuite extends BaseTestSuite {
   test("Iterant.collect suspends the evaluation for NextCursor") { _ =>
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionCursor(dummy)
-    val iter = Iterant[Coeval].nextCursorS(items, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
+    val iter = Iterant[Coeval].nextCursorS(items, Coeval.now(Iterant.empty[Coeval, Int]))
     val state = iter.collect { case _ => (throw dummy): Int }
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
@@ -76,7 +76,7 @@ object IterantCollectSuite extends BaseTestSuite {
 
   test("Iterant.collect suspends the evaluation for Next") { _ =>
     var effect: Int = 0
-    val iter = Iterant[Coeval].nextS(1, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
+    val iter = Iterant[Coeval].nextS(1, Coeval.now(Iterant.empty[Coeval, Int]))
     val state = iter.collect { case _ => effect += 1; 1 }
 
     assertEquals(effect, 0)
@@ -105,12 +105,12 @@ object IterantCollectSuite extends BaseTestSuite {
     assertEquals(state2, iter2)
   }
 
-  test("Iterant.collect preserves the source earlyStop") { implicit s =>
+  test("Iterant.collect preserves the source resource release logic") { implicit s =>
     var effect = 0
-    val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
+      .guarantee(Coeval.eval(effect += 1))
     val stream = source.collect { case x => x }
-    stream.earlyStop.value()
+    stream.completeL.value()
     assertEquals(effect, 1)
   }
 }

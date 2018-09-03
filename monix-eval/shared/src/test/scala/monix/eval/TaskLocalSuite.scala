@@ -19,6 +19,7 @@ package monix.eval
 
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
+import monix.execution.exceptions.DummyException
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
@@ -63,7 +64,6 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     test.runAsyncOpt
   }
-
 
   testAsync("TaskLocal!.bind") {
     val test =
@@ -115,13 +115,13 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     val test: Task[Unit] = for {
       local <- TaskLocal[String]("Good")
-      forked <- Task.sleep(1.second).fork
-      _ <- local.bind("Bad!")(forked.cancel).fork
+      forked <- Task.sleep(1.second).start
+      _ <- local.bind("Bad!")(forked.cancel).start
       _ <- Task.sleep(1.second)
       s <- local.read
       _ <- Task.now(assertEquals(s, "Good"))
     } yield ()
-    
+
     test.runAsyncOpt
   }
 
@@ -145,5 +145,25 @@ object TaskLocalSuite extends SimpleTestSuite {
       } yield ()
 
     test.runAsyncOpt
+  }
+
+  testAsync("TaskLocals get restored in Task.create on error") {
+    val dummy = DummyException("dummy")
+    val task = Task.create[Int] { (_, cb) =>
+      ec.execute(new Runnable {
+        def run() = cb.onError(dummy)
+      })
+    }
+
+    val t = for {
+      local <- TaskLocal(0)
+      _ <- local.write(10)
+      i <- task.onErrorRecover { case `dummy` => 10 }
+      l <- local.read
+      _ <- Task.eval(assertEquals(i, 10))
+      _ <- Task.eval(assertEquals(l, 10))
+    } yield ()
+
+    t.runAsyncOpt
   }
 }

@@ -19,12 +19,10 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.Platform
-import monix.execution.misc.NonFatal
+import monix.execution.internal.collection.ArrayStack
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-
-import scala.runtime.ObjectRef
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.batches.BatchCursor
 
 private[tail] object IterantCompleteL {
   /**
@@ -33,49 +31,68 @@ private[tail] object IterantCompleteL {
   final def apply[F[_], A](source: Iterant[F, A])
     (implicit F: Sync[F]): F[Unit] = {
 
-    def loop(stopRef: ObjectRef[F[Unit]])(source: Iterant[F, A]): F[Unit] = {
-      try source match {
-        case Next(_, rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(loop(stopRef))
-        case NextCursor(cursor, rest, stop) =>
-          stopRef.elem = stop
-          while (cursor.hasNext()) cursor.next()
-          rest.flatMap(loop(stopRef))
-        case NextBatch(gen, rest, stop) =>
-          stopRef.elem = stop
-          val cursor = gen.cursor()
-          while (cursor.hasNext()) cursor.next()
-          rest.flatMap(loop(stopRef))
-        case Suspend(rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(loop(stopRef))
-        case Last(_) =>
-          F.unit
-        case Halt(None) =>
-          F.unit
-        case Halt(Some(ex)) =>
-          stopRef.elem = null.asInstanceOf[F[Unit]]
-          F.raiseError(ex)
-      } catch {
-        case ex if NonFatal(ex) =>
-          F.raiseError(ex)
-      }
+    F.suspend(new Loop[F, A]().apply(source))
+  }
+
+  private final class Loop[F[_], A](implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, F[Unit]] {
+
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Used in visit(Concat)
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+
+    private def stackPush(item: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(item)
     }
 
-    F.suspend {
-      // Reference to keep track of latest `earlyStop` value
-      val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
-      // Catch-all exceptions, ensuring latest `earlyStop` gets called
-      F.handleErrorWith(loop(stopRef)(source)) { err1 =>
-        stopRef.elem match {
-          case null => F.raiseError(err1)
-          case stop =>
-            stop.attempt.flatMap { r =>
-              F.raiseError(Platform.composeErrors(err1, r))
-            }
-        }
+    private def stackPop(): F[Iterant[F, A]] = {
+      if (stackRef != null) stackRef.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+    }
+
+    private[this] val concatContinue: (Unit => F[Unit]) =
+      _ => stackPop() match {
+        case null => F.unit
+        case xs => xs.flatMap(this)
       }
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    def visit(ref: Next[F, A]): F[Unit] =
+      ref.rest.flatMap(this)
+
+    def visit(ref: NextBatch[F, A]): F[Unit] =
+      processCursor(ref.batch.cursor(), ref.rest)
+
+    def visit(ref: NextCursor[F, A]): F[Unit] =
+      processCursor(ref.cursor, ref.rest)
+
+    def visit(ref: Suspend[F, A]): F[Unit] =
+      ref.rest.flatMap(this)
+
+    def visit(ref: Concat[F, A]): F[Unit] = {
+      stackPush(ref.rh)
+      ref.lh.flatMap(this).flatMap(concatContinue)
+    }
+
+    def visit[S](ref: Scope[F, S, A]): F[Unit] =
+      ref.runFold(this)
+
+    def visit(ref: Last[F, A]): F[Unit] =
+      F.unit
+
+    def visit(ref: Halt[F, A]): F[Unit] =
+      ref.e match {
+        case None => F.unit
+        case Some(e) => F.raiseError(e)
+      }
+
+    def fail(e: Throwable): F[Unit] =
+      F.raiseError(e)
+
+    private def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
+      while (cursor.hasNext()) cursor.next()
+      rest.flatMap(this)
     }
   }
 }

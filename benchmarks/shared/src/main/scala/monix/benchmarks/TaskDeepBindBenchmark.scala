@@ -70,7 +70,7 @@ class TaskDeepBindBenchmark {
   def async(): Int = {
     def loop(i: Int): Task[Int] =
       for {
-        j <- Task(i)
+        j <- Task.shift.map(_ => i)
         _ <- if(j > size) Task.eval(j) else loop(j + 1)
       } yield j
 

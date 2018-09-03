@@ -19,7 +19,6 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
-
 import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success}
 
@@ -84,7 +83,7 @@ object TaskEvalOnceSuite extends BaseTestSuite {
   }
 
   test("Task.evalOnce.coeval") { implicit s =>
-    val result = Task.evalOnce(100).coeval.value()
+    val result = Task.evalOnce(100).runSyncMaybe
     assertEquals(result, Right(100))
   }
 

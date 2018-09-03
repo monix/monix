@@ -28,7 +28,7 @@ import monix.eval.internal.TaskCancellation
   * For example a `Fiber` value is the result of evaluating [[Task.start]]:
   *
   * {{{
-  *   val task = Task(println("Hello!"))
+  *   val task = Task.evalAsync(println("Hello!"))
   *
   *   val forked: Task[Fiber[Unit]] = task.start
   * }}}
@@ -36,9 +36,12 @@ import monix.eval.internal.TaskCancellation
   * Usage example:
   *
   * {{{
+  *   val launchMissiles = Task(println("Missiles launched!"))
+  *   val runToBunker = Task(println("Run Lola run!"))
+  *
   *   for {
   *     fiber <- launchMissiles.start
-  *     _ <- runToBunker.handleErrorWith { error =>
+  *     _ <- runToBunker.onErrorHandleWith { error =>
   *       // Retreat failed, cancel launch (maybe we should
   *       // have retreated to our bunker before the launch?)
   *       fiber.cancel.flatMap(_ => Task.raiseError(error))

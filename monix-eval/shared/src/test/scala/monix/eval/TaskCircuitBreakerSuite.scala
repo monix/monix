@@ -30,7 +30,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     ).runSyncMaybe
 
     var effect = 0
-    val task = circuitBreaker.protect(Task {
+    val task = circuitBreaker.protect(Task.evalAsync {
       effect += 1
     })
 
@@ -62,7 +62,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
 
     def loop(n: Int, acc: Int): Task[Int] = {
       if (n > 0)
-        circuitBreaker.protect(Task(acc+1))
+        circuitBreaker.protect(Task.evalAsync(acc+1))
           .flatMap(s => loop(n-1, s))
       else
         Task.now(acc)
@@ -215,7 +215,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     // Going back into Closed
     s.tick(resetTimeout)
 
-    val delayedTask = circuitBreaker.protect(Task(1).delayExecution(1.second))
+    val delayedTask = circuitBreaker.protect(Task.evalAsync(1).delayExecution(1.second))
     val delayedResult = delayedTask.runAsync
 
     assertEquals(circuitBreaker.state, TaskCircuitBreaker.HalfOpen(resetTimeout = resetTimeout))

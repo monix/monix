@@ -19,79 +19,89 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.misc.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.batches.BatchCursor
-import scala.annotation.tailrec
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantDropWhileWithIndex {
   /**
     * Implementation for `Iterant#dropWhileWithIndex`
     */
   def apply[F[_], A](source: Iterant[F, A], p: (A, Int) => Boolean)
-                    (implicit F: Sync[F]): Iterant[F, A] = {
+    (implicit F: Sync[F]): Iterant[F, A] = {
+    Suspend(F.delay(new Loop(p).apply(source)))
+  }
 
-    // Reusable logic for NextCursor / NextBatch branches
-    @tailrec
-    def evalCursor(
-      ref: F[Iterant[F, A]], cursor: BatchCursor[A], rest: F[Iterant[F, A]],
-      stop: F[Unit], dropped: Int, index: Int): Iterant[F, A] = {
+  private class Loop[F[_], A](p: (A, Int) => Boolean)
+    (implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
 
-      if (!cursor.hasNext())
-        Suspend(rest.map(loop(index)), stop)
-      else if (dropped >= cursor.recommendedBatchSize)
-        Suspend(ref.map(loop(index)), stop)
-      else {
-        val elem = cursor.next()
-        if (p(elem, index))
-          evalCursor(ref, cursor, rest, stop, dropped + 1, index + 1)
-        else if (cursor.hasNext())
-          Next(elem, ref, stop)
-        else
-          Next(elem, rest, stop)
-      }
+    private[this] var index = 0
+    private[this] var dropFinished = false
+
+    private def getAndIncrement(): Int = {
+      val old = index
+      index += 1
+      old
     }
 
-    def loop(index: Int)(source: Iterant[F, A]): Iterant[F, A] = {
-      try source match {
-        case ref@Next(item, rest, stop) =>
-          if (p(item, index))
-            Suspend(rest.map(loop(index + 1)), stop)
+    def visit(ref: Next[F, A]): Iterant[F, A] =
+      if (dropFinished) ref else {
+        val item = ref.item
+        if (p(item, getAndIncrement()))
+          Suspend(ref.rest.map(this))
+        else {
+          dropFinished = true
+          ref
+        }
+      }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      if (dropFinished) ref
+      else visit(ref.toNextCursor())
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] =
+      if (dropFinished) ref else {
+        val cursor = ref.cursor
+        var keepDropping = true
+        var item: A = null.asInstanceOf[A]
+
+        while (keepDropping && cursor.hasNext()) {
+          item = cursor.next()
+          keepDropping = p(item, getAndIncrement())
+        }
+
+        if (keepDropping)
+          Suspend(ref.rest.map(this))
+        else {
+          dropFinished = true
+          if (cursor.hasNext())
+            Next(item, F.pure(ref))
           else
-            ref
-
-        case ref@NextCursor(cursor, rest, stop) =>
-          evalCursor(F.pure(ref), cursor, rest, stop, 0, index)
-
-        case NextBatch(batch, rest, stop) =>
-          val cursor = batch.cursor()
-          val ref = NextCursor(cursor, rest, stop)
-          evalCursor(F.pure(ref), cursor, rest, stop, 0, index)
-
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(index)), stop)
-
-        case last@Last(elem) =>
-          if (p(elem, index)) Iterant.empty else last
-
-        case halt@Halt(_) =>
-          halt
-      } catch {
-        case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.map(_ => Halt(Some(ex))), stop)
+            Next(item, ref.rest)
+        }
       }
-    }
 
-    source match {
-      case Suspend(_, _) | Halt(_) => loop(0)(source)
-      case _ =>
-        // Suspending execution in order to preserve laziness and
-        // referential transparency, since the provided function can
-        // be side effecting and because processing NextBatch and
-        // NextCursor states can have side effects
-        Suspend(F.delay(loop(0)(source)), source.earlyStop)
-    }
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      if (dropFinished) ref else Suspend(ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      if (dropFinished) ref else ref.runMap(this)
+
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
+      if (dropFinished) ref else ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] =
+      if (!dropFinished && p(ref.item, getAndIncrement()))
+        Halt(None)
+      else {
+        dropFinished = true
+        ref
+      }
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
   }
 }

@@ -39,7 +39,7 @@ object FoldWhileObservableSuite extends BaseOperatorSuite {
   }
 
   def cancelableObservables() = {
-    val obs = Observable.range(0, 1000).delaySubscription(1.seconds)
+    val obs = Observable.range(0, 1000).delayExecution(1.seconds)
       .foldWhileLeftF(0L)((acc,e) => Left(acc + e))
 
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))

@@ -42,7 +42,7 @@ object CancelableSuite extends SimpleTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Cancelable.collection") {
+  test("Cancelable.collection(seq)") {
     var effect = 0
     val c = Cancelable.collection((0 until 100).map(_ => Cancelable(() => effect += 1)))
 
@@ -51,7 +51,16 @@ object CancelableSuite extends SimpleTestSuite {
     assertEquals(effect, 100)
   }
 
-  test("Cancelable.collection") {
+  test("Cancelable.collection(refs)") {
+    var effect = 0
+    val c = Cancelable.collection((0 until 100).map(_ => Cancelable(() => effect += 1)) : _*)
+
+    assertEquals(effect, 0)
+    c.cancel()
+    assertEquals(effect, 100)
+  }
+
+  test("Cancelable.collection should cancel all on error") {
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -66,6 +75,45 @@ object CancelableSuite extends SimpleTestSuite {
     } catch {
       case e: CompositeException =>
         assertEquals(e.errors.toList, (0 until 100).map(_ => dummy))
+    }
+  }
+
+  test("Cancelable.trampolined(seq)") {
+    implicit val sc = TestScheduler()
+    var effect = 0
+    val c = Cancelable.trampolined((0 until 100).map(_ => Cancelable(() => effect += 1)))
+
+    assertEquals(effect, 0)
+    c.cancel()
+    assertEquals(effect, 100)
+  }
+
+  test("Cancelable.trampolined(refs)") {
+    implicit val sc = TestScheduler()
+    var effect = 0
+    val c = Cancelable.trampolined((0 until 100).map(_ => Cancelable(() => effect += 1)) : _*)
+
+    assertEquals(effect, 0)
+    c.cancel()
+    assertEquals(effect, 100)
+  }
+
+  test("Cancelable.trampolined should cancel all on error") {
+    implicit val sc = TestScheduler()
+    var effect = 0
+    val dummy = DummyException("dummy")
+
+    val c = Cancelable.trampolined((0 until 100).map(_ => Cancelable { () =>
+      effect += 1
+      throw dummy
+    }))
+
+    c.cancel()
+    sc.state.lastReportedError match {
+      case e: CompositeException =>
+        assertEquals(e.errors.toList, (0 until 100).map(_ => dummy))
+      case _ =>
+        fail("c.cancel() should throw a CompositeException")
     }
   }
 

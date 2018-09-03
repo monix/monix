@@ -19,15 +19,18 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
+import cats.effect.IO
+import cats.{Apply, Applicative, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
 import cats.effect.{Effect, ExitCase, IO, Bracket}
 import cats.{Apply, CoflatMap, Eq, Eval, FlatMap, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
-import monix.eval.{Callback, Coeval, Task}
+import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
 import monix.execution.exceptions.UpstreamTimeoutException
-import monix.execution.misc.NonFatal
+
+import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.internal.builders
@@ -42,6 +45,7 @@ import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success, Try}
 
 /** The `Observable` type that implements the Reactive Pattern.
   *
@@ -560,7 +564,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        item to be emitted by the resulting Observable
     */
   final def debounceTo[B](timeout: FiniteDuration, f: A => Observable[B]): Observable[B] =
-    self.switchMap(a => f(a).delaySubscription(timeout))
+    self.switchMap(a => f(a).delayExecution(timeout))
 
   /** Hold an Observer's subscription request for a specified amount of
     * time before passing it on to the source Observable.
@@ -568,8 +572,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param timespan is the time to wait before the subscription
     *        is being initiated.
     */
-  final def delaySubscription(timespan: FiniteDuration): Observable[A] =
-    new DelaySubscriptionByTimespanObservable(self, timespan)
+  final def delayExecution(timespan: FiniteDuration): Observable[A] =
+    new DelayExecutionByTimespanObservable(self, timespan)
 
   /** $switchMapDescription */
   final def switchMap[B](f: A => Observable[B]): Observable[B] =
@@ -659,8 +663,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param trigger the observable that must either emit an item or
     *        complete in order for the source to be subscribed.
     */
-  final def delaySubscriptionWith(trigger: Observable[Any]): Observable[A] =
-    new DelaySubscriptionWithTriggerObservable(self, trigger)
+  final def delayExecutionWith(trigger: Observable[Any]): Observable[A] =
+    new DelayExecutionWithTriggerObservable(self, trigger)
 
   /** Converts the source Observable that emits `Notification[A]` (the
     * result of [[materialize]]) back to an Observable that emits `A`.
@@ -771,8 +775,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *      [[doOnEarlyStopTask]] for a version that's specialized for
     *      [[monix.eval.Task Task]].
     */
-  final def doOnEarlyStopEval[F[_]](effect: F[Unit])(implicit F: Effect[F]): Observable[A] =
-    doOnEarlyStopTask(Task.fromEffect(effect))
+  final def doOnEarlyStopEval[F[_]](effect: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnEarlyStopTask(F.toTask(effect))
 
   /** Executes the given task when the streaming is stopped
     * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
@@ -862,8 +866,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *     do asynchronous execution, or [[doOnCompleteTask]] for
     *     a version specialized for [[monix.eval.Task Task]]
     */
-  final def doOnCompleteEval[F[_]](effect: F[Unit])(implicit F: Effect[F]): Observable[A] =
-    doOnCompleteTask(Task.fromEffect(effect))
+  final def doOnCompleteEval[F[_]](effect: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnCompleteTask(F.toTask(effect))
 
   /** Evaluates the given task when the stream has ended with an
     * `onComplete` event, but before the complete event is emitted.
@@ -918,8 +922,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *      or [[doOnErrorTask]] for a version specialized on
     *      [[monix.eval.Task Task]].
     */
-  final def doOnErrorEval[F[_]](cb: Throwable => F[Unit])(implicit F: Effect[F]): Observable[A] =
-    doOnErrorTask(e => Task.fromEffect(cb(e))(F))
+  final def doOnErrorEval[F[_]](cb: Throwable => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnErrorTask(e => F.toTask(cb(e)))
 
   /** Executes the given task when the stream is interrupted with an
     * error, before the `onError` event is emitted downstream.
@@ -980,8 +984,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *     asynchronous execution, or [[doOnTerminateTask]] for a
     *     version that's specialized on [[monix.eval.Task Task]].
     */
-  final def doOnTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: Effect[F]): Observable[A] =
-    doOnTerminateTask(opt => Task.fromEffect(cb(opt))(F))
+  final def doOnTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnTerminateTask(opt => F.toTask(cb(opt)))
 
   /** Evaluates the task generated by the given callback right before
     * the streaming is ended either with an `onComplete` or `onError`
@@ -1043,8 +1047,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *     allow asynchronous execution, or [[doAfterTerminateTask]]
     *     for a version that's specialized for [[monix.eval.Task Task]].
     */
-  final def doAfterTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: Effect[F]): Observable[A] =
-    doAfterTerminateTask(opt => Task.fromEffect(cb(opt))(F))
+  final def doAfterTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doAfterTerminateTask(opt => F.toTask(cb(opt)))
 
   /** Evaluates the task generated by the given callback after the
     * stream has ended either with an `onComplete` or `onError` event,
@@ -1089,8 +1093,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *     asynchronous execution, or [[doOnNextTask]] for a version
     *     that's specialized on [[monix.eval.Task Task]].
     */
-  final def doOnNextEval[F[_]](cb: A => F[Unit])(implicit F: Effect[F]): Observable[A] =
-    doOnNextTask(a => Task.fromEffect(cb(a))(F))
+  final def doOnNextEval[F[_]](cb: A => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnNextTask(a => F.toTask(cb(a)))
 
   /** Evaluates the given callback for each element generated by the
     * source Observable, useful for triggering async side-effects.
@@ -1157,8 +1161,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *     asynchronous execution, or [[doOnNextAckTask]] for a version
     *     that's specialized on [[monix.eval.Task Task]].
     */
-  final def doOnNextAckEval[F[_]](cb: (A, Ack) => F[Unit])(implicit F: Effect[F]): Observable[A] =
-    doOnNextAckTask((a, ack) => Task.fromEffect(cb(a, ack))(F))
+  final def doOnNextAckEval[F[_]](cb: (A, Ack) => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnNextAckTask((a, ack) => Task.from(cb(a, ack))(F))
 
   /** Executes the given callback on each acknowledgement received from
     * the downstream subscriber, executing a generated
@@ -1599,8 +1603,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *      [[monix.eval.Task Task]] and [[mapFuture]] for the version
     *      that can work with `scala.concurrent.Future`
     */
-  final def mapEval[F[_], B](f: A => F[B])(implicit F: Effect[F]): Observable[B] =
-    mapTask(a => Task.fromEffect(f(a))(F))
+  final def mapEval[F[_], B](f: A => F[B])(implicit F: TaskLike[F]): Observable[B] =
+    mapTask(a => Task.from(f(a))(F))
 
   /** Maps elements from the source using a function that can do
     * asynchronous processing by means of `scala.concurrent.Future`.
@@ -2167,8 +2171,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a new observable that emits all intermediate states being
     *         resulted from applying the given function
     */
-  final def scanEval[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: Effect[F]): Observable[S] =
-    scanTask(Task.fromEffect(seed)(F))((s, a) => Task.fromEffect(op(s, a))(F))
+  final def scanEval[F[_], S](seed: F[S])(op: (S, A) => F[S])
+    (implicit F: TaskLike[F]): Observable[S] =
+    scanTask(Task.from(seed)(F))((s, a) => Task.from(op(s, a))(F))
 
 /** Applies a binary operator to a start value and all elements of
   * this stream, going left to right and returns a new stream that
@@ -2177,8 +2182,9 @@ abstract class Observable[+A] extends Serializable { self =>
   * This is a version of [[scanEval]] that emits seed element at the beginning,
   * similar to `scanLeft` on Scala collections
   */
-  final def scanEval0[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: Effect[F]): Observable[S] =
-    Observable.fromEffect(seed).flatMap(s => s +: scanEval(F.pure(s))(op))
+  final def scanEval0[F[_], S](seed: F[S])(op: (S, A) => F[S])
+    (implicit F: TaskLike[F], A: Applicative[F]): Observable[S] =
+    Observable.fromTaskLike(seed).flatMap(s => s +: scanEval(A.pure(s))(op))
 
   /** Given a mapping function that returns a `B` type for which we have
     * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
@@ -2920,7 +2926,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * evaluated and emitted.
     */
   final def lastOrElseL[B >: A](default: => B): Task[B] =
-    Task.create { (s, cb) =>
+    Task.cancelable0 { (s, cb) =>
       unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var value: A = _
@@ -3162,7 +3168,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * gets evaluated and emitted.
     */
   final def firstOrElseL[B >: A](default: => B): Task[B] =
-    Task.create { (s, cb) =>
+    Task.cancelable0 { (s, cb) =>
       unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
@@ -3297,7 +3303,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * complete with `Unit`.
     */
   final def completedL: Task[Unit] =
-    Task.create { (s, cb) =>
+    Task.cancelable0 { (s, cb) =>
       unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
@@ -3605,7 +3611,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * source observable, executing the given callback for each element.
     */
   final def foreachL(cb: A => Unit): Task[Unit] =
-    Task.create { (s, onFinish) =>
+    Task.cancelable0 { (s, onFinish) =>
       unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
     }
 
@@ -3645,7 +3651,7 @@ abstract class Observable[+A] extends Serializable { self =>
   *         the resulting observable by converting it into a
   *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
   *         by means of [[Observable!.multicast multicast]].
-  *         
+  *
   * @define fromInputStreamDesc Converts a `java.io.InputStream` into an
   *         observable that will emit `Array[Byte]` elements.
   *
@@ -3661,7 +3667,7 @@ abstract class Observable[+A] extends Serializable { self =>
   *         the resulting observable by converting it into a
   *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
   *         by means of [[Observable!.multicast multicast]].
-  *         
+  *
   * @define fromCharsReaderDesc Converts a `java.io.Reader` into an observable
   *         that will emit `Array[Char]` elements.
   *
@@ -3736,7 +3742,7 @@ object Observable {
     * but upon subscription delay its evaluation by the specified timespan
     */
   def evalDelayed[A](delay: FiniteDuration, a: => A): Observable[A] =
-    eval(a).delaySubscription(delay)
+    eval(a).delayExecution(delay)
 
   /** Creates an Observable that doesn't emit anything and that never
     * completes.
@@ -3814,6 +3820,32 @@ object Observable {
     val ref = ConcurrentSubject(multicast, overflow)
     (ref, ref)
   }
+
+  /** Converts to [[Observable]] from any `F[_]` that has an [[ObservableLike]]
+    * instance.
+    *
+    * Supported types includes, but is not necessarily limited to:
+    *
+    *  - [[https://typelevel.org/cats/datatypes/eval.html cats.Eval]]
+    *  - [[https://typelevel.org/cats-effect/datatypes/io.html cats.effect.IO]]
+    *  - [[https://typelevel.org/cats-effect/datatypes/syncio.html cats.effect.SyncIO]]
+    *  - [[https://typelevel.org/cats-effect/typeclasses/effect.html cats.effect.Effect (Async)]]
+    *  - [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.ConcurrentEffect]]
+    *  - [[https://www.reactive-streams.org/ org.reactivestreams.Publisher]]
+    *  - [[monix.eval.Coeval]]
+    *  - [[monix.eval.Task]]
+    *  - [[scala.Either]]
+    *  - [[scala.util.Try]]
+    *  - [[scala.concurrent.Future]]
+    */
+  def from[F[_], A](fa: F[A])(implicit F: ObservableLike[F]): Observable[A] =
+    F.toObservable(fa)
+
+  /**
+    * Converts any `Iterable` into an [[Observable]].
+    */
+  def fromIterable[A](iterable: Iterable[A]): Observable[A] =
+    new builders.IterableAsObservable[A](iterable)
 
   /** $fromIteratorDesc
     *
@@ -3973,6 +4005,39 @@ object Observable {
       case _ => Observable.eval(fa.value)
     }
 
+  /** Converts a Scala `Try` into an `Observable`.
+    *
+    * {{{
+    *   import scala.util.Try
+    *
+    *   val value = Try(1)
+    *   Observable.fromTry(value)
+    * }}}
+    */
+  def fromTry[A](a: Try[A]): Observable[A] =
+    a match {
+      case Success(v) => Observable.now(v)
+      case Failure(e) => Observable.raiseError(e)
+    }
+
+  /**
+    * Builds an `Observable` instance out of a Scala `Either`.
+    */
+  def fromEither[E <: Throwable, A](a: Either[E, A]): Observable[A] =
+    a match {
+      case Right(v) => Observable.now(v)
+      case Left(ex) => Observable.raiseError(ex)
+    }
+
+  /**
+    * Builds a [[Observable]] instance out of a Scala `Either`.
+    */
+  def fromEither[E, A](f: E => Throwable)(a: Either[E, A]): Observable[A] =
+    a match {
+      case Right(v) => Observable.now(v)
+      case Left(ex) => Observable.raiseError(f(ex))
+    }
+
   /** Converts a Scala `Future` provided into an [[Observable]].
     *
     * If the created instance is a
@@ -3983,20 +4048,30 @@ object Observable {
   def fromFuture[A](factory: => Future[A]): Observable[A] =
     new builders.FutureAsObservable(factory)
 
-  /** Converts any generic `F[A]` value that implements
-    * `cats.effect.Effect` into an `Observable` that emits
-    * a single element.
+  /** Converts generic `F[_]` effects to `Observable`.
     *
-    * {{{
-    *   import cats.effect.IO
+    * Currently supported data types:
     *
-    *   val io = IO("Hello!")
+    *  - [[monix.eval.Task]]
+    *  - [[monix.eval.Coeval]]
+    *  - [[scala.concurrent.Future]]
+    *  - [[https://typelevel.org/cats-effect/datatypes/io.html cats.effect.IO]]
+    *  - any [[https://typelevel.org/cats-effect/typeclasses/effect.html cats.effect.Effect]]
+    *  - any [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.ConcurrentEffect]]
     *
-    *   Observable.fromEffect(io)
-    * }}}
+    *  Sample:
+    *
+    *  {{{
+    *    import cats.implicits._
+    *    import cats.effect.IO
+    *
+    *    val task = IO.sleep(5.seconds) *> IO(println("Hello!"))
+    *
+    *    Observable.fromTaskLike(task)
+    *  }}}
     */
-  def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Observable[A] =
-    fromTask(Task.fromEffect(fa))
+  def fromTaskLike[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Observable[A] =
+    fromTask(F.toTask(fa))
 
   /** Converts any `cats.effect.IO` value that implements into an
     * `Observable` that emits a single element.
@@ -4130,8 +4205,8 @@ object Observable {
     * the results indefinitely.
     *
     */
-  def repeatEvalF[F[_], A](fa: F[A])(implicit F: Effect[F]): Observable[A] =
-    repeat(()).mapEval(_ => fa)
+  def repeatEvalF[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Observable[A] =
+    repeat(()).mapEval(_ => fa)(F)
 
   /** Creates an Observable that emits items in the given range.
     *
@@ -4194,10 +4269,6 @@ object Observable {
   def mergeDelayError[A](sources: Observable[A]*)
     (implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] =
     Observable.fromIterable(sources).mergeMapDelayErrors(identity)(os)
-
-  /** Converts any `Iterable` into an [[Observable]]. */
-  def fromIterable[A](iterable: Iterable[A]): Observable[A] =
-    new builders.IterableAsObservable[A](iterable)
 
   /** Concatenates the given list of ''observables'' into a single
     * observable.
@@ -4610,7 +4681,8 @@ object Observable {
   /** Cats instances for [[Observable]]. */
   class CatsInstances extends Bracket[Observable, Throwable]
     with MonoidK[Observable]
-    with CoflatMap[Observable] {
+    with CoflatMap[Observable]
+    with TaskLift[Observable] {
 
     override val unit: Observable[Unit] =
       Observable.now(())
@@ -4644,6 +4716,8 @@ object Observable {
       fa.onErrorRecoverWith(pf)
     override def empty[A]: Observable[A] =
       Observable.empty[A]
+    override def taskLift[A](task: Task[A]): Observable[A] =
+      Observable.fromTask(task)
     override def bracket[A, B](acquire: Observable[A])(use: A => Observable[B])(release: A => Observable[Unit]): Observable[B] =
       acquire.bracketTask(use)(release)
     override def bracketCase[A, B](acquire: Observable[A])(use: A => Observable[B])(release: (A, ExitCase[Throwable]) => Observable[Unit]): Observable[B] =
@@ -4666,7 +4740,7 @@ object Observable {
         def apply[A](fa: Observable[A]): CombineObservable.Type[A] = wrap(fa)
       }
   }
-  
+
   // -- DEPRECATIONS
 
   /** DEPRECATED — please use [[Observable!.executeAsync .executeAsync]].
@@ -4702,5 +4776,21 @@ object Observable {
       self.executeAsync
       // $COVERAGE-ON$
     }
+    /** DEPRECATED - renamed to [[Observable.delayExecution delayExecution]].
+      *
+      * The reason for the deprecation is making the name more consistent
+      * with [[monix.eval.Task Task]].
+      */
+    @deprecated("Renamed to Observable!.delayExecution", "3.0.0")
+    def delaySubscription(timespan: FiniteDuration): Observable[A] =
+      self.delayExecution(timespan)
+    /** DEPRECATED - renamed to [[Observable.delayExecutionWith delayExecutionWith]].
+      *
+      * The reason for the deprecation is making the name more consistent
+      * with [[Observable.delayExecution delayExecution]].
+      */
+    @deprecated("Renamed to Observable!.delayExecutionWith", "3.0.0")
+    def delaySubscriptionWith(trigger: Observable[Any]): Observable[A] =
+      self.delayExecutionWith(trigger)
   }
 }

@@ -18,10 +18,8 @@
 package monix.tail.internal
 
 import cats.effect.Sync
-import cats.syntax.all._
-import monix.execution.misc.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Last, Next, Suspend}
 
 private[tail] object IterantTail {
   /**
@@ -30,41 +28,10 @@ private[tail] object IterantTail {
   def apply[F[_], A](source: Iterant[F, A])
     (implicit F: Sync[F]): Iterant[F, A] = {
 
-    def loop(source: Iterant[F, A]): Iterant[F, A] = {
-      try source match {
-        case Next(_, rest, stop) =>
-          Suspend(rest, stop)
-        case NextCursor(cursor, rest, stop) =>
-          if (cursor.hasNext()) {
-            cursor.next()
-            NextCursor(cursor, rest, stop)
-          } else {
-            // If empty, then needs to retry with `rest`
-            Suspend(rest.map(loop), stop)
-          }
-        case NextBatch(batch, rest, stop) =>
-          // Unsafe recursive call, it's fine b/c next call won't be
-          loop(NextCursor(batch.cursor(), rest, stop))
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop), stop)
-        case Last(_) =>
-          Iterant.empty
-        case halt @ Halt(_) =>
-          halt
-      } catch {
-        case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.map(_ => Halt(Some(ex))), stop)
-      }
-    }
-
     source match {
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        // We can have side-effects with NextBatch/NextCursor
-        // processing, so suspending execution in this case
-        Suspend(F.delay(loop(source)), source.earlyStop)
-      case _ =>
-        loop(source)
+      case Next(_, rest) => Suspend(rest)
+      case Last(_) => Iterant.empty
+      case _ => source.drop(1)
     }
   }
 }

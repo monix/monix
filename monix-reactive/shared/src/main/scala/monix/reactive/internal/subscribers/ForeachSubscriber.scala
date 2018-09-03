@@ -19,7 +19,7 @@ package monix.reactive.internal.subscribers
 
 import monix.eval.Callback
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.observers.Subscriber
 

@@ -18,100 +18,110 @@
 package monix.tail
 package internal
 
-import cats.syntax.all._
 import cats.effect.Sync
-import monix.execution.misc.NonFatal
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import cats.syntax.all._
+import monix.execution.internal.collection.ArrayStack
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
-import scala.runtime.ObjectRef
 
 private[tail] object IterantReduce {
   /** Implementation for `Iterant.reduce`. */
   def apply[F[_], A](self: Iterant[F, A], op: (A, A) => A)
     (implicit F: Sync[F]): F[Option[A]] = {
 
-    def loop(stopRef: ObjectRef[F[Unit]], state: A)(self: Iterant[F, A]): F[A] = {
-      try self match {
-        case Next(a, rest, stop) =>
-          stopRef.elem = stop
-          val newState = op(state, a)
-          rest.flatMap(loop(stopRef, newState))
-        case NextCursor(cursor, rest, stop) =>
-          stopRef.elem = stop
-          val newState = cursor.foldLeft(state)(op)
-          rest.flatMap(loop(stopRef, newState))
-        case NextBatch(gen, rest, stop) =>
-          stopRef.elem = stop
-          val newState = gen.foldLeft(state)(op)
-          rest.flatMap(loop(stopRef, newState))
-        case Suspend(rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(loop(stopRef, state))
-        case Last(item) =>
-          stopRef.elem = null.asInstanceOf[F[Unit]]
-          F.pure(op(state, item))
-        case Halt(None) =>
-          F.pure(state)
-        case Halt(Some(e)) =>
-          stopRef.elem = null.asInstanceOf[F[Unit]]
-          F.raiseError(e)
-      } catch {
-        case e if NonFatal(e) =>
-          F.raiseError(e)
+    F.suspend { new Loop[F, A](op).apply(self) }
+  }
+
+  private class Loop[F[_], A](op: (A, A) => A)(implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, F[Option[A]]] {
+
+    private[this] var isEmpty = true
+    private[this] var state: A = _
+
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Used in visit(Concat)
+    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+
+    private def stackPush(item: F[Iterant[F, A]]): Unit = {
+      if (stackRef == null) stackRef = new ArrayStack()
+      stackRef.push(item)
+    }
+
+    private def stackPop(): F[Iterant[F, A]] = {
+      if (stackRef != null) stackRef.pop()
+      else null.asInstanceOf[F[Iterant[F, A]]]
+    }
+
+    private[this] val concatContinue: (Option[A] => F[Option[A]]) =
+      state => stackPop() match {
+        case null => F.pure(state)
+        case xs => xs.flatMap(this)
+      }
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    def visit(ref: Next[F, A]): F[Option[A]] = {
+      if (isEmpty) {
+        state = ref.item
+        isEmpty = false
+      } else {
+        state = op(state, ref.item)
+      }
+      ref.rest.flatMap(this)
+    }
+
+    def visit(ref: NextBatch[F, A]): F[Option[A]] = {
+      if (isEmpty) {
+        visit(ref.toNextCursor())
+      } else {
+        state = ref.batch.foldLeft(state)(op)
+        ref.rest.flatMap(this)
       }
     }
 
-    def start(stopRef: ObjectRef[F[Unit]])(self: Iterant[F, A]): F[Option[A]] = {
-      try self match {
-        case Next(a, rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(loop(stopRef, a)).map(Some.apply)
-
-        case NextCursor(cursor, rest, stop) =>
-          stopRef.elem = stop
-          if (!cursor.hasNext())
-            rest.flatMap(start(stopRef))
-          else {
-            val a = cursor.next()
-            loop(stopRef, a)(self).map(Some.apply)
-          }
-
-        case NextBatch(batch, rest, stop) =>
-          stopRef.elem = stop
-          start(stopRef)(NextCursor(batch.cursor(), rest, stop))
-
-        case Suspend(rest, stop) =>
-          stopRef.elem = stop
-          rest.flatMap(start(stopRef))
-
-        case Last(a) =>
-          stopRef.elem = null.asInstanceOf[F[Unit]]
-          F.pure(Some(a))
-
-        case Halt(opt) =>
-          opt match {
-            case None =>
-              F.pure(None)
-            case Some(e) =>
-              stopRef.elem = null.asInstanceOf[F[Unit]]
-              F.raiseError(e)
-          }
-      } catch {
-        case e if NonFatal(e) =>
-          F.raiseError(e)
-      }
-    }
-
-    F.suspend{
-      // Reference to keep track of latest `earlyStop` value
-      val stopRef = ObjectRef.create(null.asInstanceOf[F[Unit]])
-      // Catch-all exceptions, ensuring latest `earlyStop` gets called
-      F.handleErrorWith(start(stopRef)(self)){ ex =>
-        stopRef.elem match {
-          case null => F.raiseError(ex)
-          case stop => stop *> F.raiseError(ex)
+    def visit(ref: NextCursor[F, A]): F[Option[A]] = {
+      if (isEmpty) {
+        if (ref.cursor.hasNext()) {
+          isEmpty = false
+          state = ref.cursor.next()
+          state = ref.cursor.foldLeft(state)(op)
         }
+      } else {
+        state = ref.cursor.foldLeft(state)(op)
       }
+      ref.rest.flatMap(this)
     }
+
+    def visit(ref: Suspend[F, A]): F[Option[A]] =
+      ref.rest.flatMap(this)
+
+    def visit(ref: Concat[F, A]): F[Option[A]] = {
+      stackPush(ref.rh)
+      ref.lh.flatMap(this).flatMap(concatContinue)
+    }
+
+    def visit[S](ref: Scope[F, S, A]): F[Option[A]] =
+      ref.runFold(this)
+
+    def visit(ref: Last[F, A]): F[Option[A]] = {
+      if (isEmpty) {
+        state = ref.item
+        isEmpty = false
+      } else {
+        state = op(state, ref.item)
+      }
+      F.pure(Some(state))
+    }
+
+    def visit(ref: Halt[F, A]): F[Option[A]] =
+      ref.e match {
+        case None =>
+          if (isEmpty) F.pure(None)
+          else F.pure(Some(state))
+        case Some(e) =>
+          F.raiseError(e)
+      }
+
+    def fail(e: Throwable): F[Option[A]] =
+      F.raiseError(e)
   }
 }

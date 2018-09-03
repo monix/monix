@@ -93,7 +93,7 @@ object CoevalNowSuite extends BaseTestSuite {
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20
-    val r = loop(iterations, 0).runTry
+    val r = loop(iterations, 0).runTry()
     assertEquals(r, Success(iterations * 2))
   }
 

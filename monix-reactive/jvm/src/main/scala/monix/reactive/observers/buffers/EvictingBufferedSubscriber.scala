@@ -22,7 +22,7 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
 import monix.execution.atomic.{Atomic, AtomicAny, AtomicInt}
 import monix.execution.internal.math
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.buffers.AbstractEvictingBufferedSubscriber._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -391,6 +391,6 @@ private[observers] object AbstractEvictingBufferedSubscriber {
   private final case class Buffer[+A](
     length: Int,
     queue: Queue[A])
-  private final val emptyBuffer =
+  private val emptyBuffer =
     Buffer(0, Queue.empty)
 }

@@ -70,5 +70,4 @@ object IterantConcatSuite extends BaseTestSuite {
       concat <-> expected
     }
   }
-
 }

@@ -200,13 +200,13 @@ object TaskNowSuite extends BaseTestSuite {
   }
 
   test("Task.now.coeval") { implicit s =>
-    val result = Task.now(100).coeval.value()
+    val result = Task.now(100).runSyncMaybe
     assertEquals(result, Right(100))
   }
 
   test("Task.raiseError.coeval") { implicit s =>
     val dummy = DummyException("dummy")
-    val result = Task.raiseError(dummy).coeval.runTry()
-    assertEquals(result, Failure(dummy))
+    val result = Task.raiseError(dummy).attempt.runSyncMaybe
+    assertEquals(result, Right(Left(dummy)))
   }
 }

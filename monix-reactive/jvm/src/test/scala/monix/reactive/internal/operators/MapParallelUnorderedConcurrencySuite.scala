@@ -31,7 +31,7 @@ object MapParallelUnorderedConcurrencySuite extends BaseConcurrencySuite {
         if (abs <= 0) 1 else (abs % 20) + 1
       }
 
-      val task1 = Observable.fromIterable(list).mapParallelUnordered(parallelism)(x => Task(x)).sumL
+      val task1 = Observable.fromIterable(list).mapParallelUnordered(parallelism)(x => Task.evalAsync(x)).sumL
       val task2 = Task.eval(list.sum)
       task1 <-> task2
     }

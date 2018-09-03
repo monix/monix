@@ -48,4 +48,8 @@ object Listener {
   /** Converts a Scala `Promise` to a [[Listener]]. */
   def fromPromise[A](p: Promise[A]): Listener[A] =
     new Listener[A] { def onValue(value: A) = p.success(value) }
+
+  /** Returns an empty `Listener`. */
+  val empty: Listener[Any] =
+    new Listener[Any] { def onValue(value: Any): Unit = () }
 }

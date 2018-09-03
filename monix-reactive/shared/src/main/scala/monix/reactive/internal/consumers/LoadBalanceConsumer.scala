@@ -22,7 +22,7 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.atomic.{Atomic, PaddingStrategy}
 import monix.execution.cancelables.{AssignableCancelable, SingleAssignCancelable}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Consumer
 import monix.reactive.internal.consumers.LoadBalanceConsumer.IndexedSubscriber
 import monix.reactive.observers.Subscriber

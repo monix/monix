@@ -17,11 +17,12 @@
 
 package monix.tail
 
+import cats.effect._
 import cats.laws._
 import cats.laws.discipline._
-import cats.effect.{Effect, ExitCase, IO}
 import monix.eval.Task
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.execution.rstreams.SingleAssignSubscription
@@ -82,7 +83,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   }
 
   test("works with any Effect") { implicit s =>
-    implicit val ioEffect: Effect[IO] = new CustomIOEffect
+    implicit val ioEffect: Effect[IO] = new CustomIOEffect()(IO.contextShift(s))
     check1 { (stream: Iterant[IO, Int]) =>
       sum(stream, 1) <-> Task.fromEffect(stream.foldLeftL(0L)(_ + _))
     }
@@ -91,14 +92,12 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   test("loop is cancelable") { implicit s =>
     val count = 10000
     var emitted = 0
-    var wasStopped = 0
     var wasCompleted = false
     var received = 0
 
     val subscription = SingleAssignSubscription()
 
     Iterant[Task].range(0, count)
-      .doOnEarlyStop(Task { wasStopped += 1 })
       .mapEval(x => Task.eval { emitted += 1; x })
       .toReactivePublisher
       .subscribe(new Subscriber[Int] {
@@ -113,13 +112,12 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       })
 
     s.tick()
-    assertEquals(emitted, 1)
+    assertEquals(emitted, 0)
     assertEquals(received, 0)
 
     subscription.request(10)
     s.tick()
 
-    assertEquals(wasStopped, 0)
     assert(!wasCompleted, "!wasCompleted")
     assertEquals(emitted, 10)
     assertEquals(received, 5 * 9)
@@ -129,7 +127,6 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       else subscription.request(10)
 
       s.tick()
-      assertEquals(wasStopped, 1)
       assert(!wasCompleted, "!wasCompleted")
       assertEquals(received, 5 * 9)
     }
@@ -141,7 +138,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     var wasStopped = false
 
     val source = Iterant[Task].range(0, count)
-      .doOnEarlyStop(Task { wasStopped = true })
+      .guarantee(Task.evalAsync { wasStopped = true })
       .mapEval(_ => Task.eval { effect += 1; 1 })
 
     val f = sum(source, Long.MaxValue).runAsync
@@ -164,8 +161,8 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     var wasStopped = false
 
     val batch = Batch.fromIterable(Iterable.range(0, count), Int.MaxValue)
-    val source = Iterant[Task].nextBatchS(batch, Task.pure(Iterant[Task].empty[Int]), Task.unit)
-      .doOnEarlyStop(Task { wasStopped = true })
+    val source = Iterant[Task].nextBatchS(batch, Task.pure(Iterant[Task].empty[Int]))
+      .guarantee(Task.evalAsync { wasStopped = true })
       .map { _ => effect += 1; 1 }
 
     val f = sum(source, 16).runAsync
@@ -186,14 +183,12 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   test("protects against invalid request") { implicit s =>
     val count = 10000
     var emitted = 0
-    var wasStopped = 0
     var wasCompleted: Option[Throwable] = null
     var received = 0
 
     val subscription = SingleAssignSubscription()
 
     Iterant[Task].range(0, count)
-      .doOnEarlyStop(Task { wasStopped += 1 })
       .mapEval(_ => Task.eval { emitted += 1; 1 })
       .toReactivePublisher
       .subscribe(new Subscriber[Int] {
@@ -208,22 +203,20 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       })
 
     s.tick()
-    assertEquals(emitted, 1)
+    assertEquals(emitted, 0)
 
     subscription.request(10)
     s.tick()
 
     assertEquals(emitted, 10)
-    assertEquals(wasStopped, 0)
     assertEquals(wasCompleted, null)
     assertEquals(received, 10)
 
     subscription.request(0)
     s.tick()
 
-    assertEquals(wasStopped, 1)
     assert(
-      wasCompleted.exists(_.isInstanceOf[IllegalArgumentException]),
+      Option(wasCompleted).flatten.exists(_.isInstanceOf[IllegalArgumentException]),
       "wasCompleted == Some(_: IllegalArgumentException)"
     )
   }
@@ -238,8 +231,8 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
     val stream = Iterant[Task]
-      .nextCursorS[Int](ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty[Int]), Task.unit)
-      .doOnEarlyStop(Task.eval { effect += 1 })
+      .nextCursorS[Int](ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty[Int]))
+      .guarantee(Task.eval { effect += 1 })
 
     assertEquals(effect,0)
 
@@ -255,8 +248,8 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     var effect = 0
 
     val stream = Iterant[Task]
-      .nextBatchS[Int](ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty[Int]), Task.unit)
-      .doOnEarlyStop(Task.eval { effect += 1 })
+      .nextBatchS[Int](ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty[Int]))
+      .guarantee(Task.eval { effect += 1 })
 
     assertEquals(effect,0)
 
@@ -286,20 +279,29 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
 
   test("Iterant.raiseError completes immediately on subscribe") { implicit s =>
     val dummy = DummyException("dummy")
-    var wasCompleted: Option[Throwable] = null
+    val stream = Iterant[Task]
+      .raiseError[Long](dummy)
+      .toReactivePublisher
 
-    Iterant[Task].raiseError[Int](dummy).toReactivePublisher.subscribe(
-      new Subscriber[Int] {
-        def onSubscribe(s: Subscription): Unit = ()
-        def onNext(t: Int): Unit = ()
+    val init = Atomic(0)
+    var thrownError: Throwable = null
 
-        def onError(t: Throwable): Unit =
-          wasCompleted = Some(t)
-        def onComplete(): Unit =
-          wasCompleted = None
-      })
+    stream.subscribe(new Subscriber[Long] {
+      def onSubscribe(s: Subscription): Unit = {
+        assertEquals(init.getAndSet(1), 0)
+        s.request(1)
+      }
+      def onNext(elem: Long): Unit =
+        fail("shouldn't do onNext()")
+      def onError(ex: Throwable): Unit = {
+        assertEquals(init.getAndSet(1), 1)
+        thrownError = ex
+      }
+      def onComplete(): Unit =
+        fail("shouldn't complete()")
+    })
 
-    assertEquals(wasCompleted, Some(dummy))
+    assertEquals(thrownError, dummy)
   }
 
   test("Iterant.empty produces EmptySubscription") { implicit s =>
@@ -323,7 +325,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   }
 
   def sum[F[_]](stream: Iterant[F, Int], request: Long)(implicit F: Effect[F]): Task[Long] =
-    Task.create { (scheduler, cb) =>
+    Task.cancelable0 { (scheduler, cb) =>
       implicit val ec = scheduler
       val subscription = SingleAssignSubscription()
 
@@ -359,11 +361,13 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       subscription
     }
 
-  class CustomIOEffect extends Effect[IO] {
-    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+  class CustomIOEffect(implicit contextShift: ContextShift[IO]) extends Effect[IO] {
+    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit]=
       fa.runAsync(cb)
     def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
       IO.async(k)
+    def asyncF[A](k: ((Either[Throwable, A]) => Unit) => IO[Unit]): IO[A] =
+      IO.asyncF(k)
     def suspend[A](thunk: => IO[A]): IO[A] =
       IO.suspend(thunk)
     def flatMap[A, B](fa: IO[A])(f: (A) => IO[B]): IO[B] =

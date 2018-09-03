@@ -103,7 +103,7 @@ import scala.util.{Failure, Success}
   *   )
   *
   *   //...
-  *   val problematic = Task {
+  *   val problematic = Task.evalAsync {
   *     val nr = util.Random.nextInt()
   *     if (nr % 2 == 0) nr else
   *       throw new RuntimeException("dummy")
@@ -189,9 +189,9 @@ final class TaskCircuitBreaker private (
     * triggering the `Open` state if necessary.
     */
   private[this] val maybeMarkOrResetFailures: (Option[Throwable] => Task[Unit]) =
-    exOpt => Task.unsafeCreate[Unit] { (context, callback) =>
+    exOpt => Task.deferAction[Unit] { scheduler =>
       // Recursive function because of going into CAS loop
-      @tailrec def markFailure(s: Scheduler): Task[Unit] =
+      @tailrec def markFailure(scheduler: Scheduler): Task[Unit] =
         stateRef.get match {
           case current @ Closed(failures) =>
             exOpt match {
@@ -200,29 +200,29 @@ final class TaskCircuitBreaker private (
                 if (failures == 0) Task.unit else {
                   val update = Closed(0)
                   if (!stateRef.compareAndSet(current, update))
-                    markFailure(s) // retry?
+                    markFailure(scheduler) // retry?
                   else
                     Task.unit
                 }
 
-              case Some(ex) =>
+              case Some(_) =>
                 // In case of failure, we either increment the failures counter,
                 // or we transition in the `Open` state.
                 if (failures+1 < maxFailures) {
                   // It's fine, just increment the failures count
                   val update = Closed(failures+1)
                   if (!stateRef.compareAndSet(current, update))
-                    markFailure(s) // retry?
+                    markFailure(scheduler) // retry?
                   else
                     Task.unit
                 }
                 else {
                   // We've gone over the permitted failures threshold,
                   // so we need to open the circuit breaker
-                  val update = Open(s.clockMonotonic(MILLISECONDS), resetTimeout)
+                  val update = Open(scheduler.clockMonotonic(MILLISECONDS), resetTimeout)
 
                   if (!stateRef.compareAndSet(current, update))
-                    markFailure(s) // retry?
+                    markFailure(scheduler) // retry?
                   else
                     onOpen
                 }
@@ -234,11 +234,7 @@ final class TaskCircuitBreaker private (
             Task.unit
         }
 
-      val s = context.scheduler
-      s.executeTrampolined { () =>
-        val task = markFailure(s)
-        Task.unsafeStartNow(task, context, callback)
-      }
+      markFailure(scheduler)
     }
 
   /** Internal function that is the handler for the reset attempt when
@@ -279,7 +275,7 @@ final class TaskCircuitBreaker private (
     * task, but with the protection of this circuit breaker.
     */
   def protect[A](task: Task[A]): Task[A] = {
-    @tailrec def execute()(implicit s: Scheduler): Task[A] =
+    @tailrec def execute(scheduler: Scheduler): Task[A] =
       stateRef.get match {
         case Closed(_) =>
           // CircuitBreaker is closed, allowing our task to go through, but with an
@@ -296,16 +292,16 @@ final class TaskCircuitBreaker private (
           }
 
         case current @ Open(_, timeout) =>
-          val now = s.clockMonotonic(MILLISECONDS)
+          val now = scheduler.clockMonotonic(MILLISECONDS)
           val expiresAt = current.expiresAt
 
           if (now >= expiresAt) {
             // The Open state has expired, so we are letting just one
             // task to execute, while transitioning into HalfOpen
             if (!stateRef.compareAndSet(current, HalfOpen(timeout)))
-              execute() // retry!
+              execute(scheduler) // retry!
             else
-              attemptReset(task, timeout)
+              attemptReset(task, timeout)(scheduler)
           }
           else {
             // Open isn't expired, so we need to fail
@@ -319,13 +315,7 @@ final class TaskCircuitBreaker private (
           }
       }
 
-    Task.unsafeCreate { (context, callback) =>
-      val s = context.scheduler
-      s.executeTrampolined { () =>
-        val loop = execute()(s)
-        Task.unsafeStartNow(loop, context, callback)
-      }
-    }
+    Task.deferAction(execute)
   }
 
   /** Returns a new circuit breaker that wraps the state of the source

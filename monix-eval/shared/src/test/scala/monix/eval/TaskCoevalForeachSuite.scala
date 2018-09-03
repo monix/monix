@@ -30,7 +30,7 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
 
   test("Task.foreachL") { implicit s =>
     var effect = 0
-    val task = Task(1).foreachL(x => effect += x)
+    val task = Task.evalAsync(1).foreachL(x => effect += x)
 
     assertEquals(effect, 0)
     task.runAsync; s.tick()
@@ -41,7 +41,7 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
 
   test("Task.foreach") { implicit s =>
     var effect = 0
-    val task = Task(1)
+    val task = Task.evalAsync(1)
 
     assertEquals(effect, 0)
     task.foreach(x => effect += x); s.tick()
@@ -52,7 +52,7 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
 
   test("Task.foreach reports exceptions using scheduler") { implicit s =>
     val dummy = DummyException("dummy")
-    Task(1).foreach(_ => throw dummy)
+    Task.evalAsync(1).foreach(_ => throw dummy)
     s.tick()
     assertEquals(s.state.lastReportedError, dummy)
   }

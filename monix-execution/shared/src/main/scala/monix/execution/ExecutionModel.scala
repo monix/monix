@@ -165,6 +165,6 @@ object ExecutionModel {
       }
   }
 
-  final val Default: ExecutionModel =
+  val Default: ExecutionModel =
     BatchedExecution(Platform.recommendedBatchSize)
 }

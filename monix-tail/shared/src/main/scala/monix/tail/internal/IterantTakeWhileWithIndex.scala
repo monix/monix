@@ -19,85 +19,113 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.batches.BatchCursor
-
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantTakeWhileWithIndex {
-  def apply[F[_], A](source: Iterant[F, A], p: (A, Long) => Boolean) (implicit F: Sync[F]): Iterant[F, A] = {
+  def apply[F[_], A](source: Iterant[F, A], p: (A, Long) => Boolean)
+    (implicit F: Sync[F]): Iterant[F, A] = {
+    Suspend(F.delay(new Loop(p).apply(source)))
+  }
 
-    def finishWith(stop: F[Unit]): Iterant[F, A] =
-      Suspend(stop.map(_ => Iterant.empty), stop)
+  private class Loop[F[_], A](p: (A, Long) => Boolean)
+    (implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
 
-    def processCursor(index: Long, ref: NextCursor[F, A]): Iterant[F, A] = {
-      val NextCursor(cursor, rest, stop) = ref
+    private[this] var isActive = true
+    private[this] var index = 0
+
+    private def getAndIncrement(): Int = {
+      val old = index
+      index = old + 1
+      old
+    }
+
+    def visit(ref: Next[F, A]): Iterant[F, A] = {
+      val item = ref.item
+      if (p(item, getAndIncrement()))
+        Next(item, ref.rest.map(this))
+      else {
+        isActive = false
+        Iterant.empty
+      }
+    }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      visit(ref.toNextCursor())
+
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      Concat(
+        ref.lh.map(this),
+        F.suspend {
+          if (isActive)
+            ref.rh.map(this)
+          else
+            F.pure(Iterant.empty)
+        })
+
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] = {
+      val item = ref.item
+      if (p(item, getAndIncrement())) ref else {
+        isActive = false
+        Iterant.empty
+      }
+    }
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
+      val NextCursor(cursor, rest) = ref
       val batchSize = cursor.recommendedBatchSize
 
       if (!cursor.hasNext())
-        Suspend(rest.map(loop(index)), stop)
+        Suspend(rest.map(this))
       else if (batchSize <= 1) {
         val item = cursor.next()
-        if (p(item, index)) Next(item, F.pure(ref).map(loop(index + 1)), stop)
-        else finishWith(stop)
+        if (p(item, getAndIncrement()))
+          Next(item, F.pure(ref).map(this))
+        else {
+          isActive = false
+          Iterant.empty
+        }
       }
       else {
         val buffer = ArrayBuffer.empty[A]
         var continue = true
-        var cursorIndex = 0
+        var idx = 0
 
-        while (continue && cursorIndex < batchSize && cursor.hasNext()) {
+        while (continue && idx < batchSize && cursor.hasNext()) {
           val item = cursor.next()
-          if (p(item, index + cursorIndex)) {
+          if (p(item, getAndIncrement())) {
             buffer += item
-            cursorIndex += 1
+            idx += 1
           } else {
             continue = false
           }
         }
 
         val bufferCursor = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]]
+        isActive = continue
+
         if (continue) {
-          val next: F[Iterant[F, A]] = if (cursorIndex < batchSize) rest else F.pure(ref)
-          NextCursor(bufferCursor, next.map(loop(index + cursorIndex)), stop)
+          val next: F[Iterant[F, A]] = if (idx < batchSize) rest else F.pure(ref)
+          NextCursor(bufferCursor, next.map(this))
         } else {
-          NextCursor(bufferCursor, stop.map(_ => Iterant.empty), stop)
+          NextCursor(bufferCursor, F.pure(Iterant.empty))
         }
       }
-    }
-
-    def loop(index: Long)(source: Iterant[F, A]): Iterant[F, A] = {
-      try source match {
-        case Next(item, rest, stop) =>
-          if (p(item, index)) Next(item, rest.map(loop(index + 1)), stop)
-          else finishWith(stop)
-        case ref @ NextCursor(_, _, _) =>
-          processCursor(index, ref)
-        case NextBatch(batch, rest, stop) =>
-          processCursor(index, NextCursor(batch.cursor(), rest, stop))
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(index)), stop)
-        case Last(elem) =>
-          if (p(elem, index)) Last(elem) else Iterant.empty
-        case halt @ Halt(_) =>
-          halt
-      } catch {
-        case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.map(_ => Halt(Some(ex))), stop)
-      }
-    }
-
-    source match {
-      case Suspend(_, _) | Halt(_) => loop(0)(source)
-      case _ =>
-        // Suspending execution in order to preserve laziness and
-        // referential transparency, since the provided function can
-        // be side effecting and because processing NextBatch and
-        // NextCursor states can have side effects
-        Suspend(F.delay(loop(0)(source)), source.earlyStop)
     }
   }
 }

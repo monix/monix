@@ -20,7 +20,7 @@ package monix.eval.internal
 import monix.eval.Coeval
 import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Map, Now, Suspend}
 import monix.execution.internal.collection.ArrayStack
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 private[eval] object CoevalRunLoop {
   private type Current = Coeval[Any]

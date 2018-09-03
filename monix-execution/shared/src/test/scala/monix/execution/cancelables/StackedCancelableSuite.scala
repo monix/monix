@@ -318,4 +318,28 @@ object StackedCancelableSuite extends SimpleTestSuite {
     assert(!c1.isCanceled, "!c1.isCanceled")
     assert(!c2.isCanceled, "!c2.isCanceled")
   }
+
+  test("tryReactive ") {
+    val ref = StackedCancelable()
+    val c1 = BooleanCancelable()
+    ref.push(c1)
+
+    assert(!ref.tryReactivate(), "!ref.tryReactivate()")
+    assert(!c1.isCanceled, "!c1.isCanceled")
+    ref.cancel()
+
+    assert(c1.isCanceled, "c1.isCanceled")
+    assert(ref.isCanceled, "ref.isCanceled")
+    assert(ref.tryReactivate(), "ref.tryReactivate()")
+
+    val c2 = BooleanCancelable()
+    ref.push(c2)
+    assert(!ref.isCanceled, "!ref.isCanceled")
+    ref.cancel()
+    assert(c2.isCanceled, "c1.isCanceled")
+    assert(ref.isCanceled, "ref.isCanceled")
+
+    assert(StackedCancelable.uncancelable.tryReactivate())
+    assert(!StackedCancelable.alreadyCanceled.tryReactivate())
+  }
 }

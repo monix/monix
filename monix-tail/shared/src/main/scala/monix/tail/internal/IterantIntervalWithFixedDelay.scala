@@ -31,11 +31,11 @@ private[tail] object IterantIntervalWithFixedDelay {
     // Recursive loop
     def loop(index: Long): Iterant[F, Long] = {
       val next = F.map(timer.sleep(delay))(_ => loop(index + 1))
-      Iterant.nextS[F, Long](index, next, F.unit)
+      Iterant.nextS[F, Long](index, next)
     }
 
     if (initialDelay > Duration.Zero)
-      Iterant.suspendS(F.map(timer.sleep(initialDelay))(_ => loop(0)), F.unit)
+      Iterant.suspendS(F.map(timer.sleep(initialDelay))(_ => loop(0)))
     else
       loop(0)
   }
