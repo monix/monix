@@ -19,8 +19,8 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.effect.IO
-import cats.{Apply, Applicative, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
+import cats.effect.{Effect, IO}
+import cats.{Applicative, Apply, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
 import monix.execution.Ack.{Continue, Stop}
@@ -1129,8 +1129,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * as processed.
     *
     * @see [[doOnNextAck]] for a simpler version that doesn't allow
-    *     asynchronous execution, or [[doOnNextAckTask]] for a version
-    *     that's specialized on [[monix.eval.Task Task]].
+    *     asynchronous execution, or
+    *     [[doOnNextAckEval]] for a version that can do evaluation with
+    *     any data type implementing `cats.effect.Effect`.
     */
   final def doOnNextAckTask(cb: (A, Ack) => Task[Unit]): Observable[A] =
     self.liftByOperator(new EvalOnNextAckOperator[A](cb))
@@ -1144,6 +1145,35 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def doOnStart(cb: A => Unit): Observable[A] =
     self.liftByOperator(new DoOnStartOperator[A](cb))
+
+  /** Executes the given callback only for the first element generated
+    * by the source Observable, useful for doing a piece of
+    * computation only when the stream starts.
+    *
+    * @return a new Observable that executes the specified callback
+    *         only for the first element
+    *
+    * @see [[doOnStart]] for a simpler version that doesn't allow
+    *     asynchronous execution, or
+    *     [[doOnStartEval]] for a version that can do evaluation with
+    *     any data type implementing `cats.effect.Effect`
+    */
+  final def doOnStartTask(cb: A => Task[Unit]): Observable[A] =
+    self.liftByOperator(new EvalOnStartOperator[A](cb))
+
+  /** Executes the given callback only for the first element generated
+    * by the source Observable, useful for doing a piece of
+    * computation only when the stream starts.
+    *
+    * @return a new Observable that executes the specified callback
+    *         only for the first element
+    *
+    * @see [[doOnStart]] for a simpler version that doesn't allow
+    *     asynchronous execution, or [[doOnStartTask]] for a version
+    *     that's specialized on [[monix.eval.Task Task]].
+    */
+  final def doOnStartEval[F[_]](cb: A => F[Unit])(implicit F: Effect[F]): Observable[A] =
+    doOnStartTask(a => Task.fromEffect(cb(a))(F))
 
   /** Executes the given callback just before the subscription happens.
     *
