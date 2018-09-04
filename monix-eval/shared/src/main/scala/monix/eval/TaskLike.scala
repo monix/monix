@@ -20,7 +20,7 @@ package monix.eval
 import cats.Eval
 import cats.effect.{ConcurrentEffect, Effect, IO, SyncIO}
 import scala.annotation.implicitNotFound
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.Try
 
 /** A lawless type class that provides conversions to [[Task]].
@@ -31,13 +31,13 @@ import scala.util.Try
   *   import cats.Eval
   *
   *   val source0 = Eval.always(1 + 1)
-  *   val task0 = TaskLike[Eval].toTask(source)
+  *   val task0 = TaskLike[Eval].toTask(source0)
   *
   *   // Conversion from Future
   *   import scala.concurrent.Future
   *
-  *   val source1 = Future(1 + 1)
-  *   val task1 = TaskLike[Future].toTask(source)
+  *   val source1 = Future.successful(1 + 1)
+  *   val task1 = TaskLike[Future].toTask(source1)
   *
   *   // Conversion from IO
   *   import cats.effect.IO
@@ -79,7 +79,7 @@ object TaskLike extends TaskLikeImplicits0 {
   /**
     * Converts to `Task` from [[scala.concurrent.Future]].
     */
-  implicit def fromFuture(implicit ec: ExecutionContext): TaskLike[Future] =
+  implicit val fromFuture: TaskLike[Future] =
     new TaskLike[Future] {
       def toTask[A](fa: Future[A]): Task[A] =
         Task.fromFuture(fa)

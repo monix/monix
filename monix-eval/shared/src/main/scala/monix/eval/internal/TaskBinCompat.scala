@@ -84,6 +84,10 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     * redundant, as it can be expressed with `flatMap`, with the
     * same effect:
     * {{{
+    *   import monix.eval.Task
+    *
+    *   val trigger = Task(println("do it"))
+    *   val task = Task(println("must be done now"))
     *   trigger.flatMap(_ => task)
     * }}}
     *
@@ -108,6 +112,10 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     * with the same effect:
     *
     * {{{
+    *   import monix.eval.Task
+    *
+    *   val task = Task(5)
+    *   val selector = (n: Int) => Task(n.toString)
     *   task.flatMap(a => selector(a).map(_ => a))
     * }}}
     */
@@ -145,9 +153,9 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
 
   /** DEPRECATED - replace with usage of [[Task.runSyncMaybe]]:
     *
-    * {{{
+    * ```scala
     *   task.coeval <-> Coeval(task.runSyncMaybe)
-    * }}}
+    * ```
     */
   @deprecated("Replaced with start", since="3.0.0-RC2")
   final def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] = {

@@ -38,14 +38,15 @@ import monix.execution.Scheduler
   * with the numeric value of the signal plus 128.
   *
   * {{{
-  *   import monix.eval._
+  *   import cats.effect._
   *   import cats.implicits._
+  *   import monix.eval._
   *
   *   object MyApp extends TaskApp {
   *     def run(args: List[String]): Task[ExitCode] =
   *       args.headOption match {
   *         case Some(name) =>
-  *           Task(println(s"Hello, \${name}.")).as(ExitCode.Success)
+  *           Task(println(s"Hello, \\${name}.")).as(ExitCode.Success)
   *         case None =>
   *           Task(System.err.println("Usage: MyApp name")).as(ExitCode(2))
   *       }

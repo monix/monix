@@ -23,7 +23,7 @@ import monix.eval.{Coeval, Task, TaskLike}
 import org.reactivestreams.{Publisher => RPublisher}
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.Try
 
 /** A lawless type class that provides conversions to [[Observable]].
@@ -34,13 +34,13 @@ import scala.util.Try
   *   import cats.Eval
   *
   *   val source0 = Eval.always(1 + 1)
-  *   val task0 = ObservableLike[Eval].toObservable(source)
+  *   val task0 = ObservableLike[Eval].toObservable(source0)
   *
   *   // Conversion from Future
   *   import scala.concurrent.Future
   *
-  *   val source1 = Future(1 + 1)
-  *   val task1 = ObservableLike[Future].toObservable(source)
+  *   val source1 = Future.successful(1 + 1)
+  *   val task1 = ObservableLike[Future].toObservable(source1)
   *
   *   // Conversion from IO
   *   import cats.effect.IO
@@ -89,7 +89,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
   /**
     * Converts to `Observable` from [[scala.concurrent.Future]].
     */
-  implicit def fromFuture(implicit ec: ExecutionContext): ObservableLike[Future] =
+  implicit val fromFuture: ObservableLike[Future] =
     new ObservableLike[Future] {
       def toObservable[A](fa: Future[A]): Observable[A] =
         Observable.fromFuture(fa)
