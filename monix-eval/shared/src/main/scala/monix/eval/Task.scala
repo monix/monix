@@ -3884,6 +3884,26 @@ private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
   implicit def catsParallel: CatsParallelForTask =
     CatsParallelForTask
 
+  /** Global instance for `cats.SemigroupK`.
+    *
+    * The `SemigroupK` type class is like `Semigroup` but it operates on type constructor.
+    *
+    * {{{
+    *   import cats.SemigroupK
+    *   import cats.kernel.Semigroup
+    *   import monix.eval.Task
+    *   import cats.implicits._
+    *
+    *   Semigroup[Task[Int]].combine(Task.now(1), Task.now(2)) // => Task(3)
+    *
+    *   SemigroupK[Task].combineK(Task.now(1), Task.now(2)) // => Task(3)
+    * }}}
+    *
+    * Find more info about SemigroupK at [[https://typelevel.org/cats/typeclasses/semigroupk.html]].
+    */
+  implicit def catsSemigroupK: CatsSemigroupKForTask =
+    CatsSemigroupKForTask
+
   /** Given an `A` type that has a `cats.Monoid[A]` implementation,
     * then this provides the evidence that `Task[A]` also has
     * a `Monoid[ Task[A] ]` implementation.
