@@ -17,7 +17,7 @@
 
 package monix.eval.instances
 
-import cats.{CoflatMap, Eval, MonadError}
+import cats.{CoflatMap, Eval, MonadError, SemigroupK}
 import monix.eval.Task
 import scala.util.Try
 
@@ -30,7 +30,7 @@ import scala.util.Try
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsBaseForTask extends MonadError[Task, Throwable] with CoflatMap[Task] {
+class CatsBaseForTask extends MonadError[Task, Throwable] with CoflatMap[Task] with SemigroupK[Task] {
   override def pure[A](a: A): Task[A] =
     Task.now(a)
   override val unit: Task[Unit] =
@@ -71,4 +71,6 @@ class CatsBaseForTask extends MonadError[Task, Throwable] with CoflatMap[Task] {
     fa.start.map(fiber => f(fiber.join))
   override def coflatten[A](fa: Task[A]): Task[Task[A]] =
     fa.start.map(_.join)
+  override def combineK[A](ta: Task[A], tb: Task[A]): Task[A] =
+    ta.onErrorHandleWith(_ => tb)
 }
