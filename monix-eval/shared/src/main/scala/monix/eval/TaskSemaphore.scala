@@ -29,13 +29,17 @@ import monix.execution.schedulers.TrampolinedRunnable
   * maximum parallelism of 10:
   *
   * {{{
+  *   case class HttpRequest()
+  *   case class HttpResponse()
+  *
   *   val semaphore = TaskSemaphore(maxParallelism = 10)
   *
   *   def makeRequest(r: HttpRequest): Task[HttpResponse] = ???
   *
   *   // For such a task no more than 10 requests
   *   // are allowed to be executed in parallel.
-  *   val task = semaphore.greenLight(makeRequest(???))
+  *   val task = semaphore
+  *     .flatMap(_.greenLight(makeRequest(???)))
   * }}}
   */
 final class TaskSemaphore private (maxParallelism: Int) extends Serializable {

@@ -38,7 +38,10 @@ import monix.execution.misc.Local
   * a single call is sufficient just before `runAsync`:
   *
   * {{{
-  *   task.executeWithOptions(_.enableLocalContextPropagation)
+  *   import monix.execution.Scheduler.Implicits.global
+  *
+  *   val t = Task(42)
+  *   t.executeWithOptions(_.enableLocalContextPropagation)
   *     // triggers the actual execution
   *     .runAsync
   * }}}
@@ -48,10 +51,12 @@ import monix.execution.misc.Local
   * and specify the set of options implicitly:
   *
   * {{{
-  *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  *   {
+  *     implicit val options = Task.defaultOptions.enableLocalContextPropagation
   *
-  *   // Options passed implicitly
-  *   val f = task.runAsyncOpt
+  *     // Options passed implicitly
+  *     val f = t.runAsyncOpt
+  *   }
   * }}}
   *
   * Full example:
@@ -59,10 +64,9 @@ import monix.execution.misc.Local
   * {{{
   *   import monix.eval.{Task, TaskLocal}
   *
-  *   val local = TaskLocal(0)
-  *
   *   val task: Task[Unit] =
   *     for {
+  *       local <- TaskLocal(0)
   *       value1 <- local.read // value1 == 0
   *       _ <- local.write(100)
   *       value2 <- local.read // value2 == 100
@@ -90,7 +94,7 @@ import monix.execution.misc.Local
   *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
   *
   *   // Triggering actual execution
-  *   val f = task.runAsyncOpt
+  *   val result = task.runAsyncOpt
   * }}}
   */
 final class TaskLocal[A] private (default: => A) {

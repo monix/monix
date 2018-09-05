@@ -469,7 +469,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 
 lazy val doctestTestSettings = Seq(
   doctestTestFramework := DoctestTestFramework.Minitest,
-  doctestIgnoreRegex := Some("^(?!.*?(?:(Coeval|Fiber))).*$"),
+  doctestIgnoreRegex := Some(s".*Task(|App).scala"),
   doctestOnlyCodeBlocksMode := true
 )
 
