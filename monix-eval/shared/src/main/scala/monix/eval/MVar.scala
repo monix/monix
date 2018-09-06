@@ -48,7 +48,7 @@ import cats.effect.concurrent.{MVar => CatsMVar}
   * Inspired by `Control.Concurrent.MVar` from Haskell and
   * by `scalaz.concurrent.MVar`.
   */
-abstract class MVar[A] extends CatsMVar[Task,A]{
+abstract class MVar[A] {
   def isEmpty: Task[Boolean]
 
   /** Fills the `MVar` if it is empty, or blocks (asynchronously)
