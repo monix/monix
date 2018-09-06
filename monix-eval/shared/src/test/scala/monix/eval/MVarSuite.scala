@@ -18,10 +18,8 @@
 package monix.eval
 
 import monix.execution.CancelableFuture
-import monix.execution.atomic.PaddingStrategy
-import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.internal.Platform
-
+import cats.syntax.apply._
 import scala.util.Success
 
 object MVarSuite extends BaseTestSuite {
@@ -87,28 +85,6 @@ object MVarSuite extends BaseTestSuite {
     assertEquals(task.runSyncMaybe, Right(List(10,20)))
   }
 
-  test("withPadding; put; take; put; take") { implicit s =>
-    val task = for {
-      av <- MVar.withPadding[Int](LeftRight128)
-      _ <- av.put(10)
-      r1 <- av.take
-      _ <- av.put(20)
-      r2 <- av.take
-    } yield List(r1,r2)
-
-    assertEquals(task.runSyncMaybe, Right(List(10,20)))
-  }
-
-  test("withPadding(initial); put; take; put; take") { implicit s =>
-    val task = for {
-      av <- MVar.withPadding[Int](10, LeftRight128)
-      r1 <- av.take
-      _ <- av.put(20)
-      r2 <- av.take
-    } yield List(r1,r2)
-
-    assertEquals(task.runSyncMaybe, Right(List(10,20)))
-  }
 
   test("initial; read; take") { implicit s =>
     val task = for {
@@ -129,12 +105,13 @@ object MVarSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("put(null) throws NullPointerException") { implicit s =>
-    val task = MVar.empty[String].flatMap(_.put(null))
+  test("put(null) works") { implicit s =>
+    val task = MVar.empty[String].flatMap(mvar =>
+      mvar.put(null) *> mvar.read
+    )
+    val f = task.runAsync; s.tick()
 
-    intercept[NullPointerException] {
-      task.runSyncMaybe
-    }
+    assertEquals(f.value, Some(Success(null)))
   }
 
   test("producer-consumer parallel loop") { implicit s =>
@@ -328,15 +305,13 @@ object MVarSuite extends BaseTestSuite {
 
     val f = Task.gather(Seq(
       takeTwice(MVar(0)),
-      takeTwice(MVar.withPadding(0, PaddingStrategy.LeftRight256)),
-      putTwice(MVar.empty[Int]),
-      putTwice(MVar.withPadding(PaddingStrategy.LeftRight256))
+      putTwice(MVar.empty[Int])
     )).runAsync
 
     s.tick()
 
     // Check termination
-    assertEquals(f.value, Some(Success(Seq("TAKE", "TAKE", "PUT", "PUT"))))
+    assertEquals(f.value, Some(Success(Seq("TAKE", "PUT"))))
 
   }
 
