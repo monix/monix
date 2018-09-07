@@ -825,6 +825,22 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def headOptionL(implicit F: Sync[F]): F[Option[A]] =
     IterantHeadOptionL(self)(F)
 
+  /** Optionally selects the last element.
+    *
+    * {{{
+    *   // Yields Some(4)
+    *   Iterant[Task].of(1, 2, 3, 4).lastOptionL
+    *
+    *   // Yields None
+    *   Iterant[Task].empty[Int].lastOptionL
+    * }}}
+    *
+    * @return the last element of this iterant if it is nonempty, or
+    *         `None` if it is empty, in the `F` context.
+    */
+  final def lastOptionL(implicit F: Sync[F]): F[Option[A]] =
+    foldLeftL(Option.empty[A])((_, a) => Some(a))(F)
+
   /** Given a mapping function that returns a possibly lazy or
     * asynchronous result, applies it over the elements emitted by the
     * stream.
