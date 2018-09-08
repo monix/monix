@@ -17,7 +17,10 @@
 
 package monix.eval
 
-import cats.effect.concurrent.{MVar => CatsMVar}
+import monix.execution.atomic.PaddingStrategy
+import monix.execution.misc.AsyncVar
+
+import scala.util.control.NonFatal
 
 /** A mutable location, that is either empty or contains
   * a value of type `A`.
@@ -113,28 +116,87 @@ object MVar {
     * $refTransparent
     */
   def apply[A](initial: A): Task[MVar[A]] =
-    CatsMVar.of[Task, A](initial).map(mvar => new TaskMVarImpl(mvar))
+    Task.eval(new AsyncMVarImpl[A](AsyncVar(initial)))
 
   /** Returns an empty [[MVar]] instance.
     *
     * $refTransparent
     */
   def empty[A]: Task[MVar[A]] =
-    CatsMVar.empty[Task, A].map(mvar => new TaskMVarImpl(mvar))
+    Task.eval(new AsyncMVarImpl[A](AsyncVar.empty))
 
-  /** [[MVar]] implementation based on [[cats.effect.concurrent.MVar]] */
-  private final class TaskMVarImpl[A](mvar: CatsMVar[Task, A]) extends MVar[A] {
+  /** Builds an [[MVar]] instance with an `initial`  value and a given
+    * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
+    * (for avoiding the false sharing problem).
+    *
+    * $refTransparent
+    */
+  def withPadding[A](initial: A, ps: PaddingStrategy): Task[MVar[A]] =
+    Task.eval(new AsyncMVarImpl[A](AsyncVar.withPadding(initial, ps)))
+
+  /** Builds an empty [[MVar]] instance with a given
+    * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
+    * (for avoiding the false sharing problem).
+    *
+    * $refTransparent
+    */
+  def withPadding[A](ps: PaddingStrategy): Task[MVar[A]] =
+    Task.eval(new AsyncMVarImpl[A](AsyncVar.withPadding(ps)))
+
+  /** [[MVar]] implementation based on [[monix.execution.misc.AsyncVar]] */
+  private final class AsyncMVarImpl[A](av: AsyncVar[A]) extends MVar[A] {
+
     override def isEmpty: Task[Boolean] =
-      mvar.isEmpty
+      Task.fromFuture(av.isEmpty)
+
     override def put(a: A): Task[Unit] =
-      mvar.put(a)
+      Task.async { cb =>
+        var streamError = true
+        try {
+          // Execution could be synchronous
+          if (av.unsafePut(a, cb)) {
+            streamError = false
+            cb.onSuccess(())
+          }
+        } catch {
+          case e if NonFatal(e) && streamError =>
+            cb.onError(e)
+        }
+      }
+
     override def tryPut(a: A): Task[Boolean] =
-      mvar.tryPut(a)
+      Task.async { cb =>
+        var streamError = true
+        try {
+          // Execution could be synchronous
+          val result = av.unsafePut1(a)
+          streamError = false
+          cb.onSuccess(result)
+        } catch {
+          case e if NonFatal(e) && streamError =>
+            cb.onError(e)
+        }
+      }
+
     override def take: Task[A] =
-      mvar.take
+      Task.async { cb =>
+        // Execution could be synchronous (e.g. result is null or not)
+        av.unsafeTake(cb) match {
+          case null => () // do nothing
+          case a => cb.onSuccess(a)
+        }
+      }
+
     override def tryTake: Task[Option[A]] =
-      mvar.tryTake
+      Task.evalAsync(av.unsafeTake1)
+
     override def read: Task[A] =
-      mvar.read
+      Task.async { cb =>
+        // Execution could be synchronous (e.g. result is null or not)
+        av.unsafeRead(cb) match {
+          case null => () // do nothing
+          case a => cb.onSuccess(a)
+        }
+      }
   }
 }

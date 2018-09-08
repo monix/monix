@@ -18,8 +18,9 @@
 package monix.eval
 
 import monix.execution.CancelableFuture
+import monix.execution.atomic.PaddingStrategy
 import monix.execution.internal.Platform
-import cats.syntax.apply._
+
 import scala.util.Success
 
 object MVarSuite extends BaseTestSuite {
@@ -105,13 +106,31 @@ object MVarSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("put(null) works") { implicit s =>
-    val task = MVar.empty[String].flatMap(mvar =>
-      mvar.put(null) *> mvar.read
-    )
-    val f = task.runAsync; s.tick()
+  test("put(null) throws NullPointerException") { implicit s =>
+    val task = MVar.empty[String].flatMap(_.put(null))
 
-    assertEquals(f.value, Some(Success(null)))
+    intercept[NullPointerException] {
+      task.runSyncMaybe
+    }
+  }
+
+  test("empty; tryPut; tryPut; tryTake; tryTake; put; take") { implicit s =>
+    val task = for {
+      av <- MVar.empty[Int]
+      isE1 <- av.isEmpty
+      p1 <- av.tryPut(10)
+      p2 <- av.tryPut(11)
+      isE2 <- av.isEmpty
+      r1 <- av.tryTake
+      r2 <- av.tryTake
+      _  <- av.put(20)
+      r3 <- av.take
+    } yield (isE1, p1, p2, isE2, r1, r2, r3)
+
+    val f = task.runAsync
+    s.tick()
+
+    assertEquals(f.value, Some(Success((true, true, false, false, Some(10), None, 20))))
   }
 
   test("producer-consumer parallel loop") { implicit s =>
@@ -305,14 +324,15 @@ object MVarSuite extends BaseTestSuite {
 
     val f = Task.gather(Seq(
       takeTwice(MVar(0)),
-      putTwice(MVar.empty[Int])
+      takeTwice(MVar.withPadding(0, PaddingStrategy.LeftRight256)),
+      putTwice(MVar.empty[Int]),
+      putTwice(MVar.withPadding(PaddingStrategy.LeftRight256))
     )).runAsync
 
     s.tick()
 
     // Check termination
-    assertEquals(f.value, Some(Success(Seq("TAKE", "PUT"))))
+    assertEquals(f.value, Some(Success(Seq("TAKE", "TAKE", "PUT", "PUT"))))
 
   }
-
 }

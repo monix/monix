@@ -19,6 +19,8 @@ package monix.execution.misc
 
 import minitest.SimpleTestSuite
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.schedulers.TestScheduler
+
 import scala.util.Success
 
 object AsyncVarSuite extends SimpleTestSuite {
@@ -178,5 +180,50 @@ object AsyncVarSuite extends SimpleTestSuite {
     intercept[NullPointerException] {
       av.put(null)
     }
+  }
+
+  test("read is atomic") {
+    val av = AsyncVar.empty[Int]
+    val take1 = av.take
+    assertEquals(take1.value, None)
+
+    val take2 = av.take
+    assertEquals(take2.value, None)
+
+    val read = av.read
+    assertEquals(read.value, None)
+
+    val put1 = av.put(10)
+    assertEquals(put1.value, Some(Success(())))
+
+    assertEquals(take1.value, Some(Success(10)))
+    assertEquals(take2.value, None)
+    assertEquals(read.value, Some(Success(10)))
+
+    val put2 = av.put(20)
+    assertEquals(put2.value, Some(Success(())))
+
+    assertEquals(take1.value, Some(Success(10)))
+    assertEquals(take2.value, Some(Success(20)))
+    assertEquals(read.value, Some(Success(10)))
+  }
+
+  test("empty; tryPut; tryPut; tryTake; tryTake; put; take") {
+    implicit val s = TestScheduler()
+    val av = AsyncVar.empty[Int]
+
+    val f = for {
+      isE1 <- av.isEmpty
+      p1 <- av.tryPut(10)
+      p2 <- av.tryPut(11)
+      isE2 <- av.isEmpty
+      r1 <- av.tryTake
+      r2 <- av.tryTake
+      _  <- av.put(20)
+      r3 <- av.take
+    } yield (isE1, p1, p2, isE2, r1, r2, r3)
+
+    s.tick()
+    assertEquals(f.value, Some(Success((true, true, false, false, Some(10), None, 20))))
   }
 }

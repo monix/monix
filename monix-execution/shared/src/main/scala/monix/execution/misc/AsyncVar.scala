@@ -57,6 +57,12 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
   private def this(initial: A, ps: PaddingStrategy) =
     this(AtomicAny.withPadding(AsyncVar.State(initial), ps))
 
+  def isEmpty: Future[Boolean] =
+    Future.successful(stateRef.get match {
+      case WaitForPut(_, _) => true
+      case WaitForTake(_, _) => false
+    })
+
   /** Fills the `AsyncVar` if it is empty, or blocks (asynchronously)
     * if the `AsyncVar` is full, until the given value is next in
     * line to be consumed on [[take]].
@@ -98,18 +104,62 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     val current: State[A] = stateRef.get
 
     current match {
-      case _: Empty[_] =>
-        if (stateRef.compareAndSet(current, WaitForTake(a, Queue.empty))) true
-        else unsafePut(a, await) // retry
-
-      case WaitForTake(value, queue) =>
-        val update = WaitForTake(value, queue.enqueue(a -> await))
+      case WaitForTake(value, puts) =>
+        val update = WaitForTake(value, puts.enqueue(a -> await))
         if (stateRef.compareAndSet(current, update)) false
         else unsafePut(a, await) // retry
 
-      case current @ WaitForPut(first, queue) =>
-        if (stateRef.compareAndSet(current, current.dequeue)) { first.onValue(a); true }
-        else unsafePut(a, await) // retry
+      case current @ WaitForPut(reads, takes) =>
+        var first: Listener[A] = null
+        val update: State[A] =
+          if (takes.isEmpty) State(a) else {
+            val (x, rest) = takes.dequeue
+            first = x
+            if (rest.isEmpty) State.empty[A]
+            else WaitForPut(Queue.empty, rest)
+          }
+
+        if (!stateRef.compareAndSet(current, update)) {
+          unsafePut(a, await) // retry
+        } else {
+          // Satisfies all current `read` requests found
+          streamAll(a, reads)
+          // Satisfies the first `take` request found
+          if (first ne null) first.onValue(a)
+          // Signals completion of `put`
+          await.onValue(())
+          true
+        }
+    }
+  }
+
+  def tryPut(a: A): Future[Boolean] = {
+    Future.successful(unsafePut1(a))
+  }
+
+  @tailrec def unsafePut1(a: A): Boolean = {
+    (stateRef.get: State[A]) match {
+      case WaitForTake(_, _) => false
+
+      case current @ WaitForPut(reads, takes) =>
+        var first: Listener[A] = null
+        val update: State[A] =
+          if (takes.isEmpty) State(a) else {
+            val (x, rest) = takes.dequeue
+            first = x
+            if (rest.isEmpty) State.empty[A]
+            else WaitForPut(Queue.empty, rest)
+          }
+
+        if (!stateRef.compareAndSet(current, update)) {
+          unsafePut1(a) // retry
+        } else {
+          // Satisfies all current `read` requests found
+          streamAll(a, reads)
+          // Satisfies the first `take` request found
+          if (first ne null) first.onValue(a)
+          true
+        }
     }
   }
 
@@ -145,14 +195,8 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     *         gets called with the result)
     */
   @tailrec def unsafeTake(await: Listener[A]): A = {
-    @inline def nil = null.asInstanceOf[A]
-
     val current: State[A] = stateRef.get
     current match {
-      case _: Empty[_] =>
-        if (stateRef.compareAndSet(current, WaitForPut(await, Queue.empty))) nil
-        else unsafeTake(await) // retry
-
       case WaitForTake(value, queue) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty)) value
@@ -168,9 +212,44 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
           }
         }
 
-      case WaitForPut(first, queue) =>
-        if (stateRef.compareAndSet(current, WaitForPut(first, queue.enqueue(await)))) nil
-        else unsafeTake(await)
+      case WaitForPut(reads, queue) =>
+        if (stateRef.compareAndSet(current, WaitForPut(reads, queue.enqueue(await))))
+          null.asInstanceOf[A] // will wait for callback completion
+        else
+          unsafeTake(await)
+    }
+  }
+
+
+  def tryTake: Future[Option[A]] = {
+    Future.successful(unsafeTake1)
+  }
+
+  @tailrec def unsafeTake1: Option[A] = {
+    val current: State[A] = stateRef.get
+    current match {
+      case WaitForTake(value, queue) =>
+        if (queue.isEmpty) {
+          if (stateRef.compareAndSet(current, State.empty))
+          // Signals completion of `take`
+            Some(value)
+          else {
+            unsafeTake1 // retry
+          }
+        } else {
+          val ((ax, notify), xs) = queue.dequeue
+          val update = WaitForTake(ax, xs)
+          if (stateRef.compareAndSet(current, update)) {
+            // Complete the `put` request waiting on a notification
+            notify.onValue(())
+            Some(value)
+          } else {
+            unsafeTake1 // retry
+          }
+        }
+
+      case WaitForPut(_, _) =>
+        None
     }
   }
 
@@ -227,34 +306,23 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     *         gets called with the result)
     */
   def unsafeRead(await: Listener[A]): A = {
-    // To be used with unsafePut
-    def awaitPut(a: A): Listener[Unit] = new Listener[Unit] {
-      def onValue(value: Unit): Unit =
-        await.onValue(a)
+    val current: State[A] = stateRef.get
+    current match {
+      case WaitForTake(value, _) =>
+        value // Fast-path
+      case WaitForPut(reads, takes) =>
+        // No value available, enqueue the callback
+        if (stateRef.compareAndSet(current, WaitForPut(reads.enqueue(await), takes)))
+          null.asInstanceOf[A] // will wait for callback completion
+        else
+          unsafeRead(await) // retry
     }
-    // To be used with unsafeTake
-    def awaitTake: Listener[A] = new Listener[A] {
-      def onValue(value: A): Unit = {
-        // Execution could be synchronous
-        if (unsafePut(value, awaitPut(value)))
-          await.onValue(value)
-      }
-    }
+  }
 
-    (stateRef.get : State[A]) match {
-      case WaitForTake(value, _) => value // Fast-path
-      case _ =>
-        // Doing the equivalent of:
-        // for (a <- take; _ <- put(a)) yield a
-        unsafeTake(awaitTake) match {
-          case null =>
-            // Async execution
-            null.asInstanceOf[A]
-          case value =>
-            if (unsafePut(value, awaitPut(value))) value
-            else null.asInstanceOf[A] // Async execution
-        }
-    }
+  private def streamAll(value: A, listeners: Iterable[Listener[A]]): Unit = {
+    val cursor = listeners.iterator
+    while (cursor.hasNext)
+      cursor.next().onValue(value)
   }
 }
 
@@ -286,46 +354,31 @@ object AsyncVar {
 
   /** Private [[State]] builders.*/
   private object State {
-    private[this] val ref = Empty()
+    private[this] val ref = WaitForPut[Any](Queue.empty, Queue.empty)
     def apply[A](a: A): State[A] = WaitForTake(a, Queue.empty)
     /** `Empty` state, reusing the same instance. */
     def empty[A]: State[A] = ref.asInstanceOf[State[A]]
   }
 
-  /** `AsyncVar` state signaling an empty location.
-    *
-    * Evolves into [[WaitForPut]] or [[WaitForTake]],
-    * depending on which operation happens first.
-    */
-  private final case class Empty[A]() extends State[A]
-
   /** `AsyncVar` state signaling it has `take` callbacks
     * registered and we are waiting for one or multiple
     * `put` operations.
     *
-    * @param first is the first request waiting in line
-    * @param queue are the rest of the requests waiting in line,
+    * @param takes are the rest of the requests waiting in line,
     *        if more than one `take` requests were registered
     */
-  private final case class WaitForPut[A](first: Listener[A], queue: Queue[Listener[A]])
-    extends State[A] {
-
-    def dequeue: State[A] =
-      if (queue.isEmpty) State.empty[A] else {
-        val (x, xs) = queue.dequeue
-        WaitForPut(x, xs)
-      }
-  }
+  private final case class WaitForPut[A](reads: Queue[Listener[A]], takes: Queue[Listener[A]])
+    extends State[A]
 
   /** `AsyncVar` state signaling it has one or more values enqueued,
     * to be signaled on the next `take`.
     *
     * @param value is the first value to signal
-    * @param queue are the rest of the `put` requests, along with the
+    * @param puts are the rest of the `put` requests, along with the
     *        callbacks that need to be called whenever the corresponding
     *        value is first in line (i.e. when the corresponding `put`
     *        is unblocked from the user's point of view)
     */
-  private final case class WaitForTake[A](value: A, queue: Queue[(A, Listener[Unit])])
+  private final case class WaitForTake[A](value: A, puts: Queue[(A, Listener[Unit])])
     extends State[A]
 }
