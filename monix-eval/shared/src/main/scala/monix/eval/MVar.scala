@@ -168,7 +168,6 @@ object MVar {
       Task.async { cb =>
         var streamError = true
         try {
-          // Execution could be synchronous
           val result = av.unsafePut1(a)
           streamError = false
           cb.onSuccess(result)

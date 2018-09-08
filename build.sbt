@@ -409,7 +409,17 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsEffectForTask.runAsync"),
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionByTimespanObservable"),
-    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable")
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable"),
+    exclude[DirectMissingMethodProblem]("monix.execution.misc.AsyncVar#WaitForTake.queue"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$Empty$"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.misc.AsyncVar#WaitForPut.apply"),
+    exclude[DirectMissingMethodProblem]("monix.execution.misc.AsyncVar#WaitForPut.dequeue"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.misc.AsyncVar#WaitForPut.copy"),
+    exclude[DirectMissingMethodProblem]("monix.execution.misc.AsyncVar#WaitForPut.queue"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.misc.AsyncVar#WaitForPut.copy$default$1"),
+    exclude[DirectMissingMethodProblem]("monix.execution.misc.AsyncVar#WaitForPut.first"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.misc.AsyncVar#WaitForPut.this"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$Empty")
   )
 )
 
