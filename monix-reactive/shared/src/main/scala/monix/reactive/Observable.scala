@@ -20,7 +20,9 @@ package monix.reactive
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
 import cats.effect.IO
-import cats.{Apply, Applicative, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
+import cats.{Apply, Applicative, CoflatMap, Eq, Eval, FlatMap, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
+import cats.effect.{Effect, ExitCase, IO, Bracket}
+import cats.{Apply, CoflatMap, Eq, Eval, FlatMap, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
 import monix.execution.Ack.{Continue, Stop}
@@ -484,6 +486,20 @@ abstract class Observable[+A] extends Serializable { self =>
   final def bufferIntrospective(maxSize: Int): Observable[List[A]] =
     new BufferIntrospectiveObservable[A](self, maxSize)
 
+  /** Implementation of `bracket` from `cats.effect.Bracket`.
+    *
+    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
+    */
+  final def bracket[B](use: A => Observable[B])(release: A => Observable[Unit]): Observable[B] =
+    bracketCase(use)((a, _) => release(a))
+
+  /** Implementation of `bracketCase` from `cats.effect.Bracket`.
+    *
+    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
+    */
+  final def bracketCase[B](use: A => Observable[B])(release: (A, ExitCase[Throwable]) => Observable[Unit]): Observable[B] =
+    self.flatMap(a => use(a).doOnExitCaseTask(release(a, _).completedL))
+
   /** Applies the given partial function to the source
     * for each element for which the given partial function is defined.
     *
@@ -775,6 +791,60 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def doOnEarlyStopTask(task: Task[Unit]): Observable[A] =
     self.liftByOperator(new EvalOnEarlyStopOperator[A](task))
+
+  /** Returns a new `Observable` in which `f` is scheduled to be executed
+    * on [[monix.execution.Ack.Stop Stop]], [[monix.reactive.Observer.onError onError]],
+    * [[monix.reactive.Observer.onComplete onComplete()]] or on cancellation.
+    *
+    * This would typically be used to release any resources acquired
+    * by this enumerator.
+    *
+    * Note that [[doOnEarlyStop]] is subsumed under this operation,
+    * the given `f` being evaluated on both reaching the end or
+    * canceling early.
+    *
+    * This version of [[doOnExitCaseTask]] is using any `F[_]` data type
+    * that implements `cats.effect.Effect` (e.g. `Task`, `IO`, etc).
+    *
+    * @param f is the function to execute on early stop
+    * @see [[doOnExitCaseTask]] for a version that's specialized for
+    *      [[monix.eval.Task Task]].
+    */
+  final def doOnExitCaseEval[F[_]](f: ExitCase[Throwable] => F[Unit])(implicit F: Effect[F]): Observable[A] =
+    doOnExitCaseTask(e => Task.fromEffect(f(e)))
+
+  /** Returns a new `Observable` in which `f` is scheduled to be executed
+    * on [[monix.execution.Ack.Stop Stop]], [[monix.reactive.Observer.onError onError]],
+    * [[monix.reactive.Observer.onComplete onComplete()]] or on cancellation.
+    *
+    * This would typically be used to release any resources acquired
+    * by this enumerator.
+    *
+    * Note that [[doOnEarlyStop]] is subsumed under this operation,
+    * the given `f` being evaluated on both reaching the end or
+    * canceling early.
+    *
+    * Example: {{{
+    *   import cats.effect.ExitCase
+    *
+    *   observable.doOnExitCase(err => Task.eval {
+    *     err match {
+    *       case ExitCase.Completed =>
+    *         logger.info("Completed successfully!")
+    *       case Exit.Error(e) =>
+    *         logger.error("Completed in error!", e)
+    *       case Exit.Canceled(_) =>
+    *         logger.info("Was stopped early!")
+    *     }
+    *   })
+    * }}}
+    *
+    * @param f is the function to execute on early stop
+    * @see [[doOnExitCaseEval]] for a version that can use any
+    *      data type that implements `cats.effect.Effect`.
+    */
+  final def doOnExitCaseTask(f: ExitCase[Throwable] => Task[Unit]): Observable[A] =
+    new DoOnExitCaseObservable(self)(f)
 
   /** Executes the given callback when the connection is being
     * [[monix.execution.Cancelable.cancel cancelled]].
@@ -4435,6 +4505,80 @@ object Observable {
   def empty[A]: Observable[A] =
     builders.EmptyObservable
 
+  /** Creates a `Observable` that depends on resource allocated by a
+    * monadic value, ensuring the resource is released.
+    *
+    * Typical use-cases are working with files or network sockets
+    *
+    * Example:
+    * {{{
+    *   val printer =
+    *     Observable.resource {
+    *       Task(new PrintWriter("./lines.txt"))
+    *     } { writer =>
+    *       Task(writer.close())
+    *     }
+    *
+    *   // Safely use the resource, because the release is
+    *   // scheduled to happen afterwards
+    *   val writeLines = printer.flatMap { writer =>
+    *     Observable
+    *       .fromIterator(Iterator.from(1))
+    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *   }
+    *
+    *   // Write 100 numbered lines to the file
+    *   // closing the writer when finished
+    *   writeLines.take(100).completedL.runAsync
+    * }}}
+    *
+    * @param acquire resource to acquire at the start of the stream
+    * @param release function that releases the acquired resource
+    */
+  def resource[F[_], A](acquire: F[A])
+    (release: A => F[Unit])(implicit F: Effect[F]): Observable[A] =
+    resourceCase(acquire)((a, _) => release(a))
+
+  /** Creates a stream that depends on resource allocated by a
+    * monadic value, ensuring the resource is released.
+    *
+    * Typical use-cases are working with files or network sockets
+    *
+    * Example:
+    * {{{
+    *   val printer =
+    *     Observable.resourceCase {
+    *       Task(new PrintWriter("./lines.txt"))
+    *     } {
+    *       case (writer, ExitCase.Canceled | ExitCase.Completed) =>
+    *         Task(writer.close())
+    *       case (writer, ExitCase.Error(e)) =>
+    *         Task { println(e.getMessage); writer.close() }
+    *     }
+    *
+    *   // Safely use the resource, because the release is
+    *   // scheduled to happen afterwards
+    *   val writeLines = printer.flatMap { writer =>
+    *     Observable
+    *       .fromIterator(Iterator.from(1))
+    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *   }
+    *
+    *   // Write 100 numbered lines to the file
+    *   // closing the writer when finished
+    *   writeLines.take(100).completedL.runAsync
+    * }}}
+    *
+    * @param acquire an effect that acquires an expensive resource
+    * @param release function that releases the acquired resource
+    */
+  def resourceCase[F[_], A](acquire: F[A])
+    (release: (A, ExitCase[Throwable]) => F[Unit])
+    (implicit F: Effect[F]): Observable[A] =
+    Observable.from(acquire).flatMap { a =>
+      Observable.now(a).doOnExitCaseEval(exitCase => release(a, exitCase))
+    }
+
   /** Creates a combined observable from 2 source observables.
     *
     * This operator behaves in a similar way to [[zip2]],
@@ -4597,7 +4741,7 @@ object Observable {
     new CatsInstances
 
   /** Cats instances for [[Observable]]. */
-  class CatsInstances extends MonadError[Observable, Throwable]
+  class CatsInstances extends Bracket[Observable, Throwable]
     with MonoidK[Observable]
     with CoflatMap[Observable]
     with TaskLift[Observable] {
@@ -4636,6 +4780,10 @@ object Observable {
       Observable.empty[A]
     override def taskLift[A](task: Task[A]): Observable[A] =
       Observable.fromTask(task)
+    override def bracket[A, B](acquire: Observable[A])(use: A => Observable[B])(release: A => Observable[Unit]): Observable[B] =
+      acquire.bracket(use)(release)
+    override def bracketCase[A, B](acquire: Observable[A])(use: A => Observable[B])(release: (A, ExitCase[Throwable]) => Observable[Unit]): Observable[B] =
+      acquire.bracketCase(use)(release)
   }
 
   /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
