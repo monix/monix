@@ -536,9 +536,7 @@ object TaskCircuitBreaker {
       * when the `Open` state is to transition to [[HalfOpen]].
       *
       * It is calculated as:
-      * ```scala
-      *   startedAt + resetTimeout.toMillis
-      * ```
+      * `startedAt + resetTimeout.toMillis`
       */
     val expiresAt: Timestamp = startedAt + resetTimeout.toMillis
   }
