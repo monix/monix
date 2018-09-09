@@ -1923,28 +1923,16 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *
     * @return
     */
-  final def timedAttempt: Task[(Duration, Either[Throwable, A])] =
+  final def timed: Task[(Duration, A)] =
     Task.deferAction { scheduler =>
       val now: Task[Long] = Task.eval(scheduler.clockMonotonic(TimeUnit.NANOSECONDS))
 
       for {
         start <- now
-        a     <- this.attempt
+        a     <- this
         end   <- now
       } yield (end - start).nanos -> a
     }
-
-  /**
-    * TODO: doc
-    *
-    * @return
-    */
-  final def timed: Task[(Duration, A)] =
-    this
-      .timedAttempt
-      .flatMap { case (duration, attempted: Either[Throwable, A]) =>
-        Task.fromEither(attempted).map(a => duration -> a)
-      }
 }
 
 /** Builders for [[Task]].
