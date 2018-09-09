@@ -67,8 +67,8 @@ object TaskTimedAttemptSuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(1000, 0.second).runAsync; sc.tick(1001.seconds)
-    assertEquals(f.value, Some(Success(1000.seconds)))
+    val f = loop(10000, 0.second).runAsync; sc.tick(10001.seconds)
+    assertEquals(f.value, Some(Success(10000.seconds)))
   }
 
 }
