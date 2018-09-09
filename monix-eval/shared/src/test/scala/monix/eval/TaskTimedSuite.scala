@@ -58,6 +58,23 @@ object TaskTimedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(DummyException("dummy"))))
   }
 
+  test("Task.timed could handle errors if .attempt is called first") { implicit s =>
+    val task = Task.raiseError(DummyException("dummy")).delayExecution(2.second).attempt.timed
+    val f = task.runAsync
+
+    s.tick()
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(2.second -> Left(DummyException("dummy")))))
+
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(2.second -> Left(DummyException("dummy")))))
+  }
+
   test("Task.timed is stack safe") { implicit sc =>
     def loop(n: Int, acc: Duration): Task[Duration] =
       Task.unit.delayResult(1.second).timed.flatMap { case (duration, _) =>
