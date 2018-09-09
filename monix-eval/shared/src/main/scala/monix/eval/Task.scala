@@ -17,6 +17,8 @@
 
 package monix.eval
 
+import java.util.concurrent.TimeUnit
+
 import cats.effect._
 import cats.{Monoid, Semigroup}
 import monix.eval.instances._
@@ -31,10 +33,9 @@ import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnab
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
-import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
+import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit, _}
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
-
 
 /** `Task` represents a specification for a possibly lazy or
   * asynchronous computation, which when executed will produce an `A`
@@ -1916,6 +1917,36 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   final def uncancelable: Task[A] =
     TaskCancellation.uncancelable(this)
+
+  /**
+    * TODO: doc
+    *
+    * @return
+    */
+  final def timedAttempt: Task[(Duration, Either[Throwable, A])] =
+    deferAction { scheduler =>
+      @inline
+      def now: Task[Long] =
+        Task.eval(scheduler.clockMonotonic(TimeUnit.NANOSECONDS))
+
+      for {
+        start <- now
+        a     <- this.attempt
+        end   <- now
+      } yield (end - start).nanos -> a
+    }
+
+  /**
+    * TODO: doc
+    *
+    * @return
+    */
+  final def timed: Task[(Duration, A)] =
+    this
+      .timedAttempt
+      .flatMap { case (duration, attempted: Either[Throwable, A]) =>
+        Task.fromEither(attempted).map(a => duration -> a)
+      }
 }
 
 /** Builders for [[Task]].
