@@ -31,7 +31,7 @@ import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnab
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
-import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit, _}
+import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
@@ -1926,7 +1926,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
       start <- Task.clock.monotonic(unit)
       a     <- this
       end   <- Task.clock.monotonic(unit)
-    } yield (end - start).nanos -> a
+    } yield FiniteDuration(end - start, unit) -> a
 }
 
 /** Builders for [[Task]].
