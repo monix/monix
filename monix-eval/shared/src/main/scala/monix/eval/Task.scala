@@ -1924,15 +1924,11 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * @return
     */
   final def timed: Task[(Duration, A)] =
-    Task.deferAction { scheduler =>
-      val now: Task[Long] = Task.eval(scheduler.clockMonotonic(TimeUnit.NANOSECONDS))
-
-      for {
-        start <- now
-        a     <- this
-        end   <- now
-      } yield (end - start).nanos -> a
-    }
+    for {
+      start <- Task.clock.monotonic(NANOSECONDS)
+      a     <- this
+      end   <- Task.clock.monotonic(NANOSECONDS)
+    } yield (end - start).nanos -> a
 }
 
 /** Builders for [[Task]].
