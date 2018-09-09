@@ -17,8 +17,6 @@
 
 package monix.eval
 
-import java.util.concurrent.TimeUnit
-
 import cats.effect._
 import cats.{Monoid, Semigroup}
 import monix.eval.instances._
@@ -1923,11 +1921,11 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *
     * @return
     */
-  final def timed: Task[(Duration, A)] =
+  final def timed(unit: TimeUnit): Task[(Duration, A)] =
     for {
-      start <- Task.clock.monotonic(NANOSECONDS)
+      start <- Task.clock.monotonic(unit)
       a     <- this
-      end   <- Task.clock.monotonic(NANOSECONDS)
+      end   <- Task.clock.monotonic(unit)
     } yield (end - start).nanos -> a
 }
 
