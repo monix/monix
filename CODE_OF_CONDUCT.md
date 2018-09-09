@@ -6,7 +6,7 @@ Everyone is expected to follow the [Scala Code of Conduct] when discussing the p
 
 ## Moderation
 
-Any questions, concerns, or moderation requests please contact a maintainer of the project.
+Any questions, concerns, or moderation requests please contact a member of the project.
 
 - Alexandru Nedelcu: [gitter](https://gitter.im/alexandru) | [twitter](https://twitter.com/alexelcu) | [email](mailto:coc@temp18.alexn.org)
 
