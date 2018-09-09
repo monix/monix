@@ -1926,7 +1926,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
       start <- Task.clock.monotonic(unit)
       a     <- this
       end   <- Task.clock.monotonic(unit)
-    } yield FiniteDuration(end - start, unit) -> a
+    } yield Duration(end - start, unit) -> a
 }
 
 /** Builders for [[Task]].
