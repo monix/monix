@@ -41,7 +41,7 @@ object TaskTimedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(2.second -> "hello")))
   }
 
-  test("Task.timedAttempt doesn't time failed tasks") { implicit s =>
+  test("Task.timed doesn't time failed tasks") { implicit s =>
     val task = Task.raiseError(DummyException("dummy")).delayExecution(2.second).timed
     val f = task.runAsync
 
