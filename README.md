@@ -151,9 +151,10 @@ Version 2.0.  See [LICENCE.txt](./LICENSE.txt).
 ## Acknowledgements
 
 <img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/yklogo.png" align="right" />
+
 YourKit supports the Monix project with its full-featured Java Profiler.
-YourKit, LLC is the creator [YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp)
-and [YourKit .NET Profiler](http://www.yourkit.com/.net/profiler/index.jsp),
+YourKit, LLC is the creator [YourKit Java Profiler](https://www.yourkit.com/java/profiler/index.jsp)
+and [YourKit .NET Profiler](https://www.yourkit.com/.net/profiler/index.jsp),
 innovative and intelligent tools for profiling Java and .NET applications.
 
 <img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/logo-eloquentix@2x.png" align="right" width="130" />
