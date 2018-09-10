@@ -131,8 +131,8 @@ licensed with the same license that Monix is licensed with (Apache
 2.0, see LICENSE.txt).
 
 People are expected to follow the
-[Typelevel Code of Conduct](https://typelevel.org/conduct.html) when
-discussing Monix on the Github page, Gitter channel, or other venues.
+[Scala Code of Conduct](./CODE_OF_CONDUCT.md) when
+discussing Monix on GitHub, Gitter channel, or other venues.
 
 Feel free to open an issue if you notice a bug, have an idea for a
 feature, or have a question about the code. Pull requests are also
