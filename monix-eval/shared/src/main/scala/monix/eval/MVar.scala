@@ -27,17 +27,17 @@ import scala.util.control.NonFatal
   *
   * It has the following fundamental atomic operations:
   *
-  *  - [[put]] which fills the var if empty, or blocks
+  *  - [[cats.effect.concurrent.MVar.put]] which fills the var if empty, or blocks
   *    (asynchronously) until the var is empty again
-  *  - [[tryPut]] which fills the var if empty. returns true if successful
-  *  - [[take]] which empties the var if full, returning the contained
+  *  - [[cats.effect.concurrent.MVar.tryPut]] which fills the var if empty. returns true if successful
+  *  - [[cats.effect.concurrent.MVar.take]] which empties the var if full, returning the contained
   *    value, or blocks (asynchronously) otherwise until there is
   *    a value to pull
-  *  - [[tryTake]] empties if full, returns None if empty.
-  *  - [[read]] which reads the current value without touching it,
+  *  - [[cats.effect.concurrent.MVar.tryTake]] empties if full, returns None if empty.
+  *  - [[cats.effect.concurrent.MVar.read]] which reads the current value without touching it,
   *    assuming there is one, or otherwise it waits until a value
   *    is made available via `put`
-  *  - [[isEmpty]] returns true if currently empty
+  *  - [[cats.effect.concurrent.MVar.isEmpty]] returns true if currently empty
   *
   * The `MVar` is appropriate for building synchronization
   * primitives and performing simple inter-thread communications.
@@ -51,57 +51,7 @@ import scala.util.control.NonFatal
   * Inspired by `Control.Concurrent.MVar` from Haskell and
   * by `scalaz.concurrent.MVar`.
   */
-abstract class MVar[A] {
-  def isEmpty: Task[Boolean]
-
-  /** Fills the `MVar` if it is empty, or blocks (asynchronously)
-    * if the `MVar` is full, until the given value is next in
-    * line to be consumed on [[take]].
-    *
-    * This operation is atomic.
-    **
-    * @return a task that on evaluation will complete when the
-    *         `put` operation succeeds in filling the `MVar`,
-    *         with the given value being next in line to
-    *         be consumed
-    */
-  def put(a: A): Task[Unit]
-
-  /**
-    * Fill the `MVar` if we can do it without blocking,
-    *
-    * @return whether or not the put succeeded
-    */
-  def tryPut(a: A): Task[Boolean]
-
-  /** Empties the `MVar` if full, returning the contained value,
-    * or blocks (asynchronously) until a value is available.
-    *
-    * This operation is atomic.
-    *
-    * @return a task that on evaluation will be completed after
-    *         a value was retrieved
-    */
-  def take: Task[A]
-
-  /**
-    * empty the `MVar` if full
-    *
-    * @return an Option holding the current value, None means it was empty
-    */
-  def tryTake: Task[Option[A]]
-
-  /**
-    * Tries reading the current value, or blocks (asynchronously)
-    * until there is a value available.
-    *
-    * This operation is atomic.
-    *
-    * @return a task that on evaluation will be completed after
-    *         a value has been read
-    */
-  def read: Task[A]
-}
+abstract class MVar[A] extends cats.effect.concurrent.MVar[Task, A]
 
 /** Builders for [[MVar]]
   *

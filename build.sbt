@@ -361,10 +361,14 @@ def mimaSettings(projectName: String) = Seq(
     // Breakage - PR #700: renamed methods
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscriptionWith"),
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscription"),
-    // Breakage - PR #711: add more methods to MVar
-    exclude[ReversedMissingMethodProblem]("monix.eval.MVar.tryTake"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.MVar.tryPut"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.MVar.isEmpty"),
+    // Breakage - PR #711: MVar inherits from Cats-Effect
+    exclude[IncompatibleResultTypeProblem]("monix.eval.MVar.take"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.MVar.put"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.MVar.read"),
+    exclude[InheritedNewAbstractMethodProblem]("cats.effect.concurrent.MVar.tryPut"),
+    exclude[InheritedNewAbstractMethodProblem]("cats.effect.concurrent.MVar.tryTake"),
+    exclude[InheritedNewAbstractMethodProblem]("cats.effect.concurrent.MVar.isEmpty"),
+
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
