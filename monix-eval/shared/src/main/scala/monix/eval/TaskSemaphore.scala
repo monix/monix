@@ -42,7 +42,8 @@ import monix.execution.schedulers.TrampolinedRunnable
   *     .flatMap(_.greenLight(makeRequest(???)))
   * }}}
   */
-final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
+final class TaskSemaphore private (maxParallelism: Int)
+  extends cats.effect.concurrent.Semaphore[Task] with Serializable {
   require(maxParallelism > 0, "parallelism > 0")
 
   private[this] val semaphore = AsyncSemaphore(maxParallelism)

@@ -27,17 +27,17 @@ import scala.util.control.NonFatal
   *
   * It has the following fundamental atomic operations:
   *
-  *  - [[cats.effect.concurrent.MVar.put]] which fills the var if empty, or blocks
+  *  - `MVar.put` which fills the var if empty, or blocks
   *    (asynchronously) until the var is empty again
-  *  - [[cats.effect.concurrent.MVar.tryPut]] which fills the var if empty. returns true if successful
-  *  - [[cats.effect.concurrent.MVar.take]] which empties the var if full, returning the contained
+  *  - `MVar.tryPut` which fills the var if empty. returns true if successful
+  *  - `MVar.take` which empties the var if full, returning the contained
   *    value, or blocks (asynchronously) otherwise until there is
   *    a value to pull
-  *  - [[cats.effect.concurrent.MVar.tryTake]] empties if full, returns None if empty.
-  *  - [[cats.effect.concurrent.MVar.read]] which reads the current value without touching it,
+  *  - `MVar.tryTake` empties if full, returns None if empty.
+  *  - `MVar.read` which reads the current value without touching it,
   *    assuming there is one, or otherwise it waits until a value
   *    is made available via `put`
-  *  - [[cats.effect.concurrent.MVar.isEmpty]] returns true if currently empty
+  *  - `MVar.isEmpty` returns true if currently empty
   *
   * The `MVar` is appropriate for building synchronization
   * primitives and performing simple inter-thread communications.
