@@ -1921,8 +1921,6 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * Basic usage example:
     *
     * {{{
-    *   import scala.concurrent.duration.NANOSECONDS
-    *
     *   Task(1 + 1)
     *     .timed
     *     .flatMap { case (duration, value) =
