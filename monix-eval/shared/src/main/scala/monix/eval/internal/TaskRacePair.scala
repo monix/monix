@@ -41,7 +41,7 @@ private[eval] object TaskRacePair {
   private final class Register[A, B](fa: Task[A], fb: Task[B])
     extends ForkedRegister[RaceEither[A, B]] {
 
-    def apply(context: Task.Context, cb: Callback[RaceEither[A, B]]): Unit = {
+    def apply(context: TaskContext, cb: Callback[RaceEither[A, B]]): Unit = {
       implicit val s = context.scheduler
       val conn = context.connection
 

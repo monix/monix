@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import cats.effect.{CancelToken, IO}
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.Async
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.cancelables.SingleAssignCancelable
 import scala.util.control.NonFatal
@@ -29,7 +29,7 @@ private[eval] object TaskCreate {
     * Implementation for `Task.cancelable`
     */
   def cancelable0[A](fn: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+    val start = (ctx: TaskContext, cb: Callback[A]) => {
       implicit val s = ctx.scheduler
       val conn = ctx.connection
       val cancelable = SingleAssignCancelable()
@@ -87,7 +87,7 @@ private[eval] object TaskCreate {
     * Implementation for `Task.async`
     */
   def async0[A](fn: (Scheduler, Callback[A]) => Any): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+    val start = (ctx: TaskContext, cb: Callback[A]) => {
       implicit val s = ctx.scheduler
       try {
         fn(s, Callback.trampolined(cb))
@@ -110,7 +110,7 @@ private[eval] object TaskCreate {
     * of avoiding extraneous callback allocations.
     */
   def async[A](k: Callback[A] => Unit): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+    val start = (ctx: TaskContext, cb: Callback[A]) => {
       implicit val s = ctx.scheduler
       try {
         k(Callback.trampolined(cb))
@@ -129,12 +129,12 @@ private[eval] object TaskCreate {
     * Implementation for `Task.asyncF`.
     */
   def asyncF[A](k: Callback[A] => Task[Unit]): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+    val start = (ctx: TaskContext, cb: Callback[A]) => {
       implicit val s = ctx.scheduler
       try {
         // Creating new connection, because we can have a race condition
         // between the bind continuation and executing the generated task
-        val ctx2 = Context(ctx.scheduler, ctx.options)
+        val ctx2 = TaskContext(ctx.scheduler, ctx.options)
         val conn = ctx.connection
         conn.push(ctx2.connection)
         // Provided callback takes care of `conn.pop()`

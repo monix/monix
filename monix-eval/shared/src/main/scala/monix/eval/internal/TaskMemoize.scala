@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Context, Error, Now}
+import monix.eval.Task.{Error, Now}
 import monix.eval.internal.TaskRunLoop.startFull
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Scheduler
@@ -51,13 +51,13 @@ private[eval] object TaskMemoize {
 
   /** Registration function, used in `Task.Async`. */
   private final class Register[A](source: Task[A], val cacheErrors: Boolean)
-    extends ((Task.Context, Callback[A]) => Unit) { self =>
+    extends ((TaskContext, Callback[A]) => Unit) { self =>
 
     // N.B. keeps state!
     private[this] var thunk = source
     private[this] val state = Atomic(null : AnyRef)
 
-    def apply(ctx: Context, cb: Callback[A]): Unit = {
+    def apply(ctx: TaskContext, cb: Callback[A]): Unit = {
       implicit val sc = ctx.scheduler
       state.get match {
         case result: Try[A] @unchecked =>
@@ -123,7 +123,7 @@ private[eval] object TaskMemoize {
       */
     private def registerListener(
       ref: (Promise[A], StackedCancelable),
-      context: Context,
+      context: TaskContext,
       cb: Callback[A])
       (implicit ec: ExecutionContext): Unit = {
 
@@ -139,7 +139,7 @@ private[eval] object TaskMemoize {
     /**
       * Starts execution, eventually caching the value on completion.
       */
-    @tailrec private def start(context: Context, cb: Callback[A]): Unit = {
+    @tailrec private def start(context: TaskContext, cb: Callback[A]): Unit = {
       implicit val sc: Scheduler = context.scheduler
       self.state.get match {
         case null =>

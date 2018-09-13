@@ -18,7 +18,7 @@
 package monix.eval
 package internal
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.Async
 import monix.execution.atomic.{Atomic, AtomicBoolean}
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.schedulers.TrampolinedRunnable
@@ -29,7 +29,7 @@ private[eval] object TaskCancellation {
     * Implementation for `Task.cancel`.
     */
   def signal[A](fa: Task[A]): Task[Unit] = {
-    val start = (ctx: Context, cb: Callback[Unit]) => {
+    val start = (ctx: TaskContext, cb: Callback[Unit]) => {
       implicit val sc = ctx.scheduler
       // Continues the execution of `fa` using an already cancelled
       // cancelable, which will ensure that all future registrations
@@ -62,7 +62,7 @@ private[eval] object TaskCancellation {
     * Implementation for `Task.onCancelRaiseError`.
     */
   def raiseError[A](fa: Task[A], e: Throwable): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+    val start = (ctx: TaskContext, cb: Callback[A]) => {
       implicit val sc = ctx.scheduler
       val canCall = Atomic(true)
       // We need a special connection because the main one will be reset on
@@ -134,18 +134,18 @@ private[eval] object TaskCancellation {
       }
   }
 
-  private[this] val enableAutoCancelableRunLoops: Context => Context =
+  private[this] val enableAutoCancelableRunLoops: TaskContext => TaskContext =
     ctx => {
       if (ctx.options.autoCancelableRunLoops) ctx
       else ctx.withOptions(ctx.options.enableAutoCancelableRunLoops)
     }
 
-  private[this] val disableAutoCancelableRunLoops: (Any, Throwable, Context, Context) => Context =
+  private[this] val disableAutoCancelableRunLoops: (Any, Throwable, TaskContext, TaskContext) => TaskContext =
     (_, _, old, current) => current.withOptions(old.options)
 
-  private[this] val withConnectionUncancelable: Context => Context =
+  private[this] val withConnectionUncancelable: TaskContext => TaskContext =
     ct => ct.withConnection(StackedCancelable.uncancelable)
 
-  private[this] val restoreConnection: (Any, Throwable, Context, Context) => Context =
+  private[this] val restoreConnection: (Any, Throwable, TaskContext, TaskContext) => TaskContext =
     (_, _, old, current) => current.withConnection(old.connection)
 }

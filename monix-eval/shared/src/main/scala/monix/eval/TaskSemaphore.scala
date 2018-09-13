@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import monix.eval.Task.Context
+import monix.eval.internal.TaskContext
 import monix.execution.Cancelable
 import monix.execution.misc.AsyncSemaphore
 import monix.execution.schedulers.TrampolinedRunnable
@@ -62,7 +62,7 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     */
   def greenLight[A](fa: Task[A]): Task[A] = {
     // Inlining doOnFinish + doOnCancel
-    val start = (context: Context, cb: Callback[A]) => {
+    val start = (context: TaskContext, cb: Callback[A]) => {
       implicit val s = context.scheduler
       val c = Cancelable(() => semaphore.release())
       val conn = context.connection
@@ -107,7 +107,7 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     * has been acquired.
     */
   val acquire: Task[Unit] = {
-    val start = (context: Context, cb: Callback[Unit]) => {
+    val start = (context: TaskContext, cb: Callback[Unit]) => {
       import monix.execution.schedulers.TrampolineExecutionContext.immediate
       implicit val s = context.scheduler
       val f = semaphore.acquire()

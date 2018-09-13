@@ -68,19 +68,12 @@ trait TaskApp {
     */
   protected def scheduler: Scheduler = Scheduler.global
 
-  /** [[monix.eval.Task.Options Options]] for executing the
-    * [[Task]] action. The default value is defined in
-    * [[monix.eval.Task.defaultOptions defaultOptions]],
-    * but can be overridden.
-    */
-  protected def options: Task.Options = Task.defaultOptions
-
   /** Provides the
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.ConcurrentEffect]]
     * instance of this runtime environment.
     */
   protected implicit lazy val catsEffect: ConcurrentEffect[Task] =
-    new CatsConcurrentEffectForTask()(scheduler, options)
+    new CatsConcurrentEffectForTask()(scheduler)
 
   final def main(args: Array[String]): Unit = {
     val self = this

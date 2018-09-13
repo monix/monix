@@ -25,7 +25,7 @@ private[eval] object TaskRunSyncUnsafe {
   /** Implementation of `Task.runSyncUnsafe`, meant to throw an
     * "unsupported exception", since JavaScript cannot support it.
     */
-  def apply[A](source: Task[A], timeout: Duration, scheduler: Scheduler, opts: Task.Options): A = {
+  def apply[A](source: Task[A], timeout: Duration, scheduler: Scheduler, opts: TaskOptions): A = {
     // $COVERAGE-OFF$
     throw new UnsupportedOperationException("runSyncUnsafe isn't supported on top of JavaScript")
     // $COVERAGE-ON$

@@ -17,7 +17,8 @@
 
 package monix.eval
 
-import monix.eval.Task.{Context, ContextSwitch}
+import monix.eval.Task.ContextSwitch
+import monix.eval.internal.TaskContext
 import monix.execution.misc.Local
 
 /** A `TaskLocal` is like a
@@ -30,34 +31,7 @@ import monix.execution.misc.Local
   * Just like a `ThreadLocal`, usage of a `TaskLocal` is safe,
   * the state of all current locals being transported over
   * async boundaries (aka when threads get forked) by the `Task`
-  * run-loop implementation, but only when the `Task` reference
-  * gets executed with [[Task.Options.localContextPropagation]]
-  * set to `true`.
-  *
-  * One way to achieve this is with [[Task.executeWithOptions]],
-  * a single call is sufficient just before `runAsync`:
-  *
-  * {{{
-  *   import monix.execution.Scheduler.Implicits.global
-  *
-  *   val t = Task(42)
-  *   t.executeWithOptions(_.enableLocalContextPropagation)
-  *     // triggers the actual execution
-  *     .runAsync
-  * }}}
-  *
-  * Another possibility is to use
-  * [[Task.runAsyncOpt(implicit* .runAsyncOpt]] instead of `runAsync`
-  * and specify the set of options implicitly:
-  *
-  * {{{
-  *   {
-  *     implicit val options = Task.defaultOptions.enableLocalContextPropagation
-  *
-  *     // Options passed implicitly
-  *     val f = t.runAsyncOpt
-  *   }
-  * }}}
+  * run-loop implementation.
   *
   * Full example:
   *
@@ -247,7 +221,7 @@ object TaskLocal {
   private def withPropagation[A](task: Task[A]): Task[A] =
     ContextSwitch(task, enablePropagation, null)
 
-  private val enablePropagation: Context => Context =
+  private val enablePropagation: TaskContext => TaskContext =
     ctx => {
       if (!ctx.options.localContextPropagation)
         ctx.withOptions(ctx.options.enableLocalContextPropagation)

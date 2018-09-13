@@ -19,13 +19,12 @@ package monix.eval.internal
 
 import cats.effect.ExitCase
 import cats.effect.ExitCase.{Canceled, Completed, Error}
-import monix.eval.Task.{Context, ContextSwitch}
+import monix.eval.Task.ContextSwitch
 import monix.eval.{Callback, Task}
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
-
 import scala.util.control.NonFatal
 
 private[monix] object TaskBracket {
@@ -55,12 +54,12 @@ private[monix] object TaskBracket {
     release: (A, Either[Option[Throwable], B]) => Task[Unit])
     extends BaseStart(acquire, use) {
 
-    def makeReleaseFrame(ctx: Context, value: A) =
+    def makeReleaseFrame(ctx: TaskContext, value: A) =
       new ReleaseFrameE(ctx, value, release)
   }
 
   private final class ReleaseFrameE[A, B](
-    ctx: Context,
+    ctx: TaskContext,
     a: A,
     release: (A, Either[Option[Throwable], B]) => Task[Unit])
     extends BaseReleaseFrame[A, B](ctx, a) {
@@ -98,12 +97,12 @@ private[monix] object TaskBracket {
     release: (A, ExitCase[Throwable]) => Task[Unit])
     extends BaseStart(acquire, use) {
 
-    def makeReleaseFrame(ctx: Context, value: A) =
+    def makeReleaseFrame(ctx: TaskContext, value: A) =
       new ReleaseFrameCase(ctx, value, release)
   }
 
   private final class ReleaseFrameCase[A, B](
-    ctx: Context,
+    ctx: TaskContext,
     a: A,
     release: (A, ExitCase[Throwable]) => Task[Unit])
     extends BaseReleaseFrame[A, B](ctx, a) {
@@ -123,11 +122,11 @@ private[monix] object TaskBracket {
   private abstract class BaseStart[A, B](
     acquire: Task[A],
     use: A => Task[B])
-    extends ((Context, Callback[B]) => Unit) {
+    extends ((TaskContext, Callback[B]) => Unit) {
 
-    protected def makeReleaseFrame(ctx: Context, value: A): BaseReleaseFrame[A, B]
+    protected def makeReleaseFrame(ctx: TaskContext, value: A): BaseReleaseFrame[A, B]
 
-    final def apply(ctx: Context, cb: Callback[B]): Unit = {
+    final def apply(ctx: TaskContext, cb: Callback[B]): Unit = {
       // Async boundary needed, but it is guaranteed via Task.Async below;
       Task.unsafeStartNow(acquire, ctx.withConnection(StackedCancelable.uncancelable),
         new Callback[A] {
@@ -151,7 +150,7 @@ private[monix] object TaskBracket {
     }
   }
 
-  private abstract class BaseReleaseFrame[A, B](ctx: Context, a: A)
+  private abstract class BaseReleaseFrame[A, B](ctx: TaskContext, a: A)
     extends StackFrame[B, Task[B]] with Cancelable {
 
     private[this] val waitsForResult = Atomic(true)
@@ -223,6 +222,6 @@ private[monix] object TaskBracket {
 
   private val leftNone = Left(None)
 
-  private[this] val withConnectionUncancelable: Context => Context =
+  private[this] val withConnectionUncancelable: TaskContext => TaskContext =
     _.withConnection(StackedCancelable.uncancelable)
 }

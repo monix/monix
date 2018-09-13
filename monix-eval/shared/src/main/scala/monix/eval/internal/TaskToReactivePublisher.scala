@@ -34,7 +34,7 @@ private[eval] object TaskToReactivePublisher {
           private[this] var isActive = true
           private[this] val conn = StackedCancelable()
           private[this] val context =
-            Task.Context(s, Task.defaultOptions, conn)
+            TaskContext(s, TaskOptions.default, conn)
 
           def request(n: Long): Unit = {
             require(n > 0, "n must be strictly positive, according to " +
