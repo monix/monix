@@ -1941,7 +1941,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *     .timed
     *     .flatMap {
     *       case (duration, Right(value)) => Task.eval(Logger.info(s"executed in ${duration.toMillis} ms")).map(_ => value)
-    *       case (duration, Left(e))      => Task.eval(Logger.warn(s"failed in ${duration.toMillis} ms")).map(_ => e)
+    *       case (duration, Left(e))      => Task.eval(Logger.warn(s"failed in ${duration.toMillis} ms")).flatMap(_ => Task.raiseError(e))
     *     }
     * }}}
     */
