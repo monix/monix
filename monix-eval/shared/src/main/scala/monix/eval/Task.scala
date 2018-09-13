@@ -1924,7 +1924,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *   Task(1 + 1)
     *     .timed
     *     .flatMap { case (duration, value) =
-    *       Task.eval(Logger.info(s"executed in ${duration.toMillis} ms").map(_ => value)
+    *       Task.eval(Logger.info("executed in " + duration.toMillis + " ms").map(_ => value)
     *     }
     * }}}
     *
@@ -1938,8 +1938,8 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *     .attempt
     *     .timed
     *     .flatMap {
-    *       case (duration, Right(value)) => Task.eval(Logger.info(s"executed in ${duration.toMillis} ms")).map(_ => value)
-    *       case (duration, Left(e))      => Task.eval(Logger.warn(s"failed in ${duration.toMillis} ms")).flatMap(_ => Task.raiseError(e))
+    *       case (duration, Right(value)) => Task.eval(Logger.info("executed in " + duration.toMillis + " ms")).map(_ => value)
+    *       case (duration, Left(e))      => Task.eval(Logger.warn("failed in " + duration.toMillis + " ms")).flatMap(_ => Task.raiseError(e))
     *     }
     * }}}
     */
