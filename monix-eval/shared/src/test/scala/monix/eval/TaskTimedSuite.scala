@@ -25,7 +25,7 @@ import scala.util.{Failure, Success}
 object TaskTimedSuite extends BaseTestSuite {
 
   test("Task.timed works for successful tasks") { implicit s =>
-    val task = Task.now("hello").delayExecution(2.second).timed(NANOSECONDS)
+    val task = Task.now("hello").delayExecution(2.second).timed
     val f = task.runAsync
 
     s.tick()
@@ -42,7 +42,7 @@ object TaskTimedSuite extends BaseTestSuite {
   }
 
   test("Task.timed doesn't time failed tasks") { implicit s =>
-    val task = Task.raiseError(DummyException("dummy")).delayExecution(2.second).timed(NANOSECONDS)
+    val task = Task.raiseError(DummyException("dummy")).delayExecution(2.second).timed
     val f = task.runAsync
 
     s.tick()
@@ -59,7 +59,7 @@ object TaskTimedSuite extends BaseTestSuite {
   }
 
   test("Task.timed could time errors if .attempt is called first") { implicit s =>
-    val task = Task.raiseError(DummyException("dummy")).delayExecution(2.second).attempt.timed(NANOSECONDS)
+    val task = Task.raiseError(DummyException("dummy")).delayExecution(2.second).attempt.timed
     val f = task.runAsync
 
     s.tick()
@@ -77,7 +77,7 @@ object TaskTimedSuite extends BaseTestSuite {
 
   test("Task.timed is stack safe") { implicit sc =>
     def loop(n: Int, acc: Duration): Task[Duration] =
-      Task.unit.delayResult(1.second).timed(NANOSECONDS).flatMap { case (duration, _) =>
+      Task.unit.delayResult(1.second).timed.flatMap { case (duration, _) =>
         if (n > 0)
           loop(n - 1, acc + duration)
         else
