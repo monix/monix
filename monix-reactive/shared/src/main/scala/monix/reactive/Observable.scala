@@ -20,7 +20,7 @@ package monix.reactive
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
 import cats.effect.{Effect, IO}
-import cats.{Applicative, Apply, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, MonoidK, NonEmptyParallel, Order, ~>}
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
 import monix.execution.Ack.{Continue, Stop}
@@ -4628,7 +4628,7 @@ object Observable {
 
   /** Cats instances for [[Observable]]. */
   class CatsInstances extends MonadError[Observable, Throwable]
-    with MonoidK[Observable]
+    with Alternative[Observable]
     with CoflatMap[Observable]
     with TaskLift[Observable] {
 
