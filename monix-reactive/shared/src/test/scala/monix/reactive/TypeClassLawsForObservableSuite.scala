@@ -17,7 +17,7 @@
 
 package monix.reactive
 
-import cats.laws.discipline.{ApplyTests, CoflatMapTests, MonadErrorTests, MonoidKTests, NonEmptyParallelTests}
+import cats.laws.discipline.{AlternativeTests, ApplyTests, CoflatMapTests, MonadErrorTests, MonoidKTests, NonEmptyParallelTests}
 import monix.reactive.observables.CombineObservable
 
 object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
@@ -27,6 +27,10 @@ object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
 
   checkAllAsync("CoflatMap[Observable]") { implicit ec =>
     CoflatMapTests[Observable].coflatMap[Int, Int, Int]
+  }
+
+  checkAllAsync("Alternative[Observable]") { implicit ec =>
+    AlternativeTests[Observable].alternative[Int, Int, Int]
   }
 
   checkAllAsync("MonoidK[Observable]") { implicit ec =>
