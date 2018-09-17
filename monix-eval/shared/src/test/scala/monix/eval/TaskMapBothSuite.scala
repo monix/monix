@@ -111,16 +111,14 @@ object TaskMapBothSuite extends BaseTestSuite {
     val err2 = new RuntimeException("Error 2")
     val t2 = Task.defer(Task.raiseError[Int](err2)).executeAsync
 
-    val fb = Task.mapBoth(t1, t2)(_ + _).runAsync
+    val fb = Task.mapBoth(t1, t2)(_ + _).continual.runAsync
     s.tick()
 
     fb.value match {
       case Some(Failure(`err1`)) =>
-        val e = s.state.lastReportedError
-        assert(e == null || e == err2)
+        assertEquals(s.state.lastReportedError, err2)
       case Some(Failure(`err2`)) =>
-        val e = s.state.lastReportedError
-        assert(e == null || e == err1)
+        assertEquals(s.state.lastReportedError, err1)
       case other =>
         fail(s"fb.value is $other")
     }

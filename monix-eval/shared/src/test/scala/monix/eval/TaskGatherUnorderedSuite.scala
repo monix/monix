@@ -129,7 +129,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
       .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
 
     val gather = Task.gatherUnordered(Seq(task1, task2))
-    val result = gather.runAsync
+    val result = gather.continual.runAsync
     s.tick()
 
     assertEquals(result.value, Some(Failure(ex)))

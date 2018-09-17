@@ -18,7 +18,7 @@
 package monix.eval
 package internal
 
-import monix.eval.Task.Async
+import monix.eval.Task.{Async, ContextSwitch}
 import monix.execution.atomic.{Atomic, AtomicBoolean}
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.schedulers.TrampolinedRunnable
@@ -47,16 +47,16 @@ private[eval] object TaskCancellation {
   }
 
   /**
-    * Implementation for `Task#cancelable`.
-    */
-  def autoCancelable[A](fa: Task[A]): Task[A] =
-    Task.ContextSwitch(fa, enableAutoCancelableRunLoops, disableAutoCancelableRunLoops)
-
-  /**
     * Implementation for `Task.uncancelable`.
     */
   def uncancelable[A](fa: Task[A]): Task[A] =
     Task.ContextSwitch(fa, withConnectionUncancelable, restoreConnection)
+
+  /**
+    * Implementation for `Task#continual`.
+    */
+  def continual[A](fa: Task[A]): Task[A] =
+    ContextSwitch(fa, enableContinualRunLoops, disableContinualRunLoops)
 
   /**
     * Implementation for `Task.onCancelRaiseError`.
@@ -134,13 +134,15 @@ private[eval] object TaskCancellation {
       }
   }
 
-  private[this] val enableAutoCancelableRunLoops: TaskContext => TaskContext =
+  private[this] val enableContinualRunLoops: TaskContext => TaskContext =
     ctx => {
-      if (ctx.options.autoCancelableRunLoops) ctx
-      else ctx.withOptions(ctx.options.enableAutoCancelableRunLoops)
+      if (ctx.options.autoCancelableRunLoops)
+        ctx.withOptions(ctx.options.disableAutoCancelableRunLoops)
+      else
+        ctx
     }
 
-  private[this] val disableAutoCancelableRunLoops: (Any, Throwable, TaskContext, TaskContext) => TaskContext =
+  private[this] val disableContinualRunLoops: (Any, Throwable, TaskContext, TaskContext) => TaskContext =
     (_, _, old, current) => current.withOptions(old.options)
 
   private[this] val withConnectionUncancelable: TaskContext => TaskContext =

@@ -904,6 +904,68 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
   final def bracketE[B](use: A => Task[B])(release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] =
     TaskBracket.either(this, use, release)
 
+  /** Returns an `Task` value that on evaluation ensures the source
+    * will be evaluated using the "continual" model.
+    *
+    * In the continual evaluation model `flatMap` chains are not
+    * auto-cancelable, the underlying run-loop relying solely on
+    * user supplied cancelation logic (e.g. [[Task.cancelable]]).
+    *
+    * Example:
+    *
+    * {{{
+    *   val task = Task.create[Int] { _ =>
+    *     // N.B. this is a task that will never terminate
+    *     // (callback never gets invoked), but that has a
+    *     // cancelation handler installed:
+    *     Task(println("Cancelled task!"))
+    *   }
+    *
+    *   Task.shift.flatMap(_ => task)
+    *     .continual
+    * }}}
+    *
+    * In this sample we are guaranteed that the cancelation handler
+    * of the described `task` gets evaluated, printing "cancelled task1",
+    * because `Task.shift` is not cancelable and the `flatMap` that
+    * binds them is not cancelable in the "continual" model.
+    *
+    * Another example:
+    *
+    * {{{
+    *   Task.sleep(1.second).flatMap(_ => task)
+    * }}}
+    *
+    * This time `Task.sleep(1.second)` is cancelable and in case
+    * the cancel signal is received by the run-loop within that one
+    * second, then it will get cancelled. However, if
+    * `Task.sleep(1.second)` finishes, emitting its tick, then it's
+    * guaranteed that the cancelation handler of `task` gets executed.
+    *
+    * In other words if you have:
+    *
+    * {{{
+    *   for (t1 <- task1; t2 <- task2) yield ()
+    * }}}
+    *
+    * In the "continual" evaluation model you can have either "task1"
+    * cancelled (and its cancelation handler triggered), or "task2",
+    * but the implementation can no longer interrupt the processing
+    * in between.
+    *
+    * In other words the contract is that:
+    *
+    *  - if `task1` finishes, `task2` is guaranteed to at least start
+    *  - cancelation of a bind chain can still happen, but is managed
+    *    solely by user supplied logic (e.g. [[Task.cancelable]])
+    *
+    * NOTE: this brings back the default behavior of `Task` from
+    * version 2.x; since 3.0.0 `Task` evolved to become auto-cancelable
+    * by default to align with Cats-Effect.
+    */
+  final def continual: Task[A] =
+    TaskCancellation.continual(this)
+
   /** Returns a task that waits for the specified `timespan` before
     * executing and mirroring the result of the source.
     *
