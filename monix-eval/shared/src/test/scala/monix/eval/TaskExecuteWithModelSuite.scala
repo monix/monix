@@ -15,69 +15,69 @@
  * limitations under the License.
  */
 
-package monix.eval
-
-import monix.execution.ExecutionModel
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
-import scala.util.Success
-
-object TaskExecuteWithModelSuite extends BaseTestSuite {
-  def readModel: Task[ExecutionModel] =
-    Task.deferAction(s => Task.now(s.executionModel))
-
-  test("executeWithModel works") { implicit sc =>
-    assertEquals(sc.executionModel, ExecutionModel.Default)
-
-    val f1 = readModel.executeWithModel(SynchronousExecution).runAsync
-    assertEquals(f1.value, Some(Success(SynchronousExecution)))
-
-    val f2 = readModel.executeWithModel(AlwaysAsyncExecution).runAsync
-    sc.tick()
-    assertEquals(f2.value, Some(Success(AlwaysAsyncExecution)))
-  }
-
-  testAsync("local.write.executeWithModel(AlwaysAsyncExecution) works") { _ =>
-    import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-
-    val task = for {
-      l <- TaskLocal(10)
-      _ <- l.write(100).executeWithModel(AlwaysAsyncExecution)
-      _ <- Task.shift
-      v <- l.read
-    } yield v
-
-    for (v <- task.runAsyncOpt) yield {
-      assertEquals(v, 100)
-    }
-  }
-
-  testAsync("local.write.executeWithModel(SynchronousExecution) works") { _ =>
-    import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-
-    val task = for {
-      l <- TaskLocal(10)
-      _ <- l.write(100).executeWithModel(SynchronousExecution)
-      _ <- Task.shift
-      v <- l.read
-    } yield v
-
-    for (v <- task.runAsyncOpt) yield {
-      assertEquals(v, 100)
-    }
-  }
-
-  test("executeWithModel is stack safe in flatMap loops") { implicit sc =>
-    def loop(n: Int, acc: Long): Task[Long] =
-      Task.unit.executeWithModel(SynchronousExecution).flatMap { _ =>
-        if (n > 0)
-          loop(n - 1, acc + 1)
-        else
-          Task.now(acc)
-      }
-
-    val f = loop(10000, 0).runAsync; sc.tick()
-    assertEquals(f.value, Some(Success(10000)))
-  }
-}
+//package monix.eval
+//
+//import monix.execution.ExecutionModel
+//import monix.execution.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
+//import scala.util.Success
+//
+//object TaskExecuteWithModelSuite extends BaseTestSuite {
+//  def readModel: Task[ExecutionModel] =
+//    Task.deferAction(s => Task.now(s.executionModel))
+//
+//  test("executeWithModel works") { implicit sc =>
+//    assertEquals(sc.executionModel, ExecutionModel.Default)
+//
+//    val f1 = readModel.executeWithModel(SynchronousExecution).runAsync
+//    assertEquals(f1.value, Some(Success(SynchronousExecution)))
+//
+//    val f2 = readModel.executeWithModel(AlwaysAsyncExecution).runAsync
+//    sc.tick()
+//    assertEquals(f2.value, Some(Success(AlwaysAsyncExecution)))
+//  }
+//
+//  testAsync("local.write.executeWithModel(AlwaysAsyncExecution) works") { _ =>
+//    import monix.execution.Scheduler.Implicits.global
+//    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+//
+//    val task = for {
+//      l <- TaskLocal(10)
+//      _ <- l.write(100).executeWithModel(AlwaysAsyncExecution)
+//      _ <- Task.shift
+//      v <- l.read
+//    } yield v
+//
+//    for (v <- task.runAsyncOpt) yield {
+//      assertEquals(v, 100)
+//    }
+//  }
+//
+//  testAsync("local.write.executeWithModel(SynchronousExecution) works") { _ =>
+//    import monix.execution.Scheduler.Implicits.global
+//    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+//
+//    val task = for {
+//      l <- TaskLocal(10)
+//      _ <- l.write(100).executeWithModel(SynchronousExecution)
+//      _ <- Task.shift
+//      v <- l.read
+//    } yield v
+//
+//    for (v <- task.runAsyncOpt) yield {
+//      assertEquals(v, 100)
+//    }
+//  }
+//
+//  test("executeWithModel is stack safe in flatMap loops") { implicit sc =>
+//    def loop(n: Int, acc: Long): Task[Long] =
+//      Task.unit.executeWithModel(SynchronousExecution).flatMap { _ =>
+//        if (n > 0)
+//          loop(n - 1, acc + 1)
+//        else
+//          Task.now(acc)
+//      }
+//
+//    val f = loop(10000, 0).runAsync; sc.tick()
+//    assertEquals(f.value, Some(Success(10000)))
+//  }
+//}

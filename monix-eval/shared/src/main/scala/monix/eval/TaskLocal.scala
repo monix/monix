@@ -63,12 +63,8 @@ import monix.execution.misc.Local
   *   // a `TracingScheduler` here:
   *   import monix.execution.Scheduler.Implicits.global
   *
-  *   // Needs enabling the "localContextPropagation" option
-  *   // just before execution
-  *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-  *
   *   // Triggering actual execution
-  *   val result = task.runAsyncOpt
+  *   val result = task.runAsync
   * }}}
   */
 final class TaskLocal[A] private (default: => A) {

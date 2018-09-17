@@ -116,9 +116,11 @@ object TaskMapBothSuite extends BaseTestSuite {
 
     fb.value match {
       case Some(Failure(`err1`)) =>
-        assertEquals(s.state.lastReportedError, err2)
+        val e = s.state.lastReportedError
+        assert(e == null || e == err2)
       case Some(Failure(`err2`)) =>
-        assertEquals(s.state.lastReportedError, err1)
+        val e = s.state.lastReportedError
+        assert(e == null || e == err1)
       case other =>
         fail(s"fb.value is $other")
     }

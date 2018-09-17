@@ -48,19 +48,17 @@ trait BaseLawsSuite extends monix.execution.BaseLawsSuite with ArbitraryInstance
 trait ArbitraryInstances extends ArbitraryInstancesBase {
   implicit def equalityTask[A](implicit
     A: Eq[A],
-    sc: TestScheduler,
-    opts: Task.Options = Task.defaultOptions): Eq[Task[A]] = {
+    sc: TestScheduler): Eq[Task[A]] = {
 
     new Eq[Task[A]] {
       def eqv(lh: Task[A], rh: Task[A]): Boolean =
-        equalityFuture(A, sc).eqv(lh.runAsyncOpt, rh.runAsyncOpt)
+        equalityFuture(A, sc).eqv(lh.runAsync, rh.runAsync)
     }
   }
 
   implicit def equalityTaskPar[A](implicit
     A: Eq[A],
-    ec: TestScheduler,
-    opts: Task.Options = Task.defaultOptions): Eq[Task.Par[A]] = {
+    ec: TestScheduler): Eq[Task.Par[A]] = {
 
     new Eq[Task.Par[A]] {
       import Task.Par.unwrap
@@ -142,9 +140,6 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
         Task.ContextSwitch[A](t, x => x.copy(), (_, _, old, _) => old)
       }
 
-    def genAutoCancelable: Gen[Task[A]] =
-      for (t <- genSimpleTask) yield t.autoCancelable
-
     def genFlatMap: Gen[Task[A]] =
       for {
         ioa <- genSimpleTask
@@ -170,7 +165,6 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
       1 -> genEval,
       1 -> genFail,
       1 -> genContextSwitch,
-      1 -> genAutoCancelable,
       1 -> genCancelable,
       1 -> genBindSuspend,
       1 -> genAsync,

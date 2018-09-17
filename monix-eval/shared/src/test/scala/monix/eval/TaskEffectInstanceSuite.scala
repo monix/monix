@@ -15,35 +15,35 @@
  * limitations under the License.
  */
 
-package monix.eval
-
-import cats.effect.{Effect, IO}
-
-import scala.concurrent.duration._
-
-object TaskEffectInstanceSuite extends BaseTestSuite {
-  test("Effect instance should make use of implicit TaskOptions") { implicit sc =>
-    val readOptions: Task[Task.Options] =
-      Task.Async { (ctx, cb) => cb.onSuccess(ctx.options) }
-
-    implicit val customOptions: Task.Options = Task.Options(
-      autoCancelableRunLoops = true,
-      localContextPropagation = true
-    )
-
-    var received: Task.Options = null
-
-    val io = Effect[Task].runAsync(readOptions) {
-      case Right(opts) =>
-        received = opts
-        IO.unit
-      case _ =>
-        fail()
-        IO.unit
-    }
-
-    io.unsafeRunSync()
-    sc.tick(1.day)
-    assert(received eq customOptions)
-  }
-}
+//package monix.eval
+//
+//import cats.effect.{Effect, IO}
+//
+//import scala.concurrent.duration._
+//
+//object TaskEffectInstanceSuite extends BaseTestSuite {
+//  test("Effect instance should make use of implicit TaskOptions") { implicit sc =>
+//    val readOptions: Task[Task.Options] =
+//      Task.Async { (ctx, cb) => cb.onSuccess(ctx.options) }
+//
+//    implicit val customOptions: Task.Options = Task.Options(
+//      autoCancelableRunLoops = true,
+//      localContextPropagation = true
+//    )
+//
+//    var received: Task.Options = null
+//
+//    val io = Effect[Task].runAsync(readOptions) {
+//      case Right(opts) =>
+//        received = opts
+//        IO.unit
+//      case _ =>
+//        fail()
+//        IO.unit
+//    }
+//
+//    io.unsafeRunSync()
+//    sc.tick(1.day)
+//    assert(received eq customOptions)
+//  }
+//}
