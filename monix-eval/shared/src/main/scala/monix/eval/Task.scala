@@ -1928,7 +1928,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *     }
     * }}}
     *
-    * In the previuos example, if the initial `Task` fails, the following `flatMap` will not be executed.
+    * In the previous example, if the initial `Task` fails, the following `flatMap` will not be executed.
     * So, you'll not be able to time the "error path".
     *
     * To be able to time the execution, even if the `Task` fails, you have to call `.attempt` first:
