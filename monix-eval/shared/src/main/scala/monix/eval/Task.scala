@@ -1943,12 +1943,12 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *     }
     * }}}
     */
-  final def timed: Task[(Duration, A)] =
+  final def timed: Task[(FiniteDuration, A)] =
     for {
       start <- Task.clock.monotonic(NANOSECONDS)
       a     <- this
       end   <- Task.clock.monotonic(NANOSECONDS)
-    } yield (Duration(end - start, NANOSECONDS), a)
+    } yield (FiniteDuration(end - start, NANOSECONDS), a)
 }
 
 /** Builders for [[Task]].
