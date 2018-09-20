@@ -528,9 +528,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * This equivalence with [[flatMap]] always holds:
     *
-    * ```scala
-    * fa.flatten <-> fa.flatMap(x => x)
-    * ```
+    * `fa.flatten <-> fa.flatMap(x => x)`
     */
   final def flatten[B](implicit ev: A <:< Coeval[B]): Coeval[B] =
     flatMap(a => a)
@@ -562,9 +560,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * This equivalence with [[flatMap]] always holds:
     *
-    * ```scala
-    * fa.map(f) <-> fa.flatMap(x => Coeval.pure(f(x)))
-    * ```
+    * `fa.map(f) <-> fa.flatMap(x => Coeval.pure(f(x)))`
     */
   final def map[B](f: A => B): Coeval[B] =
     this match {
@@ -591,9 +587,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * This equivalence always holds:
     *
-    * ```scala
-    * fa.materialize.dematerialize <-> fa
-    * ```
+    * `fa.materialize.dematerialize <-> fa`
     */
   final def dematerialize[B](implicit ev: A <:< Try[B]): Coeval[B] =
     self.asInstanceOf[Coeval[Try[B]]].flatMap(Eager.fromTry)
@@ -625,15 +619,11 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * This is an optimization on usage of [[attempt]] and [[map]],
     * this equivalence being true:
     *
-    * ```scala
-    *   coeval.redeem(recover, map) <-> coeval.attempt.map(_.fold(recover, map))
-    * ```
+    * `coeval.redeem(recover, map) <-> coeval.attempt.map(_.fold(recover, map))`
     *
-    * Usage of `redeem` subsumes `onErrorHandle` because:
+    * Usage of `redeem` subsumes [[onErrorHandle]] because:
     *
-    * ```scala
-    *   coeval.redeem(fe, id) <-> coeval.onErrorHandle(fe)
-    * ```
+    * `coeval.redeem(fe, id) <-> coeval.onErrorHandle(fe)`
     *
     * @param recover is a function used for error recover in case the
     *        source ends in error
@@ -650,21 +640,15 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * This is an optimization on usage of [[attempt]] and [[flatMap]],
     * this equivalence being available:
     *
-    * ```scala
-    *   coeval.redeemWith(recover, bind) <-> coeval.attempt.flatMap(_.fold(recover, bind))
-    * ```
+    * `coeval.redeemWith(recover, bind) <-> coeval.attempt.flatMap(_.fold(recover, bind))`
     *
-    * Usage of `redeemWith` subsumes `onErrorHandleWith` because:
+    * Usage of `redeemWith` subsumes [[onErrorHandleWith]] because:
     *
-    * ```scala
-    *   coeval.redeemWith(fe, F.pure) <-> coeval.onErrorHandleWith(fe)
-    * ```
+    * `coeval.redeemWith(fe, F.pure) <-> coeval.onErrorHandleWith(fe)`
     *
     * Usage of `redeemWith` also subsumes [[flatMap]] because:
     *
-    * ```scala
-    *   coeval.redeemWith(Coeval.raiseError, fs) <-> coeval.flatMap(fs)
-    * ```
+    * `coeval.redeemWith(Coeval.raiseError, fs) <-> coeval.flatMap(fs)`
     *
     * @param recover is the function that gets called to recover the source
     *        in case of error

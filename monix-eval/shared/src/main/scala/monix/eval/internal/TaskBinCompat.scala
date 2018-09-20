@@ -140,9 +140,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
 
   /** DEPRECATED - replace with usage of [[Task.runSyncMaybe]]:
     *
-    * ```scala
-    *   task.coeval <-> Coeval(task.runSyncMaybe)
-    * ```
+    * `task.coeval <-> Coeval(task.runSyncMaybe)`
     */
   @deprecated("Replaced with start", since="3.0.0-RC2")
   final def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] = {

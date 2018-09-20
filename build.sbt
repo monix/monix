@@ -469,12 +469,12 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 
 lazy val doctestTestSettings = Seq(
   doctestTestFramework := DoctestTestFramework.Minitest,
-  doctestIgnoreRegex := Some(s".*Task(|App).scala"),
+  doctestIgnoreRegex := Some(s".*TaskApp.scala"),
   doctestOnlyCodeBlocksMode := true
 )
 
 lazy val evalCommon =
-  crossSettings ++ testSettings ++ doctestTestSettings ++ Seq(
+  crossSettings ++ testSettings ++ Seq(
     name := "monix-eval"
   )
 
@@ -483,6 +483,7 @@ lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .dependsOn(executionJVM % "compile->compile; test->test")
   .settings(evalCommon)
   .settings(mimaSettings("monix-eval"))
+  .settings(doctestTestSettings)
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
