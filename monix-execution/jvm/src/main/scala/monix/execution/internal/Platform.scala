@@ -65,31 +65,6 @@ private[monix] object Platform {
       .getOrElse(1024)
   }
 
-  /** Default value for auto cancelable loops is set to
-    * false. On top of the JVM the default can be overridden by
-    * setting the following system property:
-    *
-    *  - `monix.environment.autoCancelableRunLoops`
-    *    (`true`, `yes` or `1` for enabling)
-    */
-  val autoCancelableRunLoops: Boolean =
-    Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
-      .map(_.toLowerCase)
-      .exists(v => v == "yes" || v == "true" || v == "1")
-
-  /**
-    * Default value for local context propagation loops is set to
-    * false. On top of the JVM the default can be overridden by
-    * setting the following system property:
-    *
-    *  - `monix.environment.localContextPropagation`
-    *    (`true`, `yes` or `1` for enabling)
-    */
-  val localContextPropagation: Boolean =
-    Option(System.getProperty("monix.environment.localContextPropagation", ""))
-      .map(_.toLowerCase)
-      .exists(v => v == "yes" || v == "true" || v == "1")
-
   /**
     * Establishes the maximum stack depth for fused `.map` operations.
     *

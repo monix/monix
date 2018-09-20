@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.Async
 import monix.eval.{Callback, Task}
 import monix.execution.Cancelable
 
@@ -27,11 +27,11 @@ private[eval] object TaskDoOnCancel {
     */
   def apply[A](self: Task[A], callback: Task[Unit]): Task[A] = {
     if (callback eq Task.unit) self else {
-      val start = (context: Context, onFinish: Callback[A]) => {
+      val start = (context: TaskContext, onFinish: Callback[A]) => {
         implicit val s = context.scheduler
         implicit val o = context.options
 
-        val c = Cancelable(() => callback.runAsyncOpt(Callback.empty))
+        val c = Cancelable(() => callback.runAsync(Callback.empty))
         val conn = context.connection
         conn.push(c)
         Task.unsafeStartNow(self, context, Callback.trampolined(conn, onFinish))

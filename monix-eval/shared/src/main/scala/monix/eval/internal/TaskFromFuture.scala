@@ -17,16 +17,16 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.Context
 import monix.eval.{Callback, Task}
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-
 import scala.concurrent.Future
 
 private[eval] object TaskFromFuture {
-  /** Implementation for `Task.fromFuture`. */
+  /**
+    * Implementation for `Task.fromFuture`.
+    */
   def strict[A](f: Future[A]): Task[A] = {
     f.value match {
       case None =>
@@ -44,7 +44,9 @@ private[eval] object TaskFromFuture {
     }
   }
 
-  /** Implementation for `Task.deferFutureAction`. */
+  /**
+    * Implementation for `Task.deferFutureAction`.
+    */
   def deferAction[A](f: Scheduler => Future[A]): Task[A] =
     rawAsync[A] { (context, callback) =>
       implicit val sc = context.scheduler
@@ -85,15 +87,15 @@ private[eval] object TaskFromFuture {
         Task.fromTry(value)
     }
   }
-  
-  private def rawAsync[A](start: (Context, Callback[A]) => Unit): Task[A] =
+
+  private def rawAsync[A](start: (TaskContext, Callback[A]) => Unit): Task[A] =
     Task.Async(
       start,
       trampolineBefore = true,
       trampolineAfter = false,
       restoreLocals = true)
 
-  private def startSimple[A](ctx: Task.Context, cb: Callback[A], f: Future[A]) = {
+  private def startSimple[A](ctx: TaskContext, cb: Callback[A], f: Future[A]) = {
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete
@@ -103,7 +105,7 @@ private[eval] object TaskFromFuture {
     }
   }
 
-  private def startCancelable[A](ctx: Task.Context, cb: Callback[A], f: Future[A], c: Cancelable): Unit = {
+  private def startCancelable[A](ctx: TaskContext, cb: Callback[A], f: Future[A], c: Cancelable): Unit = {
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete

@@ -34,7 +34,6 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
       streamErrors = false
 
       Task.defer(loop(subscriber, init))
-        .executeWithOptions(_.enableAutoCancelableRunLoops)
         .runAsync(Callback.empty)
     }
     catch {

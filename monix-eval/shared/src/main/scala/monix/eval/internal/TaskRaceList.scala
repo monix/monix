@@ -37,7 +37,7 @@ private[eval] object TaskRaceList {
   private final class Register[A](tasks: TraversableOnce[Task[A]])
     extends ForkedRegister[A] {
 
-    def apply(context: Task.Context, callback: Callback[A]): Unit = {
+    def apply(context: TaskContext, callback: Callback[A]): Unit = {
       implicit val s = context.scheduler
       val conn = context.connection
 

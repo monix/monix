@@ -59,7 +59,7 @@ object TaskAsyncSuite extends BaseTestSuite {
     val f = loop(10000, 0).runAsync; s.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
-  
+
   test("Task.async works for immediate successful value") { implicit sc =>
     val task = Task.async[Int](_.onSuccess(1))
     assertEquals(task.runAsync.value, Some(Success(1)))

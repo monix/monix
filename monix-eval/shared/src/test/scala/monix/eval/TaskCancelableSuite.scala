@@ -49,7 +49,7 @@ object TaskCancelableSuite extends BaseTestSuite {
 
     assertEquals(f.value, Some(Success(10000)))
   }
-  
+
   test("Task.cancelable0 should work onSuccess") { implicit s =>
     val t = Task.cancelable0[Int] { (_,cb) => cb.onSuccess(10); Cancelable.empty }
     val f = t.runAsync

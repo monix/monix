@@ -18,7 +18,6 @@
 package monix.eval.internal
 
 import cats.effect._
-import monix.eval.Task.Context
 import monix.eval.{Callback, Task}
 import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
 import monix.execution.schedulers.TrampolinedRunnable
@@ -90,7 +89,7 @@ private[eval] object TaskConversions {
     }
 
   private def fromConcurrentEffect0[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+    val start = (ctx: TaskContext, cb: Callback[A]) => {
       try {
         implicit val sc = ctx.scheduler
         val conn = ctx.connection

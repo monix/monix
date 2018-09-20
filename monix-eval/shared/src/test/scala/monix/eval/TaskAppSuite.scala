@@ -17,10 +17,8 @@
 
 package monix.eval
 
-
 import cats.effect.ExitCode
 import minitest.SimpleTestSuite
-import monix.eval.Task.Options
 import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
@@ -38,29 +36,6 @@ object TaskAppSuite extends SimpleTestSuite {
     app.main(Array("true"))
     for (f <- wasExecuted.future) yield {
       assert(f, "wasExecuted")
-    }
-  }
-
-  testAsync("options are configurable") {
-    val opts = Task.defaultOptions
-    assert(!opts.localContextPropagation, "!opts.localContextPropagation")
-    val opts2 = opts.enableLocalContextPropagation
-    assert(opts2.localContextPropagation, "opts2.localContextPropagation")
-    val p = Promise[Options]()
-
-    val app = new TaskApp {
-      override val options = opts2
-
-      def run(args: List[String]): Task[ExitCode] =
-        for (opts <- Task.readOptions) yield {
-          p.success(opts)
-          ExitCode.Success
-        }
-    }
-
-    app.main(Array.empty)
-    for (r <- p.future) yield {
-      assertEquals(r, opts2)
     }
   }
 

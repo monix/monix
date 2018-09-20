@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.Async
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
@@ -86,7 +86,7 @@ private[eval] object TaskGatherUnordered {
       }
     }
 
-    def apply(context: Context, finalCallback: Callback[List[A]]): Unit = {
+    def apply(context: TaskContext, finalCallback: Callback[List[A]]): Unit = {
       @tailrec def activate(
         stateRef: AtomicAny[State[A]],
         count: Int,

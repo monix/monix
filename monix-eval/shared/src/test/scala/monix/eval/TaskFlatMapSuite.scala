@@ -15,121 +15,121 @@
  * limitations under the License.
  */
 
-package monix.eval
-
-import cats.laws._
-import cats.laws.discipline._
-
-import monix.execution.atomic.{Atomic, AtomicInt}
-import monix.execution.exceptions.DummyException
-import monix.execution.internal.Platform
-
-import scala.util.{Failure, Success, Try}
-
-object TaskFlatMapSuite extends BaseTestSuite {
-  test("runAsync flatMap loop is not cancelable if autoCancelableRunLoops=false") { implicit s =>
-    val maxCount = Platform.recommendedBatchSize * 4
-
-    def loop(count: AtomicInt): Task[Unit] =
-      if (count.incrementAndGet() >= maxCount) Task.unit else
-        Task.unit.flatMap(_ => loop(count))
-
-    val atomic = Atomic(0)
-    val f = loop(atomic)
-      .executeWithOptions(_.disableAutoCancelableRunLoops)
-      .runAsync
-
-    f.cancel(); s.tick()
-    assertEquals(atomic.get, maxCount)
-    assertEquals(f.value, Some(Success(())))
-  }
-
-  test("runAsync flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
-    val maxCount = Platform.recommendedBatchSize * 4
-    val expected = Platform.recommendedBatchSize
-
-    def loop(count: AtomicInt): Task[Unit] =
-      if (count.getAndIncrement() >= maxCount) Task.unit else
-        Task.unit.flatMap(_ => loop(count))
-
-    val atomic = Atomic(0)
-    val f = loop(atomic)
-      .autoCancelable
-      .runAsync
-
-    assertEquals(atomic.get, expected)
-    f.cancel()
-    s.tickOne()
-    assertEquals(atomic.get, expected)
-
-    s.tick()
-    assertEquals(atomic.get, expected)
-    assertEquals(f.value, None)
-  }
-
-  test("runAsync(callback) flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
-    val maxCount = Platform.recommendedBatchSize * 4
-    val expected = Platform.recommendedBatchSize
-
-    def loop(count: AtomicInt): Task[Unit] =
-      if (count.getAndIncrement() >= maxCount) Task.unit else
-        Task.unit.flatMap(_ => loop(count))
-
-    val atomic = Atomic(0)
-    var result = Option.empty[Try[Unit]]
-
-    val c = loop(atomic)
-      .autoCancelable
-      .runAsync(new Callback[Unit] {
-        def onSuccess(value: Unit): Unit =
-          result = Some(Success(value))
-        def onError(ex: Throwable): Unit =
-          result = Some(Failure(ex))
-      })
-
-    c.cancel()
-    s.tickOne()
-    assertEquals(atomic.get, expected)
-
-    s.tick()
-    assertEquals(atomic.get, expected)
-  }
-
-  test("redeemWith derives flatMap") { implicit s =>
-    check2 { (fa: Task[Int], f: Int => Task[Int]) =>
-      fa.redeemWith(Task.raiseError, f) <-> fa.flatMap(f)
-    }
-  }
-
-  test("redeemWith derives onErrorHandleWith") { implicit s =>
-    check2 { (fa: Task[Int], f: Throwable => Task[Int]) =>
-      fa.redeemWith(f, Task.pure) <-> fa.onErrorHandleWith(f)
-    }
-  }
-
-  test("redeem derives map") { implicit s =>
-    check2 { (fa: Task[Int], f: Int => Int) =>
-      fa.redeem(e => throw e, f) <-> fa.map(f)
-    }
-  }
-
-  test("redeem derives onErrorHandle") { implicit s =>
-    check2 { (fa: Task[Int], f: Throwable => Int) =>
-      fa.redeem(f, x => x) <-> fa.onErrorHandle(f)
-    }
-  }
-
-  test("redeemWith can recover") { implicit s =>
-    val dummy = new DummyException("dummy")
-    val task = Task.raiseError[Int](dummy).redeemWith(_ => Task.now(1), Task.now)
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("redeem can recover") { implicit s =>
-    val dummy = new DummyException("dummy")
-    val task = Task.raiseError[Int](dummy).redeem(_ => 1, identity)
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(1)))
-  }
-}
+//package monix.eval
+//
+//import cats.laws._
+//import cats.laws.discipline._
+//
+//import monix.execution.atomic.{Atomic, AtomicInt}
+//import monix.execution.exceptions.DummyException
+//import monix.execution.internal.Platform
+//
+//import scala.util.{Failure, Success, Try}
+//
+//object TaskFlatMapSuite extends BaseTestSuite {
+//  test("runAsync flatMap loop is not cancelable if autoCancelableRunLoops=false") { implicit s =>
+//    val maxCount = Platform.recommendedBatchSize * 4
+//
+//    def loop(count: AtomicInt): Task[Unit] =
+//      if (count.incrementAndGet() >= maxCount) Task.unit else
+//        Task.unit.flatMap(_ => loop(count))
+//
+//    val atomic = Atomic(0)
+//    val f = loop(atomic)
+//      .executeWithOptions(_.disableAutoCancelableRunLoops)
+//      .runAsync
+//
+//    f.cancel(); s.tick()
+//    assertEquals(atomic.get, maxCount)
+//    assertEquals(f.value, Some(Success(())))
+//  }
+//
+//  test("runAsync flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
+//    val maxCount = Platform.recommendedBatchSize * 4
+//    val expected = Platform.recommendedBatchSize
+//
+//    def loop(count: AtomicInt): Task[Unit] =
+//      if (count.getAndIncrement() >= maxCount) Task.unit else
+//        Task.unit.flatMap(_ => loop(count))
+//
+//    val atomic = Atomic(0)
+//    val f = loop(atomic)
+//      .autoCancelable
+//      .runAsync
+//
+//    assertEquals(atomic.get, expected)
+//    f.cancel()
+//    s.tickOne()
+//    assertEquals(atomic.get, expected)
+//
+//    s.tick()
+//    assertEquals(atomic.get, expected)
+//    assertEquals(f.value, None)
+//  }
+//
+//  test("runAsync(callback) flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
+//    val maxCount = Platform.recommendedBatchSize * 4
+//    val expected = Platform.recommendedBatchSize
+//
+//    def loop(count: AtomicInt): Task[Unit] =
+//      if (count.getAndIncrement() >= maxCount) Task.unit else
+//        Task.unit.flatMap(_ => loop(count))
+//
+//    val atomic = Atomic(0)
+//    var result = Option.empty[Try[Unit]]
+//
+//    val c = loop(atomic)
+//      .autoCancelable
+//      .runAsync(new Callback[Unit] {
+//        def onSuccess(value: Unit): Unit =
+//          result = Some(Success(value))
+//        def onError(ex: Throwable): Unit =
+//          result = Some(Failure(ex))
+//      })
+//
+//    c.cancel()
+//    s.tickOne()
+//    assertEquals(atomic.get, expected)
+//
+//    s.tick()
+//    assertEquals(atomic.get, expected)
+//  }
+//
+//  test("redeemWith derives flatMap") { implicit s =>
+//    check2 { (fa: Task[Int], f: Int => Task[Int]) =>
+//      fa.redeemWith(Task.raiseError, f) <-> fa.flatMap(f)
+//    }
+//  }
+//
+//  test("redeemWith derives onErrorHandleWith") { implicit s =>
+//    check2 { (fa: Task[Int], f: Throwable => Task[Int]) =>
+//      fa.redeemWith(f, Task.pure) <-> fa.onErrorHandleWith(f)
+//    }
+//  }
+//
+//  test("redeem derives map") { implicit s =>
+//    check2 { (fa: Task[Int], f: Int => Int) =>
+//      fa.redeem(e => throw e, f) <-> fa.map(f)
+//    }
+//  }
+//
+//  test("redeem derives onErrorHandle") { implicit s =>
+//    check2 { (fa: Task[Int], f: Throwable => Int) =>
+//      fa.redeem(f, x => x) <-> fa.onErrorHandle(f)
+//    }
+//  }
+//
+//  test("redeemWith can recover") { implicit s =>
+//    val dummy = new DummyException("dummy")
+//    val task = Task.raiseError[Int](dummy).redeemWith(_ => Task.now(1), Task.now)
+//    val f = task.runAsync
+//    assertEquals(f.value, Some(Success(1)))
+//  }
+//
+//  test("redeem can recover") { implicit s =>
+//    val dummy = new DummyException("dummy")
+//    val task = Task.raiseError[Int](dummy).redeem(_ => 1, identity)
+//    val f = task.runAsync
+//    assertEquals(f.value, Some(Success(1)))
+//  }
+//}

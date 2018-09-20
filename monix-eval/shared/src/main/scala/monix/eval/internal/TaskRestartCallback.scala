@@ -17,19 +17,19 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Context, Error, Now}
+import monix.eval.Task.{Error, Now}
 import monix.eval.internal.TaskRunLoop.{Bind, CallStack, startFull}
 import monix.eval.{Callback, Task}
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 
-private[internal] abstract class TaskRestartCallback(contextInit: Context, callback: Callback[Any])
+private[internal] abstract class TaskRestartCallback(contextInit: TaskContext, callback: Callback[Any])
   extends Callback[Any] with TrampolinedRunnable {
 
   // Modified on prepare()
   private[this] var bFirst: Bind = _
   private[this] var bRest: CallStack = _
-  private[this] var register: (Context, Callback[Any]) => Unit = _
+  private[this] var register: (TaskContext, Callback[Any]) => Unit = _
 
   // Mutated in onSuccess and onError, just before scheduling
   // onSuccessRun and onErrorRun
@@ -40,7 +40,7 @@ private[internal] abstract class TaskRestartCallback(contextInit: Context, callb
   // Can change via ContextSwitch
   private[this] var context = contextInit
 
-  final def contextSwitch(other: Context): Unit = {
+  final def contextSwitch(other: TaskContext): Unit = {
     this.context = other
   }
 
@@ -135,7 +135,7 @@ private[internal] object TaskRestartCallback {
   /** Builder for [[TaskRestartCallback]], returning a specific instance
     * optimized for the passed in `Task.Options`.
     */
-  def apply(context: Context, callback: Callback[Any]): TaskRestartCallback = {
+  def apply(context: TaskContext, callback: Callback[Any]): TaskRestartCallback = {
     if (context.options.localContextPropagation)
       new WithLocals(context, callback)
     else
@@ -143,11 +143,11 @@ private[internal] object TaskRestartCallback {
   }
 
   /** `RestartCallback` class meant for `localContextPropagation == false`. */
-  private final class NoLocals(context: Context, callback: Callback[Any])
+  private final class NoLocals(context: TaskContext, callback: Callback[Any])
     extends TaskRestartCallback(context, callback)
 
   /** `RestartCallback` class meant for `localContextPropagation == true`. */
-  private final class WithLocals(context: Context, callback: Callback[Any])
+  private final class WithLocals(context: TaskContext, callback: Callback[Any])
     extends TaskRestartCallback(context, callback) {
 
     private[this] var preparedLocals: Local.Context = _

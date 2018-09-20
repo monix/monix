@@ -21,7 +21,6 @@ import cats.effect.laws.discipline.{ConcurrentEffectTests, ConcurrentTests}
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
 import cats.{Applicative, Eq}
-import monix.eval.Task.Options
 import monix.eval.instances.CatsParallelForTask
 import monix.execution.schedulers.TestScheduler
 
@@ -31,48 +30,28 @@ import scala.concurrent.Promise
   * Type class tests for Task that use an alternative `Eq`, making
   * use of Task's `runAsync(callback)`.
   */
-object TypeClassLawsForTaskWithCallbackSuite
-  extends BaseTypeClassLawsForTaskWithCallbackSuite()(
-    Task.defaultOptions.disableAutoCancelableRunLoops
-  )
-
-/**
-  * Type class tests for Task that use an alternative `Eq`, making
-  * use of Task's `runAsync(callback)` and that evaluate the tasks
-  * in auto-cancelable mode.
-  */
-object TypeClassLawsForTaskAutoCancelableWithCallbackSuite
-  extends BaseTypeClassLawsForTaskWithCallbackSuite()(
-    Task.defaultOptions.enableAutoCancelableRunLoops
-  )
-
-class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options)
-  extends BaseLawsSuite {
-
+object TypeClassLawsForTaskWithCallbackSuite extends BaseLawsSuite {
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 
   override implicit def equalityTask[A](implicit
     A: Eq[A],
-    ec: TestScheduler,
-    opts: Options) = {
+    ec: TestScheduler) = {
 
     Eq.by { task =>
       val p = Promise[A]()
-      task.runAsyncOpt(Callback.fromPromise(p))
+      task.runAsync(Callback.fromPromise(p))
       p.future
     }
   }
 
-
   override implicit def equalityTaskPar[A](implicit
     A: Eq[A],
-    ec: TestScheduler,
-    opts: Options): Eq[Task.Par[A]] = {
+    ec: TestScheduler): Eq[Task.Par[A]] = {
 
     import Task.Par.unwrap
     Eq.by { task =>
       val p = Promise[A]()
-      unwrap(task).runAsyncOpt(Callback.fromPromise(p))
+      unwrap(task).runAsync(Callback.fromPromise(p))
       p.future
     }
   }

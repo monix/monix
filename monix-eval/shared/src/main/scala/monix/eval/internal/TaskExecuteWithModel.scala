@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.Async
 import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 
@@ -27,7 +27,7 @@ private[eval] object TaskExecuteWithModel {
     * Implementation for `Task.executeWithModel`
     */
   def apply[A](self: Task[A], em: ExecutionModel): Task[A] = {
-    val start = (context: Context, cb: Callback[A]) => {
+    val start = (context: TaskContext, cb: Callback[A]) => {
       val context2 = context.withExecutionModel(em)
       val frame = context2.frameRef
 

@@ -15,66 +15,66 @@
  * limitations under the License.
  */
 
-package monix.eval
-
-import monix.execution.exceptions.DummyException
-
-import concurrent.duration._
-import scala.util.{Failure, Success}
-
-object TaskDeferActionSuite extends BaseTestSuite {
-  test("Task.deferAction works") { implicit s =>
-    def measureLatency[A](source: Task[A]): Task[(A, Long)] =
-      Task.deferAction { implicit s =>
-        val start = s.clockMonotonic(MILLISECONDS)
-        source.map(a => (a, s.clockMonotonic(MILLISECONDS) - start))
-      }
-
-    val task = measureLatency(Task.now("hello").delayExecution(1.second))
-    val f = task.runAsync
-
-    s.tick()
-    assertEquals(f.value, None)
-
-    s.tick(1.second)
-    assertEquals(f.value, Some(Success(("hello", 1000))))
-  }
-
-  test("Task.deferAction protects against user error") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Task.deferAction(_ => throw dummy)
-    val f = task.runAsync
-
-    s.tick()
-    assertEquals(f.value, Some(Failure(dummy)))
-  }
-
-  test("Task.deferAction is stack safe") { implicit sc =>
-    def loop(n: Int, acc: Int): Task[Int] =
-      Task.deferAction { _ =>
-        if (n > 0)
-          loop(n - 1, acc + 1)
-        else
-          Task.now(acc)
-      }
-
-    val f = loop(10000, 0).runAsync; sc.tick()
-    assertEquals(f.value, Some(Success(10000)))
-  }
-
-  testAsync("deferAction(local.write) works") { _ =>
-    import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-
-    val task = for {
-      l <- TaskLocal(10)
-      _ <- Task.deferAction(_ => l.write(100))
-      _ <- Task.shift
-      v <- l.read
-    } yield v
-
-    for (v <- task.runAsyncOpt) yield {
-      assertEquals(v, 100)
-    }
-  }
-}
+//package monix.eval
+//
+//import monix.execution.exceptions.DummyException
+//
+//import concurrent.duration._
+//import scala.util.{Failure, Success}
+//
+//object TaskDeferActionSuite extends BaseTestSuite {
+//  test("Task.deferAction works") { implicit s =>
+//    def measureLatency[A](source: Task[A]): Task[(A, Long)] =
+//      Task.deferAction { implicit s =>
+//        val start = s.clockMonotonic(MILLISECONDS)
+//        source.map(a => (a, s.clockMonotonic(MILLISECONDS) - start))
+//      }
+//
+//    val task = measureLatency(Task.now("hello").delayExecution(1.second))
+//    val f = task.runAsync
+//
+//    s.tick()
+//    assertEquals(f.value, None)
+//
+//    s.tick(1.second)
+//    assertEquals(f.value, Some(Success(("hello", 1000))))
+//  }
+//
+//  test("Task.deferAction protects against user error") { implicit s =>
+//    val dummy = DummyException("dummy")
+//    val task = Task.deferAction(_ => throw dummy)
+//    val f = task.runAsync
+//
+//    s.tick()
+//    assertEquals(f.value, Some(Failure(dummy)))
+//  }
+//
+//  test("Task.deferAction is stack safe") { implicit sc =>
+//    def loop(n: Int, acc: Int): Task[Int] =
+//      Task.deferAction { _ =>
+//        if (n > 0)
+//          loop(n - 1, acc + 1)
+//        else
+//          Task.now(acc)
+//      }
+//
+//    val f = loop(10000, 0).runAsync; sc.tick()
+//    assertEquals(f.value, Some(Success(10000)))
+//  }
+//
+//  testAsync("deferAction(local.write) works") { _ =>
+//    import monix.execution.Scheduler.Implicits.global
+//    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+//
+//    val task = for {
+//      l <- TaskLocal(10)
+//      _ <- Task.deferAction(_ => l.write(100))
+//      _ <- Task.shift
+//      v <- l.read
+//    } yield v
+//
+//    for (v <- task.runAsyncOpt) yield {
+//      assertEquals(v, 100)
+//    }
+//  }
+//}

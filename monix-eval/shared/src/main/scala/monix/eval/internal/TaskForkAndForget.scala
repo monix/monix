@@ -18,17 +18,16 @@
 package monix.eval
 package internal
 
-import monix.eval.Task.Context
 
 private[eval] object TaskForkAndForget {
   /**
     * Implementation for `Task.startAndForget`.
     */
   def apply[A](fa: Task[A]): Task[Unit] = {
-    val start = (ctx: Context, cb: Callback[Unit]) => {
+    val start = (ctx: TaskContext, cb: Callback[Unit]) => {
       implicit val sc = ctx.scheduler
       // It needs its own context, its own cancelable
-      val ctx2 = Task.Context(sc, ctx.options)
+      val ctx2 = TaskContext(sc, ctx.options)
       // Starting actual execution of our newly created task forcing new async boundary
       Task.unsafeStartEnsureAsync(fa, ctx2, Callback.empty)
       cb.onSuccess(())

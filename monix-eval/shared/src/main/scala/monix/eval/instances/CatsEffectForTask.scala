@@ -38,10 +38,11 @@ import monix.execution.Scheduler
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
+class CatsEffectForTask(implicit s: Scheduler)
   extends CatsBaseForTask with Effect[Task] {
 
-  /** We need to mixin [[CatsAsyncForTask]], because if we
+  /**
+    * We need to mixin [[CatsAsyncForTask]], because if we
     * inherit directly from it, the implicits priorities don't
     * work, triggering conflicts.
     */
@@ -78,7 +79,7 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsConcurrentEffectForTask(implicit s: Scheduler, opts: Task.Options)
+class CatsConcurrentEffectForTask(implicit s: Scheduler)
   extends CatsEffectForTask with ConcurrentEffect[Task] {
 
   /** We need to mixin [[CatsAsyncForTask]], because if we

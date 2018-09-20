@@ -44,13 +44,15 @@ object TaskCreateSuite extends BaseTestSuite {
       ()
     }
 
-    val f = task.runAsync
+    val f = task.continual.runAsync
     sc.tick()
     assertEquals(f.value, None)
+    assert(sc.state.tasks.nonEmpty, "tasks.nonEmpty")
 
     f.cancel()
     sc.tick(1.second)
     assertEquals(f.value, Some(Success(1)))
+    assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("can use Cancelable as return type") { implicit sc =>

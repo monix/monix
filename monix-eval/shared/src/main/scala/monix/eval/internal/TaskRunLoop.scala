@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
+import monix.eval.Task.{Async, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.Local
@@ -40,7 +40,7 @@ private[eval] object TaskRunLoop {
     */
   def startFull[A](
     source: Task[A],
-    contextInit: Context,
+    contextInit: TaskContext,
     cb: Callback[A],
     rcb: TaskRestartCallback,
     bFirst: Bind,
@@ -115,14 +115,22 @@ private[eval] object TaskRunLoop {
             return
 
           case ContextSwitch(next, modify, restore) =>
-            val old = context
-            context = modify(context)
-            current = next
-            if (context ne old) {
-              em = context.scheduler.executionModel
-              if (rcb ne null) rcb.contextSwitch(context)
-              if (restore ne null)
-                current = FlatMap(next, new RestoreContext(old, restore))
+            // Construct for catching errors only from `modify`
+            var catchError = true
+            try {
+              val old = context
+              context = modify(context)
+              catchError = false
+              current = next
+              if (context ne old) {
+                em = context.scheduler.executionModel
+                if (rcb ne null) rcb.contextSwitch(context)
+                if (restore ne null)
+                  current = FlatMap(next, new RestoreContext(old, restore))
+              }
+            } catch {
+              case e if NonFatal(e) && catchError =>
+                current = Error(e)
             }
         }
 
@@ -154,7 +162,7 @@ private[eval] object TaskRunLoop {
     */
   def restartAsync[A](
     source: Task[A],
-    context: Context,
+    context: TaskContext,
     cb: Callback[A],
     rcb: TaskRestartCallback,
     bindCurrent: Bind,
@@ -185,7 +193,7 @@ private[eval] object TaskRunLoop {
   }
 
   /** A run-loop that attempts to evaluate a `Task` without
-    * initializing a `Task.Context`, falling back to
+    * initializing a `Task.TaskContext`, falling back to
     * [[startFull]] when the first `Async` boundary is hit.
     *
     * Function gets invoked by `Task.runAsync(cb: Callback)`.
@@ -193,7 +201,7 @@ private[eval] object TaskRunLoop {
   def startLight[A](
     source: Task[A],
     scheduler: Scheduler,
-    opts: Task.Options,
+    opts: TaskOptions,
     cb: Callback[A]): Cancelable = {
 
     var current = source.asInstanceOf[Task[Any]]
@@ -305,7 +313,7 @@ private[eval] object TaskRunLoop {
   /** A run-loop version that evaluates the given task until the
     * first async boundary or until completion.
     */
-  def startStep[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): Either[Task[A], A] = {
+  def startStep[A](source: Task[A], scheduler: Scheduler, opts: TaskOptions): Either[Task[A], A] = {
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
     var bRest: CallStack = null
@@ -421,7 +429,7 @@ private[eval] object TaskRunLoop {
     *
     * Function gets invoked by `Task.runAsync(implicit s: Scheduler)`.
     */
-  def startFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
+  def startFuture[A](source: Task[A], scheduler: Scheduler, opts: TaskOptions): CancelableFuture[A] = {
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
     var bRest: CallStack = null
@@ -527,7 +535,7 @@ private[eval] object TaskRunLoop {
 
   private[internal] def executeAsyncTask(
     task: Task.Async[Any],
-    context: Context,
+    context: TaskContext,
     cb: Callback[Any],
     rcb: TaskRestartCallback,
     bFirst: Bind,
@@ -556,14 +564,14 @@ private[eval] object TaskRunLoop {
   private def goAsyncForLightCB(
     source: Current,
     scheduler: Scheduler,
-    opts: Task.Options,
+    opts: TaskOptions,
     cb: Callback[Any],
     bFirst: Bind,
     bRest: CallStack,
     nextFrame: FrameIndex,
     forceFork: Boolean): Cancelable = {
 
-    val context = Context(scheduler, opts)
+    val context = TaskContext(scheduler, opts)
 
     if (!forceFork) source match {
       case async: Async[Any] =>
@@ -580,7 +588,7 @@ private[eval] object TaskRunLoop {
   private def goAsync4Future[A](
     source: Current,
     scheduler: Scheduler,
-    opts: Task.Options,
+    opts: TaskOptions,
     bFirst: Bind,
     bRest: CallStack,
     nextFrame: FrameIndex,
@@ -588,7 +596,7 @@ private[eval] object TaskRunLoop {
 
     val p = Promise[A]()
     val cb = Callback.fromPromise(p).asInstanceOf[Callback[Any]]
-    val context = Context(scheduler, opts)
+    val context = TaskContext(scheduler, opts)
     val current = source.asInstanceOf[Task[A]]
 
     if (!forceFork) source match {
@@ -606,13 +614,13 @@ private[eval] object TaskRunLoop {
   private def goAsync4Step[A](
     source: Current,
     scheduler: Scheduler,
-    opts: Task.Options,
+    opts: TaskOptions,
     bFirst: Bind,
     bRest: CallStack,
     nextFrame: FrameIndex,
     forceFork: Boolean): Either[Task[A], A] = {
 
-    val ctx = Context(scheduler, opts)
+    val ctx = TaskContext(scheduler, opts)
     val start: Start[Any] =
       if (!forceFork) {
         ctx.frameRef := nextFrame
@@ -669,8 +677,8 @@ private[eval] object TaskRunLoop {
     em.nextFrameIndex(0)
 
   private final class RestoreContext(
-    old: Context,
-    restore: (Any, Throwable, Context, Context) => Context)
+    old: TaskContext,
+    restore: (Any, Throwable, TaskContext, TaskContext) => TaskContext)
     extends StackFrame[Any, Task[Any]] {
 
     def apply(a: Any): Task[Any] =

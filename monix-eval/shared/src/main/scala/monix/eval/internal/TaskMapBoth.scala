@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.Async
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.Stop
 import monix.execution.atomic.PaddingStrategy.LeftRight128
@@ -25,7 +25,6 @@ import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.cancelables.StackedCancelable
 import scala.util.control.NonFatal
 import monix.execution.{Cancelable, Scheduler}
-
 import scala.annotation.tailrec
 
 private[eval] object TaskMapBoth {
@@ -87,7 +86,7 @@ private[eval] object TaskMapBoth {
       }
     }
 
-    def apply(context: Context, cb: Callback[R]): Unit = {
+    def apply(context: TaskContext, cb: Callback[R]): Unit = {
       implicit val s = context.scheduler
       val mainConn = context.connection
       // for synchronizing the results

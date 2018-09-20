@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.Async
 import monix.eval.{Callback, Task}
 import monix.execution.schedulers.TracingScheduler
 import java.util.concurrent.RejectedExecutionException
@@ -42,7 +42,7 @@ private[eval] object TaskShift {
   private final class Register(ec: ExecutionContext)
     extends ForkedRegister[Unit] {
 
-    def apply(context: Context, cb: Callback[Unit]): Unit = {
+    def apply(context: TaskContext, cb: Callback[Unit]): Unit = {
       val ec2 =
         if (ec eq null)
           context.scheduler

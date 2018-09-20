@@ -111,7 +111,7 @@ object TaskMapBothSuite extends BaseTestSuite {
     val err2 = new RuntimeException("Error 2")
     val t2 = Task.defer(Task.raiseError[Int](err2)).executeAsync
 
-    val fb = Task.mapBoth(t1, t2)(_ + _).runAsync
+    val fb = Task.mapBoth(t1, t2)(_ + _).continual.runAsync
     s.tick()
 
     fb.value match {

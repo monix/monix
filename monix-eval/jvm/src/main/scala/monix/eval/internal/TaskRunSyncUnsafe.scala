@@ -20,7 +20,7 @@ package monix.eval.internal
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
 
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
+import monix.eval.Task.{Async, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.internal.TaskRunLoop._
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
@@ -34,7 +34,7 @@ private[eval] object TaskRunSyncUnsafe {
   /** Run-loop specialization that evaluates the given task and blocks for the result
     * if the given task is asynchronous.
     */
-  def apply[A](source: Task[A], timeout: Duration, scheduler: Scheduler, opts: Task.Options): A = {
+  def apply[A](source: Task[A], timeout: Duration, scheduler: Scheduler, opts: TaskOptions): A = {
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
     var bRest: CallStack = null
@@ -128,13 +128,13 @@ private[eval] object TaskRunSyncUnsafe {
     source: Task[Any],
     limit: Duration,
     scheduler: Scheduler,
-    opts: Task.Options,
+    opts: TaskOptions,
     bFirst: Bind,
     bRest: CallStack): A = {
 
     val latch = new OneShotLatch
     val cb = new BlockingCallback[Any](latch)
-    val context = Context(scheduler, opts)
+    val context = TaskContext(scheduler, opts)
 
     // Starting actual execution
     val rcb = TaskRestartCallback(context, cb)

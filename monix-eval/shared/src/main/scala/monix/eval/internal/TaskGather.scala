@@ -17,12 +17,11 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.Async
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
 import scala.util.control.NonFatal
-
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -48,7 +47,7 @@ private[eval] object TaskGather {
     makeBuilder: () => mutable.Builder[A, M[A]])
     extends ForkedRegister[M[A]] {
 
-    def apply(context: Context, finalCallback: Callback[M[A]]): Unit = {
+    def apply(context: TaskContext, finalCallback: Callback[M[A]]): Unit = {
       // We need a monitor to synchronize on, per evaluation!
       val lock = new AnyRef
       val mainConn = context.connection

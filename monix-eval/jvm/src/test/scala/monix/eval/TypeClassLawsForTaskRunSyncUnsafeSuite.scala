@@ -33,23 +33,7 @@ import scala.util.Try
   * Type class tests for Task that use an alternative `Eq`, making
   * use of Task's `runSyncUnsafe`.
   */
-object TypeClassLawsForTaskRunSyncUnsafeSuite
-  extends BaseTypeClassLawsForTaskRunSyncUnsafeSuite()(
-    Task.defaultOptions.disableAutoCancelableRunLoops
-  )
-
-/**
-  * Type class tests for Task that use an alternative `Eq`, making
-  * use of Task's `runSyncUnsafe`, with the tasks being evaluated
-  * in auto-cancelable mode.
-  */
-object TypeClassLawsForTaskAutoCancelableRunSyncUnsafeSuite
-  extends BaseTypeClassLawsForTaskRunSyncUnsafeSuite()(
-    Task.defaultOptions.enableAutoCancelableRunLoops
-  )
-
-class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
-  extends monix.execution.BaseLawsSuite
+object TypeClassLawsForTaskRunSyncUnsafeSuite extends monix.execution.BaseLawsSuite
   with  ArbitraryInstancesBase {
 
   implicit val sc = Scheduler(global, UncaughtExceptionReporter(_ => ()))
@@ -72,16 +56,16 @@ class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
 
   implicit def equalityTask[A](implicit A: Eq[A]): Eq[Task[A]] =
     Eq.instance { (a, b) =>
-      val ta = Try(a.runSyncUnsafeOpt(timeout))
-      val tb = Try(b.runSyncUnsafeOpt(timeout))
+      val ta = Try(a.runSyncUnsafe(timeout))
+      val tb = Try(b.runSyncUnsafe(timeout))
       equalityTry[A].eqv(ta, tb)
     }
 
   implicit def equalityTaskPar[A](implicit A: Eq[A]): Eq[Task.Par[A]] =
     Eq.instance { (a, b) =>
       import Task.Par.unwrap
-      val ta = Try(unwrap(a).runSyncUnsafeOpt(timeout))
-      val tb = Try(unwrap(b).runSyncUnsafeOpt(timeout))
+      val ta = Try(unwrap(a).runSyncUnsafe(timeout))
+      val tb = Try(unwrap(b).runSyncUnsafe(timeout))
       equalityTry[A].eqv(ta, tb)
     }
 

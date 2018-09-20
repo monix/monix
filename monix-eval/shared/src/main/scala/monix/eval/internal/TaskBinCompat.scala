@@ -18,8 +18,6 @@
 package monix.eval
 package internal
 
-import monix.eval.Task.{Async, Context}
-import monix.execution.annotations.UnsafeProtocol
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import scala.annotation.unchecked.uncheckedVariance
 
@@ -127,17 +125,6 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   }
 
   /**
-    * DEPRECATED - renamed to [[autoCancelable]], in order to differentiate
-    * it from the `Task.cancelable` builder.
-    */
-  @deprecated("Renamed to autoCancelable", "3.0.0")
-  def cancelable: Task[A] = {
-    // $COVERAGE-OFF$
-    autoCancelable
-    // $COVERAGE-ON$
-  }
-
-  /**
     * DEPRECATED - subsumed by [[start]].
     *
     * To be consistent with cats-effect 1.0.0, `start` now
@@ -185,33 +172,6 @@ private[eval] abstract class TaskBinCompatCompanion {
   private[internal] def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
     // $COVERAGE-OFF$
     TaskCreate.cancelable0(register)
-    // $COVERAGE-ON$
-  }
-
-  /** DEPRECATED (hard) — due to being very error prone for usage and scheduled
-    * for removal in future versions.
-    *
-    * N.B. the entire underlying mechanism by which tasks get evaluated
-    * might get a refactoring so the concept of a `Context` for example
-    * might disappear. Exposing this function means exposing internal
-    * implementation details that are keeping us from evolving `Task`.
-    *
-    * Alternatives:
-    *
-    *  - [[Task.cancelable0[A](register* Task.cancelable]]
-    *  - [[Task.async0[A](register* Task.simple]]
-    *  - [[Task.create]]
-    *  - [[Task.deferAction]]
-    *
-    * Also see:
-    *
-    *  - [[Task.readOptions]] allows you to read the current [[Task.Options]]
-    */
-  @UnsafeProtocol
-  @deprecated("Switch to Task.create", since = "3.0.0-RC2")
-  private[eval] def unsafeCreate[A](register: (Context, Callback[A]) => Unit): Task[A] = {
-    // $COVERAGE-OFF$
-    Async(register, trampolineBefore = false, trampolineAfter = false)
     // $COVERAGE-ON$
   }
 

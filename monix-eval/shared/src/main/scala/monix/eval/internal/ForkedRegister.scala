@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context, ContextSwitch, FlatMap, Map}
+import monix.eval.Task.{Async, ContextSwitch, FlatMap, Map}
 import monix.eval.{Callback, Task}
 
 import scala.annotation.tailrec
@@ -33,9 +33,9 @@ import scala.runtime.AbstractFunction2
   * asynchronous boundary.
   */
 private[eval] abstract class ForkedRegister[A]
-  extends AbstractFunction2[Context, Callback[A], Unit] {
+  extends AbstractFunction2[TaskContext, Callback[A], Unit] {
 
-  def apply(context: Context, cb: Callback[A]): Unit
+  def apply(context: TaskContext, cb: Callback[A]): Unit
 }
 
 private[eval] object ForkedRegister {
