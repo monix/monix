@@ -935,7 +935,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * Example:
     *
     * {{{
-    *   val task = Task.create[Int] { _ =>
+    *   val task: Task[Int] = Task.create { (_, _) =>
     *     // N.B. this is a task that will never terminate
     *     // (callback never gets invoked), but that has a
     *     // cancelation handler installed:
@@ -954,6 +954,8 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * Another example:
     *
     * {{{
+    *   import scala.concurrent.duration._
+    *
     *   Task.sleep(1.second).flatMap(_ => task)
     * }}}
     *
@@ -966,6 +968,9 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * In other words if you have:
     *
     * {{{
+    *   def task1 = Task(???)
+    *   def task2 = Task(???)
+    *
     *   for (t1 <- task1; t2 <- task2) yield ()
     * }}}
     *

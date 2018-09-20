@@ -41,9 +41,8 @@ import monix.execution.misc.Local
   * {{{
   *   import monix.eval.{Task, TaskLocal}
   *
-  *   val task: Task[Unit] =
+  *   val task: Task[Unit] = TaskLocal(0).use { local =>
   *     for {
-  *       local <- TaskLocal(0)
   *       value1 <- local.read // value1 == 0
   *       _ <- local.write(100)
   *       value2 <- local.read // value2 == 100
@@ -59,6 +58,7 @@ import monix.execution.misc.Local
   *       println("value4: " + value4)
   *       println("value5: " + value5)
   *     }
+  *   }
   *
   *   // For transporting locals over async boundaries defined by
   *   // Task, any Scheduler will do, however for transporting locals
@@ -99,13 +99,18 @@ final class TaskLocal[A] private (ref: Local[A]) {
     * `task` execution.
     *
     * {{{
-    *   // Should yield 200 on execution, regardless of what value
-    *   // we have in `local` at the time of evaluation
-    *   val task: Task[Int] =
+    *   TaskLocal(0).use { local =>
     *     for {
-    *       local <- TaskLocal(0)
-    *       value <- local.bind(100)(local.read.map(_ * 2))
-    *     } yield value
+    *       // Should yield 200 on execution, regardless of what value
+    *       // we have in `local` at the time of evaluation
+    *       value1 <- local.bind(100)(local.read.map(_ * 2))
+    *
+    *       // Should be reverted to the default
+    *       value2 <- local.read
+    *     } yield {
+    *       println(s"$$value1, $$value2")
+    *     }
+    *   }
     * }}}
     *
     * @see [[bindL]] for the version with a lazy `value`.
@@ -126,13 +131,18 @@ final class TaskLocal[A] private (ref: Local[A]) {
     * in the [[Task]] context.
     *
     * {{{
-    *   // Should yield 200 on execution, regardless of what value
-    *   // we have in `local` at the time of evaluation
-    *   val task: Task[Int] =
+    *   TaskLocal(0).use { local =>
     *     for {
-    *       local <- TaskLocal(0)
-    *       value <- local.bindL(Task.eval(100))(local.read.map(_ * 2))
-    *     } yield value
+    *       // Should yield 200 on execution, regardless of what value
+    *       // we have in `local` at the time of evaluation
+    *       value1 <- local.bindL(Task(100))(local.read.map(_ * 2))
+    *
+    *       // Should be reverted to the default
+    *       value2 <- local.read
+    *     } yield {
+    *       println(s"$$value1, $$value2")
+    *     }
+    *   }
     * }}}
     *
     * @see [[bind]] for the version with a strict `value`.
@@ -158,13 +168,18 @@ final class TaskLocal[A] private (ref: Local[A]) {
     * given `task` execution.
     *
     * {{{
-    *   // Should yield 0 on execution, regardless of what value
-    *   // we have in `local` at the time of evaluation
-    *   val task: Task[Int] =
+    *   TaskLocal(0).use { local =>
     *     for {
-    *       local <- TaskLocal(0)
-    *       value <- local.bindClear(local.read.map(_ * 2))
-    *     } yield value
+    *       _ <- local.write(100)
+    *       // Should yield 0 on execution, regardless of what value
+    *       // we have in `local` at the time of evaluation
+    *       value1 <- local.bindClear(local.read.map(_ * 2))
+    *       // Should be reverted to 100
+    *       value2 <- local.read
+    *     } yield {
+    *       println(s"$$value1, $$value2")
+    *     }
+    *   }
     * }}}
     *
     * @param task is the [[Task]] to wrap, having the local cleared,
@@ -347,16 +362,15 @@ object TaskLocal {
       * Example:
       *
       * {{{
-      *   {
-      *     import Task.Unsafe.canUseLocals
+      *   import cats.implicits._
+      *   import cats.effect.Resource
       *
-      *     TaskLocal.Unsafe.scopedResource {
-      *       for {
-      *         local1 <- Resource.liftF(Task(TaskLocal.Unsafe.create(0)))
-      *         local2 <- Resource.liftF(Task(TaskLocal.Unsafe.create(0)))
-      *       } yield (local1, local2)
-      *     }
-      *   }
+      *   TaskLocal.Unsafe.scopedResource(
+      *     for {
+      *       local1 <- Resource.liftF(Task(TaskLocal.Unsafe.create(0)))
+      *       local2 <- Resource.liftF(Task(TaskLocal.Unsafe.create(0)))
+      *     } yield (local1, local2)
+      *   )
       * }}}
       *
       * In this example the created `Resource` value will ensure that the
