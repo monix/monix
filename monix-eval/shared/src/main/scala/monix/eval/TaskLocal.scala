@@ -377,6 +377,9 @@ object TaskLocal {
       * underlying support for locals is enabled for the entire lifecycle
       * of the created resource.
       *
+      * This helps with building and exporting `TaskLocal` values or
+      * resources making use of `TaskLocal` values.
+      *
       * $unsafeProtocol
       */
     def scopedResource[A](res: Resource[Task, A]): Resource[Task, A] =
@@ -471,7 +474,8 @@ object TaskLocal {
     ctx => {
       if (!ctx.options.localContextPropagation) {
         throw new APIContractViolationException(
-          "TaskLocal not used in the context of a TaskLocal.scope! " +
+          "Support for TaskLocal usage isn't active! Used Resource must have leaked, " +
+          "or improper usage of TaskLocal.Unsafe functions. " +
           "See documentation at: https://monix.io/api/current/monix/eval/TaskLocal.html")
       }
       ctx
