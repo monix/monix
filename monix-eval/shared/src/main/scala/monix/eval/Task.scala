@@ -31,10 +31,9 @@ import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnab
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
-import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
+import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit, NANOSECONDS}
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
-
 
 /** `Task` represents a specification for a possibly lazy or
   * asynchronous computation, which when executed will produce an `A`
@@ -1955,6 +1954,40 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   final def uncancelable: Task[A] =
     TaskCancellation.uncancelable(this)
+
+  /** Times the `Task` execution and returns its duration and the computed value.
+    *
+    * Basic usage example:
+    *
+    * {{{
+    *   Task(1 + 1)
+    *     .timed
+    *     .flatMap { case (duration, value) =
+    *       Task.eval(Logger.info("executed in " + duration.toMillis + " ms").map(_ => value)
+    *     }
+    * }}}
+    *
+    * In the previous example, if the initial `Task` fails, the following `flatMap` will not be executed.
+    * So, you'll not be able to time the "error path".
+    *
+    * To be able to time the execution, even if the `Task` fails, you have to call `.attempt` first:
+    *
+    * {{{
+    *   Task(1 / 0)
+    *     .attempt
+    *     .timed
+    *     .flatMap {
+    *       case (duration, Right(value)) => Task.eval(Logger.info("executed in " + duration.toMillis + " ms")).map(_ => value)
+    *       case (duration, Left(e))      => Task.eval(Logger.warn("failed in " + duration.toMillis + " ms")).flatMap(_ => Task.raiseError(e))
+    *     }
+    * }}}
+    */
+  final def timed: Task[(FiniteDuration, A)] =
+    for {
+      start <- Task.clock.monotonic(NANOSECONDS)
+      a     <- this
+      end   <- Task.clock.monotonic(NANOSECONDS)
+    } yield (FiniteDuration(end - start, NANOSECONDS), a)
 }
 
 /** Builders for [[Task]].
