@@ -1907,21 +1907,6 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     *     _ <- Task(println("executed in " + duration.toMillis + " ms"))
     *   } yield value
     * }}}
-    *
-    * In the previous example, if the initial `Task` fails, the following `flatMap` will not be executed.
-    * So, you'll not be able to time the "error path".
-    *
-    * To be able to time the execution, even if the `Task` fails, you have to call `.attempt` first:
-    *
-    * {{{
-    *   Task(1 / 0)
-    *     .attempt
-    *     .timed
-    *     .flatMap {
-    *       case (duration, Right(value)) => Task.eval(Logger.info("executed in " + duration.toMillis + " ms")).map(_ => value)
-    *       case (duration, Left(e))      => Task.eval(Logger.warn("failed in " + duration.toMillis + " ms")).flatMap(_ => Task.raiseError(e))
-    *     }
-    * }}}
     */
   final def timed: Task[(FiniteDuration, A)] =
     for {
