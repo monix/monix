@@ -168,7 +168,7 @@ object TaskBracketSuite extends BaseTestSuite {
     var effect = 0
     val task = Task(1)
       .bracket(_ => Task.sleep(1.second))(_ => Task(effect += 1))
-      .autoCancelable
+      .executeWithOptions(_.enableAutoCancelableRunLoops)
 
     val f = task.runAsync
     sc.tick()

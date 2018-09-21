@@ -29,13 +29,15 @@ import scala.util.{Failure, Success}
 
 object TaskCancellationSuite extends BaseTestSuite {
   test("cancellation works for async actions") { implicit ec =>
+    implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+
     var wasCancelled = false
     val task = Task.eval(1).delayExecution(1.second)
       .doOnCancel(Task.eval { wasCancelled = true })
       .start
       .flatMap(_.cancel)
 
-    task.runAsync; ec.tick()
+    task.runAsyncOpt; ec.tick()
     assert(wasCancelled, "wasCancelled")
     assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
   }
@@ -55,10 +57,12 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(effect, 0)
   }
 
-  test("task.fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
+  test("task.start.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
     check1 { (task: Task[Int]) =>
       val fa = for {
-        forked <- task.attempt.asyncBoundary.autoCancelable.fork
+        forked <- task.attempt.asyncBoundary
+          .executeWithOptions(_.enableAutoCancelableRunLoops) // not strictly needed by default
+          .start
         _ <- forked.cancel
         r <- forked.join
       } yield r
@@ -131,12 +135,13 @@ object TaskCancellationSuite extends BaseTestSuite {
     }
   }
 
-  test("fa.onCancelRaiseError(e).fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> raiseError(e)") { implicit ec =>
+  test("fa.onCancelRaiseError(e).start.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> raiseError(e)") { implicit ec =>
     check2 { (fa: Task[Int], e: Throwable) =>
       val received = fa
         .onCancelRaiseError(e)
-        .fork
+        .start
         .flatMap(fa => fa.cancel.flatMap(_ => fa.join))
+        .executeWithOptions(_.disableAutoCancelableRunLoops)
 
       received <-> Task.raiseError(e)
     }
@@ -167,12 +172,14 @@ object TaskCancellationSuite extends BaseTestSuite {
   test("cancelBoundary cancels") { implicit ec =>
     check1 { (task: Task[Int]) =>
       (Task.cancelBoundary *> task)
-        .fork
+        .start
         .flatMap(f => f.cancel *> f.join) <-> Task.never
     }
   }
 
   test("onCancelRaiseError resets cancellation flag") { implicit ec =>
+    implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+
     val err = DummyException("dummy")
     val task = Task.never[Int].onCancelRaiseError(err)
       .onErrorRecoverWith {
@@ -181,7 +188,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       .start
       .flatMap(f => f.cancel *> f.join)
 
-    val f = task.runAsync
+    val f = task.runAsyncOpt
     ec.tick()
     assertEquals(f.value, Some(Success(10)))
   }

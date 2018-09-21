@@ -17,17 +17,17 @@
 
 package monix.eval
 
-import scala.util.{Either, Success, Try}
 import cats.Eq
 import cats.effect.laws.discipline.Parameters
-import cats.effect.{Async, IO}
 import cats.effect.laws.discipline.arbitrary.{catsEffectLawsArbitraryForIO, catsEffectLawsCogenForIO}
+import cats.effect.{Async, IO}
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
+import org.scalacheck.{Arbitrary, Cogen, Gen}
+import scala.util.{Either, Success, Try}
 
 /**
   * Base trait to inherit in all `monix-eval` tests that use ScalaCheck.
@@ -142,9 +142,6 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
         Task.ContextSwitch[A](t, x => x.copy(), (_, _, old, _) => old)
       }
 
-    def genAutoCancelable: Gen[Task[A]] =
-      for (t <- genSimpleTask) yield t.autoCancelable
-
     def genFlatMap: Gen[Task[A]] =
       for {
         ioa <- genSimpleTask
@@ -165,19 +162,18 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
       } yield ioa.map(f1).map(f2)
 
     Arbitrary(Gen.frequency(
-      5 -> genPure,
-      5 -> genEvalAsync,
-      5 -> genEval,
+      1 -> genPure,
+      1 -> genEvalAsync,
+      1 -> genEval,
       1 -> genFail,
       1 -> genContextSwitch,
-      1 -> genAutoCancelable,
-      5 -> genCancelable,
-      5 -> genBindSuspend,
-      5 -> genAsync,
-      5 -> genNestedAsync,
-      5 -> getMapOne,
-      5 -> getMapTwo,
-      10 -> genFlatMap))
+      1 -> genCancelable,
+      1 -> genBindSuspend,
+      1 -> genAsync,
+      1 -> genNestedAsync,
+      1 -> getMapOne,
+      1 -> getMapTwo,
+      2 -> genFlatMap))
   }
 
   implicit def arbitraryTaskPar[A : Arbitrary : Cogen]: Arbitrary[Task.Par[A]] =

@@ -25,14 +25,14 @@ import scala.concurrent.duration._
 object FirstStartedObservableSuite extends BaseTestSuite {
   test("should mirror the first observable") { implicit s =>
     check2 { (obs1: Observable[Int], obs: Observable[Int]) =>
-      val amb = obs1.ambWith(obs.delaySubscription(365.days))
+      val amb = obs1.ambWith(obs.delayExecution(365.days))
       amb <-> obs1
     }
   }
 
   test("should mirror the second observable") { implicit s =>
     check2 { (obs: Observable[Int], obs2: Observable[Int]) =>
-      val delayed = obs.delaySubscription(365.days)
+      val delayed = obs.delayExecution(365.days)
       val amb = Observable.firstStartedOf(delayed, obs2, delayed, delayed)
       amb <-> obs2
     }
@@ -40,7 +40,7 @@ object FirstStartedObservableSuite extends BaseTestSuite {
 
   test("should mirror the third observable") { implicit s =>
     check2 { (obs: Observable[Int], obs3: Observable[Int]) =>
-      val delayed = obs.delaySubscription(365.days)
+      val delayed = obs.delayExecution(365.days)
       val amb = Observable.firstStartedOf(delayed, delayed, obs3, delayed)
       amb <-> obs3
     }
@@ -55,7 +55,7 @@ object FirstStartedObservableSuite extends BaseTestSuite {
       .doOnSubscriptionCancel { () => obs1Canceled = true }
 
     var obs2Canceled = false
-    val obs2 = Observable.eval(2).delaySubscription(10.second)
+    val obs2 = Observable.eval(2).delayExecution(10.second)
       .doOnNext{ _ => received += 1 }
       .doOnSubscriptionCancel { () => obs2Canceled = true }
 

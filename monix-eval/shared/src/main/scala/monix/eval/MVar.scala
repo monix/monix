@@ -73,9 +73,10 @@ abstract class MVar[A] {
     * until there is a value available, at which point the operation
     * resorts to a [[take]] followed by a [[put]].
     *
-    * This `read` operation is equivalent to:
+    * This `read` operation is equivalent to a method like this:
     * {{{
-    *   for (a <- v.take; _ <- v.put(a)) yield a
+    *   def readMVar[A](v: MVar[A]) =
+    *     for (a <- v.take; _ <- v.put(a)) yield a
     * }}}
     *
     * This operation is not atomic. Being equivalent with a `take`

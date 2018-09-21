@@ -30,7 +30,7 @@ object PlatformSuite extends SimpleTestSuite {
   }
 
   test("autoCancelableRunLoops") {
-    assert(!Platform.autoCancelableRunLoops)
+    assert(Platform.autoCancelableRunLoops)
   }
 
   test("localContextPropagation") {

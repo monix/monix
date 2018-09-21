@@ -23,7 +23,6 @@ import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.Cancelable
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
-
 import scala.concurrent.duration._
 import scala.util.Success
 
@@ -141,31 +140,20 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     assertEquals(s.underlying.state.lastReportedError, dummy)
   }
 
-  test("timer.clockMonotonic") {
+  test("clock.monotonic") {
     val s = new DummyScheduler
-    val timer = s.timer[IO]
+    val clock = s.clock[IO]
 
-    val clock = timer.clockMonotonic(MILLISECONDS).unsafeRunSync()
-    assert(clock > 0)
+    val clockMonotonic = clock.monotonic(MILLISECONDS).unsafeRunSync()
+    assert(clockMonotonic > 0)
   }
 
-  test("timer.clockRealTime") {
+  test("clock.realTime") {
     val s = new DummyScheduler
-    val timer = s.timer[IO]
+    val clock = s.clock[IO]
 
-    val clock = timer.clockRealTime(MILLISECONDS).unsafeRunSync()
-    assert(clock > 0)
-  }
-
-  test("timer.shift") {
-    val s = new DummyScheduler
-    val timer = s.timer[IO]
-
-    val f = timer.shift.unsafeToFuture()
-    assertEquals(f.value, None)
-
-    s.tick()
-    assertEquals(f.value, Some(Success(())))
+    val clockRealTime = clock.realTime(MILLISECONDS).unsafeRunSync()
+    assert(clockRealTime > 0)
   }
 
   test("timer.sleep") {
@@ -180,5 +168,33 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
     s.tick(5.seconds)
     assertEquals(f.value, Some(Success(())))
+  }
+
+  test("contextShift.shift") {
+    val s = new DummyScheduler
+    val contextShift = s.contextShift[IO]
+
+    val f = contextShift.shift.unsafeToFuture()
+    assertEquals(f.value, None)
+
+    s.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("contextShift.evalOn") {
+    val s = new DummyScheduler
+    val contextShift = s.contextShift[IO]
+    val s2 = new DummyScheduler()
+
+    val f = contextShift.evalOn(s2)(IO(1)).unsafeToFuture()
+    assertEquals(f.value, None)
+
+    s.tick()
+    assertEquals(f.value, None)
+
+    s2.tick()
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
   }
 }

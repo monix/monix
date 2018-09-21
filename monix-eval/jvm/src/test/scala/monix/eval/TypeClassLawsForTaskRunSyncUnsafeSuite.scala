@@ -53,13 +53,14 @@ class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
   with  ArbitraryInstancesBase {
 
   implicit val sc = Scheduler(global, UncaughtExceptionReporter(_ => ()))
+  implicit val cs = IO.contextShift(sc)
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 
   val timeout = {
     if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
       5.minutes
     else
-      10.seconds
+      5.seconds
   }
 
   implicit val params = Parameters(
@@ -86,8 +87,8 @@ class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
 
   implicit def equalityIO[A](implicit A: Eq[A]): Eq[IO[A]] =
     Eq.instance { (a, b) =>
-      val ta = Try(a.unsafeRunSync())
-      val tb = Try(b.unsafeRunSync())
+      val ta = Try(a.unsafeRunTimed(timeout).get)
+      val tb = Try(b.unsafeRunTimed(timeout).get)
       equalityTry[A].eqv(ta, tb)
     }
 

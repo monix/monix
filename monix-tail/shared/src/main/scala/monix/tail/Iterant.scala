@@ -69,6 +69,13 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   *  - [[monix.tail.Iterant.Suspend Suspend]] is for suspending the
   *    evaluation of a stream.
   *
+  *  - [[monix.tail.Iterant.Concat Concat]] represents the concatenation
+  *    of two streams.
+  *
+  *  - [[monix.tail.Iterant.Scope Scope]] is to specify the acquisition
+  *    and release of resources. It is effectively the encoding of
+  *    [[https://typelevel.org/cats-effect/typeclasses/bracket.html Bracket]].
+  *
   *  - [[monix.tail.Iterant.Halt Halt]] represents an empty stream,
   *    signaling the end, either in success or in error.
   *
@@ -817,6 +824,22 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def headOptionL(implicit F: Sync[F]): F[Option[A]] =
     IterantHeadOptionL(self)(F)
+
+  /** Optionally selects the last element.
+    *
+    * {{{
+    *   // Yields Some(4)
+    *   Iterant[Task].of(1, 2, 3, 4).lastOptionL
+    *
+    *   // Yields None
+    *   Iterant[Task].empty[Int].lastOptionL
+    * }}}
+    *
+    * @return the last element of this iterant if it is nonempty, or
+    *         `None` if it is empty, in the `F` context.
+    */
+  final def lastOptionL(implicit F: Sync[F]): F[Option[A]] =
+    foldLeftL(Option.empty[A])((_, a) => Some(a))(F)
 
   /** Given a mapping function that returns a possibly lazy or
     * asynchronous result, applies it over the elements emitted by the

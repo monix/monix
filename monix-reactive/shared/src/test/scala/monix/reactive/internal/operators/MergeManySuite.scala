@@ -49,9 +49,9 @@ object MergeManySuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 =  Observable.range(1, 100)
-      .mergeMap(x => Observable.range(0,100).delaySubscription(2.second))
+      .mergeMap(x => Observable.range(0,100).delayExecution(2.second))
     val sample2 = Observable.range(0, 100).delayOnNext(1.second)
-      .mergeMap(x => Observable.range(0,100).delaySubscription(2.second))
+      .mergeMap(x => Observable.range(0,100).delayExecution(2.second))
 
     Seq(
       Sample(sample1, 0, 0, 0.seconds, 0.seconds),

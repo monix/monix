@@ -11,10 +11,9 @@ addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
-val catsVersion = "1.1.0"
-// Hash version is safe, containing a laws fix over 1.0.0-RC2:
-// https://github.com/typelevel/cats-effect/pull/277
-val catsEffectVersion = "1.0.0-RC2-93ac33d"
+val catsVersion = "1.3.1"
+val catsEffectVersion = "1.0.0"
+val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
@@ -307,11 +306,6 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.TaskInstancesLevel0.catsEffect"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.this"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.this"),
-    // Breakage - TaskApp
-    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.options"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.scheduler"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.options"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.scheduler"),
     // Breakage - moved deprecated methods back into Task's class for better compatibility
     exclude[DirectMissingMethodProblem]("monix.eval.Task.DeprecatedExtensions"),
     exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions"),
@@ -328,6 +322,52 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentForTask.onCancelRaiseError"),
     // TaskLocal changes
     exclude[IncompatibleMethTypeProblem]("monix.eval.TaskLocal.this"),
+    // Hide Task.Context, change conversions (Cats-Effect RC2 upgrade, part 2)
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.frameRef"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.copy"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.copy$default$4"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.this"),
+    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$Local"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.toIO"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.to"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.apply"),
+    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef"),
+    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$Dummy$"),
+    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$"),
+    // Change TaskApp
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskApp.runl"),
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskApp.runc"),
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskApp.run"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.catsEffect"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.run"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.TaskApp.run"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.options"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.scheduler"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.options"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.scheduler"),
+    // Switched to TaskLike instead of Effect, in the implementation of observable
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.repeatEvalF"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.mapEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnErrorEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnTerminateEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.mapEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnCompleteEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.scanEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnNextEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnNextAckEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doAfterTerminateEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnEarlyStopEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.foreachEval"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.foldLeftEval"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.fromEffect"),
+    // Breakage - PR #700: renamed methods
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscriptionWith"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscription"),
+    // Breakage — PR 724: https://github.com/monix/monix/pull/724
+    exclude[MissingClassProblem]("monix.eval.Fiber$Impl"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Fiber.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.lightBuild"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation.signal"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
@@ -369,7 +409,14 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation#RaiseCancelable.this"),
     exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover"),
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative$"),
-    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative")
+    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.from"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.to"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsConcurrentEffectForTask.runCancelable"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsEffectForTask.runAsync"),
+    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionByTimespanObservable"),
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable")
   )
 )
 
@@ -427,6 +474,12 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(requiredMacroDeps)
   .settings(executionCommon)
 
+lazy val doctestTestSettings = Seq(
+  doctestTestFramework := DoctestTestFramework.Minitest,
+  doctestIgnoreRegex := Some(s".*TaskApp.scala"),
+  doctestOnlyCodeBlocksMode := true
+)
+
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval"
@@ -437,6 +490,7 @@ lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .dependsOn(executionJVM % "compile->compile; test->test")
   .settings(evalCommon)
   .settings(mimaSettings("monix-eval"))
+  .settings(doctestTestSettings)
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)

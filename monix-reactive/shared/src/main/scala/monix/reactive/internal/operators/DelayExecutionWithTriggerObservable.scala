@@ -25,7 +25,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 private[reactive] final
-class DelaySubscriptionWithTriggerObservable[A](source: Observable[A], trigger: Observable[Any])
+class DelayExecutionWithTriggerObservable[A](source: Observable[A], trigger: Observable[Any])
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

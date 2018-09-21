@@ -24,8 +24,8 @@ import cats.syntax.all._
 import cats.{Eval, effect}
 import monix.execution.exceptions.DummyException
 
-import scala.util.{Failure, Success}
 import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 object TaskConversionsSuite extends BaseTestSuite {
   test("Task.fromIO(task.toIO) == task") { implicit s =>
@@ -82,22 +82,38 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromEffect(task) == task") { implicit s =>
-    val ref = Task.evalAsync(1)
-    assertEquals(Task.fromEffect(ref), ref)
+  test("Task.fromConcurrent(task.toConcurrent[IO]) == task") { implicit s =>
+    implicit val cs = s.contextShift[IO]
+    check1 { (task: Task[Int]) =>
+      Task.fromConcurrentEffect(task.toConcurrent[IO]) <-> task
+    }
   }
 
-  test("Task.fromEffect(io)") { implicit s =>
-    val f = Task.fromEffect(IO(1)).runAsync
+  test("Task.fromAsync(task.toAsync[IO]) == task") { implicit s =>
+    check1 { (task: Task[Int]) =>
+      Task.fromEffect(task.toAsync[IO]) <-> task
+    }
+  }
+
+  test("Task.fromConcurrent(task) == task") { implicit s =>
+    val ref = Task.evalAsync(1)
+    assertEquals(Task.fromConcurrentEffect(ref), ref)
+  }
+
+  test("Task.fromConcurrent(io)") { implicit s =>
+    implicit val cs = s.contextShift[IO]
+
+    val f = Task.fromConcurrentEffect(IO(1)).runAsync
     assertEquals(f.value, Some(Success(1)))
 
     val io2 = for (_ <- IO.shift; a <- IO(1)) yield a
-    val f2 = Task.fromEffect(io2).runAsync
+    val f2 = Task.fromConcurrentEffect(io2).runAsync
     assertEquals(f2.value, None); s.tick()
     assertEquals(f2.value, Some(Success(1)))
   }
 
-  test("Task.fromEffect(Effect)") { implicit s =>
+  test("Task.fromAsync(Effect)") { implicit s =>
+    implicit val cs = s.contextShift[IO]
     implicit val ioEffect: Effect[CIO] = new CustomEffect
 
     val f = Task.fromEffect(CIO(IO(1))).runAsync
@@ -113,48 +129,47 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromEffect(ConcurrentEffect)") { implicit s =>
-    implicit val ioEffect: ConcurrentEffect[CIO] =
-      new CustomConcurrentEffect
+  test("Task.fromConcurrent(ConcurrentEffect)") { implicit s =>
+    implicit val cs = s.contextShift[IO]
+    implicit val ioEffect: ConcurrentEffect[CIO] = new CustomConcurrentEffect()
 
-    val f = Task.fromEffect(CIO(IO(1))).runAsync
+    val f = Task.fromConcurrentEffect(CIO(IO(1))).runAsync
     assertEquals(f.value, Some(Success(1)))
 
     val io2 = for (_ <- CIO(IO.shift); a <- CIO(IO(1))) yield a
-    val f2 = Task.fromEffect(io2).runAsync
+    val f2 = Task.fromConcurrentEffect(io2).runAsync
     assertEquals(f2.value, None); s.tick()
     assertEquals(f2.value, Some(Success(1)))
 
     val dummy = DummyException("dummy")
-    val f3 = Task.fromEffect(CIO(IO.raiseError(dummy))).runAsync
+    val f3 = Task.fromConcurrentEffect(CIO(IO.raiseError(dummy))).runAsync
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
-
-  test("Task.fromEffect(broken Effect)") { implicit s =>
+  test("Task.fromAsync(broken Effect)") { implicit s =>
     val dummy = DummyException("dummy")
     implicit val ioEffect: Effect[CIO] =
-      new CustomEffect {
-        override def runAsync[A](fa: CIO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+      new CustomEffect()(IO.contextShift(s)) {
+        override def runAsync[A](fa: CIO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit] =
           throw dummy
       }
 
     val f = Task.fromEffect(CIO(IO(1))).runAsync
-    assertEquals(f.value, None); s.tick()
-    assertEquals(f.value, None)
+    s.tick()
 
-    assertEquals(s.state.lastReportedError, dummy)
+    // Conversion goes through IO and IO protects against such errors
+    assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromEffect(broken ConcurrentEffect)") { implicit s =>
+  test("Task.fromConcurrent(broken ConcurrentEffect)") { implicit s =>
     val dummy = DummyException("dummy")
     implicit val ioEffect: ConcurrentEffect[CIO] =
-      new CustomConcurrentEffect {
-        override def runCancelable[A](fa: CIO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      new CustomConcurrentEffect()(IO.contextShift(s)) {
+        override def runCancelable[A](fa: CIO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[CIO]] =
           throw dummy
       }
 
-    val f = Task.fromEffect(CIO(IO(1))).runAsync
+    val f = Task.fromConcurrentEffect(CIO(IO(1))).runAsync
     assertEquals(f.value, None); s.tick()
     assertEquals(f.value, None)
 
@@ -178,10 +193,12 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.fromEffect(io) is cancelable") { implicit s =>
+  test("Task.fromConcurrent(io) is cancelable") { implicit s =>
+    implicit val cs = s.contextShift[IO]
+
     val timer = s.timer[IO]
     val io = timer.sleep(10.seconds)
-    val f = Task.fromEffect(io).runAsync
+    val f = Task.fromConcurrentEffect(io).runAsync
 
     s.tick()
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -195,11 +212,13 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.fromEffect(ConcurrentEffect) is cancelable") { implicit s =>
+  test("Task.fromConcurrent(ConcurrentEffect) is cancelable") { implicit s =>
+    implicit val cs = s.contextShift[IO]
     implicit val effect: ConcurrentEffect[CIO] = new CustomConcurrentEffect
+
     val timer = s.timer[CIO]
     val io = timer.sleep(10.seconds)
-    val f = Task.fromEffect(io)(effect).runAsync
+    val f = Task.fromConcurrentEffect(io)(effect).runAsync
 
     s.tick()
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -213,30 +232,88 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.fromEffect(task.to[IO]) <-> task") { implicit s =>
-    check1 { (task: Task[Int]) =>
-      Task.fromEffect(task.to[IO]) <-> task
-    }
+  test("Task.fromConcurrent(task.to[IO]) preserves cancelability") { implicit s =>
+    implicit val cs = s.contextShift[IO]
+
+    val task0 = Task(1).delayExecution(10.seconds)
+    val task = Task.fromConcurrentEffect(task0.toConcurrent[IO])
+
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, None)
+
+    f.cancel()
+    s.tick()
+    assertEquals(f.value, None)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+
+    s.tick(10.seconds)
+    assertEquals(f.value, None)
   }
 
-  test("Task.fromEffect(task.to[IO]) preserves cancelability") { implicit s =>
-    check1 { (task: Task[Int]) =>
-      val lh = Task.fromEffect(task.to[IO]).start.flatMap(f => f.cancel *> f.join)
-      lh <-> task.start.flatMap(f => f.cancel *> f.join)
-    }
+  test("Task.fromConcurrent(task.to[CIO]) preserves cancelability") { implicit s =>
+    implicit val cs = s.contextShift[IO]
+    implicit val effect: ConcurrentEffect[CIO] = new CustomConcurrentEffect
+
+    val task0 = Task(1).delayExecution(10.seconds)
+    val task = Task.fromConcurrentEffect(task0.toConcurrent[CIO])
+
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, None)
+
+    f.cancel()
+    s.tick()
+    assertEquals(f.value, None)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+
+    s.tick(10.seconds)
+    assertEquals(f.value, None)
   }
 
-  test("Task.fromEffect(task.to[F]) <-> task (Effect)") { implicit s =>
-    implicit val effect = new CustomEffect
-    check1 { (task: Task[Int]) =>
-      Task.fromEffect(task.to[CIO]) <-> task
-    }
+  test("Task.fromAsync(task.to[IO]) preserves cancelability (because IO is known)") { implicit s =>
+    implicit val cs = s.contextShift[IO]
+
+    val task0 = Task(1).delayExecution(10.seconds)
+    val task = Task.fromEffect(task0.toConcurrent[IO])
+
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, None)
+
+    f.cancel()
+    s.tick()
+    assertEquals(f.value, None)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+
+    s.tick(10.seconds)
+    assertEquals(f.value, None)
   }
 
-  test("Task.fromEffect(task.to[F]) <-> task (ConcurrentEffect)") { implicit s =>
+  test("Task.fromConcurrent(task.toConcurrent[F]) <-> task (Effect)") { implicit s =>
+    implicit val cs = s.contextShift[IO]
     implicit val effect = new CustomConcurrentEffect
+
     check1 { (task: Task[Int]) =>
-      Task.fromEffect(task.to[CIO]) <-> task
+      Task.fromConcurrentEffect(task.toConcurrent[CIO]) <-> task
+    }
+  }
+
+  test("Task.fromAsync(task.toAsync[F]) <-> task") { implicit s =>
+    implicit val cs = s.contextShift[IO]
+    implicit val effect = new CustomEffect
+
+    check1 { (task: Task[Int]) =>
+      Task.fromEffect(task.toAsync[CIO]) <-> task
+    }
+  }
+
+  test("Task.fromConcurrent(task.to[F]) <-> task (ConcurrentEffect)") { implicit s =>
+    implicit val cs = s.contextShift[IO]
+    implicit val effect = new CustomConcurrentEffect
+
+    check1 { (task: Task[Int]) =>
+      Task.fromConcurrentEffect(task.toConcurrent[CIO]) <-> task
     }
   }
 
@@ -250,23 +327,16 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromEval protects against user error") { implicit s =>
-    val dummy = new DummyException("dummy")
+    val dummy = DummyException("dummy")
     val task = Task.fromEval(Eval.always { throw dummy })
     assertEquals(task.runAsync.value, Some(Failure(dummy)))
   }
 
   final case class CIO[+A](io: IO[A])
 
-  class CustomEffect extends Effect[CIO] {
-    override def runAsync[A](fa: CIO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+  class CustomEffect(implicit cs: ContextShift[IO]) extends Effect[CIO] {
+    override def runAsync[A](fa: CIO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit] =
       fa.io.runAsync(cb)
-
-    override def runSyncStep[A](fa: CIO[A]): IO[Either[CIO[A], A]] =
-      fa.io.runSyncStep.map {
-        case Right(a) => Right(a)
-        case Left(io) => Left(CIO(io))
-      }
-
     override def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): CIO[A] =
       CIO(IO.async(k))
     override def asyncF[A](k: ((Either[Throwable, A]) => Unit) => CIO[Unit]): CIO[A] =
@@ -276,11 +346,11 @@ object TaskConversionsSuite extends BaseTestSuite {
     override def flatMap[A, B](fa: CIO[A])(f: (A) => CIO[B]): CIO[B] =
       CIO(fa.io.flatMap(a => f(a).io))
     override def tailRecM[A, B](a: A)(f: (A) => CIO[Either[A, B]]): CIO[B] =
-      CIO(IO.ioEffect.tailRecM(a)(x => f(x).io))
+      CIO(IO.ioConcurrentEffect.tailRecM(a)(x => f(x).io))
     override def raiseError[A](e: Throwable): CIO[A] =
       CIO(IO.raiseError(e))
     override def handleErrorWith[A](fa: CIO[A])(f: (Throwable) => CIO[A]): CIO[A] =
-      CIO(IO.ioEffect.handleErrorWith(fa.io)(x => f(x).io))
+      CIO(IO.ioConcurrentEffect.handleErrorWith(fa.io)(x => f(x).io))
     override def pure[A](x: A): CIO[A] =
       CIO(IO.pure(x))
     override def liftIO[A](ioa: IO[A]): CIO[A] =
@@ -289,13 +359,13 @@ object TaskConversionsSuite extends BaseTestSuite {
       CIO(acquire.io.bracketCase(a => use(a).io)((a, e) => release(a, e).io))
   }
 
-  class CustomConcurrentEffect(implicit timer: Timer[IO])
+  class CustomConcurrentEffect(implicit cs: ContextShift[IO])
     extends CustomEffect with ConcurrentEffect[CIO] {
 
-    override def runCancelable[A](fa: CIO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-      fa.io.runCancelable(cb)
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): CIO[A] =
-      CIO(IO.cancelable(k))
+    override def runCancelable[A](fa: CIO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[CIO]] =
+      fa.io.runCancelable(cb).map(CIO(_))
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[CIO]): CIO[A] =
+      CIO(IO.cancelable(cb => k(cb).io))
     override def uncancelable[A](fa: CIO[A]): CIO[A] =
       CIO(fa.io.uncancelable)
     override def start[A](fa: CIO[A]): CIO[effect.Fiber[CIO, A]] =
@@ -305,7 +375,7 @@ object TaskConversionsSuite extends BaseTestSuite {
         case Left((a, fiber)) => Left((a, fiberT(fiber)))
         case Right((fiber, b)) => Right((fiberT(fiber), b))
       })
-    private def fiberT[A](fiber: effect.Fiber[IO, A]) =
+    private def fiberT[A](fiber: effect.Fiber[IO, A]): effect.Fiber[CIO, A] =
       effect.Fiber(CIO(fiber.join), CIO(fiber.cancel))
   }
 }

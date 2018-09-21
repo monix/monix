@@ -17,56 +17,67 @@
 
 package monix.eval
 
+
+import cats.effect.ExitCode
 import minitest.SimpleTestSuite
 import monix.eval.Task.Options
+import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
 object TaskAppSuite extends SimpleTestSuite {
-  test("runl works") {
-    var wasExecuted = false
+  testAsync("run works") {
+    val wasExecuted = Promise[Boolean]()
     val app = new TaskApp {
-      override def runl(args: List[String]) =
-        Task.evalAsync { wasExecuted = args.headOption.getOrElse("unknown") == "true" }
+      override def run(args: List[String]) =
+        Task {
+          wasExecuted.success(args.headOption.getOrElse("unknown") == "true")
+          ExitCode.Success
+        }
     }
 
     app.main(Array("true"))
-    assert(wasExecuted, "wasExecuted")
-  }
-
-  test("runc works") {
-    var wasExecuted = false
-    val app = new TaskApp {
-      override def runc =
-        Task.evalAsync { wasExecuted = true }
+    for (f <- wasExecuted.future) yield {
+      assert(f, "wasExecuted")
     }
-
-    app.main(Array.empty)
-    assert(wasExecuted, "wasExecuted")
   }
 
   testAsync("options are configurable") {
-    import monix.execution.Scheduler.Implicits.global
-
     val opts = Task.defaultOptions
     assert(!opts.localContextPropagation, "!opts.localContextPropagation")
     val opts2 = opts.enableLocalContextPropagation
     assert(opts2.localContextPropagation, "opts2.localContextPropagation")
-
     val p = Promise[Options]()
-    val exposeOpts =
-      Task.Async[Task.Options] { (ctx, cb) =>
-        cb.onSuccess(ctx.options)
-      }
 
     val app = new TaskApp {
       override val options = opts2
-      override def runc =
-        exposeOpts.map { x => p.success(x) }
+
+      def run(args: List[String]): Task[ExitCode] =
+        for (opts <- Task.readOptions) yield {
+          p.success(opts)
+          ExitCode.Success
+        }
     }
 
     app.main(Array.empty)
     for (r <- p.future) yield {
       assertEquals(r, opts2)
+    }
+  }
+
+  testAsync("ConcurrentEffect[Task]") {
+    val wasExecuted = Promise[Boolean]()
+    val app = new TaskApp {
+      def run(args: List[String]) = {
+        Task.fromIO(
+          Task.async[ExitCode] { cb => wasExecuted.success(true); cb.onSuccess(ExitCode.Success) }
+            .executeAsync
+            .toIO)
+      }
+    }
+
+    app.main(Array("true"))
+    for (r <- wasExecuted.future) yield {
+      assert(r, "wasExecuted == true")
     }
   }
 }

@@ -129,6 +129,8 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
   }
 
   test("Task.wanderUnordered should log errors if multiple errors happen") { implicit s =>
+    implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+
     val ex = DummyException("dummy1")
     var errorsThrow = 0
     val gather = Task.wanderUnordered(Seq(0, 0)) { _ =>
@@ -137,7 +139,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
         .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
     }
 
-    val result = gather.runAsync
+    val result = gather.runAsyncOpt
     s.tick()
 
     assertEquals(result.value, Some(Failure(ex)))

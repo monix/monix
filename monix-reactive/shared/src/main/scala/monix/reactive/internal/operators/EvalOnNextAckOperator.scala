@@ -36,11 +36,6 @@ private[reactive] final class EvalOnNextAckOperator[A](cb: (A, Ack) => Task[Unit
       implicit val scheduler = out.scheduler
       private[this] val isActive = Atomic(true)
 
-      def tryExecute(a: A, ack: Ack): Ack = {
-        try { cb(a, ack); ack }
-        catch { case ex if NonFatal(ex) => onError(ex); Stop }
-      }
-
       def onNext(elem: A): Future[Ack] = {
         // We are calling out.onNext directly, meaning that in onComplete/onError
         // we don't have to do anything special to ensure that the last `onNext`
