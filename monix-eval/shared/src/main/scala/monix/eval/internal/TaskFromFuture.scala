@@ -73,18 +73,6 @@ private[eval] object TaskFromFuture {
           else sc.reportFailure(ex)
       }
     }
-
-  /** Internal implementation used in `Task.start`. */
-  def lightBuild[A](f: Future[A], c: Cancelable): Task[A] = {
-    // The task could have been a strict or easily computed value
-    // in which case we're already there
-    f.value match {
-      case None =>
-        rawAsync(startCancelable(_, _, f, c))
-      case Some(value) =>
-        Task.fromTry(value)
-    }
-  }
   
   private def rawAsync[A](start: (Context, Callback[A]) => Unit): Task[A] =
     Task.Async(
