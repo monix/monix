@@ -1290,67 +1290,6 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
   final def executeWithOptions(f: Options => Options): Task[A] =
     TaskExecuteWithOptions(this, f)
 
-  /** Returns a new task that is cancelable.
-    *
-    * Normally Monix Tasks have these characteristics:
-    *
-    *  - `flatMap` chains are not cancelable by default
-    *  - when creating [[Task.cancelable0[A](register* async tasks]]
-    *    the user has to specify explicit cancellation logic
-    *
-    * This operation returns a task that has [[Task.Options.autoCancelableRunLoops]]
-    * enabled upon evaluation, thus being equivalent with:
-    * {{{
-    *   Task(1 + 1).executeWithOptions(_.enableAutoCancelableRunLoops)
-    * }}}
-    *
-    * What this does is two-fold:
-    *
-    *  - `flatMap` chains become cancelable on async boundaries, which works in
-    *    combination with [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]]
-    *    that's enabled by default (injected by [[monix.execution.Scheduler Scheduler]],
-    *    but can also be changed with [[executeWithModel]])
-    *  - even if the source task cannot be cancelled, upon completion the result
-    *    is not allowed to be streamed and the continuation is not allowed to execute
-    *
-    * For example this is a function that calculates the n-th Fibonacci element:
-    * {{{
-    *   def fib(n: Int): Task[Long] = {
-    *     def loop(n: Int, a: Long, b: Long): Task[Long] =
-    *       Task.suspend {
-    *         if (n > 0)
-    *           loop(n - 1, b, a + b)
-    *         else
-    *           Task.now(a)
-    *       }
-    *
-    *     loop(n, 0, 1).autoCancelable
-    *   }
-    * }}}
-    *
-    * Normally this isn't cancelable and it might take a long time, but
-    * by calling `autoCancelable` on the result, we ensure that when cancellation
-    * is observed, at async boundaries, the loop will stop with the task
-    * becoming a non-terminating one.
-    *
-    * This operation represents the opposite of [[uncancelable]]. And note
-    * that it works even for tasks that are uncancelable / atomic, because
-    * it blocks the rest of the `flatMap` loop from executing, functioning
-    * like a sort of cancellation boundary:
-    *
-    * {{{
-    *   Task.evalAsync(println("Hello ..."))
-    *     .autoCancelable
-    *     .flatMap(_ => Task.eval(println("World!")))
-    * }}}
-    *
-    * Normally [[Task.apply]] does not yield a cancelable task, but by applying
-    * the `autoCancelable` transformation to it, the `println` will execute,
-    * but not the subsequent `flatMap` operation.
-    */
-  def autoCancelable: Task[A] =
-    TaskCancellation.autoCancelable(this)
-
   /** Returns a failed projection of this task.
     *
     * The failed projection is a `Task` holding a value of type `Throwable`,
@@ -2710,8 +2649,9 @@ object Task extends TaskInstancesLevel1 {
     *    }
     * }}}
     *
-    * Note that an alternative to doing this would be usage of
-    * [[Task.autoCancelable]], which does the same thing, but automatically.
+    * NOTE: that by default `Task` is configured to be auto-cancelable
+    * (see [[Task.Options]]), so this isn't strictly needed, unless you
+    * want to fine tune the cancelation boundaries.
     */
   val cancelBoundary: Task[Unit] =
     Task.Async { (ctx, cb) => if (!ctx.connection.isCanceled) cb.onSuccess(()) }
@@ -2759,7 +2699,7 @@ object Task extends TaskInstancesLevel1 {
     *     }
     * }}}
     *
-    * Passed function can also return IO[Unit]` as a task that
+    * Passed function can also return `IO[Unit]` as a task that
     * describes a cancelation action:
     *
     * {{{

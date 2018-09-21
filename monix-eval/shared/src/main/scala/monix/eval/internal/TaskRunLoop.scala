@@ -115,14 +115,22 @@ private[eval] object TaskRunLoop {
             return
 
           case ContextSwitch(next, modify, restore) =>
-            val old = context
-            context = modify(context)
-            current = next
-            if (context ne old) {
-              em = context.scheduler.executionModel
-              if (rcb ne null) rcb.contextSwitch(context)
-              if (restore ne null)
-                current = FlatMap(next, new RestoreContext(old, restore))
+            // Construct for catching errors only from `modify`
+            var catchError = true
+            try {
+              val old = context
+              context = modify(context)
+              catchError = false
+              current = next
+              if (context ne old) {
+                em = context.scheduler.executionModel
+                if (rcb ne null) rcb.contextSwitch(context)
+                if (restore ne null)
+                  current = FlatMap(next, new RestoreContext(old, restore))
+              }
+            } catch {
+              case e if NonFatal(e) && catchError =>
+                current = Error(e)
             }
         }
 

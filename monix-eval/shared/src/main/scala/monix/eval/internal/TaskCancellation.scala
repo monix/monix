@@ -144,8 +144,14 @@ private[eval] object TaskCancellation {
     (_, _, old, current) => current.withOptions(old.options)
 
   private[this] val withConnectionUncancelable: Context => Context =
-    ct => ct.withConnection(StackedCancelable.uncancelable)
+    ct => {
+      ct.withConnection(StackedCancelable.uncancelable)
+        .withOptions(ct.options.disableAutoCancelableRunLoops)
+    }
 
   private[this] val restoreConnection: (Any, Throwable, Context, Context) => Context =
-    (_, _, old, current) => current.withConnection(old.connection)
+    (_, _, old, ct) => {
+      ct.withConnection(old.connection)
+        .withOptions(old.options)
+    }
 }

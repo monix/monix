@@ -127,13 +127,16 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   }
 
   /**
-    * DEPRECATED - renamed to [[autoCancelable]], in order to differentiate
-    * it from the `Task.cancelable` builder.
+    * DEPRECATED - since Monix 3.0 the `Task` implementation has switched
+    * to auto-cancelable run-loops by default (which can still be turned off
+    * in its configuration).
+    *
+    * For ensuring the old behavior, you can use [[executeWithOptions]].
     */
-  @deprecated("Renamed to autoCancelable", "3.0.0")
+  @deprecated("Switch to executeWithOptions(_.enableAutoCancelableRunLoops)", "3.0.0")
   def cancelable: Task[A] = {
     // $COVERAGE-OFF$
-    autoCancelable
+    executeWithOptions(_.enableAutoCancelableRunLoops)
     // $COVERAGE-ON$
   }
 

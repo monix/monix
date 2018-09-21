@@ -230,7 +230,7 @@ object TaskErrorSuite extends BaseTestSuite {
       Task[Int](throw DummyException("dummy")).onErrorFallbackTo(Task.defer(recursive()))
     }
 
-    val task = recursive().autoCancelable
+    val task = recursive().executeWithOptions(_.enableAutoCancelableRunLoops)
     val f = task.runAsync
     assertEquals(f.value, None)
 
@@ -272,7 +272,7 @@ object TaskErrorSuite extends BaseTestSuite {
     val task = Task[Int](throw DummyException("dummy"))
       .onErrorRestart(s.executionModel.recommendedBatchSize*2)
 
-    val f = task.autoCancelable.runAsync
+    val f = task.executeWithOptions(_.enableAutoCancelableRunLoops).runAsync
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
@@ -313,7 +313,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.onErrorRestartIf should be cancelable if ExecutionModel permits") { implicit s =>
     val task = Task[Int](throw DummyException("dummy")).onErrorRestartIf(_ => true)
-    val f = task.autoCancelable.runAsync
+    val f = task.executeWithOptions(_.enableAutoCancelableRunLoops).runAsync
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
