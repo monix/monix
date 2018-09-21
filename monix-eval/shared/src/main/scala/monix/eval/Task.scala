@@ -1901,11 +1901,11 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * Basic usage example:
     *
     * {{{
-    *   Task(1 + 1)
-    *     .timed
-    *     .flatMap { case (duration, value) =
-    *       Task.eval(Logger.info("executed in " + duration.toMillis + " ms").map(_ => value)
-    *     }
+    *   for {
+    *     r <- Task(1 + 1).timed
+    *     (duration, value) = r
+    *     _ <- Task(println("executed in " + duration.toMillis + " ms"))
+    *   } yield value
     * }}}
     *
     * In the previous example, if the initial `Task` fails, the following `flatMap` will not be executed.
