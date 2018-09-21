@@ -361,6 +361,11 @@ def mimaSettings(projectName: String) = Seq(
     // Breakage - PR #700: renamed methods
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscriptionWith"),
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscription"),
+    // Breakage — PR 724: https://github.com/monix/monix/pull/724
+    exclude[MissingClassProblem]("monix.eval.Fiber$Impl"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Fiber.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.lightBuild"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation.signal"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
