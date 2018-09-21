@@ -326,6 +326,8 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.shift"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsAsyncForTask.shift"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentForTask.onCancelRaiseError"),
+    // TaskLocal changes
+    exclude[IncompatibleMethTypeProblem]("monix.eval.TaskLocal.this"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),

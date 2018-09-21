@@ -661,11 +661,12 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  final def runSyncUnsafe(timeout: Duration)
-    (implicit s: Scheduler, permit: CanBlock): A =
+  final def runSyncUnsafe(timeout: Duration = Duration.Inf)
+    (implicit s: Scheduler, permit: CanBlock): A = {
     /*_*/
     TaskRunSyncUnsafe(this, timeout, s, defaultOptions)
     /*_*/
+  }
 
   /** Variant of [[runSyncUnsafe]] that takes a [[Task.Options]]
     * implicitly from the scope in order to tune the evaluation model
@@ -682,11 +683,12 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  final def runSyncUnsafeOpt(timeout: Duration)
-    (implicit s: Scheduler, opts: Options, permit: CanBlock): A =
+  final def runSyncUnsafeOpt(timeout: Duration = Duration.Inf)
+    (implicit s: Scheduler, opts: Options, permit: CanBlock): A = {
     /*_*/
     TaskRunSyncUnsafe(this, timeout, s, opts)
     /*_*/
+  }
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
