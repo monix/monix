@@ -59,6 +59,7 @@ private[eval] object TaskFromFuture {
             // Already completed future, streaming value immediately,
             // but with light async boundary to prevent stack overflows
             callback(value)
+
           case None =>
             future match {
               case cf: CancelableFuture[A] @unchecked =>
@@ -73,7 +74,7 @@ private[eval] object TaskFromFuture {
           else sc.reportFailure(ex)
       }
     }
-  
+
   private def rawAsync[A](start: (Context, Callback[A]) => Unit): Task[A] =
     Task.Async(
       start,
