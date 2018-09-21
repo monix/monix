@@ -59,6 +59,7 @@ private[eval] object TaskFromFuture {
             // Already completed future, streaming value immediately,
             // but with light async boundary to prevent stack overflows
             callback(value)
+
           case None =>
             future match {
               case cf: CancelableFuture[A] @unchecked =>
@@ -74,18 +75,6 @@ private[eval] object TaskFromFuture {
       }
     }
 
-  /** Internal implementation used in `Task.start`. */
-  def lightBuild[A](f: Future[A], c: Cancelable): Task[A] = {
-    // The task could have been a strict or easily computed value
-    // in which case we're already there
-    f.value match {
-      case None =>
-        rawAsync(startCancelable(_, _, f, c))
-      case Some(value) =>
-        Task.fromTry(value)
-    }
-  }
-  
   private def rawAsync[A](start: (Context, Callback[A]) => Unit): Task[A] =
     Task.Async(
       start,

@@ -142,9 +142,6 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
         Task.ContextSwitch[A](t, x => x.copy(), (_, _, old, _) => old)
       }
 
-    def genAutoCancelable: Gen[Task[A]] =
-      for (t <- genSimpleTask) yield t.autoCancelable
-
     def genFlatMap: Gen[Task[A]] =
       for {
         ioa <- genSimpleTask
@@ -170,7 +167,6 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
       1 -> genEval,
       1 -> genFail,
       1 -> genContextSwitch,
-      1 -> genAutoCancelable,
       1 -> genCancelable,
       1 -> genBindSuspend,
       1 -> genAsync,

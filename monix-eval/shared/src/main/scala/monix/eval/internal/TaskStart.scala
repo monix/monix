@@ -29,7 +29,7 @@ private[eval] object TaskStart {
     fa match {
       // There's no point in evaluating strict stuff
       case Task.Now(_) | Task.Error(_) =>
-        Task.Now(Fiber(fa))
+        Task.Now(Fiber(fa, Task.unit))
       case _ =>
         Async(new StartForked(fa), trampolineBefore = false, trampolineAfter = true)
     }
@@ -46,8 +46,8 @@ private[eval] object TaskStart {
       // Starting actual execution of our newly created task;
       Task.unsafeStartEnsureAsync(fa, ctx2, Callback.fromPromise(p))
       // Signal the created fiber
-      val task = TaskFromFuture.lightBuild(p.future, ctx2.connection)
-      cb.onSuccess(Fiber(task))
+      val task = TaskFromFuture.strict(p.future)
+      cb.onSuccess(Fiber(task, Task(ctx2.connection.cancel())))
     }
   }
 }

@@ -2884,15 +2884,19 @@ abstract class Observable[+A] extends Serializable { self =>
     * that upon execution will signal the first generated element of the
     * source observable. Returns an `Option` because the source can be empty.
     */
-  final def runAsyncGetFirst(implicit s: Scheduler): CancelableFuture[Option[A]] =
-    firstOptionL.runAsync
+  final def runAsyncGetFirst(implicit s: Scheduler): CancelableFuture[Option[A]] = {
+    implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+    firstOptionL.runAsyncOpt
+  }
 
   /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
     * that upon execution will signal the last generated element of the
     * source observable. Returns an `Option` because the source can be empty.
     */
-  final def runAsyncGetLast(implicit s: Scheduler): CancelableFuture[Option[A]] =
-    lastOptionL.runAsync
+  final def runAsyncGetLast(implicit s: Scheduler): CancelableFuture[Option[A]] = {
+    implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+    lastOptionL.runAsyncOpt
+  }
 
   /** Returns a [[monix.eval.Task Task]] that upon execution
     * will signal the last generated element of the source observable.

@@ -39,12 +39,14 @@ object TaskCreateSuite extends BaseTestSuite {
   }
 
   test("returning Unit yields non-cancelable tasks") { implicit sc =>
+    implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+
     val task = Task.create[Int] { (sc, cb) =>
       sc.scheduleOnce(1.second)(cb.onSuccess(1))
       ()
     }
 
-    val f = task.runAsync
+    val f = task.runAsyncOpt
     sc.tick()
     assertEquals(f.value, None)
 

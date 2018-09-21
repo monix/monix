@@ -470,7 +470,8 @@ object MapTaskSuite extends BaseOperatorSuite {
 
     s.tick(1.second)
     assert(s.state.tasks.isEmpty, "state.tasks.isEmpty")
-    assertEquals(sumAfterMapFuture, 3)
+    assertEquals(sumAfterMapTask, 2)
+    assertEquals(sumAfterMapFuture, 0)
 
     s.tick(1.hour)
     assertEquals(f.value, None)

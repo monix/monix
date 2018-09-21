@@ -60,7 +60,7 @@ private[eval] object TaskRacePair {
       Task.unsafeStartEnsureAsync(fa, contextA, new Callback[A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
-            val fiberB = Fiber(TaskFromFuture.lightBuild(pb.future, connB))
+            val fiberB = Fiber(TaskFromFuture.strict(pb.future), Task(connB.cancel()))
             conn.pop()
             cb.onSuccess(Left((valueA, fiberB)))
           } else {
@@ -81,7 +81,7 @@ private[eval] object TaskRacePair {
       Task.unsafeStartEnsureAsync(fb, contextB, new Callback[B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
-            val fiberA = Fiber(TaskFromFuture.lightBuild(pa.future, connA))
+            val fiberA = Fiber(TaskFromFuture.strict(pa.future), Task(connA.cancel()))
             conn.pop()
             cb.onSuccess(Right((fiberA, valueB)))
           } else {

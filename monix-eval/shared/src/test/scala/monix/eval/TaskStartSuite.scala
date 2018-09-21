@@ -31,16 +31,16 @@ object TaskStartSuite extends BaseTestSuite {
     }
   }
 
-  test("task.start.flatMap(id) is cancelable") { implicit sc =>
-    val task = Task.eval(1).delayExecution(1.second).start.flatMap(_.join)
+  test("task.start.flatMap(id) is cancelable, but the source is memoized") { implicit sc =>
+    var effect = 0
+    val task = Task { effect += 1; effect } .delayExecution(1.second).start.flatMap(_.join)
     val f = task.runAsync
-
-    assert(sc.state.tasks.nonEmpty, "tasks.nonEmpty")
+    sc.tick()
     f.cancel()
-    assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
 
     sc.tick(1.second)
     assertEquals(f.value, None)
+    assertEquals(effect, 1)
   }
 
   test("task.start is stack safe") { implicit sc =>
