@@ -17,12 +17,12 @@
 
 package monix.eval.internal
 
+import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.{Callback, Task}
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.Local
-import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
-
+import monix.execution.{CancelableFuture, ExecutionModel, Scheduler}
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
@@ -202,7 +202,8 @@ private[eval] object TaskRunLoop {
     source: Task[A],
     scheduler: Scheduler,
     opts: Task.Options,
-    cb: Callback[A]): Cancelable = {
+    cb: Callback[A],
+    isCancelable: Boolean = true): CancelToken[Task] = {
 
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
@@ -255,7 +256,7 @@ private[eval] object TaskRunLoop {
             findErrorHandler(bFirst, bRest) match {
               case null =>
                 cb.onError(error)
-                return Cancelable.empty
+                return Task.unit
               case bind =>
                 // Try/catch described as statement, otherwise ObjectRef happens ;-)
                 try { current = bind.recover(error) }
@@ -273,14 +274,15 @@ private[eval] object TaskRunLoop {
               bFirst,
               bRest,
               frameIndex,
-              forceFork = false)
+              forceFork = false,
+              isCancelable = isCancelable)
         }
 
         if (hasUnboxed) {
           popNextBind(bFirst, bRest) match {
             case null =>
               cb.onSuccess(unboxed.asInstanceOf[A])
-              return Cancelable.empty
+              return Task.unit
             case bind =>
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
               try { current = bind(unboxed) }
@@ -302,7 +304,8 @@ private[eval] object TaskRunLoop {
           bFirst,
           bRest,
           frameIndex,
-          forceFork = true)
+          forceFork = true,
+          isCancelable = true)
       }
     } while (true)
     // $COVERAGE-OFF$
@@ -569,9 +572,14 @@ private[eval] object TaskRunLoop {
     bFirst: Bind,
     bRest: CallStack,
     nextFrame: FrameIndex,
-    forceFork: Boolean): Cancelable = {
+    isCancelable: Boolean,
+    forceFork: Boolean): CancelToken[Task] = {
 
-    val context = Context(scheduler, opts)
+    val context = Context(
+      scheduler,
+      opts,
+      if (isCancelable) TaskConnection()
+      else TaskConnection.uncancelable)
 
     if (!forceFork) source match {
       case async: Async[Any] =>
@@ -581,7 +589,7 @@ private[eval] object TaskRunLoop {
     } else {
       restartAsync(source, context, cb, null, bFirst, bRest)
     }
-    context.connection
+    context.connection.cancel
   }
 
   /** Called when we hit the first async boundary in [[startFuture]]. */
@@ -607,7 +615,8 @@ private[eval] object TaskRunLoop {
     } else {
       restartAsync(current, context, cb, null, bFirst, bRest)
     }
-    CancelableFuture(p.future, context.connection)
+
+    CancelableFuture(p.future, context.connection.toCancelable(scheduler))
   }
 
   /** Called when we hit the first async boundary in [[startStep]]. */

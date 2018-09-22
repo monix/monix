@@ -56,7 +56,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.now(trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runOnComplete(r => result = Some(r))
+    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
     assertEquals(result, Some(Success("result")))
   }
 
@@ -70,7 +70,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.now(trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runOnComplete(r => result = Some(r))
+    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
     assertEquals(result, None)
     s2.tick()
     assertEquals(result, Some(Success("result")))
@@ -110,7 +110,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.raiseError[String](trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runOnComplete(r => result = Some(r))
+    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
     assertEquals(result, Some(Failure(dummy)))
   }
 
@@ -125,7 +125,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.raiseError[String](trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runOnComplete(r => result = Some(r))
+    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
     assertEquals(result, None)
     s2.tick()
     assertEquals(result, Some(Failure(dummy)))

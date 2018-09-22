@@ -18,13 +18,38 @@
 package monix.eval
 package internal
 
+import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context}
-import monix.execution.annotations.UnsafeProtocol
+import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import scala.annotation.unchecked.uncheckedVariance
+import scala.util.Try
 
 private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
-  /** Deprecated — use [[redeem]] instead.
+  /**
+    * DEPRECATED — switch to [[runAsync(cb* runAsync]] in combination
+    * with [[Callback.fromTry]] instead.
+    *
+    * If for example you have a `Try[A] => Unit` function, you can
+    * replace usage of `runOnComplete` with:
+    *
+    * `task.runAsync(Callback.fromTry(f))`
+    *
+    * A more common usage is via Scala's `Promise`, but with
+    * a `Promise` reference this construct would be even more
+    * efficient:
+    *
+    * `task.runAsync(Callback.fromPromise(p))`
+    */
+  @UnsafeBecauseImpure
+  @deprecated("Please use `Task.runAsync`", since = "3.0.0")
+  final def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): CancelToken[Task] = {
+    // $COVERAGE-OFF$
+    runAsync(Callback.fromTry(f))(s)
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — use [[redeem]] instead.
     *
     * [[Task.redeem]] is the same operation, but with a different name and the
     * function parameters in an inverted order, to make it consistent with `fold`
@@ -37,7 +62,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — use [[redeemWith]] instead.
+  /** DEPRECATED — use [[redeemWith]] instead.
     *
     * [[Task.redeemWith]] is the same operation, but with a different name and the
     * function parameters in an inverted order, to make it consistent with `fold`
@@ -51,7 +76,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   }
 
   /**
-    * Deprecated — switch to [[Task.parZip2]], which has the same behavior.
+    * DEPRECATED — switch to [[Task.parZip2]], which has the same behavior.
     */
   @deprecated("Switch to Task.parZip2", since="3.0.0-RC2")
   final def zip[B](that: Task[B]): Task[(A, B)] = {
@@ -61,13 +86,13 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   }
 
   /**
-    * Deprecated — switch to [[Task.parMap2]], which has the same behavior.
+    * DEPRECATED — switch to [[Task.parMap2]], which has the same behavior.
     */
   @deprecated("Use Task.parMap2", since="3.0.0-RC2")
   final def zipMap[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
     Task.mapBoth(this, that)(f)
 
-  /** DEPRECATED - renamed to [[Task.executeAsync executeAsync]].
+  /** DEPRECATED — renamed to [[Task.executeAsync executeAsync]].
     *
     * The reason for the deprecation is the repurposing of the word "fork".
     */
@@ -78,7 +103,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     // $COVERAGE-ON$
   }
 
-  /** DEPRECATED - please use [[Task.flatMap flatMap]].
+  /** DEPRECATED — please use [[Task.flatMap flatMap]].
     *
     * The reason for the deprecation is that this operation is
     * redundant, as it can be expressed with `flatMap`, with the
@@ -105,7 +130,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     // $COVERAGE-ON$
   }
 
-  /** DEPRECATED - please use [[Task.flatMap flatMap]].
+  /** DEPRECATED — please use [[Task.flatMap flatMap]].
     *
     * The reason for the deprecation is that this operation is
     * redundant, as it can be expressed with `flatMap` and `map`,
@@ -127,7 +152,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   }
 
   /**
-    * DEPRECATED - since Monix 3.0 the `Task` implementation has switched
+    * DEPRECATED — since Monix 3.0 the `Task` implementation has switched
     * to auto-cancelable run-loops by default (which can still be turned off
     * in its configuration).
     *
@@ -141,7 +166,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   }
 
   /**
-    * DEPRECATED - subsumed by [[start]].
+    * DEPRECATED — subsumed by [[start]].
     *
     * To be consistent with cats-effect 1.0.0, `start` now
     * enforces an asynchronous boundary, being exactly the same
@@ -154,7 +179,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     // $COVERAGE-ON$
   }
 
-  /** DEPRECATED - replace with usage of [[Task.runSyncMaybe]]:
+  /** DEPRECATED — replace with usage of [[Task.runSyncMaybe]]:
     *
     * `task.coeval <-> Coeval(task.runSyncMaybe)`
     */
@@ -218,7 +243,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — renamed to [[Task.parZip2]]. */
+  /** DEPRECATED — renamed to [[Task.parZip2]]. */
   @deprecated("Renamed to Task.parZip2", since = "3.0.0-RC2")
   def zip2[A1,A2,R](fa1: Task[A1], fa2: Task[A2]): Task[(A1,A2)] = {
     // $COVERAGE-OFF$
@@ -226,7 +251,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — renamed to [[Task.parZip3]]. */
+  /** DEPRECATED — renamed to [[Task.parZip3]]. */
   @deprecated("Renamed to Task.parZip3", since = "3.0.0-RC2")
   def zip3[A1,A2,A3](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3]): Task[(A1,A2,A3)] = {
     // $COVERAGE-OFF$
@@ -234,7 +259,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — renamed to [[Task.parZip4]]. */
+  /** DEPRECATED — renamed to [[Task.parZip4]]. */
   @deprecated("Renamed to Task.parZip4", since = "3.0.0-RC2")
   def zip4[A1,A2,A3,A4](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4]): Task[(A1,A2,A3,A4)] = {
     // $COVERAGE-OFF$
@@ -242,7 +267,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — renamed to [[Task.parZip5]]. */
+  /** DEPRECATED — renamed to [[Task.parZip5]]. */
   @deprecated("Renamed to Task.parZip5", since = "3.0.0-RC2")
   def zip5[A1,A2,A3,A4,A5](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5]): Task[(A1,A2,A3,A4,A5)] = {
     // $COVERAGE-OFF$
@@ -250,7 +275,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — renamed to [[Task.parZip6]]. */
+  /** DEPRECATED — renamed to [[Task.parZip6]]. */
   @deprecated("Renamed to Task.parZip6", since = "3.0.0-RC2")
   def zip6[A1,A2,A3,A4,A5,A6](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6]): Task[(A1,A2,A3,A4,A5,A6)] = {
     // $COVERAGE-OFF$

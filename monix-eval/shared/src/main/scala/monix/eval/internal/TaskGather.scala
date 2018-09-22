@@ -17,12 +17,12 @@
 
 package monix.eval.internal
 
+import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
-import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
-import scala.util.control.NonFatal
 
+import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -64,7 +64,7 @@ private[eval] object TaskGather {
 
       // MUST BE synchronized by `lock`!
       // MUST NOT BE called if isActive == false!
-      def maybeSignalFinal(mainConn: StackedCancelable, finalCallback: Callback[M[A]])
+      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[M[A]])
         (implicit s: Scheduler): Unit = {
 
         completed += 1
@@ -86,13 +86,13 @@ private[eval] object TaskGather {
       }
 
       // MUST BE synchronized by `lock`!
-      def reportError(mainConn: StackedCancelable, ex: Throwable)
+      def reportError(mainConn: TaskConnection, ex: Throwable)
         (implicit s: Scheduler): Unit = {
 
         if (isActive) {
           isActive = false
           // This should cancel our CompositeCancelable
-          mainConn.pop().cancel()
+          mainConn.pop().runAsyncAndForget
           tasks = null // GC relief
           results = null // GC relief
           finalCallback.onError(ex)
@@ -124,19 +124,19 @@ private[eval] object TaskGather {
           // Collecting all cancelables in a buffer, because adding
           // cancelables one by one in our `CompositeCancelable` is
           // expensive, so we do it at the end
-          val allCancelables = ListBuffer.empty[StackedCancelable]
+          val allCancelables = ListBuffer.empty[CancelToken[Task]]
 
           // We need a composite because we are potentially starting tasks
-          // in paralel and thus we need to cancel everything
-          val composite = CompositeCancelable()
-          mainConn.push(composite)
+          // in parallel and thus we need to cancel everything
+          val composite = TaskCompositeConnection()
+          mainConn.push(composite.cancel)
 
           var idx = 0
           while (idx < tasksCount && isActive) {
             val currentTask = idx
-            val stacked = StackedCancelable()
+            val stacked = TaskConnection()
             val childContext = context.withConnection(stacked)
-            allCancelables += stacked
+            allCancelables += stacked.cancel
 
             // Light asynchronous boundary
             Task.unsafeStartEnsureAsync(tasks(idx), childContext,
@@ -158,7 +158,7 @@ private[eval] object TaskGather {
 
           // Note that if an error happened, this should cancel all
           // active tasks.
-          composite ++= allCancelables
+          composite.addAll(allCancelables)
           ()
         }
       } catch {

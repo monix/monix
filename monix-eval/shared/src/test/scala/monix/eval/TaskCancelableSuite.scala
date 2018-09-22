@@ -74,7 +74,7 @@ object TaskCancelableSuite extends BaseTestSuite {
   test("Task.cancelable0 should execute immediately when executed with callback") { implicit s =>
     var result = Option.empty[Try[Int]]
     val t = Task.cancelable0[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
-    t.runOnComplete { r => result = Some(r) }
+    t.runAsync(Callback.fromTry[Int]({ r => result = Some(r) }))
     assertEquals(result, Some(Success(100)))
   }
 

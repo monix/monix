@@ -21,8 +21,8 @@ import monix.execution.Cancelable
 import monix.execution.Cancelable.Empty
 import monix.execution.atomic.AtomicAny
 
-/** Represents a Cancelable that can be queried
-  * for the canceled status.
+/**
+  * Represents a Cancelable that can be queried for the canceled status.
   */
 trait BooleanCancelable extends Cancelable {
   /** @return true in case this cancelable hasn't been canceled,
