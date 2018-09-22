@@ -17,7 +17,8 @@
 
 package monix.eval
 
-import monix.eval.Task.{Context, ContextSwitch}
+import monix.eval.Task.ContextSwitch
+import monix.execution.exceptions.APIContractViolationException
 import monix.execution.misc.Local
 
 /** A `TaskLocal` is like a
@@ -97,8 +98,8 @@ import monix.execution.misc.Local
   *   val result = task.runAsyncOpt
   * }}}
   */
-final class TaskLocal[A] private (default: => A) {
-  private[this] val ref = new Local(default)
+final class TaskLocal[A] private (ref: Local[A]) {
+  import TaskLocal.checkPropagation
 
   /** Returns [[monix.execution.misc.Local]] instance used in this [[TaskLocal]].
     *
@@ -107,19 +108,19 @@ final class TaskLocal[A] private (default: => A) {
     * to leaving local modified in other thread.
     */
   def local: Task[Local[A]] =
-    Task.eval(ref)
+    checkPropagation(Task(ref))
 
   /** Returns the current local value (in the `Task` context). */
   def read: Task[A] =
-    Task.eval(ref.get)
+    checkPropagation(Task(ref.get))
 
   /** Updates the local value. */
   def write(value: A): Task[Unit] =
-    Task.eval(ref.update(value))
+    checkPropagation(Task(ref.update(value)))
 
   /** Clears the local value, making it return its `default`. */
   def clear: Task[Unit] =
-    Task.eval(ref.clear())
+    checkPropagation(Task(ref.clear()))
 
   /** Binds the local var to a `value` for the duration of the given
     * `task` execution.
@@ -206,15 +207,22 @@ final class TaskLocal[A] private (default: => A) {
     }
 
   private def restore(value: Option[A]): Task[Unit] =
-    Task.eval(ref.value = value)
+    Task(ref.value = value)
 }
 
-/** Builders for [[TaskLocal]]
+/**
+  * Builders for [[TaskLocal]]
   *
   * @define refTransparent [[Task]] returned by this operation
   *         produces a new [[TaskLocal]] each time it is evaluated.
   *         To share a state between multiple consumers, pass
-  *         [[TaskLocal]] as a parameter or use [[Task.memoize]]
+  *         [[TaskLocal]] values around as plain parameters,
+  *         instead of keeping shared state.
+  *
+  *         Another possibility is to use [[Task.memoize]], but note
+  *         that this breaks referential transparency and can be
+  *         problematic for example in terms of enabled [[Task.Options]],
+  *         which don't survive the memoization process.
   */
 object TaskLocal {
   /** Builds a [[TaskLocal]] reference with the given default.
@@ -226,7 +234,7 @@ object TaskLocal {
     *        or in case it was cleared (with [[TaskLocal.clear]])
     */
   def apply[A](default: A): Task[TaskLocal[A]] =
-    withPropagation(Task.eval(new TaskLocal(default)))
+    checkPropagation(Task.eval(new TaskLocal(Local(default))))
 
   /** Builds a [[TaskLocal]] reference with the given `default`,
     * being lazily evaluated, using [[Coeval]] to manage evaluation.
@@ -242,16 +250,26 @@ object TaskLocal {
     *        lazily evaluated and managed by [[Coeval]]
     */
   def lazyDefault[A](default: Coeval[A]): Task[TaskLocal[A]] =
-    withPropagation(Task.eval(new TaskLocal[A](default.value())))
+    checkPropagation(Task.eval(new TaskLocal[A](new Local(default))))
 
-  private def withPropagation[A](task: Task[A]): Task[A] =
-    ContextSwitch(task, enablePropagation, null)
+  /** Wraps a [[monix.execution.misc.Local Local]] reference
+    * (given in the `Task` context) in a [[TaskLocal]] value.
+    *
+    * $refTransparent
+    */
+  def wrap[A](local: Task[Local[A]]): Task[TaskLocal[A]] =
+    checkPropagation(local.map(new TaskLocal(_)))
 
-  private val enablePropagation: Context => Context =
+  private def checkPropagation[A](fa: Task[A]): Task[A] =
+    ContextSwitch(fa, checkPropagationRef, null)
+
+  private[this] val checkPropagationRef: Task.Context => Task.Context =
     ctx => {
-      if (!ctx.options.localContextPropagation)
-        ctx.withOptions(ctx.options.enableLocalContextPropagation)
-      else
-        ctx
+      if (!ctx.options.localContextPropagation) {
+        throw new APIContractViolationException(
+          "Support for TaskLocal usage isn't active! " +
+          "See documentation at: https://monix.io/api/current/monix/eval/TaskLocal.html")
+      }
+      ctx
     }
 }

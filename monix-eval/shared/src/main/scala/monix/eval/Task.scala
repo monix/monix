@@ -679,11 +679,12 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  final def runSyncUnsafe(timeout: Duration)
-    (implicit s: Scheduler, permit: CanBlock): A =
+  final def runSyncUnsafe(timeout: Duration = Duration.Inf)
+    (implicit s: Scheduler, permit: CanBlock): A = {
     /*_*/
     TaskRunSyncUnsafe(this, timeout, s, defaultOptions)
     /*_*/
+  }
 
   /** Variant of [[runSyncUnsafe]] that takes a [[Task.Options]]
     * implicitly from the scope in order to tune the evaluation model
@@ -700,11 +701,12 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  final def runSyncUnsafeOpt(timeout: Duration)
-    (implicit s: Scheduler, opts: Options, permit: CanBlock): A =
+  final def runSyncUnsafeOpt(timeout: Duration = Duration.Inf)
+    (implicit s: Scheduler, opts: Options, permit: CanBlock): A = {
     /*_*/
     TaskRunSyncUnsafe(this, timeout, s, opts)
     /*_*/
+  }
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
@@ -1899,26 +1901,11 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * Basic usage example:
     *
     * {{{
-    *   Task(1 + 1)
-    *     .timed
-    *     .flatMap { case (duration, value) =
-    *       Task.eval(Logger.info("executed in " + duration.toMillis + " ms").map(_ => value)
-    *     }
-    * }}}
-    *
-    * In the previous example, if the initial `Task` fails, the following `flatMap` will not be executed.
-    * So, you'll not be able to time the "error path".
-    *
-    * To be able to time the execution, even if the `Task` fails, you have to call `.attempt` first:
-    *
-    * {{{
-    *   Task(1 / 0)
-    *     .attempt
-    *     .timed
-    *     .flatMap {
-    *       case (duration, Right(value)) => Task.eval(Logger.info("executed in " + duration.toMillis + " ms")).map(_ => value)
-    *       case (duration, Left(e))      => Task.eval(Logger.warn("failed in " + duration.toMillis + " ms")).flatMap(_ => Task.raiseError(e))
-    *     }
+    *   for {
+    *     r <- Task(1 + 1).timed
+    *     (duration, value) = r
+    *     _ <- Task(println("executed in " + duration.toMillis + " ms"))
+    *   } yield value
     * }}}
     */
   final def timed: Task[(FiniteDuration, A)] =

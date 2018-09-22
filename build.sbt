@@ -320,6 +320,8 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.shift"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsAsyncForTask.shift"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentForTask.onCancelRaiseError"),
+    // TaskLocal changes
+    exclude[IncompatibleMethTypeProblem]("monix.eval.TaskLocal.this"),
     // Hide Task.Context, change conversions (Cats-Effect RC2 upgrade, part 2)
     exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.frameRef"),
     exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.copy"),
