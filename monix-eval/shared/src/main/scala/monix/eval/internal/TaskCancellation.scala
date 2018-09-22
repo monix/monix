@@ -26,33 +26,6 @@ import monix.execution.{Cancelable, Scheduler}
 
 private[eval] object TaskCancellation {
   /**
-    * Implementation for `Task.cancel`.
-    */
-  def signal[A](fa: Task[A]): Task[Unit] = {
-    val start = (ctx: Context, cb: Callback[Unit]) => {
-      implicit val sc = ctx.scheduler
-      // Continues the execution of `fa` using an already cancelled
-      // cancelable, which will ensure that all future registrations
-      // will be cancelled immediately and that `isCanceled == false`
-      val ctx2 = ctx.withConnection(StackedCancelable.alreadyCanceled)
-      // Starting task
-      Task.unsafeStartNow(fa, ctx2, Callback.empty)
-      // Signaling that cancellation has been triggered; given
-      // the synchronous execution of `fa`, what this means is that
-      // cancellation succeeded or an asynchronous boundary has
-      // been hit in `fa`
-      cb.onSuccess(())
-    }
-    Async(start, trampolineBefore = true, trampolineAfter = false)
-  }
-
-  /**
-    * Implementation for `Task#cancelable`.
-    */
-  def autoCancelable[A](fa: Task[A]): Task[A] =
-    Task.ContextSwitch(fa, enableAutoCancelableRunLoops, disableAutoCancelableRunLoops)
-
-  /**
     * Implementation for `Task.uncancelable`.
     */
   def uncancelable[A](fa: Task[A]): Task[A] =
@@ -134,18 +107,15 @@ private[eval] object TaskCancellation {
       }
   }
 
-  private[this] val enableAutoCancelableRunLoops: Context => Context =
-    ctx => {
-      if (ctx.options.autoCancelableRunLoops) ctx
-      else ctx.withOptions(ctx.options.enableAutoCancelableRunLoops)
+  private[this] val withConnectionUncancelable: Context => Context =
+    ct => {
+      ct.withConnection(StackedCancelable.uncancelable)
+        .withOptions(ct.options.disableAutoCancelableRunLoops)
     }
 
-  private[this] val disableAutoCancelableRunLoops: (Any, Throwable, Context, Context) => Context =
-    (_, _, old, current) => current.withOptions(old.options)
-
-  private[this] val withConnectionUncancelable: Context => Context =
-    ct => ct.withConnection(StackedCancelable.uncancelable)
-
   private[this] val restoreConnection: (Any, Throwable, Context, Context) => Context =
-    (_, _, old, current) => current.withConnection(old.connection)
+    (_, _, old, ct) => {
+      ct.withConnection(old.connection)
+        .withOptions(old.options)
+    }
 }

@@ -18,6 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.Task.{Async, Context}
+import java.util.concurrent.RejectedExecutionException
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 
@@ -47,26 +48,32 @@ private[eval] object TaskExecuteOn {
       val oldS = ctx.scheduler
       val ctx2 = ctx.withScheduler(s)
 
-      Task.unsafeStartAsync(source, ctx2,
-        new Callback[A] with Runnable {
-          private[this] var value: A = _
-          private[this] var error: Throwable = _
+      try {
+        Task.unsafeStartAsync(source, ctx2,
+          new Callback[A] with Runnable {
+            private[this] var value: A = _
+            private[this] var error: Throwable = _
 
-          def onSuccess(value: A): Unit = {
-            this.value = value
-            oldS.execute(this)
-          }
+            def onSuccess(value: A): Unit = {
+              this.value = value
+              oldS.execute(this)
+            }
 
-          def onError(ex: Throwable): Unit = {
-            this.error = ex
-            oldS.execute(this)
-          }
+            def onError(ex: Throwable): Unit = {
+              this.error = ex
+              oldS.execute(this)
+            }
 
-          def run() = {
-            if (error ne null) cb.onError(error)
-            else cb.onSuccess(value)
-          }
-        })
+            def run() = {
+              if (error ne null) cb.onError(error)
+              else cb.onSuccess(value)
+            }
+          })
+      } catch {
+        case e: RejectedExecutionException =>
+          Callback.trampolined(cb)(oldS)
+            .onError(e)
+      }
     }
   }
 
@@ -75,7 +82,13 @@ private[eval] object TaskExecuteOn {
 
     def apply(ctx: Context, cb: Callback[A]): Unit = {
       val ctx2 = ctx.withScheduler(s)
-      Task.unsafeStartNow(source, ctx2, cb)
+      try {
+        Task.unsafeStartNow(source, ctx2, cb)
+      } catch {
+        case e: RejectedExecutionException =>
+          Callback.trampolined(cb)(ctx.scheduler)
+            .onError(e)
+      }
     }
   }
 }

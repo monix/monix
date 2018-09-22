@@ -23,7 +23,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.duration.FiniteDuration
 
-private[reactive] final class DelaySubscriptionByTimespanObservable[A]
+private[reactive] final class DelayExecutionByTimespanObservable[A]
   (source: Observable[A], timespan: FiniteDuration)
   extends Observable[A] { self =>
 

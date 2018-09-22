@@ -41,7 +41,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
 
   test("issue #468 - concatMap is cancellable") { implicit sc =>
     val o = Observable.eval(1).executeAsync.flatMap { x =>
-      Observable.now(x).delaySubscription(1.second)
+      Observable.now(x).delayExecution(1.second)
     }
 
     val c = o.subscribe()
@@ -53,7 +53,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
 
   test("issue #468 - flatScan is cancellable") { implicit sc =>
     val o = Observable.eval(1).executeAsync.flatScan(0) { (_, x) =>
-      Observable.now(x).delaySubscription(1.second)
+      Observable.now(x).delayExecution(1.second)
     }
 
     val c = o.subscribe()

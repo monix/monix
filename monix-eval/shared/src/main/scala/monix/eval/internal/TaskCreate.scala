@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import cats.effect.IO
+import cats.effect.{CancelToken, IO}
 import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.cancelables.SingleAssignCancelable
@@ -53,13 +53,16 @@ private[eval] object TaskCreate {
   }
 
   /** Implementation for `cats.effect.Concurrent#cancelable`. */
-  def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
-    cancelable0 { (sc, cb) => Cancelable.fromIO(k(cb))(sc) }
+  def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => CancelToken[Task]): Task[A] =
+    cancelable0 { (sc, cb) =>
+      val task = k(cb)
+      Cancelable(() => task.runAsync(Callback.empty(sc))(sc))
+    }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
-  def cancelableIO[A](start: (Scheduler, Callback[A]) => IO[Unit]): Task[A] =
+  def cancelableIO[A](start: (Scheduler, Callback[A]) => CancelToken[IO]): Task[A] =
     cancelable0 { (sc, cb) => Cancelable.fromIO(start(sc, cb))(sc) }
 
   /**

@@ -75,7 +75,7 @@ private[eval] object TaskMemoize {
       // or only successful results?
       if (self.cacheErrors || value.isSuccess) {
         state.getAndSet(value) match {
-          case (p: Promise[A] @unchecked, _) =>
+          case p: Promise[A] @unchecked =>
             if (!p.tryComplete(value)) {
               // $COVERAGE-OFF$
               if (value.isFailure)
@@ -90,10 +90,10 @@ private[eval] object TaskMemoize {
       } else {
         // Error happened and we are not caching errors!
         state.get match {
-          case current @ (p: Promise[A] @unchecked, _) =>
+          case p: Promise[A] @unchecked =>
             // Resetting the state to `null` will trigger the
             // execution again on next `runAsync`
-            if (state.compareAndSet(current, null)) {
+            if (state.compareAndSet(p, null)) {
               p.tryComplete(value)
             } else {
               // Race condition, retry
@@ -122,17 +122,17 @@ private[eval] object TaskMemoize {
       * that will receive the result once the task is complete.
       */
     private def registerListener(
-      ref: (Promise[A], StackedCancelable),
+      p: Promise[A],
       context: Context,
       cb: Callback[A])
       (implicit ec: ExecutionContext): Unit = {
 
-      val (p, c) = ref
-      context.connection.push(c)
       p.future.onComplete { r =>
-        context.connection.pop()
-        context.frameRef.reset()
-        startFull(Task.fromTry(r), context, cb, null, null, null, 1)
+        // Listener is cancelable: we simply ensure that the result isn't streamed
+        if (!context.connection.isCanceled) {
+          context.frameRef.reset()
+          startFull(Task.fromTry(r), context, cb, null, null, null, 1)
+        }
       }
     }
 
@@ -143,19 +143,26 @@ private[eval] object TaskMemoize {
       implicit val sc: Scheduler = context.scheduler
       self.state.get match {
         case null =>
-          val update = (Promise[A](), context.connection)
+          val update = Promise[A]()
 
           if (!self.state.compareAndSet(null, update)) {
             // $COVERAGE-OFF$
             start(context, cb) // retry
             // $COVERAGE-ON$
           } else {
+            // Registering listener callback for when listener is ready
             self.registerListener(update, context, cb)
-            // With light async boundary to prevent stack-overflows!
-            Task.unsafeStartTrampolined(self.thunk, context, self.complete)
+
+            // Running main task in `uncancelable` model
+            val ctx2 = context
+              .withOptions(context.options.disableAutoCancelableRunLoops)
+              .withConnection(StackedCancelable.uncancelable)
+
+            // Start with light async boundary to prevent stack-overflows!
+            Task.unsafeStartTrampolined(self.thunk, ctx2, self.complete)
           }
 
-        case ref: (Promise[A], StackedCancelable) @unchecked =>
+        case ref: Promise[A] @unchecked =>
           self.registerListener(ref, context, cb)
 
         case ref: Try[A] @unchecked =>

@@ -36,16 +36,12 @@ private[reactive] final class TakeLastOperator[A](n: Int)
       private[this] var queued = 0
 
       def onNext(elem: A): Ack = {
-        if (queued < n) {
-          queue.enqueue(elem)
+        queue.enqueue(elem)
+        if (queued < n)
           queued += 1
-          Continue
-        }
-        else {
-          queue.enqueue(elem)
+        else
           queue.dequeue()
-          Continue
-        }
+        Continue
       }
 
       def onComplete(): Unit = {

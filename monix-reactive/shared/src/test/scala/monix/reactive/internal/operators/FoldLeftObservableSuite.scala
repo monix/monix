@@ -36,7 +36,7 @@ object FoldLeftObservableSuite extends BaseOperatorSuite {
   }
 
   def cancelableObservables() = {
-    val obs = Observable.range(0, 1000).delaySubscription(1.seconds).foldLeftF(0L)(_+_)
+    val obs = Observable.range(0, 1000).delayExecution(1.seconds).foldLeftF(0L)(_+_)
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
