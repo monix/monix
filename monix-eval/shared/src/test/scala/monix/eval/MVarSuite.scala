@@ -34,7 +34,7 @@ object MVarSuite extends BaseTestSuite {
       r2 <- av.take
     } yield List(r1,r2)
 
-    assertEquals(task.runSyncMaybe, Right(List(10,20)))
+    assertEquals(task.runSyncStep, Right(List(10,20)))
   }
 
   test("empty; take; put; take; put") { implicit s =>
@@ -84,7 +84,7 @@ object MVarSuite extends BaseTestSuite {
       r2 <- av.take
     } yield List(r1,r2)
 
-    assertEquals(task.runSyncMaybe, Right(List(10,20)))
+    assertEquals(task.runSyncStep, Right(List(10,20)))
   }
 
   test("withPadding; put; take; put; take") { implicit s =>
@@ -96,7 +96,7 @@ object MVarSuite extends BaseTestSuite {
       r2 <- av.take
     } yield List(r1,r2)
 
-    assertEquals(task.runSyncMaybe, Right(List(10,20)))
+    assertEquals(task.runSyncStep, Right(List(10,20)))
   }
 
   test("withPadding(initial); put; take; put; take") { implicit s =>
@@ -107,7 +107,7 @@ object MVarSuite extends BaseTestSuite {
       r2 <- av.take
     } yield List(r1,r2)
 
-    assertEquals(task.runSyncMaybe, Right(List(10,20)))
+    assertEquals(task.runSyncStep, Right(List(10,20)))
   }
 
   test("initial; read; take") { implicit s =>
@@ -117,7 +117,7 @@ object MVarSuite extends BaseTestSuite {
       take <- av.take
     } yield read + take
 
-    assertEquals(task.runSyncMaybe, Right(20))
+    assertEquals(task.runSyncStep, Right(20))
   }
 
   test("empty; read; put") { implicit s =>
@@ -133,7 +133,7 @@ object MVarSuite extends BaseTestSuite {
     val task = MVar.empty[String].flatMap(_.put(null))
 
     intercept[NullPointerException] {
-      task.runSyncMaybe
+      task.runSyncStep
     }
   }
 
@@ -205,7 +205,7 @@ object MVarSuite extends BaseTestSuite {
   }
 
   test("take/put test is stack safe") { implicit s =>
-    val Right(ch) = MVar.empty[Int].runSyncMaybe
+    val Right(ch) = MVar.empty[Int].runSyncStep
 
     def loop(n: Int, acc: Int): Task[Int] =
       if (n <= 0) Task.now(acc) else

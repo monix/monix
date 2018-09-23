@@ -18,12 +18,70 @@
 package monix.eval
 package internal
 
+import monix.eval.Task.Options
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import scala.annotation.unchecked.uncheckedVariance
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
+  /**
+    * DEPRECATED — switch to [[runSyncStep]] or to
+    * [[runAsync(implicit* runAsync]].
+    *
+    * The [[runAsync(implicit* runAsync]] variant that returns
+    * [[monix.execution.CancelableFuture CancelableFuture]] will
+    * return already completed future values, useful for low level
+    * optimizations. All this `runSyncMaybe` did was to piggyback
+    * on it.
+    *
+    * The reason for the deprecation is to reduce the unneeded
+    * "run" overloads.
+    */
+  @UnsafeBecauseImpure
+  @deprecated("Please use `Task.runSyncStep`", since = "3.0.0")
+  final def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
+    // $COVERAGE-OFF$
+    runSyncMaybeOptPrv(s, Task.defaultOptions)
+    // $COVERAGE-ON$
+  }
+
+  /**
+    * DEPRECATED — switch to [[runSyncStepOpt]] or to
+    * [[runAsyncOpt(implicit* runAsync]].
+    *
+    * The [[runAsyncOpt(implicit* runAsyncOpt]] variant that returns
+    * [[monix.execution.CancelableFuture CancelableFuture]] will
+    * return already completed future values, useful for low level
+    * optimizations. All this `runSyncMaybeOpt` did was to piggyback
+    * on it.
+    *
+    * The reason for the deprecation is to reduce the unneeded
+    * "run" overloads.
+    */
+  @UnsafeBecauseImpure
+  @deprecated("Please use `Task.runAsyncOpt`", since = "3.0.0")
+  final def runSyncMaybeOpt(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
+    // $COVERAGE-OFF$
+    runSyncMaybeOptPrv(s, opts)
+    // $COVERAGE-ON$
+  }
+
+  private[this] final def runSyncMaybeOptPrv(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
+    // $COVERAGE-OFF$
+    val future = runAsyncOpt(s, opts)
+    future.value match {
+      case Some(value) =>
+        value match {
+          case Success(a) => Right(a)
+          case Failure(e) => throw e
+        }
+      case None =>
+        Left(future)
+    }
+    // $COVERAGE-ON$
+  }
+
   /**
     * DEPRECATED — switch to [[runAsync(cb* runAsync]] in combination
     * with [[Callback.fromTry]] instead.
@@ -177,14 +235,14 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     // $COVERAGE-ON$
   }
 
-  /** DEPRECATED — replace with usage of [[Task.runSyncMaybe]]:
+  /** DEPRECATED — replace with usage of [[Task.runSyncStep]]:
     *
     * `task.coeval <-> Coeval(task.runSyncMaybe)`
     */
   @deprecated("Replaced with start", since="3.0.0-RC2")
   final def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] = {
     // $COVERAGE-OFF$
-    Coeval.eval(runSyncMaybe(s))
+    Coeval.eval(runSyncMaybeOptPrv(s, Task.defaultOptions))
     // $COVERAGE-ON$
   }
 }

@@ -28,7 +28,6 @@ import monix.execution.internal.Platform
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.batches.Batch
 import org.reactivestreams.{Subscriber, Subscription}
-
 import scala.util.{Failure, Success}
 
 object IterantToReactivePublisherSuite extends BaseTestSuite {
@@ -325,7 +324,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   }
 
   def sum[F[_]](stream: Iterant[F, Int], request: Long)(implicit F: Effect[F]): Task[Long] =
-    Task.cancelable0 { (scheduler, cb) =>
+    Task.create { (scheduler, cb) =>
       implicit val ec = scheduler
       val subscription = SingleAssignSubscription()
 

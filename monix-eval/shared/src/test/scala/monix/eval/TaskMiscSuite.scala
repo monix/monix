@@ -43,7 +43,7 @@ object TaskMiscSuite extends BaseTestSuite {
 
   test("Task.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
-      Task.eval(10).failed.runSyncMaybe
+      Task.eval(10).failed.runSyncStep
     }
   }
 

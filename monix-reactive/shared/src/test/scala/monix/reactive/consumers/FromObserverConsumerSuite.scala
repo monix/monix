@@ -32,7 +32,7 @@ object FromObserverConsumerSuite extends BaseTestSuite {
   test("convert an observer into a consumer") { implicit s =>
     check1 { (source: Observable[Int]) =>
       val lh = source.sumL
-      val rh = Task.cancelable0[Int] { (s, cb) =>
+      val rh = Task.create[Int] { (s, cb) =>
         implicit val scheduler = s
         var sum = 0
 
@@ -51,7 +51,6 @@ object FromObserverConsumerSuite extends BaseTestSuite {
           case Success(()) => cb.onSuccess(sum)
           case Failure(ex) => cb.onError(ex)
         }
-
         source.unsafeSubscribeFn(out)
       }
 
@@ -64,7 +63,7 @@ object FromObserverConsumerSuite extends BaseTestSuite {
       val ex = DummyException("dummy")
       val lh = Task.raiseError[Unit](ex)
 
-      val rh = Task.cancelable0[Unit] { (s, cb) =>
+      val rh = Task.create[Unit] { (s, cb) =>
         implicit val scheduler = s
 
         val consumer = Consumer.fromObserver(_ =>
