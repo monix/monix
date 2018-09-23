@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import cats.effect.{CancelToken, IO}
+import cats.effect.{CancelToken, IO, Sync}
 import monix.execution.atomic.AtomicAny
 import monix.execution.internal.{AttemptCallback, Platform}
 
@@ -156,15 +156,15 @@ object Cancelable {
 
   /** Extension methods for [[Cancelable]]. */
   implicit final class Extensions(val self: Cancelable) extends AnyVal {
-    /** Given a [[Cancelable]] reference, turn it into an `CancelToken[IO]`
-      * that will trigger [[Cancelable.cancel cancel]] on evaluation.
-      *
-      * Useful when working with the `IO.cancelable` builder.
+    /**
+      * Given a [[Cancelable]] reference, turn it into an
+      * `CancelToken[F]` (a Cats-Effect alias for `F[Unit]`) that
+      * will trigger [[Cancelable.cancel cancel]] on evaluation.
       */
-    def cancelIO: CancelToken[IO] =
+    def toCancelToken[F[_]](implicit F: Sync[F]): CancelToken[F] =
       self match {
-        case _: IsDummy => IO.unit
-        case _ => IO(self.cancel())
+        case _: IsDummy => F.unit
+        case _ => F.delay(self.cancel())
       }
   }
 

@@ -26,10 +26,19 @@ import monix.execution.internal.Platform
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
-private[internal] object UnsafeCancelUtils {
+private[eval] object UnsafeCancelUtils {
+  /**
+    * Internal API.
+    */
+  def taskToCancelable(task: Task[Unit])(implicit s: Scheduler): Cancelable = {
+    if (task == Task.unit) Cancelable.empty
+    else Cancelable(() => task.runAsyncAndForget(s))
+  }
+
   /**
     * Internal API — very unsafe!
     */
+  private[internal]
   def cancelAllUnsafe(cursor: Iterable[AnyRef/* Cancelable | Task[Unit] | CancelableF[Task] */]): CancelToken[Task] =
     if (cursor.isEmpty) {
       Task.unit
@@ -41,6 +50,7 @@ private[internal] object UnsafeCancelUtils {
   /**
     * Internal API — very unsafe!
     */
+  private[internal]
   def unsafeCancel(task: AnyRef/* Cancelable | Task[Unit] | CancelableF[Task] */): CancelToken[Task] =
     task match {
       case ref: Task[Unit] @unchecked =>
@@ -57,6 +67,7 @@ private[internal] object UnsafeCancelUtils {
   /**
     * Internal API — very unsafe!
     */
+  private[internal]
   def getToken(task: AnyRef/* Cancelable | Task[Unit] | CancelableF[Task] */): CancelToken[Task] =
     task match {
       case ref: Task[Unit] @unchecked =>
@@ -72,6 +83,7 @@ private[internal] object UnsafeCancelUtils {
   /**
     * Internal API — very unsafe!
     */
+  private[internal]
   def triggerCancel(task: AnyRef/* Cancelable | Task[Unit] | CancelableF[Task] */)
     (implicit s: Scheduler): Unit = {
 

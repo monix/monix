@@ -427,8 +427,8 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * @return $runAsyncToFutureReturn
     */
   @UnsafeBecauseImpure
-  def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-    TaskRunLoop.startFuture(this, s, defaultOptions)
+  final def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+    runAsyncOpt(s, Task.defaultOptions)
 
   /** Triggers the asynchronous execution, much like normal `runAsync`,
     * but includes the ability to specify
@@ -457,8 +457,8 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * @return $cancelableDesc
     */
   @UnsafeBecauseImpure
-  def runAsync(cb: Callback[A])(implicit s: Scheduler): CancelToken[Task] =
-    TaskRunLoop.startLight(this, s, defaultOptions, cb)
+  final def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
+    runAsyncOpt(cb)(s, Task.defaultOptions)
 
   /** Triggers the asynchronous execution, much like normal `runAsync`,
     * but includes the ability to specify
@@ -473,7 +473,38 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * @return $cancelableDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): CancelToken[Task] =
+  def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
+    UnsafeCancelUtils.taskToCancelable(runAsyncOptF(cb)(s, opts))
+
+  /** Triggers the asynchronous execution.
+    *
+    * Without invoking `runAsync` on a `Task`, nothing
+    * gets evaluated, as a `Task` has lazy behavior.
+    *
+    * $unsafeRun
+    *
+    * @param cb $callbackDesc
+    * @param s $schedulerDesc
+    * @return $cancelableDesc
+    */
+  @UnsafeBecauseImpure
+  final def runAsyncF(cb: Callback[A])(implicit s: Scheduler): CancelToken[Task] =
+    runAsyncOptF(cb)(s, Task.defaultOptions)
+
+  /** Triggers the asynchronous execution, much like normal `runAsync`,
+    * but includes the ability to specify
+    * [[monix.eval.Task.Options Options]] that can modify the behavior
+    * of the run-loop.
+    *
+    * $unsafeRun
+    *
+    * @param cb $callbackDesc
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    * @return $cancelableDesc
+    */
+  @UnsafeBecauseImpure
+  def runAsyncOptF(cb: Callback[A])(implicit s: Scheduler, opts: Options): CancelToken[Task] =
     TaskRunLoop.startLight(this, s, opts, cb)
 
   /** Run the task as a "fire and forget" action.
@@ -487,7 +518,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * @param s $schedulerDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncAndForget(implicit s: Scheduler): Unit =
+  final def runAsyncAndForget(implicit s: Scheduler): Unit =
     runAsyncAndForgetOpt(s, Task.defaultOptions)
 
   /** Run the task as a "fire and forget" action.
@@ -503,7 +534,39 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   @UnsafeBecauseImpure
   def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Task.Options): Unit =
+    runAsyncUncancelableOpt(Callback.empty)(s, opts)
+
+  //---
+  /** Run the task in an uncancelable mode — this is an optimization
+    * over plain [[runAsyncF]] that doesn't give you a cancellation
+    * token for cancelling the task.
+    *
+    *
+    *
+    * @param s $schedulerDesc
+    */
+  @UnsafeBecauseImpure
+  final def runAsyncUncancelable(cb: Callback[A])(implicit s: Scheduler): Unit =
+    runAsyncUncancelableOpt(cb)(s, Task.defaultOptions)
+
+  /** Run the task in an uncancelable mode — this is an optimization
+    * over plain [[runAsyncOptF]] that doesn't give you a cancellation
+    * token for cancelling the task.
+    *
+    * Starts the execution of the task, but discards any result
+    * generated asynchronously and doesn't return any cancelable
+    * tokens either. This affords some optimizations — for example
+    * the underlying run-loop doesn't need to worry about
+    * cancelation. Also the call-site is more clear in intent.
+    *
+    * @param s $schedulerDesc
+    * @param opts $optionsDesc
+    */
+  @UnsafeBecauseImpure
+  def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Task.Options): Unit =
     TaskRunLoop.startLight(this, s, opts, Callback.empty, isCancelable = false)
+
+  // ---
 
   /** Tries to execute the source synchronously.
     *
@@ -3684,41 +3747,73 @@ object Task extends TaskInstancesLevel1 {
 
   /** [[Task]] state describing an immediate synchronous value. */
   private[eval] final case class Now[A](value: A) extends Task[A] {
-    // Optimizations to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): CancelToken[Task] = {
-      if (s.executionModel != AlwaysAsyncExecution) cb.onSuccess(value)
-      else s.executeAsync(() => cb.onSuccess(value))
-      Task.unit
+    // Optimization to avoid the run-loop
+    override def runAsyncOptF(cb: Callback[A])(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
+      if (s.executionModel != AlwaysAsyncExecution) {
+        cb.onSuccess(value)
+        Task.unit
+      } else {
+        super.runAsyncF(cb)(s)
+      }
     }
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-      CancelableFuture.successful(value)
-    override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
-      runAsync(s)
-    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): CancelToken[Task] =
-      runAsync(cb)(s)
-    override def runAsyncAndForget(implicit s: Scheduler): Unit =
-      ()
+    // Optimization to avoid the run-loop
+    override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
+      if (s.executionModel != AlwaysAsyncExecution) {
+        CancelableFuture.successful(value)
+      } else {
+        super.runAsyncOpt(s, opts)
+      }
+    }
+    // Optimization to avoid the run-loop
+    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
+      if (s.executionModel != AlwaysAsyncExecution) {
+        cb.onSuccess(value)
+        Cancelable.empty
+      } else {
+        super.runAsyncOpt(cb)(s, opts)
+      }
+    }
+    // Optimization to avoid the run-loop
     override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
       ()
-  }
+    // Optimization to avoid the run-loop
+    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit =
+      ()
+}
 
   /** [[Task]] state describing an immediate exception. */
   private[eval] final case class Error[A](ex: Throwable) extends Task[A] {
-    // Optimizations to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): CancelToken[Task] = {
-      if (s.executionModel != AlwaysAsyncExecution) cb.onError(ex)
-      else s.executeAsync(() => cb.onError(ex))
-      Task.unit
+    // Optimization to avoid the run-loop
+    override def runAsyncOptF(cb: Callback[A])(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
+      if (s.executionModel != AlwaysAsyncExecution) {
+        cb.onError(ex)
+        Task.unit
+      } else {
+        super.runAsyncF(cb)(s)
+      }
     }
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-      CancelableFuture.failed(ex)
-    override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
-      runAsync(s)
-    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): CancelToken[Task] =
-      runAsync(cb)(s)
-    override def runAsyncAndForget(implicit s: Scheduler): Unit =
-      s.reportFailure(ex)
+    // Optimization to avoid the run-loop
+    override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
+      if (s.executionModel != AlwaysAsyncExecution) {
+        CancelableFuture.failed(ex)
+      } else {
+        super.runAsyncOpt(s, opts)
+      }
+    }
+    // Optimization to avoid the run-loop
+    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
+      if (s.executionModel != AlwaysAsyncExecution) {
+        cb.onError(ex)
+        Cancelable.empty
+      } else {
+        super.runAsyncOpt(cb)(s, opts)
+      }
+    }
+    // Optimization to avoid the run-loop
     override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
+      s.reportFailure(ex)
+    // Optimization to avoid the run-loop
+    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit =
       s.reportFailure(ex)
   }
 

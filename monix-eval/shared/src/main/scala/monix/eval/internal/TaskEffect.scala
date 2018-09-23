@@ -46,7 +46,7 @@ private[eval] object TaskEffect {
   private def execute[A](fa: Task[A], cb: Either[Throwable, A] => IO[Unit])
     (implicit s: Scheduler, opts: Task.Options) = {
 
-    fa.runAsyncOpt(new Callback[A] {
+    fa.runAsyncOptF(new Callback[A] {
       private def signal(value: Either[Throwable, A]): Unit =
         try cb(value).unsafeRunAsync(noop)
         catch { case NonFatal(e) => s.reportFailure(e) }

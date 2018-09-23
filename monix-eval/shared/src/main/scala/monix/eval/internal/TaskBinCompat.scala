@@ -18,9 +18,8 @@
 package monix.eval
 package internal
 
-import cats.effect.CancelToken
 import monix.execution.annotations.UnsafeBecauseImpure
-import monix.execution.{CancelableFuture, Scheduler}
+import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import scala.annotation.unchecked.uncheckedVariance
 import scala.util.Try
 
@@ -42,7 +41,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     */
   @UnsafeBecauseImpure
   @deprecated("Please use `Task.runAsync`", since = "3.0.0")
-  final def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): CancelToken[Task] = {
+  final def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable = {
     // $COVERAGE-OFF$
     runAsync(Callback.fromTry(f))(s)
     // $COVERAGE-ON$

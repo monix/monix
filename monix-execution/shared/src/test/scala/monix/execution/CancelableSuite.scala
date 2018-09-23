@@ -158,10 +158,10 @@ object CancelableSuite extends SimpleTestSuite {
     assertEquals(ctx.state.lastReportedError, dummy)
   }
 
-  test("Cancelable#cancelIO") {
+  test("Cancelable#toCancelToken") {
     var effect = 0
     val c = Cancelable { () => effect += 1 }
-    val io = c.cancelIO
+    val io = c.toCancelToken[IO]
 
     assertEquals(effect, 0)
     io.unsafeRunSync()
@@ -170,7 +170,7 @@ object CancelableSuite extends SimpleTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Cancelable.empty.cancelIO == IO.unit") {
-    assertEquals(Cancelable.empty.cancelIO, IO.unit)
+  test("Cancelable.empty.toCancelToken[IO] == IO.unit") {
+    assertEquals(Cancelable.empty.toCancelToken[IO], IO.unit)
   }
 }

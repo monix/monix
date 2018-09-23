@@ -283,9 +283,10 @@ object Scheduler extends SchedulerCompanionImpl {
         override def sleep(d: FiniteDuration): F[Unit] =
           F.liftIO(IO.cancelable[Unit] { cb =>
             source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
-              .cancelIO
+              .toCancelToken[IO]
           })
-        override def clock: Clock[F] = source.clock
+        override def clock: Clock[F] =
+          source.clock
       }
 
     /**
