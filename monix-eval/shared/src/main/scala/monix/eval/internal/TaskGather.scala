@@ -128,7 +128,7 @@ private[eval] object TaskGather {
 
           // We need a composite because we are potentially starting tasks
           // in parallel and thus we need to cancel everything
-          val composite = TaskCompositeConnection()
+          val composite = TaskConnectionComposite()
           mainConn.push(composite.cancel)
 
           var idx = 0

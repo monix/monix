@@ -426,6 +426,12 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
       .enablePlugins(AutomateHeaderPlugin)
 }
 
+lazy val doctestTestSettings = Seq(
+  doctestTestFramework := DoctestTestFramework.Minitest,
+  doctestIgnoreRegex := Some(s".*TaskApp.scala"),
+  doctestOnlyCodeBlocksMode := true
+)
+
 lazy val monix = project.in(file("."))
   .enablePlugins(ScalaUnidocPlugin)
   .configure(profile)
@@ -474,11 +480,24 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(requiredMacroDeps)
   .settings(executionCommon)
 
-lazy val doctestTestSettings = Seq(
-  doctestTestFramework := DoctestTestFramework.Minitest,
-  doctestIgnoreRegex := Some(s".*TaskApp.scala"),
-  doctestOnlyCodeBlocksMode := true
-)
+lazy val catnapCommon =
+  crossSettings ++ testSettings ++ Seq(
+    name := "monix-catnap"
+  )
+
+lazy val catnapJVM = project.in(file("monix-catnap/jvm"))
+  .configure(profile)
+  .dependsOn(executionJVM % "compile->compile; test->test")
+  .settings(catnapCommon)
+  .settings(mimaSettings("monix-catnap"))
+  .settings(doctestTestSettings)
+
+lazy val catnapJS = project.in(file("monix-catnap/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .configure(profile)
+  .dependsOn(executionJS % "compile->compile; test->test")
+  .settings(scalaJSSettings)
+  .settings(catnapCommon)
 
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
@@ -488,6 +507,7 @@ lazy val evalCommon =
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .configure(profile)
   .dependsOn(executionJVM % "compile->compile; test->test")
+  .dependsOn(catnapJVM)
   .settings(evalCommon)
   .settings(mimaSettings("monix-eval"))
   .settings(doctestTestSettings)
@@ -496,6 +516,7 @@ lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
   .dependsOn(executionJS % "compile->compile; test->test")
+  .dependsOn(catnapJS)
   .settings(scalaJSSettings)
   .settings(evalCommon)
 

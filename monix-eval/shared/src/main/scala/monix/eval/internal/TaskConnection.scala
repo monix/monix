@@ -19,6 +19,7 @@ package monix.eval
 package internal
 
 import cats.effect.CancelToken
+import monix.catnap.CancelableF
 import monix.execution.atomic.{Atomic, PaddingStrategy}
 import monix.execution.{Cancelable, Scheduler}
 import scala.annotation.tailrec
@@ -35,7 +36,7 @@ import scala.annotation.tailrec
   * Used in the implementation of `cats.effect.Task`. Inspired by the
   * implementation of `StackedCancelable` from the Monix library.
   */
-private[eval] sealed abstract class TaskConnection {
+private[eval] sealed abstract class TaskConnection extends CancelableF[Task] {
   /**
     * Cancels the unit of work represented by this reference.
     *
@@ -52,7 +53,7 @@ private[eval] sealed abstract class TaskConnection {
   def isCanceled: Boolean
 
   /**
-    * Pushes a cancelable reference on the stack, to be
+    * Pushes a cancelable token on the stack, to be
     * popped or canceled later in FIFO order.
     *
     * The function needs a [[monix.execution.Scheduler Scheduler]]
@@ -62,13 +63,33 @@ private[eval] sealed abstract class TaskConnection {
   def push(token: CancelToken[Task])(implicit s: Scheduler): Unit
 
   /**
+    * Pushes a [[monix.execution.Cancelable]] on the stack, to be
+    * popped or canceled later in FIFO order.
+    *
+    * The function needs a [[monix.execution.Scheduler Scheduler]]
+    * to work because in case the connection was already cancelled,
+    * then the given `token` needs to be cancelled as well.
+    */
+  def push(cancelable: Cancelable)(implicit s: Scheduler): Unit
+
+  /**
+    * Pushes a [[monix.catnap.CancelableF]] on the stack, to be
+    * popped or canceled later in FIFO order.
+    *
+    * The function needs a [[monix.execution.Scheduler Scheduler]]
+    * to work because in case the connection was already cancelled,
+    * then the given `token` needs to be cancelled as well.
+    */
+  def push(connection: CancelableF[Task])(implicit s: Scheduler): Unit
+
+  /**
     * Pushes multiple connections on the stack.
     *
     * The function needs a [[monix.execution.Scheduler Scheduler]]
     * to work because in case the connection was already cancelled,
     * then the given connections need to be cancelled as well.
     */
-  def pushAll(seq: Seq[TaskConnection])(implicit s: Scheduler): Unit
+  def pushConnections(seq: CancelableF[Task]*)(implicit s: Scheduler): Unit
 
   /**
     * Removes a cancelable reference from the stack in FIFO order.
@@ -113,7 +134,11 @@ private[eval] object TaskConnection {
     def tryReactivate(): Boolean = true
     def push(token: CancelToken[Task])
       (implicit s: Scheduler): Unit = ()
-    def pushAll(seq: Seq[TaskConnection])
+    def push(cancelable: Cancelable)
+      (implicit s: Scheduler): Unit = ()
+    def push(connection: CancelableF[Task])
+      (implicit s: Scheduler): Unit = ()
+    def pushConnections(seq: CancelableF[Task]*)
       (implicit s: Scheduler): Unit = ()
     def toCancelable(implicit s: Scheduler): Cancelable =
       Cancelable.empty
@@ -122,7 +147,7 @@ private[eval] object TaskConnection {
   private final class Impl extends TaskConnection { self =>
     private[this] val state =
       Atomic.withPadding(
-        List.empty[CancelToken[Task]],
+        List.empty[AnyRef],
         PaddingStrategy.LeftRight128
       )
 
@@ -131,35 +156,44 @@ private[eval] object TaskConnection {
         case null | Nil =>
           Task.unit
         case list =>
-          CancelUtils.cancelAll(list.iterator)
+          UnsafeCancelUtils.cancelAllUnsafe(list)
       }
     }
 
     def isCanceled: Boolean =
       state.get eq null
 
-    @tailrec def push(cancelable: CancelToken[Task])
+
+    def push(token: CancelToken[Task])(implicit s: Scheduler): Unit =
+      pushAny(token)
+    def push(cancelable: Cancelable)(implicit s: Scheduler): Unit =
+      pushAny(cancelable)
+    def push(connection: CancelableF[Task])(implicit s: Scheduler): Unit =
+      pushAny(connection)
+
+    @tailrec
+    private def pushAny(cancelable: AnyRef)
       (implicit s: Scheduler): Unit = {
 
       state.get match {
         case null =>
-          // Cancelling
-          cancelable.runAsyncAndForget(s)
+          UnsafeCancelUtils.triggerCancel(cancelable)
         case list =>
           val update = cancelable :: list
-          if (!state.compareAndSet(list, update)) push(cancelable)
+          if (!state.compareAndSet(list, update))
+            pushAny(cancelable)
       }
     }
 
-    def pushAll(seq: Seq[TaskConnection])(implicit s: Scheduler): Unit =
-      push(CancelUtils.cancelAll(seq.map(_.cancel) :_*))
+    def pushConnections(seq: CancelableF[Task]*)(implicit s: Scheduler): Unit =
+      push(UnsafeCancelUtils.cancelAllUnsafe(seq))
 
     @tailrec def pop(): CancelToken[Task] =
       state.get match {
         case null | Nil => Task.unit
         case current @ (x :: xs) =>
           if (!state.compareAndSet(current, xs)) pop()
-          else x
+          else UnsafeCancelUtils.getToken(x)
       }
 
     def tryReactivate(): Boolean =

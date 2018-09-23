@@ -18,9 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
-import monix.execution.cancelables._
 
 private[eval] object TaskRace {
   /**
@@ -42,9 +40,9 @@ private[eval] object TaskRace {
       val conn = context.connection
 
       val isActive = Atomic(true)
-      val connA = StackedCancelable()
-      val connB = StackedCancelable()
-      conn.push(Cancelable.trampolined(connA, connB))
+      val connA = TaskConnection()
+      val connB = TaskConnection()
+      conn.pushConnections(connA, connB)
 
       val contextA = context.withConnection(connA)
       val contextB = context.withConnection(connB)
@@ -53,7 +51,7 @@ private[eval] object TaskRace {
       Task.unsafeStartEnsureAsync(fa, contextA, new Callback[A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
-            connB.cancel()
+            connB.cancel.runAsyncAndForget
             conn.pop()
             cb.onSuccess(Left(valueA))
           }
@@ -61,7 +59,7 @@ private[eval] object TaskRace {
         def onError(ex: Throwable): Unit =
           if (isActive.getAndSet(false)) {
             conn.pop()
-            connB.cancel()
+            connB.cancel.runAsyncAndForget
             cb.onError(ex)
           } else {
             sc.reportFailure(ex)
@@ -72,7 +70,7 @@ private[eval] object TaskRace {
       Task.unsafeStartEnsureAsync(fb, contextB, new Callback[B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
-            connA.cancel()
+            connA.cancel.runAsyncAndForget
             conn.pop()
             cb.onSuccess(Right(valueB))
           }
@@ -80,7 +78,7 @@ private[eval] object TaskRace {
         def onError(ex: Throwable): Unit =
           if (isActive.getAndSet(false)) {
             conn.pop()
-            connA.cancel()
+            connA.cancel.runAsyncAndForget
             cb.onError(ex)
           } else {
             sc.reportFailure(ex)

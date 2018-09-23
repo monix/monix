@@ -20,9 +20,8 @@ package monix.eval.internal
 import cats.effect._
 import monix.eval.Task.Context
 import monix.eval.{Callback, Task}
-import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
+import monix.execution.Scheduler
 import monix.execution.schedulers.TrampolinedRunnable
-import monix.execution.{Cancelable, Scheduler}
 import scala.util.control.NonFatal
 
 private[eval] object TaskConversions {
@@ -76,8 +75,17 @@ private[eval] object TaskConversions {
     fa.asInstanceOf[AnyRef] match {
       case ref: Task[A] @unchecked => ref
       case io: IO[A] @unchecked => io.to[Task]
-      case _ => F.toIO(fa).to[Task]
+      case _ => fromEffect0(fa)
     }
+
+  private def fromEffect0[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
+    val start = (ctx: Context, cb: Callback[A]) => {
+      implicit val sc = ctx.scheduler
+      val io = F.runAsync(fa)(new CreateCallback(null, cb))
+      io.unsafeRunSync()
+    }
+    Task.Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
 
   /**
     * Implementation for `Task.fromConcurrent`.
@@ -94,22 +102,21 @@ private[eval] object TaskConversions {
       try {
         implicit val sc = ctx.scheduler
         val conn = ctx.connection
-        val cancelable = SingleAssignCancelable()
-        conn push cancelable
+        val cancelable = TaskConnectionRef()
+        conn push cancelable.cancel
 
         val syncIO = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
-        cancelable := Cancelable.fromIO(F.toIO(syncIO.unsafeRunSync()))
+        cancelable := fromEffect(syncIO.unsafeRunSync() : F[Unit])
       } catch {
         case e if NonFatal(e) =>
           ctx.scheduler.reportFailure(e)
       }
-    } : Unit
-
+    }
     Task.Async(start, trampolineBefore = false, trampolineAfter = false)
   }
 
   private final class CreateCallback[A](
-    conn: StackedCancelable, cb: Callback[A])
+    conn: TaskConnection, cb: Callback[A])
     (implicit s: Scheduler)
     extends (Either[Throwable, A] => IO[Unit]) with TrampolinedRunnable {
 
@@ -125,10 +132,10 @@ private[eval] object TaskConversions {
       }
     }
 
-    override def apply(value: Either[Throwable, A]) =
-      IO {
-        this.value = value
-        s.execute(this)
-      }
+    override def apply(value: Either[Throwable, A]) = {
+      this.value = value
+      s.execute(this)
+      IO.unit
+    }
   }
 }

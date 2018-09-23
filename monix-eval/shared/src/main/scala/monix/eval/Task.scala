@@ -2551,7 +2551,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param register $registerParamDesc
     */
-  def cancelable[A](register: Callback[A] => Cancelable): Task[A] =
+  def cancelable[A](register: Callback[A] => CancelToken[Task]): Task[A] =
     cancelable0((_, cb) => register(cb))
 
   /** Create a cancelable `Task` from an asynchronous computation,
@@ -2650,7 +2650,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param register $registerParamDesc
     */
-  def cancelable0[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+  def cancelable0[A](register: (Scheduler, Callback[A]) => CancelToken[Task]): Task[A] =
     TaskCreate.cancelable0(register)
 
   /** Returns a cancelable boundary — a `Task` that checks for the
@@ -3606,8 +3606,8 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forTask: AsyncBuilder[Task[Unit]] =
       new AsyncBuilder[Task[Unit]] {
-        def create[A](register: (Scheduler, Callback[A]) => Task[Unit]): Task[A] =
-          TaskCreate.cancelableTask(register)
+        def create[A](register: (Scheduler, Callback[A]) => CancelToken[Task]): Task[A] =
+          TaskCreate.cancelable0(register)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -3621,14 +3621,15 @@ object Task extends TaskInstancesLevel1 {
   }
 
   private[Task] abstract class AsyncBuilder0 {
-    /** Implicit `AsyncBuilder` for cancelable tasks, using
+    /**
+      * Implicit `AsyncBuilder` for cancelable tasks, using
       * [[monix.execution.Cancelable Cancelable]] values for
       * specifying cancelation actions.
       */
     implicit val forCancelable: AsyncBuilder[Cancelable] =
       new AsyncBuilder[Cancelable] {
         def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
-          TaskCreate.cancelable0(register)
+          TaskCreate.cancelableCancelable(register)
       }
   }
 
@@ -3684,33 +3685,41 @@ object Task extends TaskInstancesLevel1 {
   /** [[Task]] state describing an immediate synchronous value. */
   private[eval] final case class Now[A](value: A) extends Task[A] {
     // Optimizations to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler): CancelToken[Task] = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onSuccess(value)
       else s.executeAsync(() => cb.onSuccess(value))
-      Cancelable.empty
+      Task.unit
     }
     override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
       CancelableFuture.successful(value)
     override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
       runAsync(s)
-    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
+    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): CancelToken[Task] =
       runAsync(cb)(s)
+    override def runAsyncAndForget(implicit s: Scheduler): Unit =
+      ()
+    override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
+      ()
   }
 
   /** [[Task]] state describing an immediate exception. */
   private[eval] final case class Error[A](ex: Throwable) extends Task[A] {
     // Optimizations to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler): CancelToken[Task] = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onError(ex)
       else s.executeAsync(() => cb.onError(ex))
-      Cancelable.empty
+      Task.unit
     }
     override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
       CancelableFuture.failed(ex)
     override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
       runAsync(s)
-    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
+    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): CancelToken[Task] =
       runAsync(cb)(s)
+    override def runAsyncAndForget(implicit s: Scheduler): Unit =
+      s.reportFailure(ex)
+    override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
+      s.reportFailure(ex)
   }
 
   /** [[Task]] state describing an immediate synchronous value. */

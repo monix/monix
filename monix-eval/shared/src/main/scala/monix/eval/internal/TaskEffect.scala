@@ -41,7 +41,7 @@ private[eval] object TaskEffect {
     */
   def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])
     (implicit s: Scheduler, opts: Task.Options): SyncIO[CancelToken[Task]] =
-    SyncIO(Task.fromIO(execute(fa, cb).cancelIO))
+    SyncIO(execute(fa, cb))
 
   private def execute[A](fa: Task[A], cb: Either[Throwable, A] => IO[Unit])
     (implicit s: Scheduler, opts: Task.Options) = {

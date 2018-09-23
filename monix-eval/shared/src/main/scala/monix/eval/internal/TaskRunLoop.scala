@@ -126,7 +126,9 @@ private[eval] object TaskRunLoop {
                 em = context.scheduler.executionModel
                 if (rcb ne null) rcb.contextSwitch(context)
                 if (restore ne null)
+                  /*_*/
                   current = FlatMap(next, new RestoreContext(old, restore))
+                  /*_*/
               }
             } catch {
               case e if NonFatal(e) && catchError =>

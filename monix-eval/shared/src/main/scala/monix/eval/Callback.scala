@@ -18,11 +18,10 @@
 package monix.eval
 
 import cats.Contravariant
-import monix.execution.cancelables.StackedCancelable
+import monix.eval.internal.TaskConnection
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -125,11 +124,10 @@ object Callback {
   def trampolined[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] =
     new TrampolinedCallback[A](cb)
 
-  /** A variant of [[trampolined[A](cb* Callback.trampolined]] that also pops a
-    * [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
-    * just before calling the underlying callback.
+  /**
+    * Internal API.
     */
-  def trampolined[A](conn: StackedCancelable, cb: Callback[A])
+  private[eval] def trampolined[A](conn: TaskConnection, cb: Callback[A])
     (implicit s: Scheduler): Callback[A] =
     new TrampolinedWithConn[A](conn, cb)
 
@@ -221,7 +219,7 @@ object Callback {
     (implicit s: Scheduler)
     extends BaseCallback[A](cb)(s) with TrampolinedRunnable
 
-  private final class TrampolinedWithConn[A](conn: StackedCancelable, cb: Callback[A])
+  private final class TrampolinedWithConn[A](conn: TaskConnection, cb: Callback[A])
     (implicit s: Scheduler)
     extends BaseCallback[A](cb)(s) with TrampolinedRunnable {
 

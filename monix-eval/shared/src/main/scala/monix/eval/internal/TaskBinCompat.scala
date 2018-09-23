@@ -19,9 +19,8 @@ package monix.eval
 package internal
 
 import cats.effect.CancelToken
-import monix.eval.Task.{Async, Context}
-import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
-import monix.execution.{Cancelable, CancelableFuture, Scheduler}
+import monix.execution.annotations.UnsafeBecauseImpure
+import monix.execution.{CancelableFuture, Scheduler}
 import scala.annotation.unchecked.uncheckedVariance
 import scala.util.Try
 
@@ -192,56 +191,6 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
 }
 
 private[eval] abstract class TaskBinCompatCompanion {
-
-  /** DEPRECATED — please switch to [[Task.cancelable0[A](register* Task.cancelable0]].
-    *
-    * The reason for the deprecation is that the `Task.async` builder
-    * is now aligned to the meaning of `cats.effect.Async` and thus
-    * must yield tasks that are not cancelable.
-    */
-  @deprecated("Renamed to Task.cancelable0", since="3.0.0-RC2")
-  private[internal] def async[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
-    // $COVERAGE-OFF$
-    Task.cancelable0(register)
-    // $COVERAGE-ON$
-  }
-
-  /** DEPRECATED — kept around as a package private in order to preserve
-    * binary backwards compatibility.
-    */
-  @deprecated("Changed signature", since="3.0.0-RC2")
-  private[internal] def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
-    // $COVERAGE-OFF$
-    TaskCreate.cancelable0(register)
-    // $COVERAGE-ON$
-  }
-
-  /** DEPRECATED (hard) — due to being very error prone for usage and scheduled
-    * for removal in future versions.
-    *
-    * N.B. the entire underlying mechanism by which tasks get evaluated
-    * might get a refactoring so the concept of a `Context` for example
-    * might disappear. Exposing this function means exposing internal
-    * implementation details that are keeping us from evolving `Task`.
-    *
-    * Alternatives:
-    *
-    *  - [[Task.cancelable0[A](register* Task.cancelable]]
-    *  - [[Task.async0[A](register* Task.simple]]
-    *  - [[Task.create]]
-    *  - [[Task.deferAction]]
-    *
-    * Also see:
-    *
-    *  - [[Task.readOptions]] allows you to read the current [[Task.Options]]
-    */
-  @UnsafeProtocol
-  @deprecated("Switch to Task.create", since = "3.0.0-RC2")
-  private[eval] def unsafeCreate[A](register: (Context, Callback[A]) => Unit): Task[A] = {
-    // $COVERAGE-OFF$
-    Async(register, trampolineBefore = false, trampolineAfter = false)
-    // $COVERAGE-ON$
-  }
 
   /** DEPRECATED — renamed to [[Task.parZip2]]. */
   @deprecated("Renamed to Task.parZip2", since = "3.0.0-RC2")

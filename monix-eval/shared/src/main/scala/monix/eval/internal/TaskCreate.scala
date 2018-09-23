@@ -20,26 +20,38 @@ package monix.eval.internal
 import cats.effect.{CancelToken, IO}
 import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Coeval, Task}
-import monix.execution.cancelables.SingleAssignCancelable
-import scala.util.control.NonFatal
 import monix.execution.{Cancelable, Scheduler}
+import scala.util.control.NonFatal
 
 private[eval] object TaskCreate {
   /**
     * Implementation for `Task.cancelable`
     */
-  def cancelable0[A](fn: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+  def cancelable0[A](fn: (Scheduler, Callback[A]) => CancelToken[Task]): Task[A] = {
+    val start = new Cancelable0Start[A, CancelToken[Task]](fn) {
+      def setConnection(ref:  TaskConnectionRef, token:  CancelToken[Task])
+        (implicit s:  Scheduler): Unit = ref := token
+    }
+    Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
+
+  private abstract class Cancelable0Start[A, Token](fn: (Scheduler, Callback[A]) => Token)
+    extends ((Context, Callback[A]) => Unit) {
+
+    def setConnection(ref: TaskConnectionRef, token: Token)
+      (implicit s: Scheduler): Unit
+
+    final def apply(ctx: Context, cb: Callback[A]): Unit = {
       implicit val s = ctx.scheduler
       val conn = ctx.connection
-      val cancelable = SingleAssignCancelable()
-      conn push cancelable
+      val cancelable = TaskConnectionRef()
+      conn push cancelable.cancel
 
       try {
         val ref = fn(s, Callback.trampolined(conn, cb))
         // Optimization to skip the assignment, as it's expensive
         if (!ref.isInstanceOf[Cancelable.IsDummy])
-          cancelable := ref
+          setConnection(cancelable, ref)
       } catch {
         case ex if NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
@@ -47,41 +59,37 @@ private[eval] object TaskCreate {
           // hence the only thing possible is to log the error.
           s.reportFailure(ex)
       }
-    } : Unit
-
-    Async(start, trampolineBefore = false, trampolineAfter = false)
+    }
   }
 
-  /** Implementation for `cats.effect.Concurrent#cancelable`. */
+  /**
+    * Implementation for `cats.effect.Concurrent#cancelable`.
+    */
   def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => CancelToken[Task]): Task[A] =
-    cancelable0 { (sc, cb) =>
-      val task = k(cb)
-      Cancelable(() => task.runAsync(Callback.empty(sc))(sc))
-    }
+    cancelable0 { (_, cb) => k(cb) }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableIO[A](start: (Scheduler, Callback[A]) => CancelToken[IO]): Task[A] =
-    cancelable0 { (sc, cb) => Cancelable.fromIO(start(sc, cb))(sc) }
+    cancelable0 { (sc, cb) => Task.fromIO(start(sc, cb)) }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
-  def cancelableTask[A](start: (Scheduler, Callback[A]) => Task[Unit]): Task[A] =
-    cancelable0 { (sc, cb) =>
-      val task = start(sc, cb)
-      Cancelable(() => task.runAsync(Callback.empty(sc))(sc))
+  def cancelableCancelable[A](fn: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
+    val start = new Cancelable0Start[A, Cancelable](fn) {
+      def setConnection(ref:  TaskConnectionRef, token:  Cancelable)
+        (implicit s:  Scheduler): Unit = ref := token
     }
+    Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableCoeval[A](start: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
-    cancelable0 { (sc, cb) =>
-      val task = start(sc, cb)
-      Cancelable(() => task.value())
-    }
+    cancelable0 { (sc, cb) => Task.from(start(sc, cb)) }
 
   /**
     * Implementation for `Task.async`
@@ -136,7 +144,7 @@ private[eval] object TaskCreate {
         // between the bind continuation and executing the generated task
         val ctx2 = Context(ctx.scheduler, ctx.options)
         val conn = ctx.connection
-        conn.push(ctx2.connection)
+        conn.push(ctx2.connection.cancel)
         // Provided callback takes care of `conn.pop()`
         val task = k(Callback.trampolined(conn, cb))
         Task.unsafeStartNow(task, ctx2, Callback.empty)

@@ -47,7 +47,7 @@ private[eval] object TaskStart {
       Task.unsafeStartEnsureAsync(fa, ctx2, Callback.fromPromise(p))
       // Signal the created fiber
       val task = TaskFromFuture.strict(p.future)
-      cb.onSuccess(Fiber(task, Task(ctx2.connection.cancel())))
+      cb.onSuccess(Fiber(task, ctx2.connection.cancel))
     }
   }
 }
