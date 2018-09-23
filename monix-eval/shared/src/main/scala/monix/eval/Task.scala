@@ -192,7 +192,6 @@ import scala.util.{Failure, Success, Try}
   * [[monix.eval.Task.cancelable0[A](register* Task.cancelable]].
   *
   * {{{
-  *   import monix.execution.Cancelable
   *   import scala.concurrent.duration._
   *   import scala.util._
   *
@@ -202,11 +201,12 @@ import scala.util.{Failure, Success, Try}
   *       // Signaling successful completion
   *       callback(Success(()))
   *     }
-  *
-  *     Cancelable { () => {
+  *     // Returning a cancel token that knows how to cancel the
+  *     // scheduled computation:
+  *     Task {
   *       println("Cancelling!")
   *       task.cancel()
-  *     }}
+  *     }
   *   }
   * }}}
   *
@@ -2557,7 +2557,6 @@ object Task extends TaskInstancesLevel1 {
     *
     * {{{
     *   import java.util.concurrent.ScheduledExecutorService
-    *   import monix.execution.Cancelable
     *   import scala.concurrent.ExecutionContext
     *   import scala.concurrent.duration._
     *   import scala.util.control.NonFatal
@@ -2582,7 +2581,7 @@ object Task extends TaskInstancesLevel1 {
     *
     *       // Returning the cancelation token that is able to cancel the
     *       // scheduling in case the active computation hasn't finished yet
-    *       Cancelable(() => future.cancel(false))
+    *       Task(future.cancel(false))
     *     }
     *   }
     * }}}
@@ -2638,7 +2637,6 @@ object Task extends TaskInstancesLevel1 {
     *
     * {{{
     *   import java.util.concurrent.ScheduledExecutorService
-    *   import monix.execution.Cancelable
     *   import scala.concurrent.duration._
     *   import scala.util.control.NonFatal
     *
@@ -2659,9 +2657,9 @@ object Task extends TaskInstancesLevel1 {
     *         timespan.length,
     *         timespan.unit)
     *
-    *       // Returning the cancelation token that is able to cancel the
+    *       // Returning the cancel token that is able to cancel the
     *       // scheduling in case the active computation hasn't finished yet
-    *       Cancelable(() => future.cancel(false))
+    *       Task(future.cancel(false))
     *     }
     *   }
     * }}}
@@ -2679,10 +2677,14 @@ object Task extends TaskInstancesLevel1 {
     *   def delayed2[A](timespan: FiniteDuration)(thunk: => A): Task[A] =
     *     Task.cancelable0 { (scheduler, cb) =>
     *       // N.B. this already returns the Cancelable that we need!
-    *       scheduler.scheduleOnce(timespan) {
+    *       val cancelable = scheduler.scheduleOnce(timespan) {
     *         try cb.onSuccess(thunk)
     *         catch { case NonFatal(e) => cb.onError(e) }
     *       }
+    *       // `scheduleOnce` above returns a Cancelable, which
+    *       // has to be converted into a Task[Unit]; the following
+    *       // is equivalent with Task(cancelable.cancel()):
+    *       cancelable.toCancelToken
     *     }
     * }}}
     *
@@ -2773,12 +2775,7 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     *
     * We could return a [[monix.execution.Cancelable Cancelable]]
-    * reference and thus make a cancelable task, thus for an `f` that
-    * can be passed to [[Task.cancelable0]] this equivalence holds:
-    *
-    * `Task.cancelable(f) <-> Task.create(f)`
-    *
-    * Example:
+    * reference and thus make a cancelable task. Example:
     *
     * {{{
     *   import monix.execution.Cancelable
@@ -2808,14 +2805,17 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     *
     * Passed function can also return `Task[Unit]` as a task that
-    * describes a cancelation action:
+    * describes a cancelation action, thus for an `f` that can be
+    * passed to [[Task.cancelable0]], and this equivalence holds:
+    *
+    * `Task.cancelable(f) <-> Task.create(f)`
     *
     * {{{
     *   def delayResult3[A](timespan: FiniteDuration)(thunk: => A): Task[A] =
     *     Task.create { (scheduler, cb) =>
     *       val c = scheduler.scheduleOnce(timespan)(cb(Try(thunk)))
     *       // We can simply return `c`, but doing this for didactic purposes!
-    *       Task.evalAsync(c.cancel())
+    *       Task(c.cancel())
     *     }
     * }}}
     *
