@@ -21,8 +21,10 @@ import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.{CompositeException, DummyException}
 import monix.execution.schedulers.TestScheduler
+import monix.execution.internal.Platform
 import scala.concurrent.Promise
 import scala.util.Failure
+import scala.util.control.NonFatal
 
 object CancelableSuite extends SimpleTestSuite {
   test("Cancelable.empty") {
@@ -61,20 +63,26 @@ object CancelableSuite extends SimpleTestSuite {
   }
 
   test("Cancelable.collection should cancel all on error") {
-    var effect = 0
-    val dummy = DummyException("dummy")
+    val dummy1 = DummyException("dummy1")
+    val dummy2 = DummyException("dummy2")
 
-    val c = Cancelable.collection((0 until 100).map(_ => Cancelable { () =>
-      effect += 1
-      throw dummy
-    }))
+    val c = Cancelable.collection(
+      Cancelable(() => throw dummy1),
+      Cancelable(() => throw dummy2)
+    )
 
     try {
       c.cancel()
       fail("c.cancel() should throw")
     } catch {
-      case e: CompositeException =>
-        assertEquals(e.errors.toList, (0 until 100).map(_ => dummy))
+      case NonFatal(e) =>
+        if (Platform.isJVM) {
+          assertEquals(e, dummy1)
+          assertEquals(e.getSuppressed.toList, List(dummy2))
+        } else e match {
+          case CompositeException(list) =>
+            assertEquals(list, List(dummy1, dummy2))
+        }
     }
   }
 
@@ -100,20 +108,21 @@ object CancelableSuite extends SimpleTestSuite {
 
   test("Cancelable.trampolined should cancel all on error") {
     implicit val sc = TestScheduler()
-    var effect = 0
-    val dummy = DummyException("dummy")
+    val dummy1 = DummyException("dummy1")
+    val dummy2 = DummyException("dummy2")
 
-    val c = Cancelable.trampolined((0 until 100).map(_ => Cancelable { () =>
-      effect += 1
-      throw dummy
-    }))
+    val c = Cancelable.trampolined(
+      Cancelable(() => throw dummy1),
+      Cancelable(() => throw dummy2)
+    )
 
     c.cancel()
     sc.state.lastReportedError match {
-      case e: CompositeException =>
-        assertEquals(e.errors.toList, (0 until 100).map(_ => dummy))
-      case _ =>
-        fail("c.cancel() should throw a CompositeException")
+      case e if Platform.isJVM =>
+        assertEquals(e, dummy1)
+        assertEquals(e.getSuppressed.toList, List(dummy2))
+      case CompositeException(errors) =>
+        assertEquals(errors.toList, List(dummy1, dummy2))
     }
   }
 
