@@ -20,6 +20,7 @@ package monix.reactive.internal.builders
 import java.io.{Reader, StringReader}
 
 import minitest.SimpleTestSuite
+import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -28,6 +29,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
+
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Random, Success}
 
@@ -156,13 +158,17 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
   }
 
   test("closes the file handle on cancel") {
+    import scala.concurrent.duration._
     implicit val s = TestScheduler(AlwaysAsyncExecution)
 
     var wasClosed = false
     val in = randomReaderWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromCharsReader(in).completedL.runAsync
+    val f = Observable.fromCharsReader(in)
+      .mapTask(x => Task(x).delayExecution(1.second))
+      .completedL
+      .runAsync
 
-    s.tickOne()
+    s.tick()
     f.cancel()
     s.tick()
 

@@ -19,8 +19,8 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.effect.{Effect, IO}
-import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, Eval, FlatMap, MonadError, Monoid, NonEmptyParallel, Order, ~>}
+import cats.effect.{Bracket, Effect, ExitCase, IO}
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, Eval, FlatMap, Monoid, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
 import monix.execution.Ack.{Continue, Stop}
@@ -483,6 +483,20 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def bufferIntrospective(maxSize: Int): Observable[List[A]] =
     new BufferIntrospectiveObservable[A](self, maxSize)
+
+  /** Implementation of `bracket` from `cats.effect.Bracket`.
+    *
+    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
+    */
+  final def bracket[B](use: A => Observable[B])(release: A => Observable[Unit]): Observable[B] =
+    bracketCase(use)((a, _) => release(a))
+
+  /** Implementation of `bracketCase` from `cats.effect.Bracket`.
+    *
+    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
+    */
+  final def bracketCase[B](use: A => Observable[B])(release: (A, ExitCase[Throwable]) => Observable[Unit]): Observable[B] =
+    new ConcatMapObservable[A, B](this, use, release, delayErrors = false)
 
   /** Applies the given partial function to the source
     * for each element for which the given partial function is defined.
@@ -1353,7 +1367,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * $concatMergeDifference
     */
   final def concatMap[B](f: A => Observable[B]): Observable[B] =
-    new ConcatMapObservable[A, B](self, f, delayErrors = false)
+    new ConcatMapObservable[A, B](self, f, null, delayErrors = false)
 
   /** Applies a function that you supply to each item emitted by the
     * source observable, where that function returns sequences
@@ -1470,7 +1484,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return $concatReturn
     */
   final def concatMapDelayErrors[B](f: A => Observable[B]): Observable[B] =
-    new ConcatMapObservable[A, B](self, f, delayErrors = true)
+    new ConcatMapObservable[A, B](self, f, null, delayErrors = true)
 
   /** Alias for [[switch]]
     *
@@ -1525,6 +1539,67 @@ abstract class Observable[+A] extends Serializable { self =>
   final def groupBy[K](keySelector: A => K)
     (implicit keysBuffer: Synchronous[Nothing] = OverflowStrategy.Unbounded): Observable[GroupedObservable[K, A]] =
     self.liftByOperator(new GroupByOperator[A, K](keysBuffer, keySelector))
+
+  /** Given a routine make sure to execute it whenever the current
+    * stream reaches the end, successfully, in error, or canceled.
+    *
+    * Implements `cats.effect.Bracket.guarantee`.
+    *
+    * Example: {{{
+    *   iterant.guarantee(Task.eval {
+    *     println("Releasing resources!")
+    *   })
+    * }}}
+    *
+    * @param f is the function to execute on early stop
+    */
+  final def guarantee[F[_]](f: F[Unit])(implicit F: ObservableLike[F]): Observable[A] =
+    guaranteeCase(_ => f)
+
+  /** Returns a new `Observable` in which `f` is scheduled to be executed
+    * when the source is completed, in success, error or when cancelled.
+    *
+    * Implements `cats.effect.Bracket.guaranteeCase`.
+    *
+    * This would typically be used to ensure that a finalizer
+    * will run at the end of the stream.
+    *
+    * Example: {{{
+    *   import cats.effect.ExitCase
+    *
+    *   observable.guaranteeCase(err => Task {
+    *     err match {
+    *       case ExitCase.Completed =>
+    *         logger.info("Completed successfully!")
+    *       case ExitCase.Error(e) =>
+    *         logger.error("Completed in error!", e)
+    *       case ExitCase.Canceled =>
+    *         logger.info("Was stopped early!")
+    *     }
+    *   })
+    * }}}
+    *
+    * NOTE this is using `cats.effect.ExitCase` to signal the termination
+    * condition, like this:
+    *
+    *   - if completed via `onComplete` or via `Stop` signalled by the
+    *     consumer, then the function receives `ExitCase.Completed`
+    *   - if completed via `onError` or in certain cases in which errors
+    *     are detected (e.g. the consumer returns an error), then the function
+    *     receives `ExitCase.Error(e)`
+    *   - if the subscription was cancelled, then the function receives
+    *     `ExitCase.Canceled`
+    *
+    * In other words `Completed` is for normal termination conditions,
+    * `Error` is for exceptions being detected and `Canceled` is for
+    * when the subscription gets canceled.
+    *
+    * @param f is the finalizer to execute when streaming is terminated, by
+    *        successful completion, error or cancellation; for specifying the
+    *        side effects to use
+    */
+  final def guaranteeCase[F[_]](f: ExitCase[Throwable] => F[Unit])(implicit F: ObservableLike[F]): Observable[A] =
+    new GuaranteeCaseObservable[A](this, ec => F.toObservable(f(ec)))
 
   /** Alias for [[completed]]. Ignores all items emitted by
     * the source and only calls onCompleted or onError.
@@ -4631,7 +4706,7 @@ object Observable {
     new CatsInstances
 
   /** Cats instances for [[Observable]]. */
-  class CatsInstances extends MonadError[Observable, Throwable]
+  class CatsInstances extends Bracket[Observable, Throwable]
     with Alternative[Observable]
     with CoflatMap[Observable]
     with TaskLift[Observable] {
@@ -4670,6 +4745,16 @@ object Observable {
       Observable.empty[A]
     override def taskLift[A](task: Task[A]): Observable[A] =
       Observable.fromTask(task)
+    override def bracketCase[A, B](acquire: Observable[A])(use: A => Observable[B])(release: (A, ExitCase[Throwable]) => Observable[Unit]): Observable[B] =
+      acquire.bracketCase(use)(release)
+    override def bracket[A, B](acquire: Observable[A])(use: A => Observable[B])(release: A => Observable[Unit]): Observable[B] =
+      acquire.bracket(use)(release)
+    override def guarantee[A](fa: Observable[A])(finalizer: Observable[Unit]): Observable[A] =
+      fa.guarantee(finalizer)
+    override def guaranteeCase[A](fa: Observable[A])(finalizer: ExitCase[Throwable] => Observable[Unit]): Observable[A] =
+      fa.guaranteeCase(finalizer)
+    override def uncancelable[A](fa: Observable[A]): Observable[A] =
+      fa.uncancelable
   }
 
   /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */

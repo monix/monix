@@ -17,9 +17,11 @@
 
 package monix.reactive.internal.operators
 
+import cats.effect.ExitCase
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+
 import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.execution.exceptions.CompositeException
@@ -62,8 +64,11 @@ import scala.util.Failure
   *    however it's OK-ish, since these CAS operations are not going
   *    to be contended
   */
-private[reactive] final class ConcatMapObservable[A, B]
-  (source: Observable[A], f: A => Observable[B], delayErrors: Boolean)
+private[reactive] final class ConcatMapObservable[A, B](
+  source: Observable[A],
+  f: A => Observable[B],
+  release: (A, ExitCase[Throwable]) => Observable[Unit],
+  delayErrors: Boolean)
   extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
@@ -154,7 +159,13 @@ private[reactive] final class ConcatMapObservable[A, B]
         Stop
       } else try {
         val asyncUpstreamAck = Promise[Ack]()
-        val child = f(elem)
+        val child = {
+          val ref = f(elem)
+          // Logic for bracket
+          if (release eq null) ref
+          else ref.guaranteeCase[Observable](e => release(elem, e))
+        }
+
         // No longer allowed to stream errors downstream
         streamErrors = false
 
