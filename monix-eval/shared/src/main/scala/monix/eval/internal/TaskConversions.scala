@@ -80,9 +80,14 @@ private[eval] object TaskConversions {
 
   private def fromEffect0[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
     val start = (ctx: Context, cb: Callback[A]) => {
-      implicit val sc = ctx.scheduler
-      val io = F.runAsync(fa)(new CreateCallback(null, cb))
-      io.unsafeRunSync()
+      try {
+        implicit val sc = ctx.scheduler
+        val io = F.runAsync(fa)(new CreateCallback(null, cb))
+        io.unsafeRunSync()
+      } catch {
+        case NonFatal(e) =>
+          ctx.scheduler.reportFailure(e)
+      }
     }
     Task.Async(start, trampolineBefore = false, trampolineAfter = false)
   }

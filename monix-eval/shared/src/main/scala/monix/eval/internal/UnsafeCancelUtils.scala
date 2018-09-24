@@ -61,7 +61,9 @@ private[eval] object UnsafeCancelUtils {
         ref.cancel()
         Task.unit
       case other =>
+        // $COVERAGE-OFF$
         reject(other)
+        // $COVERAGE-ON$
     }
 
   /**
@@ -77,7 +79,9 @@ private[eval] object UnsafeCancelUtils {
       case ref: Cancelable =>
         Task(ref.cancel())
       case other =>
+        // $COVERAGE-OFF$
         reject(other)
+        // $COVERAGE-ON$
     }
 
   /**
@@ -97,7 +101,9 @@ private[eval] object UnsafeCancelUtils {
           case NonFatal(e) => s.reportFailure(e)
         }
       case other =>
+        // $COVERAGE-OFF$
         reject(other)
+        // $COVERAGE-ON$
     }
   }
 
@@ -124,7 +130,9 @@ private[eval] object UnsafeCancelUtils {
                 errors += e
             }
           case other =>
+            // $COVERAGE-OFF$
             reject(other)
+            // $COVERAGE-ON$
         }
       }
 
@@ -149,6 +157,9 @@ private[eval] object UnsafeCancelUtils {
     }
   }
 
-  private def reject(other: AnyRef): Nothing =
+  private def reject(other: AnyRef): Nothing = {
+    // $COVERAGE-OFF$
     throw new IllegalArgumentException(s"Don't know how to cancel: $other")
+    // $COVERAGE-ON$
+  }
 }

@@ -793,7 +793,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * See the description of [[runAsyncOpt(cb* runAsyncOpt]] for
     * an example of customizing the default [[Task.Options]].
     *
-    * See the description of [[[runAsyncAndForget]] for an example
+    * See the description of [[runAsyncAndForget]] for an example
     * of running as a "fire and forget".
     *
     * $unsafeRun
@@ -1002,6 +1002,14 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
   /** Variant of [[runSyncUnsafe]] that takes a [[Task.Options]]
     * implicitly from the scope in order to tune the evaluation model
     * of the task.
+    *
+    * This allows you to specify options such as:
+    *
+    *  - enabling support for [[TaskLocal]]
+    *  - disabling auto-cancelable run-loops
+    *
+    * See the description of [[runAsyncOpt(cb* runAsyncOpt]] for
+    * an example of customizing the default [[Task.Options]].
     *
     * $unsafeRun
     *
@@ -3986,11 +3994,7 @@ object Task extends TaskInstancesLevel1 {
     }
     // Optimization to avoid the run-loop
     override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
-      if (s.executionModel != AlwaysAsyncExecution) {
-        CancelableFuture.successful(value)
-      } else {
-        super.runAsyncOpt(s, opts)
-      }
+      CancelableFuture.successful(value)
     }
     // Optimization to avoid the run-loop
     override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
@@ -4022,11 +4026,7 @@ object Task extends TaskInstancesLevel1 {
     }
     // Optimization to avoid the run-loop
     override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
-      if (s.executionModel != AlwaysAsyncExecution) {
-        CancelableFuture.failed(ex)
-      } else {
-        super.runAsyncOpt(s, opts)
-      }
+      CancelableFuture.failed(ex)
     }
     // Optimization to avoid the run-loop
     override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {

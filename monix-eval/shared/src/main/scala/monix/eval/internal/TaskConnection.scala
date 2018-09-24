@@ -163,7 +163,6 @@ private[eval] object TaskConnection {
     def isCanceled: Boolean =
       state.get eq null
 
-
     def push(token: CancelToken[Task])(implicit s: Scheduler): Unit =
       pushAny(token)
     def push(cancelable: Cancelable)(implicit s: Scheduler): Unit =
@@ -180,8 +179,11 @@ private[eval] object TaskConnection {
           UnsafeCancelUtils.triggerCancel(cancelable)
         case list =>
           val update = cancelable :: list
-          if (!state.compareAndSet(list, update))
+          if (!state.compareAndSet(list, update)) {
+            // $COVERAGE-OFF$
             pushAny(cancelable)
+            // $COVERAGE-ON$
+          }
       }
     }
 
@@ -192,8 +194,13 @@ private[eval] object TaskConnection {
       state.get match {
         case null | Nil => Task.unit
         case current @ (x :: xs) =>
-          if (!state.compareAndSet(current, xs)) pop()
-          else UnsafeCancelUtils.getToken(x)
+          if (state.compareAndSet(current, xs))
+            UnsafeCancelUtils.getToken(x)
+          else {
+            // $COVERAGE-OFF$
+            pop()
+            // $COVERAGE-ON$
+          }
       }
 
     def tryReactivate(): Boolean =
