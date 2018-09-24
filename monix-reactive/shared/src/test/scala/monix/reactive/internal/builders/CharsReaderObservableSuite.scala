@@ -160,7 +160,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     var wasClosed = false
     val in = randomReaderWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromCharsReader(in).completedL.runAsync
+    // TODO: changing this to completeL.runAsync breaks the test!
+    val f = Observable.fromCharsReader(in).runAsyncGetLast
 
     s.tickOne()
     f.cancel()
