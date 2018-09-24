@@ -79,9 +79,9 @@ object CancelableSuite extends SimpleTestSuite {
         if (Platform.isJVM) {
           assertEquals(e, dummy1)
           assertEquals(e.getSuppressed.toList, List(dummy2))
-        } else e match {
-          case CompositeException(list) =>
-            assertEquals(list, List(dummy1, dummy2))
+        } else {
+          val CompositeException(errors) = e
+          assertEquals(errors.toList, List(dummy1, dummy2))
         }
     }
   }
@@ -117,12 +117,13 @@ object CancelableSuite extends SimpleTestSuite {
     )
 
     c.cancel()
-    sc.state.lastReportedError match {
-      case CompositeException(errors) =>
-        assertEquals(errors.toList, List(dummy1, dummy2))
-      case e if Platform.isJVM =>
-        assertEquals(e, dummy1)
-        assertEquals(e.getSuppressed.toList, List(dummy2))
+    if (Platform.isJVM) {
+      val e = sc.state.lastReportedError
+      assertEquals(e, dummy1)
+      assertEquals(e.getSuppressed.toList, List(dummy2))
+    } else {
+      val CompositeException(errors) = sc.state.lastReportedError
+      assertEquals(errors.toList, List(dummy1, dummy2))
     }
   }
 

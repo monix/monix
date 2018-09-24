@@ -86,7 +86,7 @@ object CancelableF {
     * cancelling everything when `cancel` gets evaluated.
     */
   def collection[F[_]](refs: CancelableF[F]*)(implicit F: Sync[F]): CancelableF[F] =
-    unsafeApply[F](cancelAll(refs:_*))
+    wrap[F](cancelAll(refs:_*))
 
   /** Given a collection of cancelables, creates a token that
     * on evaluation will cancel them all.
