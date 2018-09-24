@@ -118,11 +118,11 @@ object CancelableSuite extends SimpleTestSuite {
 
     c.cancel()
     sc.state.lastReportedError match {
+      case CompositeException(errors) =>
+        assertEquals(errors.toList, List(dummy1, dummy2))
       case e if Platform.isJVM =>
         assertEquals(e, dummy1)
         assertEquals(e.getSuppressed.toList, List(dummy2))
-      case CompositeException(errors) =>
-        assertEquals(errors.toList, List(dummy1, dummy2))
     }
   }
 
