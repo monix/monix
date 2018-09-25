@@ -748,34 +748,6 @@ abstract class Observable[+A] extends Serializable { self =>
   final def distinctUntilChangedByKey[K](key: A => K)(implicit K: Eq[K]): Observable[A] =
     self.liftByOperator(new DistinctUntilChangedByKeyOperator(key)(K))
 
-  /** Executes the given callback when the streaming is stopped
-    * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
-    * returned by [[monix.reactive.Observer.onNext onNext]].
-    *
-    * @see [[doOnEarlyStopTask]] for a version that allows for
-    *      asynchronous evaluation by means of [[monix.eval.Task Task]],
-    *      or [[doOnEarlyStopEval]] that allows using other data types
-    *      for dealing with evaluation and side effects.
-    */
-  final def doOnEarlyStop(cb: () => Unit): Observable[A] =
-    self.liftByOperator(new DoOnEarlyStopOperator[A](cb))
-
-  /** Executes the given task when the streaming is stopped
-    * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
-    * returned by [[monix.reactive.Observer.onNext onNext]].
-    *
-    * The given `effect` gets evaluated *before* the upstream
-    * receives the `Stop` event (is back-pressured). This
-    * version of [[doOnEarlyStop]] is using any `F[_]` data type
-    * that implements `cats.effect.Effect` (e.g. `Task`, `IO`, etc).
-    *
-    * @see [[doOnEarlyStop]] for a simpler version, or
-    *      [[doOnEarlyStopTask]] for a version that's specialized for
-    *      [[monix.eval.Task Task]].
-    */
-  final def doOnEarlyStopEval[F[_]](effect: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
-    doOnEarlyStopTask(F.toTask(effect))
-
   /** Executes the given task when the streaming is stopped
     * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
     * returned by [[monix.reactive.Observer.onNext onNext]].
@@ -783,58 +755,98 @@ abstract class Observable[+A] extends Serializable { self =>
     * The given `task` gets evaluated *before* the upstream
     * receives the `Stop` event (is back-pressured).
     *
-    * @see [[doOnEarlyStop]] for a simpler version, or
-    *      [[doOnEarlyStopEval]] for a version that can use any
-    *      data type that implements `cats.effect.Effect`.
+    * Example:
+    * {{{
+    *   Observable.range(0, Int.MaxValue)
+    *     .doOnEarlyStop(Task(println("Stopped early!")))
+    *     .take(100)
+    * }}}
+    *
+    * NOTE: in most cases what you want is [[guaranteeCase]]
+    * or [[bracketCase]]. This operator is available for
+    * fine-grained control.
     */
-  final def doOnEarlyStopTask(task: Task[Unit]): Observable[A] =
+  final def doOnEarlyStop(task: Task[Unit]): Observable[A] =
     self.liftByOperator(new EvalOnEarlyStopOperator[A](task))
 
-  /** Executes the given callback when the connection is being
-    * [[monix.execution.Cancelable.cancel cancelled]].
+  /** Version of [[doOnEarlyStop]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * Example:
+    * {{{
+    *   import cats.effect.IO
+    *
+    *   Observable.range(0, Int.MaxValue)
+    *     .doOnEarlyStop(IO(println("Stopped early!")))
+    *     .take(100)
+    * }}}
+    *
+    * NOTE: in most cases what you want is [[guaranteeCase]]
+    * or [[bracketCase]]. This operator is available for
+    * fine-grained control.
     */
-  final def doOnSubscriptionCancel(cb: () => Unit): Observable[A] =
-    new DoOnSubscriptionCancelObservable[A](self, cb)
+  final def doOnEarlyStopF[F[_]](task: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnEarlyStop(F.toTask(task))
 
-  /** Executes the given callback when the stream has ended with an
-    * `onComplete` event, but before the complete event is emitted.
+  /**
+    * Executes the given callback when the connection is being cancelled,
+    * via the [[monix.execution.Cancelable Cancelable]] reference returned
+    * on subscribing to the created observable.
     *
-    * Unless you know what you're doing, you probably want to use
-    * [[doOnTerminate]] and [[doOnSubscriptionCancel]] for proper
-    * disposal of resources on completion.
+    * Example:
+    * {{{
+    *   val subscription = Observable
+    *     .range(0, Int.MaxValue)
+    *     .doOnEarlyStop(Task(println("Cancelled!")))
+    *     .subscribe()
     *
-    * @param cb the callback to execute when the `onComplete`
-    *        event gets emitted
-    * @see [[doOnCompleteTask]] for a version that allows for asynchronous
-    *      evaluation by means of [[monix.eval.Task Task]].
+    *   subscription.cancel()
+    * }}}
+    *
+    * NOTE: in most cases what you want is [[guaranteeCase]]
+    * or [[bracketCase]]. This operator is available for
+    * fine-grained control.
     */
-  final def doOnComplete(cb: () => Unit): Observable[A] =
-    self.liftByOperator(new DoOnCompleteOperator[A](cb))
+  final def doOnSubscriptionCancel(task: Task[Unit]): Observable[A] =
+    new EvalOnSubscriptionCancelObservable[A](self, task)
 
-  /** Evaluates the given `effect` when the stream has ended with an
-    * `onComplete` event, but before the complete event is emitted.
+  /** Version of [[doOnSubscriptionCancel]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
     *
-    * The `effect` gets evaluated and is finished *before* the
-    * `onComplete` signal gets sent downstream.
+    * So you can work among others with:
     *
-    * This version of [[doOnComplete]] evaluates the given side
-    * effects using the specified `F[_]` data type, which should
-    * implement `cats.effect.Effect`.
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
     *
-    * Unless you know what you're doing, you probably want to use
-    * [[doOnTerminateTask]] and [[doOnSubscriptionCancel]] for proper
-    * disposal of resources on completion.
+    * Example:
+    * {{{
+    *   import cats.effect.IO
     *
-    * @param effect the action to execute when the `onComplete`
-    *        event gets emitted, its type being one that implements
-    *        `cats.effect.Effect` and thus capable of delayed and
-    *        asynchronous evaluation
-    * @see [[doOnComplete]] for a simpler version that doesn't
-    *     do asynchronous execution, or [[doOnCompleteTask]] for
-    *     a version specialized for [[monix.eval.Task Task]]
+    *   val subscription = Observable
+    *     .range(0, Int.MaxValue)
+    *     .doOnEarlyStopF(IO(println("Cancelled!")))
+    *     .subscribe()
+    *
+    *   subscription.cancel()
+    * }}}
+    *
+    * NOTE: in most cases what you want is [[guaranteeCase]]
+    * or [[bracketCase]]. This operator is available for
+    * fine-grained control.
     */
-  final def doOnCompleteEval[F[_]](effect: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
-    doOnCompleteTask(F.toTask(effect))
+  final def doOnSubscriptionCancelF[F[_]](task: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnSubscriptionCancel(F.toTask(task))
 
   /** Evaluates the given task when the stream has ended with an
     * `onComplete` event, but before the complete event is emitted.
@@ -842,19 +854,41 @@ abstract class Observable[+A] extends Serializable { self =>
     * The task gets evaluated and is finished *before* the `onComplete`
     * signal gets sent downstream.
     *
-    * Unless you know what you're doing, you probably want to use
-    * [[doOnTerminateTask]] and [[doOnSubscriptionCancel]] for proper
-    * disposal of resources on completion.
+    * {{{
+    *   Observable.range(0, 10)
+    *     .doOnComplete(Task(println("Completed!")))
+    * }}}
     *
-    * @see [[doOnComplete]] for a simpler version that doesn't
-    *      do asynchronous execution, or [[doOnCompleteEval]] for
-    *      a version that can work with any data type implementing
-    *      `cats.effect.Effect`.
+    * NOTE: in most cases what you want is [[guaranteeCase]]
+    * or [[bracketCase]]. This operator is available for
+    * fine-grained control.
+    *
     * @param task the task to execute when the `onComplete`
     *        event gets emitted
     */
-  final def doOnCompleteTask(task: Task[Unit]): Observable[A] =
+  final def doOnComplete(task: Task[Unit]): Observable[A] =
     self.liftByOperator(new EvalOnCompleteOperator[A](task))
+
+  /** Version of [[doOnComplete]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * {{{
+    *   import cats.effect.IO
+    *
+    *   Observable.range(0, 10)
+    *     .doOnCompleteF(IO(println("Completed!")))
+    * }}}
+    */
+  final def doOnCompleteF[F[_]](task: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnComplete(F.toTask(task))
 
   /** Executes the given callback when the stream is interrupted with an
     * error, before the `onError` event is emitted downstream.
@@ -4825,5 +4859,129 @@ object Observable {
     @deprecated("Renamed to Observable!.delayExecutionWith", "3.0.0")
     def delaySubscriptionWith(trigger: Observable[Any]): Observable[A] =
       self.delayExecutionWith(trigger)
+
+    /** DEPRECATED — signature changed, please see:
+      *
+      *  - [[Observable.doOnEarlyStop doOnEarlyStop]]
+      *  - [[Observable.doOnEarlyStopF doOnEarlyStopF]]
+      *
+      *  NOTE you can still get the same behavior via `doOnEarlyStopF`,
+      *  because `Function0` implements [[cats.Comonad]] and `Task`
+      *  conversions from `Comonad` are allowed, although frankly in
+      *  this case `doOnEarlyStop`:
+      *
+      *  {{{
+      *    // Needed for the Comonad[Function0] instance
+      *    import cats.implicits._
+      *
+      *    // This is possible, but it's better to work with
+      *    // pure functions, so use Task or IO ;-)
+      *    Observable.range(0, 1000).take(10).doOnEarlyStopF {
+      *      // Via the magic of `TaskLike`, we are allowed to use `Function0`
+      *      () => println("Stopped!")
+      *    }
+      *  }}}
+      */
+    @deprecated("Signature changed to usage of Task", "3.0.0")
+    def doOnEarlyStop(cb: () => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnEarlyStop(Task(cb()))
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnEarlyStopF doOnEarlyStopF]].
+      */
+    @deprecated("Renamed to doOnEarlyStopF", "3.0.0")
+    def doOnEarlyStopEval[F[_]](effect: F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnEarlyStopF(effect)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnEarlyStop doOnEarlyStop]].
+      */
+    @deprecated("Renamed to doOnEarlyStopF", "3.0.0")
+    def doOnEarlyStopTask(task: Task[Unit]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnEarlyStop(task)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED - you can switch to:
+      *
+      *  - [[Observable.doOnSubscriptionCancel doOnSubscriptionCancel]]
+      *  - [[Observable.doOnSubscriptionCancelF doOnSubscriptionCancelF]]
+      *
+      * NOTE that you can still use side effectful functions with
+      * `doOnSubscriptionCancelF`, via the magic of [[TaskLike]],
+      * but it's no longer recommended:
+      *
+      * {{{
+      *   // Needed for the Comonad[Function0] instance
+      *   import cats.implicits._
+      *
+      *   val subscription = Observable
+      *     .range(0, Int.MaxValue)
+      *     .doOnEarlyStopF(() => println("Cancelled!"))
+      *     .subscribe()
+      *
+      *   subscription.cancel()
+      * }}}
+      */
+    @deprecated("Signature changed, switch to doOnSubscriptionCancelF", "3.0.0")
+    def doOnSubscriptionCancel(cb: () => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      import cats.implicits._
+      self.doOnSubscriptionCancelF(cb)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED - signature changed to usage of `Task`. You can switch to:
+      *
+      *  - [[Observable.doOnComplete doOnComplete]]
+      *  - [[Observable.doOnCompleteF doOnCompleteF]]
+      *
+      * NOTE that you can still use side effectful functions with
+      * `doOnCompleteF`, via the magic of [[TaskLike]], but it's no longer
+      * recommended:
+      *
+      * {{{
+      *   // Needed for the Comonad[Function0] instance
+      *   import cats.implicits._
+      *
+      *   Observable.range(0, 100)
+      *     .doOnCompleteF(() => println("Completed!"))
+      * }}}
+      */
+    @deprecated("Signature changed, switch to doOnCompleteF", "3.0.0")
+    def doOnComplete(cb: () => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      import cats.implicits._
+      self.doOnCompleteF(cb)
+      // $COVERAGE-OFF$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnCompleteF]].
+      */
+    @deprecated("Renamed to doOnCompleteF", "3.0.0")
+    def doOnCompleteEval[F[_]](effect: F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnCompleteF(effect)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnComplete]].
+      */
+    @deprecated("Renamed to doOnComplete", "3.0.0")
+    def doOnCompleteTask(task: Task[Unit]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnComplete(task)
+      // $COVERAGE-ON$
+    }
   }
 }

@@ -20,7 +20,6 @@ package monix.eval
 import cats.Eval
 import cats.effect.{IO, SyncIO}
 import monix.execution.exceptions.DummyException
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -244,5 +243,12 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     s.tick()
     assert(effect)
     assertEquals(f.value, Some(Failure(dummy)))
+  }
+
+  test("Task.from(comonad)") { implicit s =>
+    val task = Task.from(() => 1)
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
   }
 }

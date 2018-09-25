@@ -17,8 +17,9 @@
 
 package monix.eval
 
-import cats.Eval
+import cats.{Comonad, Eval}
 import cats.effect.{ConcurrentEffect, Effect, IO, SyncIO}
+
 import scala.annotation.implicitNotFound
 import scala.concurrent.Future
 import scala.util.Try
@@ -153,7 +154,7 @@ private[eval] abstract class TaskLikeImplicits0 extends TaskLikeImplicits1 {
     }
 }
 
-private[eval] abstract class TaskLikeImplicits1 {
+private[eval] abstract class TaskLikeImplicits1 extends TaskLikeImplicits2 {
   /**
     * Converts to `Task` from
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.Async]].
@@ -162,5 +163,16 @@ private[eval] abstract class TaskLikeImplicits1 {
     new TaskLike[F] {
       def toTask[A](fa: F[A]): Task[A] =
         Task.fromEffect(fa)
+    }
+}
+
+private[eval] abstract class TaskLikeImplicits2 {
+  /**
+    * Converts to `Task` from [[cats.Comonad]] values.
+    */
+  implicit def fromComonad[F[_]](implicit F: Comonad[F]): TaskLike[F] =
+    new TaskLike[F] {
+      def toTask[A](fa: F[A]): Task[A] =
+        Task(F.extract(fa))
     }
 }
