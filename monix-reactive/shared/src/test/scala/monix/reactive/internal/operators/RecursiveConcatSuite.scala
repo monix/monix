@@ -52,9 +52,11 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
   }
 
   val nats: Observable[Long] = {
-    Observable.now(1L) ++ nats.map(_ + 1)
+    def loop(acc: Long): Observable[Long] =
+      Observable.now(acc) ++ loop(acc + 1)
+    loop(1)
   }
-
+  
   test("laziness of ++'s param") { implicit s =>
     val count = 1000000L
 
