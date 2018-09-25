@@ -22,10 +22,9 @@ import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.execution.{Cancelable, Scheduler}
 import monix.execution.atomic.Atomic
-
 import scala.annotation.tailrec
 
-private[internal] final class TaskConnectionRef extends CancelableF[Task] {
+private[eval] final class TaskConnectionRef extends CancelableF[Task] {
   import TaskConnectionRef._
 
   @throws(classOf[IllegalStateException])
@@ -43,13 +42,24 @@ private[internal] final class TaskConnectionRef extends CancelableF[Task] {
   private def unsafeSet(ref: AnyRef/* CancelToken[Task] | CancelableF[Task] | Cancelable */)
     (implicit s: Scheduler): Unit = {
 
-    state.getAndSet(IsActive(ref)) match {
-      case Empty => ()
-      case IsEmptyCanceled =>
-        UnsafeCancelUtils.triggerCancel(ref)
-      case IsCanceled | IsActive(_) =>
-        UnsafeCancelUtils.triggerCancel(ref)
-        raiseError()
+    if (!state.compareAndSet(Empty, IsActive(ref))) {
+      state.get match {
+        case IsEmptyCanceled =>
+          state.getAndSet(IsCanceled) match {
+            case IsEmptyCanceled =>
+              UnsafeCancelUtils.triggerCancel(ref)
+            case _ =>
+              UnsafeCancelUtils.triggerCancel(ref)
+              raiseError()
+          }
+        case IsCanceled | IsActive(_) =>
+          UnsafeCancelUtils.triggerCancel(ref)
+          raiseError()
+        case Empty =>
+          // $COVERAGE-OFF$
+          unsafeSet(ref)
+          // $COVERAGE-ON$
+      }
     }
   }
 
@@ -76,13 +86,13 @@ private[internal] final class TaskConnectionRef extends CancelableF[Task] {
   private def raiseError(): Nothing = {
     throw new IllegalStateException(
       "Cannot assign to SingleAssignmentCancelable, " +
-        "as it was already assigned once")
+      "as it was already assigned once")
   }
 
   private[this] val state = Atomic(Empty : State)
 }
 
-private[internal] object TaskConnectionRef {
+private[eval] object TaskConnectionRef {
   /**
     * Returns a new `TaskForwardConnection` reference.
     */

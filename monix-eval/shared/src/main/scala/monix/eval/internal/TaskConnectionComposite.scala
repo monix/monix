@@ -28,7 +28,7 @@ import monix.execution.atomic.{Atomic, AtomicAny}
 import scala.annotation.tailrec
 import scala.collection.GenTraversableOnce
 
-private[internal] final class TaskConnectionComposite private
+private[eval] final class TaskConnectionComposite private
   (stateRef: AtomicAny[State]) {
 
   val cancel: CancelToken[Task] =
@@ -47,6 +47,10 @@ private[internal] final class TaskConnectionComposite private
   def add(token: CancelToken[Task])(implicit s: Scheduler): Unit =
     addAny(token)
 
+  /** Alias for [[add(token* add]]. */
+  def `+=`(token: CancelToken[Task])(implicit s: Scheduler): Unit =
+    add(token)
+
   /** Adds a [[monix.execution.Cancelable]] to the underlying
     * collection, if this connection hasn't been cancelled yet,
     * otherwise it cancels the given cancelable.
@@ -54,12 +58,20 @@ private[internal] final class TaskConnectionComposite private
   def add(cancelable: Cancelable)(implicit s: Scheduler): Unit =
     addAny(cancelable)
 
+  /** Alias for [[add(cancelable* add]]. */
+  def `+=`(cancelable: Cancelable)(implicit s: Scheduler): Unit =
+    add(cancelable)
+
   /** Adds a [[monix.catnap.CancelableF]] to the underlying
     * collection, if this connection hasn't been cancelled yet,
     * otherwise it cancels the given cancelable.
     */
   def add(conn: CancelableF[Task])(implicit s: Scheduler): Unit =
     addAny(conn)
+
+  /** Alias for [[add(conn* add]]. */
+  def `+=`(conn: CancelableF[Task])(implicit s: Scheduler): Unit =
+    add(conn)
 
   @tailrec
   private def addAny(ref: AnyRef/* CancelToken[Task] | CancelableF[Task] | Cancelable */)(implicit s: Scheduler): Unit =
@@ -130,7 +142,7 @@ private[internal] final class TaskConnectionComposite private
     }
 }
 
-private[internal] object TaskConnectionComposite {
+private[eval] object TaskConnectionComposite {
   /**
     * Builder for [[TaskConnectionComposite]].
     */
