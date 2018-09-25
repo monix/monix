@@ -16,6 +16,7 @@
  */
 
 package monix.execution.cancelables
+
 import monix.execution.Cancelable
 import monix.execution.Cancelable.{Empty, IsDummy}
 

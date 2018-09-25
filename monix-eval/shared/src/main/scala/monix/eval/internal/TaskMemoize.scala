@@ -22,7 +22,6 @@ import monix.eval.internal.TaskRunLoop.startFull
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
-import monix.execution.cancelables.StackedCancelable
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Failure, Success, Try}
@@ -156,7 +155,7 @@ private[eval] object TaskMemoize {
             // Running main task in `uncancelable` model
             val ctx2 = context
               .withOptions(context.options.disableAutoCancelableRunLoops)
-              .withConnection(StackedCancelable.uncancelable)
+              .withConnection(TaskConnection.uncancelable)
 
             // Start with light async boundary to prevent stack-overflows!
             Task.unsafeStartTrampolined(self.thunk, ctx2, self.complete)

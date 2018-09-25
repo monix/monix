@@ -17,10 +17,9 @@
 
 package monix.eval.internal
 
+import monix.catnap.CancelableF
 import monix.eval.{Callback, Task}
-import monix.execution.Cancelable
 import monix.execution.atomic.{Atomic, PaddingStrategy}
-import monix.execution.cancelables.StackedCancelable
 
 private[eval] object TaskRaceList {
   /**
@@ -44,9 +43,7 @@ private[eval] object TaskRaceList {
       val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
       val taskArray = tasks.toArray
       val cancelableArray = buildCancelableArray(taskArray.length)
-
-      val composite = Cancelable.trampolined(cancelableArray)
-      conn.push(composite)
+      conn.pushConnections(cancelableArray:_*)
 
       var index = 0
       while (index < taskArray.length) {
@@ -58,12 +55,12 @@ private[eval] object TaskRaceList {
         Task.unsafeStartEnsureAsync(task, taskContext, new Callback[A] {
           private def popAndCancelRest(): Unit = {
             conn.pop()
-            var i = 0
-            while (i < cancelableArray.length) {
-              val ref = cancelableArray(i)
-              if (ref ne taskCancelable) ref.cancel()
-              i += 1
+            val arr2 = cancelableArray.collect {
+              case cc if cc ne taskCancelable =>
+                cc.cancel
             }
+            CancelableF.cancelAllTokens[Task](arr2:_*)
+              .runAsyncAndForget
           }
 
           def onSuccess(value: A): Unit =
@@ -84,10 +81,10 @@ private[eval] object TaskRaceList {
     }
   }
 
-  private def buildCancelableArray(n: Int): Array[StackedCancelable] = {
-    val array = new Array[StackedCancelable](n)
+  private def buildCancelableArray(n: Int): Array[TaskConnection] = {
+    val array = new Array[TaskConnection](n)
     var i = 0
-    while (i < n) { array(i) = StackedCancelable(); i += 1 }
+    while (i < n) { array(i) = TaskConnection(); i += 1 }
     array
   }
 }

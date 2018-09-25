@@ -21,11 +21,8 @@ import cats.effect.ExitCase
 import cats.effect.ExitCase.{Canceled, Completed, Error}
 import monix.eval.Task.{Context, ContextSwitch}
 import monix.eval.{Callback, Task}
-import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
-import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
-
 import scala.util.control.NonFatal
 
 private[monix] object TaskBracket {
@@ -129,7 +126,7 @@ private[monix] object TaskBracket {
 
     final def apply(ctx: Context, cb: Callback[B]): Unit = {
       // Async boundary needed, but it is guaranteed via Task.Async below;
-      Task.unsafeStartNow(acquire, ctx.withConnection(StackedCancelable.uncancelable),
+      Task.unsafeStartNow(acquire, ctx.withConnection(TaskConnection.uncancelable),
         new Callback[A] {
           def onSuccess(value: A): Unit = {
             implicit val sc = ctx.scheduler
@@ -141,7 +138,7 @@ private[monix] object TaskBracket {
               fb.flatMap(releaseFrame)
             }
 
-            conn.push(releaseFrame)
+            conn.push(releaseFrame.cancel)
             Task.unsafeStartNow(onNext, ctx, cb)
           }
 
@@ -152,7 +149,7 @@ private[monix] object TaskBracket {
   }
 
   private abstract class BaseReleaseFrame[A, B](ctx: Context, a: A)
-    extends StackFrame[B, Task[B]] with Cancelable {
+    extends StackFrame[B, Task[B]] {
 
     private[this] val waitsForResult = Atomic(true)
 
@@ -198,16 +195,12 @@ private[monix] object TaskBracket {
       ContextSwitch(task, withConnectionUncancelable, null)
     }
 
-    final def cancel(): Unit =
-      if (waitsForResult.compareAndSet(expect = true, update = false)) {
-        implicit val ec = ctx.scheduler
-        try {
-          val task = releaseOnCancel(a)
-          task.runAsync(Callback.empty)
-        } catch {
-          case NonFatal(e) =>
-            ec.reportFailure(e)
-        }
+    final def cancel: Task[Unit] =
+      Task.suspend {
+        if (waitsForResult.compareAndSet(expect = true, update = false))
+          releaseOnCancel(a)
+        else
+          Task.unit
       }
   }
 
@@ -224,5 +217,5 @@ private[monix] object TaskBracket {
   private val leftNone = Left(None)
 
   private[this] val withConnectionUncancelable: Context => Context =
-    _.withConnection(StackedCancelable.uncancelable)
+    _.withConnection(TaskConnection.uncancelable)
 }

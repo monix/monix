@@ -18,11 +18,11 @@
 package monix.eval
 package internal
 
+import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context}
+import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicBoolean}
-import monix.execution.cancelables.StackedCancelable
 import monix.execution.schedulers.TrampolinedRunnable
-import monix.execution.{Cancelable, Scheduler}
 
 private[eval] object TaskCancellation {
   /**
@@ -40,11 +40,11 @@ private[eval] object TaskCancellation {
       val canCall = Atomic(true)
       // We need a special connection because the main one will be reset on
       // cancellation and this can interfere with the cancellation of `fa`
-      val connChild = StackedCancelable()
+      val connChild = TaskConnection()
       val conn = ctx.connection
       // Registering a special cancelable that will trigger error on cancel.
       // Note the pair `conn.pop` happens in `RaiseCallback`.
-      conn.push(new RaiseCancelable(canCall, conn, connChild, cb, e))
+      conn.push(raiseCancelable(canCall, conn, connChild, cb, e))
       // Registering a callback that races against the cancelable we
       // registered above
       val cb2 = new RaiseCallback[A](canCall, conn, cb)
@@ -55,7 +55,7 @@ private[eval] object TaskCancellation {
 
   private final class RaiseCallback[A](
     waitsForResult: AtomicBoolean,
-    conn: StackedCancelable,
+    conn: TaskConnection,
     cb: Callback[A])
     (implicit s: Scheduler)
     extends Callback[A] with TrampolinedRunnable {
@@ -86,30 +86,27 @@ private[eval] object TaskCancellation {
       }
   }
 
-  private final class RaiseCancelable[A](
+  private def raiseCancelable[A](
     waitsForResult: AtomicBoolean,
-    conn: StackedCancelable,
-    conn2: StackedCancelable,
+    conn: TaskConnection,
+    conn2: TaskConnection,
     cb: Callback[A],
-    e: Throwable)
-    (implicit s: Scheduler)
-    extends Cancelable with TrampolinedRunnable {
+    e: Throwable): CancelToken[Task] = {
 
-    def run(): Unit = {
-      conn2.cancel()
-      conn.tryReactivate()
-      cb.onError(e)
+    Task.suspend {
+      if (waitsForResult.getAndSet(false))
+        conn2.cancel.map { _ =>
+          conn.tryReactivate()
+          cb.onError(e)
+        }
+      else
+        Task.unit
     }
-
-    override def cancel(): Unit =
-      if (waitsForResult.getAndSet(false)) {
-        s.execute(this)
-      }
   }
 
   private[this] val withConnectionUncancelable: Context => Context =
     ct => {
-      ct.withConnection(StackedCancelable.uncancelable)
+      ct.withConnection(TaskConnection.uncancelable)
         .withOptions(ct.options.disableAutoCancelableRunLoops)
     }
 

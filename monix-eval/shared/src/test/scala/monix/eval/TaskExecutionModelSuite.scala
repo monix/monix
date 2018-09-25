@@ -29,7 +29,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.now should not be async with AlwaysAsyncExecution") { s =>
+  test("Task.now.runAsync (CancelableFuture) should not be async with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val task = Task.now(1)
     val f = task.runAsync

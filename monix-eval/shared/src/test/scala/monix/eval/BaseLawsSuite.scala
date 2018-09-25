@@ -21,7 +21,6 @@ import cats.Eq
 import cats.effect.laws.discipline.Parameters
 import cats.effect.laws.discipline.arbitrary.{catsEffectLawsArbitraryForIO, catsEffectLawsCogenForIO}
 import cats.effect.{Async, IO}
-import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
@@ -117,7 +116,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
             if (isActive.getAndSet(false))
               cb.onSuccess(a)
           }
-          Cancelable(() => isActive.set(false))
+          Task(isActive.set(false))
         }
 
     def genNestedAsync: Gen[Task[A]] =
