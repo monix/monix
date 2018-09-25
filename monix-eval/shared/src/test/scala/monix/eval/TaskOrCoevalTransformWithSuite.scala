@@ -66,7 +66,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runOnComplete(r => p.complete(r))
+    task.runAsync(Callback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -103,7 +103,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runOnComplete(r => p.complete(r))
+    task.runAsync(Callback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -117,7 +117,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runOnComplete(r => p.complete(r))
+    task.runAsync(Callback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -154,7 +154,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runOnComplete(r => p.complete(r))
+    task.runAsync(Callback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -168,7 +168,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runOnComplete(r => p.complete(r))
+    task.runAsync(Callback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -205,7 +205,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runOnComplete(r => p.complete(r))
+    task.runAsync(Callback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -219,7 +219,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runOnComplete(r => p.complete(r))
+    task.runAsync(Callback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -256,7 +256,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runOnComplete(r => p.complete(r))
+    task.runAsync(Callback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -270,7 +270,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runOnComplete(r => p.complete(r))
+    task.runAsync(Callback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -306,7 +306,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runOnComplete(r => p.complete(r))
+    task.runAsync(Callback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))

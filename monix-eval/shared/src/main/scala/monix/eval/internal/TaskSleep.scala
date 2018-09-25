@@ -19,7 +19,6 @@ package monix.eval.internal
 
 import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Task}
-import monix.execution.cancelables.SingleAssignCancelable
 import scala.concurrent.duration.Duration
 
 private[eval] object TaskSleep {
@@ -35,8 +34,9 @@ private[eval] object TaskSleep {
   private final class Register(timespan: Duration) extends ForkedRegister[Unit] {
 
     def apply(ctx: Context, cb: Callback[Unit]): Unit = {
-      val c = SingleAssignCancelable()
-      ctx.connection.push(c)
+      implicit val s = ctx.scheduler
+      val c = TaskConnectionRef()
+      ctx.connection.push(c.cancel)
 
       c := ctx.scheduler.scheduleOnce(
         timespan.length,

@@ -18,7 +18,6 @@
 package monix.eval
 
 import monix.eval.Task.Context
-import monix.execution.Cancelable
 import monix.execution.misc.AsyncSemaphore
 import monix.execution.schedulers.TrampolinedRunnable
 
@@ -64,7 +63,7 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     // Inlining doOnFinish + doOnCancel
     val start = (context: Context, cb: Callback[A]) => {
       implicit val s = context.scheduler
-      val c = Cancelable(() => semaphore.release())
+      val c = Task(semaphore.release())
       val conn = context.connection
       conn.push(c)
 

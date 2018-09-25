@@ -62,18 +62,27 @@ final class SingleAssignCancelable private (extra: Cancelable)
     */
   @throws(classOf[IllegalStateException])
   override def `:=`(value: Cancelable): this.type = {
-    // Using getAndSet, which on Java 8 should be faster than
-    // a compare-and-set.
-    val oldState = state.getAndSet(IsActive(value))
-
-    oldState match {
-      case Empty => ()
-      case IsEmptyCanceled => value.cancel()
-      case IsCanceled | IsActive(_) =>
-        value.cancel()
-        raiseError()
+    // Optimistic CAS, no loop needed
+    if (state.compareAndSet(Empty, IsActive(value))) this else {
+      state.get match {
+        case IsEmptyCanceled =>
+          state.getAndSet(IsCanceled) match {
+            case IsEmptyCanceled =>
+              value.cancel()
+              this
+            case _ =>
+              value.cancel()
+              raiseError()
+          }
+        case IsCanceled | IsActive(_) =>
+          value.cancel()
+          raiseError()
+        case Empty =>
+          // $COVERAGE-OFF$
+          :=(value)
+          // $COVERAGE-ON$
+      }
     }
-    this
   }
 
   @tailrec

@@ -83,7 +83,7 @@ object TaskEvalOnceSuite extends BaseTestSuite {
   }
 
   test("Task.evalOnce.coeval") { implicit s =>
-    val result = Task.evalOnce(100).runSyncMaybe
+    val result = Task.evalOnce(100).runSyncStep
     assertEquals(result, Right(100))
   }
 

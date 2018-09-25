@@ -60,7 +60,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
   test(s"mapTask should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
     def never(): (Future[Unit], Task[Int]) = {
       val isCancelled = Promise[Unit]()
-      val ref = Task.cancelable0[Int]((_, _) => Cancelable(() => isCancelled.success(())))
+      val ref = Task.create[Int]((_, _) => Cancelable(() => isCancelled.success(())))
       (isCancelled.future, ref)
     }
 

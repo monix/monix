@@ -101,7 +101,7 @@ private[eval] object TaskFromFuture {
       case None =>
         // Given a cancelable future, we should use it
         val conn = ctx.connection
-        conn.push(c)
+        conn.push(c)(ctx.scheduler)
         // Async boundary
         f.onComplete { result =>
           conn.pop()
