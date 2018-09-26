@@ -19,8 +19,7 @@ package monix.eval
 
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.{Cancelable, Scheduler}
-
+import monix.execution.Scheduler
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 
@@ -28,7 +27,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
   def createShift(ec: ExecutionContext): Task[Unit] =
     Task.cancelable0 { (_, cb) =>
       ec.execute(new Runnable { def run() = cb.onSuccess(()) })
-      Cancelable.empty
+      Task.unit
     }
 
   test("locals get transported with executeOn and shift") {

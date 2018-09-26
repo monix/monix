@@ -11,8 +11,8 @@ addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
-val catsVersion = "1.2.0"
-val catsEffectVersion = "1.0.0-RC3-3e17307"
+val catsVersion = "1.3.1"
+val catsEffectVersion = "1.0.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.1"
 val reactiveStreamsVersion = "1.0.2"
@@ -320,6 +320,8 @@ def mimaSettings(projectName: String) = Seq(
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.shift"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsAsyncForTask.shift"),
     exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentForTask.onCancelRaiseError"),
+    // TaskLocal changes
+    exclude[IncompatibleMethTypeProblem]("monix.eval.TaskLocal.this"),
     // Hide Task.Context, change conversions (Cats-Effect RC2 upgrade, part 2)
     exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.frameRef"),
     exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.copy"),
@@ -361,6 +363,30 @@ def mimaSettings(projectName: String) = Seq(
     // Breakage - PR #700: renamed methods
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscriptionWith"),
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscription"),
+    // Breakage — PR 724: https://github.com/monix/monix/pull/724
+    exclude[MissingClassProblem]("monix.eval.Fiber$Impl"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Fiber.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.lightBuild"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation.signal"),
+    // Changing internal Task cancelation model to back-pressure finalizers
+    exclude[DirectMissingMethodProblem]("monix.execution.Cancelable#Extensions.cancelIO$extension"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Cancelable#Extensions.cancelIO"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.connection"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.copy$default$3"),
+    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
+    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Callback.apply"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.async"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.unsafeCreate"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.create"),
+    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
+    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
+    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
+    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskCancellation#RaiseCallback.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskRunLoop.startLight"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskConversions#CreateCallback.this"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskCancellation$RaiseCancelable"),
     // Internals ...
     exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
@@ -419,6 +445,12 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
       .enablePlugins(AutomateHeaderPlugin)
 }
 
+lazy val doctestTestSettings = Seq(
+  doctestTestFramework := DoctestTestFramework.Minitest,
+  doctestIgnoreRegex := Some(s".*TaskApp.scala"),
+  doctestOnlyCodeBlocksMode := true
+)
+
 lazy val monix = project.in(file("."))
   .enablePlugins(ScalaUnidocPlugin)
   .configure(profile)
@@ -467,27 +499,43 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(requiredMacroDeps)
   .settings(executionCommon)
 
-lazy val doctestTestSettings = Seq(
-  doctestTestFramework := DoctestTestFramework.Minitest,
-  doctestIgnoreRegex := Some(s".*Task(|App).scala"),
-  doctestOnlyCodeBlocksMode := true
-)
+lazy val catnapCommon =
+  crossSettings ++ testSettings ++ Seq(
+    name := "monix-catnap"
+  )
+
+lazy val catnapJVM = project.in(file("monix-catnap/jvm"))
+  .configure(profile)
+  .dependsOn(executionJVM % "compile->compile; test->test")
+  .settings(catnapCommon)
+  .settings(mimaSettings("monix-catnap"))
+  .settings(doctestTestSettings)
+
+lazy val catnapJS = project.in(file("monix-catnap/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .configure(profile)
+  .dependsOn(executionJS % "compile->compile; test->test")
+  .settings(scalaJSSettings)
+  .settings(catnapCommon)
 
 lazy val evalCommon =
-  crossSettings ++ testSettings ++ doctestTestSettings ++ Seq(
+  crossSettings ++ testSettings ++ Seq(
     name := "monix-eval"
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .configure(profile)
   .dependsOn(executionJVM % "compile->compile; test->test")
+  .dependsOn(catnapJVM)
   .settings(evalCommon)
   .settings(mimaSettings("monix-eval"))
+  .settings(doctestTestSettings)
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
   .dependsOn(executionJS % "compile->compile; test->test")
+  .dependsOn(catnapJS)
   .settings(scalaJSSettings)
   .settings(evalCommon)
 

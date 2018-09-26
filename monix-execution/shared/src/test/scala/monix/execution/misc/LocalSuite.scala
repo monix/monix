@@ -38,7 +38,7 @@ object LocalSuite extends SimpleTestSuite {
 
   test("new Local(lazy)") {
     var i = 0
-    val local = new Local({ i += 1; i })
+    val local = new Local(() => { i += 1; i })
     assertEquals(local.get, 1)
 
     local := 100

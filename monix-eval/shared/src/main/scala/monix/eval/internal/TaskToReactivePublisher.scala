@@ -19,7 +19,6 @@ package monix.eval.internal
 
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
-import monix.execution.cancelables.StackedCancelable
 import monix.execution.rstreams.Subscription
 import org.reactivestreams.Subscriber
 
@@ -32,7 +31,7 @@ private[eval] object TaskToReactivePublisher {
       def subscribe(out: Subscriber[_ >: A]): Unit = {
         out.onSubscribe(new Subscription {
           private[this] var isActive = true
-          private[this] val conn = StackedCancelable()
+          private[this] val conn = TaskConnection()
           private[this] val context =
             Task.Context(s, Task.defaultOptions, conn)
 
@@ -56,7 +55,7 @@ private[eval] object TaskToReactivePublisher {
 
           def cancel(): Unit = {
             isActive = false
-            conn.cancel()
+            conn.cancel.runAsyncAndForget
           }
         })
       }
