@@ -27,7 +27,7 @@ object TaskLocalClearing extends SimpleTestSuite {
   implicit val opts: Task.Options = Task.defaultOptions.enableLocalContextPropagation
 
   test("Task run loop is not side-effecting on context") {
-    val Right(local) = TaskLocal(false).runSyncMaybeOpt
+    val local = TaskLocal(false).runSyncUnsafeOpt()
     def attempt = local.read flatMap {
       case false => local.bind(true) { Task.shift }
       case true => Task(fail("TaskLocal was not cleared"))
