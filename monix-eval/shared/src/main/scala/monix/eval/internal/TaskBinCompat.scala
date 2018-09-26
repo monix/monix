@@ -18,13 +18,94 @@
 package monix.eval
 package internal
 
-import monix.eval.Task.{Async, Context}
-import monix.execution.annotations.UnsafeProtocol
+import monix.eval.Task.Options
+import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import scala.annotation.unchecked.uncheckedVariance
+import scala.util.{Failure, Success, Try}
 
 private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
-  /** Deprecated — use [[redeem]] instead.
+  /**
+    * DEPRECATED — switch to [[runSyncStep]] or to
+    * [[runAsync(implicit* runAsync]].
+    *
+    * The [[runAsync(implicit* runAsync]] variant that returns
+    * [[monix.execution.CancelableFuture CancelableFuture]] will
+    * return already completed future values, useful for low level
+    * optimizations. All this `runSyncMaybe` did was to piggyback
+    * on it.
+    *
+    * The reason for the deprecation is to reduce the unneeded
+    * "run" overloads.
+    */
+  @UnsafeBecauseImpure
+  @deprecated("Please use `Task.runSyncStep`", since = "3.0.0")
+  final def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
+    // $COVERAGE-OFF$
+    runSyncMaybeOptPrv(s, Task.defaultOptions)
+    // $COVERAGE-ON$
+  }
+
+  /**
+    * DEPRECATED — switch to [[runSyncStepOpt]] or to
+    * [[runAsyncOpt(implicit* runAsync]].
+    *
+    * The [[runAsyncOpt(implicit* runAsyncOpt]] variant that returns
+    * [[monix.execution.CancelableFuture CancelableFuture]] will
+    * return already completed future values, useful for low level
+    * optimizations. All this `runSyncMaybeOpt` did was to piggyback
+    * on it.
+    *
+    * The reason for the deprecation is to reduce the unneeded
+    * "run" overloads.
+    */
+  @UnsafeBecauseImpure
+  @deprecated("Please use `Task.runAsyncOpt`", since = "3.0.0")
+  final def runSyncMaybeOpt(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
+    // $COVERAGE-OFF$
+    runSyncMaybeOptPrv(s, opts)
+    // $COVERAGE-ON$
+  }
+
+  private[this] final def runSyncMaybeOptPrv(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
+    // $COVERAGE-OFF$
+    val future = runAsyncOpt(s, opts)
+    future.value match {
+      case Some(value) =>
+        value match {
+          case Success(a) => Right(a)
+          case Failure(e) => throw e
+        }
+      case None =>
+        Left(future)
+    }
+    // $COVERAGE-ON$
+  }
+
+  /**
+    * DEPRECATED — switch to [[runAsync(cb* runAsync]] in combination
+    * with [[Callback.fromTry]] instead.
+    *
+    * If for example you have a `Try[A] => Unit` function, you can
+    * replace usage of `runOnComplete` with:
+    *
+    * `task.runAsync(Callback.fromTry(f))`
+    *
+    * A more common usage is via Scala's `Promise`, but with
+    * a `Promise` reference this construct would be even more
+    * efficient:
+    *
+    * `task.runAsync(Callback.fromPromise(p))`
+    */
+  @UnsafeBecauseImpure
+  @deprecated("Please use `Task.runAsync`", since = "3.0.0")
+  final def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable = {
+    // $COVERAGE-OFF$
+    runAsync(Callback.fromTry(f))(s)
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — use [[redeem]] instead.
     *
     * [[Task.redeem]] is the same operation, but with a different name and the
     * function parameters in an inverted order, to make it consistent with `fold`
@@ -37,7 +118,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — use [[redeemWith]] instead.
+  /** DEPRECATED — use [[redeemWith]] instead.
     *
     * [[Task.redeemWith]] is the same operation, but with a different name and the
     * function parameters in an inverted order, to make it consistent with `fold`
@@ -51,7 +132,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   }
 
   /**
-    * Deprecated — switch to [[Task.parZip2]], which has the same behavior.
+    * DEPRECATED — switch to [[Task.parZip2]], which has the same behavior.
     */
   @deprecated("Switch to Task.parZip2", since="3.0.0-RC2")
   final def zip[B](that: Task[B]): Task[(A, B)] = {
@@ -61,13 +142,13 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   }
 
   /**
-    * Deprecated — switch to [[Task.parMap2]], which has the same behavior.
+    * DEPRECATED — switch to [[Task.parMap2]], which has the same behavior.
     */
   @deprecated("Use Task.parMap2", since="3.0.0-RC2")
   final def zipMap[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
     Task.mapBoth(this, that)(f)
 
-  /** DEPRECATED - renamed to [[Task.executeAsync executeAsync]].
+  /** DEPRECATED — renamed to [[Task.executeAsync executeAsync]].
     *
     * The reason for the deprecation is the repurposing of the word "fork".
     */
@@ -78,7 +159,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     // $COVERAGE-ON$
   }
 
-  /** DEPRECATED - please use [[Task.flatMap flatMap]].
+  /** DEPRECATED — please use [[Task.flatMap flatMap]].
     *
     * The reason for the deprecation is that this operation is
     * redundant, as it can be expressed with `flatMap`, with the
@@ -105,7 +186,7 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     // $COVERAGE-ON$
   }
 
-  /** DEPRECATED - please use [[Task.flatMap flatMap]].
+  /** DEPRECATED — please use [[Task.flatMap flatMap]].
     *
     * The reason for the deprecation is that this operation is
     * redundant, as it can be expressed with `flatMap` and `map`,
@@ -127,18 +208,21 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
   }
 
   /**
-    * DEPRECATED - renamed to [[autoCancelable]], in order to differentiate
-    * it from the `Task.cancelable` builder.
+    * DEPRECATED — since Monix 3.0 the `Task` implementation has switched
+    * to auto-cancelable run-loops by default (which can still be turned off
+    * in its configuration).
+    *
+    * For ensuring the old behavior, you can use [[executeWithOptions]].
     */
-  @deprecated("Renamed to autoCancelable", "3.0.0")
+  @deprecated("Switch to executeWithOptions(_.enableAutoCancelableRunLoops)", "3.0.0")
   def cancelable: Task[A] = {
     // $COVERAGE-OFF$
-    autoCancelable
+    executeWithOptions(_.enableAutoCancelableRunLoops)
     // $COVERAGE-ON$
   }
 
   /**
-    * DEPRECATED - subsumed by [[start]].
+    * DEPRECATED — subsumed by [[start]].
     *
     * To be consistent with cats-effect 1.0.0, `start` now
     * enforces an asynchronous boundary, being exactly the same
@@ -151,73 +235,21 @@ private[eval] abstract class TaskBinCompat[+A] { self: Task[A] =>
     // $COVERAGE-ON$
   }
 
-  /** DEPRECATED - replace with usage of [[Task.runSyncMaybe]]:
+  /** DEPRECATED — replace with usage of [[Task.runSyncStep]]:
     *
-    * ```scala
-    *   task.coeval <-> Coeval(task.runSyncMaybe)
-    * ```
+    * `task.coeval <-> Coeval(task.runSyncMaybe)`
     */
   @deprecated("Replaced with start", since="3.0.0-RC2")
   final def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] = {
     // $COVERAGE-OFF$
-    Coeval.eval(runSyncMaybe(s))
+    Coeval.eval(runSyncMaybeOptPrv(s, Task.defaultOptions))
     // $COVERAGE-ON$
   }
 }
 
 private[eval] abstract class TaskBinCompatCompanion {
 
-  /** DEPRECATED — please switch to [[Task.cancelable0[A](register* Task.cancelable0]].
-    *
-    * The reason for the deprecation is that the `Task.async` builder
-    * is now aligned to the meaning of `cats.effect.Async` and thus
-    * must yield tasks that are not cancelable.
-    */
-  @deprecated("Renamed to Task.cancelable0", since="3.0.0-RC2")
-  private[internal] def async[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
-    // $COVERAGE-OFF$
-    Task.cancelable0(register)
-    // $COVERAGE-ON$
-  }
-
-  /** DEPRECATED — kept around as a package private in order to preserve
-    * binary backwards compatibility.
-    */
-  @deprecated("Changed signature", since="3.0.0-RC2")
-  private[internal] def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
-    // $COVERAGE-OFF$
-    TaskCreate.cancelable0(register)
-    // $COVERAGE-ON$
-  }
-
-  /** DEPRECATED (hard) — due to being very error prone for usage and scheduled
-    * for removal in future versions.
-    *
-    * N.B. the entire underlying mechanism by which tasks get evaluated
-    * might get a refactoring so the concept of a `Context` for example
-    * might disappear. Exposing this function means exposing internal
-    * implementation details that are keeping us from evolving `Task`.
-    *
-    * Alternatives:
-    *
-    *  - [[Task.cancelable0[A](register* Task.cancelable]]
-    *  - [[Task.async0[A](register* Task.simple]]
-    *  - [[Task.create]]
-    *  - [[Task.deferAction]]
-    *
-    * Also see:
-    *
-    *  - [[Task.readOptions]] allows you to read the current [[Task.Options]]
-    */
-  @UnsafeProtocol
-  @deprecated("Switch to Task.create", since = "3.0.0-RC2")
-  private[eval] def unsafeCreate[A](register: (Context, Callback[A]) => Unit): Task[A] = {
-    // $COVERAGE-OFF$
-    Async(register, trampolineBefore = false, trampolineAfter = false)
-    // $COVERAGE-ON$
-  }
-
-  /** Deprecated — renamed to [[Task.parZip2]]. */
+  /** DEPRECATED — renamed to [[Task.parZip2]]. */
   @deprecated("Renamed to Task.parZip2", since = "3.0.0-RC2")
   def zip2[A1,A2,R](fa1: Task[A1], fa2: Task[A2]): Task[(A1,A2)] = {
     // $COVERAGE-OFF$
@@ -225,7 +257,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — renamed to [[Task.parZip3]]. */
+  /** DEPRECATED — renamed to [[Task.parZip3]]. */
   @deprecated("Renamed to Task.parZip3", since = "3.0.0-RC2")
   def zip3[A1,A2,A3](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3]): Task[(A1,A2,A3)] = {
     // $COVERAGE-OFF$
@@ -233,7 +265,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — renamed to [[Task.parZip4]]. */
+  /** DEPRECATED — renamed to [[Task.parZip4]]. */
   @deprecated("Renamed to Task.parZip4", since = "3.0.0-RC2")
   def zip4[A1,A2,A3,A4](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4]): Task[(A1,A2,A3,A4)] = {
     // $COVERAGE-OFF$
@@ -241,7 +273,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — renamed to [[Task.parZip5]]. */
+  /** DEPRECATED — renamed to [[Task.parZip5]]. */
   @deprecated("Renamed to Task.parZip5", since = "3.0.0-RC2")
   def zip5[A1,A2,A3,A4,A5](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5]): Task[(A1,A2,A3,A4,A5)] = {
     // $COVERAGE-OFF$
@@ -249,7 +281,7 @@ private[eval] abstract class TaskBinCompatCompanion {
     // $COVERAGE-ON$
   }
 
-  /** Deprecated — renamed to [[Task.parZip6]]. */
+  /** DEPRECATED — renamed to [[Task.parZip6]]. */
   @deprecated("Renamed to Task.parZip6", since = "3.0.0-RC2")
   def zip6[A1,A2,A3,A4,A5,A6](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6]): Task[(A1,A2,A3,A4,A5,A6)] = {
     // $COVERAGE-OFF$

@@ -28,6 +28,7 @@ import scala.util.{Failure, Success, Try}
 
 object TaskFlatMapSuite extends BaseTestSuite {
   test("runAsync flatMap loop is not cancelable if autoCancelableRunLoops=false") { implicit s =>
+    implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
     val maxCount = Platform.recommendedBatchSize * 4
 
     def loop(count: AtomicInt): Task[Unit] =
@@ -36,8 +37,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
     val atomic = Atomic(0)
     val f = loop(atomic)
-      .executeWithOptions(_.disableAutoCancelableRunLoops)
-      .runAsync
+      .runAsyncOpt
 
     f.cancel(); s.tick()
     assertEquals(atomic.get, maxCount)
@@ -54,7 +54,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
     val atomic = Atomic(0)
     val f = loop(atomic)
-      .autoCancelable
+      .executeWithOptions(_.enableAutoCancelableRunLoops)
       .runAsync
 
     assertEquals(atomic.get, expected)
@@ -79,7 +79,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
     var result = Option.empty[Try[Unit]]
 
     val c = loop(atomic)
-      .autoCancelable
+      .executeWithOptions(_.enableAutoCancelableRunLoops)
       .runAsync(new Callback[Unit] {
         def onSuccess(value: Unit): Unit =
           result = Some(Success(value))

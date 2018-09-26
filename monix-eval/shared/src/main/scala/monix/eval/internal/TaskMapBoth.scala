@@ -20,13 +20,11 @@ package monix.eval.internal
 import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.atomic.{Atomic, AtomicAny}
-import monix.execution.cancelables.StackedCancelable
-import scala.util.control.NonFatal
-import monix.execution.{Cancelable, Scheduler}
-
 import scala.annotation.tailrec
+import scala.util.control.NonFatal
 
 private[eval] object TaskMapBoth {
   /**
@@ -49,7 +47,7 @@ private[eval] object TaskMapBoth {
     extends ForkedRegister[R] {
 
     /* For signaling the values after the successful completion of both tasks. */
-    def sendSignal(mainConn: StackedCancelable, cb: Callback[R], a1: A1, a2: A2)
+    def sendSignal(mainConn: TaskConnection, cb: Callback[R], a1: A1, a2: A2)
       (implicit s: Scheduler): Unit = {
 
       var streamErrors = true
@@ -68,7 +66,7 @@ private[eval] object TaskMapBoth {
     }
 
     /* For signaling an error. */
-    @tailrec def sendError(mainConn: StackedCancelable, state: AtomicAny[AnyRef], cb: Callback[R], ex: Throwable)
+    @tailrec def sendError(mainConn: TaskConnection, state: AtomicAny[AnyRef], cb: Callback[R], ex: Throwable)
       (implicit s: Scheduler): Unit = {
 
       // Guarding the contract of the callback, as we cannot send an error
@@ -81,7 +79,7 @@ private[eval] object TaskMapBoth {
           if (!state.compareAndSet(other, Stop))
             sendError(mainConn, state, cb, ex)(s) // retry
           else {
-            mainConn.pop().cancel()
+            mainConn.pop().runAsyncAndForget
             cb.onError(ex)
           }
       }
@@ -93,11 +91,11 @@ private[eval] object TaskMapBoth {
       // for synchronizing the results
       val state = Atomic.withPadding(null: AnyRef, LeftRight128)
 
-      val task1 = StackedCancelable()
-      val task2 = StackedCancelable()
+      val task1 = TaskConnection()
+      val task2 = TaskConnection()
       val context1 = context.withConnection(task1)
       val context2 = context.withConnection(task2)
-      mainConn.push(Cancelable.trampolined(task1, task2))
+      mainConn.pushConnections(task1, task2)
 
       // Light asynchronous boundary; with most scheduler implementations
       // it will not fork a new (logical) thread!

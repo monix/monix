@@ -115,7 +115,6 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 2)
 
     cancelable.cancel(); s.tick()
-    assertEquals(received, 2)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 

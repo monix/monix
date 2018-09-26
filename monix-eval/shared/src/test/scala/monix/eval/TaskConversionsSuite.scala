@@ -157,8 +157,8 @@ object TaskConversionsSuite extends BaseTestSuite {
     val f = Task.fromEffect(CIO(IO(1))).runAsync
     s.tick()
 
-    // Conversion goes through IO and IO protects against such errors
-    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(f.value, None)
+    assertEquals(s.state.lastReportedError, dummy)
   }
 
   test("Task.fromConcurrent(broken ConcurrentEffect)") { implicit s =>

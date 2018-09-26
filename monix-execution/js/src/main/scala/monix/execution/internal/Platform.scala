@@ -55,7 +55,7 @@ private[monix] object Platform {
     * Auto cancelable run loops are set to `false` if Monix
     * is running on top of Scala.js.
     */
-  final val autoCancelableRunLoops: Boolean = false
+  final val autoCancelableRunLoops: Boolean = true
 
   /**
     * Local context propagation is set to `false` if Monix

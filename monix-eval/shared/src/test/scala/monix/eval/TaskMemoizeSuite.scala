@@ -424,7 +424,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(third.future.value, Some(Success(2)))
   }
 
-  test("Task.memoize should be cancelable (future)") { implicit s =>
+  test("Task.memoize should not be cancelable (future)") { implicit s =>
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
     val first = task.runAsync
@@ -441,13 +441,13 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
     third.cancel()
     s.tick()
-    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
 
     s.tick(1.second)
-    assertEquals(first.value, None)
-    assertEquals(second.value, None)
+    assertEquals(first.value, Some(Success(2)))
+    assertEquals(second.value, Some(Success(2)))
     assertEquals(third.value, None)
-    assertEquals(effect, 0)
+    assertEquals(effect, 1)
   }
 
   test("Task.memoize should be cancelable (callback, #1)") { implicit s =>
@@ -470,13 +470,13 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
     c3.cancel()
     s.tick()
-    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
 
     s.tick(1.second)
-    assertEquals(first.future.value, None)
-    assertEquals(second.future.value, None)
+    assertEquals(first.future.value, Some(Success(2)))
+    assertEquals(second.future.value, Some(Success(2)))
     assertEquals(third.future.value, None)
-    assertEquals(effect, 0)
+    assertEquals(effect, 1)
   }
 
   test("Task.memoize should be cancelable (callback, #2)") { implicit s =>
@@ -499,16 +499,16 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
     c3.cancel()
     s.tick()
-    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
 
     s.tick(1.second)
-    assertEquals(first.future.value, None)
-    assertEquals(second.future.value, None)
+    assertEquals(first.future.value, Some(Success(2)))
+    assertEquals(second.future.value, Some(Success(2)))
     assertEquals(third.future.value, None)
-    assertEquals(effect, 0)
+    assertEquals(effect, 1)
   }
 
-  test("Task.memoize should not be re-executable after cancel") { implicit s =>
+  test("Task.memoize should be re-executable after cancel") { implicit s =>
 
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
@@ -521,7 +521,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     first.cancel()
 
     s.tick()
-    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
     assertEquals(first.value, None)
     assertEquals(second.value, None)
     assertEquals(effect, 0)
@@ -530,13 +530,15 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val third = task.runAsync
     val fourth = task.runAsync
 
-    s.tick()
-    assertEquals(third.value, None)
-    assertEquals(fourth.value, None)
+    s.tick(1.second)
+    assertEquals(first.value, None)
+    assertEquals(second.value, Some(Success(2)))
+    assertEquals(third.value, Some(Success(2)))
+    assertEquals(fourth.value, Some(Success(2)))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.memoize should be uninterruptible if the source is") { implicit s =>
+  test("Task.memoize should not be uninterruptible") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(1.second).uncancelable.memoize
     val f = task.runAsync
 
@@ -548,7 +550,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
 
     s.tick(1.second)
-    assertEquals(f.value, Some(Success(1)))
+    assertEquals(f.value, None)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
 
     val f2 = task.runAsync

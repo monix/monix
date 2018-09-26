@@ -19,6 +19,7 @@ package monix.eval
 
 import monix.execution.CancelableFuture
 import monix.execution.atomic.PaddingStrategy
+import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.internal.Platform
 
 import scala.util.Success
@@ -33,7 +34,8 @@ object MVarSuite extends BaseTestSuite {
       r2 <- av.take
     } yield List(r1,r2)
 
-    assertEquals(task.runSyncMaybe, Right(List(10,20)))
+    val f = task.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(List(10,20))))
   }
 
   test("empty; take; put; take; put") { implicit s =>
@@ -43,8 +45,7 @@ object MVarSuite extends BaseTestSuite {
       r2 <- Task.mapBoth(av.take, av.put(20))((r,_) => r)
     } yield List(r1,r2)
 
-    val f = task.runAsync
-    s.tick()
+    val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Success(List(10,20))))
   }
 
@@ -83,9 +84,34 @@ object MVarSuite extends BaseTestSuite {
       r2 <- av.take
     } yield List(r1,r2)
 
-    assertEquals(task.runSyncMaybe, Right(List(10,20)))
+    val f = task.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(List(10,20))))
   }
 
+  test("withPadding; put; take; put; take") { implicit s =>
+    val task = for {
+      av <- MVar.withPadding[Int](LeftRight128)
+      _ <- av.put(10)
+      r1 <- av.take
+      _ <- av.put(20)
+      r2 <- av.take
+    } yield List(r1,r2)
+
+    val f = task.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(List(10,20))))
+  }
+
+  test("withPadding(initial); put; take; put; take") { implicit s =>
+    val task = for {
+      av <- MVar.withPadding[Int](10, LeftRight128)
+      r1 <- av.take
+      _ <- av.put(20)
+      r2 <- av.take
+    } yield List(r1,r2)
+
+    val f = task.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(List(10,20))))
+  }
 
   test("initial; read; take") { implicit s =>
     val task = for {
@@ -94,7 +120,8 @@ object MVarSuite extends BaseTestSuite {
       take <- av.take
     } yield read + take
 
-    assertEquals(task.runSyncMaybe, Right(20))
+    val f = task.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(20)))
   }
 
   test("empty; read; put") { implicit s =>
@@ -102,6 +129,7 @@ object MVarSuite extends BaseTestSuite {
       av <- MVar.empty[Int]
       r  <- Task.mapBoth(av.read, av.put(10))((r, _) => r)
     } yield r
+
     val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
@@ -109,9 +137,8 @@ object MVarSuite extends BaseTestSuite {
   test("put(null) throws NullPointerException") { implicit s =>
     val task = MVar.empty[String].flatMap(_.put(null))
 
-    intercept[NullPointerException] {
-      task.runSyncMaybe
-    }
+    val f = task.runAsync; s.tick()
+    assert(f.value.exists(_.failed.toOption.exists(_.isInstanceOf[NullPointerException])))
   }
 
   test("empty; tryPut; tryPut; tryTake; tryTake; put; take") { implicit s =>
@@ -201,7 +228,7 @@ object MVarSuite extends BaseTestSuite {
   }
 
   test("take/put test is stack safe") { implicit s =>
-    val Right(ch) = MVar.empty[Int].runSyncMaybe
+    val Right(ch) = MVar.empty[Int].runSyncStep
 
     def loop(n: Int, acc: Int): Task[Int] =
       if (n <= 0) Task.now(acc) else
@@ -333,6 +360,5 @@ object MVarSuite extends BaseTestSuite {
 
     // Check termination
     assertEquals(f.value, Some(Success(Seq("TAKE", "TAKE", "PUT", "PUT"))))
-
   }
 }

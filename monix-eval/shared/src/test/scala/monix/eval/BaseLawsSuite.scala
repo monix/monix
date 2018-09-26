@@ -21,7 +21,6 @@ import cats.Eq
 import cats.effect.laws.discipline.Parameters
 import cats.effect.laws.discipline.arbitrary.{catsEffectLawsArbitraryForIO, catsEffectLawsCogenForIO}
 import cats.effect.{Async, IO}
-import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
@@ -117,7 +116,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
             if (isActive.getAndSet(false))
               cb.onSuccess(a)
           }
-          Cancelable(() => isActive.set(false))
+          Task(isActive.set(false))
         }
 
     def genNestedAsync: Gen[Task[A]] =
@@ -141,9 +140,6 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
       for (t <- genSimpleTask) yield {
         Task.ContextSwitch[A](t, x => x.copy(), (_, _, old, _) => old)
       }
-
-    def genAutoCancelable: Gen[Task[A]] =
-      for (t <- genSimpleTask) yield t.autoCancelable
 
     def genFlatMap: Gen[Task[A]] =
       for {
@@ -170,7 +166,6 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
       1 -> genEval,
       1 -> genFail,
       1 -> genContextSwitch,
-      1 -> genAutoCancelable,
       1 -> genCancelable,
       1 -> genBindSuspend,
       1 -> genAsync,

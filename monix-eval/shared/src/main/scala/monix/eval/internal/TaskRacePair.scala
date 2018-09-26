@@ -18,9 +18,7 @@
 package monix.eval
 package internal
 
-import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
-import monix.execution.cancelables.StackedCancelable
 import scala.concurrent.Promise
 
 private[eval] object TaskRacePair {
@@ -49,9 +47,9 @@ private[eval] object TaskRacePair {
       val pb = Promise[B]()
 
       val isActive = Atomic(true)
-      val connA = StackedCancelable()
-      val connB = StackedCancelable()
-      conn.push(Cancelable.trampolined(connA, connB))
+      val connA = TaskConnection()
+      val connB = TaskConnection()
+      conn.pushConnections(connA, connB)
 
       val contextA = context.withConnection(connA)
       val contextB = context.withConnection(connB)
@@ -60,7 +58,7 @@ private[eval] object TaskRacePair {
       Task.unsafeStartEnsureAsync(fa, contextA, new Callback[A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
-            val fiberB = Fiber(TaskFromFuture.lightBuild(pb.future, connB))
+            val fiberB = Fiber(TaskFromFuture.strict(pb.future), connB.cancel)
             conn.pop()
             cb.onSuccess(Left((valueA, fiberB)))
           } else {
@@ -70,7 +68,7 @@ private[eval] object TaskRacePair {
         def onError(ex: Throwable): Unit =
           if (isActive.getAndSet(false)) {
             conn.pop()
-            connB.cancel()
+            connB.cancel.runAsyncAndForget
             cb.onError(ex)
           } else {
             pa.failure(ex)
@@ -81,7 +79,7 @@ private[eval] object TaskRacePair {
       Task.unsafeStartEnsureAsync(fb, contextB, new Callback[B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
-            val fiberA = Fiber(TaskFromFuture.lightBuild(pa.future, connA))
+            val fiberA = Fiber(TaskFromFuture.strict(pa.future), connA.cancel)
             conn.pop()
             cb.onSuccess(Right((fiberA, valueB)))
           } else {
@@ -91,7 +89,7 @@ private[eval] object TaskRacePair {
         def onError(ex: Throwable): Unit =
           if (isActive.getAndSet(false)) {
             conn.pop()
-            connA.cancel()
+            connA.cancel.runAsyncAndForget
             cb.onError(ex)
           } else {
             pb.failure(ex)

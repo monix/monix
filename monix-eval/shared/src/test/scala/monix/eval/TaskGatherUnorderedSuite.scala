@@ -121,6 +121,8 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
   }
 
   test("Task.gatherUnordered should log errors if multiple errors happen") { implicit s =>
+    implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+
     val ex = DummyException("dummy1")
     var errorsThrow = 0
     val task1 = Task.raiseError[Int](ex).executeAsync
@@ -129,7 +131,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
       .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
 
     val gather = Task.gatherUnordered(Seq(task1, task2))
-    val result = gather.runAsync
+    val result = gather.runAsyncOpt
     s.tick()
 
     assertEquals(result.value, Some(Failure(ex)))
