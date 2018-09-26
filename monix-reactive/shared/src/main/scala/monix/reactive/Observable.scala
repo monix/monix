@@ -503,10 +503,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     *
+    * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
     * stream2: 1 - - 2 - 3 - - - - 4
     *
     * result: (1, 1), (2, 2), (2, 3), (3, 3), (4, 3), (4, 4)
+    * </pre>
     *
     * See [[zip]] for an alternative that pairs the items in strict sequence.
     *
@@ -524,10 +526,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     *
+    * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
     * stream2: 1 - - 2 - 3 - - - - 4
     *
     * result: (1, 1), (2, 2), (2, 3), (3, 3), (4, 3), (4, 4)
+    * </pre>
     *
     * See [[zipMap]] for an alternative that pairs the items
     * in strict sequence.
@@ -1310,11 +1314,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     *
+    * <pre>
     * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
     * streamB: b1 -- -- b2 -- b3 -- -- -- -- b4
     *
     * result: a1, a2, a3, a4, b1, b2, b3, b4
-    *
+    * </pre>
     *
     */
   final def ++[B >: A](other: Observable[B]): Observable[B] =
@@ -1463,10 +1468,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     *
+    * <pre>
     * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
     * streamB: b1 -- -- b2 -- b3 -- -- -- -- b4
     *
     * result: a1, a2, a3, a4, b1, b2, b3, b4
+    * </pre>
     *
     * @return $concatReturn
     */
@@ -1684,10 +1691,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     *
+    * <pre>
     * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
     * streamB: b1 -- -- b2 -- b3 -- -- -- -- b4
     *
     * result: a1, b1, a2, b2, b3, a3, a4, b4
+    * </pre>
     *
     * @note $defaultOverflowStrategy
     * @return $mergeReturn
@@ -1700,11 +1709,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     *
+    * <pre>
     * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
     * streamB: b1 -- -- b2 -- b3 -- -- -- -- b4
     *
     * result: a1, b1, a2, b2, b3, a3, a4, b4
-    *
+    * </pre>
     *
     * @param f - the transformation function
     * @return $mergeMapReturn
@@ -2572,10 +2582,14 @@ abstract class Observable[+A] extends Serializable { self =>
     * emits an item (not when any of the Observables that are passed to the operator
     * do, as combineLatest does).
     *
+    * Example:
+    *
+    * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
     * stream2: 1 - - 2 - 3 - - - - 4
     *
     * result: (1, 1), (2, 2), (3, 3), (4, 3)
+    * </pre>
     *
     * @param other is an observable that gets paired with the source
     * @param f is a mapping function over the generated pairs
@@ -2700,10 +2714,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     *
+    * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
     * stream2: 1 - - 2 - 3 - - - - 4
     *
     * result: (1, 1), (2, 2), (3, 3), (4, 4)
+    * </pre>
     *
     * See [[combineLatest]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
@@ -2726,10 +2742,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     *
+    * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
     * stream2: 1 - - 2 - 3 - - - - 4
     *
     * result: (1, 1), (2, 2), (3, 3), (4, 4)
+    * </pre>
     *
     * See [[combineLatestMap]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
@@ -4334,11 +4352,12 @@ object Observable {
     *
     * Example:
     *
+    * <pre>
     * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
     * streamB: b1 -- -- b2 -- b3 -- -- -- -- b4
     *
     * result: a1, b1, a2, b2, b3, a3, a4, b4
-    *
+    * </pre>
     */
   def merge[A](sources: Observable[A]*)
     (implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] =
@@ -4356,11 +4375,12 @@ object Observable {
     *
     * Example:
     *
+    * <pre>
     * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
     * streamB: b1 -- -- b2 -- b3 -- -- -- -- b4
     *
     * result: a1, a2, a3, a4, b1, b2, b3, b4
-    *
+    * </pre>
     */
   def concat[A](sources: Observable[A]*): Observable[A] =
     Observable.fromIterable(sources).concatMap[A](identity)
@@ -4389,10 +4409,12 @@ object Observable {
     *
     * Example:
     *
+    * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
     * stream2: 1 - - 2 - 3 - - - - 4
     *
     * result: (1, 1), (2, 2), (3, 3), (4, 4)
+    * </pre>
     *
     * See [[combineLatestMap2]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
@@ -4411,11 +4433,12 @@ object Observable {
     *
     * Example:
     *
+    * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
     * stream2: 1 - - 2 - 3 - - - - 4
     *
     * result: (1, 1), (2, 2), (3, 3), (4, 4)
-    *
+    * </pre>
     *
     * See [[combineLatestMap2]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
@@ -4597,10 +4620,12 @@ object Observable {
     *
     * Example:
     *
+    * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
     * stream2: 1 - - 2 - 3 - - - - 4
     *
     * result: (1, 1), (2, 2), (2, 3), (3, 3), (4, 3), (4, 4)
+    * </pre>
     */
   def combineLatest2[A1, A2](oa1: Observable[A1], oa2: Observable[A2]): Observable[(A1, A2)] =
     new builders.CombineLatest2Observable[A1, A2, (A1, A2)](oa1, oa2)((a1, a2) => (a1, a2))
@@ -4616,10 +4641,12 @@ object Observable {
     *
     * Example:
     *
+    * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
     * stream2: 1 - - 2 - 3 - - - - 4
     *
     * result: (1, 1), (2, 2), (2, 3), (3, 3), (4, 3), (4, 4)
+    * </pre>
     */
   def combineLatestMap2[A1, A2, R](oa1: Observable[A1], oa2: Observable[A2])
     (f: (A1, A2) => R): Observable[R] =
@@ -4756,10 +4783,12 @@ object Observable {
     *
     * Example:
     *
+    * <pre>
     * stream1: - - 1 1 1 - 1 - 1 - -
     * stream2: - - - - - 2 2 2 2 2 2
     *
     * result: - - 1 1 1 - 1 - 1 - -
+    * </pre>
     */
   def firstStartedOf[A](source: Observable[A]*): Observable[A] =
     new builders.FirstStartedObservable(source: _*)
