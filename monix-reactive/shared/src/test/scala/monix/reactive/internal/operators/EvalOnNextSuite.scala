@@ -37,7 +37,7 @@ object EvalOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNextEval(x => IO(sum += x))
+    Observable.range(0, 20).doOnNextF(x => IO(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -54,7 +54,7 @@ object EvalOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNextTask(x => Task.evalAsync(sum += x))
+    Observable.range(0, 20).doOnNext(x => Task.evalAsync(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -71,7 +71,7 @@ object EvalOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNextTask(x => Task.eval(sum += x))
+    Observable.range(0, 20).doOnNext(x => Task.eval(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -87,7 +87,7 @@ object EvalOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.now(10L).doOnNextTask(x => Task.evalAsync(sum += x))
+    Observable.now(10L).doOnNext(x => Task.evalAsync(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -104,7 +104,7 @@ object EvalOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.now(10L).doOnNextTask(x => Task.eval(sum += x))
+    Observable.now(10L).doOnNext(x => Task.eval(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -122,7 +122,7 @@ object EvalOnNextSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0L
     var errorThrown: Throwable = null
 
-    Observable.range(1,10).doOnNextTask(x => throw dummy)
+    Observable.range(1,10).doOnNext(x => throw dummy)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = errorThrown = ex
@@ -141,7 +141,7 @@ object EvalOnNextSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0L
     var errorThrown: Throwable = null
 
-    Observable.range(1,10).doOnNextTask(x => Task.evalAsync(throw dummy))
+    Observable.range(1,10).doOnNext(x => Task.evalAsync(throw dummy))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = errorThrown = ex

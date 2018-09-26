@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import cats.effect.ExitCase
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
@@ -67,7 +66,6 @@ import scala.util.Failure
 private[reactive] final class ConcatMapObservable[A, B](
   source: Observable[A],
   f: A => Observable[B],
-  release: (A, ExitCase[Throwable]) => Observable[Unit],
   delayErrors: Boolean)
   extends Observable[B] {
 
@@ -159,13 +157,7 @@ private[reactive] final class ConcatMapObservable[A, B](
         Stop
       } else try {
         val asyncUpstreamAck = Promise[Ack]()
-        val child = {
-          val ref = f(elem)
-          // Logic for bracket
-          if (release eq null) ref
-          else ref.guaranteeCase[Observable](e => release(elem, e))
-        }
-
+        val child = f(elem)
         // No longer allowed to stream errors downstream
         streamErrors = false
 

@@ -64,7 +64,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
   }
 
   test("issue #468 - mapTask is cancellable") { implicit sc =>
-    val o = Observable.eval(1).executeAsync.mapTask { x =>
+    val o = Observable.eval(1).executeAsync.mapEval { x =>
       Task.now(x).delayExecution(1.second)
     }
 

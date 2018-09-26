@@ -41,7 +41,7 @@ object EvalOnCompleteSuite extends TestSuite[TestScheduler] {
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnCompleteEval(IO { wasTriggered += 1 })
+    Observable.now(1).doOnCompleteF(IO { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -57,7 +57,7 @@ object EvalOnCompleteSuite extends TestSuite[TestScheduler] {
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnCompleteTask(Task.eval { wasTriggered += 1 })
+    Observable.now(1).doOnComplete(Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -73,7 +73,7 @@ object EvalOnCompleteSuite extends TestSuite[TestScheduler] {
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnCompleteTask(Task.eval { wasTriggered += 1 })
+    Observable.now(1).doOnComplete(Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Future(Continue)
@@ -92,7 +92,7 @@ object EvalOnCompleteSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
     var errorThrown: Throwable = null
 
-    Observable.raiseError(dummy).doOnCompleteTask(Task.eval { wasTriggered += 1 })
+    Observable.raiseError(dummy).doOnComplete(Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Ack] =
@@ -113,7 +113,7 @@ object EvalOnCompleteSuite extends TestSuite[TestScheduler] {
   test("should be cancelable") { implicit s =>
     var wasTriggered = 0
     val cancelable = Observable.now(1).delayOnNext(1.second)
-      .doOnCompleteTask(Task.eval { wasTriggered += 1 })
+      .doOnComplete(Task.eval { wasTriggered += 1 })
       .subscribe()
 
     s.tick()
@@ -127,7 +127,7 @@ object EvalOnCompleteSuite extends TestSuite[TestScheduler] {
     val dummy = DummyException("dummy")
     var errorThrown: Throwable = null
 
-    Observable.now(1).doOnCompleteTask(Task.eval { throw dummy })
+    Observable.now(1).doOnComplete(Task.eval { throw dummy })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
 

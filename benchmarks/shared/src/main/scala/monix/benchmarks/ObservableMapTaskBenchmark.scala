@@ -52,7 +52,7 @@ class ObservableMapTaskBenchmark {
 
   @Benchmark
   def run(): Long = {
-    val stream = Observable.range(0, size).mapTask { x =>
+    val stream = Observable.range(0, size).mapEval { x =>
       Task.now(x + 1)
     }
     sum(stream)

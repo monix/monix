@@ -24,7 +24,6 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.util.Success
 import scala.util.control.NonFatal
 
 private[reactive] final
@@ -50,19 +49,16 @@ class EvalOnStartOperator[A](cb: A => Task[Unit])
             case NonFatal(ex) => Task.raiseError(ex)
           }
 
-          val ack = t.attempt.flatMap {
-            case Left(ex) => Task.eval { onError(ex); Stop }
-            case Right(()) => Task.fromFuture(out.onNext(elem))
-          }.runAsync
+          val ack = t.redeemWith(
+            ex => Task.eval { onError(ex); Stop },
+            _ => Task.fromFuture(out.onNext(elem))
+          ).runAsync
 
           isStart = false
-
-          ack.value match {
-            case Some(Success(sync)) => sync
-            case _ => ack
-          }
-        } else
+          ack.syncTryFlatten
+        } else {
           out.onNext(elem)
+        }
       }
 
       def onError(ex: Throwable): Unit =

@@ -25,10 +25,9 @@ import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
+import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
 import monix.execution.exceptions.UpstreamTimeoutException
-
-import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.internal.builders
@@ -222,6 +221,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * when consuming a stream, these unsafe subscription methods
     * being useful when building operators and for testing purposes.
     */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable
 
   /** Given an [[monix.reactive.Observer observer]] and a
@@ -239,6 +240,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * when consuming a stream, these unsafe subscription methods
     * being useful when building operators and for testing purposes.
     */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
   final def unsafeSubscribeFn(observer: Observer[A])(implicit s: Scheduler): Cancelable =
     unsafeSubscribeFn(Subscriber(observer, s))
 
@@ -247,6 +250,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a subscription that can be used to cancel the streaming.
     * @see [[consumeWith]] for another way of consuming observables
     */
+  @UnsafeBecauseImpure
   final def subscribe(observer: Observer[A])(implicit s: Scheduler): Cancelable =
     subscribe(Subscriber(observer, s))
 
@@ -255,6 +259,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a subscription that can be used to cancel the streaming.
     * @see [[consumeWith]] for another way of consuming observables
     */
+  @UnsafeBecauseImpure
   final def subscribe(subscriber: Subscriber[A]): Cancelable =
     unsafeSubscribeFn(SafeSubscriber[A](subscriber))
 
@@ -263,6 +268,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a subscription that can be used to cancel the streaming.
     * @see [[consumeWith]] for another way of consuming observables
     */
+  @UnsafeBecauseImpure
   final def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit)(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, errorFn, () => ())
 
@@ -271,6 +277,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a subscription that can be used to cancel the streaming.
     * @see [[consumeWith]] for another way of consuming observables
     */
+  @UnsafeBecauseImpure
   final def subscribe()(implicit s: Scheduler): Cancelable =
     subscribe(_ => Continue)
 
@@ -279,6 +286,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a subscription that can be used to cancel the streaming.
     * @see [[consumeWith]] for another way of consuming observables
     */
+  @UnsafeBecauseImpure
   final def subscribe(nextFn: A => Future[Ack])(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, error => s.reportFailure(error), () => ())
 
@@ -287,6 +295,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a subscription that can be used to cancel the streaming.
     * @see [[consumeWith]] for another way of consuming observables
     */
+  @UnsafeBecauseImpure
   final def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)
     (implicit s: Scheduler): Cancelable = {
 
@@ -488,15 +497,45 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
     */
-  final def bracket[B](use: A => Observable[B])(release: A => Observable[Unit]): Observable[B] =
+  final def bracket[B](use: A => Observable[B])(release: A => Task[Unit]): Observable[B] =
     bracketCase(use)((a, _) => release(a))
+
+  /** Version of [[bracket]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
+    *
+    * So in `release` you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  final def bracketF[F[_], B](use: A => Observable[B])(release: A => F[Unit])
+    (implicit F: TaskLike[F]): Observable[B] =
+    bracket(use)(release.andThen(F.toTask))
 
   /** Implementation of `bracketCase` from `cats.effect.Bracket`.
     *
     * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
     */
-  final def bracketCase[B](use: A => Observable[B])(release: (A, ExitCase[Throwable]) => Observable[Unit]): Observable[B] =
-    new ConcatMapObservable[A, B](this, use, release, delayErrors = false)
+  final def bracketCase[B](use: A => Observable[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Observable[B] =
+    concatMap(a => use(a).guaranteeCase(release(a, _)))
+
+  /** Version of [[bracketCase]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
+    *
+    * So in `release` you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  final def bracketCaseF[F[_], B](use: A => Observable[B])(release: (A, ExitCase[Throwable]) => F[Unit])
+    (implicit F: TaskLike[F]): Observable[B] =
+    bracketCase(use)((a, e) => F.toTask(release(a, e)))
 
   /** Applies the given partial function to the source
     * for each element for which the given partial function is defined.
@@ -890,280 +929,83 @@ abstract class Observable[+A] extends Serializable { self =>
   final def doOnCompleteF[F[_]](task: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
     doOnComplete(F.toTask(task))
 
-  /** Executes the given callback when the stream is interrupted with an
-    * error, before the `onError` event is emitted downstream.
-    *
-    * NOTE: should protect the code in this callback, because if it
-    * throws an exception the `onError` event will prefer signaling
-    * the original exception and otherwise the behavior is undefined.
-    *
-    * @see [[doOnTerminate]] and [[doOnSubscriptionCancel]] for
-    *      handling resource disposal, also see [[doOnErrorTask]] for
-    *      a version that does asynchronous evaluation by means of
-    *      [[monix.eval.Task Task]].
-    */
-  final def doOnError(cb: Throwable => Unit): Observable[A] =
-    self.liftByOperator(new DoOnErrorOperator[A](cb))
-
-  /** Executes the given `cb` when the stream is interrupted with an
-    * error, before the `onError` event is emitted downstream.
-    *
-    * This version of [[doOnError]] evaluates the given side
-    * effects using the specified `F[_]` data type, which should
-    * implement `cats.effect.Effect`, thus being able of asynchronous
-    * execution.
-    *
-    * NOTE: should protect the code in this callback, because if it
-    * throws an exception the `onError` event will prefer signaling
-    * the original exception and otherwise the behavior is undefined.
-    *
-    * @see [[doOnTerminateTask]] and [[doOnSubscriptionCancel]] for
-    *      handling resource disposal, also see [[doOnError]] for a
-    *      simpler version that doesn't do asynchronous execution,
-    *      or [[doOnErrorTask]] for a version specialized on
-    *      [[monix.eval.Task Task]].
-    */
-  final def doOnErrorEval[F[_]](cb: Throwable => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
-    doOnErrorTask(e => F.toTask(cb(e)))
-
   /** Executes the given task when the stream is interrupted with an
     * error, before the `onError` event is emitted downstream.
     *
+    * Example:
+    * {{{
+    *   val dummy = new RuntimeException("dummy")
+    *
+    *   (Observable.range(0, 10) ++ Observable.raiseError(dummy))
+    *     .doOnError { e =>
+    *       Task(println(s"Triggered error: $$e")
+    *     }
+    * }}}
+    *
     * NOTE: should protect the code in this callback, because if it
     * throws an exception the `onError` event will prefer signaling
     * the original exception and otherwise the behavior is undefined.
     *
-    * @see [[doOnTerminateTask]] and [[doOnSubscriptionCancel]] for
-    *      handling resource disposal, also see [[doOnError]] for a
-    *      simpler version that doesn't do asynchronous execution,
-    *      or [[doOnErrorEval]] for a version that can use any
-    *      `Effect` data type.
+    * NOTE: in most cases what you want is [[guaranteeCase]]
+    * or [[bracketCase]]. This operator is available for
+    * fine-grained control.
     */
-  final def doOnErrorTask(cb: Throwable => Task[Unit]): Observable[A] =
+  final def doOnError(cb: Throwable => Task[Unit]): Observable[A] =
     self.liftByOperator(new EvalOnErrorOperator[A](cb))
 
-  /** Executes the given callback right before the streaming is ended either
-    * with an `onComplete` or `onError` event, or when the streaming stops by
-    * a downstream `Stop` being signaled.
+  /** Version of [[doOnError]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
     *
-    * It is the equivalent of calling:
+    * So you can work among others with:
     *
-    *   - [[doOnComplete]]
-    *   - [[doOnError]]
-    *   - [[doOnEarlyStop]]
-    *
-    * This differs from [[doAfterTerminate]] in that this happens *before*
-    * the `onComplete` or `onError` notification.
-    *
-    * @see [[doOnTerminateTask]] for a version that allows for asynchronous
-    *      evaluation by means of [[monix.eval.Task Task]].
-    */
-  final def doOnTerminate(cb: Option[Throwable] => Unit): Observable[A] =
-    self.liftByOperator(new DoOnTerminateOperator[A](cb, happensBefore = true))
-
-  /** Evaluates the callback right before the streaming is ended
-    * either with an `onComplete` or `onError` event, or when the
-    * streaming stops by a downstream `Stop` being signaled.
-    *
-    * The callback-generated `F[_]` is a data type that should
-    * implement `cats.effect.Effect` and is thus capable of
-    * asynchronous evaluation, back-pressuring the source
-    * when applied for `Stop` events returned by `onNext` and thus
-    * the upstream source will receive the `Stop` result only after
-    * the task has finished executing.
-    *
-    * It is the equivalent of calling:
-    *
-    *   - [[doOnCompleteTask]]
-    *   - [[doOnErrorTask]]
-    *   - [[doOnEarlyStopTask]]
-    *
-    * This differs from [[doAfterTerminateTask]] in that this happens
-    * *before* the `onComplete` or `onError` notification.
-    *
-    * @see [[doOnTerminate]] for a simpler version that doesn't allow
-    *     asynchronous execution, or [[doOnTerminateTask]] for a
-    *     version that's specialized on [[monix.eval.Task Task]].
-    */
-  final def doOnTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
-    doOnTerminateTask(opt => F.toTask(cb(opt)))
-
-  /** Evaluates the task generated by the given callback right before
-    * the streaming is ended either with an `onComplete` or `onError`
-    * event, or when the streaming stops by a downstream `Stop` being
-    * signaled.
-    *
-    * The callback-generated [[monix.eval.Task Task]] will
-    * back-pressure the source when applied for `Stop` events returned
-    * by `onNext` and thus the upstream source will receive the `Stop`
-    * result only after the task has finished executing.
-    *
-    * It is the equivalent of calling:
-    *
-    *   - [[doOnCompleteTask]]
-    *   - [[doOnErrorTask]]
-    *   - [[doOnEarlyStopTask]]
-    *
-    * This differs from [[doAfterTerminateTask]] in that this happens
-    * *before* the `onComplete` or `onError` notification.
-    *
-    * @see [[doOnTerminate]] for a simpler version that doesn't allow
-    *     asynchronous execution, or [[doOnTerminateEval]] for a
-    *     version that can work with any `cats.effect.Effect` type.
-    */
-  final def doOnTerminateTask(cb: Option[Throwable] => Task[Unit]): Observable[A] =
-    self.liftByOperator(new EvalOnTerminateOperator[A](cb, happensBefore = true))
-
-  /** Executes the given callback after the stream has ended either with
-    * an `onComplete` or `onError` event, or when the streaming stops by
-    * a downstream `Stop` being signaled.
-    *
-    * This differs from [[doOnTerminate]] in that this happens *after*
-    * the `onComplete` or `onError` notification.
-    *
-    * @see [[doAfterTerminateTask]] for a version that allows for asynchronous
-    *      evaluation by means of [[monix.eval.Task Task]].
-    */
-  final def doAfterTerminate(cb: Option[Throwable] => Unit): Observable[A] =
-    self.liftByOperator(new DoOnTerminateOperator[A](cb, happensBefore = false))
-
-  /** Evaluates the effect generated by the given callback after the
-    * stream has ended either with an `onComplete` or `onError` event,
-    * or when the streaming stops by a downstream `Stop` being signaled.
-    *
-    * This operation subsumes [[doOnEarlyStopEval]] and the
-    * callback-generated value will back-pressure the source when
-    * applied for `Stop` events returned by `onNext` and thus the
-    * upstream source will receive the `Stop` result only after the
-    * task has finished executing.
-    *
-    * The callback-generated `F[_]` is a data type that should
-    * implement `cats.effect.Effect` and is thus capable of
-    * asynchronous evaluation (e.g. `Task`, `IO`, etc).
-    *
-    * This differs from [[doOnTerminateEval]] in that this happens
-    * *after* the `onComplete` or `onError` notification.
-    *
-    * @see [[doAfterTerminate]] for a simpler version that doesn't
-    *     allow asynchronous execution, or [[doAfterTerminateTask]]
-    *     for a version that's specialized for [[monix.eval.Task Task]].
-    */
-  final def doAfterTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
-    doAfterTerminateTask(opt => F.toTask(cb(opt)))
-
-  /** Evaluates the task generated by the given callback after the
-    * stream has ended either with an `onComplete` or `onError` event,
-    * or when the streaming stops by a downstream `Stop` being signaled.
-    *
-    * This operation subsumes [[doOnEarlyStopTask]] and the
-    * callback-generated [[monix.eval.Task Task]] will back-pressure
-    * the source when applied for `Stop` events returned by `onNext`
-    * and thus the upstream source will receive the `Stop` result only
-    * after the task has finished executing.
-    *
-    * This differs from [[doOnTerminateTask]] in that this happens
-    * *after* the `onComplete` or `onError` notification.
-    *
-    * @see [[doAfterTerminate]] for a simpler version that doesn't allow
-    *     asynchronous execution.
-    */
-  final def doAfterTerminateTask(cb: Option[Throwable] => Task[Unit]): Observable[A] =
-    self.liftByOperator(new EvalOnTerminateOperator[A](cb, happensBefore = false))
-
-  /** Executes the given callback for each element generated by the
-    * source Observable, useful for doing side-effects.
-    *
-    * @return a new Observable that executes the specified
-    *         callback for each element
-    * @see [[doOnNextTask]] for a version that allows for asynchronous
-    *      evaluation by means of [[monix.eval.Task Task]].
-    */
-  final def doOnNext(cb: A => Unit): Observable[A] =
-    self.map { a => cb(a); a }
-
-  /** Evaluates the given callback for each element generated by the
-    * source Observable, useful for triggering async side-effects.
-    *
-    * This version of [[doOnNext]] evaluates side effects with any
-    * data type that implements `cats.effect.Effect` (e.g. `Task`, `IO`).
-    *
-    * @return a new Observable that executes the specified
-    *         callback for each element
-    *
-    * @see [[doOnNext]] for a simpler version that doesn't allow
-    *     asynchronous execution, or [[doOnNextTask]] for a version
-    *     that's specialized on [[monix.eval.Task Task]].
-    */
-  final def doOnNextEval[F[_]](cb: A => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
-    doOnNextTask(a => F.toTask(cb(a)))
-
-  /** Evaluates the given callback for each element generated by the
-    * source Observable, useful for triggering async side-effects.
-    *
-    * @return a new Observable that executes the specified
-    *         callback for each element
-    *
-    * @see [[doOnNext]] for a simpler version that doesn't allow
-    *     asynchronous execution.
-    */
-  final def doOnNextTask(cb: A => Task[Unit]): Observable[A] =
-    self.mapTask(a => cb(a).map(_ => a))
-
-  /** Maps elements from the source using a function that can do
-    * asynchronous processing by means of [[monix.eval.Task Task]].
-    *
-    * Given a source observable, this function is basically the
-    * equivalent of doing:
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
     *
     * {{{
-    *   observable.concatMap(a => Observable.fromTask(f(a)))
+    *   import cats.effect.IO
+    *
+    *   val dummy = new RuntimeException("dummy")
+    *
+    *   (Observable.range(0, 10) ++ Observable.raiseError(dummy))
+    *     .doOnErrorF { e =>
+    *       IO(println(s"Triggered error: $$e")
+    *     }
     * }}}
-    *
-    * However prefer this operator to `concatMap` because it
-    * is more clear and has better performance.
-    *
-    * @see [[mapFuture]] for the version that can work with
-    *      `scala.concurrent.Future`
     */
-  final def mapTask[B](f: A => Task[B]): Observable[B] =
-    new MapTaskObservable[A, B](self, f)
+  final def doOnErrorF[F[_]](cb: Throwable => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnError(e => F.toTask(cb(e)))
 
-  /** Executes the given callback on each acknowledgement
-    * received from the downstream subscriber.
+  /** Evaluates the given callback for each element generated by the
+    * source Observable, useful for triggering async side-effects.
     *
-    * This method helps in executing logic after messages get
-    * processed, for example when messages are polled from
-    * some distributed message queue and an acknowledgement
-    * needs to be sent after each message in order to mark it
-    * as processed.
+    * @return a new Observable that executes the specified
+    *         callback for each element
     *
-    * @see [[doOnNextAckTask]] for a version that allows for asynchronous
-    *      evaluation by means of [[monix.eval.Task Task]], or
-    *      [[doOnNextEval]] for a version that can do evaluation with
-    *      any data type implementing `cats.effect.Effect`.
+    * @see [[doOnNext]] for a simpler version that doesn't allow
+    *     asynchronous execution.
     */
-  final def doOnNextAck(cb: (A, Ack) => Unit): Observable[A] =
-    self.liftByOperator(new DoOnNextAckOperator[A](cb))
+  final def doOnNext(cb: A => Task[Unit]): Observable[A] =
+    self.mapEval(a => cb(a).map(_ => a))
 
-  /** Executes the given callback on each acknowledgement received
-    * from the downstream subscriber, executing a generated
-    * effect and back-pressuring until it is done executing.
+  /** Version of [[doOnNext]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
     *
-    * This method helps in executing logic after messages get
-    * processed, for example when messages are polled from
-    * some distributed message queue and an acknowledgement
-    * needs to be sent after each message in order to mark it
-    * as processed.
+    * So you can work among others with:
     *
-    * This version of [[doOnNext]] evaluates side effects with any
-    * data type that implements `cats.effect.Effect` (e.g. `Task`, `IO`).
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
     *
-    * @see [[doOnNextAck]] for a simpler version that doesn't allow
-    *     asynchronous execution, or [[doOnNextAckTask]] for a version
-    *     that's specialized on [[monix.eval.Task Task]].
+    * @return a new Observable that executes the specified
+    *         callback for each element
     */
-  final def doOnNextAckEval[F[_]](cb: (A, Ack) => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
-    doOnNextAckTask((a, ack) => Task.from(cb(a, ack))(F))
+  final def doOnNextF[F[_]](cb: A => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    self.doOnNext(a => F.toTask(cb(a)))
 
   /** Executes the given callback on each acknowledgement received from
     * the downstream subscriber, executing a generated
@@ -1176,68 +1018,177 @@ abstract class Observable[+A] extends Serializable { self =>
     * needs to be sent after each message in order to mark it
     * as processed.
     *
-    * @see [[doOnNextAck]] for a simpler version that doesn't allow
-    *     asynchronous execution, or
-    *     [[doOnNextAckEval]] for a version that can do evaluation with
-    *     any data type implementing `cats.effect.Effect`.
+    * @see [[doOnNextAckF]] for a version that can do evaluation with
+    *      any data type via [[TaskLike]]
     */
-  final def doOnNextAckTask(cb: (A, Ack) => Task[Unit]): Observable[A] =
+  final def doOnNextAck(cb: (A, Ack) => Task[Unit]): Observable[A] =
     self.liftByOperator(new EvalOnNextAckOperator[A](cb))
 
-  /** Executes the given callback only for the first element generated
-    * by the source Observable, useful for doing a piece of
-    * computation only when the stream starts.
+  /** Version of [[doOnNextAck]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
     *
-    * @return a new Observable that executes the specified callback
-    *         only for the first element
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
     */
-  final def doOnStart(cb: A => Unit): Observable[A] =
-    self.liftByOperator(new DoOnStartOperator[A](cb))
+  final def doOnNextAckF[F[_]](cb: (A, Ack) => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnNextAck((a, ack) => Task.from(cb(a, ack))(F))
 
   /** Executes the given callback only for the first element generated
     * by the source Observable, useful for doing a piece of
     * computation only when the stream starts.
     *
-    * @return a new Observable that executes the specified callback
-    *         only for the first element
+    * For example this observable will have a "delayed execution"
+    * of 1 second, plus a delayed first element of another 1 second,
+    * therefore it will take a total of 2 seconds for the first
+    * element to be emitted:
     *
-    * @see [[doOnStart]] for a simpler version that doesn't allow
-    *     asynchronous execution, or
-    *     [[doOnStartEval]] for a version that can do evaluation with
-    *     any data type implementing `cats.effect.Effect`
+    * {{{
+    *   import monix.eval._
+    *   import scala.concurrent.duration._
+    *
+    *   Observable.range(0, 100)
+    *     .delayExecution(1.second)
+    *     .doOnStart { a =>
+    *       for {
+    *         _ <- Task.sleep(1.second)
+    *         _ <- Task(println(s"Started with: $$a"))
+    *       } yield ()
+    *     }
+    * }}}
+    *
+    * @return a new Observable that executes the specified task
+    *         only for the first element
     */
-  final def doOnStartTask(cb: A => Task[Unit]): Observable[A] =
+  final def doOnStart(cb: A => Task[Unit]): Observable[A] =
     self.liftByOperator(new EvalOnStartOperator[A](cb))
 
-  /** Executes the given callback only for the first element generated
-    * by the source Observable, useful for doing a piece of
-    * computation only when the stream starts.
+  /** Version of [[doOnStart]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
     *
-    * @return a new Observable that executes the specified callback
-    *         only for the first element
+    * So you can work among others with:
     *
-    * @see [[doOnStart]] for a simpler version that doesn't allow
-    *     asynchronous execution, or [[doOnStartTask]] for a version
-    *     that's specialized on [[monix.eval.Task Task]].
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * {{{
+    *   import cats.implicits._
+    *   import cats.effect._
+    *   import scala.concurrent.duration._
+    *   import monix.execution.Scheduler.Implicits.global
+    *   // Needed for IO.sleep
+    *   implicit val timer = global.timer[IO]
+    *
+    *   Observable.range(0, 100)
+    *     .delayExecution(1.second)
+    *     .doOnStart { a =>
+    *       for {
+    *         _ <- IO.sleep(1.second)
+    *         _ <- IO(println(s"Started with: $$a"))
+    *       } yield ()
+    *     }
+    * }}}
     */
-  final def doOnStartEval[F[_]](cb: A => F[Unit])(implicit F: Effect[F]): Observable[A] =
-    doOnStartTask(a => Task.fromEffect(cb(a))(F))
+  final def doOnStartF[F[_]](cb: A => F[Unit])(implicit F: Effect[F]): Observable[A] =
+    doOnStart(a => Task.fromEffect(cb(a))(F))
 
-  /** Executes the given callback just before the subscription happens.
+  /** Executes the given callback just _before_ the subscription
+    * to the source happens.
+    *
+    * For example this is equivalent with [[delayExecution]]:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   Observable.range(0, 10)
+    *     .doOnSubscribe(Task.sleep(1.second))
+    * }}}
     *
     * @see [[doAfterSubscribe]] for executing a callback just after
     *     a subscription happens.
     */
-  final def doOnSubscribe(cb: () => Unit): Observable[A] =
-    new DoOnSubscribeObservable.Before[A](self, cb)
+  final def doOnSubscribe(task: Task[Unit]): Observable[A] =
+    new EvalOnSubscribeObservable.Before[A](self, task)
 
-  /** Executes the given callback just after the subscription happens.
+  /** Version of [[doOnSubscribe]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * For example this is equivalent with [[delayExecution]]:
+    *
+    * {{{
+    *   import cats.effect._
+    *   import scala.concurrent.duration._
+    *   import monix.execution.Scheduler.Implicits.global
+    *   // Needed for IO.sleep
+    *   implicit val timer = global.timer[IO]
+    *
+    *   Observable.range(0, 10)
+    *     .doOnSubscribeF(IO.sleep(1.second))
+    * }}}
+    */
+  final def doOnSubscribeF[F[_]](task: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doOnSubscribeF(F.toTask(task))
+
+  /** Executes the given callback just _after_ the subscription
+    * happens.
+    *
+    * The executed `Task` executes after the subscription happens
+    * and it will delay the first event being emitted. For example
+    * this would delay the emitting of the first event by 1 second:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *   import scala.concurrent.duration._
+    *
+    *   Observable.range(0, 100)
+    *     .doAfterSubscribe(Task.sleep(1.second))
+    * }}}
     *
     * @see [[doOnSubscribe]] for executing a callback just before
     *     a subscription happens.
     */
-  final def doAfterSubscribe(cb: () => Unit): Observable[A] =
-    new DoOnSubscribeObservable.After[A](self, cb)
+  final def doAfterSubscribe(task: Task[Unit]): Observable[A] =
+    new EvalOnSubscribeObservable.After[A](self, task)
+
+  /** Version of [[doAfterSubscribe]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * {{{
+    *   import cats.effect._
+    *   import scala.concurrent.duration._
+    *   import monix.execution.Scheduler.Implicits.global
+    *   // Needed for IO.sleep
+    *   implicit val timer = global.timer[IO]
+    *
+    *   Observable.range(0, 100)
+    *     .doAfterSubscribeF(IO.sleep(1.second))
+    * }}}
+    */
+  final def doAfterSubscribeF[F[_]](task: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    doAfterSubscribe(F.toTask(task))
 
   /** Creates a new observable that drops the events of the source, only
     * for the specified `timestamp` window.
@@ -1401,7 +1352,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * $concatMergeDifference
     */
   final def concatMap[B](f: A => Observable[B]): Observable[B] =
-    new ConcatMapObservable[A, B](self, f, null, delayErrors = false)
+    new ConcatMapObservable[A, B](self, f, delayErrors = false)
 
   /** Applies a function that you supply to each item emitted by the
     * source observable, where that function returns sequences
@@ -1518,7 +1469,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return $concatReturn
     */
   final def concatMapDelayErrors[B](f: A => Observable[B]): Observable[B] =
-    new ConcatMapObservable[A, B](self, f, null, delayErrors = true)
+    new ConcatMapObservable[A, B](self, f, delayErrors = true)
 
   /** Alias for [[switch]]
     *
@@ -1580,15 +1531,29 @@ abstract class Observable[+A] extends Serializable { self =>
     * Implements `cats.effect.Bracket.guarantee`.
     *
     * Example: {{{
-    *   iterant.guarantee(Task.eval {
+    *   observable.guarantee(Task.eval {
     *     println("Releasing resources!")
     *   })
     * }}}
     *
     * @param f is the function to execute on early stop
     */
-  final def guarantee[F[_]](f: F[Unit])(implicit F: ObservableLike[F]): Observable[A] =
+  final def guarantee(f: Task[Unit]): Observable[A] =
     guaranteeCase(_ => f)
+
+  /** Version of [[guarantee]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  final def guaranteeF[F[_]](f: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    guarantee(F.toTask(f))
 
   /** Returns a new `Observable` in which `f` is scheduled to be executed
     * when the source is completed, in success, error or when cancelled.
@@ -1632,8 +1597,23 @@ abstract class Observable[+A] extends Serializable { self =>
     *        successful completion, error or cancellation; for specifying the
     *        side effects to use
     */
-  final def guaranteeCase[F[_]](f: ExitCase[Throwable] => F[Unit])(implicit F: ObservableLike[F]): Observable[A] =
-    new GuaranteeCaseObservable[A](this, ec => F.toObservable(f(ec)))
+  final def guaranteeCase(f: ExitCase[Throwable] => Task[Unit]): Observable[A] =
+    new GuaranteeCaseObservable[A](this, f)
+
+  /** Version of [[guaranteeCase]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  final def guaranteeCaseF[F[_]](f: ExitCase[Throwable] => F[Unit])
+    (implicit F: TaskLike[F]): Observable[A] =
+    guaranteeCase(e => F.toTask(f(e)))
 
   /** Alias for [[completed]]. Ignores all items emitted by
     * the source and only calls onCompleted or onError.
@@ -1681,46 +1661,54 @@ abstract class Observable[+A] extends Serializable { self =>
     if (n <= 0) Observable.empty else self.liftByOperator(new TakeLastOperator(n))
 
   /** Maps elements from the source using a function that can do
-    * lazy or asynchronous processing by means of any `F[_]` data
-    * type that implements `cats.effect.Effect` (e.g. `Task`, `IO`).
+    * asynchronous processing by means of [[monix.eval.Task Task]].
     *
-    * Given a source observable, this function is basically the
-    * equivalent of doing:
-    *
+    * Example:
     * {{{
-    *   observable.mapTask(a => Task.fromEffect(f(a)))
+    *   import monix.eval.Task
+    *   import scala.concurrent.duration._
+    *
+    *   Observable.range(0, 100)
+    *     .mapEval(x => Task(x).delayExecution(1.second))
     * }}}
     *
-    * @see [[mapTask]] for a version specialized for
-    *      [[monix.eval.Task Task]] and [[mapFuture]] for the version
-    *      that can work with `scala.concurrent.Future`
+    * @see [[mapEvalF]] for a version that works with a generic
+    *      `F[_]` (e.g. `cats.effect.IO`, Scala's `Future`),
+    *      powered by [[TaskLike]]
     */
-  final def mapEval[F[_], B](f: A => F[B])(implicit F: TaskLike[F]): Observable[B] =
-    mapTask(a => Task.from(f(a))(F))
+  final def mapEval[B](f: A => Task[B]): Observable[B] =
+    new MapTaskObservable[A, B](self, f)
 
-  /** Maps elements from the source using a function that can do
-    * asynchronous processing by means of `scala.concurrent.Future`.
+  /** Version of [[mapEval]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
     *
-    * Given a source observable, this function is basically the
-    * equivalent of doing:
+    * So you can work among others with:
     *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * Example:
     * {{{
-    *   observable.concatMap(a => Observable.fromFuture(f(a)))
+    *   import cats.implicits._
+    *   import cats.effect.IO
+    *   import scala.concurrent.duration._
+    *   import monix.execution.Scheduler.Implicits.global
+    *   // Needed for IO.sleep
+    *   implicit val timer = global.timer[IO]
+    *
+    *   Observable.range(0, 100).mapEval { x =>
+    *     IO.sleep(1.second) *> IO(x)
+    *   }
     * }}}
     *
-    * However prefer this operator to `concatMap` because it
-    * is more clear and has better performance.
-    *
-    * @see [[mapTask]] for the version that can work with
+    * @see [[mapEval]] for a version specialized for
     *      [[monix.eval.Task Task]]
     */
-  final def mapFuture[B](f: A => Future[B]): Observable[B] =
-    mapTask { elemA =>
-      try Task.fromFuture(f(elemA))
-      catch {
-        case ex if NonFatal(ex) => Task.raiseError(ex)
-      }
-    }
+  final def mapEvalF[F[_], B](f: A => F[B])(implicit F: TaskLike[F]): Observable[B] =
+    mapEval(a => Task.from(f(a))(F))
 
   /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
     * applies it in parallel on the source, but with a specified
@@ -1733,7 +1721,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * instances in parallel.
     *
     * Note that when the specified `parallelism` is 1, it has the same
-    * behavior as [[mapTask]].
+    * behavior as [[mapEval]].
     *
     * @param parallelism is the maximum number of tasks that can be executed
     *        in parallel, over which the source starts being
@@ -1743,7 +1731,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        in parallel, which will eventually produce events for the
     *        resulting observable stream
     *
-    * @see [[mapTask]] for serial execution
+    * @see [[mapEval]] for serial execution
     */
   final def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B])
     (implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
@@ -4302,7 +4290,7 @@ object Observable {
     *
     */
   def repeatEvalF[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Observable[A] =
-    repeat(()).mapEval(_ => fa)(F)
+    repeat(()).mapEvalF(_ => fa)(F)
 
   /** Creates an Observable that emits items in the given range.
     *
@@ -4780,13 +4768,13 @@ object Observable {
     override def taskLift[A](task: Task[A]): Observable[A] =
       Observable.fromTask(task)
     override def bracketCase[A, B](acquire: Observable[A])(use: A => Observable[B])(release: (A, ExitCase[Throwable]) => Observable[Unit]): Observable[B] =
-      acquire.bracketCase(use)(release)
+      acquire.bracketCase(use)((a, e) => release(a, e).completedL)
     override def bracket[A, B](acquire: Observable[A])(use: A => Observable[B])(release: A => Observable[Unit]): Observable[B] =
-      acquire.bracket(use)(release)
+      acquire.bracket(use)(release.andThen(_.completedL))
     override def guarantee[A](fa: Observable[A])(finalizer: Observable[Unit]): Observable[A] =
-      fa.guarantee(finalizer)
+      fa.guarantee(finalizer.completedL)
     override def guaranteeCase[A](fa: Observable[A])(finalizer: ExitCase[Throwable] => Observable[Unit]): Observable[A] =
-      fa.guaranteeCase(finalizer)
+      fa.guaranteeCase(e => finalizer(e).completedL)
     override def uncancelable[A](fa: Observable[A]): Observable[A] =
       fa.uncancelable
   }
@@ -4965,7 +4953,7 @@ object Observable {
     }
 
     /**
-      * DEPRECATED — renamed to [[Observable.doOnCompleteF]].
+      * DEPRECATED — renamed to [[Observable.doOnCompleteF doOnCompleteF]].
       */
     @deprecated("Renamed to doOnCompleteF", "3.0.0")
     def doOnCompleteEval[F[_]](effect: F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
@@ -4975,12 +4963,326 @@ object Observable {
     }
 
     /**
-      * DEPRECATED — renamed to [[Observable.doOnComplete]].
+      * DEPRECATED — renamed to [[Observable.doOnComplete doOnComplete]].
       */
     @deprecated("Renamed to doOnComplete", "3.0.0")
     def doOnCompleteTask(task: Task[Unit]): Observable[A] = {
       // $COVERAGE-OFF$
       self.doOnComplete(task)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — Signature changed, see [[Observable.doOnError doOnError]].
+      */
+    @deprecated("Signature changed to use Task", "3.0.0")
+    def doOnError(cb: Throwable => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnError(e => Task(cb(e)))
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnErrorF doOnErrorF]].
+      */
+    @deprecated("Renamed to doOnErrorF", "3.0.0")
+    def doOnErrorEval[F[_]](cb: Throwable => F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnErrorF(cb)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnError doOnError]].
+      */
+    @deprecated("Renamed to doOnError", "3.0.0")
+    def doOnErrorTask(cb: Throwable => Task[Unit]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnError(cb)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — switch to:
+      *
+      *  - [[Observable.guaranteeCase guaranteeCase]]
+      *  - [[Observable.guaranteeCaseF guaranteeCaseF]]
+      */
+    @deprecated("Switch to guaranteeCase", "3.0.0")
+    def doOnTerminate(cb: Option[Throwable] => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.guaranteeCase {
+        case ExitCase.Error(e) => Task(cb(Some(e)))
+        case _ => Task(cb(None))
+      }
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — a much better version of `doOnTerminateEval`
+      * is [[Observable.guaranteeCaseF guaranteeCaseF]].
+      *
+      * Example:
+      * {{{
+      *   import cats.effect.{ExitCase, IO}
+      *
+      *   Observable.range(0, 1000).guaranteeCase {
+      *     case ExitCase.Error(e) =>
+      *       IO(println(s"Error raised: $$e")
+      *     case ExitCase.Completed =>
+      *       IO(println("Stream completed normally")
+      *     case ExitCase.Canceled =>
+      *       IO(println("Stream was cancelled")
+      *   }
+      * }}}
+      */
+    @deprecated("Switch to guaranteeCaseF", "3.0.0")
+    def doOnTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.guaranteeCaseF {
+        case ExitCase.Error(e) => cb(Some(e))
+        case _ => cb(None)
+      }
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — a much better version of `doOnTerminateTask`
+      * is [[Observable.guaranteeCase guaranteeCase]].
+      *
+      * Example:
+      * {{{
+      *   import cats.effect.ExitCase
+      *
+      *   Observable.range(0, 1000).guaranteeCase {
+      *     case ExitCase.Error(e) =>
+      *       Task(println(s"Error raised: $$e")
+      *     case ExitCase.Completed =>
+      *       Task(println("Stream completed normally")
+      *     case ExitCase.Canceled =>
+      *       Task(println("Stream was cancelled")
+      *   }
+      * }}}
+      */
+    @deprecated("Switch to guaranteeCase", "3.0.0")
+    def doOnTerminateTask(cb: Option[Throwable] => Task[Unit]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.guaranteeCase {
+        case ExitCase.Error(e) => cb(Some(e))
+        case _ => cb(None)
+      }
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — this function has no direct replacement.
+      *
+      * Switching to [[Observable.guaranteeCase]] is recommended.
+      */
+    @deprecated("Switch to guaranteeCase", "3.0.0")
+    def doAfterTerminate(cb: Option[Throwable] => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.liftByOperator(new EvalOnTerminateOperator[A](e => Task(cb(e)), happensBefore = false))
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — this function has no direct replacement.
+      *
+      * Switching to [[Observable.guaranteeCaseF]] is recommended.
+      */
+    @deprecated("Switch to guaranteeCaseF", "3.0.0")
+    def doAfterTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.liftByOperator(new EvalOnTerminateOperator[A](e => F.toTask(cb(e)), happensBefore = false))
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — this function has no direct replacement.
+      *
+      * Switching to [[Observable.guaranteeCase]] is recommended.
+      */
+    @deprecated("Switch to guaranteeCase", "3.0.0")
+    def doAfterTerminateTask(cb: Option[Throwable] => Task[Unit]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.liftByOperator(new EvalOnTerminateOperator[A](cb, happensBefore = false))
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — signature for function changed to use
+      * [[monix.eval.Task]].
+      *
+      * {{{
+      *   Observable.range(0, 100).doOnNext { a =>
+      *     Task(println(s"Next: $$a"))
+      *   }
+      * }}}
+      */
+    @deprecated("Signature changed to use Task", "3.0.0")
+    def doOnNext(cb: A => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnNext(a => Task(cb(a)))
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnNextF]].
+      */
+    @deprecated("Renamed to doOnNextF", "3.0.0")
+    def doOnNextEval[F[_]](cb: A => F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnNextF(cb)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnNext]].
+      */
+    @deprecated("Renamed to doOnNext", "3.0.0")
+    def doOnNextTask(cb: A => Task[Unit]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnNext(cb)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — signature changed to use [[monix.eval.Task]].
+      */
+    @deprecated("Signature changed to use Task", "3.0.0")
+    def doOnNextAck(cb: (A, Ack) => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnNextAck((a, ack) => Task(cb(a, ack)))
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnNextAckF]].
+      */
+    @deprecated("Renamed to doOnNextAckF", "3.0.0")
+    def doOnNextAckEval[F[_]](cb: (A, Ack) => F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnNextAckF(cb)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnNextAck]].
+      */
+    @deprecated("Renamed to doOnNextAck", "3.0.0")
+    def doOnNextAckTask(cb: (A, Ack) => Task[Unit]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnNextAck(cb)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — signature changed to use [[monix.eval.Task]]
+      */
+    @deprecated("Signature changed to use Task", "3.0.0")
+    def doOnStart(cb: A => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnStart(a => Task(cb(a)))
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnStart]]
+      */
+    @deprecated("Renamed to doOnStart", "3.0.0")
+    def doOnStartTask(cb: A => Task[Unit]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnStart(cb)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Observable.doOnStartF]]
+      */
+    @deprecated("Renamed to doOnStartF", "3.0.0")
+    def doOnStartEval[F[_]](cb: A => F[Unit])(implicit F: Effect[F]): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnStartF(cb)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — signature changed to use [[monix.eval.Task Task]].
+      *
+      * Switch to:
+      *
+      *   - [[Observable.doOnSubscribe doOnSubscribe]]
+      *   - [[Observable.doOnSubscribeF doOnSubscribeF]]
+      *
+      * Note that via the magic of [[TaskLike]] which supports `Comonad`
+      * conversions, you can still use side effectful callbacks in
+      * [[Observable.doOnSubscribeF doOnSubscribeF]], but it isn't
+      * recommended:
+      *
+      * {{{
+      *   import cats.implicits._
+      *
+      *   Observable.range(0, 10).doOnSubscribeF { () =>
+      *     println("Look ma! Side-effectful callbacks!")
+      *   }
+      * }}}
+      *
+      * The switch to `Task` is to encourage referential transparency,
+      * so use it.
+      */
+    @deprecated("Switch to doOnStart or doOnStartF", "3.0.0")
+    def doOnSubscribe(cb: () => Unit): Observable[A] =
+      new EvalOnSubscribeObservable.After[A](self, task)
+
+    /** DEPRECATED — signature changed to use [[monix.eval.Task Task]].
+      *
+      * Switch to:
+      *
+      *   - [[Observable.doAfterSubscribe doAfterSubscribe]]
+      *   - [[Observable.doAfterSubscribeF doAfterSubscribeF]]
+      *
+      * Note that via the magic of [[TaskLike]] which supports `Comonad`
+      * conversions, you can still use side effectful callbacks in
+      * [[Observable.doAfterSubscribeF doAfterSubscribeF]], but it isn't
+      * recommended:
+      *
+      * {{{
+      *   import cats.implicits._
+      *
+      *   Observable.range(0, 10).doAfterSubscribeF { () =>
+      *     println("Look ma! Side-effectful callbacks!")
+      *   }
+      * }}}
+      *
+      * The switch to `Task` is to encourage referential transparency,
+      * so use it.
+      */
+    @deprecated("Switch to doAfterSubscribe or doAfterSubscribeF", "3.0.0")
+    def doAfterSubscribe(cb: () => Unit): Observable[A] =
+      new EvalOnSubscribeObservable.After[A](self, task)
+
+    /**
+      * DEPRECATED — renamed to [[Observable.mapEval]].
+      */
+    @deprecated("Renamed to mapEval", "3.0.0")
+    def mapTask[B](f: A => Task[B]): Observable[B] = {
+      // $COVERAGE-OFF$
+      self.mapEval(f)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — switch to [[Observable.mapEvalF]], which
+      * is the generic version that supports usage with `Future`
+      * via the magic of [[TaskLike]].
+      *
+      * The replacement is direct, a simple rename:
+      * {{{
+      *   import scala.concurrent._
+      *   import monix.execution.FutureUtils.extensions._
+      *   import monix.execution.Scheduler.Implicits.global
+      *
+      *   Observable.range(0, 100).mapEvalF { a =>
+      *     Future.delayedResult(1.second)(a)
+      *   }
+      * }}}
+      */
+    @deprecated("Switch to mapEvalF", "3.0.0")
+    def mapFuture[B](f: A => Future[B]): Observable[B] = {
+      // $COVERAGE-OFF$
+      self.mapEvalF(f)
       // $COVERAGE-ON$
     }
   }

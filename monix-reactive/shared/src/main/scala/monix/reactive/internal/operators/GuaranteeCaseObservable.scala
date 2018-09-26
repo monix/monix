@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import cats.effect.ExitCase
+import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, AtomicBoolean}
 import monix.execution.internal.Platform
@@ -27,13 +28,13 @@ import monix.execution.{Ack, Cancelable, FutureUtils, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 private[reactive] class GuaranteeCaseObservable[A](
   source: Observable[A],
-  f: ExitCase[Throwable] => Observable[Unit])
+  f: ExitCase[Throwable] => Task[Unit])
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -56,7 +57,7 @@ private[reactive] class GuaranteeCaseObservable[A](
       s.execute(new TrampolinedRunnable {
         def run(): Unit =
           try {
-            f(ec).unsafeSubscribeFn(Subscriber.empty)
+            f(ec).runAsyncAndForget
           } catch {
             case NonFatal(e) =>
               s.reportFailure(e)
@@ -106,51 +107,30 @@ private[reactive] class GuaranteeCaseObservable[A](
     private def stopAsFuture(e: ExitCase[Throwable]): Future[Ack] = {
       // Thread-safety guard
       if (isActive.getAndSet(false)) {
-        val p = Promise[Ack]()
-        f(e).unsafeSubscribeFn(new Subscriber.Sync[Any] {
-          implicit val scheduler: Scheduler = out.scheduler
-          def onNext(elem: Any) = Continue
-          def onComplete(): Unit = p.complete(Stop.AsSuccess)
-          def onError(ex: Throwable): Unit = {
-            scheduler.reportFailure(ex)
-            p.complete(Stop.AsSuccess)
-          }
-        })
-        p.future.syncTryFlatten
+        Task.suspend(f(e))
+          .redeem(e => { scheduler.reportFailure(e); Stop }, _ => Stop)
+          .runAsync
       } else {
         Stop
       }
     }
 
     private def signalComplete(e: Throwable): Unit = {
-      def compose(e2: Throwable) = {
+      def composeError(e2: Throwable) = {
         if (e != null) Platform.composeErrors(e, e2)
         else e2
       }
 
       if (isActive.getAndSet(false)) {
         val code = if (e != null) ExitCase.Error(e) else ExitCase.Completed
-        var catchErrors = true
-        try {
-          val obs = f(code)
-          catchErrors = false
-          obs.unsafeSubscribeFn(new Subscriber.Sync[Any] {
-            implicit val scheduler = out.scheduler
-            def onNext(elem: Any) = Continue
+        Task.suspend(f(code)).runAsyncUncancelable(
+          new Callback[Unit] {
+            def onSuccess(value: Unit): Unit =
+              if (e != null) out.onError(e)
+              else out.onComplete()
             def onError(e2: Throwable): Unit =
-              out.onError(compose(e2))
-            def onComplete(): Unit =
-              if (e != null) out.onError(e) else out.onComplete()
+              out.onError(composeError(e2))
           })
-        } catch {
-          case NonFatal(e2) =>
-            if (catchErrors) {
-              out.onError(compose(e2))
-            } else {
-              out.scheduler.reportFailure(e2)
-              if (e != null) out.onError(e) else out.onComplete()
-            }
-        }
       }
     }
   }

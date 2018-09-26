@@ -139,7 +139,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
         .toListL
 
       val expected = Observable.fromIterable(list)
-        .mapTask(x => if (isAsync) Task.evalAsync(x + 10) else Task.eval(x + 10))
+        .mapEval(x => if (isAsync) Task.evalAsync(x + 10) else Task.eval(x + 10))
         .toListL
 
       received <-> expected

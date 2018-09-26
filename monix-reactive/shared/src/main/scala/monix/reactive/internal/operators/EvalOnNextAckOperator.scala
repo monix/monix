@@ -21,12 +21,11 @@ import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
-import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.util.Success
+import scala.util.control.NonFatal
 
 private[reactive] final class EvalOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
   extends Operator[A,A] {
@@ -48,11 +47,7 @@ private[reactive] final class EvalOnNextAckOperator[A](cb: (A, Ack) => Task[Unit
         }
 
         // Execution might be immediate
-        val ack = task.runAsync
-        ack.value match {
-          case Some(Success(sync)) => sync
-          case _ => ack
-        }
+        task.runAsync.syncTryFlatten
       }
 
       def onComplete(): Unit = {
