@@ -24,8 +24,7 @@ import monix.eval.{Coeval, Task}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.tail.Iterant.Suspend
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 import scala.util.Failure
@@ -52,10 +51,10 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
   test("naiveImp smoke test") { implicit s =>
     val input = List(1, 2, 3, 4, 5, 6)
     val iter = Iterant[Coeval].fromList(input)
-    assertEquals(naiveImp(iter, 1).toListL.value, input)
-    assertEquals(naiveImp(iter, 2).toListL.value, List(2, 4, 6))
-    assertEquals(naiveImp(iter, 3).toListL.value, List(3, 6))
-    assertEquals(naiveImp(iter, input.length + 1).toListL.value, List.empty[Int])
+    assertEquals(naiveImp(iter, 1).toListL.value(), input)
+    assertEquals(naiveImp(iter, 2).toListL.value(), List(2, 4, 6))
+    assertEquals(naiveImp(iter, 3).toListL.value(), List(3, 6))
+    assertEquals(naiveImp(iter, input.length + 1).toListL.value(), List.empty[Int])
   }
 
   test("Iterant[Task].takeEveryNth equivalence with naiveImp") { implicit s =>
@@ -76,7 +75,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
   test("Iterant.takeEveryNth protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.takeEveryNth(1)
       received <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
@@ -86,7 +85,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
   test("Iterant.takeEveryNth protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.takeEveryNth(1)
       received <-> iter.onErrorIgnore ++ Iterant[Task].haltS[Int](Some(dummy))
@@ -97,35 +96,15 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Coeval, Int]) =>
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
-      val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
-      assertEquals(stream.takeEveryNth(1).toListL.runTry, Failure(dummy))
+      val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty))
+      val stream = (iter.onErrorIgnore ++ suffix).guarantee(Coeval.eval(cancelable.cancel()))
+      assertEquals(stream.takeEveryNth(1).toListL.runTry(), Failure(dummy))
       cancelable.isCanceled
     }
   }
 
-  test("Iterant.takeEveryNth preserves the source earlyStop") { implicit s =>
-    var effect = 0
-    val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
-    val stream = source.takeEveryNth(1)
-    stream.earlyStop.value
-    assertEquals(effect, 1)
-  }
-
   test("Iterant.takeEveryNth throws on invalid n") { implicit s =>
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    intercept[IllegalArgumentException] { source.takeEveryNth(0) }
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
+    intercept[IllegalArgumentException] { source.takeEveryNth(0).completeL.value() }
   }
-
-  test("Iterant.takeEveryNth suspends execution for NextCursor or NextBatch") { _ =>
-    val iter1 = Iterant[Coeval].nextBatchS(Batch(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    assert(iter1.takeEveryNth(2).isInstanceOf[Suspend[Coeval, Int]], "NextBatch should be suspended")
-    assertEquals(iter1.takeEveryNth(2).toListL.value, List(2))
-
-    val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    assert(iter2.takeEveryNth(2).isInstanceOf[Suspend[Coeval, Int]], "NextCursor should be suspended")
-    assertEquals(iter2.takeEveryNth(2).toListL.value, List(2))
-  }
-
 }

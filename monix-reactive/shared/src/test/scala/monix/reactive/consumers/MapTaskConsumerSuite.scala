@@ -28,7 +28,7 @@ object MapTaskConsumerSuite extends BaseTestSuite {
   test("consumer.mapTask equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
-      val t1 = obs.consumeWith(consumer.mapTask(x => Task(x + 100)))
+      val t1 = obs.consumeWith(consumer.mapTask(x => Task.evalAsync(x + 100)))
       val t2 = obs.consumeWith(consumer).map(_ + 100)
       t1 <-> t2
     }
@@ -39,7 +39,7 @@ object MapTaskConsumerSuite extends BaseTestSuite {
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
 
-      val t1 = withError.consumeWith(consumer.mapTask(x => Task(x + 100)))
+      val t1 = withError.consumeWith(consumer.mapTask(x => Task.evalAsync(x + 100)))
       val t2 = withError.consumeWith(consumer).map(_+100)
       t1 <-> t2
     }
@@ -48,7 +48,7 @@ object MapTaskConsumerSuite extends BaseTestSuite {
   test("consumer.mapTask handles task errors") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
-      .consumeWith(Consumer.head[Int].mapTask(_ => Task(throw ex)))
+      .consumeWith(Consumer.head[Int].mapTask(_ => Task.evalAsync(throw ex)))
       .runAsync
 
     s.tick()

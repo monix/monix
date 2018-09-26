@@ -61,7 +61,7 @@ object TaskForkAndForgetSuite extends BaseTestSuite {
   test("Task.forkAndForget is stack safe") { implicit sc =>
     val count = if (Platform.isJVM) 100000 else 5000
 
-    var task: Task[Any] = Task(1)
+    var task: Task[Any] = Task.evalAsync(1)
     for (_ <- 0 until count) task = task.forkAndForget
     for (_ <- 0 until count) task = task.flatMap(_ => Task.unit)
 

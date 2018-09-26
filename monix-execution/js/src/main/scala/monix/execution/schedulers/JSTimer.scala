@@ -17,35 +17,22 @@
 
 package monix.execution.schedulers
 
-import monix.execution.UncaughtExceptionReporter
+import scala.concurrent.ExecutionContext
 import scala.scalajs.js
 
 /** Utils for quickly using Javascript's `setTimeout` and
   * `clearTimeout`.
   */
 private[schedulers] object JSTimer {
-  def setImmediate(r: Runnable, reporter: UncaughtExceptionReporter): Unit =
-    setImmediateRef(() =>
-      try r.run()
-      catch { case e: Throwable => reporter.reportFailure(e) })
-
-  def setTimeout(delayMillis: Long, r: Runnable, reporter: UncaughtExceptionReporter): js.Dynamic = {
+  def setTimeout(ec: ExecutionContext, delayMillis: Long, r: Runnable): js.Dynamic = {
     val lambda: js.Function = () =>
-      try { r.run() } catch { case t: Throwable =>
-        reporter.reportFailure(t)
-      }
+      try { r.run() }
+      catch { case t: Throwable => ec.reportFailure(t) }
 
     js.Dynamic.global.setTimeout(lambda, delayMillis)
   }
 
   def clearTimeout(task: js.Dynamic): js.Dynamic = {
     js.Dynamic.global.clearTimeout(task)
-  }
-
-  private final val setImmediateRef: js.Dynamic = {
-    if (!js.isUndefined(js.Dynamic.global.setImmediate))
-      js.Dynamic.global.setImmediate
-    else
-      js.Dynamic.global.setTimeout
   }
 }

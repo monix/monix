@@ -36,7 +36,7 @@ object CatsConversionsSuite extends BaseTestSuite {
   }
 
   test("fromEffect(IO)") { implicit s =>
-    val obs = Observable.fromEffect(IO(10))
+    val obs = Observable.fromTaskLike(IO(10))
     val f = obs.lastOrElseL(0).runAsync
     assertEquals(f.value, Some(Success(10)))
   }

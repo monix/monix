@@ -18,7 +18,6 @@
 package monix.execution.schedulers
 
 import java.util.concurrent._
-import monix.execution.UncaughtExceptionReporter._
 import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
@@ -47,8 +46,7 @@ import scala.concurrent.duration._
   *
   * @define reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
   *         Wrap the given `ExecutionContext.reportFailure` or use
-  *         [[UncaughtExceptionReporter.LogExceptionsToStandardErr]] for
-  *         the default.
+  *         [[UncaughtExceptionReporter.default]] for the default.
   */
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   /** [[monix.execution.Scheduler Scheduler]] builder.
@@ -120,7 +118,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param executor $executorService
     */
   def apply(executor: ExecutorService): SchedulerService =
-    ExecutorScheduler(executor, LogExceptionsToStandardErr, ExecModel.Default)
+    ExecutorScheduler(executor, UncaughtExceptionReporter.default, ExecModel.Default)
 
   /** [[monix.execution.Scheduler Scheduler]] builder that converts a
     * Java `ExecutorService` into a scheduler.
@@ -129,7 +127,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param executionModel $executionModel
     */
   def apply(executor: ExecutorService, executionModel: ExecModel): SchedulerService =
-    ExecutorScheduler(executor, LogExceptionsToStandardErr, executionModel)
+    ExecutorScheduler(executor, UncaughtExceptionReporter.default, executionModel)
 
   /** [[monix.execution.Scheduler Scheduler]] builder - uses monix's
     * default `ScheduledExecutorService` for handling the scheduling of tasks.
@@ -220,7 +218,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     parallelism: Int = Runtime.getRuntime.availableProcessors(),
     name: String = "monix-computation",
     daemonic: Boolean = true,
-    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     ExecutorScheduler.forkJoinStatic(
@@ -249,7 +247,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     maxThreads: Int,
     name: String = "monix-forkjoin",
     daemonic: Boolean = true,
-    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     ExecutorScheduler.forkJoinDynamic(
@@ -272,7 +270,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param executionModel $executionModel
     */
   def io(name: String = "monix-io", daemonic: Boolean = true,
-    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     val threadFactory = ThreadFactoryBuilder(name, reporter, daemonic)
@@ -307,7 +305,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     maxThreads: Int,
     keepAliveTime: FiniteDuration = 60.seconds,
     daemonic: Boolean = true,
-    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     require(minThreads >= 0, "minThreads >= 0")
@@ -341,7 +339,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param executionModel $executionModel
     */
   def singleThread(name: String, daemonic: Boolean = true,
-    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     val factory = ThreadFactoryBuilder(name, reporter, daemonic)
@@ -369,7 +367,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
     */
   def fixedPool(name: String, poolSize: Int, daemonic: Boolean = true,
-    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     val factory = ThreadFactoryBuilder(name, reporter, daemonic)
@@ -465,7 +463,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       AsyncScheduler(
         DefaultScheduledExecutor,
         ExecutionContext.Implicits.global,
-        UncaughtExceptionReporter.LogExceptionsToStandardErr,
+        UncaughtExceptionReporter.default,
         ExecModel.Default
       )
 

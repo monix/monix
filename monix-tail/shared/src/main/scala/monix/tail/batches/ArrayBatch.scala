@@ -51,7 +51,7 @@ final class ArrayBatch[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
 
   override def map[B](f: (A) => B): ArrayBatch[B] = {
     val ref = cursor().map(f)
-    Batch.fromAnyArray[B](ref.array, 0, ref.length)
+    Batch.fromArray(ref.array, 0, ref.length)
   }
 
   override def filter(p: (A) => Boolean): ArrayBatch[A] = {
@@ -61,7 +61,7 @@ final class ArrayBatch[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
 
   override def collect[B](pf: PartialFunction[A, B]): ArrayBatch[B] = {
     val ref = cursor().collect(pf)
-    Batch.fromAnyArray[B](ref.array, 0, ref.length)
+    Batch.fromArray(ref.array, 0, ref.length)
   }
 
   override def foldLeft[R](initial: R)(op: (R, A) => R): R =

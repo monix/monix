@@ -20,34 +20,88 @@ package monix.tail.internal
 import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.misc.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
-import monix.tail.internal.IterantUtils.signalError
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantDistinctUntilChanged {
-  /** Implementation for `distinctUntilChangedByKey`. */
+  /**
+    * Implementation for `distinctUntilChangedByKey`.
+    */
   def apply[F[_], A, K](self: Iterant[F, A], f: A => K)
     (implicit F: Sync[F], K: Eq[K]): Iterant[F, A] = {
+    Suspend(F.delay(new Loop(f).apply(self)))
+  }
 
-    def processCursor(prev: K, self: NextCursor[F, A]) = {
-      val NextCursor(cursor, rest, stop) = self
+  private class Loop[F[_], A, K](f: A => K)(implicit F: Sync[F], K: Eq[K])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+
+    private[this] var current: K = null.asInstanceOf[K]
+
+    def visit(ref: Next[F, A]): Iterant[F, A] = {
+      val a = ref.item
+      val k = f(a)
+      if (current == null || K.neqv(current, k)) {
+        current = k
+        Next(a, ref.rest.map(this))
+      } else {
+        Suspend(ref.rest.map(this))
+      }
+    }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      processCursor(ref.toNextCursor())
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] =
+      processCursor(ref)
+
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] = {
+      val a = ref.item
+      val k = f(a)
+
+      if (current == null || K.neqv(current, k)) {
+        current = k
+        ref
+      } else {
+        Iterant.empty
+      }
+    }
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
+
+    private def processCursor(self: NextCursor[F, A]): Iterant[F, A] = {
+      val NextCursor(cursor, rest) = self
 
       if (!cursor.hasNext()) {
-        Suspend(rest.map(loop(prev)), stop)
+        Suspend(rest.map(this))
       }
       else if (cursor.recommendedBatchSize <= 1) {
         val a = cursor.next()
         val k = f(a)
-        if (K.neqv(prev, k)) Next(a, F.delay(loop(k)(self)), stop)
-        else Suspend(F.delay(loop(prev)(self)), stop)
+        if (current == null || K.neqv(current, k)) {
+          current = k
+          Next(a, F.delay(this(self)))
+        }
+        else
+          Suspend(F.delay(this(self)))
       }
       else {
         val buffer = ArrayBuffer.empty[A]
         var count = cursor.recommendedBatchSize
-        var current: K = prev
 
         // We already know hasNext == true
         do {
@@ -55,7 +109,7 @@ private[tail] object IterantDistinctUntilChanged {
           val k = f(a)
           count -= 1
 
-          if (K.neqv(current, k)) {
+          if (current == null || K.neqv(current, k)) {
             current = k
             buffer += a
           }
@@ -63,79 +117,17 @@ private[tail] object IterantDistinctUntilChanged {
 
         val next =
           if (cursor.hasNext())
-            F.delay(loop(current)(self))
+            F.delay(this(self))
           else
-            rest.map(loop(current))
+            rest.map(this)
 
         if (buffer.isEmpty)
-          Suspend(next, stop)
+          Suspend(next)
         else {
-          val ref = BatchCursor.fromAnyArray[A](buffer.toArray[Any])
-          NextCursor(ref, next, stop)
+          val ref = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]]
+          NextCursor(ref, next)
         }
       }
-    }
-
-    def loop(prev: K)(self: Iterant[F, A]): Iterant[F, A] = {
-      try self match {
-        case Next(a, rest, stop) =>
-          val k = f(a)
-          if (K.neqv(prev, k)) Next(a, rest.map(loop(k)), stop)
-          else Suspend(rest.map(loop(prev)), stop)
-
-        case node @ NextCursor(_, _, _) =>
-          processCursor(prev, node)
-        case NextBatch(ref, rest, stop) =>
-          processCursor(prev, NextCursor(ref.cursor(), rest, stop))
-
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop(prev)), stop)
-        case Last(a) =>
-          if (K.neqv(prev, f(a))) self else Halt(None)
-        case Halt(_) =>
-          self
-      } catch {
-        case e if NonFatal(e) =>
-          signalError(self, e)
-      }
-    }
-
-    // Starting function, needed because we don't have a start
-    // and I'd hate to use `null` for `prev` or box it in `Option`
-    def start(self: Iterant[F, A]): Iterant[F, A] = {
-      try self match {
-        case Next(a, rest, stop) =>
-          Next(a, rest.map(loop(f(a))), stop)
-        case node @ NextCursor(ref, rest, stop) =>
-          if (!ref.hasNext())
-            Suspend(rest.map(start), stop)
-          else {
-            val a = ref.next()
-            val k = f(a)
-            Next(a, F.delay(loop(k)(node)), stop)
-          }
-        case NextBatch(ref, rest, stop) =>
-          start(NextCursor(ref.cursor(), rest, stop))
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(start), stop)
-        case Last(_) | Halt(_) =>
-          self
-      } catch {
-        case e if NonFatal(e) =>
-          signalError(self, e)
-      }
-    }
-
-    self match {
-      case Suspend(_, _) | Halt(_) =>
-        // Fast-path
-        start(self)
-      case _ =>
-        // Suspending execution in order to preserve laziness and
-        // referential transparency, since the provided function can
-        // be side effecting and because processing NextBatch and
-        // NextCursor states can have side effects
-        Suspend(F.delay(start(self)), self.earlyStop)
     }
   }
 }

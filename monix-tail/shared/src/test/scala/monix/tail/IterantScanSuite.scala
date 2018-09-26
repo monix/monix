@@ -49,14 +49,14 @@ object IterantScanSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val fa = Iterant[Coeval].of(1, 2, 3)
     val r = fa.scan((throw dummy) : Int)((_, e) => e).attempt.toListL
-    assertEquals(r.value, List(Left(dummy)))
+    assertEquals(r.value(), List(Left(dummy)))
   }
 
   test("scan protects against exceptions in f") { implicit s =>
     val dummy = DummyException("dummy")
     val fa = Iterant[Coeval].of(1, 2, 3)
     val r = fa.scan(0)((_, _) => throw dummy).attempt.toListL
-    assertEquals(r.value, List(Left(dummy)))
+    assertEquals(r.value(), List(Left(dummy)))
   }
 
   test("scan0 emits seed as first element") { implicit s =>

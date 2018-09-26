@@ -37,7 +37,7 @@ object IterantDropLastSuite extends BaseTestSuite {
   test("Iterant.dropLast protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropLast(10)
       received <-> iter.onErrorIgnore.dropLast(10) ++ Iterant[Task].haltS[Int](Some(dummy))
@@ -47,31 +47,31 @@ object IterantDropLastSuite extends BaseTestSuite {
   test("Iterant.dropLast protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropLast(10)
       received <-> iter.onErrorIgnore.dropLast(10) ++ Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("Iterant.dropLast preserves the source earlyStop") { implicit s =>
+  test("Iterant.dropLast preserves resource safety") { implicit s =>
     var effect = 0
-    val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
+      .guarantee(Coeval.eval(effect += 1))
     val stream = source.dropLast(3)
-    stream.earlyStop.value
+    stream.completeL.value()
     assertEquals(effect, 1)
   }
 
-  test("Iterant.dropLast triggers early stop on exception") { _ =>
+  test("Iterant.dropLast closes resources on exception") { _ =>
     check1 { (iter: Iterant[Coeval, Int]) =>
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty), Coeval.unit)
-      val stream = (iter.onErrorIgnore ++ suffix).doOnEarlyStop(Coeval.eval(cancelable.cancel()))
+      val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty))
+      val stream = (iter.onErrorIgnore ++ suffix).guarantee(Coeval.eval(cancelable.cancel()))
 
       intercept[DummyException] {
-        stream.dropLast(1).toListL.value
+        stream.dropLast(1).toListL.value()
       }
       cancelable.isCanceled
     }
@@ -79,7 +79,7 @@ object IterantDropLastSuite extends BaseTestSuite {
 
   test("Iterant.dropLast works for infinite cursors") { implicit s =>
     check2 { (el: Int, _: Int) =>
-      val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]))
       val received = stream.dropLast(1).take(1).toListL
       val expected = Coeval(Stream.continually(el).dropRight(1).take(1).toList)
 

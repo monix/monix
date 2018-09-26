@@ -17,11 +17,12 @@
 
 package monix.eval.internal
 
+import cats.effect.CancelToken
+import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
-import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
-import monix.execution.misc.NonFatal
 
+import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -29,8 +30,25 @@ private[eval] object TaskGather {
   /**
     * Implementation for `Task.gather`
     */
-  def apply[A, M[X] <: TraversableOnce[X]](in: TraversableOnce[Task[A]], bldrBldr: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
-    Task.unsafeCreate { (context, finalCallback) =>
+  def apply[A, M[X] <: TraversableOnce[X]](in: TraversableOnce[Task[A]], makeBuilder: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
+    Async(
+      new Register(in, makeBuilder),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = true)
+  }
+
+  // Implementing Async's "start" via `ForkedStart` in order to signal
+  // that this is a task that forks on evaluation.
+  //
+  // N.B. the contract is that the injected callback gets called after
+  // a full async boundary!
+  private final class Register[A, M[X] <: TraversableOnce[X]](
+    in: TraversableOnce[Task[A]],
+    makeBuilder: () => mutable.Builder[A, M[A]])
+    extends ForkedRegister[M[A]] {
+
+    def apply(context: Context, finalCallback: Callback[M[A]]): Unit = {
       // We need a monitor to synchronize on, per evaluation!
       val lock = new AnyRef
       val mainConn = context.connection
@@ -46,7 +64,7 @@ private[eval] object TaskGather {
 
       // MUST BE synchronized by `lock`!
       // MUST NOT BE called if isActive == false!
-      def maybeSignalFinal(mainConn: StackedCancelable, finalCallback: Callback[M[A]])
+      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[M[A]])
         (implicit s: Scheduler): Unit = {
 
         completed += 1
@@ -54,7 +72,7 @@ private[eval] object TaskGather {
           isActive = false
           mainConn.pop()
 
-          val builder = bldrBldr()
+          val builder = makeBuilder()
           var idx = 0
           while (idx < results.length) {
             builder += results(idx).asInstanceOf[A]
@@ -63,102 +81,92 @@ private[eval] object TaskGather {
 
           tasks = null // GC relief
           results = null // GC relief
-          finalCallback.asyncOnSuccess(builder.result())
+          finalCallback.onSuccess(builder.result())
         }
       }
 
       // MUST BE synchronized by `lock`!
-      def reportError(mainConn: StackedCancelable, ex: Throwable)
+      def reportError(mainConn: TaskConnection, ex: Throwable)
         (implicit s: Scheduler): Unit = {
 
         if (isActive) {
           isActive = false
           // This should cancel our CompositeCancelable
-          mainConn.pop().cancel()
+          mainConn.pop().runAsyncAndForget
           tasks = null // GC relief
           results = null // GC relief
-          finalCallback.asyncOnError(ex)
+          finalCallback.onError(ex)
         } else {
           s.reportFailure(ex)
         }
       }
 
-      // Light asynchronous boundary
-      context.scheduler.executeTrampolined(() => lock.synchronized {
-        try {
-          implicit val s = context.scheduler
-          tasks = in.toArray
-          tasksCount = tasks.length
+      try {
+        implicit val s = context.scheduler
+        tasks = in.toArray
+        tasksCount = tasks.length
 
-          if (tasksCount == 0) {
-            // With no tasks available, we need to return an empty sequence
-            finalCallback.asyncOnSuccess(bldrBldr().result())
-          }
-          else if (tasksCount == 1) {
-            // If it's a single task, then execute it directly
-            val source = tasks(0).map(r => (bldrBldr() += r).result())
-            Task.unsafeStartNow(source, context, finalCallback)
-          }
-          else if (tasksCount == 2) {
-            // Optimizing for 2 tasks by calling `mapBoth`
-            val source = Task.mapBoth(tasks(0), tasks(1)) { (a1,a2) =>
-              val b = bldrBldr()
-              b += a1 += a2
-              b.result()
-            }
+        if (tasksCount == 0) {
+          // With no tasks available, we need to return an empty sequence;
+          // Needs to ensure full async delivery due to implementing ForkedStart!
+          context.scheduler.executeAsync(() =>
+            finalCallback.onSuccess(makeBuilder().result()))
+        }
+        else if (tasksCount == 1) {
+          // If it's a single task, then execute it directly
+          val source = tasks(0).map(r => (makeBuilder() += r).result())
+          // Needs to ensure full async delivery due to implementing ForkedStart!
+          Task.unsafeStartEnsureAsync(source, context, finalCallback)
+        }
+        else {
+          results = new Array[AnyRef](tasksCount)
 
-            Task.unsafeStartNow(source, context, finalCallback)
-          }
-          else {
-            results = new Array[AnyRef](tasksCount)
+          // Collecting all cancelables in a buffer, because adding
+          // cancelables one by one in our `CompositeCancelable` is
+          // expensive, so we do it at the end
+          val allCancelables = ListBuffer.empty[CancelToken[Task]]
 
-            // Collecting all cancelables in a buffer, because adding
-            // cancelables one by one in our `CompositeCancelable` is
-            // expensive, so we do it at the end
-            val allCancelables = ListBuffer.empty[StackedCancelable]
+          // We need a composite because we are potentially starting tasks
+          // in parallel and thus we need to cancel everything
+          val composite = TaskConnectionComposite()
+          mainConn.push(composite.cancel)
 
-            // We need a composite because we are potentially starting tasks
-            // in paralel and thus we need to cancel everything
-            val composite = CompositeCancelable()
-            mainConn.push(composite)
+          var idx = 0
+          while (idx < tasksCount && isActive) {
+            val currentTask = idx
+            val stacked = TaskConnection()
+            val childContext = context.withConnection(stacked)
+            allCancelables += stacked.cancel
 
-            var idx = 0
-            while (idx < tasksCount && isActive) {
-              val currentTask = idx
-              val stacked = StackedCancelable()
-              val childContext = context.copy(connection = stacked)
-              allCancelables += stacked
-
-              // Light asynchronous boundary
-              Task.unsafeStartTrampolined(tasks(idx), childContext,
-                new Callback[A] {
-                  def onSuccess(value: A): Unit =
-                    lock.synchronized {
-                      if (isActive) {
-                        results(currentTask) = value.asInstanceOf[AnyRef]
-                        maybeSignalFinal(mainConn, finalCallback)
-                      }
+            // Light asynchronous boundary
+            Task.unsafeStartEnsureAsync(tasks(idx), childContext,
+              new Callback[A] {
+                def onSuccess(value: A): Unit =
+                  lock.synchronized {
+                    if (isActive) {
+                      results(currentTask) = value.asInstanceOf[AnyRef]
+                      maybeSignalFinal(mainConn, finalCallback)
                     }
+                  }
 
-                  def onError(ex: Throwable): Unit =
-                    lock.synchronized(reportError(mainConn, ex))
-                })
+                def onError(ex: Throwable): Unit =
+                  lock.synchronized(reportError(mainConn, ex))
+              })
 
-              idx += 1
-            }
-
-            // Note that if an error happened, this should cancel all
-            // active tasks.
-            composite ++= allCancelables
+            idx += 1
           }
+
+          // Note that if an error happened, this should cancel all
+          // active tasks.
+          composite.addAll(allCancelables)
+          ()
         }
-        catch {
-          case ex if NonFatal(ex) =>
-            // We are still under the lock.synchronize block
-            // so this call is safe
-            reportError(context.connection, ex)(context.scheduler)
-        }
-      })
+      } catch {
+        case ex if NonFatal(ex) =>
+          // We are still under the lock.synchronize block
+          // so this call is safe
+          reportError(context.connection, ex)(context.scheduler)
+      }
     }
   }
 }

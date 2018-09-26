@@ -129,8 +129,8 @@ object PublishToOneSubject {
   def apply[A](): PublishToOneSubject[A] =
     new PublishToOneSubject[A]()
 
-  private final val canceledState = new EmptySubscriber[Any]
-  private final val pendingCompleteState = new EmptySubscriber[Any]
+  private val canceledState = new EmptySubscriber[Any]
+  private val pendingCompleteState = new EmptySubscriber[Any]
 
   /** Helper for managing state in the `PublishToOneSubject` */
   private final class EmptySubscriber[-A] extends Subscriber.Sync[A] {

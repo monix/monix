@@ -20,6 +20,8 @@ package monix.eval
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.misc.AsyncVar
 
+import scala.util.control.NonFatal
+
 /** A mutable location, that is either empty or contains
   * a value of type `A`.
   *
@@ -71,9 +73,10 @@ abstract class MVar[A] {
     * until there is a value available, at which point the operation
     * resorts to a [[take]] followed by a [[put]].
     *
-    * This `read` operation is equivalent to:
+    * This `read` operation is equivalent to a method like this:
     * {{{
-    *   for (a <- v.take; _ <- v.put(a)) yield a
+    *   def readMVar[A](v: MVar[A]) =
+    *     for (a <- v.take; _ <- v.put(a)) yield a
     * }}}
     *
     * This operation is not atomic. Being equivalent with a `take`
@@ -130,29 +133,35 @@ object MVar {
   /** [[MVar]] implementation based on [[monix.execution.misc.AsyncVar]] */
   private final class AsyncMVarImpl[A](av: AsyncVar[A]) extends MVar[A] {
     def put(a: A): Task[Unit] =
-      Task.unsafeCreate { (ctx, cb) =>
-        val async = Callback.async(cb)(ctx.scheduler)
-        // Execution could be synchronous
-        if (av.unsafePut(a, async)) async.onSuccess(())
+      Task.async0 { (_, cb) =>
+        var streamError = true
+        try {
+          // Execution could be synchronous
+          if (av.unsafePut(a, cb)) {
+            streamError = false
+            cb.onSuccess(())
+          }
+        } catch {
+          case e if NonFatal(e) && streamError =>
+            cb.onError(e)
+        }
       }
 
     def take: Task[A] =
-      Task.unsafeCreate { (ctx, cb) =>
-        val async = Callback.async(cb)(ctx.scheduler)
+      Task.async0 { (_, cb) =>
         // Execution could be synchronous (e.g. result is null or not)
-        av.unsafeTake(async) match {
+        av.unsafeTake(cb) match {
           case null => () // do nothing
-          case a => async.onSuccess(a)
+          case a => cb.onSuccess(a)
         }
       }
 
     def read: Task[A] =
-      Task.unsafeCreate { (ctx, cb) =>
-        val async = Callback.async(cb)(ctx.scheduler)
+      Task.async0 { (_, cb) =>
         // Execution could be synchronous (e.g. result is null or not)
-        av.unsafeRead(async) match {
+        av.unsafeRead(cb) match {
           case null => () // do nothing
-          case a => async.onSuccess(a)
+          case a => cb.onSuccess(a)
         }
       }
   }

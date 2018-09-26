@@ -31,7 +31,7 @@ object TaskBuildersSuite extends BaseTestSuite {
     val cf = new CompletableFuture[Int]()
     val task = Task.fromCompletableFuture(cf)
     cf.complete(42)
-    assert(task === Task(42))
+    assert(task === Task.evalAsync(42))
   }
 
   test("Task.fromCompletableFuture reports errors") { implicit s =>

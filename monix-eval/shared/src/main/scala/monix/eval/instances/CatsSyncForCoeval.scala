@@ -17,9 +17,10 @@
 
 package monix.eval.instances
 
-import cats.{CoflatMap, Eval}
-import cats.effect.Sync
+import cats.{CoflatMap, Eval, SemigroupK}
+import cats.effect.{ExitCase, Sync}
 import monix.eval.Coeval
+
 import scala.util.Try
 
 /** Cats type class instances for [[monix.eval.Coeval Coeval]].
@@ -34,7 +35,7 @@ import scala.util.Try
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsSyncForCoeval extends Sync[Coeval] with CoflatMap[Coeval] {
+class CatsSyncForCoeval extends Sync[Coeval] with CoflatMap[Coeval] with SemigroupK[Coeval] {
   override def pure[A](a: A): Coeval[A] =
     Coeval.now(a)
   override def delay[A](thunk: => A): Coeval[A] =
@@ -77,6 +78,12 @@ class CatsSyncForCoeval extends Sync[Coeval] with CoflatMap[Coeval] {
     Coeval.now(f(fa))
   override def coflatten[A](fa: Coeval[A]): Coeval[Coeval[A]] =
     Coeval.now(fa)
+  override def bracket[A, B](acquire: Coeval[A])(use: A => Coeval[B])(release: A => Coeval[Unit]): Coeval[B] =
+    acquire.bracket(use)(release)
+  override def bracketCase[A, B](acquire: Coeval[A])(use: A => Coeval[B])(release: (A, ExitCase[Throwable]) => Coeval[Unit]): Coeval[B] =
+    acquire.bracketCase(use)(release)
+  override def combineK[A](x: Coeval[A], y: Coeval[A]): Coeval[A] =
+    x.onErrorHandleWith(_ => y)
 }
 
 /** Default and reusable instance for [[CatsSyncForCoeval]].

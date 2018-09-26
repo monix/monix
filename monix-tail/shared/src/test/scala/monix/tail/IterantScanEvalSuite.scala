@@ -59,7 +59,7 @@ object IterantScanEvalSuite extends BaseTestSuite {
 
       val expected = source.take(20).toListL.map(ls =>
         ls.take(19)
-          .map(x => requestPersonDetails(x).value)
+          .map(x => requestPersonDetails(x).value())
           .collect { case Some(p) => p.name }
       )
 
@@ -71,23 +71,23 @@ object IterantScanEvalSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val fa = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
+    val fa = Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 })
     val r = fa.scanEval(Coeval.raiseError[Int](dummy))((_, e) => Coeval(e)).attempt.toListL
 
     assertEquals(effect, 0)
-    assertEquals(r.value, List(Left(dummy)))
-    assertEquals(effect, 1)
+    assertEquals(r.value(), List(Left(dummy)))
+    assertEquals(effect, 0)
   }
 
   test("scan protects against exceptions in f") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val fa = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
+    val fa = Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 })
     val r = fa.scanEval(Coeval(0))((_, _) => throw dummy).attempt.toListL
 
     assertEquals(effect, 0)
-    assertEquals(r.value, List(Left(dummy)))
+    assertEquals(r.value(), List(Left(dummy)))
     assertEquals(effect, 1)
   }
 
@@ -95,11 +95,11 @@ object IterantScanEvalSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val fa = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
+    val fa = Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 })
     val r = fa.scanEval(Coeval(0))((_, _) => Coeval.raiseError(dummy)).attempt.toListL
 
     assertEquals(effect, 0)
-    assertEquals(r.value, List(Left(dummy)))
+    assertEquals(r.value(), List(Left(dummy)))
     assertEquals(effect, 1)
   }
 

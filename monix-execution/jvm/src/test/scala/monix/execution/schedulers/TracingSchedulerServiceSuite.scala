@@ -18,11 +18,14 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
+
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
-import monix.execution.misc.{Local, NonFatal}
+import monix.execution.misc.Local
+
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 object TracingSchedulerServiceSuite extends SimpleTestSuite {
   testAsync("captures locals in actual async execution") {

@@ -80,15 +80,13 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
 
     if (newLength <= 0) {
       BatchCursor.fromAnyArray[B](Array.empty, 0, 0)
-    }
-    else {
+    } else {
       val copy = new Array[AnyRef](newLength)
       var i = 0
       while (i < newLength) {
-        copy(i) = f(_array(i+oldOffset)).asInstanceOf[AnyRef]
+        copy(i) = f(_array(i + oldOffset)).asInstanceOf[AnyRef]
         i += 1
       }
-
       BatchCursor.fromAnyArray[B](copy, 0, newLength)
     }
   }
@@ -119,7 +117,8 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
       oldIndex += 1
     }
 
-    BatchCursor.fromAnyArray[B](buffer.result())
+    BatchCursor.fromArray(buffer.result())
+      .asInstanceOf[ArrayCursor[B]]
   }
 
   override def toBatch: Batch[A] = {

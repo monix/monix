@@ -56,7 +56,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.now(trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runOnComplete(r => result = Some(r))
+    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
     assertEquals(result, Some(Success("result")))
   }
 
@@ -70,7 +70,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.now(trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runOnComplete(r => result = Some(r))
+    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
     assertEquals(result, None)
     s2.tick()
     assertEquals(result, Some(Success("result")))
@@ -110,7 +110,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.raiseError[String](trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runOnComplete(r => result = Some(r))
+    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
     assertEquals(result, Some(Failure(dummy)))
   }
 
@@ -125,14 +125,14 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.raiseError[String](trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runOnComplete(r => result = Some(r))
+    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
     assertEquals(result, None)
     s2.tick()
     assertEquals(result, Some(Failure(dummy)))
   }
 
   test("Task.now.map should work") { implicit s =>
-    Coeval.now(1).map(_ + 1).value
+    Coeval.now(1).map(_ + 1).value()
     check1 { a: Int =>
       Task.now(a).map(_ + 1) <-> Task.now(a + 1)
     }
@@ -200,13 +200,13 @@ object TaskNowSuite extends BaseTestSuite {
   }
 
   test("Task.now.coeval") { implicit s =>
-    val result = Task.now(100).coeval.value
+    val result = Task.now(100).runSyncStep
     assertEquals(result, Right(100))
   }
 
   test("Task.raiseError.coeval") { implicit s =>
     val dummy = DummyException("dummy")
-    val result = Task.raiseError(dummy).coeval.runTry
-    assertEquals(result, Failure(dummy))
+    val result = Task.raiseError(dummy).attempt.runSyncStep
+    assertEquals(result, Right(Left(dummy)))
   }
 }

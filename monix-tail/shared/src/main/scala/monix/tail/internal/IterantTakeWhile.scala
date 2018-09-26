@@ -19,7 +19,6 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.batches.BatchCursor
@@ -28,20 +27,72 @@ import scala.collection.mutable.ArrayBuffer
 private[tail] object IterantTakeWhile {
   def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
     (implicit F: Sync[F]): Iterant[F, A] = {
+    Suspend(F.delay(new Loop(p).apply(source)))
+  }
 
-    def finishWith(stop: F[Unit]): Iterant[F, A] =
-      Suspend(stop.map(_ => Halt(None)), stop)
+  private class Loop[F[_], A](p: A => Boolean)
+    (implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    def processCursor(ref: NextCursor[F, A]): Iterant[F, A] = {
-      val NextCursor(cursor, rest, stop) = ref
+    private[this] var isActive = true
+
+    def visit(ref: Next[F, A]): Iterant[F, A] = {
+      val item = ref.item
+      if (p(item))
+        Next(item, ref.rest.map(this))
+      else {
+        isActive = false
+        Iterant.empty
+      }
+    }
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, A] =
+      visit(ref.toNextCursor())
+
+    def visit(ref: Suspend[F, A]): Iterant[F, A] =
+      Suspend(ref.rest.map(this))
+
+    def visit(ref: Concat[F, A]): Iterant[F, A] =
+      Concat(
+        ref.lh.map(this),
+        F.suspend {
+          if (isActive)
+            ref.rh.map(this)
+          else
+            F.pure(Iterant.empty)
+        })
+
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
+      ref.runMap(this)
+
+    def visit(ref: Last[F, A]): Iterant[F, A] = {
+      val item = ref.item
+      if (p(item)) ref else {
+        isActive = false
+        Iterant.empty
+      }
+    }
+
+    def visit(ref: Halt[F, A]): Iterant[F, A] =
+      ref
+
+    def fail(e: Throwable): Iterant[F, A] =
+      Iterant.raiseError(e)
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
+      val NextCursor(cursor, rest) = ref
       val batchSize = cursor.recommendedBatchSize
 
       if (!cursor.hasNext())
-        Suspend(rest.map(loop), stop)
+        Suspend(rest.map(this))
       else if (batchSize <= 1) {
         val item = cursor.next()
-        if (p(item)) Next(item, F.pure(ref).map(loop), stop)
-        else finishWith(stop)
+        if (p(item))
+          Next(item, F.pure(ref).map(this))
+        else {
+          isActive = false
+          Iterant.empty
+        }
       }
       else {
         val buffer = ArrayBuffer.empty[A]
@@ -58,46 +109,16 @@ private[tail] object IterantTakeWhile {
           }
         }
 
-        val bufferCursor = BatchCursor.fromAnyArray[A](buffer.toArray[Any])
+        val bufferCursor = BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]]
+        isActive = continue
+
         if (continue) {
           val next: F[Iterant[F, A]] = if (idx < batchSize) rest else F.pure(ref)
-          NextCursor(bufferCursor, next.map(loop), stop)
+          NextCursor(bufferCursor, next.map(this))
         } else {
-          NextCursor(bufferCursor, stop.map(_ => Halt(None)), stop)
+          NextCursor(bufferCursor, F.pure(Iterant.empty))
         }
       }
-    }
-
-    def loop(source: Iterant[F, A]): Iterant[F, A] = {
-      try source match {
-        case Next(item, rest, stop) =>
-          if (p(item)) Next(item, rest.map(loop), stop)
-          else finishWith(stop)
-        case ref @ NextCursor(_, _, _) =>
-          processCursor(ref)
-        case NextBatch(batch, rest, stop) =>
-          processCursor(NextCursor(batch.cursor(), rest, stop))
-        case Suspend(rest, stop) =>
-          Suspend(rest.map(loop), stop)
-        case Last(elem) =>
-          if (p(elem)) Last(elem) else Halt(None)
-        case halt @ Halt(_) =>
-          halt
-      } catch {
-        case ex if NonFatal(ex) =>
-          val stop = source.earlyStop
-          Suspend(stop.map(_ => Halt(Some(ex))), stop)
-      }
-    }
-
-    source match {
-      case Suspend(_, _) | Halt(_) => loop(source)
-      case _ =>
-        // Suspending execution in order to preserve laziness and
-        // referential transparency, since the provided function can
-        // be side effecting and because processing NextBatch and
-        // NextCursor states can have side effects
-        Suspend(F.delay(loop(source)), source.earlyStop)
     }
   }
 }

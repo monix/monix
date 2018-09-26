@@ -17,52 +17,19 @@
 
 package monix.tail
 
-import cats.~>
 import cats.effect.IO
 import cats.laws._
 import cats.laws.discipline._
+import cats.~>
 import monix.eval.{Coeval, Task}
-import monix.execution.exceptions.DummyException
-import scala.util.Failure
 
 object IterantLiftMapSuite extends BaseTestSuite {
-  test("liftMap(f, g) converts Iterant[Coeval, ?] to Iterant[Task, ?]") { implicit s =>
+  test("liftMap(f) converts Iterant[Coeval, ?] to Iterant[Task, ?]") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val source = arbitraryListToIterant[Coeval, Int](list, idx)
       val expected = arbitraryListToIterant[Task, Int](list, idx)
 
-      val r = source.liftMap(_.task, _.task)
-      r <-> expected
-    }
-  }
-
-  test("liftMap(f, g) converts Iterant[Task, ?] to Iterant[IO, ?]") { implicit s =>
-    check2 { (list: List[Int], idx: Int) =>
-      val source = arbitraryListToIterant[Task, Int](list, idx)
-      val expected = arbitraryListToIterant[IO, Int](list, idx)
-
-      val r = source.liftMap(_.toIO, _.toIO)
-      r <-> expected
-    }
-  }
-
-  test("liftMap(f, g) protects against errors in f") { implicit s =>
-    val dummy = DummyException("dummy")
-    var effect = 0
-
-    val source = Iterant[Coeval].of(1, 2, 3).doOnEarlyStop(Coeval { effect += 1 })
-    val r = source.liftMap[Coeval](_ => throw dummy, x => x)
-
-    assertEquals(r.completeL.runTry, Failure(dummy))
-    assertEquals(effect, 1)
-  }
-
-  test("liftMapK(f) converts Iterant[Coeval, ?] to Iterant[Task, ?]") { implicit s =>
-    check2 { (list: List[Int], idx: Int) =>
-      val source = arbitraryListToIterant[Coeval, Int](list, idx)
-      val expected = arbitraryListToIterant[Task, Int](list, idx)
-
-      val r = source.liftMapK(new (Coeval ~> Task) {
+      val r = source.liftMap(new (Coeval ~> Task) {
         def apply[A](fa: Coeval[A]): Task[A] =
           fa.task
       })
@@ -71,12 +38,12 @@ object IterantLiftMapSuite extends BaseTestSuite {
     }
   }
 
-  test("liftMapK(f) converts Iterant[Task, ?] to Iterant[IO, ?]") { implicit s =>
+  test("liftMap(f) converts Iterant[Task, ?] to Iterant[IO, ?]") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val source = arbitraryListToIterant[Task, Int](list, idx)
       val expected = arbitraryListToIterant[IO, Int](list, idx)
 
-      val r = source.liftMapK(new (Task ~> IO) {
+      val r = source.liftMap(new (Task ~> IO) {
         def apply[A](fa: Task[A]): IO[A] =
           fa.toIO
       })

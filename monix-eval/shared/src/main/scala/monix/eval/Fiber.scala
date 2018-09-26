@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import monix.eval.internal.TaskCancellation
+import cats.effect.CancelToken
 
 /** `Fiber` represents the (pure) result of a [[Task]] being started concurrently
   * and that can be either joined or cancelled.
@@ -28,7 +28,7 @@ import monix.eval.internal.TaskCancellation
   * For example a `Fiber` value is the result of evaluating [[Task.start]]:
   *
   * {{{
-  *   val task = Task(println("Hello!"))
+  *   val task = Task.evalAsync(println("Hello!"))
   *
   *   val forked: Task[Fiber[Unit]] = task.start
   * }}}
@@ -36,9 +36,12 @@ import monix.eval.internal.TaskCancellation
   * Usage example:
   *
   * {{{
+  *   val launchMissiles = Task(println("Missiles launched!"))
+  *   val runToBunker = Task(println("Run Lola run!"))
+  *
   *   for {
   *     fiber <- launchMissiles.start
-  *     _ <- runToBunker.handleErrorWith { error =>
+  *     _ <- runToBunker.onErrorHandleWith { error =>
   *       // Retreat failed, cancel launch (maybe we should
   *       // have retreated to our bunker before the launch?)
   *       fiber.cancel.flatMap(_ => Task.raiseError(error))
@@ -60,7 +63,7 @@ trait Fiber[A] extends cats.effect.Fiber[Task, A] {
     * of the underlying fiber is already complete, then there's nothing
     * to cancel.
     */
-  def cancel: Task[Unit]
+  def cancel: CancelToken[Task]
 
   /** Returns a new task that will await for the completion of the
     * underlying fiber, (asynchronously) blocking the current run-loop
@@ -71,16 +74,11 @@ trait Fiber[A] extends cats.effect.Fiber[Task, A] {
 
 object Fiber {
   /**
-    * Wraps a [[Task]] value in a `Fiber` interface.
-    *
-    * This is usually done when the given `Task` reference is linked
-    * to some mutable variable and thus something that's worth cancelling.
+    * Builds a [[Fiber]] value out of a `task` and its cancelation token.
     */
-  def apply[A](task: Task[A]): Fiber[A] =
-    new Impl(task)
+  def apply[A](task: Task[A], cancel: CancelToken[Task]): Fiber[A] =
+    new Tuple(task, cancel)
 
-  private final class Impl[A](val join: Task[A]) extends Fiber[A] {
-    def cancel: Task[Unit] =
-      TaskCancellation.signal(join)
-  }
+  private final case class Tuple[A](join: Task[A], cancel: CancelToken[Task])
+    extends Fiber[A]
 }

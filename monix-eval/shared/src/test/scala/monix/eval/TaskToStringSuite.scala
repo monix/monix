@@ -18,7 +18,6 @@
 package monix.eval
 
 import minitest.SimpleTestSuite
-import monix.execution.Cancelable
 import monix.execution.exceptions.DummyException
 
 object TaskToStringSuite extends SimpleTestSuite {
@@ -43,7 +42,7 @@ object TaskToStringSuite extends SimpleTestSuite {
   }
 
   test("Task.Async") {
-    val ref = Task.create[Int]((_,cb) => { cb.onSuccess(1); Cancelable.empty })
+    val ref = Task.cancelable0[Int]((_,cb) => { cb.onSuccess(1); Task.unit })
     assertContains(ref, "Task.Async")
   }
 

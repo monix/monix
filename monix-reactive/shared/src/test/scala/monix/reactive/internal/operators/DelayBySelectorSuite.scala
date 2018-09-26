@@ -19,18 +19,19 @@ package monix.reactive.internal.operators
 
 import monix.reactive.Observable
 import scala.concurrent.duration._
+import scala.util.Success
 
 object DelayBySelectorSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.range(0, sourceCount)
-    val o = source.delayOnNextBySelector(x => Observable.now(x).delaySubscription(1.second))
+    val o = source.delayOnNextBySelector(x => Observable.now(x).delayExecution(1.second))
     val c = sourceCount
     Sample(o, c, c * (c-1) / 2, 1.second, 1.second)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val source = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o = source.delayOnNextBySelector(x => Observable.now(x).delaySubscription(1.second))
+    val o = source.delayOnNextBySelector(x => Observable.now(x).delayExecution(1.second))
     val c = sourceCount
     Sample(o, c-1, (c-1) * (c-2) / 2, 1.second, 1.second)
   }
@@ -39,7 +40,7 @@ object DelayBySelectorSuite extends BaseOperatorSuite {
     val source = Observable.range(0, sourceCount+1)
     val o = source.delayOnNextBySelector { x =>
       if (x < sourceCount)
-        Observable.now(x).delaySubscription(1.second)
+        Observable.now(x).delayExecution(1.second)
       else
         throw ex
     }
@@ -50,7 +51,18 @@ object DelayBySelectorSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val o = Observable.now(1L)
-      .delayOnNextBySelector(x => Observable.now(x).delaySubscription(1.second))
+      .delayOnNextBySelector(x => Observable.now(x).delayExecution(1.second))
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
+  }
+
+  test("should terminate immediately on empty observable") { implicit s =>
+    val f = Observable.empty[Int]
+      .delayOnNextBySelector(n => Observable.empty)
+      .completedL
+      .runAsync
+
+    s.tick(1.day)
+
+    assertEquals(f.value, Some(Success(())))
   }
 }

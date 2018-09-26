@@ -78,7 +78,7 @@ trait InlineMacros {
     InlineApply.transform(tree)
   }
 
-  /** Creates a macro transformer than gets rid of implicit unapply
+  /** Creates a macro transformer that gets rid of implicit unapply
     * in case statements.
     *
     * Workaround for:

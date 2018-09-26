@@ -21,7 +21,7 @@ import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -33,12 +33,12 @@ import scala.concurrent.Future
   *
   * Example of what we want to achieve:
   * {{{
-  *   observable.mapTask(x => Task(x + 1))
+  *   observable.mapTask(x => Task.evalAsync(x + 1))
   * }}}
   *
   * This is basically equivalent with:
   * {{{
-  *   observable.concatMap(x => Observable.fromTask(Task(x + 1)))
+  *   observable.concatMap(x => Observable.fromTask(Task.evalAsync(x + 1)))
   * }}}
   *
   * The implementation has to be faster than `concatMap`.
@@ -152,7 +152,7 @@ private[reactive] final class MapTaskObservable[A,B]
       if (!isActive.get) {
         Stop
       } else try {
-        val task = f(elem).transformWith(childOnSuccess, childOnError)
+        val task = f(elem).redeemWith(childOnError, childOnSuccess)
         // No longer allowed to stream errors downstream
         streamErrors = false
 

@@ -103,13 +103,13 @@ object StackedCancelable {
   /** Reusable [[StackedCancelable]] reference that is already
     * cancelled.
     */
-  final val alreadyCanceled: StackedCancelable =
+  val alreadyCanceled: StackedCancelable =
     new AlreadyCanceled
 
   /** Reusable [[StackedCancelable]] reference that cannot be
     * cancelled.
     */
-  final val uncancelable: StackedCancelable =
+  val uncancelable: StackedCancelable =
     new Uncancelable
 
   /** Implementation for [[StackedCancelable]] backed by a
@@ -117,6 +117,14 @@ object StackedCancelable {
     */
   private final class Impl(initial: List[Cancelable])
     extends StackedCancelable {
+
+    /**
+     * Biasing the implementation for single threaded usage
+     * in push/pop — this value is caching the last value seen,
+     * in order to safe a `state.get` instruction before the
+     * `compareAndSet` happens.
+     */
+    private[this] var cache = initial
 
     private[this] val state =
       AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)
@@ -179,6 +187,7 @@ object StackedCancelable {
             // $COVERAGE-ON$
           }
       }
+
     }
 
     @tailrec def pushList(list: List[Cancelable]): Unit = {
@@ -194,36 +203,44 @@ object StackedCancelable {
       }
     }
 
-    @tailrec def push(value: Cancelable): Unit = {
-      state.get match {
-        case null =>
-          value.cancel()
-        case stack =>
-          if (!state.compareAndSet(stack, value :: stack)) {
-            // $COVERAGE-OFF$
-            push(value) // retry
-            // $COVERAGE-ON$
-          }
+    @tailrec
+    private def pushLoop(current: List[Cancelable], value: Cancelable): Unit = {
+      if (current eq null) {
+        cache = null
+        value.cancel()
+      } else {
+        val update = value :: current
+        if (!state.compareAndSet(current, update))
+          pushLoop(state.get, value) // retry
+        else
+          cache = update
       }
     }
 
-    @tailrec def pop(): Cancelable = {
-      state.get match {
-        case null => Cancelable.empty
-        case Nil => Cancelable.empty
+    def push(value: Cancelable): Unit =
+      pushLoop(cache, value)
+
+    @tailrec
+    private def popLoop(current: List[Cancelable], isFresh: Boolean = false): Cancelable = {
+      current match {
+        case null | Nil =>
+          if (isFresh) Cancelable.empty
+          else popLoop(state.get, isFresh = true)
         case ref @ (head :: tail) =>
           if (state.compareAndSet(ref, tail)) {
+            cache = tail
             head
           } else {
-            // $COVERAGE-OFF$
-            pop() // retry
-            // $COVERAGE-ON$
+            popLoop(state.get, isFresh = true) // retry
           }
       }
     }
 
-    @tailrec private[this]
-    def concatList(list: List[Cancelable], current: List[Cancelable]): List[Cancelable] =
+    def pop(): Cancelable =
+      popLoop(cache)
+
+    @tailrec
+    private def concatList(list: List[Cancelable], current: List[Cancelable]): List[Cancelable] =
       list match {
         case Nil => current
         case x :: xs => concatList(xs, x :: current)

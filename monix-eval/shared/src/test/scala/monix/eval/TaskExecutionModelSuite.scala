@@ -29,7 +29,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.now should not be async with AlwaysAsyncExecution") { s =>
+  test("Task.now.runAsync (CancelableFuture) should not be async with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val task = Task.now(1)
     val f = task.runAsync
@@ -89,13 +89,13 @@ object TaskExecutionModelSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(0)))
   }
 
-  test("Task.apply.flatMap loops should work with AlwaysAsyncExecution") { s =>
+  test("Task.flatMap loops should work with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
 
     def loop(count: Int): Task[Int] =
-      Task(count).flatMap { nr =>
+      Task.evalAsync(count).flatMap { nr =>
         if (nr > 0) loop(count-1)
-        else Task(nr)
+        else Task.evalAsync(nr)
       }
 
     val task = loop(100)

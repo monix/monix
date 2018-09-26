@@ -19,10 +19,8 @@ package monix.tail.internal
 
 import cats.syntax.all._
 import cats.effect.Sync
-import monix.execution.misc.NonFatal
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.internal.IterantUtils.signalError
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 private[tail] object IterantMap {
   /**
@@ -31,32 +29,47 @@ private[tail] object IterantMap {
   def apply[F[_], A, B](source: Iterant[F, A], f: A => B)
     (implicit F: Sync[F]): Iterant[F, B] = {
 
-    def loop(source: Iterant[F, A]): Iterant[F, B] =
-      try source match {
-        case Next(head, tail, stop) =>
-          Next[F, B](f(head), tail.map(_.map(f)), stop)
-        case NextCursor(cursor, rest, stop) =>
-          NextCursor[F, B](cursor.map(f), rest.map(_.map(f)), stop)
-        case NextBatch(gen, rest, stop) =>
-          NextBatch(gen.map(f), rest.map(_.map(f)), stop)
-        case Suspend(rest, stop) =>
-          Suspend[F, B](rest.map(_.map(f)), stop)
-        case Last(item) =>
-          Last(f(item))
-        case empty@Halt(_) =>
-          empty.asInstanceOf[Iterant[F, B]]
-      } catch {
-        case ex if NonFatal(ex) => signalError(source, ex)
-      }
-
+    val loop = new Loop[F, A, B](f)
     source match {
-      case Suspend(_, _) | Halt(_) => loop(source)
+      case Scope(_, _, _) | Suspend(_) | Halt(_) => loop(source)
       case _ =>
         // Suspending execution in order to preserve laziness and
         // referential transparency, since the provided function can
         // be side effecting and because processing NextBatch and
         // NextCursor states can have side effects
-        Suspend(F.delay(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)))
     }
+  }
+
+  private final class Loop[F[_], A, B](f: A => B)(implicit F: Sync[F])
+    extends Iterant.Visitor[F, A, Iterant[F, B]] {
+    loop =>
+
+    def visit(ref: Next[F, A]): Iterant[F, B] =
+      Next[F, B](f(ref.item), ref.rest.map(loop))
+
+    def visit(ref: NextBatch[F, A]): Iterant[F, B] =
+      NextBatch(ref.batch.map(f), ref.rest.map(loop))
+
+    def visit(ref: NextCursor[F, A]): Iterant[F, B] =
+      NextCursor(ref.cursor.map(f), ref.rest.map(loop))
+
+    def visit(ref: Suspend[F, A]): Iterant[F, B] =
+      Suspend(ref.rest.map(loop))
+
+    def visit(ref: Concat[F, A]): Iterant[F, B] =
+      ref.runMap(loop)
+
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, B] =
+      ref.runMap(loop)
+
+    def visit(ref: Last[F, A]): Iterant[F, B] =
+      Last(f(ref.item))
+
+    def visit(ref: Halt[F, A]): Iterant[F, B] =
+      ref.asInstanceOf[Iterant[F, B]]
+
+    def fail(e: Throwable): Iterant[F, B] =
+      Iterant.raiseError(e)
   }
 }

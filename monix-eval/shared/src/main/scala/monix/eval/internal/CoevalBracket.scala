@@ -18,25 +18,52 @@
 package monix.eval
 package internal
 
-import monix.execution.UncaughtExceptionReporter
-import monix.execution.misc.NonFatal
+import cats.effect.ExitCase
+import monix.execution.internal.Platform
+import scala.util.control.NonFatal
 
 private[eval] object CoevalBracket {
   /**
     * Implementation for `Coeval.bracketE`.
     */
-  def apply[A, B](
+  def either[A, B](
     acquire: Coeval[A],
     use: A => Coeval[B],
     release: (A, Either[Throwable, B]) => Coeval[Unit]): Coeval[B] = {
 
     acquire.flatMap { a =>
       val next = try use(a) catch { case NonFatal(e) => Coeval.raiseError(e) }
-      next.flatMap(new ReleaseFrame(a, release))
+      next.flatMap(new ReleaseFrameE(a, release))
     }
   }
 
-  private final class ReleaseFrame[A, B](
+  /**
+    * Implementation for `Coeval.bracketCase`.
+    */
+  def exitCase[A, B](
+    acquire: Coeval[A],
+    use: A => Coeval[B],
+    release: (A, ExitCase[Throwable]) => Coeval[Unit]): Coeval[B] = {
+
+    acquire.flatMap { a =>
+      val next = try use(a) catch { case NonFatal(e) => Coeval.raiseError(e) }
+      next.flatMap(new ReleaseFrameCase(a, release))
+    }
+  }
+
+  private final class ReleaseFrameCase[A, B](
+    a: A,
+    release: (A, ExitCase[Throwable]) => Coeval[Unit])
+    extends StackFrame[B, Coeval[B]] {
+
+    def apply(b: B): Coeval[B] =
+      release(a, ExitCase.Completed).map(_ => b)
+
+    def recover(e: Throwable): Coeval[B] =
+      release(a, ExitCase.Error(e)).flatMap(new ReleaseRecover(e))
+  }
+
+  private final class ReleaseFrameE[A, B](
     a: A,
     release: (A, Either[Throwable, B]) => Coeval[Unit])
     extends StackFrame[B, Coeval[B]] {
@@ -44,19 +71,17 @@ private[eval] object CoevalBracket {
     def apply(b: B): Coeval[B] =
       release(a, Right(b)).map(_ => b)
 
-    def recover(e: Throwable, r: UncaughtExceptionReporter): Coeval[B] =
-      release(a, Left(e)).flatMap(new ReleaseRecover(e, r))
+    def recover(e: Throwable): Coeval[B] =
+      release(a, Left(e)).flatMap(new ReleaseRecover(e))
   }
 
-  private final class ReleaseRecover(e: Throwable, r: UncaughtExceptionReporter)
+  private final class ReleaseRecover(e: Throwable)
     extends StackFrame[Unit, Coeval[Nothing]] {
 
     def apply(a: Unit): Coeval[Nothing] =
       Coeval.raiseError(e)
 
-    def recover(e2: Throwable, r: UncaughtExceptionReporter): Coeval[Nothing] = {
-      r.reportFailure(e2)
-      Coeval.raiseError(e)
-    }
+    def recover(e2: Throwable): Coeval[Nothing] =
+      Coeval.raiseError(Platform.composeErrors(e, e2))
   }
 }

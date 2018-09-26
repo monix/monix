@@ -28,7 +28,7 @@ import scala.util.Success
 object TakeUntilObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.intervalAtFixedRate(2.seconds, 2.seconds)
-    val trigger = Observable.now(1).delaySubscription(2.seconds * sourceCount + 1.second)
+    val trigger = Observable.now(1).delayExecution(2.seconds * sourceCount + 1.second)
     val obs = source.takeUntil(trigger)
 
     Sample(obs, sourceCount, sourceCount * (sourceCount-1) / 2, 2.seconds, 2.seconds)
@@ -36,7 +36,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val source = Observable.intervalAtFixedRate(2.seconds, 2.seconds)
-    val trigger = Observable.raiseError(ex).delaySubscription(2.seconds * sourceCount + 1.second)
+    val trigger = Observable.raiseError(ex).delayExecution(2.seconds * sourceCount + 1.second)
     val obs = source.takeUntil(trigger)
 
     Sample(obs, sourceCount, sourceCount * (sourceCount-1) / 2, 2.seconds, 2.seconds)
@@ -46,7 +46,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
 
   def cancelableObservables() = {
     val source = Observable.intervalAtFixedRate(2.seconds, 2.seconds)
-    val trigger = Observable.now(1).delaySubscription(2.seconds * 10)
+    val trigger = Observable.now(1).delayExecution(2.seconds * 10)
     val obs = source.takeUntil(trigger)
 
     Seq(
@@ -64,7 +64,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
   }
 
   test("should cancel the trigger if finished before it") { implicit s =>
-    val obs = Observable(1).executeAsync.takeUntil(Observable.now(1).delaySubscription(1.second))
+    val obs = Observable(1).executeAsync.takeUntil(Observable.now(1).delayExecution(1.second))
     val f = obs.runAsyncGetFirst
 
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")

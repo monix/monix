@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.execution.Ack.Continue
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.cancelables.OrderedCancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 

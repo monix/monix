@@ -17,8 +17,7 @@
 
 package monix.reactive
 
-import cats.effect.Effect
-import monix.eval.{Callback, Task}
+import monix.eval.{Callback, Task, TaskLike}
 import monix.execution.cancelables.AssignableCancelable
 import monix.execution.{Cancelable, Scheduler}
 import monix.reactive.internal.consumers._
@@ -65,7 +64,7 @@ abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * by piggybacking on [[createSubscriber]].
     */
   final def apply(source: Observable[In]): Task[R] =
-    Task.create[R] { (scheduler, cb) =>
+    Task.create { (scheduler, cb) =>
       val (out, consumerSubscription) = createSubscriber(cb, scheduler)
       // Start consuming the stream
       val sourceSubscription = source.subscribe(out)
@@ -121,8 +120,8 @@ abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     *
     * See [[mapTask]] for the version that's specialized on `Task`.
     */
-  final def mapEval[F[_], R2](f: R => F[R2])(implicit F: Effect[F]): Consumer[In, R2] =
-    new MapTaskConsumer[In,R,R2](self, r => Task.fromEffect(f(r))(F))
+  final def mapEval[F[_], R2](f: R => F[R2])(implicit F: TaskLike[F]): Consumer[In, R2] =
+    new MapTaskConsumer[In,R,R2](self, r => F.toTask(f(r)))
 
   /** Given a mapping function, when consuming a stream,
     * applies the mapping function to the final result,
@@ -255,8 +254,8 @@ object Consumer {
     *        returning a `F[A]` capable of lazy or asynchronous
     *        execution.
     */
-  def foldLeftEval[F[_], S, A](initial: => S)(f: (S, A) => F[S])(implicit F: Effect[F]): Consumer[A, S] =
-    new FoldLeftTaskConsumer[A,S](initial _, (s, a) => Task.fromEffect(f(s, a))(F))
+  def foldLeftEval[F[_], S, A](initial: => S)(f: (S, A) => F[S])(implicit F: TaskLike[F]): Consumer[A, S] =
+    new FoldLeftTaskConsumer[A,S](initial _, (s, a) => F.toTask(f(s, a)))
 
   /** Given a fold function and an initial state value, applies the
     * fold function to every element of the stream and finally signaling
@@ -332,8 +331,8 @@ object Consumer {
     *
     * @param cb is the function that will be called for each element
     */
-  def foreachEval[F[_], A](cb: A => F[Unit])(implicit F: Effect[F]): Consumer[A, Unit] =
-    foreachTask(a => Task.fromEffect(cb(a))(F))
+  def foreachEval[F[_], A](cb: A => F[Unit])(implicit F: TaskLike[F]): Consumer[A, Unit] =
+    foreachTask(a => F.toTask(cb(a)))
 
   /** Builds a consumer that will consume the stream, applying the given
     * function to each element and then finally signaling its completion.

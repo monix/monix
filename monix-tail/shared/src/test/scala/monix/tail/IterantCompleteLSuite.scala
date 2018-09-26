@@ -21,7 +21,9 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
 import monix.eval.Coeval
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
+
 import scala.util.Failure
 
 object IterantCompleteLSuite extends BaseTestSuite {
@@ -43,13 +45,10 @@ object IterantCompleteLSuite extends BaseTestSuite {
     val cursor = ThrowExceptionCursor[Int](dummy)
     var earlyStop = false
 
-    val fa = Iterant[Coeval].nextCursorS(
-      cursor,
-      Coeval(Iterant[Coeval].empty[Int]),
-      Coeval { earlyStop = true }
-    )
+    val fa = Iterant[Coeval].resource(Coeval.unit)(_ => Coeval { earlyStop = true })
+      .flatMap(_ => Iterant[Coeval].fromBatchCursor(cursor))
 
-    assertEquals(fa.completeL.runTry, Failure(dummy))
+    assertEquals(fa.completeL.runTry(), Failure(dummy))
     assert(earlyStop, "earlyStop")
   }
 
@@ -58,28 +57,64 @@ object IterantCompleteLSuite extends BaseTestSuite {
     val batch = ThrowExceptionBatch[Int](dummy)
     var earlyStop = false
 
-    val fa = Iterant[Coeval].nextBatchS(
-      batch,
-      Coeval(Iterant[Coeval].empty[Int]),
-      Coeval { earlyStop = true }
-    )
+    val fa = Iterant[Coeval].resource(Coeval.unit)(_ => Coeval { earlyStop = true })
+      .flatMap(_ => Iterant[Coeval].fromBatch(batch))
 
-    assertEquals(fa.completeL.runTry, Failure(dummy))
+    assertEquals(fa.completeL.runTry(), Failure(dummy))
     assert(earlyStop, "earlyStop")
   }
 
-  test("earlyStop gets called for failing `rest` on Next node") { implicit s =>
+  test("resource gets released for failing `rest` on Next node") { implicit s =>
     var effect = 0
 
     def stop(i: Int): Coeval[Unit] =
-      Coeval { effect = i }
+      Coeval { effect += i }
 
-    val dummy = new DummyException("dummy")
-    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy), stop(3))
-    val node2 = Iterant[Coeval].nextS(2, Coeval(node3), stop(2))
-    val node1 = Iterant[Coeval].nextS(1, Coeval(node2), stop(1))
+    val dummy = DummyException("dummy")
+    val node3 = Iterant[Coeval].nextS(3, Coeval.raiseError(dummy)).guarantee(stop(3))
+    val node2 = Iterant[Coeval].nextS(2, Coeval(node3)).guarantee(stop(2))
+    val node1 = Iterant[Coeval].nextS(1, Coeval(node2)).guarantee(stop(1))
 
-    assertEquals(node1.completeL.runTry, Failure(dummy))
-    assertEquals(effect, 3)
+    assertEquals(node1.completeL.runTry(), Failure(dummy))
+    assertEquals(effect, 6)
+  }
+
+  test("completeL handles Scope's release before the rest of the stream") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val lh = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(Iterant.pure(1)),
+      (_, _) => Coeval(triggered.set(true))
+    )
+
+    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
+      if (!triggered.getAndSet(true))
+        Iterant[Coeval].raiseError[Int](fail)
+      else
+        Iterant[Coeval].empty[Int]
+    })
+
+    assertEquals(stream.completeL.value(), ())
+  }
+
+  test("completeL handles Scope's release after use is finished") { implicit s =>
+    val triggered = Atomic(false)
+    val fail = DummyException("fail")
+
+    val stream = Iterant[Coeval].scopeS[Unit, Int](
+      Coeval.unit,
+      _ => Coeval(1 +: Iterant[Coeval].suspend {
+        if (triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }),
+      (_, _) => {
+        Coeval(triggered.set(true))
+      }
+    )
+    assertEquals((0 +: stream :+ 2).completeL.value(), ())
   }
 }

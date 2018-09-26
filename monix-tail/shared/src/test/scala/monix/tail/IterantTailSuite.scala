@@ -19,11 +19,9 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.Suspend
-import monix.tail.batches.BatchCursor
 
 object IterantTailSuite extends BaseTestSuite {
   test("Iterant.tail is equivalent with List.tail") { implicit s =>
@@ -37,7 +35,7 @@ object IterantTailSuite extends BaseTestSuite {
   test("Iterant.tail protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.tail
       received <-> iter.onErrorIgnore.tail ++ Iterant[Task].haltS[Int](Some(dummy))
@@ -47,7 +45,7 @@ object IterantTailSuite extends BaseTestSuite {
   test("Iterant.tail protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.tail
       received <-> iter.onErrorIgnore.tail ++ Iterant[Task].haltS[Int](Some(dummy))
@@ -58,32 +56,21 @@ object IterantTailSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval].nextCursorS[Int](
       new ThrowExceptionCursor(dummy),
-      Coeval.now(Iterant[Coeval].empty[Int]),
-      Coeval.unit)
-      .tail
+      Coeval.now(Iterant[Coeval].empty[Int])
+    ).tail
 
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
-    intercept[DummyException](iter.toListL.value)
+    intercept[DummyException](iter.toListL.value())
   }
 
   test("Iterant.tail suspends execution for NextBatch") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval].nextBatchS[Int](
       new ThrowExceptionBatch(dummy),
-      Coeval.now(Iterant[Coeval].empty[Int]),
-      Coeval.unit)
-      .tail
+      Coeval.now(Iterant[Coeval].empty[Int])
+    ).tail
 
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
-    intercept[DummyException](iter.toListL.value)
-  }
-
-  test("Iterant.tail preserves the source earlyStop") { implicit s =>
-    var effect = 0
-    val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
-    val stream = source.tail
-    stream.earlyStop.value
-    assertEquals(effect, 1)
+    intercept[DummyException](iter.toListL.value())
   }
 }

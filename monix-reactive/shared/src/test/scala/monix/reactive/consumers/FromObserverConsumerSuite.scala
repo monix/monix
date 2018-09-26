@@ -51,7 +51,6 @@ object FromObserverConsumerSuite extends BaseTestSuite {
           case Success(()) => cb.onSuccess(sum)
           case Failure(ex) => cb.onError(ex)
         }
-
         source.unsafeSubscribeFn(out)
       }
 

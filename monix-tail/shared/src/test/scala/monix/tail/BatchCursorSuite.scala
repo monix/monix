@@ -206,6 +206,25 @@ abstract class BatchCursorSuite[A : ClassTag](implicit
       cursor.recommendedBatchSize > 0
     }
   }
+
+  test("BatchCursor.fromArray") { _ =>
+    check1 { (array: Array[A]) =>
+      BatchCursor.fromArray(array).toArray.toSeq == array.toSeq
+    }
+  }
+}
+
+object GenericCursorSuite extends BatchCursorSuite[Int] {
+  type Cursor = GenericCursor[Int]
+
+  override def fromList(list: List[Int]): Cursor =
+    new GenericCursor[Int] {
+      private[this] val iter = list.iterator
+
+      def hasNext(): Boolean = iter.hasNext
+      def next(): Int = iter.next()
+      def recommendedBatchSize: Int = 10
+    }
 }
 
 object ArrayCursorSuite extends BatchCursorSuite[Int] {

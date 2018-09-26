@@ -20,7 +20,7 @@ package monix.reactive.internal.builders
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.Cancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -46,16 +46,16 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
   }
 
   def loop(subscriber: Subscriber[A], state: S): Task[Unit] =
-    try f(state).transformWith(
+    try f(state).redeemWith(
+      { ex =>
+        subscriber.onError(ex)
+        Task.unit
+      },
       { case (a, newState) =>
         Task.fromFuture(subscriber.onNext(a)).flatMap {
           case Continue => loop(subscriber, newState)
           case Stop => Task.unit
         }
-      },
-      { ex =>
-        subscriber.onError(ex)
-        Task.unit
       }
     ) catch {
       case ex if NonFatal(ex) =>

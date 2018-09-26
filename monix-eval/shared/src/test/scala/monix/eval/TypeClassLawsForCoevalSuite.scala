@@ -19,7 +19,7 @@ package monix.eval
 
 import cats.effect.laws.discipline.SyncTests
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.CoflatMapTests
+import cats.laws.discipline.{CoflatMapTests, SemigroupKTests}
 
 object TypeClassLawsForCoevalSuite extends BaseLawsSuite {
   checkAll("Sync[Coeval]",
@@ -30,4 +30,8 @@ object TypeClassLawsForCoevalSuite extends BaseLawsSuite {
 
   checkAll("Monoid[Coeval[Int]]",
     MonoidTests[Coeval[Int]].monoid)
+
+  checkAll("SemigroupK[Coeval[Int]]",
+    SemigroupKTests[Coeval].semigroupK[Int]
+  )
 }

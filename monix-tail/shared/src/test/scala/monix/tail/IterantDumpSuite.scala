@@ -56,7 +56,7 @@ object IterantDumpSuite extends BaseTestSuite {
   test("Iterant.dump works for Next") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
-      val out = Iterant[Task].nextS(el, Task.now(Iterant[Task].empty[Int]), Task.unit).dump("O", dummyOut(counter))
+      val out = Iterant[Task].nextS(el, Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
       out.completeL.runAsync
       s.tick()
 
@@ -67,7 +67,7 @@ object IterantDumpSuite extends BaseTestSuite {
   test("Iterant.dump works for NextCursor") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
-      val out = Iterant[Task].nextCursorS(BatchCursor(el), Task.now(Iterant[Task].empty[Int]), Task.unit).dump("O", dummyOut(counter))
+      val out = Iterant[Task].nextCursorS(BatchCursor(el), Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
       out.completeL.runAsync
       s.tick()
 
@@ -78,7 +78,7 @@ object IterantDumpSuite extends BaseTestSuite {
   test("Iterant.dump works for NextBatch") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
-      val out = Iterant[Task].nextBatchS(Batch(el), Task.now(Iterant[Task].empty[Int]), Task.unit).dump("O", dummyOut(counter))
+      val out = Iterant[Task].nextBatchS(Batch(el), Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
       out.completeL.runAsync
       s.tick()
 
@@ -92,7 +92,7 @@ object IterantDumpSuite extends BaseTestSuite {
     out.completeL.runAsync
     s.tick()
 
-    assertEquals(counter.get, 1)
+    assertEquals(counter.get, 2)
   }
 
   test("Iterant.dump works for Last") { implicit s =>
@@ -102,7 +102,7 @@ object IterantDumpSuite extends BaseTestSuite {
       out.completeL.runAsync
       s.tick()
 
-      counter.get <-> 2
+      counter.get <-> 1
     }
   }
 
@@ -116,36 +116,47 @@ object IterantDumpSuite extends BaseTestSuite {
     assertEquals(counter.get, 1)
   }
 
-  test("Iterant.dump doesn't touch Halt") { _ =>
-    val dummy = DummyException("dummy")
-    val stream: Iterant[Coeval, Int] = Iterant[Coeval].haltS[Int](Some(dummy))
-    val state = stream.dump("O", dummyOut(AtomicInt(0)))
+  test("Iterant.dump works for Concat") { implicit s =>
+    check1 { (el: Int) =>
+      val counter = AtomicInt(0)
+      val out = Iterant.concatS(Task.pure(Iterant[Task].of(el)), Task.pure(Iterant[Task].of(el)))
+      val stream = out.dump("O", dummyOut(counter))
 
-    assertEquals(state, stream)
+      stream.completeL.runAsync
+      s.tick()
+
+      counter.get <-> 5
+    }
   }
 
-  test("Iterant.dump preserves the source earlyStop") { implicit s =>
+  test("Iterant.dump works for Resource") { implicit s =>
+    check1 { (el: Int) =>
+      val counter = AtomicInt(0)
+      val out = Iterant.scopeS[Task, Unit, Int](Task.unit, _ => Task.pure(Iterant[Task].of(el)), (_, _) => Task.unit)
+      val stream = out.dump("O", dummyOut(counter))
+
+      stream.completeL.runAsync
+      s.tick()
+
+      counter.get <-> 4
+    }
+  }
+
+  test("Iterant.dump preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.dump("O", dummyOut(AtomicInt(0)))
-    stream.earlyStop.value
+    stream.completeL.value()
 
     assertEquals(effect, 1)
-  }
-
-  test("Iterant[Task].dump can handle errors") { implicit s =>
-    val dummy = DummyException("dummy")
-    val stream = Iterant[Task].raiseError[Int](dummy)
-
-    assertEquals(stream, stream.dump("O", dummyOut(AtomicInt(0))))
   }
 
   test("Iterant.dump protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val prefix = iter.onErrorIgnore
-      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
       val stream = prefix ++ suffix
 
       stream.dump("O", dummyOut(AtomicInt(0))) <-> prefix ++ Iterant[Task].haltS[Int](Some(dummy))
@@ -156,7 +167,7 @@ object IterantDumpSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val prefix = iter.onErrorIgnore
-      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
+      val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
       val stream = prefix ++ suffix
 
       stream.dump("O", dummyOut(AtomicInt(0))) <-> prefix ++ Iterant[Task].haltS[Int](Some(dummy))

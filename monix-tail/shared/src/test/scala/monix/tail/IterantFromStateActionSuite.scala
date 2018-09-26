@@ -21,12 +21,13 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
+import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.Iterant.NextBatch
 
 object IterantFromStateActionSuite extends BaseTestSuite {
   test("Iterant.fromStateAction should evolve state") { implicit s =>
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
-      val n = i % (batches.defaultBatchSize * 2)
+      val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateAction[Int, Int](f)(seed)
       val expected = Stream.continually(0)
         .scanLeft(f(seed)) { case ((_, newSeed), _) => f(newSeed) }
@@ -47,19 +48,19 @@ object IterantFromStateActionSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val received = Iterant[Coeval].fromStateAction[Int, Int](e => (e, e))(throw dummy).attempt.toListL
 
-    assertEquals(received.value, List(Left(dummy)))
+    assertEquals(received.value(), List(Left(dummy)))
   }
 
   test("Iterant.fromStateAction protects against exceptions in f") { implicit s =>
     val dummy = DummyException("dummy")
     val received = Iterant[Coeval].fromStateAction[Int, Int](_ => (throw dummy, throw dummy))(0).attempt.toListL
 
-    assertEquals(received.value, List(Left(dummy)))
+    assertEquals(received.value(), List(Left(dummy)))
   }
 
   test("Iterant.fromStateActionL should evolve state") { implicit s =>
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
-      val n = i % (batches.defaultBatchSize * 2)
+      val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateActionL[Int, Int](f andThen Task.now)(Task.now(seed))
       val expected = Stream.continually(0)
         .scanLeft(f(seed)) { case ((_, newSeed), _) => f(newSeed) }
@@ -72,7 +73,7 @@ object IterantFromStateActionSuite extends BaseTestSuite {
 
   test("Iterant.fromStateAction <->  Iterant.fromStateActionL") { implicit s =>
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
-      val n = i % (batches.defaultBatchSize * 2)
+      val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateAction[Int, Int](f)(seed)
       val streamL = Iterant[Task].fromStateActionL[Int, Int](f andThen Task.now)(Task.now(seed))
 
@@ -91,6 +92,6 @@ object IterantFromStateActionSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val received = Iterant[Coeval].fromStateActionL[Int, Int](_ => throw dummy)(Coeval.pure(0)).attempt.toListL
 
-    assertEquals(received.value, List(Left(dummy)))
+    assertEquals(received.value(), List(Left(dummy)))
   }
 }

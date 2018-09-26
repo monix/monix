@@ -21,8 +21,10 @@ import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.{CompositeException, DummyException}
 import monix.execution.schedulers.TestScheduler
+import monix.execution.internal.Platform
 import scala.concurrent.Promise
 import scala.util.Failure
+import scala.util.control.NonFatal
 
 object CancelableSuite extends SimpleTestSuite {
   test("Cancelable.empty") {
@@ -42,7 +44,7 @@ object CancelableSuite extends SimpleTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Cancelable.collection") {
+  test("Cancelable.collection(seq)") {
     var effect = 0
     val c = Cancelable.collection((0 until 100).map(_ => Cancelable(() => effect += 1)))
 
@@ -51,21 +53,77 @@ object CancelableSuite extends SimpleTestSuite {
     assertEquals(effect, 100)
   }
 
-  test("Cancelable.collection") {
+  test("Cancelable.collection(refs)") {
     var effect = 0
-    val dummy = DummyException("dummy")
+    val c = Cancelable.collection((0 until 100).map(_ => Cancelable(() => effect += 1)) : _*)
 
-    val c = Cancelable.collection((0 until 100).map(_ => Cancelable { () =>
-      effect += 1
-      throw dummy
-    }))
+    assertEquals(effect, 0)
+    c.cancel()
+    assertEquals(effect, 100)
+  }
+
+  test("Cancelable.collection should cancel all on error") {
+    val dummy1 = DummyException("dummy1")
+    val dummy2 = DummyException("dummy2")
+
+    val c = Cancelable.collection(
+      Cancelable(() => throw dummy1),
+      Cancelable(() => throw dummy2)
+    )
 
     try {
       c.cancel()
       fail("c.cancel() should throw")
     } catch {
-      case e: CompositeException =>
-        assertEquals(e.errors.toList, (0 until 100).map(_ => dummy))
+      case NonFatal(e) =>
+        if (Platform.isJVM) {
+          assertEquals(e, dummy1)
+          assertEquals(e.getSuppressed.toList, List(dummy2))
+        } else {
+          val CompositeException(errors) = e
+          assertEquals(errors.toList, List(dummy1, dummy2))
+        }
+    }
+  }
+
+  test("Cancelable.trampolined(seq)") {
+    implicit val sc = TestScheduler()
+    var effect = 0
+    val c = Cancelable.trampolined((0 until 100).map(_ => Cancelable(() => effect += 1)))
+
+    assertEquals(effect, 0)
+    c.cancel()
+    assertEquals(effect, 100)
+  }
+
+  test("Cancelable.trampolined(refs)") {
+    implicit val sc = TestScheduler()
+    var effect = 0
+    val c = Cancelable.trampolined((0 until 100).map(_ => Cancelable(() => effect += 1)) : _*)
+
+    assertEquals(effect, 0)
+    c.cancel()
+    assertEquals(effect, 100)
+  }
+
+  test("Cancelable.trampolined should cancel all on error") {
+    implicit val sc = TestScheduler()
+    val dummy1 = DummyException("dummy1")
+    val dummy2 = DummyException("dummy2")
+
+    val c = Cancelable.trampolined(
+      Cancelable(() => throw dummy1),
+      Cancelable(() => throw dummy2)
+    )
+
+    c.cancel()
+    if (Platform.isJVM) {
+      val e = sc.state.lastReportedError
+      assertEquals(e, dummy1)
+      assertEquals(e.getSuppressed.toList, List(dummy2))
+    } else {
+      val CompositeException(errors) = sc.state.lastReportedError
+      assertEquals(errors.toList, List(dummy1, dummy2))
     }
   }
 
@@ -110,10 +168,10 @@ object CancelableSuite extends SimpleTestSuite {
     assertEquals(ctx.state.lastReportedError, dummy)
   }
 
-  test("Cancelable#cancelIO") {
+  test("Cancelable#toCancelToken") {
     var effect = 0
     val c = Cancelable { () => effect += 1 }
-    val io = c.cancelIO
+    val io = c.toCancelToken[IO]
 
     assertEquals(effect, 0)
     io.unsafeRunSync()
@@ -122,7 +180,7 @@ object CancelableSuite extends SimpleTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Cancelable.empty.cancelIO == IO.unit") {
-    assertEquals(Cancelable.empty.cancelIO, IO.unit)
+  test("Cancelable.empty.toCancelToken[IO] == IO.unit") {
+    assertEquals(Cancelable.empty.toCancelToken[IO], IO.unit)
   }
 }

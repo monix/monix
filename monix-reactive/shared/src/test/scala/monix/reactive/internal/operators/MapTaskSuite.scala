@@ -34,7 +34,7 @@ import scala.util.{Failure, Random}
 
 object MapTaskSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).mapTask(x => Task(x))
+    val o = Observable.range(0, sourceCount).mapTask(x => Task.evalAsync(x))
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
@@ -113,7 +113,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var received = 0
     var total = 0L
 
-    val obs = Observable.range(0, sourceCount).mapTask(x => Task(x))
+    val obs = Observable.range(0, sourceCount).mapTask(x => Task.evalAsync(x))
     obs.unsafeSubscribeFn(new Observer[Long] {
       private[this] var sum = 0L
 
@@ -137,7 +137,7 @@ object MapTaskSuite extends BaseOperatorSuite {
   test("map can be expressed in terms of mapTask") { implicit s =>
     check2 { (list: List[Int], isAsync: Boolean) =>
       val received = Observable.fromIterable(list)
-        .mapTask(x => if (isAsync) Task(x + 10) else Task.eval(x + 10))
+        .mapTask(x => if (isAsync) Task.evalAsync(x + 10) else Task.eval(x + 10))
         .toListL
 
       val expected = Observable.fromIterable(list).map(_ + 10).toListL
@@ -228,7 +228,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var wasThrown: Throwable = null
     var received = 0L
 
-    Observable(1L,2L,3L).endWithError(dummy).mapTask(x => Task(x))
+    Observable(1L,2L,3L).endWithError(dummy).mapTask(x => Task.evalAsync(x))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = {
           received += elem
@@ -470,7 +470,8 @@ object MapTaskSuite extends BaseOperatorSuite {
 
     s.tick(1.second)
     assert(s.state.tasks.isEmpty, "state.tasks.isEmpty")
-    assertEquals(sumAfterMapFuture, 3)
+    assertEquals(sumAfterMapTask, 2)
+    assertEquals(sumAfterMapFuture, 0)
 
     s.tick(1.hour)
     assertEquals(f.value, None)
@@ -478,7 +479,7 @@ object MapTaskSuite extends BaseOperatorSuite {
 
   test("should be cancelable after the main stream has ended") { implicit s =>
     val f = Observable.now(1)
-      .mapTask(x => Task(x+1).delayExecution(1.second))
+      .mapTask(x => Task.evalAsync(x+1).delayExecution(1.second))
       .sumL
       .runAsync
 

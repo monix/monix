@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.eval.Task
 import monix.execution.Ack
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
@@ -37,13 +37,13 @@ class EvalOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] 
       def onError(ex: Throwable): Unit = {
         try {
           val task = try cb(ex) catch { case err if NonFatal(err) => Task.raiseError(err) }
-          task.attempt.foreach {
+          task.attempt.map {
             case Right(()) =>
               out.onError(ex)
             case Left(err) =>
               scheduler.reportFailure(err)
               out.onError(ex)
-          }
+          }.runAsync
         }
         catch {
           case err if NonFatal(err) =>

@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import monix.eval.Coeval
 import monix.eval.Coeval.{Error, Now}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 /** `LazyVal` boxes a function and memoizes its result on its first invocation,
   * to be reused for subsequent invocations.
@@ -51,7 +51,13 @@ private[eval] final class LazyVal[A] private (
 
   private def compute(): Coeval.Eager[A] =
     synchronized {
-      if (cache ne null) cache else {
+      // Double-check due to possible race condition;
+      // this being the double-checked locking
+      if (cache ne null) {
+        // $COVERAGE-OFF$
+        cache
+        // $COVERAGE-ON$
+      } else {
         try {
           cache = Now(thunk())
           thunk = null
@@ -69,10 +75,5 @@ private[eval] final class LazyVal[A] private (
 private[eval] object LazyVal {
   /** Builder. */
   def apply[A](f: () => A, cacheErrors: Boolean): (() => Coeval.Eager[A]) =
-    f match {
-      case ref: LazyVal[A @unchecked] if !cacheErrors || ref.cacheErrors =>
-        ref
-      case _ =>
-        new LazyVal[A](f, cacheErrors)
-    }
+    new LazyVal[A](f, cacheErrors)
 }

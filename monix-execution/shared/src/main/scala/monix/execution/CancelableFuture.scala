@@ -155,7 +155,7 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
         case ref: CancelableFuture[_] if ref ne Never =>
           val cf = ref.asInstanceOf[CancelableFuture[S]]
           // If the resulting Future is completed, there's no reason
-          // to chain cancellables
+          // to chain cancelable tokens
           if (!cf.isCompleted)
             cf.cancelable match {
               case cRef2: ChainedCancelable =>
@@ -229,7 +229,7 @@ object CancelableFuture {
     failed(e)
 
   /** An already completed [[CancelableFuture]]. */
-  final val unit: CancelableFuture[Unit] =
+  val unit: CancelableFuture[Unit] =
     successful(())
 
   /** Returns a [[CancelableFuture]] instance that will never complete. */
@@ -423,7 +423,7 @@ object CancelableFuture {
   }
 
   // Reusable reference to use in `CatsInstances.attempt`
-  private[this] final val liftToEitherRef: (Try[Any] => CancelableFuture[Either[Throwable, Any]]) =
+  private[this] val liftToEitherRef: (Try[Any] => CancelableFuture[Either[Throwable, Any]]) =
     tryA => new Pure(Success(tryA match {
       case Success(a) => Right(a)
       case Failure(e) => Left(e)

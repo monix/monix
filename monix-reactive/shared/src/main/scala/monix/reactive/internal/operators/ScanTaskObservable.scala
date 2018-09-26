@@ -22,7 +22,7 @@ import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.cancelables.OrderedCancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -137,7 +137,7 @@ private[reactive] final class ScanTaskObservable[A, S](
       if (!isActive.get) {
         Stop
       } else try {
-        val task = op(currentS, elem).transformWith(childOnSuccess, childOnError)
+        val task = op(currentS, elem).redeemWith(childOnError, childOnSuccess)
         // No longer allowed to stream errors downstream
         streamErrors = false
 

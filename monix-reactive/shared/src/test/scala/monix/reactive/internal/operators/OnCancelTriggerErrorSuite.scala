@@ -35,7 +35,7 @@ object OnCancelTriggerErrorSuite extends TestSuite[TestScheduler] {
   test("should work") { implicit s =>
     var errorThrow: Throwable = null
     var effect = 0
-    val obs = Observable.now(1).delaySubscription(1.second).onCancelTriggerError
+    val obs = Observable.now(1).delayExecution(1.second).onCancelTriggerError
 
     val c = obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int) = { effect += elem; Continue }

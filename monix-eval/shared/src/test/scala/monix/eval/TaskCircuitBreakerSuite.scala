@@ -27,10 +27,10 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    ).runSyncMaybe
+    ).runSyncStep
 
     var effect = 0
-    val task = circuitBreaker.protect(Task {
+    val task = circuitBreaker.protect(Task.evalAsync {
       effect += 1
     })
 
@@ -43,7 +43,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    ).runSyncMaybe
+    ).runSyncStep
 
     var effect = 0
     val task = circuitBreaker.protect(Task.eval {
@@ -58,11 +58,11 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    ).runSyncMaybe
+    ).runSyncStep
 
     def loop(n: Int, acc: Int): Task[Int] = {
       if (n > 0)
-        circuitBreaker.protect(Task(acc+1))
+        circuitBreaker.protect(Task.evalAsync(acc+1))
           .flatMap(s => loop(n-1, s))
       else
         Task.now(acc)
@@ -76,7 +76,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    ).runSyncMaybe
+    ).runSyncStep
 
     def loop(n: Int, acc: Int): Task[Int] =
       Task.defer {
@@ -94,7 +94,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    ).runSyncMaybe
+    ).runSyncStep
 
     def loop(n: Int, acc: Int): Task[Int] = {
       if (n > 0)
@@ -112,7 +112,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     val Right(circuitBreaker) = TaskCircuitBreaker(
       maxFailures = 5,
       resetTimeout = 1.minute
-    ).runSyncMaybe
+    ).runSyncStep
 
     def loop(n: Int, acc: Int): Task[Int] =
       Task.defer {
@@ -138,7 +138,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 2,
         maxResetTimeout = 10.minutes
-      ).runSyncMaybe
+      ).runSyncStep
 
       cb.doOnOpen(Task.eval { openedCount += 1})
         .doOnClosed(Task.eval { closedCount += 1 })
@@ -215,7 +215,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     // Going back into Closed
     s.tick(resetTimeout)
 
-    val delayedTask = circuitBreaker.protect(Task(1).delayExecution(1.second))
+    val delayedTask = circuitBreaker.protect(Task.evalAsync(1).delayExecution(1.second))
     val delayedResult = delayedTask.runAsync
 
     assertEquals(circuitBreaker.state, TaskCircuitBreaker.HalfOpen(resetTimeout = resetTimeout))
@@ -237,7 +237,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
       val circuitBreaker = TaskCircuitBreaker(
         maxFailures = -1,
         resetTimeout = 1.minute
-      ).runSyncMaybe
+      ).runSyncStep
     }
 
     intercept[IllegalArgumentException] {
@@ -245,7 +245,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
       val circuitBreaker = TaskCircuitBreaker(
         maxFailures = 2,
         resetTimeout = -1.minute
-      ).runSyncMaybe
+      ).runSyncStep
     }
 
     intercept[IllegalArgumentException] {
@@ -254,7 +254,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
         maxFailures = 2,
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 0.5
-      ).runSyncMaybe
+      ).runSyncStep
     }
 
     intercept[IllegalArgumentException] {
@@ -264,7 +264,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 2,
         maxResetTimeout = Duration.Zero
-      ).runSyncMaybe
+      ).runSyncStep
     }
   }
 }

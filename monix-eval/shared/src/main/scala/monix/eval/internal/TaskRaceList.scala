@@ -17,66 +17,74 @@
 
 package monix.eval.internal
 
+import monix.catnap.CancelableF
 import monix.eval.{Callback, Task}
-import monix.execution.Cancelable
 import monix.execution.atomic.{Atomic, PaddingStrategy}
-import monix.execution.cancelables.StackedCancelable
 
 private[eval] object TaskRaceList {
   /**
     * Implementation for `Task.raceList`
     */
   def apply[A](tasks: TraversableOnce[Task[A]]): Task[A] =
-    Task.unsafeCreate { (context, callback) =>
+    Task.Async(new Register(tasks), trampolineBefore = true, trampolineAfter = true)
+
+  // Implementing Async's "start" via `ForkedStart` in order to signal
+  // that this is a task that forks on evaluation.
+  //
+  // N.B. the contract is that the injected callback gets called after
+  // a full async boundary!
+  private final class Register[A](tasks: TraversableOnce[Task[A]])
+    extends ForkedRegister[A] {
+
+    def apply(context: Task.Context, callback: Callback[A]): Unit = {
       implicit val s = context.scheduler
       val conn = context.connection
 
       val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
       val taskArray = tasks.toArray
       val cancelableArray = buildCancelableArray(taskArray.length)
-
-      val composite = Cancelable.collection(cancelableArray)
-      conn.push(composite)
+      conn.pushConnections(cancelableArray:_*)
 
       var index = 0
       while (index < taskArray.length) {
         val task = taskArray(index)
         val taskCancelable = cancelableArray(index)
-        val taskContext = context.copy(connection = taskCancelable)
+        val taskContext = context.withConnection(taskCancelable)
         index += 1
 
-        Task.unsafeStartAsync(task, taskContext, new Callback[A] {
+        Task.unsafeStartEnsureAsync(task, taskContext, new Callback[A] {
           private def popAndCancelRest(): Unit = {
             conn.pop()
-            var i = 0
-            while (i < cancelableArray.length) {
-              val ref = cancelableArray(i)
-              if (ref ne taskCancelable) ref.cancel()
-              i += 1
+            val arr2 = cancelableArray.collect {
+              case cc if cc ne taskCancelable =>
+                cc.cancel
             }
+            CancelableF.cancelAllTokens[Task](arr2:_*)
+              .runAsyncAndForget
           }
 
           def onSuccess(value: A): Unit =
             if (isActive.getAndSet(false)) {
               popAndCancelRest()
-              callback.asyncOnSuccess(value)
+              callback.onSuccess(value)
             }
 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               popAndCancelRest()
-              callback.asyncOnError(ex)
+              callback.onError(ex)
             } else {
               s.reportFailure(ex)
             }
         })
       }
     }
+  }
 
-  private def buildCancelableArray(n: Int): Array[StackedCancelable] = {
-    val array = new Array[StackedCancelable](n)
+  private def buildCancelableArray(n: Int): Array[TaskConnection] = {
+    val array = new Array[TaskConnection](n)
     var i = 0
-    while (i < n) { array(i) = StackedCancelable(); i += 1 }
+    while (i < n) { array(i) = TaskConnection(); i += 1 }
     array
   }
 }

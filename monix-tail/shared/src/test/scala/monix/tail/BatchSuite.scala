@@ -158,6 +158,12 @@ abstract class BatchSuite[A : ClassTag](implicit
       batch.toIterable.toList == list
     }
   }
+
+  test("Batch.fromArray") { _ =>
+    check1 { (array: Array[A]) =>
+      Batch.fromArray(array).toArray.toSeq == array.toSeq
+    }
+  }
 }
 
 object ArrayBatchSuite extends BatchSuite[Int] {

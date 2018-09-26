@@ -19,12 +19,14 @@ package monix.eval
 
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
+import monix.execution.exceptions.DummyException
+import monix.execution.misc.Local
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
-  testAsync("Local.apply") {
+  testAsync("TaskLocal.apply") {
     val test =
       for {
         local <- TaskLocal(0)
@@ -43,7 +45,27 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runAsyncOpt
   }
 
-  testAsync("Local.defaultLazy") {
+  testAsync("TaskLocal.wrap") {
+    val local = Local(0)
+    val test =
+      for {
+        local <- TaskLocal.wrap(Task(local))
+        v1 <- local.read
+        _ <- Task.now(assertEquals(v1, 0))
+        _ <- local.write(100)
+        _ <- Task.shift
+        v2 <- local.read
+        _ <- Task.now(assertEquals(v2, 100))
+        _ <- local.clear
+        _ <- Task.shift
+        v3 <- local.read
+        _ <- Task.now(assertEquals(v3, 0))
+      } yield ()
+
+    test.runAsyncOpt
+  }
+
+  testAsync("TaskLocal.defaultLazy") {
     var i = 0
 
     val test =
@@ -63,7 +85,6 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     test.runAsyncOpt
   }
-
 
   testAsync("TaskLocal!.bind") {
     val test =
@@ -110,18 +131,18 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runAsyncOpt
   }
 
-  testAsync("Local canceled") {
+  testAsync("TaskLocal canceled") {
     import scala.concurrent.duration._
 
     val test: Task[Unit] = for {
       local <- TaskLocal[String]("Good")
-      forked <- Task.sleep(1.second).fork
-      _ <- local.bind("Bad!")(forked.cancel).fork
+      forked <- Task.sleep(1.second).start
+      _ <- local.bind("Bad!")(forked.cancel).start
       _ <- Task.sleep(1.second)
       s <- local.read
       _ <- Task.now(assertEquals(s, "Good"))
     } yield ()
-    
+
     test.runAsyncOpt
   }
 
@@ -145,5 +166,25 @@ object TaskLocalSuite extends SimpleTestSuite {
       } yield ()
 
     test.runAsyncOpt
+  }
+
+  testAsync("TaskLocals get restored in Task.create on error") {
+    val dummy = DummyException("dummy")
+    val task = Task.create[Int] { (_, cb) =>
+      ec.execute(new Runnable {
+        def run() = cb.onError(dummy)
+      })
+    }
+
+    val t = for {
+      local <- TaskLocal(0)
+      _ <- local.write(10)
+      i <- task.onErrorRecover { case `dummy` => 10 }
+      l <- local.read
+      _ <- Task.eval(assertEquals(i, 10))
+      _ <- Task.eval(assertEquals(l, 10))
+    } yield ()
+
+    t.runAsyncOpt
   }
 }

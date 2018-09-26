@@ -55,12 +55,12 @@ object SwitchMapSuite extends BaseOperatorSuite {
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 = {
       val source = Observable.now(1L).delayOnComplete(2.seconds)
-      source.switchMap(a => Observable.now(a).delaySubscription(1.second))
+      source.switchMap(a => Observable.now(a).delayExecution(1.second))
     }
 
     val sample2 = {
       val source = Observable.now(1L).delayOnNext(1.second).delayOnComplete(2.seconds)
-      source.switchMap(a => Observable.now(a).delaySubscription(1.second))
+      source.switchMap(a => Observable.now(a).delayExecution(1.second))
     }
 
     Seq(

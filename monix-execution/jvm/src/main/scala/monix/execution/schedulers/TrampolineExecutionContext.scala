@@ -18,9 +18,8 @@
 package monix.execution.schedulers
 
 
-import monix.execution.misc.NonFatal
-
-import scala.annotation.tailrec
+import monix.execution.internal.Trampoline
+import scala.util.control.NonFatal
 import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
 
 /** A `scala.concurrentExecutionContext` implementation
@@ -56,92 +55,14 @@ import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
 final class TrampolineExecutionContext private (underlying: ExecutionContext)
   extends ExecutionContext {
 
-  private[this] val localContext = TrampolineExecutionContext.localContext
-  private[this] val localTasks = new ThreadLocal[List[Runnable]]()
-
-  private[this] val trampolineContext: BlockContext =
-    new BlockContext {
-      def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-        // In case of blocking, execute all scheduled local tasks on
-        // a separate thread, otherwise we could end up with a dead-lock
-        forkTheRest(Nil)
-        thunk
-      }
+  private[this] val trampoline =
+    new ThreadLocal[Trampoline]() {
+      override def initialValue(): Trampoline =
+        TrampolineExecutionContext.buildTrampoline(underlying)
     }
 
   override def execute(runnable: Runnable): Unit =
-    localTasks.get match {
-      case null =>
-        // Optimal execution happens when we can access
-        // BlockContext.contextLocal
-        if (localContext ne null)
-          startLoopOptimal(runnable)
-        else
-          startLoopNormal(runnable)
-
-      case some =>
-        // If we are already in batching mode, add to stack
-        localTasks.set(runnable :: some)
-    }
-
-  private def startLoopOptimal(runnable: Runnable): Unit = {
-    // If we aren't in local mode yet, start local loop
-    localTasks.set(Nil)
-    val parentContext = localContext.get()
-    try {
-      localContext.set(trampolineContext)
-      localRunLoop(runnable)
-    } finally {
-      localContext.set(parentContext)
-    }
-  }
-
-  private def startLoopNormal(runnable: Runnable): Unit = {
-    // If we aren't in local mode yet, start local loop
-    localTasks.set(Nil)
-    BlockContext.withBlockContext(trampolineContext) {
-      localRunLoop(runnable)
-    }
-  }
-
-  @tailrec private def localRunLoop(head: Runnable): Unit = {
-    try {
-      head.run()
-    } catch {
-      case ex: Throwable =>
-        // Sending everything else to the underlying context
-        forkTheRest(null)
-        if (NonFatal(ex)) reportFailure(ex) else throw ex
-    }
-
-    localTasks.get() match {
-      case null => ()
-      case Nil =>
-        localTasks.set(null)
-      case h2 :: t2 =>
-        localTasks.set(t2)
-        localRunLoop(h2)
-    }
-  }
-
-  private def forkTheRest(newLocalTasks: Nil.type): Unit = {
-    final class ResumeRun(head: Runnable, rest: List[Runnable]) extends Runnable {
-      def run(): Unit = {
-        localTasks.set(rest)
-        localRunLoop(head)
-      }
-    }
-
-    val rest = localTasks.get()
-    localTasks.set(newLocalTasks)
-
-    rest match {
-      case null | Nil => ()
-      case head :: tail =>
-        underlying.execute(new ResumeRun(head, tail))
-    }
-  }
-
+    trampoline.get().execute(runnable)
   override def reportFailure(t: Throwable): Unit =
     underlying.reportFailure(t)
 }
@@ -178,7 +99,7 @@ object TrampolineExecutionContext {
   /** Returns the `localContext`, allowing us to bypass calling
     * `BlockContext.withBlockContext`, as an optimization trick.
     */
-  private final val localContext: ThreadLocal[BlockContext] = {
+  private val localContext: ThreadLocal[BlockContext] = {
     try {
       val methods = BlockContext.getClass.getDeclaredMethods
         .filter(m => m.getParameterCount == 0 && m.getReturnType == classOf[ThreadLocal[_]])
@@ -195,6 +116,57 @@ object TrampolineExecutionContext {
       case _: NoSuchMethodError => null
       case _: SecurityException => null
       case NonFatal(_) => null
+    }
+  }
+
+  private def buildTrampoline(underlying: ExecutionContext): Trampoline = {
+    if (localContext ne null)
+      new JVMOptimalTrampoline(underlying)
+    else
+      new JVMNormalTrampoline(underlying)
+  }
+
+  private final class JVMOptimalTrampoline(underlying: ExecutionContext)
+    extends Trampoline(underlying) {
+
+    private[this] val trampolineContext: BlockContext =
+      new BlockContext {
+        def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+          // In case of blocking, execute all scheduled local tasks on
+          // a separate thread, otherwise we could end up with a dead-lock
+          forkTheRest()
+          thunk
+        }
+      }
+
+    override def startLoop(runnable: Runnable): Unit = {
+      val parentContext = localContext.get()
+      localContext.set(trampolineContext)
+      try {
+        super.startLoop(runnable)
+      } finally {
+        localContext.set(parentContext)
+      }
+    }
+  }
+
+  private class JVMNormalTrampoline(underlying: ExecutionContext)
+    extends Trampoline(underlying) {
+
+    private[this] val trampolineContext: BlockContext =
+      new BlockContext {
+        def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+          // In case of blocking, execute all scheduled local tasks on
+          // a separate thread, otherwise we could end up with a dead-lock
+          forkTheRest()
+          thunk
+        }
+      }
+
+    override def startLoop(runnable: Runnable): Unit = {
+      BlockContext.withBlockContext(trampolineContext) {
+        super.startLoop(runnable)
+      }
     }
   }
 }

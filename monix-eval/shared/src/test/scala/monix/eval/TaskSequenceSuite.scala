@@ -24,7 +24,7 @@ import scala.util.{Failure, Success}
 
 object TaskSequenceSuite extends BaseTestSuite {
   test("Task.sequence should not execute in parallel") { implicit s =>
-    val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
+    val seq = Seq(Task.evalAsync(1).delayExecution(2.seconds), Task.evalAsync(2).delayExecution(1.second), Task.evalAsync(3).delayExecution(3.seconds))
     val f = Task.sequence(seq).runAsync
 
     s.tick()
@@ -40,10 +40,10 @@ object TaskSequenceSuite extends BaseTestSuite {
   test("Task.sequence should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq(
-      Task(2).delayExecution(1.second),
-      Task(throw ex).delayExecution(2.seconds),
-      Task(3).delayExecution(3.seconds),
-      Task(3).delayExecution(1.seconds))
+      Task.evalAsync(2).delayExecution(1.second),
+      Task.evalAsync(throw ex).delayExecution(2.seconds),
+      Task.evalAsync(3).delayExecution(3.seconds),
+      Task.evalAsync(3).delayExecution(1.seconds))
 
     val f = Task.sequence(seq).runAsync
 
@@ -56,7 +56,7 @@ object TaskSequenceSuite extends BaseTestSuite {
   }
 
   test("Task.sequence should be canceled") { implicit s =>
-    val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
+    val seq = Seq(Task.evalAsync(1).delayExecution(2.seconds), Task.evalAsync(2).delayExecution(1.second), Task.evalAsync(3).delayExecution(3.seconds))
     val f = Task.sequence(seq).runAsync
 
     s.tick()

@@ -35,7 +35,7 @@ object Local {
     * }}}
     */
   def apply[A](default: A): Local[A] =
-    new Local[A](default)
+    new Local[A](() => default)
 
   /** Represents the current state of all [[Local locals]] for a given
     * execution context.
@@ -177,13 +177,13 @@ object Local {
   * Note: the implementation is optimized for situations in which save
   * and restore optimizations are dominant.
   */
-final class Local[A](default: => A) {
+final class Local[A](default: () => A) {
   import Local.Key
   private[this] val key: Key = new Key
 
   /** Returns the current value of this `Local`. */
   def apply(): A =
-    Local.getKeyOrElse(key, default)
+    Local.getKeyOrElse(key, default())
 
   /** Updates the value of this `Local`. */
   def update(value: A): Unit =

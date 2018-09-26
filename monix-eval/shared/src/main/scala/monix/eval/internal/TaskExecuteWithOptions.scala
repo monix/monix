@@ -17,26 +17,23 @@
 
 package monix.eval.internal
 
-import monix.eval.{Callback, Task}
-import monix.eval.Task.Options
-import monix.execution.misc.NonFatal
+import monix.eval.Task
+import monix.eval.Task.{Context, ContextSwitch, Options}
 
 private[eval] object TaskExecuteWithOptions {
   /**
     * Implementation for `Task.executeWithOptions`
     */
   def apply[A](self: Task[A], f: Options => Options): Task[A] =
-    Task.unsafeCreate { (context, cb) =>
-      implicit val s = context.scheduler
-      var streamErrors = true
-      try {
-        val context2 = context.copy(options = f(context.options))
-        streamErrors = false
-        Task.unsafeStartTrampolined[A](self, context2, Callback.async(cb))
-      } catch {
-        case ex if NonFatal(ex) =>
-          if (streamErrors) cb.asyncOnError(ex)
-          else context.scheduler.reportFailure(ex)
-      }
+    ContextSwitch(self, enable(f), disable)
+
+  private[this] def enable(f: Options => Options): Context => Context =
+    ctx => {
+      val opts2 = f(ctx.options)
+      if (opts2 != ctx.options) ctx.withOptions(opts2)
+      else ctx
     }
+
+  private[this] val disable: (Any, Throwable, Context, Context) => Context =
+    (_, _, old, current) => current.withOptions(old.options)
 }

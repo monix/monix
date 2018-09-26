@@ -17,32 +17,56 @@
 
 package monix.eval
 
-import scala.util.{Either, Success, Try}
 import cats.Eq
-import cats.effect.{Async, IO}
+import cats.effect.laws.discipline.Parameters
 import cats.effect.laws.discipline.arbitrary.{catsEffectLawsArbitraryForIO, catsEffectLawsCogenForIO}
+import cats.effect.{Async, IO}
+import monix.execution.atomic.Atomic
+import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
+import org.scalacheck.{Arbitrary, Cogen, Gen}
+import scala.util.{Either, Success, Try}
 
 /**
   * Base trait to inherit in all `monix-eval` tests that use ScalaCheck.
   */
-trait BaseLawsSuite extends monix.execution.BaseLawsSuite with ArbitraryInstances
+trait BaseLawsSuite extends monix.execution.BaseLawsSuite with ArbitraryInstances {
+  /**
+    * Customizes Cats-Effect's default params.
+    *
+    * At the moment of writing, these match the defaults, but it's
+    * better to specify these explicitly.
+    */
+  implicit val params: Parameters =
+    Parameters(
+      stackSafeIterationsCount = if (Platform.isJVM) 10000 else 100,
+      allowNonTerminationLaws = true)
+}
 
 trait ArbitraryInstances extends ArbitraryInstancesBase {
-  implicit def equalityTask[A](implicit A: Eq[A], ec: TestScheduler): Eq[Task[A]] =
+  implicit def equalityTask[A](implicit
+    A: Eq[A],
+    sc: TestScheduler,
+    opts: Task.Options = Task.defaultOptions): Eq[Task[A]] = {
+
     new Eq[Task[A]] {
       def eqv(lh: Task[A], rh: Task[A]): Boolean =
-        equalityFuture(A, ec).eqv(lh.runAsync, rh.runAsync)
+        equalityFuture(A, sc).eqv(lh.runAsyncOpt, rh.runAsyncOpt)
     }
+  }
 
-  implicit def equalityTaskPar[A](implicit A: Eq[A], ec: TestScheduler): Eq[Task.Par[A]] =
+  implicit def equalityTaskPar[A](implicit
+    A: Eq[A],
+    ec: TestScheduler,
+    opts: Task.Options = Task.defaultOptions): Eq[Task.Par[A]] = {
+
     new Eq[Task.Par[A]] {
       import Task.Par.unwrap
       def eqv(lh: Task.Par[A], rh: Task.Par[A]): Boolean =
         Eq[Task[A]].eqv(unwrap(lh), unwrap(rh))
     }
+  }
 
   implicit def equalityIO[A](implicit A: Eq[A], ec: TestScheduler): Eq[IO[A]] =
     new Eq[IO[A]] {
@@ -69,8 +93,14 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
     def genPure: Gen[Task[A]] =
       getArbitrary[A].map(Task.pure)
 
-    def genApply: Gen[Task[A]] =
-      getArbitrary[A].map(Task.apply(_))
+    def genEvalAsync: Gen[Task[A]] =
+      getArbitrary[A].map(Task.evalAsync(_))
+
+    def genEval: Gen[Task[A]] =
+      Gen.frequency(
+        1 -> getArbitrary[A].map(Task.eval(_)),
+        1 -> getArbitrary[A].map(Task(_))
+      )
 
     def genFail: Gen[Task[A]] =
       getArbitrary[Throwable].map(Task.raiseError)
@@ -80,12 +110,13 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
 
     def genCancelable: Gen[Task[A]] =
       for (a <- getArbitrary[A]) yield
-        Task.unsafeCreate[A] { (ctx, cb) =>
-          implicit val ec = ctx.scheduler
-          ec.executeAsync{ () =>
-            if (!ctx.connection.isCanceled)
-              cb.asyncOnSuccess(a)
+        Task.cancelable0[A] { (sc, cb) =>
+          val isActive = Atomic(true)
+          sc.executeAsync { () =>
+            if (isActive.getAndSet(false))
+              cb.onSuccess(a)
           }
+          Task(isActive.set(false))
         }
 
     def genNestedAsync: Gen[Task[A]] =
@@ -93,16 +124,22 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
         .map(k => Async[Task].async(k).flatMap(x => x))
 
     def genBindSuspend: Gen[Task[A]] =
-      getArbitrary[A].map(Task.apply(_).flatMap(Task.pure))
+      getArbitrary[A].map(Task.evalAsync(_).flatMap(Task.pure))
 
     def genSimpleTask = Gen.frequency(
       1 -> genPure,
-      1 -> genApply,
+      1 -> genEval,
+      1 -> genEvalAsync,
       1 -> genFail,
       1 -> genAsync,
       1 -> genNestedAsync,
       1 -> genBindSuspend
     )
+
+    def genContextSwitch: Gen[Task[A]] =
+      for (t <- genSimpleTask) yield {
+        Task.ContextSwitch[A](t, x => x.copy(), (_, _, old, _) => old)
+      }
 
     def genFlatMap: Gen[Task[A]] =
       for {
@@ -124,16 +161,18 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
       } yield ioa.map(f1).map(f2)
 
     Arbitrary(Gen.frequency(
-      5 -> genPure,
-      5 -> genApply,
+      1 -> genPure,
+      1 -> genEvalAsync,
+      1 -> genEval,
       1 -> genFail,
-      5 -> genCancelable,
-      5 -> genBindSuspend,
-      5 -> genAsync,
-      5 -> genNestedAsync,
-      5 -> getMapOne,
-      5 -> getMapTwo,
-      10 -> genFlatMap))
+      1 -> genContextSwitch,
+      1 -> genCancelable,
+      1 -> genBindSuspend,
+      1 -> genAsync,
+      1 -> genNestedAsync,
+      1 -> getMapOne,
+      1 -> getMapTwo,
+      2 -> genFlatMap))
   }
 
   implicit def arbitraryTaskPar[A : Arbitrary : Cogen]: Arbitrary[Task.Par[A]] =
@@ -151,7 +190,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def arbitraryPfExToA[A](implicit A: Arbitrary[A]): Arbitrary[PartialFunction[Throwable, A]] =
     Arbitrary {
       val fun = implicitly[Arbitrary[Int => A]]
-      for (f <- fun.arbitrary) yield PartialFunction((t: Throwable) => f(t.hashCode()))
+      for (f <- fun.arbitrary) yield { case (t: Throwable) => f(t.hashCode()) }
     }
 
   implicit def arbitraryCoevalToLong[A, B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Coeval[A] => B] =
@@ -172,7 +211,9 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def equalityCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
     new Eq[Coeval[A]] {
       def eqv(lh: Coeval[A], rh: Coeval[A]): Boolean = {
-        Eq[Try[A]].eqv(lh.runTry, rh.runTry)
+        val lht = lh.runTry()
+        val rht = rh.runTry()
+        Eq[Try[A]].eqv(lht, rht)
       }
     }
 
@@ -184,7 +225,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
 
   implicit def cogenForCoeval[A](implicit cga: Cogen[A]): Cogen[Coeval[A]] =
     Cogen { (seed, coeval) =>
-      coeval.runTry match {
+      coeval.runTry() match {
         case Success(a) => cga.perturb(seed, a)
         case _ => seed
       }

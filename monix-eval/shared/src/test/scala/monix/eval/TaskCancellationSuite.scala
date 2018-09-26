@@ -20,19 +20,24 @@ package monix.eval
 import java.util.concurrent.CancellationException
 import cats.laws._
 import cats.laws.discipline._
+import cats.syntax.all._
 import monix.execution.exceptions.DummyException
+import monix.execution.internal.Platform
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object TaskCancellationSuite extends BaseTestSuite {
   test("cancellation works for async actions") { implicit ec =>
+    implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+
     var wasCancelled = false
     val task = Task.eval(1).delayExecution(1.second)
       .doOnCancel(Task.eval { wasCancelled = true })
       .start
       .flatMap(_.cancel)
 
-    task.runAsync
+    task.runAsyncOpt; ec.tick()
     assert(wasCancelled, "wasCancelled")
     assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
   }
@@ -41,7 +46,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     implicit val opts = Task.defaultOptions.enableAutoCancelableRunLoops
 
     var effect = 0
-    val task = Task(1).flatMap(x => Task(2).map(_ + x))
+    val task = Task.evalAsync(1).flatMap(x => Task.evalAsync(2).map(_ + x))
       .foreachL { x => effect = x }
       .start
       .flatMap(_.cancel)
@@ -52,10 +57,12 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(effect, 0)
   }
 
-  test("task.fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
+  test("task.start.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
     check1 { (task: Task[Int]) =>
       val fa = for {
-        forked <- task.attempt.asyncBoundary.cancelable.fork
+        forked <- task.attempt.asyncBoundary
+          .executeWithOptions(_.enableAutoCancelableRunLoops) // not strictly needed by default
+          .start
         _ <- forked.cancel
         r <- forked.join
       } yield r
@@ -83,7 +90,7 @@ object TaskCancellationSuite extends BaseTestSuite {
   }
 
   test("uncancelable works for autoCancelableRunLoops") { implicit ec =>
-    val task = Task(1)
+    val task = Task.evalAsync(1)
     val source = task.flatMap(x => task.map(_ + x))
       .executeWithOptions(_.enableAutoCancelableRunLoops)
 
@@ -113,7 +120,7 @@ object TaskCancellationSuite extends BaseTestSuite {
   }
 
   test("uncancelable is stack safe in flatMap loop, take 2") { implicit ec =>
-    var task = Task(1)
+    var task = Task.evalAsync(1)
     for (_ <- 0 until 10000) task = task.uncancelable
 
     val f = task.runAsync
@@ -128,15 +135,62 @@ object TaskCancellationSuite extends BaseTestSuite {
     }
   }
 
-  test("fa.onCancelRaiseError(e).fork.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> raiseError(e)") { implicit ec =>
+  test("fa.onCancelRaiseError(e).start.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> raiseError(e)") { implicit ec =>
     check2 { (fa: Task[Int], e: Throwable) =>
       val received = fa
         .onCancelRaiseError(e)
-        .fork
+        .start
         .flatMap(fa => fa.cancel.flatMap(_ => fa.join))
+        .executeWithOptions(_.disableAutoCancelableRunLoops)
 
       received <-> Task.raiseError(e)
     }
+  }
+
+  test("cancelBoundary happy path") { implicit ec =>
+    check1 { (task: Task[Int]) =>
+      task <* Task.cancelBoundary <-> task
+    }
+  }
+
+  test("cancelBoundary execution is immediate") { implicit ec =>
+    val task = Task.cancelBoundary *> Task(1)
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("cancelBoundary is stack safe") { implicit ec =>
+    def loop(n: Int): Task[Unit] =
+      if (n > 0) Task.cancelBoundary.flatMap(_ => loop(n - 1))
+      else Task.pure(())
+
+    val count = if (Platform.isJVM) 10000 else 1000
+    val f = loop(count).runAsync; ec.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("cancelBoundary cancels") { implicit ec =>
+    check1 { (task: Task[Int]) =>
+      (Task.cancelBoundary *> task)
+        .start
+        .flatMap(f => f.cancel *> f.join) <-> Task.never
+    }
+  }
+
+  test("onCancelRaiseError resets cancellation flag") { implicit ec =>
+    implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+
+    val err = DummyException("dummy")
+    val task = Task.never[Int].onCancelRaiseError(err)
+      .onErrorRecoverWith {
+        case `err` => Task.cancelBoundary *> Task(10)
+      }
+      .start
+      .flatMap(f => f.cancel *> f.join)
+
+    val f = task.runAsyncOpt
+    ec.tick()
+    assertEquals(f.value, Some(Success(10)))
   }
 
   test("errors raised after cancel get reported") { implicit sc =>
@@ -152,5 +206,68 @@ object TaskCancellationSuite extends BaseTestSuite {
 
     assertEquals(f.value, Some(Failure(canceled)))
     assertEquals(sc.state.lastReportedError, dummy)
+  }
+
+  test("onCancelRaiseError is stack safe in flatMap loop, take 1") { implicit ec =>
+    val cancel = new RuntimeException
+    def loop(n: Int): Task[Int] =
+      Task.eval(n).flatMap { x =>
+        if (x > 0)
+          Task.eval(x - 1).onCancelRaiseError(cancel).flatMap(loop)
+        else
+          Task.pure(0)
+      }
+
+    val f = loop(10000).runAsync
+    ec.tick()
+    assertEquals(f.value, Some(Success(0)))
+  }
+
+  test("onCancelRaiseError is stack safe in flatMap loop, take 2") { implicit ec =>
+    val cancel = new RuntimeException
+    def loop(n: Int): Task[Int] =
+      Task.eval(n).flatMap { x =>
+        if (x > 0)
+          Task.eval(x - 1).flatMap(loop).onCancelRaiseError(cancel)
+        else
+          Task.pure(0)
+      }
+
+    val f = loop(10000).runAsync
+    ec.tick()
+    assertEquals(f.value, Some(Success(0)))
+  }
+
+  testAsync("local.write.uncancelable works") { _ =>
+    import monix.execution.Scheduler.Implicits.global
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+
+    val task = for {
+      l <- TaskLocal(10)
+      _ <- l.write(100).uncancelable
+      _ <- Task.shift
+      v <- l.read
+    } yield v
+
+    for (v <- task.runAsyncOpt) yield {
+      assertEquals(v, 100)
+    }
+  }
+
+  testAsync("local.write.onCancelRaiseError works") { _ =>
+    import monix.execution.Scheduler.Implicits.global
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    val error = DummyException("dummy")
+
+    val task = for {
+      l <- TaskLocal(10)
+      _ <- l.write(100).onCancelRaiseError(error)
+      _ <- Task.shift
+      v <- l.read
+    } yield v
+
+    for (v <- task.runAsyncOpt) yield {
+      assertEquals(v, 100)
+    }
   }
 }

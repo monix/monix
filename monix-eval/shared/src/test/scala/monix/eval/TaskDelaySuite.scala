@@ -28,7 +28,7 @@ object TaskDelaySuite extends BaseTestSuite {
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task(trigger()).delayExecution(1.second)
+    val task = Task.evalAsync(trigger()).delayExecution(1.second)
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -69,7 +69,7 @@ object TaskDelaySuite extends BaseTestSuite {
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task(trigger()).delayExecution(1.second)
+    val task = Task.evalAsync(trigger()).delayExecution(1.second)
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -92,7 +92,7 @@ object TaskDelaySuite extends BaseTestSuite {
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task(trigger()).delayResult(1.second)
+    val task = Task.evalAsync(trigger()).delayResult(1.second)
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -132,7 +132,7 @@ object TaskDelaySuite extends BaseTestSuite {
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task(trigger()).delayResult(1.second)
+    val task = Task.evalAsync(trigger()).delayResult(1.second)
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync

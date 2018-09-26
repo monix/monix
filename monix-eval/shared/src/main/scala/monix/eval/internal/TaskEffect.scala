@@ -18,11 +18,10 @@
 package monix.eval
 package internal
 
-import cats.effect.IO
-import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
+import cats.effect.{CancelToken, IO, SyncIO}
+import monix.execution.Scheduler
 import monix.execution.internal.AttemptCallback.noop
-import monix.execution.misc.NonFatal
-import monix.execution.{Cancelable, Scheduler}
+import scala.util.control.NonFatal
 
 /** INTERNAL API
   *
@@ -31,58 +30,23 @@ import monix.execution.{Cancelable, Scheduler}
   */
 private[eval] object TaskEffect {
   /**
-    * `cats.effect.Async#async`
-    */
-  def async[A](k: (Either[Throwable, A] => Unit) => Unit): Task[A] =
-    Task.unsafeCreate { (ctx, cb) =>
-      implicit val sc = ctx.scheduler
-      try k {
-        case Right(a) => cb.asyncOnSuccess(a)
-        case Left(e) => cb.asyncOnError(e)
-      } catch {
-        case NonFatal(e) =>
-          sc.reportFailure(e)
-      }
-    }
-
-  /**
-    * `cats.effect.Concurrent#cancelable`
-    */
-  def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Task[A] =
-    Task.unsafeCreate { (ctx, cb) =>
-      implicit val sc = ctx.scheduler
-      val conn = ctx.connection
-      val cancelable = SingleAssignCancelable()
-      conn push cancelable
-
-      try {
-        val io = k(new CreateCallback[A](conn, cb))
-        if (io != IO.unit)
-          cancelable := Cancelable.fromIOUnsafe(io)
-      } catch {
-        case NonFatal(e) =>
-          sc.reportFailure(e)
-      }
-    }
-
-  /**
     * `cats.effect.Effect#runAsync`
     */
   def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])
-    (implicit s: Scheduler): IO[Unit] =
-    IO { execute(fa, cb); () }
+    (implicit s: Scheduler, opts: Task.Options): SyncIO[Unit] =
+    SyncIO { execute(fa, cb); () }
 
   /**
     * `cats.effect.ConcurrentEffect#runCancelable`
     */
   def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])
-    (implicit s: Scheduler): IO[IO[Unit]] =
-    IO(execute(fa, cb).cancelIO)
+    (implicit s: Scheduler, opts: Task.Options): SyncIO[CancelToken[Task]] =
+    SyncIO(execute(fa, cb))
 
   private def execute[A](fa: Task[A], cb: Either[Throwable, A] => IO[Unit])
-    (implicit s: Scheduler) = {
+    (implicit s: Scheduler, opts: Task.Options) = {
 
-    fa.runAsync(new Callback[A] {
+    fa.runAsyncOptF(new Callback[A] {
       private def signal(value: Either[Throwable, A]): Unit =
         try cb(value).unsafeRunAsync(noop)
         catch { case NonFatal(e) => s.reportFailure(e) }
@@ -92,16 +56,5 @@ private[eval] object TaskEffect {
       def onError(e: Throwable): Unit =
         signal(Left(e))
     })
-  }
-
-  private final class CreateCallback[A](
-    conn: StackedCancelable, cb: Callback[A])
-    (implicit s: Scheduler)
-    extends (Either[Throwable, A] => Unit) {
-
-    override def apply(value: Either[Throwable, A]): Unit = {
-      conn.pop()
-      cb.asyncApply(value)
-    }
   }
 }

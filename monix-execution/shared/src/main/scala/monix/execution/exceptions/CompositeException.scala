@@ -19,10 +19,11 @@ package monix.execution.exceptions
 
 import scala.runtime.AbstractFunction1
 
-/** A composite exception represents a list of exceptions
+/**
+  * A composite exception represents a list of exceptions
   * that were caught while delaying errors.
   */
-class CompositeException(val errors: Seq[Throwable])
+final class CompositeException(val errors: Seq[Throwable])
   extends RuntimeException() with Serializable {
 
   override def toString: String = {
