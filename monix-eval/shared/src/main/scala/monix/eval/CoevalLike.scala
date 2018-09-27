@@ -94,6 +94,16 @@ object CoevalLike extends CoevalLikeImplicits0 {
     }
 
   /**
+    * Converts `Function0` (parameter-less function, also called
+    * thunks) to [[Coeval]].
+    */
+  implicit val fromFunction0: CoevalLike[Function0] =
+    new CoevalLike[Function0] {
+      def toCoeval[A](thunk: () => A): Coeval[A] =
+        Coeval.Always(thunk)
+    }
+  
+  /**
     * Converts a Scala `Either` to a [[Coeval]].
     */
   implicit def fromEither[E <: Throwable]: CoevalLike[Either[E, ?]] =

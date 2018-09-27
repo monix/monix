@@ -124,12 +124,22 @@ object TaskLike extends TaskLikeImplicits0 {
     }
 
   /**
-    * Converts a `scala.util.Try` to a [[Task]].
+    * Converts `scala.util.Try` to [[Task]].
     */
   implicit val fromTry: TaskLike[Try] =
     new TaskLike[Try] {
       def toTask[A](fa: Try[A]): Task[A] =
         Task.fromTry(fa)
+    }
+
+  /**
+    * Converts `Function0` (parameter-less function, also called
+    * thunks) to [[Task]].
+    */
+  implicit val fromFunction0: TaskLike[Function0] =
+    new TaskLike[Function0] {
+      def toTask[A](thunk: () => A): Task[A] =
+        Task.Eval(thunk)
     }
 
   /**

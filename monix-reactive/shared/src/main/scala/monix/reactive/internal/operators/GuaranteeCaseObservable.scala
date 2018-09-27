@@ -42,7 +42,7 @@ private[reactive] class GuaranteeCaseObservable[A](
     val isActive = Atomic(true)
     try {
       val out2 = new GuaranteeSubscriber(out, isActive)
-      val c = source.unsafeSubscribeFn(out)
+      val c = source.unsafeSubscribeFn(out2)
       Cancelable.collection(c, out2)
     } catch {
       case NonFatal(e) =>
@@ -127,11 +127,13 @@ private[reactive] class GuaranteeCaseObservable[A](
 
         Task.suspend(f(code)).runAsyncUncancelable(
           new Callback[Unit] {
-            def onSuccess(value: Unit): Unit =
+            def onSuccess(value: Unit): Unit = {
               if (e != null) out.onError(e)
               else out.onComplete()
-            def onError(e2: Throwable): Unit =
+            }
+            def onError(e2: Throwable): Unit = {
               out.onError(composeError(e, e2))
+            }
           })
       }
     }

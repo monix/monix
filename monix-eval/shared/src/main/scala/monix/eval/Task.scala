@@ -864,7 +864,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   @UnsafeBecauseImpure
   def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Task.Options): Unit =
-    TaskRunLoop.startLight(this, s, opts, Callback.empty, isCancelable = false)
+    TaskRunLoop.startLight(this, s, opts, cb, isCancelable = false)
 
   /** Executes the source until completion, or until the first async
     * boundary, whichever comes first.

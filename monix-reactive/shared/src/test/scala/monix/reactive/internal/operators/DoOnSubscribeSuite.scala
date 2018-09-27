@@ -17,7 +17,9 @@
 
 package monix.reactive.internal.operators
 
+import cats.effect.IO
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
@@ -34,7 +36,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     var elem = 0
     Observable
       .now(10)
-      .doOnSubscribe { () => elem = 20 }
+      .doOnSubscribeF { () => elem = 20 }
       .foreach { x => elem = elem / x }
 
     s.tick()
@@ -46,7 +48,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
     Observable
       .range(1,10)
-      .doOnSubscribe { () => throw dummy }
+      .doOnSubscribe(Task.raiseError[Unit](dummy))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = Continue
         def onComplete() = ()
@@ -61,7 +63,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     var elem = 0
     Observable
       .now(10)
-      .doAfterSubscribe { () => elem = 20 }
+      .doAfterSubscribeF { () => elem = 20 }
       .foreach { x => elem = elem / x }
 
     s.tick()
@@ -73,7 +75,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
     Observable
       .range(1,10)
-      .doAfterSubscribe { () => throw dummy }
+      .doAfterSubscribeF(IO.raiseError[Unit](dummy))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = Continue
         def onComplete() = ()

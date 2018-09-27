@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import cats.effect.{ExitCase, IO}
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
@@ -39,7 +40,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     Observable.now(1)
-      .doOnTerminate(_ => wasCalled += 1)
+      .guaranteeF(() => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -57,7 +58,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
 
     Observable.now(1)
-      .doOnTerminate(_ => throw ex)
+      .guaranteeF(IO.raiseError[Unit](ex))
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -76,7 +77,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
 
     Observable.now(1).endWithError(ex)
-      .doOnTerminate(_ => wasCalled += 1)
+      .guaranteeF(() => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -96,7 +97,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
 
     Observable.now(1).endWithError(ex1)
-      .doOnTerminate(_ => throw ex2)
+      .guaranteeF(IO.raiseError[Unit]((ex2)))
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -115,7 +116,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     Observable.range(0, 100)
-      .doOnTerminate(_ => wasCalled += 1)
+      .guaranteeF(IO(wasCalled += 1))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Stop
@@ -133,7 +134,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     Observable.range(0, 100)
-      .doOnTerminate(_ => wasCalled += 1)
+      .guaranteeF(() => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Future(Stop)
@@ -151,7 +152,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
 
     Observable.range(0, 100)
-      .doOnTerminate(_ => throw ex)
+      .guaranteeF(IO.raiseError[Unit](ex))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Stop
@@ -168,7 +169,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
 
     Observable.range(0, 100)
-      .doOnTerminate(_ => throw ex)
+      .guaranteeF(IO.raiseError[Unit](ex))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Future(Stop)
@@ -187,7 +188,12 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var errorThrown = Option.empty[Throwable]
 
     Observable.range(0, 100)
-      .doOnTerminate { ex => errorThrown = ex }
+      .guaranteeCaseF[IO] {
+        case ExitCase.Error(e) =>
+          IO { errorThrown = Some(e) }
+        case _ =>
+          IO.unit
+      }
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) =
@@ -207,7 +213,12 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var errorThrown = Option.empty[Throwable]
 
     Observable.range(0, 100)
-      .doOnTerminate { ex => errorThrown = ex }
+      .guaranteeCaseF {
+        case ExitCase.Error(e) =>
+          IO { errorThrown = Some(e) }
+        case _ =>
+          IO.unit
+      }
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) =

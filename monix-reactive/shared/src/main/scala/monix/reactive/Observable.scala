@@ -2001,7 +2001,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * See [[onErrorHandle]] for the version that takes a
     * total function as a parameter.
     *
-    * @param pf - a function that matches errors with a
+    * @param pf is a function that matches errors with a
     *        backup element that is emitted when the source
     *        throws an error.
     */
@@ -3820,7 +3820,7 @@ object Observable {
     * emits a single element.
     */
   def eval[A](a: => A): Observable[A] =
-    new builders.EvalAlwaysObservable(a)
+    new builders.EvalAlwaysObservable(a _)
 
   /** Lifts a non-strict value into an observable that emits a single element,
     * but upon subscription delay its evaluation by the specified timespan
@@ -4859,9 +4859,6 @@ object Observable {
       *  this case `doOnEarlyStop`:
       *
       *  {{{
-      *    // Needed for the Comonad[Function0] instance
-      *    import cats.implicits._
-      *
       *    // This is possible, but it's better to work with
       *    // pure functions, so use Task or IO ;-)
       *    Observable.range(0, 1000).take(10).doOnEarlyStopF {
@@ -4908,9 +4905,6 @@ object Observable {
       * but it's no longer recommended:
       *
       * {{{
-      *   // Needed for the Comonad[Function0] instance
-      *   import cats.implicits._
-      *
       *   val subscription = Observable
       *     .range(0, Int.MaxValue)
       *     .doOnEarlyStopF(() => println("Cancelled!"))
@@ -4922,7 +4916,6 @@ object Observable {
     @deprecated("Signature changed, switch to doOnSubscriptionCancelF", "3.0.0")
     def doOnSubscriptionCancel(cb: () => Unit): Observable[A] = {
       // $COVERAGE-OFF$
-      import cats.implicits._
       self.doOnSubscriptionCancelF(cb)
       // $COVERAGE-ON$
     }
@@ -4938,8 +4931,6 @@ object Observable {
       *
       * {{{
       *   // Needed for the Comonad[Function0] instance
-      *   import cats.implicits._
-      *
       *   Observable.range(0, 100)
       *     .doOnCompleteF(() => println("Completed!"))
       * }}}
@@ -4947,7 +4938,6 @@ object Observable {
     @deprecated("Signature changed, switch to doOnCompleteF", "3.0.0")
     def doOnComplete(cb: () => Unit): Observable[A] = {
       // $COVERAGE-OFF$
-      import cats.implicits._
       self.doOnCompleteF(cb)
       // $COVERAGE-OFF$
     }
@@ -5207,14 +5197,12 @@ object Observable {
       *   - [[Observable.doOnSubscribe doOnSubscribe]]
       *   - [[Observable.doOnSubscribeF doOnSubscribeF]]
       *
-      * Note that via the magic of [[TaskLike]] which supports `Comonad`
+      * Note that via the magic of [[TaskLike]] which supports `Function0`
       * conversions, you can still use side effectful callbacks in
       * [[Observable.doOnSubscribeF doOnSubscribeF]], but it isn't
       * recommended:
       *
       * {{{
-      *   import cats.implicits._
-      *
       *   Observable.range(0, 10).doOnSubscribeF { () =>
       *     println("Look ma! Side-effectful callbacks!")
       *   }
@@ -5237,14 +5225,12 @@ object Observable {
       *   - [[Observable.doAfterSubscribe doAfterSubscribe]]
       *   - [[Observable.doAfterSubscribeF doAfterSubscribeF]]
       *
-      * Note that via the magic of [[TaskLike]] which supports `Comonad`
+      * Note that via the magic of [[TaskLike]] which supports `Function0`
       * conversions, you can still use side effectful callbacks in
       * [[Observable.doAfterSubscribeF doAfterSubscribeF]], but it isn't
       * recommended:
       *
       * {{{
-      *   import cats.implicits._
-      *
       *   Observable.range(0, 10).doAfterSubscribeF { () =>
       *     println("Look ma! Side-effectful callbacks!")
       *   }

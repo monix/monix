@@ -20,6 +20,7 @@ package monix.reactive
 import cats.Eval
 import cats.effect.{IO, SyncIO}
 import monix.eval.{Coeval, Task, TaskLike}
+import monix.reactive.internal.builders.EvalAlwaysObservable
 import org.reactivestreams.{Publisher => RPublisher}
 
 import scala.annotation.implicitNotFound
@@ -139,6 +140,16 @@ object ObservableLike extends ObservableLikeImplicits0 {
     new ObservableLike[Try] {
       def toObservable[A](fa: Try[A]): Observable[A] =
         Observable.fromTry(fa)
+    }
+
+  /**
+    * Converts `Function0` (parameter-less function, also called
+    * thunks) to [[Observable]].
+    */
+  implicit val fromFunction0: ObservableLike[Function0] =
+    new ObservableLike[Function0] {
+      def toObservable[A](thunk: () => A): Observable[A] =
+        new EvalAlwaysObservable(thunk)
     }
 
   /**

@@ -17,7 +17,6 @@
 
 package monix.reactive.consumers
 
-import cats.implicits._
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.schedulers.TestScheduler

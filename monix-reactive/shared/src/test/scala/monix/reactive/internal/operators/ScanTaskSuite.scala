@@ -19,9 +19,9 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
+import cats.effect.IO
 import cats.laws._
 import cats.laws.discipline._
-
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
 import monix.reactive.Observable
@@ -92,9 +92,9 @@ object ScanTaskSuite extends BaseOperatorSuite {
     var effect = 0
 
     val obs = Observable.range(0, 100)
-      .doOnTerminate(_ => { effect += 1 })
+      .guarantee(Task { effect += 1 })
       .scanTask(Task.raiseError[Long](dummy))((s, a) => Task.evalAsync(s + a))
-      .doOnError(_ => { effect += 1 })
+      .doOnError(_ => Task { effect += 1 })
       .lastL
 
     val f = obs.runAsync; s.tick()
@@ -107,9 +107,9 @@ object ScanTaskSuite extends BaseOperatorSuite {
     var effect = 0
 
     val obs = Observable.range(0, 100)
-      .doOnTerminate(_ => { effect += 1 })
+      .guaranteeF(IO { effect += 1 })
       .scanTask(Task.now(0))((_, _) => throw dummy)
-      .doOnError(_ => { effect += 1 })
+      .doOnErrorF(_ => IO { effect += 1 })
       .lastL
 
     val f = obs.runAsync; s.tick()
@@ -122,9 +122,9 @@ object ScanTaskSuite extends BaseOperatorSuite {
     var effect = 0
 
     val obs = Observable.range(0, 100)
-      .doOnTerminate(_ => { effect += 1 })
+      .guaranteeF(IO { effect += 1 })
       .scanTask(Task.now(0))((_, _) => Task.raiseError(dummy))
-      .doOnError(_ => { effect += 1 })
+      .doOnErrorF(_ => IO { effect += 1 })
       .lastL
 
     val f = obs.runAsync; s.tick()
@@ -138,10 +138,10 @@ object ScanTaskSuite extends BaseOperatorSuite {
     var effect = 0
 
     val f = Observable.now(10).endWithError(dummy)
-      .doOnError { _ => effect += 1 }
+      .doOnErrorF(_ => IO { effect += 1 })
       .scanTask(Task.now(11))((s, a) => Task.evalAsync(s + a).delayExecution(1.second))
-      .doOnNext { x => sum += x }
-      .doOnError { _ => effect += 1 }
+      .doOnNextF { x => IO { sum += x } }
+      .doOnErrorF { _ => IO { effect += 1 } }
       .lastL
       .runAsync
 
@@ -166,9 +166,9 @@ object ScanTaskSuite extends BaseOperatorSuite {
     var effect = 0
 
     val f = Observable.now(10).endWithError(dummy1)
-      .doOnError { _ => effect += 1 }
+      .doOnErrorF { _ => IO { effect += 1 } }
       .scanTask(Task.now(0))((_, _) => Task.raiseError[Int](dummy2).delayExecution(1.second))
-      .doOnError { _ => effect += 1 }
+      .doOnErrorF { _ => IO { effect += 1 } }
       .lastL
       .runAsync
 
@@ -197,9 +197,9 @@ object ScanTaskSuite extends BaseOperatorSuite {
     var effect = 0
 
     val f = Observable.now(10)
-      .doOnNext { _ => effect += 1 }
+      .doOnNextF { _ => IO { effect += 1 } }
       .scanTask(Task.now(0))((_, _) => delay[Int](dummy))
-      .doOnError { _ => effect += 1 }
+      .doOnErrorF { _ => IO { effect += 1 } }
       .runAsyncGetLast
 
     s.tick()

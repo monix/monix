@@ -17,15 +17,17 @@
 
 package monix.reactive.internal.operators
 
+import cats.effect.IO
 import monix.execution.atomic.Atomic
 import monix.reactive.{BaseTestSuite, Observable}
+
 import scala.util.Success
 
 object PublishSelectorSuite extends BaseTestSuite {
   test("publishSelector sanity test") { implicit s =>
     val isStarted = Atomic(0)
     val f = Observable.range(0, 1000)
-      .doOnStart(_ => isStarted.increment())
+      .doOnStartF(_ => IO(isStarted.increment()))
       .publishSelector { source => Observable.merge(source, source, source) }
       .sumL
       .runAsync
@@ -40,8 +42,8 @@ object PublishSelectorSuite extends BaseTestSuite {
     val isCanceled = Atomic(false)
 
     val f = Observable.range(0, 10000)
-      .doOnStart(_ => isStarted.increment())
-      .doOnSubscriptionCancel(() => isCanceled.set(true))
+      .doOnStartF(_ => IO(isStarted.increment()))
+      .doOnSubscriptionCancelF(() => isCanceled.set(true))
       .publishSelector { source => source.map(_ => 1) }
       .take(2000)
       .sumL

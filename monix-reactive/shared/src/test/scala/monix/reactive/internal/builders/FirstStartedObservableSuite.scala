@@ -17,10 +17,9 @@
 
 package monix.reactive.internal.builders
 
-import cats.implicits._
+import cats.effect.IO
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.Task
 import monix.reactive.{BaseTestSuite, Observable}
 import scala.concurrent.duration._
 
@@ -53,13 +52,13 @@ object FirstStartedObservableSuite extends BaseTestSuite {
 
     var obs1Canceled = false
     val obs1 = Observable.intervalAtFixedRate(1.second, 1.second)
-      .doOnNext(_ => Task { received += 1 })
-      .doOnSubscriptionCancel { () => obs1Canceled = true }
+      .doOnNextF(_ => IO { received += 1 })
+      .doOnSubscriptionCancelF { () => obs1Canceled = true }
 
     var obs2Canceled = false
     val obs2 = Observable.eval(2).delayExecution(10.second)
-      .doOnNext{ _ => received += 1 }
-      .doOnSubscriptionCancel { () => obs2Canceled = true }
+      .doOnNextF(_ => IO { received += 1 })
+      .doOnSubscriptionCancelF { () => obs2Canceled = true }
 
     val amb = obs1.ambWith(obs2).subscribe()
     assert(!obs1Canceled, "!obs1Canceled")
@@ -82,13 +81,13 @@ object FirstStartedObservableSuite extends BaseTestSuite {
 
     var obs1Canceled = false
     val obs1 = Observable.intervalAtFixedRate(10.seconds, 1.second)
-      .doOnNext{ _ => received += 1 }
-      .doOnSubscriptionCancel { () => obs1Canceled = true }
+      .doOnNextF(_ => IO { received += 1 })
+      .doOnSubscriptionCancelF { () => obs1Canceled = true }
 
     var obs2Canceled = false
     val obs2 = Observable.intervalAtFixedRate(1.second, 1.second)
-      .doOnNext{ _ => received += 1 }
-      .doOnSubscriptionCancel { () => obs2Canceled = true }
+      .doOnNextF(_ => IO { received += 1 })
+      .doOnSubscriptionCancelF { () => obs2Canceled = true }
 
     val amb = obs1.ambWith(obs2).subscribe()
     assert(!obs1Canceled, "!obs1Canceled")
@@ -111,13 +110,13 @@ object FirstStartedObservableSuite extends BaseTestSuite {
 
     var obs1Canceled = false
     val obs1 = Observable.intervalAtFixedRate(1.seconds, 1.second)
-      .doOnNext{ _ => received += 1 }
-      .doOnSubscriptionCancel { () => obs1Canceled = true }
+      .doOnNextF(_ => IO { received += 1 })
+      .doOnSubscriptionCancelF { () => obs1Canceled = true }
 
     var obs2Canceled = false
     val obs2 = Observable.intervalAtFixedRate(1.second, 1.second)
-      .doOnNext{ _ => received += 1 }
-      .doOnSubscriptionCancel { () => obs2Canceled = true }
+      .doOnNextF(_ => IO { received += 1 })
+      .doOnSubscriptionCancelF { () => obs2Canceled = true }
 
     val amb = obs1.ambWith(obs2).subscribe()
     amb.cancel(); s.tick()

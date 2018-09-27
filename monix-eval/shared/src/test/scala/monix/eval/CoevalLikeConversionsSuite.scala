@@ -21,7 +21,7 @@ import cats.Eval
 import cats.effect.SyncIO
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
-import cats.implicits._
+import monix.eval.utils.EvalComonad
 import scala.util.{Failure, Success, Try}
 
 object CoevalLikeConversionsSuite extends SimpleTestSuite {
@@ -99,8 +99,13 @@ object CoevalLikeConversionsSuite extends SimpleTestSuite {
     assertEquals(conv.runTry(), Failure(dummy))
   }
 
-  test("Coeval.from(comonad)") {
+  test("Coeval.from(Function0)") {
     val value = Coeval.from(() => 1)
+    assertEquals(value.value(), 1)
+  }
+
+  test("Coeval.from(Comonad)") {
+    val value = Coeval.from(EvalComonad(() => 1))
     assertEquals(value.value(), 1)
   }
 }

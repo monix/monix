@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import cats.implicits._
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack
@@ -26,7 +25,6 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
 
 object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {

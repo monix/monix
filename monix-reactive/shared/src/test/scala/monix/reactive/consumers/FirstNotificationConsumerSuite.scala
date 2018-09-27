@@ -18,7 +18,6 @@
 package monix.reactive.consumers
 
 import cats.effect.IO
-import cats.implicits._
 import minitest.TestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler

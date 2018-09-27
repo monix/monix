@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
@@ -35,7 +36,7 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNext(x => sum += x)
+    Observable.range(0, 20).doOnNext(x => Task { sum += x })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -51,7 +52,7 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.now(10L).doOnNext(x => sum += x)
+    Observable.now(10L).doOnNext(x => Task { sum += x })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -69,7 +70,7 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0L
     var errorThrown: Throwable = null
 
-    Observable.now(10L).doOnNext(x => throw dummy)
+    Observable.now(10L).doOnNext(_ => Task { throw dummy })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = errorThrown = ex
@@ -88,7 +89,7 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0L
     var errorThrown: Throwable = null
 
-    Observable.range(1,10).doOnNext(x => throw dummy)
+    Observable.range(1,10).doOnNext(_ => Task { throw dummy })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = errorThrown = ex

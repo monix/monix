@@ -19,12 +19,13 @@ package monix.eval
 
 import cats.Eval
 import cats.effect.{IO, SyncIO}
+import monix.eval.utils.EvalComonad
 import monix.execution.exceptions.DummyException
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
 object TaskLikeConversionsSuite extends BaseTestSuite {
-  import TaskConversionsSuite.{CIO, CustomEffect, CustomConcurrentEffect}
+  import TaskConversionsSuite.{CIO, CustomConcurrentEffect, CustomEffect}
 
   test("Task.from(future)") { implicit s =>
     val p = Promise[Int]()
@@ -245,8 +246,15 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.from(comonad)") { implicit s =>
+  test("Task.from(Function0)") { implicit s =>
     val task = Task.from(() => 1)
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.from(comonad)") { implicit s =>
+    val task = Task.from(EvalComonad(() => 1))
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(1)))
