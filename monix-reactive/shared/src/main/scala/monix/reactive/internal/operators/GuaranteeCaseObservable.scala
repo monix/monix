@@ -43,7 +43,7 @@ private[reactive] class GuaranteeCaseObservable[A](
     try {
       val out2 = new GuaranteeSubscriber(out, isActive)
       val c = source.unsafeSubscribeFn(out)
-      Cancelable.collection(out2, c)
+      Cancelable.collection(c, out2)
     } catch {
       case NonFatal(e) =>
         fireAndForget(isActive, ExitCase.Error(e))
@@ -116,20 +116,22 @@ private[reactive] class GuaranteeCaseObservable[A](
     }
 
     private def signalComplete(e: Throwable): Unit = {
-      def composeError(e2: Throwable) = {
+      def composeError(e: Throwable, e2: Throwable) = {
         if (e != null) Platform.composeErrors(e, e2)
         else e2
       }
 
       if (isActive.getAndSet(false)) {
-        val code = if (e != null) ExitCase.Error(e) else ExitCase.Completed
+        val code = if (e != null) ExitCase.Error(e)
+        else ExitCase.Completed
+
         Task.suspend(f(code)).runAsyncUncancelable(
           new Callback[Unit] {
             def onSuccess(value: Unit): Unit =
               if (e != null) out.onError(e)
               else out.onComplete()
             def onError(e2: Throwable): Unit =
-              out.onError(composeError(e2))
+              out.onError(composeError(e, e2))
           })
       }
     }

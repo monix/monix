@@ -79,7 +79,7 @@ private[reactive] object EvalOnSubscribeObservable {
                   out.onNext(elem)
               }
             } else {
-              FutureUtils.transformWith(p.future,
+              FutureUtils.transformWith[Unit, Ack](p.future,
                 {
                   case Success(_) => out.onNext(elem)
                   case Failure(e) =>

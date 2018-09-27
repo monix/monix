@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import cats.effect.IO
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -24,7 +25,6 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -41,7 +41,8 @@ object DoOnErrorSuite extends TestSuite[TestScheduler] {
     var wasTriggered: Throwable = null
     var wasCompleted = 0
 
-    Observable.now(1).endWithError(dummy).doOnError(ex => wasTriggered = ex)
+    Observable.now(1).endWithError(dummy)
+      .doOnErrorF(ex => IO { wasTriggered = ex })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -57,7 +58,8 @@ object DoOnErrorSuite extends TestSuite[TestScheduler] {
     var wasTriggered: Throwable = null
     var wasCompleted = 0
 
-    Observable.now(1).endWithError(dummy).doOnError(ex => wasTriggered = ex)
+    Observable.now(1).endWithError(dummy)
+      .doOnErrorF(ex => IO { wasTriggered = ex })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Future(Continue)
@@ -74,7 +76,8 @@ object DoOnErrorSuite extends TestSuite[TestScheduler] {
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.range(0,10).doOnError(_ => wasTriggered += 1)
+    Observable.range(0,10)
+      .doOnErrorF(_ => IO { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Ack] =
@@ -95,7 +98,7 @@ object DoOnErrorSuite extends TestSuite[TestScheduler] {
     val cancelable = Observable.now(1)
       .delayOnNext(1.second)
       .endWithError(dummy)
-      .doOnError(_ => wasTriggered += 1)
+      .doOnErrorF(_ => IO(wasTriggered += 1))
       .subscribe()
 
     s.tick()

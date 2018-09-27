@@ -5224,8 +5224,11 @@ object Observable {
       * so use it.
       */
     @deprecated("Switch to doOnStart or doOnStartF", "3.0.0")
-    def doOnSubscribe(cb: () => Unit): Observable[A] =
-      new EvalOnSubscribeObservable.After[A](self, task)
+    def doOnSubscribe(cb: () => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doOnSubscribe(Task(cb()))
+      // $COVERAGE-ON$
+    }
 
     /** DEPRECATED — signature changed to use [[monix.eval.Task Task]].
       *
@@ -5251,8 +5254,11 @@ object Observable {
       * so use it.
       */
     @deprecated("Switch to doAfterSubscribe or doAfterSubscribeF", "3.0.0")
-    def doAfterSubscribe(cb: () => Unit): Observable[A] =
-      new EvalOnSubscribeObservable.After[A](self, task)
+    def doAfterSubscribe(cb: () => Unit): Observable[A] = {
+      // $COVERAGE-OFF$
+      self.doAfterSubscribe(Task(cb()))
+      // $COVERAGE-ON$
+    }
 
     /**
       * DEPRECATED — renamed to [[Observable.mapEval]].

@@ -17,8 +17,10 @@
 
 package monix.reactive.internal.builders
 
+import cats.implicits._
 import cats.laws._
 import cats.laws.discipline._
+import monix.eval.Task
 import monix.reactive.{BaseTestSuite, Observable}
 import scala.concurrent.duration._
 
@@ -51,7 +53,7 @@ object FirstStartedObservableSuite extends BaseTestSuite {
 
     var obs1Canceled = false
     val obs1 = Observable.intervalAtFixedRate(1.second, 1.second)
-      .doOnNext{ _ => received += 1 }
+      .doOnNext(_ => Task { received += 1 })
       .doOnSubscriptionCancel { () => obs1Canceled = true }
 
     var obs2Canceled = false

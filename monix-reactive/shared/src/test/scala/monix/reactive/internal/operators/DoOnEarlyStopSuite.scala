@@ -17,7 +17,9 @@
 
 package monix.reactive.internal.operators
 
+import cats.implicits._
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
@@ -38,7 +40,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnEarlyStop(() => wasCanceled += 1)
+    Observable.now(1).doOnEarlyStopF(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Stop
@@ -54,7 +56,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnEarlyStop(() => wasCanceled += 1)
+    Observable.now(1).doOnEarlyStopF(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Future(Stop)
@@ -71,7 +73,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.range(0,10).doOnEarlyStop(() => wasCanceled += 1)
+    Observable.range(0,10).doOnEarlyStopF(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Ack] =
@@ -92,7 +94,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
     var errorThrown: Throwable = null
 
-    Observable.raiseError(dummy).doOnEarlyStop(() => wasCanceled += 1)
+    Observable.raiseError(dummy).doOnEarlyStopF(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Ack] =
@@ -114,7 +116,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     val dummy = DummyException("dummy")
     var hasError = false
 
-    Observable.now(1).doOnEarlyStop(() => throw dummy)
+    Observable.now(1).doOnEarlyStopF(Task.raiseError[Unit](dummy))
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
 
