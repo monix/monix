@@ -59,7 +59,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     Observable.now(1)
-      .guarantee(Task.eval { wasCalled += 1 })
+      .guaranteeF(() => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -104,7 +104,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
           wasThrown = ex
       })
 
-    assertEquals(s.state.lastReportedError, ex)
+    assertEquals(wasThrown, ex)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
@@ -143,8 +143,10 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
           wasThrown = ex
       })
 
-    assertEquals(wasThrown, ex2)
-    assertEquals(s.state.lastReportedError, ex1)
+    s.tick()
+    assertEquals(wasThrown, ex1)
+    assertEquals(wasThrown.getSuppressed.toList, List(ex2))
+    assertEquals(s.state.lastReportedError, null)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
@@ -164,7 +166,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
       })
 
     assertEquals(wasThrown, ex1)
-    assertEquals(s.state.lastReportedError, ex2)
+    assertEquals(wasThrown.getSuppressed.toList, List(ex2))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
@@ -181,6 +183,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
         def onComplete(): Unit = wasCompleted = 1
       })
 
+    s.tick()
     assertEquals(wasCalled, 1)
     assertEquals(wasCompleted, 0)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
@@ -219,6 +222,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
           throw new IllegalStateException("onComplete")
       })
 
+    s.tick()
     assertEquals(s.state.lastReportedError, ex)
   }
 
@@ -236,6 +240,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
           throw new IllegalStateException("onComplete")
       })
 
+    s.tick()
     assertEquals(s.state.lastReportedError, ex)
   }
 
@@ -313,5 +318,191 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(errorThrown, Some(ExitCase.Error(ex)))
+  }
+
+  // Tests converted and imported from the old DoOnTerminateSuite
+
+  test("should protect against user code onComplete") { implicit s =>
+    val ex = DummyException("dummy")
+    var wasThrown: Throwable = null
+
+    Observable.now(1)
+      .guaranteeF(IO.raiseError[Unit](ex))
+      .unsafeSubscribeFn(new Subscriber[Int] {
+        val scheduler = s
+        def onNext(elem: Int) = Continue
+        def onComplete(): Unit = ()
+        def onError(ex: Throwable): Unit =
+          wasThrown = ex
+      })
+
+    assertEquals(wasThrown, ex)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("should execute callback onError") { implicit s =>
+    val ex = DummyException("dummy")
+    var wasCalled = 0
+    var wasThrown: Throwable = null
+
+    Observable.now(1).endWithError(ex)
+      .guaranteeF(() => wasCalled += 1)
+      .unsafeSubscribeFn(new Subscriber[Int] {
+        val scheduler = s
+        def onNext(elem: Int) = Continue
+        def onComplete(): Unit = ()
+        def onError(ex: Throwable): Unit =
+          wasThrown = ex
+      })
+
+    assertEquals(wasCalled, 1)
+    assertEquals(wasThrown, ex)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("should protect against user-code onError") { implicit s =>
+    val ex1 = DummyException("dummy1")
+    val ex2 = DummyException("dummy2")
+    var wasThrown: Throwable = null
+
+    Observable.now(1).endWithError(ex1)
+      .guaranteeF(IO.raiseError[Unit]((ex2)))
+      .unsafeSubscribeFn(new Subscriber[Int] {
+        val scheduler = s
+        def onNext(elem: Int) = Continue
+        def onComplete(): Unit = ()
+        def onError(ex: Throwable): Unit =
+          wasThrown = ex
+      })
+
+    assertEquals(wasThrown, ex1)
+    assertEquals(ex1.getSuppressed.toList, List(ex2))
+    assertEquals(s.state.lastReportedError, null)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("should call on synchronous downstream Stop (IO)") { implicit s =>
+    var wasCalled = 0
+    var wasCompleted = 0
+
+    Observable.range(0, 100)
+      .guaranteeF(IO(wasCalled += 1))
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onNext(elem: Long) = Stop
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted = 1
+      })
+
+    s.tick()
+    assertEquals(wasCalled, 1)
+    assertEquals(wasCompleted, 0)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("should call on asynchronous downstream Stop") { implicit s =>
+    var wasCalled = 0
+    var wasCompleted = 0
+
+    Observable.range(0, 100)
+      .guaranteeF(() => wasCalled += 1)
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onNext(elem: Long) = Future(Stop)
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted = 1
+      })
+
+    s.tick()
+    assertEquals(wasCalled, 1)
+    assertEquals(wasCompleted, 0)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("should protect against user code on synchronous downstream Stop") { implicit s =>
+    val ex = DummyException("dummy")
+    var errorThrown: Throwable = null
+
+    Observable.range(0, 100)
+      .guaranteeF(IO.raiseError[Unit](ex))
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onNext(elem: Long) = Stop
+        def onError(ex: Throwable): Unit =
+          throw new IllegalStateException("onError")
+        def onComplete(): Unit =
+          throw new IllegalStateException("onComplete")
+      })
+
+    s.tick()
+    assertEquals(s.state.lastReportedError, ex)
+  }
+
+  test("should protect against user code on asynchronous downstream Stop") { implicit s =>
+    val ex = DummyException("dummy")
+
+    Observable.range(0, 100)
+      .guaranteeF(IO.raiseError[Unit](ex))
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onNext(elem: Long) = Future(Stop)
+        def onError(ex: Throwable): Unit =
+          throw new IllegalStateException("onError")
+        def onComplete(): Unit =
+          throw new IllegalStateException("onComplete")
+      })
+
+    s.tick()
+    assertEquals(s.state.lastReportedError, ex)
+  }
+
+  test("should receive error if onNext generates error asynchronously") { implicit s =>
+    val ex = DummyException("dummy")
+    var errorThrown = Option.empty[Throwable]
+
+    Observable.range(0, 100)
+      .guaranteeCaseF[IO] {
+        case ExitCase.Error(e) =>
+          IO { errorThrown = Some(e) }
+        case _ =>
+          IO.unit
+      }
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onNext(elem: Long) =
+          Future { (throw ex) : Ack }
+        def onError(ex: Throwable): Unit =
+          throw new IllegalStateException("onError")
+        def onComplete(): Unit =
+          throw new IllegalStateException("onComplete")
+      })
+
+    s.tick()
+    assertEquals(errorThrown, Some(ex))
+  }
+
+  test("should receive error if onNext returns error synchronously") { implicit s =>
+    val ex = DummyException("dummy")
+    var errorThrown = Option.empty[Throwable]
+
+    Observable.range(0, 100)
+      .guaranteeCaseF {
+        case ExitCase.Error(e) =>
+          IO { errorThrown = Some(e) }
+        case _ =>
+          IO.unit
+      }
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onNext(elem: Long) =
+          Future.failed(ex)
+        def onError(ex: Throwable): Unit =
+          throw new IllegalStateException("onError")
+        def onComplete(): Unit =
+          throw new IllegalStateException("onComplete")
+      })
+
+    s.tick()
+    assertEquals(errorThrown, Some(ex))
   }
 }

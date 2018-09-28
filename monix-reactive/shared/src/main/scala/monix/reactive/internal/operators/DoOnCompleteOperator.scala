@@ -18,23 +18,27 @@
 package monix.reactive.internal.operators
 
 import monix.eval.Task
-import monix.execution.Cancelable
-import monix.reactive.Observable
+import monix.execution.Ack
+import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
+import scala.concurrent.Future
 
 private[reactive] final
-class EvalOnSubscriptionCancelObservable[+A](source: Observable[A], task: Task[Unit])
-  extends Observable[A] {
+class DoOnCompleteOperator[A](task: Task[Unit]) extends Operator[A,A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val subscription = source.unsafeSubscribeFn(subscriber)
+  def apply(out: Subscriber[A]): Subscriber[A] =
+    new Subscriber[A] {
+      implicit val scheduler = out.scheduler
 
-    Cancelable(() => {
-      // First cancel the source
-      try subscription.cancel() finally {
-        // Then execute the task
-        task.runAsyncAndForget(subscriber.scheduler)
-      }
-    })
-  }
+      def onNext(elem: A): Future[Ack] = out.onNext(elem)
+      def onError(ex: Throwable): Unit = out.onError(ex)
+
+      def onComplete(): Unit =
+        task.attempt.map {
+          case Right(()) =>
+            out.onComplete()
+          case Left(ex) =>
+            out.onError(ex)
+        }.runAsync
+    }
 }

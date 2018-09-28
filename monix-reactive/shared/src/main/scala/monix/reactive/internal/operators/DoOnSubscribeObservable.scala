@@ -29,7 +29,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
-private[reactive] object EvalOnSubscribeObservable {
+private[reactive] object DoOnSubscribeObservable {
   // Implementation for doBeforeSubscribe
   final class Before[+A](source: Observable[A], task: Task[Unit]) extends Observable[A] {
     def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

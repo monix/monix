@@ -19,26 +19,36 @@ package monix.reactive.internal.operators
 
 import monix.eval.Task
 import monix.execution.Ack
+import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 private[reactive] final
-class EvalOnCompleteOperator[A](task: Task[Unit]) extends Operator[A,A] {
+class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A): Future[Ack] = out.onNext(elem)
-      def onError(ex: Throwable): Unit = out.onError(ex)
+      def onComplete(): Unit = out.onComplete()
 
-      def onComplete(): Unit =
-        task.attempt.map {
-          case Right(()) =>
-            out.onComplete()
-          case Left(ex) =>
-            out.onError(ex)
-        }.runAsync
+      def onError(ex: Throwable): Unit = {
+        try {
+          val task = try cb(ex) catch { case err if NonFatal(err) => Task.raiseError(err) }
+          task.attempt.map {
+            case Right(()) =>
+              out.onError(ex)
+            case Left(err) =>
+              scheduler.reportFailure(err)
+              out.onError(ex)
+          }.runAsync
+        }
+        catch {
+          case err if NonFatal(err) =>
+            scheduler.reportFailure(err)
+        }
+      }
     }
 }

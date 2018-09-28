@@ -20,46 +20,57 @@ package monix.reactive.internal.operators
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Stop
-import monix.execution.atomic.Atomic
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-private[reactive] final class EvalOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
+private[reactive] final
+class DoOnStartOperator[A](cb: A => Task[Unit])
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
-    new Subscriber[A] { self =>
+    new Subscriber[A] {
       implicit val scheduler = out.scheduler
-      private[this] val isActive = Atomic(true)
+
+      private[this] var isDone = false
+      private[this] var isStart = true
 
       def onNext(elem: A): Future[Ack] = {
-        // We are calling out.onNext directly, meaning that in onComplete/onError
-        // we don't have to do anything special to ensure that the last `onNext`
-        // has been sent (like we are doing in mapTask); we only need to apply
-        // back-pressure for the following onNext events
-        val f = out.onNext(elem)
-        val task = Task.fromFuture(f).flatMap { ack =>
-          val r = try cb(elem,ack) catch { case ex if NonFatal(ex) => Task.raiseError(ex) }
-          r.map(_ => ack).onErrorHandle { ex => onError(ex); Stop }
+        if (isStart) {
+          // Protects calls to user code from within the operator and
+          // stream the error downstream if it happens, but if the
+          // error happens because of calls to `onNext` or other
+          // protocol calls, then the behavior should be undefined.
+          val t = try {
+            cb(elem)
+          } catch {
+            case NonFatal(ex) => Task.raiseError(ex)
+          }
+
+          val ack = t.redeemWith(
+            ex => Task.eval { onError(ex); Stop },
+            _ => Task.fromFuture(out.onNext(elem))
+          ).runAsync
+
+          isStart = false
+          ack.syncTryFlatten
+        } else {
+          out.onNext(elem)
+        }
+      }
+
+      def onError(ex: Throwable): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onError(ex)
         }
 
-        // Execution might be immediate
-        task.runAsync.syncTryFlatten
-      }
-
-      def onComplete(): Unit = {
-        if (isActive.getAndSet(false))
+      def onComplete(): Unit =
+        if (!isDone) {
+          isDone = true
           out.onComplete()
-      }
-
-      def onError(ex: Throwable): Unit = {
-        if (isActive.getAndSet(false))
-          out.onError(ex)
-        else
-          scheduler.reportFailure(ex)
-      }
+        }
     }
 }

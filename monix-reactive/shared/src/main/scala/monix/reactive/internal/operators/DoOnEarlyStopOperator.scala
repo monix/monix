@@ -29,7 +29,7 @@ import monix.reactive.internal.util.Instances.ContinueTask
 import scala.concurrent.Future
 import scala.util.Success
 
-private[reactive] final class EvalOnEarlyStopOperator[A](onStop: Task[Unit])
+private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit])
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =

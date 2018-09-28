@@ -29,7 +29,7 @@ import scala.concurrent.Future
 import scala.util.Success
 
 private[reactive] final
-class EvalOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], happensBefore: Boolean)
+class DoOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], happensBefore: Boolean)
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =

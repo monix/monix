@@ -67,7 +67,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
       .foreach { x => elem = elem / x }
 
     s.tick()
-    assertEquals(elem, 20)
+    assertEquals(elem, 2)
   }
 
   test("doAfterSubscribe should protect against error") { implicit s =>
@@ -83,7 +83,6 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
       })
 
     s.tick()
-    assertEquals(wasThrown, null)
-    assertEquals(s.state.lastReportedError, dummy)
+    assertEquals(wasThrown, dummy)
   }
 }

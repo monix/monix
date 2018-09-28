@@ -806,7 +806,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * fine-grained control.
     */
   final def doOnEarlyStop(task: Task[Unit]): Observable[A] =
-    self.liftByOperator(new EvalOnEarlyStopOperator[A](task))
+    self.liftByOperator(new DoOnEarlyStopOperator[A](task))
 
   /** Version of [[doOnEarlyStop]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[TaskLike]]
@@ -855,7 +855,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * fine-grained control.
     */
   final def doOnSubscriptionCancel(task: Task[Unit]): Observable[A] =
-    new EvalOnSubscriptionCancelObservable[A](self, task)
+    new DoOnSubscriptionCancelObservable[A](self, task)
 
   /** Version of [[doOnSubscriptionCancel]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[TaskLike]]
@@ -906,7 +906,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        event gets emitted
     */
   final def doOnComplete(task: Task[Unit]): Observable[A] =
-    self.liftByOperator(new EvalOnCompleteOperator[A](task))
+    self.liftByOperator(new DoOnCompleteOperator[A](task))
 
   /** Version of [[doOnComplete]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[TaskLike]]
@@ -951,7 +951,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * fine-grained control.
     */
   final def doOnError(cb: Throwable => Task[Unit]): Observable[A] =
-    self.liftByOperator(new EvalOnErrorOperator[A](cb))
+    self.liftByOperator(new DoOnErrorOperator[A](cb))
 
   /** Version of [[doOnError]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[TaskLike]]
@@ -1022,7 +1022,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *      any data type via [[TaskLike]]
     */
   final def doOnNextAck(cb: (A, Ack) => Task[Unit]): Observable[A] =
-    self.liftByOperator(new EvalOnNextAckOperator[A](cb))
+    self.liftByOperator(new DoOnNextAckOperator[A](cb))
 
   /** Version of [[doOnNextAck]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[TaskLike]]
@@ -1065,7 +1065,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *         only for the first element
     */
   final def doOnStart(cb: A => Task[Unit]): Observable[A] =
-    self.liftByOperator(new EvalOnStartOperator[A](cb))
+    self.liftByOperator(new DoOnStartOperator[A](cb))
 
   /** Version of [[doOnStart]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[TaskLike]]
@@ -1115,7 +1115,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *     a subscription happens.
     */
   final def doOnSubscribe(task: Task[Unit]): Observable[A] =
-    new EvalOnSubscribeObservable.Before[A](self, task)
+    new DoOnSubscribeObservable.Before[A](self, task)
 
   /** Version of [[doOnSubscribe]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[TaskLike]]
@@ -1142,7 +1142,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * }}}
     */
   final def doOnSubscribeF[F[_]](task: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
-    doOnSubscribeF(F.toTask(task))
+    doOnSubscribe(F.toTask(task))
 
   /** Executes the given callback just _after_ the subscription
     * happens.
@@ -1163,7 +1163,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *     a subscription happens.
     */
   final def doAfterSubscribe(task: Task[Unit]): Observable[A] =
-    new EvalOnSubscribeObservable.After[A](self, task)
+    new DoOnSubscribeObservable.After[A](self, task)
 
   /** Version of [[doAfterSubscribe]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[TaskLike]]
@@ -5068,7 +5068,7 @@ object Observable {
     @deprecated("Switch to guaranteeCase", "3.0.0")
     def doAfterTerminate(cb: Option[Throwable] => Unit): Observable[A] = {
       // $COVERAGE-OFF$
-      self.liftByOperator(new EvalOnTerminateOperator[A](e => Task(cb(e)), happensBefore = false))
+      self.liftByOperator(new DoOnTerminateOperator[A](e => Task(cb(e)), happensBefore = false))
       // $COVERAGE-ON$
     }
 
@@ -5079,7 +5079,7 @@ object Observable {
     @deprecated("Switch to guaranteeCaseF", "3.0.0")
     def doAfterTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
       // $COVERAGE-OFF$
-      self.liftByOperator(new EvalOnTerminateOperator[A](e => F.toTask(cb(e)), happensBefore = false))
+      self.liftByOperator(new DoOnTerminateOperator[A](e => F.toTask(cb(e)), happensBefore = false))
       // $COVERAGE-ON$
     }
 
@@ -5090,7 +5090,7 @@ object Observable {
     @deprecated("Switch to guaranteeCase", "3.0.0")
     def doAfterTerminateTask(cb: Option[Throwable] => Task[Unit]): Observable[A] = {
       // $COVERAGE-OFF$
-      self.liftByOperator(new EvalOnTerminateOperator[A](cb, happensBefore = false))
+      self.liftByOperator(new DoOnTerminateOperator[A](cb, happensBefore = false))
       // $COVERAGE-ON$
     }
 

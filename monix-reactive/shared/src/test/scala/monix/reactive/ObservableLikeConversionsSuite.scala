@@ -320,13 +320,13 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
     val task = Observable.from(() => 1).firstL
     val f = task.runAsync
     s.tick()
-    assertEquals(f.value, Some(Success(Some(1))))
+    assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.from(comonad)") { implicit s =>
     val task = Observable.from(EvalComonad(() => 1)).firstL
     val f = task.runAsync
     s.tick()
-    assertEquals(f.value, Some(Success(Some(1))))
+    assertEquals(f.value, Some(Success(1)))
   }
 }
