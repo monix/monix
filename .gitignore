@@ -12,3 +12,5 @@ target/
 /.lib/
 project/target/
 .classpath
+TAGS
+.tags
