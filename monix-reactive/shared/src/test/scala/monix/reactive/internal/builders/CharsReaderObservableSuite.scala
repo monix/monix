@@ -113,6 +113,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     })
 
     assertEquals(new String(received.toArray), string)
+    assertEquals(wasCompleted, 1)
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 

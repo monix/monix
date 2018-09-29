@@ -68,7 +68,7 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
           fastLoop(b, out, c, em, 0)
         // else stop
       case Failure(ex) =>
-        sendError(out, ex)
+        reportFailure(ex)
     }
   }
 
@@ -91,6 +91,8 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
     try {
       // Using Scala's BlockContext, since this is potentially a blocking call
       val length = blocking(in.read(buffer))
+      // From this point on, whatever happens is a protocol violation
+      streamErrors = false
 
       ack = if (length >= 0) {
         // As long as the returned length is positive, it means
@@ -99,9 +101,6 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
         val next = util.Arrays.copyOf(buffer, length)
         out.onNext(next)
       } else { // length < 0
-        // An error thrown in `onComplete` is a protocol violation and we can't
-        // signal errors with `onError` anymore
-        streamErrors = false
         out.onComplete()
         Stop
       }

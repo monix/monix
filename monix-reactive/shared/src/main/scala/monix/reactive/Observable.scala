@@ -501,7 +501,7 @@ abstract class Observable[+A] extends Serializable { self =>
     bracketCase(use)((a, _) => release(a))
 
   /** Version of [[bracket]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So in `release` you can work among others with:
@@ -523,7 +523,7 @@ abstract class Observable[+A] extends Serializable { self =>
     new ConcatMapObservable(uncancelable, use, release, delayErrors = false)
 
   /** Version of [[bracketCase]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So in `release` you can work among others with:
@@ -809,7 +809,7 @@ abstract class Observable[+A] extends Serializable { self =>
     self.liftByOperator(new DoOnEarlyStopOperator[A](task))
 
   /** Version of [[doOnEarlyStop]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -858,7 +858,7 @@ abstract class Observable[+A] extends Serializable { self =>
     new DoOnSubscriptionCancelObservable[A](self, task)
 
   /** Version of [[doOnSubscriptionCancel]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -909,7 +909,7 @@ abstract class Observable[+A] extends Serializable { self =>
     self.liftByOperator(new DoOnCompleteOperator[A](task))
 
   /** Version of [[doOnComplete]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -954,7 +954,7 @@ abstract class Observable[+A] extends Serializable { self =>
     self.liftByOperator(new DoOnErrorOperator[A](cb))
 
   /** Version of [[doOnError]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -991,7 +991,7 @@ abstract class Observable[+A] extends Serializable { self =>
     self.mapEval(a => cb(a).map(_ => a))
 
   /** Version of [[doOnNext]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -1019,13 +1019,13 @@ abstract class Observable[+A] extends Serializable { self =>
     * as processed.
     *
     * @see [[doOnNextAckF]] for a version that can do evaluation with
-    *      any data type via [[TaskLike]]
+    *      any data type via [[monix.eval.TaskLike]]
     */
   final def doOnNextAck(cb: (A, Ack) => Task[Unit]): Observable[A] =
     self.liftByOperator(new DoOnNextAckOperator[A](cb))
 
   /** Version of [[doOnNextAck]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -1068,7 +1068,7 @@ abstract class Observable[+A] extends Serializable { self =>
     self.liftByOperator(new DoOnStartOperator[A](cb))
 
   /** Version of [[doOnStart]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -1118,7 +1118,7 @@ abstract class Observable[+A] extends Serializable { self =>
     new DoOnSubscribeObservable.Before[A](self, task)
 
   /** Version of [[doOnSubscribe]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -1166,7 +1166,7 @@ abstract class Observable[+A] extends Serializable { self =>
     new DoOnSubscribeObservable.After[A](self, task)
 
   /** Version of [[doAfterSubscribe]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -1542,7 +1542,7 @@ abstract class Observable[+A] extends Serializable { self =>
     guaranteeCase(_ => f)
 
   /** Version of [[guarantee]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -1601,7 +1601,7 @@ abstract class Observable[+A] extends Serializable { self =>
     new GuaranteeCaseObservable[A](this, f)
 
   /** Version of [[guaranteeCase]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -1674,13 +1674,13 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * @see [[mapEvalF]] for a version that works with a generic
     *      `F[_]` (e.g. `cats.effect.IO`, Scala's `Future`),
-    *      powered by [[TaskLike]]
+    *      powered by [[monix.eval.TaskLike]]
     */
   final def mapEval[B](f: A => Task[B]): Observable[B] =
     new MapTaskObservable[A, B](self, f)
 
   /** Version of [[mapEval]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -4000,7 +4000,7 @@ object Observable {
   }
 
   /** Version of [[fromInputStream]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -4063,7 +4063,7 @@ object Observable {
   }
 
   /** Version of [[fromCharsReader]] that can work with generic
-    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
     * So you can work among others with:
@@ -4102,30 +4102,68 @@ object Observable {
   def fromCharsReaderUnsafe(in: Reader, chunkSize: Int = 4096): Observable[Array[Char]] =
     new builders.CharsReaderObservable(in, chunkSize)
 
-  /** Converts a `java.io.BufferedReader` into an
-    * observable that will emit `String` text lines from the input.
+  /** Safely converts a `java.io.BufferedReader` into an observable that will
+    * emit `String` elements corresponding to text lines from the input.
     *
-    * Note that according to the specification of `BufferedReader`, a
-    * line is considered to be terminated by any one of a line
-    * feed (`\n`), a carriage return (`\r`), or a carriage return
-    * followed immediately by a linefeed.
+    * According to the specification of `BufferedReader`, a line is considered
+    * to be terminated by any one of a line feed (`\n`), a carriage return (`\r`),
+    * or a carriage return followed immediately by a linefeed.
     *
-    * WARNING: reading from a reader is a destructive process.
-    * Therefore only a single subscriber is supported, the result being
-    * a single-subscriber observable. If multiple subscribers are attempted,
-    * all subscribers, except for the first one, will be terminated with a
+    * Compared with [[fromLinesReaderUnsafe]], this version:
+    *
+    *  - is referentially transparent, the input being a "generator"
+    *    powered by [[monix.eval.Task]]
+    *  - automatically forks execution on subscription to ensure that
+    *    the current thread isn't blocked by the ensuing blocking I/O
+    *  - ensures that the input stream is closed on completion,
+    *    failure or cancellation
+    *
+    * @param in is the `Task[BufferedReader]` generator to convert into an observable
+    */
+  def fromLinesReader(in: Task[BufferedReader]): Observable[String] = {
+    Observable.resource(in)(h => Task(h.close()))
+      .flatMap(fromLinesReaderUnsafe)
+      .executeAsync
+  }
+
+  /** Version of [[fromLinesReader]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  def fromLinesReaderF[F[_]](in: F[BufferedReader])(implicit F: TaskLike[F]): Observable[String] =
+    fromLinesReader(F.toTask(in))
+
+  /** Converts a `java.io.BufferedReader` into an observable that will emit
+    * `String` text lines from the input.
+    *
+    * According to the specification of `BufferedReader`, a line is considered
+    * to be terminated by any one of a line feed (`\n`), a carriage return (`\r`),
+    * or a carriage return followed immediately by a linefeed.
+    *
+    * UNSAFE WARNING: this is an unsafe function, because reading from
+    * a reader is a destructive process, also violating referential
+    * transparency. Therefore only a single subscriber is supported,
+    * the result being a single-subscriber observable. If multiple
+    * subscribers are attempted, all subscribers, except for the first
+    * one, will be terminated with a
     * [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
     *
-    * Therefore, if you need a factory of data sources, from a cold source such
-    * as a `java.io.File` from which you can open how many file handles you want,
-    * you can use [[Observable.defer]] to build such a factory. Or you can share
-    * the resulting observable by converting it into a
-    * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
-    * by means of [[Observable!.multicast multicast]].
+    * UNSAFE PROTOCOL: the created Observable does not close the given
+    * `Reader`. Usually it's the producer of a resource that needs
+    * to deallocate the resource.
+    *
+    * @see [[fromLinesReader]] for the safe version
     *
     * @param in is the `Reader` to convert into an observable
     */
-  def fromLinesReader(in: BufferedReader): Observable[String] =
+  def fromLinesReaderUnsafe(in: BufferedReader): Observable[String] =
     new builders.LinesReaderObservable(in)
 
   /** Given a `org.reactivestreams.Publisher`, converts it into a
@@ -4704,7 +4742,7 @@ object Observable {
     resourceCase(acquire)((a, _) => release(a))
 
   /** Version of [[resource]] that can work with generic `F[_]` tasks,
-    * anything that's supported via [[TaskLike]] conversions.
+    * anything that's supported via [[monix.eval.TaskLike]] conversions.
     *
     * So you can work among others with:
     *
@@ -4753,7 +4791,7 @@ object Observable {
     new ResourceCaseObservable(acquire, release)
 
   /** Version of [[resourceCase]] that can work with generic `F[_]` tasks,
-    * anything that's supported via [[TaskLike]] conversions.
+    * anything that's supported via [[monix.eval.TaskLike]] conversions.
     *
     * So you can work among others with:
     *
@@ -5101,7 +5139,7 @@ object Observable {
       *  - [[Observable.doOnSubscriptionCancelF doOnSubscriptionCancelF]]
       *
       * NOTE that you can still use side effectful functions with
-      * `doOnSubscriptionCancelF`, via the magic of [[TaskLike]],
+      * `doOnSubscriptionCancelF`, via the magic of [[monix.eval.TaskLike]],
       * but it's no longer recommended:
       *
       * {{{
@@ -5126,7 +5164,7 @@ object Observable {
       *  - [[Observable.doOnCompleteF doOnCompleteF]]
       *
       * NOTE that you can still use side effectful functions with
-      * `doOnCompleteF`, via the magic of [[TaskLike]], but it's no longer
+      * `doOnCompleteF`, via the magic of [[monix.eval.TaskLike]], but it's no longer
       * recommended:
       *
       * {{{
@@ -5397,7 +5435,7 @@ object Observable {
       *   - [[Observable.doOnSubscribe doOnSubscribe]]
       *   - [[Observable.doOnSubscribeF doOnSubscribeF]]
       *
-      * Note that via the magic of [[TaskLike]] which supports `Function0`
+      * Note that via the magic of [[monix.eval.TaskLike]] which supports `Function0`
       * conversions, you can still use side effectful callbacks in
       * [[Observable.doOnSubscribeF doOnSubscribeF]], but it isn't
       * recommended:
@@ -5425,7 +5463,7 @@ object Observable {
       *   - [[Observable.doAfterSubscribe doAfterSubscribe]]
       *   - [[Observable.doAfterSubscribeF doAfterSubscribeF]]
       *
-      * Note that via the magic of [[TaskLike]] which supports `Function0`
+      * Note that via the magic of [[monix.eval.TaskLike]] which supports `Function0`
       * conversions, you can still use side effectful callbacks in
       * [[Observable.doAfterSubscribeF doAfterSubscribeF]], but it isn't
       * recommended:
@@ -5458,7 +5496,7 @@ object Observable {
 
     /** DEPRECATED — switch to [[Observable.mapEvalF]], which
       * is the generic version that supports usage with `Future`
-      * via the magic of [[TaskLike]].
+      * via the magic of [[monix.eval.TaskLike]].
       *
       * The replacement is direct, a simple rename:
       * {{{
