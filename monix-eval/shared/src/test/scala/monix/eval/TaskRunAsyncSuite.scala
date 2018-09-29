@@ -17,8 +17,11 @@
 
 package monix.eval
 
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.exceptions.DummyException
+
 import scala.concurrent.Promise
-import scala.util.Success
+import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
 object TaskRunAsyncSuite extends BaseTestSuite {
@@ -40,6 +43,30 @@ object TaskRunAsyncSuite extends BaseTestSuite {
 
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     assertEquals(f.value, None)
+  }
+
+  test("runAsync for Task.now(x)") { implicit s =>
+    val f = Task.now(1).runAsync
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("runAsync for Task.now(x) with AlwaysAsyncExecution") { s =>
+    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    val f = Task.now(1).runAsync
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("runAsync for Task.raiseError(x)") { implicit s =>
+    val dummy = DummyException("dummy")
+    val f = Task.raiseError(dummy).runAsync
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
+
+  test("runAsync for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
+    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    val dummy = DummyException("dummy")
+    val f = Task.raiseError(dummy).runAsync
+    assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("runAsync(Callback)") { implicit s =>
@@ -64,6 +91,43 @@ object TaskRunAsyncSuite extends BaseTestSuite {
     assertEquals(p.future.value, None)
   }
 
+  test("runAsync(Callback) for Task.now(x)") { implicit s =>
+    val p = Promise[Int]()
+
+    Task.now(1).runAsync(Callback.fromPromise(p))
+    assertEquals(p.future.value, Some(Success(1)))
+  }
+
+  test("runAsync(Callback) for Task.now(x) with AlwaysAsyncExecution") { s =>
+    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    val p = Promise[Int]()
+
+    Task.now(1).runAsync(Callback.fromPromise(p))
+    assertEquals(p.future.value, None)
+
+    s.tick()
+    assertEquals(p.future.value, Some(Success(1)))
+  }
+
+  test("runAsync(Callback) for Task.raiseError(x)") { implicit s =>
+    val p = Promise[Int]()
+    val dummy = DummyException("dummy")
+    Task.raiseError(dummy).runAsync(Callback.fromPromise(p))
+    assertEquals(p.future.value, Some(Failure(dummy)))
+  }
+
+  test("runAsync(Callback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
+    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    val p = Promise[Int]()
+    val dummy = DummyException("dummy")
+
+    Task.raiseError(dummy).runAsync(Callback.fromPromise(p))
+    assertEquals(p.future.value, None)
+
+    s.tick()
+    assertEquals(p.future.value, Some(Failure(dummy)))
+  }
+
   test("runAsyncF(Callback)") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1)
     val p = Promise[Int]()
@@ -86,6 +150,43 @@ object TaskRunAsyncSuite extends BaseTestSuite {
     assertEquals(p.future.value, None)
   }
 
+  test("runAsyncF(Callback) for Task.now(x)") { implicit s =>
+    val p = Promise[Int]()
+
+    Task.now(1).runAsyncF(Callback.fromPromise(p))
+    assertEquals(p.future.value, Some(Success(1)))
+  }
+
+  test("runAsyncF(Callback) for Task.now(x) with AlwaysAsyncExecution") { s =>
+    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    val p = Promise[Int]()
+
+    Task.now(1).runAsyncF(Callback.fromPromise(p))
+    assertEquals(p.future.value, None)
+
+    s.tick()
+    assertEquals(p.future.value, Some(Success(1)))
+  }
+
+  test("runAsyncF(Callback) for Task.raiseError(x)") { implicit s =>
+    val p = Promise[Int]()
+    val dummy = DummyException("dummy")
+    Task.raiseError(dummy).runAsyncF(Callback.fromPromise(p))
+    assertEquals(p.future.value, Some(Failure(dummy)))
+  }
+
+  test("runAsyncF(Callback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
+    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    val p = Promise[Int]()
+    val dummy = DummyException("dummy")
+
+    Task.raiseError(dummy).runAsyncF(Callback.fromPromise(p))
+    assertEquals(p.future.value, None)
+
+    s.tick()
+    assertEquals(p.future.value, Some(Failure(dummy)))
+  }
+
   test("runAsyncUncancelable(Callback)") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1)
     val p = Promise[Int]()
@@ -94,11 +195,59 @@ object TaskRunAsyncSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(4)))
   }
 
+  test("runAsyncUncancelable(Callback) for Task.now(x)") { implicit s =>
+    val p = Promise[Int]()
+
+    Task.now(1).runAsyncUncancelable(Callback.fromPromise(p))
+    assertEquals(p.future.value, Some(Success(1)))
+  }
+
+  test("runAsyncUncancelable(Callback) for Task.now(x) with AlwaysAsyncExecution") { s =>
+    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    val p = Promise[Int]()
+
+    Task.now(1).runAsyncUncancelable(Callback.fromPromise(p))
+    assertEquals(p.future.value, None)
+
+    s.tick()
+    assertEquals(p.future.value, Some(Success(1)))
+  }
+
+  test("runAsyncUncancelable(Callback) for Task.raiseError(x)") { implicit s =>
+    val p = Promise[Int]()
+    val dummy = DummyException("dummy")
+    Task.raiseError(dummy).runAsyncUncancelable(Callback.fromPromise(p))
+    assertEquals(p.future.value, Some(Failure(dummy)))
+  }
+
+  test("runAsyncUncancelable(Callback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
+    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    val p = Promise[Int]()
+    val dummy = DummyException("dummy")
+
+    Task.raiseError(dummy).runAsyncUncancelable(Callback.fromPromise(p))
+    assertEquals(p.future.value, None)
+
+    s.tick()
+    assertEquals(p.future.value, Some(Failure(dummy)))
+  }
+
   test("runAsyncAndForget") { implicit s =>
     var effect = 0
     val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1).foreachL { i => effect = i }
     task.runAsyncAndForget
     s.tick()
     assertEquals(effect, 4)
+  }
+
+  test("runAsyncAndForget for Task.now(x)") { implicit s =>
+    val f = Task.now(1).runAsyncAndForget
+    assertEquals(f, ())
+  }
+
+  test("runAsyncAndForget for Task.raiseError(x)") { implicit s =>
+    val dummy = DummyException("dummy")
+    Task.raiseError(dummy).runAsyncAndForget
+    assertEquals(s.state.lastReportedError, dummy)
   }
 }

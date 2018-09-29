@@ -17,6 +17,8 @@
 
 package monix.reactive.internal.operators
 
+import cats.effect.ExitCase
+import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
@@ -66,6 +68,7 @@ import scala.util.Failure
 private[reactive] final class ConcatMapObservable[A, B](
   source: Observable[A],
   f: A => Observable[B],
+  release: (A, ExitCase[Throwable]) => Task[Unit],
   delayErrors: Boolean)
   extends Observable[B] {
 
@@ -154,10 +157,22 @@ private[reactive] final class ConcatMapObservable[A, B](
       // to the `Cancelled` state being thread-unsafe because of
       // the logic using `lazySet` below; hence the extra check
       if (!isActive.get) {
-        Stop
+        // If we have a `release` specified, this is `bracket`, so we still
+        // need to ensure that release happens before stopping the stream
+        if (release eq null) {
+          Stop
+        } else {
+          Task.suspend(release(elem, ExitCase.Canceled))
+            .redeem(e => { scheduler.reportFailure(e); Stop }, _ => Stop)
+            .runAsync
+            .syncTryFlatten
+        }
       } else try {
         val asyncUpstreamAck = Promise[Ack]()
-        val child = f(elem)
+        val child = {
+          val ref = f(elem)
+          if (release eq null) ref else ref.guaranteeCase(release(elem, _))
+        }
         // No longer allowed to stream errors downstream
         streamErrors = false
 

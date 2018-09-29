@@ -4006,10 +4006,14 @@ object Task extends TaskInstancesLevel1 {
       }
     }
     // Optimization to avoid the run-loop
-    override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
-      ()
+    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit = {
+      if (s.executionModel != AlwaysAsyncExecution)
+        cb.onSuccess(value)
+      else
+        super.runAsyncUncancelableOpt(cb)(s, opts)
+    }
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit =
+    override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
       ()
   }
 
@@ -4041,8 +4045,12 @@ object Task extends TaskInstancesLevel1 {
     override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
       s.reportFailure(ex)
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit =
-      s.reportFailure(ex)
+    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit = {
+      if (s.executionModel != AlwaysAsyncExecution)
+        cb.onError(ex)
+      else
+        super.runAsyncUncancelableOpt(cb)(s, opts)
+    }
   }
 
   /** [[Task]] state describing an immediate synchronous value. */

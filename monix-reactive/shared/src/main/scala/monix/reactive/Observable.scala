@@ -19,7 +19,7 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.effect.{Bracket, Effect, ExitCase, IO}
+import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
 import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, Eval, FlatMap, Monoid, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
@@ -520,7 +520,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
     */
   final def bracketCase[B](use: A => Observable[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Observable[B] =
-    concatMap(a => use(a).guaranteeCase(release(a, _)))
+    new ConcatMapObservable(uncancelable, use, release, delayErrors = false)
 
   /** Version of [[bracketCase]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[TaskLike]]
@@ -1352,7 +1352,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * $concatMergeDifference
     */
   final def concatMap[B](f: A => Observable[B]): Observable[B] =
-    new ConcatMapObservable[A, B](self, f, delayErrors = false)
+    new ConcatMapObservable[A, B](self, f, null, delayErrors = false)
 
   /** Applies a function that you supply to each item emitted by the
     * source observable, where that function returns sequences
@@ -1469,7 +1469,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return $concatReturn
     */
   final def concatMapDelayErrors[B](f: A => Observable[B]): Observable[B] =
-    new ConcatMapObservable[A, B](self, f, delayErrors = true)
+    new ConcatMapObservable[A, B](self, f, null, delayErrors = true)
 
   /** Alias for [[switch]]
     *
@@ -3736,38 +3736,6 @@ abstract class Observable[+A] extends Serializable { self =>
   *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
   *         by means of [[Observable!.multicast multicast]].
   *
-  * @define fromInputStreamDesc Converts a `java.io.InputStream` into an
-  *         observable that will emit `Array[Byte]` elements.
-  *
-  *         WARNING: reading from the input stream is a destructive process.
-  *         Therefore only a single subscriber is supported, the result being
-  *         a single-subscriber observable. If multiple subscribers are attempted,
-  *         all subscribers, except for the first one, will be terminated with a
-  *         [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
-  *
-  *         Therefore, if you need a factory of data sources, from a cold source such
-  *         as a `java.io.File` from which you can open how many file handles you want,
-  *         you can use [[Observable.defer]] to build such a factory. Or you can share
-  *         the resulting observable by converting it into a
-  *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
-  *         by means of [[Observable!.multicast multicast]].
-  *
-  * @define fromCharsReaderDesc Converts a `java.io.Reader` into an observable
-  *         that will emit `Array[Char]` elements.
-  *
-  *         WARNING: reading from a reader is a destructive process.
-  *         Therefore only a single subscriber is supported, the result being
-  *         a single-subscriber observable. If multiple subscribers are attempted,
-  *         all subscribers, except for the first one, will be terminated with a
-  *         [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
-  *
-  *         Therefore, if you need a factory of data sources, from a cold source such
-  *         as a `java.io.File` from which you can open how many file handles you want,
-  *         you can use [[Observable.defer]] to build such a factory. Or you can share
-  *         the resulting observable by converting it into a
-  *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
-  *         by means of [[Observable!.multicast multicast]].
-  *
   * @define blocksDefaultSchedulerDesc This operation will start processing on the current
   *         thread (on `subscribe()`), so in order to not block, it might be better to also do an
   *         [[Observable.executeAsync executeAsync]], or you may want to use the
@@ -3833,6 +3801,12 @@ object Observable {
     */
   def never[A]: Observable[A] =
     builders.NeverObservable
+
+  /** Reusable value for an `Observable[Unit]` that emits a single
+    * event, the implementation for `cats.effect.Applicative.unit`.
+    */
+  val unit: Observable[Unit] =
+    Observable.now(())
 
   /** Keeps calling `f` and concatenating the resulting observables
     * for each `scala.util.Left` event emitted by the source, concatenating
@@ -3958,44 +3932,174 @@ object Observable {
   def fromIterator[A](iterator: Iterator[A], onFinish: () => Unit): Observable[A] =
     new builders.IteratorAsObservable[A](iterator, Cancelable(onFinish))
 
-  /** $fromInputStreamDesc
+  /**
+    * Transforms any `cats.effect.Resource` into an [[Observable]].
     *
-    * $blocksDefaultSchedulerDesc
+    * See the
+    * [[https://typelevel.org/cats-effect/datatypes/resource.html documentation for Resource]].
     *
-    * @param in is the `InputStream` to convert into an observable
+    * {{{
+    *   import cats.effect.Resource
+    *   import monix.eval.Task
+    *   import java.io._
+    *
+    *   def openFileAsResource(file: File): Resource[Task, FileInputStream] =
+    *     Resource.make(Task(new FileInputStream(file)))(h => Task(h.close()))
+    *
+    *   def openFileAsStream(file: File): Observable[FileInputStream] =
+    *     Observable.fromResource(openFileAsResource(file))
+    * }}}
+    *
+    * This example would be equivalent with usage of [[Observable.resource]]:
+    *
+    * {{{
+    *   def openFileAsResource(file: File): Resource[Task, InputStream] =
+    *     Observable.resource(Task(new FileInputStream(file)))(h => Task(h.close()))
+    * }}}
+    *
+    * This means that `flatMap` is safe to use:
+    *
+    * {{{
+    *   def readBytes(file: File): Observable[Array[Byte]] =
+    *     openFileAsStream(file).flatMap { in =>
+    *       Observable.fromInputStreamUnsafe(in)
+    *     }
+    * }}}
     */
-  def fromInputStream(in: InputStream): Observable[Array[Byte]] =
-    fromInputStream(in, chunkSize = 4096)
+  def fromResource[F[_], A](resource: Resource[F, A])(implicit F: TaskLike[F]): Observable[A] =
+    resource match {
+      case Resource.Allocate(fa) =>
+        Observable
+          .resourceCase(F.toTask(fa)) { case ((a, release), exitCase) => F.toTask(release(exitCase)) }
+          .map(_._1)
+      case Resource.Suspend(fa) =>
+        Observable.from(fa).flatMap { res => fromResource(res) }
+      case Resource.Bind(source, fs) =>
+        fromResource(source).flatMap { s => fromResource(fs(s)) }
+    }
 
-  /** $fromInputStreamDesc
+  /** Safely converts a `java.io.InputStream` into an observable that will
+    * emit `Array[Byte]` elements.
+    *
+    * Compared with [[fromInputStreamUnsafe]], this version:
+    *
+    *  - is referentially transparent, the input being a "generator"
+    *    powered by [[monix.eval.Task]]
+    *  - automatically forks execution on subscription to ensure that
+    *    the current thread isn't blocked by the ensuing blocking I/O
+    *  - ensures that the input stream is closed on completion,
+    *    failure or cancellation
+    *
+    * @param in is the `Task[InputStream]` generator to convert into an observable
+    * @param chunkSize is the maximum length of the emitted arrays of bytes
+    */
+  def fromInputStream(in: Task[InputStream], chunkSize: Int = 4096): Observable[Array[Byte]] = {
+    Observable.resource(in)(h => Task(h.close()))
+      .flatMap(fromInputStreamUnsafe(_, chunkSize))
+      .executeAsync
+  }
+
+  /** Version of [[fromInputStream]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  def fromInputStreamF[F[_]](in: F[InputStream], chunkSize: Int = 4096)
+    (implicit F: TaskLike[F]): Observable[Array[Byte]] =
+    fromInputStream(F.toTask(in), chunkSize)
+
+  /** Converts a `java.io.InputStream` into an observable that will
+    * emit `Array[Byte]` elements.
+    *
+    * UNSAFE WARNING: this is an unsafe function, because reading from
+    * an input stream is a destructive process, also violating
+    * referential transparency. Therefore only a single subscriber is
+    * supported, the result being a single-subscriber observable. If
+    * multiple subscribers are attempted, all subscribers, except for
+    * the first one, will be terminated with a
+    * [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
+    *
+    * UNSAFE PROTOCOL: the created Observable does not close the given
+    * `InputStream`. Usually it's the producer of a resource that needs
+    * to deallocate the resource.
     *
     * $blocksDefaultSchedulerDesc
     *
+    * @see [[fromInputStream]] for the safe version
+    *
     * @param in is the `InputStream` to convert into an observable
-    * @param chunkSize is the maximum length of the emitted arrays of bytes.
-    *        It's also used when reading from the input stream.
+    * @param chunkSize is the maximum length of the emitted arrays of bytes
     */
-  def fromInputStream(in: InputStream, chunkSize: Int): Observable[Array[Byte]] =
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
+  def fromInputStreamUnsafe(in: InputStream, chunkSize: Int = 4096): Observable[Array[Byte]] =
     new builders.InputStreamObservable(in, chunkSize)
 
-  /** $fromCharsReaderDesc
+  /** Safely converts a `java.io.Reader` into an observable that will
+    * emit `Array[Char]` elements.
     *
-    * $blocksDefaultSchedulerDesc
+    * Compared with [[fromCharsReaderUnsafe]], this version:
     *
-    * @param in is the `Reader` to convert into an observable
+    *  - is referentially transparent, the input being a "generator"
+    *    powered by [[monix.eval.Task]]
+    *  - automatically forks execution on subscription to ensure that
+    *    the current thread isn't blocked by the ensuing blocking I/O
+    *  - ensures that the input stream is closed on completion,
+    *    failure or cancellation
+    *
+    * @param in is the `Task[Reader]` generator to convert into an observable
+    * @param chunkSize is the maximum length of the emitted arrays of chars
     */
-  def fromCharsReader(in: Reader): Observable[Array[Char]] =
-    fromCharsReader(in, chunkSize = 4096)
+  def fromCharsReader(in: Task[Reader], chunkSize: Int = 4096): Observable[Array[Char]] = {
+    Observable.resource(in)(h => Task(h.close()))
+      .flatMap(fromCharsReaderUnsafe(_, chunkSize))
+      .executeAsync
+  }
 
-  /** $fromCharsReaderDesc
+  /** Version of [[fromCharsReader]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  def fromCharsReaderF[F[_]](in: F[Reader], chunkSize: Int = 4096)
+    (implicit F: TaskLike[F]): Observable[Array[Char]] =
+    fromCharsReader(F.toTask(in), chunkSize)
+
+  /** Converts a `java.io.Reader` into an observable that will emit
+    * `Array[Char]` elements.
+    *
+    * UNSAFE WARNING: this is an unsafe function, because reading from
+    * a reader is a destructive process, also violating referential
+    * transparency. Therefore only a single subscriber is supported,
+    * the result being a single-subscriber observable. If multiple
+    * subscribers are attempted, all subscribers, except for the first
+    * one, will be terminated with a
+    * [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
+    *
+    * UNSAFE PROTOCOL: the created Observable does not close the given
+    * `Reader`. Usually it's the producer of a resource that needs
+    * to deallocate the resource.
     *
     * $blocksDefaultSchedulerDesc
     *
+    * @see [[fromCharsReader]] for the safe version
+    *
     * @param in is the `Reader` to convert into an observable
-    * @param chunkSize is the maximum length of the emitted arrays of chars.
-    *        It's also used when reading from the reader.
+    * @param chunkSize is the maximum length of the emitted arrays of chars
     */
-  def fromCharsReader(in: Reader, chunkSize: Int): Observable[Array[Char]] =
+  def fromCharsReaderUnsafe(in: Reader, chunkSize: Int = 4096): Observable[Array[Char]] =
     new builders.CharsReaderObservable(in, chunkSize)
 
   /** Converts a `java.io.BufferedReader` into an
@@ -4566,6 +4670,102 @@ object Observable {
   def empty[A]: Observable[A] =
     builders.EmptyObservable
 
+  /** Creates a `Observable` that depends on resource allocated by a
+    * monadic value, ensuring the resource is released.
+    *
+    * Typical use-cases are working with files or network sockets
+    *
+    * Example:
+    * {{{
+    *   val printer =
+    *     Observable.resource {
+    *       Task(new PrintWriter("./lines.txt"))
+    *     } { writer =>
+    *       Task(writer.close())
+    *     }
+    *
+    *   // Safely use the resource, because the release is
+    *   // scheduled to happen afterwards
+    *   val writeLines = printer.flatMap { writer =>
+    *     Observable
+    *       .fromIterator(Iterator.from(1))
+    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *   }
+    *
+    *   // Write 100 numbered lines to the file
+    *   // closing the writer when finished
+    *   writeLines.take(100).completedL.runAsync
+    * }}}
+    *
+    * @param acquire resource to acquire at the start of the stream
+    * @param release function that releases the acquired resource
+    */
+  def resource[A](acquire: Task[A])(release: A => Task[Unit]): Observable[A] =
+    resourceCase(acquire)((a, _) => release(a))
+
+  /** Version of [[resource]] that can work with generic `F[_]` tasks,
+    * anything that's supported via [[TaskLike]] conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  def resourceF[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
+    resource(F.toTask(acquire))(a => F.toTask(release(a)))
+
+  /** Creates a stream that depends on resource allocated by a
+    * monadic value, ensuring the resource is released.
+    *
+    * Typical use-cases are working with files or network sockets
+    *
+    * Example:
+    * {{{
+    *   val printer =
+    *     Observable.resourceCase {
+    *       Task(new PrintWriter("./lines.txt"))
+    *     } {
+    *       case (writer, ExitCase.Canceled | ExitCase.Completed) =>
+    *         Task(writer.close())
+    *       case (writer, ExitCase.Error(e)) =>
+    *         Task { println(e.getMessage); writer.close() }
+    *     }
+    *
+    *   // Safely use the resource, because the release is
+    *   // scheduled to happen afterwards
+    *   val writeLines = printer.flatMap { writer =>
+    *     Observable
+    *       .fromIterator(Iterator.from(1))
+    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *   }
+    *
+    *   // Write 100 numbered lines to the file
+    *   // closing the writer when finished
+    *   writeLines.take(100).completedL.runAsync
+    * }}}
+    *
+    * @param acquire an effect that acquires an expensive resource
+    * @param release function that releases the acquired resource
+    */
+  def resourceCase[A](acquire: Task[A])(release: (A, ExitCase[Throwable]) => Task[Unit]): Observable[A] =
+    new ResourceCaseObservable(acquire, release)
+
+  /** Version of [[resourceCase]] that can work with generic `F[_]` tasks,
+    * anything that's supported via [[TaskLike]] conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  def resourceCaseF[F[_], A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])
+    (implicit F: TaskLike[F]): Observable[A] =
+    resourceCase(F.toTask(acquire))((a, e) => F.toTask(release(a, e)))
+
   /** Creates a combined observable from 2 source observables.
     *
     * This operator behaves in a similar way to [[zip2]],
@@ -4733,8 +4933,8 @@ object Observable {
     with CoflatMap[Observable]
     with TaskLift[Observable] {
 
-    override val unit: Observable[Unit] =
-      Observable.now(())
+    override def unit: Observable[Unit] =
+      Observable.unit
     override def pure[A](a: A): Observable[A] =
       Observable.now(a)
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =

@@ -38,6 +38,10 @@ object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
     MonoidKTests[Observable].monoidK[Int]
   }
 
+  checkAllAsync("Bracket[Observable, Throwable]") { implicit ec =>
+    BracketTests[Observable, Throwable].bracket[Int, Int, Int]
+  }
+
   checkAllAsync("Apply[CombineObservable.Type]") { implicit ec =>
     ApplyTests[CombineObservable.Type].apply[Int, Int, Int]
   }
