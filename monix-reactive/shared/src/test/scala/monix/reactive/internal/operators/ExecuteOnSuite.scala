@@ -44,7 +44,7 @@ object ExecuteOnSuite extends TestSuite[TestScheduler] {
 
     val forked =
       Observable.range(0, nr)
-        .sumF.doOnNext(sum => Task { receivedOnNext = sum })
+        .sum.doOnNext(sum => Task { receivedOnNext = sum })
         .executeOn(other)
 
     val obs =

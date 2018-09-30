@@ -58,7 +58,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
       val consumer = Consumer.loadBalance(parallelism,
         Consumer.foldLeft[Long,Int](0L)(_+_))
 
-      val task1 = source.foldLeftF(0L)(_+_).firstL
+      val task1 = source.foldLeft(0L)(_+_).firstL
       val task2 = source.consumeWith(consumer).map(_.sum)
       task1 <-> task2
     }
@@ -79,7 +79,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
         if (i % 2 == 0) fold else justOne
 
       val consumer = Consumer.loadBalance(allConsumers:_*)
-      val task1 = source.foldLeftF(0L)(_+_).firstL
+      val task1 = source.foldLeft(0L)(_+_).firstL
       val task2 = source.consumeWith(consumer).map(_.sum)
       task1 <-> task2
     }

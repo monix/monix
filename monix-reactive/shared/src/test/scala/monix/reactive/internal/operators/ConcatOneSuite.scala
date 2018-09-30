@@ -68,7 +68,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
   }
 
   def toList[A](o: Observable[A])(implicit s: Scheduler) = {
-    o.foldLeftF(Vector.empty[A])(_ :+ _).runAsyncGetLast
+    o.foldLeft(Vector.empty[A])(_ :+ _).runAsyncGetLast
       .map(_.getOrElse(Vector.empty))
   }
 

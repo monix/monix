@@ -62,7 +62,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     val in = new StringReader(string)
 
     val result = Observable.fromCharsReaderUnsafe(in, 40)
-      .foldLeftF(Array.empty[Char])(_ ++ _)
+      .foldLeft(Array.empty[Char])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(arr => new String(arr)))
 
@@ -77,7 +77,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     val in = new StringReader(string)
 
     val result = Observable.fromCharsReaderUnsafe(in, 40)
-      .foldLeftF(Array.empty[Char])(_ ++ _)
+      .foldLeft(Array.empty[Char])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(arr => new String(arr)))
 
@@ -96,7 +96,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     val obs: Observable[Array[Char]] = Observable
       .fromCharsReaderUnsafe(in)
-      .foldLeftF(Array.empty[Char])(_ ++ _)
+      .foldLeft(Array.empty[Char])(_ ++ _)
 
     obs.unsafeSubscribeFn(new Subscriber[Array[Char]] {
       implicit val scheduler = s

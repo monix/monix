@@ -25,12 +25,12 @@ import scala.concurrent.duration.Duration.Zero
 
 object MinSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(sourceCount, 0, -1).minF
+    val o = Observable.range(sourceCount, 0, -1).min
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).endWithError(ex).minF
+    val o = Observable.range(0, sourceCount).endWithError(ex).min
     Sample(o, 0, 0, Zero, Zero)
   }
 
@@ -41,13 +41,13 @@ object MinSuite extends BaseOperatorSuite {
       def compare(x: Long, y: Long): Int = throw ex
     }
 
-    val o = Observable.range(0, sourceCount+1).minF(ord)
+    val o = Observable.range(0, sourceCount+1).min(ord)
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 
   override def cancelableObservables() = {
     import scala.concurrent.duration._
-    val o = Observable.now(1L).delayOnNext(1.second).minF
+    val o = Observable.now(1L).delayOnNext(1.second).min
     Seq(Sample(o,0,0,0.seconds,0.seconds))
   }
 
@@ -56,7 +56,7 @@ object MinSuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    source.minF.unsafeSubscribeFn(new Observer[Long] {
+    source.min.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = { received += 1; Continue }
       def onError(ex: Throwable) = ()
       def onComplete() = { wasCompleted = true }

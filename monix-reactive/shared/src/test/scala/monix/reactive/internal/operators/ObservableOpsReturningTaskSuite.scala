@@ -69,7 +69,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
       val result: Future[Try[Option[Long]]] =
         obs.countL.map(Some.apply).materialize.runAsync
 
-      result <-> first(obs.countF)
+      result <-> first(obs.count)
     }
   }
 
@@ -99,7 +99,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
       val result: Future[Try[Option[Int]]] =
         obs.findL(_ % 3 == 0).materialize.runAsync
 
-      result <-> first(obs.findF(_ % 3 == 0))
+      result <-> first(obs.find(_ % 3 == 0))
     }
   }
 

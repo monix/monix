@@ -71,7 +71,7 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
     val f = Observable.range(0, 10000)
       .bufferWithSelector(selector, 10)
       .map(_.sum)
-      .sumF
+      .sum
       .runAsyncGetFirst
 
     s.tick(2.seconds)
@@ -86,7 +86,7 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
     val f = Observable.range(0, 10000)
       .bufferWithSelector(selector, 10)
       .map(_.sum)
-      .sumF
+      .sum
       .runAsyncGetFirst
 
     s.tick(2.seconds)

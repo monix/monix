@@ -180,8 +180,8 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
   test("can stop streaming while connecting") { implicit s =>
     val subject = ReplaySubject[Int](10, 20, 30)
 
-    val future1 = subject.take(3).sumF.runAsyncGetFirst
-    val future2 = subject.drop(1).take(3).sumF.runAsyncGetFirst
+    val future1 = subject.take(3).sum.runAsyncGetFirst
+    val future2 = subject.drop(1).take(3).sum.runAsyncGetFirst
 
     s.tick()
     assertEquals(future1.value, Some(Success(Some(10 + 20 + 30))))

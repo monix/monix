@@ -61,7 +61,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     val in = new BufferedReader(new StringReader(string))
 
     val result = Observable.fromLinesReaderUnsafe(in)
-      .foldLeftF("")(_ + "\n" + _)
+      .foldLeft("")(_ + "\n" + _)
       .map(_.trim)
       .runAsyncGetFirst
 
@@ -76,7 +76,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     val in = new BufferedReader(new StringReader(string))
 
     val result = Observable.fromLinesReaderUnsafe(in)
-      .foldLeftF("")(_ + "\n" + _)
+      .foldLeft("")(_ + "\n" + _)
       .map(_.trim)
       .runAsyncGetFirst
 
@@ -94,7 +94,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     val in = new BufferedReader(new StringReader(string))
 
     val obs = Observable.fromLinesReaderUnsafe(in)
-      .foldLeftF("")(_ + "\n" + _)
+      .foldLeft("")(_ + "\n" + _)
       .map(_.trim)
 
     obs.unsafeSubscribeFn(new Subscriber[String] {

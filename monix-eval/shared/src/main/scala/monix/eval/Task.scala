@@ -388,9 +388,9 @@ import scala.util.{Failure, Success, Try}
   *         with the behavior of Haskell's `bracket` operation and NOT
   *         with `try {} finally {}` from Scala, Java or JavaScript.
   *
-  * @define unsafeRun '''UNSAFE''' — this operation can trigger the
-  *         execution of side effects, which break referential
-  *         transparency and is thus not a pure function.
+  * @define unsafeRun '''UNSAFE (referential transparency)''' —
+  *         this operation can trigger the execution of side effects, which
+  *         breaks referential transparency and is thus not a pure function.
   *
   *         Normally these functions shouldn't be called until
   *         "the end of the world", which is to say at the end of
