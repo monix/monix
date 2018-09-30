@@ -31,7 +31,7 @@ import scala.util.Failure
 
 object ScanTaskSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).scanTask(Task.now(0L)) {
+    val o = Observable.range(0, sourceCount).scanEval(Task.now(0L)) {
       (s, x) => if (x % 2 == 0) Task.evalAsync(s + x) else Task.eval(s + x)
     }
 
@@ -49,7 +49,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount == 1) None else Some {
       val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-        .scanTask(Task.now(0L)) {
+        .scanEval(Task.now(0L)) {
           (s, x) => if (x % 2 == 0) Task.evalAsync(s + x) else Task.eval(s + x)
         }
 
@@ -58,7 +58,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount)
-      .scanTask(Task.now(0L)) { (s, i) =>
+      .scanEval(Task.now(0L)) { (s, i) =>
         if (i == sourceCount-1)
           throw ex
         else if (i % 2 == 0)
@@ -72,10 +72,10 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 =  Observable.range(1, 100)
-      .scanTask(Task.now(0L))((s, i) => Task.eval(s + i).delayExecution(1.second))
+      .scanEval(Task.now(0L))((s, i) => Task.eval(s + i).delayExecution(1.second))
     val sample2 = Observable.range(0, 100)
       .delayOnNext(1.second)
-      .scanTask(Task.now(0L))((s, i) => Task.eval(s + i).delayExecution(2.second))
+      .scanEval(Task.now(0L))((s, i) => Task.eval(s + i).delayExecution(2.second))
 
     Seq(
       Sample(sample1, 0, 0, 0.seconds, 0.seconds),
@@ -93,7 +93,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
     val obs = Observable.range(0, 100)
       .guarantee(Task { effect += 1 })
-      .scanTask(Task.raiseError[Long](dummy))((s, a) => Task.evalAsync(s + a))
+      .scanEval(Task.raiseError[Long](dummy))((s, a) => Task.evalAsync(s + a))
       .doOnError(_ => Task { effect += 1 })
       .lastL
 
@@ -108,7 +108,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
     val obs = Observable.range(0, 100)
       .guaranteeF(IO { effect += 1 })
-      .scanTask(Task.now(0))((_, _) => throw dummy)
+      .scanEval(Task.now(0))((_, _) => throw dummy)
       .doOnErrorF(_ => IO { effect += 1 })
       .lastL
 
@@ -123,7 +123,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
     val obs = Observable.range(0, 100)
       .guaranteeF(IO { effect += 1 })
-      .scanTask(Task.now(0))((_, _) => Task.raiseError(dummy))
+      .scanEval(Task.now(0))((_, _) => Task.raiseError(dummy))
       .doOnErrorF(_ => IO { effect += 1 })
       .lastL
 
@@ -139,7 +139,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
     val f = Observable.now(10).endWithError(dummy)
       .doOnErrorF(_ => IO { effect += 1 })
-      .scanTask(Task.now(11))((s, a) => Task.evalAsync(s + a).delayExecution(1.second))
+      .scanEval(Task.now(11))((s, a) => Task.evalAsync(s + a).delayExecution(1.second))
       .doOnNextF { x => IO { sum += x } }
       .doOnErrorF { _ => IO { effect += 1 } }
       .lastL
@@ -167,7 +167,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
     val f = Observable.now(10).endWithError(dummy1)
       .doOnErrorF { _ => IO { effect += 1 } }
-      .scanTask(Task.now(0))((_, _) => Task.raiseError[Int](dummy2).delayExecution(1.second))
+      .scanEval(Task.now(0))((_, _) => Task.raiseError[Int](dummy2).delayExecution(1.second))
       .doOnErrorF { _ => IO { effect += 1 } }
       .lastL
       .runAsync
@@ -198,7 +198,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
     val f = Observable.now(10)
       .doOnNextF { _ => IO { effect += 1 } }
-      .scanTask(Task.now(0))((_, _) => delay[Int](dummy))
+      .scanEval(Task.now(0))((_, _) => delay[Int](dummy))
       .doOnErrorF { _ => IO { effect += 1 } }
       .runAsyncGetLast
 
@@ -223,13 +223,13 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
   test("scanTask0.headL <-> seed") { implicit s =>
     check2 { (obs: Observable[Int], seed: Task[Int]) =>
-      obs.scanTask0(seed)((a, b) => Task.pure(a + b)).headL <-> seed
+      obs.scanEval0(seed)((a, b) => Task.pure(a + b)).headL <-> seed
     }
   }
 
   test("scanTask0.drop(1) <-> scanTask") { implicit s =>
     check2 { (obs: Observable[Int], seed: Task[Int]) =>
-      obs.scanTask0(seed)((a, b) => Task.pure(a + b)).drop(1) <-> obs.scanTask(seed)((a, b) => Task.pure(a + b))
+      obs.scanEval0(seed)((a, b) => Task.pure(a + b)).drop(1) <-> obs.scanEval(seed)((a, b) => Task.pure(a + b))
     }
   }
 }

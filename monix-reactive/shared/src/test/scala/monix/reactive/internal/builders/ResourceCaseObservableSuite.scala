@@ -327,7 +327,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
         _.foldL.map(_ => ()),
         _.foldWhileLeftL(())((_, _) => Left(())),
         _.firstOrElseL(()).map(_ => ()),
-        _.forAllL(_ => true).map(_ => ()),
+        _.forallL(_ => true).map(_ => ()),
         _.existsL(_ => true).map(_ => ()),
         _.foldLeftL(())((_, _) => ()),
         _.headOrElseL(()).map(_ => ()),

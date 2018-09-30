@@ -75,7 +75,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
   }
 
   test("issue #468 - scanTask is cancellable") { implicit sc =>
-    val o = Observable.eval(1).executeAsync.scanTask(Task.now(0)) { (acc, x) =>
+    val o = Observable.eval(1).executeAsync.scanEval(Task.now(0)) { (acc, x) =>
       Task.now(acc + x).delayExecution(1.second)
     }
 

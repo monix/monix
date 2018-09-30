@@ -700,8 +700,21 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param trigger the observable that must either emit an item or
     *        complete in order for the source to be subscribed.
     */
-  final def delayExecutionWith(trigger: Observable[Any]): Observable[A] =
+  final def delayExecutionWith(trigger: Observable[_]): Observable[A] =
     new DelayExecutionWithTriggerObservable(self, trigger)
+
+  /** Version of [[delayExecutionWith]] that can work with generic `F[_]`
+    * tasks, anything that's supported via [[ObservableLike]] conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  final def delayExecutionWithF[F[_]](trigger: F[_])(implicit F: ObservableLike[F]): Observable[A] =
+    delayExecutionWith(F.toObservable(trigger))
 
   /** Converts the source Observable that emits `Notification[A]` (the
     * result of [[materialize]]) back to an Observable that emits `A`.
@@ -1492,8 +1505,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return an Observable that emits only true or false in case the given
     *         predicate holds or not for all the items
     */
-  final def forAllF(p: A => Boolean): Observable[Boolean] =
-    existsF(e => !p(e)).map(r => !r)
+  final def forall(p: A => Boolean): Observable[Boolean] =
+    exists(e => !p(e)).map(r => !r)
 
   /** Returns an Observable which emits a single value, either true, in
     * case the given predicate holds for at least one item, or false
@@ -1505,7 +1518,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return an Observable that emits only true or false in case
     *         the given predicate holds or not for at least one item
     */
-  final def existsF(p: A => Boolean): Observable[Boolean] =
+  final def exists(p: A => Boolean): Observable[Boolean] =
     findF(p).foldLeftF(false)((_, _) => true)
 
   /** Groups the items emitted by an Observable according to a specified
@@ -1649,7 +1662,7 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Only emits the last element emitted by the source observable,
     * after which it's completed immediately.
     */
-  final def lastF: Observable[A] = takeLast(1)
+  final def last: Observable[A] = takeLast(1)
 
   /** Creates a new observable that only emits the last `n` elements
     * emitted by the source.
@@ -2234,10 +2247,10 @@ abstract class Observable[+A] extends Serializable { self =>
     *     .collect { case Current(a, _) => a }
     * }}}
     *
-    * @see [[scanEval0]] for the version that emits seed element at the beginning
+    * @see [[scanEval0F]] for the version that emits seed element at the beginning
     *
     * @see [[scan]] for the synchronous, non-lazy version, or
-    *      [[scanTask]] for the [[monix.eval.Task Task]]-specialized
+    *      [[scanEval]] for the [[monix.eval.Task Task]]-specialized
     *      version.
     *
     * @param seed is the initial state
@@ -2251,60 +2264,20 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a new observable that emits all intermediate states being
     *         resulted from applying the given function
     */
-  final def scanEval[F[_], S](seed: F[S])(op: (S, A) => F[S])
+  final def scanEvalF[F[_], S](seed: F[S])(op: (S, A) => F[S])
     (implicit F: TaskLike[F]): Observable[S] =
-    scanTask(Task.from(seed)(F))((s, a) => Task.from(op(s, a))(F))
+    scanEval(Task.from(seed)(F))((s, a) => Task.from(op(s, a))(F))
 
 /** Applies a binary operator to a start value and all elements of
   * this stream, going left to right and returns a new stream that
   * emits on each step the result of the applied function.
   *
-  * This is a version of [[scanEval]] that emits seed element at the beginning,
+  * This is a version of [[scanEvalF]] that emits seed element at the beginning,
   * similar to `scanLeft` on Scala collections
   */
-  final def scanEval0[F[_], S](seed: F[S])(op: (S, A) => F[S])
+  final def scanEval0F[F[_], S](seed: F[S])(op: (S, A) => F[S])
     (implicit F: TaskLike[F], A: Applicative[F]): Observable[S] =
-    Observable.fromTaskLike(seed).flatMap(s => s +: scanEval(A.pure(s))(op))
-
-  /** Given a mapping function that returns a `B` type for which we have
-    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
-    * elements of the sources using the provided `Monoid[B].combine`, with the
-    * initial seed being the `Monoid[B].empty` value, emitting the generated values
-    * at each step.
-    *
-    * Equivalent with [[scan]] applied with the given [[cats.Monoid]], so given
-    * our `f` mapping function returns a `B`, this law holds:
-    * {{{
-    * val B = implicitly[Monoid[B]]
-    *
-    * stream.scanMap(f) <-> stream.scan(B.empty)(B.combine)
-    * }}}
-    *
-    * Example:
-    * {{{
-    * // Yields 2, 6, 12, 20, 30, 42
-    * Observable(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
-    * }}}
-    *
-    * @param f is the mapping function applied to every incoming element of this `Observable`
-    *          before folding using `Monoid[B].combine`
-    *
-    * @return a new `Observable` that emits all intermediate states being
-    *         resulted from applying `Monoid[B].combine` function
-    */
-  final def scanMap[B](f: A => B)(implicit B: Monoid[B]): Observable[B] =
-    self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
-
-  /** Given a mapping function that returns a `B` type for which we have
-    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
-    * elements of the sources using the provided `Monoid[B].combine`, with the
-    * initial seed being the `Monoid[B].empty` value, emitting the generated values
-    * at each step.
-    *
-    * This is a version of [[scanMap]] that emits seed element at the beginning.
-    */
-  final def scanMap0[B](f: A => B)(implicit B: Monoid[B]): Observable[B] =
-    B.empty +: scanMap(f)
+    Observable.fromTaskLike(seed).flatMap(s => s +: scanEvalF(A.pure(s))(op))
 
   /** Applies a binary operator to a start value and all elements of
     * this stream, going left to right and returns a new stream that
@@ -2346,7 +2319,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *     .collect { case Current(a, _) => a }
     * }}}
     *
-    * @see [[scanTask0]] for the version that emits seed element at the beginning
+    * @see [[scanEval0]] for the version that emits seed element at the beginning
     * @see [[scan]] for the version that does not require using `Task`
     *      in the provided operator
     *
@@ -2356,17 +2329,57 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a new observable that emits all intermediate states being
     *         resulted from applying the given function
     */
-  final def scanTask[S](seed: Task[S])(op: (S, A) => Task[S]): Observable[S] =
+  final def scanEval[S](seed: Task[S])(op: (S, A) => Task[S]): Observable[S] =
     new ScanTaskObservable(self, seed, op)
 
   /** Applies a binary operator to a start value and all elements of
     * this stream, going left to right and returns a new stream that
     * emits on each step the result of the applied function.
     *
-    * This is a version of [[scanTask]] that emits seed element at the beginning.
+    * This is a version of [[scanEval]] that emits seed element at the beginning.
     */
-  final def scanTask0[S](seed: Task[S])(op: (S, A) => Task[S]): Observable[S] =
-    Observable.fromTask(seed).flatMap(s => s +: scanTask(Task.pure(s))(op))
+  final def scanEval0[S](seed: Task[S])(op: (S, A) => Task[S]): Observable[S] =
+    Observable.fromTask(seed).flatMap(s => s +: scanEval(Task.pure(s))(op))
+
+  /** Given a mapping function that returns a `B` type for which we have
+    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
+    * elements of the sources using the provided `Monoid[B].combine`, with the
+    * initial seed being the `Monoid[B].empty` value, emitting the generated values
+    * at each step.
+    *
+    * Equivalent with [[scan]] applied with the given [[cats.Monoid]], so given
+    * our `f` mapping function returns a `B`, this law holds:
+    * {{{
+    * val B = implicitly[Monoid[B]]
+    *
+    * stream.scanMap(f) <-> stream.scan(B.empty)(B.combine)
+    * }}}
+    *
+    * Example:
+    * {{{
+    * // Yields 2, 6, 12, 20, 30, 42
+    * Observable(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
+    * }}}
+    *
+    * @param f is the mapping function applied to every incoming element of this `Observable`
+    *          before folding using `Monoid[B].combine`
+    *
+    * @return a new `Observable` that emits all intermediate states being
+    *         resulted from applying `Monoid[B].combine` function
+    */
+  final def scanMap[B](f: A => B)(implicit B: Monoid[B]): Observable[B] =
+    self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
+
+  /** Given a mapping function that returns a `B` type for which we have
+    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
+    * elements of the sources using the provided `Monoid[B].combine`, with the
+    * initial seed being the `Monoid[B].empty` value, emitting the generated values
+    * at each step.
+    *
+    * This is a version of [[scanMap]] that emits seed element at the beginning.
+    */
+  final def scanMap0[B](f: A => B)(implicit B: Monoid[B]): Observable[B] =
+    B.empty +: scanMap(f)
 
   /** Creates a new Observable that emits the given elements and then
     * it also emits the events of the source (prepend operation).
@@ -2376,6 +2389,10 @@ abstract class Observable[+A] extends Serializable { self =>
 
   /** Returns a new Observable that uses the specified `Scheduler` for
     * initiating the subscription.
+    *
+    * This is different from [[executeOn]] because the given `scheduler`
+    * is only used to start the subscription, but does not override the
+    * default [[monix.execution.Scheduler Scheduler]].
     */
   final def subscribeOn(scheduler: Scheduler): Observable[A] =
     new SubscribeOnObservable[A](self, scheduler)
@@ -2859,13 +2876,29 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers).
+    *
+    * '''UNSAFE WARNING''': this method is impure because the created result
+    * keeps shared mutable state, thus violating referential transparency.
+    *
+    * This is sometimes needed for sharing the same data source between
+    * multiple consumers, but consider using [[publishSelector]] instead,
+    * if possible.
     */
+  @UnsafeBecauseImpure
   final def multicast[B >: A, R](pipe: Pipe[B, R])(implicit s: Scheduler): ConnectableObservable[R] =
     ConnectableObservable.multicast(this, pipe)
 
-  /** Returns a new Observable that multi-casts (shares) the original
-    * Observable.
+  /** Returns a new Observable that multi-casts (shares) the original Observable
+    * between multiple consumers.
+    *
+    * '''UNSAFE WARNING''': this method is impure because the created result
+    * keeps shared mutable state, thus violating referential transparency.
+    *
+    * This is sometimes needed for sharing the same data source between
+    * multiple consumers, but consider using [[publishSelector]] instead,
+    * if possible.
     */
+  @UnsafeBecauseImpure
   final def share(implicit s: Scheduler): Observable[A] =
     publish.refCount
 
@@ -2873,7 +2906,15 @@ abstract class Observable[+A] extends Serializable { self =>
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers). The underlying subject used is a
     * [[monix.reactive.subjects.PublishSubject PublishSubject]].
+    *
+    * '''UNSAFE WARNING''': this method is impure because the created result
+    * keeps shared mutable state, thus violating referential transparency.
+    *
+    * This is sometimes needed for sharing the same data source between
+    * multiple consumers, but consider using [[publishSelector]] instead,
+    * if possible.
     */
+  @UnsafeBecauseImpure
   final def publish(implicit s: Scheduler): ConnectableObservable[A] =
     unsafeMulticast(PublishSubject[A]())
 
@@ -2897,9 +2938,17 @@ abstract class Observable[+A] extends Serializable { self =>
     * Observables that emit an infinite or very large number of items
     * that will use up memory.
     *
+    * '''UNSAFE WARNING''': this method is impure because the created result
+    * keeps shared mutable state, thus violating referential transparency.
+    *
+    * This is sometimes needed for sharing the same data source between
+    * multiple consumers, but consider using [[publishSelector]] instead,
+    * if possible.
+    *
     * @return an Observable that, when first subscribed to, caches all of its
     *         items and notifications for the benefit of subsequent subscribers
     */
+  @UnsafeBecauseImpure
   final def cache: Observable[A] =
     CachedObservable.create(self)
 
@@ -2918,6 +2967,13 @@ abstract class Observable[+A] extends Serializable { self =>
     * happens when the first Subscriber calls the resulting
     * Observable's `subscribe` method.
     *
+    * '''UNSAFE WARNING''': this method is impure because the created result
+    * keeps shared mutable state, thus violating referential transparency.
+    *
+    * This is sometimes needed for sharing the same data source between
+    * multiple consumers, but consider using [[publishSelector]] instead,
+    * if possible.
+    *
     * @param maxCapacity is the maximum buffer size after which old events
     *        start being dropped (according to what happens when using
     *        [[monix.reactive.subjects.ReplaySubject.createLimited[A](capacity:Int,initial* ReplaySubject.createLimited]])
@@ -2925,6 +2981,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return an Observable that, when first subscribed to, caches all of its
     *         items and notifications for the benefit of subsequent subscribers
     */
+  @UnsafeBecauseImpure
   final def cache(maxCapacity: Int): Observable[A] =
     CachedObservable.create(self, maxCapacity)
 
@@ -2932,7 +2989,15 @@ abstract class Observable[+A] extends Serializable { self =>
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers). The underlying subject used is a
     * [[monix.reactive.subjects.BehaviorSubject BehaviorSubject]].
+    *
+    * '''UNSAFE WARNING''': this method is impure because the created result
+    * keeps shared mutable state, thus violating referential transparency.
+    *
+    * This is sometimes needed for sharing the same data source between
+    * multiple consumers, but consider using pure variants like
+    * [[publishSelector]] instead, if possible.
     */
+  @UnsafeBecauseImpure
   final def behavior[B >: A](initialValue: B)(implicit s: Scheduler): ConnectableObservable[B] =
     unsafeMulticast(BehaviorSubject[B](initialValue))
 
@@ -2940,7 +3005,15 @@ abstract class Observable[+A] extends Serializable { self =>
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers). The underlying subject used is a
     * [[monix.reactive.subjects.ReplaySubject ReplaySubject]].
+    *
+    * '''UNSAFE WARNING''': this method is impure because the created result
+    * keeps shared mutable state, thus violating referential transparency.
+    *
+    * This is sometimes needed for sharing the same data source between
+    * multiple consumers, but consider using pure variants like
+    * [[publishSelector]] instead, if possible.
     */
+  @UnsafeBecauseImpure
   final def replay(implicit s: Scheduler): ConnectableObservable[A] =
     unsafeMulticast(ReplaySubject[A]())
 
@@ -2949,10 +3022,18 @@ abstract class Observable[+A] extends Serializable { self =>
     * shared by all observers). The underlying subject used is a
     * [[monix.reactive.subjects.ReplaySubject ReplaySubject]].
     *
+    * '''UNSAFE WARNING''': this method is impure because the created result
+    * keeps shared mutable state, thus violating referential transparency.
+    *
+    * This is sometimes needed for sharing the same data source between
+    * multiple consumers, but consider using pure variants like
+    * [[publishSelector]] instead, if possible.
+    *
     * @param bufferSize is the size of the buffer limiting the number
     *        of items that can be replayed (on overflow the head
     *        starts being dropped)
     */
+  @UnsafeBecauseImpure
   final def replay(bufferSize: Int)(implicit s: Scheduler): ConnectableObservable[A] =
     unsafeMulticast(ReplaySubject.createLimited[A](bufferSize))
 
@@ -3287,7 +3368,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a task that emits only true or false in case the given
     *         predicate holds or not for all the items
     */
-  final def forAllL(p: A => Boolean): Task[Boolean] =
+  final def forallL(p: A => Boolean): Task[Boolean] =
     existsL(e => !p(e)).map(r => !r)
 
   /** Returns a `Task` which emits either `true`, in case the given predicate
@@ -5069,6 +5150,7 @@ object Observable {
       self.executeAsync
       // $COVERAGE-ON$
     }
+
     /** DEPRECATED - renamed to [[Observable.delayExecution delayExecution]].
       *
       * The reason for the deprecation is making the name more consistent
@@ -5077,6 +5159,7 @@ object Observable {
     @deprecated("Renamed to Observable!.delayExecution", "3.0.0")
     def delaySubscription(timespan: FiniteDuration): Observable[A] =
       self.delayExecution(timespan)
+
     /** DEPRECATED - renamed to [[Observable.delayExecutionWith delayExecutionWith]].
       *
       * The reason for the deprecation is making the name more consistent
@@ -5513,6 +5596,87 @@ object Observable {
     def mapFuture[B](f: A => Future[B]): Observable[B] = {
       // $COVERAGE-OFF$
       self.mapEvalF(f)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Observable.forall]] in an effort to unify
+      * the naming conventions with `Iterant`, Scala's standard library
+      * and Cats-Effect.
+      *
+      * The `F` suffix now represents working with higher-kinded types,
+      * e.g. `F[_]`, with restrictions like [[ObservableLike]],
+      * [[monix.eval.TaskLike TaskLike]], `cats.effect.Sync`, etc.
+      */
+    @deprecated("Renamed to forall (no camel case in forall, no F suffix)", "1.0.0")
+    def forAllF(p: A => Boolean): Observable[Boolean] = {
+      // $COVERAGE-OFF$
+      self.forall(p)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Observable.forallL]] in an effort to unify
+      * the naming conventions with `Iterant` and Scala's standard library.
+      */
+    @deprecated("Renamed to forallL (no camel case in forall)", "1.0.0")
+    def forAllL(p: A => Boolean): Task[Boolean] = {
+      // $COVERAGE-OFF$
+      self.forallL(p)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Observable.forall]] in an effort to unify
+      * the naming conventions with `Iterant`, Scala's standard library
+      * and Cats-Effect.
+      *
+      * The `F` suffix now represents working with higher-kinded types,
+      * e.g. `F[_]`, with restrictions like [[ObservableLike]],
+      * [[monix.eval.TaskLike TaskLike]], `cats.effect.Sync`, etc.
+      */
+    @deprecated("Renamed to exists (no F suffix)", "1.0.0")
+    def existsF(p: A => Boolean): Observable[Boolean] = {
+      // $COVERAGE-OFF$
+      self.exists(p)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Observable.forall]] in an effort to unify
+      * the naming conventions with `Iterant`, Scala's standard library
+      * and Cats-Effect.
+      *
+      * The `F` suffix now represents working with higher-kinded types,
+      * e.g. `F[_]`, with restrictions like [[ObservableLike]],
+      * [[monix.eval.TaskLike TaskLike]], `cats.effect.Sync`, etc.
+      */
+    @deprecated("Renamed to last (no F suffix)", "1.0.0")
+    def lastF: Observable[A] = {
+      // $COVERAGE-OFF$
+      self.last
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Observable.scanEval]].
+      *
+      * Renaming was done for naming consistency. Functions that use
+      * [[monix.eval.Task Task]] parameters in `Observable` no longer
+      * have a `Task` suffix.
+      */
+    @deprecated("Renamed to scanEval", "1.0.0")
+    def scanTask[S](seed: Task[S])(op: (S, A) => Task[S]): Observable[S] = {
+      // $COVERAGE-OFF$
+      self.scanEval(seed)(op)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Observable.scanEval0]].
+      *
+      * Renaming was done for naming consistency. Functions that use
+      * [[monix.eval.Task Task]] parameters in `Observable` no longer
+      * have a `Task` suffix.
+      */
+    @deprecated("Renamed to scanEval0", "1.0.0")
+    def scanTask0[S](seed: Task[S])(op: (S, A) => Task[S]): Observable[S] = {
+      // $COVERAGE-OFF$
+      self.scanEval0(seed)(op)
       // $COVERAGE-ON$
     }
   }

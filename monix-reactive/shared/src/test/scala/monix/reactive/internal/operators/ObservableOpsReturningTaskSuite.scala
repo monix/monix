@@ -49,7 +49,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
   test("runAsyncGetLast works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
-      obs.runAsyncGetLast.materialize <-> first(obs.lastF)
+      obs.runAsyncGetLast.materialize <-> first(obs.last)
     }
   }
 
@@ -89,7 +89,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
       val result: Future[Try[Option[Boolean]]] =
         obs.existsL(_ % 3 == 0).map(Some.apply).materialize.runAsync
 
-      result <-> first(obs.existsF(_ % 3 == 0))
+      result <-> first(obs.exists(_ % 3 == 0))
     }
   }
 
@@ -126,7 +126,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
-        obs.forAllL(_ >= 0).map(Some.apply).materialize.runAsync
+        obs.forallL(_ >= 0).map(Some.apply).materialize.runAsync
 
       result <-> Future.successful(Success(Some(list.forall(_ >= 0))))
     }
@@ -136,9 +136,9 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
-        obs.forAllL(_ >= 0).map(Some.apply).materialize.runAsync
+        obs.forallL(_ >= 0).map(Some.apply).materialize.runAsync
 
-      result <-> first(obs.forAllF(_ >= 0))
+      result <-> first(obs.forall(_ >= 0))
     }
   }
 
@@ -186,7 +186,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
       val result: Future[Try[Option[Int]]] =
         obs.lastOptionL.materialize.runAsync
 
-      result <-> first(obs.lastF)
+      result <-> first(obs.last)
     }
   }
 
@@ -197,7 +197,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
         obs.map(Some.apply).lastOrElseL(None)
           .materialize.runAsync
 
-      result <-> first(obs.lastF)
+      result <-> first(obs.last)
     }
   }
 
