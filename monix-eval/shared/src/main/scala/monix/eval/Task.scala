@@ -873,10 +873,6 @@ sealed abstract class Task[+A] extends Serializable {
     * `cats.effect.Effect.runSyncStep`, but without suspending the
     * evaluation in `IO`.
     *
-    * Similar to [[monix.eval.Task!.runSyncMaybe runSyncMaybe]],
-    * except that in case of an async boundary, the evaluation is
-    * suspended in `Task`.
-    *
     * WARNING: This method is a partial function, throwing exceptions
     * in case errors happen immediately (synchronously).
     *
