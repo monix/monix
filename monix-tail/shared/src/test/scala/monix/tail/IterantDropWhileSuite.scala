@@ -95,7 +95,7 @@ object IterantDropWhileSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.dropWhile(_ => true)
-    stream.completeL.value()
+    stream.completedL.value()
     assertEquals(effect, 1)
   }
 }

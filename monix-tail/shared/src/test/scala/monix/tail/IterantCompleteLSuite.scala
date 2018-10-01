@@ -35,7 +35,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
         Iterant[Coeval].empty[Int]
       }
 
-      val fa = trigger.completeL *> Coeval.eval(effect)
+      val fa = trigger.completedL *> Coeval.eval(effect)
       fa <-> Coeval.now(1)
     }
   }
@@ -48,7 +48,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     val fa = Iterant[Coeval].resource(Coeval.unit)(_ => Coeval { earlyStop = true })
       .flatMap(_ => Iterant[Coeval].fromBatchCursor(cursor))
 
-    assertEquals(fa.completeL.runTry(), Failure(dummy))
+    assertEquals(fa.completedL.runTry(), Failure(dummy))
     assert(earlyStop, "earlyStop")
   }
 
@@ -60,7 +60,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     val fa = Iterant[Coeval].resource(Coeval.unit)(_ => Coeval { earlyStop = true })
       .flatMap(_ => Iterant[Coeval].fromBatch(batch))
 
-    assertEquals(fa.completeL.runTry(), Failure(dummy))
+    assertEquals(fa.completedL.runTry(), Failure(dummy))
     assert(earlyStop, "earlyStop")
   }
 
@@ -75,7 +75,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     val node2 = Iterant[Coeval].nextS(2, Coeval(node3)).guarantee(stop(2))
     val node1 = Iterant[Coeval].nextS(1, Coeval(node2)).guarantee(stop(1))
 
-    assertEquals(node1.completeL.runTry(), Failure(dummy))
+    assertEquals(node1.completedL.runTry(), Failure(dummy))
     assertEquals(effect, 6)
   }
 
@@ -96,7 +96,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
         Iterant[Coeval].empty[Int]
     })
 
-    assertEquals(stream.completeL.value(), ())
+    assertEquals(stream.completedL.value(), ())
   }
 
   test("completeL handles Scope's release after use is finished") { implicit s =>
@@ -115,6 +115,6 @@ object IterantCompleteLSuite extends BaseTestSuite {
         Coeval(triggered.set(true))
       }
     )
-    assertEquals((0 +: stream :+ 2).completeL.value(), ())
+    assertEquals((0 +: stream :+ 2).completedL.value(), ())
   }
 }

@@ -47,7 +47,7 @@ object IterantResourceSuite extends BaseTestSuite {
         earlyStopDone = true
       }))
 
-    bracketed.take(1).completeL.value()
+    bracketed.take(1).completedL.value()
     assert(earlyStopDone)
   }
 
@@ -56,7 +56,7 @@ object IterantResourceSuite extends BaseTestSuite {
     val bracketed = Iterant.resource(rs.acquire)(_.release)
       .flatMap(_ => Iterant.range(1, 10))
 
-    bracketed.completeL.value()
+    bracketed.completedL.value()
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
   }
@@ -68,7 +68,7 @@ object IterantResourceSuite extends BaseTestSuite {
       .flatMap(_ => Iterant.range(1, 10))
       .take(1)
 
-    bracketed.completeL.value()
+    bracketed.completedL.value()
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
   }
@@ -83,7 +83,7 @@ object IterantResourceSuite extends BaseTestSuite {
       }
 
     intercept[DummyException] {
-      bracketed.completeL.value()
+      bracketed.completedL.value()
     }
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
@@ -96,7 +96,7 @@ object IterantResourceSuite extends BaseTestSuite {
       .flatMap { _ => throw dummy }
 
     intercept[DummyException] {
-      bracketed.completeL.value()
+      bracketed.completedL.value()
     }
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
@@ -112,7 +112,7 @@ object IterantResourceSuite extends BaseTestSuite {
       }
 
     intercept[DummyException] {
-      bracketed.completeL.value()
+      bracketed.completedL.value()
     }
     assertEquals(rs.acquired, 0)
     assertEquals(rs.released, 0)
@@ -137,7 +137,7 @@ object IterantResourceSuite extends BaseTestSuite {
       }
 
     intercept[DummyException] {
-      bracketed.completeL.value()
+      bracketed.completedL.value()
     }
     assert(released)
   }
@@ -150,7 +150,7 @@ object IterantResourceSuite extends BaseTestSuite {
       }
 
     intercept[DummyException] {
-      bracketed.completeL.value()
+      bracketed.completedL.value()
     }
     assert(released)
   }
@@ -165,7 +165,7 @@ object IterantResourceSuite extends BaseTestSuite {
       }
 
     intercept[DummyException] {
-      bracketed.completeL.value()
+      bracketed.completedL.value()
     }
     assert(released)
   }
@@ -184,7 +184,7 @@ object IterantResourceSuite extends BaseTestSuite {
 
     for (iter <- broken) {
       intercept[DummyException] {
-        iter.completeL.value()
+        iter.completedL.value()
       }
     }
 
@@ -207,7 +207,7 @@ object IterantResourceSuite extends BaseTestSuite {
 
     for (iter <- broken) {
       intercept[DummyException] {
-        iter.completeL.value()
+        iter.completedL.value()
       }
     }
     assertEquals(rs.acquired, broken.length)
@@ -218,7 +218,7 @@ object IterantResourceSuite extends BaseTestSuite {
     val rs = new Resource
     val completes: Array[Iterant[Coeval, Int] => Coeval[Unit]] =
       Array(
-        _.completeL,
+        _.completedL,
         _.foldLeftL(())((_, _) => ()),
         _.foldWhileLeftL(())((_, _) => Left(())),
         _.foldWhileLeftEvalL(Coeval.unit)((_, _) => Coeval(Left(()))),
@@ -273,7 +273,7 @@ object IterantResourceSuite extends BaseTestSuite {
       _ <- safeCloseable("Inner")
     } yield ()
 
-    iterant.completeL.value()
+    iterant.completedL.value()
     assertEquals(log, Vector("Start: Outer", "Start: Inner", "Stop: Inner", "Stop: Outer"))
   }
 }

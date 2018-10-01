@@ -135,7 +135,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     var effect = 0
     val increment = Coeval { effect += 1 }
     Iterant[Coeval].repeatEvalF(increment).take(repeats)
-      .completeL.value()
+      .completedL.value()
     assertEquals(effect, repeats)
   }
 
