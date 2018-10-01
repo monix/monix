@@ -437,7 +437,7 @@ import scala.util.{Failure, Success, Try}
   *         it might be better to pass such a reference around as
   *         a parameter.
   */
-sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
+sealed abstract class Task[+A] extends Serializable {
   import cats.effect.Async
   import monix.eval.Task._
 
@@ -3761,6 +3761,12 @@ object Task extends TaskInstancesLevel1 {
       trampolineBefore = false,
       trampolineAfter = true)
 
+  /**
+    * Deprecated operations, described as extension methods.
+    */
+  implicit final class DeprecatedExtensions[+A](val self: Task[A])
+    extends AnyVal with TaskDeprecated.Extensions[A]
+
   /** Set of options for customizing the task's behavior.
     *
     * See [[Task.defaultOptions]] for the default `Options` instance
@@ -4371,7 +4377,7 @@ private[eval] abstract class TaskTimers extends TaskClocks {
     }
 }
 
-private[eval] abstract class TaskClocks extends TaskBinCompatCompanion {
+private[eval] abstract class TaskClocks extends TaskDeprecated.Companion {
   /**
     * Default, pure, globally visible `cats.effect.Clock`
     * implementation that defers the evaluation to `Task`'s default
