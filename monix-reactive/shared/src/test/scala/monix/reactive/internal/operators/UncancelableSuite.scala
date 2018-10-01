@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.internal.Platform
 import monix.reactive.{BaseTestSuite, Observable}
 
@@ -24,6 +25,8 @@ import concurrent.duration._
 import scala.util.Success
 
 object UncancelableSuite extends BaseTestSuite {
+  implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+  
   test("uncancelable works") { implicit ec =>
     val obs = Observable.eval(1)
       .delayExecution(1.second)
