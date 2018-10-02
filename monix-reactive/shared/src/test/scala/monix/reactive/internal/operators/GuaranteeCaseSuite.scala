@@ -24,7 +24,8 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.execution.exceptions.DummyException
+import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.internal.Platform
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
@@ -144,8 +145,15 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
       })
 
     s.tick()
-    assertEquals(wasThrown, ex1)
-    assertEquals(wasThrown.getSuppressed.toList, List(ex2))
+    if (Platform.isJVM) {
+      assertEquals(wasThrown, ex1)
+      assertEquals(wasThrown.getSuppressed.toList, List(ex2))
+    } else {
+      wasThrown match {
+        case CompositeException(list) =>
+          assertEquals(list, List(ex1, ex2))
+      }
+    }
     assertEquals(s.state.lastReportedError, null)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
@@ -165,8 +173,15 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
           wasThrown = ex
       })
 
-    assertEquals(wasThrown, ex1)
-    assertEquals(wasThrown.getSuppressed.toList, List(ex2))
+    if (Platform.isJVM) {
+      assertEquals(wasThrown, ex1)
+      assertEquals(wasThrown.getSuppressed.toList, List(ex2))
+    } else {
+      wasThrown match {
+        case CompositeException(list) =>
+          assertEquals(list, List(ex1, ex2))
+      }
+    }
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
@@ -366,7 +381,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
 
     Observable.now(1).endWithError(ex1)
-      .guaranteeF(IO.raiseError[Unit]((ex2)))
+      .guaranteeF(IO.raiseError[Unit](ex2))
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -375,8 +390,15 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
           wasThrown = ex
       })
 
-    assertEquals(wasThrown, ex1)
-    assertEquals(ex1.getSuppressed.toList, List(ex2))
+    if (Platform.isJVM) {
+      assertEquals(wasThrown, ex1)
+      assertEquals(wasThrown.getSuppressed.toList, List(ex2))
+    } else {
+      wasThrown match {
+        case CompositeException(list) =>
+          assertEquals(list, List(ex1, ex2))
+      }
+    }
     assertEquals(s.state.lastReportedError, null)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
