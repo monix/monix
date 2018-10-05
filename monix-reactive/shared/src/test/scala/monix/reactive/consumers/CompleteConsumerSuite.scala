@@ -34,7 +34,7 @@ object CompleteConsumerSuite extends TestSuite[TestScheduler] {
   }
 
   test("should run to completion") { implicit s =>
-    val obs = Observable(1) ++ Observable.now(2).delaySubscription(3.seconds)
+    val obs = Observable(1) ++ Observable.now(2).delayExecution(3.seconds)
     val f = obs.consumeWith(Consumer.complete).runAsync
 
     s.tick(); assertEquals(f.value, None)

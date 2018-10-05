@@ -18,7 +18,6 @@
 package monix.eval
 
 import monix.eval.Task.Context
-import monix.execution.Cancelable
 import monix.execution.misc.AsyncSemaphore
 import monix.execution.schedulers.TrampolinedRunnable
 
@@ -29,13 +28,17 @@ import monix.execution.schedulers.TrampolinedRunnable
   * maximum parallelism of 10:
   *
   * {{{
+  *   case class HttpRequest()
+  *   case class HttpResponse()
+  *
   *   val semaphore = TaskSemaphore(maxParallelism = 10)
   *
   *   def makeRequest(r: HttpRequest): Task[HttpResponse] = ???
   *
   *   // For such a task no more than 10 requests
   *   // are allowed to be executed in parallel.
-  *   val task = semaphore.greenLight(makeRequest(???))
+  *   val task = semaphore
+  *     .flatMap(_.greenLight(makeRequest(???)))
   * }}}
   */
 final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
@@ -60,7 +63,7 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     // Inlining doOnFinish + doOnCancel
     val start = (context: Context, cb: Callback[A]) => {
       implicit val s = context.scheduler
-      val c = Cancelable(() => semaphore.release())
+      val c = Task(semaphore.release())
       val conn = context.connection
       conn.push(c)
 

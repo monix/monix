@@ -25,7 +25,7 @@ import monix.eval.internal.TaskRunLoop._
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.internal.collection.ArrayStack
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 
 import scala.concurrent.blocking
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -92,7 +92,7 @@ private[eval] object TaskRunSyncUnsafe {
               bFirst = null
           }
 
-        case async @ Async(_, _, _, _) =>
+        case async =>
           return blockForResult(
             async,
             timeout,
@@ -125,7 +125,7 @@ private[eval] object TaskRunSyncUnsafe {
   }
 
   private def blockForResult[A](
-    source: Async[Any],
+    source: Task[Any],
     limit: Duration,
     scheduler: Scheduler,
     opts: Task.Options,
@@ -135,11 +135,15 @@ private[eval] object TaskRunSyncUnsafe {
     val latch = new OneShotLatch
     val cb = new BlockingCallback[Any](latch)
     val context = Context(scheduler, opts)
-    val current = source.asInstanceOf[Task[A]]
 
     // Starting actual execution
     val rcb = TaskRestartCallback(context, cb)
-    executeAsyncTask(source, context, cb, rcb, bFirst, bRest, 1)
+    source match {
+      case async: Async[Any] @unchecked =>
+        executeAsyncTask(async, context, cb, rcb, bFirst, bRest, 1)
+      case _ =>
+        startFull(source, context, cb, rcb, bFirst, bRest, 1)
+    }
 
     val isFinished = limit match {
       case e if e eq Duration.Undefined =>

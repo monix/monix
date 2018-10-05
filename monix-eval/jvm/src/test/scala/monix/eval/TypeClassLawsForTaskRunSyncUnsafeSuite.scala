@@ -29,47 +29,66 @@ import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._
 import scala.util.Try
 
-/** Type class tests for Task that use an alternative `Eq`, making
-  * use of Task's `runAsync(callback)`.
+/**
+  * Type class tests for Task that use an alternative `Eq`, making
+  * use of Task's `runSyncUnsafe`.
   */
-object TypeClassLawsForTaskRunSyncUnsafeSuite extends monix.execution.BaseLawsSuite
+object TypeClassLawsForTaskRunSyncUnsafeSuite
+  extends BaseTypeClassLawsForTaskRunSyncUnsafeSuite()(
+    Task.defaultOptions.disableAutoCancelableRunLoops
+  )
+
+/**
+  * Type class tests for Task that use an alternative `Eq`, making
+  * use of Task's `runSyncUnsafe`, with the tasks being evaluated
+  * in auto-cancelable mode.
+  */
+object TypeClassLawsForTaskAutoCancelableRunSyncUnsafeSuite
+  extends BaseTypeClassLawsForTaskRunSyncUnsafeSuite()(
+    Task.defaultOptions.enableAutoCancelableRunLoops
+  )
+
+class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
+  extends monix.execution.BaseLawsSuite
   with  ArbitraryInstancesBase {
 
   implicit val sc = Scheduler(global, UncaughtExceptionReporter(_ => ()))
+  implicit val cs = IO.contextShift(sc)
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 
   val timeout = {
     if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
       5.minutes
     else
-      10.seconds
+      5.seconds
   }
 
-  implicit val params = Parameters.default.copy(
+  implicit val params = Parameters(
     // Disabling non-terminating tests (that test equivalence with Task.never)
     // because they'd behave really badly with an Eq[Task] that depends on
     // blocking threads
-    allowNonTerminationLaws = false)
+    allowNonTerminationLaws = false,
+    stackSafeIterationsCount = 10000)
 
   implicit def equalityTask[A](implicit A: Eq[A]): Eq[Task[A]] =
     Eq.instance { (a, b) =>
-      val ta = Try(a.runSyncUnsafe(timeout))
-      val tb = Try(b.runSyncUnsafe(timeout))
+      val ta = Try(a.runSyncUnsafeOpt(timeout))
+      val tb = Try(b.runSyncUnsafeOpt(timeout))
       equalityTry[A].eqv(ta, tb)
     }
 
   implicit def equalityTaskPar[A](implicit A: Eq[A]): Eq[Task.Par[A]] =
     Eq.instance { (a, b) =>
       import Task.Par.unwrap
-      val ta = Try(unwrap(a).runSyncUnsafe(timeout))
-      val tb = Try(unwrap(b).runSyncUnsafe(timeout))
+      val ta = Try(unwrap(a).runSyncUnsafeOpt(timeout))
+      val tb = Try(unwrap(b).runSyncUnsafeOpt(timeout))
       equalityTry[A].eqv(ta, tb)
     }
 
   implicit def equalityIO[A](implicit A: Eq[A]): Eq[IO[A]] =
     Eq.instance { (a, b) =>
-      val ta = Try(a.unsafeRunSync())
-      val tb = Try(b.unsafeRunSync())
+      val ta = Try(a.unsafeRunTimed(timeout).get)
+      val tb = Try(b.unsafeRunTimed(timeout).get)
       equalityTry[A].eqv(ta, tb)
     }
 
@@ -77,10 +96,10 @@ object TypeClassLawsForTaskRunSyncUnsafeSuite extends monix.execution.BaseLawsSu
     CoflatMapTests[Task].coflatMap[Int,Int,Int])
 
   checkAll("Concurrent[Task]",
-    ConcurrentTests[Task].async[Int,Int,Int])
+    ConcurrentTests[Task].concurrent[Int,Int,Int])
 
   checkAll("ConcurrentEffect[Task]",
-    ConcurrentEffectTests[Task].effect[Int,Int,Int])
+    ConcurrentEffectTests[Task].concurrentEffect[Int,Int,Int])
 
   checkAll("Applicative[Task.Par]",
     ApplicativeTests[Task.Par].applicative[Int, Int, Int])

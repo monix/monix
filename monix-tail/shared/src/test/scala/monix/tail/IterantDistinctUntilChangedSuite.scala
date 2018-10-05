@@ -58,7 +58,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
 
       val received = (arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false) ++ Iterant[Coeval].of(1, 2))
-        .doOnEarlyStop(Coeval { effect += 111 })
+        .guarantee(Coeval { effect += 111 })
         .distinctUntilChangedByKey(_ => (throw dummy) : Int)
         .completeL.map(_ => 0)
         .onErrorRecover { case _: DummyException => effect }
@@ -71,8 +71,8 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val fa = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-      .doOnEarlyStop(Coeval { effect += 1 })
+    val fa = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+      .guarantee(Coeval { effect += 1 })
       .distinctUntilChanged
       .completeL
 
@@ -86,10 +86,10 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
 
     val stream = Iterant[Coeval].pure(1) ++
-      Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
+      Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
 
     val fa = stream
-      .doOnEarlyStop(Coeval { effect += 1 })
+      .guarantee(Coeval { effect += 1 })
       .distinctUntilChanged
       .completeL
 
@@ -102,8 +102,8 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val fa = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-      .doOnEarlyStop(Coeval { effect += 1 })
+    val fa = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+      .guarantee(Coeval { effect += 1 })
       .distinctUntilChanged
       .completeL
 
@@ -117,10 +117,10 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
 
     val stream = Iterant[Coeval].pure(1) ++
-      Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
+      Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
 
     val fa = stream
-      .doOnEarlyStop(Coeval { effect += 1 })
+      .guarantee(Coeval { effect += 1 })
       .distinctUntilChanged
       .completeL
 

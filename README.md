@@ -131,13 +131,17 @@ licensed with the same license that Monix is licensed with (Apache
 2.0, see LICENSE.txt).
 
 People are expected to follow the
-[Typelevel Code of Conduct](https://typelevel.org/conduct.html) when
-discussing Monix on the Github page, Gitter channel, or other venues.
+[Scala Code of Conduct](./CODE_OF_CONDUCT.md) when
+discussing Monix on GitHub, Gitter channel, or other venues.
 
 Feel free to open an issue if you notice a bug, have an idea for a
 feature, or have a question about the code. Pull requests are also
 gladly accepted. For more information, check out the
 [contributor guide](CONTRIBUTING.md).
+
+If you'd like to donate in order to help with ongoing maintenance:
+
+<a href="https://www.patreon.com/bePatron?u=6102596"><img label="Become a Patron!" src="https://c5.patreon.com/external/logo/become_a_patron_button@2x.png" height="40" /></a>
 
 ## License
 
@@ -147,9 +151,10 @@ Version 2.0.  See [LICENCE.txt](./LICENSE.txt).
 ## Acknowledgements
 
 <img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/yklogo.png" align="right" />
+
 YourKit supports the Monix project with its full-featured Java Profiler.
-YourKit, LLC is the creator [YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp)
-and [YourKit .NET Profiler](http://www.yourkit.com/.net/profiler/index.jsp),
+YourKit, LLC is the creator [YourKit Java Profiler](https://www.yourkit.com/java/profiler/index.jsp)
+and [YourKit .NET Profiler](https://www.yourkit.com/.net/profiler/index.jsp),
 innovative and intelligent tools for profiling Java and .NET applications.
 
 <img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/logo-eloquentix@2x.png" align="right" width="130" />

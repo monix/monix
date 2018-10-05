@@ -58,9 +58,9 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val sample1 = Observable.range(0, 10)
-      .flatScanDelayErrors(1L)((acc,e) => Observable.now(acc+e).delaySubscription(1.second))
+      .flatScanDelayErrors(1L)((acc,e) => Observable.now(acc+e).delayExecution(1.second))
     val sample2 = Observable.range(0, 10).delayOnNext(1.second)
-      .flatScanDelayErrors(1L)((acc,e) => Observable.now(acc+e).delaySubscription(1.second))
+      .flatScanDelayErrors(1L)((acc,e) => Observable.now(acc+e).delayExecution(1.second))
 
     Seq(
       Sample(sample1,0,0,0.seconds,0.seconds),

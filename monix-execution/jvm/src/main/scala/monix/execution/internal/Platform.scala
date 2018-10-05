@@ -65,17 +65,27 @@ private[monix] object Platform {
       .getOrElse(1024)
   }
 
-  /** Default value for auto cancelable loops is set to
-    * false. On top of the JVM the default can be overridden by
-    * setting the following system property:
+  /** Default value for auto cancelable loops, set to `false`.
     *
-    *  - `monix.environment.autoCancelableRunLoops`
-    *    (`true`, `yes` or `1` for enabling)
+    * On top of the JVM the default can be overridden by setting the following
+    * system property:
+    *
+    * `monix.environment.autoCancelableRunLoops`
+    *
+    * You can set the following values:
+    *
+    *  - `true`, `yes` or `1` for enabling (the default)
+    *  - `no`, `false` or `0` for disabling
+    *
+    * NOTE: this values was `false` by default prior to the Monix 3.0.0
+    * release. This changed along with the release of Cats-Effect 1.0.0
+    * which now recommends for this default to be `true` due to the design
+    * of its type classes.
     */
   val autoCancelableRunLoops: Boolean =
     Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
       .map(_.toLowerCase)
-      .exists(v => v == "yes" || v == "true" || v == "1")
+      .forall(v => v != "no" && v != "false" && v != "0")
 
   /**
     * Default value for local context propagation loops is set to
@@ -137,16 +147,10 @@ private[monix] object Platform {
     * available since Java 7. On top of JavaScript the function would return
     * a `CompositeException`.
     */
-  def composeErrors(first: Throwable, rest: Throwable*): Throwable =
-    if (rest.isEmpty) first else {
-      val cursor = rest.iterator
-      while (cursor.hasNext) {
-        val next = cursor.next()
-        if (first ne next)
-          first.addSuppressed(next)
-      }
-      first
-    }
+  def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
+    for (e <- rest; if e ne first) first.addSuppressed(e)
+    first
+  }
 
   /** Useful utility that combines an `Either` result, which is what
     * `MonadError#attempt` returns.

@@ -35,7 +35,7 @@ object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    val c = Observable.now(1).delaySubscription(1.second)
+    val c = Observable.now(1).delayExecution(1.second)
       .doOnSubscriptionCancel(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -56,7 +56,7 @@ object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    val c = Observable.now(1).delaySubscription(1.second)
+    val c = Observable.now(1).delayExecution(1.second)
       .doOnSubscriptionCancel(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s

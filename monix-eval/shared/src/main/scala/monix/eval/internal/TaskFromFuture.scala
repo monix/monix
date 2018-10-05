@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import monix.eval.Task.Context
 import monix.eval.{Callback, Task}
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 
@@ -59,6 +59,7 @@ private[eval] object TaskFromFuture {
             // Already completed future, streaming value immediately,
             // but with light async boundary to prevent stack overflows
             callback(value)
+
           case None =>
             future match {
               case cf: CancelableFuture[A] @unchecked =>
@@ -74,18 +75,6 @@ private[eval] object TaskFromFuture {
       }
     }
 
-  /** Internal implementation used in `Task.start`. */
-  def lightBuild[A](f: Future[A], c: Cancelable): Task[A] = {
-    // The task could have been a strict or easily computed value
-    // in which case we're already there
-    f.value match {
-      case None =>
-        rawAsync(startCancelable(_, _, f, c))
-      case Some(value) =>
-        Task.fromTry(value)
-    }
-  }
-  
   private def rawAsync[A](start: (Context, Callback[A]) => Unit): Task[A] =
     Task.Async(
       start,
@@ -112,7 +101,7 @@ private[eval] object TaskFromFuture {
       case None =>
         // Given a cancelable future, we should use it
         val conn = ctx.connection
-        conn.push(c)
+        conn.push(c)(ctx.scheduler)
         // Async boundary
         f.onComplete { result =>
           conn.pop()

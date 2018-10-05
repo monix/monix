@@ -20,10 +20,20 @@ package monix.eval
 import cats.Applicative
 import cats.effect.laws.discipline.{ConcurrentEffectTests, ConcurrentTests}
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
+import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests, SemigroupKTests}
 import monix.eval.instances.CatsParallelForTask
 
-object TypeClassLawsForTaskSuite extends BaseLawsSuite {
+object TypeClassLawsForTaskSuite extends BaseTypeClassLawsForTaskSuite()(
+  Task.defaultOptions.disableAutoCancelableRunLoops
+)
+
+object TypeClassLawsForTaskAutoCancelableSuite extends BaseTypeClassLawsForTaskSuite()(
+  Task.defaultOptions.disableAutoCancelableRunLoops
+)
+
+class BaseTypeClassLawsForTaskSuite(implicit opts: Task.Options)
+  extends BaseLawsSuite {
+
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 
   checkAllAsync("CoflatMap[Task]") { implicit ec =>
@@ -48,5 +58,9 @@ object TypeClassLawsForTaskSuite extends BaseLawsSuite {
 
   checkAllAsync("Monoid[Task[Int]]") { implicit ec =>
     MonoidTests[Task[Int]].monoid
+  }
+
+  checkAllAsync("SemigroupK[Task[Int]]") { implicit ec =>
+    SemigroupKTests[Task].semigroupK[Int]
   }
 }

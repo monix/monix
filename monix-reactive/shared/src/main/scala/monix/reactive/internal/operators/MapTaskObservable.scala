@@ -21,7 +21,7 @@ import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber

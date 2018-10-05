@@ -51,6 +51,12 @@ escalate into larger problems.
 5. Your first commit request should be accompanied with a change to
    the AUTHORS file, adding yourself to the authors list.
    
+## Finding Starting Point
+
+If you want to contribute but you don't know where to start - have a look at [low-hanging fruit](https://github.com/monix/monix/issues?q=is%3Aopen+is%3Aissue+label%3A%22low-hanging+fruit%22) or [help wanted](https://github.com/monix/monix/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) issues.
+If there aren't any, have unclear description or seem too complicated - visit [monix/monix](https://gitter.im/monix/monix) Gitter channel.
+Gitter is a go-to place in case you have any questions or need guidance since we're more than happy to help new contributors regardless of their experience.
+   
 ## License
 
 All code must be licensed under the Apache 2.0 license and all files 

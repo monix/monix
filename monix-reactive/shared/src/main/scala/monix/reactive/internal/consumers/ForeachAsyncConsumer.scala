@@ -21,7 +21,7 @@ import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Scheduler}
 import monix.execution.cancelables.AssignableCancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
@@ -38,12 +38,9 @@ final class ForeachAsyncConsumer[A](f: A => Task[Unit])
 
       def onNext(elem: A): Future[Ack] = {
         try {
-          f(elem).coeval.value() match {
-            case Left(future) =>
-              future.map(_ => Continue)
-            case Right(()) =>
-              Continue
-          }
+          f(elem).map(_ => Continue)
+            .runAsync
+            .syncTryFlatten
         } catch {
           case ex if NonFatal(ex) =>
             onError(ex)

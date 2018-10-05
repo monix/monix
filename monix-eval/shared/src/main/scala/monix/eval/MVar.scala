@@ -18,7 +18,9 @@
 package monix.eval
 
 import monix.execution.atomic.PaddingStrategy
-import monix.execution.misc.{AsyncVar, NonFatal}
+import monix.execution.misc.AsyncVar
+
+import scala.util.control.NonFatal
 
 /** A mutable location, that is either empty or contains
   * a value of type `A`.
@@ -71,9 +73,10 @@ abstract class MVar[A] {
     * until there is a value available, at which point the operation
     * resorts to a [[take]] followed by a [[put]].
     *
-    * This `read` operation is equivalent to:
+    * This `read` operation is equivalent to a method like this:
     * {{{
-    *   for (a <- v.take; _ <- v.put(a)) yield a
+    *   def readMVar[A](v: MVar[A]) =
+    *     for (a <- v.take; _ <- v.put(a)) yield a
     * }}}
     *
     * This operation is not atomic. Being equivalent with a `take`
@@ -130,7 +133,7 @@ object MVar {
   /** [[MVar]] implementation based on [[monix.execution.misc.AsyncVar]] */
   private final class AsyncMVarImpl[A](av: AsyncVar[A]) extends MVar[A] {
     def put(a: A): Task[Unit] =
-      Task.asyncS { (_, cb) =>
+      Task.async0 { (_, cb) =>
         var streamError = true
         try {
           // Execution could be synchronous
@@ -145,7 +148,7 @@ object MVar {
       }
 
     def take: Task[A] =
-      Task.asyncS { (_, cb) =>
+      Task.async0 { (_, cb) =>
         // Execution could be synchronous (e.g. result is null or not)
         av.unsafeTake(cb) match {
           case null => () // do nothing
@@ -154,7 +157,7 @@ object MVar {
       }
 
     def read: Task[A] =
-      Task.asyncS { (_, cb) =>
+      Task.async0 { (_, cb) =>
         // Execution could be synchronous (e.g. result is null or not)
         av.unsafeRead(cb) match {
           case null => () // do nothing

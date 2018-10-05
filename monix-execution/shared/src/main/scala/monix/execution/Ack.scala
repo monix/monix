@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration.Duration
 import scala.concurrent.{CanAwait, ExecutionContext, Future, Promise}

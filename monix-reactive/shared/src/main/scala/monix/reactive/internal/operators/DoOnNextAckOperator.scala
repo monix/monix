@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 

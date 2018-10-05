@@ -18,12 +18,14 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{Executors, ScheduledExecutorService}
-import monix.execution.UncaughtExceptionReporter.LogExceptionsToStandardErr
+import monix.execution.UncaughtExceptionReporter
 
 private[schedulers] object Defaults {
-  /** Internal. Provides the `Scheduler.DefaultScheduledExecutor` instance. */
+  /**
+    * Internal. Provides the `Scheduler.DefaultScheduledExecutor` instance.
+    */
   lazy val scheduledExecutor: ScheduledExecutorService =
     Executors.newSingleThreadScheduledExecutor(
-      ThreadFactoryBuilder("monix-scheduler", LogExceptionsToStandardErr, daemonic = true)
+      ThreadFactoryBuilder("monix-scheduler", UncaughtExceptionReporter.default, daemonic = true)
     )
 }

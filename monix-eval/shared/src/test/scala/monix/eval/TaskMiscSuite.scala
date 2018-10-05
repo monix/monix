@@ -43,7 +43,7 @@ object TaskMiscSuite extends BaseTestSuite {
 
   test("Task.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
-      Task.eval(10).failed.coeval.value()
+      Task.eval(10).failed.runSyncStep
     }
   }
 
@@ -162,20 +162,20 @@ object TaskMiscSuite extends BaseTestSuite {
 
   test("Task.now.runAsync with Try-based callback") { implicit s =>
     val p = Promise[Int]()
-    Task.now(1).runOnComplete(p.complete)
+    Task.now(1).runAsync(Callback.fromPromise(p))
     assertEquals(p.future.value, Some(Success(1)))
   }
 
   test("Task.error.runAsync with Try-based callback") { implicit s =>
     val ex = DummyException("dummy")
     val p = Promise[Int]()
-    Task.raiseError[Int](ex).runOnComplete(p.complete)
+    Task.raiseError[Int](ex).runAsync(Callback.fromPromise(p))
     assertEquals(p.future.value, Some(Failure(ex)))
   }
 
   test("task.executeAsync.runAsync with Try-based callback for success") { implicit s =>
     val p = Promise[Int]()
-    Task.now(1).executeAsync.runOnComplete(p.complete)
+    Task.now(1).executeAsync.runAsync(Callback.fromPromise(p))
     s.tick()
     assertEquals(p.future.value, Some(Success(1)))
   }
@@ -183,7 +183,7 @@ object TaskMiscSuite extends BaseTestSuite {
   test("task.executeAsync.runAsync with Try-based callback for error") { implicit s =>
     val ex = DummyException("dummy")
     val p = Promise[Int]()
-    Task.raiseError[Int](ex).executeAsync.runOnComplete(p.complete)
+    Task.raiseError[Int](ex).executeAsync.runAsync(Callback.fromPromise(p))
     s.tick()
     assertEquals(p.future.value, Some(Failure(ex)))
   }

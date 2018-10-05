@@ -21,7 +21,7 @@ import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
@@ -35,11 +35,6 @@ private[reactive] final class EvalOnNextAckOperator[A](cb: (A, Ack) => Task[Unit
     new Subscriber[A] { self =>
       implicit val scheduler = out.scheduler
       private[this] val isActive = Atomic(true)
-
-      def tryExecute(a: A, ack: Ack): Ack = {
-        try { cb(a, ack); ack }
-        catch { case ex if NonFatal(ex) => onError(ex); Stop }
-      }
 
       def onNext(elem: A): Future[Ack] = {
         // We are calling out.onNext directly, meaning that in onComplete/onError

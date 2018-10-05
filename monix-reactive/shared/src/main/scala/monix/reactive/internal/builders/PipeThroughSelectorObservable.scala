@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.{Ack, Cancelable}
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Pipe}
 

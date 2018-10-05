@@ -17,14 +17,14 @@
 
 package monix.eval.internal
 
+import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context}
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
-import monix.execution.misc.NonFatal
 
+import scala.util.control.NonFatal
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
@@ -51,7 +51,7 @@ private[eval] object TaskGatherUnordered {
     def maybeSignalFinal(
       ref: AtomicAny[State[A]],
       currentState: State[A],
-      mainConn: StackedCancelable,
+      mainConn: TaskConnection,
       finalCallback: Callback[List[A]])
       (implicit s: Scheduler): Unit = {
 
@@ -73,13 +73,13 @@ private[eval] object TaskGatherUnordered {
 
     def reportError(
       stateRef: AtomicAny[State[A]],
-      mainConn: StackedCancelable,
+      mainConn: TaskConnection,
       ex: Throwable,
       finalCallback: Callback[List[A]])(implicit s: Scheduler): Unit = {
 
       val currentState = stateRef.getAndSet(State.Complete)
       if (currentState != State.Complete) {
-        mainConn.pop().cancel()
+        mainConn.pop().runAsyncAndForget
         finalCallback.onError(ex)
       } else {
         s.reportFailure(ex)
@@ -90,7 +90,7 @@ private[eval] object TaskGatherUnordered {
       @tailrec def activate(
         stateRef: AtomicAny[State[A]],
         count: Int,
-        conn: StackedCancelable,
+        conn: TaskConnection,
         finalCallback: Callback[List[A]])
         (implicit s: Scheduler): Unit = {
 
@@ -113,14 +113,14 @@ private[eval] object TaskGatherUnordered {
 
       try {
         // Represents the collection of cancelables for all started tasks
-        val composite = CompositeCancelable()
+        val composite = TaskConnectionComposite()
         val mainConn = context.connection
-        mainConn.push(composite)
+        mainConn.push(composite.cancel)
 
         // Collecting all cancelables in a buffer, because adding
         // cancelables one by one in our `CompositeCancelable` is
         // expensive, so we do it at the end
-        val allCancelables = ListBuffer.empty[StackedCancelable]
+        val allCancelables = ListBuffer.empty[CancelToken[Task]]
         val batchSize = s.executionModel.recommendedBatchSize
         val cursor = in.toIterator
 
@@ -134,9 +134,9 @@ private[eval] object TaskGatherUnordered {
           count += 1
           continue = count % batchSize != 0 || stateRef.get.isActive
 
-          val stacked = StackedCancelable()
+          val stacked = TaskConnection()
           val childCtx = context.withConnection(stacked)
-          allCancelables += stacked
+          allCancelables += stacked.cancel
 
           // Light asynchronous boundary
           Task.unsafeStartEnsureAsync(task, childCtx,
@@ -160,7 +160,7 @@ private[eval] object TaskGatherUnordered {
 
         // Note that if an error happened, this should cancel all
         // other active tasks.
-        composite ++= allCancelables
+        composite.addAll(allCancelables)
         // We are done triggering tasks, now we can allow the final
         // callback to be triggered
         activate(stateRef, count, mainConn, finalCallback)(s)

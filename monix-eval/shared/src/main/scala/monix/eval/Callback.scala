@@ -18,11 +18,10 @@
 package monix.eval
 
 import cats.Contravariant
-import monix.execution.cancelables.StackedCancelable
-import monix.execution.misc.NonFatal
+import monix.eval.internal.TaskConnection
+import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -37,33 +36,27 @@ import scala.util.{Failure, Success, Try}
   * highlighted by the usage of `Unit` as the return type. Obviously
   * callbacks are unsafe to use in pure code, but are necessary for
   * describing asynchronous processes, like in
-  * [[Task.cancelableS[A](register* Task.cancelable]].
+  * [[Task.cancelable0[A](register* Task.cancelable]].
   */
 abstract class Callback[-A] extends Listener[A] with (Either[Throwable, A] => Unit) {
   def onSuccess(value: A): Unit
 
   def onError(ex: Throwable): Unit
 
-  final def onValue(value: A): Unit =
-    onSuccess(value)
+  def apply(result: Either[Throwable, A]): Unit =
+    result match {
+      case Right(a) => onSuccess(a)
+      case Left(e) => onError(e)
+    }
 
-  final def apply(result: Try[A]): Unit =
+  def apply(result: Try[A]): Unit =
     result match {
       case Success(a) => onSuccess(a)
       case Failure(e) => onError(e)
     }
 
-  final def apply(result: Coeval[A]): Unit =
-    result.run() match {
-      case Coeval.Now(a) => onSuccess(a)
-      case Coeval.Error(e) => onError(e)
-    }
-
-  final def apply(result: Either[Throwable, A]): Unit =
-    result match {
-      case Right(a) => onSuccess(a)
-      case Left(e) => onError(e)
-    }
+  final def onValue(value: A): Unit =
+    onSuccess(value)
 
   /** Return a new callback that will apply the supplied function
     * before passing the result into this callback.
@@ -98,6 +91,7 @@ object Callback {
     new Callback[A] {
       def onError(ex: Throwable): Unit = p.failure(ex)
       def onSuccess(value: A): Unit = p.success(value)
+      override def apply(result: Try[A]): Unit = p.complete(result)
     }
 
   /** Given a [[Callback]] wraps it into an implementation that
@@ -130,11 +124,10 @@ object Callback {
   def trampolined[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] =
     new TrampolinedCallback[A](cb)
 
-  /** A variant of [[trampolined[A](cb* Callback.trampolined]] that also pops a
-    * [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
-    * just before calling the underlying callback.
+  /**
+    * Internal API.
     */
-  def trampolined[A](conn: StackedCancelable, cb: Callback[A])
+  private[eval] def trampolined[A](conn: TaskConnection, cb: Callback[A])
     (implicit s: Scheduler): Callback[A] =
     new TrampolinedWithConn[A](conn, cb)
 
@@ -156,9 +149,32 @@ object Callback {
     new Callback[A] {
       def onSuccess(value: A): Unit = cb(Right(value))
       def onError(ex: Throwable): Unit = cb(Left(ex))
+      override def apply(result: Either[Throwable, A]): Unit = cb(result)
+    }
+
+  /** Turns `Try[A] => Unit` callbacks into Monix callbacks.
+    *
+    * These are common within Scala's standard library implementation,
+    * due to usage with Scala's `Future`.
+    */
+  def fromTry[A](cb: Try[A] => Unit): Callback[A] =
+    new Callback[A] {
+      def onSuccess(value: A): Unit = cb(Success(value))
+      def onError(ex: Throwable): Unit = cb(Failure(ex))
+      override def apply(result: Try[A]): Unit = cb(result)
     }
 
   implicit final class Extensions[-A](val source: Callback[A]) extends AnyVal {
+    /**
+      * Extension method that applies triggers the source callback
+      * with the evaluation result of the given [[Coeval]].
+      */
+    def apply(result: Coeval[A]): Unit =
+      result.run() match {
+        case Coeval.Now(a) => source.onSuccess(a)
+        case Coeval.Error(e) => source.onError(e)
+      }
+
     @deprecated("Switch to Callback.trampolined", since="3.0.0-RC2")
     def asyncOnSuccess(value: A)(implicit s: Scheduler): Unit = {
       // $COVERAGE-OFF$
@@ -203,7 +219,7 @@ object Callback {
     (implicit s: Scheduler)
     extends BaseCallback[A](cb)(s) with TrampolinedRunnable
 
-  private final class TrampolinedWithConn[A](conn: StackedCancelable, cb: Callback[A])
+  private final class TrampolinedWithConn[A](conn: TaskConnection, cb: Callback[A])
     (implicit s: Scheduler)
     extends BaseCallback[A](cb)(s) with TrampolinedRunnable {
 

@@ -27,14 +27,14 @@ import monix.execution.schedulers.TestScheduler
 object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
   type F[α] = Iterant[IO, α]
 
-  // Explicit instance due to weird implicit resolution problem
-  implicit val iso: SemigroupalTests.Isomorphisms[F] =
-    SemigroupalTests.Isomorphisms.invariant
+  implicit lazy val ec: TestScheduler = TestScheduler()
 
-  implicit val ec: TestScheduler = TestScheduler()
+  // Explicit instance due to weird implicit resolution problem
+  implicit lazy val iso: SemigroupalTests.Isomorphisms[F] =
+    SemigroupalTests.Isomorphisms.invariant[F]
 
   // Explicit instance, since Scala can't figure it out below :-(
-  val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
+  lazy val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
     implicitly[Eq[EitherT[F, Throwable, Int]]]
 
   checkAllAsync("Async[Iterant[IO]]", slowConfig) { _ =>

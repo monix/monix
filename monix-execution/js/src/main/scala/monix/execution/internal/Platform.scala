@@ -19,7 +19,6 @@ package monix.execution.internal
 
 import monix.execution.exceptions.CompositeException
 import monix.execution.schedulers.CanBlock
-
 import scala.concurrent.Awaitable
 import scala.concurrent.duration.Duration
 
@@ -56,7 +55,7 @@ private[monix] object Platform {
     * Auto cancelable run loops are set to `false` if Monix
     * is running on top of Scala.js.
     */
-  final val autoCancelableRunLoops: Boolean = false
+  final val autoCancelableRunLoops: Boolean = true
 
   /**
     * Local context propagation is set to `false` if Monix
@@ -93,15 +92,25 @@ private[monix] object Platform {
     * a `CompositeException`.
     */
   def composeErrors(first: Throwable, rest: Throwable*): Throwable =
-    if (rest.isEmpty) first
-    else CompositeException(first +: rest)
+    rest.filter(_ ne first).toList match {
+      case Nil => first
+      case nonEmpty =>
+        first match {
+          case CompositeException(errors) =>
+            val list = errors.toList
+            CompositeException(list ::: nonEmpty)
+          case _ =>
+            CompositeException(first :: nonEmpty)
+        }
+    }
 
-  /** Useful utility that combines an `Either` result, which is what
+  /**
+    * Useful utility that combines an `Either` result, which is what
     * `MonadError#attempt` returns.
     */
   def composeErrors(first: Throwable, second: Either[Throwable, _]): Throwable =
     second match {
-      case Left(e2) => CompositeException(Seq(first, e2))
+      case Left(e2) => composeErrors(first, e2)
       case _ => first
     }
 }

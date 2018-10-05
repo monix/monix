@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
-import monix.execution.misc.NonFatal
+import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.exceptions.CompositeException
 import monix.reactive.observables.GroupedObservable

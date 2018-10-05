@@ -56,8 +56,8 @@ object IterantBufferSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-      .doOnEarlyStop(Coeval { effect += 1 })
+    val stream = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+      .guarantee(Coeval { effect += 1 })
       .bufferTumbling(10)
 
     assertEquals(effect, 0)
@@ -69,8 +69,8 @@ object IterantBufferSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty), Coeval.unit)
-      .doOnEarlyStop(Coeval { effect += 1 })
+    val stream = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+      .guarantee(Coeval { effect += 1 })
       .bufferTumbling(10)
 
     assertEquals(effect, 0)

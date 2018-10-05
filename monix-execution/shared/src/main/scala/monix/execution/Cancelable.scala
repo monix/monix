@@ -17,12 +17,14 @@
 
 package monix.execution
 
-import cats.effect.IO
+import cats.effect.{CancelToken, IO, Sync}
 import monix.execution.atomic.AtomicAny
-import monix.execution.exceptions.CompositeException
-import monix.execution.internal.AttemptCallback
-import monix.execution.misc.NonFatal
+import monix.execution.internal.{AttemptCallback, Platform}
+
+import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolinedRunnable
+
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.Promise
 
 /** Represents a one-time idempotent action that can be used
@@ -35,8 +37,8 @@ import scala.concurrent.Promise
 trait Cancelable extends Serializable {
   /** Cancels the unit of work represented by this reference.
     *
-    * Guaranteed idempotency - calling it multiple times should have the
-    * same side-effect as calling it only once. Implementations
+    * Guaranteed idempotency - calling it multiple times should have
+    * the same side-effect as calling it only once. Implementations
     * of this method should also be thread-safe.
     */
   def cancel(): Unit
@@ -122,23 +124,25 @@ object Cancelable {
 
   /** Given a collection of cancelables, cancel them all.
     *
-    * This function collects non-fatal exceptions and throws them all at the end as a
-    * [[monix.execution.exceptions.CompositeException CompositeException]],
-    * thus making sure that all references get canceled.
+    * This function collects non-fatal exceptions and throws them all
+    * at the end as a composite, in a platform specific way:
+    *
+    *  - for the JVM "Suppressed Exceptions" are used
+    *  - for JS they are wrapped in a `CompositeException`
     */
   def cancelAll(seq: Iterable[Cancelable]): Unit = {
-    var errors = List.empty[Throwable]
+    var errors = ListBuffer.empty[Throwable]
     val cursor = seq.iterator
     while (cursor.hasNext) {
       try cursor.next().cancel()
-      catch { case ex if NonFatal(ex) => errors = ex :: errors }
+      catch { case ex if NonFatal(ex) => errors += ex }
     }
 
-    errors match {
+    errors.toList match {
       case one :: Nil =>
         throw one
-      case _ :: _ =>
-        throw new CompositeException(errors)
+      case first :: rest =>
+        throw Platform.composeErrors(first, rest: _*)
       case _ =>
         () // Nothing
     }
@@ -152,15 +156,15 @@ object Cancelable {
 
   /** Extension methods for [[Cancelable]]. */
   implicit final class Extensions(val self: Cancelable) extends AnyVal {
-    /** Given a [[Cancelable]] reference, turn it into an `IO[Unit]`
-      * that will trigger [[Cancelable.cancel cancel]] on evaluation.
-      *
-      * Useful when working with the `IO.cancelable` builder.
+    /**
+      * Given a [[Cancelable]] reference, turn it into an
+      * `CancelToken[F]` (a Cats-Effect alias for `F[Unit]`) that
+      * will trigger [[Cancelable.cancel cancel]] on evaluation.
       */
-    def cancelIO: IO[Unit] =
+    def toCancelToken[F[_]](implicit F: Sync[F]): CancelToken[F] =
       self match {
-        case _: IsDummy => IO.unit
-        case _ => IO(self.cancel())
+        case _: IsDummy => F.unit
+        case _ => F.delay(self.cancel())
       }
   }
 

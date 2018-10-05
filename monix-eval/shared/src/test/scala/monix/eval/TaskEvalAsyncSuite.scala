@@ -108,12 +108,12 @@ object TaskEvalAsyncSuite extends BaseTestSuite {
   }
 
   test("Task.evalAsync.coeval") { implicit s =>
-    Task.evalAsync(100).coeval.value() match {
-      case Left(result) =>
-        assertEquals(result.value, None)
+    val f = Task.evalAsync(100).runAsync
+    f.value match {
+      case None =>
         s.tick()
-        assertEquals(result.value, Some(Success(100)))
-      case r @ Right(_) =>
+        assertEquals(f.value, Some(Success(100)))
+      case r @ Some(_) =>
         fail(s"Received incorrect result: $r")
     }
   }

@@ -23,35 +23,18 @@ import scala.concurrent.Promise
 
 private[eval] object TaskStart {
   /**
-    * Implementation for `Task.start`.
-    */
-  def trampolined[A](fa: Task[A]): Task[Fiber[A]] =
-    fa match {
-      // There's no point in evaluating strict stuff
-      case Task.Now(_) | Task.Error(_) =>
-        Task.Now(Fiber(fa))
-      case _ =>
-        Async(new StartTrampolined(fa), trampolineBefore = true, trampolineAfter = false)
-    }
-
-  /**
     * Implementation for `Task.fork`.
     */
   def forked[A](fa: Task[A]): Task[Fiber[A]] =
     fa match {
       // There's no point in evaluating strict stuff
       case Task.Now(_) | Task.Error(_) =>
-        Task.Now(Fiber(fa))
+        Task.Now(Fiber(fa, Task.unit))
       case _ =>
         Async(new StartForked(fa), trampolineBefore = false, trampolineAfter = true)
     }
 
-  private class StartForked[A](fa: Task[A]) extends StartTrampolined[A](fa) {
-    override def start(fa: Task[A], ctx: Context, cb: Callback[A]): Unit =
-      Task.unsafeStartEnsureAsync(fa, ctx, cb)
-  }
-
-  private class StartTrampolined[A](fa: Task[A]) extends ((Context, Callback[Fiber[A]]) => Unit) {
+  private class StartForked[A](fa: Task[A]) extends ((Context, Callback[Fiber[A]]) => Unit) {
     final def apply(ctx: Context, cb: Callback[Fiber[A]]): Unit = {
       implicit val sc = ctx.scheduler
       // Standard Scala promise gets used for storing or waiting
@@ -61,13 +44,10 @@ private[eval] object TaskStart {
       // It needs its own context, its own cancelable
       val ctx2 = Task.Context(ctx.scheduler, ctx.options)
       // Starting actual execution of our newly created task;
-      start(fa, ctx2, Callback.fromPromise(p))
+      Task.unsafeStartEnsureAsync(fa, ctx2, Callback.fromPromise(p))
       // Signal the created fiber
-      val task = TaskFromFuture.lightBuild(p.future, ctx2.connection)
-      cb.onSuccess(Fiber(task))
+      val task = TaskFromFuture.strict(p.future)
+      cb.onSuccess(Fiber(task, ctx2.connection.cancel))
     }
-
-    def start(fa: Task[A], ctx: Context, cb: Callback[A]): Unit =
-      Task.unsafeStartNow(fa, ctx, cb)
   }
 }

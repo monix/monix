@@ -22,13 +22,14 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
 import monix.execution.Scheduler
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import org.scalacheck.{Arbitrary, Gen}
-import scala.util.Failure
 
-import monix.execution.rstreams.ReactivePullStrategy
-
+import scala.concurrent.Promise
+import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 object IterantFromReactivePublisherSuite extends BaseTestSuite {
 
@@ -38,29 +39,59 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
       j <- Gen.choose(-100, 100)
       Array(min, max) = Array(i, j).sorted
       step <- Gen.oneOf(1, 2, 3)
-    } yield min to max by step
+    } yield min until max by step
   }
 
-  test("fromReactivePublisher emits values in correct order") { implicit s =>
+  test("fromReactivePublisher(bufferSize = 1) emits values in correct order") { implicit s =>
     check1 { range: Range =>
-      implicit val pullStrategy: ReactivePullStrategy = ReactivePullStrategy.Single
+      val publisher = new RangePublisher(range, None)
+      Iterant[IO].fromReactivePublisher(publisher, 1) <-> Iterant[IO].fromSeq(range)
+    }
+  }
+
+  test("fromReactivePublisher(bufferSize = 1) can end in error") { implicit s =>
+    check1 { range: Range =>
+      val dummy = DummyException("dummy")
+      val publisher = new RangePublisher(range, Some(dummy))
+      Iterant[IO].fromReactivePublisher(publisher, 1).attempt <->
+        (Iterant[IO].fromSeq(range).map(Right(_)) ++ Iterant[IO].pure[Either[Throwable, Int]](Left(dummy)))
+    }
+  }
+
+  test("fromReactivePublisher(bufferSize = default) emits values in correct order") { implicit s =>
+    check1 { range: Range =>
       val publisher = new RangePublisher(range, None)
       Iterant[IO].fromReactivePublisher(publisher) <-> Iterant[IO].fromSeq(range)
     }
   }
 
+  test("fromReactivePublisher(bufferSize = default) can end in error") { implicit s =>
+    check1 { range: Range =>
+      val dummy = DummyException("dummy")
+      val publisher = new RangePublisher(range, Some(dummy))
+      Iterant[IO].fromReactivePublisher(publisher).attempt <->
+        (Iterant[IO].fromSeq(range).map(Right(_)) ++ Iterant[IO].pure[Either[Throwable, Int]](Left(dummy)))
+    }
+  }
+
+  test("fromReactivePublisher(bufferSize = default) with slow consumer") { implicit s =>
+    check1 { range: Range =>
+      val publisher = new RangePublisher(range, None)
+      val lh = Iterant[Task].fromReactivePublisher(publisher).mapEval(x => Task(x).delayExecution(10.millis))
+      lh <-> Iterant[Task].fromSeq(range)
+    }
+  }
+
   test("fromReactivePublisher cancels subscription on earlyStop") { implicit s =>
-    implicit val pullStrategy: ReactivePullStrategy = ReactivePullStrategy.Batched(8)
-    val publisher = new RangePublisher(1 to 64, None)
-    Iterant[Task].fromReactivePublisher(publisher)
+    val cancelled = Promise[Unit]()
+    val publisher = new RangePublisher(1 to 64, None, cancelled)
+    Iterant[Task].fromReactivePublisher(publisher, 8)
       .take(5)
       .completeL
       .runAsync
 
     s.tick()
-
-    assert(publisher.emitted < 64)
-    assert(publisher.cancelled)
+    assertEquals(cancelled.future.value, Some(Success(())))
   }
 
   test("fromReactivePublisher propagates errors") { implicit s =>
@@ -71,7 +102,6 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
       .runAsync
 
     s.tick()
-
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
@@ -81,33 +111,60 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     }
   }
 
-  class RangePublisher(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) extends Publisher[Int] {
-    var cancelled = false
-    var emitted = 0
+  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])
+    (implicit sc: Scheduler)
+    extends Publisher[Int] {
+
+    def this(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) =
+      this(range.start, range.end, range.step, finish, null)
+
+    def this(range: Range, finish: Option[Throwable], onCancel: Promise[Unit])(implicit sc: Scheduler) =
+      this(range.start, range.end, range.step, finish, onCancel)
 
     def subscribe(s: Subscriber[_ >: Int]): Unit = {
-      var rangeCopy = range
-      s.onSubscribe(new Subscription {
-        def request(n: Long): Unit = sc.execute(new Runnable {
-          def run(): Unit = {
-            var requested = n
-            while (rangeCopy.nonEmpty && !cancelled && requested > 0) {
-              s.onNext(rangeCopy.head)
-              requested -= 1
-              emitted += 1
-              rangeCopy = rangeCopy.tail
-            }
-            if (rangeCopy.isEmpty) {
-              finish.fold(s.onComplete())(s.onError)
-            }
-          }
-        })
+      s.onSubscribe(new Subscription { self =>
+        private[this] val cancelled = Atomic(false)
+        private[this] val requested = Atomic(0L)
+        private[this] var index = from
+
+        def isInRange(x: Long, until: Long, step: Long): Boolean = {
+          (step > 0 && x < until) || (step < 0 && x > until)
+        }
+
+        def request(n: Long): Unit = {
+          if (requested.getAndAdd(n) == 0)
+            sc.execute(new Runnable {
+              def run(): Unit = {
+                var requested = self.requested.get
+                var toSend = requested
+
+                while (toSend > 0 && isInRange(index, until, step) && !cancelled.get) {
+                  s.onNext(index)
+                  index += step
+                  toSend -= 1
+
+                  if (toSend == 0) {
+                    requested = self.requested.subtractAndGet(requested)
+                    toSend = requested
+                  }
+                }
+
+                if (!isInRange(index, until, step))
+                  finish match {
+                    case None =>
+                      s.onComplete()
+                    case Some(e) =>
+                      s.onError(e)
+                  }
+              }
+            })
+        }
 
         def cancel(): Unit = {
-          cancelled = true
+          cancelled.set(true)
+          if (onCancel != null) onCancel.success(())
         }
       })
     }
   }
-
 }

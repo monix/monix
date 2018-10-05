@@ -23,7 +23,7 @@ import monix.eval.{Callback, Task}
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 
-private[internal] abstract class TaskRestartCallback(context: Context, callback: Callback[Any])
+private[internal] abstract class TaskRestartCallback(contextInit: Context, callback: Callback[Any])
   extends Callback[Any] with TrampolinedRunnable {
 
   // Modified on prepare()
@@ -36,6 +36,13 @@ private[internal] abstract class TaskRestartCallback(context: Context, callback:
   private[this] var value: Any = _
   private[this] var error: Throwable = _
   private[this] var trampolineAfter: Boolean = true
+
+  // Can change via ContextSwitch
+  private[this] var context = contextInit
+
+  final def contextSwitch(other: Context): Unit = {
+    this.context = other
+  }
 
   final def start(task: Task.Async[Any], bindCurrent: Bind, bindRest: CallStack): Unit = {
     this.bFirst = bindCurrent

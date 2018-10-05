@@ -54,7 +54,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
 
   test("Iterant.switchIfEmpty still executes left's earlyStop when switching") { implicit s =>
     val cancelable = BooleanCancelable()
-    val left = emptyInts.doOnFinish(_ => Coeval { cancelable.cancel() })
+    val left = emptyInts.guarantee(Coeval { cancelable.cancel() })
 
     left.switchIfEmpty(backupStream).toListL.value()
 
@@ -63,7 +63,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
 
   test("Iterant.switchIfEmpty does not evaluate other stream effects when not switching") { implicit s =>
     val cancelable = BooleanCancelable()
-    val right = emptyInts.doOnFinish(_ => Coeval { cancelable.cancel() })
+    val right = emptyInts.guarantee(Coeval { cancelable.cancel() })
 
     backupStream.switchIfEmpty(right).toListL.value()
 
@@ -76,29 +76,39 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
 
   test("Iterant.switchIfEmpty chooses fallback for empty cursors") { implicit s =>
     assertChoosesFallback(Iterant[Coeval].nextCursorS(
-      EmptyCursor, Coeval(emptyInts), Coeval.unit
+      EmptyCursor, Coeval(emptyInts)
     ))
   }
 
   test("Iterant.switchIfEmpty chooses fallback for empty batches") { implicit s =>
     assertChoosesFallback(Iterant[Coeval].nextBatchS(
-      EmptyBatch, Coeval(emptyInts), Coeval.unit
+      EmptyBatch, Coeval(emptyInts)
     ))
   }
 
   test("Iterant.switchIfEmpty consistent with toListL.isEmpty") { implicit s =>
     check2 { (left: Iterant[Coeval, Int], right: Iterant[Coeval, Int]) =>
       val target = left.toListL.flatMap { list =>
-        if (list.nonEmpty) left.toListL else right.toListL
+        if (list.nonEmpty) Coeval.pure(list)
+        else right.toListL
       }
-      left.switchIfEmpty(right).toListL <-> target
+
+      val lh = left.switchIfEmpty(right).toListL
+
+      if (lh.attempt.value() != target.attempt.value()) {
+        println(s"${lh.attempt.value()} != ${target.attempt.value()}")
+        println(s"left = ${left.attempt.toListL.value()}")
+        println(s"right = ${right.attempt.toListL.value()}")
+        left.dump("O").completeL.run()
+      }
+      lh <-> target
     }
   }
 
   test("Iterant.switchIfEmpty can handle broken batches") { implicit s =>
     val dummy = DummyException("dummy")
     val iterant = Iterant[Coeval].nextBatchS(
-      ThrowExceptionBatch[Int](dummy), Coeval(emptyInts), Coeval.unit
+      ThrowExceptionBatch[Int](dummy), Coeval(emptyInts)
     )
     assertEquals(
       iterant.switchIfEmpty(backupStream).toListL.runAttempt(),
