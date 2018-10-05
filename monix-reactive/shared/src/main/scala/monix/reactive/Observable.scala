@@ -198,7 +198,8 @@ import scala.util.{Failure, Success, Try}
   *         {{{
   *           import cats.Order
   *
-  *           implicit val orderA = Order.fromOrdering[A]
+  *           // This is just a sample, as `Int` obviously has an `Order`
+  *           implicit val orderInt = Order.fromOrdering[Int]
   *         }}}
   *
   * @define unsafeBecauseImpure '''UNSAFE WARNING''':
@@ -956,6 +957,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     * {{{
+    *   import cats.implicits._
+    * 
     *   // Yields 1, 2, 1, 3, 2, 4
     *   Observable(1, 1, 1, 2, 2, 1, 1, 3, 3, 3, 2, 2, 4, 4, 4)
     *     .distinctUntilChanged
@@ -979,7 +982,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   import cats.Eq
     *
-    *   implicit val eqA = Eq.fromUniversalEquals[A]
+    *   // Just a sample, as `Int` already has an `Eq[Int]` of course
+    *   implicit val eqInt = Eq.fromUniversalEquals[Int]
     * }}}
     *
     * @param A is the `cats.Eq` instance that defines equality
@@ -1181,7 +1185,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     *   (Observable.range(0, 10) ++ Observable.raiseError(dummy))
     *     .doOnError { e =>
-    *       Task(println(s"Triggered error: $$e")
+    *       Task(println(s"Triggered error: $$e"))
     *     }
     * }}}
     *
@@ -1214,7 +1218,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     *   (Observable.range(0, 10) ++ Observable.raiseError(dummy))
     *     .doOnErrorF { e =>
-    *       IO(println(s"Triggered error: $$e")
+    *       IO(println(s"Triggered error: $$e"))
     *     }
     * }}}
     */
@@ -4000,32 +4004,62 @@ object Observable extends ObservableDeprecatedBuilders {
   def fromIterable[A](iterable: Iterable[A]): Observable[A] =
     new builders.IterableAsObservable[A](iterable)
 
-  /** $fromIteratorDesc
+  /** Wraps a [[scala.Iterator]] into an `Observable`.
     *
-    * @param iterator to transform into an observable
+    * This function uses [[monix.eval.Task Task]] in order to suspend
+    * the creation of the `Iterator`, because reading from an `Iterator`
+    * is a destructive process. The `Task` is being used as a "factory",
+    * in pace of [[scala.Iterable]].
+    *
+    * Example:
+    * {{{
+    *   Observable.fromIterator(Task {
+    *     (0 until 1000).iterator
+    *   })
+    * }}}
+    *
+    * @see [[fromIterable]]
+    *
+    * @see [[fromIterator[A](resource* fromIterator(Resource)]] for a version
+    *      that uses `cats.effect.Resource`
+    *
+    * @see [[fromIteratorUnsafe]] for the unsafe version that can wrap an
+    *      iterator directly
     */
-  def fromIterator[A](iterator: Iterator[A]): Observable[A] =
-    new builders.IteratorAsObservable[A](iterator, Cancelable.empty)
+  def fromIterator[A](task: Task[Iterator[A]]): Observable[A] =
+    Observable.fromTask(task.map(fromIteratorUnsafe)).flatten
 
-  /** $fromIteratorDesc
+  /** Wraps a [[scala.Iterator]] into an `Observable` in the context of a
+    * [[https://typelevel.org/cats-effect/datatypes/resource.html cats.effect.Resource]],
+    * which allows for specifying a finalizer.
     *
-    * This variant of `fromIterator` takes an `onFinish` callback that
-    * will be called when the streaming is finished, either with
-    * `onComplete`, `onError`, when the downstream signals a `Stop` or
-    * when the subscription gets canceled.
+    * @see [[fromIterable]]
     *
-    * This `onFinish` callback is guaranteed to be called only once.
+    * @see [[fromIterator[A](task* fromIterator(task)]] for a version
+    *      that uses [[monix.eval.Task Task]] for suspending side effects
     *
-    * Useful for controlling resource deallocation (e.g. closing file
-    * handles).
+    * @see [[fromIteratorUnsafe]] for the unsafe version that can wrap an
+    *      iterator directly
+    */
+  def fromIterator[A](resource: Resource[Task, Iterator[A]]): Observable[A] =
+    Observable.fromResource(resource).flatMap(fromIteratorUnsafe)
+
+  /** Converts any `Iterator` into an observable.
+    *
+    * '''UNSAFE WARNING''': reading from an `Iterator` is a destructive process.
+    * Therefore only a single subscriber is supported, the result being
+    * a single-subscriber observable. If multiple subscribers are attempted,
+    * all subscribers, except for the first one, will be terminated with a
+    * [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
+    *
+    * @see [[fromIterator[A](task* fromIterator(task)]] or
+    *      [[fromIterator[A](resource* fromIterator(resource)]]
+    *      for safe alternatives
     *
     * @param iterator to transform into an observable
-    * @param onFinish a callback that will be called for resource deallocation
-    *        whenever the iterator is complete, or when the stream is
-    *        canceled
     */
-  def fromIterator[A](iterator: Iterator[A], onFinish: () => Unit): Observable[A] =
-    new builders.IteratorAsObservable[A](iterator, Cancelable(onFinish))
+  def fromIteratorUnsafe[A](iterator: Iterator[A]): Observable[A] =
+    new builders.IteratorAsObservable[A](iterator)
 
   /**
     * Transforms any `cats.effect.Resource` into an [[Observable]].

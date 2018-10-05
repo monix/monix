@@ -71,6 +71,8 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     *  this case `doOnEarlyStop`:
     *
     *  {{{
+    *    import monix.reactive._
+    * 
     *    // This is possible, but it's better to work with
     *    // pure functions, so use Task or IO ;-)
     *    Observable.range(0, 1000).take(10).doOnEarlyStopF {
@@ -117,6 +119,8 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     * but it's no longer recommended:
     *
     * {{{
+    *   import monix.reactive._
+    * 
     *   val subscription = Observable
     *     .range(0, Int.MaxValue)
     *     .doOnEarlyStopF(() => println("Cancelled!"))
@@ -142,6 +146,8 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     * recommended:
     *
     * {{{
+    *    import monix.reactive._
+    * 
     *   // Needed for the Comonad[Function0] instance
     *   Observable.range(0, 100)
     *     .doOnCompleteF(() => println("Completed!"))
@@ -225,14 +231,15 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     * Example:
     * {{{
     *   import cats.effect.{ExitCase, IO}
+    *   import monix.reactive._
     *
     *   Observable.range(0, 1000).guaranteeCase {
     *     case ExitCase.Error(e) =>
-    *       IO(println(s"Error raised: $$e")
+    *       IO(println(s"Error raised: $$e"))
     *     case ExitCase.Completed =>
-    *       IO(println("Stream completed normally")
+    *       IO(println("Stream completed normally"))
     *     case ExitCase.Canceled =>
-    *       IO(println("Stream was cancelled")
+    *       IO(println("Stream was cancelled"))
     *   }
     * }}}
     */
@@ -252,14 +259,15 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     * Example:
     * {{{
     *   import cats.effect.ExitCase
+    *   import monix.reactive._
     *
     *   Observable.range(0, 1000).guaranteeCase {
     *     case ExitCase.Error(e) =>
-    *       Task(println(s"Error raised: $$e")
+    *       Task(println(s"Error raised: $$e"))
     *     case ExitCase.Completed =>
-    *       Task(println("Stream completed normally")
+    *       Task(println("Stream completed normally"))
     *     case ExitCase.Canceled =>
-    *       Task(println("Stream was cancelled")
+    *       Task(println("Stream was cancelled"))
     *   }
     * }}}
     */
@@ -310,6 +318,8 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     * [[monix.eval.Task]].
     *
     * {{{
+    *   import monix.reactive._
+    * 
     *   Observable.range(0, 100).doOnNext { a =>
     *     Task(println(s"Next: $$a"))
     *   }
@@ -415,6 +425,8 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     * recommended:
     *
     * {{{
+    *   import monix.reactive._
+    * 
     *   Observable.range(0, 10).doOnSubscribeF { () =>
     *     println("Look ma! Side-effectful callbacks!")
     *   }
@@ -443,6 +455,8 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     * recommended:
     *
     * {{{
+    *   import monix.reactive._
+    * 
     *   Observable.range(0, 10).doAfterSubscribeF { () =>
     *     println("Look ma! Side-effectful callbacks!")
     *   }
@@ -475,9 +489,10 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     * The replacement is direct, a simple rename:
     * {{{
     *   import scala.concurrent._
+    *   import scala.concurrent.duration._
     *   import monix.execution.FutureUtils.extensions._
-    *   import monix.execution.Scheduler.Implicits.global
-    *
+    *   import monix.reactive._
+    * 
     *   Observable.range(0, 100).mapEvalF { a =>
     *     Future.delayedResult(1.second)(a)
     *   }

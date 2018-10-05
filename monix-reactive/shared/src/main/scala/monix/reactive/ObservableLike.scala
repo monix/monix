@@ -167,7 +167,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
   implicit def fromIterator[F[X] <: Iterator[X]]: ObservableLike[F] =
     new ObservableLike[F] {
       def toObservable[A](fa: F[A]): Observable[A] =
-        Observable.fromIterator(fa)
+        Observable.fromIteratorUnsafe(fa)
     }
 
   /**

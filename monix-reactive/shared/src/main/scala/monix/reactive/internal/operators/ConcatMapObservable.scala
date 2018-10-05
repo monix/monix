@@ -36,9 +36,8 @@ import scala.util.Failure
 /** Implementation for `Observable.concatMap`.
   *
   * Example of what we want to achieve:
-  * {{{
-  *   observable.concatMap(x => Observable.range(0, x))
-  * }}}
+  * 
+  * `observable.concatMap(x => Observable.range(0, x))`
   *
   * The challenges are:
   *

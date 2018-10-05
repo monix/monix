@@ -84,6 +84,9 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.eval.Task#DeprecatedExtensions.executeWithFork$extension"),
     exclude[DirectMissingMethodProblem]("monix.eval.Task#DeprecatedExtensions.delayExecutionWith$extension"),
     exclude[DirectMissingMethodProblem]("monix.eval.Task#DeprecatedExtensions.delayResultBySelector$extension"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.fromIterator"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.fromIterator"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.internal.builders.IteratorAsObservable.this"),
     //
     // Breakage — relaxed requirement
     exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TracingScheduler.apply"),

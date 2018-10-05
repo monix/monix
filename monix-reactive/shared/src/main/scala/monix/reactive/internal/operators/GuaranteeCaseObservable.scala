@@ -132,6 +132,7 @@ private[reactive] class GuaranteeCaseObservable[A](
             val error = composeError(e, e2)
             f(ExitCase.Error(error)).map(_ => Stop)
           } else {
+            scheduler.reportFailure(e2)
             Task.now(Stop)
           }
         },
@@ -146,11 +147,12 @@ private[reactive] class GuaranteeCaseObservable[A](
 
       task.runAsyncUncancelable(
         new Callback[Ack] {
-          def onSuccess(value: Ack): Unit =
+          def onSuccess(value: Ack): Unit = {
             if (value == Continue) {
               if (e != null) out.onError(e)
               else out.onComplete()
             }
+          }
 
           def onError(e2: Throwable): Unit =
             out.onError(composeError(e, e2))
