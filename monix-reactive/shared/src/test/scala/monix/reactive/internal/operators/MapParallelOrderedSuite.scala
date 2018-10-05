@@ -20,33 +20,34 @@ package monix.reactive.internal.operators
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
+import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.reactive.{Observable, Observer, OverflowStrategy}
 
-import scala.concurrent.Promise
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Failure, Random}
 
 object MapParallelOrderedSuite extends BaseOperatorSuite {
 
-  def createObservable(sourceCount: Int) = {
+  def createObservable(sourceCount: Int): Some[MapParallelOrderedSuite.Sample] = {
     Some {
       val o = Observable.range(0, sourceCount).mapParallelOrdered(parallelism = 4)(x => Task(x))
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
-  def sum(sourceCount: Int) =
+  def sum(sourceCount: Int): Int =
     sourceCount * (sourceCount - 1) / 2
 
-  def count(sourceCount: Int) =
+  def count(sourceCount: Int): Int =
     sourceCount
 
-  def waitFirst = Duration.Zero
+  def waitFirst: FiniteDuration = Duration.Zero
 
-  def waitNext = Duration.Zero
+  def waitNext: FiniteDuration = Duration.Zero
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
 
@@ -294,7 +295,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     Observable(tasks: _*).doOnNext(_ => initiated += 1)
       .mapParallelOrdered(parallelism = 4)(x => x)
       .unsafeSubscribeFn(new Observer[Int] {
-        def onNext(elem: Int) = {
+        def onNext(elem: Int): Ack.Continue.type = {
           received += 1
           Continue
         }
@@ -315,6 +316,40 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     s.tick()
     assertEquals(initiated, 8)
     assertEquals(received, 8)
+    assert(isComplete, "isComplete")
+  }
+
+  test("should back-pressure on buffer") { implicit s =>
+    var initiated = 0
+    var received = 0
+    var isComplete = false
+    val p = Promise[Continue.type]()
+    val totalCount = Platform.recommendedBatchSize * 4
+
+    Observable.range(0, totalCount)
+      .doOnNext(_ => initiated += 1)
+      .mapParallelOrdered(parallelism = 4)(x => Task.evalAsync(x))
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long): Future[Ack.Continue.type] = {
+          received += 1
+          p.future
+        }
+
+        def onError(ex: Throwable): Unit =
+          throw ex
+        def onComplete(): Unit =
+          isComplete = true
+      })
+
+    s.tick()
+    assert(initiated >= Platform.recommendedBatchSize, "initiated >= Platform.recommendedBatchSize")
+    assert(initiated < totalCount, "initiated < totalCount")
+    assertEquals(received, 1)
+    assert(!isComplete, "!isComplete")
+
+    p.success(Continue); s.tick()
+    assertEquals(initiated, totalCount)
+    assertEquals(received, totalCount)
     assert(isComplete, "isComplete")
   }
 

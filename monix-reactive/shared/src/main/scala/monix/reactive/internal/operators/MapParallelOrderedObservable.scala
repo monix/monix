@@ -23,12 +23,13 @@ import java.util.concurrent.locks.ReentrantLock
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.execution.misc.{AsyncSemaphore, NonFatal}
+import monix.execution.misc.AsyncSemaphore
 import monix.execution.{Ack, Cancelable, CancelableFuture}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
 
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 private[reactive] final class MapParallelOrderedObservable[A, B](
