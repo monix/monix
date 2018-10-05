@@ -164,15 +164,6 @@ object ObservableLike extends ObservableLikeImplicits0 {
   /**
     * Converts a Scala `Iterator` to a [[Observable]].
     */
-  implicit def fromIterator[F[X] <: Iterator[X]]: ObservableLike[F] =
-    new ObservableLike[F] {
-      def toObservable[A](fa: F[A]): Observable[A] =
-        Observable.fromIteratorUnsafe(fa)
-    }
-
-  /**
-    * Converts a Scala `Iterator` to a [[Observable]].
-    */
   implicit def fromIterable[F[X] <: Iterable[X]]: ObservableLike[F] =
     new ObservableLike[F] {
       def toObservable[A](fa: F[A]): Observable[A] =

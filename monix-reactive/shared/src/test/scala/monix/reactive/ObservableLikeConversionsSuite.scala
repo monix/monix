@@ -298,15 +298,6 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  test("Observable.from(Iterator)") { implicit s =>
-    val iter = List(1, 2, 3, 4).iterator
-    val conv = Observable.from(iter)
-    val f = conv.toListL.runAsync
-
-    s.tick()
-    assertEquals(f.value, Some(Success(List(1, 2, 3, 4))))
-  }
-
   test("Observable.from(Iterable)") { implicit s =>
     val iter = List(1, 2, 3, 4)
     val conv = Observable.from(iter)

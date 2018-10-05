@@ -223,18 +223,25 @@ import scala.util.{Failure, Success, Try}
   *
   * @define unsafeSubscribe '''UNSAFE PROTOCOL:''' This function is
   *         "unsafe" to call because it does not protect the calls to
-  *         the given [[Observer]] implementation in regards to
-  *         unexpected exceptions that violate the contract, therefore
-  *         the given instance must respect its contract and not throw
-  *         any exceptions when the observable calls `onNext`,
-  *         `onComplete` and `onError`. If it does, then the behavior
-  *         is undefined.
+  *         the given [[Observer]] implementation and thus knowledge
+  *         of the protocol is needed.
   *
   *         Prefer normal
   *         [[monix.reactive.Observable!.subscribe(subscriber* subscribe]]
   *         when consuming a stream, these unsafe subscription methods
   *         being useful when building operators and for testing
   *         purposes.
+  *
+  *         Normal `subscribe` protects users in these ways:
+  *
+  *          - it does a best effort attempt to catch and report
+  *            exceptions that violate the protocol
+  *          - the final `onComplete` or `onError` message is
+  *            guaranteed to be signaled after the completion
+  *            of the [[monix.execution.Ack acknowledgement]]
+  *            received from the last `onNext`; the internal
+  *            protocol doesn't require back-pressuring of
+  *            this last message for performance reasons
   */
 abstract class Observable[+A] extends Serializable { self =>
 
@@ -958,7 +965,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * Example:
     * {{{
     *   import cats.implicits._
-    * 
+    *
     *   // Yields 1, 2, 1, 3, 2, 4
     *   Observable(1, 1, 1, 2, 2, 1, 1, 3, 3, 3, 2, 2, 4, 4, 4)
     *     .distinctUntilChanged
@@ -4058,6 +4065,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * @param iterator to transform into an observable
     */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
   def fromIteratorUnsafe[A](iterator: Iterator[A]): Observable[A] =
     new builders.IteratorAsObservable[A](iterator)
 
@@ -4228,6 +4237,8 @@ object Observable extends ObservableDeprecatedBuilders {
     * @param in is the `Reader` to convert into an observable
     * @param chunkSize is the maximum length of the emitted arrays of chars
     */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
   def fromCharsReaderUnsafe(in: Reader, chunkSize: Int = 4096): Observable[Array[Char]] =
     new builders.CharsReaderObservable(in, chunkSize)
 
