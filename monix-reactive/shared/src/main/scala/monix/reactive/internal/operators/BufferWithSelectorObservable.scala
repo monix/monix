@@ -28,7 +28,8 @@ import scala.concurrent.{Future, Promise}
 private[reactive] final class BufferWithSelectorObservable[+A,S](
   source: Observable[A],
   sampler: Observable[S],
-  maxSize: Int)
+  maxSize: Int,
+  sizeOf: A => Int)
   extends Observable[Seq[A]] {
 
   def unsafeSubscribeFn(downstream: Subscriber[Seq[A]]): Cancelable = {
@@ -53,7 +54,8 @@ private[reactive] final class BufferWithSelectorObservable[+A,S](
           upstreamSubscriber.synchronized {
             if (downstreamIsDone) Stop else {
               buffer += elem
-              if (maxSize > 0 && buffer.length >= maxSize)
+              if (maxSize > 0 &&
+                  buffer.foldLeft(0)(_ + sizeOf(_)) >= maxSize) // sum size of elements in the buffer
                 promise.future
               else
                 Continue
