@@ -435,7 +435,8 @@ def mimaSettings(projectName: String) = Seq(
     exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsEffectForTask.runAsync"),
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionByTimespanObservable"),
-    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable")
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.++")
   )
 )
 
