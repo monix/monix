@@ -3919,7 +3919,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *     .minBy(_.age)
     * }}}
     *
-    * $catsOrderDesc
+    * $catsOrderInterop
     *
     * @param key is the function that returns the key for which the
     *        given ordering is defined
