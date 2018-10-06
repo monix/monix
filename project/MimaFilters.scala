@@ -88,6 +88,9 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.fromIterator"),
     exclude[DirectMissingMethodProblem]("monix.reactive.internal.builders.IteratorAsObservable.this"),
     //
+    // Breackage - the ++ operator now has a lazy argument
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.++"),
+    //
     // Breakage — relaxed requirement
     exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TracingScheduler.apply"),
     // Breakage — changed Task#foreach signature
