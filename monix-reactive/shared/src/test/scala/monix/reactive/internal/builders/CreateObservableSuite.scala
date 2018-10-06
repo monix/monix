@@ -42,7 +42,7 @@ object CreateObservableSuite extends TestSuite[TestScheduler] {
       Cancelable.empty
     }
 
-    val sum = o.sumF.runAsyncGetFirst
+    val sum = o.sum.runAsyncGetFirst
     s.tick()
     assertEquals(sum.value.get, Success(Some(10)))
   }
@@ -53,7 +53,7 @@ object CreateObservableSuite extends TestSuite[TestScheduler] {
       throw ex
     }
 
-    val sum = o.sumF.runAsyncGetFirst
+    val sum = o.sum.runAsyncGetFirst
     s.tick()
 
     assertEquals(sum.value, None)

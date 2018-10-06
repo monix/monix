@@ -17,16 +17,17 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
-import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
-private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Unit)
+private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
@@ -34,11 +35,20 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Unit)
       implicit val scheduler = out.scheduler
       private[this] val isActive = Atomic(true)
 
-      def onNext(elem: A): Future[Ack] =
-        out.onNext(elem).syncFlatMap { ack =>
-          try { cb(elem, ack); ack }
-          catch { case ex if NonFatal(ex) => onError(ex); Stop }
+      def onNext(elem: A): Future[Ack] = {
+        // We are calling out.onNext directly, meaning that in onComplete/onError
+        // we don't have to do anything special to ensure that the last `onNext`
+        // has been sent (like we are doing in mapTask); we only need to apply
+        // back-pressure for the following onNext events
+        val f = out.onNext(elem)
+        val task = Task.fromFuture(f).flatMap { ack =>
+          val r = try cb(elem,ack) catch { case ex if NonFatal(ex) => Task.raiseError(ex) }
+          r.map(_ => ack).onErrorHandle { ex => onError(ex); Stop }
         }
+
+        // Execution might be immediate
+        task.runAsync.syncTryFlatten
+      }
 
       def onComplete(): Unit = {
         if (isActive.getAndSet(false))

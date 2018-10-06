@@ -87,7 +87,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     val publisher = new RangePublisher(1 to 64, None, cancelled)
     Iterant[Task].fromReactivePublisher(publisher, 8)
       .take(5)
-      .completeL
+      .completedL
       .runAsync
 
     s.tick()
@@ -98,7 +98,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val publisher = new RangePublisher(1 to 64, Some(dummy))
     val f = Iterant[Task].fromReactivePublisher(publisher)
-      .completeL
+      .completedL
       .runAsync
 
     s.tick()

@@ -31,7 +31,7 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
     }
 
   def count(sourceCount: Int) = sourceCount
-  def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount - 1) / 2
+  def sum(sourceCount: Long): Long = sourceCount * (sourceCount - 1) / 2
 
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
@@ -48,6 +48,19 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
   test("stack safety") { implicit s =>
     val count = 10000
     val f = range(0, count).sumL.runAsync; s.tick()
-    assertEquals(f.value, Some(Success(count.toLong * (count - 1) / 2)))
+    assertEquals(f.value, Some(Success(sum(count))))
+  }
+
+  val nats: Observable[Long] = {
+    def loop(acc: Long): Observable[Long] =
+      Observable.now(acc) ++ loop(acc + 1)
+    loop(1)
+  }
+  
+  test("laziness of ++'s param") { implicit s =>
+    val count = 1000000L
+
+    val f = nats.take(count).sumL.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(sum(count + 1))))
   }
 }

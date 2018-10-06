@@ -47,8 +47,8 @@ trait BaseConcurrencySuite extends TestSuite[SchedulerService]
     new Eq[Observable[A]] {
       def eqv(lh: Observable[A], rh: Observable[A]): Boolean = {
         val eqList = implicitly[Eq[Option[List[A]]]]
-        val fa = lh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
-        val fb = rh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
+        val fa = lh.foldLeft(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
+        val fb = rh.foldLeft(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
         equalityFuture(eqList, ec).eqv(fa, fb)
       }
     }

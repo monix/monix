@@ -19,7 +19,6 @@ package monix.reactive.internal.operators
 
 import monix.eval.Task
 import monix.reactive.{BaseTestSuite, Observable}
-
 import scala.concurrent.duration._
 
 /** Tests for cancelling `concat` / `concatMap` and `mapTask`. */
@@ -29,7 +28,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
 
     val a = Observable.now(1L)
     val b = Observable.interval(1.second)
-    val c = (a ++ b).doOnNext { _ => items += 1 }
+    val c = (a ++ b).doOnNextF(_ => Task { items += 1 })
     val d = c.take(10).subscribe()
 
     assert(items > 0, "items > 0")
@@ -64,7 +63,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
   }
 
   test("issue #468 - mapTask is cancellable") { implicit sc =>
-    val o = Observable.eval(1).executeAsync.mapTask { x =>
+    val o = Observable.eval(1).executeAsync.mapEval { x =>
       Task.now(x).delayExecution(1.second)
     }
 
@@ -76,7 +75,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
   }
 
   test("issue #468 - scanTask is cancellable") { implicit sc =>
-    val o = Observable.eval(1).executeAsync.scanTask(Task.now(0)) { (acc, x) =>
+    val o = Observable.eval(1).executeAsync.scanEval(Task.now(0)) { (acc, x) =>
       Task.now(acc + x).delayExecution(1.second)
     }
 

@@ -40,7 +40,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     val p = PublishSubject[Int]()
     var received = 0
 
-    Observable.merge(p).subscribe(new Observer[Int] {
+    Observable(p).merge.subscribe(new Observer[Int] {
       def onNext(elem: Int) = {
         received += elem
         Continue

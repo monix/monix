@@ -25,13 +25,13 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 private[reactive] final
-class DelayExecutionWithTriggerObservable[A](source: Observable[A], trigger: Observable[Any])
+class DelayExecutionWithTriggerObservable[A](source: Observable[A], trigger: Observable[_])
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val cancelable = OrderedCancelable()
 
-    val main = trigger.unsafeSubscribeFn(
+    val main = trigger.asInstanceOf[Observable[Any]].unsafeSubscribeFn(
       new Subscriber[Any] {
         implicit val scheduler = subscriber.scheduler
         private[this] var isDone = false

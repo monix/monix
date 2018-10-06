@@ -35,7 +35,8 @@ private[reactive] object SubscriberAsReactiveSubscriber {
     * the call may pass asynchronous boundaries, the emitted events need to be buffered.
     * The `requestCount` constructor parameter also represents the buffer size.
     *
-    * To async an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used: {{{
+    * To async an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used: 
+    * {{{
     *   // uses the default requestCount of 128
     *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
     *     private[this] var sum = 0
@@ -46,11 +47,11 @@ private[reactive] object SubscriberAsReactiveSubscriber {
     *     }
     *
     *     def onError(ex: Throwable) = {
-    *       logger.error(ex)
+    *       ex.printStackTrace()
     *     }
     *
     *     def onComplete() = {
-    *       logger.info("Stream completed")
+    *       println("Stream completed")
     *     }
     *   })
     * }}}
@@ -77,26 +78,6 @@ private[reactive] object SubscriberAsReactiveSubscriber {
   * Given that when emitting [[monix.reactive.Observer.onNext Observer.onNext]] calls,
   * the call may pass asynchronous boundaries, the emitted events need to be buffered.
   * The `requestCount` constructor parameter also represents the buffer size.
-  *
-  * To async an instance, [[SubscriberAsReactiveSubscriber]] must be used: {{{
-  *   // uses the default requestCount of 128
-  *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
-  *     private[this] var sum = 0
-  *
-  *     def onNext(elem: Int) = {
-  *       sum += elem
-  *       Continue
-  *     }
-  *
-  *     def onError(ex: Throwable) = {
-  *       logger.error(ex)
-  *     }
-  *
-  *     def onComplete() = {
-  *       logger.info("Stream completed")
-  *     }
-  *   })
-  * }}}
   *
   * @param target the observer instance that will get wrapped into a
   *                   `org.reactiveSubscriber`, along with the scheduler used

@@ -43,6 +43,10 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
     acquire.bracketCase(use)(release)
   override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
     Task.asyncF(k)
+  override def guarantee[A](acquire: Task[A])(finalizer: Task[Unit]): Task[A] =
+    acquire.guarantee(finalizer)
+  override def guaranteeCase[A](acquire: Task[A])(finalizer: ExitCase[Throwable] => Task[Unit]): Task[A] =
+    acquire.guaranteeCase(finalizer)
 }
 
 /** Cats type class instance of [[monix.eval.Task Task]]

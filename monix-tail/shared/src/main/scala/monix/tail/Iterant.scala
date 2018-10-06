@@ -341,7 +341,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     (implicit F: Sync[F]): Iterant[F, B] = {
 
     self.flatMap { a =>
-      use(a).guaranteeCase(release(a, _).completeL)
+      use(a).guaranteeCase(release(a, _).completedL)
     }
   }
 
@@ -762,7 +762,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        by the source.
     */
   final def foreach(cb: A => Unit)(implicit F: Sync[F]): F[Unit] =
-    map(cb)(F).completeL
+    map(cb)(F).completedL
 
   /** Upon evaluation of the result, consumes this iterant to
     * completion.
@@ -772,7 +772,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *     iterant.completeL >> Task.eval(println("Done!"))
     * }}}
     */
-  final def completeL(implicit F: Sync[F]): F[Unit] =
+  final def completedL(implicit F: Sync[F]): F[Unit] =
     IterantCompleteL(this)(F)
 
   /** Returns a new stream by mapping the supplied function over the
@@ -2670,7 +2670,7 @@ private[tail] trait IterantInstances extends IterantInstances0 {
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Iterant[F, A] =
       Iterant.liftF(F.async(k))
     override def asyncF[A](k: (Either[Throwable, A] => Unit) => Iterant[F, Unit]): Iterant[F, A] =
-      Iterant.liftF(F.asyncF(cb => k(cb).completeL))
+      Iterant.liftF(F.asyncF(cb => k(cb).completedL))
     override def never[A]: Iterant[F, A] =
       Iterant.never
   }

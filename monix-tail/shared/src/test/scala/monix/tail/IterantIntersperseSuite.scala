@@ -42,7 +42,7 @@ object IterantIntersperseSuite extends BaseTestSuite {
       Coeval(of(1, 2, 3))
     ).guarantee(Coeval(effect += 1))
     val interspersed = source.intersperse(0)
-    interspersed.completeL.value()
+    interspersed.completedL.value()
     assertEquals(effect, 1)
   }
 
