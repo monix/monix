@@ -28,7 +28,7 @@ object PublishSelectorSuite extends BaseTestSuite {
     val isStarted = Atomic(0)
     val f = Observable.range(0, 1000)
       .doOnStartF(_ => IO(isStarted.increment()))
-      .publishSelector { source => Observable.merge(source, source, source) }
+      .publishSelector { source => Observable(source, source, source).merge }
       .sumL
       .runAsync
 

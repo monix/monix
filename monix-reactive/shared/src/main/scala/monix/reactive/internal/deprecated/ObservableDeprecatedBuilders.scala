@@ -42,4 +42,117 @@ private[reactive] trait ObservableDeprecatedBuilders extends Any {
   @deprecated("Please use Observable!.executeOn", "3.0.0")
   def fork[A](fa: Observable[A], scheduler: Scheduler): Observable[A] =
     fa.executeOn(scheduler)
+
+  /** DEPRECATED — please switch to the [[Observable!.flatten flatten]] method.
+    *
+    * This deprecation was made because there's no point in having this
+    * function described both as a method and as a companion object function.
+    * In general in API design we either have both for all functions, or
+    * we have to choose.
+    *
+    * Switch to: `Observable(list).flatten`
+    */
+  @deprecated("Switch to Observable(list).flatten", "3.0.0")
+  def flatten[A](sources: Observable[A]*): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.fromIterable(sources).concat
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — please switch to the
+    * [[Observable!.flattenDelayErrors flattenDelayErrors]] method.
+    *
+    * This deprecation was made because there's no point in having this
+    * function described both as a method and as a companion object function.
+    * In general in API design we either have both for all functions, or
+    * we have to choose.
+    *
+    * Switch to: `Observable(list).flattenDelayErrors`
+    */
+  @deprecated("Switch to Observable(list).flattenDelayErrors", "3.0.0")
+  def flattenDelayError[A](sources: Observable[A]*): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.fromIterable(sources).concatDelayErrors
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — please switch to the [[Observable!.merge merge]] method.
+    *
+    * This deprecation was made because there's no point in having this
+    * function described both as a method and as a companion object function.
+    * In general in API design we either have both for all functions, or
+    * we have to choose.
+    *
+    * Switch to: `Observable(list).merge`
+    */
+  @deprecated("Switch to Observable(list).merge", "3.0.0")
+  def merge[A](sources: Observable[A]*)(implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.fromIterable(sources).mergeMap(identity)(os)
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — please switch to the [[Observable!.merge merge]] method.
+    *
+    * This deprecation was made because there's no point in having this
+    * function described both as a method and as a companion object function.
+    * In general in API design we either have both for all functions, or
+    * we have to choose.
+    *
+    * Switch to: `Observable(list).merge`
+    */
+  @deprecated("Switch to Observable(list).merge", "3.0.0")
+  def mergeDelayError[A](sources: Observable[A]*)(implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.fromIterable(sources).mergeMapDelayErrors(identity)(os)
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — please switch to the [[Observable!.concat concat]] method.
+    *
+    * This deprecation was made because there's no point in having this
+    * function described both as a method and as a companion object function.
+    * In general in API design we either have both for all functions, or
+    * we have to choose.
+    *
+    * Switch to: `Observable(list).concat`
+    */
+  @deprecated("Switch to Observable(list).concat", "3.0.0")
+  def concat[A](sources: Observable[A]*): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.fromIterable(sources).concatMap[A](identity)
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — please switch to the [[Observable!.concatDelayErrors concatDelayErrors]] method.
+    *
+    * This deprecation was made because there's no point in having this
+    * function described both as a method and as a companion object function.
+    * In general in API design we either have both for all functions, or
+    * we have to choose.
+    *
+    * Switch to: `Observable(list).concatDelayErrors`
+    */
+  @deprecated("Switch to Observable(list).concatDelayErrors", "3.0.0")
+  def concatDelayError[A](sources: Observable[A]*): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.fromIterable(sources).concatMapDelayErrors[A](identity)
+    // $COVERAGE-ON$
+  }
+
+  /** DEPRECATED — please switch to the [[Observable!.switch switch]] method.
+    *
+    * This deprecation was made because there's no point in having this
+    * function described both as a method and as a companion object function.
+    * In general in API design we either have both for all functions, or
+    * we have to choose.
+    *
+    * Switch to: `Observable(list).switch`
+    */
+  @deprecated("Switch to Observable(list).switch", "3.0.0")
+  def switch[A](sources: Observable[A]*): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.fromIterable(sources).switch
+    // $COVERAGE-ON$
+  }
 }
