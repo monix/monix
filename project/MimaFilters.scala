@@ -160,6 +160,10 @@ object MimaFilters {
     // Breakage - PR #700: renamed methods
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscriptionWith"),
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscription"),
+    // Breakage - PR #711: add more methods to MVar
+    exclude[ReversedMissingMethodProblem]("monix.eval.MVar.tryTake"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.MVar.tryPut"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.MVar.isEmpty"),
     // Breakage — PR 724: https://github.com/monix/monix/pull/724
     exclude[MissingClassProblem]("monix.eval.Fiber$Impl"),
     exclude[DirectMissingMethodProblem]("monix.eval.Fiber.apply"),
@@ -232,6 +236,16 @@ object MimaFilters {
     exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsEffectForTask.runAsync"),
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionByTimespanObservable"),
-    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable")
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable"),
+    exclude[DirectMissingMethodProblem]("monix.execution.misc.AsyncVar#WaitForTake.queue"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$Empty$"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.misc.AsyncVar#WaitForPut.apply"),
+    exclude[DirectMissingMethodProblem]("monix.execution.misc.AsyncVar#WaitForPut.dequeue"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.misc.AsyncVar#WaitForPut.copy"),
+    exclude[DirectMissingMethodProblem]("monix.execution.misc.AsyncVar#WaitForPut.queue"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.misc.AsyncVar#WaitForPut.copy$default$1"),
+    exclude[DirectMissingMethodProblem]("monix.execution.misc.AsyncVar#WaitForPut.first"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.misc.AsyncVar#WaitForPut.this"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$Empty")
   )
 }
