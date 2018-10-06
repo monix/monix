@@ -164,6 +164,12 @@ object MimaFilters {
     exclude[ReversedMissingMethodProblem]("monix.eval.MVar.tryTake"),
     exclude[ReversedMissingMethodProblem]("monix.eval.MVar.tryPut"),
     exclude[ReversedMissingMethodProblem]("monix.eval.MVar.isEmpty"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.MVar.take"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.MVar.put"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.MVar.read"),
+    exclude[InheritedNewAbstractMethodProblem]("cats.effect.concurrent.MVar.tryPut"),
+    exclude[InheritedNewAbstractMethodProblem]("cats.effect.concurrent.MVar.tryTake"),
+    exclude[InheritedNewAbstractMethodProblem]("cats.effect.concurrent.MVar.isEmpty"),
     // Breakage — PR 724: https://github.com/monix/monix/pull/724
     exclude[MissingClassProblem]("monix.eval.Fiber$Impl"),
     exclude[DirectMissingMethodProblem]("monix.eval.Fiber.apply"),
