@@ -17,14 +17,13 @@
 
 package monix.reactive.internal.operators
 
-import cats.Eq
 import monix.execution.Ack.{Continue, Stop}
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 private[reactive] final
-class DistinctUntilChangedOperator[A](implicit A: Eq[A])
+class DistinctUntilChangedOperator[A](implicit A: Equiv[A])
   extends Operator[A,A] {
 
   /** Implementation for `Observable.distinctUntilChanged`. */
@@ -46,7 +45,7 @@ class DistinctUntilChangedOperator[A](implicit A: Eq[A])
             isFirst = false
             out.onNext(elem)
           }
-          else if (A.neqv(lastElem, elem)) {
+          else if (!A.equiv(lastElem, elem)) {
             lastElem = elem
             streamErrors = false
             out.onNext(elem)

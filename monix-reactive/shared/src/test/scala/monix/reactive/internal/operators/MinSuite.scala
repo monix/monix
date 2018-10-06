@@ -17,10 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import cats.Order
 import monix.execution.Ack.Continue
 import monix.reactive.{Observable, Observer}
-
 import scala.concurrent.duration.Duration.Zero
 
 object MinSuite extends BaseOperatorSuite {
@@ -37,7 +35,7 @@ object MinSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) = 1
   def sum(sourceCount: Int) = 1
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
-    val ord = new Order[Long] {
+    val ord = new Ordering[Long] {
       def compare(x: Long, y: Long): Int = throw ex
     }
 

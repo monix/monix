@@ -40,7 +40,7 @@ lazy val warnUnusedImport = Seq(
     }
   },
   scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
-  scalacOptions in (Test, console) ~= {_.filterNot("-Ywarn-unused-import" == _)}
+  scalacOptions in Test ~= {_.filterNot("-Ywarn-unused-import" == _)}
 )
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
@@ -304,7 +304,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 
 lazy val doctestTestSettings = Seq(
   doctestTestFramework := DoctestTestFramework.Minitest,
-  doctestIgnoreRegex := Some(s".*TaskApp.scala"),
+  doctestIgnoreRegex := Some(s".*TaskApp.scala|.*reactive.internal.(builders|operators|rstreams).*"),
   doctestOnlyCodeBlocksMode := true
 )
 
@@ -426,6 +426,7 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .settings(reactiveCommon)
   .settings(libraryDependencies += "org.jctools" % "jctools-core" % jcToolsVersion)
   .settings(mimaSettings("monix-reactive"))
+  .settings(doctestTestSettings)
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)

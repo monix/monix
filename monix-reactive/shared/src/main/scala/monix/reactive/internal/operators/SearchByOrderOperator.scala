@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import cats.Order
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import scala.util.control.NonFatal
@@ -28,10 +27,10 @@ import monix.reactive.observers.Subscriber
   * Common implementation for `minF`, `minByF`, `maxF`, `maxByF`.
   */
 private[reactive] abstract class SearchByOrderOperator[A, K]
-  (key: A => K)(implicit B: Order[K]) extends Operator[A,A] {
+  (key: A => K)(implicit B: Ordering[K]) extends Operator[A,A] {
 
   def shouldCollect(key: K, current: K): Boolean
-  
+
   final def apply(out: Subscriber[A]): Subscriber.Sync[A] =
     new Subscriber.Sync[A] {
       implicit val scheduler = out.scheduler
@@ -82,22 +81,22 @@ private[reactive] abstract class SearchByOrderOperator[A, K]
     }
 }
 
-private[reactive] final class MinOperator[A](implicit A: Order[A])
+private[reactive] final class MinOperator[A](implicit A: Ordering[A])
   extends SearchByOrderOperator[A,A](identity)(A) {
-  
+
   def shouldCollect(key: A, current: A): Boolean =
     A.compare(key, current) < 0
 }
 
 private[reactive] final class MinByOperator[A, K](f: A => K)
-  (implicit K: Order[K])
+  (implicit K: Ordering[K])
   extends SearchByOrderOperator[A, K](f)(K) {
 
   def shouldCollect(key: K, current: K): Boolean =
     K.compare(key, current) < 0
 }
 
-private[reactive] final class MaxOperator[A](implicit A: Order[A])
+private[reactive] final class MaxOperator[A](implicit A: Ordering[A])
   extends SearchByOrderOperator[A,A](identity)(A) {
 
   def shouldCollect(key: A, current: A): Boolean =
@@ -105,7 +104,7 @@ private[reactive] final class MaxOperator[A](implicit A: Order[A])
 }
 
 private[reactive] final class MaxByOperator[A, K](f: A => K)
-  (implicit K: Order[K])
+  (implicit K: Ordering[K])
   extends SearchByOrderOperator[A, K](f)(K) {
 
   def shouldCollect(key: K, current: K): Boolean =

@@ -19,8 +19,8 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
-import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, Eval, FlatMap, Monoid, NonEmptyParallel, Order, ~>}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
@@ -83,7 +83,7 @@ import scala.util.{Failure, Success, Try}
   *         $concatMergeDifference
   *
   * @define delayErrorsDescription ==Delaying Errors==
-  * 
+  *
   *         This version is reserving `onError` notifications until
   *         all of the observables complete and only then passing the
   *         issued errors(s) downstream. Note that the streamed error is a
@@ -179,25 +179,6 @@ import scala.util.{Failure, Success, Try}
   *         current buffer is being dropped and the error gets propagated
   *         immediately.
   *
-  * @define catsOrderDesc In case type `A` is a primitive type and an
-  *         `Order[A]` instance is not in scope, then you probably
-  *         need this import:
-  *
-  *         {{{
-  *           import cats.instances.all._
-  *         }}}
-  *
-  *         Or in case your type `A` does not have an `Order[A]`
-  *         instance defined for it, but it does have a Scala
-  *         `Ordering` defined, then you can define one like this:
-  *
-  *         {{{
-  *           import cats.Order
-  *
-  *           // This is just a sample, as `Int` obviously has an `Order`
-  *           implicit val orderInt = Order.fromOrdering[Int]
-  *         }}}
-  *
   * @define unsafeBecauseImpure '''UNSAFE WARNING''':
   *         this operation can trigger the execution of side effects, which
   *         breaks referential transparency and is thus not a pure function.
@@ -238,6 +219,37 @@ import scala.util.{Failure, Success, Try}
   *            received from the last `onNext`; the internal
   *            protocol doesn't require back-pressuring of
   *            this last message for performance reasons
+  *
+  * @define catsOrderInterop ==Cats Order Interop==
+  *
+  *         Monix prefers to work with [[scala.math.Ordering]] directly
+  *         because it is standard and less painful, e.g. no reason for extra
+  *         imports in order to get an ordering for plain numbers.
+  *
+  *         If you want to use [[cats.Order]] instances, you can quickly
+  *         convert to [[scala.math.Ordering]]. So here's an example:
+  *         {{{
+  *           import cats.Order
+  *
+  *           case class Person(name: String, age: Int)
+  *
+  *           object Person {
+  *             implicit val catsOrderForPerson: Order[Person] =
+  *               new Order[Person] {
+  *                 def compare(x: Person, y: Person): Int =
+  *                   x.age.compareTo(y.age) match {
+  *                     case 0 => x.name.compareTo(y.name)
+  *                     case o => o
+  *                   }
+  *               }
+  *           }
+  *         }}}
+  *
+  *         To convert this to a [[scala.math.Ordering]]:
+  *         {{{
+  *           implicit val scalaOrderingForPerson =
+  *             Person.catsOrderForPerson.toOrdering
+  *         }}}
   */
 abstract class Observable[+A] extends Serializable { self =>
 
@@ -546,17 +558,25 @@ abstract class Observable[+A] extends Serializable { self =>
   final def consumeWith[R](f: Consumer[A, R]): Task[R] =
     f(self)
 
+  /** Alias for [[prepend]]. */
+  final def +:[B >: A](elem: B): Observable[B] =
+    prepend(elem)
+
   /** Creates a new Observable that emits the given element and then it
     * also emits the events of the source (prepend operation).
     */
-  final def +:[B >: A](elem: B): Observable[B] =
+  final def prepend[B >: A](elem: B): Observable[B] =
     Observable.cons(elem, self)
+
+  /** Alias for [[append]]. */
+  final def :+[B >: A](elem: B): Observable[B] =
+    append(elem)
 
   /** Creates a new Observable that emits the events of the source and
     * then it also emits the given element (appended to the stream).
     */
-  final def :+[B >: A](elem: B): Observable[B] =
-    self ++ Observable.now(elem)
+  final def append[B >: A](elem: B): Observable[B] =
+    self appendAll Observable.now(elem)
 
   /** Given the source observable and another `Observable`, emits all of
     * the items from the first of these Observables to emit an item
@@ -975,81 +995,46 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     * {{{
-    *   import cats.implicits._
-    *
     *   // Yields 1, 2, 1, 3, 2, 4
-    *   Observable(1, 1, 1, 2, 2, 1, 1, 3, 3, 3, 2, 2, 4, 4, 4)
+    *   val stream = Observable(1, 1, 1, 2, 2, 1, 1, 3, 3, 3, 2, 2, 4, 4, 4)
     *     .distinctUntilChanged
     * }}}
     *
     * Duplication is detected by using the equality relationship
-    * provided by the `cats.Eq` type class. This allows one to
+    * provided by the [[scala.math.Equiv]] type class. This allows one to
     * override the equality operation being used (e.g. maybe the
     * default `.equals` is badly defined, or maybe you want reference
     * equality, so depending on use case).
     *
-    * In case type `A` is a primitive type and an `Eq[A]` instance
-    * is not in scope, then you probably need this import:
-    *
-    * {{{
-    *   import cats.instances.all._
-    * }}}
-    *
-    * Or in case your type `A` does not have an `Eq[A]` instance
-    * defined for it, then you can quickly define one like this:
-    * {{{
-    *   import cats.Eq
-    *
-    *   // Just a sample, as `Int` already has an `Eq[Int]` of course
-    *   implicit val eqInt = Eq.fromUniversalEquals[Int]
-    * }}}
-    *
-    * @param A is the `cats.Eq` instance that defines equality
+    * @param A is the [[scala.math.Equiv]] instance that defines equality
     *        for the elements emitted by the source
     */
-  final def distinctUntilChanged[AA >: A](implicit A: Eq[AA]): Observable[AA] =
+  final def distinctUntilChanged[AA >: A](implicit A: Equiv[AA]): Observable[AA] =
     self.liftByOperator(new DistinctUntilChangedOperator()(A))
 
   /** Given a function that returns a key for each element emitted by
     * the source, suppress consecutive duplicate items.
     *
     * Example:
-    *
     * {{{
     *   // Yields 1, 2, 3, 4
-    *   Observable(1, 3, 2, 4, 2, 3, 5, 7, 4)
-    *     .distinctUntilChangedBy(_ % 2)
+    *   val stream = Observable(1, 3, 2, 4, 2, 3, 5, 7, 4)
+    *     .distinctUntilChangedByKey(_ % 2)
     * }}}
     *
     * Duplication is detected by using the equality relationship
-    * provided by the `cats.Eq` type class. This allows one to
+    * provided by the [[scala.math.Equiv]] type class. This allows one to
     * override the equality operation being used (e.g. maybe the
     * default `.equals` is badly defined, or maybe you want reference
     * equality, so depending on use case).
     *
-    * In case type `K` is a primitive type and an `Eq[K]` instance
-    * is not in scope, then you probably need this import:
-    *
-    * {{{
-    *   import cats.instances.all._
-    * }}}
-    *
-    * Or in case your type `K` does not have an `Eq[K]` instance
-    * defined for it, then you can quickly define one like this:
-    *
-    * {{{
-    *   import cats.Eq
-    *
-    *   implicit val eqK = Eq.fromUniversalEquals[K]
-    * }}}
-    *
     * @param key is a function that returns a `K` key for each element,
     *        a value that's then used to do the deduplication
     *
-    * @param K is the `cats.Eq` instance that defines equality for
+    * @param K is the [[scala.math.Equiv]] instance that defines equality for
     *        the key type `K`
     */
-  final def distinctUntilChangedByKey[K](key: A => K)(implicit K: Eq[K]): Observable[A] =
+  final def distinctUntilChangedByKey[K](key: A => K)(implicit K: Equiv[K]): Observable[A] =
     self.liftByOperator(new DistinctUntilChangedByKeyOperator(key)(K))
 
   /** Executes the given task when the streaming is stopped
@@ -1061,7 +1046,9 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     * {{{
-    *   Observable.range(0, Int.MaxValue)
+    *   import monix.eval.Task
+    *
+    *   val stream = Observable.range(0, Int.MaxValue)
     *     .doOnEarlyStop(Task(println("Stopped early!")))
     *     .take(100)
     * }}}
@@ -1088,8 +1075,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   import cats.effect.IO
     *
-    *   Observable.range(0, Int.MaxValue)
-    *     .doOnEarlyStop(IO(println("Stopped early!")))
+    *   val stream = Observable.range(0, Int.MaxValue)
+    *     .doOnEarlyStopF(IO(println("Stopped early!")))
     *     .take(100)
     * }}}
     *
@@ -1107,12 +1094,11 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     * {{{
-    *   val subscription = Observable
-    *     .range(0, Int.MaxValue)
-    *     .doOnEarlyStop(Task(println("Cancelled!")))
-    *     .subscribe()
+    *   import monix.eval.Task
     *
-    *   subscription.cancel()
+    *   Observable.range(0, Int.MaxValue)
+    *     .doOnEarlyStop(Task(println("Cancelled!")))
+    *     .take(100)
     * }}}
     *
     * NOTE: in most cases what you want is [[guaranteeCase]]
@@ -1137,12 +1123,10 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   import cats.effect.IO
     *
-    *   val subscription = Observable
+    *   Observable
     *     .range(0, Int.MaxValue)
     *     .doOnEarlyStopF(IO(println("Cancelled!")))
-    *     .subscribe()
-    *
-    *   subscription.cancel()
+    *     .take(100)
     * }}}
     *
     * NOTE: in most cases what you want is [[guaranteeCase]]
@@ -1159,6 +1143,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * signal gets sent downstream.
     *
     * {{{
+    *   import monix.eval.Task
+    *
     *   Observable.range(0, 10)
     *     .doOnComplete(Task(println("Completed!")))
     * }}}
@@ -1199,6 +1185,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     * {{{
+    *   import monix.eval.Task
+    *
     *   val dummy = new RuntimeException("dummy")
     *
     *   (Observable.range(0, 10) ++ Observable.raiseError(dummy))
@@ -1353,7 +1341,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     *   Observable.range(0, 100)
     *     .delayExecution(1.second)
-    *     .doOnStart { a =>
+    *     .doOnStartF { a =>
     *       for {
     *         _ <- IO.sleep(1.second)
     *         _ <- IO(println(s"Started with: $$a"))
@@ -1370,6 +1358,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * For example this is equivalent with [[delayExecution]]:
     *
     * {{{
+    *   import monix.eval.Task
     *   import scala.concurrent.duration._
     *
     *   Observable.range(0, 10)
@@ -1510,11 +1499,6 @@ abstract class Observable[+A] extends Serializable { self =>
     * items, otherwise if `timeout` passes without the source emitting
     * anything new then the observable will emit the last item.
     *
-    * This is the rough equivalent of:
-    * {{{
-    *   Observable.merge(source, source.debounce(period))
-    * }}}
-    *
     * Note: If the source Observable keeps emitting items more
     * frequently than the length of the time window then the resulting
     * observable will mirror the source exactly.
@@ -1544,7 +1528,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * then it also emits the given elements (appended to the stream).
     */
   final def endWith[B >: A](elems: Seq[B]): Observable[B] =
-    self ++ Observable.fromIterable(elems)
+    self appendAll Observable.fromIterable(elems)
 
   /** Concatenates the source with another observable.
     *
@@ -1554,7 +1538,13 @@ abstract class Observable[+A] extends Serializable { self =>
     * observable is never subscribed if the source completes with an
     * error.
     */
-  final def ++[B >: A](other: Observable[B]): Observable[B] =
+  final def ++[B >: A](other: => Observable[B]): Observable[B] =
+    appendAll(Observable.defer(other))
+
+  /**
+    * A strict variant of [[++]].
+    */
+  final def appendAll[B >: A](other: Observable[B]): Observable[B] =
     new ConcatObservable[B](self, other)
 
   /** Emits the given exception instead of `onComplete`.
@@ -1659,7 +1649,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * streams until the source completes.
     *
     * $delayErrorsDescription
-    * 
+    *
     * @see [[flatScan]]
     */
   final def flatScanDelayErrors[R](seed: => R)(op: (R, A) => Observable[R]): Observable[R] =
@@ -1669,7 +1659,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * streams until the source completes.
     *
     * $delayErrorsDescription
-    * 
+    *
     * @see [[flatScan0]]
     */
   final def flatScan0DelayErrors[R](seed: => R)(op: (R, A) => Observable[R]): Observable[R] =
@@ -1719,7 +1709,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *     Observable(2, 3)
     *   )
     *
-    *   stream.concatDelayErrors
+    *   val concatenated =
+    *     stream.concatDelayErrors
     * }}}
     *
     * The resulting stream in this example emits `1, 2, 3` in order
@@ -1735,7 +1726,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * source observable, where that function returns sequences
     * and then concatenating those resulting sequences and emitting the
     * results of this concatenation.
-    * 
+    *
     * $delayErrorsDescription
     *
     * ==Example==
@@ -1834,7 +1825,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * Implements `cats.effect.Bracket.guarantee`.
     *
     * Example: {{{
-    *   observable.guarantee(Task.eval {
+    *   import monix.eval.Task
+    *
+    *   Observable.suspend(???).guarantee(Task.eval {
     *     println("Releasing resources!")
     *   })
     * }}}
@@ -1868,15 +1861,16 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example: {{{
     *   import cats.effect.ExitCase
+    *   import monix.eval.Task
     *
-    *   observable.guaranteeCase(err => Task {
+    *   val stream = Observable.suspend(???).guaranteeCase(err => Task {
     *     err match {
     *       case ExitCase.Completed =>
-    *         logger.info("Completed successfully!")
+    *         println("Completed successfully!")
     *       case ExitCase.Error(e) =>
-    *         logger.error("Completed in error!", e)
+    *         e.printStackTrace()
     *       case ExitCase.Canceled =>
-    *         logger.info("Was stopped early!")
+    *         println("Was stopped early!")
     *     }
     *   })
     * }}}
@@ -2002,7 +1996,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *   // Needed for IO.sleep
     *   implicit val timer = global.timer[IO]
     *
-    *   Observable.range(0, 100).mapEval { x =>
+    *   Observable.range(0, 100).mapEvalF { x =>
     *     IO.sleep(1.second) *> IO(x)
     *   }
     * }}}
@@ -2173,7 +2167,10 @@ abstract class Observable[+A] extends Serializable { self =>
     * locally. Example:
     *
     * {{{
-    *   observable.executeWithModel(AlwaysAsyncExecution)
+    *   import monix.execution.ExecutionModel.AlwaysAsyncExecution
+    *
+    *   val stream = Observable(1, 2, 3)
+    *     .executeWithModel(AlwaysAsyncExecution)
     * }}}
     *
     * @param em is the
@@ -2195,9 +2192,10 @@ abstract class Observable[+A] extends Serializable { self =>
     * Example:
     * {{{
     *   import monix.execution.Scheduler
+    *   import monix.execution.Scheduler.Implicits.global
     *   val io = Scheduler.io("my-io")
     *
-    *   source.map(_ + 1)
+    *   Observable(1, 2, 3).map(_ + 1)
     *     .observeOn(io)
     *     .foreach(x => println(x))
     * }}}
@@ -2214,7 +2212,10 @@ abstract class Observable[+A] extends Serializable { self =>
     * not work OK:
     *
     * {{{
-    *   source.observeOn(io).asyncBoundary(Unbounded)
+    *   import monix.reactive.OverflowStrategy.Unbounded
+    *
+    *   Observable.suspend(???)
+    *     .observeOn(io).asyncBoundary(Unbounded)
     * }}}
     *
     * This sample might not do what a user of `observeOn` would
@@ -2545,10 +2546,18 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     *   case class Person(id: Int, name: String)
     *
+    *   // TODO: to implement!
+    *   def requestPersonDetails(id: Int): IO[Option[Person]] =
+    *     IO.raiseError(new NotImplementedError)
+    *
+    *   // TODO: to implement
+    *   val source: Observable[Int] =
+    *     Observable.raiseError(new NotImplementedError)
+    *
     *   // Initial state
     *   val seed = IO.pure(Init : State[Person])
     *
-    *   val scanned = source.scanEval(seed) { (state, id) =>
+    *   val scanned = source.scanEvalF(seed) { (state, id) =>
     *     requestPersonDetails(id).map { person =>
     *       state match {
     *         case Init =>
@@ -2559,7 +2568,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *     }
     *   }
     *
-    *   scanned
+    *   val filtered = scanned
     *     .takeWhile(_.count < 10)
     *     .collect { case Current(a, _) => a }
     * }}}
@@ -2610,6 +2619,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * Example showing how state can be evolved and acted upon:
     *
     * {{{
+    *   import monix.eval.Task
+    *
     *   sealed trait State[+A] { def count: Int }
     *   case object Init extends State[Nothing] { def count = 0 }
     *   case class Current[A](current: Option[A], count: Int)
@@ -2617,10 +2628,18 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     *   case class Person(id: Int, name: String)
     *
-    *   // Initial state
-    *   val seed = Task.now(Init : State[Person])
+    *   // TODO: to implement!
+    *   def requestPersonDetails(id: Int): Task[Option[Person]] =
+    *     Task.raiseError(new NotImplementedError)
     *
-    *   val scanned = source.scanTask(seed) { (state, id) =>
+    *   // TODO: to implement
+    *   val source: Observable[Int] =
+    *     Observable.raiseError(new NotImplementedError)
+    *
+    *   // Initial state
+    *   val seed = Task.pure(Init : State[Person])
+    *
+    *   val scanned = source.scanEval(seed) { (state, id) =>
     *     requestPersonDetails(id).map { person =>
     *       state match {
     *         case Init =>
@@ -2631,7 +2650,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *     }
     *   }
     *
-    *   scanned
+    *   val filtered = scanned
     *     .takeWhile(_.count < 10)
     *     .collect { case Current(a, _) => a }
     * }}}
@@ -2666,16 +2685,19 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Equivalent with [[scan]] applied with the given [[cats.Monoid]], so given
     * our `f` mapping function returns a `B`, this law holds:
-    * {{{
+    *
+    * <pre>
     * val B = implicitly[Monoid[B]]
     *
     * stream.scanMap(f) <-> stream.scan(B.empty)(B.combine)
-    * }}}
+    * </pre>
     *
     * Example:
     * {{{
-    * // Yields 2, 6, 12, 20, 30, 42
-    * Observable(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
+    *   import cats.implicits._
+    *
+    *   // Yields 2, 6, 12, 20, 30, 42
+    *   val stream = Observable(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
     * }}}
     *
     * @param f is the mapping function applied to every incoming element of this `Observable`
@@ -2702,7 +2724,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * it also emits the events of the source (prepend operation).
     */
   final def startWith[B >: A](elems: Seq[B]): Observable[B] =
-    Observable.fromIterable(elems) ++ self
+    Observable.fromIterable(elems) appendAll self
 
   /** Returns a new Observable that uses the specified `Scheduler` for
     * initiating the subscription.
@@ -3134,12 +3156,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * {{{
     *   import monix.eval.Task
-    *   import monix.execution.rstreams.SingleAssignmentSubscription
+    *   import monix.execution.rstreams.SingleAssignSubscription
     *   import org.reactivestreams.{Publisher, Subscriber, Subscription}
     *
     *   def sum(source: Publisher[Int], requestSize: Int): Task[Long] =
     *     Task.create { (_, cb) =>
-    *       val sub = SingleAssignmentSubscription()
+    *       val sub = SingleAssignSubscription()
     *
     *       source.subscribe(new Subscriber[Int] {
     *         private[this] var requested = 0L
@@ -3157,7 +3179,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     *           if (requested <= 0) {
     *             requested = requestSize
-    *             sub.request(request)
+    *             sub.request(requestSize)
     *           }
     *         }
     *
@@ -3171,6 +3193,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *       sub
     *     }
     *
+    *   import monix.execution.Scheduler.Implicits.global
     *   val pub = Observable(1, 2, 3, 4).toReactivePublisher
     *
     *   // Yields 10
@@ -3278,11 +3301,13 @@ abstract class Observable[+A] extends Serializable { self =>
     * Example:
     *
     * {{{
+    *   import cats.implicits._
+    *
     *   // Yields 10
-    *   Observable(1, 2, 3, 4).foldF
+    *   val stream1 = Observable(1, 2, 3, 4).fold
     *
     *   // Yields "1234"
-    *   Observable("1", "2", "3", "4").foldF
+    *   val stream2 = Observable("1", "2", "3", "4").fold
     * }}}
     *
     * Note, in case you don't have a `Monoid` instance in scope,
@@ -3314,18 +3339,13 @@ abstract class Observable[+A] extends Serializable { self =>
     * Example:
     *
     * {{{
+    *   import cats.implicits._
+    *
     *   // Yields 10
-    *   Observable(1, 2, 3, 4).foldL
+    *   val stream1 = Observable(1, 2, 3, 4).foldL
     *
     *   // Yields "1234"
-    *   Observable("1", "2", "3", "4").foldL
-    * }}}
-    *
-    * Note, in case you don't have a `Monoid` instance in scope,
-    * but you feel like you should, try this import:
-    *
-    * {{{
-    *   import cats.instances.all._
+    *   val stream2 = Observable("1", "2", "3", "4").foldL
     * }}}
     *
     * @see [[fold]] for the version that returns an observable
@@ -3351,20 +3371,20 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example: {{{
     *   // Sums first 10 items
-    *   Observable.range(0, 1000).foldWhileLeftF((0, 0)) {
+    *   val stream1 = Observable.range(0, 1000).foldWhileLeft((0L, 0)) {
     *     case ((sum, count), e) =>
     *       val next = (sum + e, count + 1)
     *       if (count + 1 < 10) Left(next) else Right(next)
     *   }
     *
     *   // Implements exists(predicate)
-    *   Observable(1, 2, 3, 4, 5).foldWhileLeftF(false) {
+    *   val stream2 = Observable(1, 2, 3, 4, 5).foldWhileLeft(false) {
     *     (default, e) =>
     *       if (e == 3) Right(true) else Left(default)
     *   }
     *
     *   // Implements forall(predicate)
-    *   Observable(1, 2, 3, 4, 5).foldWhileLeftF(true) {
+    *   val stream3 = Observable(1, 2, 3, 4, 5).foldWhileLeft(true) {
     *     (default, e) =>
     *       if (e != 3) Right(false) else Left(default)
     *   }
@@ -3400,20 +3420,20 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example: {{{
     *   // Sums first 10 items
-    *   Observable.range(0, 1000).foldWhileLeftL((0, 0)) {
+    *   val stream1 = Observable.range(0, 1000).foldWhileLeftL((0L, 0)) {
     *     case ((sum, count), e) =>
     *       val next = (sum + e, count + 1)
     *       if (count + 1 < 10) Left(next) else Right(next)
     *   }
     *
     *   // Implements exists(predicate)
-    *   Observable(1, 2, 3, 4, 5).foldWhileLeftL(false) {
+    *   val stream2 = Observable(1, 2, 3, 4, 5).foldWhileLeftL(false) {
     *     (default, e) =>
     *       if (e == 3) Right(true) else Left(default)
     *   }
     *
     *   // Implements forall(predicate)
-    *   Observable(1, 2, 3, 4, 5).foldWhileLeftL(true) {
+    *   val stream3 = Observable(1, 2, 3, 4, 5).foldWhileLeftL(true) {
     *     (default, e) =>
     *       if (e != 3) Right(false) else Left(default)
     *   }
@@ -3602,56 +3622,58 @@ abstract class Observable[+A] extends Serializable { self =>
       })
     }
 
-  /** Given a `cats.Order` over the stream's elements, returns the
+  /** Given a [[scala.math.Ordering]] over the stream's elements, returns the
     * maximum element in the stream.
     *
-    * Example:
+    * ==Example==
+    *
     * {{{
     *   // Yields Some(20)
-    *   Observable(10, 7, 6, 8, 20, 3, 5).maxL
+    *   val stream1 = Observable(10, 7, 6, 8, 20, 3, 5).maxL
     *
     *   // Yields Observable.empty
-    *   Observable.empty.maxL
+    *   val stream2 = Observable.empty[Int].maxL
     * }}}
     *
-    * $catsOrderDesc
+    * $catsOrderInterop
     *
     * @see [[Observable.max maxF]] for the version that returns an
     *      observable instead of a `Task`.
     *
-    * @param A is the `cats.Order` type class instance that's going
-    *          to be used for comparing elements
+    * @param A is the [[scala.math.Ordering]] type class instance that's
+    *          going to be used for comparing elements
     *
     * @return the maximum element of the source stream, relative
     *         to the defined `Order`
     */
-  final def maxL[AA >: A](implicit A: Order[AA]): Task[Option[AA]] =
+  final def maxL[AA >: A](implicit A: Ordering[AA]): Task[Option[AA]] =
     max(A).headOptionL
 
-  /** Given a `cats.Order` over the stream's elements, returns the
+  /** Given a [[scala.math.Ordering]] over the stream's elements, returns the
     * maximum element in the stream.
     *
-    * Example:
+    * ==Example==
+    *
     * {{{
     *   // Yields Observable(20)
-    *   Observable(10, 7, 6, 8, 20, 3, 5).maxF
+    *   val stream1 = Observable(10, 7, 6, 8, 20, 3, 5).max
     *
     *   // Yields Observable.empty
-    *   Observable.empty.maxF
+    *   val stream2 = Observable.empty[Int].max
     * }}}
     *
-    * $catsOrderDesc
+    * $catsOrderInterop
     *
     * @see [[Observable.maxL maxL]] for the version that returns a
     *      [[monix.eval.Task Task]] instead of an observable.
     *
-    * @param A is the `cats.Order` type class instance that's going
+    * @param A is the [[scala.math.Ordering]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the maximum element of the source stream, relative
     *         to the defined `Order`
     */
-  final def max[AA >: A](implicit A: Order[AA]): Observable[AA] =
+  final def max[AA >: A](implicit A: Ordering[AA]): Observable[AA] =
     self.liftByOperator(new MaxOperator[AA]()(A))
 
   /** Alias for [[firstOptionL]]. */
@@ -3669,7 +3691,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * element that has the maximum key value, where the key is
     * generated by the given function.
     *
-    * Example:
+    * ==Example==
+    *
     * {{{
     *   case class Person(name: String, age: Int)
     *
@@ -3678,38 +3701,39 @@ abstract class Observable[+A] extends Serializable { self =>
     *     .maxByL(_.age)
     * }}}
     *
-    * $catsOrderDesc
+    * $catsOrderInterop
     *
-    * @see [[Observable.maxBy maxByF]] for the version that returns an
+    * @see [[Observable.maxBy maxBy]] for the version that returns an
     *      observable instead of a `Task`.
     *
     * @param key is the function that returns the key for which the
     *        given ordering is defined
     *
-    * @param K is the `cats.Order` type class instance that's going
+    * @param K is the [[scala.math.Ordering]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the maximum element of the source stream, relative
     *         to its key generated by the given function and the
     *         given ordering
     */
-  final def maxByL[K](key: A => K)(implicit K: Order[K]): Task[Option[A]] =
+  final def maxByL[K](key: A => K)(implicit K: Ordering[K]): Task[Option[A]] =
     maxBy(key)(K).headOptionL
 
   /** Takes the elements of the source observable and emits the
     * element that has the maximum key value, where the key is
     * generated by the given function.
     *
-    * Example:
+    * ==Example==
+    *
     * {{{
     *   case class Person(name: String, age: Int)
     *
     *   // Yields Observable(Person("Alex", 34))
     *   Observable(Person("Alex", 34), Person("Alice", 27))
-    *     .maxByF(_.age)
+    *     .maxBy(_.age)
     * }}}
     *
-    * $catsOrderDesc
+    * $catsOrderInterop
     *
     * @see [[Observable.maxByL maxByL]] for the version that returns a
     *      [[monix.eval.Task Task]] instead of an observable.
@@ -3717,73 +3741,80 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param key is the function that returns the key for which the
     *        given ordering is defined
     *
-    * @param K is the `cats.Order` type class instance that's going
+    * @param K is the [[scala.math.Ordering]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the maximum element of the source stream, relative
     *         to its key generated by the given function and the
     *         given ordering
     */
-  final def maxBy[K](key: A => K)(implicit K: Order[K]): Observable[A] =
+  final def maxBy[K](key: A => K)(implicit K: Ordering[K]): Observable[A] =
     self.liftByOperator(new MaxByOperator[A, K](key)(K))
 
-  /** Given a `cats.Order` over the stream's elements, returns the
+  /** Given a [[scala.math.Ordering]] over the stream's elements, returns the
     * minimum element in the stream.
     *
-    * Example:
+    * ==Example==
+    *
     * {{{
     *   // Yields Some(3)
-    *   Observable(10, 7, 6, 8, 20, 3, 5).minL
+    *   val stream1 =
+    *     Observable(10, 7, 6, 8, 20, 3, 5).minL
     *
     *   // Yields None
-    *   Observable.empty.minL
+    *   val stream2 =
+    *     Observable.empty[Int].minL
     * }}}
     *
-    * $catsOrderDesc
+    * $catsOrderInterop
     *
     * @see [[Observable.min minF]] for the version that returns an
     *      observable instead of a `Task`.
     *
-    * @param A is the `cats.Order` type class instance that's going
+    * @param A is the [[scala.math.Ordering]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the minimum element of the source stream, relative
     *         to the defined `Order`
     */
-  final def minL[AA >: A](implicit A: Order[AA]): Task[Option[AA]] =
+  final def minL[AA >: A](implicit A: Ordering[AA]): Task[Option[AA]] =
     min(A).headOptionL
 
-  /** Given a `cats.Order` over the stream's elements, returns the
+  /** Given a [[scala.math.Ordering]] over the stream's elements, returns the
     * minimum element in the stream.
     *
-    * Example:
+    * ==Example==
+    *
     * {{{
     *   // Yields Observable(3)
-    *   Observable(10, 7, 6, 8, 20, 3, 5).minF
+    *   val stream1 =
+    *     Observable(10, 7, 6, 8, 20, 3, 5).min
     *
     *   // Yields Observable.empty
-    *   Observable.empty.minF
+    *   val stream2 =
+    *     Observable.empty[Int].min
     * }}}
     *
-    * $catsOrderDesc
+    * $catsOrderInterop
     *
     * @see [[Observable.minL minL]] for the version that returns a
     *      [[monix.eval.Task Task]] instead of an observable.
     *
-    * @param A is the `cats.Order` type class instance that's going
+    * @param A is the [[scala.math.Ordering]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the minimum element of the source stream, relative
     *         to the defined `Order`
     */
-  final def min[AA >: A](implicit A: Order[AA]): Observable[AA] =
+  final def min[AA >: A](implicit A: Ordering[AA]): Observable[AA] =
     self.liftByOperator(new MinOperator()(A))
 
   /** Takes the elements of the source observable and emits the
     * element that has the minimum key value, where the key is
     * generated by the given function.
     *
-    * Example:
+    * ==Example==
+    *
     * {{{
     *   case class Person(name: String, age: Int)
     *
@@ -3792,19 +3823,19 @@ abstract class Observable[+A] extends Serializable { self =>
     *     .minByL(_.age)
     * }}}
     *
-    * $catsOrderDesc
+    * $catsOrderInterop
     *
     * @param key is the function that returns the key for which the
     *        given ordering is defined
     *
-    * @param K is the `cats.Order` type class instance that's going
+    * @param K is the [[scala.math.Ordering]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the minimum element of the source stream, relative
     *         to its key generated by the given function and the
     *         given ordering
     */
-  final def minByL[K](key: A => K)(implicit K: Order[K]): Task[Option[A]] =
+  final def minByL[K](key: A => K)(implicit K: Ordering[K]): Task[Option[A]] =
     minBy(key)(K).headOptionL
 
   /** Takes the elements of the source observable and emits the
@@ -3816,8 +3847,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *   case class Person(name: String, age: Int)
     *
     *   // Yields Observable(Person("Alice", 27))
-    *   Observable(Person("Alex", 34), Person("Alice", 27))
-    *     .minByF(_.age)
+    *   val stream = Observable(Person("Alex", 34), Person("Alice", 27))
+    *     .minBy(_.age)
     * }}}
     *
     * $catsOrderDesc
@@ -3825,14 +3856,14 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param key is the function that returns the key for which the
     *        given ordering is defined
     *
-    * @param K is the `cats.Order` type class instance that's going
-    *          to be used for comparing elements
+    * @param K is the [[scala.math.Ordering]] type class instance that's
+    *          going to be used for comparing elements
     *
     * @return the minimum element of the source stream, relative
     *         to its key generated by the given function and the
     *         given ordering
     */
-  final def minBy[K](key: A => K)(implicit K: Order[K]): Observable[A] =
+  final def minBy[K](key: A => K)(implicit K: Ordering[K]): Observable[A] =
     self.liftByOperator(new MinByOperator[A, K](key))
 
   /** Returns a task that emits `false` if the source observable is
@@ -3871,18 +3902,18 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Makes the source `Observable` uninterruptible such that a `cancel`
     * signal has no effect.
     *
+    * ==Example==
+    *
     * {{{
-    *   val cancelable = Observable
-    *     .eval(println("Hello!"))
+    *   import scala.concurrent.duration._
+    *
+    *   Observable.eval(println("Hello!"))
     *     .delayExecution(10.seconds)
-    *     .subscribe()
-    *
-    *   // No longer works
-    *   cancelable.cancel()
-    *
-    *   // After 10 seconds
-    *   //=> Hello!
+    *     .uncancelable
     * }}}
+    *
+    * The created observable, after `subscribe`, will print "Hello!"
+    * even if cancellation is attempted.
     */
   final def uncancelable: Observable[A] =
     new UncancelableObservable[A](self)
@@ -4006,11 +4037,13 @@ object Observable extends ObservableDeprecatedBuilders {
     * equivalent to this inefficient and unsafe implementation (for `Observable`):
     *
     * {{{
+    *   // Don't do this kind of recursion, because `flatMap` can throw
+    *   // stack overflow errors:
     *   def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
     *     f(a).flatMap {
-    *       case Right(b) => pure(b)
+    *       case Right(b) => Observable.pure(b)
     *       case Left(nextA) => tailRecM(nextA)(f)
-    *}
+    *    }
     * }}}
     */
   def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
@@ -4100,9 +4133,9 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * Example:
     * {{{
-    *   Observable.fromIterator(Task {
-    *     (0 until 1000).iterator
-    *   })
+    *   import monix.eval.Task
+    *
+    *   Observable.fromIterator(Task(Iterator.from(1)))
     * }}}
     *
     * @see [[fromIterable]]
@@ -4171,8 +4204,9 @@ object Observable extends ObservableDeprecatedBuilders {
     * This example would be equivalent with usage of [[Observable.resource]]:
     *
     * {{{
-    *   def openFileAsResource(file: File): Resource[Task, InputStream] =
+    *   def openFileAsResource2(file: File): Observable[FileInputStream] = {
     *     Observable.resource(Task(new FileInputStream(file)))(h => Task(h.close()))
+    *   }
     * }}}
     *
     * This means that `flatMap` is safe to use:
@@ -4512,7 +4546,11 @@ object Observable extends ObservableDeprecatedBuilders {
     *  {{{
     *    import cats.implicits._
     *    import cats.effect.IO
+    *    import scala.concurrent.duration._
+    *    import monix.execution.Scheduler.global
     *
+    *    // Needed for IO.sleep
+    *    implicit val timer = global.timer[IO]
     *    val task = IO.sleep(5.seconds) *> IO(println("Hello!"))
     *
     *    Observable.fromTaskLike(task)
@@ -4538,6 +4576,8 @@ object Observable extends ObservableDeprecatedBuilders {
   /** Converts any [[monix.eval.Task Task]] into an [[Observable]].
     *
     * {{{
+    *   import monix.eval.Task
+    *
     *   val task = Task.eval("Hello!")
     *
     *   Observable.fromTask(task)
@@ -4892,8 +4932,12 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * Typical use-cases are working with files or network sockets
     *
-    * Example:
+    * ==Example==
+    *
     * {{{
+    *   import monix.eval.Task
+    *   import java.io.PrintWriter
+    *
     *   val printer =
     *     Observable.resource {
     *       Task(new PrintWriter("./lines.txt"))
@@ -4905,13 +4949,13 @@ object Observable extends ObservableDeprecatedBuilders {
     *   // scheduled to happen afterwards
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
-    *       .fromIterator(Iterator.from(1))
+    *       .fromIterator(Task(Iterator.from(1)))
     *       .mapEval(i => Task { writer.println(s"Line #\$i") })
     *   }
     *
-    *   // Write 100 numbered lines to the file
-    *   // closing the writer when finished
-    *   writeLines.take(100).completedL.runAsync
+    *   // Write 100 numbered lines to the file, closing the writer
+    *   // when finished (after `runAsync`):
+    *   writeLines.take(100).completedL
     * }}}
     *
     * @param acquire resource to acquire at the start of the stream
@@ -4938,8 +4982,13 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * Typical use-cases are working with files or network sockets
     *
-    * Example:
+    * ==Example==
+    *
     * {{{
+    *   import cats.effect.ExitCase
+    *   import monix.eval.Task
+    *   import java.io.PrintWriter
+    *
     *   val printer =
     *     Observable.resourceCase {
     *       Task(new PrintWriter("./lines.txt"))
@@ -4954,13 +5003,13 @@ object Observable extends ObservableDeprecatedBuilders {
     *   // scheduled to happen afterwards
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
-    *       .fromIterator(Iterator.from(1))
+    *       .fromIterator(Task(Iterator.from(1)))
     *       .mapEval(i => Task { writer.println(s"Line #\$i") })
     *   }
     *
-    *   // Write 100 numbered lines to the file
-    *   // closing the writer when finished
-    *   writeLines.take(100).completedL.runAsync
+    *   // Write 100 numbered lines to the file, closing the writer
+    *   // when finished (after `runAsync`):
+    *   writeLines.take(100).completedL
     * }}}
     *
     * @param acquire an effect that acquires an expensive resource
@@ -5155,7 +5204,7 @@ object Observable extends ObservableDeprecatedBuilders {
     override def pure[A](a: A): Observable[A] =
       Observable.now(a)
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
-      x ++ y
+      x appendAll y
     override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
       fa.flatMap(f)
     override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =

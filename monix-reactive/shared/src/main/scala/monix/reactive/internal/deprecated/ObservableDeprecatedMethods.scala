@@ -72,7 +72,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     *
     *  {{{
     *    import monix.reactive._
-    * 
+    *
     *    // This is possible, but it's better to work with
     *    // pure functions, so use Task or IO ;-)
     *    Observable.range(0, 1000).take(10).doOnEarlyStopF {
@@ -120,13 +120,9 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     *
     * {{{
     *   import monix.reactive._
-    * 
-    *   val subscription = Observable
-    *     .range(0, Int.MaxValue)
-    *     .doOnEarlyStopF(() => println("Cancelled!"))
-    *     .subscribe()
     *
-    *   subscription.cancel()
+    *   Observable.range(0, Int.MaxValue)
+    *     .doOnEarlyStopF(() => println("Cancelled!"))
     * }}}
     */
   @deprecated("Signature changed, switch to doOnSubscriptionCancelF", "3.0.0")
@@ -147,7 +143,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     *
     * {{{
     *    import monix.reactive._
-    * 
+    *
     *   // Needed for the Comonad[Function0] instance
     *   Observable.range(0, 100)
     *     .doOnCompleteF(() => println("Completed!"))
@@ -233,7 +229,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     *   import cats.effect.{ExitCase, IO}
     *   import monix.reactive._
     *
-    *   Observable.range(0, 1000).guaranteeCase {
+    *   Observable.range(0, 1000).guaranteeCaseF {
     *     case ExitCase.Error(e) =>
     *       IO(println(s"Error raised: $$e"))
     *     case ExitCase.Completed =>
@@ -259,6 +255,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     * Example:
     * {{{
     *   import cats.effect.ExitCase
+    *   import monix.eval._
     *   import monix.reactive._
     *
     *   Observable.range(0, 1000).guaranteeCase {
@@ -318,8 +315,9 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     * [[monix.eval.Task]].
     *
     * {{{
+    *   import monix.eval._
     *   import monix.reactive._
-    * 
+    *
     *   Observable.range(0, 100).doOnNext { a =>
     *     Task(println(s"Next: $$a"))
     *   }
@@ -426,7 +424,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     *
     * {{{
     *   import monix.reactive._
-    * 
+    *
     *   Observable.range(0, 10).doOnSubscribeF { () =>
     *     println("Look ma! Side-effectful callbacks!")
     *   }
@@ -456,7 +454,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     *
     * {{{
     *   import monix.reactive._
-    * 
+    *
     *   Observable.range(0, 10).doAfterSubscribeF { () =>
     *     println("Look ma! Side-effectful callbacks!")
     *   }
@@ -492,8 +490,9 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     *   import scala.concurrent.duration._
     *   import monix.execution.FutureUtils.extensions._
     *   import monix.reactive._
-    * 
+    *
     *   Observable.range(0, 100).mapEvalF { a =>
+    *     import monix.execution.Scheduler.Implicits.global
     *     Future.delayedResult(1.second)(a)
     *   }
     * }}}
@@ -702,7 +701,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   @deprecated("Renamed to max (no F suffix)", "3.0.0")
   def maxF[AA >: A](implicit A: Order[AA]): Observable[AA] = {
     // $COVERAGE-OFF$
-    self.max(A)
+    self.max(A.toOrdering)
     // $COVERAGE-ON$
   }
 
@@ -717,7 +716,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   @deprecated("Renamed to maxBy (no F suffix)", "3.0.0")
   def maxByF[K](key: A => K)(implicit K: Order[K]): Observable[A] = {
     // $COVERAGE-OFF$
-    self.maxBy(key)
+    self.maxBy(key)(K.toOrdering)
     // $COVERAGE-ON$
   }
 
@@ -732,7 +731,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   @deprecated("Renamed to min (no F suffix)", "3.0.0")
   def minF[AA >: A](implicit A: Order[AA]): Observable[AA] = {
     // $COVERAGE-OFF$
-    self.min(A)
+    self.min(A.toOrdering)
     // $COVERAGE-ON$
   }
 
@@ -747,7 +746,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   @deprecated("Renamed to minBy (no F suffix)", "3.0.0")
   def minByF[K](key: A => K)(implicit K: Order[K]): Observable[A] = {
     // $COVERAGE-OFF$
-    self.minBy(key)
+    self.minBy(key)(K.toOrdering)
     // $COVERAGE-ON$
   }
 
