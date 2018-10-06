@@ -17,9 +17,11 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Cancelable
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.{BaseConcurrencySuite, Observable}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
@@ -96,9 +98,9 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
       val c = Observable.range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
-        .doOnError(p.tryFailure)
-        .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
-        .doOnEarlyStop(() => p.trySuccess(()))
+        .doOnError(e => Task(p.tryFailure(e)))
+        .doOnComplete(Task(p.trySuccess(new IllegalStateException("complete"))))
+        .doOnEarlyStop(Task(p.trySuccess(())))
         .flatScan(0L)(one(p))
         .subscribe()
 
@@ -114,9 +116,9 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
       val c = Observable.range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
-        .doOnError(p.tryFailure)
-        .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
-        .doOnEarlyStop(() => p.trySuccess(()))
+        .doOnError(e => Task(p.tryFailure(e)))
+        .doOnComplete(Task(p.trySuccess(new IllegalStateException("complete"))))
+        .doOnEarlyStop(Task(p.trySuccess(())))
         .flatScan(0L)((_, x) => Observable.now(x).executeAsync)
         .subscribe()
 

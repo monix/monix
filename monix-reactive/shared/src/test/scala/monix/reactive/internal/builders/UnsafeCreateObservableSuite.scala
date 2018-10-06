@@ -40,7 +40,7 @@ object UnsafeCreateObservableSuite extends TestSuite[TestScheduler] {
       Cancelable.empty
     }
 
-    val sum = o.sumF.runAsyncGetFirst
+    val sum = o.sum.runAsyncGetFirst
     s.tick()
     assertEquals(sum.value.get, Success(Some(1)))
   }
@@ -51,7 +51,7 @@ object UnsafeCreateObservableSuite extends TestSuite[TestScheduler] {
       throw ex
     }
 
-    val sum = o.sumF.runAsyncGetFirst
+    val sum = o.sum.runAsyncGetFirst
     s.tick()
 
     assertEquals(sum.value, None)

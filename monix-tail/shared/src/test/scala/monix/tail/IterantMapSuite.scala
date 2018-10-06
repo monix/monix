@@ -74,7 +74,7 @@ object IterantMapSuite extends BaseTestSuite {
       val received = (iterant ++ Iterant[Task].of(1, 2))
         .guarantee(Task.eval { effect += 1 })
         .map[Int](_ => throw dummy)
-        .completeL.map(_ => 0)
+        .completedL.map(_ => 0)
         .onErrorRecover { case _: DummyException => effect }
 
       received <-> Task.pure(1)

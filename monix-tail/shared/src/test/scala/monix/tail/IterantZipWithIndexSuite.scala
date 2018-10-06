@@ -103,7 +103,7 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
       .guarantee(stop)
     val stream = source.zipWithIndex
 
-    stream.completeL.value()
+    stream.completedL.value()
     assertEquals(effect, 1)
   }
 }

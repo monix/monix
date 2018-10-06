@@ -25,7 +25,7 @@ import monix.reactive.observers.Subscriber
 private[reactive] final
 class IterableAsObservable[A](iterable: Iterable[A]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    new IteratorAsObservable(iterable.iterator, Cancelable.empty)
+    new IteratorAsObservable(iterable.iterator)
       .unsafeSubscribeFn(subscriber)
   }
 }

@@ -17,15 +17,13 @@
 
 package monix.reactive.internal.operators
 
-import cats.Order
 import monix.execution.Ack.Continue
 import monix.reactive.{Observable, Observer}
-
 import scala.concurrent.duration.Duration.Zero
 
 object MaxSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int): Option[Sample] = Some {
-    val o = Observable.range(0, sourceCount+1).maxF
+    val o = Observable.range(0, sourceCount+1).max
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -33,22 +31,22 @@ object MaxSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = sourceCount
 
   def observableInError(sourceCount: Int, ex: Throwable): Option[Sample] = Some {
-    val o = Observable.range(0, sourceCount).endWithError(ex).maxF
+    val o = Observable.range(0, sourceCount).endWithError(ex).max
     Sample(o, 0, 0, Zero, Zero)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample] = {
-    val ord = new Order[Long] {
+    val ord = new cats.Order[Long] {
       def compare(x: Long, y: Long): Int = throw ex
     }
 
-    val o = Observable.range(0, sourceCount+1).maxF[Long](ord)
+    val o = Observable.range(0, sourceCount+1).max[Long](ord)
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 
   override def cancelableObservables(): Seq[Sample] = {
     import scala.concurrent.duration._
-    val o = Observable.now(1L).delayOnNext(1.second).maxF
+    val o = Observable.now(1L).delayOnNext(1.second).max
     Seq(Sample(o,0,0,0.seconds,0.seconds))
   }
 
@@ -57,7 +55,7 @@ object MaxSuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    source.maxF.unsafeSubscribeFn(new Observer[Long] {
+    source.max.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = { received += 1; Continue }
       def onError(ex: Throwable) = ()
       def onComplete() = { wasCompleted = true }

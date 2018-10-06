@@ -32,7 +32,7 @@ import monix.execution.internal.Platform
   * Used in [[monix.reactive.observers.BufferedSubscriber BufferedSubscriber]]
   * to implement buffering when concurrent actions are needed, such as in
   * [[monix.reactive.subjects.ConcurrentSubject Channels]] or in
-  * [[monix.reactive.Observable.merge Observable.merge]].
+  * [[monix.reactive.Observable!.merge Observable.merge]].
   */
 sealed abstract class OverflowStrategy[+A] extends Serializable {
   val isEvicted: Boolean = false
