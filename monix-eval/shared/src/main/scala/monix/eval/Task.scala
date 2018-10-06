@@ -1325,6 +1325,53 @@ sealed abstract class Task[+A] extends Serializable {
   final def bracketE[B](use: A => Task[B])(release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] =
     TaskBracket.either(this, use, release)
 
+  /**
+    * Executes the given `finalizer` when the source is finished,
+    * either in success or in error, or if canceled.
+    *
+    * This variant of [[guaranteeCase]] evaluates the given `finalizer`
+    * regardless of how the source gets terminated:
+    *
+    *  - normal completion
+    *  - completion in error
+    *  - cancellation
+    *
+    * As best practice, it's not a good idea to release resources
+    * via `guaranteeCase` in polymorphic code. Prefer [[bracket]]
+    * for the acquisition and release of resources.
+    *
+    * @see [[guaranteeCase]] for the version that can discriminate
+    *      between termination conditions
+    *
+    * @see [[bracket]] for the more general operation
+    */
+  final def guarantee(finalizer: Task[Unit]): Task[A] =
+    unit.bracket(_ => this)(_ => finalizer)
+
+  /**
+    * Executes the given `finalizer` when the source is finished,
+    * either in success or in error, or if canceled, allowing
+    * for differentiating between exit conditions.
+    *
+    * This variant of [[guarantee]] injects an ExitCase in
+    * the provided function, allowing one to make a difference
+    * between:
+    *
+    *  - normal completion
+    *  - completion in error
+    *  - cancellation
+    *
+    * As best practice, it's not a good idea to release resources
+    * via `guaranteeCase` in polymorphic code. Prefer [[bracketCase]]
+    * for the acquisition and release of resources.
+    *
+    * @see [[guarantee]] for the simpler version
+    *
+    * @see [[bracketCase]] for the more general operation
+    */
+  final def guaranteeCase(finalizer: ExitCase[Throwable] => Task[Unit]): Task[A] =
+    unit.bracketCase(_ => this)((_, e) => finalizer(e))
+
   /** Returns a task that waits for the specified `timespan` before
     * executing and mirroring the result of the source.
     *

@@ -487,6 +487,53 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   final def bracketE[B](use: A => Coeval[B])(release: (A, Either[Throwable, B]) => Coeval[Unit]): Coeval[B] =
     CoevalBracket.either(this, use, release)
 
+  /**
+    * Executes the given `finalizer` when the source is finished,
+    * either in success or in error, or if canceled.
+    *
+    * This variant of [[guaranteeCase]] evaluates the given `finalizer`
+    * regardless of how the source gets terminated:
+    *
+    *  - normal completion
+    *  - completion in error
+    *  - cancellation
+    *
+    * As best practice, it's not a good idea to release resources
+    * via `guaranteeCase` in polymorphic code. Prefer [[bracket]]
+    * for the acquisition and release of resources.
+    *
+    * @see [[guaranteeCase]] for the version that can discriminate
+    *      between termination conditions
+    *
+    * @see [[bracket]] for the more general operation
+    */
+  final def guarantee(finalizer: Coeval[Unit]): Coeval[A] =
+    unit.bracket(_ => this)(_ => finalizer)
+
+  /**
+    * Executes the given `finalizer` when the source is finished,
+    * either in success or in error, or if canceled, allowing
+    * for differentiating between exit conditions.
+    *
+    * This variant of [[guarantee]] injects an ExitCase in
+    * the provided function, allowing one to make a difference
+    * between:
+    *
+    *  - normal completion
+    *  - completion in error
+    *  - cancellation
+    *
+    * As best practice, it's not a good idea to release resources
+    * via `guaranteeCase` in polymorphic code. Prefer [[bracketCase]]
+    * for the acquisition and release of resources.
+    *
+    * @see [[guarantee]] for the simpler version
+    *
+    * @see [[bracketCase]] for the more general operation
+    */
+  final def guaranteeCase(finalizer: ExitCase[Throwable] => Coeval[Unit]): Coeval[A] =
+    unit.bracketCase(_ => this)((_, e) => finalizer(e))
+
   /** Returns a failed projection of this coeval.
     *
     * The failed projection is a `Coeval` holding a value of type `Throwable`,
