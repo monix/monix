@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+#
+# Script for generating a Ctags in the project's root.
+# See:
+#
+#  - https://en.wikipedia.org/wiki/Ctags
+#  - https://github.com/ceedubs/sbt-ctags
+#
+# Usage of `sbt-ctags` isn't enough because it currently generates
+# one TAGS file per subproject and not all editors can deal with it,
+# a single file being preferable.
+#
+# Usage for Vim, Atom, VS Code, for generating a `.tags` file:
+#
+#      ./project/generate-tags
+#
+# Optionally it can easily generate a `TAGS` file in Emacs's format:
+#
+#      ./project/generate-tags --emacs
+#
+# Optionally, to also pull in all dependencies via SBT:
+#
+#     ./project/generate-tags --sbt
+#
+
+def execute(cmd)
+  puts cmd
+  abort("Finished in error!") unless system(cmd)
+end
+
+def generate(dirs, emacs)
+  name = emacs ? 'TAGS' : '.tags'
+  opts = emacs ? '-e'   : ''
+
+  execute(
+    "ctags --exclude=log --languages=scala,java " +
+    "-f ./#{name} #{opts} --tag-relative=yes -R " + dirs.join(" ")
+  )
+end
+
+curdir = File.dirname(__FILE__)
+args = Hash[ ARGV.join(' ').scan(/--?([^=\s]+)(?:=(\S+))?/) ]
+
+execute("sbt genCtags") if args.has_key?('sbt')
+
+Dir.chdir(File.join(curdir, "..")) do |project_dir|
+  dirs = []
+  Dir.glob('**/src/*/scala').select {|path| dirs << path }
+  Dir.glob('**/src/*/java').select {|path| dirs << path }
+  Dir.glob('monix/jvm/target/sbt-ctags-dep-srcs').select {|path| dirs << path }
+  generate(dirs, args.has_key?('emacs'))
+end

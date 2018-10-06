@@ -388,9 +388,9 @@ import scala.util.{Failure, Success, Try}
   *         with the behavior of Haskell's `bracket` operation and NOT
   *         with `try {} finally {}` from Scala, Java or JavaScript.
   *
-  * @define unsafeRun '''UNSAFE''' — this operation can trigger the
-  *         execution of side effects, which break referential
-  *         transparency and is thus not a pure function.
+  * @define unsafeRun '''UNSAFE (referential transparency)''' —
+  *         this operation can trigger the execution of side effects, which
+  *         breaks referential transparency and is thus not a pure function.
   *
   *         Normally these functions shouldn't be called until
   *         "the end of the world", which is to say at the end of
@@ -437,7 +437,7 @@ import scala.util.{Failure, Success, Try}
   *         it might be better to pass such a reference around as
   *         a parameter.
   */
-sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
+sealed abstract class Task[+A] extends Serializable {
   import cats.effect.Async
   import monix.eval.Task._
 
@@ -864,7 +864,7 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     */
   @UnsafeBecauseImpure
   def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Task.Options): Unit =
-    TaskRunLoop.startLight(this, s, opts, Callback.empty, isCancelable = false)
+    TaskRunLoop.startLight(this, s, opts, cb, isCancelable = false)
 
   /** Executes the source until completion, or until the first async
     * boundary, whichever comes first.
@@ -872,10 +872,6 @@ sealed abstract class Task[+A] extends TaskBinCompat[A] with Serializable {
     * This operation is mean to be compliant with
     * `cats.effect.Effect.runSyncStep`, but without suspending the
     * evaluation in `IO`.
-    *
-    * Similar to [[monix.eval.Task!.runSyncMaybe runSyncMaybe]],
-    * except that in case of an async boundary, the evaluation is
-    * suspended in `Task`.
     *
     * WARNING: This method is a partial function, throwing exceptions
     * in case errors happen immediately (synchronously).
@@ -3761,6 +3757,12 @@ object Task extends TaskInstancesLevel1 {
       trampolineBefore = false,
       trampolineAfter = true)
 
+  /**
+    * Deprecated operations, described as extension methods.
+    */
+  implicit final class DeprecatedExtensions[+A](val self: Task[A])
+    extends AnyVal with TaskDeprecated.Extensions[A]
+
   /** Set of options for customizing the task's behavior.
     *
     * See [[Task.defaultOptions]] for the default `Options` instance
@@ -4006,10 +4008,14 @@ object Task extends TaskInstancesLevel1 {
       }
     }
     // Optimization to avoid the run-loop
-    override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
-      ()
+    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit = {
+      if (s.executionModel != AlwaysAsyncExecution)
+        cb.onSuccess(value)
+      else
+        super.runAsyncUncancelableOpt(cb)(s, opts)
+    }
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit =
+    override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
       ()
   }
 
@@ -4041,8 +4047,12 @@ object Task extends TaskInstancesLevel1 {
     override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
       s.reportFailure(ex)
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit =
-      s.reportFailure(ex)
+    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit = {
+      if (s.executionModel != AlwaysAsyncExecution)
+        cb.onError(ex)
+      else
+        super.runAsyncUncancelableOpt(cb)(s, opts)
+    }
   }
 
   /** [[Task]] state describing an immediate synchronous value. */
@@ -4363,7 +4373,7 @@ private[eval] abstract class TaskTimers extends TaskClocks {
     }
 }
 
-private[eval] abstract class TaskClocks extends TaskBinCompatCompanion {
+private[eval] abstract class TaskClocks extends TaskDeprecated.Companion {
   /**
     * Default, pure, globally visible `cats.effect.Clock`
     * implementation that defers the evaluation to `Task`'s default

@@ -20,6 +20,7 @@ package monix.reactive.internal.operators
 import cats.Order
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
+
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
@@ -31,7 +32,7 @@ private[reactive] abstract class SearchByOrderOperator[A, K]
   (key: A => K)(implicit B: Order[K]) extends Operator[A,A] {
 
   def shouldCollect(key: K, current: K): Boolean
-  
+
   final def apply(out: Subscriber[A]): Subscriber.Sync[A] =
     new Subscriber.Sync[A] {
       implicit val scheduler = out.scheduler
@@ -84,7 +85,7 @@ private[reactive] abstract class SearchByOrderOperator[A, K]
 
 private[reactive] final class MinOperator[A](implicit A: Order[A])
   extends SearchByOrderOperator[A,A](identity)(A) {
-  
+
   def shouldCollect(key: A, current: A): Boolean =
     A.compare(key, current) < 0
 }

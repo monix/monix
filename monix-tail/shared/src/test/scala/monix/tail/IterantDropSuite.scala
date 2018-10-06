@@ -69,7 +69,7 @@ object IterantDropSuite extends BaseTestSuite {
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
       .guarantee(stop)
     val stream = source.drop(1)
-    stream.completeL.value()
+    stream.completedL.value()
     assertEquals(effect, 1)
   }
 

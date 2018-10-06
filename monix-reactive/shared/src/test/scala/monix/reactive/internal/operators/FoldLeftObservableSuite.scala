@@ -26,28 +26,28 @@ import scala.util.Failure
 
 object FoldLeftObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val obs = Observable.range(0, sourceCount).foldLeftF(0L)(_+_)
+    val obs = Observable.range(0, sourceCount).foldLeft(0L)(_+_)
     Sample(obs, 1, (sourceCount-1) * sourceCount / 2, 0.seconds, 0.seconds)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeftF(0L)(_+_)
+    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeft(0L)(_+_)
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
   def cancelableObservables() = {
-    val obs = Observable.range(0, 1000).delayExecution(1.seconds).foldLeftF(0L)(_+_)
+    val obs = Observable.range(0, 1000).delayExecution(1.seconds).foldLeft(0L)(_+_)
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeftF(0L)((_,_) => throw ex)
+    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeft(0L)((_,_) => throw ex)
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1,2,3,4).foldLeftF[Int](throw ex)(_+_)
+    val obs = Observable(1,2,3,4).foldLeft[Int](throw ex)(_+_)
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
