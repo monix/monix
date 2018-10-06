@@ -37,7 +37,7 @@ object MapParallelOrderedConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test("mapParallelOrdered works concurrently preserving order") { implicit s =>
+  test("mapParallelOrdered works concurrently and preserves order") { implicit s =>
     check2 { (list: List[Int], rnd: Int) =>
       val parallelism = {
         val abs = math.abs(rnd)

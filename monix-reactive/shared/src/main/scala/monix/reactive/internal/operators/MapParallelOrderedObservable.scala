@@ -42,12 +42,10 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     if (parallelism <= 0) {
       out.onError(new IllegalArgumentException("parallelism > 0"))
       Cancelable.empty
-    }
-    else if (parallelism == 1) {
+    } else if (parallelism == 1) {
       // optimization for one worker
       new MapTaskObservable[A, B](source, f).unsafeSubscribeFn(out)
-    }
-    else {
+    } else {
       val composite = CompositeCancelable()
       val subscription = new MapAsyncParallelSubscription(out, composite)
       composite += source.unsafeSubscribeFn(subscription)
@@ -77,40 +75,49 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     // no longer wants any events, so we must cancel
     private[this] var lastAck: Ack = Continue
     // Buffer for signaling new elements downstream preserving original order
+    // It needs to be thread safe Queue because we want to allow adding and removing
+    // elements at the same time.
     private[this] val queue = new ConcurrentLinkedQueue[CancelableFuture[B]]
     // This lock makes sure that only one thread at the time sends processed elements downstream
     // Note that we only use `tryLock()` - we never wait for acquiring lock
     private[this] val sendDownstreamLock = new ReentrantLock()
 
+    private def shouldStop: Boolean = isDone || lastAck == Stop
+
     private def sendDownstreamOrdered(): Unit = {
-      // If there is a thread already checking for head completion we don't need to wait for the lock
+      // Only one thread should poll queue for completed tasks
+      // We can ignore it if there is one doing the work
       if (sendDownstreamLock.tryLock()) {
-        while (!isDone && !queue.isEmpty && queue.peek().isCompleted) {
-          val head = queue.poll()
-          head.value match {
-            case Some(Success(value)) =>
-              buffer.onNext(value).syncOnComplete {
-                case Success(Stop) =>
-                  lastAck = Stop
-                  composite.cancel()
-                case Success(Continue) =>
-                  semaphore.release()
-                  composite -= head.cancelable
-                case Failure(ex) =>
-                  lastAck = Stop
-                  composite -= head.cancelable
-                  self.onError(ex)
-              }
+        try {
+        // Keep checking the head of a queue since we have to signal elements in order
+          while (!shouldStop && !queue.isEmpty && queue.peek().isCompleted) {
+            val head = queue.poll()
+            head.value match {
+              case Some(Success(value)) =>
+                buffer.onNext(value).syncOnComplete {
+                  case Success(Stop) =>
+                    lastAck = Stop
+                    composite.cancel()
+                  case Success(Continue) =>
+                    semaphore.release()
+                    composite -= head.cancelable
+                  case Failure(ex) =>
+                    lastAck = Stop
+                    composite -= head.cancelable
+                    self.onError(ex)
+                }
 
-            case Some(Failure(error)) =>
-              lastAck = Stop
-              composite -= head.cancelable
-              self.onError(error)
+              case Some(Failure(error)) =>
+                lastAck = Stop
+                composite -= head.cancelable
+                self.onError(error)
 
-            case None => // shouldnt get here
+              case None => // shouldn't get here, we already checked for completion
+            }
           }
+        } finally {
+          sendDownstreamLock.unlock()
         }
-        sendDownstreamLock.unlock()
       }
     }
 
@@ -133,7 +140,8 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
         queue.offer(future)
         future.onComplete {
           case Success(_) =>
-            // We can only send current head element to downstream subscriber
+            // Current task finished, we can check if there is
+            // something to send to the downstream subscriber
             sendDownstreamOrdered()
 
           case Failure(error) =>
@@ -152,17 +160,19 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
 
     def onNext(elem: A): Future[Ack] = {
       // Light protection, since access isn't synchronized
-      if (lastAck == Stop || isDone) Stop else {
+      if (shouldStop) Stop
+      else {
         // This will wait asynchronously, if there are no permits left
         val permit = semaphore.acquire()
         composite += permit
 
         val ack: Future[Ack] = permit.value match {
-          case None => permit.flatMap { _ =>
-            composite -= permit
-            process(elem)
-            Continue
-          }
+          case None =>
+            permit.flatMap { _ =>
+              composite -= permit
+              process(elem)
+              Continue
+            }
           case Some(_) =>
             composite -= permit
             process(elem)

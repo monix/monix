@@ -2062,7 +2062,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * instances in parallel.
     *
     * Note that when the specified `parallelism` is 1, it has the same
-    * behavior as [[mapTask]].
+    * behavior as [[mapEval]].
     *
     * @param parallelism is the maximum number of tasks that can be executed
     *        in parallel, over which the source starts being
