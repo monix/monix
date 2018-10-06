@@ -36,7 +36,7 @@ object MaxSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample] = {
-    val ord = new Ordering[Long] {
+    val ord = new cats.Order[Long] {
       def compare(x: Long, y: Long): Int = throw ex
     }
 

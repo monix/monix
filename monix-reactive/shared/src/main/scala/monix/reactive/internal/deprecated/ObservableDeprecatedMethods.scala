@@ -701,7 +701,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   @deprecated("Renamed to max (no F suffix)", "3.0.0")
   def maxF[AA >: A](implicit A: Order[AA]): Observable[AA] = {
     // $COVERAGE-OFF$
-    self.max(A.toOrdering)
+    self.max(A)
     // $COVERAGE-ON$
   }
 
@@ -716,7 +716,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   @deprecated("Renamed to maxBy (no F suffix)", "3.0.0")
   def maxByF[K](key: A => K)(implicit K: Order[K]): Observable[A] = {
     // $COVERAGE-OFF$
-    self.maxBy(key)(K.toOrdering)
+    self.maxBy(key)
     // $COVERAGE-ON$
   }
 
@@ -731,7 +731,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   @deprecated("Renamed to min (no F suffix)", "3.0.0")
   def minF[AA >: A](implicit A: Order[AA]): Observable[AA] = {
     // $COVERAGE-OFF$
-    self.min(A.toOrdering)
+    self.min(A)
     // $COVERAGE-ON$
   }
 
@@ -746,7 +746,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   @deprecated("Renamed to minBy (no F suffix)", "3.0.0")
   def minByF[K](key: A => K)(implicit K: Order[K]): Observable[A] = {
     // $COVERAGE-OFF$
-    self.minBy(key)(K.toOrdering)
+    self.minBy(key)
     // $COVERAGE-ON$
   }
 

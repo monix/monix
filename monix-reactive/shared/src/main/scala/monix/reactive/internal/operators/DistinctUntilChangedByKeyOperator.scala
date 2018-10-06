@@ -17,15 +17,18 @@
 
 package monix.reactive.internal.operators
 
+import cats.Eq
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable.Operator
+
 import scala.util.control.NonFatal
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 
 private[reactive] final
-class DistinctUntilChangedByKeyOperator[A,K](key: A => K)(implicit K: Equiv[K])
+class DistinctUntilChangedByKeyOperator[A,K](key: A => K)(implicit K: Eq[K])
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
@@ -51,7 +54,7 @@ class DistinctUntilChangedByKeyOperator[A,K](key: A => K)(implicit K: Equiv[K])
             streamErrors = false
             out.onNext(elem)
           }
-          else if (!K.equiv(lastKey, k)) {
+          else if (K.neqv(lastKey, k)) {
             lastKey = k
             streamErrors = false
             out.onNext(elem)

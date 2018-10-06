@@ -19,7 +19,7 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, ~>}
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, Order, Eq, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
 import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
@@ -220,35 +220,69 @@ import scala.util.{Failure, Success, Try}
   *            protocol doesn't require back-pressuring of
   *            this last message for performance reasons
   *
-  * @define catsOrderInterop ==Cats Order Interop==
+  * @define catsOrderInterop ==Cats Order and Scala Interop==
   *
-  *         Monix prefers to work with [[scala.math.Ordering]] directly
-  *         because it is standard and less painful, e.g. no reason for extra
-  *         imports in order to get an ordering for plain numbers.
+  *         Monix prefers to work with [[cats.Order]] for assessing the order
+  *         of elements that have an ordering defined, instead of
+  *         [[scala.math.Ordering]].
   *
-  *         If you want to use [[cats.Order]] instances, you can quickly
-  *         convert to [[scala.math.Ordering]]. So here's an example:
+  *         We do this for consistency, as Monix is now building on top of Cats.
+  *         This may change in the future, depending on what happens with
+  *         [[https://github.com/typelevel/cats/issues/2455 typelevel/cats#2455]].
+  *
+  *         Building a `cats.Order` is easy to do if you already have a
+  *         Scala `Ordering` instance:
   *         {{{
   *           import cats.Order
   *
   *           case class Person(name: String, age: Int)
   *
-  *           object Person {
-  *             implicit val catsOrderForPerson: Order[Person] =
-  *               new Order[Person] {
-  *                 def compare(x: Person, y: Person): Int =
-  *                   x.age.compareTo(y.age) match {
-  *                     case 0 => x.name.compareTo(y.name)
-  *                     case o => o
-  *                   }
-  *               }
-  *           }
+  *           // Starting from a Scala Ordering
+  *           implicit val scalaOrderingForPerson: Ordering[Person] =
+  *             new Ordering[Person] {
+  *               def compare(x: Person, y: Person): Int =
+  *                 x.age.compareTo(y.age) match {
+  *                   case 0 => x.name.compareTo(y.name)
+  *                   case o => o
+  *                 }
+  *             }
+  *
+  *           // Building a cats.Order from it
+  *           implicit val catsOrderForPerson: Order[Person] =
+  *             Order.fromOrdering
   *         }}}
   *
-  *         To convert this to a [[scala.math.Ordering]]:
+  *         You can also do that in reverse, so you can prefer `cats.Order`
+  *         (due to Cats also exposing laws and tests for free) and build a
+  *         Scala `Ordering` when needed:
   *         {{{
-  *           implicit val scalaOrderingForPerson =
-  *             Person.catsOrderForPerson.toOrdering
+  *           val scalaOrdering = catsOrderForPerson.toOrdering
+  *         }}}
+  *
+  * @define catsEqInterop ==Cats Eq and Scala Interop==
+  *
+  *         Monix prefers to work with [[cats.Eq]] for assessing the equality
+  *         of elements that have an ordering defined, instead of
+  *         [[cats.Eq]].
+  *
+  *         We do this because Scala's `Equiv` has a default instance defined
+  *         that's based on universal equality and that's a big problem, because
+  *         when using the `Eq` type class, it's universal equality that we
+  *         want to avoid.
+  *
+  *         We also do this for consistency, as Monix is now building on top of
+  *         Cats. This may change in the future, depending on what happens with
+  *         [[https://github.com/typelevel/cats/issues/2455 typelevel/cats#2455]].
+  *
+  *         Defining `Eq` instance is easy and we can use universal equality
+  *         in our definitions as well:
+  *         {{{
+  *           import cats.Eq
+  *
+  *           case class Address(host: String, port: Int)
+  *
+  *           implicit val eqForAddress: Eq[Address] =
+  *             Eq.fromUniversalEquals
   *         }}}
   */
 abstract class Observable[+A] extends Serializable { self =>
@@ -995,21 +1029,26 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     * {{{
+    *   // Needed to bring standard Eq instances in scope:
+    *   import cats.implicits._
+    *
     *   // Yields 1, 2, 1, 3, 2, 4
     *   val stream = Observable(1, 1, 1, 2, 2, 1, 1, 3, 3, 3, 2, 2, 4, 4, 4)
     *     .distinctUntilChanged
     * }}}
     *
     * Duplication is detected by using the equality relationship
-    * provided by the [[scala.math.Equiv]] type class. This allows one to
+    * provided by the [[cats.Eq]] type class. This allows one to
     * override the equality operation being used (e.g. maybe the
     * default `.equals` is badly defined, or maybe you want reference
     * equality, so depending on use case).
     *
-    * @param A is the [[scala.math.Equiv]] instance that defines equality
+    * $catsEqInterop
+    *
+    * @param A is the [[cats.Eq]] instance that defines equality
     *        for the elements emitted by the source
     */
-  final def distinctUntilChanged[AA >: A](implicit A: Equiv[AA]): Observable[AA] =
+  final def distinctUntilChanged[AA >: A](implicit A: Eq[AA]): Observable[AA] =
     self.liftByOperator(new DistinctUntilChangedOperator()(A))
 
   /** Given a function that returns a key for each element emitted by
@@ -1017,24 +1056,29 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     * {{{
+    *   // Needed to bring standard instances in scope:
+    *   import cats.implicits._
+    *
     *   // Yields 1, 2, 3, 4
     *   val stream = Observable(1, 3, 2, 4, 2, 3, 5, 7, 4)
     *     .distinctUntilChangedByKey(_ % 2)
     * }}}
     *
     * Duplication is detected by using the equality relationship
-    * provided by the [[scala.math.Equiv]] type class. This allows one to
+    * provided by the [[cats.Eq]] type class. This allows one to
     * override the equality operation being used (e.g. maybe the
     * default `.equals` is badly defined, or maybe you want reference
     * equality, so depending on use case).
     *
+    * $catsEqInterop
+    *
     * @param key is a function that returns a `K` key for each element,
     *        a value that's then used to do the deduplication
     *
-    * @param K is the [[scala.math.Equiv]] instance that defines equality for
+    * @param K is the [[cats.Eq]] instance that defines equality for
     *        the key type `K`
     */
-  final def distinctUntilChangedByKey[K](key: A => K)(implicit K: Equiv[K]): Observable[A] =
+  final def distinctUntilChangedByKey[K](key: A => K)(implicit K: Eq[K]): Observable[A] =
     self.liftByOperator(new DistinctUntilChangedByKeyOperator(key)(K))
 
   /** Executes the given task when the streaming is stopped
@@ -3622,12 +3666,15 @@ abstract class Observable[+A] extends Serializable { self =>
       })
     }
 
-  /** Given a [[scala.math.Ordering]] over the stream's elements, returns the
+  /** Given a [[cats.Order]] over the stream's elements, returns the
     * maximum element in the stream.
     *
     * ==Example==
     *
     * {{{
+    *   // Needed to bring the standard Order instances in scope:
+    *   import cats.implicits._
+    *
     *   // Yields Some(20)
     *   val stream1 = Observable(10, 7, 6, 8, 20, 3, 5).maxL
     *
@@ -3640,21 +3687,24 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[Observable.max maxF]] for the version that returns an
     *      observable instead of a `Task`.
     *
-    * @param A is the [[scala.math.Ordering]] type class instance that's
+    * @param A is the [[cats.Order]] type class instance that's
     *          going to be used for comparing elements
     *
     * @return the maximum element of the source stream, relative
     *         to the defined `Order`
     */
-  final def maxL[AA >: A](implicit A: Ordering[AA]): Task[Option[AA]] =
+  final def maxL[AA >: A](implicit A: Order[AA]): Task[Option[AA]] =
     max(A).headOptionL
 
-  /** Given a [[scala.math.Ordering]] over the stream's elements, returns the
+  /** Given a [[cats.Order]] over the stream's elements, returns the
     * maximum element in the stream.
     *
     * ==Example==
     *
     * {{{
+    *   // Needed to bring the standard Order instances in scope:
+    *   import cats.implicits._
+    *
     *   // Yields Observable(20)
     *   val stream1 = Observable(10, 7, 6, 8, 20, 3, 5).max
     *
@@ -3667,13 +3717,13 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[Observable.maxL maxL]] for the version that returns a
     *      [[monix.eval.Task Task]] instead of an observable.
     *
-    * @param A is the [[scala.math.Ordering]] type class instance that's going
+    * @param A is the [[cats.Order]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the maximum element of the source stream, relative
     *         to the defined `Order`
     */
-  final def max[AA >: A](implicit A: Ordering[AA]): Observable[AA] =
+  final def max[AA >: A](implicit A: Order[AA]): Observable[AA] =
     self.liftByOperator(new MaxOperator[AA]()(A))
 
   /** Alias for [[firstOptionL]]. */
@@ -3694,6 +3744,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * ==Example==
     *
     * {{{
+    *   // Needed to bring the standard Order instances in scope:
+    *   import cats.implicits._
+    *
     *   case class Person(name: String, age: Int)
     *
     *   // Yields Some(Person("Alex", 34))
@@ -3709,14 +3762,14 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param key is the function that returns the key for which the
     *        given ordering is defined
     *
-    * @param K is the [[scala.math.Ordering]] type class instance that's going
+    * @param K is the [[cats.Order]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the maximum element of the source stream, relative
     *         to its key generated by the given function and the
     *         given ordering
     */
-  final def maxByL[K](key: A => K)(implicit K: Ordering[K]): Task[Option[A]] =
+  final def maxByL[K](key: A => K)(implicit K: Order[K]): Task[Option[A]] =
     maxBy(key)(K).headOptionL
 
   /** Takes the elements of the source observable and emits the
@@ -3726,6 +3779,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * ==Example==
     *
     * {{{
+    *   // Needed to bring the standard Order instances in scope:
+    *   import cats.implicits._
+    *
     *   case class Person(name: String, age: Int)
     *
     *   // Yields Observable(Person("Alex", 34))
@@ -3741,22 +3797,25 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param key is the function that returns the key for which the
     *        given ordering is defined
     *
-    * @param K is the [[scala.math.Ordering]] type class instance that's going
+    * @param K is the [[cats.Order]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the maximum element of the source stream, relative
     *         to its key generated by the given function and the
     *         given ordering
     */
-  final def maxBy[K](key: A => K)(implicit K: Ordering[K]): Observable[A] =
+  final def maxBy[K](key: A => K)(implicit K: Order[K]): Observable[A] =
     self.liftByOperator(new MaxByOperator[A, K](key)(K))
 
-  /** Given a [[scala.math.Ordering]] over the stream's elements, returns the
+  /** Given a [[cats.Order]] over the stream's elements, returns the
     * minimum element in the stream.
     *
     * ==Example==
     *
     * {{{
+    *   // Needed to bring the standard Order instances in scope:
+    *   import cats.implicits._
+    *
     *   // Yields Some(3)
     *   val stream1 =
     *     Observable(10, 7, 6, 8, 20, 3, 5).minL
@@ -3771,21 +3830,24 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[Observable.min minF]] for the version that returns an
     *      observable instead of a `Task`.
     *
-    * @param A is the [[scala.math.Ordering]] type class instance that's going
+    * @param A is the [[cats.Order]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the minimum element of the source stream, relative
     *         to the defined `Order`
     */
-  final def minL[AA >: A](implicit A: Ordering[AA]): Task[Option[AA]] =
+  final def minL[AA >: A](implicit A: Order[AA]): Task[Option[AA]] =
     min(A).headOptionL
 
-  /** Given a [[scala.math.Ordering]] over the stream's elements, returns the
+  /** Given a [[cats.Order]] over the stream's elements, returns the
     * minimum element in the stream.
     *
     * ==Example==
     *
     * {{{
+    *   // Needed to bring the standard Order instances in scope:
+    *   import cats.implicits._
+    *
     *   // Yields Observable(3)
     *   val stream1 =
     *     Observable(10, 7, 6, 8, 20, 3, 5).min
@@ -3800,13 +3862,13 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[Observable.minL minL]] for the version that returns a
     *      [[monix.eval.Task Task]] instead of an observable.
     *
-    * @param A is the [[scala.math.Ordering]] type class instance that's going
+    * @param A is the [[cats.Order]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the minimum element of the source stream, relative
     *         to the defined `Order`
     */
-  final def min[AA >: A](implicit A: Ordering[AA]): Observable[AA] =
+  final def min[AA >: A](implicit A: Order[AA]): Observable[AA] =
     self.liftByOperator(new MinOperator()(A))
 
   /** Takes the elements of the source observable and emits the
@@ -3816,6 +3878,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * ==Example==
     *
     * {{{
+    *   // Needed to bring the standard Order instances in scope:
+    *   import cats.implicits._
+    *
     *   case class Person(name: String, age: Int)
     *
     *   // Yields Some(Person("Alice", 27))
@@ -3828,14 +3893,14 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param key is the function that returns the key for which the
     *        given ordering is defined
     *
-    * @param K is the [[scala.math.Ordering]] type class instance that's going
+    * @param K is the [[cats.Order]] type class instance that's going
     *          to be used for comparing elements
     *
     * @return the minimum element of the source stream, relative
     *         to its key generated by the given function and the
     *         given ordering
     */
-  final def minByL[K](key: A => K)(implicit K: Ordering[K]): Task[Option[A]] =
+  final def minByL[K](key: A => K)(implicit K: Order[K]): Task[Option[A]] =
     minBy(key)(K).headOptionL
 
   /** Takes the elements of the source observable and emits the
@@ -3844,6 +3909,9 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Example:
     * {{{
+    *   // Needed to bring the standard Order instances in scope:
+    *   import cats.implicits._
+    *
     *   case class Person(name: String, age: Int)
     *
     *   // Yields Observable(Person("Alice", 27))
@@ -3856,14 +3924,14 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param key is the function that returns the key for which the
     *        given ordering is defined
     *
-    * @param K is the [[scala.math.Ordering]] type class instance that's
+    * @param K is the [[cats.Order]] type class instance that's
     *          going to be used for comparing elements
     *
     * @return the minimum element of the source stream, relative
     *         to its key generated by the given function and the
     *         given ordering
     */
-  final def minBy[K](key: A => K)(implicit K: Ordering[K]): Observable[A] =
+  final def minBy[K](key: A => K)(implicit K: Order[K]): Observable[A] =
     self.liftByOperator(new MinByOperator[A, K](key))
 
   /** Returns a task that emits `false` if the source observable is

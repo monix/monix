@@ -35,7 +35,7 @@ object MinSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) = 1
   def sum(sourceCount: Int) = 1
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
-    val ord = new Ordering[Long] {
+    val ord = new cats.Order[Long] {
       def compare(x: Long, y: Long): Int = throw ex
     }
 
