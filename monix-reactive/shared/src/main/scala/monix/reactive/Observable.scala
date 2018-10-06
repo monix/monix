@@ -835,7 +835,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * item (so long as each of the source Observables has emitted at
     * least one item).
     *
-    * Example:
+    * == Visual Example ==
     *
     * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
@@ -858,7 +858,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * item (so long as each of the source Observables has emitted at
     * least one item).
     *
-    * Example:
+    * == Visual Example ==
     *
     * <pre>
     * stream1: 1 - - 2 - - 3 - 4 - -
@@ -1604,7 +1604,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * observable is never subscribed if the source completes with an
     * error.
     *
-    * Example:
+    * == Visual Example ==
     *
     * <pre>
     * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
@@ -1759,7 +1759,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * `stream.concat <-> stream.concatMap(x => x)`
     *
-    * Example:
+    * == Visual Example ==
     *
     * <pre>
     * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
@@ -2136,7 +2136,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * $concatMergeDifference
     *
-    * Example:
+    * == Visual Example ==
     *
     * <pre>
     * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
@@ -2171,7 +2171,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * the events will be non-deterministic, as the streams will be
     * evaluated concurrently.
     *
-    * Visual Example:
+    * == Visual Example ==
     *
     * <pre>
     * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
