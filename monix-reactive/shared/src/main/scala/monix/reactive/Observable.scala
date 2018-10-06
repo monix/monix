@@ -3265,7 +3265,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   // Yields "a : b : c : d"
     *   Observable("a", "b", "c", "d")
-    *     .intersperes(" : ")
+    *     .intersperse(" : ")
     *     .foldLeftL("")(_ ++ _)
     * }}}
     *
