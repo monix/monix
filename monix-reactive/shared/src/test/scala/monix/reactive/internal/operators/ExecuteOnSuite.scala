@@ -18,12 +18,14 @@
 package monix.reactive.internal.operators
 
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.{Ack, Scheduler}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 
 object ExecuteOnSuite extends TestSuite[TestScheduler] {
@@ -42,7 +44,7 @@ object ExecuteOnSuite extends TestSuite[TestScheduler] {
 
     val forked =
       Observable.range(0, nr)
-        .sumF.doOnNext(sum => receivedOnNext = sum)
+        .sum.doOnNext(sum => Task { receivedOnNext = sum })
         .executeOn(other)
 
     val obs =

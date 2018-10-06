@@ -137,7 +137,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
     val f = Observable.range(0, 1000)
       .bufferTimedAndCounted(10.seconds, 10000)
       .map(_.sum)
-      .sumF
+      .sum
       .runAsyncGetFirst
 
     s.tick()

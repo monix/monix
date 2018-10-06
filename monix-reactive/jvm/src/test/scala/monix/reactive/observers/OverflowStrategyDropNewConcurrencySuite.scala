@@ -38,7 +38,7 @@ object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
 
     val f = Observable.fromIterable(Seq(o1, o2, o3))
       .mergeMap(x => x)(DropNew(100))
-      .sumF
+      .sum
       .runAsyncGetFirst
 
     val result = Await.result(f, 30.seconds)

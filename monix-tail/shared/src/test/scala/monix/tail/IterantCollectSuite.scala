@@ -110,7 +110,7 @@ object IterantCollectSuite extends BaseTestSuite {
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval.eval(effect += 1))
     val stream = source.collect { case x => x }
-    stream.completeL.value()
+    stream.completedL.value()
     assertEquals(effect, 1)
   }
 }

@@ -30,10 +30,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /** Converts any `Iterator` into an observable */
-private[reactive] final class IteratorAsObservable[A](
-  iterator: Iterator[A],
-  onFinish: Cancelable) extends Observable[A] {
-
+private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) extends Observable[A] {
   private[this] val wasSubscribed = Atomic(false)
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -60,8 +57,8 @@ private[reactive] final class IteratorAsObservable[A](
         Cancelable.empty
       }
       else {
-        val cancelable = BooleanCancelable()
         // Starting the synchronous loop
+        val cancelable = BooleanCancelable()
         fastLoop(iterator, subscriber, cancelable, s.executionModel, 0)(s)
         cancelable
       }
@@ -74,21 +71,11 @@ private[reactive] final class IteratorAsObservable[A](
           subscriber.onError(ex)
           Cancelable.empty
         } else {
-          triggerCancel(s)
           s.reportFailure(ex)
           Cancelable.empty
         }
     }
   }
-
-  /** Calls the onFinish callback ensuring that it doesn't throw errors,
-    * or if it does, log them using our `Scheduler`.
-    */
-  private def triggerCancel(s: Scheduler): Unit =
-    try onFinish.cancel() catch {
-      case ex if NonFatal(ex) =>
-        s.reportFailure(ex)
-    }
 
   /** In case of an asynchronous boundary, we reschedule the the
     * run-loop on another logical thread. Usage of `onComplete` takes
@@ -97,8 +84,7 @@ private[reactive] final class IteratorAsObservable[A](
     * NOTE: the assumption of this method is that `iter` is
     * NOT empty, so the first call is `next()` and not `hasNext()`.
     */
-  private def reschedule(ack: Future[Ack], iter: Iterator[A],
-    out: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)
+  private def reschedule(ack: Future[Ack], iter: Iterator[A], out: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)
     (implicit s: Scheduler): Unit = {
 
     ack.onComplete {
@@ -106,22 +92,15 @@ private[reactive] final class IteratorAsObservable[A](
         if (next == Continue)
           // If fastLoop throws, then it's a contract violation and
           // the only thing we can do is to log it
-          try fastLoop(iter, out, c, em, 0) catch {
+          try {
+            fastLoop(iter, out, c, em, 0)
+          } catch {
             case ex if NonFatal(ex) =>
-              triggerCancel(s)
+              // Protocol violation
               s.reportFailure(ex)
           }
-        else {
-          // Downstream Stop happened
-          triggerCancel(s)
-        }
       case Failure(ex) =>
-        // The subscriber's `onNext` is not allowed to throw errors
-        // because we don't know what to do with it. At this point the
-        // behavior is undefined. So if it happens, we log the error
-        // and trigger the `onFinish` cancelable.
-        triggerCancel(s)
-        s.reportFailure(ex)
+        out.onError(ex)
     }
   }
 
@@ -137,9 +116,7 @@ private[reactive] final class IteratorAsObservable[A](
     * NOT empty, so the first call is `next()` and not `hasNext()`.
     */
   @tailrec private
-  def fastLoop(iter: Iterator[A], out: Subscriber[A], c: BooleanCancelable,
-    em: ExecutionModel, syncIndex: Int)(implicit s: Scheduler): Unit = {
-
+  def fastLoop(iter: Iterator[A], out: Subscriber[A], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(implicit s: Scheduler): Unit = {
     // The result of onNext calls, on which we must do back-pressure
     var ack: Future[Ack] = Continue
     // We do not want to catch errors from our interaction with our
@@ -160,7 +137,6 @@ private[reactive] final class IteratorAsObservable[A](
     try {
       val next = iter.next()
       iteratorHasNext = iter.hasNext
-      streamErrors = false
       ack = out.onNext(next)
     } catch {
       case NonFatal(ex) if streamErrors =>
@@ -168,22 +144,14 @@ private[reactive] final class IteratorAsObservable[A](
     }
 
     // Signaling onComplete
-    if (!iteratorHasNext) {
-      streamErrors = true
-      try {
-        onFinish.cancel()
-        streamErrors = false
-        out.onComplete()
-      } catch {
-        case NonFatal(ex) if streamErrors =>
-          out.onError(ex)
-      }
-    }
-    else if (iteratorTriggeredError != null) {
-      triggerCancel(s)
+    if (iteratorTriggeredError != null) {
       // Signaling error only if the subscription isn't canceled
       if (!c.isCanceled) out.onError(iteratorTriggeredError)
       else s.reportFailure(iteratorTriggeredError)
+    }
+    else if (!iteratorHasNext) {
+      streamErrors = true
+      out.onComplete()
     }
     else {
       // Logic for collapsing execution loops
@@ -196,9 +164,6 @@ private[reactive] final class IteratorAsObservable[A](
         fastLoop(iter, out, c, em, nextIndex)
       else if (nextIndex == 0 && !c.isCanceled)
         reschedule(ack, iter, out, c, em)
-      else
-        // Downstream Stop happened
-        triggerCancel(s)
     }
   }
 }

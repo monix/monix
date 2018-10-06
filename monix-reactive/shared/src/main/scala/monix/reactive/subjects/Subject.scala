@@ -35,7 +35,7 @@ import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber =>
   */
 abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
   /** Returns the number of connected subscribers.
-
+    *
     * Note this might be an expensive operation.
     *
     * Should be used for debugging purposes or for collecting

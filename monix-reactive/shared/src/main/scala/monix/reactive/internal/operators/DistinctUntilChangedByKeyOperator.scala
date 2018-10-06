@@ -21,8 +21,10 @@ import cats.Eq
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable.Operator
+
 import scala.util.control.NonFatal
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 
 private[reactive] final

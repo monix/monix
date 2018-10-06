@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
 import monix.execution.{Ack, Scheduler}
@@ -67,7 +68,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
   }
 
   def toList[A](o: Observable[A])(implicit s: Scheduler) = {
-    o.foldLeftF(Vector.empty[A])(_ :+ _).runAsyncGetLast
+    o.foldLeft(Vector.empty[A])(_ :+ _).runAsyncGetLast
       .map(_.getOrElse(Vector.empty))
   }
 
@@ -177,7 +178,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
     var wasThrown: Throwable = null
 
     val sub = PublishSubject[Long]()
-    val obs1 = sub.doOnStart(_ => obs1WasStarted = true)
+    val obs1 = sub.doOnStart(_ => Task { obs1WasStarted = true })
     val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
 
     Observable.fromIterable(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {

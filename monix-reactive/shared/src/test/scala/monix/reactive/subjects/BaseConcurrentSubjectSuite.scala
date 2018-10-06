@@ -18,11 +18,13 @@
 package monix.reactive.subjects
 
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.exceptions.DummyException
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
+
 import scala.util.Random
 
 trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
@@ -196,7 +198,7 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
       case None => ignore()
       case Some(Sample(channel, expectedSum)) =>
         var totalEmitted = 0L
-        channel.doOnNext(totalEmitted += _).subscribe()
+        channel.doOnNext(x => Task { totalEmitted += x }).subscribe()
 
         channel.subscribe(createObserver)
         channel.subscribe(createObserver)

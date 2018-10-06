@@ -31,6 +31,21 @@ import scala.util.{Failure, Success}
   * emitted by `onNext` / `onComplete` and `onError`.
   *
   * Example: {{{
+  *   import monix.execution.Ack.Continue
+  *   import monix.execution.Scheduler.Implicits.global
+  *
+  *   val subscriber = new Subscriber[String] {
+  *     val scheduler = global
+  *     def onNext(a: String) = {
+  *       println(s"Received: $$a")
+  *       Continue
+  *     }
+  *     def onError(e: Throwable) =
+  *       e.printStackTrace()
+  *     def onComplete() =
+  *       println("Completed!")
+  *   }
+  *
   *   val out = ConnectableSubscriber(subscriber)
   *
   *   // schedule onNext event, after connect()
@@ -46,21 +61,21 @@ import scala.util.{Failure, Success}
   * }}}
   *
   * Example of an observer ended in error: {{{
-  *   val out = ConnectableSubscriber(subscriber)
+  *   val out2 = ConnectableSubscriber(subscriber)
   *
   *   // schedule onNext event, after connect()
-  *   out.onNext("c")
+  *   out2.onNext("c")
   *
-  *   out.pushFirst("a") // event "a" to be emitted first
-  *   out.pushFirst("b") // event "b" to be emitted second
+  *   out2.pushFirst("a") // event "a" to be emitted first
+  *   out2.pushFirst("b") // event "b" to be emitted second
   *
   *   // schedule an onError sent downstream, once connect()
   *   // happens, but after "a" and "b"
-  *   out.pushError(new RuntimeException())
+  *   out2.pushError(new RuntimeException())
   *
   *   // underlying observer receives ...
   *   // onNext("a") -> onNext("b") -> onError(RuntimeException)
-  *   out.connect()
+  *   out2.connect()
   *
   *   // NOTE: that onNext("c") never happens
   * }}}
