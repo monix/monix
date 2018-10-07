@@ -829,9 +829,20 @@ abstract class Observable[+A] extends Serializable { self =>
     self.liftByOperator(new CollectOperator(pf))
 
   /** Creates a new observable from the source and another given
-    * observable, by emitting elements combined in pairs. If one of
-    * the observables emits fewer events than the other, then the rest
-    * of the unpaired events are ignored.
+    * observable, by emitting elements combined in pairs.
+    *
+    * It emits an item whenever any of the source Observables emits an
+    * item (so long as each of the source Observables has emitted at
+    * least one item).
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream1: 1 - - 2 - - 3 - 4 - -
+    * stream2: 1 - - 2 - 3 - - - - 4
+    *
+    * result: (1, 1), (2, 2), (2, 3), (3, 3), (4, 3), (4, 4)
+    * </pre>
     *
     * See [[zip]] for an alternative that pairs the items in strict sequence.
     *
@@ -841,9 +852,20 @@ abstract class Observable[+A] extends Serializable { self =>
     new CombineLatest2Observable[A, B, (A, B)](self, other)((a, b) => (a, b))
 
   /** Creates a new observable from the source and another given
-    * observable, by emitting elements combined in pairs. If one of
-    * the observables emits fewer events than the other, then the rest
-    * of the unpaired events are ignored.
+    * observable, by emitting elements combined in pairs.
+    *
+    * It emits an item whenever any of the source Observables emits an
+    * item (so long as each of the source Observables has emitted at
+    * least one item).
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream1: 1 - - 2 - - 3 - 4 - -
+    * stream2: 1 - - 2 - 3 - - - - 4
+    *
+    * result: (1, 1), (2, 2), (2, 3), (3, 3), (4, 3), (4, 4)
+    * </pre>
     *
     * See [[zipMap]] for an alternative that pairs the items
     * in strict sequence.
@@ -1581,6 +1603,16 @@ abstract class Observable[+A] extends Serializable { self =>
     * successfully with an `onComplete`. On the other hand, the second
     * observable is never subscribed if the source completes with an
     * error.
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
+    * streamB: b1 -- -- b2 -- b3 -- -- -- -- b4
+    *
+    * result: a1, a2, a3, a4, b1, b2, b3, b4
+    * </pre>
+    *
     */
   final def ++[B >: A](other: => Observable[B]): Observable[B] =
     appendAll(Observable.defer(other))
@@ -1727,6 +1759,14 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * `stream.concat <-> stream.concatMap(x => x)`
     *
+    * == Visual Example ==
+    *
+    * <pre>
+    * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
+    * streamB: b1 -- -- b2 -- b3 -- -- -- -- b4
+    *
+    * result: a1, a2, a3, a4, b1, b2, b3, b4
+    * </pre>
     * @return $concatReturn
     */
   final def concat[B](implicit ev: A <:< Observable[B]): Observable[B] =
@@ -2096,6 +2136,15 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * $concatMergeDifference
     *
+    * == Visual Example ==
+    *
+    * <pre>
+    * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
+    * streamB: b1 -- -- b2 -- b3 -- -- -- -- b4
+    *
+    * result: a1, b1, a2, b2, b3, a3, a4, b4
+    * </pre>
+    *
     * @note $defaultOverflowStrategy
     * @return $mergeReturn
     */
@@ -2122,6 +2171,14 @@ abstract class Observable[+A] extends Serializable { self =>
     * the events will be non-deterministic, as the streams will be
     * evaluated concurrently.
     *
+    * == Visual Example ==
+    *
+    * <pre>
+    * streamA: a1 -- -- a2 -- -- a3 -- a4 -- --
+    * streamB: b1 -- -- b2 -- b3 -- -- -- -- b4
+    *
+    * result: a1, b1, a2, b2, b3, a3, a4, b4
+    * </pre>
     * @param f is a generator for the streams that will get merged
     * @return $mergeMapReturn
     */
@@ -3013,6 +3070,28 @@ abstract class Observable[+A] extends Serializable { self =>
   final def whileBusyDropEventsAndSignal[B >: A](onOverflow: Long => B): Observable[B] =
     self.liftByOperator(new WhileBusyDropEventsAndSignalOperator[B](onOverflow))
 
+  /** Combines the elements emitted by the source with the latest element
+    * emitted by another observable.
+    *
+    * Similar with `combineLatest`, but only emits items when the single source
+    * emits an item (not when any of the Observables that are passed to the operator
+    * do, as combineLatest does).
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream1: 1 - - 2 - - 3 - 4 - -
+    * stream2: 1 - - 2 - 3 - - - - 4
+    *
+    * result: (1, 1), (2, 2), (3, 3), (4, 3)
+    * </pre>
+    *
+    * @param other is an observable that gets paired with the source
+    * @param f is a mapping function over the generated pairs
+    */
+  final def withLatestFrom[B, R](other: Observable[B])(f: (A, B) => R): Observable[R] =
+    new WithLatestFromObservable[A, B, R](self, other, f)
+
   /** Combines the elements emitted by the source with the latest elements
     * emitted by two observables.
     *
@@ -3048,19 +3127,6 @@ abstract class Observable[+A] extends Serializable { self =>
       f(a, o._1, o._2, o._3)
     }
   }
-
-  /** Combines the elements emitted by the source with the latest element
-    * emitted by another observable.
-    *
-    * Similar with `combineLatest`, but only emits items when the single source
-    * emits an item (not when any of the Observables that are passed to the operator
-    * do, as combineLatest does).
-    *
-    * @param other is an observable that gets paired with the source
-    * @param f is a mapping function over the generated pairs
-    */
-  final def withLatestFrom[B, R](other: Observable[B])(f: (A, B) => R): Observable[R] =
-    new WithLatestFromObservable[A, B, R](self, other, f)
 
   /** Combines the elements emitted by the source with the latest elements
     * emitted by four observables.
@@ -3141,6 +3207,15 @@ abstract class Observable[+A] extends Serializable { self =>
     * emitted by the new observable will be a tuple with the second items
     * emitted by each of those observables; and so forth.
     *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream1: 1 - - 2 - - 3 - 4 - -
+    * stream2: 1 - - 2 - 3 - - - - 4
+    *
+    * result: (1, 1), (2, 2), (3, 3), (4, 4)
+    * </pre>
+    *
     * See [[combineLatest]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
@@ -3160,6 +3235,15 @@ abstract class Observable[+A] extends Serializable { self =>
     * will be the result of the function applied to the second item
     * emitted by each of those observables; and so forth.
     *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream1: 1 - - 2 - - 3 - 4 - -
+    * stream2: 1 - - 2 - 3 - - - - 4
+    *
+    * result: (1, 1), (2, 2), (3, 3), (4, 4)
+    * </pre>
+    *
     * See [[combineLatestMap]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
@@ -3176,6 +3260,15 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Creates a new observable from this observable that will emit a specific `separator`
     * between every pair of elements.
     *
+    * Usage sample:
+    *
+    * {{{
+    *   // Yields "a : b : c : d"
+    *   Observable("a", "b", "c", "d")
+    *     .intersperse(" : ")
+    *     .foldLeftL("")(_ ++ _)
+    * }}}
+    *
     * @param separator is the separator
     */
   final def intersperse[B >: A](separator: B): Observable[B] =
@@ -3183,6 +3276,15 @@ abstract class Observable[+A] extends Serializable { self =>
 
   /** Creates a new observable from this observable that will emit the `start` element
     * followed by the upstream elements paired with the `separator`, and lastly the `end` element.
+    *
+    * Usage sample:
+    *
+    * {{{
+    *   // Yields "begin a : b : c : d end"
+    *   Observable("a", "b", "c", "d")
+    *     .intersperse("begin ", " : ", " end")
+    *     .foldLeftL("")(_ ++ _)
+    * }}}
     *
     * @param start is the first element emitted
     * @param separator is the separator
@@ -4811,6 +4913,15 @@ object Observable extends ObservableDeprecatedBuilders {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream1: 1 - - 2 - - 3 - 4 - -
+    * stream2: 1 - - 2 - 3 - - - - 4
+    *
+    * result: (1, 1), (2, 2), (3, 3), (4, 4)
+    * </pre>
+    *
     * See [[combineLatestMap2]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     */
@@ -4825,6 +4936,15 @@ object Observable extends ObservableDeprecatedBuilders {
     * the source observables; the second item emitted by the new observable
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream1: 1 - - 2 - - 3 - 4 - -
+    * stream2: 1 - - 2 - 3 - - - - 4
+    *
+    * result: (1, 1), (2, 2), (3, 3), (4, 4)
+    * </pre>
     *
     * See [[combineLatestMap2]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
@@ -5108,6 +5228,15 @@ object Observable extends ObservableDeprecatedBuilders {
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
     * least one item).
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream1: 1 - - 2 - - 3 - 4 - -
+    * stream2: 1 - - 2 - 3 - - - - 4
+    *
+    * result: (1, 1), (2, 2), (2, 3), (3, 3), (4, 3), (4, 4)
+    * </pre>
     */
   def combineLatest2[A1, A2](oa1: Observable[A1], oa2: Observable[A2]): Observable[(A1, A2)] =
     new builders.CombineLatest2Observable[A1, A2, (A1, A2)](oa1, oa2)((a1, a2) => (a1, a2))
@@ -5120,6 +5249,15 @@ object Observable extends ObservableDeprecatedBuilders {
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
     * least one item).
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream1: 1 - - 2 - - 3 - 4 - -
+    * stream2: 1 - - 2 - 3 - - - - 4
+    *
+    * result: (1, 1), (2, 2), (2, 3), (3, 3), (4, 3), (4, 4)
+    * </pre>
     */
   def combineLatestMap2[A1, A2, R](oa1: Observable[A1], oa2: Observable[A2])
     (f: (A1, A2) => R): Observable[R] =
@@ -5253,6 +5391,15 @@ object Observable extends ObservableDeprecatedBuilders {
   /** Given a list of source Observables, emits all of the items from
     * the first of these Observables to emit an item or to complete,
     * and cancel the rest.
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream1: - - 1 1 1 - 1 - 1 - -
+    * stream2: - - - - - 2 2 2 2 2 2
+    *
+    * result: - - 1 1 1 - 1 - 1 - -
+    * </pre>
     */
   def firstStartedOf[A](source: Observable[A]*): Observable[A] =
     new builders.FirstStartedObservable(source: _*)
