@@ -22,6 +22,7 @@ import monix.eval.Task.Options
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.Callback
+
 import scala.annotation.unchecked.uncheckedVariance
 import scala.util.{Failure, Success, Try}
 
@@ -33,10 +34,39 @@ private[eval] object TaskDeprecated {
     def self: Task[A]
 
     /**
-      * DEPRECATED — switch to [[Task.runSyncStep]] or to
-      * [[Task.runAsync(implicit* runAsync]].
+      * DEPRECATED — renamed to [[Task.runToFuture runToFuture]], otherwise
+      * due to overloading we can get a pretty bad conflict with the
+      * callback-driven [[Task.runAsync]].
       *
-      * The [[Task.runAsync(implicit* runAsync]] variant that returns
+      * The naming is also nice for discovery.
+      */
+    @UnsafeBecauseImpure
+    @deprecated("Renamed to Task.runToFuture", since = "3.0.0")
+    def runAsync(implicit s: Scheduler): CancelableFuture[A] = {
+      // $COVERAGE-OFF$
+      self.runToFuture(s)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — renamed to [[Task.runToFutureOpt runAsyncOpt]],
+      * otherwise due to overloading we can get a pretty bad conflict with the
+      * callback-driven [[Task.runToFutureOpt]].
+      *
+      * The naming is also nice for discovery.
+      */
+    @UnsafeBecauseImpure
+    @deprecated("Renamed to Task.runAsyncOpt", since = "3.0.0")
+    def runAsyncOpt(implicit s: Scheduler, opts: Task.Options): CancelableFuture[A] = {
+      // $COVERAGE-OFF$
+      self.runToFutureOpt(s, opts)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — switch to [[Task.runSyncStep]] or to [[Task.runToFuture]].
+      *
+      * The [[Task.runToFuture runToFuture]] operation that returns
       * [[monix.execution.CancelableFuture CancelableFuture]] will
       * return already completed future values, useful for low level
       * optimizations. All this `runSyncMaybe` did was to piggyback
@@ -55,9 +85,9 @@ private[eval] object TaskDeprecated {
 
     /**
       * DEPRECATED — switch to [[Task.runSyncStepOpt]] or to
-      * [[Task.runAsyncOpt(implicit* runAsync]].
+      * [[Task.runToFutureOpt(implicit* runAsync]].
       *
-      * The [[Task.runAsyncOpt(implicit* runAsyncOpt]] variant that returns
+      * The [[Task.runToFutureOpt(implicit* runAsyncOpt]] variant that returns
       * [[monix.execution.CancelableFuture CancelableFuture]] will
       * return already completed future values, useful for low level
       * optimizations. All this `runSyncMaybeOpt` did was to piggyback
@@ -76,7 +106,7 @@ private[eval] object TaskDeprecated {
 
     private[this] def runSyncMaybeOptPrv(implicit s: Scheduler, opts: Options): Either[CancelableFuture[A], A] = {
       // $COVERAGE-OFF$
-      val future = self.runAsyncOpt(s, opts)
+      val future = self.runToFutureOpt(s, opts)
       future.value match {
         case Some(value) =>
           value match {
@@ -90,8 +120,9 @@ private[eval] object TaskDeprecated {
     }
 
     /**
-      * DEPRECATED — switch to [[Task.runAsync(cb* runAsync]] in combination
-      * with [[Callback.fromTry]] instead.
+      * DEPRECATED — switch to [[Task.runToFuture]] in combination
+      * with [[monix.execution.Callback.fromTry Callback.fromTry]]
+      * instead.
       *
       * If for example you have a `Try[A] => Unit` function, you can
       * replace usage of `runOnComplete` with:

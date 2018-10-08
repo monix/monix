@@ -123,7 +123,7 @@ object BracketObservableSuite extends BaseTestSuite {
         _ <- canceled.get
       } yield ()
 
-      val f = task.runAsync; s.tick()
+      val f = task.runToFuture; s.tick()
       assertEquals(f.value, Some(Success(())))
       assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     }

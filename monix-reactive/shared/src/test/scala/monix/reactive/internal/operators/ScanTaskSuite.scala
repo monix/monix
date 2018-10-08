@@ -97,7 +97,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
       .doOnError(_ => Task { effect += 1 })
       .lastL
 
-    val f = obs.runAsync; s.tick()
+    val f = obs.runToFuture; s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
   }
@@ -112,7 +112,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
       .doOnErrorF(_ => IO { effect += 1 })
       .lastL
 
-    val f = obs.runAsync; s.tick()
+    val f = obs.runToFuture; s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
     assertEquals(effect, 2)
   }
@@ -127,7 +127,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
       .doOnErrorF(_ => IO { effect += 1 })
       .lastL
 
-    val f = obs.runAsync; s.tick()
+    val f = obs.runToFuture; s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
     assertEquals(effect, 2)
   }
@@ -143,7 +143,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
       .doOnNextF { x => IO { sum += x } }
       .doOnErrorF { _ => IO { effect += 1 } }
       .lastL
-      .runAsync
+      .runToFuture
 
     assertEquals(effect, 1)
     assertEquals(sum, 0)
@@ -170,7 +170,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
       .scanEval(Task.now(0))((_, _) => Task.raiseError[Int](dummy2).delayExecution(1.second))
       .doOnErrorF { _ => IO { effect += 1 } }
       .lastL
-      .runAsync
+      .runToFuture
 
     assertEquals(effect, 1)
     assertEquals(f.value, None)

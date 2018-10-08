@@ -30,7 +30,7 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
 
   test("simple green-light") { implicit s =>
     val Right(semaphore) = TaskSemaphore(maxParallelism = 4).runSyncStep
-    val future = semaphore.greenLight(Task.evalAsync(1)).runAsync
+    val future = semaphore.greenLight(Task.evalAsync(1)).runToFuture
 
     assertEquals(semaphore.activeCount.value(), 1)
     assert(!future.isCompleted, "!future.isCompleted")
@@ -47,7 +47,7 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
 
     val future = semaphore
       .greenLight(Task.defer(Task.fromFuture(p.future).map { _ => effect = 100 }))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(semaphore.activeCount.value(), 1)
@@ -71,64 +71,64 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
       Task.gatherUnordered(tasks).map(_.sum)
 
     // Asynchronous result, to be handled by Minitest
-    for (result <- sum.runAsync) yield {
+    for (result <- sum.runToFuture) yield {
       assertEquals(result, count * (count - 1) / 2)
     }
   }
 
   test("await for release of all active and pending permits") { implicit s =>
     val Right(semaphore) = TaskSemaphore(maxParallelism = 2).runSyncStep
-    val p1 = semaphore.acquire.runAsync
+    val p1 = semaphore.acquire.runToFuture
     assertEquals(p1.value, Some(Success(())))
-    val p2 = semaphore.acquire.runAsync
+    val p2 = semaphore.acquire.runToFuture
     assertEquals(p2.value, Some(Success(())))
 
-    val p3 = semaphore.acquire.runAsync
+    val p3 = semaphore.acquire.runToFuture
     assert(!p3.isCompleted, "!p3.isCompleted")
-    val p4 = semaphore.acquire.runAsync
+    val p4 = semaphore.acquire.runToFuture
     assert(!p4.isCompleted, "!p4.isCompleted")
 
-    val all1 = semaphore.awaitAllReleased.runAsync
+    val all1 = semaphore.awaitAllReleased.runToFuture
     assert(!all1.isCompleted, "!all1.isCompleted")
 
-    semaphore.release.runAsync; s.tick()
+    semaphore.release.runToFuture; s.tick()
     assert(!all1.isCompleted, "!all1.isCompleted")
-    semaphore.release.runAsync; s.tick()
+    semaphore.release.runToFuture; s.tick()
     assert(!all1.isCompleted, "!all1.isCompleted")
-    semaphore.release.runAsync; s.tick()
+    semaphore.release.runToFuture; s.tick()
     assert(!all1.isCompleted, "!all1.isCompleted")
-    semaphore.release.runAsync; s.tick()
+    semaphore.release.runToFuture; s.tick()
     assert(all1.isCompleted, "all1.isCompleted")
 
     // REDO
-    val p5 = semaphore.acquire.runAsync
+    val p5 = semaphore.acquire.runToFuture
     assert(p5.isCompleted, "p5.isCompleted")
-    val all2 = semaphore.awaitAllReleased.runAsync
+    val all2 = semaphore.awaitAllReleased.runToFuture
     s.tick(); assert(!all2.isCompleted, "!all2.isCompleted")
-    semaphore.release.runAsync; s.tick()
+    semaphore.release.runToFuture; s.tick()
     assert(all2.isCompleted, "all2.isCompleted")
 
     // Already completed
-    val all3 = semaphore.awaitAllReleased.runAsync
+    val all3 = semaphore.awaitAllReleased.runToFuture
     assert(all3.isCompleted, "all3.isCompleted")
   }
 
   test("acquire is cancelable") { implicit s =>
     val Right(semaphore) = TaskSemaphore(maxParallelism = 2).runSyncStep
 
-    val p1 = semaphore.acquire.runAsync
+    val p1 = semaphore.acquire.runToFuture
     assert(p1.isCompleted, "p1.isCompleted")
-    val p2 = semaphore.acquire.runAsync
+    val p2 = semaphore.acquire.runToFuture
     assert(p2.isCompleted, "p2.isCompleted")
 
-    val p3 = semaphore.acquire.runAsync
+    val p3 = semaphore.acquire.runToFuture
     assert(!p3.isCompleted, "!p3.isCompleted")
     assertEquals(semaphore.activeCount.value(), 2)
 
     p3.cancel()
-    semaphore.release.runAsync
+    semaphore.release.runToFuture
     assertEquals(semaphore.activeCount.value(), 1)
-    semaphore.release.runAsync
+    semaphore.release.runToFuture
     assertEquals(semaphore.activeCount.value(), 0)
 
     s.tick()

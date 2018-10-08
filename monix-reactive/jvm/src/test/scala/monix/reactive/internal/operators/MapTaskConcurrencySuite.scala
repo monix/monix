@@ -35,7 +35,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
       val sum = Observable.range(0, count)
         .mapEval(x => Task.now(x * 3))
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)
@@ -50,7 +50,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
       val sum = Observable.range(0, count)
         .mapEval(x => Task.evalAsync(3 * x))
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)

@@ -158,7 +158,7 @@ private[reactive] final class MapTaskObservable[A,B]
         stateRef.lazySet(WaitActiveTask)
 
         // Start execution
-        val ack = task.runAsync
+        val ack = task.runToFuture
 
         // This `getAndSet` is concurrent with the task being finished
         // (the `getAndSet` in the Task.flatMap above), but not with

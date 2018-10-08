@@ -67,7 +67,8 @@ import scala.util.{Failure, Success, Try}
   * }}}
   *
   * Nothing gets executed yet, as `Task` is lazy, nothing executes
-  * until you trigger [[Task!.runAsync(implicit* .runAsync]] on it.
+  * until you trigger its evaluation via [[Task!.runAsync runAsync]] or
+  * [[Task!.runToFuture runToFuture]].
   *
   * To combine `Task` values we can use [[Task!.map .map]] and
   * [[Task!.flatMap .flatMap]], which describe sequencing and this time
@@ -86,7 +87,7 @@ import scala.util.{Failure, Success, Try}
   *   import monix.execution.CancelableFuture
   *   import monix.execution.Scheduler.Implicits.global
   *
-  *   val f: CancelableFuture[Unit] = sayHello.runAsync
+  *   val f: CancelableFuture[Unit] = sayHello.runToFuture
   *   // => Hello World!
   * }}}
   *
@@ -190,8 +191,8 @@ import scala.util.{Failure, Success, Try}
   *
   * Note that the built `Task` reference is just a specification at
   * this point, or you can view it as a function, as nothing has
-  * executed yet, you need to call
-  * [[Task!.runAsync(implicit* .runAsync]] explicitly.
+  * executed yet, you need to call [[Task!.runAsync runAsync]] 
+  * or [[Task!.runToFuture runToFuture]] explicitly.
   *
   * =Cancellation=
   *
@@ -240,7 +241,7 @@ import scala.util.{Failure, Success, Try}
   *
   * {{{
   *   // Triggering execution
-  *   val cf: CancelableFuture[Unit] = delayedHello.runAsync
+  *   val cf: CancelableFuture[Unit] = delayedHello.runToFuture
   *
   *   // If we change our mind before the timespan has passed:
   *   cf.cancel()
@@ -312,31 +313,25 @@ import scala.util.{Failure, Success, Try}
   * @define schedulerEvalDesc is the
   *         [[monix.execution.Scheduler Scheduler]] needed in order
   *         to evaluate the source, being required in Task's
-  *         [[runAsync(implicit* runAsync]]
+  *         [[runAsync]], [[runAsyncF]] or [[runToFuture]].
   *
   * @define callbackDesc ==Callback==
   *
   *         When executing the task via this method, the user is
-  *         required to supply a side effecting `Either[Throwable, A] => Unit`
-  *         callback. This calback will be executed on completion, either with
-  *         a successful result (`Right(value)`), or with an error (`Left(e)`).
-  *
-  *         However you can supply a [[monix.execution.Callback]] instead,
-  *         to avoid the boxing in [[scala.Either]], because `Task` uses
-  *         `Callback` internally. Or because it has nice helpers for wrapping
-  *         other callback types, check out its
-  *         [[monix.execution.Callback$ companion object]].
+  *         required to supply a side effecting [[monix.execution.Callback]].
+  *         This callback will be executed on completion, either with
+  *         a successful result or with an error.
   *
   *         Note that with `Callback` you can:
   *
-  *          - convert from a plain function using `Either[Throwable, A]`
-  *             as input via [[Callback.fromAttempt]]
+  *          - convert from a plain function using `Either[Throwable, A]` as input via 
+  *            [[monix.execution.Callback.fromAttempt Callback.fromAttempt]]
   *          - convert from a plain function using `Try[A]` as input via
-  *            [[Callback.fromTry]]
-  *          - wrap a standard Scala `Promise` via [[Callback.fromPromise]]
-  *           - pass an empty callback that just reports errors via
-  *             [[Callback.empty]]
-
+  *            [[monix.execution.Callback.fromTry Callback.fromTry]]
+  *          - wrap a standard Scala `Promise` via 
+  *            [[monix.execution.Callback.fromPromise Callback.fromPromise]]
+  *          - pass an empty callback that just reports errors via
+  *            [[monix.execution.Callback.empty Callback.empty]]
   *
   * @define callbackParamDesc is a callback that will be invoked upon
   *         completion, either with a successful result, or with an error;
@@ -488,7 +483,7 @@ sealed abstract class Task[+A] extends Serializable {
     *
     *
     *   // Triggering the task's execution:
-    *   val f = task.runAsync
+    *   val f = task.runToFuture
     *
     *   // Or in case we change our mind
     *   f.cancel()
@@ -504,13 +499,13 @@ sealed abstract class Task[+A] extends Serializable {
     *   // ANTI-PATTERN 1: Unnecessary side effects
     *   def increment1(sample: Task[Int]): CancelableFuture[Int] = {
     *     // No reason to trigger `runAsync` for this operation
-    *     sample.runAsync.map(_ + 1)
+    *     sample.runToFuture.map(_ + 1)
     *   }
     *
     *   // ANTI-PATTERN 2: blocking threads makes it worse than (1)
     *   def increment2(sample: Task[Int]): Int = {
     *     // Blocking threads is totally unnecessary
-    *     val x = Await.result(sample.runAsync, 5.seconds)
+    *     val x = Await.result(sample.runToFuture, 5.seconds)
     *     x + 1
     *   }
     *
@@ -518,7 +513,7 @@ sealed abstract class Task[+A] extends Serializable {
     *   def increment3(sample: Task[Int]): Task[Int] = {
     *     // Triggering side-effects, but misleading users/readers
     *     // into thinking this function is pure via the return type
-    *     Task.fromFuture(sample.runAsync.map(_ + 1))
+    *     Task.fromFuture(sample.runToFuture.map(_ + 1))
     *   }
     * }}}
     *
@@ -532,15 +527,14 @@ sealed abstract class Task[+A] extends Serializable {
     * @return $runAsyncToFutureReturn
     */
   @UnsafeBecauseImpure
-  final def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-    runAsyncOpt(s, Task.defaultOptions)
+  final def runToFuture(implicit s: Scheduler): CancelableFuture[A] =
+    runToFutureOpt(s, Task.defaultOptions)
 
-  /** Triggers the asynchronous execution, much like normal `runAsync`,
-    * but includes the ability to specify
-    * [[monix.eval.Task.Options Options]] that can modify the behavior
-    * of the run-loop.
+  /** Triggers the asynchronous execution, much like normal [[runToFuture]],
+    * but includes the ability to specify [[monix.eval.Task.Options Options]]
+    * that can modify the behavior of the run-loop.
     *
-    * This is the configurable version of [[runAsync(implicit* runAsync]].
+    * This is the configurable version of [[runToFuture]].
     * It allows you to specify options such as:
     *
     *  - enabling support for [[TaskLocal]]
@@ -562,20 +556,19 @@ sealed abstract class Task[+A] extends Serializable {
     *   // We need to activate support of TaskLocal via:
     *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     *   // Actual execution that depends on these custom options:
-    *   task.runAsyncOpt
+    *   task.runToFutureOpt
     * }}}
     *
     * $unsafeRun
     *
-    * PLEASE READ the advice on anti-patterns at
-    * [[runAsync(implicit* runAsync]].
+    * PLEASE READ the advice on anti-patterns at [[runToFuture]].
     *
     * @param s $schedulerDesc
     * @param opts $optionsDesc
     * @return $runAsyncToFutureReturn
     */
   @UnsafeBecauseImpure
-  def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
+  def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
     TaskRunLoop.startFuture(this, s, opts)
 
   /** Triggers the asynchronous execution, with a provided callback
@@ -601,7 +594,7 @@ sealed abstract class Task[+A] extends Serializable {
     *
     *   // Triggering the task's execution:
     *   val f = task.runAsync {
-    *     case Right(str) =>
+    *     case Right(str: String) =>
     *       println(s"Received: $$str")
     *     case Left(e) =>
     *       global.reportFailure(e)
@@ -621,12 +614,11 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   final def runAsync(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler): Cancelable =
-    runAsyncOpt(Callback.fromAttempt(cb))(s, Task.defaultOptions)
+    runAsyncOpt(cb)(s, Task.defaultOptions)
 
-  /** Triggers the asynchronous execution, much like normal
-    * [[runAsync(cb* runAsync]], but includes the ability to specify
-    * [[monix.eval.Task.Options Task.Options]] that can modify the
-    * behavior of the run-loop.
+  /** Triggers the asynchronous execution, much like normal [[runAsync]], but
+    * includes the ability to specify [[monix.eval.Task.Options Task.Options]]
+    * that can modify the behavior of the run-loop.
     *
     * This allows you to specify options such as:
     *
@@ -668,13 +660,13 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable =
-    UnsafeCancelUtils.taskToCancelable(runAsyncOptF(Callback.fromAttempt(cb))(s, opts))
+    UnsafeCancelUtils.taskToCancelable(runAsyncOptF(cb)(s, opts))
 
   /** Triggers the asynchronous execution, returning a `Task[Unit]`
     * (aliased to `CancelToken[Task]` in Cats-Effect) which can
     * cancel the running computation.
     *
-    * This is the more potent version of [[runAsync(cb* runAsync]],
+    * This is the more potent version of [[runAsync]],
     * because the returned cancelation token is a `Task[Unit]` that
     * can be used to back-pressure on the result of the cancellation
     * token, in case the finalizers are specified as asynchronous
@@ -705,7 +697,7 @@ sealed abstract class Task[+A] extends Serializable {
     *   val cancel = task.runAsyncF(Callback.empty)
     *
     *   // Triggering `cancel` and we can wait for its completion
-    *   for (_ <- cancel.runAsync) {
+    *   for (_ <- cancel.runToFuture) {
     *     // Takes 3 seconds to print
     *     println("Resources were released!")
     *   }
@@ -726,20 +718,18 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   final def runAsyncF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler): CancelToken[Task] =
-    runAsyncOptF(Callback.fromAttempt(cb))(s, Task.defaultOptions)
+    runAsyncOptF(cb)(s, Task.defaultOptions)
 
-  /** Triggers the asynchronous execution, much like normal
-    * [[runAsyncF(cb* runAsyncF]], but includes the ability to specify
-    * [[monix.eval.Task.Options Task.Options]] that can modify the
-    * behavior of the run-loop.
+  /** Triggers the asynchronous execution, much like normal [[runAsyncF]], but
+    * includes the ability to specify [[monix.eval.Task.Options Task.Options]]
+    * that can modify the behavior of the run-loop.
     *
     * This allows you to specify options such as:
     *
     *  - enabling support for [[TaskLocal]]
     *  - disabling auto-cancelable run-loops
     *
-    * See the description of [[runAsyncOpt(cb* runAsyncOpt]] for
-    * an example.
+    * See the description of [[runToFutureOpt]] for an example.
     *
     * The returned cancelation token is a `Task[Unit]` that
     * can be used to back-pressure on the result of the cancellation
@@ -804,8 +794,8 @@ sealed abstract class Task[+A] extends Serializable {
     *  - enabling support for [[TaskLocal]]
     *  - disabling auto-cancelable run-loops
     *
-    * See the description of [[runAsyncOpt(cb* runAsyncOpt]] for
-    * an example of customizing the default [[Task.Options]].
+    * See the description of [[runAsyncOpt]] for an example of customizing the
+    * default [[Task.Options]].
     *
     * See the description of [[runAsyncAndForget]] for an example
     * of running as a "fire and forget".
@@ -822,10 +812,10 @@ sealed abstract class Task[+A] extends Serializable {
   /** Triggers the asynchronous execution of the source task,
     * but runs it in uncancelable mode.
     *
-    * This is an optimization over plain [[runAsync(cb* runAsync]] or
-    * [[runAsyncF]] that doesn't give you a cancellation token for
-    * cancelling the task. The runtime can thus not worry about
-    * keeping state related to cancellation when evaluating it.
+    * This is an optimization over plain [[runAsync]] or [[runAsyncF]] that
+    * doesn't give you a cancellation token for cancelling the task. The runtime
+    * can thus not worry about keeping state related to cancellation when
+    * evaluating it.
     *
     * {{{
     *   import scala.concurrent.duration._
@@ -853,7 +843,7 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   final def runAsyncUncancelable(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler): Unit =
-    runAsyncUncancelableOpt(Callback.fromAttempt(cb))(s, Task.defaultOptions)
+    runAsyncUncancelableOpt(cb)(s, Task.defaultOptions)
 
   /** Triggers the asynchronous execution in uncancelable mode,
     * like [[runAsyncUncancelable]], but includes the ability to
@@ -865,10 +855,10 @@ sealed abstract class Task[+A] extends Serializable {
     *  - enabling support for [[TaskLocal]]
     *  - disabling auto-cancelable run-loops
     *
-    * See the description of [[runAsyncOpt(cb* runAsyncOpt]] for
-    * an example of customizing the default [[Task.Options]].
+    * See the description of [[runAsyncOpt]] for an example of customizing the
+    * default [[Task.Options]].
     *
-    * This is an optimization over plain [[runAsyncOpt(cb* runAsyncOpt]] or
+    * This is an optimization over plain [[runAsyncOpt]] or
     * [[runAsyncOptF]] that doesn't give you a cancellation token for
     * cancelling the task. The runtime can thus not worry about
     * keeping state related to cancellation when evaluating it.
@@ -877,7 +867,8 @@ sealed abstract class Task[+A] extends Serializable {
     * @param opts $optionsDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): Unit =
+  def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)
+    (implicit s: Scheduler, opts: Task.Options): Unit =
     TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb), isCancelable = false)
 
   /** Executes the source until completion, or until the first async
@@ -899,7 +890,7 @@ sealed abstract class Task[+A] extends Serializable {
     *   try Task(42).runSyncStep match {
     *     case Right(a) => println("Success: " + a)
     *     case Left(task) =>
-    *       task.runAsync.onComplete {
+    *       task.runToFuture.onComplete {
     *         case Success(a) => println("Async success: " + a)
     *         case Failure(e) => println("Async error: " + e)
     *       }
@@ -949,10 +940,9 @@ sealed abstract class Task[+A] extends Serializable {
     * error prone on top of the JVM. It's a good practice to not block
     * any threads and use the asynchronous `runAsync` methods instead.
     *
-    * In general prefer to use the asynchronous
-    * [[monix.eval.Task!.runAsync(implicit* .runAsync]] and to
-    * structure your logic around asynchronous actions in a
-    * non-blocking way. But in case you're blocking only once, in
+    * In general prefer to use the asynchronous [[Task.runAsync]] or
+    * [[Task.runToFuture]] and to structure your logic around asynchronous
+    * actions in a non-blocking way. But in case you're blocking only once, in
     * `main`, at the "edge of the world" so to speak, then it's OK.
     *
     * Sample:
@@ -967,7 +957,7 @@ sealed abstract class Task[+A] extends Serializable {
     * {{{
     *   import scala.concurrent.Await
     *
-    *   Await.result[Int](Task(42).runAsync, 3.seconds)
+    *   Await.result[Int](Task(42).runToFuture, 3.seconds)
     * }}}
     *
     * Some implementation details:
@@ -1018,8 +1008,8 @@ sealed abstract class Task[+A] extends Serializable {
     *  - enabling support for [[TaskLocal]]
     *  - disabling auto-cancelable run-loops
     *
-    * See the description of [[runAsyncOpt(cb* runAsyncOpt]] for
-    * an example of customizing the default [[Task.Options]].
+    * See the description of [[runAsyncOpt]] for an example of
+    * customizing the default [[Task.Options]].
     *
     * $unsafeRun
     *
@@ -1460,7 +1450,7 @@ sealed abstract class Task[+A] extends Serializable {
     * possibly forcing an asynchronous boundary before execution
     * (if `forceAsync` is set to `true`, the default).
     *
-    * When a `Task` is executed with [[Task.runAsync(implicit* .runAsync]],
+    * When a `Task` is executed with [[Task.runAsync]] or [[Task.runToFuture]],
     * it needs a `Scheduler`, which is going to be injected in all
     * asynchronous tasks processed within the `flatMap` chain,
     * a `Scheduler` that is used to manage asynchronous boundaries
@@ -1596,7 +1586,7 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * The [[monix.execution.Scheduler Scheduler]] used will be
     * the one that is used to start the run-loop in
-    * [[Task.runAsync(implicit* .runAsync]].
+    * [[Task.runAsync]] or [[Task.runToFuture]].
     *
     * This operation is equivalent with:
     *
@@ -1695,7 +1685,7 @@ sealed abstract class Task[+A] extends Serializable {
     * Exceptions in `f` are reported using provided (implicit) Scheduler
     */
   final def foreach(f: A => Unit)(implicit s: Scheduler): Unit =
-    runAsync.foreach(f)
+    runToFuture.foreach(f)
 
   /** Returns a new `Task` that repeatedly executes the source as long
     * as it continues to succeed. It never produces a terminal value.
@@ -1782,7 +1772,7 @@ sealed abstract class Task[+A] extends Serializable {
     *     fa.cancel.flatMap(_ => tenSecs)
     *   }
     *
-    *   task1.timeout(10.seconds).runAsync
+    *   task1.timeout(10.seconds).runToFuture
     *   //=> throws TimeoutException
     * }}}
     *
@@ -1804,7 +1794,7 @@ sealed abstract class Task[+A] extends Serializable {
     *     fa.cancel.flatMap(_ => anotherTenSecs)
     *   }
     *
-    *   task2.runAsync
+    *   task2.runToFuture
     *   // => CancellationException
     * }}}
     */
@@ -2245,7 +2235,7 @@ sealed abstract class Task[+A] extends Serializable {
     *     .eval(println("Hello!"))
     *     .delayExecution(10.seconds)
     *     .uncancelable
-    *     .runAsync
+    *     .runToFuture
     *
     *   // No longer works
     *   uncancelable.cancel()
@@ -2447,8 +2437,8 @@ object Task extends TaskInstancesLevel1 {
     * But this is not only superfluous, but against the best practices
     * of using `Task`. The difference is that `Task` takes a
     * [[monix.execution.Scheduler Scheduler]] (inheriting from
-    * `ExecutionContext`) only when [[monix.eval.Task!.runAsync(cb* runAsync]]
-    * happens. But with `deferFutureAction` we get to have an injected
+    * `ExecutionContext`) only when [[Task.runAsync runAsync]] happens.
+    * But with `deferFutureAction` we get to have an injected
     * `Scheduler` in the passed callback:
     *
     * {{{
@@ -2711,9 +2701,9 @@ object Task extends TaskInstancesLevel1 {
     *
     *  - the provided function is executed when the `Task` will be evaluated
     *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
-    *  - the injected [[Callback]] can be called at most once, either with a
-    *    successful result, or with an error; calling it more than once is
-    *    a contract violation
+    *  - the injected [[monix.execution.Callback Callback]] can be
+    *    called at most once, either with a successful result, or with
+    *    an error; calling it more than once is a contract violation
     *  - it can be assumed that the callback provides no protection when called
     *    multiple times, the behavior being undefined
     *
@@ -2771,9 +2761,9 @@ object Task extends TaskInstancesLevel1 {
     *
     *  - the provided function is executed when the `Task` will be evaluated
     *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
-    *  - the injected [[Callback]] can be called at most once, either with a
-    *    successful result, or with an error; calling it more than once is
-    *    a contract violation
+    *  - the injected [[monix.execution.Callback]] can be called at
+    *    most once, either with a successful result, or with an error;
+    *    calling it more than once is a contract violation
     *  - it can be assumed that the callback provides no protection when called
     *    multiple times, the behavior being undefined
     *
@@ -2883,9 +2873,9 @@ object Task extends TaskInstancesLevel1 {
     *
     *  - the provided function is executed when the `Task` will be evaluated
     *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
-    *  - the injected [[Callback]] can be called at most once, either with a
-    *    successful result, or with an error; calling it more than once is
-    *    a contract violation
+    *  - the injected [[monix.execution.Callback Callback]] can be
+    *    called at most once, either with a successful result, or with
+    *    an error; calling it more than once is a contract violation
     *  - it can be assumed that the callback provides no protection when called
     *    multiple times, the behavior being undefined
     *
@@ -2979,9 +2969,9 @@ object Task extends TaskInstancesLevel1 {
     *
     *  - the provided function is executed when the `Task` will be evaluated
     *    (via `runAsync` or when its turn comes in the `flatMap` chain, not before)
-    *  - the injected [[Callback]] can be called at most once, either with a
-    *    successful result, or with an error; calling it more than once is
-    *    a contract violation
+    *  - the injected [[monix.execution.Callback Callback]] can be
+    *    called at most once, either with a successful result, or with
+    *    an error; calling it more than once is a contract violation
     *  - it can be assumed that the callback provides no protection when called
     *    multiple times, the behavior being undefined
     *
@@ -3235,9 +3225,9 @@ object Task extends TaskInstancesLevel1 {
     * the default [[monix.execution.Scheduler Scheduler]].
     *
     * This is the equivalent of `IO.shift`, except that Monix's `Task`
-    * gets executed with an injected `Scheduler` in
-    * [[Task.runAsync(implicit* .runAsync]] and that's going to be
-    * the `Scheduler` responsible for the "shift".
+    * gets executed with an injected `Scheduler` in [[Task.runAsync]] or
+    * in [[Task.runToFuture]] and that's going to be the `Scheduler`
+    * responsible for the "shift".
     *
     * $shiftDesc
     */
@@ -3827,7 +3817,7 @@ object Task extends TaskInstancesLevel1 {
   /** Set of options for customizing the task's behavior.
     *
     * See [[Task.defaultOptions]] for the default `Options` instance
-    * used by [[Task!.runAsync(implicit* .runAsync]].
+    * used by [[Task.runAsync]] or [[Task.runToFuture]].
     *
     * @param autoCancelableRunLoops should be set to `true` in
     *        case you want `flatMap` driven loops to be
@@ -4056,7 +4046,7 @@ object Task extends TaskInstancesLevel1 {
       }
     }
     // Optimization to avoid the run-loop
-    override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
+    override def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
       CancelableFuture.successful(value)
     }
     // Optimization to avoid the run-loop
@@ -4092,7 +4082,7 @@ object Task extends TaskInstancesLevel1 {
       }
     }
     // Optimization to avoid the run-loop
-    override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
+    override def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
       CancelableFuture.failed(e)
     }
     // Optimization to avoid the run-loop
@@ -4384,7 +4374,7 @@ private[eval] abstract class TaskContextShift extends TaskTimers {
     * Default, pure, globally visible `cats.effect.ContextShift`
     * implementation that shifts the evaluation to `Task`'s default
     * [[monix.execution.Scheduler Scheduler]]
-    * (that's being injected in [[Task.runAsync(implicit* runAsync]]).
+    * (that's being injected in [[Task.runToFuture]]).
     */
   implicit val contextShift: ContextShift[Task] =
     new ContextShift[Task] {
@@ -4412,7 +4402,7 @@ private[eval] abstract class TaskTimers extends TaskClocks {
     * Default, pure, globally visible `cats.effect.Timer`
     * implementation that defers the evaluation to `Task`'s default
     * [[monix.execution.Scheduler Scheduler]]
-    * (that's being injected in [[Task.runAsync(implicit* runAsync]]).
+    * (that's being injected in [[Task.runToFuture]]).
     */
   implicit val timer: Timer[Task] =
     new Timer[Task] {
@@ -4439,7 +4429,7 @@ private[eval] abstract class TaskClocks extends TaskDeprecated.Companion {
     * Default, pure, globally visible `cats.effect.Clock`
     * implementation that defers the evaluation to `Task`'s default
     * [[monix.execution.Scheduler Scheduler]]
-    * (that's being injected in [[Task.runAsync(implicit* runAsync]]).
+    * (that's being injected in [[Task.runToFuture]]).
     */
   val clock: Clock[Task] =
     new Clock[Task] {

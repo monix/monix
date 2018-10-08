@@ -62,7 +62,7 @@ class DoOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], hap
           Stop
         }
 
-        val future = errorCoverage.runAsync
+        val future = errorCoverage.runToFuture
         // Execution might be immediate
         future.value match {
           case Some(Success(ack)) => ack

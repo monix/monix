@@ -36,7 +36,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
     val atomic = Atomic(0)
     val f = loop(atomic)
-      .runAsyncOpt
+      .runToFutureOpt
 
     f.cancel(); s.tick()
     assertEquals(atomic.get, maxCount)
@@ -54,7 +54,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val atomic = Atomic(0)
     val f = loop(atomic)
       .executeWithOptions(_.enableAutoCancelableRunLoops)
-      .runAsync
+      .runToFuture
 
     assertEquals(atomic.get, expected)
     f.cancel()
@@ -121,14 +121,14 @@ object TaskFlatMapSuite extends BaseTestSuite {
   test("redeemWith can recover") { implicit s =>
     val dummy = new DummyException("dummy")
     val task = Task.raiseError[Int](dummy).redeemWith(_ => Task.now(1), Task.now)
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("redeem can recover") { implicit s =>
     val dummy = new DummyException("dummy")
     val task = Task.raiseError[Int](dummy).redeem(_ => 1, identity)
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 }

@@ -40,7 +40,7 @@ object ConcurrentReplayLimitedSubjectSuite extends BaseConcurrentSubjectSuite wi
       val capacity = 10
       val c = ConcurrentSubject.replayLimited[Long](capacity, list, Unbounded)
 
-      val sum = c.sumL.runAsync
+      val sum = c.sumL.runToFuture
       c.onComplete()
       s.tick()
 

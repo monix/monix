@@ -30,7 +30,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; effect }.memoizeOnSuccess
       .flatMap(Task.now).flatMap(Task.now)
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -41,12 +41,12 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; effect }.memoizeOnSuccess
       .flatMap(Task.now).flatMap(Task.now)
 
-    task.runAsync
+    task.runToFuture
     s.tick()
 
-    val f1 = task.runAsync
+    val f1 = task.runToFuture
     assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Success(1)))
   }
 
@@ -55,7 +55,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     var task = Task.evalAsync(1)
     for (i <- 0 until count) task = task.memoizeOnSuccess
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -69,7 +69,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       task = task.memoizeOnSuccess.flatMap(x => Task.now(x))
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -82,7 +82,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       task = task.memoizeOnSuccess.flatMap(x => Task.evalAsync(x))
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -95,24 +95,24 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       .memoizeOnSuccess
       .flatMap(Task.now).flatMap(Task.now)
 
-    val f1 = task.runAsync; s.tick()
+    val f1 = task.runToFuture; s.tick()
     assertEquals(f1.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
 
-    val f2 = task.runAsync; s.tick()
+    val f2 = task.runToFuture; s.tick()
     assertEquals(f2.value, Some(Failure(dummy)))
     assertEquals(effect, 2)
   }
 
   test("Task.memoizeOnSuccess.materialize") { implicit s =>
-    val f = Task.evalAsync(10).memoizeOnSuccess.materialize.runAsync
+    val f = Task.evalAsync(10).memoizeOnSuccess.materialize.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(Success(10))))
   }
 
   test("Task.evalAsync(error).memoizeOnSuccess.materialize") { implicit s =>
     val dummy = DummyException("dummy")
-    val f = Task[Int](throw dummy).memoizeOnSuccess.materialize.runAsync
+    val f = Task[Int](throw dummy).memoizeOnSuccess.materialize.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(Failure(dummy))))
   }
@@ -121,19 +121,19 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     var effect = 0
     val task = Task.eval { effect += 1; effect }.memoizeOnSuccess
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.eval.memoizeOnSuccess should work synchronously for next subscribers") { implicit s =>
     var effect = 0
     val task = Task.eval { effect += 1; effect }.memoizeOnSuccess
-    task.runAsync
+    task.runToFuture
     s.tick()
 
-    val f1 = task.runAsync
+    val f1 = task.runToFuture
     assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Success(1)))
   }
 
@@ -143,11 +143,11 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.eval[Int] { effect += 1; throw dummy }
       .memoizeOnSuccess
 
-    val f1 = task.runAsync; s.tick()
+    val f1 = task.runToFuture; s.tick()
     assertEquals(f1.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
 
-    val f2 = task.runAsync; s.tick()
+    val f2 = task.runToFuture; s.tick()
     assertEquals(f2.value, Some(Failure(dummy)))
     assertEquals(effect, 2)
   }
@@ -156,9 +156,9 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     var effect = 0
     val task = Task.eval { effect += 1; effect }.memoizeOnSuccess
 
-    val r1 = task.runAsync
-    val r2 = task.runAsync
-    val r3 = task.runAsync
+    val r1 = task.runToFuture
+    val r2 = task.runToFuture
+    val r3 = task.runToFuture
 
     s.tickOne()
     assertEquals(r1.value, Some(Success(1)))
@@ -172,7 +172,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     for (i <- 0 until count)
       task = task.memoizeOnSuccess
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -183,7 +183,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       task = task.memoizeOnSuccess.flatMap(x => Task.eval(x))
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -193,9 +193,9 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     var effect = 0
     val task = Task.defer(Task.eval { effect += 1; effect }).memoizeOnSuccess
 
-    val r1 = task.runAsync
-    val r2 = task.runAsync
-    val r3 = task.runAsync
+    val r1 = task.runToFuture
+    val r2 = task.runToFuture
+    val r3 = task.runToFuture
 
     s.tick()
     assertEquals(r1.value, Some(Success(1)))
@@ -207,19 +207,19 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     var effect = 0
     val task = Task.evalOnce { effect += 1; effect }.memoizeOnSuccess
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.evalOnce.memoizeOnSuccess should work synchronously for next subscribers") { implicit s =>
     var effect = 0
     val task = Task.evalOnce { effect += 1; effect }.memoizeOnSuccess
-    task.runAsync
+    task.runToFuture
     s.tick()
 
-    val f1 = task.runAsync
+    val f1 = task.runToFuture
     assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Success(1)))
   }
 
@@ -229,11 +229,11 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.evalOnce[Int] { effect += 1; throw dummy }
       .memoizeOnSuccess
 
-    val f1 = task.runAsync; s.tick()
+    val f1 = task.runToFuture; s.tick()
     assertEquals(f1.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
 
-    val f2 = task.runAsync; s.tick()
+    val f2 = task.runToFuture; s.tick()
     assertEquals(f2.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
   }
@@ -245,7 +245,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       task = task.memoizeOnSuccess
     }
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -256,7 +256,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       task = task.memoizeOnSuccess.flatMap(x => Task.evalOnce(x))
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -267,7 +267,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.now { effect += 1; effect }
       .memoizeOnSuccess
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -276,12 +276,12 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.now { effect += 1; effect }
       .memoizeOnSuccess
 
-    task.runAsync
+    task.runToFuture
     s.tick()
 
-    val f1 = task.runAsync
+    val f1 = task.runToFuture
     assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Success(1)))
   }
 
@@ -289,9 +289,9 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy).memoizeOnSuccess
 
-    val f1 = task.runAsync
+    val f1 = task.runToFuture
     assertEquals(f1.value, Some(Failure(dummy)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Failure(dummy)))
   }
 
@@ -302,7 +302,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       task = task.memoizeOnSuccess
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -313,7 +313,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       task = task.memoizeOnSuccess.flatMap(x => Task.now(x))
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -326,7 +326,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       task = task.memoizeOnSuccess.map(x => x)
     }
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -335,11 +335,11 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task1 = Task.evalAsync { effect += 1; 3 }.memoizeOnSuccess
     val task2 = task1.map { x => effect += 1; x + 1 }
 
-    val result1 = task2.runAsync; s.tick()
+    val result1 = task2.runToFuture; s.tick()
     assertEquals(effect, 2)
     assertEquals(result1.value, Some(Success(4)))
 
-    val result2 = task2.runAsync; s.tick()
+    val result2 = task2.runToFuture; s.tick()
     assertEquals(effect, 3)
     assertEquals(result2.value, Some(Success(4)))
   }
@@ -349,8 +349,8 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task1 = Task.evalAsync { effect += 1; 3 }.memoizeOnSuccess
     val task2 = task1.map { x => effect += 1; x + 1 }
 
-    val result1 = task2.runAsync
-    val result2 = task2.runAsync
+    val result1 = task2.runToFuture
+    val result2 = task2.runToFuture
 
     assertEquals(result1.value, None)
     assertEquals(result2.value, None)
@@ -366,11 +366,11 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task1 = Task.defer { effect += 1; Task.now(3) }.memoizeOnSuccess
     val task2 = task1.map { x => effect += 1; x + 1 }
 
-    val result1 = task2.runAsync; s.tick()
+    val result1 = task2.runToFuture; s.tick()
     assertEquals(effect, 2)
     assertEquals(result1.value, Some(Success(4)))
 
-    val result2 = task2.runAsync; s.tick()
+    val result2 = task2.runToFuture; s.tick()
     assertEquals(effect, 3)
     assertEquals(result2.value, Some(Success(4)))
   }
@@ -381,15 +381,15 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       .flatMap(x => Task.now(x + 1)).memoizeOnSuccess
     val task2 = task1.map { x => effect += 1; x + 1 }
 
-    val result1 = task2.runAsync; s.tick()
+    val result1 = task2.runToFuture; s.tick()
     assertEquals(effect, 2)
     assertEquals(result1.value, Some(Success(4)))
 
-    val result2 = task2.runAsync; s.tick()
+    val result2 = task2.runToFuture; s.tick()
     assertEquals(effect, 3)
     assertEquals(result2.value, Some(Success(4)))
 
-    val result3 = task2.runAsync; s.tick()
+    val result3 = task2.runToFuture; s.tick()
     assertEquals(effect, 4)
     assertEquals(result3.value, Some(Success(4)))
   }
@@ -399,12 +399,12 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1)
       .memoizeOnSuccess
 
-    val first = task.runAsync
+    val first = task.runToFuture
     s.tick()
     assertEquals(first.value, None)
 
-    val second = task.runAsync
-    val third = task.runAsync
+    val second = task.runToFuture
+    val third = task.runToFuture
 
     s.tick()
     assertEquals(second.value, None)
@@ -465,12 +465,12 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1)
       .memoizeOnSuccess
 
-    val first = task.runAsync
+    val first = task.runToFuture
     s.tick()
     assertEquals(first.value, None)
 
-    val second = task.runAsync
-    val third = task.runAsync
+    val second = task.runToFuture
+    val third = task.runToFuture
 
     s.tick()
     assertEquals(second.value, None)
@@ -552,8 +552,8 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.memoizeOnSuccess should not be cancelable") { implicit s =>
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoizeOnSuccess
-    val first = task.runAsync
-    val second = task.runAsync
+    val first = task.runToFuture
+    val second = task.runToFuture
 
     s.tick()
     assertEquals(first.value, None)
@@ -567,8 +567,8 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     assertEquals(effect, 0)
 
     // -- Second wave:
-    val third = task.runAsync
-    val fourth = task.runAsync
+    val third = task.runToFuture
+    val fourth = task.runToFuture
 
     s.tick(1.second)
     assertEquals(first.value, None)
@@ -585,13 +585,13 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task[Int] { effect += 1; throw dummy }.delayExecution(1.second).map(_ + 1)
       .memoizeOnSuccess
 
-    val first = task.runAsync
+    val first = task.runToFuture
     s.tick()
     assertEquals(first.value, None)
     assertEquals(effect, 0)
 
-    val second = task.runAsync
-    val third = task.runAsync
+    val second = task.runToFuture
+    val third = task.runToFuture
 
     s.tick()
     assertEquals(second.value, None)
@@ -603,8 +603,8 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     assertEquals(third.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
 
-    val fourth = task.runAsync
-    val fifth = task.runAsync
+    val fourth = task.runToFuture
+    val fifth = task.runToFuture
     s.tick()
     assertEquals(fourth.value, None)
     assertEquals(fifth.value, None)
@@ -656,7 +656,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
       v2 <- local.read
     } yield (v1, v2)
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, (100, 100))
     }
   }

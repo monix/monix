@@ -301,7 +301,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   test("Observable.from(Iterable)") { implicit s =>
     val iter = List(1, 2, 3, 4)
     val conv = Observable.from(iter)
-    val f = conv.toListL.runAsync
+    val f = conv.toListL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(List(1, 2, 3, 4))))
@@ -309,14 +309,14 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
 
   test("Task.from(Function0)") { implicit s =>
     val task = Observable.from(() => 1).firstL
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.from(comonad)") { implicit s =>
     val task = Observable.from(EvalComonad(() => 1)).firstL
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))
   }

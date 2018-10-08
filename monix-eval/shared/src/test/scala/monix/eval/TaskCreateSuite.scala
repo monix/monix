@@ -27,14 +27,14 @@ import scala.concurrent.duration._
 object TaskCreateSuite extends BaseTestSuite {
   test("can use Unit as return type") { implicit sc =>
     val task = Task.create[Int]((_, cb) => cb.onSuccess(1))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("can use Cancelable.empty as return type") { implicit sc =>
     val task = Task.create[Int] { (_, cb) => cb.onSuccess(1); Cancelable.empty }
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -46,7 +46,7 @@ object TaskCreateSuite extends BaseTestSuite {
       ()
     }
 
-    val f = task.runAsyncOpt
+    val f = task.runToFutureOpt
     sc.tick()
     assertEquals(f.value, None)
 
@@ -60,7 +60,7 @@ object TaskCreateSuite extends BaseTestSuite {
       sc.scheduleOnce(1.second)(cb.onSuccess(1))
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, None)
 
@@ -73,7 +73,7 @@ object TaskCreateSuite extends BaseTestSuite {
       sc.scheduleOnce(1.second)(cb.onSuccess(1))
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, None)
 
@@ -88,7 +88,7 @@ object TaskCreateSuite extends BaseTestSuite {
       IO(c.cancel())
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, None)
 
@@ -102,7 +102,7 @@ object TaskCreateSuite extends BaseTestSuite {
       IO(c.cancel())
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, None)
 
@@ -117,7 +117,7 @@ object TaskCreateSuite extends BaseTestSuite {
       Task.evalAsync(c.cancel())
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, None)
 
@@ -131,7 +131,7 @@ object TaskCreateSuite extends BaseTestSuite {
       Task.evalAsync(c.cancel())
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, None)
 
@@ -146,7 +146,7 @@ object TaskCreateSuite extends BaseTestSuite {
       Coeval(c.cancel())
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, None)
 
@@ -160,7 +160,7 @@ object TaskCreateSuite extends BaseTestSuite {
       Coeval(c.cancel())
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, None)
 
@@ -175,7 +175,7 @@ object TaskCreateSuite extends BaseTestSuite {
       (throw dummy) : Unit
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
 
     assertEquals(f.value, None)
@@ -188,7 +188,7 @@ object TaskCreateSuite extends BaseTestSuite {
       (throw dummy) : Cancelable
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
 
     assertEquals(f.value, None)

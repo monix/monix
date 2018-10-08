@@ -29,7 +29,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
 
   test("Task.from(future)") { implicit s =>
     val p = Promise[Int]()
-    val f = Task.from(p.future).runAsync
+    val f = Task.from(p.future).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -42,7 +42,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   test("Task.from(future) for errors") { implicit s =>
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
-    val f = Task.from(p.future).runAsync
+    val f = Task.from(p.future).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -54,7 +54,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
 
   test("Task.from(IO)") { implicit s =>
     val p = Promise[Int]()
-    val f = Task.from(IO.fromFuture(IO.pure(p.future))).runAsync
+    val f = Task.from(IO.fromFuture(IO.pure(p.future))).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -67,7 +67,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   test("Task.from(IO) for errors") { implicit s =>
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
-    val f = Task.from(IO.fromFuture(IO.pure(p.future))).runAsync
+    val f = Task.from(IO.fromFuture(IO.pure(p.future))).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -89,7 +89,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val conv = Task.from(source)
     assert(!effect)
 
-    val f = conv.runAsync
+    val f = conv.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))
     assert(effect)
@@ -102,7 +102,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val conv = Task.from(source)
     assert(!effect)
 
-    val f = conv.runAsync
+    val f = conv.runToFuture
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
     assert(effect)
@@ -114,7 +114,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val conv = Task.from(source)
     assert(!effect)
 
-    val f = conv.runAsync
+    val f = conv.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))
     assert(effect)
@@ -127,7 +127,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val conv = Task.from(source)
     assert(!effect)
 
-    val f = conv.runAsync
+    val f = conv.runToFuture
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
     assert(effect)
@@ -139,7 +139,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val conv = Task.from(source)
     assert(!effect)
 
-    val f = conv.runAsync
+    val f = conv.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))
     assert(effect)
@@ -152,7 +152,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val conv = Task.from(source)
     assert(!effect)
 
-    val f = conv.runAsync
+    val f = conv.runToFuture
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
     assert(effect)
@@ -161,27 +161,27 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   test("Task.from(Try)") { implicit s =>
     val source = Success(1) : Try[Int]
     val conv = Task.from(source)
-    assertEquals(conv.runAsync.value, Some(Success(1)))
+    assertEquals(conv.runToFuture.value, Some(Success(1)))
   }
 
   test("Task.from(Try) for errors") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Failure(dummy) : Try[Int]
     val conv = Task.from(source)
-    assertEquals(conv.runAsync.value, Some(Failure(dummy)))
+    assertEquals(conv.runToFuture.value, Some(Failure(dummy)))
   }
 
   test("Task.from(Either)") { implicit s =>
     val source: Either[Throwable, Int] = Right(1)
     val conv = Task.from(source)
-    assertEquals(conv.runAsync.value, Some(Success(1)))
+    assertEquals(conv.runToFuture.value, Some(Success(1)))
   }
 
   test("Task.from(Either) for errors") { implicit s =>
     val dummy = DummyException("dummy")
     val source: Either[Throwable, Int] = Left(dummy)
     val conv = Task.from(source)
-    assertEquals(conv.runAsync.value, Some(Failure(dummy)))
+    assertEquals(conv.runToFuture.value, Some(Failure(dummy)))
   }
 
   test("Task.from(custom Effect)") { implicit s =>
@@ -193,7 +193,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val conv = Task.from(source)
 
     assert(!effect)
-    val f = conv.runAsync
+    val f = conv.runToFuture
     s.tick()
     assert(effect)
     assertEquals(f.value, Some(Success(1)))
@@ -209,7 +209,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val conv = Task.from(source)
 
     assert(!effect)
-    val f = conv.runAsync
+    val f = conv.runToFuture
     s.tick()
     assert(effect)
     assertEquals(f.value, Some(Failure(dummy)))
@@ -224,7 +224,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val conv = Task.from(source)
 
     assert(!effect)
-    val f = conv.runAsync
+    val f = conv.runToFuture
     s.tick()
     assert(effect)
     assertEquals(f.value, Some(Success(1)))
@@ -240,7 +240,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val conv = Task.from(source)
 
     assert(!effect)
-    val f = conv.runAsync
+    val f = conv.runToFuture
     s.tick()
     assert(effect)
     assertEquals(f.value, Some(Failure(dummy)))
@@ -248,14 +248,14 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
 
   test("Task.from(Function0)") { implicit s =>
     val task = Task.from(() => 1)
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.from(comonad)") { implicit s =>
     val task = Task.from(EvalComonad(() => 1))
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))
   }

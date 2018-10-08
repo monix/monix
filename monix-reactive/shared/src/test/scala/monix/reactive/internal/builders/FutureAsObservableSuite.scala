@@ -113,7 +113,7 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
   }
 
   test("CancelableFuture should be cancelable") { implicit s =>
-    val f = Task.evalAsync(1).delayExecution(1.second).runAsync
+    val f = Task.evalAsync(1).delayExecution(1.second).runToFuture
     var received = 0
     var wasCompleted = false
 

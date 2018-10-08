@@ -65,7 +65,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant[Task].next.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].now(1)
-    val result = stream.mapEval[Int](_ => throw dummy).toListL.runAsync
+    val result = stream.mapEval[Int](_ => throw dummy).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
   }
@@ -73,7 +73,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant[Task].nextCursor.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].fromList(List(1,2,3))
-    val result = stream.mapEval[Int](_ => throw dummy).toListL.runAsync
+    val result = stream.mapEval[Int](_ => throw dummy).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
   }
@@ -81,7 +81,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant[Task].next.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].now(1)
-    val result = stream.mapEval[Int](_ => Task.raiseError(dummy)).toListL.runAsync
+    val result = stream.mapEval[Int](_ => Task.raiseError(dummy)).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
   }
@@ -89,7 +89,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant[Task].nextCursor.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].fromList(List(1,2,3))
-    val result = stream.mapEval[Int](_ => Task.raiseError(dummy)).toListL.runAsync
+    val result = stream.mapEval[Int](_ => Task.raiseError(dummy)).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
   }
@@ -254,7 +254,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
 
     assert(state.isInstanceOf[Suspend[Task, Int]], "state.isInstanceOf[Suspend[Task, Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
-    assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
+    assertEquals(state.toListL.runToFuture.value, Some(Failure(dummy)))
   }
 
   test("Iterant.mapEval suspends the evaluation for NextCursor") { implicit s =>
@@ -265,7 +265,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
 
     assert(state.isInstanceOf[Suspend[Task, Int]], "state.isInstanceOf[Suspend[Task, Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
-    assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
+    assertEquals(state.toListL.runToFuture.value, Some(Failure(dummy)))
   }
 
   test("Iterant.mapEval suspends the evaluation for Next") { implicit s =>
@@ -274,7 +274,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     val state = iter.mapEval { _ => (throw dummy): Task[Int] }
 
     assert(state.isInstanceOf[Suspend[Task, Int]], "state.isInstanceOf[Suspend[Int]]")
-    assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
+    assertEquals(state.toListL.runToFuture.value, Some(Failure(dummy)))
   }
 
   test("Iterant.mapEval suspends the evaluation for Last") { implicit s =>
@@ -283,7 +283,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     val state = iter.mapEval { _ => (throw dummy): Task[Int] }
 
     assert(state.isInstanceOf[Suspend[Task, Int]])
-    assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
+    assertEquals(state.toListL.runToFuture.value, Some(Failure(dummy)))
   }
 
   test("Iterant.mapEval preserves resource safety") { implicit s =>

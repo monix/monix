@@ -31,7 +31,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val f = Task.wanderUnordered(seq) {
       case (i, d) =>
         Task.evalAsync(i + 1).delayExecution(d.seconds)
-    }.runAsync
+    }.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -48,7 +48,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
       case (i, d) =>
         Task.evalAsync(if (i < 0) throw ex else i + 1)
           .delayExecution(d.seconds)
-    }.runAsync
+    }.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -60,7 +60,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task.wanderUnordered(seq) {
       case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
-    }.runAsync
+    }.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -77,7 +77,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val seq = 0 until count
     val sum = Task.wanderUnordered(seq.iterator)(x => Task.eval(x + 1)).map(_.sum)
 
-    val result = sum.runAsync; s.tick()
+    val result = sum.runToFuture; s.tick()
     assertEquals(result.value.get, Success((count + 1) * count / 2))
   }
 
@@ -86,7 +86,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val seq = for (i <- 0 until count) yield i
     val sum = Task.wanderUnordered(seq)(x => Task.eval(x)).map(_.sum)
 
-    val result = sum.runAsync; s.tick()
+    val result = sum.runToFuture; s.tick()
     assertEquals(result.value.get, Success(count * (count - 1) / 2))
   }
 
@@ -140,7 +140,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
         .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
     }
 
-    val result = gather.runAsyncOpt
+    val result = gather.runToFutureOpt
     s.tick()
 
     assertEquals(result.value, Some(Failure(ex)))
@@ -160,11 +160,11 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
       task2
     }
 
-    val result1 = task3.runAsync; s.tick()
+    val result1 = task3.runToFuture; s.tick()
     assertEquals(result1.value, Some(Success(List(4, 4, 4))))
     assertEquals(effect, 1 + 3)
 
-    val result2 = task3.runAsync; s.tick()
+    val result2 = task3.runToFuture; s.tick()
     assertEquals(result2.value, Some(Success(List(4, 4, 4))))
     assertEquals(effect, 1 + 3 + 3)
   }
@@ -175,7 +175,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
       throw ex
     }
 
-    val result1 = task1.runAsync; s.tick()
+    val result1 = task1.runToFuture; s.tick()
     assertEquals(result1.value, Some(Failure(ex)))
   }
 

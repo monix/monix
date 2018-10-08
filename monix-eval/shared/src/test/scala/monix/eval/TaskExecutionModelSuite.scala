@@ -23,7 +23,7 @@ import scala.util.Success
 object TaskExecutionModelSuite extends BaseTestSuite {
   test("Task.now.executeWithModel(AlwaysAsyncExecution) should work") { implicit s =>
     val task = Task.now(1).executeWithModel(AlwaysAsyncExecution)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -32,13 +32,13 @@ object TaskExecutionModelSuite extends BaseTestSuite {
   test("Task.now.runAsync (CancelableFuture) should not be async with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val task = Task.now(1)
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.eval.executeWithModel(AlwaysAsyncExecution) should work") { implicit s =>
     val task = Task.eval(1).executeWithModel(AlwaysAsyncExecution)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -48,7 +48,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
   test("Task.eval should be async with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val task = Task.eval(1)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -65,7 +65,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
       }
 
     val task = loop(100)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -82,7 +82,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
       }
 
     val task = loop(100)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -99,7 +99,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
       }
 
     val task = loop(100)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     assertEquals(f.value, None)
     s.tick()

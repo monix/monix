@@ -37,7 +37,7 @@ object BufferSlidingSuite extends BaseTestSuite {
   }
 
   test("issue #275 regression test") { implicit s =>
-    val received = Observable.interval(1.seconds).bufferSliding(5, 1).take(10).map(_.toList).toListL.runAsync
+    val received = Observable.interval(1.seconds).bufferSliding(5, 1).take(10).map(_.toList).toListL.runToFuture
     val expected = (0 until 20).sliding(5,1).take(10).map(_.toList).toList
     s.tick(100.seconds)
 

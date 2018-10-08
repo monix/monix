@@ -52,7 +52,7 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
 
     new Eq[Task[A]] {
       def eqv(lh: Task[A], rh: Task[A]): Boolean =
-        equalityFuture(A, sc).eqv(lh.runAsyncOpt, rh.runAsyncOpt)
+        equalityFuture(A, sc).eqv(lh.runToFutureOpt, rh.runToFutureOpt)
     }
   }
 

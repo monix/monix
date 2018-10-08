@@ -554,7 +554,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   @UnsafeBecauseImpure
   final def runAsyncGetFirst(implicit s: Scheduler, opts: Task.Options = defaultOptions): CancelableFuture[Option[A]] =
-    firstOptionL.runAsyncOpt
+    firstOptionL.runToFutureOpt
 
   /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
     * that upon execution will signal the last generated element of the
@@ -564,7 +564,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   @UnsafeBecauseImpure
   final def runAsyncGetLast(implicit s: Scheduler, opts: Task.Options = defaultOptions): CancelableFuture[Option[A]] =
-    lastOptionL.runAsyncOpt
+    lastOptionL.runToFutureOpt
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.

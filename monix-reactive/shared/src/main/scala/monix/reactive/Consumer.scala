@@ -40,7 +40,7 @@ abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * Notes:
     *
     *  - calling the callback must obey the contract for the
-    *    [[monix.eval.Callback Callback]] type
+    *    [[monix.execution.Callback Callback]] type
     *  - the given callback should always get called, unless the
     *    upstream gets canceled
     *  - the given callback can be called when the subscriber is
@@ -50,7 +50,7 @@ abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     *    loses the ability to cancel the stream, as that `Task` will
     *    complete before the stream is finished
     *
-    * @param cb is the [[monix.eval.Callback Callback]] that will get
+    * @param cb is the [[monix.execution.Callback Callback]] that will get
     *        called once the created subscriber is finished.
     * @param s is the [[monix.execution.Scheduler Scheduler]] that will
     *        get used for subscribing to the source observable and to
@@ -195,9 +195,10 @@ object Consumer {
     *  - a [[monix.execution.Cancelable Cancelable]] that can be used for
     *    concurrently canceling the stream (in addition to being able to
     *    return `Stop` from `onNext`)
-    *  - a [[monix.eval.Callback Callback]] that must be called to signal
-    *    the final result, after the observer finished processing the
-    *    stream, or an error if the processing finished in error
+    *  - a [[monix.execution.Callback Callback]] that must be called
+    *    to signal the final result, after the observer finished
+    *    processing the stream, or an error if the processing finished
+    *    in error
     *
     * @param f is the input function with an injected `Scheduler`,
     *        `Cancelable`, `Callback` and that returns an `Observer`

@@ -36,7 +36,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
       val sum = Observable.range(0, count)
         .flatMap(x => Observable(x,x,x))
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)
@@ -51,7 +51,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
       val sum = Observable.range(0, count)
         .flatMap(x => Observable(x,x,x).executeAsync)
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)

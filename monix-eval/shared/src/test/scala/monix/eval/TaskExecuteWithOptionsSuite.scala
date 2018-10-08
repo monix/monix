@@ -27,7 +27,7 @@ object TaskExecuteWithOptionsSuite extends BaseTestSuite {
       .executeWithOptions(_.enableLocalContextPropagation)
       .flatMap(opt1 => Task.readOptions.map(opt2 => (opt1, opt2)))
 
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
 
     val Some(Success((opt1, opt2))) = f.value
@@ -47,7 +47,7 @@ object TaskExecuteWithOptionsSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }
@@ -63,7 +63,7 @@ object TaskExecuteWithOptionsSuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; sc.tick()
+    val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
 

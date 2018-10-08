@@ -26,7 +26,7 @@ import scala.util.{Failure, Success}
 object TaskOverloadsSuite extends BaseTestSuite {
   test("Now.runAsync(scheduler)") { implicit s =>
     val task = Task.now(1)
-    val f = task.runAsync(s)
+    val f = task.runToFuture(s)
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -51,7 +51,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
 
   test("Now.runAsyncOpt(scheduler)") { implicit s =>
     val task = Task.now(1)
-    val f = task.runAsyncOpt(s, Task.defaultOptions)
+    val f = task.runToFutureOpt(s, Task.defaultOptions)
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -65,7 +65,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
   test("Error.runAsync(scheduler)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
-    val f = task.runAsync(s)
+    val f = task.runToFuture(s)
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
@@ -93,7 +93,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
   test("Error.runAsyncOpt(scheduler)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
-    val f = task.runAsyncOpt(s, Task.defaultOptions)
+    val f = task.runToFutureOpt(s, Task.defaultOptions)
     assertEquals(f.value, Some(Failure(dummy)))
   }
 

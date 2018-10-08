@@ -113,7 +113,7 @@ private[reactive] class GuaranteeCaseObservable[A](
       if (isActive.getAndSet(false)) {
         Task.suspend(f(e))
           .redeem(e => { scheduler.reportFailure(e); Stop }, _ => Stop)
-          .runAsync
+          .runToFuture
       } else {
         Stop
       }

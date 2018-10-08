@@ -45,7 +45,7 @@ object IterantFromIterableSuite extends BaseTestSuite {
       def next(): Int = throw dummy
     }
 
-    val result = Iterant[Task].fromIterator(iterator).toListL.runAsync
+    val result = Iterant[Task].fromIterator(iterator).toListL.runToFuture
     s.tick(); assertEquals(result.value, Some(Failure(dummy)))
   }
 

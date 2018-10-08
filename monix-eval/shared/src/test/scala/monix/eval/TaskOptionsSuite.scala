@@ -33,7 +33,7 @@ object TaskOptionsSuite extends SimpleTestSuite {
     val task = extractOptions(Task.now(1)).map { r =>
       assertEquals(r, opts)
     }
-    task.runAsyncOpt
+    task.runToFutureOpt
   }
 
   testAsync("change options with callback") {

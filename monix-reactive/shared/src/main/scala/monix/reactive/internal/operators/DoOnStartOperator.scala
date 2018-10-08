@@ -52,7 +52,7 @@ class DoOnStartOperator[A](cb: A => Task[Unit])
           val ack = t.redeemWith(
             ex => Task.eval { onError(ex); Stop },
             _ => Task.fromFuture(out.onNext(elem))
-          ).runAsync
+          ).runToFuture
 
           isStart = false
           ack.syncTryFlatten

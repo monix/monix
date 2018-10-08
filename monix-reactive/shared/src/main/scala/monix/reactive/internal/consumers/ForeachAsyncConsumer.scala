@@ -40,7 +40,7 @@ final class ForeachAsyncConsumer[A](f: A => Task[Unit])
       def onNext(elem: A): Future[Ack] = {
         try {
           f(elem).map(_ => Continue)
-            .runAsync
+            .runToFuture
             .syncTryFlatten
         } catch {
           case ex if NonFatal(ex) =>
