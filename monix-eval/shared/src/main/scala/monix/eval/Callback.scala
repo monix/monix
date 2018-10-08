@@ -19,9 +19,11 @@ package monix.eval
 
 import cats.Contravariant
 import monix.eval.internal.TaskConnection
+
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolinedRunnable
-import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{BiCallback, Scheduler, UncaughtExceptionReporter}
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -38,30 +40,8 @@ import scala.util.{Failure, Success, Try}
   * describing asynchronous processes, like in
   * [[Task.cancelable0[A](register* Task.cancelable]].
   */
-abstract class Callback[-A] extends Listener[A] with (Either[Throwable, A] => Unit) {
-  def onSuccess(value: A): Unit
-
-  def onError(ex: Throwable): Unit
-
-  def apply(result: Either[Throwable, A]): Unit =
-    result match {
-      case Right(a) => onSuccess(a)
-      case Left(e) => onError(e)
-    }
-
-  def apply(result: Try[A]): Unit =
-    result match {
-      case Success(a) => onSuccess(a)
-      case Failure(e) => onError(e)
-    }
-
-  final def onValue(value: A): Unit =
-    onSuccess(value)
-
-  /** Return a new callback that will apply the supplied function
-    * before passing the result into this callback.
-    */
-  final def contramap[B](f: B => A): Callback[B] =
+abstract class Callback[-A] extends BiCallback[Throwable, A] {
+  override def contramap[B](f: B => A): Callback[B] =
     new Callback.ContramapCallback(this, f)
 }
 
@@ -91,7 +71,6 @@ object Callback {
     new Callback[A] {
       def onError(ex: Throwable): Unit = p.failure(ex)
       def onSuccess(value: A): Unit = p.success(value)
-      override def apply(result: Try[A]): Unit = p.complete(result)
     }
 
   /** Given a [[Callback]] wraps it into an implementation that
@@ -161,7 +140,6 @@ object Callback {
     new Callback[A] {
       def onSuccess(value: A): Unit = cb(Success(value))
       def onError(ex: Throwable): Unit = cb(Failure(ex))
-      override def apply(result: Try[A]): Unit = cb(result)
     }
 
   implicit final class Extensions[-A](val source: Callback[A]) extends AnyVal {
