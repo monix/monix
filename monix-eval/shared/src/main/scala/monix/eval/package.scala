@@ -17,10 +17,18 @@
 
 package monix
 
-package object execution {
+import monix.execution.BiCallback
 
-  type Callback[-A] = BiCallback[Throwable, A]
+package object eval {
+  /**
+    * Alias of [[BiCallback]] where the error type is the standard `Throwable`.
+    *
+    * `Throwable` is the most common error type.
+    */
+  type Callback[-A] = monix.execution.Callback[A]
 
-  val Callback: BiCallback.Builders[Throwable] = BiCallback[Throwable]
-
+  /**
+    * For building [[Callback]] values.
+    */
+  def Callback: BiCallback.Builders[Throwable] = monix.execution.Callback
 }

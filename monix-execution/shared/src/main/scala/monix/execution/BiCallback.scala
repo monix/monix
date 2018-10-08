@@ -156,33 +156,33 @@ object BiCallback {
     }
 
   /** Functions exposed via [[apply]]. */
-  final class Builders[E](val ev: Unit = ()) extends AnyVal {
+  class Builders[E](val ev: Unit = ()) extends AnyVal {
     /** See [[BiCallback.safe]]. */
-    def safe[A](cb: BiCallback[E, A])(implicit r: UncaughtExceptionReporter): BiCallback[E, A] =
+    final def safe[A](cb: BiCallback[E, A])(implicit r: UncaughtExceptionReporter): BiCallback[E, A] =
       BiCallback.safe(cb)
 
     /** See [[BiCallback.empty]]. */
-    def empty[A](implicit r: UncaughtExceptionReporter): BiCallback[E, A] =
+    final def empty[A](implicit r: UncaughtExceptionReporter): BiCallback[E, A] =
       BiCallback.empty
 
     /** See [[BiCallback.fromPromise]]. */
-    def fromPromise[A](p: Promise[A])(implicit ev: Throwable <:< E): BiCallback[Throwable, A] =
+    final def fromPromise[A](p: Promise[A])(implicit ev: Throwable <:< E): BiCallback[Throwable, A] =
       BiCallback.fromPromise(p)
 
     /** See [[BiCallback.forked]]. */
-    def forked[A](cb: BiCallback[E, A])(implicit ec: ExecutionContext): BiCallback[E, A] =
+    final def forked[A](cb: BiCallback[E, A])(implicit ec: ExecutionContext): BiCallback[E, A] =
       BiCallback.forked(cb)
 
     /** See [[BiCallback.trampolined]]. */
-    def trampolined[A](cb: BiCallback[E, A])(implicit ec: ExecutionContext): BiCallback[E, A] =
+    final def trampolined[A](cb: BiCallback[E, A])(implicit ec: ExecutionContext): BiCallback[E, A] =
       BiCallback.trampolined(cb)
 
     /** See [[BiCallback.fromAttempt]]. */
-    def fromAttempt[A](cb: Either[E, A] => Unit): BiCallback[E, A] =
+    final def fromAttempt[A](cb: Either[E, A] => Unit): BiCallback[E, A] =
       BiCallback.fromAttempt(cb)
 
     /** See [[BiCallback.fromTry]]. */
-    def fromTry[A](cb: Try[A] => Unit)(implicit ev: Throwable <:< E): BiCallback[Throwable, A] =
+    final def fromTry[A](cb: Try[A] => Unit)(implicit ev: Throwable <:< E): BiCallback[Throwable, A] =
       BiCallback.fromTry(cb)
   }
 
@@ -208,7 +208,7 @@ object BiCallback {
     extends Base[E, A](cb)(ec) with TrampolinedRunnable
 
   /** Base implementation for `trampolined` and `forked`. */
-  private class Base[E, A](cb: BiCallback[E, A])
+  private[monix] class Base[E, A](cb: BiCallback[E, A])
     (implicit ec: ExecutionContext)
     extends BiCallback[E, A] with Runnable {
 

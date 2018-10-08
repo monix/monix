@@ -48,7 +48,7 @@ private[eval] object TaskCreate {
       conn push cancelable.cancel
 
       try {
-        val ref = fn(s, Callback.trampolined(conn, cb))
+        val ref = fn(s, TaskConnection.trampolineCallback(conn, cb))
         // Optimization to skip the assignment, as it's expensive
         if (!ref.isInstanceOf[Cancelable.IsDummy])
           setConnection(cancelable, ref)
@@ -146,7 +146,7 @@ private[eval] object TaskCreate {
         val conn = ctx.connection
         conn.push(ctx2.connection.cancel)
         // Provided callback takes care of `conn.pop()`
-        val task = k(Callback.trampolined(conn, cb))
+        val task = k(TaskConnection.trampolineCallback(conn, cb))
         Task.unsafeStartNow(task, ctx2, Callback.empty)
       } catch {
         case ex if NonFatal(ex) =>

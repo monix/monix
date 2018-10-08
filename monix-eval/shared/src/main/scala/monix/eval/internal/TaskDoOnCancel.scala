@@ -32,7 +32,7 @@ private[eval] object TaskDoOnCancel {
 
         val conn = context.connection
         conn.push(callback)
-        Task.unsafeStartNow(self, context, Callback.trampolined(conn, onFinish))
+        Task.unsafeStartNow(self, context, TaskConnection.trampolineCallback(conn, onFinish))
       }
       Async(start, trampolineBefore = false, trampolineAfter = false, restoreLocals = false)
     }

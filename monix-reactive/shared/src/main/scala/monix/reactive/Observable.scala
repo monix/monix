@@ -21,7 +21,6 @@ import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
 import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, Order, Eq, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
-import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
 import monix.execution.Ack.{Continue, Stop}
@@ -3392,7 +3391,7 @@ abstract class Observable[+A] extends Serializable { self =>
 
         def onComplete(): Unit = {
           if (isEmpty)
-            cb(Eager(default))
+            cb(Try(default))
           else
             cb.onSuccess(value)
         }
@@ -3645,7 +3644,7 @@ abstract class Observable[+A] extends Serializable { self =>
         def onComplete(): Unit =
           if (!isDone) {
             isDone = true
-            cb(Eager(default))
+            cb(Try(default))
           }
       })
     }

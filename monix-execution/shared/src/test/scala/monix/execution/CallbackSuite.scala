@@ -15,17 +15,23 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.execution
 
 import cats.Contravariant
+import minitest.TestSuite
 import monix.execution.exceptions.DummyException
+import monix.execution.schedulers.TestScheduler
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
-object CallbackSuite extends BaseTestSuite {
+object CallbackSuite extends TestSuite[TestScheduler] {
+  def setup() = TestScheduler()
+  def tearDown(env: TestScheduler): Unit =
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
+
   case class TestCallback(
     success: Int => Unit = _ => (),
-    error: Throwable => Unit = _ => ()) extends Callback[Int] {
+    error: Throwable => Unit = _ => ()) extends BiCallback[Throwable, Int] {
 
     var successCalled = false
     var errorCalled = false
@@ -79,13 +85,6 @@ object CallbackSuite extends BaseTestSuite {
     assert(callback.successCalled)
   }
 
-  test("contramap should invoke onError if the function throws") { implicit s =>
-    val callback = TestCallback()
-    val stringCallback = callback.contramap[String](_.toInt)
-    stringCallback.onSuccess("not a int")
-    assert(callback.errorCalled)
-  }
-
   test("contramap has a cats Contramap instance") { implicit s =>
     val instance = implicitly[Contravariant[Callback]]
     val callback = TestCallback()
@@ -126,7 +125,7 @@ object CallbackSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val cb = new Callback[Int] {
+    val cb = new BiCallback[Throwable, Int] {
       def onSuccess(value: Int): Unit = {
         effect += 1
         throw dummy
@@ -150,7 +149,7 @@ object CallbackSuite extends BaseTestSuite {
     val dummy2 = DummyException("dummy2")
     var effect = 0
 
-    val cb = new Callback[Int] {
+    val cb = new BiCallback[Throwable, Int] {
       def onSuccess(value: Int): Unit =
         throw new IllegalStateException("onSuccess")
 
