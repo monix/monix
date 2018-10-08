@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.Callback
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Subscriber, Subscription}
 

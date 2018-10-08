@@ -18,7 +18,7 @@
 package monix.tail.internal
 
 import cats.effect.Async
-import monix.execution.BiCallback
+import monix.execution.Callback
 import monix.execution.atomic.Atomic
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.Iterant
@@ -119,7 +119,7 @@ private[tail] object IterantFromReactivePublisher {
     def onComplete(): Unit =
       finish(Iterant.empty)
 
-    private object listener extends BiCallback[Nothing, Iterant[F, A]] {
+    private object listener extends Callback[Nothing, Iterant[F, A]] {
       var ref: Either[Throwable, Iterant[F, A]] => Unit = _
 
       def onError(e: Nothing): Unit = ()
@@ -173,7 +173,7 @@ private[tail] object IterantFromReactivePublisher {
     extends State[F, A]
 
   private final case class Take[F[_], A](
-    cb: BiCallback[Nothing, Iterant[F, A]])
+    cb: Callback[Nothing, Iterant[F, A]])
     extends State[F, A]
 
   private val Empty = Enqueue(Queue.empty, 0)

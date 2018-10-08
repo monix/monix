@@ -22,8 +22,8 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer
 
 import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.internal.TaskRunLoop._
-import monix.eval.{Callback, Task}
-import monix.execution.Scheduler
+import monix.eval.Task
+import monix.execution.{Callback, Scheduler}
 import monix.execution.internal.collection.ArrayStack
 import scala.util.control.NonFatal
 
@@ -164,7 +164,7 @@ private[eval] object TaskRunSyncUnsafe {
   }
 
   private final class BlockingCallback[A](latch: OneShotLatch)
-    extends Callback [A] {
+    extends Callback [Throwable, A] {
 
     private[this] var success: A = _
     private[this] var error: Throwable = _

@@ -17,9 +17,9 @@
 
 package monix.eval
 
+import monix.execution.Callback
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 

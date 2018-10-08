@@ -19,11 +19,10 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
-
+import monix.execution.Callback
 import monix.execution.atomic.{Atomic, AtomicInt}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-
 import scala.util.{Failure, Success, Try}
 
 object TaskFlatMapSuite extends BaseTestSuite {
@@ -80,7 +79,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
     val c = loop(atomic)
       .executeWithOptions(_.enableAutoCancelableRunLoops)
-      .runAsync(new Callback[Unit] {
+      .runAsync(new Callback[Throwable, Unit] {
         def onSuccess(value: Unit): Unit =
           result = Some(Success(value))
         def onError(ex: Throwable): Unit =

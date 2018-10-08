@@ -18,7 +18,8 @@
 package monix.reactive.internal.operators
 
 import cats.effect.ExitCase
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, AtomicBoolean}
 import monix.execution.internal.Platform
@@ -146,7 +147,7 @@ private[reactive] class GuaranteeCaseObservable[A](
         })
 
       task.runAsyncUncancelable(
-        new Callback[Ack] {
+        new Callback[Throwable, Ack] {
           def onSuccess(value: Ack): Unit = {
             if (value == Continue) {
               if (e != null) out.onError(e)

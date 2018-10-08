@@ -20,7 +20,8 @@ package monix.reactive.consumers
 import cats.laws._
 import cats.laws.discipline._
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseTestSuite, Consumer, Observable, Observer}

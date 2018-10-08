@@ -17,18 +17,16 @@
 
 package monix
 
-import monix.execution.BiCallback
-
 package object eval {
-  /**
-    * Alias of [[BiCallback]] where the error type is the standard `Throwable`.
-    *
-    * `Throwable` is the most common error type.
-    */
-  type Callback[-A] = monix.execution.Callback[A]
-
-  /**
-    * For building [[Callback]] values.
-    */
-  def Callback: BiCallback.Builders[Throwable] = monix.execution.Callback
+//  /**
+//    * DEPRECATED — moved namespace to [[monix.execution.Callback]].
+//    */
+//  @deprecated("Moved to monix.execution.Callback", "3.0.0")
+//  type Callback[-A] = monix.execution.Callback[Throwable, A]
+//
+//  /**
+//    * DEPRECATED — moved namespace to [[monix.execution.Callback]].
+//    */
+//  @deprecated("Moved to monix.execution.Callback", "3.0.0")
+//  def Callback: BiCallback.Builders[Throwable] = monix.execution.Callback
 }

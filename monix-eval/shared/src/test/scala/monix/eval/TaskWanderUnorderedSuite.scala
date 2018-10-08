@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.Callback
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
@@ -116,7 +117,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     var result = Option.empty[Try[Int]]
 
     wanderSpecial(tasks).map(_.sum).runAsync(
-      new Callback[Int] {
+      new Callback[Throwable, Int] {
         def onSuccess(value: Int): Unit =
           result = Some(Success(value))
 

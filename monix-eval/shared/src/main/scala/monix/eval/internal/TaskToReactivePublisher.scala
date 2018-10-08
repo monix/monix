@@ -17,7 +17,8 @@
 
 package monix.eval.internal
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.rstreams.Subscription
 import org.reactivestreams.Subscriber
@@ -41,7 +42,7 @@ private[eval] object TaskToReactivePublisher {
 
             if (isActive) {
               Task.unsafeStartEnsureAsync[A](self, context,
-                Callback.safe(new Callback[A] {
+                Callback.safe(new Callback[Throwable, A] {
                   def onError(ex: Throwable): Unit =
                     out.onError(ex)
 

@@ -21,7 +21,7 @@ package internal
 import monix.eval.Task.Options
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.execution.annotations.UnsafeBecauseImpure
-
+import monix.execution.Callback
 import scala.annotation.unchecked.uncheckedVariance
 import scala.util.{Failure, Success, Try}
 

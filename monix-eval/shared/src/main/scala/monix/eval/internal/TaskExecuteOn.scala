@@ -19,7 +19,8 @@ package monix.eval.internal
 
 import monix.eval.Task.{Async, Context}
 import java.util.concurrent.RejectedExecutionException
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Scheduler
 
 private[eval] object TaskExecuteOn {
@@ -44,13 +45,13 @@ private[eval] object TaskExecuteOn {
   private final class AsyncRegister[A](source: Task[A], s: Scheduler)
     extends ForkedRegister[A] {
 
-    def apply(ctx: Context, cb: Callback[A]): Unit = {
+    def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
       val oldS = ctx.scheduler
       val ctx2 = ctx.withScheduler(s)
 
       try {
         Task.unsafeStartAsync(source, ctx2,
-          new Callback[A] with Runnable {
+          new Callback[Throwable, A] with Runnable {
             private[this] var value: A = _
             private[this] var error: Throwable = _
 
@@ -78,9 +79,9 @@ private[eval] object TaskExecuteOn {
   }
 
   private final class TrampolinedStart[A](source: Task[A], s: Scheduler)
-    extends ((Context, Callback[A]) => Unit) {
+    extends ((Context, Callback[Throwable, A]) => Unit) {
 
-    def apply(ctx: Context, cb: Callback[A]): Unit = {
+    def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
       val ctx2 = ctx.withScheduler(s)
       try {
         Task.unsafeStartNow(source, ctx2, cb)

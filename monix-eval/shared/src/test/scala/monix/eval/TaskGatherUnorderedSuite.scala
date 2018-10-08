@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.Callback
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
@@ -109,7 +110,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     var result = Option.empty[Try[Int]]
 
     gatherSpecial(tasks).map(_.sum).runAsync(
-      new Callback[Int] {
+      new Callback[Throwable, Int] {
         def onSuccess(value: Int): Unit =
           result = Some(Success(value))
         def onError(ex: Throwable): Unit =

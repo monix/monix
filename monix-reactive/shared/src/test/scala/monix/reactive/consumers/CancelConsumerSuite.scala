@@ -18,7 +18,7 @@
 package monix.reactive.consumers
 
 import minitest.TestSuite
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.Ack.Stop
 import monix.execution.Cancelable
 import monix.execution.exceptions.DummyException

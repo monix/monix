@@ -17,7 +17,7 @@
 
 package monix.execution.misc
 
-import monix.execution.BiCallback
+import monix.execution.Callback
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.atomic.{AtomicAny, PaddingStrategy}
 
@@ -72,7 +72,7 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     */
   def put(a: A): Future[Unit] = {
     val p = Promise[Unit]()
-    if (unsafePut(a, BiCallback.fromPromise(p))) Future.successful(())
+    if (unsafePut(a, Callback.fromPromise(p))) Future.successful(())
     else p.future
   }
 
@@ -93,7 +93,7 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     *        blocking necessary, or `false` if the operation
     *        is blocked because the var is already full
     */
-  @tailrec def unsafePut(a: A, await: BiCallback[Nothing, Unit]): Boolean = {
+  @tailrec def unsafePut(a: A, await: Callback[Nothing, Unit]): Boolean = {
     if (a == null) throw new NullPointerException("null not supported in AsyncVar/MVar")
     val current: State[A] = stateRef.get
 
@@ -123,7 +123,7 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     */
   def take: Future[A] = {
     val p = Promise[A]()
-    unsafeTake(BiCallback.fromPromise(p)) match {
+    unsafeTake(Callback.fromPromise(p)) match {
       case null => p.future
       case a => Future.successful(a)
     }
@@ -144,7 +144,7 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     *         is in progress (in which case the `await` callback
     *         gets called with the result)
     */
-  @tailrec def unsafeTake(await: BiCallback[Nothing, A]): A = {
+  @tailrec def unsafeTake(await: Callback[Nothing, A]): A = {
     @inline def nil = null.asInstanceOf[A]
 
     val current: State[A] = stateRef.get
@@ -196,7 +196,7 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     */
   def read: Future[A] = {
     val p = Promise[A]()
-    unsafeRead(BiCallback.fromPromise(p)) match {
+    unsafeRead(Callback.fromPromise(p)) match {
       case null => p.future
       case a => Future.successful(a)
     }
@@ -226,15 +226,15 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     *         is in progress (in which case the `await` callback
     *         gets called with the result)
     */
-  def unsafeRead(await: BiCallback[Nothing, A]): A = {
+  def unsafeRead(await: Callback[Nothing, A]): A = {
     // To be used with unsafePut
-    def awaitPut(a: A): BiCallback[Nothing, Unit] = new BiCallback[Nothing, Unit] {
+    def awaitPut(a: A): Callback[Nothing, Unit] = new Callback[Nothing, Unit] {
       def onError(e: Nothing): Unit = ()
       def onSuccess(value: Unit): Unit =
         await.onSuccess(a)
     }
     // To be used with unsafeTake
-    def awaitTake: BiCallback[Nothing, A] = new BiCallback[Nothing, A] {
+    def awaitTake: Callback[Nothing, A] = new Callback[Nothing, A] {
       def onError(e: Nothing): Unit = ()
       def onSuccess(value: A): Unit = {
         // Execution could be synchronous
@@ -309,7 +309,7 @@ object AsyncVar {
     * @param queue are the rest of the requests waiting in line,
     *        if more than one `take` requests were registered
     */
-  private final case class WaitForPut[A](first: BiCallback[Nothing, A], queue: Queue[BiCallback[Nothing, A]])
+  private final case class WaitForPut[A](first: Callback[Nothing, A], queue: Queue[Callback[Nothing, A]])
     extends State[A] {
 
     def dequeue: State[A] =
@@ -328,6 +328,6 @@ object AsyncVar {
     *        value is first in line (i.e. when the corresponding `put`
     *        is unblocked from the user's point of view)
     */
-  private final case class WaitForTake[A](value: A, queue: Queue[(A, BiCallback[Nothing, Unit])])
+  private final case class WaitForTake[A](value: A, queue: Queue[(A, Callback[Nothing, Unit])])
     extends State[A]
 }

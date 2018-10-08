@@ -18,7 +18,8 @@
 package monix.eval.internal
 
 import monix.eval.Task.{Async, Context}
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 
 private[eval] object TaskDoOnCancel {
   /**
@@ -26,7 +27,7 @@ private[eval] object TaskDoOnCancel {
     */
   def apply[A](self: Task[A], callback: Task[Unit]): Task[A] = {
     if (callback eq Task.unit) self else {
-      val start = (context: Context, onFinish: Callback[A]) => {
+      val start = (context: Context, onFinish: Callback[Throwable, A]) => {
         implicit val s = context.scheduler
         implicit val o = context.options
 

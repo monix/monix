@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.{Cancelable, Scheduler}
 import monix.execution.cancelables.{AssignableCancelable, SingleAssignCancelable}
 import monix.reactive.{Consumer, Observer}
@@ -27,10 +27,10 @@ import scala.util.{Failure, Success, Try}
 /** Implementation for [[monix.reactive.Consumer.create]]. */
 private[reactive]
 final class CreateConsumer[-In,+Out]
-  (f: (Scheduler, Cancelable, Callback[Out]) => Observer[In])
+  (f: (Scheduler, Cancelable, Callback[Throwable, Out]) => Observer[In])
   extends Consumer[In,Out] {
 
-  def createSubscriber(cb: Callback[Out], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
+  def createSubscriber(cb: Callback[Throwable, Out], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     val conn = SingleAssignCancelable()
 
     Try(f(s, conn, cb)) match {

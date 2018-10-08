@@ -17,9 +17,9 @@
 
 package monix.reactive
 
-import monix.eval.{Callback, Task, TaskLike}
+import monix.eval.{Task, TaskLike}
 import monix.execution.cancelables.AssignableCancelable
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{Cancelable, Callback, Scheduler}
 import monix.reactive.internal.consumers._
 import monix.reactive.observers.Subscriber
 
@@ -58,7 +58,7 @@ abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     *
     * @return a new subscriber that can be used to consume observables.
     */
-  def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber[In], AssignableCancelable)
+  def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[In], AssignableCancelable)
 
   /** Given a source [[Observable]], convert it into a [[monix.eval.Task Task]]
     * by piggybacking on [[createSubscriber]].
@@ -202,7 +202,7 @@ object Consumer {
     * @param f is the input function with an injected `Scheduler`,
     *        `Cancelable`, `Callback` and that returns an `Observer`
     */
-  def create[In,Out](f: (Scheduler, Cancelable, Callback[Out]) => Observer[In]): Consumer[In,Out] =
+  def create[In,Out](f: (Scheduler, Cancelable, Callback[Throwable, Out]) => Observer[In]): Consumer[In,Out] =
     new CreateConsumer[In,Out](f)
 
   /** Given a function taking a `Scheduler` and returning an [[Observer]],
@@ -398,6 +398,6 @@ object Consumer {
     * [[monix.reactive.observers.Subscriber.Sync synchronous subscribers]].
     */
   trait Sync[-In, +R] extends Consumer[In, R] {
-    override def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
+    override def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
   }
 }

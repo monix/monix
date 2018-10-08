@@ -314,8 +314,34 @@ import scala.util.{Failure, Success, Try}
   *         to evaluate the source, being required in Task's
   *         [[runAsync(implicit* runAsync]]
   *
-  * @define callbackDesc is a callback that will be invoked upon
-  *         completion
+  * @define callbackDesc ==Callback==
+  *
+  *         When executing the task via this method, the user is
+  *         required to supply a side effecting `Either[Throwable, A] => Unit`
+  *         callback. This calback will be executed on completion, either with
+  *         a successful result (`Right(value)`), or with an error (`Left(e)`).
+  *
+  *         However you can supply a [[monix.execution.Callback]] instead,
+  *         to avoid the boxing in [[scala.Either]], because `Task` uses
+  *         `Callback` internally. Or because it has nice helpers for wrapping
+  *         other callback types, check out its
+  *         [[monix.execution.Callback$ companion object]].
+  *
+  *         Note that with `Callback` you can:
+  *
+  *          - convert from a plain function using `Either[Throwable, A]`
+  *             as input via [[Callback.fromAttempt]]
+  *          - convert from a plain function using `Try[A]` as input via
+  *            [[Callback.fromTry]]
+  *          - wrap a standard Scala `Promise` via [[Callback.fromPromise]]
+  *           - pass an empty callback that just reports errors via
+  *             [[Callback.empty]]
+
+  *
+  * @define callbackParamDesc is a callback that will be invoked upon
+  *         completion, either with a successful result, or with an error;
+  *         note that you can use [[monix.execution.Callback]] for extra
+  *         performance (avoids the boxing in [[scala.Either]])
   *
   * @define cancelableDesc a [[monix.execution.Cancelable Cancelable]]
   *         that can be used to cancel a running task
@@ -560,6 +586,7 @@ sealed abstract class Task[+A] extends Serializable {
     * gets evaluated, as a `Task` has lazy behavior.
     *
     * {{{
+    *   import monix.execution.Callback
     *   import scala.concurrent.duration._
     *   // A Scheduler is needed for executing tasks via `runAsync`
     *   import monix.execution.Scheduler.Implicits.global
@@ -573,42 +600,28 @@ sealed abstract class Task[+A] extends Serializable {
     *
     *
     *   // Triggering the task's execution:
-    *   val f = task.runAsync(new Callback[String] {
-    *     def onSuccess(str: String): Unit =
+    *   val f = task.runAsync {
+    *     case Right(str) =>
     *       println(s"Received: $$str")
-    *     def onError(e: Throwable): Unit =
+    *     case Left(e) =>
     *       global.reportFailure(e)
-    *   })
+    *   }
     *
     *   // Or in case we change our mind
     *   f.cancel()
     * }}}
     *
-    * This version of `runAsync` takes a [[Callback]] as a parameter.
-    * This is an interface that represents the OOP encoding of a
-    * side-effectful function taking a "logical disjunction" as a
-    * parameter, thus receiving either the successful result of the
-    * computation, or an error.
-    *
-    * NOTE that with `Callback` you can:
-    *
-    *  - convert from a plain function using `Either[Throwable, A]`
-    *    as input via [[Callback.fromAttempt]]
-    *  - convert from a plain function using `Try[A]` as input via
-    *    [[Callback.fromTry]]
-    *  - wrap a standard Scala `Promise` via [[Callback.fromPromise]]
-    *  - pass an empty callback that just reports errors via
-    *    [[Callback.empty]]
+    * $callbackDesc
     *
     * $unsafeRun
     *
-    * @param cb $callbackDesc
+    * @param cb $callbackParamDesc
     * @param s $schedulerDesc
     * @return $cancelableDesc
     */
   @UnsafeBecauseImpure
-  final def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable =
-    runAsyncOpt(cb)(s, Task.defaultOptions)
+  final def runAsync(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler): Cancelable =
+    runAsyncOpt(Callback.fromAttempt(cb))(s, Task.defaultOptions)
 
   /** Triggers the asynchronous execution, much like normal
     * [[runAsync(cb* runAsync]], but includes the ability to specify
@@ -636,26 +649,26 @@ sealed abstract class Task[+A] extends Serializable {
     *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     *
     *   // Actual execution that depends on these custom options:
-    *   task.runAsyncOpt(new Callback[Int] {
-    *     def onSuccess(value: Int): Unit =
+    *   task.runAsyncOpt {
+    *     case Right(value) =>
     *       println(s"Received: $$value")
-    *     def onError(e: Throwable): Unit =
+    *     case Left(e) =>
     *       global.reportFailure(e)
-    *   })
+    *   }
     * }}}
     *
     * See [[Task.Options]].
     *
     * $unsafeRun
     *
-    * @param cb $callbackDesc
+    * @param cb $callbackParamDesc
     * @param s $schedulerDesc
     * @param opts $optionsDesc
     * @return $cancelableDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable =
-    UnsafeCancelUtils.taskToCancelable(runAsyncOptF(cb)(s, opts))
+  def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable =
+    UnsafeCancelUtils.taskToCancelable(runAsyncOptF(Callback.fromAttempt(cb))(s, opts))
 
   /** Triggers the asynchronous execution, returning a `Task[Unit]`
     * (aliased to `CancelToken[Task]` in Cats-Effect) which can
@@ -686,6 +699,7 @@ sealed abstract class Task[+A] extends Serializable {
     * capability to wait for its completion.
     *
     * {{{
+    *   import monix.execution.Callback
     *   import monix.execution.Scheduler.Implicits.global
     *
     *   val cancel = task.runAsyncF(Callback.empty)
@@ -706,13 +720,13 @@ sealed abstract class Task[+A] extends Serializable {
     * of `CancelToken[F]` to return a `Task[Unit]`, instead of a
     * plain and side effectful `Cancelable` object.
     *
-    * @param cb $callbackDesc
+    * @param cb $callbackParamDesc
     * @param s $schedulerDesc
     * @return $cancelTokenDesc
     */
   @UnsafeBecauseImpure
-  final def runAsyncF(cb: Callback[A])(implicit s: Scheduler): CancelToken[Task] =
-    runAsyncOptF(cb)(s, Task.defaultOptions)
+  final def runAsyncF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler): CancelToken[Task] =
+    runAsyncOptF(Callback.fromAttempt(cb))(s, Task.defaultOptions)
 
   /** Triggers the asynchronous execution, much like normal
     * [[runAsyncF(cb* runAsyncF]], but includes the ability to specify
@@ -743,14 +757,14 @@ sealed abstract class Task[+A] extends Serializable {
     * of `CancelToken[F]` to return a `Task[Unit]`, instead of a
     * plain and side effectful `Cancelable` object.
     *
-    * @param cb $callbackDesc
+    * @param cb $callbackParamDesc
     * @param s $schedulerDesc
     * @param opts $optionsDesc
     * @return $cancelTokenDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncOptF(cb: Callback[A])(implicit s: Scheduler, opts: Options): CancelToken[Task] =
-    TaskRunLoop.startLight(this, s, opts, cb)
+  def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): CancelToken[Task] =
+    TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb))
 
   /** Triggers the asynchronous execution of the source task
     * in a "fire and forget" fashion.
@@ -825,12 +839,12 @@ sealed abstract class Task[+A] extends Serializable {
     *
     *   // Triggering the task's execution, without receiving any
     *   // cancelation tokens
-    *   task.runAsyncUncancelable(new Callback[String] {
-    *     def onSuccess(str: String): Unit =
+    *   task.runAsyncUncancelable {
+    *     case Right(str) =>
     *       println(s"Received: $$str")
-    *     def onError(e: Throwable): Unit =
+    *     case Left(e) =>
     *       global.reportFailure(e)
-    *   })
+    *   }
     * }}}
     *
     * $unsafeRun
@@ -838,8 +852,8 @@ sealed abstract class Task[+A] extends Serializable {
     * @param s $schedulerDesc
     */
   @UnsafeBecauseImpure
-  final def runAsyncUncancelable(cb: Callback[A])(implicit s: Scheduler): Unit =
-    runAsyncUncancelableOpt(cb)(s, Task.defaultOptions)
+  final def runAsyncUncancelable(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler): Unit =
+    runAsyncUncancelableOpt(Callback.fromAttempt(cb))(s, Task.defaultOptions)
 
   /** Triggers the asynchronous execution in uncancelable mode,
     * like [[runAsyncUncancelable]], but includes the ability to
@@ -863,8 +877,8 @@ sealed abstract class Task[+A] extends Serializable {
     * @param opts $optionsDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Task.Options): Unit =
-    TaskRunLoop.startLight(this, s, opts, cb, isCancelable = false)
+  def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): Unit =
+    TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb), isCancelable = false)
 
   /** Executes the source until completion, or until the first async
     * boundary, whichever comes first.
@@ -2712,7 +2726,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * @see [[Task.create]] for the builder that does it all
     */
-  def async[A](register: Callback[A] => Unit): Task[A] =
+  def async[A](register: Callback[Throwable, A] => Unit): Task[A] =
     TaskCreate.async(register)
 
   /** Create a non-cancelable `Task` from an asynchronous computation,
@@ -2777,7 +2791,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * @see [[Task.create]] for the builder that does it all
     */
-  def async0[A](register: (Scheduler, Callback[A]) => Unit): Task[A] =
+  def async0[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
     TaskCreate.async0(register)
 
   /** Suspends an asynchronous side effect in `Task`, this being a
@@ -2807,7 +2821,7 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.cancelable[A](register* Task.cancelable]] and
     *      [[Task.cancelable0]] for creating cancelable tasks
     */
-  def asyncF[A](register: Callback[A] => Task[Unit]): Task[A] =
+  def asyncF[A](register: Callback[Throwable, A] => Task[Unit]): Task[A] =
     TaskCreate.asyncF(register)
 
   /** Create a cancelable `Task` from an asynchronous computation that
@@ -2886,7 +2900,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param register $registerParamDesc
     */
-  def cancelable[A](register: Callback[A] => CancelToken[Task]): Task[A] =
+  def cancelable[A](register: Callback[Throwable, A] => CancelToken[Task]): Task[A] =
     cancelable0((_, cb) => register(cb))
 
   /** Create a cancelable `Task` from an asynchronous computation,
@@ -2988,7 +3002,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param register $registerParamDesc
     */
-  def cancelable0[A](register: (Scheduler, Callback[A]) => CancelToken[Task]): Task[A] =
+  def cancelable0[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
     TaskCreate.cancelable0(register)
 
   /** Returns a cancelable boundary — a `Task` that checks for the
@@ -3891,7 +3905,7 @@ object Task extends TaskInstancesLevel1 {
     * increasing performance.
     */
   abstract class AsyncBuilder[CancelationToken] {
-    def create[A](register: (Scheduler, Callback[A]) => CancelationToken): Task[A]
+    def create[A](register: (Scheduler, Callback[Throwable, A]) => CancelationToken): Task[A]
   }
 
   object AsyncBuilder extends AsyncBuilder0 {
@@ -3908,7 +3922,7 @@ object Task extends TaskInstancesLevel1 {
     private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true)
       extends AnyVal {
 
-      def apply[CancelationToken](register: (Scheduler, Callback[A]) => CancelationToken)
+      def apply[CancelationToken](register: (Scheduler, Callback[Throwable, A]) => CancelationToken)
         (implicit B: AsyncBuilder[CancelationToken]): Task[A] =
         B.create(register)
     }
@@ -3916,7 +3930,7 @@ object Task extends TaskInstancesLevel1 {
     /** Implicit `AsyncBuilder` for non-cancelable tasks. */
     implicit val forUnit: AsyncBuilder[Unit] =
       new AsyncBuilder[Unit] {
-        def create[A](register: (Scheduler, Callback[A]) => Unit): Task[A] =
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
           TaskCreate.async0(register)
       }
 
@@ -3926,7 +3940,7 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forIO: AsyncBuilder[IO[Unit]] =
       new AsyncBuilder[IO[Unit]] {
-        def create[A](register: (Scheduler, Callback[A]) => CancelToken[IO]): Task[A] =
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
           TaskCreate.cancelableIO(register)
       }
 
@@ -3935,7 +3949,7 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forTask: AsyncBuilder[Task[Unit]] =
       new AsyncBuilder[Task[Unit]] {
-        def create[A](register: (Scheduler, Callback[A]) => CancelToken[Task]): Task[A] =
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
           TaskCreate.cancelable0(register)
       }
 
@@ -3944,7 +3958,7 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forCoeval: AsyncBuilder[Coeval[Unit]] =
       new AsyncBuilder[Coeval[Unit]] {
-        def create[A](register: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => Coeval[Unit]): Task[A] =
           TaskCreate.cancelableCoeval(register)
       }
 
@@ -3960,7 +3974,7 @@ object Task extends TaskInstancesLevel1 {
 
     private[this] val forCancelableDummyRef: AsyncBuilder[Cancelable.Empty] =
       new AsyncBuilder[Cancelable.Empty] {
-        def create[A](register: (Scheduler, Callback[A]) => Cancelable.Empty): Task[A] =
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable.Empty): Task[A] =
           TaskCreate.async0(register)
       }
   }
@@ -3976,7 +3990,7 @@ object Task extends TaskInstancesLevel1 {
 
     private[this] val forCancelableRef =
       new AsyncBuilder[Cancelable] {
-        def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] =
           TaskCreate.cancelableCancelable(register)
       }
   }
@@ -4033,9 +4047,9 @@ object Task extends TaskInstancesLevel1 {
   /** [[Task]] state describing an immediate synchronous value. */
   private[eval] final case class Now[A](value: A) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsyncOptF(cb: Callback[A])(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
+    override def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
       if (s.executionModel != AlwaysAsyncExecution) {
-        cb.onSuccess(value)
+        Callback.callSuccess(cb, value)
         Task.unit
       } else {
         super.runAsyncOptF(cb)(s, opts)
@@ -4046,18 +4060,18 @@ object Task extends TaskInstancesLevel1 {
       CancelableFuture.successful(value)
     }
     // Optimization to avoid the run-loop
-    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
+    override def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) {
-        cb.onSuccess(value)
+        Callback.callSuccess(cb, value)
         Cancelable.empty
       } else {
         super.runAsyncOpt(cb)(s, opts)
       }
     }
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit = {
+    override def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Unit = {
       if (s.executionModel != AlwaysAsyncExecution)
-        cb.onSuccess(value)
+        Callback.callSuccess(cb, value)
       else
         super.runAsyncUncancelableOpt(cb)(s, opts)
     }
@@ -4067,11 +4081,11 @@ object Task extends TaskInstancesLevel1 {
   }
 
   /** [[Task]] state describing an immediate exception. */
-  private[eval] final case class Error[A](ex: Throwable) extends Task[A] {
+  private[eval] final case class Error[A](e: Throwable) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsyncOptF(cb: Callback[A])(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
+    override def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
       if (s.executionModel != AlwaysAsyncExecution) {
-        cb.onError(ex)
+        Callback.callError(cb, e)
         Task.unit
       } else {
         super.runAsyncOptF(cb)(s, opts)
@@ -4079,12 +4093,12 @@ object Task extends TaskInstancesLevel1 {
     }
     // Optimization to avoid the run-loop
     override def runAsyncOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
-      CancelableFuture.failed(ex)
+      CancelableFuture.failed(e)
     }
     // Optimization to avoid the run-loop
-    override def runAsyncOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Cancelable = {
+    override def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) {
-        cb.onError(ex)
+        Callback.callError(cb, e)
         Cancelable.empty
       } else {
         super.runAsyncOpt(cb)(s, opts)
@@ -4092,11 +4106,11 @@ object Task extends TaskInstancesLevel1 {
     }
     // Optimization to avoid the run-loop
     override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
-      s.reportFailure(ex)
+      s.reportFailure(e)
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(cb: Callback[A])(implicit s: Scheduler, opts: Options): Unit = {
+    override def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Unit = {
       if (s.executionModel != AlwaysAsyncExecution)
-        cb.onError(ex)
+        Callback.callError(cb, e)
       else
         super.runAsyncUncancelableOpt(cb)(s, opts)
     }
@@ -4139,7 +4153,7 @@ object Task extends TaskInstancesLevel1 {
     *        evaluating the `register` function
     */
   private[monix] final case class Async[+A](
-    register: (Context, Callback[A]) => Unit,
+    register: (Context, Callback[Throwable, A]) => Unit,
     trampolineBefore: Boolean = false,
     trampolineAfter: Boolean = true,
     restoreLocals: Boolean = true)
@@ -4159,14 +4173,14 @@ object Task extends TaskInstancesLevel1 {
     * Internal API — starts the execution of a Task with a guaranteed
     * asynchronous boundary.
     */
-  private[monix] def unsafeStartAsync[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
+  private[monix] def unsafeStartAsync[A](source: Task[A], context: Context, cb: Callback[Throwable, A]): Unit =
     TaskRunLoop.restartAsync(source, context, cb, null, null, null)
 
   /** Internal API — a variant of [[unsafeStartAsync]] that tries to
     * detect if the `source` is known to fork and in such a case it
     * avoids creating an extraneous async boundary.
     */
-  private[monix] def unsafeStartEnsureAsync[A](source: Task[A], context: Context, cb: Callback[A]): Unit = {
+  private[monix] def unsafeStartEnsureAsync[A](source: Task[A], context: Context, cb: Callback[Throwable, A]): Unit = {
     if (ForkedRegister.detect(source))
       unsafeStartNow(source, context, cb)
     else
@@ -4177,7 +4191,7 @@ object Task extends TaskInstancesLevel1 {
     * Internal API — starts the execution of a Task with a guaranteed
     * trampolined async boundary.
     */
-  private[monix] def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
+  private[monix] def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[Throwable, A]): Unit =
     context.scheduler.execute(new TrampolinedRunnable {
       def run(): Unit =
         TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
@@ -4186,7 +4200,7 @@ object Task extends TaskInstancesLevel1 {
   /**
     * Internal API - starts the immediate execution of a Task.
     */
-  private[monix] def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
+  private[monix] def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[Throwable, A]): Unit =
     TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
 
   /** Internal, reusable reference. */

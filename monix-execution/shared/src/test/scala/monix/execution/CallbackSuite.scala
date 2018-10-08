@@ -31,7 +31,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
   case class TestCallback(
     success: Int => Unit = _ => (),
-    error: Throwable => Unit = _ => ()) extends BiCallback[Throwable, Int] {
+    error: Throwable => Unit = _ => ()) extends Callback[Throwable, Int] {
 
     var successCalled = false
     var errorCalled = false
@@ -86,7 +86,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
   }
 
   test("contramap has a cats Contramap instance") { implicit s =>
-    val instance = implicitly[Contravariant[Callback]]
+    val instance = implicitly[Contravariant[Callback[Throwable, ?]]]
     val callback = TestCallback()
     val stringCallback = instance.contramap(callback)((x: String) => x.toInt)
     stringCallback.onSuccess("1")
@@ -114,7 +114,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
   }
 
   test("Callback.empty reports errors") { implicit s =>
-    val empty = Callback.empty[Int]
+    val empty = Callback[Throwable].empty[Int]
     val dummy = DummyException("dummy")
     empty.onError(dummy)
 
@@ -125,7 +125,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val cb = new BiCallback[Throwable, Int] {
+    val cb = new Callback[Throwable, Int] {
       def onSuccess(value: Int): Unit = {
         effect += 1
         throw dummy
@@ -149,7 +149,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     val dummy2 = DummyException("dummy2")
     var effect = 0
 
-    val cb = new BiCallback[Throwable, Int] {
+    val cb = new Callback[Throwable, Int] {
       def onSuccess(value: Int): Unit =
         throw new IllegalStateException("onSuccess")
 
@@ -188,7 +188,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
   test("fromAttempt success") { _ =>
     val p = Promise[Int]()
-    val cb = Callback.fromAttempt[Int] {
+    val cb = Callback[Throwable].fromAttempt[Int] {
       case Right(a) => p.success(a)
       case Left(e) => p.failure(e)
     }
@@ -199,7 +199,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
   test("fromAttempt error") { _ =>
     val p = Promise[Int]()
-    val cb = Callback.fromAttempt[Int] {
+    val cb = Callback[Throwable].fromAttempt[Int] {
       case Right(a) => p.success(a)
       case Left(e) => p.failure(e)
     }

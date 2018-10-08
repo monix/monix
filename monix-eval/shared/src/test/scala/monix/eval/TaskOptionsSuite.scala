@@ -19,6 +19,7 @@ package monix.eval
 
 import minitest.SimpleTestSuite
 import monix.eval.Task.Options
+import monix.execution.Callback
 import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 

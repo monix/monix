@@ -19,7 +19,8 @@ package monix.reactive.consumers
 
 
 import minitest.TestSuite
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic

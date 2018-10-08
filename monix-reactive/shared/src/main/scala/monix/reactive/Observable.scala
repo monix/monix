@@ -21,7 +21,7 @@ import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
 import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, Order, Eq, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
-import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
+import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
