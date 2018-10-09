@@ -19,15 +19,15 @@ package monix.eval.internal
 
 import cats.effect.{CancelToken, IO}
 import monix.eval.Task.{Async, Context}
-import monix.eval.{Callback, Coeval, Task}
-import monix.execution.{Cancelable, Scheduler}
+import monix.eval.{Coeval, Task}
+import monix.execution.{Callback, Cancelable, Scheduler}
 import scala.util.control.NonFatal
 
 private[eval] object TaskCreate {
   /**
     * Implementation for `Task.cancelable`
     */
-  def cancelable0[A](fn: (Scheduler, Callback[A]) => CancelToken[Task]): Task[A] = {
+  def cancelable0[A](fn: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] = {
     val start = new Cancelable0Start[A, CancelToken[Task]](fn) {
       def setConnection(ref:  TaskConnectionRef, token:  CancelToken[Task])
         (implicit s:  Scheduler): Unit = ref := token
@@ -35,20 +35,20 @@ private[eval] object TaskCreate {
     Async(start, trampolineBefore = false, trampolineAfter = false)
   }
 
-  private abstract class Cancelable0Start[A, Token](fn: (Scheduler, Callback[A]) => Token)
-    extends ((Context, Callback[A]) => Unit) {
+  private abstract class Cancelable0Start[A, Token](fn: (Scheduler, Callback[Throwable, A]) => Token)
+    extends ((Context, Callback[Throwable, A]) => Unit) {
 
     def setConnection(ref: TaskConnectionRef, token: Token)
       (implicit s: Scheduler): Unit
 
-    final def apply(ctx: Context, cb: Callback[A]): Unit = {
+    final def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
       implicit val s = ctx.scheduler
       val conn = ctx.connection
       val cancelable = TaskConnectionRef()
       conn push cancelable.cancel
 
       try {
-        val ref = fn(s, Callback.trampolined(conn, cb))
+        val ref = fn(s, TaskConnection.trampolineCallback(conn, cb))
         // Optimization to skip the assignment, as it's expensive
         if (!ref.isInstanceOf[Cancelable.IsDummy])
           setConnection(cancelable, ref)
@@ -71,13 +71,13 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
-  def cancelableIO[A](start: (Scheduler, Callback[A]) => CancelToken[IO]): Task[A] =
+  def cancelableIO[A](start: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
     cancelable0 { (sc, cb) => Task.fromIO(start(sc, cb)) }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
-  def cancelableCancelable[A](fn: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
+  def cancelableCancelable[A](fn: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] = {
     val start = new Cancelable0Start[A, Cancelable](fn) {
       def setConnection(ref:  TaskConnectionRef, token:  Cancelable)
         (implicit s:  Scheduler): Unit = ref := token
@@ -88,14 +88,14 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
-  def cancelableCoeval[A](start: (Scheduler, Callback[A]) => Coeval[Unit]): Task[A] =
+  def cancelableCoeval[A](start: (Scheduler, Callback[Throwable, A]) => Coeval[Unit]): Task[A] =
     cancelable0 { (sc, cb) => Task.from(start(sc, cb)) }
 
   /**
     * Implementation for `Task.async`
     */
-  def async0[A](fn: (Scheduler, Callback[A]) => Any): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+  def async0[A](fn: (Scheduler, Callback[Throwable, A]) => Any): Task[A] = {
+    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val s = ctx.scheduler
       try {
         fn(s, Callback.trampolined(cb))
@@ -117,8 +117,8 @@ private[eval] object TaskCreate {
     * It duplicates the implementation of `Task.simple` with the purpose
     * of avoiding extraneous callback allocations.
     */
-  def async[A](k: Callback[A] => Unit): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+  def async[A](k: Callback[Throwable, A] => Unit): Task[A] = {
+    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val s = ctx.scheduler
       try {
         k(Callback.trampolined(cb))
@@ -136,8 +136,8 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `Task.asyncF`.
     */
-  def asyncF[A](k: Callback[A] => Task[Unit]): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+  def asyncF[A](k: Callback[Throwable, A] => Task[Unit]): Task[A] = {
+    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val s = ctx.scheduler
       try {
         // Creating new connection, because we can have a race condition
@@ -146,7 +146,7 @@ private[eval] object TaskCreate {
         val conn = ctx.connection
         conn.push(ctx2.connection.cancel)
         // Provided callback takes care of `conn.pop()`
-        val task = k(Callback.trampolined(conn, cb))
+        val task = k(TaskConnection.trampolineCallback(conn, cb))
         Task.unsafeStartNow(task, ctx2, Callback.empty)
       } catch {
         case ex if NonFatal(ex) =>

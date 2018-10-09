@@ -64,7 +64,7 @@ object TaskMapCallsBenchmark {
     var sum = 0L
     var i = 0
     while (i < iterations) {
-      sum += Await.result(task.runAsync, Duration.Inf)
+      sum += Await.result(task.runToFuture, Duration.Inf)
       i += 1
     }
     sum

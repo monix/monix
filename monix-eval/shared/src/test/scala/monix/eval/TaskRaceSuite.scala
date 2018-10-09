@@ -28,7 +28,7 @@ import scala.util.{Failure, Success}
 object TaskRaceSuite extends BaseTestSuite {
   test("Task.raceMany should switch to other") { implicit s =>
     val task = Task.raceMany(Seq(Task.evalAsync(1).delayExecution(10.seconds), Task.evalAsync(99).delayExecution(1.second)))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -39,7 +39,7 @@ object TaskRaceSuite extends BaseTestSuite {
   test("Task.raceMany should onError from other") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.raceMany(Seq(Task.evalAsync(1).delayExecution(10.seconds), Task.evalAsync(throw ex).delayExecution(1.second)))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -49,7 +49,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
   test("Task.raceMany should mirror the source") { implicit s =>
     val task = Task.raceMany(Seq(Task.evalAsync(1).delayExecution(1.seconds), Task.evalAsync(99).delayExecution(10.second)))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -61,7 +61,7 @@ object TaskRaceSuite extends BaseTestSuite {
   test("Task.raceMany should onError from the source") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.raceMany(Seq(Task.evalAsync(throw ex).delayExecution(1.seconds), Task.evalAsync(99).delayExecution(10.second)))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -72,7 +72,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
   test("Task.raceMany should cancel both") { implicit s =>
     val task = Task.raceMany(Seq(Task.evalAsync(1).delayExecution(10.seconds), Task.evalAsync(99).delayExecution(1.second)))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -88,7 +88,7 @@ object TaskRaceSuite extends BaseTestSuite {
     val tasks = (0 until count).map(x => Task.evalAsync(x))
     val sum = Task.raceMany(tasks)
 
-    sum.runAsync
+    sum.runToFuture
     s.tick()
   }
 
@@ -97,7 +97,7 @@ object TaskRaceSuite extends BaseTestSuite {
     val tasks = (0 until count).map(x => Task.eval(x))
     val sum = Task.raceMany(tasks)
 
-    sum.runAsync
+    sum.runToFuture
     s.tick()
   }
 
@@ -108,7 +108,7 @@ object TaskRaceSuite extends BaseTestSuite {
     val tasks = (0 until count).map(_ => Task.never[Int])
     val all = tasks.foldLeft(Task.never[Int])((acc, t) => Task.raceMany(List(acc, t)))
 
-    val f = Task.raceMany(List(Task.fromFuture(p.future), all)).runAsync
+    val f = Task.raceMany(List(Task.fromFuture(p.future), all)).runToFuture
     sc.tick()
     p.success(1)
     sc.tick()
@@ -118,7 +118,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
   test("Task#timeout should timeout") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(10.seconds).timeout(1.second)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -132,7 +132,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
   test("Task#timeout should mirror the source in case of success") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(1.seconds).timeout(10.second)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -144,7 +144,7 @@ object TaskRaceSuite extends BaseTestSuite {
   test("Task#timeout should mirror the source in case of error") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.evalAsync(throw ex).delayExecution(1.seconds).timeout(10.second)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -155,7 +155,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
   test("Task#timeout should cancel both the source and the timer") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(10.seconds).timeout(1.second)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -167,7 +167,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
   test("Task#timeout with backup should timeout") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(10.seconds).timeoutTo(1.second, Task.evalAsync(99))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -177,7 +177,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
   test("Task#timeout with backup should mirror the source in case of success") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(1.seconds).timeoutTo(10.second, Task.evalAsync(99))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -189,7 +189,7 @@ object TaskRaceSuite extends BaseTestSuite {
   test("Task#timeout with backup should mirror the source in case of error") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.evalAsync(throw ex).delayExecution(1.seconds).timeoutTo(10.second, Task.evalAsync(99))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -200,7 +200,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
   test("Task#timeout should cancel both the source and the timer") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(10.seconds).timeoutTo(1.second, Task.evalAsync(99))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -213,7 +213,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
   test("Task#timeout should cancel the backup") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(10.seconds).timeoutTo(1.second, Task.evalAsync(99).delayExecution(2.seconds))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -227,7 +227,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
   test("Task#timeout should not return the source after timeout") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(2.seconds).timeoutTo(1.second, Task.evalAsync(99).delayExecution(2.seconds))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -239,7 +239,7 @@ object TaskRaceSuite extends BaseTestSuite {
   test("Task#timeout should cancel the source after timeout") { implicit s =>
     val backup = Task.evalAsync(99).delayExecution(1.seconds)
     val task = Task.evalAsync(1).delayExecution(5.seconds).timeoutTo(1.second, backup)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -262,7 +262,7 @@ object TaskRaceSuite extends BaseTestSuite {
         taskA.join.map(a => a + b)
     }
 
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick(1.second)
     assertEquals(f.value, None)
     s.tick(1.second)
@@ -274,7 +274,7 @@ object TaskRaceSuite extends BaseTestSuite {
     val tb = Task.now(20).delayExecution(1.seconds)
 
     val t = Task.racePair(ta, tb)
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick()
     f.cancel()
     assertEquals(f.value, None)
@@ -288,14 +288,14 @@ object TaskRaceSuite extends BaseTestSuite {
 
     val t = Task.racePair(ta, tb).map {
       case Left((a, taskB)) =>
-        future = Some(taskB.join.runAsync)
+        future = Some(taskB.join.runToFuture)
         a
       case Right((taskA, b)) =>
-        future = Some(taskA.join.runAsync)
+        future = Some(taskA.join.runToFuture)
         b
     }
 
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick(1.second)
     f.cancel()
 
@@ -314,14 +314,14 @@ object TaskRaceSuite extends BaseTestSuite {
 
     val t = Task.racePair(ta, tb).map {
       case Left((a, taskB)) =>
-        future = Some(taskB.join.runAsync)
+        future = Some(taskB.join.runToFuture)
         a
       case Right((taskA, b)) =>
-        future = Some(taskA.join.runAsync)
+        future = Some(taskA.join.runToFuture)
         b
     }
 
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick(1.second)
     f.cancel()
 
@@ -339,7 +339,7 @@ object TaskRaceSuite extends BaseTestSuite {
     val tb = Task.now(20).delayExecution(2.seconds)
 
     val t = Task.racePair(ta, tb)
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(dummy)))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
@@ -351,7 +351,7 @@ object TaskRaceSuite extends BaseTestSuite {
     val tb = Task.raiseError[Int](dummy).delayExecution(1.second)
 
     val t = Task.racePair(ta, tb)
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(dummy)))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
@@ -374,8 +374,8 @@ object TaskRaceSuite extends BaseTestSuite {
       case Right((_, b)) => b
     }
 
-    val f1 = t1.runAsync
-    val f2 = t2.runAsync
+    val f1 = t1.runToFuture
+    val f2 = t2.runToFuture
     s.tick(2.seconds)
 
     assertEquals(f1.value, Some(Failure(dummy)))
@@ -399,8 +399,8 @@ object TaskRaceSuite extends BaseTestSuite {
       case Right((_, b)) => b
     }
 
-    val f1 = t1.runAsync
-    val f2 = t2.runAsync
+    val f1 = t1.runToFuture
+    val f2 = t2.runToFuture
     s.tick(2.seconds)
 
     assertEquals(f1.value, Some(Failure(dummy)))
@@ -417,7 +417,7 @@ object TaskRaceSuite extends BaseTestSuite {
       case Right((_, b)) => b
     })
 
-    sum.runAsync
+    sum.runToFuture
     s.tick()
   }
 
@@ -431,7 +431,7 @@ object TaskRaceSuite extends BaseTestSuite {
       case Right((_, b)) => b
     })
 
-    sum.runAsync
+    sum.runToFuture
     s.tick()
   }
 
@@ -450,7 +450,7 @@ object TaskRaceSuite extends BaseTestSuite {
         case Left((a, fb)) => fb.cancel.map(_ => a)
         case Right((fa, b)) => fa.cancel.map(_ => b)
       }
-      .runAsync
+      .runToFuture
 
     sc.tick()
     p.success(1)
@@ -468,7 +468,7 @@ object TaskRaceSuite extends BaseTestSuite {
       case Right(b) => b
     }
 
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick(1.second)
     assertEquals(f.value, Some(Success(10)))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
@@ -483,7 +483,7 @@ object TaskRaceSuite extends BaseTestSuite {
       case Right(b) => b
     }
 
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick(1.second)
     assertEquals(f.value, Some(Success(20)))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
@@ -495,7 +495,7 @@ object TaskRaceSuite extends BaseTestSuite {
     val tb = Task.now(20).delayExecution(1.seconds)
 
     val t = Task.race(ta, tb)
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick()
     f.cancel()
     assertEquals(f.value, None)
@@ -508,7 +508,7 @@ object TaskRaceSuite extends BaseTestSuite {
     val tb = Task.now(20).delayExecution(2.seconds)
 
     val t = Task.race(ta, tb)
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(dummy)))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
@@ -520,7 +520,7 @@ object TaskRaceSuite extends BaseTestSuite {
     val tb = Task.raiseError[Int](dummy).delayExecution(1.second)
 
     val t = Task.race(ta, tb)
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(dummy)))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
@@ -536,7 +536,7 @@ object TaskRaceSuite extends BaseTestSuite {
       case Right(b) => b
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick(2.seconds)
 
     assertEquals(f.value, Some(Success(20)))
@@ -553,7 +553,7 @@ object TaskRaceSuite extends BaseTestSuite {
       case Right(b) => b
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick(2.seconds)
 
     assertEquals(f.value, Some(Success(20)))
@@ -570,7 +570,7 @@ object TaskRaceSuite extends BaseTestSuite {
       case Right(b) => b
     })
 
-    sum.runAsync
+    sum.runToFuture
     s.tick()
   }
 
@@ -584,7 +584,7 @@ object TaskRaceSuite extends BaseTestSuite {
       case Right(b) => b
     })
 
-    sum.runAsync
+    sum.runToFuture
     s.tick()
   }
 
@@ -600,7 +600,7 @@ object TaskRaceSuite extends BaseTestSuite {
 
     val f = Task.race(Task.fromFuture(p.future), all)
       .map { case Left(a) => a; case Right(b) => b }
-      .runAsync
+      .runToFuture
 
     sc.tick()
     p.success(1)

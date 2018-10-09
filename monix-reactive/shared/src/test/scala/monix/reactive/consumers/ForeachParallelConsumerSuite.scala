@@ -18,7 +18,7 @@
 package monix.reactive.consumers
 
 import minitest.TestSuite
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.Ack.Continue
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
@@ -40,7 +40,7 @@ object ForeachParallelConsumerSuite extends TestSuite[TestScheduler] {
     val count = 10000L
     val obs = Observable.range(0, count)
     val sum = Atomic(0L)
-    val f = obs.consumeWith(Consumer.foreachParallel(10)(sum.add)).runAsync
+    val f = obs.consumeWith(Consumer.foreachParallel(10)(sum.add)).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -51,7 +51,7 @@ object ForeachParallelConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     val sum = Atomic(0L)
-    val f = obs.consumeWith(Consumer.foreachParallel(10)(sum.add)).runAsync
+    val f = obs.consumeWith(Consumer.foreachParallel(10)(sum.add)).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))

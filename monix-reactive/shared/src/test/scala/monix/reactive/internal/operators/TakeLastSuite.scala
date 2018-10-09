@@ -72,7 +72,7 @@ object TakeLastSuite extends BaseOperatorSuite {
     }
 
     val task = Observable.repeatEval(inc()).takeLast(0).toListL
-    task.runAsync
+    task.runToFuture
 
     s.tick()
     assertEquals(counter, 0)

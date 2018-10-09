@@ -27,7 +27,7 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     var input = Option.empty[Int]
     val task = Task.evalAsync(1).map(_ + 1).guarantee(Task.evalAsync { input = Some(1) })
 
-    val result = task.runAsync
+    val result = task.runToFuture
     sc.tick()
 
     assertEquals(input, Some(1))
@@ -39,7 +39,7 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy).guarantee(Task.evalAsync { input = Some(1) })
 
-    val result = task.runAsync
+    val result = task.runToFuture
     sc.tick()
 
     assertEquals(input, Some(1))
@@ -51,7 +51,7 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     val finalizerError = DummyException("finalizerError")
     val task = Task.raiseError(useError).guarantee(Task.raiseError(finalizerError))
 
-    val result = task.runAsync
+    val result = task.runToFuture
     sc.tick()
 
     result.value match {

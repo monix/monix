@@ -17,7 +17,8 @@
 
 package monix.reactive.internal.consumers
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
 import scala.util.control.NonFatal
@@ -29,8 +30,8 @@ private[reactive]
 final class MapTaskConsumer[In, R, R2](source: Consumer[In,R], f: R => Task[R2])
   extends Consumer[In, R2] {
 
-  def createSubscriber(cb: Callback[R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
-    val asyncCallback = new Callback[R] {
+  def createSubscriber(cb: Callback[Throwable, R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
+    val asyncCallback = new Callback[Throwable, R] {
       def onSuccess(value: R): Unit =
         s.execute(new Runnable {
           // Forcing async boundary, otherwise we might

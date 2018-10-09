@@ -49,7 +49,7 @@ object MapEvalConsumerSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapEval(_ => IO.raiseError(ex)))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -59,7 +59,7 @@ object MapEvalConsumerSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapEval(_ => (throw ex) : IO[Int]))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -89,7 +89,7 @@ object MapEvalConsumerSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapEval(_ => IO(throw ex)))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))

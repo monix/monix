@@ -35,7 +35,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
       .doOnCancel(Task.eval { effect2 += 1 })
       .delayExecution(1.second)
       .doOnCancel(Task.eval { effect3 += 1 })
-      .runAsync
+      .runToFuture
 
     s.tick(3.seconds)
     assertEquals(f.value, Some(Success(1)))
@@ -49,7 +49,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     val dummy = new RuntimeException("dummy")
     val f = Task.raiseError(dummy).executeAsync
       .doOnCancel(Task.eval { effect += 1 })
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
@@ -68,7 +68,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
       .doOnCancel(Task.eval { effect2 += 1 })
       .delayResult(1.second)
       .doOnCancel(Task.eval { effect3 += 1 })
-      .runAsync
+      .runToFuture
 
     s.tick(2.seconds)
     assertEquals(f.value, None)
@@ -94,7 +94,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
       .doOnCancel(Task.eval { effect2 += 1 })
       .delayResult(1.second)
       .doOnCancel(Task.eval { effect3 += 1 })
-      .runAsync
+      .runToFuture
 
     s.tick(1.seconds)
     assertEquals(f.value, None)
@@ -120,7 +120,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
       .doOnCancel(Task.eval { effect2 += 1 })
       .delayResult(1.second)
       .doOnCancel(Task.eval { effect3 += 1 })
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -146,7 +146,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
       .delayExecution(1.second)
       .doOnCancel(Task.eval { effect3 += 1 })
       .delayExecution(1.second)
-      .runAsync
+      .runToFuture
 
     s.tick(1.second)
     assertEquals(f.value, None)
@@ -172,7 +172,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
       .delayExecution(1.second)
       .doOnCancel(Task.eval { effect3 += 1 })
       .delayExecution(1.second)
-      .runAsync
+      .runToFuture
 
     s.tick(2.second)
     assertEquals(f.value, None)
@@ -197,7 +197,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; sc.tick()
+    val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
 
@@ -213,7 +213,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }

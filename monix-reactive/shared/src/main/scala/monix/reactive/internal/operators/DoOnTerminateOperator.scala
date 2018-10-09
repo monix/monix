@@ -17,7 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
@@ -61,7 +62,7 @@ class DoOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], hap
           Stop
         }
 
-        val future = errorCoverage.runAsync
+        val future = errorCoverage.runToFuture
         // Execution might be immediate
         future.value match {
           case Some(Success(ack)) => ack

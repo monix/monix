@@ -34,7 +34,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
       effect += 1
     })
 
-    for (i <- 0 until 10000) task.runAsync
+    for (i <- 0 until 10000) task.runToFuture
     s.tick()
     assertEquals(effect, 10000)
   }
@@ -50,7 +50,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
       effect += 1
     })
 
-    for (i <- 0 until 10000) task.runAsync
+    for (i <- 0 until 10000) task.runToFuture
     assertEquals(effect, 10000)
   }
 
@@ -68,7 +68,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
         Task.now(acc)
     }
 
-    val f = loop(100000, 0).runAsync; s.tick()
+    val f = loop(100000, 0).runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100000)))
   }
 
@@ -86,7 +86,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
           Task.now(acc)
       }.executeAsync
 
-    val f = loop(100000, 0).runAsync; s.tick()
+    val f = loop(100000, 0).runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100000)))
   }
 
@@ -104,7 +104,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
         Task.now(acc)
     }
 
-    val f = loop(100000, 0).runAsync; s.tick()
+    val f = loop(100000, 0).runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100000)))
   }
 
@@ -122,7 +122,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(100000, 0).runAsync; s.tick()
+    val f = loop(100000, 0).runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100000)))
   }
 
@@ -150,21 +150,21 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     val taskInError = circuitBreaker.protect(Task.eval[Int](throw dummy))
     val taskSuccess = circuitBreaker.protect(Task.eval { 1 })
 
-    assertEquals(taskInError.runAsync.value, Some(Failure(dummy)))
-    assertEquals(taskInError.runAsync.value, Some(Failure(dummy)))
+    assertEquals(taskInError.runToFuture.value, Some(Failure(dummy)))
+    assertEquals(taskInError.runToFuture.value, Some(Failure(dummy)))
     assertEquals(circuitBreaker.state, TaskCircuitBreaker.Closed(2))
 
     // A successful value should reset the counter
-    assertEquals(taskSuccess.runAsync.value, Some(Success(1)))
+    assertEquals(taskSuccess.runToFuture.value, Some(Success(1)))
     assertEquals(circuitBreaker.state, TaskCircuitBreaker.Closed(0))
 
-    assertEquals(taskInError.runAsync.value, Some(Failure(dummy)))
-    assertEquals(taskInError.runAsync.value, Some(Failure(dummy)))
-    assertEquals(taskInError.runAsync.value, Some(Failure(dummy)))
-    assertEquals(taskInError.runAsync.value, Some(Failure(dummy)))
+    assertEquals(taskInError.runToFuture.value, Some(Failure(dummy)))
+    assertEquals(taskInError.runToFuture.value, Some(Failure(dummy)))
+    assertEquals(taskInError.runToFuture.value, Some(Failure(dummy)))
+    assertEquals(taskInError.runToFuture.value, Some(Failure(dummy)))
     assertEquals(circuitBreaker.state, TaskCircuitBreaker.Closed(4))
 
-    assertEquals(taskInError.runAsync.value, Some(Failure(dummy)))
+    assertEquals(taskInError.runToFuture.value, Some(Failure(dummy)))
     assertEquals(circuitBreaker.state, TaskCircuitBreaker.Open(
       startedAt = s.clockMonotonic(MILLISECONDS),
       resetTimeout = 1.minute
@@ -179,9 +179,9 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
         if (value > 10.minutes) 10.minutes else value
       }
 
-      intercept[ExecutionRejectedException](taskInError.runAsync.value.get.get)
+      intercept[ExecutionRejectedException](taskInError.runToFuture.value.get.get)
       s.tick(resetTimeout - 1.second)
-      intercept[ExecutionRejectedException](taskInError.runAsync.value.get.get)
+      intercept[ExecutionRejectedException](taskInError.runToFuture.value.get.get)
 
       // After 1 minute we should attempt a reset
       s.tick(1.second)
@@ -189,14 +189,14 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
 
       // Starting the HalfOpen state
       val delayedTask = circuitBreaker.protect(Task.raiseError(dummy).delayExecution(1.second))
-      val delayedResult = delayedTask.runAsync
+      val delayedResult = delayedTask.runToFuture
 
       assertEquals(circuitBreaker.state,
         TaskCircuitBreaker.HalfOpen(resetTimeout = resetTimeout))
 
       // Rejecting all other tasks
-      intercept[ExecutionRejectedException](taskInError.runAsync.value.get.get)
-      intercept[ExecutionRejectedException](taskInError.runAsync.value.get.get)
+      intercept[ExecutionRejectedException](taskInError.runToFuture.value.get.get)
+      intercept[ExecutionRejectedException](taskInError.runToFuture.value.get.get)
 
       // Should migrate back into Open
       s.tick(1.second)
@@ -206,7 +206,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
         resetTimeout = nextTimeout
       ))
 
-      intercept[ExecutionRejectedException](taskInError.runAsync.value.get.get)
+      intercept[ExecutionRejectedException](taskInError.runToFuture.value.get.get)
 
       // Calculate next reset timeout
       resetTimeout = nextTimeout
@@ -216,10 +216,10 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     s.tick(resetTimeout)
 
     val delayedTask = circuitBreaker.protect(Task.evalAsync(1).delayExecution(1.second))
-    val delayedResult = delayedTask.runAsync
+    val delayedResult = delayedTask.runToFuture
 
     assertEquals(circuitBreaker.state, TaskCircuitBreaker.HalfOpen(resetTimeout = resetTimeout))
-    intercept[ExecutionRejectedException](taskInError.runAsync.value.get.get)
+    intercept[ExecutionRejectedException](taskInError.runToFuture.value.get.get)
 
     s.tick(1.second)
     assertEquals(delayedResult.value, Some(Success(1)))

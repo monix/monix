@@ -20,7 +20,8 @@ package monix.eval.internal
 import cats.effect.ExitCase
 import cats.effect.ExitCase.{Canceled, Completed, Error}
 import monix.eval.Task.{Context, ContextSwitch}
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
 import scala.util.control.NonFatal
@@ -120,14 +121,14 @@ private[monix] object TaskBracket {
   private abstract class BaseStart[A, B](
     acquire: Task[A],
     use: A => Task[B])
-    extends ((Context, Callback[B]) => Unit) {
+    extends ((Context, Callback[Throwable, B]) => Unit) {
 
     protected def makeReleaseFrame(ctx: Context, value: A): BaseReleaseFrame[A, B]
 
-    final def apply(ctx: Context, cb: Callback[B]): Unit = {
+    final def apply(ctx: Context, cb: Callback[Throwable, B]): Unit = {
       // Async boundary needed, but it is guaranteed via Task.Async below;
       Task.unsafeStartNow(acquire, ctx.withConnection(TaskConnection.uncancelable),
-        new Callback[A] {
+        new Callback[Throwable, A] {
           def onSuccess(value: A): Unit = {
             implicit val sc = ctx.scheduler
             val conn = ctx.connection

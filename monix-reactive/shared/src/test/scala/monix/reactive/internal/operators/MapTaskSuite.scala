@@ -383,7 +383,7 @@ object MapTaskSuite extends BaseOperatorSuite {
       .mapEval(x => Task.eval(x + 1).delayExecution(2.seconds))
       .doOnNext(x => Task { sumAfterMap += x + 1  })
       .completedL
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(sumBeforeMap, 0)
@@ -407,7 +407,7 @@ object MapTaskSuite extends BaseOperatorSuite {
       .mapEval(x => Task.eval(x + 1).delayExecution(2.seconds))
       .doOnNext(x => Task { sumAfterMap += x + 1  })
       .completedL
-      .runAsync
+      .runToFuture
 
     s.tick(1.second)
     assertEquals(sumBeforeMap, 1)
@@ -431,7 +431,7 @@ object MapTaskSuite extends BaseOperatorSuite {
       .mapEval(x => Task.eval(x + 1).delayExecution(2.seconds))
       .doOnNext(x => Task { sumAfterMap += x + 1  })
       .completedL
-      .runAsync
+      .runToFuture
 
     s.tick(3.second)
     assertEquals(sumBeforeMap, 1)
@@ -458,7 +458,7 @@ object MapTaskSuite extends BaseOperatorSuite {
       .mapEvalF(x => Future.delayedResult(1.second)(x + 1))
       .doOnNext(x => Task { sumAfterMapFuture += x + 1  })
       .completedL
-      .runAsync
+      .runToFuture
 
     s.tick(3.second)
     assertEquals(sumBeforeMapTask, 1)
@@ -481,7 +481,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     val f = Observable.now(1)
       .mapEval(x => Task.evalAsync(x+1).delayExecution(1.second))
       .sumL
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)

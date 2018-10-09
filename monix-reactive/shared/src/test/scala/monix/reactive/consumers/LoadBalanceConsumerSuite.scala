@@ -20,7 +20,7 @@ package monix.reactive.consumers
 import cats.laws._
 import cats.laws.discipline._
 
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, AtomicInt, AtomicLong}
 import monix.execution.cancelables.{AssignableCancelable, BooleanCancelable, CompositeCancelable}
@@ -241,7 +241,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
 
   def createCancelable(sum: AtomicLong, wasCompleted: AtomicInt, conn: CompositeCancelable): Consumer[Int, Unit] =
     new Consumer[Int, Unit] {
-      def createSubscriber(cb: Callback[Unit], s: Scheduler): (Subscriber[Int], AssignableCancelable) = {
+      def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[Int], AssignableCancelable) = {
         val sendFinal = Cancelable { () => cb.onSuccess(()) }
         val c = new AssignableCancelable {
           def cancel(): Unit = conn.cancel()
@@ -312,7 +312,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
 
   def createErrorSignaling(ack: Promise[Ack], ex: Throwable): Consumer[Int, Unit] =
     new Consumer[Int, Unit] {
-      def createSubscriber(cb: Callback[Unit], s: Scheduler): (Subscriber[Int], AssignableCancelable) = {
+      def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[Int], AssignableCancelable) = {
         val sub = new Subscriber[Int] {
           implicit val scheduler = s
 

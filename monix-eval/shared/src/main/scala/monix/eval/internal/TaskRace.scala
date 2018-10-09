@@ -17,7 +17,8 @@
 
 package monix.eval.internal
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.atomic.Atomic
 
 private[eval] object TaskRace {
@@ -35,7 +36,7 @@ private[eval] object TaskRace {
   private final class Register[A, B](fa: Task[A], fb: Task[B])
     extends ForkedRegister[Either[A, B]] {
 
-    def apply(context: Task.Context, cb: Callback[Either[A, B]]): Unit = {
+    def apply(context: Task.Context, cb: Callback[Throwable, Either[A, B]]): Unit = {
       implicit val sc = context.scheduler
       val conn = context.connection
 
@@ -48,7 +49,7 @@ private[eval] object TaskRace {
       val contextB = context.withConnection(connB)
 
       // First task: A
-      Task.unsafeStartEnsureAsync(fa, contextA, new Callback[A] {
+      Task.unsafeStartEnsureAsync(fa, contextA, new Callback[Throwable, A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
             connB.cancel.runAsyncAndForget
@@ -67,7 +68,7 @@ private[eval] object TaskRace {
       })
 
       // Second task: B
-      Task.unsafeStartEnsureAsync(fb, contextB, new Callback[B] {
+      Task.unsafeStartEnsureAsync(fb, contextB, new Callback[Throwable, B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
             connA.cancel.runAsyncAndForget

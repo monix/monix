@@ -21,8 +21,7 @@ import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
 import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, Order, Eq, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
-import monix.eval.Coeval.Eager
-import monix.eval.{Callback, Coeval, Task, TaskLift, TaskLike}
+import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
@@ -555,7 +554,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   @UnsafeBecauseImpure
   final def runAsyncGetFirst(implicit s: Scheduler, opts: Task.Options = defaultOptions): CancelableFuture[Option[A]] =
-    firstOptionL.runAsyncOpt
+    firstOptionL.runToFutureOpt
 
   /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
     * that upon execution will signal the last generated element of the
@@ -565,7 +564,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   @UnsafeBecauseImpure
   final def runAsyncGetLast(implicit s: Scheduler, opts: Task.Options = defaultOptions): CancelableFuture[Option[A]] =
-    lastOptionL.runAsyncOpt
+    lastOptionL.runToFutureOpt
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
@@ -3392,7 +3391,7 @@ abstract class Observable[+A] extends Serializable { self =>
 
         def onComplete(): Unit = {
           if (isEmpty)
-            cb(Eager(default))
+            cb(Try(default))
           else
             cb.onSuccess(value)
         }
@@ -3645,7 +3644,7 @@ abstract class Observable[+A] extends Serializable { self =>
         def onComplete(): Unit =
           if (!isDone) {
             isDone = true
-            cb(Eager(default))
+            cb(Try(default))
           }
       })
     }

@@ -179,7 +179,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     // Start the streaming
     observable.connect()
 
-    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runAsync
+    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
     observable.foreach(e => foreachSum += e)
     observable.subscribe { e => subscribeSum += e; Continue }
 

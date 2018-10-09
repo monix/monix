@@ -82,8 +82,8 @@ trait ArbitraryInstances extends ArbitraryInstancesBase with monix.eval.Arbitrar
     new Eq[Observable[A]] {
       def eqv(lh: Observable[A], rh: Observable[A]): Boolean = {
         val eqList = implicitly[Eq[List[Notification[A]]]]
-        val fa = lh.materialize.toListL.runAsync
-        val fb = rh.materialize.toListL.runAsync
+        val fa = lh.materialize.toListL.runToFuture
+        val fb = rh.materialize.toListL.runToFuture
         equalityFuture(eqList, ec).eqv(fa, fb)
       }
     }

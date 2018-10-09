@@ -36,7 +36,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
       val sum = Observable.range(0, count)
         .scanEval(Task.now(0L))((_, x) => Task.now(x * 3))
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)
@@ -51,7 +51,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
       val sum = Observable.range(0, count)
         .scanEval(Task.now(0L))((_, x) => Task.evalAsync(x * 3))
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)

@@ -17,7 +17,8 @@
 
 package monix.reactive.internal.builders
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.Cancelable
 import scala.util.control.NonFatal

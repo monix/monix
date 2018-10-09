@@ -33,9 +33,9 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
     val task = Task.evalAsync(1).foreachL(x => effect += x)
 
     assertEquals(effect, 0)
-    task.runAsync; s.tick()
+    task.runToFuture; s.tick()
     assertEquals(effect, 1)
-    task.runAsync; s.tick()
+    task.runToFuture; s.tick()
     assertEquals(effect, 2)
   }
 

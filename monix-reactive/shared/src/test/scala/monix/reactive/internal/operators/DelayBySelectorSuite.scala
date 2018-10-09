@@ -59,7 +59,7 @@ object DelayBySelectorSuite extends BaseOperatorSuite {
     val f = Observable.empty[Int]
       .delayOnNextBySelector(n => Observable.empty)
       .completedL
-      .runAsync
+      .runToFuture
 
     s.tick(1.day)
 

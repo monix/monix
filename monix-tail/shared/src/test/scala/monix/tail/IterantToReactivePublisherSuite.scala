@@ -58,7 +58,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   test("stack-safety for Next nodes") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val stream = Iterant[Task].range(0, count).mapEval(_ => Task.now(1))
-    val f = sum(stream, 1).runAsync
+    val f = sum(stream, 1).runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -68,7 +68,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   test("stack-safety for NextBatch nodes") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val stream = Iterant[Task].range(0, count).map(_ => 1).batched(6)
-    val f = sum(stream, 1).runAsync
+    val f = sum(stream, 1).runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -140,7 +140,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       .guarantee(Task.evalAsync { wasStopped = true })
       .mapEval(_ => Task.eval { effect += 1; 1 })
 
-    val f = sum(source, Long.MaxValue).runAsync
+    val f = sum(source, Long.MaxValue).runToFuture
     assert(effect > 0 && effect < count, s"$effect > 0 && $effect < $count (count)")
 
     f.cancel()
@@ -164,7 +164,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       .guarantee(Task.evalAsync { wasStopped = true })
       .map { _ => effect += 1; 1 }
 
-    val f = sum(source, 16).runAsync
+    val f = sum(source, 16).runToFuture
     var times = 1000
     while (effect == 0 && times > 0) { s.tickOne(); times -= 1 }
 
@@ -235,7 +235,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
 
     assertEquals(effect,0)
 
-    val f = sum(stream, Long.MaxValue).runAsync
+    val f = sum(stream, Long.MaxValue).runToFuture
     s.tick()
 
     assertEquals(effect, 1)
@@ -252,7 +252,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
 
     assertEquals(effect,0)
 
-    val f = sum(stream, Long.MaxValue).runAsync
+    val f = sum(stream, Long.MaxValue).runToFuture
     s.tick()
 
     assertEquals(effect, 1)

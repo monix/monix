@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.Ack.Stop
 import monix.execution.{Ack, Scheduler}
 import monix.execution.atomic.Atomic
@@ -34,7 +34,7 @@ private[reactive]
 final class FromObserverConsumer[In](f: Scheduler => Observer[In])
   extends Consumer[In, Unit] {
 
-  def createSubscriber(cb: Callback[Unit], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
+  def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     Try(f(s)) match {
       case Failure(ex) =>
         Consumer.raiseError(ex).createSubscriber(cb,s)

@@ -44,7 +44,7 @@ object IterantMapSuite extends BaseTestSuite {
 
     val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { isCanceled = true })
-    val result = stream.map[Int](_ => throw dummy).toListL.runAsync
+    val result = stream.map[Int](_ => throw dummy).toListL.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -57,7 +57,7 @@ object IterantMapSuite extends BaseTestSuite {
 
     val stream = Iterant[Task].nextCursorS(BatchCursor(1,2,3), Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { isCanceled = true })
-    val result = stream.map[Int](_ => throw dummy).toListL.runAsync
+    val result = stream.map[Int](_ => throw dummy).toListL.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))

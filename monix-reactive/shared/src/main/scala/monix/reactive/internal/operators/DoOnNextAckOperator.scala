@@ -47,7 +47,7 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
         }
 
         // Execution might be immediate
-        task.runAsync.syncTryFlatten
+        task.runToFuture.syncTryFlatten
       }
 
       def onComplete(): Unit = {

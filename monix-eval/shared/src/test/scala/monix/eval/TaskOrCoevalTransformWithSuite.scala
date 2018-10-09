@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.Callback
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.Promise
@@ -35,7 +36,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
           Task.raiseError(ex)
       }
 
-    val f = loop(Task.eval("value"), count).runAsync
+    val f = loop(Task.eval("value"), count).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success("value")))
@@ -53,7 +54,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       }
     }
 
-    val f = loop.runAsync
+    val f = loop.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(count)))
   }
@@ -79,7 +80,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(100)))
   }
 
@@ -91,7 +92,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(100)))
   }
 
@@ -130,7 +131,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100)))
   }
 
@@ -142,7 +143,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100)))
   }
 
@@ -159,7 +160,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
   }
-  
+
   test("Task.suspend(throw).materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.suspend[Int](throw dummy).materialize.map {
@@ -181,7 +182,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100)))
   }
 
@@ -193,7 +194,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100)))
   }
 
@@ -210,7 +211,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
   }
-  
+
   test("Task.evalAsync(throw).memoize.materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task[Int](throw dummy).memoize.materialize.map {
@@ -232,7 +233,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100)))
   }
 
@@ -244,7 +245,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100)))
   }
 
@@ -261,7 +262,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
   }
-  
+
   test("Task.raiseError.materialize (callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError[Int](dummy).materialize.map {
@@ -283,7 +284,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(100)))
   }
 
@@ -294,7 +295,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
       case _ => 0
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(100)))
   }
 
@@ -311,7 +312,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
   }
-  
+
   test("Coeval.materialize flatMap loop") { _ =>
     val count = if (Platform.isJVM) 10000 else 1000
 
