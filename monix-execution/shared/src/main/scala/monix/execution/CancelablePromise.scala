@@ -79,22 +79,19 @@ sealed abstract class CancelablePromise[A] extends Promise[A] {
     */
   def future: CancelableFuture[A]
 
-  /** Low-level subscription method that registers a [[Callback]] to be called
+  /** Low-level subscription method that registers a callback to be called
     * when this promise will complete.
-    *
-    * This version of `subscribe` works with [[Callback]] references, so
-    * it interoperates well with `monix.eval.Task`.
     *
     * {{{
     *   val promise = CancelablePromise[Int]()
     *
     *   def subscribe(n: Int): Cancelable =
-    *     promise.subscribe(new Callback[Throwable, String] {
-    *       def onSuccess(str: String) =
+    *     promise.subscribe {
+    *       case Success(str) =>
     *         println(s"Callback ($$n) completed with: $$str")
-    *       def onError(e: Throwable) =
+    *       case Failure(e) =>
     *         println(s"Callback ($$n) completed with: $$e")
-    *     })
+    *     }
     *
     *   val token1 = subscribe(1)
     *   val token2 = subscribe(2)
@@ -114,7 +111,7 @@ sealed abstract class CancelablePromise[A] extends Promise[A] {
     * and different implementations will have different ways to deal
     * with stack safety (e.g. `monix.eval.Task`).
     *
-    * @param cb is a [[Callback]] that will be called when the promise
+    * @param cb is a callback that will be called when the promise
     *        completes with a result, assuming that the returned
     *        cancelable token isn't canceled
     *
@@ -123,7 +120,7 @@ sealed abstract class CancelablePromise[A] extends Promise[A] {
     *         which point the callback will never be called (if it
     *         wasn't called already)
     */
-  def subscribe(cb: Callback[Throwable, A]): Cancelable
+  def subscribe(cb: Try[A] => Unit): Cancelable
 }
 
 object CancelablePromise {
@@ -174,7 +171,7 @@ object CancelablePromise {
     def future: CancelableFuture[A] =
       CancelableFuture.fromTry(value)
 
-    def subscribe(cb: Callback[Throwable, A]): Cancelable = {
+    def subscribe(cb: Try[A] => Unit): Cancelable = {
       cb(value)
       Cancelable.empty
     }
@@ -192,7 +189,7 @@ object CancelablePromise {
     //  - MapQueue: listeners queue
     private[this] val state = AtomicAny.withPadding[AnyRef](emptyMapQueue, ps)
 
-    override def subscribe(cb: Callback[Throwable, A]): Cancelable =
+    override def subscribe(cb: Try[A] => Unit): Cancelable =
       unsafeSubscribe(cb)
 
     override def isCompleted: Boolean =
@@ -252,7 +249,7 @@ object CancelablePromise {
 
     private def call(cb: AnyRef, result: Try[A]): Unit =
       cb match {
-        case f: Callback[Throwable, A] @unchecked =>
+        case f: (Try[A] => Unit) @unchecked =>
           f(result)
         case p: Promise[A] =>
           p.complete(result)
