@@ -191,7 +191,7 @@ import scala.util.{Failure, Success, Try}
   *
   * Note that the built `Task` reference is just a specification at
   * this point, or you can view it as a function, as nothing has
-  * executed yet, you need to call [[Task!.runAsync runAsync]] 
+  * executed yet, you need to call [[Task!.runAsync runAsync]]
   * or [[Task!.runToFuture runToFuture]] explicitly.
   *
   * =Cancellation=
@@ -318,17 +318,24 @@ import scala.util.{Failure, Success, Try}
   * @define callbackDesc ==Callback==
   *
   *         When executing the task via this method, the user is
-  *         required to supply a side effecting [[monix.execution.Callback]].
-  *         This callback will be executed on completion, either with
-  *         a successful result or with an error.
+  *         required to supply a side effecting callback with the
+  *         signature: `Either[Throwable, A] => Unit`.
+  *
+  *         This will be used by the implementation to signal completion,
+  *         signaling either a `Right(value)` or a `Left(error)`.
+  *
+  *         `Task` however uses [[monix.execution.Callback Callback]]
+  *         internally, so you can supply a `Callback` instance instead
+  *         and it will be used to avoid unnecessary boxing. It also has
+  *         handy utilities.
   *
   *         Note that with `Callback` you can:
   *
-  *          - convert from a plain function using `Either[Throwable, A]` as input via 
+  *          - convert from a plain function using `Either[Throwable, A]` as input via
   *            [[monix.execution.Callback.fromAttempt Callback.fromAttempt]]
   *          - convert from a plain function using `Try[A]` as input via
   *            [[monix.execution.Callback.fromTry Callback.fromTry]]
-  *          - wrap a standard Scala `Promise` via 
+  *          - wrap a standard Scala `Promise` via
   *            [[monix.execution.Callback.fromPromise Callback.fromPromise]]
   *          - pass an empty callback that just reports errors via
   *            [[monix.execution.Callback.empty Callback.empty]]
@@ -579,7 +586,6 @@ sealed abstract class Task[+A] extends Serializable {
     * gets evaluated, as a `Task` has lazy behavior.
     *
     * {{{
-    *   import monix.execution.Callback
     *   import scala.concurrent.duration._
     *   // A Scheduler is needed for executing tasks via `runAsync`
     *   import monix.execution.Scheduler.Implicits.global
@@ -605,6 +611,34 @@ sealed abstract class Task[+A] extends Serializable {
     * }}}
     *
     * $callbackDesc
+    *
+    * Example, equivalent to the above:
+    *
+    * {{{
+    *   import monix.execution.Callback
+    *
+    *   task.runAsync(new Callback[Throwable, String] {
+    *     def onSuccess(str: String) =
+    *       println(s"Received: $$str")
+    *     def onError(e: Throwable) =
+    *       global.reportFailure(e)
+    *   })
+    * }}}
+    *
+    * Example equivalent with [[runAsyncAndForget]]:
+    *
+    * {{{
+    *   task.runAsync(Callback.empty)
+    * }}}
+    *
+    * Completing a [[scala.concurrent.Promise]]:
+    *
+    * {{{
+    *   import scala.concurrent.Promise
+    *
+    *   val p = Promise[String]()
+    *   task.runAsync(Callback.fromPromise(p))
+    * }}}
     *
     * $unsafeRun
     *
@@ -650,6 +684,8 @@ sealed abstract class Task[+A] extends Serializable {
     * }}}
     *
     * See [[Task.Options]].
+    *
+    * $callbackDesc
     *
     * $unsafeRun
     *
@@ -706,6 +742,8 @@ sealed abstract class Task[+A] extends Serializable {
     * WARN: back-pressuring on the completion of finalizers is not
     * always a good idea. Avoid it if you can.
     *
+    * $callbackDesc
+    *
     * $unsafeRun
     *
     * NOTE: the `F` suffix comes from `F[_]`, highlighting our usage
@@ -740,6 +778,8 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * WARN: back-pressuring on the completion of finalizers is not
     * always a good idea. Avoid it if you can.
+    *
+    * $callbackDesc
     *
     * $unsafeRun
     *
@@ -837,6 +877,8 @@ sealed abstract class Task[+A] extends Serializable {
     *   }
     * }}}
     *
+    * $callbackDesc
+    *
     * $unsafeRun
     *
     * @param s $schedulerDesc
@@ -862,6 +904,8 @@ sealed abstract class Task[+A] extends Serializable {
     * [[runAsyncOptF]] that doesn't give you a cancellation token for
     * cancelling the task. The runtime can thus not worry about
     * keeping state related to cancellation when evaluating it.
+    *
+    * $callbackDesc
     *
     * @param s $schedulerDesc
     * @param opts $optionsDesc

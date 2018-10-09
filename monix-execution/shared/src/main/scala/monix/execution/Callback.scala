@@ -27,6 +27,9 @@ import scala.util.{Failure, Success, Try}
 /** Represents a callback that should be called asynchronously
   * with the result of a computation.
   *
+  * This is an `Either[E, A] => Unit` with an OOP interface that
+  * avoids extra boxing, along with overloads of `apply`.
+  *
   * The `onSuccess` method should be called only once, with the successful
   * result, whereas `onError` should be called if the result is an error.
   *
@@ -78,8 +81,8 @@ object Callback {
     */
   def safe[E, A](cb: Callback[E, A])(implicit r: UncaughtExceptionReporter): Callback[E, A] =
     cb match {
-      case _: SafeBCallback[_, _] => cb
-      case _ => new SafeBCallback[E, A](cb)
+      case _: Safe[_, _] => cb
+      case _ => new Safe[E, A](cb)
     }
 
   /** Creates an empty [[Callback]], a callback that doesn't do
@@ -87,7 +90,7 @@ object Callback {
     * the provided [[monix.execution.UncaughtExceptionReporter]].
     */
   def empty[E, A](implicit r: UncaughtExceptionReporter): Callback[E, A] =
-    new EmptyBCallback(r)
+    new Empty(r)
 
   /** Returns a [[Callback]] instance that will complete the given
     * promise.
@@ -111,7 +114,7 @@ object Callback {
     * @see [[Callback.trampolined]]
     */
   def forked[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext): Callback[E, A] =
-    new AsyncForkCallback(cb)
+    new AsyncFork(cb)
 
   /** Given a [[Callback]] wraps it into an implementation that
     * calls `onSuccess` and `onError` asynchronously, using the
@@ -160,7 +163,7 @@ object Callback {
     }
 
   /** Functions exposed via [[apply]]. */
-  class Builders[E](val ev: Unit = ()) extends AnyVal {
+  class Builders[E](val ev: Boolean = true) extends AnyVal {
     /** See [[Callback.safe]]. */
     final def safe[A](cb: Callback[E, A])(implicit r: UncaughtExceptionReporter): Callback[E, A] =
       Callback.safe(cb)
@@ -190,19 +193,6 @@ object Callback {
       Callback.fromTry(cb)
   }
 
-  /**
-    * Extension methods for [[Callback]].
-    */
-  implicit final class Extensions[-E, -A](val source: Callback[E, A])
-    extends AnyVal {
-
-    def apply(value: Try[A])(implicit ev: Throwable <:< E): Unit =
-      value match {
-        case Success(a) => source.onSuccess(a)
-        case Failure(e) => source.onError(e)
-      }
-  }
-
   private[monix] def callSuccess[E, A](cb: Either[E, A] => Unit, value: A): Unit =
     cb match {
       case ref: Callback[E, A] @unchecked => ref.onSuccess(value)
@@ -215,7 +205,7 @@ object Callback {
       case _ => cb(Left(value))
     }
 
-  private final class AsyncForkCallback[E, A](cb: Callback[E, A])
+  private final class AsyncFork[E, A](cb: Callback[E, A])
     (implicit ec: ExecutionContext)
     extends Base[E, A](cb)(ec)
 
@@ -263,7 +253,7 @@ object Callback {
   /** An "empty" callback instance doesn't do anything `onSuccess` and
     * only logs exceptions `onError`.
     */
-  private final class EmptyBCallback(r: UncaughtExceptionReporter)
+  private final class Empty(r: UncaughtExceptionReporter)
     extends Callback[Any, Any] {
 
     def onSuccess(value: Any): Unit = ()
@@ -274,7 +264,7 @@ object Callback {
   /** A `SafeCallback` is a callback that ensures it can only be called
     * once, with a simple check.
     */
-  private final class SafeBCallback[-E, -A](underlying: Callback[E, A])
+  private final class Safe[-E, -A](underlying: Callback[E, A])
     (implicit r: UncaughtExceptionReporter)
     extends Callback[E, A] {
 
