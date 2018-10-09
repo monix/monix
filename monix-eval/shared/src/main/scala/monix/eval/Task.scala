@@ -3173,6 +3173,10 @@ object Task extends TaskInstancesLevel1 {
   def fromFuture[A](f: Future[A]): Task[A] =
     TaskFromFuture.strict(f)
 
+  /** Wraps a [[monix.execution.CancelablePromise]] into `Task`. */
+  def fromCancelablePromise[A](p: CancelablePromise[A]) =
+    TaskFromFuture.fromCancelablePromise(p)
+
   /** Run two `Task` actions concurrently, and return the first to
     * finish, either in success or error. The loser of the race is
     * cancelled.

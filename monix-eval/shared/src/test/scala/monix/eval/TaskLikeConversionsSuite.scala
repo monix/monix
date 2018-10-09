@@ -20,6 +20,7 @@ package monix.eval
 import cats.Eval
 import cats.effect.{IO, SyncIO}
 import monix.eval.utils.EvalComonad
+import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
@@ -258,5 +259,23 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
     val f = task.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.from(CancelablePromise)") { implicit s =>
+    val p = CancelablePromise[Int]()
+    val task = Task.from(p)
+
+    val token1 = task.runToFuture
+    val token2 = task.runToFuture
+
+    token1.cancel()
+    p.success(1)
+
+    s.tick()
+    assertEquals(token2.value, Some(Success(1)))
+    assertEquals(token1.value, None)
+
+    val token3 = task.runToFuture
+    assertEquals(token3.value, Some(Success(1)))
   }
 }

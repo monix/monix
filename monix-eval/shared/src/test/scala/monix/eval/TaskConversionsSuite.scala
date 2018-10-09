@@ -22,7 +22,9 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
 import cats.{Eval, effect}
+import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
+import monix.execution.internal.Platform
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -330,6 +332,47 @@ object TaskConversionsSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val task = Task.fromEval(Eval.always { throw dummy })
     assertEquals(task.runToFuture.value, Some(Failure(dummy)))
+  }
+
+  test("Task.fromCancelablePromise") { implicit s =>
+    val p = CancelablePromise[Int]()
+    val task = Task.fromCancelablePromise(p)
+
+    val token1 = task.runToFuture
+    val token2 = task.runToFuture
+
+    token1.cancel()
+    p.success(1)
+
+    s.tick()
+    assertEquals(token2.value, Some(Success(1)))
+    assertEquals(token1.value, None)
+
+    val token3 = task.runToFuture
+    assertEquals(token3.value, Some(Success(1)))
+  }
+
+  test("Task.fromCancelablePromise stack safety") { implicit s =>
+    val count = if (Platform.isJVM) 10000 else 1000
+
+    val p = CancelablePromise[Int]()
+    val task = Task.fromCancelablePromise(p)
+
+    def loop(n: Int): Task[Int] =
+      if (n > 0) task.flatMap(_ => loop(n - 1))
+      else task
+
+    val f = loop(count).runToFuture
+    s.tick()
+    assertEquals(f.value, None)
+
+    p.success(99)
+    s.tick()
+    assertEquals(f.value, Some(Success(99)))
+
+    val f2 = loop(count).runToFuture
+    s.tick()
+    assertEquals(f2.value, Some(Success(99)))
   }
 
   final case class CIO[+A](io: IO[A])

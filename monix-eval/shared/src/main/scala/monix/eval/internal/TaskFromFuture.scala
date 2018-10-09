@@ -18,13 +18,14 @@
 package monix.eval.internal
 
 import monix.eval.Task.Context
-import monix.execution.Callback
+import monix.execution._
 import monix.eval.Task
+import monix.execution.cancelables.SingleAssignCancelable
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-
-import scala.concurrent.Future
+import monix.execution.schedulers.TrampolinedRunnable
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 private[eval] object TaskFromFuture {
   /** Implementation for `Task.fromFuture`. */
@@ -76,6 +77,27 @@ private[eval] object TaskFromFuture {
       }
     }
 
+  def fromCancelablePromise[A](p: CancelablePromise[A]): Task[A] = {
+    val start: Start[A] = (ctx, cb) => {
+      implicit val ec = ctx.scheduler
+      if (p.isCompleted) {
+        p.subscribe(trampolinedCB(cb, null))
+      } else {
+        val conn = ctx.connection
+        val ref = SingleAssignCancelable()
+        conn.push(ref)
+        ref := p.subscribe(trampolinedCB(cb, conn))
+      }
+    }
+
+    Task.Async(
+      start,
+      trampolineBefore = false,
+      trampolineAfter = false,
+      restoreLocals = true
+    )
+  }
+
   private def rawAsync[A](start: (Context, Callback[Throwable, A]) => Unit): Task[A] =
     Task.Async(
       start,
@@ -108,6 +130,26 @@ private[eval] object TaskFromFuture {
           conn.pop()
           cb(result)
         }(immediate)
+    }
+  }
+
+  private def trampolinedCB[A](cb: Callback[Throwable, A], conn: TaskConnection)
+    (implicit ec: ExecutionContext): Try[A] => Unit = {
+
+    new (Try[A] => Unit) with TrampolinedRunnable {
+      private[this] var value: Try[A] = _
+
+      def apply(value: Try[A]): Unit = {
+        this.value = value
+        ec.execute(this)
+      }
+
+      def run(): Unit = {
+        if (conn ne null) conn.pop()
+        val v = value
+        value = null
+        cb(v)
+      }
     }
   }
 }
