@@ -76,7 +76,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     val stream2 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(2)).delayExecution(1.second))
     val task = stream1.zip(stream2).headOptionL
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
 
     s.tick(1.second)
@@ -91,7 +91,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     val stream2 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(2)).delayExecution(1.second))
     val task = stream1.parZip(stream2).headOptionL
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
 
     s.tick(1.second)

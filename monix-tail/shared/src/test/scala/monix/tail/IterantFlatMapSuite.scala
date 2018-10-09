@@ -47,7 +47,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { isCanceled = true })
     val result = stream.flatMap[Int](_ => throw dummy)
-      .toListL.runAsync
+      .toListL.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -61,7 +61,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val stream = Iterant[Task].nextCursorS(BatchCursor(1,2,3), Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { isCanceled = true })
     val result = stream.flatMap[Int](_ => throw dummy)
-      .toListL.runAsync
+      .toListL.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -86,7 +86,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       for (x <- stream1; y <- stream2; z <- stream3)
         yield x + y + z
 
-    val result = composed.headOptionL.runAsync; s.tick()
+    val result = composed.headOptionL.runToFuture; s.tick()
     assertEquals(result.value, Some(Success(Some(6))))
     assertEquals(effects, Vector(3,2,1))
   }
@@ -98,7 +98,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       .flatMap(x => Iterant[Task].fromList(List(x,x,x)))
       .foldLeftL(0L)(_+_)
 
-    val f = sumTask.runAsync; s.tick()
+    val f = sumTask.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(3 * (count.toLong * (count - 1) / 2))))
   }
 

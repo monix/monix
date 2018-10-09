@@ -18,7 +18,8 @@
 package monix.eval.internal
 
 import monix.eval.Task.Context
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
@@ -75,14 +76,14 @@ private[eval] object TaskFromFuture {
       }
     }
 
-  private def rawAsync[A](start: (Context, Callback[A]) => Unit): Task[A] =
+  private def rawAsync[A](start: (Context, Callback[Throwable, A]) => Unit): Task[A] =
     Task.Async(
       start,
       trampolineBefore = true,
       trampolineAfter = false,
       restoreLocals = true)
 
-  private def startSimple[A](ctx: Task.Context, cb: Callback[A], f: Future[A]) = {
+  private def startSimple[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete
@@ -92,7 +93,7 @@ private[eval] object TaskFromFuture {
     }
   }
 
-  private def startCancelable[A](ctx: Task.Context, cb: Callback[A], f: Future[A], c: Cancelable): Unit = {
+  private def startCancelable[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A], c: Cancelable): Unit = {
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete

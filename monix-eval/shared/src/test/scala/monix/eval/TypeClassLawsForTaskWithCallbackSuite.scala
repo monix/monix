@@ -23,8 +23,8 @@ import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
 import cats.{Applicative, Eq}
 import monix.eval.Task.Options
 import monix.eval.instances.CatsParallelForTask
+import monix.execution.Callback
 import monix.execution.schedulers.TestScheduler
-
 import scala.concurrent.Promise
 
 /**

@@ -53,7 +53,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.foldLeft[Long,Long](0L)(_+_).transformInput[Int](_ => throw ex))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -81,7 +81,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     val transformed = sumEvens.transformInput[Int](_.map(_ + 1000))
     val obs = Observable(1, 2, 3).delayOnNext(1.second)
 
-    val result = obs.consumeWith(transformed).runAsync
+    val result = obs.consumeWith(transformed).runToFuture
     assertEquals(result.value, None)
 
     s.tick()

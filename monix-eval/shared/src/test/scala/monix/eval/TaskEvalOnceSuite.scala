@@ -30,14 +30,14 @@ object TaskEvalOnceSuite extends BaseTestSuite {
     val task = Task.evalOnce(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assert(wasTriggered, "wasTriggered")
     assertEquals(f.value, Some(Success("result")))
   }
 
   test("Task.evalOnce should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task.evalOnce[Int](if (1 == 1) throw ex else 1).runAsync
+    val f = Task.evalOnce[Int](if (1 == 1) throw ex else 1).runToFuture
 
     assertEquals(f.value, Some(Failure(ex)))
     assertEquals(s.state.lastReportedError, null)
@@ -69,14 +69,14 @@ object TaskEvalOnceSuite extends BaseTestSuite {
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20
-    val f = loop(iterations, 0).runAsync
+    val f = loop(iterations, 0).runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(iterations * 2)))
   }
 
   test("Task.evalOnce should not be cancelable") { implicit s =>
     val t = Task.evalOnce(10)
-    val f = t.runAsync
+    val f = t.runToFuture
     f.cancel()
     s.tick()
     assertEquals(f.value, Some(Success(10)))
@@ -90,20 +90,20 @@ object TaskEvalOnceSuite extends BaseTestSuite {
   test("Task.EvalOnce.runAsync override") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.evalOnce { if (1 == 1) throw dummy else 10 }
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("Task.evalOnce.materialize should work for success") { implicit s =>
     val task = Task.evalOnce(1).materialize
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(Success(1))))
   }
 
   test("Task.evalOnce.materialize should work for failure") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.evalOnce[Int](throw dummy).materialize
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(Failure(dummy))))
   }
 }

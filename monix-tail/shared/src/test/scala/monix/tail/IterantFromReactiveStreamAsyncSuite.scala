@@ -32,7 +32,7 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
 
   testAsync("convert range(0, 10000) publisher with requestCount = 1") { implicit sc =>
     val pub = new RangePublisher(0 until 10000, None)
-    val f = Iterant[Task].fromReactivePublisher(pub, 1).sumL.runAsync
+    val f = Iterant[Task].fromReactivePublisher(pub, 1).sumL.runToFuture
 
     for (r <- f) yield {
       assertEquals(r, (10000L * 9999) / 2)
@@ -41,7 +41,7 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
 
   testAsync("convert range(0, 10000) publisher with requestCount = 1 and async tasks") { implicit sc =>
     val pub = new RangePublisher(0 until 10000, None)
-    val f = Iterant[Task].fromReactivePublisher(pub, 1).mapEval(Task.evalAsync(_)).sumL.runAsync
+    val f = Iterant[Task].fromReactivePublisher(pub, 1).mapEval(Task.evalAsync(_)).sumL.runToFuture
 
     for (r <- f) yield {
       assertEquals(r, (10000L * 9999) / 2)
@@ -50,7 +50,7 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
 
   testAsync("convert range(0, 10000) publisher with requestCount = 256") { implicit sc =>
     val pub = new RangePublisher(0 until 10000, None)
-    val f = Iterant[Task].fromReactivePublisher(pub, 256).sumL.runAsync
+    val f = Iterant[Task].fromReactivePublisher(pub, 256).sumL.runToFuture
 
     for (r <- f) yield {
       assertEquals(r, (10000L * 9999) / 2)
@@ -59,7 +59,7 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
 
   testAsync("convert range(0, 10000) publisher with requestCount = 256 and async tasks") { implicit sc =>
     val pub = new RangePublisher(0 until 10000, None)
-    val f = Iterant[Task].fromReactivePublisher(pub, 256).mapEval(Task.evalAsync(_)).sumL.runAsync
+    val f = Iterant[Task].fromReactivePublisher(pub, 256).mapEval(Task.evalAsync(_)).sumL.runToFuture
 
     for (r <- f) yield {
       assertEquals(r, (10000L * 9999) / 2)

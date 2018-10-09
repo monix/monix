@@ -47,7 +47,7 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
 
   test("stack safety") { implicit s =>
     val count = 10000
-    val f = range(0, count).sumL.runAsync; s.tick()
+    val f = range(0, count).sumL.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(sum(count))))
   }
 
@@ -56,11 +56,11 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
       Observable.now(acc) ++ loop(acc + 1)
     loop(1)
   }
-  
+
   test("laziness of ++'s param") { implicit s =>
     val count = 1000000L
 
-    val f = nats.take(count).sumL.runAsync; s.tick()
+    val f = nats.take(count).sumL.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(sum(count + 1))))
   }
 }

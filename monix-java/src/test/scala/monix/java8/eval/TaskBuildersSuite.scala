@@ -59,7 +59,7 @@ object TaskBuildersSuite extends BaseTestSuite {
         }
       }, executor)
     }
-    val result = task.runAsync
+    val result = task.runToFuture
     assertEquals(effect, 0)
     s.tickOne() // check that CompletableFutures are ran using provided scheduler
     assertEquals(effect, 1)

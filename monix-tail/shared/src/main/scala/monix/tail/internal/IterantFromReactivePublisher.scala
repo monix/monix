@@ -18,13 +18,14 @@
 package monix.tail.internal
 
 import cats.effect.Async
-import monix.execution.Listener
+import monix.execution.Callback
 import monix.execution.atomic.Atomic
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.Iterant
 import monix.tail.Iterant.{Last, Next, NextBatch, Scope}
 import monix.tail.batches.Batch
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
+
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
@@ -81,7 +82,7 @@ private[tail] object IterantFromReactivePublisher {
           else {
             // WARNING: multi-threading might be an issue!
             if (requested < Int.MaxValue) requested -= 1
-            cb.onValue(Next(a, generate))
+            cb.onSuccess(Next(a, generate))
           }
 
         case Stop(_) =>
@@ -106,7 +107,7 @@ private[tail] object IterantFromReactivePublisher {
           }
 
         case Take(cb) =>
-          cb.onValue(fa)
+          cb.onSuccess(fa)
 
         case Stop(_) =>
           throw new IllegalStateException("was already completed")
@@ -118,10 +119,11 @@ private[tail] object IterantFromReactivePublisher {
     def onComplete(): Unit =
       finish(Iterant.empty)
 
-    private object listener extends Listener[Iterant[F, A]] {
+    private object listener extends Callback[Nothing, Iterant[F, A]] {
       var ref: Either[Throwable, Iterant[F, A]] => Unit = _
 
-      def onValue(value: Iterant[F, A]): Unit =
+      def onError(e: Nothing): Unit = ()
+      def onSuccess(value: Iterant[F, A]): Unit =
         ref(Right(value))
     }
 
@@ -171,7 +173,7 @@ private[tail] object IterantFromReactivePublisher {
     extends State[F, A]
 
   private final case class Take[F[_], A](
-    cb: Listener[Iterant[F, A]])
+    cb: Callback[Nothing, Iterant[F, A]])
     extends State[F, A]
 
   private val Empty = Enqueue(Queue.empty, 0)

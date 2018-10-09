@@ -30,7 +30,7 @@ object TaskEvalAsyncSuite extends BaseTestSuite {
     val task = Task.evalAsync(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assert(!wasTriggered, "!wasTriggered")
     assertEquals(f.value, None)
 
@@ -41,7 +41,7 @@ object TaskEvalAsyncSuite extends BaseTestSuite {
 
   test("Task.evalAsync should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task[Int](if (1 == 1) throw ex else 1).runAsync
+    val f = Task[Int](if (1 == 1) throw ex else 1).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -94,7 +94,7 @@ object TaskEvalAsyncSuite extends BaseTestSuite {
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20
-    val f = loop(iterations, 0).runAsync
+    val f = loop(iterations, 0).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(iterations * 2)))
@@ -108,7 +108,7 @@ object TaskEvalAsyncSuite extends BaseTestSuite {
   }
 
   test("Task.evalAsync.coeval") { implicit s =>
-    val f = Task.evalAsync(100).runAsync
+    val f = Task.evalAsync(100).runToFuture
     f.value match {
       case None =>
         s.tick()

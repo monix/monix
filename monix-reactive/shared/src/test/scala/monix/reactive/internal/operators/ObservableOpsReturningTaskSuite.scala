@@ -57,7 +57,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Long]]] =
-        obs.countL.map(Some.apply).materialize.runAsync
+        obs.countL.map(Some.apply).materialize.runToFuture
 
       result <-> Future.successful(Success(Some(list.length)))
     }
@@ -67,7 +67,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Long]]] =
-        obs.countL.map(Some.apply).materialize.runAsync
+        obs.countL.map(Some.apply).materialize.runToFuture
 
       result <-> first(obs.count)
     }
@@ -77,7 +77,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
-        obs.existsL(_ % 3 == 0).map(Some.apply).materialize.runAsync
+        obs.existsL(_ % 3 == 0).map(Some.apply).materialize.runToFuture
 
       result <-> Future.successful(Success(Some(list.exists(_ % 3 == 0))))
     }
@@ -87,7 +87,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
-        obs.existsL(_ % 3 == 0).map(Some.apply).materialize.runAsync
+        obs.existsL(_ % 3 == 0).map(Some.apply).materialize.runToFuture
 
       result <-> first(obs.exists(_ % 3 == 0))
     }
@@ -97,7 +97,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
-        obs.findL(_ % 3 == 0).materialize.runAsync
+        obs.findL(_ % 3 == 0).materialize.runToFuture
 
       result <-> first(obs.find(_ % 3 == 0))
     }
@@ -107,7 +107,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
-        obs.foldLeftL(0)(_+_).map(Some.apply).materialize.runAsync
+        obs.foldLeftL(0)(_+_).map(Some.apply).materialize.runToFuture
 
       result <-> Future.successful(Success(Some(list.sum)))
     }
@@ -126,7 +126,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
-        obs.forallL(_ >= 0).map(Some.apply).materialize.runAsync
+        obs.forallL(_ >= 0).map(Some.apply).materialize.runToFuture
 
       result <-> Future.successful(Success(Some(list.forall(_ >= 0))))
     }
@@ -136,7 +136,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
-        obs.forallL(_ >= 0).map(Some.apply).materialize.runAsync
+        obs.forallL(_ >= 0).map(Some.apply).materialize.runToFuture
 
       result <-> first(obs.forall(_ >= 0))
     }
@@ -184,7 +184,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
-        obs.lastOptionL.materialize.runAsync
+        obs.lastOptionL.materialize.runToFuture
 
       result <-> first(obs.last)
     }
@@ -195,7 +195,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
         obs.map(Some.apply).lastOrElseL(None)
-          .materialize.runAsync
+          .materialize.runToFuture
 
       result <-> first(obs.last)
     }
@@ -277,7 +277,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val sumRef = Atomic(0)
-      val result: Future[Int] = obs.foreachL(sumRef.increment).runAsync.map(_ => sumRef.get)
+      val result: Future[Int] = obs.foreachL(sumRef.increment).runToFuture.map(_ => sumRef.get)
       result <-> Future.successful(list.sum)
     }
   }

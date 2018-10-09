@@ -121,7 +121,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
 
     var wasClosed = false
     val in = randomInputWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromInputStreamF(Task(in)).completedL.runAsync
+    val f = Observable.fromInputStreamF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -135,7 +135,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     var wasClosed = false
     val ex = DummyException("dummy")
     val in = inputWithError(ex, 1, () => wasClosed = true)
-    val f = Observable.fromInputStreamF(Task(in)).completedL.runAsync
+    val f = Observable.fromInputStreamF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -149,7 +149,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     var wasClosed = false
     val ex = DummyException("dummy")
     val in = inputWithError(ex, 2, () => wasClosed = true)
-    val f = Observable.fromInputStreamF(Task(in)).completedL.runAsync
+    val f = Observable.fromInputStreamF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -162,7 +162,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
 
     var wasClosed = false
     val in = randomInputWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromInputStreamF(Task(in)).completedL.runAsync
+    val f = Observable.fromInputStreamF(Task(in)).completedL.runToFuture
 
     s.tickOne()
     f.cancel()

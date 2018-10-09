@@ -21,7 +21,8 @@ package internal
 import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.execution.atomic.{Atomic, PaddingStrategy}
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.schedulers.TrampolinedRunnable
+import monix.execution.{Callback, Cancelable, Scheduler}
 import scala.annotation.tailrec
 
 /**
@@ -211,5 +212,19 @@ private[eval] object TaskConnection {
         def cancel(): Unit =
           self.cancel.runAsyncAndForget(s)
       }
+  }
+
+  private[internal] def trampolineCallback[A](conn: TaskConnection, cb: Callback[Throwable, A])
+    (implicit s: Scheduler): Callback[Throwable, A] =
+    new TrampolinedWithConn[A](conn, cb)
+
+  private final class TrampolinedWithConn[A](conn: TaskConnection, cb: Callback[Throwable, A])
+    (implicit s: Scheduler)
+    extends Callback.Base[Throwable, A](cb)(s) with TrampolinedRunnable {
+
+    override def run(): Unit = {
+      conn.pop()
+      super.run()
+    }
   }
 }

@@ -39,6 +39,6 @@ class DoOnCompleteOperator[A](task: Task[Unit]) extends Operator[A,A] {
             out.onComplete()
           case Left(ex) =>
             out.onError(ex)
-        }.runAsync
+        }.runToFuture
     }
 }
