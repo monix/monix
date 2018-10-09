@@ -19,6 +19,7 @@ package monix.eval
 
 import cats.{Comonad, Eval}
 import cats.effect.{ConcurrentEffect, Effect, IO, SyncIO}
+import monix.execution.CancelablePromise
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.Future
@@ -130,6 +131,15 @@ object TaskLike extends TaskLikeImplicits0 {
     new TaskLike[Try] {
       def toTask[A](fa: Try[A]): Task[A] =
         Task.fromTry(fa)
+    }
+
+  /**
+    * Converts [[monix.execution.CancelablePromise]] to [[Task]].
+    */
+  implicit val fromCancelablePromise: TaskLike[CancelablePromise] =
+    new TaskLike[CancelablePromise] {
+      def toTask[A](p: CancelablePromise[A]): Task[A] =
+        Task.fromCancelablePromise(p)
     }
 
   /**

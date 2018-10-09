@@ -79,21 +79,25 @@ sealed abstract class CancelablePromise[A] extends Promise[A] {
     */
   def future: CancelableFuture[A]
 
-  /** Low-level subscription method that registers a callback to be called
+  /** Low-level subscription method that registers a [[Callback]] to be called
     * when this promise will complete.
     *
-    * It returns a [[Cancelable]] reference that can unregister the callback.
+    * This version of `subscribe` works with [[Callback]] references, so
+    * it interoperates well with `monix.eval.Task`.
     *
     * {{{
     *   val promise = CancelablePromise[Int]()
     *
-    *   val token1 = promise.subscribe { r =>
-    *     println(s"Callback 1 completed with: $$r")
-    *   }
+    *   def subscribe(n: Int): Cancelable =
+    *     promise.subscribe(new Callback[Throwable, String] {
+    *       def onSuccess(str: String) =
+    *         println(s"Callback ($$n) completed with: $$str")
+    *       def onError(e: Throwable) =
+    *         println(s"Callback ($$n) completed with: $$e")
+    *     })
     *
-    *   val token2 = promise.subscribe { r =>
-    *     println(s"Callback 2 completed with: $$r")
-    *   }
+    *   val token1 = subscribe(1)
+    *   val token2 = subscribe(2)
     *
     *   // Unsubscribing from the future notification
     *   token1.cancel()
@@ -101,27 +105,25 @@ sealed abstract class CancelablePromise[A] extends Promise[A] {
     *   // Completing our promise
     *   promise.success(99)
     *
-    *   //=> Callback 2 completed with: 99
+    *   //=> Callback (2) completed with: 99
     * }}}
     *
-    * Note that in the above example the first callback will never be called,
-    * because we are unsubscribing it before the promise is over.
+    * '''UNSAFE PROTOCOL:''' the implementation does not protect
+    * against stack-overflow exceptions. There's no point in doing it
+    * for such low level methods, because this is useful as middleware
+    * and different implementations will have different ways to deal
+    * with stack safety (e.g. `monix.eval.Task`).
     *
-    * '''UNSAFE PROTOCOL:''' the implementation does not protect against
-    * stack-overflow exceptions. There's no point in doing it for such
-    * low level methods, because this is useful as middleware and
-    * different implementations will have different ways to deal with
-    * stack safety (e.g. `monix.eval.Task`).
+    * @param cb is a [[Callback]] that will be called when the promise
+    *        completes with a result, assuming that the returned
+    *        cancelable token isn't canceled
     *
-    * @param cb is a callback that will be called when the promise completes
-    *        with a result, assuming that the returned cancelable token isn't
-    *        canceled
-    *
-    * @return a cancelable token that can be used to unsubscribe the given
-    *         callback, in order to prevent memory leaks, at which point
-    *         the callback will never be called (if it wasn't called already)
+    * @return a cancelable token that can be used to unsubscribe the
+    *         given callback, in order to prevent memory leaks, at
+    *         which point the callback will never be called (if it
+    *         wasn't called already)
     */
-  def subscribe(cb: Try[A] => Unit): Cancelable
+  def subscribe(cb: Callback[Throwable, A]): Cancelable
 }
 
 object CancelablePromise {
@@ -172,7 +174,7 @@ object CancelablePromise {
     def future: CancelableFuture[A] =
       CancelableFuture.fromTry(value)
 
-    def subscribe(cb: Try[A] => Unit): Cancelable = {
+    def subscribe(cb: Callback[Throwable, A]): Cancelable = {
       cb(value)
       Cancelable.empty
     }
@@ -190,7 +192,7 @@ object CancelablePromise {
     //  - MapQueue: listeners queue
     private[this] val state = AtomicAny.withPadding[AnyRef](emptyMapQueue, ps)
 
-    override def subscribe(cb: Try[A] => Unit): Cancelable =
+    override def subscribe(cb: Callback[Throwable, A]): Cancelable =
       unsafeSubscribe(cb)
 
     override def isCompleted: Boolean =
@@ -250,7 +252,7 @@ object CancelablePromise {
 
     private def call(cb: AnyRef, result: Try[A]): Unit =
       cb match {
-        case f: (Try[A] => Unit) @unchecked =>
+        case f: Callback[Throwable, A] @unchecked =>
           f(result)
         case p: Promise[A] =>
           p.complete(result)
@@ -262,7 +264,7 @@ object CancelablePromise {
           call(cb, ref)
           Cancelable.empty
 
-        case queue: MapQueue[Try[A] => Unit] @unchecked =>
+        case queue: MapQueue[Any] @unchecked =>
           val (id, update) = queue.enqueue(cb)
           if (!state.compareAndSet(queue, update)) unsafeSubscribe(cb)
           else new IdCancelable(id)
@@ -271,7 +273,7 @@ object CancelablePromise {
     private final class IdCancelable(id: Long) extends Cancelable {
       @tailrec def cancel(): Unit =
         state.get match {
-          case queue: MapQueue[Try[A] => Unit] @unchecked =>
+          case queue: MapQueue[_] =>
             if (!state.compareAndSet(queue, queue.dequeue(id)))
               cancel()
           case _ =>

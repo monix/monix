@@ -18,11 +18,11 @@
 package monix.eval.internal
 
 import monix.eval.Task.Context
-import monix.execution.Callback
+import monix.execution._
 import monix.eval.Task
+
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 
 import scala.concurrent.Future
 
@@ -74,6 +74,16 @@ private[eval] object TaskFromFuture {
           if (streamErrors) callback.onError(ex)
           else sc.reportFailure(ex)
       }
+    }
+
+  def fromCancelablePromise[A](p: CancelablePromise[A]): Task[A] =
+    if (p.isCompleted) strict(p.future) else {
+      Task.Async(
+        (_, cb) => p.subscribe(cb),
+        trampolineBefore = false,
+        trampolineAfter = true,
+        restoreLocals = true
+      )
     }
 
   private def rawAsync[A](start: (Context, Callback[Throwable, A]) => Unit): Task[A] =
