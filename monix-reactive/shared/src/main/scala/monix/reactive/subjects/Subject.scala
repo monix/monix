@@ -17,8 +17,10 @@
 
 package monix.reactive.subjects
 
+import cats.arrow.Profunctor
 import monix.execution.Scheduler
 import monix.execution.cancelables.SingleAssignCancelable
+import monix.reactive.instances.CatsProfunctorForSubject
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
 import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber => RSubscriber}
@@ -89,4 +91,6 @@ object Subject {
       }
     }
   }
+
+  implicit val catsProfunctor: Profunctor[Subject] = CatsProfunctorForSubject
 }
