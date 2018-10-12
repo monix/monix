@@ -24,8 +24,9 @@ import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Notification.{OnComplete, OnError, OnNext}
 import monix.reactive.observables.CombineObservable
+import monix.reactive.subjects._
 import org.scalacheck.Test.Parameters
-import org.scalacheck.{Arbitrary, Cogen, Prop}
+import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 import org.typelevel.discipline.Laws
 
 import scala.concurrent.duration._
@@ -93,6 +94,32 @@ trait ArbitraryInstances extends ArbitraryInstancesBase with monix.eval.Arbitrar
       import CombineObservable.unwrap
       def eqv(lh: CombineObservable.Type[A], rh: CombineObservable.Type[A]): Boolean = {
         Eq[Observable[A]].eqv(unwrap(lh), unwrap(rh))
+      }
+    }
+
+  implicit def arbitrarySubject[A](implicit arb: Arbitrary[A]): Arbitrary[Subject[A, A]] = Arbitrary {
+    Gen.oneOf(
+      Gen.const(AsyncSubject[A]()),
+      Gen.const(PublishSubject[A]()),
+      arb.arbitrary.map(BehaviorSubject(_)),
+      implicitly[Arbitrary[List[A]]].arbitrary.map(ReplaySubject.create(_)))
+  }
+
+  implicit def equalitySubject[A: Arbitrary](implicit A: Eq[A], ec: TestScheduler): Eq[Subject[A, A]] =
+    new Eq[Subject[A, A]] {
+      def eqv(lh: Subject[A, A], rh: Subject[A, A]): Boolean = {
+        val eqList = implicitly[Eq[List[Notification[A]]]]
+
+        val arbList = implicitly[Arbitrary[List[A]]]
+        val list = arbList.arbitrary.sample
+
+        list.map(lh.feed)
+        list.map(rh.feed)
+
+        val fa = lh.materialize.toListL.runToFuture
+        val fb = rh.materialize.toListL.runToFuture
+
+        lh.size == rh.size && equalityFuture(eqList, ec).eqv(fa, fb)
       }
     }
 }
