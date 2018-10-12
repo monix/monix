@@ -493,5 +493,3 @@ git.formattedShaVersion := {
   }
 }
 
-// For enabling Ctrl-C cancelability of compilation
-cancelable in Global := true
