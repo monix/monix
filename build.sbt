@@ -13,14 +13,12 @@ val allProjects = List(
   "java"
 )
 
-val ciCommand =
-  s";clean ;coreJVM/test:compile ;coreJS/test:compile " +
-  s";${allProjects.map(_ + "JVM/test").mkString(" ;")} " +
-  s";${allProjects.filter(_ != "java").map(_ + "JS/test").mkString(" ;")}"
-
-addCommandAlias("ci",      ciCommand)
-addCommandAlias("ci-all",  ciCommand + " ;mimaReportBinaryIssues ;unidoc")
-addCommandAlias("release", ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
+addCommandAlias("ci",         ";ci-jvm ;ci-js")
+addCommandAlias("ci-all",     ";ci-jvm ;ci-js ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-js",      s";clean ;coreJS/test:compile ;${allProjects.filter(_ != "java").map(_ + "JS/test").mkString(" ;")}")
+addCommandAlias("ci-jvm",     s";clean ;coreJVM/test:compile ;${allProjects.map(_ + "JVM/test").mkString(" ;")}")
+addCommandAlias("ci-jvm-all", s";ci-jvm ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.4.0"
 val catsEffectVersion = "1.0.0"

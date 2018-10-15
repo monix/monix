@@ -5,14 +5,23 @@ group: edge
 
 matrix:
   include:
-    # Scala 2.11
+    # Scala 2.11, JVM
     - jdk: oraclejdk8
       scala: 2.11.12
-      env: COMMAND=ci COVERAGE=
-    # Scala 2.12
+      env: COMMAND=ci-jvm COVERAGE=
+    # Scala 2.11, JavaScript
+    - jdk: oraclejdk8
+      scala: 2.11.12
+      env: COMMAND=ci-js COVERAGE=
+    # Scala 2.12, JVM
     - jdk: oraclejdk8
       scala: 2.12.4
-      env: COMMAND=ci-all COVERAGE=coverage
+      env: COMMAND=ci-jvm-all COVERAGE=coverage
+    # Scala 2.12, JavaScript
+    - jdk: oraclejdk8
+      scala: 2.12.4
+      env: COMMAND=ci-js COVERAGE=
+
 env:
   global:
     - TRAVIS_NODE_VERSION="8.9" # LTS
