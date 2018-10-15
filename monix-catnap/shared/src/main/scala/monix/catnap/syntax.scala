@@ -24,7 +24,7 @@ object syntax {
   /**
     * Provides syntax for [[LiftFuture]].
     */
-  implicit final class SyntaxForLiftFuture[F[_], MFuture[T] <: Future[T], A](
-    val source: F[MFuture[A]])
-    extends AnyVal with Syntax[F, MFuture, A]
+  implicit final class SyntaxForLiftFuture[F[_], MF[T] <: Future[T], A](
+    val source: F[MF[A]])
+    extends AnyVal with Syntax[F, MF, A]
 }

@@ -59,7 +59,7 @@ import scala.util.{Failure, Success}
   * }}}
   */
 trait LiftFuture[F[_]] {
-  def liftFuture[MFuture[T] <: Future[T], A](fa: F[MFuture[A]]): F[A]
+  def liftFuture[MF[T] <: Future[T], A](fa: F[MF[A]]): F[A]
 }
 
 object LiftFuture {
