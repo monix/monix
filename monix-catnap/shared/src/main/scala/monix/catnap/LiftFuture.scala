@@ -25,6 +25,38 @@ import scala.util.{Failure, Success}
 
 /**
   * A type class for conversions from [[scala.concurrent.Future]].
+  * 
+  * N.B. to use its syntax, you can import [[monix.catnap.syntax]]:
+  * {{{
+  *   import monix.catnap.syntax._
+  *   import scala.concurrent.Future
+  *   // Used here only for Future.apply as the ExecutionContext
+  *   import monix.execution.Scheduler.Implicits.global
+  *   // Can use any data type implementing Async or Concurrent
+  *   import cats.effect.IO
+  * 
+  *   val io = IO(Future(1 + 1)).liftFuture
+  * }}}
+  * 
+  * `IO` provides its own `IO.fromFuture` of course, however
+  * `LiftFuture` is generic and works with
+  * [[monix.execution.CancelableFuture CancelableFuture]] as well.
+  * 
+  * {{{
+  *   import monix.execution.{CancelableFuture, Scheduler, FutureUtils}
+  *   import scala.concurrent.Promise
+  *   import scala.concurrent.duration._
+  *   import scala.util.Try
+  *   
+  *   def delayed[A](event: => A)(implicit s: Scheduler): CancelableFuture[A] = {
+  *     val p = Promise[A]()
+  *     val c = s.scheduleOnce(1.second) { p.complete(Try(event)) }
+  *     CancelableFuture(p.future, c)
+  *   }
+  * 
+  *   // The result will be cancelable:
+  *   val sum: IO[Int] = IO(delayed(1 + 1)).liftFuture
+  * }}}
   */
 trait LiftFuture[F[_]] {
   def liftFuture[A](fa: F[Future[A]]): F[A]
