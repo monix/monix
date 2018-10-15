@@ -167,17 +167,17 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
 
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
-    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(2))
+    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed[IO](2))
 
     // A successful value should reset the counter
     assertEquals(taskSuccess.unsafeToFuture.value, Some(Success(1)))
-    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(0))
+    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed[IO](0))
 
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
-    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(4))
+    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed[IO](4))
 
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
     circuitBreaker.state.unsafeRunSync() match {
@@ -260,7 +260,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
 
     s.tick(1.second)
     assertEquals(delayedResult.value, Some(Success(1)))
-    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(0))
+    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed[IO](0))
 
     assertEquals(rejectedCount, 5 * 30 + 1)
     assertEquals(openedCount, 30 + 1)
