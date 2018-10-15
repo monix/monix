@@ -22,8 +22,8 @@ package monix.catnap
   * Useful for specifying type class instance alternatives.
   * Examples:
   *
-  *  - `Async OrElse Sync`
-  *  - `Concurrent OrElse Async`
+  *  - `Async[F] OrElse Sync[F]`
+  *  - `Concurrent[F] OrElse Async[F]`
   *
   * Inspired by the implementations in Shapeless and Algebra.
   */
