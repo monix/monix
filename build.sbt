@@ -54,21 +54,6 @@ lazy val warnUnusedImport = Seq(
   scalacOptions in Test ~= {_.filterNot("-Ywarn-unused-import" == _)}
 )
 
-lazy val simulacrumSettings = Seq(
-  libraryDependencies += "com.github.mpilquist" %%% "simulacrum" % "0.13.0" % Provided,
-  pomPostProcess := { (node: xml.Node) =>
-    new RuleTransformer(new RewriteRule {
-      override def transform(node: xml.Node): Seq[xml.Node] = node match {
-        case e: xml.Elem
-          if e.label == "dependency" &&
-            e.child.exists(child => child.label == "groupId" && child.text == "com.github.mpilquist") &&
-            e.child.exists(child => child.label == "artifactId" && child.text.startsWith("simulacrum_")) => Nil
-        case _ => Seq(node)
-      }
-    }).transform(node).head
-  }
-)
-
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.12.7",
@@ -384,7 +369,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(executionCommon)
 
 lazy val catnapCommon =
-  crossSettings ++ testSettings ++ simulacrumSettings ++ Seq(
+  crossSettings ++ testSettings ++ Seq(
     name := "monix-catnap"
   )
 
