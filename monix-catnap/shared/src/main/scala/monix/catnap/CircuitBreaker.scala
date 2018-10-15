@@ -17,15 +17,15 @@
 
 package monix.catnap
 
-import cats.effect.{Async, Clock, ExitCase, Sync}
+import cats.effect.{Async, Concurrent, Clock, ExitCase, Sync}
 import cats.implicits._
+import monix.execution.CancelablePromise
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
 import monix.execution.exceptions.ExecutionRejectedException
 import monix.execution.internal.Constants
 import scala.annotation.tailrec
-import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 /** The `CircuitBreaker` is used to provide stability and prevent
@@ -263,17 +263,19 @@ final class CircuitBreaker[F[_]] private (
     * the `CircuitBreaker` switches to the [[CircuitBreaker.Closed Closed]]
     * state again.
     */
-  def awaitClose(implicit F: Async[F]): F[Unit] =
-    F.suspend {
+  def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
+    val F0 = F.unify
+    F0.suspend {
       stateRef.get match {
         case ref: Open =>
-          LiftFuture.toAsync(F.pure(ref.awaitClose.future))
+          LiftFuture.toConcurrentOrAsync(F0.pure(ref.awaitClose.future))
         case ref: HalfOpen =>
-          LiftFuture.toAsync(F.pure(ref.awaitClose.future))
+          LiftFuture.toConcurrentOrAsync(F0.pure(ref.awaitClose.future))
         case _ =>
-          F.unit
+          F0.unit
       }
     }
+  }
 
   /** Function for counting failures in the `Closed` state,
     * triggering the `Open` state if necessary.
@@ -315,7 +317,7 @@ final class CircuitBreaker[F[_]] private (
                 clock.monotonic(MILLISECONDS).flatMap { now =>
                   // We've gone over the permitted failures threshold,
                   // so we need to open the circuit breaker
-                  val update = Open(now, resetTimeout, Promise())
+                  val update = Open(now, resetTimeout, CancelablePromise())
 
                   if (!stateRef.compareAndSet(current, update))
                     reschedule(result) // retry
@@ -346,7 +348,7 @@ final class CircuitBreaker[F[_]] private (
     *        case the attempt fails and it needs to transition to
     *        `Open` again
     */
-  private def attemptReset[A](task: F[A], resetTimeout: FiniteDuration, await: Promise[Unit]): F[A] =
+  private def attemptReset[A](task: F[A], resetTimeout: FiniteDuration, await: CancelablePromise[Unit]): F[A] =
     F.bracketCase(onHalfOpen)(_ => task) { (_, exit) =>
       exit match {
         case ExitCase.Canceled =>
@@ -797,7 +799,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
   final class Open private (
     val startedAt: Timestamp,
     val resetTimeout: FiniteDuration,
-    private[catnap] val awaitClose: Promise[Unit]) extends State {
+    private[catnap] val awaitClose: CancelablePromise[Unit]) extends State {
 
     /** The timestamp in milliseconds since the epoch, specifying
       * when the `Open` state is to transition to [[HalfOpen]].
@@ -824,7 +826,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
 
   object Open {
     /** Private builder. */
-    private[catnap] def apply(startedAt: Timestamp, resetTimeout: FiniteDuration, awaitClose: Promise[Unit]): Open =
+    private[catnap] def apply(startedAt: Timestamp, resetTimeout: FiniteDuration, awaitClose: CancelablePromise[Unit]): Open =
       new Open(startedAt, resetTimeout, awaitClose)
 
     /** Implements the pattern matching protocol. */
@@ -864,7 +866,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     */
   final class HalfOpen private (
     val resetTimeout: FiniteDuration,
-    private[catnap] val awaitClose: Promise[Unit])
+    private[catnap] val awaitClose: CancelablePromise[Unit])
     extends State {
 
     override def equals(other: Any): Boolean = other match {
@@ -883,7 +885,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
 
   object HalfOpen {
     /** Private builder. */
-    private[catnap] def apply(resetTimeout: FiniteDuration, awaitClose: Promise[Unit]): HalfOpen =
+    private[catnap] def apply(resetTimeout: FiniteDuration, awaitClose: CancelablePromise[Unit]): HalfOpen =
       new HalfOpen(resetTimeout, awaitClose)
 
     /** Implements the pattern matching protocol. */

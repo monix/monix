@@ -59,7 +59,7 @@ import scala.util.{Failure, Success}
   * }}}
   */
 trait LiftFuture[F[_]] {
-  def liftFuture[A](fa: F[Future[A]]): F[A]
+  def liftFuture[MFuture[T] <: Future[T], A](fa: F[MFuture[A]]): F[A]
 }
 
 object LiftFuture {
@@ -84,13 +84,16 @@ object LiftFuture {
     * and if the given future is cancelable, then the resulting instance
     * is also cancelable.
     */
-  def toAsync[F[_], A](fa: F[Future[A]])(implicit F: Async[F]): F[A] =
+  def toAsync[F[_], MF[T] <: Future[T], A](fa: F[MF[A]])
+    (implicit F: Async[F]): F[A] = {
+
     F.flatMap(fa) { future =>
       future.value match {
         case Some(value) => F.fromTry(value)
         case _ => startAsync(future)
       }
     }
+  }
 
   /**
     * Utility for converting [[scala.concurrent.Future Future]] values into
@@ -102,7 +105,9 @@ object LiftFuture {
     * and if the given future is cancelable, then the resulting instance
     * is also cancelable.
     */
-  def toConcurrent[F[_], A](fa: F[Future[A]])(implicit F: Concurrent[F]): F[A] =
+  def toConcurrent[F[_], MF[T] <: Future[T], A](fa: F[MF[A]])
+    (implicit F: Concurrent[F]): F[A] = {
+
     F.flatMap(fa) { future =>
       future.value match {
         case Some(value) => F.fromTry(value)
@@ -115,6 +120,25 @@ object LiftFuture {
           }
       }
     }
+  }
+
+  /** 
+    * A generic function that subsumes both [[toAsync]] and
+    * [[toConcurrent]].
+    * 
+    * N.B. this works with [[monix.execution.CancelableFuture]]
+    * if the given `Future` is such an instance.
+    */
+  def toConcurrentOrAsync[F[_], MF[T] <: Future[T], A](fa: F[MF[A]])
+    (implicit F: Concurrent[F] OrElse Async[F]): F[A] = {
+
+    F.unify match {
+      case ref: Concurrent[F] @unchecked =>
+        toConcurrent(fa)(ref)
+      case ref =>
+        toAsync(fa)(ref)
+    }    
+  }
 
   /**
     * Implicit instance of [[LiftFuture]] for all `Concurrent` or `Async`
@@ -123,9 +147,13 @@ object LiftFuture {
   implicit def forConcurrentOrAsync[F[_]](implicit F: Concurrent[F] OrElse Async[F]): LiftFuture[F] =
     F.unify match {
       case ref: Concurrent[F] @unchecked =>
-        new LiftFuture[F] { def liftFuture[A](fa: F[Future[A]]): F[A] = toConcurrent(fa)(ref) }
+        new LiftFuture[F] {
+          def liftFuture[G[T] <: Future[T], A](fa: F[G[A]]): F[A] = toConcurrent(fa)(ref)
+        }
       case ref =>
-        new LiftFuture[F] { def liftFuture[A](fa: F[Future[A]]): F[A] = toAsync(fa)(ref) }
+        new LiftFuture[F] {
+          def liftFuture[G[T] <: Future[T], A](fa: F[G[A]]): F[A] = toAsync(fa)(ref)
+        }
     }
 
   /**
@@ -135,16 +163,11 @@ object LiftFuture {
     *   import monix.catnap.syntax._
     * }}}
     */
-  trait Syntax[F[_], FutureLike[T] <: Future[T], A] extends Any {
-    def source: F[FutureLike[A]]
+  trait Syntax[F[_], MF[T] <: Future[T], A] extends Any {
+    def source: F[MF[A]]
 
     def liftFuture(implicit F: Concurrent[F] OrElse Async[F]): F[A] =
-      F.unify match {
-        case ref: Concurrent[F] @unchecked =>
-          toConcurrent(source.asInstanceOf[F[Future[A]]])(ref)
-        case ref =>
-          toAsync(source.asInstanceOf[F[Future[A]]])(ref)
-      }
+      LiftFuture.toConcurrentOrAsync(source)(F)
   }
 
   private def start[A](fa: Future[A], cb: Either[Throwable, A] => Unit): Unit = {
