@@ -145,9 +145,8 @@ object MapAsyncParallelSuite extends BaseOperatorSuite {
   }
 
   test("should work for any positive parallelism") { implicit s =>
-    implicit lazy val arbInt: Arbitrary[Int] = Arbitrary(
-      Gen.chooseNum(1, Int.MaxValue)
-    )
+    implicit val positiveInt: Arbitrary[Int] = Arbitrary(Gen.chooseNum(1, Int.MaxValue))
+
     check2 { (list: List[Int], parallelism: Int) =>
       val result: Future[List[Int]] =
         Observable
