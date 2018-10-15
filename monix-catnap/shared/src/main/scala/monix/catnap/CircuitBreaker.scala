@@ -262,6 +262,12 @@ final class CircuitBreaker[F[_]] private (
     * it returns immediately, otherwise it will wait (asynchronously) until
     * the `CircuitBreaker` switches to the [[CircuitBreaker.Closed Closed]]
     * state again.
+    * 
+    * @param F is a restriction for `F[_]` to implement
+    *        `Concurrent[F]` or `Async[F]` (from Cats-Effect). If it
+    *        implements `Concurrent`, then the resulting instance will
+    *        be cancelable, to properly dispose of the registered
+    *        listener in case of cancellation.
     */
   def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
     val F0 = F.unify
