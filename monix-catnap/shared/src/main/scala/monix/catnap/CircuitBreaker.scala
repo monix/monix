@@ -266,6 +266,9 @@ final class CircuitBreaker[F[_]] private (
     * state again.
     */
   def awaitClose(implicit ev: Async[F]): F[Unit] =
+    awaitCloseRef
+
+  private[this] val awaitCloseRef: F[Unit] =
     F.suspend {
       stateRef.get match {
         case Closed(_) =>
@@ -278,8 +281,8 @@ final class CircuitBreaker[F[_]] private (
           // $COVERAGE-OFF$
           F.raiseError(new APIContractViolationException(
             "Empty await with cats.effect.Async instance, " +
-            "this CircuitBreaker was not created with this " +
-            s"Async instance: $ev (F = $F)"
+            "this CircuitBreaker was not created with an " +
+            s"Async[F] instance; F = $F"
           ))
           // $COVERAGE-ON$
       }
