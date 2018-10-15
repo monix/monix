@@ -1,15 +1,26 @@
 import com.typesafe.sbt.GitVersioning
-import com.typesafe.tools.mima.core._
-import com.typesafe.tools.mima.core.ProblemFilters._
 import sbt.Keys.version
 // For getting Scoverage out of the generated POM
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
-addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
-addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
-addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
+val allProjects = List(
+  "execution",
+  "catnap",
+  "eval",
+  "tail",
+  "reactive",
+  "java"
+)
+
+val ciCommand =
+  s";clean ;coreJVM/test:compile ;coreJS/test:compile " +
+  s";${allProjects.map(_ + "JVM/test").mkString(" ;")} " +
+  s";${allProjects.map(_ + "JS/test").mkString(" ;")}"
+
+addCommandAlias("ci",      ciCommand)
+addCommandAlias("ci-all",  ciCommand + " ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("release", ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.4.0"
 val catsEffectVersion = "1.0.0"
@@ -138,8 +149,10 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   parallelExecution in Test := false,
   parallelExecution in IntegrationTest := false,
+  parallelExecution in ThisBuild := false,
   testForkedParallel in Test := false,
   testForkedParallel in IntegrationTest := false,
+  testForkedParallel in ThisBuild := false,
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
   resolvers ++= Seq(
