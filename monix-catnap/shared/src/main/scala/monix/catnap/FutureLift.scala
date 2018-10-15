@@ -25,7 +25,7 @@ import scala.util.{Failure, Success}
 
 /**
   * A type class for conversions from [[scala.concurrent.Future]].
-  * 
+  *
   * N.B. to use its syntax, you can import [[monix.catnap.syntax]]:
   * {{{
   *   import monix.catnap.syntax._
@@ -34,45 +34,45 @@ import scala.util.{Failure, Success}
   *   import monix.execution.Scheduler.Implicits.global
   *   // Can use any data type implementing Async or Concurrent
   *   import cats.effect.IO
-  * 
-  *   val io = IO(Future(1 + 1)).liftFuture
+  *
+  *   val io = IO(Future(1 + 1)).futureLift
   * }}}
-  * 
+  *
   * `IO` provides its own `IO.fromFuture` of course, however
-  * `LiftFuture` is generic and works with
+  * `FutureLift` is generic and works with
   * [[monix.execution.CancelableFuture CancelableFuture]] as well.
-  * 
+  *
   * {{{
   *   import monix.execution.{CancelableFuture, Scheduler, FutureUtils}
   *   import scala.concurrent.Promise
   *   import scala.concurrent.duration._
   *   import scala.util.Try
-  *   
+  *
   *   def delayed[A](event: => A)(implicit s: Scheduler): CancelableFuture[A] = {
   *     val p = Promise[A]()
   *     val c = s.scheduleOnce(1.second) { p.complete(Try(event)) }
   *     CancelableFuture(p.future, c)
   *   }
-  * 
+  *
   *   // The result will be cancelable:
-  *   val sum: IO[Int] = IO(delayed(1 + 1)).liftFuture
+  *   val sum: IO[Int] = IO(delayed(1 + 1)).futureLift
   * }}}
   */
-trait LiftFuture[F[_]] {
-  def liftFuture[MF[T] <: Future[T], A](fa: F[MF[A]]): F[A]
+trait FutureLift[F[_]] {
+  def futureLift[MF[T] <: Future[T], A](fa: F[MF[A]]): F[A]
 }
 
-object LiftFuture {
+object FutureLift {
   /**
-    * Accessor for [[LiftFuture]] values that are in scope.
+    * Accessor for [[FutureLift]] values that are in scope.
     * {{{
     *   import cats.effect.IO
     *   import scala.concurrent.Future
     *
-    *   val ioa = LiftFuture[IO].liftFuture(IO(Future.successful(1)))
+    *   val ioa = FutureLift[IO].futureLift(IO(Future.successful(1)))
     * }}}
     */
-  def apply[F[_]](implicit F: LiftFuture[F]): LiftFuture[F] = F
+  def apply[F[_]](implicit F: FutureLift[F]): FutureLift[F] = F
 
   /**
     * Utility for converting [[scala.concurrent.Future Future]] values into
@@ -122,10 +122,10 @@ object LiftFuture {
     }
   }
 
-  /** 
+  /**
     * A generic function that subsumes both [[toAsync]] and
     * [[toConcurrent]].
-    * 
+    *
     * N.B. this works with [[monix.execution.CancelableFuture]]
     * if the given `Future` is such an instance.
     */
@@ -134,25 +134,27 @@ object LiftFuture {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked =>
-        toConcurrent(fa)(ref)
+        toConcurrent[F, MF, A](fa)(ref)
       case ref =>
-        toAsync(fa)(ref)
-    }    
+        toAsync[F, MF, A](fa)(ref)
+    }
   }
 
   /**
-    * Implicit instance of [[LiftFuture]] for all `Concurrent` or `Async`
+    * Implicit instance of [[FutureLift]] for all `Concurrent` or `Async`
     * data types.
     */
-  implicit def forConcurrentOrAsync[F[_]](implicit F: Concurrent[F] OrElse Async[F]): LiftFuture[F] =
+  implicit def forConcurrentOrAsync[F[_]](implicit F: Concurrent[F] OrElse Async[F]): FutureLift[F] =
     F.unify match {
       case ref: Concurrent[F] @unchecked =>
-        new LiftFuture[F] {
-          def liftFuture[G[T] <: Future[T], A](fa: F[G[A]]): F[A] = toConcurrent(fa)(ref)
+        new FutureLift[F] {
+          def futureLift[MF[T] <: Future[T], A](fa: F[MF[A]]): F[A] =
+            toConcurrent[F, MF, A](fa)(ref)
         }
       case ref =>
-        new LiftFuture[F] {
-          def liftFuture[G[T] <: Future[T], A](fa: F[G[A]]): F[A] = toAsync(fa)(ref)
+        new FutureLift[F] {
+          def futureLift[MF[T] <: Future[T], A](fa: F[MF[A]]): F[A] =
+            toAsync[F, MF, A](fa)(ref)
         }
     }
 
@@ -166,8 +168,8 @@ object LiftFuture {
   trait Syntax[F[_], MF[T] <: Future[T], A] extends Any {
     def source: F[MF[A]]
 
-    def liftFuture(implicit F: Concurrent[F] OrElse Async[F]): F[A] =
-      LiftFuture.toConcurrentOrAsync(source)(F)
+    def futureLift(implicit F: Concurrent[F] OrElse Async[F]): F[A] =
+      FutureLift.toConcurrentOrAsync[F, MF, A](source)(F)
   }
 
   private def start[A](fa: Future[A], cb: Either[Throwable, A] => Unit): Unit = {

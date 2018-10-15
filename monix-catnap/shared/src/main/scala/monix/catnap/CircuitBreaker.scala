@@ -262,7 +262,7 @@ final class CircuitBreaker[F[_]] private (
     * it returns immediately, otherwise it will wait (asynchronously) until
     * the `CircuitBreaker` switches to the [[CircuitBreaker.Closed Closed]]
     * state again.
-    * 
+    *
     * @param F is a restriction for `F[_]` to implement
     *        `Concurrent[F]` or `Async[F]` (from Cats-Effect). If it
     *        implements `Concurrent`, then the resulting instance will
@@ -274,9 +274,9 @@ final class CircuitBreaker[F[_]] private (
     F0.suspend {
       stateRef.get match {
         case ref: Open =>
-          LiftFuture.toConcurrentOrAsync(F0.pure(ref.awaitClose.future))
+          FutureLift.toConcurrentOrAsync(F0.pure(ref.awaitClose.future))
         case ref: HalfOpen =>
-          LiftFuture.toConcurrentOrAsync(F0.pure(ref.awaitClose.future))
+          FutureLift.toConcurrentOrAsync(F0.pure(ref.awaitClose.future))
         case _ =>
           F0.unit
       }

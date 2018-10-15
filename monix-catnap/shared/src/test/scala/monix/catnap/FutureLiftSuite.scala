@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.{Async, IO, ContextShift}
+import cats.effect.{Async, IO}
 import minitest.TestSuite
 import monix.catnap.syntax._
 import monix.execution.exceptions.DummyException
@@ -26,17 +26,17 @@ import monix.execution.{Cancelable, CancelableFuture}
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
-object LiftFutureSuite extends TestSuite[TestScheduler] {
+object FutureLiftSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "There should be no tasks left!")
 
   implicit def contextShift(implicit ec: TestScheduler) =
     ec.contextShift[IO]
-  
-  test("IO(future).liftFuture") { implicit s =>
+
+  test("IO(future).futureLift") { implicit s =>
     var effect = 0
-    val io = IO(Future { effect += 1; effect }).liftFuture
+    val io = IO(Future { effect += 1; effect }).futureLift
 
     val f1 = io.unsafeToFuture(); s.tick()
     assertEquals(f1.value, Some(Success(1)))
@@ -44,8 +44,8 @@ object LiftFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Success(2)))
   }
 
-  test("IO(Future.successful).liftFuture") { implicit s =>
-    val io = IO(Future.successful(1)).liftFuture
+  test("IO(Future.successful).futureLift") { implicit s =>
+    val io = IO(Future.successful(1)).futureLift
 
     val f1 = io.unsafeToFuture(); s.tick()
     assertEquals(f1.value, Some(Success(1)))
@@ -53,9 +53,9 @@ object LiftFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Success(1)))
   }
 
-  test("IO(Future.failed).liftFuture") { implicit s =>
+  test("IO(Future.failed).futureLift") { implicit s =>
     val dummy = DummyException("dummy")
-    val io = IO(Future.failed[Int](dummy)).liftFuture
+    val io = IO(Future.failed[Int](dummy)).futureLift
 
     val f1 = io.unsafeToFuture(); s.tick()
     assertEquals(f1.value, Some(Failure(dummy)))
@@ -63,12 +63,12 @@ object LiftFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Failure(dummy)))
   }
 
-  test("F.delay(future).liftFuture for Async[F] data types") { implicit s =>
+  test("F.delay(future).futureLift for Async[F] data types") { implicit s =>
     import Overrides.asyncIO
     var effect = 0
 
     def mkInstance[F[_]: Async] =
-      Async[F].delay(Future { effect += 1; effect }).liftFuture
+      Async[F].delay(Future { effect += 1; effect }).futureLift
 
     val io = mkInstance[IO]
     val f1 = io.unsafeToFuture(); s.tick()
@@ -77,11 +77,11 @@ object LiftFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Success(2)))
   }
 
-  test("F.delay(Future.successful).liftFuture for Async[F] data types") { implicit s =>
+  test("F.delay(Future.successful).futureLift for Async[F] data types") { implicit s =>
     import Overrides.asyncIO
 
     def mkInstance[F[_]: Async] =
-      Async[F].delay(Future.successful(1)).liftFuture
+      Async[F].delay(Future.successful(1)).futureLift
 
     val io = mkInstance[IO]
     val f1 = io.unsafeToFuture(); s.tick()
@@ -90,12 +90,12 @@ object LiftFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Success(1)))
   }
 
-  test("F.delay(Future.failed).liftFuture for Async[F] data types") { implicit s =>
+  test("F.delay(Future.failed).futureLift for Async[F] data types") { implicit s =>
     import Overrides.asyncIO
 
     val dummy = DummyException("dummy")
     def mkInstance[F[_]: Async] =
-      Async[F].delay(Future.failed[Int](dummy)).liftFuture
+      Async[F].delay(Future.failed[Int](dummy)).futureLift
 
     val io = mkInstance[IO]
     val f1 = io.unsafeToFuture(); s.tick()
@@ -104,10 +104,10 @@ object LiftFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Failure(dummy)))
   }
 
-  test("F.delay(future).liftFuture for Concurrent[F] data types") { implicit s =>
+  test("F.delay(future).futureLift for Concurrent[F] data types") { implicit s =>
     var wasCanceled = 0
     val io = IO(CancelableFuture[Int](CancelableFuture.never, Cancelable { () => wasCanceled += 1 }))
-      .liftFuture
+      .futureLift
 
     val p = Promise[Int]()
     val token = io.unsafeRunCancelable {
@@ -120,10 +120,10 @@ object LiftFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCanceled, 1)
   }
 
-  test("LiftFuture[F] instance for Concurrent[F] data types") { implicit s =>
+  test("FutureLift[F] instance for Concurrent[F] data types") { implicit s =>
     var wasCanceled = 0
     val source = Promise[Int]()
-    val io = LiftFuture[IO].liftFuture(IO(
+    val io = FutureLift[IO].futureLift(IO(
       CancelableFuture[Int](source.future, Cancelable { () => wasCanceled += 1 })
     ))
 
@@ -145,14 +145,14 @@ object LiftFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Success(1)))
   }
 
-  test("LiftFuture[F] instance for Async[F] data types") { implicit s =>
+  test("FutureLift[F] instance for Async[F] data types") { implicit s =>
     import Overrides.asyncIO
 
     var wasCanceled = 0
     val source = Promise[Int]()
 
     def mkInstance[F[_]](implicit F: Async[F]): F[Int] =
-      LiftFuture[F].liftFuture(F.delay(
+      FutureLift[F].futureLift(F.delay(
         CancelableFuture[Int](source.future, Cancelable { () => wasCanceled += 1 })
       ))
 
