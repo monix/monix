@@ -19,9 +19,9 @@ package monix.catnap
 
 import cats.effect.{Async, Concurrent}
 import monix.execution.CancelableFuture
+import monix.execution.internal.AttemptCallback
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
 
 /**
   * A type class for conversions from [[scala.concurrent.Future]].
@@ -174,10 +174,7 @@ object FutureLift {
 
   private def start[A](fa: Future[A], cb: Either[Throwable, A] => Unit): Unit = {
     implicit val ec = immediate
-    fa.onComplete(r => cb(r match {
-      case Success(a) => Right(a)
-      case Failure(e) => Left(e)
-    }))(immediate)
+    fa.onComplete(AttemptCallback.toTry(cb))
   }
 
   private def startAsync[F[_], A](fa: Future[A])(implicit F: Async[F]): F[A] =
