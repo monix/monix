@@ -41,7 +41,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     val source = Observable.repeat(1L).take(num)
     val f = Observable.fromIterable(Seq(source, source, source))
       .mergeMap(x => x)(DropNewAndSignal(1000, dropped => Some(dropped)))
-      .sumF
+      .sum
       .runAsyncGetFirst
 
     val result = Await.result(f, 30.seconds)

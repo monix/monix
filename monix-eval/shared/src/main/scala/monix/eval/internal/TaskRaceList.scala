@@ -18,7 +18,8 @@
 package monix.eval.internal
 
 import monix.catnap.CancelableF
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.atomic.{Atomic, PaddingStrategy}
 
 private[eval] object TaskRaceList {
@@ -36,7 +37,7 @@ private[eval] object TaskRaceList {
   private final class Register[A](tasks: TraversableOnce[Task[A]])
     extends ForkedRegister[A] {
 
-    def apply(context: Task.Context, callback: Callback[A]): Unit = {
+    def apply(context: Task.Context, callback: Callback[Throwable, A]): Unit = {
       implicit val s = context.scheduler
       val conn = context.connection
 
@@ -52,7 +53,7 @@ private[eval] object TaskRaceList {
         val taskContext = context.withConnection(taskCancelable)
         index += 1
 
-        Task.unsafeStartEnsureAsync(task, taskContext, new Callback[A] {
+        Task.unsafeStartEnsureAsync(task, taskContext, new Callback[Throwable, A] {
           private def popAndCancelRest(): Unit = {
             conn.pop()
             val arr2 = cancelableArray.collect {

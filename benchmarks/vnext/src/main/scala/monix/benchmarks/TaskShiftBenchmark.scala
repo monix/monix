@@ -54,7 +54,7 @@ class TaskShiftBenchmark {
         Task.pure(i)
 
     val task = Task.pure(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    Await.result(task.runToFuture, Duration.Inf)
   }
 
   @Benchmark
@@ -66,7 +66,7 @@ class TaskShiftBenchmark {
         Task.pure(i)
 
     val task = Task.pure(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    Await.result(task.runToFuture, Duration.Inf)
   }
 
   @Benchmark
@@ -78,7 +78,7 @@ class TaskShiftBenchmark {
         Task.pure(i)
 
     val task = Task.pure(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    Await.result(task.runToFuture, Duration.Inf)
   }
 
   @Benchmark
@@ -90,7 +90,7 @@ class TaskShiftBenchmark {
         Task.pure(i)
 
     val task = Task.pure(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    Await.result(task.runToFuture, Duration.Inf)
   }
 
   @Benchmark
@@ -102,7 +102,7 @@ class TaskShiftBenchmark {
         Task.pure(i)
 
     val task = Task.pure(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    Await.result(task.runToFuture, Duration.Inf)
   }
 
   @Benchmark
@@ -114,7 +114,7 @@ class TaskShiftBenchmark {
         Task.pure(i)
 
     val task = Task.pure(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    Await.result(task.runToFuture, Duration.Inf)
   }
 
   @Benchmark
@@ -126,7 +126,7 @@ class TaskShiftBenchmark {
         Task.pure(i)
 
     val task = Task.pure(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    Await.result(task.runToFuture, Duration.Inf)
   }
 }
 

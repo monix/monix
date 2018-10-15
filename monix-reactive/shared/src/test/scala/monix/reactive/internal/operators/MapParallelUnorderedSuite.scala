@@ -139,7 +139,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
         .toListL
 
       val expected = Observable.fromIterable(list)
-        .mapTask(x => if (isAsync) Task.evalAsync(x + 10) else Task.eval(x + 10))
+        .mapEval(x => if (isAsync) Task.evalAsync(x + 10) else Task.eval(x + 10))
         .toListL
 
       received <-> expected
@@ -252,7 +252,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val p = Promise[Int]()
 
     val tasks = List.fill(8)(Task.fromFuture(p.future))
-    Observable(tasks:_*).doOnNext(_ => initiated += 1)
+    Observable(tasks:_*).doOnNext(_ => Task { initiated += 1 })
       .mapParallelUnordered(parallelism=4)(x => x)
       .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = {
@@ -285,7 +285,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val totalCount = Platform.recommendedBatchSize * 4
 
     Observable.range(0, totalCount)
-      .doOnNext(_ => initiated += 1)
+      .doOnNext(_ => Task { initiated += 1 })
       .mapParallelUnordered(parallelism=4)(x => Task.evalAsync(x))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = {
@@ -319,7 +319,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val totalCount = Platform.recommendedBatchSize * 4
 
     Observable.range(0, totalCount)
-      .doOnNext(_ => initiated += 1)
+      .doOnNext(_ => Task { initiated += 1 })
       .mapParallelUnordered(parallelism=4)(x => Task.evalAsync(x))(OverflowStrategy.DropNew(Platform.recommendedBatchSize))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = {
@@ -348,7 +348,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val f = Observable.now(1)
       .mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x+1).delayExecution(1.second))
       .sumL
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)

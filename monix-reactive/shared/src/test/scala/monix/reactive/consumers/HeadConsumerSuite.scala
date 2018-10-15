@@ -18,9 +18,11 @@
 package monix.reactive.consumers
 
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.{Consumer, Observable}
+
 import scala.util.{Failure, Success}
 
 object HeadConsumerSuite extends TestSuite[TestScheduler] {
@@ -32,8 +34,8 @@ object HeadConsumerSuite extends TestSuite[TestScheduler] {
 
   test("stops on first on next") { implicit s =>
     var wasStopped = false
-    val obs = Observable.now(1).doOnEarlyStop { () => wasStopped = true }
-    val f = obs.consumeWith(Consumer.head).runAsync
+    val obs = Observable.now(1).doOnEarlyStopF { () => wasStopped = true }
+    val f = obs.consumeWith(Consumer.head).runToFuture
 
     s.tick()
     assert(wasStopped, "wasStopped")
@@ -44,10 +46,10 @@ object HeadConsumerSuite extends TestSuite[TestScheduler] {
     var wasStopped = false
     var wasCompleted = false
     val obs = Observable.empty[Int]
-      .doOnEarlyStop { () => wasStopped = true }
-      .doOnComplete { () => wasCompleted = true }
+      .doOnEarlyStopF { () => wasStopped = true }
+      .doOnCompleteF { () => wasCompleted = true }
 
-    val f = obs.consumeWith(Consumer.head).runAsync
+    val f = obs.consumeWith(Consumer.head).runToFuture
 
     s.tick()
     assert(!wasStopped, "!wasStopped")
@@ -61,10 +63,10 @@ object HeadConsumerSuite extends TestSuite[TestScheduler] {
     var wasStopped = false
     var wasCompleted = false
     val obs = Observable.raiseError(ex)
-      .doOnEarlyStop { () => wasStopped = true }
-      .doOnError { _ => wasCompleted = true }
+      .doOnEarlyStopF { () => wasStopped = true }
+      .doOnError { _ => Task { wasCompleted = true } }
 
-    val f = obs.consumeWith(Consumer.head).runAsync
+    val f = obs.consumeWith(Consumer.head).runToFuture
 
     s.tick()
     assert(!wasStopped, "!wasStopped")

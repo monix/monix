@@ -37,7 +37,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       .start
       .flatMap(_.cancel)
 
-    task.runAsyncOpt; ec.tick()
+    task.runToFutureOpt; ec.tick()
     assert(wasCancelled, "wasCancelled")
     assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
   }
@@ -51,7 +51,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       .start
       .flatMap(_.cancel)
 
-    val f = task.runAsyncOpt
+    val f = task.runToFutureOpt
     ec.tick()
     assertEquals(f.value, Some(Success(())))
     assertEquals(effect, 0)
@@ -76,7 +76,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     val task = Task.eval(1).delayExecution(1.second)
       .foreachL { x => effect += x }
 
-    val f = task.uncancelable.flatMap(_ => task).runAsync
+    val f = task.uncancelable.flatMap(_ => task).runToFuture
     ec.tick()
     assertEquals(effect, 0)
 
@@ -94,8 +94,8 @@ object TaskCancellationSuite extends BaseTestSuite {
     val source = task.flatMap(x => task.map(_ + x))
       .executeWithOptions(_.enableAutoCancelableRunLoops)
 
-    val f1 = source.uncancelable.runAsync
-    val f2 = source.runAsync
+    val f1 = source.uncancelable.runToFuture
+    val f2 = source.runToFuture
 
     f1.cancel()
     f2.cancel()
@@ -114,7 +114,7 @@ object TaskCancellationSuite extends BaseTestSuite {
           Task.pure(0)
       }
 
-    val f = loop(10000).runAsync
+    val f = loop(10000).runToFuture
     ec.tick()
     assertEquals(f.value, Some(Success(0)))
   }
@@ -123,7 +123,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     var task = Task.evalAsync(1)
     for (_ <- 0 until 10000) task = task.uncancelable
 
-    val f = task.runAsync
+    val f = task.runToFuture
     ec.tick()
     assertEquals(f.value, Some(Success(1)))
   }
@@ -155,7 +155,7 @@ object TaskCancellationSuite extends BaseTestSuite {
 
   test("cancelBoundary execution is immediate") { implicit ec =>
     val task = Task.cancelBoundary *> Task(1)
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -165,7 +165,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       else Task.pure(())
 
     val count = if (Platform.isJVM) 10000 else 1000
-    val f = loop(count).runAsync; ec.tick()
+    val f = loop(count).runToFuture; ec.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
@@ -182,13 +182,11 @@ object TaskCancellationSuite extends BaseTestSuite {
 
     val err = DummyException("dummy")
     val task = Task.never[Int].onCancelRaiseError(err)
-      .onErrorRecoverWith {
-        case `err` => Task.cancelBoundary *> Task(10)
-      }
+      .onErrorRecoverWith { case `err` => Task.cancelBoundary *> Task(10) }
       .start
       .flatMap(f => f.cancel *> f.join)
 
-    val f = task.runAsyncOpt
+    val f = task.runToFutureOpt
     ec.tick()
     assertEquals(f.value, Some(Success(10)))
   }
@@ -200,7 +198,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       .executeAsync
       .onCancelRaiseError(canceled)
 
-    val f = task.runAsync
+    val f = task.runToFuture
     f.cancel()
     sc.tick()
 
@@ -218,7 +216,7 @@ object TaskCancellationSuite extends BaseTestSuite {
           Task.pure(0)
       }
 
-    val f = loop(10000).runAsync
+    val f = loop(10000).runToFuture
     ec.tick()
     assertEquals(f.value, Some(Success(0)))
   }
@@ -233,7 +231,7 @@ object TaskCancellationSuite extends BaseTestSuite {
           Task.pure(0)
       }
 
-    val f = loop(10000).runAsync
+    val f = loop(10000).runToFuture
     ec.tick()
     assertEquals(f.value, Some(Success(0)))
   }
@@ -249,7 +247,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }
@@ -266,7 +264,7 @@ object TaskCancellationSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }

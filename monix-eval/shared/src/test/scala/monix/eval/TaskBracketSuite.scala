@@ -59,7 +59,7 @@ object TaskBracketSuite extends BaseTestSuite {
       Task.eval { input = Some((a, i)) }
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
 
     assertEquals(input, Some((1, Left(Some(dummy)))))
@@ -72,7 +72,7 @@ object TaskBracketSuite extends BaseTestSuite {
       Task.eval { input = Some((a, i)) }
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
 
     assertEquals(input, Some((1, Right(2))))
@@ -87,7 +87,7 @@ object TaskBracketSuite extends BaseTestSuite {
       Task.eval { input = Some((a, i)) }
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
 
     assertEquals(input, Some((1, Left(Some(dummy)))))
@@ -103,7 +103,7 @@ object TaskBracketSuite extends BaseTestSuite {
         Task.eval { input = Some((a, i)) }
       }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
 
     f.cancel()
@@ -123,7 +123,7 @@ object TaskBracketSuite extends BaseTestSuite {
       Task.raiseError(releaseError)
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
 
     f.value match {
@@ -156,7 +156,7 @@ object TaskBracketSuite extends BaseTestSuite {
         Task.unit
 
     val count = if (Platform.isJVM) 10000 else 1000
-    val f = loop(count).runAsync
+    val f = loop(count).runToFuture
 
     sc.tick()
     assertEquals(f.value, Some(Success(())))
@@ -170,7 +170,7 @@ object TaskBracketSuite extends BaseTestSuite {
       .bracket(_ => Task.sleep(1.second))(_ => Task(effect += 1))
       .executeWithOptions(_.enableAutoCancelableRunLoops)
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, None)
 

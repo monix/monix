@@ -26,7 +26,7 @@ object TaskTimedSuite extends BaseTestSuite {
 
   test("Task.timed works for successful tasks") { implicit s =>
     val task = Task.now("hello").delayExecution(2.second).timed
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -43,7 +43,7 @@ object TaskTimedSuite extends BaseTestSuite {
 
   test("Task.timed doesn't time failed tasks") { implicit s =>
     val task = Task.raiseError(DummyException("dummy")).delayExecution(2.second).timed
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -60,7 +60,7 @@ object TaskTimedSuite extends BaseTestSuite {
 
   test("Task.timed could time errors if .attempt is called first") { implicit s =>
     val task = Task.raiseError(DummyException("dummy")).delayExecution(2.second).attempt.timed
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -84,7 +84,7 @@ object TaskTimedSuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(10000, 0.second).runAsync; sc.tick(10001.seconds)
+    val f = loop(10000, 0.second).runToFuture; sc.tick(10001.seconds)
     assertEquals(f.value, Some(Success(10000.seconds)))
   }
 

@@ -17,9 +17,11 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Cancelable
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.{BaseConcurrencySuite, Observable}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
@@ -35,7 +37,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
       val sum = Observable.range(0, count)
         .flatScan(0L)((_, x) => Observable(x,x,x))
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)
@@ -50,7 +52,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
       val sum = Observable.range(0, count)
         .flatScan(0L)((_, x) => Observable(x,x,x).executeAsync)
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)
@@ -96,9 +98,9 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
       val c = Observable.range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
-        .doOnError(p.tryFailure)
-        .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
-        .doOnEarlyStop(() => p.trySuccess(()))
+        .doOnError(e => Task(p.tryFailure(e)))
+        .doOnComplete(Task(p.trySuccess(new IllegalStateException("complete"))))
+        .doOnEarlyStop(Task(p.trySuccess(())))
         .flatScan(0L)(one(p))
         .subscribe()
 
@@ -114,9 +116,9 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
       val c = Observable.range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
-        .doOnError(p.tryFailure)
-        .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
-        .doOnEarlyStop(() => p.trySuccess(()))
+        .doOnError(e => Task(p.tryFailure(e)))
+        .doOnComplete(Task(p.trySuccess(new IllegalStateException("complete"))))
+        .doOnEarlyStop(Task(p.trySuccess(())))
         .flatScan(0L)((_, x) => Observable.now(x).executeAsync)
         .subscribe()
 

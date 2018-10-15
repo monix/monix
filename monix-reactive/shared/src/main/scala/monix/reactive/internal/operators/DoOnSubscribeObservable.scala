@@ -17,35 +17,107 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Cancelable
-import scala.util.control.NonFatal
+import monix.execution.Callback
+import monix.eval.Task
+import monix.execution.Ack.Stop
+import monix.execution.atomic.Atomic
+import monix.execution.cancelables.{OrderedCancelable, SingleAssignCancelable, StackedCancelable}
+import monix.execution.schedulers.TrampolineExecutionContext.immediate
+import monix.execution.{Ack, Cancelable, FutureUtils}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
+import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success}
+
 private[reactive] object DoOnSubscribeObservable {
   // Implementation for doBeforeSubscribe
-  final class Before[+A](source: Observable[A], callback: () => Unit) extends Observable[A] {
+  final class Before[+A](source: Observable[A], task: Task[Unit]) extends Observable[A] {
     def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-      var streamError = true
-      try {
-        callback()
-        streamError = false
-        source.unsafeSubscribeFn(subscriber)
-      } catch {
-        case NonFatal(ex) if streamError =>
-          subscriber.onError(ex)
-          Cancelable.empty
-      }
+      implicit val s = subscriber.scheduler
+      val conn = OrderedCancelable()
+
+      val c = task.runAsync(
+        new Callback[Throwable, Unit] {
+          def onSuccess(value: Unit): Unit = {
+            val c = source.unsafeSubscribeFn(subscriber)
+            conn.orderedUpdate(c, order = 2)
+          }
+          def onError(ex: Throwable): Unit = {
+            subscriber.onError(ex)
+          }
+        })
+
+      conn.orderedUpdate(c, order = 1)
+      conn
     }
   }
 
   // Implementation for doAfterSubscribe
-  final class After[+A](source: Observable[A], callback: () => Unit) extends Observable[A] {
-    def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-      import subscriber.{scheduler => s}
-      val cancelable = source.unsafeSubscribeFn(subscriber)
-      try callback() catch { case ex if NonFatal(ex) => s.reportFailure(ex) }
-      cancelable
+  final class After[+A](source: Observable[A], task: Task[Unit]) extends Observable[A] {
+    def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
+      implicit val scheduler = out.scheduler
+      val p = Promise[Unit]()
+
+      val cancelable = source.unsafeSubscribeFn(
+        new Subscriber[A] {
+          implicit val scheduler = out.scheduler
+          private[this] val completeGuard = Atomic(true)
+          private[this] var isActive = false
+
+          def onNext(elem: A): Future[Ack] = {
+            if (isActive) {
+              // Fast path (1)
+              out.onNext(elem)
+            } else if (p.isCompleted) {
+              // Fast path (2)
+              isActive = true
+              p.future.value.get match {
+                case Failure(e) =>
+                  finalSignal(e)
+                  Stop
+                case _ =>
+                  out.onNext(elem)
+              }
+            } else {
+              FutureUtils.transformWith[Unit, Ack](p.future,
+                {
+                  case Success(_) => out.onNext(elem)
+                  case Failure(e) =>
+                    finalSignal(e)
+                    Stop
+                })(immediate)
+            }
+          }
+
+          def onError(ex: Throwable): Unit = finalSignal(ex)
+          def onComplete(): Unit = finalSignal(null)
+
+          private def finalSignal(e: Throwable): Unit = {
+            if (completeGuard.getAndSet(false)) {
+              if (e != null) out.onError(e)
+              else out.onComplete()
+            } else if (e != null) {
+              scheduler.reportFailure(e)
+            }
+          }
+        }
+      )
+
+      val ref = SingleAssignCancelable()
+      val conn = StackedCancelable(List(cancelable, ref))
+
+      ref := task.runAsync(new Callback[Throwable, Unit] {
+        def onSuccess(value: Unit): Unit = {
+          conn.pop()
+          p.success(())
+        }
+        def onError(ex: Throwable): Unit = {
+          conn.pop()
+          p.failure(ex)
+        }
+      })
+      conn
     }
   }
 }

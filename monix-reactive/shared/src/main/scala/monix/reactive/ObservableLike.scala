@@ -20,6 +20,7 @@ package monix.reactive
 import cats.Eval
 import cats.effect.{IO, SyncIO}
 import monix.eval.{Coeval, Task, TaskLike}
+import monix.reactive.internal.builders.EvalAlwaysObservable
 import org.reactivestreams.{Publisher => RPublisher}
 
 import scala.annotation.implicitNotFound
@@ -142,21 +143,22 @@ object ObservableLike extends ObservableLikeImplicits0 {
     }
 
   /**
+    * Converts `Function0` (parameter-less function, also called
+    * thunks) to [[Observable]].
+    */
+  implicit val fromFunction0: ObservableLike[Function0] =
+    new ObservableLike[Function0] {
+      def toObservable[A](thunk: () => A): Observable[A] =
+        new EvalAlwaysObservable(thunk)
+    }
+
+  /**
     * Converts a Scala `Either` to a [[Observable]].
     */
   implicit def fromEither[E <: Throwable]: ObservableLike[Either[E, ?]] =
     new ObservableLike[Either[E, ?]] {
       def toObservable[A](fa: Either[E, A]): Observable[A] =
         Observable.fromEither(fa)
-    }
-
-  /**
-    * Converts a Scala `Iterator` to a [[Observable]].
-    */
-  implicit def fromIterator[F[X] <: Iterator[X]]: ObservableLike[F] =
-    new ObservableLike[F] {
-      def toObservable[A](fa: F[A]): Observable[A] =
-        Observable.fromIterator(fa)
     }
 
   /**

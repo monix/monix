@@ -17,9 +17,12 @@
 
 package monix.reactive.internal.operators
 
+import cats.effect.ExitCase
+import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+
 import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.execution.exceptions.CompositeException
@@ -33,9 +36,8 @@ import scala.util.Failure
 /** Implementation for `Observable.concatMap`.
   *
   * Example of what we want to achieve:
-  * {{{
-  *   observable.concatMap(x => Observable.range(0, x))
-  * }}}
+  *
+  * `observable.concatMap(x => Observable.range(0, x))`
   *
   * The challenges are:
   *
@@ -62,8 +64,11 @@ import scala.util.Failure
   *    however it's OK-ish, since these CAS operations are not going
   *    to be contended
   */
-private[reactive] final class ConcatMapObservable[A, B]
-  (source: Observable[A], f: A => Observable[B], delayErrors: Boolean)
+private[reactive] final class ConcatMapObservable[A, B](
+  source: Observable[A],
+  f: A => Observable[B],
+  release: (A, ExitCase[Throwable]) => Task[Unit],
+  delayErrors: Boolean)
   extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
@@ -151,10 +156,22 @@ private[reactive] final class ConcatMapObservable[A, B]
       // to the `Cancelled` state being thread-unsafe because of
       // the logic using `lazySet` below; hence the extra check
       if (!isActive.get) {
-        Stop
+        // If we have a `release` specified, this is `bracket`, so we still
+        // need to ensure that release happens before stopping the stream
+        if (release eq null) {
+          Stop
+        } else {
+          Task.suspend(release(elem, ExitCase.Canceled))
+            .redeem(e => { scheduler.reportFailure(e); Stop }, _ => Stop)
+            .runToFuture
+            .syncTryFlatten
+        }
       } else try {
         val asyncUpstreamAck = Promise[Ack]()
-        val child = f(elem)
+        val child = {
+          val ref = f(elem)
+          if (release eq null) ref else ref.guaranteeCase(release(elem, _))
+        }
         // No longer allowed to stream errors downstream
         streamErrors = false
 

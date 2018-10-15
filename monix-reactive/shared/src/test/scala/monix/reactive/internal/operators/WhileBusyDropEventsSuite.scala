@@ -34,7 +34,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
   }
 
   test("should not drop events for synchronous observers") { implicit s =>
-    val f = Observable.range(0, 1000).whileBusyDropEvents.sumF.runAsyncGetFirst
+    val f = Observable.range(0, 1000).whileBusyDropEvents.sum.runAsyncGetFirst
     s.tick()
 
     assertEquals(f.value, Some(Success(Some(999 * 500))))

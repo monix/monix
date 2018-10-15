@@ -18,7 +18,8 @@
 package monix.eval.internal
 
 import monix.eval.Task.{Async, Context}
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import scala.concurrent.duration.Duration
 
 private[eval] object TaskSleep {
@@ -33,7 +34,7 @@ private[eval] object TaskSleep {
   // a full async boundary!
   private final class Register(timespan: Duration) extends ForkedRegister[Unit] {
 
-    def apply(ctx: Context, cb: Callback[Unit]): Unit = {
+    def apply(ctx: Context, cb: Callback[Throwable, Unit]): Unit = {
       implicit val s = ctx.scheduler
       val c = TaskConnectionRef()
       ctx.connection.push(c.cancel)
@@ -51,7 +52,7 @@ private[eval] object TaskSleep {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class SleepRunnable(ctx: Context, cb: Callback[Unit])
+  private final class SleepRunnable(ctx: Context, cb: Callback[Throwable, Unit])
     extends Runnable {
 
     def run(): Unit = {

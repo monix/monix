@@ -18,7 +18,7 @@
 package monix.reactive.consumers
 
 import minitest.TestSuite
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.Ack.Stop
 import monix.execution.Cancelable
 import monix.execution.exceptions.DummyException
@@ -54,7 +54,7 @@ object CancelConsumerSuite extends TestSuite[TestScheduler] {
 
   test("observable.now") { implicit s =>
     val obs = Observable.now(1)
-    val f = obs.consumeWith(Consumer.cancel).runAsync
+    val f = obs.consumeWith(Consumer.cancel).runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }

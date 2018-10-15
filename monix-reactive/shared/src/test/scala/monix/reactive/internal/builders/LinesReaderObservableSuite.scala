@@ -18,7 +18,9 @@
 package monix.reactive.internal.builders
 
 import java.io.{BufferedReader, Reader, StringReader}
+
 import minitest.SimpleTestSuite
+import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -27,13 +29,14 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
+
 import scala.util.{Failure, Random, Success}
 
 object LinesReaderObservableSuite extends SimpleTestSuite {
-  test("yields a single subscriber observable") {
+  test("fromLinesReaderUnsafe yields a single subscriber observable") {
     implicit val s = TestScheduler()
     var errorThrown: Throwable = null
-    val obs = Observable.fromLinesReader(new BufferedReader(new StringReader(randomString())))
+    val obs = Observable.fromLinesReaderUnsafe(new BufferedReader(new StringReader(randomString())))
     obs.unsafeSubscribeFn(Subscriber.empty(s))
     s.tick()
 
@@ -52,13 +55,13 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("it works for BatchedExecution") {
+  test("fromLinesReaderUnsafe works for BatchedExecution") {
     implicit val s = TestScheduler(BatchedExecution(1024))
     val string = randomString()
     val in = new BufferedReader(new StringReader(string))
 
-    val result = Observable.fromLinesReader(in)
-      .foldLeftF("")(_ + "\n" + _)
+    val result = Observable.fromLinesReaderUnsafe(in)
+      .foldLeft("")(_ + "\n" + _)
       .map(_.trim)
       .runAsyncGetFirst
 
@@ -67,13 +70,13 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("it works for AlwaysAsyncExecution") {
+  test("fromLinesReaderUnsafe works for AlwaysAsyncExecution") {
     implicit val s = TestScheduler(AlwaysAsyncExecution)
     val string = randomString()
     val in = new BufferedReader(new StringReader(string))
 
-    val result = Observable.fromLinesReader(in)
-      .foldLeftF("")(_ + "\n" + _)
+    val result = Observable.fromLinesReaderUnsafe(in)
+      .foldLeft("")(_ + "\n" + _)
       .map(_.trim)
       .runAsyncGetFirst
 
@@ -82,7 +85,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("it works for SynchronousExecution") {
+  test("fromLinesReaderUnsafe works for SynchronousExecution") {
     implicit val s = TestScheduler(SynchronousExecution)
 
     var wasCompleted = 0
@@ -90,8 +93,8 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     val string = randomString()
     val in = new BufferedReader(new StringReader(string))
 
-    val obs = Observable.fromLinesReader(in)
-      .foldLeftF("")(_ + "\n" + _)
+    val obs = Observable.fromLinesReaderUnsafe(in)
+      .foldLeft("")(_ + "\n" + _)
       .map(_.trim)
 
     obs.unsafeSubscribeFn(new Subscriber[String] {
@@ -112,12 +115,12 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("closes the file handle onComplete") {
+  test("fromLinesReader closes the file handle onComplete") {
     implicit val s = TestScheduler()
 
     var wasClosed = false
     val in = randomReaderWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromLinesReader(in).completedL.runAsync
+    val f = Observable.fromLinesReaderF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -125,13 +128,13 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("closes the file handle onError on first call") {
+  test("fromLinesReader closes the file handle onError on first call") {
     implicit val s = TestScheduler()
 
     var wasClosed = false
     val ex = DummyException("dummy")
     val in = inputWithError(ex, 1, () => wasClosed = true)
-    val f = Observable.fromLinesReader(in).completedL.runAsync
+    val f = Observable.fromLinesReaderF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -139,13 +142,13 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("closes the file handle onError on second call") {
+  test("fromLinesReader closes the file handle onError on second call") {
     implicit val s = TestScheduler()
 
     var wasClosed = false
     val ex = DummyException("dummy")
     val in = inputWithError(ex, 2, () => wasClosed = true)
-    val f = Observable.fromLinesReader(in).completedL.runAsync
+    val f = Observable.fromLinesReaderF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -153,12 +156,16 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("closes the file handle on cancel") {
+  test("fromLinesReader closes the file handle on cancel") {
+    import scala.concurrent.duration._
     implicit val s = TestScheduler(AlwaysAsyncExecution)
 
     var wasClosed = false
     val in = randomReaderWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromLinesReader(in).completedL.runAsync
+    val f = Observable.fromLinesReaderF(Task(in))
+      .mapEval(_ => Task.sleep(1.second))
+      .completedL
+      .runToFuture
 
     s.tickOne()
     f.cancel()

@@ -17,8 +17,10 @@
 
 package monix.eval
 
-import cats.Eval
+import cats.{Comonad, Eval}
 import cats.effect.{ConcurrentEffect, Effect, IO, SyncIO}
+import monix.execution.CancelablePromise
+
 import scala.annotation.implicitNotFound
 import scala.concurrent.Future
 import scala.util.Try
@@ -123,12 +125,31 @@ object TaskLike extends TaskLikeImplicits0 {
     }
 
   /**
-    * Converts a `scala.util.Try` to a [[Task]].
+    * Converts `scala.util.Try` to [[Task]].
     */
   implicit val fromTry: TaskLike[Try] =
     new TaskLike[Try] {
       def toTask[A](fa: Try[A]): Task[A] =
         Task.fromTry(fa)
+    }
+
+  /**
+    * Converts [[monix.execution.CancelablePromise]] to [[Task]].
+    */
+  implicit val fromCancelablePromise: TaskLike[CancelablePromise] =
+    new TaskLike[CancelablePromise] {
+      def toTask[A](p: CancelablePromise[A]): Task[A] =
+        Task.fromCancelablePromise(p)
+    }
+
+  /**
+    * Converts `Function0` (parameter-less function, also called
+    * thunks) to [[Task]].
+    */
+  implicit val fromFunction0: TaskLike[Function0] =
+    new TaskLike[Function0] {
+      def toTask[A](thunk: () => A): Task[A] =
+        Task.Eval(thunk)
     }
 
   /**
@@ -153,7 +174,7 @@ private[eval] abstract class TaskLikeImplicits0 extends TaskLikeImplicits1 {
     }
 }
 
-private[eval] abstract class TaskLikeImplicits1 {
+private[eval] abstract class TaskLikeImplicits1 extends TaskLikeImplicits2 {
   /**
     * Converts to `Task` from
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.Async]].
@@ -162,5 +183,16 @@ private[eval] abstract class TaskLikeImplicits1 {
     new TaskLike[F] {
       def toTask[A](fa: F[A]): Task[A] =
         Task.fromEffect(fa)
+    }
+}
+
+private[eval] abstract class TaskLikeImplicits2 {
+  /**
+    * Converts to `Task` from [[cats.Comonad]] values.
+    */
+  implicit def fromComonad[F[_]](implicit F: Comonad[F]): TaskLike[F] =
+    new TaskLike[F] {
+      def toTask[A](fa: F[A]): Task[A] =
+        Task(F.extract(fa))
     }
 }

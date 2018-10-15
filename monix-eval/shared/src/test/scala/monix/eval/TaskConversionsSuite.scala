@@ -22,7 +22,9 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
 import cats.{Eval, effect}
+import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
+import monix.execution.internal.Platform
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -37,13 +39,13 @@ object TaskConversionsSuite extends BaseTestSuite {
   test("Task.fromIO(IO.raiseError(e))") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.fromIO(IO.raiseError(dummy))
-    assertEquals(task.runAsync.value, Some(Failure(dummy)))
+    assertEquals(task.runToFuture.value, Some(Failure(dummy)))
   }
 
   test("Task.fromIO(IO.raiseError(e).shift)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.fromIO(for (_ <- IO.shift(s); x <- IO.raiseError[Int](dummy)) yield x)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -103,11 +105,11 @@ object TaskConversionsSuite extends BaseTestSuite {
   test("Task.fromConcurrent(io)") { implicit s =>
     implicit val cs = s.contextShift[IO]
 
-    val f = Task.fromConcurrentEffect(IO(1)).runAsync
+    val f = Task.fromConcurrentEffect(IO(1)).runToFuture
     assertEquals(f.value, Some(Success(1)))
 
     val io2 = for (_ <- IO.shift; a <- IO(1)) yield a
-    val f2 = Task.fromConcurrentEffect(io2).runAsync
+    val f2 = Task.fromConcurrentEffect(io2).runToFuture
     assertEquals(f2.value, None); s.tick()
     assertEquals(f2.value, Some(Success(1)))
   }
@@ -116,16 +118,16 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val cs = s.contextShift[IO]
     implicit val ioEffect: Effect[CIO] = new CustomEffect
 
-    val f = Task.fromEffect(CIO(IO(1))).runAsync
+    val f = Task.fromEffect(CIO(IO(1))).runToFuture
     assertEquals(f.value, Some(Success(1)))
 
     val io2 = for (_ <- CIO(IO.shift); a <- CIO(IO(1))) yield a
-    val f2 = Task.fromEffect(io2).runAsync
+    val f2 = Task.fromEffect(io2).runToFuture
     assertEquals(f2.value, None); s.tick()
     assertEquals(f2.value, Some(Success(1)))
 
     val dummy = DummyException("dummy")
-    val f3 = Task.fromEffect(CIO(IO.raiseError(dummy))).runAsync
+    val f3 = Task.fromEffect(CIO(IO.raiseError(dummy))).runToFuture
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
@@ -133,16 +135,16 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val cs = s.contextShift[IO]
     implicit val ioEffect: ConcurrentEffect[CIO] = new CustomConcurrentEffect()
 
-    val f = Task.fromConcurrentEffect(CIO(IO(1))).runAsync
+    val f = Task.fromConcurrentEffect(CIO(IO(1))).runToFuture
     assertEquals(f.value, Some(Success(1)))
 
     val io2 = for (_ <- CIO(IO.shift); a <- CIO(IO(1))) yield a
-    val f2 = Task.fromConcurrentEffect(io2).runAsync
+    val f2 = Task.fromConcurrentEffect(io2).runToFuture
     assertEquals(f2.value, None); s.tick()
     assertEquals(f2.value, Some(Success(1)))
 
     val dummy = DummyException("dummy")
-    val f3 = Task.fromConcurrentEffect(CIO(IO.raiseError(dummy))).runAsync
+    val f3 = Task.fromConcurrentEffect(CIO(IO.raiseError(dummy))).runToFuture
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
@@ -154,7 +156,7 @@ object TaskConversionsSuite extends BaseTestSuite {
           throw dummy
       }
 
-    val f = Task.fromEffect(CIO(IO(1))).runAsync
+    val f = Task.fromEffect(CIO(IO(1))).runToFuture
     s.tick()
 
     assertEquals(f.value, None)
@@ -169,7 +171,7 @@ object TaskConversionsSuite extends BaseTestSuite {
           throw dummy
       }
 
-    val f = Task.fromConcurrentEffect(CIO(IO(1))).runAsync
+    val f = Task.fromConcurrentEffect(CIO(IO(1))).runToFuture
     assertEquals(f.value, None); s.tick()
     assertEquals(f.value, None)
 
@@ -179,7 +181,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   test("Task.fromIO is cancelable") { implicit s =>
     val timer = s.timer[IO]
     val io = timer.sleep(10.seconds)
-    val f = Task.fromIO(io).runAsync
+    val f = Task.fromIO(io).runToFuture
 
     s.tick()
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -198,7 +200,7 @@ object TaskConversionsSuite extends BaseTestSuite {
 
     val timer = s.timer[IO]
     val io = timer.sleep(10.seconds)
-    val f = Task.fromConcurrentEffect(io).runAsync
+    val f = Task.fromConcurrentEffect(io).runToFuture
 
     s.tick()
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -218,7 +220,7 @@ object TaskConversionsSuite extends BaseTestSuite {
 
     val timer = s.timer[CIO]
     val io = timer.sleep(10.seconds)
-    val f = Task.fromConcurrentEffect(io)(effect).runAsync
+    val f = Task.fromConcurrentEffect(io)(effect).runToFuture
 
     s.tick()
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -238,7 +240,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     val task0 = Task(1).delayExecution(10.seconds)
     val task = Task.fromConcurrentEffect(task0.toConcurrent[IO])
 
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
     assertEquals(f.value, None)
 
@@ -258,7 +260,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     val task0 = Task(1).delayExecution(10.seconds)
     val task = Task.fromConcurrentEffect(task0.toConcurrent[CIO])
 
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
     assertEquals(f.value, None)
 
@@ -277,7 +279,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     val task0 = Task(1).delayExecution(10.seconds)
     val task = Task.fromEffect(task0.toConcurrent[IO])
 
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
     assertEquals(f.value, None)
 
@@ -321,15 +323,56 @@ object TaskConversionsSuite extends BaseTestSuite {
     var effect = 0
     val task = Task.fromEval(Eval.always { effect += 1; effect })
 
-    assertEquals(task.runAsync.value, Some(Success(1)))
-    assertEquals(task.runAsync.value, Some(Success(2)))
-    assertEquals(task.runAsync.value, Some(Success(3)))
+    assertEquals(task.runToFuture.value, Some(Success(1)))
+    assertEquals(task.runToFuture.value, Some(Success(2)))
+    assertEquals(task.runToFuture.value, Some(Success(3)))
   }
 
   test("Task.fromEval protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.fromEval(Eval.always { throw dummy })
-    assertEquals(task.runAsync.value, Some(Failure(dummy)))
+    assertEquals(task.runToFuture.value, Some(Failure(dummy)))
+  }
+
+  test("Task.fromCancelablePromise") { implicit s =>
+    val p = CancelablePromise[Int]()
+    val task = Task.fromCancelablePromise(p)
+
+    val token1 = task.runToFuture
+    val token2 = task.runToFuture
+
+    token1.cancel()
+    p.success(1)
+
+    s.tick()
+    assertEquals(token2.value, Some(Success(1)))
+    assertEquals(token1.value, None)
+
+    val token3 = task.runToFuture
+    assertEquals(token3.value, Some(Success(1)))
+  }
+
+  test("Task.fromCancelablePromise stack safety") { implicit s =>
+    val count = if (Platform.isJVM) 10000 else 1000
+
+    val p = CancelablePromise[Int]()
+    val task = Task.fromCancelablePromise(p)
+
+    def loop(n: Int): Task[Int] =
+      if (n > 0) task.flatMap(_ => loop(n - 1))
+      else task
+
+    val f = loop(count).runToFuture
+    s.tick()
+    assertEquals(f.value, None)
+
+    p.success(99)
+    s.tick()
+    assertEquals(f.value, Some(Success(99)))
+
+    val f2 = loop(count).runToFuture
+    s.tick()
+    assertEquals(f2.value, Some(Success(99)))
   }
 
   final case class CIO[+A](io: IO[A])

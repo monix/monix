@@ -34,7 +34,7 @@ object TaskForkAndForgetSuite extends BaseTestSuite {
       _ <- task.delayExecution(1.second).forkAndForget
     } yield ()
 
-    val f = main.runAsync
+    val f = main.runToFuture
     assertEquals(f.value, Some(Success(())))
     assertEquals(counter, 0)
 
@@ -52,7 +52,7 @@ object TaskForkAndForgetSuite extends BaseTestSuite {
       value <- task
     } yield value
 
-    val f = result.runAsync
+    val f = result.runToFuture
     sc.tick()
     assertEquals(f.value, Some(Success(20)))
     assertEquals(sc.state.lastReportedError, dummy)
@@ -65,7 +65,7 @@ object TaskForkAndForgetSuite extends BaseTestSuite {
     for (_ <- 0 until count) task = task.forkAndForget
     for (_ <- 0 until count) task = task.flatMap(_ => Task.unit)
 
-    val f = task.runAsync
+    val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, Some(Success(())))
   }

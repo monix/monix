@@ -49,7 +49,7 @@ object ChainedObservableSuite extends TestSuite[TestScheduler] {
       }
 
     val count = 100000L
-    val f = loop(count).sumL.runAsync
+    val f = loop(count).sumL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(count * (count + 1) / 2)))

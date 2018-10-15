@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.Ack.Stop
 import monix.execution.cancelables.AssignableCancelable
 import monix.execution.{Ack, Scheduler}
@@ -27,7 +27,7 @@ import monix.reactive.{Consumer, Notification}
 /** Implementation for [[monix.reactive.Consumer.firstNotification]]. */
 private[reactive]
 final class FirstNotificationConsumer[A] extends Consumer.Sync[A, Notification[A]] {
-  override def createSubscriber(cb: Callback[Notification[A]], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
+  override def createSubscriber(cb: Callback[Throwable, Notification[A]], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {
       implicit val scheduler = s
       private[this] var isDone = false

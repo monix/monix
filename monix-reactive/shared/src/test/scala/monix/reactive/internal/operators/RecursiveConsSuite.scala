@@ -47,7 +47,7 @@ object RecursiveConsSuite extends BaseOperatorSuite {
 
   test("stack safety") { implicit s =>
     val count = 10000
-    val f = range(0, count).sumL.runAsync; s.tick()
+    val f = range(0, count).sumL.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(count.toLong * (count - 1) / 2)))
   }
 }

@@ -17,7 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
@@ -26,7 +27,6 @@ import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
@@ -45,7 +45,7 @@ private[reactive] final class ScanTaskObservable[A, S](
   def unsafeSubscribeFn(out: Subscriber[S]): Cancelable = {
     val conn = OrderedCancelable()
 
-    val cb = new Callback[S] {
+    val cb = new Callback[Throwable, S] {
       def onSuccess(initial: S): Unit = {
         val subscriber = new ScanTaskSubscriber(out, initial)
         val mainSubscription = source.unsafeSubscribeFn(subscriber)
@@ -147,7 +147,7 @@ private[reactive] final class ScanTaskObservable[A, S](
         stateRef.lazySet(WaitActiveTask)
 
         // Start execution
-        val ack = task.runAsync
+        val ack = task.runToFuture
 
         // This `getAndSet` is concurrent with the task being finished
         // (the `getAndSet` in the Task.flatMap above), but not with

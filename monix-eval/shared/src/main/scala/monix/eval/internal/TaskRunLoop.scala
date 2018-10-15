@@ -19,7 +19,8 @@ package monix.eval.internal
 
 import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.Local
 import monix.execution.{CancelableFuture, ExecutionModel, Scheduler}
@@ -41,13 +42,13 @@ private[eval] object TaskRunLoop {
   def startFull[A](
     source: Task[A],
     contextInit: Context,
-    cb: Callback[A],
+    cb: Callback[Throwable, A],
     rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
     frameIndex: FrameIndex): Unit = {
 
-    val cba = cb.asInstanceOf[Callback[Any]]
+    val cba = cb.asInstanceOf[Callback[Throwable, Any]]
     var current: Current = source
     var bFirstRef = bFirst
     var bRestRef = bRest
@@ -165,7 +166,7 @@ private[eval] object TaskRunLoop {
   def restartAsync[A](
     source: Task[A],
     context: Context,
-    cb: Callback[A],
+    cb: Callback[Throwable, A],
     rcb: TaskRestartCallback,
     bindCurrent: Bind,
     bindRest: CallStack): Unit = {
@@ -204,7 +205,7 @@ private[eval] object TaskRunLoop {
     source: Task[A],
     scheduler: Scheduler,
     opts: Task.Options,
-    cb: Callback[A],
+    cb: Callback[Throwable, A],
     isCancelable: Boolean = true): CancelToken[Task] = {
 
     var current = source.asInstanceOf[Task[Any]]
@@ -272,7 +273,7 @@ private[eval] object TaskRunLoop {
               async,
               scheduler,
               opts,
-              cb.asInstanceOf[Callback[Any]],
+              cb.asInstanceOf[Callback[Throwable, Any]],
               bFirst,
               bRest,
               frameIndex,
@@ -302,7 +303,7 @@ private[eval] object TaskRunLoop {
           current,
           scheduler,
           opts,
-          cb.asInstanceOf[Callback[Any]],
+          cb.asInstanceOf[Callback[Throwable, Any]],
           bFirst,
           bRest,
           frameIndex,
@@ -541,7 +542,7 @@ private[eval] object TaskRunLoop {
   private[internal] def executeAsyncTask(
     task: Task.Async[Any],
     context: Context,
-    cb: Callback[Any],
+    cb: Callback[Throwable, Any],
     rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
@@ -570,7 +571,7 @@ private[eval] object TaskRunLoop {
     source: Current,
     scheduler: Scheduler,
     opts: Task.Options,
-    cb: Callback[Any],
+    cb: Callback[Throwable, Any],
     bFirst: Bind,
     bRest: CallStack,
     nextFrame: FrameIndex,
@@ -605,7 +606,7 @@ private[eval] object TaskRunLoop {
     forceFork: Boolean): CancelableFuture[A] = {
 
     val p = Promise[A]()
-    val cb = Callback.fromPromise(p).asInstanceOf[Callback[Any]]
+    val cb = Callback.fromPromise(p).asInstanceOf[Callback[Throwable, Any]]
     val context = Context(scheduler, opts)
     val current = source.asInstanceOf[Task[A]]
 

@@ -34,9 +34,9 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
 
     for (_ <- 0 until 100) {
       val sum = Observable.range(0, count)
-        .scanTask(Task.now(0L))((_, x) => Task.now(x * 3))
+        .scanEval(Task.now(0L))((_, x) => Task.now(x * 3))
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)
@@ -49,9 +49,9 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
 
     for (_ <- 0 until 100) {
       val sum = Observable.range(0, count)
-        .scanTask(Task.now(0L))((_, x) => Task.evalAsync(x * 3))
+        .scanEval(Task.now(0L))((_, x) => Task.evalAsync(x * 3))
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)
@@ -67,7 +67,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
 
     for (i <- 0 until cancelIterations) {
       val (isCancelled, ref) = never()
-      val c = Observable(1).scanTask(Task.now(0))((_, _) => ref).subscribe()
+      val c = Observable(1).scanEval(Task.now(0))((_, _) => ref).subscribe()
 
       // Creating race condition
       if (i % 2 == 0) {

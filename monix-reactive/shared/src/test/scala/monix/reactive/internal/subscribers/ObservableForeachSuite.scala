@@ -38,7 +38,7 @@ object ObservableForeachSuite extends BaseTestSuite {
     implicit val s = scheduler.withExecutionModel(SynchronousExecution)
 
     var sum = 0
-    val f = Observable.fromIterable(0 until 1000).foreachL(x => sum += x).runAsync
+    val f = Observable.fromIterable(0 until 1000).foreachL(x => sum += x).runToFuture
 
     assertEquals(sum, 500 * 999)
     assertEquals(f.value, Some(Success(())))
@@ -52,7 +52,7 @@ object ObservableForeachSuite extends BaseTestSuite {
 
   test("foreachL protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
-    val f = Observable.fromIterable(0 until 1000).foreachL(_ => throw dummy).runAsync
+    val f = Observable.fromIterable(0 until 1000).foreachL(_ => throw dummy).runToFuture
     assertEquals(f.value, Some(Failure(dummy)))
   }
 }

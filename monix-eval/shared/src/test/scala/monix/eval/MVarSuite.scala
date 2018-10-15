@@ -34,7 +34,7 @@ object MVarSuite extends BaseTestSuite {
       r2 <- av.take
     } yield List(r1,r2)
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(List(10,20))))
   }
 
@@ -45,7 +45,7 @@ object MVarSuite extends BaseTestSuite {
       r2 <- Task.mapBoth(av.take, av.put(20))((r,_) => r)
     } yield List(r1,r2)
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(List(10,20))))
   }
 
@@ -60,7 +60,7 @@ object MVarSuite extends BaseTestSuite {
     } yield result
 
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(List(10,20,30))))
   }
 
@@ -72,7 +72,7 @@ object MVarSuite extends BaseTestSuite {
       result <- Task.mapBoth(take3, put3) { case ((r1,r2,r3), _) => List(r1,r2,r3).sorted }
     } yield result
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(List(10,20,30))))
   }
 
@@ -84,7 +84,7 @@ object MVarSuite extends BaseTestSuite {
       r2 <- av.take
     } yield List(r1,r2)
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(List(10,20))))
   }
 
@@ -97,7 +97,7 @@ object MVarSuite extends BaseTestSuite {
       r2 <- av.take
     } yield List(r1,r2)
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(List(10,20))))
   }
 
@@ -109,7 +109,7 @@ object MVarSuite extends BaseTestSuite {
       r2 <- av.take
     } yield List(r1,r2)
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(List(10,20))))
   }
 
@@ -120,7 +120,7 @@ object MVarSuite extends BaseTestSuite {
       take <- av.take
     } yield read + take
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(20)))
   }
 
@@ -130,14 +130,14 @@ object MVarSuite extends BaseTestSuite {
       r  <- Task.mapBoth(av.read, av.put(10))((r, _) => r)
     } yield r
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
   test("put(null) throws NullPointerException") { implicit s =>
     val task = MVar.empty[String].flatMap(_.put(null))
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assert(f.value.exists(_.failed.toOption.exists(_.isInstanceOf[NullPointerException])))
   }
 
@@ -173,7 +173,7 @@ object MVarSuite extends BaseTestSuite {
     } yield sum
 
     // Evaluate
-    val f: CancelableFuture[Long] = sumTask.runAsync
+    val f: CancelableFuture[Long] = sumTask.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(count.toLong * (count - 1) / 2)))
@@ -200,8 +200,8 @@ object MVarSuite extends BaseTestSuite {
     val tasks = for (i <- 0 until count) yield channel.flatMap(_.put(Some(i)))
     val producerTask = Task.gather(tasks).flatMap(_ => channel.flatMap(_.put(None)))
 
-    val pf = producerTask.runAsync
-    val cf = consumerTask.runAsync
+    val pf = producerTask.runToFuture
+    val cf = consumerTask.runToFuture
 
     s.tick()
     assertEquals(pf.value, Some(Success(())))
@@ -218,11 +218,11 @@ object MVarSuite extends BaseTestSuite {
         }
 
     val count = if (Platform.isJVM) 100000 else 5000
-    val f = loop(count, 0).runAsync
+    val f = loop(count, 0).runToFuture
     s.tick()
     assertEquals(f.value, None)
 
-    ch.put(1).runAsync
+    ch.put(1).runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(count)))
   }
@@ -248,7 +248,7 @@ object MVarSuite extends BaseTestSuite {
       r <- reads
     } yield r == count
 
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(true)))
@@ -263,7 +263,7 @@ object MVarSuite extends BaseTestSuite {
       r <- fr.join
     } yield r == count
 
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(true)))
@@ -297,7 +297,7 @@ object MVarSuite extends BaseTestSuite {
       r <- reads
     } yield r == count
 
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(true)))
@@ -312,7 +312,7 @@ object MVarSuite extends BaseTestSuite {
       r <- fr.join
     } yield r == count
 
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(true)))
@@ -335,7 +335,7 @@ object MVarSuite extends BaseTestSuite {
       takeTwice(MVar.withPadding(0, PaddingStrategy.LeftRight256)),
       putTwice(MVar.empty[Int]),
       putTwice(MVar.withPadding(PaddingStrategy.LeftRight256))
-    )).runAsync
+    )).runToFuture
 
     s.tick()
 
