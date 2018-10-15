@@ -326,7 +326,7 @@ final class CircuitBreaker[F[_]] private (
                 clock.monotonic(MILLISECONDS).flatMap { now =>
                   // We've gone over the permitted failures threshold,
                   // so we need to open the circuit breaker
-                  val update = Open(now, resetTimeout, buildAwait)
+                  val update = Open(now, resetTimeout, buildAwait())
 
                   if (!stateRef.compareAndSet(current, update))
                     reschedule(result) // retry
@@ -345,16 +345,17 @@ final class CircuitBreaker[F[_]] private (
     markFailure
   }
 
-  private def buildAwait: Option[Deferred[F, Unit]] =
+  private def buildAwait(): Option[Deferred[F, Unit]] =
     F0.fold(
-      implicit F => Some(Deferred.unsafeUncancelable[F, Unit]),
+      // Async
+      F => Some(Deferred.unsafeUncancelable[F, Unit](F)),
+      // Sync
       {
         case ref: Async[F] @unchecked =>
           Some(Deferred.unsafeUncancelable[F, Unit](ref))
         case _ =>
           None
-      }
-    )
+      })
 
   private def triggerAwait(ref: Option[Deferred[F, Unit]]): F[Unit] =
     ref match {
