@@ -16,7 +16,7 @@ val allProjects = List(
 val ciCommand =
   s";clean ;coreJVM/test:compile ;coreJS/test:compile " +
   s";${allProjects.map(_ + "JVM/test").mkString(" ;")} " +
-  s";${allProjects.map(_ + "JS/test").mkString(" ;")}"
+  s";${allProjects.filter(_ != "java").map(_ + "JS/test").mkString(" ;")}"
 
 addCommandAlias("ci",      ciCommand)
 addCommandAlias("ci-all",  ciCommand + " ;mimaReportBinaryIssues ;unidoc")
