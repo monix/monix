@@ -119,4 +119,59 @@ object LiftFutureSuite extends TestSuite[TestScheduler] {
     token.unsafeRunAsyncAndForget(); s.tick()
     assertEquals(wasCanceled, 1)
   }
+
+  test("LiftFuture[F] instance for Concurrent[F] data types") { implicit s =>
+    var wasCanceled = 0
+    val source = Promise[Int]()
+    val io = LiftFuture[IO].liftFuture(IO(
+      CancelableFuture[Int](source.future, Cancelable { () => wasCanceled += 1 })
+    ))
+
+    val p = Promise[Int]()
+    val token = io.unsafeRunCancelable {
+      case Left(e) => p.failure(e)
+      case Right(a) => p.success(a)
+    }
+
+    // Cancelling
+    token.unsafeRunAsyncAndForget(); s.tick()
+    assertEquals(wasCanceled, 1)
+    assertEquals(p.future.value, None)
+
+    val f2 = io.unsafeToFuture()
+    source.success(1)
+    s.tick()
+
+    assertEquals(f2.value, Some(Success(1)))
+  }
+
+  test("LiftFuture[F] instance for Async[F] data types") { implicit s =>
+    import Overrides.asyncIO
+
+    var wasCanceled = 0
+    val source = Promise[Int]()
+
+    def mkInstance[F[_]](implicit F: Async[F]): F[Int] =
+      LiftFuture[F].liftFuture(F.delay(
+        CancelableFuture[Int](source.future, Cancelable { () => wasCanceled += 1 })
+      ))
+
+    val io = mkInstance[IO]
+    val p = Promise[Int]()
+    val token = io.unsafeRunCancelable {
+      case Left(e) => p.failure(e)
+      case Right(a) => p.success(a)
+    }
+
+    // Cancelling
+    token.unsafeRunAsyncAndForget(); s.tick()
+    assertEquals(wasCanceled, 0)
+    assertEquals(p.future.value, None)
+
+    val f2 = io.unsafeToFuture()
+    source.success(1)
+    s.tick()
+
+    assertEquals(f2.value, Some(Success(1)))
+  }
 }
