@@ -195,7 +195,7 @@ import scala.concurrent.duration._
   * [[http://doc.akka.io/docs/akka/current/common/circuitbreaker.html Akka's Circuit Breaker]].
   */
 final class CircuitBreaker[F[_]] private (
-  _stateRef: AtomicAny[CircuitBreaker.State],
+  _stateRef: AtomicAny[CircuitBreaker.State[F]],
   _maxFailures: Int,
   _resetTimeout: FiniteDuration,
   _exponentialBackoffFactor: Double,
@@ -245,7 +245,7 @@ final class CircuitBreaker[F[_]] private (
   /** Returns the current [[CircuitBreaker.State]], meant for
     * debugging purposes.
     */
-  val state: F[CircuitBreaker.State] =
+  val state: F[CircuitBreaker.State[F]] =
     F.delay(stateRef.get)
 
   /** Returns a new task that upon execution will execute the given
@@ -271,9 +271,9 @@ final class CircuitBreaker[F[_]] private (
         case Closed(_) =>
           F.unit
         case Open(_, _, Some(await)) =>
-          await.asInstanceOf[Deferred[F, Unit]].get
+          await.get
         case HalfOpen(_, Some(await)) =>
-          await.asInstanceOf[Deferred[F, Unit]].get
+          await.get
         case _ =>
           // $COVERAGE-OFF$
           F.raiseError(new APIContractViolationException(
@@ -302,7 +302,7 @@ final class CircuitBreaker[F[_]] private (
             case Right(a) =>
               // In case of success, must reset the failures counter!
               if (failures == 0) F.pure(a) else {
-                val update = Closed(0)
+                val update = Closed[F](0)
                 if (!stateRef.compareAndSet(current, update))
                   markFailure(result) // retry?
                 else
@@ -314,7 +314,7 @@ final class CircuitBreaker[F[_]] private (
               // or we transition in the `Open` state.
               if (failures+1 < maxFailures) {
                 // It's fine, just increment the failures count
-                val update = Closed(failures + 1)
+                val update = Closed[F](failures + 1)
                 if (!stateRef.compareAndSet(current, update))
                   markFailure(result) // retry?
                 else
@@ -741,7 +741,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
       padding: PaddingStrategy = NoPadding)
       (implicit clock: Clock[F]): CircuitBreaker[F] = {
 
-      val atomic = Atomic.withPadding(Closed(0) : State, padding)
+      val atomic = Atomic.withPadding(Closed(0) : State[F], padding)
       new CircuitBreaker[F](
         _stateRef = atomic,
         _maxFailures = maxFailures,
@@ -771,7 +771,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     *  - [[HalfOpen]] in case a reset attempt was triggered and it is waiting for
     *    the result in order to evolve in [[Closed]], or back to [[Open]]
     */
-  sealed abstract class State
+  sealed abstract class State[F[_]]
 
   /** The initial [[State]] of the [[CircuitBreaker]]. While in this
     * state the circuit breaker allows tasks to be executed.
@@ -785,7 +785,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     *
     * @param failures is the current failures count
     */
-  final case class Closed(failures: Int) extends State
+  final case class Closed[F[_]](failures: Int) extends State[F]
 
   /** [[State]] of the [[CircuitBreaker]] in which the circuit
     * breaker rejects all tasks with an
@@ -816,7 +816,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
   final case class Open[F[_]](
     startedAt: Timestamp,
     resetTimeout: FiniteDuration,
-    awaitClose: Option[Deferred[F, Unit]]) extends State {
+    awaitClose: Option[Deferred[F, Unit]]) extends State[F] {
 
     /** The timestamp in milliseconds since the epoch, specifying
       * when the `Open` state is to transition to [[HalfOpen]].
@@ -860,5 +860,5 @@ object CircuitBreaker extends CircuitBreakerDocs {
   final case class HalfOpen[F[_]](
     resetTimeout: FiniteDuration,
     awaitClose: Option[Deferred[F, Unit]])
-    extends State
+    extends State[F]
 }

@@ -76,7 +76,7 @@ package object eval {
       * removed.
       */
     @deprecated("Moved to monix.catnap.CircuitBreaker.State", "3.0.0")
-    type State = CircuitBreaker.State
+    type State = CircuitBreaker.State[Task]
 
     /** DEPRECATED — please use [[monix.catnap.CircuitBreaker.Closed]].
       *
@@ -84,7 +84,7 @@ package object eval {
       * removed.
       */
     @deprecated("Moved to monix.catnap.CircuitBreaker.Closed", "3.0.0")
-    type Closed = CircuitBreaker.Closed
+    type Closed = CircuitBreaker.Closed[Task]
 
     /** DEPRECATED — please use [[monix.catnap.CircuitBreaker.Closed]].
       *
