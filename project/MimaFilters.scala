@@ -226,6 +226,8 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.eval.Fiber.apply"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.lightBuild"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation.signal"),
+    // Breakage - PR 739: https://github.com/monix/monix/pull/739
+    exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.BufferWithSelectorObservable.this"),
     // Changing internal Task cancelation model to back-pressure finalizers
     exclude[DirectMissingMethodProblem]("monix.execution.Cancelable#Extensions.cancelIO$extension"),
     exclude[DirectMissingMethodProblem]("monix.execution.Cancelable#Extensions.cancelIO"),
