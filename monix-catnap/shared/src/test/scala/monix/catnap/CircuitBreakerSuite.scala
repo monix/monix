@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.{IO, SyncIO}
+import cats.effect.{ExitCase, IO, Sync, SyncIO}
 import cats.implicits._
 import minitest.TestSuite
 import monix.catnap.CircuitBreaker.Open
@@ -366,5 +366,51 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     s.tick(1.second)
     val f3 = cb.protect(SyncIO(1)).attempt.unsafeRunSync()
     assertEquals(f3, Right(1))
+  }
+
+
+  test("Sync instance override") { implicit s =>
+    // Trying to override the Sync[IO] instance.
+    import Overrides._
+    assertEquals(Sync[IO], ioEffect)
+
+    val cb = CircuitBreaker.unsafe[IO](1, 1.second)
+    cb.protect(IO.raiseError(DummyException("dummy"))).unsafeToFuture
+    s.tick()
+
+    cb.state.unsafeRunSync() match {
+      case CircuitBreaker.Open(_, _, _) => ()
+      case other => fail(s"Unexpected state: $other")
+    }
+
+    val f = cb.awaitClose.unsafeToFuture
+    s.tick()
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    cb.protect(IO(1)).unsafeToFuture; s.tick()
+
+    assertEquals(cb.state.unsafeRunSync(), CircuitBreaker.Closed[IO](0))
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  object Overrides {
+    // Trying to override the Effect[IO] instance.
+    implicit val ioEffect: Sync[IO] = new Sync[IO] {
+      def suspend[A](thunk: => IO[A]): IO[A] =
+        IO.ioEffect.suspend(thunk)
+      def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+        IO.ioEffect.bracketCase(acquire)(use)(release)
+      def raiseError[A](e: Throwable): IO[A] =
+        IO.ioEffect.raiseError(e)
+      def handleErrorWith[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
+        IO.ioEffect.handleErrorWith(fa)(f)
+      def pure[A](x: A): IO[A] =
+        IO.ioEffect.pure(x)
+      def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
+        IO.ioEffect.flatMap(fa)(f)
+      def tailRecM[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
+        IO.ioEffect.tailRecM(a)(f)
+    }
   }
 }
