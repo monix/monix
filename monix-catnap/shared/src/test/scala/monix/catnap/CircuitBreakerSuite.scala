@@ -167,21 +167,21 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
 
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
-    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed[IO](2))
+    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(2))
 
     // A successful value should reset the counter
     assertEquals(taskSuccess.unsafeToFuture.value, Some(Success(1)))
-    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed[IO](0))
+    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(0))
 
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
-    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed[IO](4))
+    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(4))
 
     assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
     circuitBreaker.state.unsafeRunSync() match {
-      case CircuitBreaker.Open(sa, rt, _) =>
+      case CircuitBreaker.Open(sa, rt) =>
         assertEquals(sa, s.clockMonotonic(MILLISECONDS))
         assertEquals(rt, 1.minute)
       case other =>
@@ -204,7 +204,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       // After 1 minute we should attempt a reset
       s.tick(1.second)
       circuitBreaker.state.unsafeRunSync() match {
-        case CircuitBreaker.Open(sa, rt, _) =>
+        case CircuitBreaker.Open(sa, rt) =>
           assertEquals(sa, now)
           assertEquals(rt, resetTimeout)
         case other =>
@@ -216,7 +216,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       val delayedResult = delayedTask.unsafeToFuture
 
       circuitBreaker.state.unsafeRunSync() match {
-        case CircuitBreaker.HalfOpen(rt, _) =>
+        case CircuitBreaker.HalfOpen(rt) =>
           assertEquals(rt, resetTimeout)
         case other =>
           fail(s"Invalid state: $other")
@@ -230,7 +230,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       s.tick(1.second)
       assertEquals(delayedResult.value, Some(Failure(dummy)))
       circuitBreaker.state.unsafeRunSync() match {
-        case CircuitBreaker.Open(sa, rt, _) =>
+        case CircuitBreaker.Open(sa, rt) =>
           assertEquals(sa, s.clockMonotonic(MILLISECONDS))
           assertEquals(rt, nextTimeout)
         case other =>
@@ -250,7 +250,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     val delayedResult = delayedTask.unsafeToFuture
 
     circuitBreaker.state.unsafeRunSync() match {
-      case CircuitBreaker.HalfOpen(rt, _) =>
+      case CircuitBreaker.HalfOpen(rt) =>
         assertEquals(rt, resetTimeout)
       case other =>
         fail(s"Invalid state: $other")
@@ -260,7 +260,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
 
     s.tick(1.second)
     assertEquals(delayedResult.value, Some(Success(1)))
-    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed[IO](0))
+    assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(0))
 
     assertEquals(rejectedCount, 5 * 30 + 1)
     assertEquals(openedCount, 30 + 1)
@@ -313,7 +313,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(dummy)))
 
     cb.state.unsafeRunSync() match {
-      case Open(_, _, _) => ()
+      case Open(_, _) => ()
       case other => fail(s"Invalid state: $other")
     }
 
@@ -353,7 +353,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f, Left(dummy))
 
     cb.state.unsafeRunSync() match {
-      case Open(_, _, _) => ()
+      case Open(_, _) => ()
       case other => fail(s"Invalid state: $other")
     }
 
@@ -371,8 +371,8 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
 
   test("awaitClose with Sync instance override") { implicit s =>
     // Trying to override the Sync[IO] instance.
-    import Overrides._
-    assertEquals(Sync[IO], ioEffect)
+    import Overrides.syncIO
+    assertEquals(Sync[IO], syncIO)
 
     val cb = CircuitBreaker.unsafe[IO](1, 1.second)
     awaitCloseSuccessfulTest(s, cb)
@@ -392,7 +392,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     s.tick()
 
     cb.state.unsafeRunSync() match {
-      case CircuitBreaker.Open(_, _, _) => ()
+      case CircuitBreaker.Open(_, _) => ()
       case other => fail(s"Unexpected state: $other")
     }
 
@@ -404,13 +404,13 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     cb.protect(IO(1)).unsafeToFuture
     s.tick()
 
-    assertEquals(cb.state.unsafeRunSync(), CircuitBreaker.Closed[IO](0))
+    assertEquals(cb.state.unsafeRunSync(), CircuitBreaker.Closed(0))
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("awaitClose throws error when instance was built with Sync[F]") { implicit s =>
+  test("awaitClose works when instance was built with Sync[F]") { implicit s =>
     // Overriding Sync[IO]
-    import Overrides._
+    import Overrides.syncIO
     // Forcing the use of Sync[IO]
     def mkInstance[F[_]](implicit F: Sync[F], clock: Clock[F]) =
       CircuitBreaker.unsafe[F](1, 1.second)
@@ -420,36 +420,19 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     s.tick()
 
     cb.state.unsafeRunSync() match {
-      case CircuitBreaker.Open(_, _, _) => ()
+      case CircuitBreaker.Open(_, _) => ()
       case other => fail(s"Unexpected state: $other")
     }
 
     val f = cb.awaitClose.unsafeToFuture
     s.tick()
+    assertEquals(f.value, None)
 
-    f.value match {
-      case Some(Failure(_: APIContractViolationException)) => ()
-      case other => fail(s"Invalid result: $other")
-    }
-  }
+    s.tick(1.second)
+    cb.protect(IO(1)).unsafeToFuture
+    s.tick()
 
-  object Overrides {
-    // Trying to override the Effect[IO] instance.
-    implicit val ioEffect: Sync[IO] = new Sync[IO] {
-      def suspend[A](thunk: => IO[A]): IO[A] =
-        IO.ioEffect.suspend(thunk)
-      def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
-        IO.ioEffect.bracketCase(acquire)(use)(release)
-      def raiseError[A](e: Throwable): IO[A] =
-        IO.ioEffect.raiseError(e)
-      def handleErrorWith[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
-        IO.ioEffect.handleErrorWith(fa)(f)
-      def pure[A](x: A): IO[A] =
-        IO.ioEffect.pure(x)
-      def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
-        IO.ioEffect.flatMap(fa)(f)
-      def tailRecM[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
-        IO.ioEffect.tailRecM(a)(f)
-    }
+    assertEquals(cb.state.unsafeRunSync(), CircuitBreaker.Closed(0))
+    assertEquals(f.value, Some(Success(())))
   }
 }

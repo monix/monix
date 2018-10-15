@@ -76,7 +76,7 @@ package object eval {
       * removed.
       */
     @deprecated("Moved to monix.catnap.CircuitBreaker.State", "3.0.0")
-    type State = CircuitBreaker.State[Task]
+    type State = CircuitBreaker.State
 
     /** DEPRECATED — please use [[monix.catnap.CircuitBreaker.Closed]].
       *
@@ -84,7 +84,7 @@ package object eval {
       * removed.
       */
     @deprecated("Moved to monix.catnap.CircuitBreaker.Closed", "3.0.0")
-    type Closed = CircuitBreaker.Closed[Task]
+    type Closed = CircuitBreaker.Closed
 
     /** DEPRECATED — please use [[monix.catnap.CircuitBreaker.Closed]].
       *
@@ -104,7 +104,7 @@ package object eval {
       * removed.
       */
     @deprecated("Moved to monix.catnap.CircuitBreaker.Open", "3.0.0")
-    type Open = CircuitBreaker.Open[Task]
+    type Open = CircuitBreaker.Open
 
     /** DEPRECATED — please use [[monix.catnap.CircuitBreaker.Open]].
       *
@@ -124,7 +124,7 @@ package object eval {
       * removed.
       */
     @deprecated("Moved to monix.catnap.CircuitBreaker.HalfOpen", "3.0.0")
-    type HalfOpen = CircuitBreaker.HalfOpen[Task]
+    type HalfOpen = CircuitBreaker.HalfOpen
 
     /** DEPRECATED — please use [[monix.catnap.CircuitBreaker.HalfOpen]].
       *

@@ -17,15 +17,15 @@
 
 package monix.catnap
 
-import cats.effect.concurrent.Deferred
 import cats.effect.{Async, Clock, ExitCase, Sync}
 import cats.implicits._
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
-import monix.execution.exceptions.{APIContractViolationException, ExecutionRejectedException}
-
+import monix.execution.exceptions.ExecutionRejectedException
+import monix.execution.internal.Constants
 import scala.annotation.tailrec
+import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 /** The `CircuitBreaker` is used to provide stability and prevent
@@ -195,7 +195,7 @@ import scala.concurrent.duration._
   * [[http://doc.akka.io/docs/akka/current/common/circuitbreaker.html Akka's Circuit Breaker]].
   */
 final class CircuitBreaker[F[_]] private (
-  _stateRef: AtomicAny[CircuitBreaker.State[F]],
+  _stateRef: AtomicAny[CircuitBreaker.State],
   _maxFailures: Int,
   _resetTimeout: FiniteDuration,
   _exponentialBackoffFactor: Double,
@@ -204,9 +204,7 @@ final class CircuitBreaker[F[_]] private (
   onClosed: F[Unit],
   onHalfOpen: F[Unit],
   onOpen: F[Unit])
-  (implicit F0: Async[F] OrElse Sync[F], clock: Clock[F]) {
-
-  implicit val F: Sync[F] = F0.unify
+  (implicit F: Sync[F], clock: Clock[F]) {
 
   require(_maxFailures >= 0, "maxFailures >= 0")
   require(_exponentialBackoffFactor >= 1, "exponentialBackoffFactor >= 1")
@@ -245,7 +243,7 @@ final class CircuitBreaker[F[_]] private (
   /** Returns the current [[CircuitBreaker.State]], meant for
     * debugging purposes.
     */
-  val state: F[CircuitBreaker.State[F]] =
+  val state: F[CircuitBreaker.State] =
     F.delay(stateRef.get)
 
   /** Returns a new task that upon execution will execute the given
@@ -265,24 +263,15 @@ final class CircuitBreaker[F[_]] private (
     * the `CircuitBreaker` switches to the [[CircuitBreaker.Closed Closed]]
     * state again.
     */
-  def awaitClose(implicit ev: Async[F]): F[Unit] =
-    awaitCloseRef
-
-  private[this] val awaitCloseRef: F[Unit] =
+  def awaitClose(implicit F: Async[F]): F[Unit] =
     F.suspend {
       stateRef.get match {
-        case Closed(_) =>
-          F.unit
-        case Open(_, _, Some(await)) =>
-          await.get
-        case HalfOpen(_, Some(await)) =>
-          await.get
+        case ref: Open =>
+          LiftFuture.toAsync(F.pure(ref.awaitClose.future))
+        case ref: HalfOpen =>
+          LiftFuture.toAsync(F.pure(ref.awaitClose.future))
         case _ =>
-          F.raiseError(new APIContractViolationException(
-            "Empty await with cats.effect.Async instance, " +
-            "this CircuitBreaker was not created with an " +
-            s"Async[F] instance; F = $F"
-          ))
+          F.unit
       }
     }
 
@@ -303,7 +292,7 @@ final class CircuitBreaker[F[_]] private (
             case Right(a) =>
               // In case of success, must reset the failures counter!
               if (failures == 0) F.pure(a) else {
-                val update = Closed[F](0)
+                val update = Closed(0)
                 if (!stateRef.compareAndSet(current, update))
                   markFailure(result) // retry?
                 else
@@ -315,7 +304,7 @@ final class CircuitBreaker[F[_]] private (
               // or we transition in the `Open` state.
               if (failures+1 < maxFailures) {
                 // It's fine, just increment the failures count
-                val update = Closed[F](failures + 1)
+                val update = Closed(failures + 1)
                 if (!stateRef.compareAndSet(current, update))
                   markFailure(result) // retry?
                 else
@@ -326,7 +315,7 @@ final class CircuitBreaker[F[_]] private (
                 clock.monotonic(MILLISECONDS).flatMap { now =>
                   // We've gone over the permitted failures threshold,
                   // so we need to open the circuit breaker
-                  val update = Open(now, resetTimeout, buildAwait())
+                  val update = Open(now, resetTimeout, Promise())
 
                   if (!stateRef.compareAndSet(current, update))
                     reschedule(result) // retry
@@ -336,7 +325,7 @@ final class CircuitBreaker[F[_]] private (
               }
           }
 
-        case Open(_,_, _) | HalfOpen(_, _) =>
+        case _ =>
           // Concurrent execution of another handler happened, we are
           // already in an Open state, so not doing anything extra
           F.fromEither(result)
@@ -344,24 +333,6 @@ final class CircuitBreaker[F[_]] private (
 
     markFailure
   }
-
-  private def buildAwait(): Option[Deferred[F, Unit]] =
-    F0.fold(
-      // Async
-      F => Some(Deferred.unsafeUncancelable[F, Unit](F)),
-      // Sync
-      {
-        case ref: Async[F] @unchecked =>
-          Some(Deferred.unsafeUncancelable[F, Unit](ref))
-        case _ =>
-          None
-      })
-
-  private def triggerAwait(ref: Option[Deferred[F, Unit]]): F[Unit] =
-    ref match {
-      case None => F.unit
-      case Some(d) => d.complete(())
-    }
 
   /** Internal function that is the handler for the reset attempt when
     * the circuit breaker is in `HalfOpen`. In this state we can
@@ -375,7 +346,7 @@ final class CircuitBreaker[F[_]] private (
     *        case the attempt fails and it needs to transition to
     *        `Open` again
     */
-  private def attemptReset[A](task: F[A], resetTimeout: FiniteDuration, await: Option[Deferred[F, Unit]]): F[A] =
+  private def attemptReset[A](task: F[A], resetTimeout: FiniteDuration, await: Promise[Unit]): F[A] =
     F.bracketCase(onHalfOpen)(_ => task) { (_, exit) =>
       exit match {
         case ExitCase.Canceled =>
@@ -386,7 +357,8 @@ final class CircuitBreaker[F[_]] private (
           // While in HalfOpen only a reset attempt is allowed to update
           // the state, so setting this directly is safe
           stateRef.set(Closed(0))
-          triggerAwait(await).flatMap { _ => onClosed }
+          await.complete(Constants.successOfUnit)
+          onClosed
 
         case ExitCase.Error(_) =>
           // Failed reset, which means we go back in the Open state with new expiry
@@ -411,18 +383,11 @@ final class CircuitBreaker[F[_]] private (
         val bind = maybeMarkOrResetFailures.asInstanceOf[Either[Throwable, A] => F[A]]
         task.attempt.flatMap(bind)
 
-      case HalfOpen(_, _) =>
-        // CircuitBreaker is in HalfOpen state, which means we still reject all
-        // tasks, while waiting to see if our reset attempt succeeds or fails
-        onRejected.flatMap { _ =>
-          F.raiseError(ExecutionRejectedException(
-            "Rejected because the CircuitBreaker is in the HalfOpen state"
-          ))
-        }
-
-      case current @ Open(_, timeout, await: Option[Deferred[F, Unit]] @unchecked) =>
+      case current: Open =>
         clock.monotonic(MILLISECONDS).flatMap { now =>
           val expiresAt = current.expiresAt
+          val timeout = current.resetTimeout
+          val await = current.awaitClose
 
           if (now >= expiresAt) {
             // The Open state has expired, so we are letting just one
@@ -442,6 +407,15 @@ final class CircuitBreaker[F[_]] private (
               ))
             }
           }
+        }
+
+      case _ =>
+        // CircuitBreaker is in HalfOpen state, which means we still reject all
+        // tasks, while waiting to see if our reset attempt succeeds or fails
+        onRejected.flatMap { _ =>
+          F.raiseError(ExecutionRejectedException(
+            "Rejected because the CircuitBreaker is in the HalfOpen state"
+          ))
         }
     }
 
@@ -615,7 +589,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     *   )
     * }}}
     */
-  def apply[F[_]](implicit F: Async[F] OrElse Sync[F]): Builders[F] = new Builders[F](F)
+  def apply[F[_]](implicit F: Sync[F]): Builders[F] = new Builders[F](F)
 
   /** Safe builder.
     *
@@ -634,7 +608,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     exponentialBackoffFactor: Double = 1.0,
     maxResetTimeout: Duration = Duration.Inf,
     padding: PaddingStrategy = NoPadding)
-    (implicit F: Async[F] OrElse Sync[F], clock: Clock[F]): F[CircuitBreaker[F]] = {
+    (implicit F: Sync[F], clock: Clock[F]): F[CircuitBreaker[F]] = {
 
     CircuitBreaker[F].of(
       maxFailures = maxFailures,
@@ -665,7 +639,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     exponentialBackoffFactor: Double = 1.0,
     maxResetTimeout: Duration = Duration.Inf,
     padding: PaddingStrategy = NoPadding)
-    (implicit F: Async[F] OrElse Sync[F], clock: Clock[F]): CircuitBreaker[F] = {
+    (implicit F: Sync[F], clock: Clock[F]): CircuitBreaker[F] = {
 
     CircuitBreaker[F].unsafe(
       maxFailures = maxFailures,
@@ -681,7 +655,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type technique]].
     *
     */
-  final class Builders[F[_]](val F: Async[F] OrElse Sync[F]) extends AnyVal with CircuitBreakerDocs {
+  final class Builders[F[_]](val F: Sync[F]) extends AnyVal with CircuitBreakerDocs {
     /**
       * Safe builder for a [[CircuitBreaker]] reference.
       *
@@ -700,14 +674,14 @@ object CircuitBreaker extends CircuitBreakerDocs {
       resetTimeout: FiniteDuration,
       exponentialBackoffFactor: Double = 1.0,
       maxResetTimeout: Duration = Duration.Inf,
-      onRejected: F[Unit] = F.unify.unit,
-      onClosed: F[Unit] = F.unify.unit,
-      onHalfOpen: F[Unit] = F.unify.unit,
-      onOpen: F[Unit] = F.unify.unit,
+      onRejected: F[Unit] = F.unit,
+      onClosed: F[Unit] = F.unit,
+      onHalfOpen: F[Unit] = F.unit,
+      onOpen: F[Unit] = F.unit,
       padding: PaddingStrategy = NoPadding)
       (implicit clock: Clock[F]): F[CircuitBreaker[F]] = {
 
-      F.unify.delay(unsafe(
+      F.delay(unsafe(
         maxFailures = maxFailures,
         resetTimeout = resetTimeout,
         exponentialBackoffFactor = exponentialBackoffFactor,
@@ -741,14 +715,14 @@ object CircuitBreaker extends CircuitBreakerDocs {
       resetTimeout: FiniteDuration,
       exponentialBackoffFactor: Double = 1.0,
       maxResetTimeout: Duration = Duration.Inf,
-      onRejected: F[Unit] = F.unify.unit,
-      onClosed: F[Unit] = F.unify.unit,
-      onHalfOpen: F[Unit] = F.unify.unit,
-      onOpen: F[Unit] = F.unify.unit,
+      onRejected: F[Unit] = F.unit,
+      onClosed: F[Unit] = F.unit,
+      onHalfOpen: F[Unit] = F.unit,
+      onOpen: F[Unit] = F.unit,
       padding: PaddingStrategy = NoPadding)
       (implicit clock: Clock[F]): CircuitBreaker[F] = {
 
-      val atomic = Atomic.withPadding(Closed(0) : State[F], padding)
+      val atomic = Atomic.withPadding(Closed(0) : State, padding)
       new CircuitBreaker[F](
         _stateRef = atomic,
         _maxFailures = maxFailures,
@@ -778,7 +752,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     *  - [[HalfOpen]] in case a reset attempt was triggered and it is waiting for
     *    the result in order to evolve in [[Closed]], or back to [[Open]]
     */
-  sealed abstract class State[F[_]]
+  sealed abstract class State
 
   /** The initial [[State]] of the [[CircuitBreaker]]. While in this
     * state the circuit breaker allows tasks to be executed.
@@ -792,7 +766,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     *
     * @param failures is the current failures count
     */
-  final case class Closed[F[_]](failures: Int) extends State[F]
+  final case class Closed(failures: Int) extends State
 
   /** [[State]] of the [[CircuitBreaker]] in which the circuit
     * breaker rejects all tasks with an
@@ -820,10 +794,10 @@ object CircuitBreaker extends CircuitBreakerDocs {
     *        because only with `Async` data types we can wait for
     *        completion.
     */
-  final case class Open[F[_]](
-    startedAt: Timestamp,
-    resetTimeout: FiniteDuration,
-    awaitClose: Option[Deferred[F, Unit]]) extends State[F] {
+  final class Open private (
+    val startedAt: Timestamp,
+    val resetTimeout: FiniteDuration,
+    private[catnap] val awaitClose: Promise[Unit]) extends State {
 
     /** The timestamp in milliseconds since the epoch, specifying
       * when the `Open` state is to transition to [[HalfOpen]].
@@ -832,6 +806,30 @@ object CircuitBreaker extends CircuitBreakerDocs {
       * `startedAt + resetTimeout.toMillis`
       */
     val expiresAt: Timestamp = startedAt + resetTimeout.toMillis
+
+    override def equals(other: Any): Boolean = other match {
+      case that: Open =>
+        startedAt == that.startedAt &&
+        resetTimeout == that.resetTimeout &&
+        awaitClose == that.awaitClose
+      case _ =>
+        false
+    }
+
+    override def hashCode(): Int = {
+      val state: Seq[Any] = Seq(startedAt, resetTimeout, awaitClose)
+      state.foldLeft(0)((a, b) => 31 * a + b.hashCode())
+    }
+  }
+
+  object Open {
+    /** Private builder. */
+    private[catnap] def apply(startedAt: Timestamp, resetTimeout: FiniteDuration, awaitClose: Promise[Unit]): Open =
+      new Open(startedAt, resetTimeout, awaitClose)
+
+    /** Implements the pattern matching protocol. */
+    def unapply(state: Open): Option[(Timestamp, FiniteDuration)] =
+      Some((state.startedAt, state.resetTimeout))
   }
 
   /** [[State]] of the [[CircuitBreaker]] in which the circuit
@@ -864,8 +862,32 @@ object CircuitBreaker extends CircuitBreakerDocs {
     *        because only with `Async` data types we can wait for
     *        completion.
     */
-  final case class HalfOpen[F[_]](
-    resetTimeout: FiniteDuration,
-    awaitClose: Option[Deferred[F, Unit]])
-    extends State[F]
+  final class HalfOpen private (
+    val resetTimeout: FiniteDuration,
+    private[catnap] val awaitClose: Promise[Unit])
+    extends State {
+
+    override def equals(other: Any): Boolean = other match {
+      case that: HalfOpen =>
+        resetTimeout == that.resetTimeout &&
+        awaitClose == that.awaitClose
+      case _ =>
+        false
+    }
+
+    override def hashCode(): Int = {
+      val state: Seq[Object] = Seq(resetTimeout, awaitClose)
+      state.foldLeft(0)((a, b) => 31 * a + b.hashCode())
+    }
+  }
+
+  object HalfOpen {
+    /** Private builder. */
+    private[catnap] def apply(resetTimeout: FiniteDuration, awaitClose: Promise[Unit]): HalfOpen =
+      new HalfOpen(resetTimeout, awaitClose)
+
+    /** Implements the pattern matching protocol. */
+    def unapply(state: HalfOpen): Option[FiniteDuration] =
+      Some(state.resetTimeout)
+  }
 }
