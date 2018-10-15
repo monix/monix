@@ -188,7 +188,7 @@ private[eval] abstract class TaskLikeImplicits1 extends TaskLikeImplicits2 {
 
 private[eval] abstract class TaskLikeImplicits2 {
   /**
-    * Converts to `Task` from [[cats.Comonad]] values.
+    * Converts to `Task` from `cats.Comonad` values.
     */
   implicit def fromComonad[F[_]](implicit F: Comonad[F]): TaskLike[F] =
     new TaskLike[F] {

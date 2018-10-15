@@ -125,7 +125,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   // For working with partially-applied types
   addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.6" cross CrossVersion.binary),
 
-    // ScalaDoc settings
+  // ScalaDoc settings
   autoAPIMappings := true,
   scalacOptions in ThisBuild ++= Seq(
     // Note, this is used by the doc-source-url feature to determine the
@@ -247,9 +247,8 @@ lazy val requiredMacroDeps = Seq(
   ))
 
 lazy val unidocSettings = Seq(
-  autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, evalJVM, tailJVM, reactiveJVM),
+    inProjects(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM),
 
   // Exclude monix.*.internal from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
@@ -318,16 +317,16 @@ lazy val monix = project.in(file("."))
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
-  .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .dependsOn(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, evalJS, tailJS, reactiveJS)
-  .aggregate(executionJS, evalJS, tailJS, reactiveJS)
+  .dependsOn(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
+  .aggregate(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -365,7 +364,7 @@ lazy val catnapJVM = project.in(file("monix-catnap/jvm"))
   .configure(profile)
   .dependsOn(executionJVM % "compile->compile; test->test")
   .settings(catnapCommon)
-  .settings(mimaSettings("monix-catnap"))
+  //.settings(mimaSettings("monix-catnap"))
   .settings(doctestTestSettings)
 
 lazy val catnapJS = project.in(file("monix-catnap/js"))

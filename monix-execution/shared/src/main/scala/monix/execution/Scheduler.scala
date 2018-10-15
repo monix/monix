@@ -18,6 +18,7 @@
 package monix.execution
 
 import java.util.concurrent.Executor
+import cats.implicits._
 import cats.effect._
 import monix.execution.internal.AttemptCallback.RunnableTick
 import monix.execution.internal.RunnableAction
@@ -258,12 +259,12 @@ object Scheduler extends SchedulerCompanionImpl {
       * Derives a `cats.effect.Clock` from [[Scheduler]] for any
       * data type that has a `cats.effect.LiftIO` implementation.
       */
-    def clock[F[_]](implicit F: LiftIO[F]): Clock[F] =
+    def clock[F[_]](implicit F: Sync[F]): Clock[F] =
       new Clock[F] {
         override def realTime(unit: TimeUnit): F[Long] =
-          F.liftIO(IO(source.clockRealTime(unit)))
+          F.delay(source.clockRealTime(unit))
         override def monotonic(unit: TimeUnit): F[Long] =
-          F.liftIO(IO(source.clockMonotonic(unit)))
+          F.delay(source.clockMonotonic(unit))
       }
 
     /**
@@ -278,10 +279,10 @@ object Scheduler extends SchedulerCompanionImpl {
       *   }
       * }}}
       */
-    def timer[F[_]](implicit F: LiftIO[F]): Timer[F] =
+    def timer[F[_]](implicit F: Async[F]): Timer[F] =
       new Timer[F] {
         override def sleep(d: FiniteDuration): F[Unit] =
-          F.liftIO(IO.cancelable[Unit] { cb =>
+          F.liftIO(IO.cancelable { cb =>
             source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
               .toCancelToken[IO]
           })
@@ -304,12 +305,12 @@ object Scheduler extends SchedulerCompanionImpl {
       *     }
       * }}}
       */
-    def contextShift[F[_]](implicit F: Effect[F]): ContextShift[F] =
+    def contextShift[F[_]](implicit F: Async[F]): ContextShift[F] =
       new ContextShift[F] {
         override def shift: F[Unit] =
-          F.liftIO(IO.shift(source))
+          Async.shift(source)
         override def evalOn[A](ec: ExecutionContext)(fa: F[A]): F[A] =
-          F.liftIO(IO.contextShift(source).evalOn(ec)(F.toIO(fa)))
+          Async.shift(ec).flatMap(_ => fa.flatMap(a => shift.map(_ => a)))
       }
 
     /** Schedules a task to run in the future, after `initialDelay`.

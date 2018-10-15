@@ -149,6 +149,19 @@ object MimaFilters {
     exclude[IncompatibleMethTypeProblem]("monix.reactive.internal.consumers.ForeachAsyncConsumer.createSubscriber"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.internal.consumers.MapConsumer.createSubscriber"),
     //
+    // Breakage - monix.catnap.CircuitBreaker
+    exclude[MissingClassProblem]("monix.eval.TaskCircuitBreaker"),
+    exclude[MissingClassProblem]("monix.eval.TaskCircuitBreaker$Closed$"),
+    exclude[MissingClassProblem]("monix.eval.TaskCircuitBreaker$HalfOpen"),
+    exclude[MissingClassProblem]("monix.eval.TaskCircuitBreaker$"),
+    exclude[MissingClassProblem]("monix.eval.TaskCircuitBreaker$Closed"),
+    exclude[MissingClassProblem]("monix.eval.TaskCircuitBreaker$Open$"),
+    exclude[MissingClassProblem]("monix.eval.TaskCircuitBreaker$State"),
+    exclude[MissingClassProblem]("monix.eval.TaskCircuitBreaker$Open"),
+    exclude[MissingClassProblem]("monix.eval.TaskCircuitBreaker$HalfOpen$"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.Scheduler#Extensions.timer$extension"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.Scheduler#Extensions.timer"),
+    //
     // Breackage - the ++ operator now has a lazy argument
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.++"),
     //
