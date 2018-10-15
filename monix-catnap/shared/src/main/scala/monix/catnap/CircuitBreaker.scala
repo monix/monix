@@ -278,13 +278,11 @@ final class CircuitBreaker[F[_]] private (
         case HalfOpen(_, Some(await)) =>
           await.get
         case _ =>
-          // $COVERAGE-OFF$
           F.raiseError(new APIContractViolationException(
             "Empty await with cats.effect.Async instance, " +
             "this CircuitBreaker was not created with an " +
             s"Async[F] instance; F = $F"
           ))
-          // $COVERAGE-ON$
       }
     }
 
@@ -350,7 +348,12 @@ final class CircuitBreaker[F[_]] private (
   private def buildAwait: Option[Deferred[F, Unit]] =
     F0.fold(
       implicit F => Some(Deferred.unsafeUncancelable[F, Unit]),
-      _ => None
+      {
+        case ref: Async[F] @unchecked =>
+          Some(Deferred.unsafeUncancelable[F, Unit](ref))
+        case _ =>
+          None
+      }
     )
 
   private def triggerAwait(ref: Option[Deferred[F, Unit]]): F[Unit] =

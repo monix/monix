@@ -17,11 +17,11 @@
 
 package monix.catnap
 
-import cats.effect.{ExitCase, IO, Sync, SyncIO}
+import cats.effect._
 import cats.implicits._
 import minitest.TestSuite
 import monix.catnap.CircuitBreaker.Open
-import monix.execution.exceptions.{DummyException, ExecutionRejectedException}
+import monix.execution.exceptions.{APIContractViolationException, DummyException, ExecutionRejectedException}
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
@@ -369,12 +369,25 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   }
 
 
-  test("Sync instance override") { implicit s =>
+  test("awaitClose with Sync instance override") { implicit s =>
     // Trying to override the Sync[IO] instance.
     import Overrides._
     assertEquals(Sync[IO], ioEffect)
 
     val cb = CircuitBreaker.unsafe[IO](1, 1.second)
+    awaitCloseSuccessfulTest(s, cb)
+  }
+
+  test("awaitClose with polymorphic code") { implicit s =>
+    // Forcing the use of Sync[IO]
+    def mkInstance[F[_]](implicit F: Sync[F], clock: Clock[F]) =
+      CircuitBreaker.unsafe[F](1, 1.second)
+
+    val cb = mkInstance[IO]
+    awaitCloseSuccessfulTest(s, cb)
+  }
+
+  private def awaitCloseSuccessfulTest(s: TestScheduler, cb: CircuitBreaker[IO]) = {
     cb.protect(IO.raiseError(DummyException("dummy"))).unsafeToFuture
     s.tick()
 
@@ -388,10 +401,36 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
 
     s.tick(1.second)
-    cb.protect(IO(1)).unsafeToFuture; s.tick()
+    cb.protect(IO(1)).unsafeToFuture
+    s.tick()
 
     assertEquals(cb.state.unsafeRunSync(), CircuitBreaker.Closed[IO](0))
     assertEquals(f.value, Some(Success(())))
+  }
+
+  test("awaitClose throws error when instance was built with Sync[F]") { implicit s =>
+    // Overriding Sync[IO]
+    import Overrides._
+    // Forcing the use of Sync[IO]
+    def mkInstance[F[_]](implicit F: Sync[F], clock: Clock[F]) =
+      CircuitBreaker.unsafe[F](1, 1.second)
+
+    val cb = mkInstance[IO]
+    cb.protect(IO.raiseError(DummyException("dummy"))).unsafeToFuture
+    s.tick()
+
+    cb.state.unsafeRunSync() match {
+      case CircuitBreaker.Open(_, _, _) => ()
+      case other => fail(s"Unexpected state: $other")
+    }
+
+    val f = cb.awaitClose.unsafeToFuture
+    s.tick()
+
+    f.value match {
+      case Some(Failure(_: APIContractViolationException)) => ()
+      case other => fail(s"Invalid result: $other")
+    }
   }
 
   object Overrides {
