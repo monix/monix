@@ -279,7 +279,7 @@ final class CircuitBreaker[F[_]] private (
           F.raiseError(new APIContractViolationException(
             "Empty await with cats.effect.Async instance, " +
             "this CircuitBreaker was not created with this " +
-            "Async instance"
+            s"Async instance: $ev (F = $F)"
           ))
           // $COVERAGE-ON$
       }
