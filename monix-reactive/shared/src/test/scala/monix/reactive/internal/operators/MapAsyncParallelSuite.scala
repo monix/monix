@@ -22,8 +22,9 @@ import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
+import org.scalacheck.{Arbitrary, Gen}
 
-import scala.concurrent.Promise
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Failure, Random}
 
@@ -140,6 +141,23 @@ object MapAsyncParallelSuite extends BaseOperatorSuite {
         .toListL
 
       received === expected
+    }
+  }
+
+  test("should work for any positive parallelism") { implicit s =>
+    implicit lazy val arbInt: Arbitrary[Int] = Arbitrary(
+      Gen.chooseNum(1, Int.MaxValue)
+    )
+    check2 { (list: List[Int], parallelism: Int) =>
+      val result: Future[List[Int]] =
+        Observable
+          .fromIterable(list)
+          .mapAsync(parallelism = parallelism)(x => Task(x + 10))
+          .toListL
+          .map(_.sorted)
+          .runAsync
+
+      result === Future.successful(list.map(_ + 10).sorted)
     }
   }
 
