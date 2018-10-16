@@ -27,7 +27,7 @@ import cats.Show
   *     UncaughtErrorException("Error!")
   * }}}
   *
-  * Note this is using [[cats.Show]] to customize the `toString`
+  * Note this is using `cats.Show` to customize the `toString`
   * implementation, for debugging purposes.
   */
 class UncaughtErrorException[E] private (error: E)(implicit E: Show[E])

@@ -102,7 +102,7 @@ object CoevalLike extends CoevalLikeImplicits0 {
       def toCoeval[A](thunk: () => A): Coeval[A] =
         Coeval.Always(thunk)
     }
-  
+
   /**
     * Converts a Scala `Either` to a [[Coeval]].
     */
@@ -115,7 +115,7 @@ object CoevalLike extends CoevalLikeImplicits0 {
 
 private[eval] abstract class CoevalLikeImplicits0 {
   /**
-    * Converts to `Coeval` from [[cats.Comonad]] values.
+    * Converts to `Coeval` from `cats.Comonad` values.
     */
   implicit def fromComonad[F[_]](implicit F: Comonad[F]): CoevalLike[F] =
     new CoevalLike[F] {

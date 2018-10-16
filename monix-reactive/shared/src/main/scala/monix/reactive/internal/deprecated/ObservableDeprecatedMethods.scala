@@ -66,7 +66,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
     *  - [[Observable.doOnEarlyStopF doOnEarlyStopF]]
     *
     *  NOTE you can still get the same behavior via `doOnEarlyStopF`,
-    *  because `Function0` implements [[cats.Comonad]] and `Task`
+    *  because `Function0` implements `cats.Comonad` and `Task`
     *  conversions from `Comonad` are allowed, although frankly in
     *  this case `doOnEarlyStop`:
     *

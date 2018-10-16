@@ -54,9 +54,9 @@ object CancelableF {
     * Unsafe version of [[apply]].
     *
     * This function is unsafe because creating the returned
-    * [[BooleanCancelableF]] allocates internal shared mutable
-    * state, thus breaking referential transparency, which can
-    * catch users by surprise.
+    * [[monix.catnap.cancelables.BooleanCancelableF BooleanCancelableF]]
+    * allocates internal shared mutable state, thus breaking referential
+    * transparency, which can catch users by surprise.
     */
   @UnsafeBecauseImpure
   def unsafeApply[F[_]](token: F[Unit])(implicit F: Sync[F]): CancelableF[F] =

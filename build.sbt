@@ -1,14 +1,23 @@
 import com.typesafe.sbt.GitVersioning
-import com.typesafe.tools.mima.core._
-import com.typesafe.tools.mima.core.ProblemFilters._
 import sbt.Keys.version
 // For getting Scoverage out of the generated POM
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
-addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
-addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
+val allProjects = List(
+  "execution",
+  "catnap",
+  "eval",
+  "tail",
+  "reactive",
+  "java"
+)
+
+addCommandAlias("ci",         ";ci-jvm ;ci-js")
+addCommandAlias("ci-all",     ";ci-jvm ;ci-js ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-js",      s";clean ;coreJS/test:compile ;${allProjects.filter(_ != "java").map(_ + "JS/test").mkString(" ;")}")
+addCommandAlias("ci-jvm",     s";clean ;coreJVM/test:compile ;${allProjects.map(_ + "JVM/test").mkString(" ;")} ;mimaReportBinaryIssues")
+addCommandAlias("ci-jvm-all", s";ci-jvm ;unidoc")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "1.4.0"
@@ -125,7 +134,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   // For working with partially-applied types
   addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.6" cross CrossVersion.binary),
 
-    // ScalaDoc settings
+  // ScalaDoc settings
   autoAPIMappings := true,
   scalacOptions in ThisBuild ++= Seq(
     // Note, this is used by the doc-source-url feature to determine the
@@ -138,8 +147,10 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   parallelExecution in Test := false,
   parallelExecution in IntegrationTest := false,
+  parallelExecution in ThisBuild := false,
   testForkedParallel in Test := false,
   testForkedParallel in IntegrationTest := false,
+  testForkedParallel in ThisBuild := false,
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
   resolvers ++= Seq(
@@ -247,9 +258,8 @@ lazy val requiredMacroDeps = Seq(
   ))
 
 lazy val unidocSettings = Seq(
-  autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, evalJVM, tailJVM, reactiveJVM),
+    inProjects(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM),
 
   // Exclude monix.*.internal from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
@@ -318,16 +328,16 @@ lazy val monix = project.in(file("."))
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
-  .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .dependsOn(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, evalJS, tailJS, reactiveJS)
-  .aggregate(executionJS, evalJS, tailJS, reactiveJS)
+  .dependsOn(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
+  .aggregate(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -365,7 +375,7 @@ lazy val catnapJVM = project.in(file("monix-catnap/jvm"))
   .configure(profile)
   .dependsOn(executionJVM % "compile->compile; test->test")
   .settings(catnapCommon)
-  .settings(mimaSettings("monix-catnap"))
+  //.settings(mimaSettings("monix-catnap"))
   .settings(doctestTestSettings)
 
 lazy val catnapJS = project.in(file("monix-catnap/js"))

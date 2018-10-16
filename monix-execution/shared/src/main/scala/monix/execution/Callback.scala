@@ -163,33 +163,33 @@ object Callback {
     }
 
   /** Functions exposed via [[apply]]. */
-  class Builders[E](val ev: Boolean = true) extends AnyVal {
+  final class Builders[E](val ev: Boolean = true) extends AnyVal {
     /** See [[Callback.safe]]. */
-    final def safe[A](cb: Callback[E, A])(implicit r: UncaughtExceptionReporter): Callback[E, A] =
+    def safe[A](cb: Callback[E, A])(implicit r: UncaughtExceptionReporter): Callback[E, A] =
       Callback.safe(cb)
 
     /** See [[Callback.empty]]. */
-    final def empty[A](implicit r: UncaughtExceptionReporter): Callback[E, A] =
+    def empty[A](implicit r: UncaughtExceptionReporter): Callback[E, A] =
       Callback.empty
 
     /** See [[Callback.fromPromise]]. */
-    final def fromPromise[A](p: Promise[A])(implicit ev: Throwable <:< E): Callback[Throwable, A] =
+    def fromPromise[A](p: Promise[A])(implicit ev: Throwable <:< E): Callback[Throwable, A] =
       Callback.fromPromise(p)
 
     /** See [[Callback.forked]]. */
-    final def forked[A](cb: Callback[E, A])(implicit ec: ExecutionContext): Callback[E, A] =
+    def forked[A](cb: Callback[E, A])(implicit ec: ExecutionContext): Callback[E, A] =
       Callback.forked(cb)
 
     /** See [[Callback.trampolined]]. */
-    final def trampolined[A](cb: Callback[E, A])(implicit ec: ExecutionContext): Callback[E, A] =
+    def trampolined[A](cb: Callback[E, A])(implicit ec: ExecutionContext): Callback[E, A] =
       Callback.trampolined(cb)
 
     /** See [[Callback.fromAttempt]]. */
-    final def fromAttempt[A](cb: Either[E, A] => Unit): Callback[E, A] =
+    def fromAttempt[A](cb: Either[E, A] => Unit): Callback[E, A] =
       Callback.fromAttempt(cb)
 
     /** See [[Callback.fromTry]]. */
-    final def fromTry[A](cb: Try[A] => Unit)(implicit ev: Throwable <:< E): Callback[Throwable, A] =
+    def fromTry[A](cb: Try[A] => Unit)(implicit ev: Throwable <:< E): Callback[Throwable, A] =
       Callback.fromTry(cb)
   }
 
