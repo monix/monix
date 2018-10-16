@@ -726,45 +726,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * bundle. In case the source is too fast and `maxSize` is reached,
     * then the source will be back-pressured.
     *
-    * The difference with [[bufferTimedAndCounted]] is that
-    * [[bufferTimedWithPressure]] applies back-pressure from the time
-    * when the buffer is full until the buffer is emitted, whereas
-    * [[bufferTimedAndCounted]] will forcefully emit the buffer when
-    * it's full.
-    *
-    * @param period the interval of time at which it should emit
-    *        the buffered bundle
-    * @param maxSize is the maximum buffer size, after which the
-    *        source starts being back-pressured
-    */
-  final def bufferTimedWithPressure(period: FiniteDuration, maxSize: Int): Observable[Seq[A]] = {
-    val sampler = Observable.intervalAtFixedRate(period, period)
-    new BufferWithSelectorObservable(self, sampler, maxSize, (_: A) => 1)
-  }
-
-  /** Periodically gather items emitted by an observable into bundles
-    * and emit these bundles rather than emitting the items one at a
-    * time. Back-pressure the source when the buffer is full.
-    *
-    * The resulting observable emits connected, non-overlapping
-    * buffers, each of a fixed duration specified by the `period`
-    * argument.
-    *
-    * The bundles are emitted at a fixed rate. If the source is
-    * silent, then the resulting observable will start emitting empty
-    * sequences.
-    *
-    * If the source observable completes, then the current buffer gets
-    * signaled downstream. If the source triggers an error then the
-    * current buffer is being dropped and the error gets propagated
-    * immediately.
-    *
-    * A `maxSize` argument is specified as the capacity of the
-    * bundle. In case the source is too fast and `maxSize` is reached,
-    * then the source will be back-pressured.
-    *
-    * A `sizeOf` argument is specified as the weight each A represents
-    * in the bundle.
+    * A `sizeOf` argument is specified as the weight each element
+    * represents in the bundle. Defaults to count each element as
+    * weighting 1.
     *
     * The difference with [[bufferTimedAndCounted]] is that
     * [[bufferTimedWithPressure]] applies back-pressure from the time
@@ -776,8 +740,10 @@ abstract class Observable[+A] extends Serializable { self =>
     *        the buffered bundle
     * @param maxSize is the maximum buffer size, after which the
     *        source starts being back-pressured
+    * @param sizeOf is the function to compute the weight of each
+    *        element in the buffer
     */
-  final def bufferTimedWithPressure(period: FiniteDuration, maxSize: Int, sizeOf: A => Int): Observable[Seq[A]] = {
+  final def bufferTimedWithPressure(period: FiniteDuration, maxSize: Int, sizeOf: A => Int = _ => 1): Observable[Seq[A]] = {
     val sampler = Observable.intervalAtFixedRate(period, period)
     new BufferWithSelectorObservable(self, sampler, maxSize, sizeOf)
   }

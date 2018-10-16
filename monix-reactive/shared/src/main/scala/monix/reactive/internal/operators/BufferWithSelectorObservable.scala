@@ -43,6 +43,11 @@ private[reactive] final class BufferWithSelectorObservable[+A,S](
 
         // MUST BE synchronized by `self`
         private[this] var buffer = ListBuffer.empty[A]
+        // Maintain internal buffer weight not to compute the weight
+        // of the buffer each time an element is added.
+        // So to keep complexity to O(1) for each added element.
+        // MUST BE synchronized by `self`
+        private[this] var bufferWeight: Int = 0
         // MUST BE synchronized by `self`
         private[this] var promise = Promise[Ack]()
         // To be written in onComplete/onError, to be read from tick
@@ -54,8 +59,8 @@ private[reactive] final class BufferWithSelectorObservable[+A,S](
           upstreamSubscriber.synchronized {
             if (downstreamIsDone) Stop else {
               buffer += elem
-              if (maxSize > 0 &&
-                  buffer.foldLeft(0)(_ + sizeOf(_)) >= maxSize) // sum size of elements in the buffer
+              bufferWeight += sizeOf(elem)
+              if (maxSize > 0 && bufferWeight >= maxSize)
                 promise.future
               else
                 Continue
@@ -98,6 +103,7 @@ private[reactive] final class BufferWithSelectorObservable[+A,S](
                 val signal = buffer.toList
                 // Refresh Buffer
                 buffer = ListBuffer.empty[A]
+                bufferWeight = 0
                 // Refresh back-pressure promise, but only if we have
                 // a maxSize to worry about
                 if (maxSize > 0) {
