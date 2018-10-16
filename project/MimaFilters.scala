@@ -161,6 +161,7 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.eval.TaskCircuitBreaker$HalfOpen$"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.Scheduler#Extensions.timer$extension"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.Scheduler#Extensions.timer"),
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.AttemptCallback.tick"),
     //
     // Breackage - the ++ operator now has a lazy argument
     exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.++"),
