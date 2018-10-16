@@ -2247,11 +2247,16 @@ object Iterant extends IterantInstances {
     *        reactive streams specification. If `Int.MaxValue` is given,
     *        then no back-pressuring logic will be applied (e.g. an unbounded
     *        buffer is used and the source has a license to stream as many
-    *        events as it wants).
+    *        events as it wants)
+    *
+    * @param eagerBuffer can activate or deactivate the "eager buffer" mode in
+    *        which the buffer gets pre-filled before the `Iterant`'s consumer is
+    *        ready to process it — this prevents having pauses due to
+    *        back-pressuring the `Subscription.request(n)` calls
     */
-  def fromReactivePublisher[F[_], A](publisher: Publisher[A], requestCount: Int = 256)
+  def fromReactivePublisher[F[_], A](publisher: Publisher[A], requestCount: Int = 256, eagerBuffer: Boolean = true)
     (implicit F: Async[F]): Iterant[F, A] =
-    IterantFromReactivePublisher(publisher, requestCount)
+    IterantFromReactivePublisher(publisher, requestCount, eagerBuffer)
 
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
