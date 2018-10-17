@@ -726,6 +726,10 @@ abstract class Observable[+A] extends Serializable { self =>
     * bundle. In case the source is too fast and `maxSize` is reached,
     * then the source will be back-pressured.
     *
+    * A `sizeOf` argument is specified as the weight each element
+    * represents in the bundle. Defaults to count each element as
+    * weighting 1.
+    *
     * The difference with [[bufferTimedAndCounted]] is that
     * [[bufferTimedWithPressure]] applies back-pressure from the time
     * when the buffer is full until the buffer is emitted, whereas
@@ -736,10 +740,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *        the buffered bundle
     * @param maxSize is the maximum buffer size, after which the
     *        source starts being back-pressured
+    * @param sizeOf is the function to compute the weight of each
+    *        element in the buffer
     */
-  final def bufferTimedWithPressure(period: FiniteDuration, maxSize: Int): Observable[Seq[A]] = {
+  final def bufferTimedWithPressure(period: FiniteDuration, maxSize: Int, sizeOf: A => Int = _ => 1): Observable[Seq[A]] = {
     val sampler = Observable.intervalAtFixedRate(period, period)
-    new BufferWithSelectorObservable(self, sampler, maxSize)
+    new BufferWithSelectorObservable(self, sampler, maxSize, sizeOf)
   }
 
   /** $bufferWithSelectorDesc
@@ -748,7 +754,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        signaling of the current buffer
     */
   final def bufferWithSelector[S](selector: Observable[S]): Observable[Seq[A]] =
-    new BufferWithSelectorObservable[A, S](self, selector, 0)
+    new BufferWithSelectorObservable[A, S](self, selector, 0, (_: A) => 1)
 
   /** $bufferWithSelectorDesc
     *
@@ -762,7 +768,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        source starts being back-pressured
     */
   final def bufferWithSelector[S](selector: Observable[S], maxSize: Int): Observable[Seq[A]] =
-    new BufferWithSelectorObservable(self, selector, maxSize)
+    new BufferWithSelectorObservable(self, selector, maxSize, (_: A) => 1)
 
   /** Buffers signals while busy, after which it emits the
     * buffered events as a single bundle.
