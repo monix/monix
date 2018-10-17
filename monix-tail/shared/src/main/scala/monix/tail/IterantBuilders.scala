@@ -234,9 +234,9 @@ sealed trait IterantBuilders[F[_]] extends Any {
 
 
   /** Aliased builder, see documentation for [[Iterant.fromReactivePublisher]]. */
-  def fromReactivePublisher[A](publisher: Publisher[A], requestCount: Int = 256)
+  def fromReactivePublisher[A](publisher: Publisher[A], requestCount: Int = 256, eagerBuffer: Boolean = true)
     (implicit F: Async[F]): Iterant[F, A] =
-    Iterant.fromReactivePublisher(publisher, requestCount)
+    Iterant.fromReactivePublisher(publisher, requestCount, eagerBuffer)
 }
 
 object IterantBuilders {
