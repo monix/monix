@@ -27,6 +27,8 @@ import scala.concurrent.Future
 private[reactive] final class CollectOperator[-A,+B](pf: PartialFunction[A,B])
   extends Operator[A,B] {
 
+  import CollectOperator.{checkFallback, isDefined}
+
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
@@ -39,8 +41,8 @@ private[reactive] final class CollectOperator[-A,+B](pf: PartialFunction[A,B])
         // protocol calls, then the behavior should be undefined.
         var streamError = true
         try {
-          if (pf.isDefinedAt(elem)) {
-            val next = pf(elem)
+          val next = pf.applyOrElse(elem, checkFallback[B])
+          if (isDefined(next)) {
             streamError = false
             out.onNext(next)
           }
@@ -67,4 +69,15 @@ private[reactive] final class CollectOperator[-A,+B](pf: PartialFunction[A,B])
         }
     }
   }
+}
+
+private object CollectOperator extends (Any => Any) {
+  /** In the case a partial function is not defined, return a magic fallback value. */
+  def checkFallback[B]: Any => B = this.asInstanceOf[Any => B]
+
+  /** Indicates whether the result is the magic fallback value. */
+  def isDefined(result: Any): Boolean = result.asInstanceOf[AnyRef] ne this
+
+  /** Always returns `this`, used as the magic fallback value. */
+  override def apply(elem: Any): Any = this
 }
