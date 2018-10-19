@@ -160,7 +160,7 @@ trait ArbitraryInstancesBase extends monix.eval.ArbitraryInstancesBase {
     Arbitrary {
       Gen.oneOf(
         Gen.const(Consumer.foldLeft(M.empty)(M.combine)),
-        Gen.const(Consumer.head[A]),
+        Gen.const(Consumer.head[A])
       )
     }
 
