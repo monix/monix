@@ -404,13 +404,13 @@ object Consumer {
     override def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
   }
 
-  /** [[cats.Contravariant]] instance for [[Consumer]]. */
+  /** `cats.Contravariant` instance for [[Consumer]]. */
   implicit def catsContravariant[C]: Contravariant[Consumer[?, C]] = new Contravariant[Consumer[?, C]] {
     override def contramap[A, B](fa: Consumer[A, C])(f: B => A): Consumer[B, C] =
       fa.contramap(f)
   }
 
-  /** [[cats.arrow.Profunctor]] instance for [[Consumer]]. */
+  /** `cats.arrow.Profunctor` instance for [[Consumer]]. */
   implicit val catsProfunctor: Profunctor[Consumer] = new Profunctor[Consumer] {
     override def dimap[A, B, C, D](fab: Consumer[A, B])(f: C => A)(g: B => D): Consumer[C, D] =
       fab.contramap(f).map(g)
