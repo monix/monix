@@ -18,8 +18,10 @@
 package monix.reactive
 
 import cats.Eq
+import cats.Monoid
 import minitest.{SimpleTestSuite, TestSuite}
 import minitest.laws.Checkers
+import monix.eval.Task
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Notification.{OnComplete, OnError, OnNext}
@@ -97,14 +99,6 @@ trait ArbitraryInstances extends ArbitraryInstancesBase with monix.eval.Arbitrar
       }
     }
 
-  implicit def arbitrarySubject[A](implicit arb: Arbitrary[A]): Arbitrary[Subject[A, A]] = Arbitrary {
-    Gen.oneOf(
-      Gen.const(AsyncSubject[A]()),
-      Gen.const(PublishSubject[A]()),
-      arb.arbitrary.map(BehaviorSubject(_)),
-      implicitly[Arbitrary[List[A]]].arbitrary.map(ReplaySubject.create(_)))
-  }
-
   implicit def equalitySubject[A: Arbitrary](implicit A: Eq[A], ec: TestScheduler): Eq[Subject[A, A]] =
     new Eq[Subject[A, A]] {
       def eqv(lh: Subject[A, A], rh: Subject[A, A]): Boolean = {
@@ -120,6 +114,21 @@ trait ArbitraryInstances extends ArbitraryInstancesBase with monix.eval.Arbitrar
         val fb = rh.materialize.toListL.runToFuture
 
         lh.size == rh.size && equalityFuture(eqList, ec).eqv(fa, fb)
+      }
+    }
+
+  implicit def equalityConsumer[A: Arbitrary](implicit A: Eq[A], ec: TestScheduler): Eq[Consumer[A, A]] =
+    new Eq[Consumer[A, A]] {
+      override def eqv(lh: Consumer[A, A], rh: Consumer[A, A]): Boolean = {
+        val eqList = implicitly[Eq[List[A]]]
+        val arbObservable = implicitly[Arbitrary[Observable[A]]]
+
+        val observable = arbObservable.arbitrary.sample
+
+        val fa = Task.sequence(observable.map(_.consumeWith(lh)).toList).runToFuture
+        val fb = Task.sequence(observable.map(_.consumeWith(rh)).toList).runToFuture
+
+        equalityFuture(eqList, ec).eqv(fa, fb)
       }
     }
 }
@@ -138,6 +147,22 @@ trait ArbitraryInstancesBase extends monix.eval.ArbitraryInstancesBase {
         .map(list => wrap(Observable.fromIterable(list)))
     }
   }
+
+  implicit def arbitrarySubject[A](implicit arb: Arbitrary[A]): Arbitrary[Subject[A, A]] = Arbitrary {
+    Gen.oneOf(
+      Gen.const(AsyncSubject[A]()),
+      Gen.const(PublishSubject[A]()),
+      arb.arbitrary.map(BehaviorSubject(_)),
+      implicitly[Arbitrary[List[A]]].arbitrary.map(ReplaySubject.create(_)))
+  }
+
+  implicit def arbitraryConsumer[A](implicit arb: Arbitrary[A], M: Monoid[A]): Arbitrary[Consumer[A, A]] =
+    Arbitrary {
+      Gen.oneOf(
+        Gen.const(Consumer.foldLeft(M.empty)(M.combine)),
+        Gen.const(Consumer.head[A]),
+      )
+    }
 
   implicit def cogenForObservable[A]: Cogen[Observable[A]] =
     Cogen[Unit].contramap(_ => ())
