@@ -17,9 +17,11 @@
 
 package monix.reactive
 
+import cats.Contravariant
+import cats.arrow.Profunctor
 import monix.eval.{Task, TaskLike}
 import monix.execution.cancelables.AssignableCancelable
-import monix.execution.{Cancelable, Callback, Scheduler}
+import monix.execution.{Callback, Cancelable, Scheduler}
 import monix.reactive.internal.consumers._
 import monix.reactive.observers.Subscriber
 
@@ -29,7 +31,7 @@ import monix.reactive.observers.Subscriber
   * being effectively a way to transform observables into
   * [[monix.eval.Task tasks]] for less error prone consuming of streams.
   */
-abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
+abstract class Consumer[-In, +R] extends (Observable[In] => Task[R])
   with Serializable { self =>
 
   /** Builds a new [[monix.reactive.observers.Subscriber Subscriber]]
@@ -400,5 +402,17 @@ object Consumer {
     */
   trait Sync[-In, +R] extends Consumer[In, R] {
     override def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
+  }
+
+  /** `cats.Contravariant` instance for [[Consumer]]. */
+  implicit def catsContravariant[C]: Contravariant[Consumer[?, C]] = new Contravariant[Consumer[?, C]] {
+    override def contramap[A, B](fa: Consumer[A, C])(f: B => A): Consumer[B, C] =
+      fa.contramap(f)
+  }
+
+  /** `cats.arrow.Profunctor` instance for [[Consumer]]. */
+  implicit val catsProfunctor: Profunctor[Consumer] = new Profunctor[Consumer] {
+    override def dimap[A, B, C, D](fab: Consumer[A, B])(f: C => A)(g: B => D): Consumer[C, D] =
+      fab.contramap(f).map(g)
   }
 }
