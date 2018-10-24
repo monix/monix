@@ -34,7 +34,7 @@ final class AtomicNumberAny[A <: AnyRef : Numeric] private (private[this] val re
 
   private[this] val ev = implicitly[Numeric[A]]
 
-  def get: A = ref.volatileGet().asInstanceOf[A]
+  def get(): A = ref.volatileGet().asInstanceOf[A]
   def set(update: A): Unit = ref.volatileSet(update)
 
   def compareAndSet(expect: A, update: A): Boolean = {

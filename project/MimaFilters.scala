@@ -4,6 +4,20 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0_RC2 = Seq(
+    // BREAKING CHANGES: MVar
+    exclude[MissingClassProblem]("monix.eval.MVar"),
+    exclude[MissingClassProblem]("monix.eval.MVar$"),
+    exclude[MissingClassProblem]("monix.eval.MVar$AsyncMVarImpl"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$State"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$WaitForTake"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$Empty$"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$WaitForPut$"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$WaitForTake$"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$WaitForPut"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$Empty"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncVar$State$"),
     //
     // BREAKING CHANGES: https://github.com/monix/monix/pull/729
     //
