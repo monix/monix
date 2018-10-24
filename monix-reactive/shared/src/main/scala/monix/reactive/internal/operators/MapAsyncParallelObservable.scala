@@ -77,7 +77,11 @@ private[reactive] final class MapAsyncParallelObservable[A,B]
     // used as an overflow strategy, meaning that when the buffer
     // is full then the data source gets frozen
     private[this] val buffer = {
-      val strategy = BackPressure(parallelism + Platform.recommendedBatchSize)
+      val bufferSize = {
+        val size = parallelism + Platform.recommendedBatchSize //can overflow
+        if (size < 0) Int.MaxValue else size
+      }
+      val strategy = BackPressure(bufferSize)
       BufferedSubscriber[B](out, strategy)
     }
 
