@@ -29,7 +29,7 @@ final class AtomicChar private (private[this] val ref: BoxedInt)
   extends AtomicNumber[Char] {
   private[this] val mask = 255 + 255 * 256
 
-  def get: Char = (ref.volatileGet() & mask).asInstanceOf[Char]
+  def get(): Char = (ref.volatileGet() & mask).asInstanceOf[Char]
   def set(update: Char): Unit = ref.volatileSet(update)
 
   def lazySet(update: Char): Unit =

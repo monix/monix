@@ -29,7 +29,7 @@ final class AtomicShort private (private[this] val ref: BoxedInt)
   extends AtomicNumber[Short] {
   private[this] val mask = 255 + 255 * 256
 
-  def get: Short = (ref.volatileGet() & mask).asInstanceOf[Short]
+  def get(): Short = (ref.volatileGet() & mask).asInstanceOf[Short]
   def set(update: Short): Unit = ref.volatileSet(update)
 
   def lazySet(update: Short): Unit =

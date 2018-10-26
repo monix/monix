@@ -44,7 +44,7 @@ final class AtomicByte private[atomic]
   }
 
 
-  def get: Byte = ref
+  def get(): Byte = ref
   def set(update: Byte): Unit = ref = update
 
   def getAndSubtract(v: Byte): Byte = {

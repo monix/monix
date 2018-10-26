@@ -26,7 +26,7 @@ import monix.execution.internal.atomic.{BoxedInt, Factory}
   * since `Boolean` is a primitive.
   */
 final class AtomicBoolean private (private[this] val ref: BoxedInt) extends Atomic[Boolean] {
-  def get: Boolean =
+  def get(): Boolean =
     ref.volatileGet() == 1
 
   def set(update: Boolean): Unit =

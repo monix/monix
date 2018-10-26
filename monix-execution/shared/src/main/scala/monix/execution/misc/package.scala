@@ -15,16 +15,12 @@
  * limitations under the License.
  */
 
-package monix.execution.internal
+package monix.execution
 
-import scala.util.{Success, Try}
+package object misc {
+  @deprecated("Moved to package monix.execution", "3.0.0")
+  type AsyncVar[A] = monix.execution.AsyncVar[A]
 
-/**
-  * Reusable references used in Monix's implementation.
-  */
-private[monix] object Constants {
-
-  val eitherOfUnit: Either[Nothing, Unit] = Right(())
-
-  val successOfUnit: Try[Unit] = Success(())
+  @deprecated("Moved to package monix.execution", "3.0.0")
+  def AsyncVar = monix.execution.AsyncVar
 }

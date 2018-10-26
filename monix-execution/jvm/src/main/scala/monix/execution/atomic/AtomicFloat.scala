@@ -30,7 +30,7 @@ import monix.execution.internal.atomic.{BoxedInt, Factory}
 final class AtomicFloat private (private[this] val ref: BoxedInt)
   extends AtomicNumber[Float] {
 
-  def get: Float = intBitsToFloat(ref.volatileGet())
+  def get(): Float = intBitsToFloat(ref.volatileGet())
   def set(update: Float): Unit = ref.volatileSet(floatToIntBits(update))
   def lazySet(update: Float): Unit = ref.lazySet(floatToIntBits(update))
 
