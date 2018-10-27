@@ -17,9 +17,11 @@
 
 package monix
 
+import cats.effect.concurrent.Semaphore
 import monix.catnap.CircuitBreaker
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
+
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 package object eval {
@@ -199,5 +201,23 @@ package object eval {
       monix.catnap.MVar[Task].empty(ps)
       // $COVERAGE-ON$
     }
+  }
+
+  /** DEPRECATED — moved and made generic in [[monix.catnap.Semaphore]].
+    *
+    * Please switch to that, because the deprecated symbols will be removed.
+    */
+  @deprecated("Moved and made generic in monix.catnap.Semaphore", "3.0.0")
+  type TaskSemaphore = monix.catnap.Semaphore[Task]
+
+  /** DEPRECATED — moved and made generic in [[monix.catnap.Semaphore]].
+    *
+    * Please switch to that, because the deprecated symbols will be removed.
+    */
+  @deprecated("Moved and made generic in monix.catnap.Semaphore", "3.0.0")
+  object TaskSemaphore {
+    @deprecated("Switch to monix.catnap.Semaphore.apply", "3.0.0")
+    def apply(maxParallelism: Int): Task[Semaphore[Task]] =
+      Semaphore[Task](maxParallelism)
   }
 }

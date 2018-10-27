@@ -23,7 +23,7 @@ import scala.util.Success
 
 object AsyncVarSuite extends SimpleTestSuite {
   test("empty; put; read; take; put; read; take") {
-    val av = AsyncVar.empty[Int]
+    val av = AsyncVar.empty[Int]()
 
     val r11 = av.put(10)
     assertEquals(r11.value, Some(Success(())))
@@ -41,7 +41,7 @@ object AsyncVarSuite extends SimpleTestSuite {
   }
 
   test("empty; tryPut; tryRead; tryTake; tryPut; tryRead; tryTake") {
-    val av = AsyncVar.empty[Int]
+    val av = AsyncVar.empty[Int]()
 
     assert(av.tryPut(10))
     assertEquals(av.tryRead(), Some(10))
@@ -61,7 +61,7 @@ object AsyncVarSuite extends SimpleTestSuite {
   }
 
   test("empty; take; read; put; take; read; put") {
-    val av = AsyncVar.empty[Int]
+    val av = AsyncVar.empty[Int]()
 
     val take1 = av.take()
     assertEquals(take1.value, None)
@@ -85,7 +85,7 @@ object AsyncVarSuite extends SimpleTestSuite {
   }
 
   test("empty; put; put; put; take; take; take") {
-    val av = AsyncVar.empty[Int]
+    val av = AsyncVar.empty[Int]()
 
     val put1 = av.put(10)
     assertEquals(put1.value, Some(Success(())))
@@ -108,7 +108,7 @@ object AsyncVarSuite extends SimpleTestSuite {
   }
 
   test("empty; take; take; take; put; put; put") {
-    val av = AsyncVar.empty[Int]
+    val av = AsyncVar.empty[Int]()
 
     val take1 = av.take()
     assertEquals(take1.value, None)
@@ -144,7 +144,7 @@ object AsyncVarSuite extends SimpleTestSuite {
   }
 
   test("empty; read; put; take") {
-    val av = AsyncVar.empty[Int]
+    val av = AsyncVar.empty[Int]()
 
     val read1 = av.read()
     assertEquals(read1.value, None)
@@ -158,7 +158,7 @@ object AsyncVarSuite extends SimpleTestSuite {
   }
 
   test("empty; put; read; take") {
-    val av = AsyncVar.empty[Int]
+    val av = AsyncVar.empty[Int]()
 
     val put1 = av.put(10)
     assertEquals(put1.value, Some(Success(())))
@@ -181,7 +181,7 @@ object AsyncVarSuite extends SimpleTestSuite {
   }
 
   test("withPadding; put; take; put; take") {
-    val av = AsyncVar.withPadding[Int](LeftRight128)
+    val av = AsyncVar.empty[Int](LeftRight128)
 
     val r1 = av.put(10)
     assertEquals(r1.value, Some(Success(())))
@@ -195,7 +195,7 @@ object AsyncVarSuite extends SimpleTestSuite {
   }
 
   test("withPadding(initial); put; take; put; take") {
-    val av = AsyncVar.withPadding[Int](10, LeftRight128)
+    val av = AsyncVar[Int](10, LeftRight128)
 
     val r2 = av.take()
     assertEquals(r2.value, Some(Success(10)))

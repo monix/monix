@@ -230,25 +230,24 @@ final class AsyncVar[A] private (initial: Option[A], ps: PaddingStrategy)
 }
 
 object AsyncVar {
-  /** Builds an [[AsyncVar]] instance with an `initial` value. */
-  def apply[A](initial: A): AsyncVar[A] =
-    new AsyncVar[A](initial, NoPadding)
-
-  /** Returns an empty [[AsyncVar]] instance. */
-  def empty[A]: AsyncVar[A] =
-    new AsyncVar[A](NoPadding)
-
-  /** Builds an [[AsyncVar]] instance with an `initial` value and a given
-    * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
-    * (for avoiding the false sharing problem).
+  /** Builds an [[AsyncVar]] instance with an `initial` value.
+    *
+    * @param initial is the initial value, this var being initialized
+    *        full; see [[empty]] for the alternative
+    *
+    * @param ps is an optional padding strategy for avoiding the
+    *        "false sharing problem", a common JVM effect when multiple threads
+    *        read and write in shared variables
     */
-  def withPadding[A](initial: A, ps: PaddingStrategy): AsyncVar[A] =
+  def apply[A](initial: A, ps: PaddingStrategy = NoPadding): AsyncVar[A] =
     new AsyncVar[A](initial, ps)
 
-  /** Builds an empty [[AsyncVar]] instance with a given
-    * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
-    * (for avoiding the false sharing problem).
+  /** Returns an empty [[AsyncVar]] instance.
+    *
+    * @param ps is an optional padding strategy for avoiding the
+    *        "false sharing problem", a common JVM effect when multiple threads
+    *        read and write in shared variables
     */
-  def withPadding[A](ps: PaddingStrategy): AsyncVar[A] =
+  def empty[A](ps: PaddingStrategy = NoPadding): AsyncVar[A] =
     new AsyncVar[A](ps)
 }

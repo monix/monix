@@ -201,7 +201,6 @@ object MVar {
       MVar.empty(ps)(F)
   }
 
-
   private trait Impl[F[_], A] { self: GenericVar[A, F[Unit]] =>
     def F: Sync[F]
 
