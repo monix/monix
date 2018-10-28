@@ -21,7 +21,7 @@ import cats.Eq
 import cats.data.EitherT
 import cats.effect.IO
 import cats.effect.laws.discipline.AsyncTests
-import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
+import cats.laws.discipline.{CoflatMapTests, DeferTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
 import monix.execution.schedulers.TestScheduler
 
 object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
@@ -37,9 +37,8 @@ object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
   lazy val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
     implicitly[Eq[EitherT[F, Throwable, Int]]]
 
-  checkAllAsync("Async[Iterant[IO]]", slowConfig) { _ =>
-    implicit val eqE = eqEitherT
-    AsyncTests[F].async[Int, Int, Int]
+  checkAllAsync("Defer[Iterant[IO]]") { implicit ec =>
+    DeferTests[F].defer[Int]
   }
 
   checkAllAsync("MonadError[Iterant[IO]]") { _ =>
