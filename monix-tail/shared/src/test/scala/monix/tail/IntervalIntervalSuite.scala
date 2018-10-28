@@ -54,7 +54,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
-    implicit val timer = s.timer[IO]
+    implicit val timer = s.timerLiftIO[IO]
 
     var effect = 0
     val lst = Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)
@@ -108,7 +108,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
-    implicit val timer = s.timer[IO]
+    implicit val timer = s.timerLiftIO[IO]
 
     var effect = 0
     val lst = Iterant[IO].intervalWithFixedDelay(2.seconds)
@@ -155,7 +155,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
-    implicit val timer = s.timer[IO]
+    implicit val timer = s.timerLiftIO[IO]
 
     var effect = 0
     val lst = Iterant[IO].intervalAtFixedRate(1.second)
@@ -203,7 +203,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
-    implicit val timer = s.timer[IO]
+    implicit val timer = s.timerLiftIO[IO]
 
     var effect = 0
     val lst = Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)
@@ -252,7 +252,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
-    implicit val timer = s.timer[IO]
+    implicit val timer = s.timerLiftIO[IO]
 
     var effect = 0
     val lst = Iterant[IO].intervalAtFixedRate(1.second)
