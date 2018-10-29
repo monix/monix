@@ -325,27 +325,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def bufferSliding(count: Int, skip: Int)(implicit F: Sync[F]): Iterant[F, Seq[A]] =
     IterantBuffer.sliding(self, count, skip)
 
-  // TODO:
-//  /** Implementation of `bracket` from `cats.effect.Bracket`.
-//    *
-//    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
-//    */
-//  final def bracket[B](use: A => Iterant[F, B])(release: A => Iterant[F, Unit])
-//    (implicit F: Sync[F]): Iterant[F, B] =
-//    bracketCase(use)((a, _) => release(a))
-//
-//  /** Implementation of `bracketCase` from `cats.effect.Bracket`.
-//    *
-//    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
-//    */
-//  final def bracketCase[B](use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit])
-//    (implicit F: Sync[F]): Iterant[F, B] = {
-//
-//    self.flatMap { a =>
-//      use(a).guaranteeCase(release(a, _).completedL)
-//    }
-//  }
-
   /** Builds a new iterant by applying a partial function to all
     * elements of the source on which the function is defined.
     *
@@ -2100,19 +2079,6 @@ object Iterant extends IterantInstances {
       a => F.pure(Iterant.pure(a)),
       release)
   }
-
-  /** DEPRECATED — please use [[Iterant.resource]].
-    *
-    * The `Iterant.bracket` operation was meant for streams, but
-    * this name in `Iterant` now refers to the semantics of the
-    * `cats.effect.Bracket` type class, implemented in
-    * [[Iterant!.bracket bracket]].
-    */
-  @deprecated("Use Iterant.resource", since="3.0.0-RC2")
-  def bracket[F[_], A, B](acquire: F[A])
-    (use: A => Iterant[F, B], release: A => F[Unit])
-    (implicit F: Sync[F]): Iterant[F, B] =
-    resource(acquire)(release).flatMap(use)
 
   /** Lifts a strict value into the stream context, returning a
     * stream of one element.
