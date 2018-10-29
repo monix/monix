@@ -1408,7 +1408,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   // Needed for IO.sleep
-    *   implicit val timer = global.timer[IO]
+    *   implicit val timer = global.timerLiftIO[IO]
     *
     *   Observable.range(0, 100)
     *     .delayExecution(1.second)
@@ -1460,7 +1460,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   // Needed for IO.sleep
-    *   implicit val timer = global.timer[IO]
+    *   implicit val timer = global.timerLiftIO[IO]
     *
     *   Observable.range(0, 10)
     *     .doOnSubscribeF(IO.sleep(1.second))
@@ -1506,7 +1506,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   // Needed for IO.sleep
-    *   implicit val timer = global.timer[IO]
+    *   implicit val timer = global.timerLiftIO[IO]
     *
     *   Observable.range(0, 100)
     *     .doAfterSubscribeF(IO.sleep(1.second))
@@ -2083,7 +2083,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   // Needed for IO.sleep
-    *   implicit val timer = global.timer[IO]
+    *   implicit val timer = global.timerLiftIO[IO]
     *
     *   Observable.range(0, 100).mapEvalF { x =>
     *     IO.sleep(1.second) *> IO(x)
@@ -4725,7 +4725,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *    import monix.execution.Scheduler.global
     *
     *    // Needed for IO.sleep
-    *    implicit val timer = global.timer[IO]
+    *    implicit val timer = global.timerLiftIO[IO]
     *    val task = IO.sleep(5.seconds) *> IO(println("Hello!"))
     *
     *    Observable.fromTaskLike(task)

@@ -28,18 +28,18 @@ import scala.concurrent.duration._
 
 object MVarConcurrentSuite extends BaseMVarSuite {
   def init[A](a: A): IO[MVar[IO, A]] =
-    MVar[IO](OrElse.primary(IO.ioConcurrentEffect)).of(a)
+    MVar[IO](OrElse.primary(IO.ioConcurrentEffect), cs).of(a)
 
   def empty[A]: IO[MVar[IO, A]] =
-    MVar[IO](OrElse.primary(IO.ioConcurrentEffect)).empty[A]()
+    MVar[IO](OrElse.primary(IO.ioConcurrentEffect), cs).empty[A]()
 }
 
 object MVarAsyncSuite extends BaseMVarSuite {
   def init[A](a: A): IO[MVar[IO, A]] =
-    MVar[IO](OrElse.secondary(IO.ioEffect)).of(a)
+    MVar[IO](OrElse.secondary(IO.ioEffect), cs).of(a)
 
   def empty[A]: IO[MVar[IO, A]] =
-    MVar[IO](OrElse.secondary(IO.ioEffect)).empty[A]()
+    MVar[IO](OrElse.secondary(IO.ioEffect), cs).empty[A]()
 }
 
 abstract class BaseMVarSuite extends SimpleTestSuite {
