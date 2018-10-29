@@ -21,7 +21,7 @@ import java.io.PrintStream
 
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
-import cats.{Applicative, CoflatMap, Eq, Functor, Monoid, MonoidK, Order, Parallel}
+import cats.{Applicative, CoflatMap, Defer, Eq, Functor, MonadError, Monoid, MonoidK, Order, Parallel, StackSafeMonad}
 
 import scala.util.control.NonFatal
 import monix.execution.internal.Platform.recommendedBatchSize
@@ -324,26 +324,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def bufferSliding(count: Int, skip: Int)(implicit F: Sync[F]): Iterant[F, Seq[A]] =
     IterantBuffer.sliding(self, count, skip)
-
-  /** Implementation of `bracket` from `cats.effect.Bracket`.
-    *
-    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
-    */
-  final def bracket[B](use: A => Iterant[F, B])(release: A => Iterant[F, Unit])
-    (implicit F: Sync[F]): Iterant[F, B] =
-    bracketCase(use)((a, _) => release(a))
-
-  /** Implementation of `bracketCase` from `cats.effect.Bracket`.
-    *
-    * See [[https://typelevel.org/cats-effect/typeclasses/bracket.html documentation]].
-    */
-  final def bracketCase[B](use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit])
-    (implicit F: Sync[F]): Iterant[F, B] = {
-
-    self.flatMap { a =>
-      use(a).guaranteeCase(release(a, _).completedL)
-    }
-  }
 
   /** Builds a new iterant by applying a partial function to all
     * elements of the source on which the function is defined.
@@ -2100,19 +2080,6 @@ object Iterant extends IterantInstances {
       release)
   }
 
-  /** DEPRECATED — please use [[Iterant.resource]].
-    *
-    * The `Iterant.bracket` operation was meant for streams, but
-    * this name in `Iterant` now refers to the semantics of the
-    * `cats.effect.Bracket` type class, implemented in
-    * [[Iterant!.bracket bracket]].
-    */
-  @deprecated("Use Iterant.resource", since="3.0.0-RC2")
-  def bracket[F[_], A, B](acquire: F[A])
-    (use: A => Iterant[F, B], release: A => F[Unit])
-    (implicit F: Sync[F]): Iterant[F, B] =
-    resource(acquire)(release).flatMap(use)
-
   /** Lifts a strict value into the stream context, returning a
     * stream of one element.
     */
@@ -2662,38 +2629,24 @@ object Iterant extends IterantInstances {
   }
 }
 
-private[tail] trait IterantInstances extends IterantInstances0 {
-  /** Provides the `cats.effect.Async` instance for [[Iterant]]. */
-  implicit def catsAsyncInstances[F[_]](implicit F: Async[F]): CatsAsyncInstances[F] =
-    new CatsAsyncInstances[F]()
-
-  /** Provides the `cats.effect.Async` instance for [[Iterant]]. */
-  class CatsAsyncInstances[F[_]](implicit F: Async[F])
-    extends CatsSyncInstances[F]
-      with Async[Iterant[F, ?]] {
-
-    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Iterant[F, A] =
-      Iterant.liftF(F.async(k))
-    override def asyncF[A](k: (Either[Throwable, A] => Unit) => Iterant[F, Unit]): Iterant[F, A] =
-      Iterant.liftF(F.asyncF(cb => k(cb).completedL))
-    override def never[A]: Iterant[F, A] =
-      Iterant.never
-  }
-}
-
-private[tail] trait IterantInstances0 {
+private[tail] trait IterantInstances {
   /** Provides the `cats.effect.Sync` instance for [[Iterant]]. */
   implicit def catsSyncInstances[F[_]](implicit F: Sync[F]): CatsSyncInstances[F] =
     new CatsSyncInstances[F]()
 
   /** Provides the `cats.effect.Sync` instance for [[Iterant]]. */
   class CatsSyncInstances[F[_]](implicit F: Sync[F])
-    extends Sync[Iterant[F, ?]]
+    extends StackSafeMonad[Iterant[F, ?]]
+      with MonadError[Iterant[F, ?], Throwable]
+      with Defer[Iterant[F, ?]]
       with MonoidK[Iterant[F, ?]]
       with CoflatMap[Iterant[F, ?]] {
 
     override def pure[A](a: A): Iterant[F, A] =
       Iterant.pure(a)
+
+    override def defer[A](fa: => Iterant[F, A]): Iterant[F, A] =
+      Iterant.suspend(fa)
 
     override def map[A, B](fa: Iterant[F, A])(f: (A) => B): Iterant[F, B] =
       fa.map(f)(F)
@@ -2739,17 +2692,5 @@ private[tail] trait IterantInstances0 {
 
     override def recoverWith[A](fa: Iterant[F, A])(pf: PartialFunction[Throwable, Iterant[F, A]]): Iterant[F, A] =
       fa.onErrorRecoverWith(pf)
-
-    override def suspend[A](thunk: => Iterant[F, A]): Iterant[F, A] =
-      Iterant.suspend(thunk)
-
-    override def delay[A](thunk: => A): Iterant[F, A] =
-      Iterant.eval(thunk)
-
-    override def bracket[A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: A => Iterant[F, Unit]): Iterant[F, B] =
-      acquire.bracket(use)(release)
-
-    override def bracketCase[A, B](acquire: Iterant[F, A])(use: A => Iterant[F, B])(release: (A, ExitCase[Throwable]) => Iterant[F, Unit]): Iterant[F, B] =
-      acquire.bracketCase(use)(release)
   }
 }

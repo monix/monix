@@ -33,7 +33,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assert(env.state.tasks.isEmpty, "There should be no tasks left!")
 
   implicit def timer(implicit ec: TestScheduler) =
-    ec.timer[IO]
+    ec.timerLiftIO[IO]
 
   implicit def contextShift(implicit ec: TestScheduler) =
     ec.contextShift[IO]

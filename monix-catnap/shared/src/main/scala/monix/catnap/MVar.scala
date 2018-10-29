@@ -18,7 +18,7 @@
 package monix.catnap
 
 import cats.effect.concurrent.{MVar => CatsMVar}
-import cats.effect.{Async, Concurrent, Sync}
+import cats.effect.{Async, Concurrent, ContextShift}
 import monix.catnap.internals.AsyncUtils
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
@@ -153,14 +153,14 @@ object MVar {
     *
     * @see [[of]] and [[empty]]
     */
-  def apply[F[_]](implicit F: Concurrent[F] OrElse Async[F]): ApplyBuilders[F] =
+  def apply[F[_]](implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
 
   /**
     * Builds an [[MVar]] instance with an `initial` value.
     */
   def of[F[_], A](initial: A, ps: PaddingStrategy = NoPadding)
-    (implicit F: Concurrent[F] OrElse Async[F]): F[MVar[F, A]] = {
+    (implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F]): F[MVar[F, A]] = {
 
     F.fold(
       implicit F => F.delay(new MVar(new ConcurrentImpl(Some(initial), ps))),
@@ -172,7 +172,7 @@ object MVar {
     * Builds an empty [[MVar]] instance.
     */
   def empty[F[_], A](ps: PaddingStrategy = NoPadding)
-    (implicit F: Concurrent[F] OrElse Async[F]): F[MVar[F, A]] = {
+    (implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F]): F[MVar[F, A]] = {
 
     F.fold(
       implicit F => F.delay(new MVar(new ConcurrentImpl(None, ps))),
@@ -189,24 +189,23 @@ object MVar {
       *
       * @see documentation for [[MVar.of]]
       */
-    def of[A](a: A, ps: PaddingStrategy = NoPadding): F[MVar[F, A]] =
-      MVar.of(a, ps)(F)
+    def of[A](a: A, ps: PaddingStrategy = NoPadding)(implicit cs: ContextShift[F]): F[MVar[F, A]] =
+      MVar.of(a, ps)(F, cs)
 
     /**
       * Builds an empty `MVar`.
       *
       * @see documentation for [[MVar.empty]]
       */
-    def empty[A](ps: PaddingStrategy = NoPadding): F[MVar[F, A]] =
-      MVar.empty(ps)(F)
+    def empty[A](ps: PaddingStrategy = NoPadding)(implicit cs: ContextShift[F]): F[MVar[F, A]] =
+      MVar.empty(ps)(F, cs)
   }
 
   private trait Impl[F[_], A] { self: GenericVar[A, F[Unit]] =>
-    def F: Sync[F]
+    implicit def F: Async[F]
+    implicit def cs: ContextShift[F]
 
-    def put(a: A): F[Unit]
-    def take: F[A]
-    def read: F[A]
+    protected def create[T](k: (Either[Throwable, T] => Unit) => F[Unit]): F[T]
 
     final def isEmpty: F[Boolean] =
       F.delay(unsafeIsEmpty())
@@ -216,37 +215,62 @@ object MVar {
       F.delay(unsafeTryTake())
     final def tryRead: F[Option[A]] =
       F.delay(unsafeTryRead())
+
+    final def put(a: A): F[Unit] =
+      F.suspend {
+        if (unsafeTryPut(a))
+          F.unit
+        else
+          F.flatMap(AsyncUtils.cancelable[F, Unit](unsafePut(a, _)))(bindFork)
+      }
+
+    final def take: F[A] =
+      F.suspend[A] {
+        unsafeTryTake() match {
+          case Some(a) => F.pure(a)
+          case None =>
+            F.flatMap(AsyncUtils.cancelable[F, A](unsafeTake))(
+              bindForkA.asInstanceOf[A => F[A]])
+        }
+      }
+
+    final def read: F[A] =
+      AsyncUtils.cancelable { cb => unsafeRead(cb) }
+
+    private[this] val bindFork: (Unit => F[Unit]) = {
+      val shift = cs.shift
+      _ => shift
+    }
+
+    private[this] val bindForkA: (Any => F[Any]) = {
+      val shift = cs.shift
+      x => F.map(shift)(_ => x)
+    }
   }
 
-  private final class AsyncImpl[F[_], A](initial: Option[A], ps: PaddingStrategy)
-    (implicit val F: Async[F])
+  private final class AsyncImpl[F[_], A](
+    initial: Option[A],
+    ps: PaddingStrategy)
+    (implicit val F: Async[F], val cs: ContextShift[F])
     extends GenericVar[A, F[Unit]](initial, ps) with Impl[F, A] {
 
+    protected def create[T](k: (Either[Throwable, T] => Unit) => F[Unit]): F[T] =
+      AsyncUtils.cancelable(k)
     override protected def makeCancelable(f: Id => Unit, id: Id): F[Unit] =
       F.delay(f(id))
     override protected def emptyCancelable: F[Unit] =
       F.unit
-    def put(a: A): F[Unit] =
-      AsyncUtils.cancelable { cb => unsafePut(a, cb) }
-    def take: F[A] =
-      AsyncUtils.cancelable { cb => unsafeTake(cb) }
-    def read: F[A] =
-      AsyncUtils.cancelable { cb => unsafeRead(cb) }
   }
 
   private final class ConcurrentImpl[F[_], A](initial: Option[A], ps: PaddingStrategy)
-    (implicit val F: Concurrent[F])
+    (implicit val F: Concurrent[F], val cs: ContextShift[F])
     extends GenericVar[A, F[Unit]](initial, ps) with Impl[F, A] {
 
+    protected def create[T](k: (Either[Throwable, T] => Unit) => F[Unit]): F[T] =
+      F.cancelable(k)
     override protected def makeCancelable(f: Id => Unit, id: Id): F[Unit] =
       F.delay(f(id))
     override protected def emptyCancelable: F[Unit] =
       F.unit
-    def put(a: A): F[Unit] =
-      F.cancelable { cb => unsafePut(a, cb) }
-    def take: F[A] =
-      F.cancelable { cb => unsafeTake(cb) }
-    def read: F[A] =
-      F.cancelable { cb => unsafeRead(cb) }
   }
 }
