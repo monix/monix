@@ -74,7 +74,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
     val count = if (Platform.isJVM) 100000 else 1000
 
     val futures = for (i <- 0 until count) yield
-      semaphore.withPermit(() => Future(i))
+      semaphore.withPermit(() => Future(i)) : Future[Int]
     val sum =
       Future.sequence(futures).map(_.sum)
 
@@ -163,7 +163,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
               assert(!allReleased.isCompleted, s"!allReleased.isCompleted (index $i)")
               x
             }
-          }
+          } : Future[Int]
         }
         Future.sequence(futures).map { x => x.sum }
       }
