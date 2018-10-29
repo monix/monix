@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+/*
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
@@ -154,3 +155,4 @@ object TaskShiftBenchmark {
       ctx.scheduler.executeTrampolined(() => cb.onSuccess(()))
     }
 }
+ */

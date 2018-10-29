@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+/*
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
@@ -77,3 +78,4 @@ class TaskDeepBindBenchmark {
     Await.result(loop(0).runAsync, Duration.Inf)
   }
 }
+*/
