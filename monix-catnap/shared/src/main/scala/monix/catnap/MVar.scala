@@ -201,7 +201,6 @@ object MVar {
       MVar.empty(ps)(F, cs)
   }
 
-
   private trait Impl[F[_], A] { self: GenericVar[A, F[Unit]] =>
     implicit def F: Async[F]
     implicit def cs: ContextShift[F]

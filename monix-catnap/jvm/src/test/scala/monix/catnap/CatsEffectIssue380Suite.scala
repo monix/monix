@@ -59,4 +59,36 @@ object CatsEffectIssue380Suite extends SimpleTestSuite {
       service.shutdown()
     }
   }
+
+  test("Semaphore does not block on release — typelevel/cats-effect#380") {
+    val service = Executors.newSingleThreadScheduledExecutor()
+    implicit val ec = ExecutionContext.global
+    implicit val cs = IO.contextShift(ec)
+    implicit val timer = IO.timer(ec, service)
+
+    try {
+      for (_ <- 0 until 10) {
+        val cancelLoop = Atomic(false)
+        val unit = IO {
+          if (cancelLoop.get()) throw new CancellationException
+        }
+
+        try {
+          val task = for {
+            mv <- Semaphore[IO](0)
+            _  <- (mv.acquire *> unit.foreverM).start
+            _  <- timer.sleep(100.millis)
+            _  <- mv.release
+          } yield ()
+
+          val dt = 10.seconds
+          assert(task.unsafeRunTimed(dt).nonEmpty, s"timed-out after $dt")
+        } finally {
+          cancelLoop := true
+        }
+      }
+    } finally {
+      service.shutdown()
+    }
+  }
 }
