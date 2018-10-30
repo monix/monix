@@ -30,6 +30,8 @@ import scala.concurrent.duration._
 /**
   * A high-performance, back-pressured, asynchronous queue implementation.
   *
+  * This is the impure, future-enabled version of [[monix.catnap.ConcurrentQueue]].
+  *
   * ==Example==
   *
   * {{{
@@ -45,7 +47,7 @@ import scala.concurrent.duration._
   *
   *   def consumer(index: Int): CancelableFuture[Unit] =
   *     queue.poll().flatMap { a =>
-  *       println(s"Worker $index: $a")
+  *       println(s"Worker $$index: $$a")
   *     }
   * }}}
   *
@@ -307,6 +309,20 @@ object AsyncQueue {
     *        that due to performance optimizations, the actual capacity gets
     *        rounded to a power of 2, so the actual capacity may be slightly
     *        different than the one specified
+    */
+  def apply[A](capacity: Int)(implicit scheduler: Scheduler): AsyncQueue[A] =
+    configure(capacity)
+
+  /**
+    * Builds an [[AsyncQueue]] with fine-tuned config parameters.
+    *
+    * This is unsafe due to problems that can happen via selecting the
+    * wrong [[ChannelType]], so use with care.
+    *
+    * @param capacity is the maximum capacity of the internal buffer; note
+    *        that due to performance optimizations, the actual capacity gets
+    *        rounded to a power of 2, so the actual capacity may be slightly
+    *        different than the one specified
     *
     * @param channelType (UNSAFE) specifies the concurrency scenario, for
     *        fine tuning the performance
@@ -314,7 +330,8 @@ object AsyncQueue {
     * @param retryDelay configures the polling strategy, see the documentation
     *        on [[AsyncQueue]].
     */
-  def apply[A](
+  @UnsafeProtocol
+  def configure[A](
     capacity: Int,
     channelType: ChannelType = MPMC,
     retryDelay: FiniteDuration = 10.millis)
