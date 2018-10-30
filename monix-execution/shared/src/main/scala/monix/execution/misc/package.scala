@@ -23,4 +23,10 @@ package object misc {
 
   @deprecated("Moved to package monix.execution", "3.0.0")
   def AsyncVar = monix.execution.AsyncVar
+
+  @deprecated("Moved to package monix.execution", "3.0.0")
+  type AsyncSemaphore = monix.execution.AsyncSemaphore
+
+  @deprecated("Moved to package monix.execution", "3.0.0")
+  def AsyncSemaphore = monix.execution.AsyncSemaphore
 }

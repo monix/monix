@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-package monix.execution.misc
+package monix.execution
 
 import minitest.TestSuite
+import monix.execution.misc.AsyncQueue
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 

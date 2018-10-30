@@ -4,7 +4,19 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0_RC2 = Seq(
+    //
+    // BREAKING CHANGES: Semaphore
+    //
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncSemaphore$CancelAcquisition"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncSemaphore$State"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncSemaphore$State$"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncSemaphore"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncSemaphore$"),
+    exclude[MissingClassProblem]("monix.eval.TaskSemaphore$"),
+    exclude[MissingClassProblem]("monix.eval.TaskSemaphore"),
+    //
     // BREAKING CHANGES: MVar
+    //
     exclude[MissingClassProblem]("monix.eval.MVar"),
     exclude[MissingClassProblem]("monix.eval.MVar$"),
     exclude[MissingClassProblem]("monix.eval.MVar$AsyncMVarImpl"),
