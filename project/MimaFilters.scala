@@ -5,6 +5,17 @@ object MimaFilters {
 
   lazy val changesFor_3_0_0_RC2 = Seq(
     //
+    // BREAKING CHANGES: AsyncQueue
+    //
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue#FromMessagePassingQueue.drain"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue.drain"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue.drainToBuffer"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue#FromAbstractQueue.drain"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncQueue$State$"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncQueue$"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncQueue$State"),
+    exclude[MissingClassProblem]("monix.execution.misc.AsyncQueue"),
+    //
     // BREAKING CHANGES: Semaphore
     //
     exclude[MissingClassProblem]("monix.execution.misc.AsyncSemaphore$CancelAcquisition"),

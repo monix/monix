@@ -15,129 +15,159 @@
  * limitations under the License.
  */
 
-package monix.execution
+package monix.catnap
 
 import java.util.concurrent.atomic.AtomicLong
-
+import cats.implicits._
+import cats.effect.{ContextShift, IO, Timer}
 import minitest.TestSuite
 import monix.execution.BufferCapacity.{Bounded, Unbounded}
 import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
+import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
-
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.util.Success
 
-object AsyncQueueSuite extends TestSuite[TestScheduler] {
+object ConcurrentQueueSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
-  def testSimpleOfferAndPoll(queue: AsyncQueue[Int])(implicit s: Scheduler) = {
-    queue.offer(1)
-    queue.offer(2)
-    queue.offer(3)
+  implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
+    s.contextShift[IO](IO.ioEffect)
+  implicit def timer(implicit s: Scheduler): Timer[IO] =
+    s.timerLiftIO[IO](IO.ioEffect)
 
-    assertEquals(queue.poll().value, Some(Success(1)))
-    assertEquals(queue.poll().value, Some(Success(2)))
-    assertEquals(queue.poll().value, Some(Success(3)))
+  test("simple offer and poll") { implicit s =>
+    val queue = ConcurrentQueue[IO].custom[Int](Bounded(10)).unsafeRunSync()
+
+    queue.offer(1).unsafeRunSync()
+    queue.offer(2).unsafeRunSync()
+    queue.offer(3).unsafeRunSync()
+
+    assertEquals(queue.poll.unsafeRunSync(), 1)
+    assertEquals(queue.poll.unsafeRunSync(), 2)
+    assertEquals(queue.poll.unsafeRunSync(), 3)
   }
 
-  test("simple offer and poll (bounded)") { implicit s =>
-    testSimpleOfferAndPoll(AsyncQueue.bounded[Int](capacity = 10))
-  }
+  test("async poll") { implicit s =>
+    val queue = ConcurrentQueue[IO].bounded[Int](10).unsafeRunSync()
 
-  test("simple offer and poll (unbounded)") { implicit s =>
-    testSimpleOfferAndPoll(AsyncQueue.unbounded[Int]())
-  }
+    queue.offer(1).unsafeRunSync()
+    assertEquals(queue.poll.unsafeRunSync(), 1)
 
-  def testAsyncPoll(queue: AsyncQueue[Int])(implicit s: TestScheduler) = {
-    queue.offer(1)
-    assertEquals(queue.poll().value, Some(Success(1)))
-
-    val f = queue.poll()
+    val f = queue.poll.unsafeToFuture()
     assertEquals(f.value, None)
 
-    queue.offer(2); s.tick()
+    queue.offer(2).unsafeRunSync(); s.tick()
     assertEquals(f.value, Some(Success(2)))
   }
 
-  test("async poll (bounded)") { implicit s =>
-    testAsyncPoll(AsyncQueue.bounded[Int](capacity = 10))
-  }
-
-  test("async poll (unbounded)") { implicit s =>
-    testAsyncPoll(AsyncQueue.bounded[Int](capacity = 10))
-  }
-
-  def tryOfferTryPollTest(queue: AsyncQueue[Int])(implicit s: Scheduler) = {
+  test("offer/poll over capacity (TestScheduler)") { implicit s =>
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(10))
     val count = 1000
 
-    def producer(n: Int): Future[Unit] =
-      if (n > 0) Future(queue.tryOffer(count - n)).flatMap {
-        case true => producer(n - 1)
-        case false => producer(n)
-      } else {
-        Future.successful(())
-      }
+    def producer(n: Int): IO[Unit] =
+      if (n > 0) queue.offer(count - n).flatMap(_ => producer(n - 1))
+      else IO.unit
 
-    def consumer(n: Int, acc: Queue[Int] = Queue.empty): Future[Long] =
+    def consumer(n: Int, acc: Queue[Int] = Queue.empty): IO[Long] =
       if (n > 0)
-        Future(queue.tryPoll()).flatMap {
-          case Some(a) => consumer(n - 1, acc.enqueue(a))
-          case None => consumer(n, acc)
-        }
+        queue.poll.flatMap { a => consumer(n - 1, acc.enqueue(a)) }
       else
-        Future.successful(acc.sum)
+        IO.pure(acc.sum)
 
-    val p = producer(count)
-    val c = consumer(count)
+    val p = producer(count).unsafeToFuture()
+    val f = consumer(count).unsafeToFuture()
 
-    for (_ <- p; r <- c) yield {
+    s.tick()
+    assertEquals(p.value, Some(Success(())))
+    assertEquals(f.value.flatMap(_.toOption), Some(count * (count - 1) / 2))
+  }
+
+  testAsync("offer/poll over capacity (global)") { _ =>
+    import Scheduler.Implicits.global
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(10))
+    val count = 1000
+
+    def producer(n: Int): IO[Unit] =
+      if (n > 0) queue.offer(count - n).flatMap(_ => producer(n - 1))
+      else IO.unit
+
+    def consumer(n: Int, acc: Queue[Int] = Queue.empty): IO[Long] =
+      if (n > 0)
+        queue.poll.flatMap { a => consumer(n - 1, acc.enqueue(a)) }
+      else
+        IO.pure(acc.sum)
+
+    val p = producer(count).unsafeToFuture()
+    val f = consumer(count).unsafeToFuture()
+
+    for (_ <- p; r <- f) yield {
       assertEquals(r, count * (count - 1) / 2)
     }
   }
 
-  test("tryOffer / tryPoll / bounded / TestScheduler") { implicit s =>
-    tryOfferTryPollTest(AsyncQueue.bounded[Int](capacity = 16))(s)
+  def tryOfferTryPollTest(implicit s: Scheduler) = {
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(16))
+    val count = 1000
+
+    def producer(n: Int): IO[Unit] =
+      if (n > 0) queue.tryOffer(count - n).flatMap {
+        case true => producer(n - 1)
+        case false => IO.shift *> producer(n)
+      } else {
+        IO.unit
+      }
+
+    def consumer(n: Int, acc: Queue[Int] = Queue.empty): IO[Long] =
+      if (n > 0)
+        queue.tryPoll.flatMap {
+          case Some(a) => consumer(n - 1, acc.enqueue(a))
+          case None => IO.shift *> consumer(n, acc)
+        }
+      else
+        IO.pure(acc.sum)
+
+    (producer(count), consumer(count)).parMapN {
+      case (_, r) => assertEquals(r, count * (count - 1) / 2)
+    }.unsafeToFuture()
+  }
+
+  test("tryOffer / tryPoll (TestScheduler)") { implicit s =>
+    tryOfferTryPollTest(s)
     s.tick()
   }
 
-  test("tryOffer / tryPoll / unbounded / TestScheduler") { implicit s =>
-    tryOfferTryPollTest(AsyncQueue.unbounded[Int]())(s)
-    s.tick()
-  }
-
-  testAsync("tryOffer / tryPoll / bounded / global") { _ =>
+  testAsync("tryOffer / tryPoll (global)") { _ =>
     import Scheduler.Implicits.global
-    tryOfferTryPollTest(AsyncQueue.bounded[Int](capacity = 16))(global)
-  }
-
-  testAsync("tryOffer / tryPoll / unbounded / global") { _ =>
-    import Scheduler.Implicits.global
-    tryOfferTryPollTest(AsyncQueue.unbounded[Int]())(global)
+    tryOfferTryPollTest(global)
   }
 
   test("drain (TestScheduler)") { implicit s =>
-    val queue = AsyncQueue.bounded[Int](capacity = 10)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(10))
 
     val count = 1000
     val elems = for (i <- 0 until count) yield i
-    queue.offerMany(elems:_*)
 
-    val f = queue.drain(1000, 1000); s.tick()
+    val p = queue.offerMany(elems:_*).unsafeToFuture()
+    val f = queue.drain(count, count).unsafeToFuture()
+
+    s.tick()
+    assertEquals(p.value, Some(Success(())))
     assertEquals(f.value.flatMap(_.map(_.sum).toOption), Some(count * (count - 1) / 2))
   }
 
   testAsync("drain (global)") { _ =>
     import Scheduler.Implicits.global
-    val queue = AsyncQueue.bounded[Int](capacity = 10)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(10))
 
     val count = 1000
     val elems = for (i <- 0 until count) yield i
-    val f1 = queue.offerMany(elems:_*)
-    val f2 = queue.drain(1000, 1000)
+    val f1 = queue.offerMany(elems:_*).unsafeToFuture()
+    val f2 = queue.drain(1000, 1000).unsafeToFuture()
 
     for (_ <- f1; r2 <- f2) yield {
       assertEquals(r2.sum, count * (count - 1) / 2)
@@ -145,66 +175,67 @@ object AsyncQueueSuite extends TestSuite[TestScheduler] {
   }
 
   test("clear") { implicit s =>
-    val queue = AsyncQueue.bounded[Int](capacity = 10)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(10))
 
-    queue.offer(1)
-    queue.clear()
+    queue.offer(1).unsafeRunSync()
+    queue.clear.unsafeRunSync()
 
-    val value = queue.tryPoll()
+    val value = queue.tryPoll.unsafeRunSync()
     assertEquals(value, None)
   }
 
+
   test("concurrent producer - consumer; MPMC; bounded  ; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.custom[Int](Bounded(128), MPMC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), MPMC)
     val f = testConcurrency(queue, 1000, 3)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; MPMC; unbounded; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.custom[Int](Unbounded(), MPMC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Unbounded(), MPMC)
     val f = testConcurrency(queue, 1000, 3)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; MPSC; bounded  ; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.custom[Int](Bounded(128), MPSC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), MPSC)
     val f = testConcurrency(queue, 1000, 1)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; MPSC; unbounded; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.custom[Int](Unbounded(), MPSC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Unbounded(), MPSC)
     val f = testConcurrency(queue, 1000, 1)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; SPMC; bounded  ; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.custom[Int](Bounded(128), SPMC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), SPMC)
     val f = testConcurrency(queue, 1000, 3)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; SPMC; unbounded; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.custom[Int](Unbounded(), SPMC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Unbounded(), SPMC)
     val f = testConcurrency(queue, 1000, 3)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; SPSC; bounded  ; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.custom[Int](Bounded(128), SPSC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), SPSC)
     val f = testConcurrency(queue, 1000, 1)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; SPSC; unbounded; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.custom[Int](Bounded(128), SPSC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), SPSC)
     val f = testConcurrency(queue, 1000, 1)
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -213,67 +244,67 @@ object AsyncQueueSuite extends TestSuite[TestScheduler] {
   testAsync("concurrent producer - consumer; MPMC; bounded  ; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.custom[Int](Bounded(128), MPMC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), MPMC)
     testConcurrency(queue, count, 3)
   }
 
   testAsync("concurrent producer - consumer; MPMC; unbounded; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.custom[Int](Unbounded(), MPMC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Unbounded(), MPMC)
     testConcurrency(queue, count, 3)
   }
 
   testAsync("concurrent producer - consumer; MPSC; bounded  ; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.custom[Int](Bounded(128), MPSC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), MPSC)
     testConcurrency(queue, count, 1)
   }
 
   testAsync("concurrent producer - consumer; MPSC; unbounded; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.custom[Int](Unbounded(), MPSC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Unbounded(), MPSC)
     testConcurrency(queue, count, 1)
   }
 
   testAsync("concurrent producer - consumer; SPMC; bounded  ; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.custom[Int](Bounded(128), SPMC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), SPMC)
     testConcurrency(queue, count, 3)
   }
 
   testAsync("concurrent producer - consumer; SPMC; unbounded; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.custom[Int](Unbounded(), SPMC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Unbounded(), SPMC)
     testConcurrency(queue, count, 3)
   }
 
   testAsync("concurrent producer - consumer; SPSC; bounded  ; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.custom[Int](Bounded(128), SPSC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), SPSC)
     testConcurrency(queue, count, 1)
   }
 
   testAsync("concurrent producer - consumer; SPSC; unbounded; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.custom[Int](Unbounded(), SPSC)
+    val queue = ConcurrentQueue[IO].unsafe[Int](Unbounded(), SPSC)
     testConcurrency(queue, count, 1)
   }
 
-  def testConcurrency(queue: AsyncQueue[Int], n: Int, workers: Int)
+  def testConcurrency(queue: ConcurrentQueue[IO, Int], n: Int, workers: Int)
     (implicit s: Scheduler): Future[Unit] = {
 
-    def producer(n: Int): Future[Unit] = {
-      def offerViaTry(a: Int): Future[Unit] =
-        Future.successful(queue.tryOffer(a)).flatMap {
-          case true => Future.successful(())
-          case false => offerViaTry(a)
+    def producer(n: Int): IO[Unit] = {
+      def offerViaTry(n: Int): IO[Unit] =
+        queue.tryOffer(n).flatMap {
+          case true => IO.unit
+          case false => offerViaTry(n)
         }
 
       if (n > 0) {
@@ -285,29 +316,26 @@ object AsyncQueueSuite extends TestSuite[TestScheduler] {
     }
 
     val atomic = new AtomicLong(0)
-    def consumer(idx: Int = 0): Future[Unit] = {
-      def pollViaTry(): Future[Int] =
-        Future.successful(queue.tryPoll()).flatMap {
-          case Some(v) => Future.successful(v)
-          case None => pollViaTry()
+    def consumer(idx: Int = 0): IO[Unit] = {
+      def pollViaTry: IO[Int] =
+        queue.tryPoll.flatMap {
+          case Some(v) => IO.pure(v)
+          case None => IO.shift *> pollViaTry
         }
 
-      val poll =
-        if (idx % 2 == 0) queue.poll()
-        else pollViaTry()
-
+      val poll = if (idx % 2 == 0) queue.poll else pollViaTry
       poll.flatMap { i =>
         if (i > 0) {
           atomic.addAndGet(i)
           consumer(idx + 1)
         } else {
-          CancelableFuture.unit
+          IO.unit
         }
       }
     }
 
-    val futures = producer(n) +: (0 until workers).map(_ => consumer())
-    for (_ <- Future.sequence(futures)) yield {
+    val tasks = (producer(n) +: (0 until workers).map(_ => consumer())).toList
+    for (_ <- tasks.parSequence.unsafeToFuture()) yield {
       assertEquals(atomic.get(), n.toLong * (n + 1) / 2)
     }
   }

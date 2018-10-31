@@ -153,7 +153,7 @@ object MVar {
     *
     * @see [[of]] and [[empty]]
     */
-  def apply[F[_]](implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F]): ApplyBuilders[F] =
+  def apply[F[_]](implicit F: Concurrent[F] OrElse Async[F]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
 
   /**

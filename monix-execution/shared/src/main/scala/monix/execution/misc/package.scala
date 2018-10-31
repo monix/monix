@@ -18,15 +18,21 @@
 package monix.execution
 
 package object misc {
-  @deprecated("Moved to package monix.execution", "3.0.0")
+  @deprecated("Switch to monix.execution.AsyncVar", "3.0.0")
   type AsyncVar[A] = monix.execution.AsyncVar[A]
 
-  @deprecated("Moved to package monix.execution", "3.0.0")
+  @deprecated("Switch to monix.execution.AsyncVar", "3.0.0")
   def AsyncVar = monix.execution.AsyncVar
 
-  @deprecated("Moved to package monix.execution", "3.0.0")
+  @deprecated("Switch to monix.execution.AsyncSemaphore", "3.0.0")
   type AsyncSemaphore = monix.execution.AsyncSemaphore
 
-  @deprecated("Moved to package monix.execution", "3.0.0")
+  @deprecated("Switch to monix.execution.AsyncSemaphore", "3.0.0")
   def AsyncSemaphore = monix.execution.AsyncSemaphore
+
+  @deprecated("Switch to monix.execution.AsyncQueue", "3.0.0")
+  type AsyncQueue[A] = monix.execution.AsyncQueue[A]
+
+  @deprecated("Switch to monix.execution.AsyncQueue", "3.0.0")
+  def AsyncQueue = monix.execution.AsyncQueue
 }

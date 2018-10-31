@@ -15,24 +15,24 @@
  * limitations under the License.
  */
 
-/*
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-import monix.eval.Task
+import monix.execution.ChannelType.{MPMC, SPMC, SPSC}
+import monix.execution.{AsyncQueue, CancelableFuture, ChannelType}
 import org.openjdk.jmh.annotations._
-import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 /** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark TaskAttemptBenchmark
+  *     benchmarks/run-benchmark AsyncQueueBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TaskAttemptBenchmark
+  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.AsyncQueueBenchmark
   *
   * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
   * Please note that benchmarks should be usually executed at least in
@@ -41,34 +41,45 @@ import scala.concurrent.duration.Duration
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class TaskAttemptBenchmark {
+class AsyncQueueBenchmark {
   @Param(Array("10000"))
   var size: Int = _
 
   @Benchmark
-  def happyPath(): Int = {
-    def loop(i: Int): Task[Int] =
-      if (i < size) Task.pure(i + 1).attempt.flatMap(_.fold(Task.raiseError, loop))
-      else Task.pure(i)
-
-    Await.result(loop(0).runAsync, Duration.Inf)
+  def spsc(): Long = {
+    test(producers = 1, workers = 1, channelType = SPSC)
   }
 
   @Benchmark
-  def errorRaised(): Int = {
-    val dummy = new RuntimeException("dummy")
-    val id = Task.pure[Int] _
+  def spmc(): Long = {
+    test(producers = 1, workers = 4, channelType = SPMC)
+  }
 
-    def loop(i: Int): Task[Int] =
-      if (i < size)
-        Task.raiseError[Int](dummy)
-          .flatMap(x => Task.pure(x + 1))
-          .attempt
-          .flatMap(_.fold(_ => loop(i + 1), id))
+  @Benchmark
+  def mpmc(): Long = {
+    test(producers = 4, workers = 4, channelType = MPMC)
+  }
+
+  def test(producers: Int, workers: Int, channelType: ChannelType): Long = {
+    val queue = AsyncQueue[Int](capacity = 1024, channelType = channelType)
+    val workers = 1
+
+    def producer(n: Int): Future[Long] =
+      if (n > 0)
+        queue.offer(n).flatMap(_ => producer(n - 1))
       else
-        Task.pure(i)
+        CancelableFuture.successful(0L)
 
-    Await.result(loop(0).runAsync, Duration.Inf)
+    def consumer(n: Int, acc: Long): Future[Long] =
+      if (n > 0) queue.poll().flatMap(i => consumer(n - 1, acc + i))
+      else CancelableFuture.successful(acc)
+
+    val producerTasks = (0 until producers).map(_ => producer(size / producers))
+    val workerTasks = (0 until workers).map(_ => consumer(size / workers, 0))
+
+    val futures = producerTasks ++ workerTasks
+    val r = for (l <- Future.sequence(futures)) yield l.sum
+    Await.result(r, Duration.Inf)
   }
 }
-*/
+
