@@ -41,7 +41,7 @@ object ConcurrentQueueSuite extends TestSuite[TestScheduler] {
     s.timerLiftIO[IO](IO.ioEffect)
 
   test("simple offer and poll") { implicit s =>
-    val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(10))
+    val queue = ConcurrentQueue[IO].custom[Int](Bounded(10)).unsafeRunSync()
 
     queue.offer(1).unsafeRunSync()
     queue.offer(2).unsafeRunSync()

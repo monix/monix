@@ -67,20 +67,30 @@ import scala.concurrent.duration._
   *
   * ==Back-Pressuring and the Polling Model==
   *
-  * The initialized queue is limited to a specified buffer size, a size that
-  * could be rounded to a power of 2, so you can't rely on it to be precise.
+  * The initialized queue can be limited to a maximum buffer size, a size
+  * that could be rounded to a power of 2, so you can't rely on it to be
+  * precise. Such a bounded queue can be initialized via
+  * [[monix.catnap.ConcurrentQueue.bounded ConcurrentQueue.bounded]].
+  * Also see [[monix.execution.BufferCapacity BufferCapacity]], the
+  * configuration parameter that can be passed in the
+  * [[monix.catnap.ConcurrentQueue.custom ConcurrentQueue.custom]]
+  * builder.
   *
   * On [[offer]], when the queue is full, the implementation back-pressures
   * until the queue has room again in its internal buffer, the future being
   * completed when the value was pushed successfully. Similarly [[poll]] awaits
-  * the queue to have items in it.
+  * the queue to have items in it. This works for both bounded and unbounded queues.
+  *
+  * For both `offer` and `poll`, in case awaiting a result happens, the
+  * implementation does so asynchronously, without any threads being blocked.
   *
   * Currently the implementation is optimized for speed. In a producer-consumer
   * pipeline the best performance is achieved if the producer(s) and the
   * consumer(s) do not contend for the same resources. This is why when
   * doing asynchronous waiting for the queue to be empty or full, the
   * implementation does so by repeatedly retrying the operation, with
-  * asynchronous boundaries and delays, until it succeeds.
+  * asynchronous boundaries and delays, until it succeeds. Fairness is
+  * ensured by the implementation.
   *
   * ==Multi-threading Scenario==
   *
@@ -103,7 +113,7 @@ import scala.concurrent.duration._
   *   import monix.execution.ChannelType.MPSC
   *   import monix.execution.BufferCapacity.Bounded
   *
-  *   val queue = ConcurrentQueue[IO].configure[Int](
+  *   val queue = ConcurrentQueue[IO].custom[Int](
   *     capacity = Bounded(128),
   *     channelType = MPSC
   *   )
@@ -215,10 +225,11 @@ final class ConcurrentQueue[F[_], A] private (
     */
   def drain(minLength: Int, maxLength: Int): F[Seq[A]] =
     F.suspend {
-      assert(minLength <= maxLength, s"minSize ($minLength) <= bufferSize ($maxLength")
+      assert(minLength <= maxLength, s"minLength ($minLength) <= maxLength ($maxLength")
       val buffer = ArrayBuffer.empty[A]
-      // Happy path
+
       val length = queue.drainToBuffer(buffer, maxLength)
+      // Happy path
       if (length >= minLength) {
         F.pure(toSeq(buffer))
       } else {
@@ -350,7 +361,7 @@ object ConcurrentQueue {
     * @param F $asyncParam
     */
   def bounded[F[_], A](capacity: Int)(implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-    configure(Bounded(capacity), MPMC)
+    custom(Bounded(capacity), MPMC)
 
   /**
     * Builds an unlimited [[ConcurrentQueue]] that can use the entire memory
@@ -369,7 +380,7 @@ object ConcurrentQueue {
     */
   def unbounded[F[_], A](chunkSizeHint: Option[Int] = None)
     (implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-    configure(Unbounded(chunkSizeHint), MPMC)
+    custom(Unbounded(chunkSizeHint), MPMC)
 
   /**
     * Builds an [[ConcurrentQueue]] with fined tuned config parameters.
@@ -384,7 +395,7 @@ object ConcurrentQueue {
     * @param F $asyncParam
     */
   @UnsafeProtocol
-  def configure[F[_], A](
+  def custom[F[_], A](
     capacity: BufferCapacity,
     channelType: ChannelType)
     (implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] = {
@@ -401,7 +412,7 @@ object ConcurrentQueue {
     *
     * '''UNSAFE BECAUSE IMPURE:''' this builder violates referential
     * transparency, as the queue keeps internal, shared state. Only use when
-    * you know what you're doing, otherwise prefer [[ConcurrentQueue.configure]]
+    * you know what you're doing, otherwise prefer [[ConcurrentQueue.custom]]
     * or [[ConcurrentQueue.bounded]].
     *
     * @param capacity $bufferCapacityParam
@@ -436,11 +447,11 @@ object ConcurrentQueue {
       ConcurrentQueue.unbounded(chunkSizeHint)(F, timer)
 
     /**
-      * @see documentation for [[ConcurrentQueue.configure]]
+      * @see documentation for [[ConcurrentQueue.custom]]
       */
-    def configure[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
+    def custom[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
       (implicit timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-      ConcurrentQueue.configure(capacity, channelType)(F, timer)
+      ConcurrentQueue.custom(capacity, channelType)(F, timer)
 
     /**
       * @see documentation for [[ConcurrentQueue.unsafe]]

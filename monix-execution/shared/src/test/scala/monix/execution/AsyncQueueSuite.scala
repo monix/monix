@@ -155,56 +155,56 @@ object AsyncQueueSuite extends TestSuite[TestScheduler] {
   }
 
   test("concurrent producer - consumer; MPMC; bounded  ; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.configure[Int](Bounded(128), MPMC)
+    val queue = AsyncQueue.custom[Int](Bounded(128), MPMC)
     val f = testConcurrency(queue, 1000, 3)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; MPMC; unbounded; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.configure[Int](Unbounded(), MPMC)
+    val queue = AsyncQueue.custom[Int](Unbounded(), MPMC)
     val f = testConcurrency(queue, 1000, 3)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; MPSC; bounded  ; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.configure[Int](Bounded(128), MPSC)
+    val queue = AsyncQueue.custom[Int](Bounded(128), MPSC)
     val f = testConcurrency(queue, 1000, 1)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; MPSC; unbounded; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.configure[Int](Unbounded(), MPSC)
+    val queue = AsyncQueue.custom[Int](Unbounded(), MPSC)
     val f = testConcurrency(queue, 1000, 1)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; SPMC; bounded  ; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.configure[Int](Bounded(128), SPMC)
+    val queue = AsyncQueue.custom[Int](Bounded(128), SPMC)
     val f = testConcurrency(queue, 1000, 3)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; SPMC; unbounded; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.configure[Int](Unbounded(), SPMC)
+    val queue = AsyncQueue.custom[Int](Unbounded(), SPMC)
     val f = testConcurrency(queue, 1000, 3)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; SPSC; bounded  ; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.configure[Int](Bounded(128), SPSC)
+    val queue = AsyncQueue.custom[Int](Bounded(128), SPSC)
     val f = testConcurrency(queue, 1000, 1)
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
   test("concurrent producer - consumer; SPSC; unbounded; TestScheduler") { implicit s =>
-    val queue = AsyncQueue.configure[Int](Bounded(128), SPSC)
+    val queue = AsyncQueue.custom[Int](Bounded(128), SPSC)
     val f = testConcurrency(queue, 1000, 1)
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -213,56 +213,56 @@ object AsyncQueueSuite extends TestSuite[TestScheduler] {
   testAsync("concurrent producer - consumer; MPMC; bounded  ; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.configure[Int](Bounded(128), MPMC)
+    val queue = AsyncQueue.custom[Int](Bounded(128), MPMC)
     testConcurrency(queue, count, 3)
   }
 
   testAsync("concurrent producer - consumer; MPMC; unbounded; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.configure[Int](Unbounded(), MPMC)
+    val queue = AsyncQueue.custom[Int](Unbounded(), MPMC)
     testConcurrency(queue, count, 3)
   }
 
   testAsync("concurrent producer - consumer; MPSC; bounded  ; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.configure[Int](Bounded(128), MPSC)
+    val queue = AsyncQueue.custom[Int](Bounded(128), MPSC)
     testConcurrency(queue, count, 1)
   }
 
   testAsync("concurrent producer - consumer; MPSC; unbounded; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.configure[Int](Unbounded(), MPSC)
+    val queue = AsyncQueue.custom[Int](Unbounded(), MPSC)
     testConcurrency(queue, count, 1)
   }
 
   testAsync("concurrent producer - consumer; SPMC; bounded  ; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.configure[Int](Bounded(128), SPMC)
+    val queue = AsyncQueue.custom[Int](Bounded(128), SPMC)
     testConcurrency(queue, count, 3)
   }
 
   testAsync("concurrent producer - consumer; SPMC; unbounded; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.configure[Int](Unbounded(), SPMC)
+    val queue = AsyncQueue.custom[Int](Unbounded(), SPMC)
     testConcurrency(queue, count, 3)
   }
 
   testAsync("concurrent producer - consumer; SPSC; bounded  ; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.configure[Int](Bounded(128), SPSC)
+    val queue = AsyncQueue.custom[Int](Bounded(128), SPSC)
     testConcurrency(queue, count, 1)
   }
 
   testAsync("concurrent producer - consumer; SPSC; unbounded; real scheduler") { _ =>
     import Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 1000
-    val queue = AsyncQueue.configure[Int](Unbounded(), SPSC)
+    val queue = AsyncQueue.custom[Int](Unbounded(), SPSC)
     testConcurrency(queue, count, 1)
   }
 

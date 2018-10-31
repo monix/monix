@@ -53,20 +53,29 @@ import scala.concurrent.duration._
   *
   * ==Back-Pressuring and the Polling Model==
   *
-  * The initialized queue is limited to a specified buffer size, a size that
-  * could be rounded to a power of 2, so you can't rely on it to be precise.
+  * The initialized queue can be limited to a maximum buffer size, a size
+  * that could be rounded to a power of 2, so you can't rely on it to be
+  * precise. Such a bounded queue can be initialized via
+  * [[monix.execution.AsyncQueue.bounded AsyncQueue.bounded]].
+  * Also see [[BufferCapacity]], the configuration parameter that can be
+  * passed in the [[monix.execution.AsyncQueue.custom AsyncQueue.custom]]
+  * builder.
   *
   * On [[offer]], when the queue is full, the implementation back-pressures
   * until the queue has room again in its internal buffer, the future being
   * completed when the value was pushed successfully. Similarly [[poll]] awaits
-  * the queue to have items in it.
+  * the queue to have items in it. This works for both bounded and unbounded queues.
+  *
+  * For both `offer` and `poll`, in case awaiting a result happens, the
+  * implementation does so asynchronously, without any threads being blocked.
   *
   * Currently the implementation is optimized for speed. In a producer-consumer
   * pipeline the best performance is achieved if the producer(s) and the
   * consumer(s) do not contend for the same resources. This is why when
   * doing asynchronous waiting for the queue to be empty or full, the
   * implementation does so by repeatedly retrying the operation, with
-  * asynchronous boundaries and delays, until it succeeds.
+  * asynchronous boundaries and delays, until it succeeds. Fairness is
+  * ensured by the implementation.
   *
   * ==Multi-threading Scenario==
   *
@@ -207,9 +216,9 @@ final class AsyncQueue[A] private (
     */
   @UnsafeBecauseImpure
   def drain(minLength: Int, maxLength: Int): CancelableFuture[Seq[A]] = {
-    assert(minLength <= maxLength, s"minSize ($minLength) <= bufferSize ($maxLength")
-
+    assert(minLength <= maxLength, s"minLength ($minLength) <= maxLength ($maxLength")
     val buffer = ArrayBuffer.empty[A]
+
     val length = queue.drainToBuffer(buffer, maxLength)
     if (length >= minLength) {
       CancelableFuture.successful(toSeq(buffer))
@@ -315,7 +324,7 @@ object AsyncQueue {
     */
   @UnsafeBecauseImpure
   def bounded[A](capacity: Int)(implicit s: Scheduler): AsyncQueue[A] =
-    configure(BufferCapacity.Bounded(capacity), MPMC)
+    custom(BufferCapacity.Bounded(capacity), MPMC)
 
   /**
     * Builds an unlimited [[AsyncQueue]] that can use the entire memory
@@ -335,7 +344,7 @@ object AsyncQueue {
     */
   @UnsafeBecauseImpure
   def unbounded[A](chunkSizeHint: Option[Int] = None)(implicit s: Scheduler): AsyncQueue[A] =
-    configure(BufferCapacity.Unbounded(chunkSizeHint), MPMC)
+    custom(BufferCapacity.Unbounded(chunkSizeHint), MPMC)
 
   /**
     * Builds an [[AsyncQueue]] with fine-tuned config parameters.
@@ -351,7 +360,7 @@ object AsyncQueue {
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def configure[A](
+  def custom[A](
     capacity: BufferCapacity,
     channelType: ChannelType)
     (implicit scheduler: Scheduler): AsyncQueue[A] = {
