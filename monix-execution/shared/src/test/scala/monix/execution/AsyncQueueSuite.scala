@@ -68,7 +68,7 @@ object AsyncQueueSuite extends TestSuite[TestScheduler] {
         case true => producer(n - 1)
         case false => producer(n)
       } else {
-        Future.unit
+        Future.successful(())
       }
 
     def consumer(n: Int, acc: Queue[Int] = Queue.empty): Future[Long] =
