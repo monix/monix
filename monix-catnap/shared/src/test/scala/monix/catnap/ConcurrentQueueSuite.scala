@@ -110,6 +110,42 @@ object ConcurrentQueueSuite extends TestSuite[TestScheduler] {
     }
   }
 
+  def tryOfferTryPollTest(implicit s: Scheduler) = {
+    val queue = ConcurrentQueue[IO].unsafe[Int](capacity = 16)
+    val count = 1000
+
+    def producer(n: Int): IO[Unit] =
+      if (n > 0) queue.tryOffer(count - n).flatMap {
+        case true => producer(n - 1)
+        case false => IO.shift *> producer(n)
+      } else {
+        IO.unit
+      }
+
+    def consumer(n: Int, acc: Queue[Int] = Queue.empty): IO[Long] =
+      if (n > 0)
+        queue.tryPoll.flatMap {
+          case Some(a) => consumer(n - 1, acc.enqueue(a))
+          case None => IO.shift *> consumer(n, acc)
+        }
+      else
+        IO.pure(acc.sum)
+
+    (producer(count), consumer(count)).parMapN {
+      case (_, r) => assertEquals(r, count * (count - 1) / 2)
+    }.unsafeToFuture()
+  }
+
+  test("tryOffer / tryPoll (TestScheduler)") { implicit s =>
+    tryOfferTryPollTest(s)
+    s.tick()
+  }
+
+  testAsync("tryOffer / tryPoll (global)") { _ =>
+    import Scheduler.Implicits.global
+    tryOfferTryPollTest(global)
+  }
+
   test("drain (TestScheduler)") { implicit s =>
     val queue = ConcurrentQueue[IO].unsafe[Int](capacity = 10)
 

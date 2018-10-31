@@ -18,10 +18,14 @@
 package monix.execution
 
 import java.util.concurrent.atomic.AtomicLong
+
+import cats.effect.IO
 import minitest.TestSuite
 import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
 import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
+
+import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.util.Success
 
@@ -53,6 +57,45 @@ object AsyncQueueSuite extends TestSuite[TestScheduler] {
 
     queue.offer(2); s.tick()
     assertEquals(f.value, Some(Success(2)))
+  }
+
+  def tryOfferTryPollTest(implicit s: Scheduler) = {
+    val queue = AsyncQueue[Int](capacity = 16)
+    val count = 1000
+
+    def producer(n: Int): Future[Unit] =
+      if (n > 0) Future(queue.tryOffer(count - n)).flatMap {
+        case true => producer(n - 1)
+        case false => producer(n)
+      } else {
+        Future.unit
+      }
+
+    def consumer(n: Int, acc: Queue[Int] = Queue.empty): Future[Long] =
+      if (n > 0)
+        Future(queue.tryPoll()).flatMap {
+          case Some(a) => consumer(n - 1, acc.enqueue(a))
+          case None => consumer(n, acc)
+        }
+      else
+        Future.successful(acc.sum)
+
+    val p = producer(count)
+    val c = consumer(count)
+
+    for (_ <- p; r <- c) yield {
+      assertEquals(r, count * (count - 1) / 2)
+    }
+  }
+
+  test("tryOffer / tryPoll (TestScheduler)") { implicit s =>
+    tryOfferTryPollTest(s)
+    s.tick()
+  }
+
+  testAsync("tryOffer / tryPoll (global)") { _ =>
+    import Scheduler.Implicits.global
+    tryOfferTryPollTest(global)
   }
 
   test("drain (TestScheduler)") { implicit s =>
