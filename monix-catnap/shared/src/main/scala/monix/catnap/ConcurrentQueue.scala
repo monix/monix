@@ -80,15 +80,6 @@ import scala.concurrent.duration._
   * implementation does so by repeatedly retrying the operation, with
   * asynchronous boundaries and delays, until it succeeds.
   *
-  * The implementation does ensure fairness. This is the `retryDelay`
-  * parameter, available in [[ConcurrentQueue$.configure ConcurrentQueue.configure]]
-  * being set by default to `10 millis`, with the algorithm working like so:
-  *
-  *  - for the first 10 milliseconds, we keep retrying repeatedly, with
-  *    inserted async boundaries between requests (to ensure fairness)
-  *  - after the first 10 milliseconds, we insert a delay of 10 millis
-  *    between retries
-  *
   * ==Multi-threading Scenario==
   *
   * This queue support a [[monix.execution.ChannelType ChannelType]]
@@ -125,7 +116,7 @@ import scala.concurrent.duration._
 final class ConcurrentQueue[F[_], A] private (
   capacity: Int,
   channelType: ChannelType,
-  retryDelay: FiniteDuration)
+  retryDelay: FiniteDuration = 10.millis)
   (implicit F: Async[F], timer: Timer[F])
   extends Serializable {
 
@@ -323,9 +314,6 @@ final class ConcurrentQueue[F[_], A] private (
   *
   * @define channelTypeDesc (UNSAFE) specifies the concurrency scenario, for
   *         fine tuning the performance
-  *
-  * @define retryDelayDesc configures the polling strategy, see the documentation
-  *         on [[ConcurrentQueue]].
   */
 object ConcurrentQueue {
   /**
@@ -356,16 +344,14 @@ object ConcurrentQueue {
     *
     * @param capacity $capacityDesc
     * @param channelType $channelTypeDesc
-    * @param retryDelay $retryDelayDesc
     */
   @UnsafeProtocol
   def configure[F[_], A](
     capacity: Int,
-    channelType: ChannelType = MPMC,
-    retryDelay: FiniteDuration = 10.millis)
+    channelType: ChannelType = MPMC)
     (implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] = {
 
-    F.delay(unsafe(capacity, channelType, retryDelay))
+    F.delay(unsafe(capacity, channelType))
   }
 
   /**
@@ -382,17 +368,15 @@ object ConcurrentQueue {
     *
     * @param capacity $capacityDesc
     * @param channelType $channelTypeDesc
-    * @param retryDelay $retryDelayDesc
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafe[F[_], A](
     capacity: Int,
-    channelType: ChannelType = MPMC,
-    retryDelay: FiniteDuration = 10.millis)
+    channelType: ChannelType = MPMC)
     (implicit F: Async[F], timer: Timer[F]): ConcurrentQueue[F, A] = {
 
-    new ConcurrentQueue[F, A](capacity, channelType, retryDelay)(F, timer)
+    new ConcurrentQueue[F, A](capacity, channelType)(F, timer)
   }
 
   /**
@@ -408,15 +392,15 @@ object ConcurrentQueue {
     /**
       * @see documentation for [[ConcurrentQueue.configure]]
       */
-    def configure[A](capacity: Int, channelType: ChannelType = MPMC, retryDelay: FiniteDuration = 10.millis)
+    def configure[A](capacity: Int, channelType: ChannelType = MPMC)
       (implicit timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-      ConcurrentQueue.configure(capacity, channelType, retryDelay)(F, timer)
+      ConcurrentQueue.configure(capacity, channelType)(F, timer)
 
     /**
       * @see documentation for [[ConcurrentQueue.unsafe]]
       */
-    def unsafe[A](capacity: Int, channelType: ChannelType = MPMC, retryDelay: FiniteDuration = 10.millis)
+    def unsafe[A](capacity: Int, channelType: ChannelType = MPMC)
       (implicit timer: Timer[F]): ConcurrentQueue[F, A] =
-      ConcurrentQueue.unsafe(capacity, channelType, retryDelay)(F, timer)
+      ConcurrentQueue.unsafe(capacity, channelType)(F, timer)
   }
 }

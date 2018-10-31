@@ -68,15 +68,6 @@ import scala.concurrent.duration._
   * implementation does so by repeatedly retrying the operation, with
   * asynchronous boundaries and delays, until it succeeds.
   *
-  * The implementation does ensure fairness. This is the `retryDelay`
-  * parameter, available in [[monix.execution.AsyncQueue.apply AsyncQueue.apply]]
-  * being set by default to `10 millis`, with the algorithm working like so:
-  *
-  *  - for the first 10 milliseconds, we keep retrying repeatedly, with
-  *    inserted async boundaries between requests (to ensure fairness)
-  *  - after the first 10 milliseconds, we insert a delay of 10 millis
-  *    between retries
-  *
   * ==Multi-threading Scenario==
   *
   * This queue support a [[ChannelType]] configuration, for fine tuning
@@ -109,7 +100,7 @@ import scala.concurrent.duration._
 final class AsyncQueue[A] private (
   capacity: Int,
   channelType: ChannelType,
-  retryDelay: FiniteDuration)
+  retryDelay: FiniteDuration = 10.millis)
   (implicit scheduler: Scheduler) {
 
   /** Try pushing a value to the queue.
@@ -146,6 +137,7 @@ final class AsyncQueue[A] private (
     * @return a [[CancelableFuture]] that will eventually complete with a
     *         value; it can also be cancelled, interrupting the waiting
     */
+  @UnsafeBecauseImpure
   def poll(): CancelableFuture[A] = {
     val happy = queue.poll()
     if (happy != null) CancelableFuture.successful(happy)
@@ -164,6 +156,7 @@ final class AsyncQueue[A] private (
     *         push has succeeded; it can also be cancelled, interrupting the
     *         waiting
     */
+  @UnsafeBecauseImpure
   def offer(a: A): CancelableFuture[Unit] = {
     val happy = queue.offer(a)
     if (happy == 0) CancelableFuture.unit
@@ -176,6 +169,7 @@ final class AsyncQueue[A] private (
     *         push has succeeded; it can also be cancelled, interrupting the
     *         waiting
     */
+  @UnsafeBecauseImpure
   def offerMany(seq: A*): CancelableFuture[Unit] = {
     def reschedule(cursor: Iterator[A], c: MultiAssignCancelable): CancelableFuture[Unit] =
       loop(cursor, c)
@@ -211,6 +205,7 @@ final class AsyncQueue[A] private (
     * @return a future with a sequence of length between minLength and maxLength;
     *         it can also be cancelled, interrupting the wait
     */
+  @UnsafeBecauseImpure
   def drain(minLength: Int, maxLength: Int): CancelableFuture[Seq[A]] = {
     assert(minLength <= maxLength, s"minSize ($minLength) <= bufferSize ($maxLength")
 
@@ -241,6 +236,7 @@ final class AsyncQueue[A] private (
     * '''WARNING:''' the `clear` operation should be done on the consumer side,
     * so it must be called from the same thread(s) that call [[poll]].
     */
+  @UnsafeBecauseImpure
   def clear(): Unit = queue.clear()
 
   private[this] val queue: ConcurrentQueue[A] =
@@ -310,6 +306,7 @@ object AsyncQueue {
     *        rounded to a power of 2, so the actual capacity may be slightly
     *        different than the one specified
     */
+  @UnsafeBecauseImpure
   def apply[A](capacity: Int)(implicit scheduler: Scheduler): AsyncQueue[A] =
     configure(capacity)
 
@@ -326,17 +323,14 @@ object AsyncQueue {
     *
     * @param channelType (UNSAFE) specifies the concurrency scenario, for
     *        fine tuning the performance
-    *
-    * @param retryDelay configures the polling strategy, see the documentation
-    *        on [[AsyncQueue]].
     */
   @UnsafeProtocol
+  @UnsafeBecauseImpure
   def configure[A](
     capacity: Int,
-    channelType: ChannelType = MPMC,
-    retryDelay: FiniteDuration = 10.millis)
+    channelType: ChannelType = MPMC)
     (implicit scheduler: Scheduler): AsyncQueue[A] = {
 
-    new AsyncQueue[A](capacity, channelType, retryDelay)
+    new AsyncQueue[A](capacity, channelType)
   }
 }
