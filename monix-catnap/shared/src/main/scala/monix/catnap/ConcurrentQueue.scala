@@ -19,10 +19,12 @@ package monix.catnap
 
 import cats.effect.{Async, Timer}
 import cats.implicits._
-import monix.execution.ChannelType
+import monix.execution.BufferCapacity.{Bounded, Unbounded}
+import monix.execution.{BufferCapacity, ChannelType}
 import monix.execution.ChannelType.MPMC
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.internal.collection.{ConcurrentQueue => LowLevelQueue}
+
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 
@@ -50,7 +52,7 @@ import scala.concurrent.duration._
   *     }
 
   *   for {
-  *     queue     <- ConcurrentQueue[IO].of[Int](capacity = 32)
+  *     queue     <- ConcurrentQueue[IO].bounded[Int](capacity = 32)
   *     consumer1 <- consumer(queue, 1).start
   *     consumer2 <- consumer(queue, 1).start
   *     // Pushing some samples
@@ -99,9 +101,10 @@ import scala.concurrent.duration._
   *
   * {{{
   *   import monix.execution.ChannelType.MPSC
+  *   import monix.execution.BufferCapacity.Bounded
   *
-  *   val queue = ConcurrentQueue[IO].configure(
-  *     capacity = 64,
+  *   val queue = ConcurrentQueue[IO].configure[Int](
+  *     capacity = Bounded(128),
   *     channelType = MPSC
   *   )
   * }}}
@@ -114,7 +117,7 @@ import scala.concurrent.duration._
   * have, then just stick with the default `MPMC`.
   */
 final class ConcurrentQueue[F[_], A] private (
-  capacity: Int,
+  capacity: BufferCapacity,
   channelType: ChannelType,
   retryDelay: FiniteDuration = 10.millis)
   (implicit F: Async[F], timer: Timer[F])
@@ -307,13 +310,18 @@ final class ConcurrentQueue[F[_], A] private (
 }
 
 /**
-  * @define capacityDesc is the maximum capacity of the internal buffer; note
-  *         that due to performance optimizations, the actual capacity gets
-  *         rounded to a power of 2, so the actual capacity may be slightly
-  *         different than the one specified
-  *
   * @define channelTypeDesc (UNSAFE) specifies the concurrency scenario, for
   *         fine tuning the performance
+  *
+  * @define bufferCapacityParam specifies the `BufferCapacity`, which can be
+  *         either "bounded" (with a maximum capacity), or "unbounded"
+  *
+  * @define asyncParam is a `cats.effect.Async` type class restriction; this
+  *         queue is built to work with any `Async` data type
+  *
+  * @define timerParam is a `Timer`, needed for asynchronous waiting on `poll`
+  *         when the queue is empty or for back-pressuring `offer` when the
+  *         queue is full
   */
 object ConcurrentQueue {
   /**
@@ -328,12 +336,40 @@ object ConcurrentQueue {
     new ApplyBuilders[F](F)
 
   /**
-    * Builds an [[ConcurrentQueue]].
+    * Builds a limited capacity and back-pressured [[ConcurrentQueue]].
     *
-    * @param capacity $capacityDesc
+    * @see [[unbounded]] for building an unbounded queue that can use the
+    *      entire memory available to the process.
+    *
+    * @param capacity is the maximum capacity of the internal buffer; note
+    *        that due to performance optimizations, the capacity of the internal
+    *        buffer can get rounded to a power of 2, so the actual capacity may
+    *        be slightly different than the one specified
+    *
+    * @param timer $timerParam
+    * @param F $asyncParam
     */
-  def of[F[_], A](capacity: Int)(implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-    configure(capacity)
+  def bounded[F[_], A](capacity: Int)(implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] =
+    configure(Bounded(capacity), MPMC)
+
+  /**
+    * Builds an unlimited [[ConcurrentQueue]] that can use the entire memory
+    * available to the process.
+    *
+    * @see [[bounded]] for building a limited capacity queue.
+    *
+    * @param chunkSizeHint is an optimization parameter — the underlying
+    *        implementation may use an internal buffer that uses linked
+    *        arrays, in which case the "chunk size" represents the size
+    *        of a chunk; providing it is just a hint, it may or may not be
+    *        used
+    *
+    * @param timer $timerParam
+    * @param F $asyncParam
+    */
+  def unbounded[F[_], A](chunkSizeHint: Option[Int] = None)
+    (implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] =
+    configure(Unbounded(chunkSizeHint), MPMC)
 
   /**
     * Builds an [[ConcurrentQueue]] with fined tuned config parameters.
@@ -342,20 +378,22 @@ object ConcurrentQueue {
     * via selecting the wrong [[monix.execution.ChannelType ChannelType]],
     * so use with care.
     *
-    * @param capacity $capacityDesc
+    * @param capacity $bufferCapacityParam
     * @param channelType $channelTypeDesc
+    * @param timer $timerParam
+    * @param F $asyncParam
     */
   @UnsafeProtocol
   def configure[F[_], A](
-    capacity: Int,
-    channelType: ChannelType = MPMC)
+    capacity: BufferCapacity,
+    channelType: ChannelType)
     (implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] = {
 
     F.delay(unsafe(capacity, channelType))
   }
 
   /**
-    * The unsafe version of the [[ConcurrentQueue.of]] builder.
+    * The unsafe version of the [[ConcurrentQueue.bounded]] builder.
     *
     * '''UNSAFE PROTOCOL:''' This is unsafe due to problems that can happen
     * via selecting the wrong [[monix.execution.ChannelType ChannelType]],
@@ -364,15 +402,17 @@ object ConcurrentQueue {
     * '''UNSAFE BECAUSE IMPURE:''' this builder violates referential
     * transparency, as the queue keeps internal, shared state. Only use when
     * you know what you're doing, otherwise prefer [[ConcurrentQueue.configure]]
-    * or [[ConcurrentQueue.of]].
+    * or [[ConcurrentQueue.bounded]].
     *
-    * @param capacity $capacityDesc
+    * @param capacity $bufferCapacityParam
     * @param channelType $channelTypeDesc
+    * @param timer $timerParam
+    * @param F $asyncParam
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafe[F[_], A](
-    capacity: Int,
+    capacity: BufferCapacity,
     channelType: ChannelType = MPMC)
     (implicit F: Async[F], timer: Timer[F]): ConcurrentQueue[F, A] = {
 
@@ -384,22 +424,28 @@ object ConcurrentQueue {
     */
   final class ApplyBuilders[F[_]](val F: Async[F]) extends AnyVal {
     /**
-      * @see documentation for [[ConcurrentQueue.of]]
+      * @see documentation for [[ConcurrentQueue.bounded]]
       */
-    def of[A](capacity: Int)(implicit timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-      ConcurrentQueue.of(capacity)(F, timer)
+    def bounded[A](capacity: Int)(implicit timer: Timer[F]): F[ConcurrentQueue[F, A]] =
+      ConcurrentQueue.bounded(capacity)(F, timer)
+
+    /**
+      * @see documentation for [[ConcurrentQueue.unbounded]]
+      */
+    def unbounded[A](chunkSizeHint: Option[Int])(implicit timer: Timer[F]): F[ConcurrentQueue[F, A]] =
+      ConcurrentQueue.unbounded(chunkSizeHint)(F, timer)
 
     /**
       * @see documentation for [[ConcurrentQueue.configure]]
       */
-    def configure[A](capacity: Int, channelType: ChannelType = MPMC)
+    def configure[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
       (implicit timer: Timer[F]): F[ConcurrentQueue[F, A]] =
       ConcurrentQueue.configure(capacity, channelType)(F, timer)
 
     /**
       * @see documentation for [[ConcurrentQueue.unsafe]]
       */
-    def unsafe[A](capacity: Int, channelType: ChannelType = MPMC)
+    def unsafe[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
       (implicit timer: Timer[F]): ConcurrentQueue[F, A] =
       ConcurrentQueue.unsafe(capacity, channelType)(F, timer)
   }

@@ -28,7 +28,7 @@ private[internal] class FromMessagePassingQueue[A](queue: MessagePassingQueue[A]
     if (queue.offer(elem)) 0 else 1
   final def poll(): A =
     queue.poll()
-  def clear(): Unit =
+  final def clear(): Unit =
     queue.clear()
 
   final def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Int = {

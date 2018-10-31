@@ -98,7 +98,7 @@ import scala.concurrent.duration._
   * have, then just stick with the default `MPMC`.
   */
 final class AsyncQueue[A] private (
-  capacity: Int,
+  capacity: BufferCapacity,
   channelType: ChannelType,
   retryDelay: FiniteDuration = 10.millis)
   (implicit scheduler: Scheduler) {
@@ -299,16 +299,43 @@ final class AsyncQueue[A] private (
 
 object AsyncQueue {
   /**
-    * Builds an [[AsyncQueue]].
+    * Builds a limited capacity and back-pressured [[AsyncQueue]].
+    *
+    * @see [[unbounded]] for building an unbounded queue that can use the
+    *      entire memory available to the process.
     *
     * @param capacity is the maximum capacity of the internal buffer; note
     *        that due to performance optimizations, the actual capacity gets
     *        rounded to a power of 2, so the actual capacity may be slightly
     *        different than the one specified
+    *
+    * @param s is a [[Scheduler]], needed for asynchronous waiting on `poll`
+    *        when the queue is empty or for back-pressuring `offer` when the
+    *        queue is full
     */
   @UnsafeBecauseImpure
-  def apply[A](capacity: Int)(implicit scheduler: Scheduler): AsyncQueue[A] =
-    configure(capacity)
+  def bounded[A](capacity: Int)(implicit s: Scheduler): AsyncQueue[A] =
+    configure(BufferCapacity.Bounded(capacity), MPMC)
+
+  /**
+    * Builds an unlimited [[AsyncQueue]] that can use the entire memory
+    * available to the process.
+    *
+    * @see [[bounded]] for building a limited capacity queue.
+    *
+    * @param chunkSizeHint is an optimization parameter — the underlying
+    *        implementation may use an internal buffer that uses linked
+    *        arrays, in which case the "chunk size" represents the size
+    *        of a chunk; providing it is just a hint, it may or may not be
+    *        used
+    *
+    * @param s is a [[Scheduler]], needed for asynchronous waiting on `poll`
+    *        when the queue is empty or for back-pressuring `offer` when the
+    *        queue is full
+    */
+  @UnsafeBecauseImpure
+  def unbounded[A](chunkSizeHint: Option[Int] = None)(implicit s: Scheduler): AsyncQueue[A] =
+    configure(BufferCapacity.Unbounded(chunkSizeHint), MPMC)
 
   /**
     * Builds an [[AsyncQueue]] with fine-tuned config parameters.
@@ -316,10 +343,8 @@ object AsyncQueue {
     * This is unsafe due to problems that can happen via selecting the
     * wrong [[ChannelType]], so use with care.
     *
-    * @param capacity is the maximum capacity of the internal buffer; note
-    *        that due to performance optimizations, the actual capacity gets
-    *        rounded to a power of 2, so the actual capacity may be slightly
-    *        different than the one specified
+    * @param capacity specifies the [[BufferCapacity]], which can be either
+    *        "bounded" (with a maximum capacity), or "unbounded"
     *
     * @param channelType (UNSAFE) specifies the concurrency scenario, for
     *        fine tuning the performance
@@ -327,8 +352,8 @@ object AsyncQueue {
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def configure[A](
-    capacity: Int,
-    channelType: ChannelType = MPMC)
+    capacity: BufferCapacity,
+    channelType: ChannelType)
     (implicit scheduler: Scheduler): AsyncQueue[A] = {
 
     new AsyncQueue[A](capacity, channelType)

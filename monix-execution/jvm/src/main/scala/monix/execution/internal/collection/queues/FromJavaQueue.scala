@@ -17,16 +17,34 @@
 
 package monix.execution.internal.collection.queues
 
-import monix.execution.{BufferCapacity, ChannelType}
-import monix.execution.internal.collection.{ArrayQueue, ConcurrentQueue}
+import java.util
+import monix.execution.internal.collection.ConcurrentQueue
+import scala.collection.mutable
 
-private[internal] trait ConcurrentQueueBuilders {
-  /**
-    * Builds a `ConcurrentQueue` reference.
-    */
-  def apply[A](capacity: BufferCapacity, channelType: ChannelType): ConcurrentQueue[A] =
-    capacity match {
-      case BufferCapacity.Bounded(c) => ArrayQueue.bounded[A](c)
-      case BufferCapacity.Unbounded(_) => ArrayQueue.unbounded[A]
+private[internal] class FromJavaQueue[A](queue: util.Queue[A])
+  extends ConcurrentQueue[A] {
+
+  final def offer(elem: A): Int =
+    if (queue.offer(elem)) 0 else 1
+
+  final def poll(): A =
+    queue.poll()
+
+  final def clear(): Unit =
+    queue.clear()
+
+  final def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Int = {
+    var idx = 0
+    var hasElems = true
+    while (hasElems && idx < limit) {
+      val a = queue.poll()
+      if (a != null) {
+        buffer += a
+        idx += 1
+      } else {
+        hasElems = false
+      }
     }
+    idx
+  }
 }

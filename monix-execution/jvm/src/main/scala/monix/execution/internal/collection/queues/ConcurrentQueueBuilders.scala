@@ -17,18 +17,30 @@
 
 package monix.execution.internal.collection.queues
 
-import monix.execution.ChannelType
+import java.util.concurrent.ConcurrentLinkedQueue
+
+import monix.execution.{BufferCapacity, ChannelType}
 import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
+import monix.execution.internal.Platform
 import monix.execution.internal.atomic.UnsafeAccess
 import monix.execution.internal.collection.ConcurrentQueue
-import org.jctools.queues.atomic.{MpmcAtomicArrayQueue, MpscAtomicArrayQueue, SpmcAtomicArrayQueue, SpscAtomicArrayQueue}
-import org.jctools.queues.{MpmcArrayQueue, MpscArrayQueue, SpmcArrayQueue, SpscArrayQueue}
+import org.jctools.queues._
+import org.jctools.queues.atomic._
 
 private[internal] trait ConcurrentQueueBuilders {
   /**
-    * Builds a `ConcurrentQueue` reference.
+    * Builds a concurrent queue.
     */
-  def apply[A](capacity: Int, channelType: ChannelType): ConcurrentQueue[A] =
+  def apply[A](capacity: BufferCapacity, channelType: ChannelType): ConcurrentQueue[A] =
+    capacity match {
+      case BufferCapacity.Bounded(c) => bounded(c, channelType)
+      case BufferCapacity.Unbounded(hint) => unbounded(hint, channelType)
+    }
+
+  /**
+    * Builds a bounded `ConcurrentQueue` reference.
+    */
+  def bounded[A](capacity: Int, channelType: ChannelType): ConcurrentQueue[A] =
     if (UnsafeAccess.IS_OPENJDK_COMPATIBLE)
       channelType match {
         case MPMC => new FromCircularQueue[A](new MpmcArrayQueue[A](capacity))
@@ -43,4 +55,23 @@ private[internal] trait ConcurrentQueueBuilders {
         case SPMC => new FromMessagePassingQueue[A](new SpmcAtomicArrayQueue[A](capacity))
         case SPSC => new FromMessagePassingQueue[A](new SpscAtomicArrayQueue[A](capacity))
       }
+
+  /**
+    * Builds an bounded `ConcurrentQueue` reference.
+    */
+  def unbounded[A](chunkSize: Option[Int], channelType: ChannelType): ConcurrentQueue[A] = {
+    val chunk = chunkSize.getOrElse(Platform.recommendedBatchSize)
+    if (UnsafeAccess.IS_OPENJDK_COMPATIBLE)
+      channelType match {
+        case MPSC => new FromMessagePassingQueue[A](new MpscUnboundedArrayQueue(chunk))
+        case SPSC => new FromMessagePassingQueue[A](new SpscUnboundedArrayQueue(chunk))
+        case _ => new FromJavaQueue[A](new ConcurrentLinkedQueue[A]())
+      }
+    else
+      channelType match {
+        case MPSC => new FromMessagePassingQueue[A](new MpscUnboundedAtomicArrayQueue(chunk))
+        case SPSC => new FromMessagePassingQueue[A](new SpscUnboundedAtomicArrayQueue(chunk))
+        case _ => new FromJavaQueue[A](new ConcurrentLinkedQueue[A]())
+      }
+  }
 }
