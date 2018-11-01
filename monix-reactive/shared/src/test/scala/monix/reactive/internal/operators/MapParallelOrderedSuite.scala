@@ -93,7 +93,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
         x
       }.delayExecution(1.second))
       .toListL
-      .runAsync
+      .runToFuture
 
     assertEquals(counter, 0)
     s.tick(1.second)
@@ -392,7 +392,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     val f = Observable.now(1)
       .mapParallelOrdered(parallelism = 4)(x => Task(x + 1).delayExecution(1.second))
       .sumL
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -437,7 +437,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
         case _ => Task.unit
       }
 
-    source.completedL.runAsync
+    source.completedL.runToFuture
     s.tick()
 
     assert(error)

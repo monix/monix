@@ -23,7 +23,7 @@ import java.util.concurrent.locks.ReentrantLock
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.execution.misc.AsyncSemaphore
+import monix.execution.AsyncSemaphore
 import monix.execution.{Ack, Cancelable, CancelableFuture}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
@@ -136,7 +136,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
         // No longer allowed to stream errors downstream
         streamErrors = false
         // Start execution
-        val future = task.runAsync
+        val future = task.runToFuture
         queue.offer(future)
         future.onComplete {
           case Success(_) =>
@@ -208,7 +208,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
       // We need to wait for all semaphore permits to be
       // released, otherwise we can lose events and that's
       // not acceptable for onComplete!
-      semaphore.awaitAllReleased().foreach { _ =>
+      semaphore.awaitAvailable(parallelism).foreach { _ =>
         if (!isDone) {
           isDone = true
           lastAck = Stop

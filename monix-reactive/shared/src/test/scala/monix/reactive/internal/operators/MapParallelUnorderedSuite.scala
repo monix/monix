@@ -392,7 +392,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
         case _ => Task.unit
       }
 
-    source.completedL.runAsync
+    source.completedL.runToFuture
     s.tick()
 
     assert(error)
