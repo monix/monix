@@ -24,7 +24,7 @@ import scala.util.{Success, Try}
   */
 private[monix] object Constants {
 
-  val eitherOfUnit: Either[Throwable, Unit] = Right(())
+  val eitherOfUnit: Either[Nothing, Unit] = Right(())
 
   val successOfUnit: Try[Unit] = Success(())
 }

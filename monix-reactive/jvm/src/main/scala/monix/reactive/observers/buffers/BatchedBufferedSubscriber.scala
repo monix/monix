@@ -39,7 +39,7 @@ private[monix] final class BatchedBufferedSubscriber[A] private
   override protected def fetchNext(): ListBuffer[A] = {
     val batchSize = Platform.recommendedBatchSize
     val buffer = ListBuffer.empty[A]
-    queue.drain(buffer, batchSize)
+    queue.drainToBuffer(buffer, batchSize)
     if (buffer.nonEmpty) buffer else null
   }
 }

@@ -168,9 +168,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     f.cancel()
     s.tick()
 
-    assertEquals(f.value, None)
     assert(wasClosed, "InputStream should have been closed")
-
     assertEquals(s.state.lastReportedError, null)
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }

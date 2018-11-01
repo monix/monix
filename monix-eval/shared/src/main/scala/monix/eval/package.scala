@@ -17,9 +17,11 @@
 
 package monix
 
+import cats.effect.concurrent.Semaphore
 import monix.catnap.CircuitBreaker
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
+
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 package object eval {
@@ -137,5 +139,85 @@ package object eval {
       CircuitBreaker.HalfOpen
       // $COVERAGE-ON$
     }
+  }
+
+  /** DEPRECATED — moved and made generic in [[monix.catnap.CircuitBreaker]].
+    *
+    * Please switch to that, because the deprecated symbols will be removed.
+    */
+  @deprecated("Moved and made generic in monix.catnap.MVar", "3.0.0")
+  type MVar[A] = monix.catnap.MVar[Task, A]
+
+  /** DEPRECATED — moved and made generic in [[monix.catnap.CircuitBreaker]].
+    *
+    * Please switch to that, because the deprecated symbols will be removed.
+    */
+  @deprecated("Moved and made generic in monix.catnap.MVar", "3.0.0")
+  object MVar {
+    /** DEPRECATED — please use [[monix.catnap.MVar.of]].
+      *
+      * Switch to the new version, because the deprecated symbols will be
+      * removed.
+      */
+    @deprecated("Moved to monix.catnap.MVar.of", "3.0.0")
+    def apply[A](initial: A): Task[monix.catnap.MVar[Task, A]] = {
+      // $COVERAGE-OFF$
+      monix.catnap.MVar[Task].of(initial)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — please use [[monix.catnap.MVar.empty]].
+      *
+      * Switch to the new version, because the deprecated symbols will be
+      * removed.
+      */
+    @deprecated("Moved to monix.catnap.MVar.of", "3.0.0")
+    def empty[A]: Task[monix.catnap.MVar[Task, A]] = {
+      // $COVERAGE-OFF$
+      monix.catnap.MVar[Task].empty()
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — please use [[monix.catnap.MVar.of]].
+      *
+      * Switch to the new version, because the deprecated symbols will be
+      * removed.
+      */
+    @deprecated("Moved to monix.catnap.MVar.of", "3.0.0")
+    def withPadding[A](initial: A, ps: PaddingStrategy): Task[monix.catnap.MVar[Task, A]] = {
+      // $COVERAGE-OFF$
+      monix.catnap.MVar[Task].of(initial, ps)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — please use [[monix.catnap.MVar.empty]].
+      *
+      * Switch to the new version, because the deprecated symbols will be
+      * removed.
+      */
+    @deprecated("Moved to monix.catnap.MVar.empty", "3.0.0")
+    def withPadding[A](ps: PaddingStrategy): Task[monix.catnap.MVar[Task, A]] = {
+      // $COVERAGE-OFF$
+      monix.catnap.MVar[Task].empty(ps)
+      // $COVERAGE-ON$
+    }
+  }
+
+  /** DEPRECATED — moved and made generic in [[monix.catnap.Semaphore]].
+    *
+    * Please switch to that, because the deprecated symbols will be removed.
+    */
+  @deprecated("Moved and made generic in monix.catnap.Semaphore", "3.0.0")
+  type TaskSemaphore = monix.catnap.Semaphore[Task]
+
+  /** DEPRECATED — moved and made generic in [[monix.catnap.Semaphore]].
+    *
+    * Please switch to that, because the deprecated symbols will be removed.
+    */
+  @deprecated("Moved and made generic in monix.catnap.Semaphore", "3.0.0")
+  object TaskSemaphore {
+    @deprecated("Switch to monix.catnap.Semaphore.apply", "3.0.0")
+    def apply(maxParallelism: Int): Task[Semaphore[Task]] =
+      Semaphore[Task](maxParallelism)
   }
 }

@@ -50,7 +50,7 @@ final class AtomicNumberAny[A  <: AnyRef : Numeric] private[atomic] (initialValu
     ref = update
   }
 
-  def get: A = ref
+  def get(): A = ref
 
   def getAndSubtract(v: A): A = {
     val c = ref

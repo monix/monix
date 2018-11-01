@@ -85,10 +85,10 @@ trait TaskApp {
   final def main(args: Array[String]): Unit = {
     val self = this
     val app = new IOApp {
-      override lazy val timer: Timer[IO] =
-        scheduler.timer[IO]
-      override lazy val contextShift: ContextShift[IO] =
-        scheduler.contextShift[IO]
+      override implicit lazy val contextShift: ContextShift[IO] =
+        scheduler.contextShift[IO](IO.ioEffect)
+      override implicit lazy val timer: Timer[IO] =
+        scheduler.timerLiftIO[IO](IO.ioEffect)
       def run(args: List[String]): IO[ExitCode] =
         self.run(args).toIO
     }

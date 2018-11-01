@@ -258,8 +258,7 @@ abstract class BatchCursor[+A] extends Serializable {
   *         This will have lower performance than working with
   *         [[BatchCursor.fromArray[A](array:Array[A])* BatchCursor.fromArray]],
   *         since the values are boxed, however there is no requirement for a
-  *         [[scala.reflect.ClassTag ClassTag]] and thus it can
-  *         be used in any generic context.
+  *         `ClassTag` and thus it can be used in any generic context.
   *
   * @define paramArray is the underlying reference to use for traversing
   *         and transformations

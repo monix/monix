@@ -179,7 +179,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromIO is cancelable") { implicit s =>
-    val timer = s.timer[IO]
+    val timer = s.timerLiftIO[IO]
     val io = timer.sleep(10.seconds)
     val f = Task.fromIO(io).runToFuture
 

@@ -269,7 +269,8 @@ object Scheduler extends SchedulerCompanionImpl {
 
     /**
       * Derives a `cats.effect.Timer` from [[Scheduler]] for any
-      * data type that has a `cats.effect.LiftIO` implementation.
+      * data type that has a `cats.effect.Concurrent` type class
+      * instance.
       *
       * {{{
       *   implicit val timer: Timer[IO] = scheduler.timer[IO]
@@ -279,7 +280,33 @@ object Scheduler extends SchedulerCompanionImpl {
       *   }
       * }}}
       */
-    def timer[F[_]](implicit F: Async[F]): Timer[F] =
+    def timer[F[_]](implicit F: Concurrent[F]): Timer[F] =
+      new Timer[F] {
+        override def sleep(d: FiniteDuration): F[Unit] =
+          F.cancelable { cb =>
+            source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
+              .toCancelToken[F]
+          }
+        override def clock: Clock[F] =
+          source.clock
+      }
+
+    /**
+      * Derives a `cats.effect.Timer` from [[Scheduler]] for any
+      * data type that has a `cats.effect.LiftIO` instance.
+      *
+      * This is the relaxed [[timer]] method, needing only `LiftIO`
+      * to work, by piggybacking on `cats.effect.IO`.
+      *
+      * {{{
+      *   implicit val timer: Timer[IO] = scheduler.timerLiftIO[IO]
+      *
+      *   IO.sleep(10.seconds).flatMap { _ =>
+      *     IO(println("Delayed hello!"))
+      *   }
+      * }}}
+      */
+    def timerLiftIO[F[_]](implicit F: LiftIO[F]): Timer[F] =
       new Timer[F] {
         override def sleep(d: FiniteDuration): F[Unit] =
           F.liftIO(IO.cancelable { cb =>
@@ -287,7 +314,12 @@ object Scheduler extends SchedulerCompanionImpl {
               .toCancelToken[IO]
           })
         override def clock: Clock[F] =
-          source.clock
+          new Clock[F] {
+            def realTime(unit: TimeUnit): F[Long] =
+              F.liftIO(IO(source.clockRealTime(unit)))
+            def monotonic(unit: TimeUnit): F[Long] =
+              F.liftIO(IO(source.clockMonotonic(unit)))
+          }
       }
 
     /**

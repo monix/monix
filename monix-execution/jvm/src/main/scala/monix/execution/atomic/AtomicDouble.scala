@@ -30,7 +30,7 @@ import monix.execution.internal.atomic.{BoxedLong, Factory}
 final class AtomicDouble private (val ref: BoxedLong)
   extends AtomicNumber[Double] {
 
-  def get: Double = longBitsToDouble(ref.volatileGet())
+  def get(): Double = longBitsToDouble(ref.volatileGet())
   def set(update: Double): Unit = ref.volatileSet(doubleToLongBits(update))
   def lazySet(update: Double): Unit = ref.lazySet(doubleToLongBits(update))
 

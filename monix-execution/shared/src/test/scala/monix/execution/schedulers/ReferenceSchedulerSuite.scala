@@ -158,7 +158,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
   test("timer.sleep") {
     val s = new DummyScheduler
-    val timer = s.timer[IO]
+    val timer = s.timerLiftIO[IO]
 
     val f = timer.sleep(10.seconds).unsafeToFuture()
     assertEquals(f.value, None)
