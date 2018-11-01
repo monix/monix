@@ -17,45 +17,35 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.{Ack, AsyncSemaphore, Callback, Cancelable}
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.locks.ReentrantLock
+
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.reactive.{Observable, OverflowStrategy}
+import monix.execution.AsyncSemaphore
+import monix.execution.{Ack, Cancelable, CancelableFuture}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.reactive.{Observable, OverflowStrategy}
+
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
-/** Implementation for a `mapTask`-like operator that can execute
-  * multiple tasks in parallel. Similar with
-  * [[monix.reactive.Consumer.loadBalance(parallelism* Consumer.loadBalance]],
-  * but expressed as an operator.
-  *
-  * Implementation considerations:
-  *
-  *  - given we've got concurrency in processing `onNext` events, we need
-  *    to use a concurrent buffer to guarantee safety
-  *  - to ensure the required parallelism factor, we are using an
-  *    [[monix.execution.AsyncSemaphore]]
-  */
-private[reactive] final class MapParallelUnorderedObservable[A,B](
-   source: Observable[A],
-   parallelism: Int,
-   f: A => Task[B],
-   overflowStrategy: OverflowStrategy[B])
-  extends Observable[B] {
+private[reactive] final class MapParallelOrderedObservable[A, B](
+  source: Observable[A],
+  parallelism: Int,
+  f: A => Task[B],
+  overflowStrategy: OverflowStrategy[B]) extends Observable[B] {
 
-  def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
+  override def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     if (parallelism <= 0) {
       out.onError(new IllegalArgumentException("parallelism > 0"))
       Cancelable.empty
-    }
-    else if (parallelism == 1) {
+    } else if (parallelism == 1) {
       // optimization for one worker
-      new MapTaskObservable[A,B](source, f).unsafeSubscribeFn(out)
-    }
-    else {
+      new MapTaskObservable[A, B](source, f).unsafeSubscribeFn(out)
+    } else {
       val composite = CompositeCancelable()
       val subscription = new MapAsyncParallelSubscription(out, composite)
       composite += source.unsafeSubscribeFn(subscription)
@@ -64,8 +54,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
   }
 
   private final class MapAsyncParallelSubscription(
-    out: Subscriber[B], composite: CompositeCancelable)
-    extends Subscriber[A] with Cancelable { self =>
+    out: Subscriber[B], composite: CompositeCancelable) extends Subscriber[A] with Cancelable { self =>
 
     implicit val scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
@@ -85,6 +74,52 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
     // coming from the `buffer` - this indicates that the downstream
     // no longer wants any events, so we must cancel
     private[this] var lastAck: Ack = Continue
+    // Buffer for signaling new elements downstream preserving original order
+    // It needs to be thread safe Queue because we want to allow adding and removing
+    // elements at the same time.
+    private[this] val queue = new ConcurrentLinkedQueue[CancelableFuture[B]]
+    // This lock makes sure that only one thread at the time sends processed elements downstream
+    // Note that we only use `tryLock()` - we never wait for acquiring lock
+    private[this] val sendDownstreamLock = new ReentrantLock()
+
+    private def shouldStop: Boolean = isDone || lastAck == Stop
+
+    private def sendDownstreamOrdered(): Unit = {
+      // Only one thread should poll queue for completed tasks
+      // We can ignore it if there is one doing the work
+      if (sendDownstreamLock.tryLock()) {
+        try {
+        // Keep checking the head of a queue since we have to signal elements in order
+          while (!shouldStop && !queue.isEmpty && queue.peek().isCompleted) {
+            val head = queue.poll()
+            head.value match {
+              case Some(Success(value)) =>
+                buffer.onNext(value).syncOnComplete {
+                  case Success(Stop) =>
+                    lastAck = Stop
+                    composite.cancel()
+                  case Success(Continue) =>
+                    semaphore.release()
+                    composite -= head.cancelable
+                  case Failure(ex) =>
+                    lastAck = Stop
+                    composite -= head.cancelable
+                    self.onError(ex)
+                }
+
+              case Some(Failure(error)) =>
+                lastAck = Stop
+                composite -= head.cancelable
+                self.onError(error)
+
+              case None => // shouldn't get here, we already checked for completion
+            }
+          }
+        } finally {
+          sendDownstreamLock.unlock()
+        }
+      }
+    }
 
     private def process(elem: A) = {
       // For protecting against user code, without violating the
@@ -97,33 +132,25 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
         val subscription = SingleAssignCancelable()
         composite += subscription
 
-        val task = {
-          val ref = f(elem).redeem(
-            error => {
-              lastAck = Stop
-              composite -= subscription
-              self.onError(error)
-            },
-            value => buffer.onNext(value).syncOnComplete {
-              case Success(Stop) =>
-                lastAck = Stop
-                composite.cancel()
-              case Success(Continue) =>
-                semaphore.release()
-                composite -= subscription
-              case Failure(ex) =>
-                lastAck = Stop
-                composite -= subscription
-                self.onError(ex)
-            })
-
-          ref.doOnCancel(releaseTask)
-        }
-
+        val task = f(elem).doOnCancel(releaseTask)
         // No longer allowed to stream errors downstream
         streamErrors = false
         // Start execution
-        subscription := task.runAsync(Callback.empty)
+        val future = task.runToFuture
+        queue.offer(future)
+        future.onComplete {
+          case Success(_) =>
+            // Current task finished, we can check if there is
+            // something to send to the downstream subscriber
+            sendDownstreamOrdered()
+
+          case Failure(error) =>
+            lastAck = Stop
+            composite -= subscription
+            self.onError(error)
+        }
+
+        subscription := future.cancelable
       } catch {
         case ex if NonFatal(ex) =>
           if (streamErrors) self.onError(ex)
@@ -133,30 +160,31 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
 
     def onNext(elem: A): Future[Ack] = {
       // Light protection, since access isn't synchronized
-      if (lastAck == Stop || isDone) Stop else {
+      if (shouldStop) Stop
+      else {
         // This will wait asynchronously, if there are no permits left
         val permit = semaphore.acquire()
+        composite += permit
+
         val ack: Future[Ack] = permit.value match {
-          case None => permit.flatMap(_ => Continue)
-          case Some(_) => Continue
+          case None =>
+            permit.flatMap { _ =>
+              composite -= permit
+              process(elem)
+              Continue
+            }
+          case Some(_) =>
+            composite -= permit
+            process(elem)
+            Continue
         }
 
-        composite += permit
         ack.onComplete {
-          case Success(_) =>
-            // Take out the garbage
-            composite -= permit
-            // Actual processing and sending, however we are not
-            // applying back-pressure here. The back-pressure applied
-            // is solely on `semaphore.acquire()` and that's it.
-            // Indirectly it will also back-pressure on the buffer when
-            // full, but that happens because of how we `release()`
-            process(elem)
-
           case Failure(ex) =>
             // Take out the garbage
             composite -= permit
             self.onError(ex)
+          case _ =>
         }
 
         // As noted already, the back-pressure happening here
@@ -169,6 +197,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
       if (!isDone) {
         isDone = true
         lastAck = Stop
+        queue.clear()
         // Outsourcing the handling and safety of onError
         // to our concurrent buffer implementation
         buffer.onError(ex)
@@ -197,4 +226,5 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
       composite.cancel()
     }
   }
+
 }

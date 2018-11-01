@@ -2099,6 +2099,35 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
     * applies it in parallel on the source, but with a specified
     * `parallelism`, which indicates the maximum number of tasks that
+    * can be executed in parallel returning them preserving original order.
+    *
+    * Similar in spirit with
+    * [[monix.reactive.Consumer.loadBalance[A,R](parallelism* Consumer.loadBalance]],
+    * but expressed as an operator that executes [[monix.eval.Task Task]]
+    * instances in parallel.
+    *
+    * Note that when the specified `parallelism` is 1, it has the same
+    * behavior as [[mapEval]].
+    *
+    * @param parallelism is the maximum number of tasks that can be executed
+    *        in parallel, over which the source starts being
+    *        back-pressured
+    *
+    * @param f is the mapping function that produces tasks to execute
+    *        in parallel, which will eventually produce events for the
+    *        resulting observable stream
+    *
+    * @see [[mapParallelUnordered]] for a variant that does not preserve order
+    *     which may lead to faster execution times
+    * @see [[mapEval]] for serial execution
+    */
+  final def mapParallelOrdered[B](parallelism: Int)(f: A => Task[B])
+    (implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+    new MapParallelOrderedObservable[A, B](self, parallelism, f, os)
+
+  /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
+    * applies it in parallel on the source, but with a specified
+    * `parallelism`, which indicates the maximum number of tasks that
     * can be executed in parallel.
     *
     * Similar in spirit with
@@ -2117,6 +2146,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        in parallel, which will eventually produce events for the
     *        resulting observable stream
     *
+    * @see [[mapParallelOrdered]] for a variant that does preserve order
     * @see [[mapEval]] for serial execution
     */
   final def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B])
