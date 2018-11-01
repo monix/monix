@@ -40,6 +40,7 @@ object CatsProfunctorForSubject extends Profunctor[Subject] {
 
 }
 
+private[reactive]
 class ProfunctorSubject[A, B, C, D](source: Subject[A, B])(f: C => A)(g: B => D) extends Subject[C, D] {
 
   def size: Int = source.size

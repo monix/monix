@@ -18,10 +18,12 @@
 package monix.reactive.observers
 
 import java.io.PrintStream
+import cats.Contravariant
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observer
+import monix.reactive.instances.CatsContravariantForSubscriber
 import monix.reactive.internal.rstreams._
 import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.concurrent.Future
@@ -219,4 +221,7 @@ object Subscriber {
     def onError(ex: Throwable): Unit = observer.onError(ex)
     def onComplete(): Unit = observer.onComplete()
   }
+
+  /** `cats.Contravariant` instance for [[Subscriber]]. */
+  implicit val catsContravariant: Contravariant[Subscriber] = CatsContravariantForSubscriber
 }
