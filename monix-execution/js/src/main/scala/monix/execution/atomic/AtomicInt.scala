@@ -46,7 +46,7 @@ final class AtomicInt private[atomic]
     ref = update
   }
 
-  def get: Int = ref
+  def get(): Int = ref
 
   def getAndSubtract(v: Int): Int = {
     val c = ref

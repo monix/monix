@@ -19,6 +19,7 @@ package monix.eval
 
 import minitest.SimpleTestSuite
 import monix.eval.Task.Options
+import monix.execution.Callback
 import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
@@ -32,7 +33,7 @@ object TaskOptionsSuite extends SimpleTestSuite {
     val task = extractOptions(Task.now(1)).map { r =>
       assertEquals(r, opts)
     }
-    task.runAsyncOpt
+    task.runToFutureOpt
   }
 
   testAsync("change options with callback") {

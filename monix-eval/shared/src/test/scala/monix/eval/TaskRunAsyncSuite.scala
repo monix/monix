@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.Callback
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 
@@ -27,14 +28,14 @@ import scala.concurrent.duration._
 object TaskRunAsyncSuite extends BaseTestSuite {
   test("runAsync") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1)
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(4)))
   }
 
   test("runAsync is cancelable") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).delayExecution(1.second)
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
 
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -46,26 +47,26 @@ object TaskRunAsyncSuite extends BaseTestSuite {
   }
 
   test("runAsync for Task.now(x)") { implicit s =>
-    val f = Task.now(1).runAsync
+    val f = Task.now(1).runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("runAsync for Task.now(x) with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
-    val f = Task.now(1).runAsync
+    val f = Task.now(1).runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("runAsync for Task.raiseError(x)") { implicit s =>
     val dummy = DummyException("dummy")
-    val f = Task.raiseError(dummy).runAsync
+    val f = Task.raiseError(dummy).runToFuture
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("runAsync for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val dummy = DummyException("dummy")
-    val f = Task.raiseError(dummy).runAsync
+    val f = Task.raiseError(dummy).runToFuture
     assertEquals(f.value, Some(Failure(dummy)))
   }
 

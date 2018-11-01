@@ -5,21 +5,21 @@ group: edge
 
 matrix:
   include:
-    # Scala 2.11 — JVM
+    # Scala 2.11, JVM
     - jdk: oraclejdk8
       scala: 2.11.12
       env: COMMAND=ci-jvm COVERAGE=
-    # Scala 2.11 — JavaScript
+    # Scala 2.11, JavaScript
     - jdk: oraclejdk8
       scala: 2.11.12
       env: COMMAND=ci-js COVERAGE=
-    # Scala 2.12 — JVM — all tests + coverage
+    # Scala 2.12, JVM
     - jdk: oraclejdk8
-      scala: 2.12.4
+      scala: 2.12.7
       env: COMMAND=ci-jvm-all COVERAGE=coverage
-    # Scala 2.12 — JavaScript
+    # Scala 2.12, JavaScript
     - jdk: oraclejdk8
-      scala: 2.12.4
+      scala: 2.12.7
       env: COMMAND=ci-js COVERAGE=
 
 env:

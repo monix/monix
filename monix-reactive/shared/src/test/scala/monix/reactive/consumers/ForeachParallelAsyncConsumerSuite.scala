@@ -19,7 +19,8 @@ package monix.reactive.consumers
 
 
 import minitest.TestSuite
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
@@ -42,7 +43,7 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val sum = Atomic(0L)
     val f = obs.consumeWith(Consumer
       .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x))))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -55,7 +56,7 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val sum = Atomic(0L)
     val f = obs.consumeWith(Consumer
       .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x))))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))

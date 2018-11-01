@@ -113,4 +113,24 @@ object CollectSuite extends BaseOperatorSuite {
         s.tick(waitForNext)
     }
   }
+
+  test("should only invoke the partial function once per element") { implicit s =>
+    var invocationCount = 0
+    var result: Int = 0
+    var wasCompleted = false
+    val f: Int => Option[Int] = x => {
+      invocationCount += 1
+      if (x % 2 == 0) Some(x) else None
+    }
+    val pf = Function.unlift(f)
+    Observable.now(2).collect(pf).unsafeSubscribeFn(new Observer[Int] {
+      def onNext(elem: Int): Future[Ack] = { result = elem; Continue }
+      def onError(ex: Throwable): Unit = throw new IllegalStateException()
+      def onComplete(): Unit = wasCompleted = true
+    })
+    s.tick()
+    assert(wasCompleted)
+    assertEquals(result, 2)
+    assertEquals(invocationCount, 1)
+  }
 }

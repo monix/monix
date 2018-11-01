@@ -57,7 +57,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
         earlyStopDone = true
       }))
 
-    bracketed.take(1).completedL.runAsync
+    bracketed.take(1).completedL.runToFuture
     s.tick()
     assert(earlyStopDone)
   }
@@ -67,7 +67,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     val bracketed = Observable.resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.range(1, 10))
 
-    bracketed.completedL.runAsync
+    bracketed.completedL.runToFuture
     s.tick()
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
@@ -80,7 +80,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
       .flatMap(_ => Observable.range(1, 10))
       .take(1)
 
-    bracketed.completedL.runAsync
+    bracketed.completedL.runToFuture
     s.tick()
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
@@ -157,7 +157,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     val rs = new Resource
     val obs = Observable.resource(rs.acquire)(_.release).mapEvalF(_ => p.future)
 
-    val f = obs.completedL.runAsync; s.tick()
+    val f = obs.completedL.runToFuture; s.tick()
     assertEquals(f.value, None)
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 0)
@@ -172,7 +172,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     val rs = new Resource
     val obs = Observable.resource(rs.acquire)(_.release).flatMap(_ => Observable.from(p.future))
 
-    val f = obs.completedL.runAsync; s.tick()
+    val f = obs.completedL.runToFuture; s.tick()
     assertEquals(f.value, None)
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 0)
@@ -201,7 +201,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
         _ <- canceled.get
       } yield ()
 
-      val f = task.runAsync; s.tick()
+      val f = task.runToFuture; s.tick()
       assertEquals(f.value, Some(Success(())))
       assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     }
@@ -216,7 +216,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
         Observable.range(1, 10) ++ Observable.raiseError[Long](error)
       }
 
-    val f = bracketed.completedL.runAsync
+    val f = bracketed.completedL.runToFuture
     s.tick()
 
     assertEquals(rs.acquired, 1)
@@ -230,7 +230,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     val bracketed = Observable.resource(rs.acquire)(_.release)
       .flatMap { _ => throw dummy }
 
-    val f = bracketed.completedL.runAsync
+    val f = bracketed.completedL.runToFuture
     s.tick()
 
     assertEquals(rs.acquired, 1)
@@ -247,7 +247,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
         Observable.empty[Int]
       }
 
-    val f = bracketed.completedL.runAsync
+    val f = bracketed.completedL.runToFuture
     s.tick()
 
     assertEquals(rs.acquired, 0)
@@ -274,7 +274,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
           .flatMap(_ => Observable(1, 2, 3))
       }
 
-    val f = bracketed.completedL.runAsync
+    val f = bracketed.completedL.runToFuture
     s.tick()
 
     assertEquals(f.value, Some(Failure(dummy)))
@@ -291,7 +291,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
         Observable.suspend[Int](Observable.raiseError(dummy))
       }
 
-    val f = bracketed.completedL.runAsync
+    val f = bracketed.completedL.runToFuture
     s.tick()
 
     assertEquals(f.value, Some(Failure(dummy)))
@@ -309,7 +309,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
           .flatMap(_ => Observable(1, 2, 3))
       }
 
-    val f = bracketed.completedL.runAsync
+    val f = bracketed.completedL.runToFuture
     s.tick()
 
     assertEquals(f.value, Some(Failure(dummy)))
@@ -342,7 +342,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
       .flatMap(_ => Observable(1, 2, 3))
 
     for (method <- completes) {
-      method(pure).runAsync
+      method(pure).runToFuture
       s.tick()
     }
 
@@ -354,7 +354,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
       .flatMap(_ => Observable.raiseError[Int](dummy))
 
     for (method <- completes) {
-      val f = method(faulty).runAsync
+      val f = method(faulty).runToFuture
       s.tick()
       assertEquals(f.value, Some(Failure(dummy)))
     }
@@ -366,7 +366,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
       .flatMap(_ => Observable.suspend[Int](Observable.raiseError(dummy)))
 
     for (method <- completes) {
-      val f = method(broken).runAsync
+      val f = method(broken).runToFuture
       s.tick()
       assertEquals(f.value, Some(Failure(dummy)))
     }
@@ -392,7 +392,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
       _ <- safeCloseable("Inner")
     } yield ()
 
-    observable.completedL.runAsync
+    observable.completedL.runToFuture
     s.tick()
     assertEquals(log, Vector("Start: Outer", "Start: Inner", "Stop: Inner", "Stop: Outer"))
   }

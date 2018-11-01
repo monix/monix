@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
+/*
 package monix.benchmarks
-
 
 import java.util.concurrent.TimeUnit
 import monix.eval.Task
@@ -71,3 +71,4 @@ class TaskAttemptBenchmark {
     Await.result(loop(0).runAsync, Duration.Inf)
   }
 }
+*/

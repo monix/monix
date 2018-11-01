@@ -348,7 +348,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val f = Observable.now(1)
       .mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x+1).delayExecution(1.second))
       .sumL
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)

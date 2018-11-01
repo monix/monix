@@ -29,7 +29,7 @@ object TaskWanderSuite extends BaseTestSuite {
     val f = Task.wander(seq) {
       case (i, d) =>
         Task.evalAsync(i + 1).delayExecution(d.seconds)
-    }.runAsync
+    }.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -46,7 +46,7 @@ object TaskWanderSuite extends BaseTestSuite {
       case (i, d) =>
         Task.evalAsync(if (i < 0) throw ex else i + 1)
           .delayExecution(d.seconds)
-    }.runAsync
+    }.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -58,7 +58,7 @@ object TaskWanderSuite extends BaseTestSuite {
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task.wander(seq) {
       case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
-    }.runAsync
+    }.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -74,7 +74,7 @@ object TaskWanderSuite extends BaseTestSuite {
     val count = if (Platform.isJVM) 200000 else 5000
     val seq = for (i <- 0 until count) yield 1
     val composite = Task.wander(seq)(Task.now).map(_.sum)
-    val result = composite.runAsync
+    val result = composite.runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(count)))
   }
@@ -88,11 +88,11 @@ object TaskWanderSuite extends BaseTestSuite {
       task1 map { x => effect += 1; x + 1 }
     }
 
-    val result1 = task2.runAsync; s.tick()
+    val result1 = task2.runToFuture; s.tick()
     assertEquals(result1.value, Some(Success(List(4,4,4))))
     assertEquals(effect, 1 + 3)
 
-    val result2 = task2.runAsync; s.tick()
+    val result2 = task2.runToFuture; s.tick()
     assertEquals(result2.value, Some(Success(List(4,4,4))))
     assertEquals(effect, 1 + 3 + 3)
   }
@@ -103,7 +103,7 @@ object TaskWanderSuite extends BaseTestSuite {
       throw ex
     }
 
-    val result1 = task1.runAsync; s.tick()
+    val result1 = task1.runToFuture; s.tick()
     assertEquals(result1.value, Some(Failure(ex)))
   }
 }

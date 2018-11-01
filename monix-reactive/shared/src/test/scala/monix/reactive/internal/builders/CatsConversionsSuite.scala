@@ -25,25 +25,25 @@ import scala.util.Success
 object CatsConversionsSuite extends BaseTestSuite {
   test("fromEval(Eval.now)") { implicit s =>
     val obs = Observable.fromEval(Eval.now(10))
-    val f = obs.lastOrElseL(0).runAsync
+    val f = obs.lastOrElseL(0).runToFuture
     assertEquals(f.value, Some(Success(10)))
   }
 
   test("fromEval(Eval.always)") { implicit s =>
     val obs = Observable.fromEval(Eval.always(10))
-    val f = obs.lastOrElseL(0).runAsync
+    val f = obs.lastOrElseL(0).runToFuture
     assertEquals(f.value, Some(Success(10)))
   }
 
   test("fromEffect(IO)") { implicit s =>
     val obs = Observable.fromTaskLike(IO(10))
-    val f = obs.lastOrElseL(0).runAsync
+    val f = obs.lastOrElseL(0).runToFuture
     assertEquals(f.value, Some(Success(10)))
   }
 
   test("fromIO") { implicit s =>
     val obs = Observable.fromIO(IO(10))
-    val f = obs.lastOrElseL(0).runAsync
+    val f = obs.lastOrElseL(0).runToFuture
     assertEquals(f.value, Some(Success(10)))
   }
 }

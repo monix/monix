@@ -226,7 +226,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
 
     val observable = Observable(1, 2, 3, 4, 5, 6).publishLast
 
-    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runAsync
+    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
     observable.foreach(e => foreachSum += e)
     observable.subscribe { e => subscribeSum += e; Continue }
 

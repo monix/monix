@@ -19,17 +19,18 @@ package monix.eval.internal
 
 import monix.eval.Task.{Context, Error, Now}
 import monix.eval.internal.TaskRunLoop.{Bind, CallStack, startFull}
-import monix.eval.{Callback, Task}
+import monix.eval.Task
+import monix.execution.Callback
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 
-private[internal] abstract class TaskRestartCallback(contextInit: Context, callback: Callback[Any])
-  extends Callback[Any] with TrampolinedRunnable {
+private[internal] abstract class TaskRestartCallback(contextInit: Context, callback: Callback[Throwable, Any])
+  extends Callback[Throwable, Any] with TrampolinedRunnable {
 
   // Modified on prepare()
   private[this] var bFirst: Bind = _
   private[this] var bRest: CallStack = _
-  private[this] var register: (Context, Callback[Any]) => Unit = _
+  private[this] var register: (Context, Callback[Throwable, Any]) => Unit = _
 
   // Mutated in onSuccess and onError, just before scheduling
   // onSuccessRun and onErrorRun
@@ -89,7 +90,7 @@ private[internal] abstract class TaskRestartCallback(contextInit: Context, callb
     }
 
   protected def prepareStart(task: Task.Async[_]): Unit = ()
-  protected def prepareCallback: Callback[Any] = callback
+  protected def prepareCallback: Callback[Throwable, Any] = callback
   private[this] val wrappedCallback = prepareCallback
 
   protected def syncOnSuccess(value: Any): Unit = {
@@ -135,7 +136,7 @@ private[internal] object TaskRestartCallback {
   /** Builder for [[TaskRestartCallback]], returning a specific instance
     * optimized for the passed in `Task.Options`.
     */
-  def apply(context: Context, callback: Callback[Any]): TaskRestartCallback = {
+  def apply(context: Context, callback: Callback[Throwable, Any]): TaskRestartCallback = {
     if (context.options.localContextPropagation)
       new WithLocals(context, callback)
     else
@@ -143,11 +144,11 @@ private[internal] object TaskRestartCallback {
   }
 
   /** `RestartCallback` class meant for `localContextPropagation == false`. */
-  private final class NoLocals(context: Context, callback: Callback[Any])
+  private final class NoLocals(context: Context, callback: Callback[Throwable, Any])
     extends TaskRestartCallback(context, callback)
 
   /** `RestartCallback` class meant for `localContextPropagation == true`. */
-  private final class WithLocals(context: Context, callback: Callback[Any])
+  private final class WithLocals(context: Context, callback: Callback[Throwable, Any])
     extends TaskRestartCallback(context, callback) {
 
     private[this] var preparedLocals: Local.Context = _
@@ -158,8 +159,8 @@ private[internal] object TaskRestartCallback {
         if (task.restoreLocals) Local.getContext() else null
     }
 
-    override def prepareCallback: Callback[Any] =
-      new Callback[Any] {
+    override def prepareCallback: Callback[Throwable, Any] =
+      new Callback[Throwable, Any] {
         def onSuccess(value: Any): Unit = {
           val locals = previousLocals
           if (locals ne null) Local.setContext(locals)

@@ -17,14 +17,12 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.{Callback, Task}
+import monix.execution.{Ack, AsyncSemaphore, Callback, Cancelable}
+import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.execution.misc.AsyncSemaphore
-import monix.execution.{Ack, Cancelable}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -39,7 +37,7 @@ import scala.util.{Failure, Success}
   *  - given we've got concurrency in processing `onNext` events, we need
   *    to use a concurrent buffer to guarantee safety
   *  - to ensure the required parallelism factor, we are using an
-  *    [[monix.execution.misc.AsyncSemaphore]]
+  *    [[monix.execution.AsyncSemaphore]]
   */
 private[reactive] final class MapParallelUnorderedObservable[A,B](
    source: Observable[A],
@@ -181,7 +179,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
       // We need to wait for all semaphore permits to be
       // released, otherwise we can lose events and that's
       // not acceptable for onComplete!
-      semaphore.awaitAllReleased().foreach { _ =>
+      semaphore.awaitAvailable(parallelism).foreach { _ =>
         if (!isDone) {
           isDone = true
           lastAck = Stop

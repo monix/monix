@@ -27,7 +27,7 @@ import scala.reflect.macros.whitebox
   */
 abstract class Atomic[A] extends Serializable {
   /** Get the current value persisted by this Atomic. */
-  def get: A
+  def get(): A
 
   /** Get the current value persisted by this Atomic, an alias for `get()`. */
   final def apply(): A = macro Atomic.Macros.applyMacro[A]

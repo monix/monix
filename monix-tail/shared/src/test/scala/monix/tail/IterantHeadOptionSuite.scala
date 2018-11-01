@@ -63,7 +63,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val iter1: Iterant[Task, Int] = Iterant[Task].haltS(Some(dummy))
     val state1 = iter1.headOptionL
-    val f = state1.runAsync
+    val f = state1.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))

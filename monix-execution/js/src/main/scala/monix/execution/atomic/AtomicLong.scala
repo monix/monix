@@ -46,7 +46,7 @@ final class AtomicLong private[atomic]
     ref = update
   }
 
-  def get: Long = ref
+  def get(): Long = ref
 
   def getAndSubtract(v: Long): Long = {
     val c = ref

@@ -28,7 +28,7 @@ import monix.execution.internal.atomic.{BoxedInt, Factory}
 final class AtomicInt private (private[this] val ref: BoxedInt)
   extends AtomicNumber[Int] {
 
-  def get: Int = ref.volatileGet()
+  def get(): Int = ref.volatileGet()
   def set(update: Int): Unit = ref.volatileSet(update)
 
   def compareAndSet(expect: Int, update: Int): Boolean =

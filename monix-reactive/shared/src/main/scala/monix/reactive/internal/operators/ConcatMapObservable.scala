@@ -36,7 +36,7 @@ import scala.util.Failure
 /** Implementation for `Observable.concatMap`.
   *
   * Example of what we want to achieve:
-  * 
+  *
   * `observable.concatMap(x => Observable.range(0, x))`
   *
   * The challenges are:
@@ -163,7 +163,7 @@ private[reactive] final class ConcatMapObservable[A, B](
         } else {
           Task.suspend(release(elem, ExitCase.Canceled))
             .redeem(e => { scheduler.reportFailure(e); Stop }, _ => Stop)
-            .runAsync
+            .runToFuture
             .syncTryFlatten
         }
       } else try {

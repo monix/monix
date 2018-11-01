@@ -47,7 +47,7 @@ final class AtomicChar private[atomic]
     ref = update
   }
 
-  def get: Char = ref
+  def get(): Char = ref
 
   def getAndSubtract(v: Char): Char = {
     val c = ref

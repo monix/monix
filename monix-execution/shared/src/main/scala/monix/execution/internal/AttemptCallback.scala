@@ -25,16 +25,14 @@ import scala.util.{Failure, Success, Try}
   * callbacks.
   */
 private[monix] object AttemptCallback {
-
-  /** Reusable reference for ticks. */
-  val tick: Either[Throwable, Unit] = Right(())
+  import Constants.eitherOfUnit
 
   /** Reusable runnable that triggers a tick. */
   final class RunnableTick(cb: Either[Throwable, Unit] => Unit)
     extends Runnable {
 
     def run(): Unit =
-      cb(tick)
+      cb(eitherOfUnit)
   }
 
   /** Creates a callback that does nothing on success, but that

@@ -122,7 +122,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     var wasClosed = false
     val in = randomReaderWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromCharsReaderF(Task(in)).completedL.runAsync
+    val f = Observable.fromCharsReaderF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -136,7 +136,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     var wasClosed = false
     val ex = DummyException("dummy")
     val in = inputWithError(ex, 1, () => wasClosed = true)
-    val f = Observable.fromCharsReaderF(Task(in)).completedL.runAsync
+    val f = Observable.fromCharsReaderF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -150,7 +150,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     var wasClosed = false
     val ex = DummyException("dummy")
     val in = inputWithError(ex, 2, () => wasClosed = true)
-    val f = Observable.fromCharsReaderF(Task(in)).completedL.runAsync
+    val f = Observable.fromCharsReaderF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -167,7 +167,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     val f = Observable.fromCharsReaderF(Task(in))
       .mapEval(_ => Task.sleep(1.second))
       .completedL
-      .runAsync
+      .runToFuture
 
     s.tick()
     f.cancel()

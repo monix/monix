@@ -39,7 +39,7 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     val f = obs.consumeWith(Consumer
       .foreachEval(x => IO(sum += x)))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -52,7 +52,7 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     val f = obs.consumeWith(Consumer
       .foreachTask(x => Task.evalAsync(sum += x)))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -65,7 +65,7 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     val f = obs.consumeWith(Consumer
       .foreachTask(x => Task.evalAsync(sum += x)))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -75,7 +75,7 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     val f = Observable.now(1)
       .consumeWith(Consumer.foreachTask(_ => throw ex))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))

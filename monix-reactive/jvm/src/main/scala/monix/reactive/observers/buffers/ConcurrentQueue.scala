@@ -18,14 +18,12 @@
 package monix.reactive.observers.buffers
 
 import java.util
-
 import monix.execution.internal.Platform
 import monix.execution.internal.atomic.UnsafeAccess
 import monix.execution.internal.math.nextPowerOf2
 import org.jctools.queues._
 import org.jctools.queues.MessagePassingQueue.Consumer
 import org.jctools.queues.atomic.{MpscAtomicArrayQueue, MpscLinkedAtomicQueue}
-
 import scala.collection.mutable
 
 /** A simple internal interface providing the needed commonality between
@@ -35,7 +33,7 @@ private[buffers] abstract class ConcurrentQueue[A] {
   def isEmpty: Boolean
   def poll(): A
   def offer(elem: A): Boolean
-  def drain(buffer: mutable.Buffer[A], limit: Int): Unit
+  def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Unit
 }
 
 private[buffers] object ConcurrentQueue {
@@ -80,7 +78,7 @@ private[buffers] object ConcurrentQueue {
     def poll(): A =
       underlying.poll()
 
-    def drain(buffer: mutable.Buffer[A], limit: Int): Unit = {
+    def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Unit = {
       var fetched = 0
 
       while (fetched < limit) {
@@ -104,7 +102,7 @@ private[buffers] object ConcurrentQueue {
     def poll(): A =
       underlying.relaxedPoll()
 
-    def drain(buffer: mutable.Buffer[A], limit: Int): Unit = {
+    def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Unit = {
       val consumer: Consumer[A] = new Consumer[A] { def accept(e: A): Unit = buffer += e }
       underlying.drain(consumer, limit)
     }

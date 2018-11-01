@@ -43,7 +43,7 @@ final class AtomicBoolean private[atomic]
   }
 
   def set(update: Boolean): Unit = ref = update
-  def get: Boolean = ref
+  def get(): Boolean = ref
 }
 
 /** @define createDesc Constructs an [[AtomicBoolean]] reference, allowing

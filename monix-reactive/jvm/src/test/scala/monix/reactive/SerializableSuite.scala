@@ -94,7 +94,7 @@ object SerializableSuite extends BaseTestSuite {
       case Failure(e) => throw e
     }
 
-    val f = Observable.range(0, 100).consumeWith(ref2).runAsync
+    val f = Observable.range(0, 100).consumeWith(ref2).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(99 * 50)))
@@ -108,7 +108,7 @@ object SerializableSuite extends BaseTestSuite {
     }
 
     val (in, out) = ref2.concurrent
-    val f = out.sumL.runAsync
+    val f = out.sumL.runToFuture
 
     in.onNext(1)
     in.onNext(2)

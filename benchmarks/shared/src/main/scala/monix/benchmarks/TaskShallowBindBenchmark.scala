@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+/*
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
@@ -53,7 +54,7 @@ class TaskShallowBindBenchmark {
       else Task.pure(i)
 
     val task = Task.pure(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    Await.result(task.runToFuture, Duration.Inf)
   }
 
   @Benchmark
@@ -63,7 +64,7 @@ class TaskShallowBindBenchmark {
       else Task.eval(i)
 
     val task = Task.eval(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    Await.result(task.runToFuture, Duration.Inf)
   }
 
   @Benchmark
@@ -75,6 +76,7 @@ class TaskShallowBindBenchmark {
         Task.shift.map(_ => i)
 
     val task = Task.now(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    Await.result(task.runToFuture, Duration.Inf)
   }
 }
+*/

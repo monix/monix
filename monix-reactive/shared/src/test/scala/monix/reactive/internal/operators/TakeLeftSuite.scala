@@ -90,7 +90,7 @@ object TakeLeftSuite extends BaseOperatorSuite {
     }
 
     val task = Observable.repeatEval(inc()).take(0).toListL
-    task.runAsync
+    task.runToFuture
 
     s.tick()
     assertEquals(counter, 0)

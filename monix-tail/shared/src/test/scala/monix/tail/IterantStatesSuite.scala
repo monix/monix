@@ -27,7 +27,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Task].suspend(Task.evalAsync(list))") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
-    val result = Iterant[Task].suspend(deferred).toListL.runAsync
+    val result = Iterant[Task].suspend(deferred).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(list)))
   }
@@ -42,7 +42,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Task].suspend(AsyncStream)") { implicit s =>
     val list = List(1,2,3)
     val deferred = Iterant[Task].fromSeq[Int](list)
-    val result = Iterant[Task].suspend(deferred).toListL.runAsync
+    val result = Iterant[Task].suspend(deferred).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(list)))
   }
@@ -57,7 +57,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Task].next") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
-    val result = Iterant[Task].nextS(0, deferred).toListL.runAsync
+    val result = Iterant[Task].nextS(0, deferred).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
@@ -72,7 +72,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("Iterant[Task].nextCursor") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
-    val result = Iterant[Task].nextCursorS(BatchCursor(0), deferred).toListL.runAsync
+    val result = Iterant[Task].nextCursorS(BatchCursor(0), deferred).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
@@ -85,7 +85,7 @@ object IterantStatesSuite extends BaseTestSuite {
   }
 
   test("Iterant[Task].halt(None)") { implicit s =>
-    val result = Iterant[Task].haltS(None).toListL.runAsync
+    val result = Iterant[Task].haltS(None).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(Nil)))
   }
@@ -97,7 +97,7 @@ object IterantStatesSuite extends BaseTestSuite {
 
   test("Iterant[Task].halt(Some(ex))") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Iterant[Task].haltS(Some(ex)).toListL.runAsync
+    val result = Iterant[Task].haltS(Some(ex)).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Failure(ex)))
   }

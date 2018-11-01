@@ -38,7 +38,7 @@ object ConnectableObservableSuite extends TestSuite[TestScheduler] {
 
     val observable = Observable.apply(1, 2, 3, 4, 5, 6).publish
 
-    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runAsync
+    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
     observable.foreach(e => foreachSum += e)
     observable.subscribe { e => subscribeSum += e; Continue }
 
@@ -56,7 +56,7 @@ object ConnectableObservableSuite extends TestSuite[TestScheduler] {
     val observable = ConnectableObservable.cacheUntilConnect(source, subject)
 
     observable.connect()
-    val f = observable.sumL.runAsync
+    val f = observable.sumL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(21)))

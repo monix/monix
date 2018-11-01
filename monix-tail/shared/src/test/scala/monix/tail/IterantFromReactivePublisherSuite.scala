@@ -88,7 +88,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     Iterant[Task].fromReactivePublisher(publisher, 8)
       .take(5)
       .completedL
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(cancelled.future.value, Some(Success(())))
@@ -99,7 +99,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     val publisher = new RangePublisher(1 to 64, Some(dummy))
     val f = Iterant[Task].fromReactivePublisher(publisher)
       .completedL
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))

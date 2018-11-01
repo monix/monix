@@ -30,7 +30,7 @@ object PublishSelectorSuite extends BaseTestSuite {
       .doOnStartF(_ => IO(isStarted.increment()))
       .publishSelector { source => Observable(source, source, source).merge }
       .sumL
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(500 * 999 * 3)))
@@ -47,7 +47,7 @@ object PublishSelectorSuite extends BaseTestSuite {
       .publishSelector { source => source.map(_ => 1) }
       .take(2000)
       .sumL
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(2000)))

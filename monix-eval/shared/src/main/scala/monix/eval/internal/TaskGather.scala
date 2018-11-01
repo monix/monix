@@ -19,9 +19,9 @@ package monix.eval.internal
 
 import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context}
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Scheduler
-
 import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -48,7 +48,7 @@ private[eval] object TaskGather {
     makeBuilder: () => mutable.Builder[A, M[A]])
     extends ForkedRegister[M[A]] {
 
-    def apply(context: Context, finalCallback: Callback[M[A]]): Unit = {
+    def apply(context: Context, finalCallback: Callback[Throwable, M[A]]): Unit = {
       // We need a monitor to synchronize on, per evaluation!
       val lock = new AnyRef
       val mainConn = context.connection
@@ -64,7 +64,7 @@ private[eval] object TaskGather {
 
       // MUST BE synchronized by `lock`!
       // MUST NOT BE called if isActive == false!
-      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[M[A]])
+      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[Throwable, M[A]])
         (implicit s: Scheduler): Unit = {
 
         completed += 1
@@ -140,7 +140,7 @@ private[eval] object TaskGather {
 
             // Light asynchronous boundary
             Task.unsafeStartEnsureAsync(tasks(idx), childContext,
-              new Callback[A] {
+              new Callback[Throwable, A] {
                 def onSuccess(value: A): Unit =
                   lock.synchronized {
                     if (isActive) {

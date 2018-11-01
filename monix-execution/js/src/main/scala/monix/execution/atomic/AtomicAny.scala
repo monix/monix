@@ -44,7 +44,7 @@ final class AtomicAny[A <: AnyRef] private[atomic] (initialValue: A) extends Ato
     ref = update
   }
 
-  def get: A = ref
+  def get(): A = ref
 }
 
 /** @define createDesc Constructs an [[AtomicAny]] reference, allowing

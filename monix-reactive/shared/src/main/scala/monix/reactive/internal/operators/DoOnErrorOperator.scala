@@ -43,7 +43,7 @@ class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] {
             case Left(err) =>
               scheduler.reportFailure(err)
               out.onError(ex)
-          }.runAsync
+          }.runToFuture
         }
         catch {
           case err if NonFatal(err) =>

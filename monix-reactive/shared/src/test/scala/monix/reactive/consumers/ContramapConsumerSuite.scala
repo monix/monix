@@ -48,7 +48,7 @@ object ContramapConsumerSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].contramap(_ => throw ex))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))

@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.Callback
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.Promise
@@ -29,7 +30,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; effect }.memoize
       .flatMap(Task.now).flatMap(Task.now)
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -40,12 +41,12 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; effect }.memoize
       .flatMap(Task.now).flatMap(Task.now)
 
-    task.runAsync
+    task.runToFuture
     s.tick()
 
-    val f1 = task.runAsync
+    val f1 = task.runToFuture
     assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Success(1)))
   }
 
@@ -54,7 +55,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var task = Task.evalAsync(1)
     for (_ <- 0 until count) task = task.memoize
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -65,7 +66,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var task = Task.evalAsync(1)
     for (_ <- 0 until count) task = task.memoize.flatMap(x => Task.now(x))
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -76,7 +77,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var task = Task.evalAsync(1)
     for (_ <- 0 until count) task = task.memoize.flatMap(x => Task.evalAsync(x))
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -88,22 +89,22 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val task = Task[Int] { effect += 1; throw dummy }.memoize
       .flatMap(Task.now).flatMap(Task.now)
 
-    val f1 = task.runAsync; s.tick()
+    val f1 = task.runToFuture; s.tick()
     assertEquals(f1.value, Some(Failure(dummy)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
   }
 
   test("Task.memoize.materialize") { implicit s =>
-    val f = Task.evalAsync(10).memoize.materialize.runAsync
+    val f = Task.evalAsync(10).memoize.materialize.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(Success(10))))
   }
 
   test("Task.evalAsync(error).memoize.materialize") { implicit s =>
     val dummy = DummyException("dummy")
-    val f = Task[Int](throw dummy).memoize.materialize.runAsync
+    val f = Task[Int](throw dummy).memoize.materialize.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(Failure(dummy))))
   }
@@ -112,19 +113,19 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var effect = 0
     val task = Task.eval { effect += 1; effect }.memoize
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.eval.memoize should work synchronously for next subscribers") { implicit s =>
     var effect = 0
     val task = Task.eval { effect += 1; effect }.memoize
-    task.runAsync
+    task.runToFuture
     s.tick()
 
-    val f1 = task.runAsync
+    val f1 = task.runToFuture
     assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Success(1)))
   }
 
@@ -133,9 +134,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val task = Task.eval[Int] { effect += 1; throw dummy }.memoize
 
-    val f1 = task.runAsync; s.tick()
+    val f1 = task.runToFuture; s.tick()
     assertEquals(f1.value, Some(Failure(dummy)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
   }
@@ -144,9 +145,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var effect = 0
     val task = Task.eval { effect += 1; effect }.memoize
 
-    val r1 = task.runAsync
-    val r2 = task.runAsync
-    val r3 = task.runAsync
+    val r1 = task.runToFuture
+    val r2 = task.runToFuture
+    val r3 = task.runToFuture
 
     s.tickOne()
     assertEquals(r1.value, Some(Success(1)))
@@ -159,7 +160,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var task = Task.eval(1)
     for (_ <- 0 until count) task = task.memoize
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -168,7 +169,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var task = Task.eval(1)
     for (_ <- 0 until count) task = task.memoize.flatMap(x => Task.eval(x))
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -178,9 +179,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var effect = 0
     val task = Task.defer(Task.eval { effect += 1; effect }).memoize
 
-    val r1 = task.runAsync
-    val r2 = task.runAsync
-    val r3 = task.runAsync
+    val r1 = task.runToFuture
+    val r2 = task.runToFuture
+    val r3 = task.runToFuture
 
     s.tick()
     assertEquals(r1.value, Some(Success(1)))
@@ -192,19 +193,19 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var effect = 0
     val task = Task.evalOnce { effect += 1; effect }.memoize
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.evalOnce.memoize should work synchronously for next subscribers") { implicit s =>
     var effect = 0
     val task = Task.evalOnce { effect += 1; effect }.memoize
-    task.runAsync
+    task.runToFuture
     s.tick()
 
-    val f1 = task.runAsync
+    val f1 = task.runToFuture
     assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Success(1)))
   }
 
@@ -213,9 +214,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val task = Task.evalOnce[Int] { effect += 1; throw dummy }.memoize
 
-    val f1 = task.runAsync; s.tick()
+    val f1 = task.runToFuture; s.tick()
     assertEquals(f1.value, Some(Failure(dummy)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
   }
@@ -225,7 +226,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var task = Task.eval(1)
     for (_ <- 0 until count) task = task.memoize
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -234,7 +235,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var task = Task.eval(1)
     for (_ <- 0 until count) task = task.memoize.flatMap(x => Task.evalOnce(x))
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -244,19 +245,19 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var effect = 0
     val task = Task.now { effect += 1; effect }.memoize
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.now.memoize should work synchronously for next subscribers") { implicit s =>
     var effect = 0
     val task = Task.now { effect += 1; effect }.memoize
-    task.runAsync
+    task.runToFuture
     s.tick()
 
-    val f1 = task.runAsync
+    val f1 = task.runToFuture
     assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Success(1)))
   }
 
@@ -264,9 +265,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy).memoize
 
-    val f1 = task.runAsync
+    val f1 = task.runToFuture
     assertEquals(f1.value, Some(Failure(dummy)))
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Failure(dummy)))
   }
 
@@ -275,7 +276,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var task = Task.now(1)
     for (_ <- 0 until count) task = task.memoize
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -284,7 +285,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var task = Task.now(1)
     for (_ <- 0 until count) task = task.memoize.flatMap(x => Task.now(x))
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -295,7 +296,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var task = Task.defer(Task.now(1))
     for (_ <- 0 until count) task = task.memoize.map(x => x)
 
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -304,11 +305,11 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
     val task2 = task1.map { x => effect += 1; x + 1 }
 
-    val result1 = task2.runAsync; s.tick()
+    val result1 = task2.runToFuture; s.tick()
     assertEquals(effect, 2)
     assertEquals(result1.value, Some(Success(4)))
 
-    val result2 = task2.runAsync; s.tick()
+    val result2 = task2.runToFuture; s.tick()
     assertEquals(effect, 3)
     assertEquals(result2.value, Some(Success(4)))
   }
@@ -318,8 +319,8 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
     val task2 = task1.map { x => effect += 1; x + 1 }
 
-    val result1 = task2.runAsync
-    val result2 = task2.runAsync
+    val result1 = task2.runToFuture
+    val result2 = task2.runToFuture
 
     assertEquals(result1.value, None)
     assertEquals(result2.value, None)
@@ -335,11 +336,11 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val task1 = Task.defer { effect += 1; Task.now(3) }.memoize
     val task2 = task1.map { x => effect += 1; x + 1 }
 
-    val result1 = task2.runAsync; s.tick()
+    val result1 = task2.runToFuture; s.tick()
     assertEquals(effect, 2)
     assertEquals(result1.value, Some(Success(4)))
 
-    val result2 = task2.runAsync; s.tick()
+    val result2 = task2.runToFuture; s.tick()
     assertEquals(effect, 3)
     assertEquals(result2.value, Some(Success(4)))
   }
@@ -350,15 +351,15 @@ object TaskMemoizeSuite extends BaseTestSuite {
       .flatMap(x => Task.now(x + 1)).memoize
     val task2 = task1.map { x => effect += 1; x + 1 }
 
-    val result1 = task2.runAsync; s.tick()
+    val result1 = task2.runToFuture; s.tick()
     assertEquals(effect, 2)
     assertEquals(result1.value, Some(Success(4)))
 
-    val result2 = task2.runAsync; s.tick()
+    val result2 = task2.runToFuture; s.tick()
     assertEquals(effect, 3)
     assertEquals(result2.value, Some(Success(4)))
 
-    val result3 = task2.runAsync; s.tick()
+    val result3 = task2.runToFuture; s.tick()
     assertEquals(effect, 4)
     assertEquals(result3.value, Some(Success(4)))
   }
@@ -366,13 +367,13 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("Task.memoize should make subsequent subscribers wait for the result, as future") { implicit s =>
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
-    val first = task.runAsync
+    val first = task.runToFuture
 
     s.tick()
     assertEquals(first.value, None)
 
-    val second = task.runAsync
-    val third = task.runAsync
+    val second = task.runToFuture
+    val third = task.runToFuture
 
     s.tick()
     assertEquals(second.value, None)
@@ -427,13 +428,13 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("Task.memoize should not be cancelable (future)") { implicit s =>
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
-    val first = task.runAsync
+    val first = task.runToFuture
 
     s.tick()
     assertEquals(first.value, None)
 
-    val second = task.runAsync
-    val third = task.runAsync
+    val second = task.runToFuture
+    val third = task.runToFuture
 
     s.tick()
     assertEquals(second.value, None)
@@ -512,8 +513,8 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
-    val first = task.runAsync
-    val second = task.runAsync
+    val first = task.runToFuture
+    val second = task.runToFuture
 
     s.tick()
     assertEquals(first.value, None)
@@ -527,8 +528,8 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(effect, 0)
 
     // -- Second wave:
-    val third = task.runAsync
-    val fourth = task.runAsync
+    val third = task.runToFuture
+    val fourth = task.runToFuture
 
     s.tick(1.second)
     assertEquals(first.value, None)
@@ -540,7 +541,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
   test("Task.memoize should not be uninterruptible") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(1.second).uncancelable.memoize
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -553,7 +554,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
 
-    val f2 = task.runAsync
+    val f2 = task.runToFuture
     assertEquals(f2.value, Some(Success(1)))
   }
 
@@ -564,12 +565,12 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; throw dummy }.memoize
     val task2 = Task.evalAsync(1).flatMap(_ => task)
 
-    val f1 = task2.runAsync
+    val f1 = task2.runToFuture
     s.tick()
     assertEquals(f1.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
 
-    val f2 = task2.runAsync
+    val f2 = task2.runToFuture
     s.tick()
     assertEquals(f2.value, Some(Failure(dummy)))
     assertEquals(effect, 1)
@@ -647,7 +648,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
       v2 <- local.read
     } yield (v1, v2)
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, (100, 100))
     }
   }
