@@ -368,7 +368,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(executionCommon)
 
 lazy val catnapCommon =
-  crossSettings ++ testSettings ++ Seq(
+  crossSettings ++ crossVersionSharedSources ++ testSettings ++ Seq(
     name := "monix-catnap"
   )
 
@@ -387,9 +387,10 @@ lazy val catnapJS = project.in(file("monix-catnap/js"))
   .settings(catnapCommon)
 
 lazy val evalCommon =
-  crossSettings ++ testSettings ++ Seq(
-    name := "monix-eval"
-  )
+  crossSettings ++ crossVersionSharedSources ++ testSettings ++ 
+    Seq(
+      name := "monix-eval"
+    )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .configure(profile)

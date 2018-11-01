@@ -19,6 +19,7 @@ package monix.eval
 
 import cats.{Comonad, Eval}
 import cats.effect.{ConcurrentEffect, Effect, IO, SyncIO}
+import monix.catnap.FutureLift
 import monix.execution.CancelablePromise
 
 import scala.annotation.implicitNotFound
@@ -186,7 +187,7 @@ private[eval] abstract class TaskLikeImplicits1 extends TaskLikeImplicits2 {
     }
 }
 
-private[eval] abstract class TaskLikeImplicits2 {
+private[eval] abstract class TaskLikeImplicits2 extends TaskLikeImplicits3 {
   /**
     * Converts to `Task` from `cats.Comonad` values.
     */
@@ -194,5 +195,16 @@ private[eval] abstract class TaskLikeImplicits2 {
     new TaskLike[F] {
       def toTask[A](fa: F[A]): Task[A] =
         Task(F.extract(fa))
+    }
+}
+
+private[eval] abstract class TaskLikeImplicits3 {
+  /**
+    * Converts from any `Future`-like type, via [[monix.catnap.FutureLift]].
+    */
+  implicit def fromAnyFutureViaLift[F[_]](implicit F: FutureLift[Task, F]): TaskLike[F] =
+    new TaskLike[F] {
+      def toTask[A](fa: F[A]): Task[A] =
+        Task.fromFutureLike(Task.now(fa))
     }
 }

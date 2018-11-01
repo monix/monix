@@ -18,7 +18,7 @@
 package monix.catnap
 
 import cats.effect.{Async, Concurrent, ContextShift}
-import monix.catnap.internals.AsyncUtils
+import monix.catnap.internal.AsyncUtils
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding

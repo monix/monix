@@ -274,9 +274,9 @@ final class CircuitBreaker[F[_]] private (
     F0.suspend {
       stateRef.get match {
         case ref: Open =>
-          FutureLift.toConcurrentOrAsync(F0.pure(ref.awaitClose.future))
+          FutureLift.scalaToConcurrentOrAsync(F0.pure(ref.awaitClose.future))
         case ref: HalfOpen =>
-          FutureLift.toConcurrentOrAsync(F0.pure(ref.awaitClose.future))
+          FutureLift.scalaToConcurrentOrAsync(F0.pure(ref.awaitClose.future))
         case _ =>
           F0.unit
       }

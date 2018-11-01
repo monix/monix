@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.catnap.internals
+package monix.catnap.internal
 
 import cats.implicits._
 import cats.effect.{Async, ExitCase}
@@ -33,7 +33,7 @@ private[monix] object AsyncUtils {
       val p = Promise[A]()
       val awaitPut = Callback.fromPromise(p)
       val future = p.future
-      val futureF = FutureLift.toAsync(F.pure(future)).attempt.map(cb)
+      val futureF = FutureLift.scalaToAsync(F.pure(future)).attempt.map(cb)
       val cancel = k(awaitPut)
 
       F.guaranteeCase(futureF) {

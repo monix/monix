@@ -16,14 +16,6 @@
  */
 
 package monix.catnap
+package internal
 
-import monix.catnap.FutureLift.Syntax
-
-object syntax {
-  /**
-    * Provides syntax for [[FutureLift]].
-    */
-  implicit final class SyntaxForLiftFuture[F[_], Future[T], A](
-    val source: F[Future[A]])
-    extends AnyVal with Syntax[F, Future, A]
-}
+private[catnap] abstract class FutureLiftForPlatform
