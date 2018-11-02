@@ -18,9 +18,9 @@
 package monix.catnap
 package cancelables
 
-import cats.effect.IO
+import cats.effect.{IO, util}
 import minitest.SimpleTestSuite
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
 object SingleAssignCancelableFSuite extends SimpleTestSuite {
@@ -132,12 +132,16 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
       s.cancel.unsafeRunSync()
       fail("should have thrown")
     } catch {
-      case e1: DummyException if Platform.isJVM =>
-        e1.getSuppressed.toList match {
-          case (_: DummyException) :: Nil => ()
-          case other => fail(s"unexpected suppressed: $other")
-        }
-      case CompositeException((_: DummyException) :: (_: DummyException) :: Nil) =>
+      case e1: DummyException =>
+        if (Platform.isJVM)
+          e1.getSuppressed.toList match {
+            case (_: DummyException) :: Nil => ()
+            case other => fail(s"unexpected suppressed: $other")
+          }
+        else
+          fail("Not on the JVM")
+
+      case util.CompositeException(_: DummyException, _: DummyException) =>
         ()
     }
     assertEquals(effect, 2)
