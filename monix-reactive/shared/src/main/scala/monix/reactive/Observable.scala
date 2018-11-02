@@ -262,12 +262,14 @@ import scala.util.{Failure, Success, Try}
   *
   *         Monix prefers to work with [[cats.Eq]] for assessing the equality
   *         of elements that have an ordering defined, instead of
-  *         [[cats.Eq]].
+  *         [[scala.math.Equiv]].
   *
   *         We do this because Scala's `Equiv` has a default instance defined
   *         that's based on universal equality and that's a big problem, because
-  *         when using the `Eq` type class, it's universal equality that we
-  *         want to avoid.
+  *         when using the `Eq` type class, it is universal equality that we
+  *         want to avoid and there have been countless of bugs in the ecosystem
+  *         related to both universal equality and `Equiv`. Thankfully people
+  *         are working to fix it.
   *
   *         We also do this for consistency, as Monix is now building on top of
   *         Cats. This may change in the future, depending on what happens with
