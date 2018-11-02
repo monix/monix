@@ -77,8 +77,8 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 
-    val semaphore = Semaphore.unsafe[IO](provisioned = 4)
-    val count = if (Platform.isJVM) 100000 else 1000
+    val semaphore = Semaphore.unsafe[IO](provisioned = 20)
+    val count = if (Platform.isJVM) 10000 else 1000
 
     val futures = for (i <- 0 until count) yield
       semaphore.withPermit(IO.shift *> IO(i))

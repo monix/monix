@@ -17,7 +17,9 @@
 
 package monix.catnap
 
-import cats.effect.{Async, Concurrent, ContextShift}
+import cats.effect.{Async, CancelToken, Concurrent, ContextShift}
+import cats.implicits._
+import monix.catnap.cancelables.SingleAssignCancelableF
 import monix.catnap.internal.AsyncUtils
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.atomic.PaddingStrategy
@@ -176,7 +178,11 @@ final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)
     *        released to the pool afterwards
     */
   def withPermitN[A](n: Long)(fa: F[A]): F[A] =
-    F0.bracket(acquireN(n))(_ => fa)(_ => releaseN(n))
+    F0.bracket(underlying.acquireAsyncN(n)) {
+      case (acquire, _) => F0.flatMap(acquire)(_ => fa)
+    } {
+      case (_, release) => release
+    }
 
   /** Returns a task that will be complete when the specified
     * number of permits are available.
@@ -269,6 +275,29 @@ object Semaphore {
           F0.unit
         else
           F0.flatMap(make[Unit](unsafeAcquireN(n, _)))(bindFork)
+      }
+
+    def acquireAsyncN(n: Long): F[(F[Unit], CancelToken[F])] =
+      SingleAssignCancelableF.apply[F].map { release =>
+        // Happy path
+        if (unsafeTryAcquireN(n)) {
+          // This cannot be canceled in the context of `bracket`
+          (F0.unit, releaseN(n))
+        }
+        else {
+          val acquire = F0.asyncF[Unit] { cb =>
+            // Can be cancelled, hence it needs to be atomic; the creation of the
+            // `cancelToken` needs to be suspended in order to ensure atomicity below
+            F0.uncancelable(F0.suspend {
+              // Actual acquisition (MUST BE in the atomic block)
+              val cancelToken = unsafeAsyncAcquireN(n, cb)
+              // Registers the release token
+              release.set(CancelableF.wrap(cancelToken))
+            })
+          }
+          // Extra async boundary needed for fairness
+          (F0.flatMap(acquire)(bindFork), release.cancel)
+        }
       }
 
     def tryAcquireN(n: Long): F[Boolean] =
