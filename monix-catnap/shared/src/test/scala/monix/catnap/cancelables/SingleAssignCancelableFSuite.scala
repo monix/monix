@@ -20,7 +20,8 @@ package cancelables
 
 import cats.effect.IO
 import minitest.SimpleTestSuite
-import monix.execution.exceptions.DummyException
+import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.internal.Platform
 
 object SingleAssignCancelableFSuite extends SimpleTestSuite {
   test("cancel") {
@@ -127,10 +128,18 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
     val b = CancelableF.unsafeApply[IO](IO { effect += 1; throw dummy2 })
     s.set(b).unsafeRunSync()
 
-    intercept[DummyException] {
+    try {
       s.cancel.unsafeRunSync()
+      fail("should have thrown")
+    } catch {
+      case e1: DummyException if Platform.isJVM =>
+        e1.getSuppressed.toList match {
+          case (_: DummyException) :: Nil => ()
+          case other => fail(s"unexpected suppressed: $other")
+        }
+      case CompositeException((_: DummyException) :: (_: DummyException) :: Nil) =>
+        ()
     }
-
     assertEquals(effect, 2)
   }
 }
