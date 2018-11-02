@@ -15,15 +15,8 @@
  * limitations under the License.
  */
 
-package monix.catnap
+package monix.execution
+package internal
 
-import monix.catnap.FutureLift.Syntax
-
-object syntax {
-  /**
-    * Provides syntax for [[FutureLift]].
-    */
-  implicit final class SyntaxForLiftFuture[F[_], Future[T], A](
-    val source: F[Future[A]])
-    extends AnyVal with Syntax[F, Future, A]
-}
+// Left blank, because we've got nothing specific for Scala.js at this point
+private[execution] abstract class FutureUtilsForPlatform

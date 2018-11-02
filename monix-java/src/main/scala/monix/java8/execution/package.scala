@@ -19,27 +19,28 @@ package monix.java8
 
 import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
 import java.util.function.BiFunction
-
 import monix.execution.{Cancelable, CancelableFuture}
-
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 
-/** Utilities for integration with Java 8 classes
-  *
-  * Provides methods to convert between `scala.concurrent.Future`
-  * and `java.util.concurrent.CompletableFuture`
+/**
+  * DEPRECATED — switch to Scala 2.12+ and [[monix.execution.FutureUtils]].
   */
 package object execution {
-
+  /**
+    * DEPRECATED — switch to Scala 2.12+ and
+    * [[monix.execution.CancelableFuture.fromJavaCompletable CancelableFuture.fromJavaCompletable]].
+    */
+  @deprecated("Switch to Scala 2.12+ and CancelableFuture.fromJavaCompletable", "3.0.0")
   implicit class JavaCompletableFutureUtils[A](val source: CompletableFuture[A]) extends AnyVal {
-
-    /** Convert `CompletableFuture` to [[monix.execution.CancelableFuture]]
-      *
-      * If the source is cancelled, returned `Future` will never terminate
+    /**
+      * DEPRECATED — switch to Scala 2.12+ and
+      * [[monix.execution.CancelableFuture.fromJavaCompletable CancelableFuture.fromJavaCompletable]].
       */
-    def asScala(implicit ec: ExecutionContext): CancelableFuture[A] =
+    @deprecated("Switch to Scala 2.12+ and CancelableFuture.fromJavaCompletable", "3.0.0")
+    def asScala(implicit ec: ExecutionContext): CancelableFuture[A] = {
+      // $COVERAGE-OFF$
       CancelableFuture.async(cb => {
         source.handle[Unit](new BiFunction[A, Throwable, Unit] {
           override def apply(result: A, err: Throwable): Unit = {
@@ -57,16 +58,23 @@ package object execution {
         })
         Cancelable(() => source.cancel(true))
       })
+      // $COVERAGE-ON$
+    }
   }
 
+  /**
+    * DEPRECATED — switch to Scala 2.12+ and
+    * [[monix.execution.FutureUtils.toJavaCompletable FutureUtils.toJavaCompletable]].
+    */
+  @deprecated("Switch to Scala 2.12+ and FutureUtils.toJavaCompletable", "3.0.0")
   implicit class ScalaFutureUtils[A](val source: Future[A]) extends AnyVal {
-
-    /** Convert Scala `Future` to Java `CompletableFuture`
-      *
-      * NOTE: Cancelling resulting future will not have any
-      * effect on source
+    /**
+      * DEPRECATED — switch to Scala 2.12+ and
+      * [[monix.execution.FutureUtils.toJavaCompletable FutureUtils.toJavaCompletable]].
       */
+    @deprecated("Switch to Scala 2.12+ and FutureUtils.toJavaCompletable", "3.0.0")
     def asJava(implicit ec: ExecutionContext): CompletableFuture[A] = {
+      // $COVERAGE-OFF$
       val cf = new CompletableFuture[A]()
       source.onComplete {
         case Success(a) =>
@@ -75,6 +83,7 @@ package object execution {
           cf.completeExceptionally(ex)
       }
       cf
+      // $COVERAGE-ON$
     }
   }
 }
