@@ -18,13 +18,14 @@
 package monix.catnap
 
 import cats.effect.{Async, CancelToken, Concurrent, ContextShift}
-import monix.catnap.cancelables.SingleAssignCancelableF
 import monix.catnap.internal.AsyncUtils
+import monix.execution.Callback
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericSemaphore
 import monix.execution.internal.GenericSemaphore.Listener
+import scala.concurrent.Promise
 
 /** The `Semaphore` is an asynchronous semaphore implementation that
   * limits the parallelism on task execution.
@@ -284,20 +285,11 @@ object Semaphore {
           (F0.unit, releaseN(n))
         }
         else {
-          // Reference to current cancel token
-          val release = SingleAssignCancelableF.unsafeApply[F]
-          val acquire = F0.asyncF[Unit] { cb =>
-            // Can be cancelled, hence it needs to be atomic; the creation of the
-            // `cancelToken` needs to be suspended in order to ensure atomicity below
-            F0.uncancelable(F0.suspend {
-              // Actual acquisition (MUST BE in the atomic block)
-              val cancelToken = unsafeAsyncAcquireN(n, cb)
-              // Registers the release token
-              release.set(CancelableF.wrap(cancelToken))
-            })
-          }
+          val p = Promise[Unit]()
+          val cancelToken = unsafeAsyncAcquireN(n, Callback.fromPromise(p))
+          val acquire = FutureLift.scalaToAsync(F0.pure(p.future))
           // Extra async boundary needed for fairness
-          (F0.flatMap(acquire)(bindFork), release.cancel)
+          (F0.flatMap(acquire)(bindFork), cancelToken)
         }
       }
 
