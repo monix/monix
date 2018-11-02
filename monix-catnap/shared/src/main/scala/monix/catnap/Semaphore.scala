@@ -56,6 +56,15 @@ import scala.concurrent.Promise
   *     _ <- tasks.toList.parSequence
   *   } yield ()
   * }}}
+  *
+  * ==Credits==
+  *
+  * `Semaphore` is now implementing `cats.effect.Semaphore`, deprecating
+  * the old Monix `TaskSemaphore`.
+  *
+  * The changes to the interface and some implementation details are
+  * inspired by the implementation in Cats-Effect, which was ported
+  * from FS2.
   */
 final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)
   (implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F])
