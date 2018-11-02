@@ -18,7 +18,6 @@
 package monix.catnap
 
 import cats.effect.{Async, CancelToken, Concurrent, ContextShift}
-import cats.implicits._
 import monix.catnap.cancelables.SingleAssignCancelableF
 import monix.catnap.internal.AsyncUtils
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
@@ -278,13 +277,15 @@ object Semaphore {
       }
 
     def acquireAsyncN(n: Long): F[(F[Unit], CancelToken[F])] =
-      SingleAssignCancelableF.apply[F].map { release =>
+      F0.delay {
         // Happy path
         if (unsafeTryAcquireN(n)) {
           // This cannot be canceled in the context of `bracket`
           (F0.unit, releaseN(n))
         }
         else {
+          // Reference to current cancel token
+          val release = SingleAssignCancelableF.unsafeApply[F]
           val acquire = F0.asyncF[Unit] { cb =>
             // Can be cancelled, hence it needs to be atomic; the creation of the
             // `cancelToken` needs to be suspended in order to ensure atomicity below
