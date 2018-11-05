@@ -348,6 +348,8 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionByTimespanObservable"),
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable"),
-    exclude[MissingClassProblem]("monix.execution.internal.collection.ArrayStack")
+    exclude[MissingClassProblem]("monix.execution.internal.collection.ArrayStack"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.findErrorHandler"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.popNextBind")
   )
 }
