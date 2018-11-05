@@ -18,7 +18,7 @@
 package monix.execution.internal.collection.queues
 
 import monix.execution.{BufferCapacity, ChannelType}
-import monix.execution.internal.collection.{ArrayQueue, ConcurrentQueue}
+import monix.execution.internal.collection.{JSArrayQueue, ConcurrentQueue}
 
 private[internal] trait ConcurrentQueueBuilders {
   /**
@@ -26,7 +26,7 @@ private[internal] trait ConcurrentQueueBuilders {
     */
   def apply[A](capacity: BufferCapacity, channelType: ChannelType): ConcurrentQueue[A] =
     capacity match {
-      case BufferCapacity.Bounded(c) => ArrayQueue.bounded[A](c)
-      case BufferCapacity.Unbounded(_) => ArrayQueue.unbounded[A]
+      case BufferCapacity.Bounded(c) => JSArrayQueue.bounded[A](c)
+      case BufferCapacity.Unbounded(_) => JSArrayQueue.unbounded[A]
     }
 }

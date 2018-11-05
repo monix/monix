@@ -24,7 +24,7 @@ import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.internal.TaskRunLoop._
 import monix.eval.Task
 import monix.execution.{Callback, Scheduler}
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import scala.util.control.NonFatal
 
 import scala.concurrent.blocking
@@ -46,7 +46,7 @@ private[eval] object TaskRunSyncUnsafe {
       current match {
         case FlatMap(fa, bindNext) =>
           if (bFirst ne null) {
-            if (bRest eq null) bRest = new ArrayStack()
+            if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
           }
           /*_*/bFirst = bindNext/*_*/
@@ -67,7 +67,7 @@ private[eval] object TaskRunSyncUnsafe {
 
         case bindNext @ Map(fa, _, _) =>
           if (bFirst ne null) {
-            if (bRest eq null) bRest = new ArrayStack()
+            if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
           }
           bFirst = bindNext
