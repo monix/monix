@@ -33,30 +33,30 @@ import scala.util.control.NonFatal
 object CatsContravariantForSubscriber extends Contravariant[Subscriber] {
   override def contramap[A, B](fa: Subscriber[A])(f: B => A): Subscriber[B] =
     new ContravariantSubscriber(fa)(f)
-}
 
-private[reactive] class ContravariantSubscriber[A, B](source: Subscriber[A])(f: B => A) extends Subscriber[B] {
-  override implicit def scheduler: Scheduler = source.scheduler
-  // For protecting the contract
-  private[this] var isDone = false
+  private final class ContravariantSubscriber[A, B](source: Subscriber[A])(f: B => A) extends Subscriber[B] {
+    override implicit def scheduler: Scheduler = source.scheduler
+    // For protecting the contract
+    private[this] var isDone = false
 
-  override def onNext(elem: B): Future[Ack] = {
-    if (isDone) Stop
-    else {
-      var streamError = true
-      try {
-        val b = f(elem)
-        streamError = false
-        source.onNext(b)
-      } catch {
-        case NonFatal(ex) if streamError =>
-          onError(ex)
-          Stop
+    override def onNext(elem: B): Future[Ack] = {
+      if (isDone) Stop
+      else {
+        var streamError = true
+        try {
+          val b = f(elem)
+          streamError = false
+          source.onNext(b)
+        } catch {
+          case NonFatal(ex) if streamError =>
+            onError(ex)
+            Stop
+        }
       }
     }
+    override def onError(ex: Throwable): Unit =
+      if (!isDone) { isDone = true; source.onError(ex) }
+    override def onComplete(): Unit =
+      if (!isDone) { isDone = true; source.onComplete() }
   }
-  override def onError(ex: Throwable): Unit =
-    if (!isDone) { isDone = true; source.onError(ex) }
-  override def onComplete(): Unit =
-    if (!isDone) { isDone = true; source.onComplete() }
 }
