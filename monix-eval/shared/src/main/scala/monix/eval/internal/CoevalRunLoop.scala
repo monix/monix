@@ -19,13 +19,13 @@ package monix.eval.internal
 
 import monix.eval.Coeval
 import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Map, Now, Suspend}
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import scala.util.control.NonFatal
 
 private[eval] object CoevalRunLoop {
   private type Current = Coeval[Any]
   private type Bind = Any => Coeval[Any]
-  private type CallStack = ArrayStack[Bind]
+  private type CallStack = ChunkedArrayStack[Bind]
 
   /** Trampoline for lazy evaluation. */
   def start[A](source: Coeval[A]): Eager[A] = {
@@ -40,7 +40,7 @@ private[eval] object CoevalRunLoop {
       current match {
         case FlatMap(fa, bindNext) =>
           if (bFirst ne null) {
-            if (bRest eq null) bRest = new ArrayStack()
+            if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
           }
           bFirst = bindNext.asInstanceOf[Bind]
@@ -61,7 +61,7 @@ private[eval] object CoevalRunLoop {
 
         case bindNext @ Map(fa, _, _) =>
           if (bFirst ne null) {
-            if (bRest eq null) bRest = new ArrayStack()
+            if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
           }
           bFirst = bindNext.asInstanceOf[Bind]

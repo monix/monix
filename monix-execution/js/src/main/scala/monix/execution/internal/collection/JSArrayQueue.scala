@@ -26,7 +26,7 @@ import scala.scalajs.js
   *
   * Inspired by: http://code.stephenmorley.org/javascript/queues/
   */
-private[monix] final class ArrayQueue[A] private
+private[monix] final class JSArrayQueue[A] private
   (_size: Int, triggerEx: Int => Throwable = null)
   extends EvictingQueue[A] {
 
@@ -127,10 +127,10 @@ private[monix] final class ArrayQueue[A] private
   }
 }
 
-private[monix] object ArrayQueue {
-  def unbounded[A]: ArrayQueue[A] =
-    new ArrayQueue[A](0)
+private[monix] object JSArrayQueue {
+  def unbounded[A]: JSArrayQueue[A] =
+    new JSArrayQueue[A](0)
 
-  def bounded[A](bufferSize: Int, triggerEx: Int => Throwable = null): ArrayQueue[A] =
-    new ArrayQueue[A](bufferSize, triggerEx)
+  def bounded[A](bufferSize: Int, triggerEx: Int => Throwable = null): JSArrayQueue[A] =
+    new JSArrayQueue[A](bufferSize, triggerEx)
 }

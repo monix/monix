@@ -22,18 +22,17 @@ package collection
   *
   * INTERNAL API.
   */
-private[monix] final class ArrayStack[A] private (
+private[monix] final class ChunkedArrayStack[A] private (
   initialArray: Array[AnyRef],
   chunkSize: Int,
   initialIndex: Int)
   extends Serializable { self =>
 
+  assert(chunkSize > 1, "chunkSize > 1")
+
   private[this] val modulo = chunkSize - 1
   private[this] var array = initialArray
   private[this] var index = initialIndex
-
-  def this(chunkSize: Int) = this(new Array[AnyRef](chunkSize), chunkSize, 0)
-  def this() = this(8)
 
   /** Returns `true` if the stack is empty. */
   def isEmpty: Boolean =
@@ -63,7 +62,7 @@ private[monix] final class ArrayStack[A] private (
   }
 
   /** Pushes an entire sequence on the stack. */
-  def pushAll(stack: ArrayStack[A]): Unit = {
+  def pushAll(stack: ChunkedArrayStack[A]): Unit = {
     pushAll(stack.iteratorReversed)
   }
 
@@ -107,4 +106,12 @@ private[monix] final class ArrayStack[A] private (
         result
       }
     }
+}
+
+private[monix] object ChunkedArrayStack {
+  /**
+    * Builds a new [[ChunkedArrayStack]] object.
+    */
+  def apply[A](chunkSize: Int = 8): ChunkedArrayStack[A] =
+    new ChunkedArrayStack[A](new Array[AnyRef](chunkSize), chunkSize, 0)
 }

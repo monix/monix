@@ -19,11 +19,11 @@ package monix.execution.internal.collection
 
 import minitest.SimpleTestSuite
 
-object ArrayQueueSuite extends SimpleTestSuite {
+object JSArrayQueueSuite extends SimpleTestSuite {
   test("unbounded") {
-    val q = ArrayQueue.unbounded[Int]
+    val q = JSArrayQueue.unbounded[Int]
 
-    for (i <- 0 until 100) q.offer(1)
+    for (_ <- 0 until 100) q.offer(1)
     assertEquals(q.length, 100)
 
     var sum = 0

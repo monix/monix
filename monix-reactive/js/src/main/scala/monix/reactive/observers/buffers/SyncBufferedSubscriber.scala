@@ -19,7 +19,7 @@ package monix.reactive.observers.buffers
 
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.internal.collection.{ArrayQueue, _}
+import monix.execution.internal.collection.{JSArrayQueue, _}
 import scala.util.control.NonFatal
 import monix.execution.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -244,7 +244,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy.
     */
   def unbounded[A](underlying: Subscriber[A]): Subscriber.Sync[A] = {
-    val buffer = ArrayQueue.unbounded[A]
+    val buffer = JSArrayQueue.unbounded[A]
     new SyncBufferedSubscriber[A](underlying, buffer, null)
   }
 
@@ -255,7 +255,7 @@ private[monix] object SyncBufferedSubscriber {
     */
   def bounded[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
-    val buffer = ArrayQueue.bounded[A](bufferSize, _ => {
+    val buffer = JSArrayQueue.bounded[A](bufferSize, _ => {
       BufferOverflowException(
         s"Downstream observer is too slow, buffer over capacity with a " +
         s"specified buffer size of $bufferSize")
@@ -271,7 +271,7 @@ private[monix] object SyncBufferedSubscriber {
     */
   def dropNew[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
-    val buffer = ArrayQueue.bounded[A](bufferSize)
+    val buffer = JSArrayQueue.bounded[A](bufferSize)
     new SyncBufferedSubscriber[A](underlying, buffer, null)
   }
 
@@ -282,7 +282,7 @@ private[monix] object SyncBufferedSubscriber {
     */
   def dropNewAndSignal[A](underlying: Subscriber[A], bufferSize: Int, onOverflow: Long => Option[A]): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
-    val buffer = ArrayQueue.bounded[A](bufferSize)
+    val buffer = JSArrayQueue.bounded[A](bufferSize)
     new SyncBufferedSubscriber[A](underlying, buffer, onOverflow)
   }
 

@@ -19,9 +19,9 @@ package monix.execution.internal.collection
 
 import minitest.SimpleTestSuite
 
-object ArrayStackSuite extends SimpleTestSuite {
+object ChunkedArrayStackSuite extends SimpleTestSuite {
   test("push and pop 8 items") {
-    val stack = new ArrayStack[Int]()
+    val stack = ChunkedArrayStack[Int](chunkSize = 8)
     var times = 0
 
     while (times < 10) {
@@ -43,7 +43,7 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("push and pop 100 items") {
-    val stack = new ArrayStack[Int]()
+    val stack = ChunkedArrayStack[Int](chunkSize = 8)
     var times = 0
 
     while (times < 10) {
@@ -65,8 +65,8 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("pushAll(stack)") {
-    val stack = new ArrayStack[Int]()
-    val stack2 = new ArrayStack[Int]()
+    val stack = ChunkedArrayStack[Int](chunkSize = 8)
+    val stack2 = ChunkedArrayStack[Int](chunkSize = 8)
 
     for (i <- 0 until 100) stack2.push(i)
     stack.pushAll(stack2)
@@ -84,7 +84,7 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("pushAll(iterable)") {
-    val stack = new ArrayStack[Int]()
+    val stack = ChunkedArrayStack[Int](chunkSize = 8)
     val expected = (0 until 100).toList
     stack.pushAll(expected)
 
@@ -100,7 +100,7 @@ object ArrayStackSuite extends SimpleTestSuite {
   }
 
   test("iterator") {
-    val stack = new ArrayStack[Int]()
+    val stack = ChunkedArrayStack[Int](chunkSize = 8)
     val expected = (0 until 100).toList
     for (i <- expected) stack.push(i)
     assertEquals(stack.iteratorReversed.toList, expected.reverse)
