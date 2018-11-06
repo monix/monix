@@ -178,7 +178,7 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
   }
 }
 
-object CancelableFuture {
+object CancelableFuture extends internal.CancelableFutureForPlatform {
   /** Builder for a [[CancelableFuture]].
     *
     * @param underlying is an underlying `Future` reference that will respond to `onComplete` calls

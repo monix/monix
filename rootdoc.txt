@@ -10,8 +10,7 @@ with asynchronous execution:
  - [[monix.execution.atomic]] exposes the `Atomic` types, as alternative
    to `java.util.concurrent.atomic`   
  - [[monix.execution.cancelables]] contains several
-   useful [[monix.execution.Cancelable Cancelable]] implementations
-   
+   useful [[monix.execution.Cancelable Cancelable]] implementations   
  - [[monix.execution.schedulers]] contains several
    useful [[monix.execution.Scheduler Scheduler]] implementations
  - [[monix.execution.rstreams]] contains helpers for dealing
@@ -20,6 +19,12 @@ with asynchronous execution:
    useful for dealing with concurrency
  - [[monix.execution.exceptions]] groups some exceptions thrown by
    the implementation
+
+'''[[monix.catnap]]''' exposes pure abstractions built on top of
+the [[https://typelevel.org/cats-effect/ Cats-Effect]] type classes:
+
+ - [[monix.catnap.cancelables]] exposes pure counterparts to the
+   cancelable data types described in [[monix.execution.cancelables]]
 
 '''[[monix.eval]]''' is for dealing with evaluation of results, thus exposing
 [[monix.eval.Task Task]] and [[monix.eval.Coeval Coeval]].
@@ -33,7 +38,11 @@ with asynchronous execution:
    and [[monix.reactive.subjects.ConcurrentSubject ConcurrentSubject]],
    which are implementations of hot observables that function both as input and output
 
-'''[[monix.tail]]''' exposes [[monix.tail.Iterant Iterant]] for purely functional pull based streaming.
+'''[[monix.tail]]''' exposes [[monix.tail.Iterant Iterant]] for purely functional pull based streaming:
+
+ - [[monix.tail.batches]] describes `Batch` and `BatchCursor`, the
+   alternatives to Scala's `Iterable` and `Iterator` respectively that
+   we are using within Iterant's encoding
 
 You can control evaluation with type you choose - be it [[monix.eval.Task Task]], [[monix.eval.Coeval Coeval]], [[https://typelevel.org/cats-effect/api/cats/effect/IO.html cats.effect.IO]]
 or your own as long as you provide correct [[https://typelevel.org/cats-effect/typeclasses/ cats-effect]] or [[https://typelevel.org/cats/typeclasses.html cats]] typeclass instance.

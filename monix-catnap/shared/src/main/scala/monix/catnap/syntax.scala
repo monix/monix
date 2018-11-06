@@ -18,13 +18,12 @@
 package monix.catnap
 
 import monix.catnap.FutureLift.Syntax
-import scala.concurrent.Future
 
 object syntax {
   /**
     * Provides syntax for [[FutureLift]].
     */
-  implicit final class SyntaxForLiftFuture[F[_], MF[T] <: Future[T], A](
-    val source: F[MF[A]])
-    extends AnyVal with Syntax[F, MF, A]
+  implicit final class SyntaxForLiftFuture[F[_], Future[T], A](
+    val source: F[Future[A]])
+    extends AnyVal with Syntax[F, Future, A]
 }

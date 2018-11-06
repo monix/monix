@@ -380,4 +380,21 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     assertEquals(f.value, Some(Failure(dummy)))
     assertEquals(s.state.lastReportedError, null)
   }
+
+  test("should end with error on parallelism <= 0") { implicit s =>
+    var error = false
+
+    val source = Observable
+      .now(1)
+      .mapParallelUnordered(parallelism = 0)(_ => Task.unit)
+      .doOnError {
+        case _: IllegalArgumentException => Task{ error = true }
+        case _ => Task.unit
+      }
+
+    source.completedL.runToFuture
+    s.tick()
+
+    assert(error)
+  }
 }

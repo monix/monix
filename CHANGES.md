@@ -1,4 +1,295 @@
-## Version 3.0.0-RC1 (Map 18, 2018)
+## Version 3.0.0-RC2 (Nov 6, 2018)
+
+### Cats-Effect Updates
+
+Supporting Cats-Effect `1.0.0` has been a massive amount of work:
+
+- [PR #659](https://github.com/monix/monix/pull/659)
+  Cats Effect `1.0.0-RC` update
+- [PR #681](https://github.com/monix/monix/pull/681):
+  Cats-Effect `1.0.0-RC2` update
+- [PR #686](https://github.com/monix/monix/pull/686):
+  Cats-Effect `1.0.0-RC3` update, `Task` conversions
+- [PR #716](https://github.com/monix/monix/pull/716):
+  Updates to Cats-Effect `1.0.0`
+  
+Also related, but mentioned below:
+
+- `Iterant`'s encoding had to change due to the new contract of
+  Cats-Effect's type classes, in a massive change of internals that
+  also improved its performance and safety
+  ([#683](https://github.com/monix/monix/pull/683))
+  
+### Sub-project: monix-execution
+
+Several features, deprecations and refactorings happened in
+`monix-execution`, mentioned under the changes for `monix-catnap`
+below:
+
+- `monix.execution.misc.AsyncVar` was refactored, to have an interface
+  in line with the `MVar` in Cats-Effect and moved to `monix.execution.AsyncVar`
+  ([#753](https://github.com/monix/monix/pull/753))
+- `monix.execution.misc.AsyncSemaphore` was also refactored and
+  enhanced, with an interface resembling that of Cats-Effect's
+  `Semaphore` and moved to `monix.execution.Semaphore`
+  ([#754](https://github.com/monix/monix/pull/754))
+- `monix.execution.AsyncQueue` was added
+  ([#757](https://github.com/monix/monix/pull/757))
+- `monix.execution.Callback` was added
+  ([#740](https://github.com/monix/monix/pull/740))  
+- `monix.execution.FutureUtils` and `CancelableFuture` can now take
+  care of the conversions of Scala's `Future` to and from Java's
+  `CompletableFuture` 
+  ([#761](https://github.com/monix/monix/pull/761))
+  
+Other features:
+
+- [PR #675](https://github.com/monix/monix/pull/675):
+  Switches to stdlib `NonFatal`
+- [PR #738](https://github.com/monix/monix/pull/738):
+  Adds `CancelablePromise`
+- [PR #765](https://github.com/monix/monix/pull/765):
+  Changes `TrampolineScheduler`'s internal stack back to a queue 
+  
+### Sub-project: monix-catnap
+
+This is a new project introduced that currently depends on only
+`monix-execution` and Cats/Cats-Effect and whose purpose is to provide
+abstractions built on top of Cats-Effect's type classes.
+
+- [PR #744](https://github.com/monix/monix/pull/744):
+  Adds `monix.catnap.CircuitBreaker` and `LiftFuture`
+- [PR #753](https://github.com/monix/monix/pull/753):
+  Adds generic `monix.catnap.MVar` and `monix.execution.AsyncVar`
+  refactoring
+- [PR #756](https://github.com/monix/monix/pull/756):
+  Makes `MVar` fork on async `take` for fairness
+- [PR #754](https://github.com/monix/monix/pull/754):
+  Adds generic `monix.catnap.Semaphore` and
+  `monix.execution.AsyncSemaphore` refactoring
+- [PR #757](https://github.com/monix/monix/pull/757):
+  Adds `monix.execution.AsyncQueue` and `monix.catnap.ConcurrentQueue`
+- [PR #762](https://github.com/monix/monix/pull/762):
+  Fixes issue [typelevel/cats-effect#403](https://github.com/typelevel/cats-effect/pull/403),
+  also added `monix.catnap.cancelables.SingleAssignCancelableF`
+  
+Also mentioned below, as part of other features:
+
+- Added `monix.catnap.CancelableF` and
+  `monix.catnap.cancelables.BooleanCancelableF`
+  ([#726](https://github.com/monix/monix/pull/726))
+
+Note: the new `FutureLift` type class provides some of the
+functionality of the now deprecated `monix-java8`.
+
+### Sub-project: monix-eval
+
+Major removals (with deprecation symbols kept around):
+
+- `monix.eval.TaskSemaphore`, replaced by the generic `monix.catnap.Semaphore`
+- `monix.eval.MVar`, replaced by the generic `monix.catnap.MVar`
+- `monix.eval.TaskCircuitBreaker`, replaced by the generic `monix.catnap.CircuitBreaker`
+
+This was done because having these implementations specialized for
+`Task` doesn't make sense and the new implementations are better and
+have more features.
+
+Features:
+
+- [PR #626](https://github.com/monix/monix/pull/626):
+  Adds `forever` for `Task`
+- [PR #636](https://github.com/monix/monix/pull/636):
+  Adds `join` to the `fork` documentation
+- [PR #639](https://github.com/monix/monix/pull/639):
+  Makes `Coeval.value` empty-parens to indicate side effects 
+- [PR #638](https://github.com/monix/monix/pull/638):
+  Fixes `Task.foreach` waiting / error reporting
+- [PR #634](https://github.com/monix/monix/pull/634):
+  Adds ability to specify custom options on `Effect[Task]`
+- [PR #655](https://github.com/monix/monix/pull/655):
+  Handles `InterruptedException` in `NonFatal`
+- [PR #660](https://github.com/monix/monix/pull/660):
+  Makes `TaskApp` scheduler and options defs
+- [PR #664](https://github.com/monix/monix/pull/664):
+  Fixes `Task.map2` not executing things in sequence
+- [PR #661](https://github.com/monix/monix/pull/661):
+  Makes `mapBoth` always execute tasks in parallel 
+- [PR #669](https://github.com/monix/monix/pull/669)
+  Adds `uncancelable` to example
+- [PR #647](https://github.com/monix/monix/pull/647):
+  Changes internal encoding for `Task.Async` (_major!_)
+- [PR #670](https://github.com/monix/monix/pull/670):
+  `Task` gets smarter about forking and async boundaries
+- [PR #652](https://github.com/monix/monix/pull/652):
+  Uses `TaskLocal#local` in `TaskLocal#bindL` and `TaskLocal#bindClear`
+- [PR #679](https://github.com/monix/monix/pull/679):
+  Fixes `Task.bracket`, `onCancelRaiseError`; introduce `Task.ContextSwitch`
+- [PR #706](https://github.com/monix/monix/pull/706):
+  Adds `SemigroupK[Task]` instance
+- [PR #715](https://github.com/monix/monix/pull/715):
+  Implements Task `timed` method
+- [PR #724](https://github.com/monix/monix/pull/724):
+  Makes `Task` auto-cancelable by defaul (_major!_)
+- [PR #725](https://github.com/monix/monix/pull/725):
+  Adds runtime check to `TaskLocal` to make it safer
+- [PR #726](https://github.com/monix/monix/pull/726):
+  Changes `Task` to sequence (back-pressure) async finalizers (_major!_)
+- [PR #732](https://github.com/monix/monix/pull/732):
+  Adds `guarantee` and `guaranteeCase` methods on `Task` and `Coeval`
+- [PR #740](https://github.com/monix/monix/pull/740):
+  Moves `Callback` to `monix.execution`, Task `runAsync` refactor,
+  rename to `runToFuture` (_major!_)
+- [PR #761](https://github.com/monix/monix/pull/761):
+  Expands `FutureLift` to take care of `CompletableFuture`
+
+### Sub-project: monix-reactive
+
+`Observable` suffered an API refactoring, changing the convention for
+operators that take `Task` or `F[_] : Effect` values as arguments:
+
+- operators using `Task` now use the `Eval` suffix instead of `Task`,
+  or no special suffix at all
+- operators using `F[_] : Sync` parameters use an `F` suffix
+- the `F` suffixed operators previously signalled operators that kept
+  the `Observable` context (e.g. `findF`), however all of them have
+  been renamed
+  
+See [PR #729](https://github.com/monix/monix/pull/729) for details.
+
+Features:
+
+- [PR #610](https://github.com/monix/monix/pull/610): 
+  Adds `scan0`, `flatScan0`, `flatScan0DelayErrors`,
+  `scanEval0`, `scanMap0` on `Observable`
+- [PR #641](https://github.com/monix/monix/pull/641):
+  Reference `bufferTumbling` instead of `buffer` in scaladoc
+- [PR #646](https://github.com/monix/monix/pull/646):
+  Fixes `ack.future` called when `Ack` is `null`
+- [PR #657](https://github.com/monix/monix/pull/657):
+  Adds a few missing tests to `Observable` methods
+- [PR #684](https://github.com/monix/monix/pull/684):
+  Simplifies logic in `TakeLastOperator.onNext`
+- [PR #704](https://github.com/monix/monix/pull/704):
+  Introduces `Observable.doOnStartTask` and `Observable.doOnStartEval`
+- [PR #723](https://github.com/monix/monix/pull/723):
+  Adds `Alternative` instance for `Observable`
+- [PR #654](https://github.com/monix/monix/pull/654):
+  Makes `Observable#++`'s argument lazy
+- [PR #729](https://github.com/monix/monix/pull/729):
+  Adds `Observable.bracket`, Iterant/Task API refactorings, fixes (major!)
+- [PR #741](https://github.com/monix/monix/pull/741):
+  Adds cats `Profunctor` instance for `Subject` 
+- [PR #739](https://github.com/monix/monix/pull/739):
+  Adds operator `bufferTimedWithPressure` with `sizeOf` on `Observable`
+- [PR #743](https://github.com/monix/monix/pull/743):
+  Improvs `Observable.collect` to avoid double evaluation
+- [PR #749](https://github.com/monix/monix/pull/749):
+  Adds `Profunctor` and `Contravariant` instance for `Consumer` 
+- [PR #750](https://github.com/monix/monix/pull/750):
+  Fixes handling start/end of `Long` range in `RangeObservable`
+- [PR #558](https://github.com/monix/monix/pull/558):
+  Adds `Observable.mapParallelOrdered`
+  
+### Sub-project: monix-tail
+
+The `Iterant` encoding suffered a major change, with all operators
+described for `Iterant` being changed for it. This was done because:
+
+1. the old encoding couldn't be supported under the auto-cancelable
+   model promoted by Cats-Effect 1.0.0
+2. the new encoding is safer and has better performance too
+
+Features:
+
+- [PR #683](https://github.com/monix/monix/pull/683):
+  Iterant, version 2 (_major_)
+- [PR #614](https://github.com/monix/monix/pull/614):
+  Adds `scan0`, `scanEval0`, `scanMap0` on `Iterant`
+- [PR #622](https://github.com/monix/monix/pull/622):
+  Adds `mapBatch` for `Iterant`
+- [PR #629](https://github.com/monix/monix/pull/629):
+  Fixes `IterantBuildersSync` methods to not require 
+  `implicit F: Sync[F]`
+- [PR #631](https://github.com/monix/monix/pull/631):
+  Renames `toGenerator` to `toBatch` in `Cursor`
+- [PR #633](https://github.com/monix/monix/pull/633):
+  Fixes eagerness of `.bracket` on `Last` nodes
+- [PR #621](https://github.com/monix/monix/pull/621):
+  Changes behavior of `Batch#fromArray`, `fromAnyArray`
+- [PR #656](https://github.com/monix/monix/pull/656):
+  Makes Iterant's `++` take a lazy (by-name) parameter
+- [PR #662](https://github.com/monix/monix/pull/662):
+  Adds `Iterant.fromReactivePublisher`
+- [PR #709](https://github.com/monix/monix/pull/709):
+  Removes unused function from `EvalOnNextAck`
+- [PR #707](https://github.com/monix/monix/pull/707):
+  Add `Iterant.lastOptionL`
+- [PR #746](https://github.com/monix/monix/pull/746):
+  Fix `Iterant.fromReactivePublisher`
+- [PR #755](https://github.com/monix/monix/pull/755):
+  Remove the `Sync[Iterant]` instance
+
+### Sub-project deprecation: monix-java8
+
+The functionality in `monix-java8` was implemented directly in:
+
+1. `monix.execution.FutureUtils`
+2. `monix.execution.CancelableFuture`
+3. `monix.catnap.FutureLift`
+
+The `monix-java8` sub-project is still provided, but is deprecated and
+will soon be removed.
+
+### Chores
+
+- [PR #653](https://github.com/monix/monix/pull/653):
+  Update Monix's rootdoc, the landing page for the ScalaDoc
+- [PR #671](https://github.com/monix/monix/pull/671):
+  Optionally allow forcing a build on Java 9+
+- [PR #677](https://github.com/monix/monix/pull/677):
+  Add Starting Point section to CONTRIBUTING.md 
+- [PR #693](https://github.com/monix/monix/pull/693):
+  Fix micro doc typo in `monix.execution.misc.InlineMacros`
+- [PR #699](https://github.com/monix/monix/pull/699):
+  Add `Concat` and `Scope` to `Iterant`'s description
+- [PR #640](https://github.com/monix/monix/pull/640):
+  Add sbt-doctest, to verify code examples in ScalaDoc
+- [PR #705](https://github.com/monix/monix/pull/705):
+  Fix all ScalaDocs (except Task's) in `monix.eval`
+- [PR #717](https://github.com/monix/monix/pull/717):
+  Change to Scala's Code of Conduct
+- [PR #720](https://github.com/monix/monix/pull/720):
+  Add @Avasil to the Code of Conduct
+- [PR #718](https://github.com/monix/monix/pull/718):
+  Fix `Task` ScalaDocs
+- [PR #736](https://github.com/monix/monix/pull/736):
+  Update doctest plugin version
+- [PR #763](https://github.com/monix/monix/pull/763):
+  Fix Observable doc mentioning cats.Eq
+
+### Thanks
+
+People that made this release possible, in alphabetical order:
+
+- Alexandru Nedelcu (@alexandru)
+- Eduardo Barrientos (@kdoomsday) 
+- Eugene Platonov (@jozic)
+- Jakub Kozłowski (@kubukoz)
+- Jamie Wilson (@jfwilson)
+- Joe Ferris (@jferris)
+- Jules Ivanic (@guizmaii)
+- Kacper Gunia (@cakper)
+- Kamil Kloch (@kamilkloch)
+- Loránd Szakács (@lorandszakacs)
+- Oleg Pyzhcov (@oleg-py)
+- Piotr Gawryś (@Avasil)
+- Raas A (@RaasAhsan)
+- Seth Tisue (@SethTisue)
+- Yohann B (@ybr)
+- jendakol (@jendakol)
+- volth (@volth)
+
+## Version 3.0.0-RC1 (May 18, 2018)
 
 [https://typelevel.org/cats-effect/ Cats Effect] integration:
 

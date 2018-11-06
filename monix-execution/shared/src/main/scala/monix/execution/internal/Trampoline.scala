@@ -17,13 +17,14 @@
 
 package monix.execution.internal
 
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayQueue
 import scala.util.control.NonFatal
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
 private[execution] class Trampoline(underlying: ExecutionContext) {
-  private[this] var immediateQueue = new ArrayStack[Runnable]()
+  private def makeQueue(): ChunkedArrayQueue[Runnable] = ChunkedArrayQueue[Runnable](chunkSize = 16)
+  private[this] var immediateQueue = makeQueue()
   private[this] var withinLoop = false
 
   def startLoop(runnable: Runnable): Unit = {
@@ -37,24 +38,24 @@ private[execution] class Trampoline(underlying: ExecutionContext) {
     if (!withinLoop) {
       startLoop(runnable)
     } else {
-      immediateQueue.push(runnable)
+      immediateQueue.enqueue(runnable)
     }
   }
 
   protected final def forkTheRest(): Unit = {
-    final class ResumeRun(head: Runnable, rest: ArrayStack[Runnable])
+    final class ResumeRun(head: Runnable, rest: ChunkedArrayQueue[Runnable])
       extends Runnable {
 
       def run(): Unit = {
-        immediateQueue.pushAll(rest)
+        immediateQueue.enqueueAll(rest)
         immediateLoop(head)
       }
     }
 
-    val head = immediateQueue.pop()
+    val head = immediateQueue.dequeue()
     if (head ne null) {
       val rest = immediateQueue
-      immediateQueue = new ArrayStack[Runnable]
+      immediateQueue = makeQueue()
       underlying.execute(new ResumeRun(head, rest))
     }
   }
@@ -70,7 +71,7 @@ private[execution] class Trampoline(underlying: ExecutionContext) {
         else throw ex
     }
 
-    val next = immediateQueue.pop()
+    val next = immediateQueue.dequeue()
     if (next ne null) immediateLoop(next)
   }
 }

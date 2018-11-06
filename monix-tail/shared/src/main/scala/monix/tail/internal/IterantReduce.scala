@@ -20,7 +20,7 @@ package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
 
@@ -40,10 +40,10 @@ private[tail] object IterantReduce {
 
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
-      if (stackRef == null) stackRef = new ArrayStack()
+      if (stackRef == null) stackRef = ChunkedArrayStack()
       stackRef.push(item)
     }
 
