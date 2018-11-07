@@ -28,7 +28,7 @@ import monix.reactive.{Observable, Observer}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{Failure, Random}
+import scala.util.{Failure, Random, Try}
 
 object ConcatOneSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -124,6 +124,18 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
   test("filterEval can be expressed in terms of flatMap") { implicit s =>
     val obs1 = Observable.range(0, 100).filterEval(i => Task.pure(i % 2 == 0))
+    val obs2 = Observable.range(0, 100).flatMap(x => if (x % 2 == 0) now(x) else empty)
+
+    val lst1 = toList(obs1)
+    val lst2 = toList(obs2)
+    s.tick()
+
+    assert(lst1.isCompleted && lst2.isCompleted)
+    assertEquals(lst1.value.get, lst2.value.get)
+  }
+
+  test("filterEvalF can be expressed in terms of flatMap") { implicit s =>
+    val obs1 = Observable.range(0, 100).filterEvalF[Try](i => Try(i % 2 == 0))
     val obs2 = Observable.range(0, 100).flatMap(x => if (x % 2 == 0) now(x) else empty)
 
     val lst1 = toList(obs1)
