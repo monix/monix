@@ -19,7 +19,7 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, Order, Eq, ~>}
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, Order, Eq, ~>, FunctorFilter, Functor}
 import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
 import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
@@ -5449,6 +5449,7 @@ object Observable extends ObservableDeprecatedBuilders {
   class CatsInstances extends Bracket[Observable, Throwable]
     with Alternative[Observable]
     with CoflatMap[Observable]
+    with FunctorFilter[Observable]
     with TaskLift[Observable] {
 
     override def unit: Observable[Unit] =
@@ -5495,6 +5496,13 @@ object Observable extends ObservableDeprecatedBuilders {
       fa.guaranteeCase(e => finalizer(e).completedL)
     override def uncancelable[A](fa: Observable[A]): Observable[A] =
       fa.uncancelable
+    override def functor: Functor[Observable] = this
+    override def mapFilter[A, B](fa: Observable[A])(f: A => Option[B]): Observable[B] =
+      fa.map(f).collect { case Some(b) => b }
+    override def collect[A, B](fa: Observable[A])(f: PartialFunction[A, B]): Observable[B] =
+      fa.collect(f)
+    override def filter[A](fa: Observable[A])(f: A => Boolean): Observable[A] =
+      fa.filter(f)
   }
 
   /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
