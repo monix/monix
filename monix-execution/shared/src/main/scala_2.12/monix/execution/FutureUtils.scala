@@ -21,7 +21,7 @@ import java.util.concurrent.TimeoutException
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 /** Utilities for Scala's standard `concurrent.Future`. */
 object FutureUtils {
@@ -113,22 +113,7 @@ object FutureUtils {
     * hiding errors, being the opposite of [[materialize]].
     */
   def dematerialize[A](source: Future[Try[A]])(implicit ec: ExecutionContext): Future[A] = {
-    if (source.isCompleted)
-      source.value.get match {
-        case Failure(error) => Future.failed(error)
-        case Success(value) => value match {
-          case Success(success) => Future.successful(success)
-          case Failure(error) => Future.failed(error)
-        }
-      }
-    else {
-      val p = Promise[A]()
-      source.onComplete({
-        case Failure(error) => p.failure(error)
-        case Success(result) => p.complete(result)
-      })(immediate)
-      p.future
-    }
+    source.map(_.get)(immediate)
   }
 
   /** Creates a future that completes with the specified `result`, but only
