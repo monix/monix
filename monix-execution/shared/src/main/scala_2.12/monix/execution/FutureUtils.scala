@@ -90,14 +90,7 @@ object FutureUtils {
     * error explicitly.
     */
   def materialize[A](source: Future[A])(implicit ec: ExecutionContext): Future[Try[A]] = {
-    if (source.isCompleted) {
-      Future.successful(source.value.get)
-    }
-    else {
-      val p = Promise[Try[A]]()
-      source.onComplete(p.success)(immediate)
-      p.future
-    }
+    source.transform(t => Success(t))(immediate)
   }
 
   /** Given a mapping functions that operates on successful results as well as
