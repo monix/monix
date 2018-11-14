@@ -84,17 +84,9 @@ import scala.concurrent.duration._
   * For both `offer` and `poll`, in case awaiting a result happens, the
   * implementation does so asynchronously, without any threads being blocked.
   *
-  * Currently the implementation is optimized for speed. In a producer-consumer
-  * pipeline the best performance is achieved if the producer(s) and the
-  * consumer(s) do not contend for the same resources. This is why when
-  * doing asynchronous waiting for the queue to be empty or full, the
-  * implementation does so by repeatedly retrying the operation, with
-  * asynchronous boundaries and delays, until it succeeds. Fairness is
-  * ensured by the implementation.
-  *
   * ==Multi-threading Scenario==
   *
-  * This queue support a [[monix.execution.ChannelType ChannelType]]
+  * This queue supports a [[monix.execution.ChannelType ChannelType]]
   * configuration, for fine tuning depending on the needed multi-threading
   * scenario. And this can yield better performance:
   *
@@ -186,7 +178,7 @@ final class ConcurrentQueue[F[_], A] private (
     *         push has succeeded; it can also be cancelled, interrupting the
     *         waiting
     */
-  def offerMany(seq: A*): F[Unit] = {
+  def offerMany(seq: Iterable[A]): F[Unit] = {
     // Recursive, async loop
     def loop(cursor: Iterator[A]): F[Unit] = {
       var elem: A = null.asInstanceOf[A]

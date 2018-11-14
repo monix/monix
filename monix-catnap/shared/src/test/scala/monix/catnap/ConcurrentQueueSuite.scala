@@ -152,7 +152,7 @@ object ConcurrentQueueSuite extends TestSuite[TestScheduler] {
     val count = 1000
     val elems = for (i <- 0 until count) yield i
 
-    val p = queue.offerMany(elems:_*).unsafeToFuture()
+    val p = queue.offerMany(elems).unsafeToFuture()
     val f = queue.drain(count, count).unsafeToFuture()
 
     s.tick()
@@ -166,7 +166,7 @@ object ConcurrentQueueSuite extends TestSuite[TestScheduler] {
 
     val count = 1000
     val elems = for (i <- 0 until count) yield i
-    val f1 = queue.offerMany(elems:_*).unsafeToFuture()
+    val f1 = queue.offerMany(elems).unsafeToFuture()
     val f2 = queue.drain(1000, 1000).unsafeToFuture()
 
     for (_ <- f1; r2 <- f2) yield {
@@ -311,7 +311,7 @@ object ConcurrentQueueSuite extends TestSuite[TestScheduler] {
         val offer = if (n % 2 == 0) queue.offer(n) else offerViaTry(n)
         offer.flatMap(_ => producer(n - 1))
       } else {
-        queue.offerMany((for (_ <- 0 until workers) yield 0) :_*)
+        queue.offerMany(for (_ <- 0 until workers) yield 0)
       }
     }
 
