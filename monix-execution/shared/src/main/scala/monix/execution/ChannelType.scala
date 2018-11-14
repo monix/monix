@@ -21,7 +21,11 @@ package monix.execution
   * An enumeration of all types
   */
 sealed abstract class ChannelType(val value: String)
-  extends Serializable
+  extends Serializable {
+
+  def isMultiProducer: Boolean
+  def isMultiConsumer: Boolean
+}
 
 object ChannelType {
   /** Converts a string value into a [[ChannelType]]. */
@@ -37,20 +41,32 @@ object ChannelType {
   /**
     * Multi-producer, multi-consumer
     */
-  case object MPMC extends ChannelType("MPMC")
+  case object MPMC extends ChannelType("MPMC") {
+    def isMultiProducer = true
+    def isMultiConsumer = true
+  }
 
   /**
     * Single-producer, single-consumer
     */
-  case object MPSC extends ChannelType("MPSC")
+  case object MPSC extends ChannelType("MPSC") {
+    def isMultiProducer = true
+    def isMultiConsumer = false
+  }
 
   /**
     * Single-producer, multi-consumer
     */
-  case object SPMC extends ChannelType("SPMC")
+  case object SPMC extends ChannelType("SPMC") {
+    def isMultiProducer = false
+    def isMultiConsumer = true
+  }
 
   /**
     * Single-producer, single-consumer
     */
-  case object SPSC extends ChannelType("SPSC")
+  case object SPSC extends ChannelType("SPSC") {
+    def isMultiProducer = false
+    def isMultiConsumer = false
+  }
 }
