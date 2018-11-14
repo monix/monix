@@ -58,17 +58,19 @@ object ContramapObserverSuite extends BaseTestSuite {
 
   test("Observer.contramap works") { implicit s =>
     var isDone = 0
-    val out: Observer[Long] = new Observer[Int] {
+    val intObserver: Observer[Int] = new Observer[Int] {
       def onError(ex: Throwable): Unit = isDone += 1
       def onComplete(): Unit = isDone += 1
       def onNext(elem: Int) = Continue
-    }.contramap(_.toInt)
+    }
 
-    assertEquals(out.onNext(1), Continue)
-    out.onComplete()
+    val doubleObserver: Observer[Double] = intObserver.contramap(_.toInt)
+
+    assertEquals(doubleObserver.onNext(1.0), Continue)
+    doubleObserver.onComplete()
     assertEquals(isDone, 1)
-    out.onError(DummyException("dummy"))
+    doubleObserver.onError(DummyException("dummy"))
     assertEquals(isDone, 1)
-    assertEquals(out.onNext(2), Stop)
+    assertEquals(doubleObserver.onNext(2.0), Stop)
   }
 }

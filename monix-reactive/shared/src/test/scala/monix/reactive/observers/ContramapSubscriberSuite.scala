@@ -60,18 +60,20 @@ object ContramapSubscriberSuite extends BaseTestSuite {
 
   test("Subscriber.contramap works") { implicit s =>
     var isDone = 0
-    val out: Subscriber[Long] = new Subscriber[Int] {
+    val intSubscriber: Subscriber[Int] = new Subscriber[Int] {
       def onError(ex: Throwable): Unit = isDone += 1
       def onComplete(): Unit = isDone += 1
       def onNext(elem: Int) = Continue
       override implicit def scheduler: Scheduler = s
-    }.contramap(_.toInt)
+    }
 
-    assertEquals(out.onNext(1), Continue)
-    out.onComplete()
+    val doubleSubscriber: Subscriber[Double] = intSubscriber.contramap(_.toInt)
+
+    assertEquals(doubleSubscriber.onNext(1.0), Continue)
+    doubleSubscriber.onComplete()
     assertEquals(isDone, 1)
-    out.onError(DummyException("dummy"))
+    doubleSubscriber.onError(DummyException("dummy"))
     assertEquals(isDone, 1)
-    assertEquals(out.onNext(2), Stop)
+    assertEquals(doubleSubscriber.onNext(2.0), Stop)
   }
 }
