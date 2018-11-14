@@ -3713,6 +3713,11 @@ abstract class Observable[+A] extends Serializable { self =>
 
   /** Only emits those items for which the given predicate holds.
     *
+    * @see [[filterEval]] for a version that works with a [[monix.eval.Task]].
+    * @see [[filterEvalF]] for a version that works with a generic
+    *      `F[_]` (e.g. `cats.effect.IO`, Scala's `Future`),
+    *      powered by [[monix.eval.TaskLike]]
+    *
     * @param p a function that evaluates the items emitted by the source
     *        returning `true` if they pass the filter
     * @return a new observable that emits only those items in the source
@@ -3720,6 +3725,32 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def filter(p: A => Boolean): Observable[A] =
     self.liftByOperator(new FilterOperator(p))
+
+  /** Version of [[filter]] that can work with a predicate expressed by
+    * a [[monix.eval.Task]].
+    *
+    * @see [[filterEvalF]] for a version that works with a generic
+    *      `F[_]` (e.g. `cats.effect.IO`, Scala's `Future`),
+    *      powered by [[monix.eval.TaskLike]]
+    */
+  final def filterEval(p: A => Task[Boolean]): Observable[A] =
+    self
+      .mapEval(a ⇒ p(a).map((a, _)))
+      .collect { case x if x._2 ⇒ x._1 }
+
+  /** Version of [[filterEval]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  final def filterEvalF[F[_]](p: A => F[Boolean])(implicit F: TaskLike[F]): Observable[A] =
+    filterEval(a => Task.from(p(a))(F))
 
   /** Only emits the first element emitted by the source observable,
     * after which it's completed immediately.
