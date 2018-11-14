@@ -19,7 +19,8 @@ package monix.tail
 
 import cats.Eq
 import cats.data.EitherT
-import cats.laws.discipline.{CoflatMapTests, DeferTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
+import cats.laws.discipline.{CoflatMapTests, DeferTests, FunctorFilterTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
+import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
 import monix.eval.Task
 import monix.execution.schedulers.TestScheduler
 
@@ -49,7 +50,12 @@ object TypeClassLawsForIterantTaskSuite extends BaseLawsSuite {
     MonoidKTests[F].monoidK[Int]
   }
 
-  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
+  checkAllAsync("CoflatMap[Iterant[Task]]") { implicit ec =>
     CoflatMapTests[F].coflatMap[Int, Int, Int]
+  }
+
+
+  checkAllAsync("FunctorFilter[Iterant[Task]]") { implicit ec =>
+    FunctorFilterTests[F].functorFilter[Int, Int, Int]
   }
 }
