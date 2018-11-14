@@ -67,7 +67,36 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (
           if (!stateRef.compareAndSet(current, update))
             unsafeAcquireN(n, await) // retry
           else
-            makeCancelable(cancelAcquisition, await)
+            makeCancelable(cancelAcquisition(n, isAsync = false), await)
+        }
+    }
+  }
+
+  @tailrec
+  protected final def unsafeAsyncAcquireN(n: Long, await: Listener[Unit]): CancelToken = {
+    assert(n >= 0, "n must be positive")
+
+    stateRef.get() match {
+      case current @ State(available, awaitPermits, _) =>
+        val stillAvailable = available - n
+        if (stillAvailable >= 0) {
+          val update = current.copy(available = stillAvailable)
+
+          if (!stateRef.compareAndSet(current, update))
+            unsafeAsyncAcquireN(n, await) // retry
+          else {
+            await(Constants.eitherOfUnit)
+            makeCancelable(cancelAcquisition(n, isAsync = true), await)
+          }
+        }
+        else {
+          val tuple = (-stillAvailable, await)
+          val update = current.copy(available = 0, awaitPermits = awaitPermits.enqueue(tuple))
+
+          if (!stateRef.compareAndSet(current, update))
+            unsafeAsyncAcquireN(n, await) // retry
+          else
+            makeCancelable(cancelAcquisition(n, isAsync = true), await)
         }
     }
   }
@@ -164,7 +193,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (
   }
 
   private[this] val cancelAwaitRelease: (Listener[Unit] => Unit) = {
-    def loop(p: Listener[Unit]): Unit = {
+    @tailrec def loop(p: Listener[Unit]): Unit = {
       val current: State = stateRef.get
       val update = current.removeAwaitReleaseRef(p)
       if (!stateRef.compareAndSet(current, update))
@@ -173,12 +202,20 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (
     loop
   }
 
-  private[this] val cancelAcquisition: (Listener[Unit] => Unit) = {
-    def loop(permit: Listener[Unit]): Unit = {
+  private[this] def cancelAcquisition(n: Long, isAsync: Boolean): (Listener[Unit] => Unit) = {
+    @tailrec def loop(permit: Listener[Unit]): Unit = {
       val current: State = stateRef.get
-      val update = current.removeAwaitPermitRef(permit)
-      if (!stateRef.compareAndSet(current, update))
-        loop(permit) // retry
+
+      current.awaitPermits.find(_._2 eq permit) match {
+        case None =>
+          if (isAsync) unsafeReleaseN(n)
+        case Some((m, _)) =>
+          val update = current.removeAwaitPermitRef(permit)
+          if (!stateRef.compareAndSet(current, update))
+            loop(permit) // retry
+          else if (n > m)
+            unsafeReleaseN(n - m)
+      }
     }
     loop
   }
@@ -206,10 +243,10 @@ private[monix] object GenericSemaphore {
     }
 
     def removeAwaitPermitRef(p: Listener[Unit]): State =
-      copy(awaitPermits = awaitPermits.filter { case (_, ref) => ref != p })
+      copy(awaitPermits = awaitPermits.filter { case (_, ref) => ref ne p })
 
     def removeAwaitReleaseRef(p: Listener[Unit]): State =
-      copy(awaitReleases = awaitReleases.filter { case (_, ref) => ref != p })
+      copy(awaitReleases = awaitReleases.filter { case (_, ref) => ref ne p })
 
     def triggerAwaitReleases(available2: Long): Option[(List[Listener[Unit]], List[(Long, Listener[Unit])])] = {
       assert(available2 >= 0, "n >= 0")

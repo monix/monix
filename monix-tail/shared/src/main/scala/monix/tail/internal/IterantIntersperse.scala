@@ -23,7 +23,7 @@ import cats.effect.Sync
 import cats.syntax.functor._
 import scala.util.control.NonFatal
 
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.batches.BatchCursor
@@ -39,7 +39,7 @@ private[tail] object IterantIntersperse {
     extends (Iterant[F, A] => Iterant[F, A])
   {
     private[this] var prepend = false
-    private[this] val stack = new ArrayStack[F[Iterant[F, A]]]()
+    private[this] val stack = ChunkedArrayStack[F[Iterant[F, A]]]()
 
     def apply(source: Iterant[F, A]): Iterant[F, A] = {
       try source match {

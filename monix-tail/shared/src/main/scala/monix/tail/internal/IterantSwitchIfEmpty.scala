@@ -19,7 +19,7 @@ package monix.tail.internal
 
 import cats.syntax.functor._
 import cats.effect.Sync
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant._
 
@@ -48,13 +48,13 @@ private[tail] object IterantSwitchIfEmpty {
     extends Iterant.Visitor[F, A, Iterant[F, A]] { self =>
 
     private[this] var isEmpty = true
-    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
     private[this] def isStackEmpty: Boolean =
       stackRef == null || stackRef.isEmpty
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
-      if (stackRef == null) stackRef = new ArrayStack()
+      if (stackRef == null) stackRef = ChunkedArrayStack()
       stackRef.push(item)
     }
 

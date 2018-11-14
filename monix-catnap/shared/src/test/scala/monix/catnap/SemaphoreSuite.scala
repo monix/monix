@@ -17,12 +17,11 @@
 
 package monix.catnap
 
-import cats.implicits._
 import cats.effect.{ContextShift, IO}
+import cats.implicits._
 import minitest.TestSuite
-import monix.execution.internal.{AttemptCallback, Platform}
+import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Random, Success}
 
@@ -77,8 +76,8 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 
-    val semaphore = Semaphore.unsafe[IO](provisioned = 4)
-    val count = if (Platform.isJVM) 100000 else 1000
+    val semaphore = Semaphore.unsafe[IO](provisioned = 20)
+    val count = if (Platform.isJVM) 10000 else 1000
 
     val futures = for (i <- 0 until count) yield
       semaphore.withPermit(IO.shift *> IO(i))
@@ -182,6 +181,72 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
       }
     }
     task.unsafeToFuture()
+  }
+
+  test("withPermitN has FIFO priority") { implicit s =>
+    val sem = Semaphore.unsafe[IO](provisioned = 0)
+
+    val f1 = sem.withPermitN(3)(IO(1 + 1)).unsafeToFuture()
+    assertEquals(f1.value, None)
+    val f2 = sem.withPermitN(4)(IO(1 + 1)).unsafeToFuture()
+    assertEquals(f2.value, None)
+
+    sem.releaseN(2).unsafeRunAsyncAndForget(); s.tick()
+    assertEquals(f1.value, None)
+    assertEquals(f2.value, None)
+
+    sem.releaseN(1).unsafeRunAsyncAndForget(); s.tick()
+    assertEquals(f1.value, Some(Success(2)))
+    assertEquals(f2.value, None)
+
+    sem.releaseN(1).unsafeRunAsyncAndForget(); s.tick()
+    assertEquals(f2.value, Some(Success(2)))
+  }
+
+  test("withPermitN is cancelable (1)") { implicit s =>
+    val sem = Semaphore.unsafe[IO](provisioned = 0)
+    assertEquals(sem.count.unsafeRunSync(), 0)
+
+    val p1 = Promise[Int]()
+    val cancel = sem.withPermitN(3)(IO(1 + 1)).unsafeRunCancelable(r => p1.complete(r.toTry))
+    val f2 = sem.withPermitN(3)(IO(1 + 1)).unsafeToFuture()
+
+    assertEquals(p1.future.value, None)
+    assertEquals(f2.value, None)
+    assertEquals(sem.count.unsafeRunSync(), -6)
+
+    cancel.unsafeRunAsyncAndForget(); s.tick()
+    assertEquals(sem.count.unsafeRunSync(), -3)
+
+    sem.releaseN(3).unsafeRunAsyncAndForget()
+    s.tick()
+
+    assertEquals(p1.future.value, None)
+    assertEquals(f2.value, Some(Success(2)))
+  }
+
+  test("withPermitN is cancelable (2)") { implicit s =>
+    val sem = Semaphore.unsafe[IO](provisioned = 1)
+
+    val p1 = Promise[Int]()
+    val cancel = sem.withPermitN(3)(IO(1 + 1)).unsafeRunCancelable(r => p1.complete(r.toTry))
+    val f2 = sem.withPermitN(3)(IO(1 + 1)).unsafeToFuture()
+    assertEquals(sem.count.unsafeRunSync(), -5)
+
+    sem.releaseN(1).unsafeRunAsyncAndForget()
+    assertEquals(sem.count.unsafeRunSync(), -4)
+
+    assertEquals(p1.future.value, None)
+    assertEquals(f2.value, None)
+
+    cancel.unsafeRunAsyncAndForget(); s.tick()
+    assertEquals(sem.count.unsafeRunSync(), -1)
+
+    sem.releaseN(1).unsafeRunAsyncAndForget()
+    s.tick()
+
+    assertEquals(p1.future.value, None)
+    assertEquals(f2.value, Some(Success(2)))
   }
 
   def repeatTest(n: Int)(f: => IO[Unit]): IO[Unit] =

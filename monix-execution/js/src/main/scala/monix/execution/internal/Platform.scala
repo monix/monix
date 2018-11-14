@@ -97,8 +97,7 @@ private[monix] object Platform {
       case nonEmpty =>
         first match {
           case CompositeException(errors) =>
-            val list = errors.toList
-            CompositeException(list ::: nonEmpty)
+            CompositeException(errors ::: nonEmpty)
           case _ =>
             CompositeException(first :: nonEmpty)
         }

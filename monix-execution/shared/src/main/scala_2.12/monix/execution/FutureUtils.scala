@@ -24,7 +24,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
 
 /** Utilities for Scala's standard `concurrent.Future`. */
-object FutureUtils {
+object FutureUtils extends internal.FutureUtilsForPlatform {
   /** Utility that returns a new Future that either completes with
     * the original Future's result or with a TimeoutException in case
     * the maximum wait time was exceeded.

@@ -17,13 +17,15 @@
 
 package monix.catnap
 
-import cats.effect.{Async, Concurrent, ContextShift}
-import monix.catnap.internals.AsyncUtils
+import cats.effect.{Async, CancelToken, Concurrent, ContextShift}
+import monix.catnap.internal.AsyncUtils
+import monix.execution.Callback
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericSemaphore
 import monix.execution.internal.GenericSemaphore.Listener
+import scala.concurrent.Promise
 
 /** The `Semaphore` is an asynchronous semaphore implementation that
   * limits the parallelism on task execution.
@@ -54,6 +56,15 @@ import monix.execution.internal.GenericSemaphore.Listener
   *     _ <- tasks.toList.parSequence
   *   } yield ()
   * }}}
+  *
+  * ==Credits==
+  *
+  * `Semaphore` is now implementing `cats.effect.Semaphore`, deprecating
+  * the old Monix `TaskSemaphore`.
+  *
+  * The changes to the interface and some implementation details are
+  * inspired by the implementation in Cats-Effect, which was ported
+  * from FS2.
   */
 final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)
   (implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F])
@@ -176,7 +187,11 @@ final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)
     *        released to the pool afterwards
     */
   def withPermitN[A](n: Long)(fa: F[A]): F[A] =
-    F0.bracket(acquireN(n))(_ => fa)(_ => releaseN(n))
+    F0.bracket(underlying.acquireAsyncN(n)) {
+      case (acquire, _) => F0.flatMap(acquire)(_ => fa)
+    } {
+      case (_, release) => release
+    }
 
   /** Returns a task that will be complete when the specified
     * number of permits are available.
@@ -269,6 +284,22 @@ object Semaphore {
           F0.unit
         else
           F0.flatMap(make[Unit](unsafeAcquireN(n, _)))(bindFork)
+      }
+
+    def acquireAsyncN(n: Long): F[(F[Unit], CancelToken[F])] =
+      F0.delay {
+        // Happy path
+        if (unsafeTryAcquireN(n)) {
+          // This cannot be canceled in the context of `bracket`
+          (F0.unit, releaseN(n))
+        }
+        else {
+          val p = Promise[Unit]()
+          val cancelToken = unsafeAsyncAcquireN(n, Callback.fromPromise(p))
+          val acquire = FutureLift.scalaToAsync(F0.pure(p.future))
+          // Extra async boundary needed for fairness
+          (F0.flatMap(acquire)(bindFork), cancelToken)
+        }
       }
 
     def tryAcquireN(n: Long): F[Boolean] =

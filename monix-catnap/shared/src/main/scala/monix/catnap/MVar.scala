@@ -19,7 +19,7 @@ package monix.catnap
 
 import cats.effect.concurrent.{MVar => CatsMVar}
 import cats.effect.{Async, Concurrent, ContextShift}
-import monix.catnap.internals.AsyncUtils
+import monix.catnap.internal.AsyncUtils
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericVar

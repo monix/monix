@@ -15,27 +15,8 @@
  * limitations under the License.
  */
 
-package monix.execution.internal.collection
+package monix.execution
+package internal
 
-import minitest.SimpleTestSuite
-
-object ArrayQueueSuite extends SimpleTestSuite {
-  test("unbounded") {
-    val q = ArrayQueue.unbounded[Int]
-
-    for (i <- 0 until 100) q.offer(1)
-    assertEquals(q.length, 100)
-
-    var sum = 0
-    for (_ <- 0 until 50) sum += q.poll()
-    assertEquals(q.length, 50)
-    assertEquals(sum, 50)
-
-    for (_ <- 0 until 50) sum += q.poll()
-    assertEquals(q.length, 0)
-    assertEquals(sum, 100)
-
-    assertEquals(q.isAtCapacity, false)
-    assertEquals(q.isEmpty, true)
-  }
-}
+// Left blank, because we've got nothing specific for Scala.js at this point
+private[execution] abstract class FutureUtilsForPlatform

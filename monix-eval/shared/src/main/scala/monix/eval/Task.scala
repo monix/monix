@@ -19,6 +19,7 @@ package monix.eval
 
 import cats.effect._
 import cats.{Monoid, Semigroup}
+import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
@@ -30,7 +31,7 @@ import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnab
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
-import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit, NANOSECONDS}
+import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
@@ -3176,6 +3177,12 @@ object Task extends TaskInstancesLevel1 {
   /** Wraps a [[monix.execution.CancelablePromise]] into `Task`. */
   def fromCancelablePromise[A](p: CancelablePromise[A]) =
     TaskFromFuture.fromCancelablePromise(p)
+
+  /**
+    * Converts any Future-like data-type via [[monix.catnap.FutureLift]].
+    */
+  def fromFutureLike[F[_], A](tfa: Task[F[A]])(implicit F: FutureLift[Task, F]): Task[A] =
+    F.futureLift(tfa)
 
   /** Run two `Task` actions concurrently, and return the first to
     * finish, either in success or error. The loser of the race is

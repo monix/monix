@@ -21,7 +21,7 @@ import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.execution.Callback
 import monix.eval.Task
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
 import monix.execution.{CancelableFuture, ExecutionModel, Scheduler}
 import scala.concurrent.Promise
@@ -31,7 +31,7 @@ import scala.util.control.NonFatal
 private[eval] object TaskRunLoop {
   type Current = Task[Any]
   type Bind = Any => Task[Any]
-  type CallStack = ArrayStack[Bind]
+  type CallStack = ChunkedArrayStack[Bind]
 
   /** Starts or resumes evaluation of the run-loop from where it left
     * off. This is the complete run-loop.
@@ -66,7 +66,7 @@ private[eval] object TaskRunLoop {
         current match {
           case FlatMap(fa, bindNext) =>
             if (bFirstRef ne null) {
-              if (bRestRef eq null) bRestRef = new ArrayStack()
+              if (bRestRef eq null) bRestRef = ChunkedArrayStack()
               bRestRef.push(bFirstRef)
             }
             bFirstRef = bindNext.asInstanceOf[Bind]
@@ -87,7 +87,7 @@ private[eval] object TaskRunLoop {
 
           case bindNext @ Map(fa, _, _) =>
             if (bFirstRef ne null) {
-              if (bRestRef eq null) bRestRef = new ArrayStack()
+              if (bRestRef eq null) bRestRef = ChunkedArrayStack()
               bRestRef.push(bFirstRef)
             }
             bFirstRef = bindNext.asInstanceOf[Bind]
@@ -223,7 +223,7 @@ private[eval] object TaskRunLoop {
         current match {
           case FlatMap(fa, bindNext) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = new ArrayStack()
+              if (bRest eq null) bRest = ChunkedArrayStack()
               bRest.push(bFirst)
             }
             bFirst = bindNext.asInstanceOf[Bind]
@@ -244,7 +244,7 @@ private[eval] object TaskRunLoop {
 
           case bindNext @ Map(fa, _, _) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = new ArrayStack()
+              if (bRest eq null) bRest = ChunkedArrayStack()
               bRest.push(bFirst)
             }
             bFirst = bindNext.asInstanceOf[Bind]
@@ -335,7 +335,7 @@ private[eval] object TaskRunLoop {
         current match {
           case FlatMap(fa, bindNext) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = new ArrayStack()
+              if (bRest eq null) bRest = ChunkedArrayStack()
               bRest.push(bFirst)
             }
             /*_*/bFirst = bindNext/*_*/
@@ -357,7 +357,7 @@ private[eval] object TaskRunLoop {
 
           case bindNext @ Map(fa, _, _) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = new ArrayStack()
+              if (bRest eq null) bRest = ChunkedArrayStack()
               bRest.push(bFirst)
             }
             bFirst = bindNext
@@ -451,7 +451,7 @@ private[eval] object TaskRunLoop {
         current match {
           case FlatMap(fa, bindNext) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = new ArrayStack()
+              if (bRest eq null) bRest = ChunkedArrayStack()
               bRest.push(bFirst)
             }
             /*_*/bFirst = bindNext/*_*/
@@ -473,7 +473,7 @@ private[eval] object TaskRunLoop {
 
           case bindNext @ Map(fa, _, _) =>
             if (bFirst ne null) {
-              if (bRest eq null) bRest = new ArrayStack()
+              if (bRest eq null) bRest = ChunkedArrayStack()
               bRest.push(bFirst)
             }
             bFirst = bindNext
