@@ -355,7 +355,8 @@ object Observer {
     }
   }
 
-  private[reactive] class ContravariantObserver[A, B](source: Observer[A])(f: B => A) extends Observer[B] {
+  private[this] final class ContravariantObserver[A, B](source: Observer[A])(f: B => A)
+    extends Observer[B] {
     // For protecting the contract
     private[this] var isDone = false
 

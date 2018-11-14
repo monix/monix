@@ -233,7 +233,9 @@ object Subscriber {
     def onComplete(): Unit = observer.onComplete()
   }
 
-  private[reactive] class ContravariantSubscriber[A, B](source: Subscriber[A])(f: B => A) extends Subscriber[B] {
+  private[this] final class ContravariantSubscriber[A, B]
+    (source: Subscriber[A])(f: B => A)
+    extends Subscriber[B] {
     override implicit def scheduler: Scheduler = source.scheduler
     // For protecting the contract
     private[this] var isDone = false
