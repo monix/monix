@@ -18,15 +18,14 @@
 package monix.reactive.observers
 
 import java.io.PrintStream
-import cats.Contravariant
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observer
-import monix.reactive.instances.CatsContravariantForSubscriber
 import monix.reactive.internal.rstreams._
 import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 /** A `Subscriber` is an `Observer` with an attached `Scheduler`.
   *
@@ -97,6 +96,12 @@ object Subscriber {
       val scheduler = s
     }
   }
+
+  /** Given a contravariant mapping function, transform
+    * the source [[Subscriber]] by transforming the input.
+    */
+  def contramap[A, B](fa: Subscriber[A])(f: B => A): Subscriber[B] =
+    new ContravariantSubscriber(fa)(f)
 
   /** Given an `org.reactivestreams.Subscriber` as defined by the
     * [[http://www.reactive-streams.org/ Reactive Streams]] specification,
@@ -196,6 +201,12 @@ object Subscriber {
       */
     def feed(subscription: BooleanCancelable, iterator: Iterator[A]): Future[Ack] =
       Observer.feed(target, subscription, iterator)(target.scheduler)
+
+    /** Given a contravariant mapping function, transform
+      * the source [[Subscriber]] by transforming the input.
+      */
+    def contramap[B](f: B => A): Subscriber[B] =
+      Subscriber.contramap(target)(f)
   }
 
   private[this] final class Implementation[-A]
@@ -222,6 +233,29 @@ object Subscriber {
     def onComplete(): Unit = observer.onComplete()
   }
 
-  /** `cats.Contravariant` instance for [[Subscriber]]. */
-  implicit val catsContravariant: Contravariant[Subscriber] = CatsContravariantForSubscriber
+  private[reactive] class ContravariantSubscriber[A, B](source: Subscriber[A])(f: B => A) extends Subscriber[B] {
+    override implicit def scheduler: Scheduler = source.scheduler
+    // For protecting the contract
+    private[this] var isDone = false
+
+    override def onNext(elem: B): Future[Ack] = {
+      if (isDone) Stop
+      else {
+        var streamError = true
+        try {
+          val b = f(elem)
+          streamError = false
+          source.onNext(b)
+        } catch {
+          case NonFatal(ex) if streamError =>
+            onError(ex)
+            Stop
+        }
+      }
+    }
+    override def onError(ex: Throwable): Unit =
+      if (!isDone) { isDone = true; source.onError(ex) }
+    override def onComplete(): Unit =
+      if (!isDone) { isDone = true; source.onComplete() }
+  }
 }

@@ -17,7 +17,6 @@
 
 package monix.reactive.observers
 
-import cats.implicits._
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseTestSuite, Observer}
