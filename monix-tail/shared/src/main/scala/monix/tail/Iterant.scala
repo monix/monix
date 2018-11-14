@@ -21,7 +21,7 @@ import java.io.PrintStream
 
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
-import cats.{Applicative, CoflatMap, Defer, Eq, Functor, MonadError, Monoid, MonoidK, Order, Parallel, StackSafeMonad}
+import cats.{Applicative, CoflatMap, Defer, Eq, Functor, FunctorFilter, MonadError, Monoid, MonoidK, Order, Parallel, StackSafeMonad}
 
 import scala.util.control.NonFatal
 import monix.execution.internal.Platform.recommendedBatchSize
@@ -2640,7 +2640,8 @@ private[tail] trait IterantInstances {
       with MonadError[Iterant[F, ?], Throwable]
       with Defer[Iterant[F, ?]]
       with MonoidK[Iterant[F, ?]]
-      with CoflatMap[Iterant[F, ?]] {
+      with CoflatMap[Iterant[F, ?]]
+      with FunctorFilter[Iterant[F, ?]] {
 
     override def pure[A](a: A): Iterant[F, A] =
       Iterant.pure(a)
@@ -2692,5 +2693,16 @@ private[tail] trait IterantInstances {
 
     override def recoverWith[A](fa: Iterant[F, A])(pf: PartialFunction[Throwable, Iterant[F, A]]): Iterant[F, A] =
       fa.onErrorRecoverWith(pf)
+
+    override def functor: Functor[Iterant[F, ?]] = this
+
+    override def mapFilter[A, B](fa: Iterant[F, A])(f: A => Option[B]): Iterant[F, B] =
+      fa.map(f).collect { case Some(b) => b }
+
+    override def collect[A, B](fa: Iterant[F, A])(f: PartialFunction[A, B]): Iterant[F, B] =
+      fa.collect(f)
+
+    override def filter[A](fa: Iterant[F, A])(f: A => Boolean): Iterant[F, A] =
+      fa.filter(f)
   }
 }

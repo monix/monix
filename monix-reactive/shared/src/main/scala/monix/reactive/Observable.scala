@@ -19,7 +19,7 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, Order, Eq, ~>}
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, Order, Eq, ~>, FunctorFilter, Functor}
 import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
 import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
@@ -3713,6 +3713,11 @@ abstract class Observable[+A] extends Serializable { self =>
 
   /** Only emits those items for which the given predicate holds.
     *
+    * @see [[filterEval]] for a version that works with a [[monix.eval.Task]].
+    * @see [[filterEvalF]] for a version that works with a generic
+    *      `F[_]` (e.g. `cats.effect.IO`, Scala's `Future`),
+    *      powered by [[monix.eval.TaskLike]]
+    *
     * @param p a function that evaluates the items emitted by the source
     *        returning `true` if they pass the filter
     * @return a new observable that emits only those items in the source
@@ -3720,6 +3725,32 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def filter(p: A => Boolean): Observable[A] =
     self.liftByOperator(new FilterOperator(p))
+
+  /** Version of [[filter]] that can work with a predicate expressed by
+    * a [[monix.eval.Task]].
+    *
+    * @see [[filterEvalF]] for a version that works with a generic
+    *      `F[_]` (e.g. `cats.effect.IO`, Scala's `Future`),
+    *      powered by [[monix.eval.TaskLike]]
+    */
+  final def filterEval(p: A => Task[Boolean]): Observable[A] =
+    self
+      .mapEval(a ⇒ p(a).map((a, _)))
+      .collect { case x if x._2 ⇒ x._1 }
+
+  /** Version of [[filterEval]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  final def filterEvalF[F[_]](p: A => F[Boolean])(implicit F: TaskLike[F]): Observable[A] =
+    filterEval(a => Task.from(p(a))(F))
 
   /** Only emits the first element emitted by the source observable,
     * after which it's completed immediately.
@@ -5449,6 +5480,7 @@ object Observable extends ObservableDeprecatedBuilders {
   class CatsInstances extends Bracket[Observable, Throwable]
     with Alternative[Observable]
     with CoflatMap[Observable]
+    with FunctorFilter[Observable]
     with TaskLift[Observable] {
 
     override def unit: Observable[Unit] =
@@ -5495,6 +5527,13 @@ object Observable extends ObservableDeprecatedBuilders {
       fa.guaranteeCase(e => finalizer(e).completedL)
     override def uncancelable[A](fa: Observable[A]): Observable[A] =
       fa.uncancelable
+    override def functor: Functor[Observable] = this
+    override def mapFilter[A, B](fa: Observable[A])(f: A => Option[B]): Observable[B] =
+      fa.map(f).collect { case Some(b) => b }
+    override def collect[A, B](fa: Observable[A])(f: PartialFunction[A, B]): Observable[B] =
+      fa.collect(f)
+    override def filter[A](fa: Observable[A])(f: A => Boolean): Observable[A] =
+      fa.filter(f)
   }
 
   /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */

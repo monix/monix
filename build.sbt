@@ -23,7 +23,7 @@ addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned"
 val catsVersion = "1.4.0"
 val catsEffectVersion = "1.0.0"
 val catsEffectLawsVersion = catsEffectVersion
-val jcToolsVersion = "2.1.1"
+val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
 val minitestVersion = "2.1.1"
@@ -132,7 +132,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
 
   // For working with partially-applied types
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.6" cross CrossVersion.binary),
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.8" cross CrossVersion.binary),
 
   // ScalaDoc settings
   autoAPIMappings := true,
