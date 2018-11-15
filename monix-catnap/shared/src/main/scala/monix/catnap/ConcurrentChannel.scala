@@ -25,13 +25,13 @@ import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.atomic.AtomicAny
 import monix.execution.{BufferCapacity, ChannelType}
 import monix.execution.internal.collection.{ConcurrentQueue => LowLevelQueue}
+
 import scala.annotation.switch
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 
 /**
-  * The `ConcurrentChannel` can be used to model complex producer-consumer
-  * communication channels.
+  * `ConcurrentChannel` can be used to model complex producer-consumer communication channels.
   *
   * It exposes these fundamental operations:
   *
@@ -40,23 +40,6 @@ import scala.concurrent.duration._
   *  - [[halt]] for pushing the final completion event to all consumers (producer side)
   *  - [[consume]] for creating a [[ConsumerF]] value that can consume the
   *    incoming events from the channel
-  *
-  * ==Comparison with ConcurrentQueue==
-  *
-  * `ConcurrentChannel` is similar with a [[ConcurrentQueue]], but with these
-  * added capabilities:
-  *
-  *  - [[consume]] can be applied multiple times, such that the same
-  *    events can be broadcast to multiple consumers at the same time
-  *  - [[halt]] for pushing a final completion event, closing the channel
-  *    and disallowing other events from being pushed
-  *
-  * Also while you can see similarities between [[ConcurrentQueue.offer]]
-  * and [[push ConcurrentChannel.push]] or between [[ConcurrentQueue.poll]]
-  * and [[ConsumerF.pull]], note the different signatures:
-  *
-  * `ConcurrentChannel` has this restrictions: it needs to signal when the
-  * channel has been closed for both the producers and the consumers.
   *
   * ==Example==
   *
@@ -86,12 +69,13 @@ import scala.concurrent.duration._
   *
   *   for {
   *     channel <- ConcurrentChannel[IO].bounded[Complete, String](capacity = 32)
-  *     // Workers 1 & 2
+  *     // Workers 1 & 2, sharing the load between them
   *     task_1_2 = channel.consume.use { ref =>
   *       (logLines(ref, 1), logLines(ref, 2)).parSequence_
   *     }
   *     consumers_1_2 <- task_1_2.start // fiber
-  *     // Workers 3 & 4, receiving the same events
+  *     // Workers 3 & 4, receiving the same events as workers 1 & 2,
+  *     // but sharing the load between them
   *     task_3_4 = channel.consume.use { ref =>
   *       (logLines(ref, 3), logLines(ref, 4)).parSequence_
   *     }
@@ -109,23 +93,22 @@ import scala.concurrent.duration._
   *
   * ==Unicasting vs Broadcasting vs Multicasting==
   *
-  * '''Unicasting''': Multiple workers can share the load of processing
+  * ''Unicasting'': Multiple workers can share the load of processing
   * incoming events. For example in case we want to have 8 workers running in
   * parallel, you can create one [[ConsumerF]], via [[consume]] and then use it
   * for multiple workers.
   *
-  * '''Broadcasting:''' the same events can be sent to multiple consumers,
+  * ''Broadcasting:'' the same events can be sent to multiple consumers,
   * thus duplicating the load, as a broadcasting setup can be created
   * by creating and consuming from multiple [[ConsumerF]] via multiple calls
   * to [[consume]]. This setup assumes the channel's type is configured
-  * as a multi-consumer one (e.g. [[ChannelType.MPMC MPMC]] or
-  * [[ChannelType.SPMC SPMC]]).
+  * as a multi-consumer one (e.g. [[monix.execution.ChannelType.MPMC MPMC]] or
+  * [[monix.execution.ChannelType.SPMC SPMC]]).
   *
-  * '''Multicasting:''' multiple producers can push events at the same time,
+  * ''Multicasting:'' multiple producers can push events at the same time,
   * provided the channel's type is configured as a multi-producer one (e.g.
-  * [[ChannelType.MPMC MPMC]] or [[ChannelType.MPSC MPSC]]).
-  *
-  * See [[consume]] for more details.
+  * [[monix.execution.ChannelType.MPMC MPMC]] or
+  * [[monix.execution.ChannelType.MPSC MPSC]]).
   *
   * ==Back-Pressuring and the Polling Model==
   *
@@ -186,9 +169,9 @@ import scala.concurrent.duration._
   *
   * Inspired by Haskell's
   * [[https://hackage.haskell.org/package/base/docs/Control-Concurrent-ConcurrentChannel.html Control.Concurrent.ConcurrentChannel]],
-  * but note that this isn't a straight port — e.g. the `ConcurrentChannel` is
-  * back-pressured and allows for termination (via [[halt]]), which changes
-  * its semantics significantly.
+  * but note that this isn't a straight port — e.g. the Monix implementation has a
+  * cleaner, non-leaky interface, is back-pressured and allows for termination
+  * (via [[halt]]), which changes its semantics significantly.
   */
 final class ConcurrentChannel[F[_], E, A] private (
   state: AtomicAny[ConcurrentChannel.State[F, E, A]],
@@ -242,12 +225,13 @@ final class ConcurrentChannel[F[_], E, A] private (
   def push(a: A): F[Boolean] =
     F.suspend {
       state.get() match {
-        case Connected(refs, length) =>
+        case connected @ Connected(_) =>
           // broadcasting to many?
-          (length: @switch) match {
+          val arr = connected.array
+          (arr.length: @switch) match {
             case 0 => F.pure(true)
-            case 1 => refs.head.push(a)
-            case _ => triggerBroadcast[F, E, A](refs, _.push(a))
+            case 1 => arr(0).push(a)
+            case _ => triggerBroadcast[F, E, A](arr, _.push(a))
           }
         case Halt(_) =>
           F.pure(false)
@@ -290,11 +274,12 @@ final class ConcurrentChannel[F[_], E, A] private (
   def pushMany(seq: Iterable[A]): F[Boolean] =
     F.suspend {
       state.get() match {
-        case Connected(refs, length) =>
-          (length: @switch) match {
+        case current @ Connected(_) =>
+          val arr = current.array
+          (arr.length: @switch) match {
             case 0 => F.pure(true)
-            case 1 => refs.head.pushMany(seq)
-            case _ => triggerBroadcast[F, E, A](refs, _.pushMany(seq))
+            case 1 => arr(0).pushMany(seq)
+            case _ => triggerBroadcast[F, E, A](arr, _.pushMany(seq))
           }
         case Halt(_) =>
           F.pure(false)
@@ -310,17 +295,22 @@ final class ConcurrentChannel[F[_], E, A] private (
   def halt(e: E): F[Unit] =
     F.delay {
       state.transform {
-        case Connected(_, _) => Halt(e)
+        case Connected(_) => Halt(e)
         case halt @ Halt(_) => halt
       }
     }
 
   /**
-    * Duplicate a [[ConcurrentChannel]]: the duplicate channel begins empty, but data
-    * written to either channel from then on will be available from both.
+    * Create a [[ConsumerF]] value that can be used to consume events from
+    * the channel.
     *
-    * Hence this creates a kind of broadcast channel, where data written by
-    * anyone is seen by everyone else.
+    * Note in case multiple consumers are created, all of them will see the
+    * events being pushed, so a broadcasting setup is possible. Also multiple
+    * workers can consumer from the same `ConsumerF` value, to share the load.
+    *
+    * Note the returned value is a
+    * [[https://typelevel.org/cats-effect/datatypes/resource.html Resource]],
+    * because a consumer can be unsubscribed from the channel.
     */
   def consume: Resource[F, ConsumerF[F, E, A]] = broadcastRef
 
@@ -338,16 +328,16 @@ final class ConcurrentChannel[F[_], E, A] private (
         val consumer = new ChanConsumer[F, E, A](queue, isFinished, retryDelay)
 
         state.transform {
-          case Connected(refs, length) =>
-            Connected(refs + producer, length + 1)
+          case connected @ Connected(_) =>
+            connected.add(producer)
           case halt @ Halt(_) =>
             halt
         }
 
         val cancel = F.delay {
           state.transform {
-            case Connected(refs, length) =>
-              Connected(refs - producer, length - 1)
+            case connected @ Connected(_) =>
+              connected.remove(producer)
             case other =>
               other
           }
@@ -359,6 +349,20 @@ final class ConcurrentChannel[F[_], E, A] private (
   }
 }
 
+/**
+  * @define channelTypeDesc (UNSAFE) specifies the concurrency scenario, for
+  *         fine tuning the performance
+  *
+  * @define bufferCapacityParam specifies the `BufferCapacity`, which can be
+  *         either "bounded" (with a maximum capacity), or "unbounded"
+  *
+  * @define asyncParam is a `cats.effect.Async` type class restriction; this
+  *         queue is built to work with any `Async` data type
+  *
+  * @define timerParam is a `Timer`, needed for asynchronous waiting on `poll`
+  *         when the queue is empty or for back-pressuring `offer` when the
+  *         queue is full
+  */
 object ConcurrentChannel {
   /**
     * Builds an [[ConcurrentChannel]] value for `F` data types that are either
@@ -452,7 +456,7 @@ object ConcurrentChannel {
     channelType: ChannelType = MPMC)
     (implicit F: Async[F], timer: Timer[F]): ConcurrentChannel[F, E, A] = {
 
-    new ConcurrentChannel[F, E, A](AtomicAny(null), capacity, channelType)(F, timer)
+    new ConcurrentChannel[F, E, A](AtomicAny(State.empty), capacity, channelType)(F, timer)
   }
 
   /**
@@ -489,12 +493,26 @@ object ConcurrentChannel {
   private sealed abstract class State[F[_], E, A]
 
   private final case class Connected[F[_], E, A](
-    refs: Set[ChanProducer[F, E, A]],
-    length: Int)
-    extends State[F, E, A]
+    refs: Set[ChanProducer[F, E, A]])
+    extends State[F, E, A] {
+
+    def add(ref: ChanProducer[F, E, A]): Connected[F, E, A] =
+      Connected(refs + ref)
+    def remove(ref: ChanProducer[F, E, A]): Connected[F, E, A] =
+      Connected(refs - ref)
+
+    val array = refs.toArray
+  }
 
   private final case class Halt[F[_], E, A](e: E)
     extends State[F, E, A]
+
+  private object State {
+    def empty[F[_], E, A]: State[F, E, A] =
+      emptyRef.asInstanceOf[State[F, E, A]]
+    private[this] val emptyRef =
+      Connected[cats.Id, Any, Any](Set.empty)
+  }
 
   private type Ack = Int
   private final val Continue = 0
@@ -511,7 +529,7 @@ object ConcurrentChannel {
   private def toSeq[A](buffer: ArrayBuffer[A]): Seq[A] =
     buffer.toArray[Any].toSeq.asInstanceOf[Seq[A]]
 
-  private def triggerBroadcast[F[_], E, A](refs: Set[ChanProducer[F, E, A]], f: ChanProducer[F, E, A] => F[Boolean])
+  private def triggerBroadcast[F[_], E, A](refs: Array[ChanProducer[F, E, A]], f: ChanProducer[F, E, A] => F[Boolean])
     (implicit F: Async[F]): F[Boolean] = {
 
     def loop(cursor: Iterator[ChanProducer[F, E, A]], bind: Any => F[Boolean]): F[Boolean] = {
