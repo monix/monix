@@ -2290,7 +2290,7 @@ object Iterant extends IterantInstances {
     *   Iterant[Task].range(0, 10)
     * }}}
     */
-  def apply[F[_]]: IterantBuilders.Apply[F] = new IterantBuilders.Apply[F]
+  def apply[F[_]]: IterantBuilders.Apply[F] = new IterantBuilders.Apply[F]()
 
   /** Alias for [[now]]. */
   def pure[F[_], A](a: A): Iterant[F, A] =

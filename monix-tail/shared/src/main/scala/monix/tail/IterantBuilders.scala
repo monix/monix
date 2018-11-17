@@ -56,7 +56,7 @@ object IterantBuilders {
     * Class defined inside object due to Scala's limitations on declaring
     * `AnyVal` classes.
     */
-  final class Apply[F[_]](val v: Unit = ()) extends AnyVal {
+  final class Apply[F[_]](val v: Boolean = true) extends AnyVal {
     /** Aliased builder, see documentation for [[Iterant.now]]. */
     def now[A](a: A): Iterant[F,A] =
       Iterant.now(a)
