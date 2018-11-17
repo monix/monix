@@ -419,6 +419,7 @@ lazy val tailJVM = project.in(file("monix-tail/jvm"))
   .dependsOn(catnapJVM)
   .settings(tailCommon)
   .settings(doctestTestSettings)
+  .settings(mimaSettings("monix-tail"))
 
 lazy val tailJS = project.in(file("monix-tail/js"))
   .enablePlugins(ScalaJSPlugin)

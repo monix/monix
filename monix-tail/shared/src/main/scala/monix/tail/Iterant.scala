@@ -2279,6 +2279,10 @@ object Iterant extends IterantInstances {
     * Returns an [[IterantBuilders]] instance for the specified `F`
     * monadic type that can be used to build [[Iterant]] instances.
     *
+    * This is used to achieve the
+    * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]
+    * technique.
+    *
     * Example:
     * {{{
     *   import monix.eval.Task
@@ -2286,7 +2290,7 @@ object Iterant extends IterantInstances {
     *   Iterant[Task].range(0, 10)
     * }}}
     */
-  def apply[F[_]]: IterantBuilders[F] = IterantBuilders[F]
+  def apply[F[_]]: IterantBuilders.Apply[F] = new IterantBuilders.Apply[F]
 
   /** Alias for [[now]]. */
   def pure[F[_], A](a: A): Iterant[F, A] =

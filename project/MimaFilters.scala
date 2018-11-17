@@ -7,7 +7,13 @@ object MimaFilters {
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.producerType"),
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.consumerType"),
     exclude[IncompatibleMethTypeProblem]("monix.catnap.ConcurrentQueue.offerMany"),
-    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.TestScheduler.tick")
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.TestScheduler.tick"),
+    exclude[DirectMissingMethodProblem]("monix.tail.Iterant.fromStateActionL"),
+    exclude[MissingClassProblem]("monix.reactive.instances.ProfunctorSubject"),
+    exclude[IncompatibleTemplateDefProblem]("monix.tail.IterantBuilders"),
+    exclude[DirectMissingMethodProblem]("monix.tail.IterantBuilders.apply"),
+    exclude[MissingClassProblem]("monix.tail.IterantBuilders$Ref$"),
+    exclude[IncompatibleResultTypeProblem]("monix.tail.Iterant.apply")
   )
 
   lazy val changesFor_3_0_0_RC2 = Seq(
