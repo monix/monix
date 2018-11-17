@@ -110,6 +110,10 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
         // Executes the whole pending queue of runnables
         ec.tick(1.day)
 
+        if (x.value != y.value) {
+          println(s"${x.value} != ${y.value}")
+        }
+
         x.value match {
           case None =>
             y.value.isEmpty

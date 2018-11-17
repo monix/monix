@@ -381,7 +381,9 @@ final class ConcurrentChannel[F[_], E, A] private (
   def consume: Resource[F, ConsumerF[F, E, A]] = consumeRef
   private[this] val consumeRef = consumeCustom()
 
-  /**
+  /** Version of [[consume]] that allows for fine tuning the underlying
+    * buffer used.
+    *
     * There are two parameters that can be configured, per consumer, when
     * consuming from the channel:
     *

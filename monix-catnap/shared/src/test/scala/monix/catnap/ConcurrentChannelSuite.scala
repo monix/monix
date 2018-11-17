@@ -17,13 +17,14 @@
 
 package monix.catnap
 
-import cats.implicits._
 import cats.effect.{ContextShift, IO, Timer}
+import cats.implicits._
 import minitest.SimpleTestSuite
 import monix.execution.BufferCapacity.{Bounded, Unbounded}
 import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
 import monix.execution.internal.Platform
 import monix.execution.{BufferCapacity, Scheduler}
+import scala.concurrent.Future
 
 object ConcurrentChannelSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = Scheduler.global
@@ -58,6 +59,38 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       _     <- chan.push(3)
       _     <- chan.halt(0)
     } yield ()
+  }
+
+  testAsync("pullMany back-pressuring for minLength, with maxLength") {
+    def test(times: Int): Future[Unit] = {
+      val channel = ConcurrentChannel[IO].unsafe[Int, Int]()
+      val batch = channel.consume.use(_.pullMany(10, 10))
+        .map(_.right.map(_.sum))
+        .unsafeToFuture()
+
+      assertEquals(batch.value, None)
+
+      def loop(n: Int): IO[Unit] =
+        channel.push(n).flatMap { _ =>
+          if (n - 1 > 0) loop(n - 1)
+          else IO.unit
+        }
+
+      val f = for {
+        _ <- channel.awaitConsumers(1).unsafeToFuture()
+        _ <- loop(9).unsafeToFuture()
+        _ <- loop(10).unsafeToFuture()
+        r <- batch
+      } yield {
+        assertEquals(r, Right(5 * 11))
+      }
+
+      if (times > 1)
+        f.flatMap(_ => test(times - 1))
+      else
+        f
+    }
+    test(times = if (Platform.isJVM) 1000 else 1)
   }
 
   testIO("concurrent sum via consumer.pull; MPMC; producers=4, consumers=4, workers=4, capacity=Bounded(16)") {

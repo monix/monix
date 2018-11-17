@@ -19,13 +19,15 @@ package monix.tail
 
 import java.io.PrintStream
 
+import cats.implicits._
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Defer, Eq, Functor, MonadError, Monoid, MonoidK, Order, Parallel, StackSafeMonad}
-import monix.catnap.{ConcurrentChannel, ConsumerF, ProducerF}
+import monix.catnap.ConcurrentChannel
 import monix.execution.BufferCapacity.Bounded
 import monix.execution.{BufferCapacity, ChannelType}
-import monix.execution.ChannelType.{MultiProducer, SingleConsumer}
+import monix.execution.ChannelType.{MultiConsumer, MultiProducer, SingleConsumer}
+import monix.execution.annotations.UnsafeProtocol
 import monix.execution.internal.Platform
 
 import scala.util.control.NonFatal
@@ -288,13 +290,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example: {{{
     *   import monix.eval.Task
     *
-    *   val source: Iterant[Task, List[Int]] = ???
+    *   val source: Iterant[Task, List[Int]] = Iterant.suspend(???)
     *
     *   // This will trigger an error because of the invariance:
     *   // val sequences: Iterant[Task, Seq[Int]] = source
     *
     *   // But this will work just fine:
-    *   val sequences2: Iterant[Task, Seq[Int]] = source.upcast[Seq[Int]]
+    *   val sequence: Iterant[Task, Seq[Int]] = source.upcast[Seq[Int]]
     * }}}
     */
   final def upcast[B >: A]: Iterant[F, B] =
@@ -1716,6 +1718,86 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def interleave[B >: A](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantInterleave(self.upcast[B], rhs)(F)
 
+  /**
+    * Consumes the source by pushing it to the specified channel.
+    *
+    * @param channel is a [[monix.catnap.ProducerF ProducerF]] value that
+    *        will be used for consuming the stream
+    */
+  final def pushToChannel(channel: Producer[F, A])(implicit F: Sync[F]): F[Unit] =
+    IterantPushToChannel(self, channel)
+
+  /**
+    * Create a [[monix.catnap.ConsumerF ConsumerF]] value that can be used to
+    * consume events from the channel.
+    *
+    * The returned value is a
+    * [[https://typelevel.org/cats-effect/datatypes/resource.html Resource]],
+    * because a consumer can be unsubscribed from the channel early, with its
+    * internal buffer being garbage collected and the finalizers of the source
+    * being triggered.
+    *
+    * {{{
+    *   import monix.eval.Task
+    *   import monix.tail.Iterant.Consumer
+    *
+    *   def sum(channel: Consumer[Task, Int], acc: Long = 0): Task[Long] =
+    *     channel.pull.flatMap {
+    *       case Right(a) =>
+    *         sum(channel, acc + a)
+    *       case Left(None) =>
+    *         Task.pure(acc)
+    *       case Left(Some(e)) =>
+    *         Task.raiseError(e)
+    *     }
+    *
+    *   Iterant[Task].range(0, 10000).consume.use { consumer =>
+    *     sum(consumer)
+    *   }
+    * }}}
+    *
+    * @see [[consumeCustom]] for fine tuning the internal buffer of the
+    *      created consumer
+    */
+  final def consume(implicit F: Concurrent[F], timer: Timer[F]): Resource[F, Consumer[F, A]] =
+    consumeCustom()
+
+  /** Version of [[consume]] that allows for fine tuning the underlying
+    * buffer used.
+    *
+    * There are two parameters that can be configured:
+    *
+    *  - the [[monix.execution.BufferCapacity BufferCapacity]], which can be
+    *    [[monix.execution.BufferCapacity.Unbounded Unbounded]], for an
+    *    unlimited internal buffer in case the consumer is definitely faster
+    *    than the producer, or [[monix.execution.BufferCapacity.Bounded Bounded]]
+    *    in case back-pressuring a slow consumer is desirable
+    *  - the [[monix.execution.ChannelType.ConsumerSide ChannelType.ConsumerSide]],
+    *    which specifies if this consumer will use multiple workers in parallel
+    *    or not; this is an optimization, with the safe choice being
+    *    [[monix.execution.ChannelType.MultiConsumer MultiConsumer]], which
+    *    specifies that multiple workers can use the created consumer in
+    *    parallel, pulling data from multiple threads at the same time; whereas
+    *    [[monix.execution.ChannelType.SingleConsumer SingleConsumer]] specifies
+    *    that the data will be read sequentially by a single worker, not in
+    *    parallel; this being a risky optimization
+    *
+    * @param capacity is the capacity of the internal buffer created for this
+    *        consumer; see [[monix.execution.BufferCapacity BufferCapacity]]
+    *
+    * @param consumerType (UNSAFE) specifies the type of the consumer in a
+    *        multi-threaded setting; see
+    *        [[monix.execution.ChannelType.ConsumerSide ChannelType.ConsumerSide]]
+    */
+  @UnsafeProtocol
+  final def consumeCustom(
+    capacity: BufferCapacity = Bounded(256),
+    consumerType: ChannelType.ConsumerSide = MultiConsumer)
+    (implicit F: Concurrent[F], timer: Timer[F]): Resource[F, Consumer[F, A]] = {
+
+    IterantConsume(self, capacity, consumerType)
+  }
+
   /** Converts this `Iterant` into an `org.reactivestreams.Publisher`.
     *
     * Meant for interoperability with other Reactive Streams
@@ -2176,7 +2258,24 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         fixed delay between successive events.
   */
 object Iterant extends IterantInstances {
-  /** Returns an [[IterantBuilders]] instance for the specified `F`
+  /**
+    * Alias for [[monix.catnap.ConsumerF]], using `Option[Throwable]` as
+    * the completion event, to be compatible with [[Iterant]].
+    *
+    * @see the docs for [[monix.catnap.ConsumerF ConsumerF]]
+    */
+  type Consumer[F[_], A] = monix.catnap.ConsumerF[F, Option[Throwable], A]
+
+  /**
+    * Alias for [[monix.catnap.ProducerF]], using `Option[Throwable]` as
+    * the completion event, to be compatible with [[Iterant]].
+    *
+    * @see the docs for [[monix.catnap.ProducerF ProducerF]]
+    */
+  type Producer[F[_], A] = monix.catnap.ProducerF[F, Option[Throwable], A]
+
+  /**
+    * Returns an [[IterantBuilders]] instance for the specified `F`
     * monadic type that can be used to build [[Iterant]] instances.
     *
     * Example:
@@ -2215,12 +2314,12 @@ object Iterant extends IterantInstances {
     *   val writeLines = printer.flatMap { writer =>
     *     Iterant[IO]
     *       .fromIterator(Iterator.from(1))
-    *       .mapEval(i => IO { writer.println(s"Line #\$i") })
+    *       .mapEval(i => IO { writer.println(s"Line #$$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file
     *   // closing the writer when finished
-    *   writeLines.take(100).completedL.unsafeRunSync()
+    *   writeLines.take(100).completedL
     * }}}
     *
     * @param acquire resource to acquire at the start of the stream
@@ -2254,12 +2353,12 @@ object Iterant extends IterantInstances {
     *   val writeLines = printer.flatMap { writer =>
     *     Iterant[IO]
     *       .fromIterator(Iterator.from(1))
-    *       .mapEval(i => IO { writer.println(s"Line #\$i") })
+    *       .mapEval(i => IO { writer.println(s"Line #$$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file
     *   // closing the writer when finished
-    *   writeLines.take(100).completedL.unsafeRunSync()
+    *   writeLines.take(100).completedL
     * }}}
     *
     * @param acquire an effect that acquires an expensive resource
@@ -2476,8 +2575,6 @@ object Iterant extends IterantInstances {
     *     generates `NextBatch` items
     */
   def fromLazyStateAction[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] = {
-    import cats.syntax.all._
-
     def loop(state: S): F[Iterant[F, A]] =
       try {
         f(state).map { case (elem, newState) =>
@@ -2495,7 +2592,7 @@ object Iterant extends IterantInstances {
     * This allows for example consuming from a
     * [[monix.catnap.ConcurrentChannel ConcurrentChannel]].
     */
-  def fromConsumer[F[_], A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int = 256)
+  def fromConsumer[F[_], A](consumer: Consumer[F, A], maxBatchSize: Int = 256)
     (implicit F: Async[F]): Iterant[F, A] = {
 
     IterantFromConsumer(consumer, maxBatchSize)
@@ -2572,7 +2669,7 @@ object Iterant extends IterantInstances {
   def channel[F[_], A](
     bufferCapacity: BufferCapacity = Bounded(256),
     producerType: ChannelType.ProducerSide = MultiProducer)
-    (implicit F: Async[F], timer: Timer[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] = {
+    (implicit F: Async[F], timer: Timer[F]): F[(Producer[F, A], Iterant[F, A])] = {
 
     val channelF = ConcurrentChannel[F].custom[Option[Throwable], A](
       bufferCapacity,
@@ -2583,7 +2680,7 @@ object Iterant extends IterantInstances {
       case _ => Platform.recommendedBatchSize
     }
     F.map(channelF) { channel =>
-      val p: ProducerF[F, Option[Throwable], A] = channel
+      val p: Producer[F, A] = channel
       val c = fromResource(channel.consumeCustom(consumerType = SingleConsumer))
         .flatMap(fromConsumer(_, maxBatchSize))
       (p, c)
