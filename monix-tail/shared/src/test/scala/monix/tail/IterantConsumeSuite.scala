@@ -17,53 +17,82 @@
 
 package monix.tail
 
-import cats.laws._
-import cats.laws.discipline._
-import minitest.SimpleTestSuite
 import monix.catnap.ConcurrentChannel
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.internal.Platform
 import monix.tail.Iterant.Consumer
 
-import scala.collection.mutable.ListBuffer
+import scala.concurrent.Future
+import scala.util.Random
 
-object IterantConsumeSuite extends SimpleTestSuite {
-  implicit val ec: Scheduler = Scheduler.Implicits.global
-
-  testAsync("iterant.pushToChannel") {
+object IterantConsumeSuite extends BaseTestSuite {
+  testAsync("iterant.pushToChannel (simple)") { _ =>
+    implicit val ec: Scheduler = Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 100
 
-    def pushLoop(channel: ConcurrentChannel[Task, Option[Throwable], Int], n: Int): Task[Unit] =
-      if (n > 0) channel.push(1).flatMap(_ => pushLoop(channel, n - 1))
-      else channel.halt(None)
+    val stream = Iterant[Task].range(0, count)
 
     val task = for {
       channel <- ConcurrentChannel[Task].of[Option[Throwable], Int]
       fiber   <- channel.consume.use(c => foldConsumerViaPullOne(c, 0L)(_ + _)).start
       _       <- channel.awaitConsumers(1)
-      _       <- pushLoop(channel, count)
+      _       <- stream.pushToChannel(channel)
       sum     <- fiber.join
     } yield {
-      assertEquals(sum, count)
+      assertEquals(sum, count.toLong * (count - 1) / 2)
     }
     task.runToFuture
   }
 
-  testAsync("iterant.consume (pull)") {
+  testAsync("iterant.pushToChannel (arbitrary)") { _ =>
+    implicit val ec: Scheduler = Scheduler.Implicits.global
+
+    def loop(times: Int): Future[Unit] = {
+      val count = if (Platform.isJVM) 1000 else 100
+
+      val list = Range(0, count).toList
+      val stream = arbitraryListToIterant[Task, Int](list, Random.nextInt(), allowErrors = false)
+
+      val task = for {
+        channel <- ConcurrentChannel[Task].of[Option[Throwable], Int]
+        fiber   <- channel.consume.use(c => foldConsumerViaPullOne(c, 0L)(_ + _)).start
+        _       <- channel.awaitConsumers(1)
+        _       <- stream.pushToChannel(channel)
+        sum     <- fiber.join
+      } yield {
+        assertEquals(sum, count.toLong * (count - 1) / 2)
+      }
+
+      val f = task.runToFuture
+      if (times > 0)
+        f.flatMap(_ => loop(times - 1))
+      else
+        f
+    }
+    loop(100)
+  }
+
+  testAsync("iterant.consume (pull)") { _ =>
+    implicit val ec: Scheduler = Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 100
 
-    val source = Iterant[Task].range(0, count)
+    val list = Range(0, count).toList
+    val source = arbitraryListToIterant[Task, Int](list, Random.nextInt(), allowErrors = false)
+
     val task = for (sum <- foldIterantPullOne(source, 0L)(_ + _)) yield {
       assertEquals(sum, count.toLong * (count - 1) / 2)
     }
     task.runToFuture
   }
 
-  testAsync("iterant.consume (pullMany)") {
+  testAsync("iterant.consume (pullMany)") { _ =>
+    implicit val ec: Scheduler = Scheduler.Implicits.global
     val count = if (Platform.isJVM) 10000 else 100
 
-    val source = Iterant[Task].range(0, count)
+    val list = Range(0, count).toList
+    val source = arbitraryListToIterant[Task, Int](list, Random.nextInt(), allowErrors = false)
+
     val task = for (sum <- foldIterantPullMany(source, 0L)(_ + _)) yield {
       assertEquals(sum, count.toLong * (count - 1) / 2)
     }

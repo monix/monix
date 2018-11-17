@@ -6,7 +6,8 @@ object MimaFilters {
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.producerType"),
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.consumerType"),
-    exclude[IncompatibleMethTypeProblem]("monix.catnap.ConcurrentQueue.offerMany")
+    exclude[IncompatibleMethTypeProblem]("monix.catnap.ConcurrentQueue.offerMany"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.TestScheduler.tick")
   )
 
   lazy val changesFor_3_0_0_RC2 = Seq(

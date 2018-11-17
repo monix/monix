@@ -37,6 +37,8 @@ private[tail] object IterantPushToChannel {
     (implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Unit]] { loop =>
 
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // For dealing with push results
     private[this] val trueRef = F.pure(true)
     private[this] var rest: F[Iterant[F, A]] = _
     private val bindNext = (continue: Boolean) => {
@@ -63,9 +65,12 @@ private[tail] object IterantPushToChannel {
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
 
+    private def isStackEmpty(): Boolean =
+      stackRef == null || stackRef.isEmpty
+
     private[this] val concatContinue: (Unit => F[Unit]) =
-      state => stackPop() match {
-        case null => F.pure(state)
+      _ => stackPop() match {
+        case null => F.unit
         case xs => F.flatMap(xs)(loop)
       }
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -98,12 +103,22 @@ private[tail] object IterantPushToChannel {
 
     def visit(ref: Iterant.Last[F, A]): F[Unit] =
       F.flatMap(channel.push(ref.item)) {
-        case true => channel.halt(None)
-        case false => F.unit
+        case true =>
+          if (isStackEmpty())
+            channel.halt(None)
+          else
+            F.unit
+        case false =>
+          F.unit
       }
 
     def visit(ref: Iterant.Halt[F, A]): F[Unit] =
-      channel.halt(ref.e)
+      ref.e match {
+        case None if !isStackEmpty() =>
+          F.unit
+        case _ =>
+          channel.halt(ref.e)
+      }
 
     def fail(e: Throwable): F[Unit] =
       channel.halt(Some(e))

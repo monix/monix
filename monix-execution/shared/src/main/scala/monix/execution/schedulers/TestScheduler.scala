@@ -255,17 +255,20 @@ final class TestScheduler private (
     *
     * @param time is an optional parameter for simulating time passing
     *
+    * @param maxImmediateTasks is an optional parameter that specifies a maximum
+    *        number of immediate tasks to execute one after another; setting
+    *        this parameter can prevent non-termination
     */
-  def tick(time: FiniteDuration = Duration.Zero): Unit = {
+  def tick(time: FiniteDuration = Duration.Zero, maxImmediateTasks: Option[Int] = None): Unit = {
     @tailrec
-    def loop(time: FiniteDuration, result: Boolean): Unit = {
+    def loop(time: FiniteDuration, iterCount: Int, maxIterCount: Int): Unit = {
       val current: State = stateRef.get
       val currentClock = current.clock + time
 
       extractOneTask(current, currentClock) match {
         case Some((head, rest)) =>
           if (!stateRef.compareAndSet(current, current.copy(clock = head.runsAt, tasks = rest)))
-            loop(time, result)
+            loop(time, iterCount, maxIterCount)
           else {
             // execute task
             try head.task.run() catch {
@@ -275,16 +278,23 @@ final class TestScheduler private (
 
             // have to retry execution, as those pending tasks
             // may have registered new tasks for immediate execution
-            loop(currentClock - head.runsAt, result = true)
+            val time2 = currentClock - head.runsAt
+            if (time != time2 || maxIterCount == 0) {
+              loop(time2, 0, 0)
+            } else {
+              val iterCount2 = iterCount + 1
+              if (iterCount2 < maxIterCount)
+                loop(time2, iterCount2, maxIterCount)
+            }
           }
 
         case None =>
           if (!stateRef.compareAndSet(current, current.copy(clock = currentClock)))
-            loop(time, result)
+            loop(time, iterCount, maxIterCount)
       }
     }
 
-    loop(time, result = false)
+    loop(time, 0, maxImmediateTasks.getOrElse(0))
   }
 
   @tailrec

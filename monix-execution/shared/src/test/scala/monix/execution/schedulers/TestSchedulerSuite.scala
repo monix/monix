@@ -26,7 +26,7 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
 import scala.concurrent.duration._
-import scala.concurrent.Promise
+import scala.concurrent.{Future, Promise}
 import scala.util.{Success, Try}
 
 object TestSchedulerSuite extends TestSuite[TestScheduler] {
@@ -393,6 +393,24 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("maxImmediateTasks") { implicit ec =>
+    var result: Int = 0
+
+    def loop(): Future[Int] =
+      Future.successful(()).flatMap { _ =>
+        if (result > 0) Future.successful(result)
+        else loop()
+      }
+
+    val f = loop()
+    ec.tick(maxImmediateTasks = Some(1000))
+    assertEquals(f.value, None)
+
+    result = 100
+    ec.tick(maxImmediateTasks = Some(1000))
+    assertEquals(f.value, Some(Success(100)))
   }
 
   def action(f: => Unit): Runnable =

@@ -121,5 +121,6 @@ private[tail] object IterantFoldLeftL {
       }
 
     def fail(e: Throwable): F[S] =
-      F.raiseError(e)}
+      F.raiseError(e)
+  }
 }
