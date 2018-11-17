@@ -50,7 +50,7 @@ private[tail] object IterantFromConsumer {
   private def loopMany[F[_], A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int)
     (implicit F: Async[F]): F[Iterant[F, A]] = {
 
-    F.map(consumer.pullMany(maxBatchSize)) {
+    F.map(consumer.pullMany(1, maxBatchSize)) {
       case Left(e) => haltS(e)
       case Right(seq) =>
         NextBatch(Batch.fromSeq(seq), loopMany(consumer, maxBatchSize))

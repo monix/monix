@@ -300,7 +300,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
     def consume(consumer: ConsumerF[IO, Int, Int]): IO[Long] = {
       def worker(acc: Long): IO[Long] = {
         if (pullMany)
-          consumer.pullMany(16).flatMap {
+          consumer.pullMany(1, 16).flatMap {
             case Left(i) => IO.pure(acc + i)
             case Right(seq) =>
               assert(seq.length <= 16)

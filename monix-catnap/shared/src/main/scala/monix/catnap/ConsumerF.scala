@@ -63,17 +63,27 @@ trait ConsumerF[F[_], E, A] extends Serializable {
     *   def sum[F[_]](channel: ConsumerF[F, Int, Int], acc: Long = 0)
     *     (implicit F: Async[F]): F[Long] = {
     *
-    *     channel.pullMany(16).flatMap {
+    *     channel.pullMany(1, 16).flatMap {
     *       case Left(e) => F.pure(acc + e)
     *       case Right(seq) => sum(channel, acc + seq.sum)
     *     }
     *   }
     * }}}
     *
+    * @param minLength is the minimum size of the returned sequence;
+    *        for as long as the channel isn't halted, the returned task will
+    *        back-pressure until the required number of events have been
+    *        collected
+    *
+    * @param maxLength is the maximum size of the returned sequence;
+    *        for fairness purposes (e.g. multiple workers consuming from
+    *        the same `ConsumerF`), a smaller value is recommended,
+    *        or otherwise `Int.MaxValue` can be used
+    *
     * @return either `Left(e)`, if the channel was closed with a final `e`
     *         completion event, or `Right(seq)`, representing a non-empty
     *         sequence of messages pulled from the channel, but that is
     *         no larger than `maxLength`
     */
-  def pullMany(maxLength: Int): F[Either[E, Seq[A]]]
+  def pullMany(minLength: Int, maxLength: Int): F[Either[E, Seq[A]]]
 }

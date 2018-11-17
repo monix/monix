@@ -766,7 +766,7 @@ object ConcurrentChannel {
       }
     }
 
-    def pullMany(maxLength: Ack): F[Either[E, Seq[A]]] = {
+    def pullMany(minLength: Int, maxLength: Int): F[Either[E, Seq[A]]] = {
       def end(buffer: ArrayBuffer[A], maxLength: Int, e: E): Either[E, Seq[A]] = {
         queue.drainToBuffer(buffer, maxLength)
         if (buffer.isEmpty)
@@ -775,25 +775,32 @@ object ConcurrentChannel {
           Right(toSeq(buffer))
       }
 
-      def task(buffer: ArrayBuffer[A], maxLength: Int): Either[E, Seq[A]] =
-        if (queue.drainToBuffer(buffer, maxLength) > 0)
+      def task(buffer: ArrayBuffer[A], minLength: Int, maxLength: Int): Either[E, Seq[A]] = {
+        queue.drainToBuffer(buffer, maxLength - buffer.length)
+
+        if (buffer.length >= minLength)
           Right(toSeq(buffer))
         else isFinished() match {
           case Some(e) => end(buffer, maxLength, e)
           case _ => null.asInstanceOf[Either[E, Seq[A]]]
         }
+      }
 
       F.suspend[Either[E, Seq[A]]] {
+        assert(minLength > 0, "minLength > 0")
+        assert(minLength <= maxLength, "minLength <= maxLength")
+
         val buffer = ArrayBuffer.empty[A]
         val length = queue.drainToBuffer(buffer, maxLength)
 
-        if (length > 0)
+        if (length > 1 && length >= minLength)
           F.pure(Right(toSeq(buffer)))
         else isFinished() match {
-          case Some(e) => F.pure(end(buffer, maxLength, e))
+          case Some(e) =>
+            F.pure(end(buffer, maxLength, e))
           case _ =>
             F.asyncF(cb => ops.polled(
-              () => task(buffer, maxLength),
+              () => task(buffer, minLength, maxLength),
               pullFilter,
               pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
               cb
