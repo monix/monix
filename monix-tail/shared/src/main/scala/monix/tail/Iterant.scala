@@ -1116,7 +1116,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Lazily fold the stream to a single value from the right.
     *
     * This is the common `foldr` operation from Haskell's `Foldable`,
-    * or `foldRight` from [[cats.Foldable]], but with the difference that
+    * or `foldRight` from `cats.Foldable`, but with the difference that
     * `Iterant` is a lazy data type and thus it has to operate in the `F[_]`
     * context.
     *
