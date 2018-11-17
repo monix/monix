@@ -99,6 +99,23 @@ object IterantConsumeSuite extends BaseTestSuite {
     task.runToFuture
   }
 
+  testAsync("Iterant.channel") { _ =>
+    import cats.implicits._
+    implicit val ec: Scheduler = Scheduler.Implicits.global
+    val count = if (Platform.isJVM) 10000 else 100
+
+    val task = Iterant[Task].channel[Int]().flatMap { case (producer, stream) =>
+      val write = Iterant[Task].range(0, count).pushToChannel(producer)
+      for {
+        _   <- (producer.awaitConsumers(1) *> write).start
+        sum <- stream.foldLeftL(0L)(_ + _)
+      } yield {
+        assertEquals(sum, count.toLong * (count - 1) / 2)
+      }
+    }
+    task.runToFuture
+  }
+
   def foldIterantPullOne[S, A](iter: Iterant[Task, A], seed: => S)(f: (S, A) => S): Task[S] =
     Task.suspend {
       iter.consume.use(foldConsumerViaPullOne(_, seed)(f))
