@@ -19,6 +19,10 @@ package monix.tail
 
 import cats.Applicative
 import cats.effect._
+import monix.catnap.{ConsumerF, ProducerF}
+import monix.execution.BufferCapacity.Bounded
+import monix.execution.ChannelType.MultiProducer
+import monix.execution.{BufferCapacity, ChannelType}
 import monix.tail.batches.{Batch, BatchCursor}
 import org.reactivestreams.Publisher
 
@@ -34,6 +38,8 @@ import scala.concurrent.duration.FiniteDuration
   *
   * So instead of having to do:
   * {{{
+  *   import monix.eval.Task
+  *
   *   Iterant.pure[Task, Int](1)
   * }}}
   *
@@ -158,6 +164,15 @@ sealed trait IterantBuilders[F[_]] extends Any {
     (implicit F: Sync[F]): Iterant[F, A] =
     Iterant.resource(acquire)(release)
 
+  /** Aliased builder, see documentation for [[Iterant.resourceCase]]. */
+  def resourceCase[A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])
+    (implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.resourceCase(acquire)(release)
+
+  /** Aliased builder, see documentation for [[Iterant.fromResource]]. */
+  def fromResource[A](r: Resource[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+    Iterant.fromResource(r)
+
   /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](fa* Iterant.suspend]]. */
   def suspend[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     Iterant.suspend(fa)(F)
@@ -176,10 +191,10 @@ sealed trait IterantBuilders[F[_]] extends Any {
     (implicit F: Sync[F]): Iterant[F, A] =
     Iterant.fromStateAction(f)(seed)
 
-  /** Aliased builder, see documentation for [[Iterant.fromStateActionL]]. */
+  /** Aliased builder, see documentation for [[Iterant.fromLazyStateAction]]. */
   def fromStateActionL[S, A](f: S => F[(A, S)])(seed: => F[S])
     (implicit F: Sync[F]): Iterant[F, A] =
-    Iterant.fromStateActionL(f)(seed)
+    Iterant.fromLazyStateAction(f)(seed)
 
   /** Aliased builder, see documentation for [[Iterant.repeat]]. */
   def repeat[A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] =
@@ -232,11 +247,22 @@ sealed trait IterantBuilders[F[_]] extends Any {
     (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
     Iterant.intervalWithFixedDelay(initialDelay, delay)
 
-
   /** Aliased builder, see documentation for [[Iterant.fromReactivePublisher]]. */
   def fromReactivePublisher[A](publisher: Publisher[A], requestCount: Int = 256, eagerBuffer: Boolean = true)
     (implicit F: Async[F]): Iterant[F, A] =
     Iterant.fromReactivePublisher(publisher, requestCount, eagerBuffer)
+
+  /** Aliased builder, see documentation for [[Iterant.fromConsumer]]. */
+  def fromConsumer[A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int = 256)
+    (implicit F: Async[F]): Iterant[F, A] =
+    Iterant.fromConsumer(consumer, maxBatchSize)
+
+  /** Aliased builder, see documentation for [[Iterant.channel]]. */
+  def channel[A](
+    bufferCapacity: BufferCapacity = Bounded(256),
+    producerType: ChannelType.ProducerSide = MultiProducer)
+    (implicit F: Async[F], timer: Timer[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] =
+    Iterant.channel(bufferCapacity, producerType)
 }
 
 object IterantBuilders {

@@ -17,15 +17,15 @@
 
 package monix.catnap
 
-import cats.implicits._
 import cats.effect.{Async, Resource, Timer}
-import monix.execution.BufferCapacity.{Bounded, Unbounded}
-import monix.execution.ChannelType.MPMC
+import cats.implicits._
+import monix.execution.BufferCapacity.Bounded
+import monix.execution.ChannelType.{MultiConsumer, MultiProducer}
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.atomic.AtomicAny
-import monix.execution.{BufferCapacity, ChannelType}
+import monix.execution.internal.Platform
 import monix.execution.internal.collection.{ConcurrentQueue => LowLevelQueue}
-
+import monix.execution.{BufferCapacity, ChannelType}
 import scala.annotation.switch
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -68,7 +68,7 @@ import scala.concurrent.duration._
   *     }
   *
   *   for {
-  *     channel <- ConcurrentChannel[IO].bounded[Complete, String](capacity = 32)
+  *     channel <- ConcurrentChannel[IO].of[Complete, String]
   *     // Workers 1 & 2, sharing the load between them
   *     task_1_2 = channel.consume.use { ref =>
   *       (logLines(ref, 1), logLines(ref, 2)).parSequence_
@@ -112,17 +112,19 @@ import scala.concurrent.duration._
   *
   * ==Back-Pressuring and the Polling Model==
   *
-  * The initialized channel can be limited to a maximum buffer size, a size
-  * that could be rounded to a power of 2, so you can't rely on it to be
-  * precise. Such a bounded queue can be initialized via
-  * [[monix.catnap.ConcurrentChannel.bounded ConcurrentChannel.bounded]].
-  * Also see [[monix.execution.BufferCapacity BufferCapacity]], the
-  * configuration parameter that can be passed in the
+  * When consumers get created via [[consume]], a buffer gets created and
+  * assigned per consumer.
+  *
+  * Depending on what the [[monix.execution.BufferCapacity BufferCapacity]]
+  * is configured to be, the initialized consumer can work with a maximum
+  * buffer size, a size that could be rounded to a power of 2, so you can't
+  * rely on it to be precise. See [[consumeCustom]] for customizing this
+  * buffer on a per-consumer basis, or the
   * [[monix.catnap.ConcurrentChannel.custom ConcurrentChannel.custom]]
-  * builder.
+  * builder for setting the default used in [[consume]].
   *
   * On [[push]], when the queue is full, the implementation back-pressures
-  * until the channel has room again in its internal buffer(s), the future being
+  * until the channel has room again in its internal buffer(s), the task being
   * completed when the value was pushed successfully. Similarly [[ConsumerF.pull]]
   * (returned by [[consume]]) awaits the channel to have items in it. This
   * works for both bounded and unbounded channels.
@@ -132,31 +134,91 @@ import scala.concurrent.duration._
   *
   * ==Multi-threading Scenario==
   *
-  * This channel supports a [[monix.execution.ChannelType ChannelType]]
-  * configuration, for fine tuning depending on the needed multi-threading
-  * scenario. And this can yield better performance:
+  * This channel supports the fine-tuning of the concurrency scenario via
+  * [[monix.execution.ChannelType.ProducerSide ChannelType.ProducerSide]]
+  * (see [[monix.catnap.ConcurrentChannel.custom ConcurrentChannel.custom]])
+  * and the
+  * [[monix.execution.ChannelType.ConsumerSide ChannelType.ConsumerSide]]
+  * that can be specified per consumer (see [[consumeCustom]]).
+  *
+  * The default is set to
+  * [[monix.execution.ChannelType.MultiProducer MultiProducer]] and
+  * [[monix.execution.ChannelType.MultiConsumer MultiConsumer]], which is always
+  * the safe choice, however these can be customized for better performance.
+  *
+  * These scenarios are available:
   *
   *   - [[monix.execution.ChannelType.MPMC MPMC]]:
-  *     multi-producer, multi-consumer
+  *     multi-producer, multi-consumer, when
+  *     [[monix.execution.ChannelType.MultiProducer MultiProducer]]
+  *     is selected on the channel's creation and
+  *     [[monix.execution.ChannelType.MultiConsumer MultiConsumer]] is
+  *     selected when [[consume consuming]]; this is the safe scenario and
+  *     should be used as the default, especially when in doubt
   *   - [[monix.execution.ChannelType.MPSC MPSC]]:
-  *     multi-producer, single-consumer
+  *     multi-producer, single-consumer, when
+  *     [[monix.execution.ChannelType.MultiProducer MultiProducer]]
+  *     is selected on the channel's creation and
+  *     [[monix.execution.ChannelType.SingleConsumer SingleConsumer]] is
+  *     selected when [[consume consuming]]; this scenario should be selected
+  *     when there are multiple producers, but a single worker that consumes
+  *     data sequentially (per [[ConsumerF]]); note that this means a single
+  *     worker per [[ConsumerF]] instance, but you can still have multiple
+  *     [[ConsumerF]] instances created, , because each [[ConsumerF]] gets its
+  *     own buffer anyway
   *   - [[monix.execution.ChannelType.SPMC SPMC]]:
-  *     single-producer, multi-consumer
+  *     single-producer, multi-consumer, when
+  *     [[monix.execution.ChannelType.SingleProducer SingleProducer]]
+  *     is selected on the channel's creation and
+  *     [[monix.execution.ChannelType.MultiConsumer MultiConsumer]] is
+  *     selected when [[consume consuming]]; this scenario should be selected
+  *     when there are multiple workers processing data in parallel
+  *     (e.g. pulling from the same [[ConsumerF]]), but a single producer that
+  *     pushes data on the channel sequentially
   *   - [[monix.execution.ChannelType.SPSC SPSC]]:
-  *     single-producer, single-consumer
+  *     single-producer, single-consumer, when
+  *     [[monix.execution.ChannelType.SingleProducer SingleProducer]]
+  *     is selected on the channel's creation and
+  *     [[monix.execution.ChannelType.SingleConsumer SingleConsumer]] is
+  *     selected when [[consume consuming]]; this scenario should be selected
+  *     when there is a single producer that pushes data on the channel
+  *     sequentially and a single worker per [[ConsumerF]] instance that
+  *     pulls data from the channel sequentially; note you can still have
+  *     multiple [[ConsumerF]] instances running in parallel, because
+  *     each [[ConsumerF]] gets its own buffer anyway
   *
   * The default is `MPMC`, because that's the safest scenario.
   *
   * {{{
+  *   import cats.implicits._
   *   import cats.effect.IO
-  *   import monix.execution.ChannelType.MPSC
+  *   import monix.execution.ChannelType.{SingleProducer, SingleConsumer}
   *   import monix.execution.BufferCapacity.Bounded
   *
-  *   val queue = ConcurrentChannel[IO].custom[Throwable, Int](
-  *     capacity = Bounded(128),
-  *     channelType = MPSC
+  *   val channel = ConcurrentChannel[IO].custom[Int, Int](
+  *     producerType = SingleProducer
   *   )
+  *
+  *   for {
+  *     producer  <- channel
+  *     consumer1 =  producer.consumeCustom(consumerType = SingleConsumer)
+  *     consumer2 =  producer.consumeCustom(consumerType = SingleConsumer)
+  *     fiber1    <- consumer1.use { ref => ref.pull }.start
+  *     fiber2    <- consumer2.use { ref => ref.pull }.start
+  *     _         <- producer.push(1)
+  *     value1    <- fiber1.join
+  *     value2    <- fiber2.join
+  *   } yield {
+  *     (value1, value2)
+  *   }
   * }}}
+  *
+  * Note that in this example, even if we used `SingleConsumer` as the type
+  * passed in [[consumeCustom]], we can still consume from two [[ConsumerF]]
+  * instances at the same time, because each one gets its own internal buffer.
+  * But you cannot have multiple workers per [[ConsumerF]] in this scenario,
+  * because this would break the internal synchronization / visibility
+  * guarantees.
   *
   * '''WARNING''': default is `MPMC`, however any other scenario implies
   * a relaxation of the internal synchronization between threads.
@@ -175,8 +237,8 @@ import scala.concurrent.duration._
   */
 final class ConcurrentChannel[F[_], E, A] private (
   state: AtomicAny[ConcurrentChannel.State[F, E, A]],
-  capacity: BufferCapacity,
-  channelType: ChannelType,
+  defaultPerBufferCapacity: BufferCapacity,
+  producerType: ChannelType.ProducerSide,
   retryDelay: FiniteDuration = 10.millis)
   (implicit F: Async[F], timer: Timer[F])
   extends ProducerF[F, E, A] {
@@ -308,14 +370,48 @@ final class ConcurrentChannel[F[_], E, A] private (
     * events being pushed, so a broadcasting setup is possible. Also multiple
     * workers can consumer from the same `ConsumerF` value, to share the load.
     *
-    * Note the returned value is a
+    * The returned value is a
     * [[https://typelevel.org/cats-effect/datatypes/resource.html Resource]],
-    * because a consumer can be unsubscribed from the channel.
+    * because a consumer can be unsubscribed from the channel, with its
+    * internal buffer being garbage collected.
+    *
+    * @see [[consumeCustom]] for fine tuning the internal buffer of the
+    *      created consumer
     */
-  def consume: Resource[F, ConsumerF[F, E, A]] = broadcastRef
+  def consume: Resource[F, ConsumerF[F, E, A]] = consumeRef
+  private[this] val consumeRef = consumeCustom()
 
-  /** Actual implementation for [[consume]]. */
-  private[this] val broadcastRef: Resource[F, ConsumerF[F, E, A]] = {
+  /**
+    * There are two parameters that can be configured, per consumer, when
+    * consuming from the channel:
+    *
+    *  - the [[monix.execution.BufferCapacity BufferCapacity]], which can be
+    *    [[monix.execution.BufferCapacity.Unbounded Unbounded]], for an
+    *    unlimited internal buffer in case the consumer is definitely faster
+    *    than the producer, or [[monix.execution.BufferCapacity.Bounded Bounded]]
+    *    in case back-pressuring a slow consumer is desirable
+    *  - the [[monix.execution.ChannelType.ConsumerSide ChannelType.ConsumerSide]],
+    *    which specifies if this consumer will use multiple workers in parallel
+    *    or not; this is an optimization, with the safe choice being
+    *    [[monix.execution.ChannelType.MultiConsumer MultiConsumer]], which
+    *    specifies that multiple workers can use the created consumer in
+    *    parallel, pulling data from multiple threads at the same time; whereas
+    *    [[monix.execution.ChannelType.SingleConsumer SingleConsumer]] specifies
+    *    that the data will be read sequentially by a single worker, not in
+    *    parallel; this being a risky optimization
+    *
+    * @param capacity is the capacity of the internal buffer created for this
+    *        consumer; see [[monix.execution.BufferCapacity BufferCapacity]]
+    *
+    * @param consumerType (UNSAFE) specifies the type of the consumer in a
+    *        multi-threaded setting; see
+    *        [[monix.execution.ChannelType.ConsumerSide ChannelType.ConsumerSide]]
+    */
+  @UnsafeProtocol
+  def consumeCustom(
+    capacity: BufferCapacity = defaultPerBufferCapacity,
+    consumerType: ChannelType.ConsumerSide = MultiConsumer): Resource[F, ConsumerF[F, E, A]] = {
+
     val isFinished = () => state.get() match {
       case Halt(e) => Some(e)
       case _ => None
@@ -323,9 +419,9 @@ final class ConcurrentChannel[F[_], E, A] private (
 
     Resource.apply[F, ConsumerF[F, E, A]] {
       F.delay {
-        val queue = LowLevelQueue[A](capacity, channelType)
-        val producer = new ChanProducer[F, E, A](queue, isFinished, retryDelay)
-        val consumer = new ChanConsumer[F, E, A](queue, isFinished, retryDelay)
+        val queue = LowLevelQueue[A](capacity, ChannelType.assemble(producerType, consumerType))
+        val producer = new ChanProducer[F, E, A](queue, isFinished, ops)
+        val consumer = new ChanConsumer[F, E, A](queue, isFinished, ops)
 
         state.transform {
           case connected @ Connected(_) =>
@@ -347,14 +443,59 @@ final class ConcurrentChannel[F[_], E, A] private (
       }
     }
   }
+
+  /**
+    * Awaits for the specified number of consumers to be connected.
+    *
+    * This is an utility to ensure that a certain number of consumers
+    * are connected before we start emitting events.
+    *
+    * @param n is a number indicating the number of consumers that need
+    *          to be connected before the returned task completes
+    *
+    * @return a task that will complete only after the required number
+    *         of consumers are observed as being connected to the channel
+    */
+  def awaitConsumers(n: Int): F[Boolean] =
+    F.suspend {
+      testAwaitConsumers(n) match {
+        case Repeat =>
+          F.asyncF(cb => ops.polled(
+            () => testAwaitConsumers(n),
+            pushFilter,
+            pushMap,
+            cb
+          ))
+        case other =>
+          F.pure(other == Continue)
+      }
+    }
+
+  private def testAwaitConsumers(n: Int): Ack =
+    state.get() match {
+      case connected @ Connected(_) =>
+        if (connected.array.length >= n) Continue
+        else Repeat
+      case _ =>
+        Stop
+    }
+
+  private[this] val ops =
+    new PolledOps[F, E, A](retryDelay)
 }
 
 /**
-  * @define channelTypeDesc (UNSAFE) specifies the concurrency scenario, for
-  *         fine tuning the performance
+  * @define producerTypeDesc (UNSAFE) specifies the concurrency scenario for
+  *         the producer's side, for fine tuning that can lead to performance
+  *         gains; the safe choice is
+  *         [[monix.execution.ChannelType.MultiProducer MultiProducer]] and if
+  *         in doubt, use it
   *
-  * @define bufferCapacityParam specifies the `BufferCapacity`, which can be
-  *         either "bounded" (with a maximum capacity), or "unbounded"
+  * @define defaultPerBufferCapacityDesc specifies the default, per buffer
+  *         [[monix.execution.BufferCapacity BufferCapacity]], which will
+  *         be used when creating consumers via [[ConcurrentChannel.consume consume]];
+  *         this is just a default and it can be overridden per individual consumer
+  *         via the alternative [[ConcurrentChannel.consumeCustom consumeCustom]].
   *
   * @define asyncParam is a `cats.effect.Async` type class restriction; this
   *         queue is built to work with any `Async` data type
@@ -376,64 +517,42 @@ object ConcurrentChannel {
     new ApplyBuilders[F](F)
 
   /**
-    * Builds a limited capacity and back-pressured [[ConcurrentChannel]].
+    * Builds a multi-producer channel.
     *
-    * @see [[unbounded]] for building an unbounded channel that can use the
-    *      entire memory available to the process.
+    * This is the safe constructor.
     *
-    * @param capacity is the maximum capacity of the internal buffer; note
-    *        that due to performance optimizations, the capacity of the internal
-    *        buffer can get rounded to a power of 2, so the actual capacity may
-    *        be slightly different than the one specified
+    * @see [[custom]] for fine tuning for the created channel.
     *
     * @param timer $timerParam
     * @param F $asyncParam
     */
-  def bounded[F[_], E, A](capacity: Int)(implicit F: Async[F], timer: Timer[F]): F[ConcurrentChannel[F, E, A]] =
-    custom(Bounded(capacity), MPMC)
-
-  /**
-    * Builds an unlimited [[ConcurrentChannel]] that can use the entire memory
-    * available to the process.
-    *
-    * @see [[bounded]] for building a limited capacity queue.
-    *
-    * @param chunkSizeHint is an optimization parameter — the underlying
-    *        implementation may use an internal buffer that uses linked
-    *        arrays, in which case the "chunk size" represents the size
-    *        of a chunk; providing it is just a hint, it may or may not be
-    *        used
-    *
-    * @param timer $timerParam
-    * @param F $asyncParam
-    */
-  def unbounded[F[_], E, A](chunkSizeHint: Option[Int] = None)
-    (implicit F: Async[F], timer: Timer[F]): F[ConcurrentChannel[F, E, A]] =
-    custom(Unbounded(chunkSizeHint), MPMC)
+  def of[F[_], E, A](implicit F: Async[F], timer: Timer[F]): F[ConcurrentChannel[F, E, A]] =
+    custom()
 
   /**
     * Builds an [[ConcurrentChannel]] with fined tuned config parameters.
     *
     * '''UNSAFE PROTOCOL:''' This is unsafe due to problems that can happen
-    * via selecting the wrong [[monix.execution.ChannelType ChannelType]],
+    * via selecting the wrong
+    * [[monix.execution.ChannelType.ProducerSide ChannelType.ProducerSide]],
     * so use with care.
     *
-    * @param capacity $bufferCapacityParam
-    * @param channelType $channelTypeDesc
+    * @param defaultPerBufferCapacity $defaultPerBufferCapacityDesc
+    * @param producerType $producerTypeDesc
     * @param timer $timerParam
     * @param F $asyncParam
     */
   @UnsafeProtocol
   def custom[F[_], E, A](
-    capacity: BufferCapacity,
-    channelType: ChannelType)
+    defaultPerBufferCapacity: BufferCapacity = Bounded(Platform.recommendedBatchSize),
+    producerType: ChannelType.ProducerSide = MultiProducer)
     (implicit F: Async[F], timer: Timer[F]): F[ConcurrentChannel[F, E, A]] = {
 
-    F.delay(unsafe(capacity, channelType))
+    F.delay(unsafe(defaultPerBufferCapacity, producerType))
   }
 
   /**
-    * The unsafe version of the [[ConcurrentChannel.bounded]] builder.
+    * The unsafe version of the [[ConcurrentChannel.custom]] builder.
     *
     * '''UNSAFE PROTOCOL:''' This is unsafe due to problems that can happen
     * via selecting the wrong [[monix.execution.ChannelType ChannelType]],
@@ -441,22 +560,24 @@ object ConcurrentChannel {
     *
     * '''UNSAFE BECAUSE IMPURE:''' this builder violates referential
     * transparency, as the queue keeps internal, shared state. Only use when
-    * you know what you're doing, otherwise prefer [[ConcurrentChannel.custom]]
-    * or [[ConcurrentChannel.bounded]].
+    * you know what you're doing, otherwise prefer [[ConcurrentChannel.custom]].
     *
-    * @param capacity $bufferCapacityParam
-    * @param channelType $channelTypeDesc
+    * @param defaultPerBufferCapacity $defaultPerBufferCapacityDesc
+    * @param producerType $producerTypeDesc
     * @param timer $timerParam
     * @param F $asyncParam
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafe[F[_], E, A](
-    capacity: BufferCapacity,
-    channelType: ChannelType = MPMC)
+    defaultPerBufferCapacity: BufferCapacity = Bounded(Platform.recommendedBatchSize),
+    producerType: ChannelType.ProducerSide = MultiProducer)
     (implicit F: Async[F], timer: Timer[F]): ConcurrentChannel[F, E, A] = {
 
-    new ConcurrentChannel[F, E, A](AtomicAny(State.empty), capacity, channelType)(F, timer)
+    new ConcurrentChannel[F, E, A](
+      AtomicAny(State.empty),
+      defaultPerBufferCapacity,
+      producerType)(F, timer)
   }
 
   /**
@@ -464,30 +585,28 @@ object ConcurrentChannel {
     */
   final class ApplyBuilders[F[_]](val F: Async[F]) extends AnyVal {
     /**
-      * @see documentation for [[ConcurrentChannel.bounded]]
+      * @see documentation for [[ConcurrentChannel.of]]
       */
-    def bounded[E, A](capacity: Int)(implicit timer: Timer[F]): F[ConcurrentChannel[F, E, A]] =
-      ConcurrentChannel.bounded(capacity)(F, timer)
-
-    /**
-      * @see documentation for [[ConcurrentChannel.unbounded]]
-      */
-    def unbounded[E, A](chunkSizeHint: Option[Int])(implicit timer: Timer[F]): F[ConcurrentChannel[F, E, A]] =
-      ConcurrentChannel.unbounded(chunkSizeHint)(F, timer)
+    def of[E, A](implicit timer: Timer[F]): F[ConcurrentChannel[F, E, A]] =
+      ConcurrentChannel.of(F, timer)
 
     /**
       * @see documentation for [[ConcurrentChannel.custom]]
       */
-    def custom[E, A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
+    def custom[E, A](
+      defaultPerBufferCapacity: BufferCapacity = Bounded(Platform.recommendedBatchSize),
+      producerType: ChannelType.ProducerSide = MultiProducer)
       (implicit timer: Timer[F]): F[ConcurrentChannel[F, E, A]] =
-      ConcurrentChannel.custom(capacity, channelType)(F, timer)
+      ConcurrentChannel.custom(defaultPerBufferCapacity, producerType)(F, timer)
 
     /**
       * @see documentation for [[ConcurrentChannel.unsafe]]
       */
-    def unsafe[E, A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
+    def unsafe[E, A](
+      defaultPerBufferCapacity: BufferCapacity = Bounded(Platform.recommendedBatchSize),
+      producerType: ChannelType.ProducerSide = MultiProducer)
       (implicit timer: Timer[F]): ConcurrentChannel[F, E, A] =
-      ConcurrentChannel.unsafe(capacity, channelType)(F, timer)
+      ConcurrentChannel.unsafe(defaultPerBufferCapacity, producerType)(F, timer)
   }
 
   private sealed abstract class State[F[_], E, A]
@@ -520,7 +639,7 @@ object ConcurrentChannel {
   private final val Stop = 2
 
   // Internal, reusable references
-  private val pullFilter = (x: Either[Any, Any]) => x != null
+  private val pullFilter = (x: Either[Any, Any]) => x ne null
   private val pullMap = (x: Any) => x
   private val pushFilter = (x: Ack) => x != Repeat
   private val pushMap = (x: Ack) => x != Stop
@@ -559,15 +678,14 @@ object ConcurrentChannel {
   private final class ChanProducer[F[_], E, A](
     queue: LowLevelQueue[A],
     isFinished: () => Option[E],
-    retryDelay: FiniteDuration)
-    (implicit F: Async[F], timer: Timer[F])
-    extends Helpers(queue, retryDelay)(F, timer) {
+    ops: PolledOps[F, E, A])
+    (implicit F: Async[F], timer: Timer[F]) {
 
     def push(a: A): F[Boolean] =
       F.suspend {
         (tryPushToOurQueue(a) : @switch) match {
           case Repeat =>
-            F.asyncF(cb => polled(() => tryPushToOurQueue(a), pushFilter, pushMap, cb))
+            F.asyncF(cb => ops.polled(() => tryPushToOurQueue(a), pushFilter, pushMap, cb))
           case Continue =>
             F.pure(true)
           case Stop =>
@@ -594,7 +712,7 @@ object ConcurrentChannel {
           hasCapacity = queue.offer(elem) == 0
         }
         if (!hasCapacity) {
-          val offerWait = F.asyncF[Ack](cb => polled(() => tryPushToOurQueue(elem), pushFilter, pushManyMap, cb))
+          val offerWait = F.asyncF[Ack](cb => ops.polled(() => tryPushToOurQueue(elem), pushFilter, pushManyMap, cb))
           offerWait.flatMap {
             case Continue => loop(cursor)
             case Stop => F.pure(false)
@@ -611,10 +729,9 @@ object ConcurrentChannel {
   private final class ChanConsumer[F[_], E, A](
     queue: LowLevelQueue[A],
     isFinished: () => Option[E],
-    retryDelay: FiniteDuration)
+    ops: PolledOps[F, E, A])
     (implicit F: Async[F], timer: Timer[F])
-    extends Helpers(queue, retryDelay)(F, timer)
-    with ConsumerF[F, E, A] {
+    extends ConsumerF[F, E, A] {
 
     def pull: F[Either[E, A]] = pullRef
     private[this] val pullRef: F[Either[E, A]] = {
@@ -637,7 +754,7 @@ object ConcurrentChannel {
       F.suspend {
         task() match {
           case null =>
-            F.asyncF(cb => polled(
+            F.asyncF(cb => ops.polled(
               task,
               pullFilter,
               pullMap.asInstanceOf[Either[E, A] => Either[E, A]],
@@ -675,7 +792,7 @@ object ConcurrentChannel {
         else isFinished() match {
           case Some(e) => F.pure(end(buffer, maxLength, e))
           case _ =>
-            F.asyncF(cb => polled(
+            F.asyncF(cb => ops.polled(
               () => task(buffer, maxLength),
               pullFilter,
               pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
@@ -686,16 +803,14 @@ object ConcurrentChannel {
     }
   }
 
-  private abstract class Helpers[F[_], E, A](
-    queue: LowLevelQueue[A],
-    retryDelay: FiniteDuration)
+  private final class PolledOps[F[_], E, A](retryDelay: FiniteDuration)
     (implicit F: Async[F], timer: Timer[F]) {
 
     // Internal, reusable values
     private[this] val retryDelayNanos = retryDelay.toNanos
     private[this] val asyncBoundary: F[Unit] = timer.sleep(Duration.Zero)
 
-    protected def polled[T, U](f: () => T, filter: T => Boolean, map: T => U,  cb: Either[Throwable, U] => Unit): F[Unit] =
+    def polled[T, U](f: () => T, filter: T => Boolean, map: T => U,  cb: Either[Throwable, U] => Unit): F[Unit] =
       timer.clock.monotonic(NANOSECONDS).flatMap { start =>
         var task: F[Unit] = F.unit
         val bind: Unit => F[Unit] = _ => task
@@ -711,7 +826,7 @@ object ConcurrentChannel {
         F.flatMap(asyncBoundary)(bind)
       }
 
-    protected def polledLoop[T, U](task: F[Unit], bind: Unit => F[Unit], start: Long): F[Unit] =
+    def polledLoop[T, U](task: F[Unit], bind: Unit => F[Unit], start: Long): F[Unit] =
       timer.clock.monotonic(NANOSECONDS).flatMap { now =>
         val next = if (now - start < retryDelayNanos)
           asyncBoundary

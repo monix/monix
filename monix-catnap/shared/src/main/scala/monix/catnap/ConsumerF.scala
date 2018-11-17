@@ -17,9 +17,63 @@
 
 package monix.catnap
 
+/**
+  * A simple interface that models the consumer side of a producer-consumer
+  * communication channel.
+  *
+  * Currently exposed by [[ConcurrentChannel.consume]].
+  *
+  * @tparam F is effect type used for processing tasks asynchronously
+  * @tparam E is the type for the completion event
+  * @tparam A is the type for the stream of events being consumed
+  */
 trait ConsumerF[F[_], E, A] extends Serializable {
-
+  /**
+    * Pulls one message from the communication channel, when it becomes available.
+    *
+    * Example:
+    * {{{
+    *   import cats.implicits._
+    *   import cats.effect.Async
+    *
+    *   def sum[F[_]](channel: ConsumerF[F, Int, Int], acc: Long = 0)
+    *     (implicit F: Async[F]): F[Long] = {
+    *
+    *     channel.pull.flatMap {
+    *       case Left(e) => F.pure(acc + e)
+    *       case Right(i) => sum(channel, acc + i)
+    *     }
+    *   }
+    * }}}
+    *
+    * @return either `Left(e)`, if the channel was closed with a final `e`
+    *         completion event, or `Right(a)`, representing a message that
+    *         was pulled from the channel
+    */
   def pull: F[Either[E, A]]
 
+  /**
+    * Pulls a whole batch of messages from the channel, at least one,
+    * the returned sequence being no larger than the specified `maxLength`.
+    *
+    * {{{
+    *   import cats.implicits._
+    *   import cats.effect.Async
+    *
+    *   def sum[F[_]](channel: ConsumerF[F, Int, Int], acc: Long = 0)
+    *     (implicit F: Async[F]): F[Long] = {
+    *
+    *     channel.pullMany(16).flatMap {
+    *       case Left(e) => F.pure(acc + e)
+    *       case Right(seq) => sum(channel, acc + seq.sum)
+    *     }
+    *   }
+    * }}}
+    *
+    * @return either `Left(e)`, if the channel was closed with a final `e`
+    *         completion event, or `Right(seq)`, representing a non-empty
+    *         sequence of messages pulled from the channel, but that is
+    *         no larger than `maxLength`
+    */
   def pullMany(maxLength: Int): F[Either[E, Seq[A]]]
 }

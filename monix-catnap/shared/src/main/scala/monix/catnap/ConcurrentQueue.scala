@@ -77,7 +77,7 @@ import scala.concurrent.duration._
   * builder.
   *
   * On [[offer]], when the queue is full, the implementation back-pressures
-  * until the queue has room again in its internal buffer, the future being
+  * until the queue has room again in its internal buffer, the task being
   * completed when the value was pushed successfully. Similarly [[poll]] awaits
   * the queue to have items in it. This works for both bounded and unbounded queues.
   *

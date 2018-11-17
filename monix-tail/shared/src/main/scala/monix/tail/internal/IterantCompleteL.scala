@@ -26,7 +26,7 @@ import monix.tail.batches.BatchCursor
 
 private[tail] object IterantCompleteL {
   /**
-    * Implementation for `Iterant#completeL`
+    * Implementation for `Iterant#completedL`
     */
   final def apply[F[_], A](source: Iterant[F, A])
     (implicit F: Sync[F]): F[Unit] = {

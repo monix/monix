@@ -27,7 +27,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.Failure
 
 object IterantCompleteLSuite extends BaseTestSuite {
-  test("completeL works") { implicit s =>
+  test("completedL works") { implicit s =>
     check1 { (iter: Iterant[Coeval, Int]) =>
       var effect = 0
       val trigger = iter.onErrorIgnore ++ Iterant[Coeval].suspend {
@@ -40,7 +40,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     }
   }
 
-  test("BatchCursor.completeL protects against errors") { implicit s =>
+  test("BatchCursor.completedL protects against errors") { implicit s =>
     val dummy = DummyException("dummy")
     val cursor = ThrowExceptionCursor[Int](dummy)
     var earlyStop = false
@@ -52,7 +52,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     assert(earlyStop, "earlyStop")
   }
 
-  test("Batch.completeL protects against errors") { implicit s =>
+  test("Batch.completedL protects against errors") { implicit s =>
     val dummy = DummyException("dummy")
     val batch = ThrowExceptionBatch[Int](dummy)
     var earlyStop = false
@@ -79,7 +79,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     assertEquals(effect, 6)
   }
 
-  test("completeL handles Scope's release before the rest of the stream") { implicit s =>
+  test("completedL handles Scope's release before the rest of the stream") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 
@@ -99,7 +99,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     assertEquals(stream.completedL.value(), ())
   }
 
-  test("completeL handles Scope's release after use is finished") { implicit s =>
+  test("completedL handles Scope's release after use is finished") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 

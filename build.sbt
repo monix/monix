@@ -387,7 +387,7 @@ lazy val catnapJS = project.in(file("monix-catnap/js"))
   .settings(catnapCommon)
 
 lazy val evalCommon =
-  crossSettings ++ crossVersionSharedSources ++ testSettings ++ 
+  crossSettings ++ crossVersionSharedSources ++ testSettings ++
     Seq(
       name := "monix-eval"
     )
@@ -416,14 +416,15 @@ lazy val tailCommon =
 lazy val tailJVM = project.in(file("monix-tail/jvm"))
   .configure(profile)
   .dependsOn(evalJVM % "test->test")
-  .dependsOn(executionJVM)
+  .dependsOn(catnapJVM)
   .settings(tailCommon)
+  .settings(doctestTestSettings)
 
 lazy val tailJS = project.in(file("monix-tail/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
   .dependsOn(evalJS % "test->test")
-  .dependsOn(executionJS)
+  .dependsOn(catnapJS)
   .settings(scalaJSSettings)
   .settings(tailCommon)
 
