@@ -52,10 +52,7 @@ private[reactive] final class CharsReaderObservable(
       val cancelable = BooleanCancelable()
       val em = out.scheduler.executionModel
       // Schedule first cycle
-      if (em.isAlwaysAsync)
-        reschedule(Continue, buffer, out, cancelable, em)(out.scheduler)
-      else
-        fastLoop(buffer, out, cancelable, em, 0)(out.scheduler)
+      reschedule(Continue, buffer, out, cancelable, em)(out.scheduler)
 
       cancelable
     }

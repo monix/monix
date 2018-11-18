@@ -111,9 +111,24 @@ object InputStreamObservableSuite extends SimpleTestSuite {
         Continue
       }
     })
+    s.tick()
 
     assertEquals(received.toList, array.toList)
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
+  }
+
+  test("fromInputStream does not block on initial execution") {
+    implicit val s = TestScheduler()
+    var didRead = false
+    val is = new InputStream {
+      def read(): Int = {
+        didRead = true
+        -1
+      }
+    }
+    // Should not fail without s.tick()
+    Observable.fromInputStreamUnsafe(is).foreach(_ => ())
+    assert(!didRead)
   }
 
   test("fromInputStream closes the file handle onComplete") {
