@@ -22,16 +22,25 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.internal.Platform
 import monix.tail.Iterant.Consumer
-
 import scala.concurrent.Future
 import scala.util.Random
 
 object IterantConsumeSuite extends BaseTestSuite {
+  val iterationsCount = {
+    if (Platform.isJVM) {
+      // Discriminate CI
+      if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+        2000
+      else
+        10000
+    } else {
+      100 // JavaScript
+    }
+  }
+
   testAsync("iterant.pushToChannel (simple)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
-    val count = if (Platform.isJVM) 10000 else 100
-
-    val stream = Iterant[Task].range(0, count)
+    val stream = Iterant[Task].range(0, iterationsCount)
 
     val task = for {
       channel <- ConcurrentChannel[Task].of[Option[Throwable], Int]
@@ -40,7 +49,7 @@ object IterantConsumeSuite extends BaseTestSuite {
       _       <- stream.pushToChannel(channel)
       sum     <- fiber.join
     } yield {
-      assertEquals(sum, count.toLong * (count - 1) / 2)
+      assertEquals(sum, iterationsCount.toLong * (iterationsCount - 1) / 2)
     }
     task.runToFuture
   }
@@ -49,9 +58,7 @@ object IterantConsumeSuite extends BaseTestSuite {
     implicit val ec: Scheduler = Scheduler.Implicits.global
 
     def loop(times: Int): Future[Unit] = {
-      val count = if (Platform.isJVM) 1000 else 100
-
-      val list = Range(0, count).toList
+      val list = Range(0, iterationsCount).toList
       val stream = arbitraryListToIterant[Task, Int](list, Random.nextInt(), allowErrors = false)
 
       val task = for {
@@ -61,7 +68,7 @@ object IterantConsumeSuite extends BaseTestSuite {
         _       <- stream.pushToChannel(channel)
         sum     <- fiber.join
       } yield {
-        assertEquals(sum, count.toLong * (count - 1) / 2)
+        assertEquals(sum, iterationsCount.toLong * (iterationsCount - 1) / 2)
       }
 
       val f = task.runToFuture
@@ -75,26 +82,22 @@ object IterantConsumeSuite extends BaseTestSuite {
 
   testAsync("iterant.consume (pull)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
-    val count = if (Platform.isJVM) 10000 else 100
-
-    val list = Range(0, count).toList
+    val list = Range(0, iterationsCount).toList
     val source = arbitraryListToIterant[Task, Int](list, Random.nextInt(), allowErrors = false)
 
     val task = for (sum <- foldIterantPullOne(source, 0L)(_ + _)) yield {
-      assertEquals(sum, count.toLong * (count - 1) / 2)
+      assertEquals(sum, iterationsCount.toLong * (iterationsCount - 1) / 2)
     }
     task.runToFuture
   }
 
   testAsync("iterant.consume (pullMany)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
-    val count = if (Platform.isJVM) 10000 else 100
-
-    val list = Range(0, count).toList
+    val list = Range(0, iterationsCount).toList
     val source = arbitraryListToIterant[Task, Int](list, Random.nextInt(), allowErrors = false)
 
     val task = for (sum <- foldIterantPullMany(source, 0L)(_ + _)) yield {
-      assertEquals(sum, count.toLong * (count - 1) / 2)
+      assertEquals(sum, iterationsCount.toLong * (iterationsCount - 1) / 2)
     }
     task.runToFuture
   }
@@ -102,15 +105,14 @@ object IterantConsumeSuite extends BaseTestSuite {
   testAsync("Iterant.channel") { _ =>
     import cats.implicits._
     implicit val ec: Scheduler = Scheduler.Implicits.global
-    val count = if (Platform.isJVM) 10000 else 100
 
     val task = Iterant[Task].channel[Int]().flatMap { case (producer, stream) =>
-      val write = Iterant[Task].range(0, count).pushToChannel(producer)
+      val write = Iterant[Task].range(0, iterationsCount).pushToChannel(producer)
       for {
         _   <- (producer.awaitConsumers(1) *> write).start
         sum <- stream.foldLeftL(0L)(_ + _)
       } yield {
-        assertEquals(sum, count.toLong * (count - 1) / 2)
+        assertEquals(sum, iterationsCount.toLong * (iterationsCount - 1) / 2)
       }
     }
     task.runToFuture

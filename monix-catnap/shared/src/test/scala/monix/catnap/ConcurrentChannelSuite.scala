@@ -25,9 +25,22 @@ import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
 import monix.execution.internal.Platform
 import monix.execution.{BufferCapacity, Scheduler}
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 object ConcurrentChannelSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = Scheduler.global
+
+  val iterationsCount = {
+    if (Platform.isJVM) {
+      // Discriminate CI
+      if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+        2000
+      else
+        10000
+    } else {
+      100 // JavaScript
+    }
+  }
 
   implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
     s.contextShift[IO](IO.ioEffect)
@@ -35,7 +48,9 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
     s.timerLiftIO[IO](IO.ioEffect)
 
   def testIO(name: String)(f: => IO[Unit]) =
-    testAsync(name)(f.unsafeToFuture())
+    testAsync(name) {
+      f.timeout(10.seconds).unsafeToFuture()
+    }
 
   testIO("simple push and pull") {
     for {
@@ -99,7 +114,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 4,
       capacity = Bounded(16),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = false
     )
   }
@@ -110,7 +125,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 4,
       capacity = Unbounded(),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = false
     )
   }
@@ -121,7 +136,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 4,
       capacity = Bounded(16),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = false
     )
   }
@@ -132,7 +147,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 4,
       capacity = Unbounded(),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = false
     )
   }
@@ -143,7 +158,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 1,
       workersPerConsumer = 4,
       capacity = Bounded(16),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = false
     )
   }
@@ -154,7 +169,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 1,
       workersPerConsumer = 4,
       capacity = Unbounded(),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = false
     )
   }
@@ -165,7 +180,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 1,
       capacity = Bounded(16),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = false
     )
   }
@@ -176,7 +191,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 1,
       capacity = Unbounded(),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = false
     )
   }
@@ -187,7 +202,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 1,
       workersPerConsumer = 1,
       capacity = Bounded(16),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = false
     )
   }
@@ -198,7 +213,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 1,
       workersPerConsumer = 1,
       capacity = Unbounded(),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = false
     )
   }
@@ -209,7 +224,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 4,
       capacity = Bounded(16),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = true
     )
   }
@@ -220,7 +235,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 4,
       capacity = Unbounded(),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = true
     )
   }
@@ -231,7 +246,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 4,
       capacity = Bounded(16),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = true
     )
   }
@@ -242,7 +257,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 4,
       capacity = Unbounded(),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = true
     )
   }
@@ -253,7 +268,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 1,
       workersPerConsumer = 4,
       capacity = Bounded(16),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = true
     )
   }
@@ -264,7 +279,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 1,
       workersPerConsumer = 4,
       capacity = Unbounded(),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = true
     )
   }
@@ -275,7 +290,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 1,
       capacity = Bounded(16),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = true
     )
   }
@@ -286,7 +301,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 4,
       workersPerConsumer = 1,
       capacity = Unbounded(),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = true
     )
   }
@@ -297,7 +312,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 1,
       workersPerConsumer = 1,
       capacity = Bounded(16),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = true
     )
   }
@@ -308,7 +323,7 @@ object ConcurrentChannelSuite extends SimpleTestSuite {
       consumers = 1,
       workersPerConsumer = 1,
       capacity = Unbounded(),
-      count = if (Platform.isJVM) 100000 else 100,
+      count = iterationsCount,
       pullMany = true
     )
   }
