@@ -51,11 +51,6 @@ object IterantDropWhileSuite extends BaseTestSuite {
       val stream = iter ++ Iterant[Coeval].of(1, 2, 3)
       val received = stream.dropWhile(p).toListL.runTry()
       val expected = stream.toListL.map(dropFromList(p)).runTry()
-
-      if (received != expected) {
-        println(s"$received != $expected")
-      }
-
       received <-> expected
     }
   }

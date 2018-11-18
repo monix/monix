@@ -30,13 +30,6 @@ object IterantReduceSuite extends BaseTestSuite {
     check2 { (stream: Iterant[Coeval, Int], op: (Int, Int) => Int) =>
       val received = stream.reduceL(op)
       val expected = stream.foldLeftL(Option.empty[Int])((acc, e) => Some(acc.fold(e)(s => op(s, e))))
-
-      val l1 = received.runAttempt()
-      val l2 = expected.runAttempt()
-      if (l1 != l2) {
-        println(s"$l1 != $l2")
-      }
-
       received <-> expected
     }
   }

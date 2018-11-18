@@ -94,13 +94,6 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
       }
 
       val lh = left.switchIfEmpty(right).toListL
-
-      if (lh.attempt.value() != target.attempt.value()) {
-        println(s"${lh.attempt.value()} != ${target.attempt.value()}")
-        println(s"left = ${left.attempt.toListL.value()}")
-        println(s"right = ${right.attempt.toListL.value()}")
-        left.dump("O").completedL.run()
-      }
       lh <-> target
     }
   }

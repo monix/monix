@@ -108,11 +108,7 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
     new Eq[Future[A]] {
       def eqv(x: Future[A], y: Future[A]): Boolean = {
         // Executes the whole pending queue of runnables
-        ec.tick(1.day)
-
-        if (x.value != y.value) {
-          println(s"${x.value} != ${y.value}")
-        }
+        ec.tick(1.day, maxImmediateTasks = Some(500000))
 
         x.value match {
           case None =>
