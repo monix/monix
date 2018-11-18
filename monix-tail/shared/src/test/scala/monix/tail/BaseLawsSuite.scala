@@ -21,7 +21,7 @@ import cats.effect.laws.discipline.{Parameters => EffectParameters}
 import minitest.SimpleTestSuite
 import minitest.api.IgnoredException
 import minitest.laws.Checkers
-import monix.eval.TestUtils
+import monix.execution.TestUtils
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import org.scalacheck.Prop

@@ -698,13 +698,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   Iterant[Task].range(0, 4)
     *     .dump("O")
     *     .completedL
-    *     .runToFuture
     *
-    *   // 0: O --> 0
-    *   // 1: O --> 1
-    *   // 2: O --> 2
-    *   // 3: O --> 3
-    *   // 4: O completed
+    *   // 0: O --> next-batch --> 0
+    *   // 1: O --> next-batch --> 1
+    *   // 2: O --> next-batch --> 2
+    *   // 3: O --> next-batch --> 3
+    *   // 4: O --> halt --> no error
     * }}}
     */
   final def dump(prefix: String, out: PrintStream = System.out)(implicit F: Sync[F]): Iterant[F, A] =

@@ -93,22 +93,22 @@ import scala.concurrent.duration._
   *
   * ==Unicasting vs Broadcasting vs Multicasting==
   *
-  * ''Unicasting'': Multiple workers can share the load of processing
+  * ''Unicasting'': A communication channel between one producer and one
+  * [[ConsumerF]]. Multiple workers can share the load of processing
   * incoming events. For example in case we want to have 8 workers running in
   * parallel, you can create one [[ConsumerF]], via [[consume]] and then use it
-  * for multiple workers.
+  * for multiple workers. Internally this setup uses a single queue and whatever
+  * workers you have will share it.
   *
   * ''Broadcasting:'' the same events can be sent to multiple consumers,
   * thus duplicating the load, as a broadcasting setup can be created
   * by creating and consuming from multiple [[ConsumerF]] via multiple calls
-  * to [[consume]]. This setup assumes the channel's type is configured
-  * as a multi-consumer one (e.g. [[monix.execution.ChannelType.MPMC MPMC]] or
-  * [[monix.execution.ChannelType.SPMC SPMC]]).
+  * to [[consume]]. Internally each `ConsumerF` gets its own queue and hence
+  * messages are duplicated.
   *
   * ''Multicasting:'' multiple producers can push events at the same time,
-  * provided the channel's type is configured as a multi-producer one (e.g.
-  * [[monix.execution.ChannelType.MPMC MPMC]] or
-  * [[monix.execution.ChannelType.MPSC MPSC]]).
+  * provided the channel's type is configured as a
+  * [[monix.execution.ChannelType.MultiProducer MultiProducer]].
   *
   * ==Back-Pressuring and the Polling Model==
   *
@@ -291,12 +291,12 @@ final class ConcurrentChannel[F[_], E, A] private (
           // broadcasting to many?
           val arr = connected.array
           (arr.length: @switch) match {
-            case 0 => F.pure(true)
+            case 0 => helpers.continueF
             case 1 => arr(0).push(a)
-            case _ => triggerBroadcast[F, E, A](arr, _.push(a))
+            case _ => triggerBroadcast[F, E, A](helpers, arr, _.push(a))
           }
         case Halt(_) =>
-          F.pure(false)
+          helpers.stopF
       }
     }
 
@@ -339,12 +339,12 @@ final class ConcurrentChannel[F[_], E, A] private (
         case current @ Connected(_) =>
           val arr = current.array
           (arr.length: @switch) match {
-            case 0 => F.pure(true)
+            case 0 => helpers.continueF
             case 1 => arr(0).pushMany(seq)
-            case _ => triggerBroadcast[F, E, A](arr, _.pushMany(seq))
+            case _ => triggerBroadcast[F, E, A](helpers, arr, _.pushMany(seq))
           }
         case Halt(_) =>
-          F.pure(false)
+          helpers.stopF
       }
     }
 
@@ -422,8 +422,8 @@ final class ConcurrentChannel[F[_], E, A] private (
     Resource.apply[F, ConsumerF[F, E, A]] {
       F.delay {
         val queue = LowLevelQueue[A](capacity, ChannelType.assemble(producerType, consumerType))
-        val producer = new ChanProducer[F, E, A](queue, isFinished, ops)
-        val consumer = new ChanConsumer[F, E, A](queue, isFinished, ops)
+        val producer = new ChanProducer[F, E, A](queue, isFinished, helpers)
+        val consumer = new ChanConsumer[F, E, A](queue, isFinished, helpers)
 
         state.transform {
           case connected @ Connected(_) =>
@@ -462,7 +462,7 @@ final class ConcurrentChannel[F[_], E, A] private (
     F.suspend {
       testAwaitConsumers(n) match {
         case Repeat =>
-          F.asyncF(cb => ops.polled(
+          F.asyncF(cb => helpers.polled(
             () => testAwaitConsumers(n),
             pushFilter,
             pushMap,
@@ -482,8 +482,8 @@ final class ConcurrentChannel[F[_], E, A] private (
         Stop
     }
 
-  private[this] val ops =
-    new PolledOps[F, E, A](retryDelay)
+  private[this] val helpers =
+    new Helpers[F, E, A](retryDelay)
 }
 
 /**
@@ -650,7 +650,10 @@ object ConcurrentChannel {
   private def toSeq[A](buffer: ArrayBuffer[A]): Seq[A] =
     buffer.toArray[Any].toSeq.asInstanceOf[Seq[A]]
 
-  private def triggerBroadcast[F[_], E, A](refs: Array[ChanProducer[F, E, A]], f: ChanProducer[F, E, A] => F[Boolean])
+  private def triggerBroadcast[F[_], E, A](
+    helpers: Helpers[F, E, A],
+    refs: Array[ChanProducer[F, E, A]],
+    f: ChanProducer[F, E, A] => F[Boolean])
     (implicit F: Async[F]): F[Boolean] = {
 
     def loop(cursor: Iterator[ChanProducer[F, E, A]], bind: Any => F[Boolean]): F[Boolean] = {
@@ -660,7 +663,7 @@ object ConcurrentChannel {
           var bindVar: Any => F[Boolean] = null
           bindVar = {
             case true => loop(cursor, bindVar)
-            case false => F.pure(false)
+            case false => helpers.stopF
           }
           bindVar
         }
@@ -674,24 +677,24 @@ object ConcurrentChannel {
     if (cursor.hasNext)
       loop(refs.iterator, null)
     else
-      F.pure(true)
+      helpers.continueF
   }
 
   private final class ChanProducer[F[_], E, A](
     queue: LowLevelQueue[A],
     isFinished: () => Option[E],
-    ops: PolledOps[F, E, A])
+    helpers: Helpers[F, E, A])
     (implicit F: Async[F], timer: Timer[F]) {
 
     def push(a: A): F[Boolean] =
       F.suspend {
         (tryPushToOurQueue(a) : @switch) match {
           case Repeat =>
-            F.asyncF(cb => ops.polled(() => tryPushToOurQueue(a), pushFilter, pushMap, cb))
+            F.asyncF(cb => helpers.polled(() => tryPushToOurQueue(a), pushFilter, pushMap, cb))
           case Continue =>
-            F.pure(true)
+            helpers.continueF
           case Stop =>
-            F.pure(false)
+            helpers.stopF
         }
       }
 
@@ -714,13 +717,13 @@ object ConcurrentChannel {
           hasCapacity = queue.offer(elem) == 0
         }
         if (!hasCapacity) {
-          val offerWait = F.asyncF[Ack](cb => ops.polled(() => tryPushToOurQueue(elem), pushFilter, pushManyMap, cb))
+          val offerWait = F.asyncF[Ack](cb => helpers.polled(() => tryPushToOurQueue(elem), pushFilter, pushManyMap, cb))
           offerWait.flatMap {
             case Continue => loop(cursor)
-            case Stop => F.pure(false)
+            case Stop => helpers.stopF
           }
         } else {
-          F.pure(true)
+          helpers.continueF
         }
       }
 
@@ -731,7 +734,7 @@ object ConcurrentChannel {
   private final class ChanConsumer[F[_], E, A](
     queue: LowLevelQueue[A],
     isFinished: () => Option[E],
-    ops: PolledOps[F, E, A])
+    helpers: Helpers[F, E, A])
     (implicit F: Async[F], timer: Timer[F])
     extends ConsumerF[F, E, A] {
 
@@ -756,7 +759,7 @@ object ConcurrentChannel {
       F.suspend {
         task() match {
           case null =>
-            F.asyncF(cb => ops.polled(
+            F.asyncF(cb => helpers.polled(
               task,
               pullFilter,
               pullMap.asInstanceOf[Either[E, A] => Either[E, A]],
@@ -801,7 +804,7 @@ object ConcurrentChannel {
           case Some(e) =>
             F.pure(end(buffer, maxLength, e))
           case _ =>
-            F.asyncF(cb => ops.polled(
+            F.asyncF(cb => helpers.polled(
               () => task(buffer, minLength, maxLength),
               pullFilter,
               pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
@@ -812,12 +815,15 @@ object ConcurrentChannel {
     }
   }
 
-  private final class PolledOps[F[_], E, A](retryDelay: FiniteDuration)
+  private final class Helpers[F[_], E, A](retryDelay: FiniteDuration)
     (implicit F: Async[F], timer: Timer[F]) {
 
     // Internal, reusable values
     private[this] val retryDelayNanos = retryDelay.toNanos
     private[this] val asyncBoundary: F[Unit] = timer.sleep(Duration.Zero)
+
+    val continueF = F.pure(true)
+    val stopF = F.pure(false)
 
     def polled[T, U](f: () => T, filter: T => Boolean, map: T => U,  cb: Either[Throwable, U] => Unit): F[Unit] =
       timer.clock.monotonic(NANOSECONDS).flatMap { start =>

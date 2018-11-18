@@ -103,32 +103,34 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
     Cogen[Unit].contramap(_ => ())
 }
 
-trait ArbitraryInstancesBase extends cats.instances.AllInstances {
+trait ArbitraryInstancesBase extends cats.instances.AllInstances with TestUtils {
   implicit def equalityFuture[A](implicit A: Eq[A], ec: TestScheduler): Eq[Future[A]] =
     new Eq[Future[A]] {
       def eqv(x: Future[A], y: Future[A]): Boolean = {
-        // Executes the whole pending queue of runnables
-        ec.tick(1.day, maxImmediateTasks = Some(500000))
+        silenceSystemErr {
+          // Executes the whole pending queue of runnables
+          ec.tick(1.day, maxImmediateTasks = Some(500000))
 
-        x.value match {
-          case None =>
-            y.value.isEmpty
-          case Some(Success(a)) =>
-            y.value match {
-              case Some(Success(b)) => A.eqv(a, b)
-              case _ => false
-            }
-          case Some(Failure(_)) =>
-            y.value match {
-              case Some(Failure(_)) =>
-                // Exceptions aren't values, it's too hard to reason about
-                // throwable equality and all exceptions are essentially
-                // yielding non-terminating futures and tasks from a type
-                // theory point of view, so we simply consider them all equal
-                true
-              case _ =>
-                false
-            }
+          x.value match {
+            case None =>
+              y.value.isEmpty
+            case Some(Success(a)) =>
+              y.value match {
+                case Some(Success(b)) => A.eqv(a, b)
+                case _ => false
+              }
+            case Some(Failure(_)) =>
+              y.value match {
+                case Some(Failure(_)) =>
+                  // Exceptions aren't values, it's too hard to reason about
+                  // throwable equality and all exceptions are essentially
+                  // yielding non-terminating futures and tasks from a type
+                  // theory point of view, so we simply consider them all equal
+                  true
+                case _ =>
+                  false
+              }
+          }
         }
       }
     }
