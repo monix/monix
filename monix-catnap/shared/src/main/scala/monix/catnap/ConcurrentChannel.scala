@@ -773,7 +773,7 @@ object ConcurrentChannel {
 
     def pullMany(minLength: Int, maxLength: Int): F[Either[E, Seq[A]]] = {
       def end(buffer: ArrayBuffer[A], maxLength: Int, e: E): Either[E, Seq[A]] = {
-        queue.drainToBuffer(buffer, maxLength)
+        queue.drainToBuffer(buffer, maxLength - buffer.length)
         if (buffer.isEmpty)
           Left(e)
         else
