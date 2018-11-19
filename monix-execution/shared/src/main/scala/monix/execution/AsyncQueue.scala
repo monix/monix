@@ -249,7 +249,7 @@ final class AsyncQueue[A] private (
   def clear(): Unit = queue.clear()
 
   private[this] val queue: ConcurrentQueue[A] =
-    ConcurrentQueue(capacity, channelType)
+    ConcurrentQueue(capacity, channelType, fenced = true)
   private[this] val retryDelayNanos =
     retryDelay.toNanos
 

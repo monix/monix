@@ -417,7 +417,7 @@ final class ConcurrentChannel[F[_], E, A] private (
         val consumerType = config.consumerType.getOrElse(MultiConsumer)
         val padding = config.padding.getOrElse(LeftRight128)
 
-        val queue = LowLevelQueue[A](capacity, ChannelType.assemble(producerType, consumerType))
+        val queue = LowLevelQueue[A](capacity, ChannelType.assemble(producerType, consumerType), fenced = true)
         val consumersAwait = AtomicAny.withPadding(null : CancelablePromise[Unit], padding)
         val producersAwait =
           capacity match {
@@ -719,6 +719,9 @@ object ConcurrentChannel {
 
     @tailrec
     private[this] def notifyConsumers(): Unit = {
+      // N.B. in case the queue is single-producer, this is a full memory fence
+      // meant to prevent the re-ordering of `queue.offer` with `consumersAwait.get`
+      queue.fenceOffer()
       val ref = consumersAwait.get()
       if (ref ne null) {
         if (consumersAwait.compareAndSet(ref, null)) {
@@ -804,6 +807,10 @@ object ConcurrentChannel {
     @tailrec
     private[this] def notifyProducers(): Unit =
       if (producersAwait ne null) {
+        // N.B. in case this isn't a multi-consumer queue, this generates a
+        // full memory fence in order to prevent the re-ordering of queue.poll()
+        // with `producersAwait.get`
+        queue.fencePoll()
         val ref = producersAwait.get()
         if (ref ne null) {
           if (producersAwait.compareAndSet(ref, null)) {

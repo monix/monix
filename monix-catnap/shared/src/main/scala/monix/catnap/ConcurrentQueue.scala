@@ -277,7 +277,7 @@ final class ConcurrentQueue[F[_], A] private (
     }
 
   private[this] val queue: LowLevelQueue[A] =
-    LowLevelQueue(capacity, channelType)
+    LowLevelQueue(capacity, channelType, fenced = true)
   private[this] val retryDelayNanos =
     retryDelay.toNanos
 

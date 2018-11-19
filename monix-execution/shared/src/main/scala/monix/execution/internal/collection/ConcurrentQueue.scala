@@ -22,6 +22,8 @@ private[monix] trait ConcurrentQueue[A] extends Serializable {
   def poll(): A
   def drainToBuffer(buffer: scala.collection.mutable.Buffer[A], limit: Int): Int
   def clear(): Unit
+  def fenceOffer(): Unit
+  def fencePoll(): Unit
 }
 
 private[monix] object ConcurrentQueue

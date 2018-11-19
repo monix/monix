@@ -24,7 +24,7 @@ private[internal] trait ConcurrentQueueBuilders {
   /**
     * Builds a `ConcurrentQueue` reference.
     */
-  def apply[A](capacity: BufferCapacity, channelType: ChannelType): ConcurrentQueue[A] =
+  def apply[A](capacity: BufferCapacity, channelType: ChannelType, fenced: Boolean): ConcurrentQueue[A] =
     capacity match {
       case BufferCapacity.Bounded(c) => JSArrayQueue.bounded[A](c)
       case BufferCapacity.Unbounded(_) => JSArrayQueue.unbounded[A]

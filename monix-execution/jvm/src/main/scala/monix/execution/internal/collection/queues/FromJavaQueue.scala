@@ -24,6 +24,9 @@ import scala.collection.mutable
 private[internal] class FromJavaQueue[A](queue: util.Queue[A])
   extends ConcurrentQueue[A] {
 
+  final def fenceOffer(): Unit = ()
+  final def fencePoll(): Unit = ()
+
   final def offer(elem: A): Int =
     if (queue.offer(elem)) 0 else 1
 

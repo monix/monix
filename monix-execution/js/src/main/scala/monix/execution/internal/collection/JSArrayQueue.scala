@@ -46,6 +46,9 @@ private[monix] final class JSArrayQueue[A] private
   override def nonEmpty: Boolean =
     queue.length - offset > 0
 
+  def fenceOffer(): Unit = ()
+  def fencePoll(): Unit = ()
+
   def offer(elem: A): Int = {
     if (elem == null) throw new NullPointerException("Null not supported")
     if (bufferSize > 0 && queue.length - offset >= capacity) {

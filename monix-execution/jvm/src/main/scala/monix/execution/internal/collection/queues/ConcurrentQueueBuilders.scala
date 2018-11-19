@@ -18,7 +18,6 @@
 package monix.execution.internal.collection.queues
 
 import java.util.concurrent.ConcurrentLinkedQueue
-
 import monix.execution.{BufferCapacity, ChannelType}
 import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
 import monix.execution.internal.Platform
@@ -31,47 +30,67 @@ private[internal] trait ConcurrentQueueBuilders {
   /**
     * Builds a concurrent queue.
     */
-  def apply[A](capacity: BufferCapacity, channelType: ChannelType): ConcurrentQueue[A] =
+  def apply[A](capacity: BufferCapacity, channelType: ChannelType, fenced: Boolean): ConcurrentQueue[A] =
     capacity match {
-      case BufferCapacity.Bounded(c) => bounded(c, channelType)
-      case BufferCapacity.Unbounded(hint) => unbounded(hint, channelType)
+      case BufferCapacity.Bounded(c) => bounded(c, channelType, fenced)
+      case BufferCapacity.Unbounded(hint) => unbounded(hint, channelType, fenced)
     }
 
   /**
     * Builds a bounded `ConcurrentQueue` reference.
     */
-  def bounded[A](capacity: Int, channelType: ChannelType): ConcurrentQueue[A] =
-    if (UnsafeAccess.IS_OPENJDK_COMPATIBLE)
-      channelType match {
-        case MPMC => new FromCircularQueue[A](new MpmcArrayQueue[A](capacity))
-        case MPSC => new FromCircularQueue[A](new MpscArrayQueue[A](capacity))
-        case SPMC => new FromCircularQueue[A](new SpmcArrayQueue[A](capacity))
-        case SPSC => new FromCircularQueue[A](new SpscArrayQueue[A](capacity))
+  private def bounded[A](capacity: Int, ct: ChannelType, fenced: Boolean): ConcurrentQueue[A] =
+    if (UnsafeAccess.IS_OPENJDK_COMPATIBLE) {
+      // Support for memory fences in Unsafe is only available in Java 8+
+      if (UnsafeAccess.HAS_JAVA8_INTRINSICS || !fenced)
+        ct match {
+          case MPMC => FromCircularQueue[A](new MpmcArrayQueue[A](capacity), ct)
+          case MPSC => FromCircularQueue[A](new MpscArrayQueue[A](capacity), ct)
+          case SPMC => FromCircularQueue[A](new SpmcArrayQueue[A](capacity), ct)
+          case SPSC => FromCircularQueue[A](new SpscArrayQueue[A](capacity), ct)
+        }
+      else {
+        // Without support for Unsafe.fullFence, falling back to a MPMC queue
+        FromCircularQueue[A](new MpmcArrayQueue[A](capacity), ct)
       }
-    else
-      channelType match {
-        case MPMC => new FromMessagePassingQueue[A](new MpmcAtomicArrayQueue[A](capacity))
-        case MPSC => new FromMessagePassingQueue[A](new MpscAtomicArrayQueue[A](capacity))
-        case SPMC => new FromMessagePassingQueue[A](new SpmcAtomicArrayQueue[A](capacity))
-        case SPSC => new FromMessagePassingQueue[A](new SpscAtomicArrayQueue[A](capacity))
+    } else if (UnsafeAccess.HAS_JAVA8_INTRINSICS || !fenced) {
+      ct match {
+        case MPMC => FromMessagePassingQueue[A](new MpmcAtomicArrayQueue[A](capacity), ct)
+        case MPSC => FromMessagePassingQueue[A](new MpscAtomicArrayQueue[A](capacity), ct)
+        case SPMC => FromMessagePassingQueue[A](new SpmcAtomicArrayQueue[A](capacity), ct)
+        case SPSC => FromMessagePassingQueue[A](new SpscAtomicArrayQueue[A](capacity), ct)
       }
+    } else {
+      // Without support for Unsafe.fullFence, falling back to a MPMC queue
+      FromMessagePassingQueue[A](new MpmcAtomicArrayQueue[A](capacity), ct)
+    }
 
   /**
     * Builds an bounded `ConcurrentQueue` reference.
     */
-  def unbounded[A](chunkSize: Option[Int], channelType: ChannelType): ConcurrentQueue[A] = {
+  private def unbounded[A](chunkSize: Option[Int], ct: ChannelType, fenced: Boolean): ConcurrentQueue[A] = {
     val chunk = chunkSize.getOrElse(Platform.recommendedBatchSize)
-    if (UnsafeAccess.IS_OPENJDK_COMPATIBLE)
-      channelType match {
-        case MPSC => new FromMessagePassingQueue[A](new MpscUnboundedArrayQueue(chunk))
-        case SPSC => new FromMessagePassingQueue[A](new SpscUnboundedArrayQueue(chunk))
+    if (UnsafeAccess.IS_OPENJDK_COMPATIBLE) {
+      // Support for memory fences in Unsafe is only available in Java 8+
+      if (UnsafeAccess.HAS_JAVA8_INTRINSICS || !fenced) {
+        ct match {
+          case MPSC => FromMessagePassingQueue[A](new MpscUnboundedArrayQueue(chunk), ct)
+          case SPSC => FromMessagePassingQueue[A](new SpscUnboundedArrayQueue(chunk), ct)
+          case _ => new FromJavaQueue[A](new ConcurrentLinkedQueue[A]())
+        }
+      } else {
+        // Without support for Unsafe.fullFence, falling back to a MPMC queue
+        new FromJavaQueue[A](new ConcurrentLinkedQueue[A]())
+      }
+    } else if (UnsafeAccess.HAS_JAVA8_INTRINSICS || !fenced) {
+      ct match {
+        case MPSC => FromMessagePassingQueue[A](new MpscUnboundedAtomicArrayQueue(chunk), ct)
+        case SPSC => FromMessagePassingQueue[A](new SpscUnboundedAtomicArrayQueue(chunk), ct)
         case _ => new FromJavaQueue[A](new ConcurrentLinkedQueue[A]())
       }
-    else
-      channelType match {
-        case MPSC => new FromMessagePassingQueue[A](new MpscUnboundedAtomicArrayQueue(chunk))
-        case SPSC => new FromMessagePassingQueue[A](new SpscUnboundedAtomicArrayQueue(chunk))
-        case _ => new FromJavaQueue[A](new ConcurrentLinkedQueue[A]())
-      }
+    } else {
+      // Without support for Unsafe.fullFence, falling back to a MPMC queue
+      new FromJavaQueue[A](new ConcurrentLinkedQueue[A]())
+    }
   }
 }
