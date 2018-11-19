@@ -2675,7 +2675,7 @@ object Iterant extends IterantInstances {
     producerType: ChannelType.ProducerSide = MultiProducer)
     (implicit F: Async[F], timer: Timer[F]): F[(Producer[F, A], Iterant[F, A])] = {
 
-    val channelF = ConcurrentChannel[F].custom[Option[Throwable], A](
+    val channelF = ConcurrentChannel[F].withConfig[Option[Throwable], A](
       bufferCapacity,
       producerType
     )
@@ -2685,7 +2685,7 @@ object Iterant extends IterantInstances {
     }
     F.map(channelF) { channel =>
       val p: Producer[F, A] = channel
-      val c = fromResource(channel.consumeCustom(consumerType = SingleConsumer))
+      val c = fromResource(channel.consumeWithConfig(consumerType = SingleConsumer))
         .flatMap(fromConsumer(_, maxBatchSize))
       (p, c)
     }

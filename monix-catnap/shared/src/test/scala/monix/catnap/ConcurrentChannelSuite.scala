@@ -25,17 +25,24 @@ import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.execution.{BufferCapacity, Scheduler}
+import scala.concurrent.duration._
 
 object ConcurrentChannelSuite extends BaseConcurrentChannelSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "There should be no tasks left!")
 
-  def testIO(name: String)(f: Scheduler => IO[Unit]): Unit =
+
+  def testIO(name: String, times: Int)(f: Scheduler => IO[Unit]): Unit = {
+    def repeatTest(test: IO[Unit], n: Int): IO[Unit] =
+      if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
+      else IO.unit
+
     test(name) { ec =>
-      f(ec).unsafeRunAsyncAndForget()
-      ec.tick()
+      repeatTest(f(ec), times).unsafeRunAsyncAndForget()
+      ec.tick(1.day)
     }
+  }
 
   val boundedConfigForConcurrentSum: Bounded =
     Bounded(256)
@@ -48,7 +55,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
     if (Platform.isJVM) {
       // Discriminate CI
       if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
-        2000
+        1000
       else
         10000
     } else {
@@ -56,17 +63,27 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
+  val repeatForFastTests = {
+    if (Platform.isJVM) 1000 else 100
+  }
+  val repeatForSlowTests = {
+    if (Platform.isJVM) 50 else 1
+  }
+
+  val boundedConfig = ConsumerF.Config(capacity = Some(Bounded(10)))
+  val unboundedConfig = ConsumerF.Config(capacity = Some(Unbounded()))
+
   implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
     s.contextShift[IO](IO.ioEffect)
   implicit def timer(implicit s: Scheduler): Timer[IO] =
     s.timerLiftIO[IO](IO.ioEffect)
 
   /** TO IMPLEMENT ... */
-  def testIO(name: String)(f: Scheduler => IO[Unit]): Unit
+  def testIO(name: String, times: Int = 1)(f: Scheduler => IO[Unit]): Unit
 
-  testIO("simple push and pull") { implicit ec =>
+  testIO("simple push and pull", times = repeatForFastTests) { implicit ec =>
     for {
-      chan <- ConcurrentChannel[IO].custom[Int, Int](Bounded(10))
+      chan <- ConcurrentChannel[IO].withConfig[Int, Int](boundedConfig)
       consume = chan.consume.use { consumer =>
         for {
           r1 <- consumer.pull
@@ -88,40 +105,101 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
     } yield ()
   }
 
+  testIO("consumers can receive push", times = repeatForFastTests) { implicit ec =>
+    for {
+      chan  <- ConcurrentChannel[IO].withConfig[Int, Int](boundedConfig)
+      fiber <- chan.consume.use(_.pull).start
+      _     <- chan.awaitConsumers(1)
+      _     <- chan.push(1)
+      r     <- fiber.join
+    } yield {
+      assertEquals(r, Right(1))
+    }
+  }
 
-  testIO("pullMany back-pressuring for minLength, with maxLength") { implicit ec =>
-    def test(times: Int): IO[Unit] = {
-      val channel = ConcurrentChannel[IO].unsafe[Int, Int]()
-      val batch = channel.consume.use(_.pullMany(10, 10))
-        .map {
-          case l @ Left(_) => l
-          case Right(seq) =>
-            assertEquals(seq.length, 10)
-            Right(seq.sum)
-        }.start
-
-      def loop(n: Int): IO[Unit] =
-        channel.push(n).flatMap { _ =>
-          if (n - 1 > 0) loop(n - 1)
-          else IO.unit
-        }
-
-      val f = for {
-        f <- batch
-        _ <- channel.awaitConsumers(1)
-        _ <- loop(9)
-        _ <- loop(10)
-        r <- f.join
-      } yield {
-        assertEquals(r, Right(5 * 11))
+  testIO("consumers can wait for push", times = repeatForSlowTests) { implicit ec =>
+    def consume(c: ConsumerF[IO, Int, Int], acc: Int = 0): IO[Int] =
+      c.pull.flatMap {
+        case Left(l) => IO.pure(acc + l)
+        case Right(r) => consume(c, acc + r)
       }
 
-      if (times > 1)
-        f.flatMap(_ => test(times - 1))
-      else
-        f
+    for {
+      chan  <- ConcurrentChannel[IO].withConfig[Int, Int](boundedConfig)
+      fiber <- chan.consume.use(consume(_)).start
+      _     <- chan.awaitConsumers(1)
+      _     <- IO.sleep(3.millis)
+      _     <- chan.push(1)
+      _     <- IO.shift *> IO.shift *> chan.push(2)
+      _     <- IO.sleep(3.millis)
+      _     <- chan.push(3)
+      _     <- chan.halt(4)
+      r     <- fiber.join
+    } yield {
+      assertEquals(r, 1 + 2 + 3 + 4)
     }
-    test(times = if (Platform.isJVM) 1000 else 1)
+  }
+
+  testIO("consumers can receive pushMany", times = repeatForFastTests) { implicit ec =>
+    for {
+      chan  <- ConcurrentChannel[IO].withConfig[Int, Int](boundedConfig)
+      fiber <- chan.consume.use(_.pullMany(10, 10)).start
+      _     <- chan.awaitConsumers(1)
+      _     <- chan.pushMany(1 to 10)
+      r     <- fiber.join.map(_.right.map(_.sum))
+    } yield {
+      assertEquals(r, Right(55))
+    }
+  }
+
+  testIO("consumers can wait for pushMany", times = repeatForSlowTests) { implicit ec =>
+    def consume(c: ConsumerF[IO, Int, Int], acc: Int = 0): IO[Int] =
+      c.pull.flatMap {
+        case Left(l) => IO.pure(acc + l)
+        case Right(r) => consume(c, acc + r)
+      }
+
+    for {
+      chan  <- ConcurrentChannel[IO].withConfig[Int, Int](boundedConfig)
+      fiber <- chan.consume.use(consume(_)).start
+      _     <- chan.awaitConsumers(1)
+      _     <- IO.sleep(3.millis)
+      _     <- chan.pushMany(1 to 20)
+      _     <- IO.shift *> IO.shift *> chan.pushMany(21 to 40)
+      _     <- IO.sleep(3.millis)
+      _     <- chan.pushMany(41 to 60)
+      _     <- chan.halt(100)
+      r     <- fiber.join
+    } yield {
+      assertEquals(r, 100 + 30 * 61)
+    }
+  }
+
+  testIO("pullMany back-pressuring for minLength, with maxLength", times = repeatForFastTests) { implicit ec =>
+    val channel = ConcurrentChannel[IO].unsafe[Int, Int]()
+    val batch = channel.consume.use(_.pullMany(10, 10))
+      .map {
+        case l @ Left(_) => l
+        case Right(seq) =>
+          assertEquals(seq.length, 10)
+          Right(seq.sum)
+      }.start
+
+    def loop(n: Int): IO[Unit] =
+      channel.push(n).flatMap { _ =>
+        if (n - 1 > 0) loop(n - 1)
+        else IO.unit
+      }
+
+    for {
+      f <- batch
+      _ <- channel.awaitConsumers(1)
+      _ <- loop(9)
+      _ <- loop(10)
+      r <- f.join
+    } yield {
+      assertEquals(r, Right(5 * 11))
+    }
   }
 
   testIO(s"concurrent sum via consumer.pull; MPMC; producers=4, consumers=4, workers=4, capacity=$boundedConfigForConcurrentSum") { implicit ec =>
@@ -388,7 +466,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
 
     def consumeMany(channel: ConcurrentChannel[IO, Int, Int]): IO[Long] = {
       val task = channel
-        .consumeCustom(capacity, channelType.consumerType)
+        .consumeWithConfig(ConsumerF.Config(Some(capacity), Some(channelType.consumerType), None))
         .use(ref => consume(ref))
 
       if (consumers < 2) {
@@ -412,7 +490,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
     }
 
     for {
-      channel <- ConcurrentChannel[IO].custom[Int, Int](producerType = channelType.producerType)
+      channel <- ConcurrentChannel[IO].withConfig[Int, Int](producerType = channelType.producerType)
       fiber   <- consumeMany(channel).start
       _       <- channel.awaitConsumers(consumers)
       _       <- produce(channel)

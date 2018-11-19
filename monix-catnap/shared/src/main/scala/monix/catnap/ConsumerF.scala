@@ -16,6 +16,8 @@
  */
 
 package monix.catnap
+import monix.execution.{BufferCapacity, ChannelType}
+import monix.execution.atomic.PaddingStrategy
 
 /**
   * A simple interface that models the consumer side of a producer-consumer
@@ -86,4 +88,35 @@ trait ConsumerF[F[_], E, A] extends Serializable {
     *         no larger than `maxLength`
     */
   def pullMany(minLength: Int, maxLength: Int): F[Either[E, Seq[A]]]
+}
+
+object ConsumerF {
+  /**
+    * Custom configuration consumers, used in [[ChannelF.consumeWithConfig]].
+    *
+    * @param capacity configures the capacity of the underlying buffer
+    *
+    * @param consumerType (UNSAFE) is for fine-tuning the consumer type;
+    *        if there's only one worker that consumes from the [[ConsumerF]]
+    *        value, then a [[ChannelType.SingleConsumer SingleConsumer]]
+    *        configuration is possible, for optimization purposes, otherwise
+    *        or if in doubt, prefer [[ChannelType.MultiConsumer MultiConsumer]]
+    *
+    * @param padding is the padding strategy used for the atomics meant for
+    *        back-pressuring on the internal buffer (either waiting on
+    *        new events on the consumer side, or waiting until the buffer
+    *        has room for pushing events on the producer side); this is for
+    *        fine-tuning the configuration, but note that padding adds some
+    *        bytes to the the memory being consumed, so a "no padding" strategy
+    *        may be what you want
+    */
+  final case class Config(
+    capacity: Option[BufferCapacity] = None,
+    consumerType: Option[ChannelType.ConsumerSide] = None,
+    padding: Option[PaddingStrategy] = None
+  )
+
+  object Config {
+    val default = Config()
+  }
 }

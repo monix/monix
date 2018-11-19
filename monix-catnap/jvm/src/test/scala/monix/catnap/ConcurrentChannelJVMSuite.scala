@@ -21,14 +21,15 @@ import cats.effect.IO
 import monix.execution.BufferCapacity.Bounded
 import monix.execution.{BufferCapacity, Scheduler}
 import monix.execution.schedulers.SchedulerService
-
 import scala.concurrent.duration._
 
-object ConcurrentChannelJVMSuite extends BaseConcurrentChannelSuite[SchedulerService] {
+abstract class ConcurrentChannelJVMSuite(parallelism: Int)
+  extends BaseConcurrentChannelSuite[SchedulerService] {
+
   def setup(): SchedulerService =
     Scheduler.computation(
-      name = "concurrent-channel-tests",
-      parallelism = 4
+      name = s"concurrent-channel-par-$parallelism",
+      parallelism = parallelism
     )
 
   def tearDown(env:  SchedulerService): Unit = {
@@ -36,11 +37,20 @@ object ConcurrentChannelJVMSuite extends BaseConcurrentChannelSuite[SchedulerSer
     env.awaitTermination(30.seconds)
   }
 
-  def testIO(name:  String)(f:  Scheduler => IO[Unit]): Unit =
+  def testIO(name:  String, times: Int = 1)(f:  Scheduler => IO[Unit]): Unit = {
+    def repeatTest(test: IO[Unit], n: Int): IO[Unit] =
+      if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
+      else IO.unit
+
     testAsync(name) { implicit ec =>
-      f(ec).timeout(30.second).unsafeToFuture()
+      repeatTest(f(ec).timeout(30.second), times).unsafeToFuture()
     }
+  }
 
   val boundedConfigForConcurrentSum: BufferCapacity.Bounded =
-    Bounded(256)
+    Bounded(32)
 }
+
+object ConcurrentChannelJVMParallelism8Suite extends ConcurrentChannelJVMSuite(8)
+object ConcurrentChannelJVMParallelism4Suite extends ConcurrentChannelJVMSuite(4)
+object ConcurrentChannelJVMParallelism1Suite extends ConcurrentChannelJVMSuite(1)

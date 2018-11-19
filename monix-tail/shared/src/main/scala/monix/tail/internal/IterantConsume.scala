@@ -38,7 +38,7 @@ private[tail] object IterantConsume {
 
     /*_*/
     val res = Resource.apply {
-      val channel = ConcurrentChannel.custom[F, Option[Throwable], A](
+      val channel = ConcurrentChannel.withConfig[F, Option[Throwable], A](
         producerType = SingleProducer
       )
       F.flatMap(channel) { channel =>
@@ -47,7 +47,7 @@ private[tail] object IterantConsume {
         val fiber = F.start(F.flatMap(latch)(_ => produce))
 
         F.map(fiber) { fiber =>
-          (channel.consumeCustom(capacity, consumerType), fiber.cancel)
+          (channel.consumeWithConfig(capacity, consumerType), fiber.cancel)
         }
       }
     }
