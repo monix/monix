@@ -139,12 +139,10 @@ trait ProducerF[F[_], E, A] extends Serializable {
     * Closes the communication channel with a message that will be visible
     * to all current and future consumers.
     *
-    * @return `true` in case the producer succeeded in closing the channel,
-    *         or `false` in case a concurrent or previous `halt` call
-    *         succeeded first; this result lets the producer know if the
-    *         channel was closed with the given event or not
+    * Note that if multiple `halt` events happen, then only the first one
+    * will be taken into account, all other `halt` messages are ignored.
     */
-  def halt(e: E): F[Boolean]
+  def halt(e: E): F[Unit]
 
   /**
     * Awaits for the specified number of consumers to be connected.
