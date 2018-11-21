@@ -15,20 +15,18 @@
  * limitations under the License.
  */
 
-package monix.catnap
+package monix.execution
 
-import cats.effect.IO
-import monix.execution.BufferCapacity.Bounded
-import monix.execution.{BufferCapacity, Scheduler}
 import monix.execution.schedulers.SchedulerService
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
-abstract class ConcurrentChannelJVMSuite(parallelism: Int)
-  extends BaseConcurrentChannelSuite[SchedulerService] {
+abstract class AsyncQueueJVMSuite(parallelism: Int)
+  extends BaseAsyncQueueSuite[SchedulerService] {
 
   def setup(): SchedulerService =
     Scheduler.computation(
-      name = s"concurrent-channel-par-$parallelism",
+      name = s"concurrent-queue-par-$parallelism",
       parallelism = parallelism
     )
 
@@ -37,20 +35,20 @@ abstract class ConcurrentChannelJVMSuite(parallelism: Int)
     assert(env.awaitTermination(30.seconds), "env.awaitTermination")
   }
 
-  def testIO(name:  String, times: Int = 1)(f:  Scheduler => IO[Unit]): Unit = {
-    def repeatTest(test: IO[Unit], n: Int): IO[Unit] =
-      if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
-      else IO.unit
+  def testFuture(name: String, times: Int)(f: Scheduler => Future[Unit]): Unit = {
+    def repeatTest(test: Future[Unit], n: Int)(implicit ec: Scheduler): Future[Unit] =
+      if (n > 0)
+        FutureUtils.timeout(test, 60.seconds)
+          .flatMap(_ => repeatTest(test, n - 1))
+      else
+        Future.successful(())
 
     testAsync(name) { implicit ec =>
-      repeatTest(f(ec).timeout(60.second), times).unsafeToFuture()
+      repeatTest(f(ec), times)
     }
   }
-
-  val boundedConfigForConcurrentSum: BufferCapacity.Bounded =
-    Bounded(32)
 }
 
-object ConcurrentChannelJVMParallelism8Suite extends ConcurrentChannelJVMSuite(8)
-object ConcurrentChannelJVMParallelism4Suite extends ConcurrentChannelJVMSuite(4)
-object ConcurrentChannelJVMParallelism1Suite extends ConcurrentChannelJVMSuite(1)
+object AsyncQueueJVMParallelism8Suite extends AsyncQueueJVMSuite(8)
+object AsyncQueueJVMParallelism4Suite extends AsyncQueueJVMSuite(4)
+object AsyncQueueJVMParallelism1Suite extends AsyncQueueJVMSuite(1)

@@ -76,7 +76,7 @@ private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextS
   }
 
   private final def sleepThenRepeat_Step3Awaken[T, U](
-    awaitState: AtomicAny[CancelablePromise[Unit]],
+    state: AtomicAny[CancelablePromise[Unit]],
     f: () => T,
     filter: T => Boolean,
     map: T => U,
@@ -90,7 +90,7 @@ private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextS
       F.unit
     } else {
       // Go to sleep again
-      sleepThenRepeat(awaitState, f, filter, map, cb)
+      sleepThenRepeat(state, f, filter, map, cb)
     }
   }
 

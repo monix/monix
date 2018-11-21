@@ -59,7 +59,7 @@ object ConcurrentQueueGlobalSuite extends BaseConcurrentQueueSuite[Scheduler] {
       else IO.unit
 
     testAsync(name) { implicit ec =>
-      repeatTest(f(ec).timeout(10.second), times).unsafeToFuture()
+      repeatTest(f(ec).timeout(60.seconds), times).unsafeToFuture()
     }
   }
 }

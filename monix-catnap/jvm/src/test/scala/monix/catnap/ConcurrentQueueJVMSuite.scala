@@ -42,7 +42,7 @@ abstract class ConcurrentQueueJVMSuite(parallelism: Int)
       else IO.unit
 
     testAsync(name) { implicit ec =>
-      repeatTest(f(ec).timeout(30.second), times).unsafeToFuture()
+      repeatTest(f(ec).timeout(60.second), times).unsafeToFuture()
     }
   }
 }
