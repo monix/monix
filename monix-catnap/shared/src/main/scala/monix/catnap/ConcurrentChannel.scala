@@ -19,6 +19,7 @@ package monix.catnap
 
 import cats.implicits._
 import cats.effect.{Concurrent, ContextShift, Resource}
+import monix.catnap.internal.QueueHelpers
 import monix.execution.BufferCapacity.{Bounded, Unbounded}
 import monix.execution.ChannelType.{MultiConsumer, MultiProducer}
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
@@ -27,6 +28,7 @@ import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.internal.collection.{LowLevelConcurrentQueue => LowLevelQueue}
 import monix.execution.internal.{Constants, Platform}
 import monix.execution.{CancelablePromise, ChannelType}
+
 import scala.annotation.{switch, tailrec}
 import scala.collection.mutable.ArrayBuffer
 
@@ -496,7 +498,7 @@ final class ConcurrentChannel[F[_], E, A] private (
         helpers.stopF
     }
 
-  private[this] val helpers = new Helpers[F, E, A]
+  private[this] val helpers = new Helpers[F]
 }
 
 /**
@@ -658,7 +660,7 @@ object ConcurrentChannel {
     buffer.toArray[Any].toSeq.asInstanceOf[Seq[A]]
 
   private def triggerBroadcastBool[F[_], E, A](
-    helpers: Helpers[F, E, A],
+    helpers: Helpers[F],
     refs: Array[ChanProducer[F, E, A]],
     f: ChanProducer[F, E, A] => F[Boolean])
     (implicit F: Concurrent[F]): F[Boolean] = {
@@ -668,7 +670,7 @@ object ConcurrentChannel {
   }
 
   private def triggerBroadcastUnit[F[_], E, A](
-    helpers: Helpers[F, E, A],
+    helpers: Helpers[F],
     refs: Array[ChanProducer[F, E, A]],
     f: ChanProducer[F, E, A] => F[Unit])
     (implicit F: Concurrent[F]): F[Unit] = {
@@ -714,7 +716,7 @@ object ConcurrentChannel {
     producersAwait: AtomicAny[CancelablePromise[Unit]],
     consumersAwait: AtomicAny[CancelablePromise[Unit]],
     isFinished: () => Option[E],
-    helpers: Helpers[F, E, A])
+    helpers: Helpers[F])
     (implicit F: Concurrent[F], cs: ContextShift[F]) {
 
     @tailrec
@@ -774,7 +776,7 @@ object ConcurrentChannel {
         }
         // Awaken sleeping consumers
         notifyConsumers()
-        // Do we need to await consumers?
+        // Do we need to await on consumers?
         if (!hasCapacity) {
           assert(producersAwait ne null, "producersAwait ne null (Bug!)")
           val offerWait = F.asyncF[Ack](cb => helpers.sleepThenRepeat(
@@ -801,7 +803,7 @@ object ConcurrentChannel {
     producersAwait: AtomicAny[CancelablePromise[Unit]],
     consumersAwait: AtomicAny[CancelablePromise[Unit]],
     isFinished: () => Option[E],
-    helpers: Helpers[F, E, A])
+    helpers: Helpers[F])
     (implicit F: Concurrent[F], cs: ContextShift[F])
     extends ConsumerF[F, E, A] {
 
@@ -916,84 +918,12 @@ object ConcurrentChannel {
     }
   }
 
-  private final class Helpers[F[_], E, A](implicit F: Concurrent[F], cs: ContextShift[F]) {
-    // Internal, reusable values
-    private[this] val asyncBoundary: F[Unit] = cs.shift
+  private final class Helpers[F[_]](implicit F: Concurrent[F], cs: ContextShift[F])
+    extends QueueHelpers[F] {
+
     val continueF = F.pure(true)
     val stopF = F.pure(false)
     val boolTest = (b: Boolean) => b
     val unitTest = (_: Unit) => true
-
-    @tailrec
-    def sleepThenRepeat[T, U](
-      state: AtomicAny[CancelablePromise[Unit]],
-      f: () => T,
-      filter: T => Boolean,
-      map: T => U,
-      cb: Either[Throwable, U] => Unit)
-      (implicit F: Concurrent[F]): F[Unit] = {
-
-      // Registering intention to sleep via promise
-      state.get() match {
-        case null =>
-          val ref = CancelablePromise[Unit]()
-          if (!state.compareAndSet(null, ref))
-            sleepThenRepeat(state, f, filter, map, cb)
-          else
-            sleepThenRepeat_Step2TryAgainThenSleep(state, f, filter, map, cb)(ref)
-
-        case ref =>
-          sleepThenRepeat_Step2TryAgainThenSleep(state, f, filter, map, cb)(ref)
-      }
-    }
-
-    private def sleepThenRepeat_Step2TryAgainThenSleep[T, U](
-      state: AtomicAny[CancelablePromise[Unit]],
-      f: () => T,
-      filter: T => Boolean,
-      map: T => U,
-      cb: Either[Throwable, U] => Unit)
-      (p: CancelablePromise[Unit])
-      (implicit F: Concurrent[F]): F[Unit] = {
-
-      // Async boundary, for fairness reasons; also creates a full
-      // memory barrier between the promise registration and what follows
-      F.flatMap(asyncBoundary) { _ =>
-        // Trying to read one more time
-        val value = f()
-        if (filter(value)) {
-          cb(Right(map(value)))
-          F.unit
-        } else {
-          // Awaits on promise, then repeats
-          F.flatMap(awaitPromise(p))(_ => sleepThenRepeat_Step3Awaken(state, f, filter, map, cb))
-        }
-      }
-    }
-
-    private def sleepThenRepeat_Step3Awaken[T, U](
-      awaitState: AtomicAny[CancelablePromise[Unit]],
-      f: () => T,
-      filter: T => Boolean,
-      map: T => U,
-      cb: Either[Throwable, U] => Unit)
-      (implicit F: Concurrent[F]): F[Unit] = {
-
-      // Trying to read
-      val value = f()
-      if (filter(value)) {
-        cb(Right(map(value)))
-        F.unit
-      } else {
-        // Go to sleep again
-        sleepThenRepeat(awaitState, f, filter, map, cb)
-      }
-    }
-
-    def awaitPromise(p: CancelablePromise[Unit]): F[Unit] =
-      F.cancelable { cb =>
-        val token = p.subscribe(_ => cb(Constants.eitherOfUnit))
-        F.delay(token.cancel())
-      }
   }
 }

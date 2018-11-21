@@ -18,17 +18,16 @@
 package monix.catnap
 
 import cats.effect.IO
-import monix.execution.BufferCapacity.Bounded
-import monix.execution.{BufferCapacity, Scheduler}
+import monix.execution.Scheduler
 import monix.execution.schedulers.SchedulerService
 import scala.concurrent.duration._
 
-abstract class ConcurrentChannelJVMSuite(parallelism: Int)
-  extends BaseConcurrentChannelSuite[SchedulerService] {
+abstract class ConcurrentQueueJVMSuite(parallelism: Int)
+  extends BaseConcurrentQueueSuite[SchedulerService] {
 
   def setup(): SchedulerService =
     Scheduler.computation(
-      name = s"concurrent-channel-par-$parallelism",
+      name = s"concurrent-queue-par-$parallelism",
       parallelism = parallelism
     )
 
@@ -46,11 +45,8 @@ abstract class ConcurrentChannelJVMSuite(parallelism: Int)
       repeatTest(f(ec).timeout(30.second), times).unsafeToFuture()
     }
   }
-
-  val boundedConfigForConcurrentSum: BufferCapacity.Bounded =
-    Bounded(32)
 }
 
-object ConcurrentChannelJVMParallelism8Suite extends ConcurrentChannelJVMSuite(8)
-object ConcurrentChannelJVMParallelism4Suite extends ConcurrentChannelJVMSuite(4)
-object ConcurrentChannelJVMParallelism1Suite extends ConcurrentChannelJVMSuite(1)
+object ConcurrentQueueJVMParallelism8Suite extends ConcurrentQueueJVMSuite(8)
+object ConcurrentQueueJVMParallelism4Suite extends ConcurrentQueueJVMSuite(4)
+object ConcurrentQueueJVMParallelism1Suite extends ConcurrentQueueJVMSuite(1)

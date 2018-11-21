@@ -32,7 +32,6 @@ object ConcurrentChannelSuite extends BaseConcurrentChannelSuite[TestScheduler] 
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "There should be no tasks left!")
 
-
   def testIO(name: String, times: Int)(f: Scheduler => IO[Unit]): Unit = {
     def repeatTest(test: IO[Unit], n: Int): IO[Unit] =
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
