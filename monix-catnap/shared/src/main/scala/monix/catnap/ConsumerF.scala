@@ -98,9 +98,10 @@ object ConsumerF {
     *
     * @param consumerType (UNSAFE) is for fine-tuning the consumer type;
     *        if there's only one worker that consumes from the [[ConsumerF]]
-    *        value, then a [[ChannelType.SingleConsumer SingleConsumer]]
+    *        value, then a [[monix.execution.ChannelType.SingleConsumer SingleConsumer]]
     *        configuration is possible, for optimization purposes, otherwise
-    *        or if in doubt, prefer [[ChannelType.MultiConsumer MultiConsumer]]
+    *        or if in doubt, prefer
+    *        [[monix.execution.ChannelType.MultiConsumer MultiConsumer]]
     *
     * @param padding is the padding strategy used for the atomics meant for
     *        back-pressuring on the internal buffer (either waiting on

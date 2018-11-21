@@ -23,9 +23,9 @@ import monix.catnap.{ConsumerF, ProducerF}
 import monix.execution.BufferCapacity.Bounded
 import monix.execution.ChannelType.MultiProducer
 import monix.execution.{BufferCapacity, ChannelType}
+import monix.tail.Iterant.Channel
 import monix.tail.batches.{Batch, BatchCursor}
 import org.reactivestreams.Publisher
-
 import scala.collection.immutable.LinearSeq
 import scala.concurrent.duration.FiniteDuration
 
@@ -265,11 +265,17 @@ object IterantBuilders {
       (implicit F: Async[F]): Iterant[F, A] =
       Iterant.fromConsumer(consumer, maxBatchSize)
 
+    /** Aliased builder, see documentation for [[Iterant.fromChannel]]. */
+    def fromChannel[A](channel: Channel[F, A], bufferCapacity: BufferCapacity = Bounded(256), maxBatchSize: Int = 256)
+      (implicit F: Async[F]): Iterant[F, A] =
+      Iterant.fromChannel(channel, bufferCapacity, maxBatchSize)
+
     /** Aliased builder, see documentation for [[Iterant.channel]]. */
     def channel[A](
       bufferCapacity: BufferCapacity = Bounded(256),
+      maxBatchSize: Int = 256,
       producerType: ChannelType.ProducerSide = MultiProducer)
       (implicit F: Concurrent[F], cs: ContextShift[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] =
-      Iterant.channel(bufferCapacity, producerType)
+      Iterant.channel(bufferCapacity, maxBatchSize, producerType)
   }
 }

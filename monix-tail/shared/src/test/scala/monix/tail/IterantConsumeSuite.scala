@@ -120,7 +120,7 @@ object IterantConsumeSuite extends BaseTestSuite {
 
   def foldIterantPullOne[S, A](iter: Iterant[Task, A], seed: => S)(f: (S, A) => S): Task[S] =
     Task.suspend {
-      iter.consume.use(foldConsumerViaPullOne(_, seed)(f))
+      iter.toChannel.consume.use(foldConsumerViaPullOne(_, seed)(f))
     }
 
   def foldConsumerViaPullOne[S, A](channel: Consumer[Task, A], acc: S)(f: (S, A) => S): Task[S] =
@@ -132,7 +132,7 @@ object IterantConsumeSuite extends BaseTestSuite {
 
   def foldIterantPullMany[S, A](iter: Iterant[Task, A], seed: => S)(f: (S, A) => S): Task[S] =
     Task.suspend {
-      iter.consume.use(foldConsumerViaPullMany(_, seed)(f))
+      iter.toChannel.consume.use(foldConsumerViaPullMany(_, seed)(f))
     }
 
   def foldConsumerViaPullMany[S, A](channel: Consumer[Task, A], acc: S)(f: (S, A) => S): Task[S] =

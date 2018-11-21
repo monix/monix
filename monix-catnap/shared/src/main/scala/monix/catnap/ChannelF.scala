@@ -17,10 +17,41 @@
 
 package monix.catnap
 import cats.effect.Resource
+import monix.execution.annotations.UnsafeProtocol
 
-trait ChannelF[F[_], E, A] {
-
+/** `Channel` is a communication channel that can be consumed via
+  * [[monix.catnap.ChannelF!.consume consume]].
+  *
+  * Examples:
+  *
+  *  - [[monix.catnap.ConcurrentChannel]]
+  *  - [[monix.tail.Iterant.toChannel]]
+  */
+trait ChannelF[F[_], E, A] extends Serializable {
+  /**
+    * Create a [[ConsumerF]] value that can be used to consume events from
+    * the channel.
+    *
+    * Note in case multiple consumers are created, all of them will see the
+    * events being pushed, so a broadcasting setup is possible. Also multiple
+    * workers can consumer from the same `ConsumerF` value, to share the load.
+    *
+    * The returned value is a
+    * [[https://typelevel.org/cats-effect/datatypes/resource.html Resource]],
+    * because a consumer can be unsubscribed from the channel, with its
+    * internal buffer being garbage collected.
+    *
+    * @see [[consumeWithConfig]] for fine tuning the internal buffer of the
+    *      created consumer
+    */
   def consume: Resource[F, ConsumerF[F, E, A]]
 
+  /** Version of [[consume]] that allows for fine tuning the underlying
+    * buffer used.
+    *
+    * @param config is configuration for the created buffer, see
+    *        [[ConsumerF.Config]] for details
+    */
+  @UnsafeProtocol
   def consumeWithConfig(config: ConsumerF.Config): Resource[F, ConsumerF[F, E, A]]
 }

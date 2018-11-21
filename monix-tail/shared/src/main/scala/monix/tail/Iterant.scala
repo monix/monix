@@ -28,7 +28,6 @@ import monix.execution.BufferCapacity.Bounded
 import monix.execution.{BufferCapacity, ChannelType}
 import monix.execution.ChannelType.{MultiProducer, SingleConsumer}
 import monix.execution.annotations.UnsafeProtocol
-import monix.execution.internal.Platform
 
 import scala.util.control.NonFatal
 import monix.execution.internal.Platform.recommendedBatchSize
@@ -1783,7 +1782,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *    parallel; this being a risky optimization
     *
     * @param config is the configuration object for fine tuning the behavior
-    *        of the created consumer, see [[ConsumerF.Config]]
+    *        of the created consumer, see
+    *        [[monix.catnap.ConsumerF.Config ConsumerF.Config1]]
     */
   @UnsafeProtocol
   final def consumeWithConfig(config: ConsumerF.Config)
@@ -1791,6 +1791,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
     IterantConsume(self, config)(F, cs)
   }
+
+  /**
+    * Converts this `Iterant` to a [[monix.catnap.ChannelF]].
+    */
+  final def toChannel(implicit F: Concurrent[F], cs: ContextShift[F]): Channel[F, A] =
+    new Channel[F, A] {
+      def consume: Resource[F, Consumer[F, A]] =
+        self.consume
+      def consumeWithConfig(config: ConsumerF.Config): Resource[F, Consumer[F, A]] =
+        self.consumeWithConfig(config)
+    }
 
   /** Converts this `Iterant` into an `org.reactivestreams.Publisher`.
     *
@@ -2269,6 +2280,14 @@ object Iterant extends IterantInstances {
   type Producer[F[_], A] = monix.catnap.ProducerF[F, Option[Throwable], A]
 
   /**
+    * Alias for [[monix.catnap.ChannelF]], using `Option[Throwable]` as
+    * the completion event, to be compatible with [[Iterant]].
+    *
+    * @see the docs for [[monix.catnap.ChannelF ChannelF]]
+    */
+  type Channel[F[_], A] = monix.catnap.ChannelF[F, Option[Throwable], A]
+
+  /**
     * Returns an [[IterantBuilders]] instance for the specified `F`
     * monadic type that can be used to build [[Iterant]] instances.
     *
@@ -2585,15 +2604,53 @@ object Iterant extends IterantInstances {
   }
 
   /**
-    * Transforms a [[monix.catnap.ConsumerF ConsumerF]] into an `Iterant` stream.
+    * Transforms any [[monix.catnap.ConsumerF]] into an `Iterant` stream.
     *
     * This allows for example consuming from a
     * [[monix.catnap.ConcurrentChannel ConcurrentChannel]].
+    *
+    * @param consumer is the [[monix.catnap.ConsumerF]] value to transform
+    *        into an `Iterant`
+    *
+    * @param maxBatchSize is the maximum size of the emitted
+    *        [[Iterant.NextBatch]] nodes, effectively specifying how many
+    *        items can be pulled from the queue and processed in batches
     */
   def fromConsumer[F[_], A](consumer: Consumer[F, A], maxBatchSize: Int = 256)
     (implicit F: Async[F]): Iterant[F, A] = {
 
     IterantFromConsumer(consumer, maxBatchSize)
+  }
+
+  /**
+    * Transforms any [[monix.catnap.ChannelF]] into an `Iterant` stream.
+    *
+    * This allows for example consuming from a
+    * [[monix.catnap.ConcurrentChannel ConcurrentChannel]].
+    *
+    * @param channel is the [[monix.catnap.ChannelF]] value from which the
+    *        created stream will consume events
+    *
+    * @param bufferCapacity is the capacity of the internal buffer being
+    *        created; it can be either of limited capacity or unbounded
+    *
+    * @param maxBatchSize is the maximum size of the emitted
+    *        [[Iterant.NextBatch]] nodes, effectively specifying how many
+    *        items can be pulled from the queue and processed in batches
+    */
+  def fromChannel[F[_], A](
+    channel: Channel[F, A],
+    bufferCapacity: BufferCapacity = Bounded(256),
+    maxBatchSize: Int = 256)
+    (implicit F: Async[F]): Iterant[F, A] = {
+
+    val config = ConsumerF.Config(
+      capacity = Some(bufferCapacity),
+      consumerType = Some(SingleConsumer)
+    )
+    fromResource(channel.consumeWithConfig(config)).flatMap { consumer =>
+      fromConsumer(consumer, maxBatchSize)
+    }
   }
 
   /**
@@ -2657,6 +2714,11 @@ object Iterant extends IterantInstances {
     *
     * @param bufferCapacity is the [[monix.execution.BufferCapacity capacity]]
     *        of the internal buffer being created per evaluated `Iterant` stream
+    *
+    * @param maxBatchSize is the maximum size of the [[Iterant.NextBatch]]
+    *        nodes being emitted; this determines the maximum number of
+    *        events being processed at any one time
+    *
     * @param producerType (UNSAFE) specifies if there are multiple concurrent
     *        producers that will push events on the channel, or not;
     *        [[monix.execution.ChannelType.MultiProducer MultiProducer]] is
@@ -2666,22 +2728,16 @@ object Iterant extends IterantInstances {
     */
   def channel[F[_], A](
     bufferCapacity: BufferCapacity = Bounded(256),
+    maxBatchSize: Int = 256,
     producerType: ChannelType.ProducerSide = MultiProducer)
     (implicit F: Concurrent[F], cs: ContextShift[F]): F[(Producer[F, A], Iterant[F, A])] = {
 
-    val default = ConsumerF.Config(Some(bufferCapacity))
     val channelF = ConcurrentChannel[F].withConfig[Option[Throwable], A](
-      defaultConsumerConfig = default,
-      producerType
+      producerType = producerType
     )
-    val maxBatchSize = bufferCapacity match {
-      case Bounded(capacity) => capacity
-      case _ => Platform.recommendedBatchSize
-    }
     F.map(channelF) { channel =>
       val p: Producer[F, A] = channel
-      val cfg = default.copy(consumerType = Some(SingleConsumer))
-      val c = fromResource(channel.consumeWithConfig(cfg)).flatMap(fromConsumer(_, maxBatchSize))
+      val c = fromChannel(channel, bufferCapacity, maxBatchSize)
       (p, c)
     }
   }

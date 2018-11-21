@@ -143,7 +143,7 @@ object IterantChannelSuite extends SimpleTestSuite {
 
     val pt = if (producers > 1) MultiProducer else SingleProducer
 
-    Iterant[IO].channel[Int](capacity, pt).flatMap { case (producer, stream) =>
+    Iterant[IO].channel[Int](capacity, producerType = pt).flatMap { case (producer, stream) =>
       for {
         fiber   <- consumeMany(stream).start
         _       <- producer.awaitConsumers(consumers)
