@@ -19,9 +19,15 @@ package monix.tail
 
 import java.io.PrintStream
 
+import cats.implicits._
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Defer, Eq, Functor, FunctorFilter, MonadError, Monoid, MonoidK, Order, Parallel, StackSafeMonad}
+import monix.catnap.{ConcurrentChannel, ConsumerF}
+import monix.execution.BufferCapacity.Bounded
+import monix.execution.{BufferCapacity, ChannelType}
+import monix.execution.ChannelType.{MultiProducer, SingleConsumer}
+import monix.execution.annotations.UnsafeProtocol
 
 import scala.util.control.NonFatal
 import monix.execution.internal.Platform.recommendedBatchSize
@@ -129,6 +135,73 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   *         operations
   *
   * @tparam A is the type of the elements produced by this Iterant
+  *
+  * @define catsOrderInterop ==Cats Order and Scala Interop==
+  *
+  *         Monix prefers to work with [[cats.Order]] for assessing the order
+  *         of elements that have an ordering defined, instead of
+  *         [[scala.math.Ordering]].
+  *
+  *         We do this for consistency, as Monix is now building on top of Cats.
+  *         This may change in the future, depending on what happens with
+  *         [[https://github.com/typelevel/cats/issues/2455 typelevel/cats#2455]].
+  *
+  *         Building a `cats.Order` is easy to do if you already have a
+  *         Scala `Ordering` instance:
+  *         {{{
+  *           import cats.Order
+  *
+  *           case class Person(name: String, age: Int)
+  *
+  *           // Starting from a Scala Ordering
+  *           implicit val scalaOrderingForPerson: Ordering[Person] =
+  *             new Ordering[Person] {
+  *               def compare(x: Person, y: Person): Int =
+  *                 x.age.compareTo(y.age) match {
+  *                   case 0 => x.name.compareTo(y.name)
+  *                   case o => o
+  *                 }
+  *             }
+  *
+  *           // Building a cats.Order from it
+  *           implicit val catsOrderForPerson: Order[Person] =
+  *             Order.fromOrdering
+  *         }}}
+  *
+  *         You can also do that in reverse, so you can prefer `cats.Order`
+  *         (due to Cats also exposing laws and tests for free) and build a
+  *         Scala `Ordering` when needed:
+  *         {{{
+  *           val scalaOrdering = catsOrderForPerson.toOrdering
+  *         }}}
+  *
+  * @define catsEqInterop ==Cats Eq and Scala Interop==
+  *
+  *         Monix prefers to work with [[cats.Eq]] for assessing the equality
+  *         of elements that have an ordering defined, instead of
+  *         [[scala.math.Equiv]].
+  *
+  *         We do this because Scala's `Equiv` has a default instance defined
+  *         that's based on universal equality and that's a big problem, because
+  *         when using the `Eq` type class, it is universal equality that we
+  *         want to avoid and there have been countless of bugs in the ecosystem
+  *         related to both universal equality and `Equiv`. Thankfully people
+  *         are working to fix it.
+  *
+  *         We also do this for consistency, as Monix is now building on top of
+  *         Cats. This may change in the future, depending on what happens with
+  *         [[https://github.com/typelevel/cats/issues/2455 typelevel/cats#2455]].
+  *
+  *         Defining `Eq` instance is easy and we can use universal equality
+  *         in our definitions as well:
+  *         {{{
+  *           import cats.Eq
+  *
+  *           case class Address(host: String, port: Int)
+  *
+  *           implicit val eqForAddress: Eq[Address] =
+  *             Eq.fromUniversalEquals
+  *         }}}
   */
 sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   self =>
@@ -145,8 +218,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * allowing for laziness.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 1, 2, 3, 4
-    *   Iterant[Task].of(1, 2) ++ Task.suspend {
+    *   Iterant[Task].of(1, 2) ++ Task.eval {
     *     Iterant[Task].of(3, 4)
     *   }
     * }}}
@@ -161,6 +236,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * continue with the source.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 1, 2, 3, 4
     *   1 +: Iterant[Task].of(2, 3, 4)
     * }}}
@@ -174,6 +251,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Appends the right hand side element to the end of this iterant.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 1, 2, 3, 4
     *   Iterant[Task].of(1, 2, 3) :+ 4
     * }}}
@@ -187,6 +266,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * concatenating them.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 1, 2, 3, 4
     *   Iterant[Task].of(1, 2) ++ Iterant[Task].of(3, 4)
     * }}}
@@ -206,13 +287,15 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * `upcast`.
     *
     * Example: {{{
-    *   val source: Iterant[Task, List[Int]] = ???
+    *   import monix.eval.Task
+    *
+    *   val source: Iterant[Task, List[Int]] = Iterant.suspend(???)
     *
     *   // This will trigger an error because of the invariance:
-    *   val sequences: Iterant[Task, Seq[Int]] = source
+    *   // val sequences: Iterant[Task, Seq[Int]] = source
     *
     *   // But this will work just fine:
-    *   val sequences: Iterant[Task, Seq[Int]] = source.upcast[Seq[Int]]
+    *   val sequence: Iterant[Task, Seq[Int]] = source.upcast[Seq[Int]]
     * }}}
     */
   final def upcast[B >: A]: Iterant[F, B] =
@@ -223,13 +306,15 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * whatever error that might interrupt the stream.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *   import monix.execution.exceptions.DummyException
+    *
     *   // Yields Right(1), Right(2), Right(3)
     *   Iterant[Task].of(1, 2, 3).attempt
     *
-    *
     *   // Yields Right(1), Right(2), Left(DummyException())
     *   (Iterant[Task].of(1, 2) ++
-    *     Iterant[Task].raiseError(DummyException())).attempt
+    *     Iterant[Task].raiseError[Int](DummyException("dummy"))).attempt
     * }}}
     */
   final def attempt(implicit F: Sync[F]): Iterant[F, Either[Throwable, A]] =
@@ -241,9 +326,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * For this operation we have this law:
     *
-    * {{{
-    *   source.batched(16) <-> source
-    * }}}
+    * `source.batched(16) <-> source`
     *
     * This means that the result will emit exactly what the source
     * emits, however the underlying representation will be different,
@@ -267,6 +350,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * immediately.
     *
     * {{{
+    *   import monix.eval.Coeval
+    *
     *   // Yields Seq(1, 2, 3), Seq(4, 5, 6), Seq(7)
     *   Iterant[Coeval].of(1, 2, 3, 4, 5, 6, 7).bufferTumbling(3)
     * }}}
@@ -302,6 +387,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example:
     *
     * {{{
+    *   import monix.eval.Coeval
+    *
     *   val source = Iterant[Coeval].of(1, 2, 3, 4, 5, 6, 7)
     *
     *   // Yields Seq(1, 2, 3), Seq(4, 5, 6), Seq(7)
@@ -329,6 +416,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * elements of the source on which the function is defined.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 2, 4, 6
     *   Iterant[Task].of(1, 2, 3, 4, 5, 6)
     *     .map { x => Option(x).filter(_ % 2 == 0) }
@@ -371,12 +460,14 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * depending on usage, thus it can be used in tail recursive loops.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Effectively equivalent with .filter
     *   Iterant[Task].of(1, 2, 3, 4, 5, 6).flatMap { elem =>
     *     if (elem % 2 == 0)
     *       Iterant[Task].pure(elem)
     *     else
-    *       Iterant[Task].empty
+    *       Iterant[Task].empty[Int]
     *   }
     * }}}
     *
@@ -391,6 +482,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example:
     *
     * {{{
+    *   import cats.effect.IO
+    *
     *   // Yields 100
     *   Iterant[IO].range(0, 100).countL
     *
@@ -408,6 +501,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * Example:
     * {{{
+    *   import cats.implicits._
+    *   import monix.eval.Coeval
+    *
     *   // Yields 1, 2, 1, 3, 2, 4
     *   Iterant[Coeval].of(1, 1, 1, 2, 2, 1, 1, 3, 3, 3, 2, 2, 4, 4, 4)
     *     .distinctUntilChanged
@@ -419,19 +515,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * default `.equals` is badly defined, or maybe you want reference
     * equality, so depending on use case).
     *
-    * In case type `A` is a primitive type and an `Eq[A]` instance
-    * is not in scope, then you probably need this import:
-    * {{{
-    *   import cats.instances.all._
-    * }}}
-    *
-    * Or in case your type `A` does not have an `Eq[A]` instance
-    * defined for it, then you can quickly define one like this:
-    * {{{
-    *   import cats.Eq
-    *
-    *   implicit val eqA = Eq.fromUniversalEquals[A]
-    * }}}
+    * $catsEqInterop
     *
     * @param A is the `cats.Eq` instance that defines equality for `A`
     */
@@ -444,9 +528,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example:
     *
     * {{{
+    *   import cats.implicits._
+    *   import monix.eval.Coeval
+    *
     *   // Yields 1, 2, 3, 4
     *   Iterant[Coeval].of(1, 3, 2, 4, 2, 3, 5, 7, 4)
-    *     .distinctUntilChangedBy(_ % 2)
+    *     .distinctUntilChangedByKey(_ % 2)
     * }}}
     *
     * Duplication is detected by using the equality relationship
@@ -455,19 +542,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * default `.equals` is badly defined, or maybe you want reference
     * equality, so depending on use case).
     *
-    * In case type `K` is a primitive type and an `Eq[K]` instance
-    * is not in scope, then you probably need this import:
-    * {{{
-    *   import cats.instances.all._
-    * }}}
-    *
-    * Or in case your type `K` does not have an `Eq[K]` instance
-    * defined for it, then you can quickly define one like this:
-    * {{{
-    *   import cats.Eq
-    *
-    *   implicit val eqK = Eq.fromUniversalEquals[K]
-    * }}}
+    * $catsEqInterop
     *
     * @param key is a function that returns a `K` key for each element,
     *        a value that's then used to do the deduplication
@@ -484,6 +559,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Implements `cats.effect.Bracket.guarantee`.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
+    *   def iterant: Iterant[Task, Int] =
+    *     Iterant.delay(???)
+    *
     *   iterant.guarantee(Task.eval {
     *     println("Releasing resources!")
     *   })
@@ -503,16 +583,20 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * will run at the end of the stream.
     *
     * Example: {{{
+    *   import monix.eval.Task
     *   import cats.effect.ExitCase
+    *
+    *   def iterant: Iterant[Task, Int] =
+    *     Iterant.delay(???)
     *
     *   iterant.guaranteeCase(err => Task.eval {
     *     err match {
     *       case ExitCase.Completed =>
-    *         logger.info("Completed successfully!")
+    *         println("Completed successfully!")
     *       case ExitCase.Error(e) =>
-    *         logger.error("Completed in error!", e)
+    *         e.printStackTrace()
     *       case ExitCase.Canceled =>
-    *         logger.info("Was stopped early!")
+    *         println("Was stopped early!")
     *     }
     *   })
     * }}}
@@ -527,6 +611,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Drops the first `n` elements (from the start).
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 4, 5
     *   Iterant[Task].of(1, 2, 3, 4, 5).drop(3)
     * }}}
@@ -541,6 +627,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Drops the last `n` elements (from the end).
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 1, 2
     *   Iterant[Task].of(1, 2, 3, 4, 5).dropLast(3)
     * }}}
@@ -556,6 +644,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * predicate and returns a new iterant that emits the rest.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 4, 5
     *   Iterant[Task].of(1, 2, 3, 4, 5).dropWhile(_ < 4)
     * }}}
@@ -578,8 +668,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * element.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 3, 4, 5
-    *   Iterant[Task].of(1, 2, 3, 4, 5).dropWhile((value, index) => value >= index * 2)
+    *   Iterant[Task].of(1, 2, 3, 4, 5)
+    *     .dropWhileWithIndex((value, index) => value >= index * 2)
     * }}}
     *
     * @param p is the predicate used to test whether the current
@@ -597,17 +690,18 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Utility that can be used for debugging purposes.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *   import monix.execution.Scheduler.Implicits.global
+    *
     *   Iterant[Task].range(0, 4)
     *     .dump("O")
-    *     .completeL.runAsync
+    *     .completedL
     *
-    *   // Results in:
-    *
-    *   0: O --> 0
-    *   1: O --> 1
-    *   2: O --> 2
-    *   3: O --> 3
-    *   4: O completed
+    *   // 0: O --> next-batch --> 0
+    *   // 1: O --> next-batch --> 1
+    *   // 2: O --> next-batch --> 2
+    *   // 3: O --> next-batch --> 3
+    *   // 4: O --> halt --> no error
     * }}}
     */
   final def dump(prefix: String, out: PrintStream = System.out)(implicit F: Sync[F]): Iterant[F, A] =
@@ -618,6 +712,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * has been reached with no items satisfying the given predicate.
     *
     * Example: {{{
+    *   import monix.eval.Coeval
+    *
     *   val source = Iterant[Coeval].of(1, 2, 3, 4)
     *
     *   // Yields true
@@ -648,6 +744,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * a `Right` result, when the summary is returned.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Sums first 10 items
     *   Iterant[Task].range(0, 1000).foldWhileLeftL((0, 0)) {
     *     case ((sum, count), e) =>
@@ -689,6 +787,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * only those elements that match.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 2, 4, 6
     *   Iterant[Task].of(1, 2, 3, 4, 5, 6).filter(_ % 2 == 0)
     * }}}
@@ -707,6 +807,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * fails for any of those items.
     *
     * Example: {{{
+    *   import monix.eval.Coeval
+    *
     *   val source = Iterant[Coeval].of(1, 2, 3, 4)
     *
     *   // Yields false
@@ -732,8 +834,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * each element.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Prints all elements, each one on a different line
-    *   Iterant[Task].of(1, 2, 3).foreachL { elem =>
+    *   Iterant[Task].of(1, 2, 3).foreach { elem =>
     *     println("Elem: " + elem.toString)
     *   }
     * }}}
@@ -748,8 +852,14 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * completion.
     *
     * Example: {{{
+    *   import cats.implicits._
+    *   import monix.eval.Task
+    *
+    *   // Whatever...
+    *   val iterant = Iterant[Task].range(0, 10000)
+    *
     *   val onFinish: Task[Unit] =
-    *     iterant.completeL >> Task.eval(println("Done!"))
+    *     iterant.completedL >> Task.eval(println("Done!"))
     * }}}
     */
   final def completedL(implicit F: Sync[F]): F[Unit] =
@@ -759,6 +869,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * elements of the source.
     *
     * {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 2, 4, 6
     *   Iterant[Task].of(1, 2, 3).map(_ * 2)
     * }}}
@@ -775,6 +887,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * elements of the source yielding `Iterant` consisting of `NextBatch` nodes.
     *
     * {{{
+    *   import monix.eval.Task
+    *   import monix.tail.batches.Batch
+    *
     *   // Yields 1, 2, 3, 4, 5
     *   Iterant[Task].of(List(1, 2, 3), List(4), List(5)).mapBatch(Batch.fromSeq(_))
     *   // Yields 2, 4, 6
@@ -792,6 +907,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Optionally selects the first element.
     *
     * {{{
+    *   import monix.eval.Task
+    *
     *   // Yields Some(1)
     *   Iterant[Task].of(1, 2, 3, 4).headOptionL
     *
@@ -808,6 +925,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Optionally selects the last element.
     *
     * {{{
+    *   import monix.eval.Task
+    *
     *   // Yields Some(4)
     *   Iterant[Task].of(1, 2, 3, 4).lastOptionL
     *
@@ -826,6 +945,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * stream.
     *
     * {{{
+    *   import monix.eval.Task
+    *
     *   Iterant[Task].of(1, 2, 3, 4).mapEval { elem =>
     *     Task.eval {
     *       println("Received: " + elem.toString)
@@ -846,6 +967,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * returning `Some(a)` if available, or `None` otherwise.
     *
     * {{{
+    *   import monix.eval.Coeval
+    *
     *   // Yields Some(2)
     *   Iterant[Coeval].of(1, 2, 3, 4).findL(_ % 2 == 0)
     *
@@ -878,6 +1001,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example:
     *
     * {{{
+    *   import cats.implicits._
+    *   import monix.eval.Task
+    *
     *   // Yields 10
     *   Iterant[Task].of(1, 2, 3, 4).foldL
     *
@@ -886,9 +1012,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * }}}
     *
     * Note, in case you don't have a `Monoid` instance in scope,
-    * but you feel like you should, try this import:
+    * but you feel like you should, try one of these imports:
     *
     * {{{
+    *   // everything
+    *   import cats.implicits._
+    *   // a la carte:
     *   import cats.instances.all._
     * }}}
     *
@@ -909,6 +1038,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * accumulating state until the end, when the summary is returned.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 15 (1 + 2 + 3 + 4 + 5)
     *   Iterant[Task].of(1, 2, 3, 4, 5).foldLeftL(0)(_ + _)
     * }}}
@@ -937,6 +1068,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * suspend side effects, depending on the `F` data type being used.
     *
     * Example using `cats.effect.IO`: {{{
+    *   import cats.implicits._
+    *   import cats.effect.IO
+    *
     *   // Sums first 10 items
     *   Iterant[IO].range(0, 1000).foldWhileLeftEvalL(IO((0, 0))) {
     *     case ((sum, count), e) =>
@@ -979,29 +1113,30 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Lazily fold the stream to a single value from the right.
     *
     * This is the common `foldr` operation from Haskell's `Foldable`,
-    * or `foldRight` from Scala's collections, however it has a twist:
-    * the user is responsible for invoking early `stop` in case the
-    * processing is short-circuited, hence the signature of function
-    * `f` is different from other implementations, receiving the
-    * current `earlyStop: F[Unit]` as a third parameter.
+    * or `foldRight` from `cats.Foldable`, but with the difference that
+    * `Iterant` is a lazy data type and thus it has to operate in the `F[_]`
+    * context.
     *
     * Here's for example how [[existsL]], [[forallL]] and `++` could
     * be expressed in terms of `foldRightL`:
     *
     * {{{
+    *   import cats.implicits._
+    *   import cats.effect.Sync
+    *
     *   def exists[F[_], A](fa: Iterant[F, A], p: A => Boolean)
     *     (implicit F: Sync[F]): F[Boolean] = {
     *
-    *     fa.foldRightL(F.pure(false)) { (a, next, stop) =>
-    *       if (p(a)) stop.map(_ => true) else next
+    *     fa.foldRightL(F.pure(false)) { (a, next) =>
+    *       if (p(a)) F.pure(true) else next
     *     }
     *   }
     *
     *   def forall[F[_], A](fa: Iterant[F, A], p: A => Boolean)
     *     (implicit F: Sync[F]): F[Boolean] = {
     *
-    *     fa.foldRightL(F.pure(true)) { (a, next, stop) =>
-    *       if (!p(a)) stop.map(_ => false) else next
+    *     fa.foldRightL(F.pure(true)) { (a, next) =>
+    *       if (!p(a)) F.pure(false) else next
     *     }
     *   }
     *
@@ -1009,8 +1144,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *     (implicit F: Sync[F]): Iterant[F, A] = {
     *
     *     Iterant.suspend[F, A] {
-    *       lh.foldRightL(F.pure(rh)) { (a, rest, stop) =>
-    *         F.pure(Iterant.nextS(a, rest, stop))
+    *       lh.foldRightL(F.pure(rh)) { (a, rest) =>
+    *         F.pure(Iterant.nextS(a, rest))
     *       }
     *     }
     *   }
@@ -1022,39 +1157,15 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * the default value in case we haven't found what we were looking
     * for.
     *
-    * ==WARNING==
-    *
-    * The implementation cannot ensure resource safety
-    * automatically, therefore it falls on the user to chain the
-    * `stop` reference in the processing, in case the right parameter
-    * isn't factored in.
-    *
-    * In other words:
-    *
-    *  - in case the processing fails in any way with exceptions,
-    *    it is the user's responsibility to chain `stop`
-    *  - in case the processing is short-circuited by not using the
-    *    `F[B]` right param, it is the user responsibility to chain
-    *    `stop`
-    *
-    * This is in contrast with all operators (unless explicitly
-    * mentioned otherwise).
-    *
-    * See the examples provided above, as they are correct in their
-    * handling of `stop`.
-    *
-    * @see [[foldWhileLeftL]] and [[foldWhileLeftEvalL]] for safer
-    *     alternatives in most cases
+    * @see [[foldWhileLeftL]] and [[foldWhileLeftEvalL]]
     *
     * @param b is the starting value; in case `f` is a binary operator,
     *        this is typically its left-identity (zero)
     *
     * @param f is the function to be called that folds the list,
     *        receiving the current element being iterated on
-    *        (first param), the (lazy) result from recursively
-    *        combining the rest of the list (second param) and
-    *        the `earlyStop` routine, to chain in case
-    *        short-circuiting should happen (third param)
+    *        (first param) and the (lazy) result from recursively
+    *        combining the rest of the list (second param)
     */
   final def foldRightL[B](b: F[B])(f: (A, F[B]) => F[B])(implicit F: Sync[F]): F[B] =
     IterantFoldRightL(self, b, f)(F)
@@ -1063,6 +1174,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * between every pair of elements.
     *
     * {{{
+    *   import monix.eval.Coeval
+    *
     *   // Yields 1, 0, 2, 0, 3
     *   Iterant[Coeval].of(1, 2, 3).intersperse(0)
     * }}}
@@ -1077,6 +1190,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * and lastly the `end` element.
     *
     * {{{
+    *   import monix.eval.Coeval
+    *
     *   // Yields '<', 'a', '-', 'b', '>'
     *   Iterant[Coeval].of('a', 'b').intersperse('<', '-', '>')
     * }}}
@@ -1099,12 +1214,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * {{{
     *   import cats.~>
+    *   import monix.eval._
     *
     *   // Source is using Coeval for evaluation
     *   val source = Iterant[Coeval].of(1, 2, 3, 4)
     *
     *   // Transformation to an iterant based on Task
-    *   source.liftMapK(new (Coeval ~> Task) {
+    *   source.liftMap(new (Coeval ~> Task) {
     *     def apply[A](fa: Coeval[A]): Task[A] =
     *       fa.task
     *   })
@@ -1128,6 +1244,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * Example:
     * {{{
+    *   import cats.implicits._
+    *   import monix.eval.Coeval
+    *
     *   case class Person(name: String, age: Int)
     *
     *   // Yields Some(Person("Peter", 23))
@@ -1135,8 +1254,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *     .maxByL(_.age)
     *
     *   // Yields None
-    *   Iterant[Coeval].empty[Int].maxByL(_.age)
+    *   Iterant[Coeval].empty[Person].maxByL(_.age)
     * }}}
+    *
+    * $catsOrderInterop
     *
     * @param key is the function that returns the key for which the
     *            given ordering is defined
@@ -1156,12 +1277,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * Example:
     * {{{
+    *   import cats.implicits._
+    *   import monix.eval.Coeval
+    *
     *   // Yields Some(20)
     *   Iterant[Coeval].of(1, 10, 7, 6, 8, 20, 3, 5).maxL
     *
     *   // Yields None
     *   Iterant[Coeval].empty[Int].maxL
     * }}}
+    *
+    * $catsOrderInterop
     *
     * @param A is the `cats.Order` type class instance that's going
     *          to be used for comparing elements
@@ -1178,6 +1304,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * Example:
     * {{{
+    *   import cats.implicits._
+    *   import monix.eval.Coeval
+    *
     *   case class Person(name: String, age: Int)
     *
     *   // Yields Some(Person("May", 21))
@@ -1185,8 +1314,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *     .minByL(_.age)
     *
     *   // Yields None
-    *   Iterant[Coeval].empty[Int].minByL(_.age)
+    *   Iterant[Coeval].empty[Person].minByL(_.age)
     * }}}
+    *
+    * $catsOrderInterop
     *
     * @param key is the function that returns the key for which the
     *            given ordering is defined
@@ -1206,12 +1337,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * Example:
     * {{{
+    *   import cats.implicits._
+    *   import monix.eval.Coeval
+    *
     *   // Yields Some(3)
     *   Iterant[Coeval].of(10, 7, 6, 8, 20, 3, 5).minL
     *
     *   // Yields None
     *   Iterant[Coeval].empty[Int].minL
     * }}}
+    *
+    * $catsOrderInterop
     *
     * @param A is the `cats.Order` type class instance that's going
     *          to be used for comparing elements
@@ -1233,6 +1369,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example:
     *
     * {{{
+    *   import monix.eval.Coeval
+    *
     *   // Yields Some(10)
     *   Iterant[Coeval].of(1, 2, 3, 4).reduceL(_ + _)
     *
@@ -1268,8 +1406,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * `Throwable` is not matched.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *   import monix.execution.exceptions.DummyException
+    *
     *   val prefix = Iterant[Task].of(1, 2, 3, 4)
-    *   val suffix = Iterant[Task].raiseError(DummyException("dummy"))
+    *   val suffix = Iterant[Task].raiseError[Int](DummyException("dummy"))
     *   val fa = prefix ++ suffix
     *
     *   fa.onErrorRecoverWith {
@@ -1297,15 +1438,18 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * sequence generated by the given function.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *   import monix.execution.exceptions.DummyException
+    *
     *   val prefix = Iterant[Task].of(1, 2, 3, 4)
-    *   val suffix = Iterant[Task].raiseError(DummyException("dummy"))
+    *   val suffix = Iterant[Task].raiseError[Int](DummyException("dummy"))
     *   val fa = prefix ++ suffix
     *
     *   fa.onErrorHandleWith {
     *     case _: DummyException =>
     *       Iterant[Task].pure(5)
     *     case other =>
-    *       Iterant[Task].raiseError(other)
+    *       Iterant[Task].raiseError[Int](other)
     *   }
     * }}}
     *
@@ -1329,8 +1473,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * thrown `Throwable` is not matched.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *   import monix.execution.exceptions.DummyException
+    *
     *   val prefix = Iterant[Task].of(1, 2, 3, 4)
-    *   val suffix = Iterant[Task].raiseError(DummyException("dummy"))
+    *   val suffix = Iterant[Task].raiseError[Int](DummyException("dummy"))
     *   val fa = prefix ++ suffix
     *
     *   fa.onErrorRecover {
@@ -1357,8 +1504,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * emitting a single element generated by the backup function.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *   import monix.execution.exceptions.DummyException
+    *
     *   val prefix = Iterant[Task].of(1, 2, 3, 4)
-    *   val suffix = Iterant[Task].raiseError(DummyException("dummy"))
+    *   val suffix = Iterant[Task].raiseError[Int](DummyException("dummy"))
     *   val fa = prefix ++ suffix
     *
     *   fa.onErrorHandle { _ => 5 }
@@ -1432,6 +1582,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * in the order they are emitted by the source.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 1, 2, 3
     *   Iterant[Task].of(1, 2, 3, 4, 5, 6).take(3)
     * }}}
@@ -1451,6 +1603,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * gets dropped and the error gets emitted immediately.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 1, 2, 3
     *   Iterant[Task].of(1, 2, 3, 4, 5, 6).take(3)
     * }}}
@@ -1468,6 +1622,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * and returns a new iterant that emits those elements.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 1, 2, 3
     *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeWhile(_ < 4)
     * }}}
@@ -1486,6 +1642,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * and returns a new iterant that emits those elements.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 1, 2
     *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeWhileWithIndex((_, idx) => idx != 2)
     * }}}
@@ -1504,6 +1662,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * and returns a new iterant that emits those elements.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 2, 4, 6
     *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeEveryNth(2)
     *
@@ -1522,6 +1682,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Drops the first element of the source iterant, emitting the rest.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields 2, 3, 4
     *   Iterant[Task].of(1, 2, 3, 4).tail
     * }}}
@@ -1539,6 +1701,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * arguments.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   val lh = Iterant[Task].of(11, 12)
     *   val rh = Iterant[Task].of(21, 22, 23)
     *
@@ -1552,6 +1716,93 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def interleave[B >: A](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantInterleave(self.upcast[B], rhs)(F)
 
+  /**
+    * Consumes the source by pushing it to the specified channel.
+    *
+    * @param channel is a [[monix.catnap.ProducerF ProducerF]] value that
+    *        will be used for consuming the stream
+    */
+  final def pushToChannel(channel: Producer[F, A])(implicit F: Sync[F]): F[Unit] =
+    IterantPushToChannel(self, channel)
+
+  /**
+    * Create a [[monix.catnap.ConsumerF ConsumerF]] value that can be used to
+    * consume events from the channel.
+    *
+    * The returned value is a
+    * [[https://typelevel.org/cats-effect/datatypes/resource.html Resource]],
+    * because a consumer can be unsubscribed from the channel early, with its
+    * internal buffer being garbage collected and the finalizers of the source
+    * being triggered.
+    *
+    * {{{
+    *   import monix.eval.Task
+    *   import monix.tail.Iterant.Consumer
+    *
+    *   def sum(channel: Consumer[Task, Int], acc: Long = 0): Task[Long] =
+    *     channel.pull.flatMap {
+    *       case Right(a) =>
+    *         sum(channel, acc + a)
+    *       case Left(None) =>
+    *         Task.pure(acc)
+    *       case Left(Some(e)) =>
+    *         Task.raiseError(e)
+    *     }
+    *
+    *   Iterant[Task].range(0, 10000).consume.use { consumer =>
+    *     sum(consumer)
+    *   }
+    * }}}
+    *
+    * @see [[consumeWithConfig]] for fine tuning the internal buffer of the
+    *      created consumer
+    */
+  final def consume(implicit F: Concurrent[F], cs: ContextShift[F]): Resource[F, Consumer[F, A]] =
+    consumeWithConfig(ConsumerF.Config.default)(F, cs)
+
+  /** Version of [[consume]] that allows for fine tuning the underlying
+    * buffer used.
+    *
+    * There are two parameters that can be configured:
+    *
+    *  - the [[monix.execution.BufferCapacity BufferCapacity]], which can be
+    *    [[monix.execution.BufferCapacity.Unbounded Unbounded]], for an
+    *    unlimited internal buffer in case the consumer is definitely faster
+    *    than the producer, or [[monix.execution.BufferCapacity.Bounded Bounded]]
+    *    in case back-pressuring a slow consumer is desirable
+    *
+    *  - the [[monix.execution.ChannelType.ConsumerSide ChannelType.ConsumerSide]],
+    *    which specifies if this consumer will use multiple workers in parallel
+    *    or not; this is an optimization, with the safe choice being
+    *    [[monix.execution.ChannelType.MultiConsumer MultiConsumer]], which
+    *    specifies that multiple workers can use the created consumer in
+    *    parallel, pulling data from multiple threads at the same time; whereas
+    *    [[monix.execution.ChannelType.SingleConsumer SingleConsumer]] specifies
+    *    that the data will be read sequentially by a single worker, not in
+    *    parallel; this being a risky optimization
+    *
+    * @param config is the configuration object for fine tuning the behavior
+    *        of the created consumer, see
+    *        [[monix.catnap.ConsumerF.Config ConsumerF.Config1]]
+    */
+  @UnsafeProtocol
+  final def consumeWithConfig(config: ConsumerF.Config)
+    (implicit F: Concurrent[F], cs: ContextShift[F]): Resource[F, Consumer[F, A]] = {
+
+    IterantConsume(self, config)(F, cs)
+  }
+
+  /**
+    * Converts this `Iterant` to a [[monix.catnap.ChannelF]].
+    */
+  final def toChannel(implicit F: Concurrent[F], cs: ContextShift[F]): Channel[F, A] =
+    new Channel[F, A] {
+      def consume: Resource[F, Consumer[F, A]] =
+        self.consume
+      def consumeWithConfig(config: ConsumerF.Config): Resource[F, Consumer[F, A]] =
+        self.consumeWithConfig(config)
+    }
+
   /** Converts this `Iterant` into an `org.reactivestreams.Publisher`.
     *
     * Meant for interoperability with other Reactive Streams
@@ -1563,12 +1814,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * {{{
     *   import monix.eval.Task
-    *   import monix.execution.rstreams.SingleAssignmentSubscription
+    *   import monix.execution.rstreams.SingleAssignSubscription
     *   import org.reactivestreams.{Publisher, Subscriber, Subscription}
     *
     *   def sum(source: Publisher[Int], requestSize: Int): Task[Long] =
     *     Task.create { (_, cb) =>
-    *       val sub = SingleAssignmentSubscription()
+    *       val sub = SingleAssignSubscription()
     *
     *       source.subscribe(new Subscriber[Int] {
     *         private[this] var requested = 0L
@@ -1586,7 +1837,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     *           if (requested <= 0) {
     *             requested = requestSize
-    *             sub.request(request)
+    *             sub.request(requestSize)
     *           }
     *         }
     *
@@ -1599,6 +1850,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *       // Cancelable that can be used by Task
     *       sub
     *     }
+    *
+    *   // Needed for `Effect[Task]`
+    *   import monix.execution.Scheduler.Implicits.global
     *
     *   val pub = Iterant[Task].of(1, 2, 3, 4).toReactivePublisher
     *
@@ -1622,11 +1876,16 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * Example showing how state can be evolved and acted upon:
     * {{{
+    *   import monix.eval.Task
+    *
     *   sealed trait State[+A] { def count: Int }
     *   case object Init extends State[Nothing] { def count = 0 }
     *   case class Current[A](current: A, count: Int) extends State[A]
     *
-    *   val scanned = source.scan(Init : State[A]) { (acc, a) =>
+    *   // Whatever...
+    *   val source = Iterant[Task].range(0, 1000)
+    *
+    *   val scanned = source.scan(Init : State[Int]) { (acc, a) =>
     *     acc match {
     *       case Init => Current(a, 1)
     *       case Current(_, count) => Current(a, count + 1)
@@ -1676,30 +1935,36 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example showing how state can be evolved and acted upon:
     *
     * {{{
+    *   import monix.eval.Task
+    *
     *   sealed trait State[+A] { def count: Int }
     *   case object Init extends State[Nothing] { def count = 0 }
     *   case class Current[A](current: Option[A], count: Int)
     *     extends State[A]
     *
-    *   case class Person(id: Int, name: String)
+    *   // Dummies
+    *   case class Person(id: Int, name: String, age: Int)
+    *   def requestPersonDetails(id: Int): Task[Option[Person]] = Task.delay(???)
     *
+    *   // Whatever
+    *   val source = Iterant[Task].range(0, 1000)
     *   // Initial state
     *   val seed = Task.now(Init : State[Person])
     *
     *   val scanned = source.scanEval(seed) { (state, id) =>
-    *     requestPersonDetails(id).map { person =>
+    *     requestPersonDetails(id).map { a =>
     *       state match {
     *         case Init =>
-    *           Current(person, 1)
+    *           Current(a, 1)
     *         case Current(_, count) =>
-    *           Current(person, count + 1)
+    *           Current(a, count + 1)
     *       }
     *     }
     *   }
     *
     *   scanned
     *     .takeWhile(_.count < 10)
-    *     .collect { case Current(a, _) => a }
+    *     .collect { case Current(Some(a), _) => a }
     * }}}
     *
     * @see [[scan]] for the version that does not require using `F[_]`
@@ -1736,16 +2001,16 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * Equivalent with [[scan]] applied with the given [[cats.Monoid]], so given
     * our `f` mapping function returns a `B`, this law holds:
-    * {{{
-    * val B = implicitly[Monoid[B]]
     *
-    * stream.scanMap(f) <-> stream.scan(B.empty)(B.combine)
-    * }}}
+    * `stream.scanMap(f) <-> stream.scan(Monoid[B].empty)(Monoid[B].combine)`
     *
     * Example:
     * {{{
-    * // Yields 2, 6, 12, 20, 30, 42
-    * Iterant[Task].of(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
+    *   import cats.implicits._
+    *   import monix.eval.Task
+    *
+    *   // Yields 2, 6, 12, 20, 30, 42
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).scanMap(x => x * 2)
     * }}}
     *
     * @see [[scanMap0]] for the version that emits empty element at the beginning
@@ -1783,6 +2048,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Aggregates all elements in a `List` and preserves order.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   // Yields List(1, 2, 3, 4)
     *   Iterant[Task].of(1, 2, 3, 4).toListL
     * }}}
@@ -1800,6 +2067,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * arguments.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   val lh = Iterant[Task].of(11, 12, 13, 14)
     *   val rh = Iterant[Task].of(21, 22, 23, 24, 25)
     *
@@ -1820,6 +2089,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * arguments.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   val lh = Iterant[Task].of(11, 12, 13, 14)
     *   val rh = Iterant[Task].of(21, 22, 23, 24, 25)
     *
@@ -1842,6 +2113,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * The length of the result will be the same as the source.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   val source = Iterant[Task].of("Sunday", "Monday", "Tuesday", "Wednesday")
     *
     *   // Yields ("Sunday", 0), ("Monday", 1), ("Tuesday", 2), ("Wednesday", 3)
@@ -1990,15 +2263,46 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         fixed delay between successive events.
   */
 object Iterant extends IterantInstances {
-  /** Returns an [[IterantBuilders]] instance for the specified `F`
+  /**
+    * Alias for [[monix.catnap.ConsumerF]], using `Option[Throwable]` as
+    * the completion event, to be compatible with [[Iterant]].
+    *
+    * @see the docs for [[monix.catnap.ConsumerF ConsumerF]]
+    */
+  type Consumer[F[_], A] = monix.catnap.ConsumerF[F, Option[Throwable], A]
+
+  /**
+    * Alias for [[monix.catnap.ProducerF]], using `Option[Throwable]` as
+    * the completion event, to be compatible with [[Iterant]].
+    *
+    * @see the docs for [[monix.catnap.ProducerF ProducerF]]
+    */
+  type Producer[F[_], A] = monix.catnap.ProducerF[F, Option[Throwable], A]
+
+  /**
+    * Alias for [[monix.catnap.ChannelF]], using `Option[Throwable]` as
+    * the completion event, to be compatible with [[Iterant]].
+    *
+    * @see the docs for [[monix.catnap.ChannelF ChannelF]]
+    */
+  type Channel[F[_], A] = monix.catnap.ChannelF[F, Option[Throwable], A]
+
+  /**
+    * Returns an [[IterantBuilders]] instance for the specified `F`
     * monadic type that can be used to build [[Iterant]] instances.
+    *
+    * This is used to achieve the
+    * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]
+    * technique.
     *
     * Example:
     * {{{
+    *   import monix.eval.Task
+    *
     *   Iterant[Task].range(0, 10)
     * }}}
     */
-  def apply[F[_]]: IterantBuilders[F] = IterantBuilders[F]
+  def apply[F[_]]: IterantBuilders.Apply[F] = new IterantBuilders.Apply[F]()
 
   /** Alias for [[now]]. */
   def pure[F[_], A](a: A): Iterant[F, A] =
@@ -2011,6 +2315,10 @@ object Iterant extends IterantInstances {
     *
     * Example:
     * {{{
+    *   import cats.implicits._
+    *   import cats.effect.IO
+    *   import java.io.PrintWriter
+    *
     *   val printer =
     *     Iterant.resource {
     *       IO(new PrintWriter("./lines.txt"))
@@ -2023,12 +2331,12 @@ object Iterant extends IterantInstances {
     *   val writeLines = printer.flatMap { writer =>
     *     Iterant[IO]
     *       .fromIterator(Iterator.from(1))
-    *       .mapEval(i => IO { writer.println(s"Line #\$i") })
+    *       .mapEval(i => IO { writer.println(s"Line #$$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file
     *   // closing the writer when finished
-    *   writeLines.take(100).completeL.unsafeRunSync()
+    *   writeLines.take(100).completedL
     * }}}
     *
     * @param acquire resource to acquire at the start of the stream
@@ -2047,6 +2355,9 @@ object Iterant extends IterantInstances {
     *
     * Example:
     * {{{
+    *   import cats.effect._
+    *   import java.io.PrintWriter
+    *
     *   val printer =
     *     Iterant.resource {
     *       IO(new PrintWriter("./lines.txt"))
@@ -2059,12 +2370,12 @@ object Iterant extends IterantInstances {
     *   val writeLines = printer.flatMap { writer =>
     *     Iterant[IO]
     *       .fromIterator(Iterator.from(1))
-    *       .mapEval(i => IO { writer.println(s"Line #\$i") })
+    *       .mapEval(i => IO { writer.println(s"Line #$$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file
     *   // closing the writer when finished
-    *   writeLines.take(100).completeL.unsafeRunSync()
+    *   writeLines.take(100).completedL
     * }}}
     *
     * @param acquire an effect that acquires an expensive resource
@@ -2231,6 +2542,8 @@ object Iterant extends IterantInstances {
     * by our generator function with default `recommendedBatchSize`.
     *
     * Example: {{{
+    *   import monix.eval.Task
+    *
     *   val f = (x: Int) => (x + 1, x * 2)
     *   val seed = 1
     *   val stream = Iterant.fromStateAction[Task, Int, Int](f)(seed)
@@ -2239,7 +2552,7 @@ object Iterant extends IterantInstances {
     *   stream.take(5)
     * }}}
     *
-    * @see [[fromStateActionL]] for version supporting `F[_]`
+    * @see [[fromLazyStateAction]] for version supporting `F[_]`
     *     in result of generator function and seed element
     */
   def fromStateAction[F[_], S, A](f: S => (A, S))(seed: => S)(implicit F: Sync[F]): Iterant[F, A] = {
@@ -2265,19 +2578,20 @@ object Iterant extends IterantInstances {
     * `Iterant` that keeps generating `Next` items produced by our generator function.
     *
     * Example: {{{
-    *   val f = (x: Int) => F.pure((x + 1, x * 2))
-    *   val seed = F.pure(1)
-    *   val stream = Iterant.fromStateAction[Task, Int, Int](f)(seed)
+    *   import monix.eval.Task
+    *
+    *   val f = (x: Int) => Task((x + 1, x * 2))
+    *   val seed = Task.pure(1)
+    *   val stream = Iterant.fromLazyStateAction[Task, Int, Int](f)(seed)
     *
     *   // Yields 2, 3, 5, 9
     *   stream.take(5)
     * }}}
     *
-    * @see [[fromStateAction]] for version without `F[_]` context which generates `NextBatch` items
+    * @see [[fromStateAction]] for version without `F[_]` context which
+    *     generates `NextBatch` items
     */
-  def fromStateActionL[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] = {
-    import cats.syntax.all._
-
+  def fromLazyStateAction[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] = {
     def loop(state: S): F[Iterant[F, A]] =
       try {
         f(state).map { case (elem, newState) =>
@@ -2287,6 +2601,145 @@ object Iterant extends IterantInstances {
         case e if NonFatal(e) => F.pure(Halt(Some(e)))
       }
     Suspend(F.suspend(seed.flatMap(loop)))
+  }
+
+  /**
+    * Transforms any [[monix.catnap.ConsumerF]] into an `Iterant` stream.
+    *
+    * This allows for example consuming from a
+    * [[monix.catnap.ConcurrentChannel ConcurrentChannel]].
+    *
+    * @param consumer is the [[monix.catnap.ConsumerF]] value to transform
+    *        into an `Iterant`
+    *
+    * @param maxBatchSize is the maximum size of the emitted
+    *        [[Iterant.NextBatch]] nodes, effectively specifying how many
+    *        items can be pulled from the queue and processed in batches
+    */
+  def fromConsumer[F[_], A](consumer: Consumer[F, A], maxBatchSize: Int = 256)
+    (implicit F: Async[F]): Iterant[F, A] = {
+
+    IterantFromConsumer(consumer, maxBatchSize)
+  }
+
+  /**
+    * Transforms any [[monix.catnap.ChannelF]] into an `Iterant` stream.
+    *
+    * This allows for example consuming from a
+    * [[monix.catnap.ConcurrentChannel ConcurrentChannel]].
+    *
+    * @param channel is the [[monix.catnap.ChannelF]] value from which the
+    *        created stream will consume events
+    *
+    * @param bufferCapacity is the capacity of the internal buffer being
+    *        created; it can be either of limited capacity or unbounded
+    *
+    * @param maxBatchSize is the maximum size of the emitted
+    *        [[Iterant.NextBatch]] nodes, effectively specifying how many
+    *        items can be pulled from the queue and processed in batches
+    */
+  def fromChannel[F[_], A](
+    channel: Channel[F, A],
+    bufferCapacity: BufferCapacity = Bounded(256),
+    maxBatchSize: Int = 256)
+    (implicit F: Async[F]): Iterant[F, A] = {
+
+    val config = ConsumerF.Config(
+      capacity = Some(bufferCapacity),
+      consumerType = Some(SingleConsumer)
+    )
+    fromResource(channel.consumeWithConfig(config)).flatMap { consumer =>
+      fromConsumer(consumer, maxBatchSize)
+    }
+  }
+
+  /**
+    * Transforms any `cats.effect.Resource` into an [[Iterant]].
+    *
+    * See the
+    * [[https://typelevel.org/cats-effect/datatypes/resource.html documentation for Resource]].
+    *
+    * {{{
+    *   import cats.effect.Resource
+    *   import cats.effect.IO
+    *   import java.io._
+    *
+    *   def openFileAsResource(file: File): Resource[IO, FileInputStream] =
+    *     Resource.make(IO(new FileInputStream(file)))(h => IO(h.close()))
+    *
+    *   def openFileAsStream(file: File): Iterant[IO, FileInputStream] =
+    *     Iterant[IO].fromResource(openFileAsResource(file))
+    * }}}
+    *
+    * This example would be equivalent with usage of [[Iterant.resource]]:
+    *
+    * {{{
+    *   def openFileAsResource2(file: File): Iterant[IO, FileInputStream] = {
+    *     Iterant.resource(IO(new FileInputStream(file)))(h => IO(h.close()))
+    *   }
+    * }}}
+    *
+    * This means that `flatMap` is safe to use:
+    *
+    * {{{
+    *   def readLines(file: File): Iterant[IO, String] =
+    *     openFileAsStream(file).flatMap { in =>
+    *       val buf = new BufferedReader(new InputStreamReader(in, "utf-8"))
+    *       Iterant[IO].repeatEval(buf.readLine())
+    *         .takeWhile(_ != null)
+    *     }
+    * }}}
+    */
+  def fromResource[F[_], A](r: Resource[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+    r match {
+      case Resource.Allocate(fa) =>
+        Iterant.resourceCase(fa) { (a, ec) => a._2(ec) }.map(_._1)
+      case Resource.Bind(source, f) =>
+        Iterant.suspendS(F.delay {
+          Iterant.fromResource(source)
+            .flatMap { a => Iterant.fromResource(f(a)) }
+        })
+      case Resource.Suspend(fr) =>
+        Iterant.suspendS(F.map(fr)(fromResource(_)))
+    }
+
+  /**
+    * Returns a [[monix.catnap.ProducerF ProducerF]] instance, along with
+    * an [[Iterant]] connected to it.
+    *
+    * Internally a [[monix.catnap.ConcurrentChannel ConcurrentChannel]] is used,
+    * the paired `Iterant` acting as a [[monix.catnap.ConsumerF ConsumerF]],
+    * connecting via
+    * [[monix.catnap.ConcurrentChannel.consume ConcurrentChannel.consume]].
+    *
+    * @param bufferCapacity is the [[monix.execution.BufferCapacity capacity]]
+    *        of the internal buffer being created per evaluated `Iterant` stream
+    *
+    * @param maxBatchSize is the maximum size of the [[Iterant.NextBatch]]
+    *        nodes being emitted; this determines the maximum number of
+    *        events being processed at any one time
+    *
+    * @param producerType (UNSAFE) specifies if there are multiple concurrent
+    *        producers that will push events on the channel, or not;
+    *        [[monix.execution.ChannelType.MultiProducer MultiProducer]] is
+    *        the sane, default choice; only use
+    *        [[monix.execution.ChannelType.SingleProducer SingleProducer]]
+    *        for optimization purposes, for when you know what you're doing
+    */
+  def channel[F[_], A](
+    bufferCapacity: BufferCapacity = Bounded(256),
+    maxBatchSize: Int = 256,
+    producerType: ChannelType.ProducerSide = MultiProducer)
+    (implicit F: Concurrent[F], cs: ContextShift[F]): F[(Producer[F, A], Iterant[F, A])] = {
+
+    val channelF = ConcurrentChannel[F].withConfig[Option[Throwable], A](
+      producerType = producerType
+    )
+    F.map(channelF) { channel =>
+      val p: Producer[F, A] = channel
+      val c = fromChannel(channel, bufferCapacity, maxBatchSize)
+      (p, c)
+    }
   }
 
   /** Builds a stream that on evaluation will produce equally spaced
@@ -2329,6 +2782,7 @@ object Iterant extends IterantInstances {
     *
     * Example: infinite sequence of random numbers
     * {{{
+    *   import monix.eval.Coeval
     *   import scala.util.Random
     *
     *   val randomInts = Iterant[Coeval].repeatEval(Random.nextInt())

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.execution
 
 import java.io.{ByteArrayOutputStream, PrintStream}
 import scala.util.control.NonFatal

@@ -17,16 +17,19 @@
 
 package monix.catnap
 
-import cats.effect.{Async, Timer}
+import cats.effect.{Concurrent, ContextShift}
 import cats.implicits._
+import monix.catnap.internal.QueueHelpers
 import monix.execution.BufferCapacity.{Bounded, Unbounded}
-import monix.execution.{BufferCapacity, ChannelType}
 import monix.execution.ChannelType.MPMC
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
-import monix.execution.internal.collection.{ConcurrentQueue => LowLevelQueue}
-
+import monix.execution.atomic.AtomicAny
+import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.internal.Constants
+import monix.execution.internal.collection.{LowLevelConcurrentQueue => LowLevelQueue}
+import monix.execution.{BufferCapacity, CancelablePromise, ChannelType}
+import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration._
 
 /**
   * A high-performance, back-pressured, generic concurrent queue implementation.
@@ -50,8 +53,8 @@ import scala.concurrent.duration._
   *       println(s"Worker $$index: $$a")
   *       consumer(queue, index)
   *     }
-
-  *   for {
+ *
+ *   for {
   *     queue     <- ConcurrentQueue[IO].bounded[Int](capacity = 32)
   *     consumer1 <- consumer(queue, 1).start
   *     consumer2 <- consumer(queue, 1).start
@@ -73,28 +76,20 @@ import scala.concurrent.duration._
   * [[monix.catnap.ConcurrentQueue.bounded ConcurrentQueue.bounded]].
   * Also see [[monix.execution.BufferCapacity BufferCapacity]], the
   * configuration parameter that can be passed in the
-  * [[monix.catnap.ConcurrentQueue.custom ConcurrentQueue.custom]]
+  * [[monix.catnap.ConcurrentQueue.withConfig ConcurrentQueue.withConfig]]
   * builder.
   *
   * On [[offer]], when the queue is full, the implementation back-pressures
-  * until the queue has room again in its internal buffer, the future being
+  * until the queue has room again in its internal buffer, the task being
   * completed when the value was pushed successfully. Similarly [[poll]] awaits
   * the queue to have items in it. This works for both bounded and unbounded queues.
   *
   * For both `offer` and `poll`, in case awaiting a result happens, the
   * implementation does so asynchronously, without any threads being blocked.
   *
-  * Currently the implementation is optimized for speed. In a producer-consumer
-  * pipeline the best performance is achieved if the producer(s) and the
-  * consumer(s) do not contend for the same resources. This is why when
-  * doing asynchronous waiting for the queue to be empty or full, the
-  * implementation does so by repeatedly retrying the operation, with
-  * asynchronous boundaries and delays, until it succeeds. Fairness is
-  * ensured by the implementation.
-  *
   * ==Multi-threading Scenario==
   *
-  * This queue support a [[monix.execution.ChannelType ChannelType]]
+  * This queue supports a [[monix.execution.ChannelType ChannelType]]
   * configuration, for fine tuning depending on the needed multi-threading
   * scenario. And this can yield better performance:
   *
@@ -113,7 +108,7 @@ import scala.concurrent.duration._
   *   import monix.execution.ChannelType.MPSC
   *   import monix.execution.BufferCapacity.Bounded
   *
-  *   val queue = ConcurrentQueue[IO].custom[Int](
+  *   val queue = ConcurrentQueue[IO].withConfig[Int](
   *     capacity = Bounded(128),
   *     channelType = MPSC
   *   )
@@ -128,9 +123,8 @@ import scala.concurrent.duration._
   */
 final class ConcurrentQueue[F[_], A] private (
   capacity: BufferCapacity,
-  channelType: ChannelType,
-  retryDelay: FiniteDuration = 10.millis)
-  (implicit F: Async[F], timer: Timer[F])
+  channelType: ChannelType)
+  (implicit F: Concurrent[F], cs: ContextShift[F])
   extends Serializable {
 
   /** Try pushing a value to the queue.
@@ -145,7 +139,52 @@ final class ConcurrentQueue[F[_], A] private (
     *         full and cannot accept any more elements
     */
   @UnsafeProtocol
-  def tryOffer(a: A): F[Boolean] = F.delay(queue.offer(a) == 0)
+  def tryOffer(a: A): F[Boolean] = F.delay(tryOfferUnsafe(a))
+
+  /** Pushes a value in the queue, or if the queue is full, then repeats the
+    * operation until it succeeds.
+    *
+    * @return a task that when evaluated, will complete with a value,
+    *         or wait until such a value is ready
+    */
+  def offer(a: A): F[Unit] = F.suspend {
+    if (tryOfferUnsafe(a))
+      F.unit
+    else
+      offerWait(a)
+  }
+
+  /** Pushes multiple values in the queue. Back-pressures if the queue is full.
+    *
+    * @return a task that will eventually complete when the
+    *         push has succeeded; it can also be cancelled, interrupting the
+    *         waiting
+    */
+  def offerMany(seq: Iterable[A]): F[Unit] = {
+    // Recursive, async loop
+    def loop(cursor: Iterator[A]): F[Unit] = {
+      var elem: A = null.asInstanceOf[A]
+      var hasCapacity = true
+      // Happy path
+      while (hasCapacity && cursor.hasNext) {
+        elem = cursor.next()
+        hasCapacity = queue.offer(elem) == 0
+      }
+      // Awaken sleeping consumers
+      notifyConsumers()
+      // Do we need to await on consumers?
+      if (!hasCapacity) {
+        offerWait(elem).flatMap(_ => loop(cursor))
+      } else {
+        F.unit
+      }
+    }
+
+    F.suspend {
+      val cursor = seq.iterator
+      loop(cursor)
+    }
+  }
 
   /** Try pulling a value out of the queue.
     *
@@ -159,54 +198,26 @@ final class ConcurrentQueue[F[_], A] private (
   @UnsafeProtocol
   def tryPoll: F[Option[A]] = tryPollRef
 
-  /** Fetches a value from the queue, or if the queue is empty continuously
-    * polls the queue until a value is made available.
+  /** Fetches a value from the queue, or if the queue is empty it awaits
+    * asynchronously until a value is made available.
     *
     * @return a task that when evaluated, will eventually complete
     *         after the value has been successfully pushed in the queue
     */
   def poll: F[A] = pollRef
-
-  /** Pushes a value in the queue, or if the queue is full, then repeats the
-    * operation until it succeeds.
-    *
-    * @return a task that when evaluated, will complete with a value,
-    *         or wait until such a value is ready
-    */
-  def offer(a: A): F[Unit] = F.suspend {
-    queue.offer(a) match {
-      case 0 => F.unit
-      case _ => offerWait(a)
-    }
-  }
-
-  /** Pushes multiple values in the queue. Back-pressures if the queue is full.
-    *
-    * @return a task that will eventually complete when the
-    *         push has succeeded; it can also be cancelled, interrupting the
-    *         waiting
-    */
-  def offerMany(seq: A*): F[Unit] = {
-    // Recursive, async loop
-    def loop(cursor: Iterator[A]): F[Unit] = {
-      var elem: A = null.asInstanceOf[A]
-      var hasCapacity = true
-      // Happy path
-      while (hasCapacity && cursor.hasNext) {
-        elem = cursor.next()
-        hasCapacity = queue.offer(elem) == 0
-      }
-      if (!hasCapacity) {
-        offerWait(elem).flatMap(_ => loop(cursor))
-      } else {
-        F.unit
-      }
-    }
-
-    F.suspend {
-      val cursor = seq.iterator
-      loop(cursor)
-    }
+  private[this] val pollRef = F.suspend[A] {
+    val happy = tryPollUnsafe()
+    //noinspection ForwardReference
+    if (happy != null)
+      F.pure(happy)
+    else
+      F.asyncF(cb => helpers.sleepThenRepeat(
+        consumersAwaiting,
+        pollQueue,
+        pollTest,
+        pollMap,
+        cb
+      ))
   }
 
   /** Fetches multiple elements from the queue, if available.
@@ -227,20 +238,20 @@ final class ConcurrentQueue[F[_], A] private (
     F.suspend {
       assert(minLength <= maxLength, s"minLength ($minLength) <= maxLength ($maxLength")
       val buffer = ArrayBuffer.empty[A]
+      val length = tryDrainUnsafe(buffer, maxLength)
 
-      val length = queue.drainToBuffer(buffer, maxLength)
       // Happy path
       if (length >= minLength) {
         F.pure(toSeq(buffer))
       } else {
         // Going async
-        F.asyncF { cb =>
-          polled[Int, Seq[A]](
-            () => queue.drainToBuffer(buffer, maxLength - buffer.length),
-            _ => buffer.length >= minLength,
-            _ => toSeq(buffer),
-            cb)
-        }
+        F.asyncF(cb => helpers.sleepThenRepeat[Int, Seq[A]](
+          consumersAwaiting,
+          () => tryDrainUnsafe(buffer, maxLength - buffer.length),
+          _ => buffer.length >= minLength,
+          _ => toSeq(buffer),
+          cb
+        ))
       }
     }
 
@@ -254,67 +265,99 @@ final class ConcurrentQueue[F[_], A] private (
     * so it must be called from the same thread(s) that call [[poll]].
     */
   def clear: F[Unit] = clearRef
+  //noinspection ForwardReference
+  private[this] val clearRef = F.delay {
+    queue.clear()
+    notifyProducers()
+  }
 
-  private def offerWait(a: A): F[Unit] =
-    F.asyncF(cb => polled[Int, Unit](() => queue.offer(a), offerTest, offerId, cb))
+  private def tryOfferUnsafe(a: A): Boolean = {
+    if (queue.offer(a) == 0) {
+      notifyConsumers()
+      true
+    } else {
+      false
+    }
+  }
 
-  private def polled[T, U](f: () => T, test: T => Boolean, map: T => U, cb: Either[Throwable, U] => Unit): F[Unit] =
-    timer.clock.monotonic(NANOSECONDS).flatMap { start =>
-      var task: F[Unit] = F.unit
-      val bind: Unit => F[Unit] = _ => task
-      task = F.suspend {
-        val value = f()
-        if (test(value)) {
-          cb(Right(map(value)))
-          F.unit
+  private def tryPollUnsafe(): A = {
+    val a = queue.poll()
+    notifyProducers()
+    a
+  }
+
+  private def tryDrainUnsafe(buffer: ArrayBuffer[A], maxLength: Int): Int = {
+    val length = queue.drainToBuffer(buffer, maxLength)
+    if (length > 0) notifyProducers()
+    length
+  }
+
+  @tailrec
+  private def notifyConsumers(): Unit = {
+    // N.B. in case the queue is single-producer, this is a full memory fence
+    // meant to prevent the re-ordering of `queue.offer` with `consumersAwait.get`
+    queue.fenceOffer()
+
+    val ref = consumersAwaiting.get()
+    if (ref ne null) {
+      if (consumersAwaiting.compareAndSet(ref, null)) {
+        ref.complete(Constants.successOfUnit)
+      } else {
+        notifyConsumers()
+      }
+    }
+  }
+
+  @tailrec
+  private def notifyProducers(): Unit =
+    if (producersAwaiting ne null) {
+      // N.B. in case this isn't a multi-consumer queue, this generates a
+      // full memory fence in order to prevent the re-ordering of queue.poll()
+      // with `producersAwait.get`
+      queue.fencePoll()
+
+      val ref = producersAwaiting.get()
+      if (ref ne null) {
+        if (producersAwaiting.compareAndSet(ref, null)) {
+          ref.complete(Constants.successOfUnit)
         } else {
-          polledLoop(task, bind, start)
+          notifyProducers()
         }
       }
-      F.flatMap(asyncBoundary)(bind)
     }
 
-  private def polledLoop[T, U](task: F[Unit], bind: Unit => F[Unit], start: Long): F[Unit] =
-    timer.clock.monotonic(NANOSECONDS).flatMap { now =>
-      val next = if (now - start < retryDelayNanos)
-        asyncBoundary
-      else
-        timer.sleep(retryDelay)
-
-      F.flatMap(next)(bind)
-    }
+  private def offerWait(a: A): F[Unit] =
+    F.asyncF(cb => helpers.sleepThenRepeat(
+      producersAwaiting,
+      () => tryOfferUnsafe(a),
+      offerTest,
+      offerMap,
+      cb
+    ))
 
   private[this] val queue: LowLevelQueue[A] =
-    LowLevelQueue(capacity, channelType)
-  private[this] val retryDelayNanos =
-    retryDelay.toNanos
+    LowLevelQueue(capacity, channelType, fenced = true)
+  private[this] val helpers: QueueHelpers[F] =
+    new QueueHelpers[F]
 
-  private[this] val pollQueue: () => A = () => queue.poll()
+  private[this] val consumersAwaiting =
+    AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
+
+  private[this] val producersAwaiting =
+    if (capacity.isBounded)
+      AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
+    else
+      null
+
+  private[this] val pollQueue: () => A = () => tryPollUnsafe()
   private[this] val pollTest: A => Boolean = _ != null
-  private[this] val pollId: A => A = a => a
-  private[this] val offerTest: Int => Boolean = _ == 0
-  private[this] val offerId: Int => Unit = _ => ()
-
-  private[this] val asyncBoundary: F[Unit] =
-    timer.sleep(Duration.Zero)
+  private[this] val pollMap: A => A = a => a
+  private[this] val offerTest: Boolean => Boolean = x => x
+  private[this] val offerMap: Boolean => Unit = _ => ()
 
   /** Cached implementation for [[tryPoll]]. */
   private[this] val tryPollRef =
-    F.delay(Option(queue.poll()))
-
-  /** Cached implementation for [[poll]]. */
-  private[this] val pollRef = F.suspend[A] {
-    val happy = queue.poll()
-    if (happy != null)
-      F.pure(happy)
-    else
-      F.asyncF { cb =>
-        polled[A, A](pollQueue, pollTest, pollId, cb)
-      }
-  }
-
-  /** Cached implementation for [[clear]]. */
-  private[this] val clearRef = F.delay(queue.clear())
+    F.delay(Option(tryPollUnsafe()))
 
   private def toSeq(buffer: ArrayBuffer[A]): Seq[A] =
     buffer.toArray[Any].toSeq.asInstanceOf[Seq[A]]
@@ -327,23 +370,25 @@ final class ConcurrentQueue[F[_], A] private (
   * @define bufferCapacityParam specifies the `BufferCapacity`, which can be
   *         either "bounded" (with a maximum capacity), or "unbounded"
   *
-  * @define asyncParam is a `cats.effect.Async` type class restriction; this
-  *         queue is built to work with any `Async` data type
+  * @define concurrentParam is a `cats.effect.Concurrent` type class restriction;
+  *         this queue is built to work with `Concurrent` data types
   *
-  * @define timerParam is a `Timer`, needed for asynchronous waiting on `poll`
-  *         when the queue is empty or for back-pressuring `offer` when the
-  *         queue is full
+  * @define csParam is a `ContextShift`, needed for triggering async boundaries
+  *         for fairness reasons, in case there's a need to back-pressure on
+  *         the internal buffer
   */
 object ConcurrentQueue {
   /**
-    * Builds an [[ConcurrentQueue]] value for `F` data types that are either
-    * `Async`.
+    * Builds an [[ConcurrentQueue]] value for `F` data types that implement
+    * the `Concurrent` type class.
     *
     * This builder uses the
     * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]
     * technique.
+    *
+    * @param F $concurrentParam
     */
-  def apply[F[_]](implicit F: Async[F]): ApplyBuilders[F] =
+  def apply[F[_]](implicit F: Concurrent[F]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
 
   /**
@@ -357,11 +402,11 @@ object ConcurrentQueue {
     *        buffer can get rounded to a power of 2, so the actual capacity may
     *        be slightly different than the one specified
     *
-    * @param timer $timerParam
-    * @param F $asyncParam
+    * @param cs $csParam
+    * @param F $concurrentParam
     */
-  def bounded[F[_], A](capacity: Int)(implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-    custom(Bounded(capacity), MPMC)
+  def bounded[F[_], A](capacity: Int)(implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+    withConfig(Bounded(capacity), MPMC)
 
   /**
     * Builds an unlimited [[ConcurrentQueue]] that can use the entire memory
@@ -375,12 +420,12 @@ object ConcurrentQueue {
     *        of a chunk; providing it is just a hint, it may or may not be
     *        used
     *
-    * @param timer $timerParam
-    * @param F $asyncParam
+    * @param cs $csParam
+    * @param F $concurrentParam
     */
   def unbounded[F[_], A](chunkSizeHint: Option[Int] = None)
-    (implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-    custom(Unbounded(chunkSizeHint), MPMC)
+    (implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+    withConfig(Unbounded(chunkSizeHint), MPMC)
 
   /**
     * Builds an [[ConcurrentQueue]] with fined tuned config parameters.
@@ -391,14 +436,13 @@ object ConcurrentQueue {
     *
     * @param capacity $bufferCapacityParam
     * @param channelType $channelTypeDesc
-    * @param timer $timerParam
-    * @param F $asyncParam
+    *
+    * @param cs $csParam
+    * @param F $concurrentParam
     */
   @UnsafeProtocol
-  def custom[F[_], A](
-    capacity: BufferCapacity,
-    channelType: ChannelType)
-    (implicit F: Async[F], timer: Timer[F]): F[ConcurrentQueue[F, A]] = {
+  def withConfig[F[_], A](capacity: BufferCapacity, channelType: ChannelType)
+    (implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentQueue[F, A]] = {
 
     F.delay(unsafe(capacity, channelType))
   }
@@ -412,52 +456,51 @@ object ConcurrentQueue {
     *
     * '''UNSAFE BECAUSE IMPURE:''' this builder violates referential
     * transparency, as the queue keeps internal, shared state. Only use when
-    * you know what you're doing, otherwise prefer [[ConcurrentQueue.custom]]
+    * you know what you're doing, otherwise prefer [[ConcurrentQueue.withConfig]]
     * or [[ConcurrentQueue.bounded]].
     *
     * @param capacity $bufferCapacityParam
     * @param channelType $channelTypeDesc
-    * @param timer $timerParam
-    * @param F $asyncParam
+    *
+    * @param cs $csParam
+    * @param F $concurrentParam
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def unsafe[F[_], A](
-    capacity: BufferCapacity,
-    channelType: ChannelType = MPMC)
-    (implicit F: Async[F], timer: Timer[F]): ConcurrentQueue[F, A] = {
+  def unsafe[F[_], A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
+    (implicit F: Concurrent[F], cs: ContextShift[F]): ConcurrentQueue[F, A] = {
 
-    new ConcurrentQueue[F, A](capacity, channelType)(F, timer)
+    new ConcurrentQueue[F, A](capacity, channelType)(F, cs)
   }
 
   /**
     * Returned by the [[apply]] builder.
     */
-  final class ApplyBuilders[F[_]](val F: Async[F]) extends AnyVal {
+  final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
     /**
       * @see documentation for [[ConcurrentQueue.bounded]]
       */
-    def bounded[A](capacity: Int)(implicit timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-      ConcurrentQueue.bounded(capacity)(F, timer)
+    def bounded[A](capacity: Int)(implicit cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+      ConcurrentQueue.bounded(capacity)(F, cs)
 
     /**
       * @see documentation for [[ConcurrentQueue.unbounded]]
       */
-    def unbounded[A](chunkSizeHint: Option[Int])(implicit timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-      ConcurrentQueue.unbounded(chunkSizeHint)(F, timer)
+    def unbounded[A](chunkSizeHint: Option[Int])(implicit cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+      ConcurrentQueue.unbounded(chunkSizeHint)(F, cs)
 
     /**
-      * @see documentation for [[ConcurrentQueue.custom]]
+      * @see documentation for [[ConcurrentQueue.withConfig]]
       */
-    def custom[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
-      (implicit timer: Timer[F]): F[ConcurrentQueue[F, A]] =
-      ConcurrentQueue.custom(capacity, channelType)(F, timer)
+    def withConfig[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
+      (implicit cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+      ConcurrentQueue.withConfig(capacity, channelType)(F, cs)
 
     /**
       * @see documentation for [[ConcurrentQueue.unsafe]]
       */
     def unsafe[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
-      (implicit timer: Timer[F]): ConcurrentQueue[F, A] =
-      ConcurrentQueue.unsafe(capacity, channelType)(F, timer)
+      (implicit cs: ContextShift[F]): ConcurrentQueue[F, A] =
+      ConcurrentQueue.unsafe(capacity, channelType)(F, cs)
   }
 }

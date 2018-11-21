@@ -18,11 +18,14 @@
 package monix.execution.internal.collection.queues
 
 import java.util
-import monix.execution.internal.collection.ConcurrentQueue
+import monix.execution.internal.collection.LowLevelConcurrentQueue
 import scala.collection.mutable
 
 private[internal] class FromJavaQueue[A](queue: util.Queue[A])
-  extends ConcurrentQueue[A] {
+  extends LowLevelConcurrentQueue[A] {
+
+  final def fenceOffer(): Unit = ()
+  final def fencePoll(): Unit = ()
 
   final def offer(elem: A): Int =
     if (queue.offer(elem)) 0 else 1

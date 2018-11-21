@@ -403,7 +403,7 @@ Features for `monix-tail`:
   add `Iterant.fromStateAction` and `fromStateActionL`
 - [PR #567](https://github.com/monix/monix/pull/567)
   (related to [#563](https://github.com/monix/monix/issues/563)):
-  `completeL` should handle `F[_]` errors, `mapEval` should not
+  `completedL` should handle `F[_]` errors, `mapEval` should not
 - [PR #569](https://github.com/monix/monix/pull/569)
   (related to [#563](https://github.com/monix/monix/issues/563)):
   `Iterant` fold left operators (yielding `F[_]`) need to handle errors 

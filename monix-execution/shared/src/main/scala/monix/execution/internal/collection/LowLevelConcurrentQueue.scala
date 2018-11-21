@@ -17,12 +17,14 @@
 
 package monix.execution.internal.collection
 
-private[monix] trait ConcurrentQueue[A] extends Serializable {
+private[monix] trait LowLevelConcurrentQueue[A] extends Serializable {
   def offer(a: A): Int
   def poll(): A
   def drainToBuffer(buffer: scala.collection.mutable.Buffer[A], limit: Int): Int
   def clear(): Unit
+  def fenceOffer(): Unit
+  def fencePoll(): Unit
 }
 
-private[monix] object ConcurrentQueue
-  extends queues.ConcurrentQueueBuilders
+private[monix] object LowLevelConcurrentQueue
+  extends queues.LowLevelConcurrentQueueBuilders

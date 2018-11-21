@@ -41,7 +41,7 @@ import scala.util.{Failure, Success}
   *       Continue
   *     }
   *     def onError(e: Throwable) =
-  *       e.printStackTrace()
+  *       println(s"Error: $$e")
   *     def onComplete() =
   *       println("Completed!")
   *   }

@@ -27,4 +27,6 @@ private[monix] object Constants {
   val eitherOfUnit: Either[Nothing, Unit] = Right(())
 
   val successOfUnit: Try[Unit] = Success(())
+
+  val toUnit = (_: Any) => Unit
 }

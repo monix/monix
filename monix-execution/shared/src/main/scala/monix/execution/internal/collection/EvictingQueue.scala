@@ -17,7 +17,7 @@
 
 package monix.execution.internal.collection
 
-private[monix] trait EvictingQueue[A] extends Buffer[A] with ConcurrentQueue[A] {
+private[monix] trait EvictingQueue[A] extends Buffer[A] {
   /**
     * Returns the capacity of this queue.
     */

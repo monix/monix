@@ -37,11 +37,13 @@ import scala.reflect.ClassTag
   *
   * Sample:
   * {{{
-  *   try while (cursor.hasNext()) {
-  *     println(cursor.next())
-  *   }
-  *   catch {
-  *     case NonFatal(ex) => report(ex)
+  *   def sum(cursor: BatchCursor[Int]): Long = {
+  *     var sum = 0L
+  *
+  *     while (cursor.hasNext()) {
+  *       sum += cursor.next()
+  *     }
+  *     sum
   *   }
   * }}}
   *

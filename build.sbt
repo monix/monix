@@ -30,7 +30,7 @@ val minitestVersion = "2.1.1"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0-RC1"
+val monixSeries = "3.0.0-RC2"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -303,7 +303,7 @@ lazy val cmdlineProfile =
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0_RC2
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0
 )
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
@@ -376,7 +376,7 @@ lazy val catnapJVM = project.in(file("monix-catnap/jvm"))
   .configure(profile)
   .dependsOn(executionJVM % "compile->compile; test->test")
   .settings(catnapCommon)
-  //.settings(mimaSettings("monix-catnap"))
+  .settings(mimaSettings("monix-catnap"))
   .settings(doctestTestSettings)
 
 lazy val catnapJS = project.in(file("monix-catnap/js"))
@@ -387,7 +387,7 @@ lazy val catnapJS = project.in(file("monix-catnap/js"))
   .settings(catnapCommon)
 
 lazy val evalCommon =
-  crossSettings ++ crossVersionSharedSources ++ testSettings ++ 
+  crossSettings ++ crossVersionSharedSources ++ testSettings ++
     Seq(
       name := "monix-eval"
     )
@@ -416,14 +416,16 @@ lazy val tailCommon =
 lazy val tailJVM = project.in(file("monix-tail/jvm"))
   .configure(profile)
   .dependsOn(evalJVM % "test->test")
-  .dependsOn(executionJVM)
+  .dependsOn(catnapJVM)
   .settings(tailCommon)
+  .settings(doctestTestSettings)
+  .settings(mimaSettings("monix-tail"))
 
 lazy val tailJS = project.in(file("monix-tail/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
   .dependsOn(evalJS % "test->test")
-  .dependsOn(executionJS)
+  .dependsOn(catnapJS)
   .settings(scalaJSSettings)
   .settings(tailCommon)
 

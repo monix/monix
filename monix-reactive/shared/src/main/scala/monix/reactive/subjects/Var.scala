@@ -33,7 +33,7 @@ import monix.reactive.observers.Subscriber
   *   import monix.reactive._
   *   import monix.reactive.subjects.Var
   *   import monix.execution.Scheduler.Implicits.global
-  * 
+  *
   *   val a = Var(0)
   *   val b = Var(0)
   *
