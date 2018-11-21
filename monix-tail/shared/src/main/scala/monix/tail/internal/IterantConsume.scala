@@ -19,22 +19,17 @@ package monix.tail
 package internal
 
 import cats.implicits._
-import cats.effect.{Concurrent, Resource, Timer}
-import monix.catnap.ConcurrentChannel
-import monix.execution.BufferCapacity.Bounded
-import monix.execution.{BufferCapacity, ChannelType}
-import monix.execution.ChannelType.{MultiConsumer, SingleProducer}
+import cats.effect.{Concurrent, ContextShift, Resource}
+import monix.catnap.{ConcurrentChannel, ConsumerF}
+import monix.execution.ChannelType.SingleProducer
 import monix.tail.Iterant.Consumer
 
 private[tail] object IterantConsume {
   /**
     * Implementation for [[Iterant.consume]].
     */
-  def apply[F[_], A](
-    self: Iterant[F, A],
-    capacity: BufferCapacity = Bounded(256),
-    consumerType: ChannelType.ConsumerSide = MultiConsumer)
-    (implicit F: Concurrent[F], timer: Timer[F]): Resource[F, Consumer[F, A]] = {
+  def apply[F[_], A](self: Iterant[F, A], cfg: ConsumerF.Config)
+    (implicit F: Concurrent[F], cs: ContextShift[F]): Resource[F, Consumer[F, A]] = {
 
     /*_*/
     val res = Resource.apply {
@@ -47,7 +42,7 @@ private[tail] object IterantConsume {
         val fiber = F.start(F.flatMap(latch)(_ => produce))
 
         F.map(fiber) { fiber =>
-          (channel.consumeWithConfig(capacity, consumerType), fiber.cancel)
+          (channel.consumeWithConfig(cfg), fiber.cancel)
         }
       }
     }

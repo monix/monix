@@ -23,11 +23,10 @@ import cats.implicits._
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{Applicative, CoflatMap, Defer, Eq, Functor, FunctorFilter, MonadError, Monoid, MonoidK, Order, Parallel, StackSafeMonad}
-
-import monix.catnap.ConcurrentChannel
+import monix.catnap.{ConcurrentChannel, ConsumerF}
 import monix.execution.BufferCapacity.Bounded
 import monix.execution.{BufferCapacity, ChannelType}
-import monix.execution.ChannelType.{MultiConsumer, MultiProducer, SingleConsumer}
+import monix.execution.ChannelType.{MultiProducer, SingleConsumer}
 import monix.execution.annotations.UnsafeProtocol
 import monix.execution.internal.Platform
 
@@ -1756,11 +1755,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   }
     * }}}
     *
-    * @see [[consumeCustom]] for fine tuning the internal buffer of the
+    * @see [[consumeWithConfig]] for fine tuning the internal buffer of the
     *      created consumer
     */
-  final def consume(implicit F: Concurrent[F], timer: Timer[F]): Resource[F, Consumer[F, A]] =
-    consumeCustom()
+  final def consume(implicit F: Concurrent[F], cs: ContextShift[F]): Resource[F, Consumer[F, A]] =
+    consumeWithConfig(ConsumerF.Config.default)(F, cs)
 
   /** Version of [[consume]] that allows for fine tuning the underlying
     * buffer used.
@@ -1772,6 +1771,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *    unlimited internal buffer in case the consumer is definitely faster
     *    than the producer, or [[monix.execution.BufferCapacity.Bounded Bounded]]
     *    in case back-pressuring a slow consumer is desirable
+    *
     *  - the [[monix.execution.ChannelType.ConsumerSide ChannelType.ConsumerSide]],
     *    which specifies if this consumer will use multiple workers in parallel
     *    or not; this is an optimization, with the safe choice being
@@ -1782,20 +1782,14 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *    that the data will be read sequentially by a single worker, not in
     *    parallel; this being a risky optimization
     *
-    * @param capacity is the capacity of the internal buffer created for this
-    *        consumer; see [[monix.execution.BufferCapacity BufferCapacity]]
-    *
-    * @param consumerType (UNSAFE) specifies the type of the consumer in a
-    *        multi-threaded setting; see
-    *        [[monix.execution.ChannelType.ConsumerSide ChannelType.ConsumerSide]]
+    * @param config is the configuration object for fine tuning the behavior
+    *        of the created consumer, see [[ConsumerF.Config]]
     */
   @UnsafeProtocol
-  final def consumeCustom(
-    capacity: BufferCapacity = Bounded(256),
-    consumerType: ChannelType.ConsumerSide = MultiConsumer)
-    (implicit F: Concurrent[F], timer: Timer[F]): Resource[F, Consumer[F, A]] = {
+  final def consumeWithConfig(config: ConsumerF.Config)
+    (implicit F: Concurrent[F], cs: ContextShift[F]): Resource[F, Consumer[F, A]] = {
 
-    IterantConsume(self, capacity, consumerType)
+    IterantConsume(self, config)(F, cs)
   }
 
   /** Converts this `Iterant` into an `org.reactivestreams.Publisher`.
@@ -2673,10 +2667,11 @@ object Iterant extends IterantInstances {
   def channel[F[_], A](
     bufferCapacity: BufferCapacity = Bounded(256),
     producerType: ChannelType.ProducerSide = MultiProducer)
-    (implicit F: Async[F], timer: Timer[F]): F[(Producer[F, A], Iterant[F, A])] = {
+    (implicit F: Concurrent[F], cs: ContextShift[F]): F[(Producer[F, A], Iterant[F, A])] = {
 
+    val default = ConsumerF.Config(Some(bufferCapacity))
     val channelF = ConcurrentChannel[F].withConfig[Option[Throwable], A](
-      bufferCapacity,
+      defaultConsumerConfig = default,
       producerType
     )
     val maxBatchSize = bufferCapacity match {
@@ -2685,8 +2680,8 @@ object Iterant extends IterantInstances {
     }
     F.map(channelF) { channel =>
       val p: Producer[F, A] = channel
-      val c = fromResource(channel.consumeWithConfig(consumerType = SingleConsumer))
-        .flatMap(fromConsumer(_, maxBatchSize))
+      val cfg = default.copy(consumerType = Some(SingleConsumer))
+      val c = fromResource(channel.consumeWithConfig(cfg)).flatMap(fromConsumer(_, maxBatchSize))
       (p, c)
     }
   }

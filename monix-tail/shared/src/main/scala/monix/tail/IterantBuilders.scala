@@ -269,7 +269,7 @@ object IterantBuilders {
     def channel[A](
       bufferCapacity: BufferCapacity = Bounded(256),
       producerType: ChannelType.ProducerSide = MultiProducer)
-      (implicit F: Async[F], timer: Timer[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] =
+      (implicit F: Concurrent[F], cs: ContextShift[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] =
       Iterant.channel(bufferCapacity, producerType)
   }
 }
