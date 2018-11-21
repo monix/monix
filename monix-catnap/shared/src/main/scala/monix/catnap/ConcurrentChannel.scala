@@ -408,11 +408,6 @@ final class ConcurrentChannel[F[_], E, A] private (
     */
   @UnsafeProtocol
   def consumeWithConfig(config: ConsumerF.Config): Resource[F, ConsumerF[F, E, A]] = {
-    val isFinished = () => state.get() match {
-      case Halt(e) => Some(e)
-      case _ => None
-    }
-
     Resource.apply[F, ConsumerF[F, E, A]] {
       F.delay {
         val capacity = config.capacity.getOrElse(Bounded(Platform.recommendedBatchSize))
@@ -499,6 +494,11 @@ final class ConcurrentChannel[F[_], E, A] private (
     }
 
   private[this] val helpers = new Helpers[F]
+  private[this] val isFinished = () =>
+    state.get() match {
+      case Halt(e) => Some(e)
+      case _ => None
+    }
 }
 
 /**
@@ -827,7 +827,12 @@ object ConcurrentChannel {
 
     def pull: F[Either[E, A]] = pullRef
     private[this] val pullRef: F[Either[E, A]] = {
-      def end(e: E): Either[E, A] =
+      def end(e: E): Either[E, A] = {
+        // Ensures a memory barrier (if needed for the queue's type) that prevents
+        // the reordering of queue.poll with the previous state.get, from the
+        // "isFinished" call
+        queue.fencePoll()
+        // Checking queue one more time
         queue.poll() match {
           case null =>
             Left(e)
@@ -835,6 +840,7 @@ object ConcurrentChannel {
             notifyProducers()
             Right(a)
         }
+      }
 
       val task: () => Either[E, A] = () => queue.poll() match {
         case null =>
@@ -865,6 +871,11 @@ object ConcurrentChannel {
 
     def pullMany(minLength: Int, maxLength: Int): F[Either[E, Seq[A]]] = {
       def end(buffer: ArrayBuffer[A], maxLength: Int, e: E): Either[E, Seq[A]] = {
+        // Ensures a memory barrier (if needed for the queue's type) that prevents
+        // the reordering of queue.drainToBuffer with the previous state.get,
+        // from the "isFinished" call
+        queue.fencePoll()
+
         val extracted = queue.drainToBuffer(buffer, maxLength - buffer.length)
         if (extracted > 0) {
           notifyProducers()
