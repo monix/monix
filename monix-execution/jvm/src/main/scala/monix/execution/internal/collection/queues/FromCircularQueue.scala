@@ -20,13 +20,13 @@ package monix.execution.internal.collection.queues
 import monix.execution.ChannelType
 import monix.execution.ChannelType.{SingleConsumer, SingleProducer}
 import monix.execution.internal.atomic.UnsafeAccess
-import monix.execution.internal.collection.ConcurrentQueue
+import monix.execution.internal.collection.LowLevelConcurrentQueue
 import org.jctools.queues.ConcurrentCircularArrayQueue
 import sun.misc.Unsafe
 import scala.collection.mutable
 
 private[internal] abstract class FromCircularQueue[A](queue: ConcurrentCircularArrayQueue[A])
-  extends ConcurrentQueue[A] {
+  extends LowLevelConcurrentQueue[A] {
 
   def fenceOffer(): Unit
   def fencePoll(): Unit

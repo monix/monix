@@ -15,18 +15,16 @@
  * limitations under the License.
  */
 
-package monix.execution.internal.collection.queues
+package monix.execution.internal.collection
 
-import monix.execution.{BufferCapacity, ChannelType}
-import monix.execution.internal.collection.{JSArrayQueue, ConcurrentQueue}
-
-private[internal] trait ConcurrentQueueBuilders {
-  /**
-    * Builds a `ConcurrentQueue` reference.
-    */
-  def apply[A](capacity: BufferCapacity, channelType: ChannelType, fenced: Boolean): ConcurrentQueue[A] =
-    capacity match {
-      case BufferCapacity.Bounded(c) => JSArrayQueue.bounded[A](c)
-      case BufferCapacity.Unbounded(_) => JSArrayQueue.unbounded[A]
-    }
+private[monix] trait LowLevelConcurrentQueue[A] extends Serializable {
+  def offer(a: A): Int
+  def poll(): A
+  def drainToBuffer(buffer: scala.collection.mutable.Buffer[A], limit: Int): Int
+  def clear(): Unit
+  def fenceOffer(): Unit
+  def fencePoll(): Unit
 }
+
+private[monix] object LowLevelConcurrentQueue
+  extends queues.LowLevelConcurrentQueueBuilders

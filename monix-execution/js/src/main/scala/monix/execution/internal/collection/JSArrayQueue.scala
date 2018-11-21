@@ -18,7 +18,6 @@
 package monix.execution.internal.collection
 
 import monix.execution.internal.math._
-
 import scala.collection.mutable
 import scala.scalajs.js
 
@@ -28,7 +27,7 @@ import scala.scalajs.js
   */
 private[monix] final class JSArrayQueue[A] private
   (_size: Int, triggerEx: Int => Throwable = null)
-  extends EvictingQueue[A] {
+  extends EvictingQueue[A] with LowLevelConcurrentQueue[A] {
 
   private[this] var queue = new js.Array[A]()
   private[this] var offset = 0

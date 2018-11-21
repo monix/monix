@@ -23,7 +23,7 @@ import monix.execution.BufferCapacity.{Bounded, Unbounded}
 import monix.execution.{BufferCapacity, ChannelType}
 import monix.execution.ChannelType.MPMC
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
-import monix.execution.internal.collection.{ConcurrentQueue => LowLevelQueue}
+import monix.execution.internal.collection.{LowLevelConcurrentQueue => LowLevelQueue}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._

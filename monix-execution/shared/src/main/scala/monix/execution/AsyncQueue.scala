@@ -20,7 +20,7 @@ package monix.execution
 import monix.execution.ChannelType.MPMC
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.cancelables.MultiAssignCancelable
-import monix.execution.internal.collection.ConcurrentQueue
+import monix.execution.internal.collection.LowLevelConcurrentQueue
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
@@ -248,8 +248,8 @@ final class AsyncQueue[A] private (
   @UnsafeBecauseImpure
   def clear(): Unit = queue.clear()
 
-  private[this] val queue: ConcurrentQueue[A] =
-    ConcurrentQueue(capacity, channelType, fenced = true)
+  private[this] val queue: LowLevelConcurrentQueue[A] =
+    LowLevelConcurrentQueue(capacity, channelType, fenced = true)
   private[this] val retryDelayNanos =
     retryDelay.toNanos
 

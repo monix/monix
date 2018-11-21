@@ -17,14 +17,14 @@
 
 package monix.catnap
 
-import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
+import cats.effect.{Concurrent, ContextShift, Resource}
 import monix.execution.BufferCapacity.{Bounded, Unbounded}
 import monix.execution.ChannelType.{MultiConsumer, MultiProducer}
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.atomic.AtomicAny
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import monix.execution.internal.collection.{ConcurrentQueue => LowLevelQueue}
+import monix.execution.internal.collection.{LowLevelConcurrentQueue => LowLevelQueue}
 import monix.execution.internal.{Constants, Platform}
 import monix.execution.{CancelablePromise, ChannelType}
 import scala.annotation.{switch, tailrec}
@@ -722,6 +722,7 @@ object ConcurrentChannel {
       // N.B. in case the queue is single-producer, this is a full memory fence
       // meant to prevent the re-ordering of `queue.offer` with `consumersAwait.get`
       queue.fenceOffer()
+
       val ref = consumersAwait.get()
       if (ref ne null) {
         if (consumersAwait.compareAndSet(ref, null)) {
@@ -811,6 +812,7 @@ object ConcurrentChannel {
         // full memory fence in order to prevent the re-ordering of queue.poll()
         // with `producersAwait.get`
         queue.fencePoll()
+
         val ref = producersAwait.get()
         if (ref ne null) {
           if (producersAwait.compareAndSet(ref, null)) {
@@ -922,15 +924,41 @@ object ConcurrentChannel {
     val boolTest = (b: Boolean) => b
     val unitTest = (_: Unit) => true
 
+    @tailrec
     def sleepThenRepeat[T, U](
-      awaitState: AtomicAny[CancelablePromise[Unit]],
+      state: AtomicAny[CancelablePromise[Unit]],
       f: () => T,
       filter: T => Boolean,
       map: T => U,
       cb: Either[Throwable, U] => Unit)
       (implicit F: Concurrent[F]): F[Unit] = {
 
-      def process(p: CancelablePromise[Unit], bind: Unit => F[Unit]): F[Unit] = {
+      // Registering intention to sleep via promise
+      state.get() match {
+        case null =>
+          val ref = CancelablePromise[Unit]()
+          if (!state.compareAndSet(null, ref))
+            sleepThenRepeat(state, f, filter, map, cb)
+          else
+            sleepThenRepeat_Step2TryAgainThenSleep(state, f, filter, map, cb)(ref)
+
+        case ref =>
+          sleepThenRepeat_Step2TryAgainThenSleep(state, f, filter, map, cb)(ref)
+      }
+    }
+
+    private def sleepThenRepeat_Step2TryAgainThenSleep[T, U](
+      state: AtomicAny[CancelablePromise[Unit]],
+      f: () => T,
+      filter: T => Boolean,
+      map: T => U,
+      cb: Either[Throwable, U] => Unit)
+      (p: CancelablePromise[Unit])
+      (implicit F: Concurrent[F]): F[Unit] = {
+
+      // Async boundary, for fairness reasons; also creates a full
+      // memory barrier between the promise registration and what follows
+      F.flatMap(asyncBoundary) { _ =>
         // Trying to read one more time
         val value = f()
         if (filter(value)) {
@@ -938,28 +966,28 @@ object ConcurrentChannel {
           F.unit
         } else {
           // Awaits on promise, then repeats
-          val await = awaitPromise(p)
-          F.flatMap(await)(bind)
+          F.flatMap(awaitPromise(p))(_ => sleepThenRepeat_Step3Awaken(state, f, filter, map, cb))
         }
       }
+    }
 
-      @tailrec def loop(bind: Unit => F[Unit]): F[Unit] =
-        awaitState.get() match {
-          case null =>
-            val ref = CancelablePromise[Unit]()
-            if (!awaitState.compareAndSet(null, ref))
-              loop(bind)
-            else
-              process(ref, bind)
+    private def sleepThenRepeat_Step3Awaken[T, U](
+      awaitState: AtomicAny[CancelablePromise[Unit]],
+      f: () => T,
+      filter: T => Boolean,
+      map: T => U,
+      cb: Either[Throwable, U] => Unit)
+      (implicit F: Concurrent[F]): F[Unit] = {
 
-          case ref =>
-            process(ref, bind)
-        }
-
-      var task: F[Unit] = F.unit
-      val bind: Unit => F[Unit] = _ => task
-      task = F.suspend(loop(bind))
-      F.flatMap(asyncBoundary)(bind)
+      // Trying to read
+      val value = f()
+      if (filter(value)) {
+        cb(Right(map(value)))
+        F.unit
+      } else {
+        // Go to sleep again
+        sleepThenRepeat(awaitState, f, filter, map, cb)
+      }
     }
 
     def awaitPromise(p: CancelablePromise[Unit]): F[Unit] =
