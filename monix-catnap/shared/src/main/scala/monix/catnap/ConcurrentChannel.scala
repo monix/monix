@@ -281,7 +281,7 @@ final class ConcurrentChannel[F[_], E, A] private (
     *           F.unit // we need to stop
     *       }
     *     else // we're done, close the channel
-    *       channel.halt(Complete)
+    *       channel.halt(Complete).as(())
     *   }
     * }}}
     *
@@ -327,7 +327,7 @@ final class ConcurrentChannel[F[_], E, A] private (
     *
     *     channel.pushMany(Range(from, until, increment)).flatMap {
     *       case true =>
-    *         channel.halt(Complete)
+    *         channel.halt(Complete).as(())
     *       case false =>
     *         F.unit // was already halted, do nothing else
     *     }
@@ -358,9 +358,14 @@ final class ConcurrentChannel[F[_], E, A] private (
     * consumers.
     *
     * Consumers will receive a `Left(e)` event after [[halt]] is observed.
+    *
+    * @return `true` in case the producer succeeded in closing the channel,
+    *         or `false` in case a concurrent or previous `halt` call
+    *         succeeded first; this result lets the producer know if the
+    *         channel was closed with the given event or not
     */
-  def halt(e: E): F[Unit] =
-    F.suspend {
+  def halt(e: E): F[Boolean] =
+    F.suspend[Boolean] {
       val old = state.getAndTransform {
         case Connected(_, _) => Halt(e)
         case halt @ Halt(_) => halt
@@ -372,12 +377,12 @@ final class ConcurrentChannel[F[_], E, A] private (
             onChange.complete(Constants.successOfUnit)
           }
           (arr.length: @switch) match {
-            case 0 => F.unit
+            case 0 => helpers.continueF
             case 1 => arr(0).halt
-            case _ => triggerBroadcastUnit[F, E, A](helpers, arr, _.halt)
+            case _ => triggerBroadcastBool[F, E, A](helpers, arr, _.halt)
           }
         case _ =>
-          F.unit
+          helpers.stopF
       }
     }
 
@@ -669,16 +674,6 @@ object ConcurrentChannel {
       refs, f, helpers.boolTest, helpers.continueF, helpers.stopF)
   }
 
-  private def triggerBroadcastUnit[F[_], E, A](
-    helpers: Helpers[F],
-    refs: Array[ChanProducer[F, E, A]],
-    f: ChanProducer[F, E, A] => F[Unit])
-    (implicit F: Concurrent[F]): F[Unit] = {
-
-    triggerBroadcastR(
-      refs, f, helpers.unitTest, F.unit, F.unit)
-  }
-
   private[this] def triggerBroadcastR[F[_], E, A, R](
     refs: Array[ChanProducer[F, E, A]],
     f: ChanProducer[F, E, A] => F[R],
@@ -735,8 +730,11 @@ object ConcurrentChannel {
       }
     }
 
-    val halt: F[Unit] =
-      F.delay(notifyConsumers())
+    val halt: F[Boolean] =
+      F.delay {
+        notifyConsumers()
+        true
+      }
 
     def push(a: A): F[Boolean] =
       F.suspend {

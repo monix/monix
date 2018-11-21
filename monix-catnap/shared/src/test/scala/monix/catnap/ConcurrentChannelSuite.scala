@@ -22,12 +22,15 @@ import cats.implicits._
 import minitest.TestSuite
 import monix.execution.BufferCapacity.{Bounded, Unbounded}
 import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
+import monix.execution.exceptions.APIContractViolationException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.execution.{BufferCapacity, Scheduler}
+
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-object ConcurrentChannelSuite extends BaseConcurrentChannelSuite[TestScheduler] {
+object ConcurrentChannelFakeSuite extends BaseConcurrentChannelSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "There should be no tasks left!")
@@ -38,8 +41,12 @@ object ConcurrentChannelSuite extends BaseConcurrentChannelSuite[TestScheduler] 
       else IO.unit
 
     test(name) { ec =>
-      repeatTest(f(ec), times).unsafeRunAsyncAndForget()
+      val result = repeatTest(f(ec), times).unsafeToFuture()
       ec.tick(1.day)
+      result.value match {
+        case None => throw new TimeoutException("1 day")
+        case Some(value) => value.get
+      }
     }
   }
 
@@ -199,6 +206,197 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
     } yield {
       assertEquals(r, Right(5 * 11))
     }
+  }
+
+  testIO("subscribe after channel was closed") { implicit ec =>
+    for {
+      channel <- ConcurrentChannel[IO].of[Int, Int]
+      _       <- channel.push(1)
+      _       <- channel.halt(0)
+      r       <- channel.consume.use(_.pull)
+    } yield {
+      assertEquals(r, Left(0))
+    }
+  }
+
+  testIO("push after channel was closed") { implicit ec =>
+    def consume(c: ConsumerF[IO, Int, Int]): IO[Unit] =
+      c.pull.flatMap {
+        case Right(_) =>
+          IO.raiseError(new APIContractViolationException("push after halt"))
+        case Left(value) =>
+          assertEquals(value, 0)
+          IO.sleep(1.milli) *> consume(c)
+      }
+
+    for {
+      channel <- ConcurrentChannel[IO].of[Int, Int]
+      b1      <- channel.halt(0)
+      fiber   <- channel.consume.use(consume).start
+      b2      <- channel.push(1)
+      b3      <- channel.push(2)
+      b4      <- channel.halt(10)
+      _       <- fiber.join.timeoutTo(10.millis, IO.unit).guarantee(fiber.cancel)
+    } yield {
+      assertEquals(b1, true)
+      assertEquals(b2, false)
+      assertEquals(b3, false)
+      assertEquals(b4, false)
+    }
+  }
+
+  testIO("pushMany after channel was closed") { implicit ec =>
+    def consume(c: ConsumerF[IO, Int, Int]): IO[Unit] =
+      c.pull.flatMap {
+        case Right(_) =>
+          IO.raiseError(new APIContractViolationException("push after halt"))
+        case Left(value) =>
+          assertEquals(value, 0)
+          IO.sleep(1.milli) *> consume(c)
+      }
+
+    for {
+      channel <- ConcurrentChannel[IO].of[Int, Int]
+      b1      <- channel.halt(0)
+      fiber   <- channel.consume.use(consume).start
+      b2      <- channel.pushMany(Seq(1, 2, 3))
+      b3      <- channel.halt(10)
+      _       <- fiber.join.timeoutTo(10.millis, IO.unit).guarantee(fiber.cancel)
+    } yield {
+      assertEquals(b1, true)
+      assertEquals(b2, false)
+      assertEquals(b3, false)
+    }
+  }
+
+  testIO("push/pushMany with no consumers") { implicit ec =>
+    def consume(c: ConsumerF[IO, Int, Int], acc: Int = 0): IO[Int] =
+      c.pull.flatMap {
+        case Left(l) => IO.pure(acc + l)
+        case Right(r) => consume(c, acc + r)
+      }
+
+    for {
+      channel <- ConcurrentChannel[IO].of[Int, Int]
+      _       <- channel.push(1)
+      _       <- channel.push(2)
+      _       <- channel.push(3)
+      _       <- channel.pushMany(Seq(4, 5, 6))
+      fiber   <- channel.consume.use(consume(_)).start
+      _       <- channel.awaitConsumers(1)
+      _       <- channel.push(100)
+      _       <- channel.pushMany(Seq(100, 100))
+      _       <- channel.halt(100)
+      r       <- fiber.join
+    } yield {
+      assertEquals(r, 400)
+    }
+  }
+
+  testIO("pushMany with multiple consumers") { implicit ec =>
+    def consume(c: ConsumerF[IO, Int, Int], acc: Int = 0): IO[Int] =
+      c.pull.flatMap {
+        case Left(l) => IO.pure(acc + l)
+        case Right(r) => consume(c, acc + r)
+      }
+
+    for {
+      channel <- ConcurrentChannel[IO].of[Int, Int]
+      fiber1  <- channel.consume.use(consume(_)).start
+      fiber2  <- channel.consume.use(consume(_)).start
+      fiber3  <- channel.consume.use(consume(_)).start
+      _       <- channel.awaitConsumers(3)
+      _       <- channel.push(100)
+      _       <- channel.pushMany(Seq(100, 100))
+      _       <- channel.halt(100)
+      r1      <- fiber1.join
+      r2      <- fiber2.join
+      r3      <- fiber3.join
+    } yield {
+      assertEquals(r1, 400)
+      assertEquals(r2, 400)
+      assertEquals(r3, 400)
+    }
+  }
+
+  testIO("halt with awaitConsumers active") { implicit ec =>
+    for {
+      channel  <- ConcurrentChannel[IO].of[Int, Int]
+      await    <- channel.awaitConsumers(3).start
+      _        <- await.join.timeoutTo(1.millis, IO.unit)
+      _        <- channel.halt(0)
+      r        <- await.join
+    } yield {
+      assertEquals(r, false)
+    }
+  }
+
+  testIO("awaitConsumers after halt") { implicit ec =>
+    for {
+      channel  <- ConcurrentChannel[IO].of[Int, Int]
+      _        <- channel.halt(0)
+      r        <- channel.awaitConsumers(3)
+    } yield {
+      assertEquals(r, false)
+    }
+  }
+
+  testIO("awaitConsumers after consume, consume/release, consume, consume") { implicit ec =>
+    for {
+      channel  <- ConcurrentChannel[IO].of[Int, Int]
+      c1       <- channel.consume.use(c => c.pull *> c.pull).start
+      await    <- channel.awaitConsumers(3).start
+      c2       <- channel.consume.use(c => c.pull).start
+      _        <- await.join.timeoutTo(3.millis, IO.unit)
+      _        <- channel.push(1)
+      r2       <- c2.join
+      c3       <- channel.consume.use(c => c.pull).start
+      c4       <- channel.consume.use(c => c.pull).start
+      _        <- await.join
+      _        <- channel.halt(0)
+      r1       <- c1.join
+      r3       <- c3.join
+      r4       <- c4.join
+    } yield {
+      assertEquals(r1, Left(0))
+      assertEquals(r2, Right(1))
+      assertEquals(r3, Left(0))
+      assertEquals(r4, Left(0))
+    }
+  }
+
+  testIO("pushMany with empty sequence") { implicit ec =>
+    def consume(c: ConsumerF[IO, Int, Int], acc: Int = 0): IO[Int] =
+      c.pull.flatMap {
+        case Left(l) => IO.pure(acc + l)
+        case Right(r) => consume(c, acc + r)
+      }
+
+    for {
+      channel <- ConcurrentChannel[IO].of[Int, Int]
+      fiber   <- channel.consume.use(consume(_)).start
+      _       <- channel.awaitConsumers(1)
+      _       <- channel.pushMany(Seq.empty)
+      _       <- channel.halt(100)
+      r       <- fiber.join
+    } yield {
+      assertEquals(r, 100)
+    }
+  }
+
+  testIO("cancellation of paused pull") { implicit ec =>
+    def consume(c: ConsumerF[IO, Int, Int], acc: Int = 0): IO[Int] =
+      c.pull.flatMap {
+        case Left(l) => IO.pure(acc + l)
+        case Right(r) => consume(c, acc + r)
+      }
+
+    for {
+      channel <- ConcurrentChannel[IO].of[Int, Int]
+      fiber   <- channel.consume.use(consume(_)).start
+      _       <- channel.awaitConsumers(1)
+      _       <- fiber.cancel
+    } yield ()
   }
 
   testIO(s"concurrent sum via consumer.pull; MPMC; producers=4, consumers=4, workers=4, capacity=$boundedConfigForConcurrentSum") { implicit ec =>

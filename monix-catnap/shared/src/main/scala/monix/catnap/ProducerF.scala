@@ -73,7 +73,7 @@ trait ProducerF[F[_], E, A] extends Serializable {
     *             F.unit
     *         }
     *       else // we are done, publish the final event
-    *         channel.halt(from + 1)
+    *         channel.halt(from + 1).as(())
     *     } else {
     *       F.unit // invalid range
     *     }
@@ -117,7 +117,7 @@ trait ProducerF[F[_], E, A] extends Serializable {
     *       val to = until - 1
     *       channel.pushMany(Range(from, to)).flatMap {
     *         case true =>
-    *           channel.halt(to) // final event
+    *           channel.halt(to).as(()) // final event
     *         case false =>
     *           // channel was halted by a concurrent producer, so stop
     *           F.unit
@@ -138,8 +138,13 @@ trait ProducerF[F[_], E, A] extends Serializable {
   /**
     * Closes the communication channel with a message that will be visible
     * to all current and future consumers.
+    *
+    * @return `true` in case the producer succeeded in closing the channel,
+    *         or `false` in case a concurrent or previous `halt` call
+    *         succeeded first; this result lets the producer know if the
+    *         channel was closed with the given event or not
     */
-  def halt(e: E): F[Unit]
+  def halt(e: E): F[Boolean]
 
   /**
     * Awaits for the specified number of consumers to be connected.

@@ -29,9 +29,10 @@ import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 
 import scala.collection.immutable.Queue
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-object ConcurrentQueueFakeSchedulerSuite extends BaseConcurrentQueueSuite[TestScheduler] {
+object ConcurrentQueueFakeSuite extends BaseConcurrentQueueSuite[TestScheduler] {
   def setup() = TestScheduler()
 
   def tearDown(env: TestScheduler): Unit =
@@ -43,8 +44,12 @@ object ConcurrentQueueFakeSchedulerSuite extends BaseConcurrentQueueSuite[TestSc
       else IO.unit
 
     test(name) { ec =>
-      repeatTest(f(ec), times).unsafeRunAsyncAndForget()
+      val result = repeatTest(f(ec), times).unsafeToFuture()
       ec.tick(1.day)
+      result.value match {
+        case None => throw new TimeoutException("1 day")
+        case Some(value) => value.get
+      }
     }
   }
 }
