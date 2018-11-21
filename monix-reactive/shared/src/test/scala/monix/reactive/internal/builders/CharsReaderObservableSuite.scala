@@ -112,6 +112,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
       }
     })
 
+    s.tick()
+
     assertEquals(new String(received.toArray), string)
     assertEquals(wasCompleted, 1)
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
@@ -178,6 +180,22 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     assertEquals(s.state.lastReportedError, null)
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
+  }
+
+  test("fromCharsReader does not block on initial execution") {
+    implicit val s = TestScheduler()
+    var didRead = false
+    val reader = new Reader() {
+      def read(cbuf: Array[Char], off: Int, len: Int): Int = {
+        didRead = true
+        -1
+      }
+
+      def close(): Unit = ()
+    }
+    // Should not fail without s.tick()
+    Observable.fromCharsReaderUnsafe(reader).foreach(_ => ())
+    assert(!didRead)
   }
 
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): Reader =

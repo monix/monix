@@ -54,10 +54,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
       val cancelable = BooleanCancelable()
       val em = out.scheduler.executionModel
       // Schedule first cycle
-      if (em.isAlwaysAsync)
-        reschedule(Continue, out, cancelable, em)(out.scheduler)
-      else
-        fastLoop(out, cancelable, em, 0)(out.scheduler)
+      reschedule(Continue, out, cancelable, em)(out.scheduler)
 
       cancelable
     }
