@@ -231,17 +231,15 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
 
     for {
       channel <- ConcurrentChannel[IO].of[Int, Int]
-      b1      <- channel.halt(0)
+      _       <- channel.halt(0)
       fiber   <- channel.consume.use(consume).start
-      b2      <- channel.push(1)
-      b3      <- channel.push(2)
-      b4      <- channel.halt(10)
+      b1      <- channel.push(1)
+      b2      <- channel.push(2)
+      _       <- channel.halt(10)
       _       <- fiber.join.timeoutTo(10.millis, IO.unit).guarantee(fiber.cancel)
     } yield {
-      assertEquals(b1, true)
+      assertEquals(b1, false)
       assertEquals(b2, false)
-      assertEquals(b3, false)
-      assertEquals(b4, false)
     }
   }
 
@@ -257,15 +255,13 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
 
     for {
       channel <- ConcurrentChannel[IO].of[Int, Int]
-      b1      <- channel.halt(0)
+      _       <- channel.halt(0)
       fiber   <- channel.consume.use(consume).start
-      b2      <- channel.pushMany(Seq(1, 2, 3))
-      b3      <- channel.halt(10)
+      b1      <- channel.pushMany(Seq(1, 2, 3))
+      _       <- channel.halt(10)
       _       <- fiber.join.timeoutTo(10.millis, IO.unit).guarantee(fiber.cancel)
     } yield {
-      assertEquals(b1, true)
-      assertEquals(b2, false)
-      assertEquals(b3, false)
+      assertEquals(b1, false)
     }
   }
 
