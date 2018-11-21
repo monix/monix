@@ -526,8 +526,8 @@ final class ConcurrentChannel[F[_], E, A] private (
   */
 object ConcurrentChannel {
   /**
-    * Builds an [[ConcurrentChannel]] value for `F` data types that are either
-    * `Async`.
+    * Builds an [[ConcurrentQueue]] value for `F` data types that implement
+    * the `Concurrent` type class.
     *
     * This builder uses the
     * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]

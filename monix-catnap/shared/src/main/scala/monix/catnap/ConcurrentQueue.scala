@@ -198,8 +198,8 @@ final class ConcurrentQueue[F[_], A] private (
   @UnsafeProtocol
   def tryPoll: F[Option[A]] = tryPollRef
 
-  /** Fetches a value from the queue, or if the queue is empty continuously
-    * polls the queue until a value is made available.
+  /** Fetches a value from the queue, or if the queue is empty it awaits
+    * asynchronously until a value is made available.
     *
     * @return a task that when evaluated, will eventually complete
     *         after the value has been successfully pushed in the queue
@@ -265,6 +265,11 @@ final class ConcurrentQueue[F[_], A] private (
     * so it must be called from the same thread(s) that call [[poll]].
     */
   def clear: F[Unit] = clearRef
+  //noinspection ForwardReference
+  private[this] val clearRef = F.delay {
+    queue.clear()
+    notifyProducers()
+  }
 
   private def tryOfferUnsafe(a: A): Boolean = {
     if (queue.offer(a) == 0) {
@@ -354,9 +359,6 @@ final class ConcurrentQueue[F[_], A] private (
   private[this] val tryPollRef =
     F.delay(Option(tryPollUnsafe()))
 
-  /** Cached implementation for [[clear]]. */
-  private[this] val clearRef = F.delay(queue.clear())
-
   private def toSeq(buffer: ArrayBuffer[A]): Seq[A] =
     buffer.toArray[Any].toSeq.asInstanceOf[Seq[A]]
 }
@@ -377,8 +379,8 @@ final class ConcurrentQueue[F[_], A] private (
   */
 object ConcurrentQueue {
   /**
-    * Builds an [[ConcurrentQueue]] value for `F` data types that are either
-    * `Async`.
+    * Builds an [[ConcurrentQueue]] value for `F` data types that implement
+    * the `Concurrent` type class.
     *
     * This builder uses the
     * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]

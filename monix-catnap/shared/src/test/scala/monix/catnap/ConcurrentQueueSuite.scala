@@ -239,6 +239,31 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
+  testIO("clear after overflow") { implicit ec =>
+    def fillQueue(queue: ConcurrentQueue[IO, Int]): IO[Unit] =
+      queue.tryOffer(1).flatMap {
+        case true => fillQueue(queue)
+        case false => IO.unit
+      }
+
+    def consume(queue: ConcurrentQueue[IO, Int], acc: Int = 0): IO[Int] =
+      queue.poll.flatMap { n =>
+        if (n == 0) IO.pure(acc)
+        else consume(queue, acc + n)
+      }
+
+    for {
+      queue <- ConcurrentQueue[IO].bounded[Int](512)
+      _     <- fillQueue(queue)
+      _     <- queue.offerMany((0 until 500).map(_ => 1)).start
+      _     <- queue.clear
+      _     <- queue.offer(0)
+      r     <- consume(queue)
+    } yield {
+      assert(r <= 500)
+    }
+  }
+
   testIO("concurrent producer - consumer; MPMC; bounded") { implicit ec =>
     val count = if (Platform.isJVM) 10000 else 1000
     val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), MPMC)

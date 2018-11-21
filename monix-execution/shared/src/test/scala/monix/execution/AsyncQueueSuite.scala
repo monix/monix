@@ -224,6 +224,16 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
+  testFuture("clear after overflow") { implicit s =>
+    val queue = AsyncQueue.bounded[Int](512)
+    val fiber = queue.offerMany(0 until 1000)
+    for {
+      _ <- FutureUtils.timeoutTo(fiber, 3.millis, Future.successful(()))
+      _ <- Future(queue.clear())
+      _ <- fiber
+    } yield ()
+  }
+
   testFuture("concurrent producer - consumer; MPMC; bounded") { implicit ec =>
     val count = if (Platform.isJVM) 10000 else 1000
     val queue = AsyncQueue.withConfig[Int](Bounded(128), MPMC)

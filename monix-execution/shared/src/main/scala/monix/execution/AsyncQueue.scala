@@ -256,7 +256,10 @@ final class AsyncQueue[A] private (
     * so it must be called from the same thread(s) that call [[poll]].
     */
   @UnsafeBecauseImpure
-  def clear(): Unit = queue.clear()
+  def clear(): Unit = {
+    queue.clear()
+    notifyProducers()
+  }
 
   private[this] val queue: LowLevelConcurrentQueue[A] =
     LowLevelConcurrentQueue(capacity, channelType, fenced = true)
