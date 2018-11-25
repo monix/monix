@@ -295,7 +295,17 @@ lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
 )
 
 lazy val scalaJSSettings = Seq(
-  coverageExcludedFiles := ".*"
+  coverageExcludedFiles := ".*",
+
+  // Use globally accessible (rather than local) source paths in JS source maps
+  scalacOptions += {
+    val tagOrHash =
+      if (isSnapshot.value) git.gitHeadCommit.value.get
+      else s"v${git.baseVersion.value}"
+    val l = (baseDirectory in LocalRootProject).value.toURI.toString
+    val g = s"https://raw.githubusercontent.com/monix/monix/$tagOrHash/"
+    s"-P:scalajs:mapSourceURI:$l->$g"
+  }
 )
 
 lazy val cmdlineProfile =
