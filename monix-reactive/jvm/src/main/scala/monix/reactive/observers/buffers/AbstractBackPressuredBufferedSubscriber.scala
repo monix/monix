@@ -17,11 +17,15 @@
 
 package monix.reactive.observers.buffers
 
-import monix.execution.Ack
+import monix.execution.{Ack, ChannelType}
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.BufferCapacity.Unbounded
+import monix.execution.ChannelType._
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
-import monix.execution.internal.math
+import monix.execution.internal.collection.LowLevelConcurrentQueue
+import monix.execution.internal.{Platform, math}
+
 import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
@@ -33,7 +37,7 @@ import scala.util.{Failure, Success}
   * [[BatchedBufferedSubscriber]].
   */
 private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
-  (out: Subscriber[R], _bufferSize: Int)
+  (out: Subscriber[R], _bufferSize: Int, pt: ChannelType.ProducerSide)
   extends CommonBufferMembers with BufferedSubscriber[A] {
 
   require(_bufferSize > 0, "bufferSize must be a strictly positive number")
@@ -42,8 +46,12 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
   private[this] val em = out.scheduler.executionModel
   implicit final val scheduler = out.scheduler
 
-  protected final val queue: ConcurrentQueue[A] =
-    ConcurrentQueue.unbounded()
+  protected final val queue: LowLevelConcurrentQueue[A] =
+    LowLevelConcurrentQueue(
+      Unbounded(Some(scala.math.min(Platform.recommendedBatchSize, bufferSize))),
+      ChannelType.assemble(pt, SingleConsumer),
+      fenced = false
+    )
 
   private[this] val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
@@ -64,7 +72,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
         case Some(v) => v
       }
 
-      backPressured.get match {
+      backPressured.get() match {
         case null =>
           if (toPush < bufferSize) {
             queue.offer(elem)

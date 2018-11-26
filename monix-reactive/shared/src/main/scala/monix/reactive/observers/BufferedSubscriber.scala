@@ -17,6 +17,8 @@
 
 package monix.reactive.observers
 
+import monix.execution.ChannelType
+import monix.execution.ChannelType.MultiProducer
 import monix.reactive.OverflowStrategy
 import monix.reactive.observers.buffers.BuildersImpl
 
@@ -67,12 +69,18 @@ private[reactive] trait Builders {
   /** Given an [[OverflowStrategy]] wraps a [[Subscriber]] into a
     * buffered subscriber.
     */
-  def apply[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy[A]): Subscriber[A]
+  def apply[A](
+    subscriber: Subscriber[A],
+    bufferPolicy: OverflowStrategy[A],
+    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A]
 
   /** Given an synchronous [[OverflowStrategy overflow strategy]] wraps
     * a [[Subscriber]] into a buffered subscriber.
     */
-  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A]): Subscriber.Sync[A]
+  def synchronous[A](
+    subscriber: Subscriber[A],
+    bufferPolicy: OverflowStrategy.Synchronous[A],
+    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber.Sync[A]
 
   /** Builds a batched buffered subscriber.
     *
@@ -86,7 +94,10 @@ private[reactive] trait Builders {
     * So a batched buffered subscriber is implicitly delivering
     * the back-pressure overflow strategy.
     */
-  def batched[A](underlying: Subscriber[List[A]], bufferSize: Int): Subscriber[A]
+  def batched[A](
+    underlying: Subscriber[List[A]],
+    bufferSize: Int,
+    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A]
 }
 
 object BufferedSubscriber extends Builders with BuildersImpl

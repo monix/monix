@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import monix.execution.ChannelType.SingleProducer
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -39,7 +40,7 @@ class ObserveOnObservable[+A](source: Observable[A], altS: Scheduler, os: Overfl
         def onComplete() = out.onComplete()
       }
 
-      BufferedSubscriber(ref, os)
+      BufferedSubscriber(ref, os, SingleProducer)
     }
 
     // Unfortunately we have to do double wrapping of our Subscriber,

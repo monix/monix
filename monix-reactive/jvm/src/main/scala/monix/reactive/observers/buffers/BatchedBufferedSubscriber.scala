@@ -17,8 +17,10 @@
 
 package monix.reactive.observers.buffers
 
+import monix.execution.ChannelType
 import monix.execution.internal.Platform
 import monix.reactive.observers.Subscriber
+
 import scala.collection.mutable.ListBuffer
 
 /** A `BufferedSubscriber` implementation for the
@@ -26,9 +28,12 @@ import scala.collection.mutable.ListBuffer
   * buffer overflowStrategy that sends events in bundles.
   */
 private[monix] final class BatchedBufferedSubscriber[A] private
-  (out: Subscriber[List[A]], _bufferSize: Int)
+  (out: Subscriber[List[A]], _bufferSize: Int, pt: ChannelType.ProducerSide)
   extends AbstractBackPressuredBufferedSubscriber[A, ListBuffer[A]](
-    subscriberBufferToList(out), _bufferSize) { self =>
+    subscriberBufferToList(out),
+    _bufferSize,
+    pt
+  ) { self =>
 
   @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
   @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
@@ -46,6 +51,9 @@ private[monix] final class BatchedBufferedSubscriber[A] private
 
 private[monix] object BatchedBufferedSubscriber {
   /** Builder for [[BatchedBufferedSubscriber]] */
-  def apply[A](underlying: Subscriber[List[A]], bufferSize: Int): BatchedBufferedSubscriber[A] =
-    new BatchedBufferedSubscriber[A](underlying, bufferSize)
+  def apply[A](
+    underlying: Subscriber[List[A]],
+    bufferSize: Int,
+    producerType: ChannelType.ProducerSide): BatchedBufferedSubscriber[A] =
+    new BatchedBufferedSubscriber[A](underlying, bufferSize, producerType)
 }

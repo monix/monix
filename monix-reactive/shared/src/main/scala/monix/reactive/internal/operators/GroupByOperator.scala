@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.SingleProducer
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable, Scheduler}
@@ -38,12 +39,12 @@ private[reactive] final class GroupByOperator[A,K](
     new Subscriber[A] { self =>
       implicit val scheduler: Scheduler = subscriber.scheduler
       private[this] var isDone = false
-      private[this] val downstream = BufferedSubscriber(subscriber, os)
+      private[this] val downstream = BufferedSubscriber(subscriber, os, SingleProducer)
       private[this] val cacheRef = Atomic(Map.empty[K, Observer[A]])
 
       @tailrec
       private[this] def recycleKey(key: K): Unit = {
-        val current = cacheRef.get
+        val current = cacheRef.get()
         if (!cacheRef.compareAndSet(current, current - key))
           recycleKey(key)
       }
@@ -53,7 +54,7 @@ private[reactive] final class GroupByOperator[A,K](
 
       @tailrec def onNext(elem: A): Future[Ack] =
         if (isDone) Stop else {
-          val cache = cacheRef.get
+          val cache = cacheRef.get()
           var streamError = true
 
           val result = try {
@@ -102,7 +103,7 @@ private[reactive] final class GroupByOperator[A,K](
         }
 
       private[this] def completeAll(): Seq[Throwable] = {
-        val cache = cacheRef.get
+        val cache = cacheRef.get()
 
         if (!cacheRef.compareAndSet(cache, Map.empty))
           completeAll()

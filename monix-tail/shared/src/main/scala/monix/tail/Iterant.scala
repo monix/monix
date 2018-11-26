@@ -30,7 +30,7 @@ import monix.execution.ChannelType.{MultiProducer, SingleConsumer}
 import monix.execution.annotations.UnsafeProtocol
 
 import scala.util.control.NonFatal
-import monix.execution.internal.Platform.recommendedBatchSize
+import monix.execution.internal.Platform.{recommendedBatchSize, recommendedBufferChunkSize}
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
 import monix.tail.internal.Constants.emptyRef
@@ -2532,7 +2532,10 @@ object Iterant extends IterantInstances {
     *        ready to process it — this prevents having pauses due to
     *        back-pressuring the `Subscription.request(n)` calls
     */
-  def fromReactivePublisher[F[_], A](publisher: Publisher[A], requestCount: Int = 256, eagerBuffer: Boolean = true)
+  def fromReactivePublisher[F[_], A](
+    publisher: Publisher[A],
+    requestCount: Int = recommendedBufferChunkSize,
+    eagerBuffer: Boolean = true)
     (implicit F: Async[F]): Iterant[F, A] =
     IterantFromReactivePublisher(publisher, requestCount, eagerBuffer)
 
@@ -2616,7 +2619,7 @@ object Iterant extends IterantInstances {
     *        [[Iterant.NextBatch]] nodes, effectively specifying how many
     *        items can be pulled from the queue and processed in batches
     */
-  def fromConsumer[F[_], A](consumer: Consumer[F, A], maxBatchSize: Int = 256)
+  def fromConsumer[F[_], A](consumer: Consumer[F, A], maxBatchSize: Int = recommendedBufferChunkSize)
     (implicit F: Async[F]): Iterant[F, A] = {
 
     IterantFromConsumer(consumer, maxBatchSize)
@@ -2640,8 +2643,8 @@ object Iterant extends IterantInstances {
     */
   def fromChannel[F[_], A](
     channel: Channel[F, A],
-    bufferCapacity: BufferCapacity = Bounded(256),
-    maxBatchSize: Int = 256)
+    bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
+    maxBatchSize: Int = recommendedBufferChunkSize)
     (implicit F: Async[F]): Iterant[F, A] = {
 
     val config = ConsumerF.Config(
@@ -2727,8 +2730,8 @@ object Iterant extends IterantInstances {
     *        for optimization purposes, for when you know what you're doing
     */
   def channel[F[_], A](
-    bufferCapacity: BufferCapacity = Bounded(256),
-    maxBatchSize: Int = 256,
+    bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
+    maxBatchSize: Int = recommendedBufferChunkSize,
     producerType: ChannelType.ProducerSide = MultiProducer)
     (implicit F: Concurrent[F], cs: ContextShift[F]): F[(Producer[F, A], Iterant[F, A])] = {
 

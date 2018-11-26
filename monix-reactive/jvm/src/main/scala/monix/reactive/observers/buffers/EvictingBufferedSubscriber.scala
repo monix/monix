@@ -17,11 +17,13 @@
 
 package monix.reactive.observers.buffers
 
+import monix.eval.Coeval
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
 import monix.execution.atomic.{Atomic, AtomicAny, AtomicInt}
 import monix.execution.internal.math
+
 import scala.util.control.NonFatal
 import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.buffers.AbstractEvictingBufferedSubscriber._
@@ -38,7 +40,7 @@ import scala.util.{Failure, Success}
   * overflow strategies.
   */
 private[observers] final class EvictingBufferedSubscriber[-A] private
-  (out: Subscriber[A], strategy: Evicted[Nothing], onOverflow: Long => Option[A])
+  (out: Subscriber[A], strategy: Evicted[Nothing], onOverflow: Long => Coeval[Option[A]])
   extends AbstractEvictingBufferedSubscriber(out, strategy, onOverflow) {
 
   @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
@@ -62,7 +64,7 @@ private[observers] object EvictingBufferedSubscriber {
     * were dropped.
     */
   def dropOldAndSignal[A](underlying: Subscriber[A],
-    bufferSize: Int, onOverflow: Long => Option[A]): EvictingBufferedSubscriber[A] = {
+    bufferSize: Int, onOverflow: Long => Coeval[Option[A]]): EvictingBufferedSubscriber[A] = {
 
     require(bufferSize > 1, "bufferSize must be a strictly positive number, bigger than 1")
     val maxCapacity = math.nextPowerOf2(bufferSize)
@@ -88,7 +90,7 @@ private[observers] object EvictingBufferedSubscriber {
     * were dropped.
     */
   def clearBufferAndSignal[A](underlying: Subscriber[A],
-    bufferSize: Int, onOverflow: Long => Option[A]): EvictingBufferedSubscriber[A] = {
+    bufferSize: Int, onOverflow: Long => Coeval[Option[A]]): EvictingBufferedSubscriber[A] = {
 
     require(bufferSize > 1, "bufferSize must be a strictly positive number, bigger than 1")
     val maxCapacity = math.nextPowerOf2(bufferSize)
@@ -97,7 +99,7 @@ private[observers] object EvictingBufferedSubscriber {
 }
 
 private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
-  (out: Subscriber[A], strategy: Evicted[Nothing], onOverflow: Long => Option[A])
+  (out: Subscriber[A], strategy: Evicted[Nothing], onOverflow: Long => Coeval[Option[A]])
   extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(strategy.bufferSize > 0, "bufferSize must be a strictly positive number")
@@ -152,7 +154,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
       if (increment != 0)
         itemsToPush.getAndIncrement(increment)
       else
-        itemsToPush.get
+        itemsToPush.get()
     }
 
     // If a run-loop isn't started, then go, go, go!
@@ -245,7 +247,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
               if (onOverflow == null || droppedCount.get == 0)
                 null.asInstanceOf[A]
               else
-                onOverflow(droppedCount.getAndSet(0)) match {
+                onOverflow(droppedCount.getAndSet(0)).value() match {
                   case Some(value) => value
                   case None => null.asInstanceOf[A]
                 }
@@ -352,7 +354,7 @@ private[observers] object AbstractEvictingBufferedSubscriber {
     }
 
     def offer(a: A): Int = {
-      val current = bufferRef.get
+      val current = bufferRef.get()
       val length = current.length
       val queue = current.queue
 

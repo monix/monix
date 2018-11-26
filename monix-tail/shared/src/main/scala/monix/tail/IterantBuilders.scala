@@ -22,10 +22,12 @@ import cats.effect._
 import monix.catnap.{ConsumerF, ProducerF}
 import monix.execution.BufferCapacity.Bounded
 import monix.execution.ChannelType.MultiProducer
+import monix.execution.internal.Platform.recommendedBufferChunkSize
 import monix.execution.{BufferCapacity, ChannelType}
 import monix.tail.Iterant.Channel
 import monix.tail.batches.{Batch, BatchCursor}
 import org.reactivestreams.Publisher
+
 import scala.collection.immutable.LinearSeq
 import scala.concurrent.duration.FiniteDuration
 
@@ -256,7 +258,7 @@ object IterantBuilders {
       Iterant.intervalWithFixedDelay(initialDelay, delay)
 
     /** Aliased builder, see documentation for [[Iterant.fromReactivePublisher]]. */
-    def fromReactivePublisher[A](publisher: Publisher[A], requestCount: Int = 256, eagerBuffer: Boolean = true)
+    def fromReactivePublisher[A](publisher: Publisher[A], requestCount: Int = recommendedBufferChunkSize, eagerBuffer: Boolean = true)
       (implicit F: Async[F]): Iterant[F, A] =
       Iterant.fromReactivePublisher(publisher, requestCount, eagerBuffer)
 
@@ -266,14 +268,14 @@ object IterantBuilders {
       Iterant.fromConsumer(consumer, maxBatchSize)
 
     /** Aliased builder, see documentation for [[Iterant.fromChannel]]. */
-    def fromChannel[A](channel: Channel[F, A], bufferCapacity: BufferCapacity = Bounded(256), maxBatchSize: Int = 256)
+    def fromChannel[A](channel: Channel[F, A], bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize), maxBatchSize: Int = recommendedBufferChunkSize)
       (implicit F: Async[F]): Iterant[F, A] =
       Iterant.fromChannel(channel, bufferCapacity, maxBatchSize)
 
     /** Aliased builder, see documentation for [[Iterant.channel]]. */
     def channel[A](
-      bufferCapacity: BufferCapacity = Bounded(256),
-      maxBatchSize: Int = 256,
+      bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
+      maxBatchSize: Int = recommendedBufferChunkSize,
       producerType: ChannelType.ProducerSide = MultiProducer)
       (implicit F: Concurrent[F], cs: ContextShift[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] =
       Iterant.channel(bufferCapacity, maxBatchSize, producerType)

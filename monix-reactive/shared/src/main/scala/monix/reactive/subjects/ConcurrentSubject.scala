@@ -17,8 +17,9 @@
 
 package monix.reactive.subjects
 
+import monix.execution.ChannelType.MultiProducer
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{Ack, Cancelable, ChannelType, Scheduler}
 import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{MulticastStrategy, Observer, OverflowStrategy}
@@ -59,10 +60,15 @@ object ConcurrentSubject {
     * @param overflowStrategy - the [[OverflowStrategy overflow strategy]]
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
+    *
+    * @param producerType (UNSAFE) is the
+    *        [[monix.execution.ChannelType.ProducerSide]] configuration, can
+    *        be either multi producer (the safe default) or single producer,
+    *        which can be configured for optimization purposes.
     */
-  def from[I,O](p: Subject[I,O], overflowStrategy: Synchronous[I])
+  def from[I,O](p: Subject[I,O], overflowStrategy: Synchronous[I], producerType: ChannelType.ProducerSide = MultiProducer)
     (implicit s: Scheduler): ConcurrentSubject[I,O] =
-    new SubjectAsConcurrent(p, overflowStrategy, s)
+    new SubjectAsConcurrent(p, overflowStrategy, producerType, s)
 
   /** Subject recipe for building [[PublishSubject publish]] subjects. */
   def publish[A](implicit s: Scheduler): ConcurrentSubject[A,A] =
@@ -258,11 +264,15 @@ object ConcurrentSubject {
   private final class SubjectAsConcurrent[I,+O] (
     subject: Subject[I, O],
     overflowStrategy: OverflowStrategy.Synchronous[I],
+    producerType: ChannelType.ProducerSide,
     scheduler: Scheduler)
     extends ConcurrentSubject[I,O] {
 
     private[this] val in: Subscriber.Sync[I] =
-      BufferedSubscriber.synchronous(Subscriber(subject, scheduler), overflowStrategy)
+      BufferedSubscriber.synchronous(
+        Subscriber(subject, scheduler),
+        overflowStrategy,
+        producerType)
 
     def size: Int =
       subject.size
