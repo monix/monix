@@ -78,7 +78,7 @@ private[monix] object Platform {
     *  - `no`, `false` or `0` for disabling
     *
     * NOTE: this values was `false` by default prior to the Monix 3.0.0
-    * release. This changed along with the release of Cats-Effect 1.0.0
+    * release. This changed along with the release of Cats-Effect 1.1.0
     * which now recommends for this default to be `true` due to the design
     * of its type classes.
     */
