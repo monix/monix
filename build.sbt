@@ -42,14 +42,14 @@ lazy val doNotPublishArtifact = Seq(
 lazy val warnUnusedImport = Seq(
   scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 10)) =>
-        Seq()
-      case Some((2, n)) if n >= 11 =>
+      case Some((2, 11)) =>
         Seq("-Ywarn-unused-import")
+      case _ =>
+        Seq("-Ywarn-unused:imports")
     }
   },
-  scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
-  scalacOptions in Test ~= {_.filterNot("-Ywarn-unused-import" == _)}
+  scalacOptions in (Compile, console) --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
+  scalacOptions in Test --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports")
 )
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
@@ -269,8 +269,8 @@ lazy val unidocSettings = Seq(
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
-  scalacOptions in (ScalaUnidoc, unidoc) -=
-    "-Ywarn-unused-import",
+  scalacOptions in (ScalaUnidoc, unidoc) --=
+    Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
