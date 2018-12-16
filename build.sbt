@@ -66,11 +66,19 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-language:higherKinds",
     "-language:implicitConversions",
     "-language:experimental.macros",
-    // possibly deprecated options
-    "-Ywarn-inaccessible",
-    // absolutely necessary for Iterant
-    "-Ypartial-unification"
   ),
+
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      Seq(
+        // possibly deprecated options
+        "-Ywarn-inaccessible",
+        // absolutely necessary for Iterant
+        "-Ypartial-unification",
+      )
+    case _ =>
+      Seq.empty
+  }),
 
   // Force building with Java 8
   initialize := {
@@ -102,26 +110,28 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   }),
 
   // Linter
+  scalacOptions ++= Seq(
+    // Turns all warnings into errors ;-)
+    "-Xfatal-warnings",
+    // Enables linter options
+    "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
+    "-Xlint:nullary-unit", // warn when nullary methods return Unit
+    "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
+    "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
+    "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
+    "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
+    "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
+    "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
+    "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
+    "-Xlint:option-implicit", // Option.apply used implicit view
+    "-Xlint:delayedinit-select", // Selecting member of DelayedInit
+    "-Xlint:package-object-classes", // Class or object defined in package object
+  ),
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion >= 11 =>
+    case Some((2, majorVersion)) if majorVersion <= 12 =>
       Seq(
-        // Turns all warnings into errors ;-)
-        "-Xfatal-warnings",
-        // Enables linter options
-        "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
-        "-Xlint:nullary-unit", // warn when nullary methods return Unit
         "-Xlint:inaccessible", // warn about inaccessible types in method signatures
-        "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
-        "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
-        "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
-        "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
-        "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
-        "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
-        "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
-        "-Xlint:option-implicit", // Option.apply used implicit view
-        "-Xlint:delayedinit-select", // Selecting member of DelayedInit
         "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
-        "-Xlint:package-object-classes", // Class or object defined in package object
         "-Xlint:unsound-match" // Pattern match may not be typesafe
       )
     case _ =>
