@@ -4855,10 +4855,13 @@ object Observable extends ObservableDeprecatedBuilders {
     new builders.Interleave2Observable(oa1, oa2)
 
   /** Creates an Observable that emits auto-incremented natural numbers
-    * (longs) spaced by a given time interval. Starts from 0 with no
-    * delay, after which it emits incremented numbers spaced by the
+    * (longs) spaced by a given time interval. Starts from 0 with `initialDelay`, 
+    * after which it emits incremented numbers spaced by the
     * `period` of time. The given `period` of time acts as a fixed
     * delay between successive events.
+    *
+    * This version of the `intervalWithFixedDelay` allows specifying an
+    * `initialDelay` before events start being emitted.
     *
     * @param initialDelay is the delay to wait before emitting the first event
     * @param delay the time to wait between 2 successive events
