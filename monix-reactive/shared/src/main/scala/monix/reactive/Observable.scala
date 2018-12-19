@@ -4857,7 +4857,7 @@ object Observable extends ObservableDeprecatedBuilders {
   /** Creates an Observable that emits auto-incremented natural numbers
     * (longs) spaced by a given time interval. Starts from 0 with `initialDelay`, 
     * after which it emits incremented numbers spaced by the
-    * `period` of time. The given `period` of time acts as a fixed
+    * `delay` of time. The given `delay` of time acts as a fixed
     * delay between successive events.
     *
     * This version of the `intervalWithFixedDelay` allows specifying an
@@ -4872,7 +4872,7 @@ object Observable extends ObservableDeprecatedBuilders {
   /** Creates an Observable that emits auto-incremented natural numbers
     * (longs) spaced by a given time interval. Starts from 0 with no
     * delay, after which it emits incremented numbers spaced by the
-    * `period` of time. The given `period` of time acts as a fixed
+    * `delay` of time. The given `delay` of time acts as a fixed
     * delay between successive events.
     *
     * @param delay the delay between 2 successive events
@@ -4883,7 +4883,7 @@ object Observable extends ObservableDeprecatedBuilders {
   /** Creates an Observable that emits auto-incremented natural numbers
     * (longs) spaced by a given time interval. Starts from 0 with no
     * delay, after which it emits incremented numbers spaced by the
-    * `period` of time. The given `period` of time acts as a fixed
+    * `delay` of time. The given `delay` of time acts as a fixed
     * delay between successive events.
     *
     * @param delay the delay between 2 successive events
