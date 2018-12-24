@@ -392,7 +392,6 @@ object TestScheduler {
 
     val newID = state.lastID + 1
     SingleAssignCancelable()
-
     val task = Task(newID, r, state.clock + delay)
     val cancelable = new Cancelable {
       def cancel(): Unit = cancelTask(task)

@@ -21,7 +21,7 @@ addCommandAlias("ci-jvm-all", s";ci-jvm ;unidoc")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned")
 
 val catsVersion = "1.4.0"
-val catsEffectVersion = "1.0.0"
+val catsEffectVersion = "1.1.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
@@ -42,20 +42,20 @@ lazy val doNotPublishArtifact = Seq(
 lazy val warnUnusedImport = Seq(
   scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 10)) =>
-        Seq()
-      case Some((2, n)) if n >= 11 =>
+      case Some((2, 11)) =>
         Seq("-Ywarn-unused-import")
+      case _ =>
+        Seq("-Ywarn-unused:imports")
     }
   },
-  scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
-  scalacOptions in Test ~= {_.filterNot("-Ywarn-unused-import" == _)}
+  scalacOptions in (Compile, console) --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
+  scalacOptions in Test --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports")
 )
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.7",
-  crossScalaVersions := Seq("2.11.12", "2.12.7"),
+  scalaVersion := "2.12.8",
+  crossScalaVersions := Seq("2.11.12", "2.12.8"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -66,11 +66,19 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-language:higherKinds",
     "-language:implicitConversions",
     "-language:experimental.macros",
-    // possibly deprecated options
-    "-Ywarn-inaccessible",
-    // absolutely necessary for Iterant
-    "-Ypartial-unification"
   ),
+
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      Seq(
+        // possibly deprecated options
+        "-Ywarn-inaccessible",
+        // absolutely necessary for Iterant
+        "-Ypartial-unification",
+      )
+    case _ =>
+      Seq.empty
+  }),
 
   // Force building with Java 8
   initialize := {
@@ -102,26 +110,28 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   }),
 
   // Linter
+  scalacOptions ++= Seq(
+    // Turns all warnings into errors ;-)
+    "-Xfatal-warnings",
+    // Enables linter options
+    "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
+    "-Xlint:nullary-unit", // warn when nullary methods return Unit
+    "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
+    "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
+    "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
+    "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
+    "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
+    "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
+    "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
+    "-Xlint:option-implicit", // Option.apply used implicit view
+    "-Xlint:delayedinit-select", // Selecting member of DelayedInit
+    "-Xlint:package-object-classes", // Class or object defined in package object
+  ),
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion >= 11 =>
+    case Some((2, majorVersion)) if majorVersion <= 12 =>
       Seq(
-        // Turns all warnings into errors ;-)
-        "-Xfatal-warnings",
-        // Enables linter options
-        "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
-        "-Xlint:nullary-unit", // warn when nullary methods return Unit
         "-Xlint:inaccessible", // warn about inaccessible types in method signatures
-        "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
-        "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
-        "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
-        "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
-        "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
-        "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
-        "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
-        "-Xlint:option-implicit", // Option.apply used implicit view
-        "-Xlint:delayedinit-select", // Selecting member of DelayedInit
         "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
-        "-Xlint:package-object-classes", // Class or object defined in package object
         "-Xlint:unsound-match" // Pattern match may not be typesafe
       )
     case _ =>
@@ -269,8 +279,8 @@ lazy val unidocSettings = Seq(
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
-  scalacOptions in (ScalaUnidoc, unidoc) -=
-    "-Ywarn-unused-import",
+  scalacOptions in (ScalaUnidoc, unidoc) --=
+    Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
