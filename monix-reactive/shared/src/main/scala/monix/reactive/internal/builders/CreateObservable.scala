@@ -17,8 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Cancelable
-import monix.execution.ChannelType.MultiProducer
+import monix.execution.{Cancelable, ChannelType}
 import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
@@ -26,11 +25,12 @@ import monix.reactive.{Observable, OverflowStrategy}
 /** Implementation for [[monix.reactive.Observable.create]]. */
 private[reactive] final class CreateObservable[+A](
   overflowStrategy: OverflowStrategy.Synchronous[A],
+  producerType: ChannelType.ProducerSide,
   f: Subscriber.Sync[A] => Cancelable)
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val out = BufferedSubscriber.synchronous(subscriber, overflowStrategy, MultiProducer)
+    val out = BufferedSubscriber.synchronous(subscriber, overflowStrategy, producerType)
     try f(out) catch {
       case ex if NonFatal(ex) =>
         subscriber.scheduler.reportFailure(ex)

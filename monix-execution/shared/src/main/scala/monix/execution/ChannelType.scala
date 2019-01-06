@@ -92,8 +92,15 @@ object ChannelType {
     * Enumeration for describing the type of the producer, with two
     * possible values:
     *
-    *  - [[MultiProducer]]
+    *  - [[MultiProducer]] (default)
     *  - [[SingleProducer]]
+    *
+    * This is often used to optimize the underlying buffer used.
+    * The multi-producer option is the safe default and specifies
+    * that multiple producers (threads, actors, etc) can push events
+    * concurrently, whereas the single-producer option specifies that
+    * a single producer can (sequentially) push events and can be used
+    * as an (unsafe) optimization.
     */
   sealed abstract class ProducerSide(val value: String)
     extends Serializable

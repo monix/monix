@@ -81,14 +81,14 @@ private[monix] object Platform {
     * Can be configured by setting Java properties:
     *
     * <pre>
-    *   java -Dmonix.environment.recommendedBufferChunkSize=128 \
+    *   java -Dmonix.environment.bufferChunkSize=128 \
     *        ...
     * </pre>
     *
     * Should be a power of 2 or it gets rounded to one.
     */
   val recommendedBufferChunkSize: Int = {
-    Option(System.getProperty("monix.environment.chunkBufferSize", ""))
+    Option(System.getProperty("monix.environment.bufferChunkSize", ""))
       .filter(s => s != null && s.nonEmpty)
       .flatMap(s => Try(s.toInt).toOption)
       .map(math.nextPowerOf2)
