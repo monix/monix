@@ -76,6 +76,7 @@ private[monix] final class ChunkedArrayQueue[A] private (
   def dequeue(): A = {
     if ((headArray ne tailArray) || headIndex < tailIndex) {
       val result = headArray(headIndex).asInstanceOf[A]
+      headArray(headIndex) = null
       headIndex += 1
 
       if (headIndex == modulo) {
