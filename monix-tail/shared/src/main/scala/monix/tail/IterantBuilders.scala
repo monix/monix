@@ -263,7 +263,7 @@ object IterantBuilders {
       Iterant.fromReactivePublisher(publisher, requestCount, eagerBuffer)
 
     /** Aliased builder, see documentation for [[Iterant.fromConsumer]]. */
-    def fromConsumer[A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int = 256)
+    def fromConsumer[A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int = recommendedBufferChunkSize)
       (implicit F: Async[F]): Iterant[F, A] =
       Iterant.fromConsumer(consumer, maxBatchSize)
 
