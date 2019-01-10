@@ -45,7 +45,7 @@ object OverflowStrategy {
     * Using this overflowStrategy implies that with a fast data source, the system's
     * memory can be exhausted and the process might blow up on lack of memory.
     */
-  case object Unbounded extends Synchronous[Nothing]
+  final case object Unbounded extends Synchronous[Nothing]
 
   /** A [[OverflowStrategy]] specifying that on reaching the maximum size,
     * the pipeline should cancel the subscription and send an `onError`
