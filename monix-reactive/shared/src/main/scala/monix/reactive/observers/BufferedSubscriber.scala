@@ -60,7 +60,7 @@ import monix.reactive.observers.buffers.BuildersImpl
   *    upstream data sources, or dropping events from the head or the
   *    tail of the queue, or attempting to apply back-pressure, etc...
   *
-  * See [[OverflowStrategy OverflowStrategy]] for the buffer
+  * See [[monix.reactive.OverflowStrategy OverflowStrategy]] for the buffer
   * policies available.
   */
 trait BufferedSubscriber[-A] extends Subscriber[A]

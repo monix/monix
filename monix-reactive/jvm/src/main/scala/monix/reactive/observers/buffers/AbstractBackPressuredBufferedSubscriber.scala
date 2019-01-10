@@ -48,7 +48,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
 
   protected final val queue: LowLevelConcurrentQueue[A] =
     LowLevelConcurrentQueue(
-      Unbounded(Some(scala.math.min(Platform.recommendedBatchSize, bufferSize))),
+      Unbounded(Some(scala.math.min(Platform.recommendedBufferChunkSize, bufferSize))),
       ChannelType.assemble(pt, SingleConsumer),
       fenced = false
     )
@@ -188,7 +188,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
     private final def fastLoop(prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
       def stopStreaming(): Unit = {
         downstreamIsComplete = true
-        val bp = backPressured.get
+        val bp = backPressured.get()
         if (bp != null) bp.success(Stop)
       }
 

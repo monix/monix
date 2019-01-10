@@ -112,10 +112,11 @@ private[monix] object Platform {
     * which now recommends for this default to be `true` due to the design
     * of its type classes.
     */
-  val autoCancelableRunLoops: Boolean =
+  val autoCancelableRunLoops: Boolean = {
     Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
       .map(_.toLowerCase)
       .forall(v => v != "no" && v != "false" && v != "0")
+  }
 
   /**
     * Default value for local context propagation loops is set to
