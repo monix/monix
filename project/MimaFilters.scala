@@ -98,7 +98,8 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.BatchedBufferedSubscriber.apply"),
     exclude[IncompatibleResultTypeProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.queue"),
     exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.this"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.buffers.AbstractSimpleBufferedSubscriber.this")
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.buffers.AbstractSimpleBufferedSubscriber.this"),
+    exclude[FinalClassProblem]("monix.reactive.OverflowStrategy$Unbounded$")
   )
 
   lazy val changesFor_3_0_0_RC2 = Seq(
