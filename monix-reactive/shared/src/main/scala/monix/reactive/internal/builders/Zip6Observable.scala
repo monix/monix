@@ -34,45 +34,45 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
    obsA4: Observable[A4], obsA5: Observable[A5], obsA6: Observable[A6])
   (f: (A1,A2,A3,A4,A5,A6) => R)
   extends Observable[R] {
-  self =>
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     import out.scheduler
 
-    // MUST BE synchronized by `self`
+    val lock = new AnyRef
+    // MUST BE synchronized by `lock`
     var isDone = false
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var lastAck = Continue: Future[Ack]
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var elemA1: A1 = null.asInstanceOf[A1]
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var hasElemA1 = false
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var elemA2: A2 = null.asInstanceOf[A2]
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var hasElemA2 = false
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var elemA3: A3 = null.asInstanceOf[A3]
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var hasElemA3 = false
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var elemA4: A4 = null.asInstanceOf[A4]
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var hasElemA4 = false
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var elemA5: A5 = null.asInstanceOf[A5]
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var hasElemA5 = false
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var elemA6: A6 = null.asInstanceOf[A6]
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var hasElemA6 = false
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var continueP = Promise[Ack]()
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     var completeWithNext = false
 
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     def rawOnNext(a1: A1, a2: A2, a3: A3, a4: A4, a5: A5, a6: A6): Future[Ack] =
       if (isDone) Stop
       else {
@@ -100,7 +100,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
         }
       }
 
-    // MUST BE synchronized by `self`
+    // MUST BE synchronized by `lock`
     def signalOnNext(a1: A1, a2: A2, a3: A3, a4: A4, a5: A5, a6: A6): Future[Ack] = {
       lastAck = lastAck match {
         case Continue => rawOnNext(a1, a2, a3, a4, a5, a6)
@@ -108,7 +108,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
         case async =>
           async.flatMap {
             // async execution, we have to re-sync
-            case Continue => self.synchronized(rawOnNext(a1, a2, a3, a4, a5, a6))
+            case Continue => lock.synchronized(rawOnNext(a1, a2, a3, a4, a5, a6))
             case Stop => Stop
           }
       }
@@ -118,7 +118,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
       lastAck
     }
 
-    def signalOnError(ex: Throwable): Unit = self.synchronized {
+    def signalOnError(ex: Throwable): Unit = lock.synchronized {
       if (!isDone) {
         isDone = true
         out.onError(ex)
@@ -132,7 +132,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
         out.onComplete()
       }
 
-    def signalOnComplete(hasElem: Boolean): Unit = self.synchronized {
+    def signalOnComplete(hasElem: Boolean): Unit = lock.synchronized {
       if (!hasElem) {
         lastAck match {
           case Continue => rawOnComplete()
@@ -140,7 +140,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
           case async =>
             async.onComplete {
               case Success(Continue) =>
-                self.synchronized(rawOnComplete())
+                lock.synchronized(rawOnComplete())
               case _ =>
                 () // do nothing
             }
@@ -158,7 +158,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
     composite += obsA1.unsafeSubscribeFn(new Subscriber[A1] {
       implicit val scheduler = out.scheduler
 
-      def onNext(elem: A1): Future[Ack] = self.synchronized {
+      def onNext(elem: A1): Future[Ack] = lock.synchronized {
         if (isDone) Stop
         else {
           elemA1 = elem
@@ -181,7 +181,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
     composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
       implicit val scheduler = out.scheduler
 
-      def onNext(elem: A2): Future[Ack] = self.synchronized {
+      def onNext(elem: A2): Future[Ack] = lock.synchronized {
         if (isDone) Stop
         else {
           elemA2 = elem
@@ -204,7 +204,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
     composite += obsA3.unsafeSubscribeFn(new Subscriber[A3] {
       implicit val scheduler = out.scheduler
 
-      def onNext(elem: A3): Future[Ack] = self.synchronized {
+      def onNext(elem: A3): Future[Ack] = lock.synchronized {
         if (isDone) Stop
         else {
           elemA3 = elem
@@ -227,7 +227,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
     composite += obsA4.unsafeSubscribeFn(new Subscriber[A4] {
       implicit val scheduler = out.scheduler
 
-      def onNext(elem: A4): Future[Ack] = self.synchronized {
+      def onNext(elem: A4): Future[Ack] = lock.synchronized {
         if (isDone) Stop
         else {
           elemA4 = elem
@@ -250,7 +250,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
     composite += obsA5.unsafeSubscribeFn(new Subscriber[A5] {
       implicit val scheduler = out.scheduler
 
-      def onNext(elem: A5): Future[Ack] = self.synchronized {
+      def onNext(elem: A5): Future[Ack] = lock.synchronized {
         if (isDone) Stop
         else {
           elemA5 = elem
@@ -273,7 +273,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
     composite += obsA6.unsafeSubscribeFn(new Subscriber[A6] {
       implicit val scheduler = out.scheduler
 
-      def onNext(elem: A6): Future[Ack] = self.synchronized {
+      def onNext(elem: A6): Future[Ack] = lock.synchronized {
         if (isDone) Stop
         else {
           elemA6 = elem
