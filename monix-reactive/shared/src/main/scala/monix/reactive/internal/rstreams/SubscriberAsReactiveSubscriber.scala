@@ -19,11 +19,13 @@ package monix.reactive.internal.rstreams
 
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.SingleProducer
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription => RSubscription}
+
 import scala.concurrent.Future
 
 private[reactive] object SubscriberAsReactiveSubscriber {
@@ -35,7 +37,7 @@ private[reactive] object SubscriberAsReactiveSubscriber {
     * the call may pass asynchronous boundaries, the emitted events need to be buffered.
     * The `requestCount` constructor parameter also represents the buffer size.
     *
-    * To async an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used: 
+    * To async an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used:
     * {{{
     *   // uses the default requestCount of 128
     *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
@@ -151,7 +153,7 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
 
 
   private[this] val buffer: Subscriber.Sync[A] =
-    BufferedSubscriber.synchronous(downstream, Unbounded)
+    BufferedSubscriber.synchronous(downstream, Unbounded, SingleProducer)
 
   def onSubscribe(s: RSubscription): Unit =
     subscription := s

@@ -20,9 +20,11 @@ package monix.reactive.internal.operators
 import monix.execution.{Ack, AsyncSemaphore, Callback, Cancelable}
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.MultiProducer
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -75,7 +77,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
     // everything gets canceled at once
     private[this] val releaseTask = Task.eval(semaphore.release())
     // Buffer with the supplied  overflow strategy.
-    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy)
+    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
 
     // Flag indicating whether a final event was called, after which
     // nothing else can happen. It's a very light protection, as

@@ -18,29 +18,32 @@
 package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+
+import monix.eval.Coeval
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.exceptions.DummyException
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.DropNewAndSignal
 import monix.reactive.{BaseConcurrencySuite, Observable, Observer}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
 object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencySuite {
   def buildNewForInt(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Some(nr.toInt)))
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Coeval(Some(nr.toInt))))
   }
 
   def buildNewForLong(bufferSize: Int, underlying: Observer[Long])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Some(nr)))
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Coeval(Some(nr))))
   }
 
   test("merge test should work") { implicit s =>
     val num = 100000
     val source = Observable.repeat(1L).take(num)
     val f = Observable.fromIterable(Seq(source, source, source))
-      .mergeMap(x => x)(DropNewAndSignal(1000, dropped => Some(dropped)))
+      .mergeMap(x => x)(DropNewAndSignal(1000, dropped => Coeval(Some(dropped))))
       .sum
       .runAsyncGetFirst
 
@@ -141,7 +144,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
           ack.syncOnContinue(completed.countDown())
       }
 
-      val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), DropNewAndSignal(total.toInt, _ => None))
+      val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), DropNewAndSignal(total.toInt, _ => Coeval.pure(None)))
       for (i <- 1 to total.toInt) buffer.onNext(i)
       buffer.onComplete()
 
@@ -181,7 +184,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
       }
 
       val buffer = BufferedSubscriber[Either[Int,Int]](
-        Subscriber(underlying, s), DropNewAndSignal(8, nr => Some(Left(nr.toInt))))
+        Subscriber(underlying, s), DropNewAndSignal(8, nr => Coeval.pure(Some(Left(nr.toInt)))))
 
       for (i <- 1 to 100) buffer.onNext(Right(i))
 

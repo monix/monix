@@ -27,6 +27,9 @@ private[internal] class FromJavaQueue[A](queue: util.Queue[A])
   final def fenceOffer(): Unit = ()
   final def fencePoll(): Unit = ()
 
+  final def isEmpty: Boolean =
+    queue.isEmpty
+
   final def offer(elem: A): Int =
     if (queue.offer(elem)) 0 else 1
 

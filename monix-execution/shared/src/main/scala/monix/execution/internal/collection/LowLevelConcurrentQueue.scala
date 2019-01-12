@@ -18,6 +18,7 @@
 package monix.execution.internal.collection
 
 private[monix] trait LowLevelConcurrentQueue[A] extends Serializable {
+  def isEmpty: Boolean
   def offer(a: A): Int
   def poll(): A
   def drainToBuffer(buffer: scala.collection.mutable.Buffer[A], limit: Int): Int

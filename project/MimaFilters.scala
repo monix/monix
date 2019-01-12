@@ -14,8 +14,9 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.tail.IterantBuilders.apply"),
     exclude[MissingClassProblem]("monix.tail.IterantBuilders$Ref$"),
     exclude[IncompatibleResultTypeProblem]("monix.tail.Iterant.apply"),
-    // Breaking
-    // https://github.com/monix/monix/pull/778
+    //
+    // BREAKING CHANGES: https://github.com/monix/monix/pull/778
+    //
     exclude[IncompatibleMethTypeProblem]("monix.catnap.ConcurrentQueue#ApplyBuilders.unbounded$extension"),
     exclude[IncompatibleMethTypeProblem]("monix.catnap.ConcurrentQueue#ApplyBuilders.bounded$extension"),
     exclude[DirectMissingMethodProblem]("monix.catnap.ConcurrentQueue#ApplyBuilders.custom$default$2$extension"),
@@ -59,7 +60,46 @@ object MimaFilters {
     exclude[ReversedMissingMethodProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.fencePoll"),
     exclude[InheritedNewAbstractMethodProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.fenceOffer"),
     exclude[InheritedNewAbstractMethodProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.fencePoll"),
-    exclude[MissingClassProblem]("monix.execution.internal.collection.queues.ConcurrentQueueBuilders")
+    exclude[MissingClassProblem]("monix.execution.internal.collection.queues.ConcurrentQueueBuilders"),
+    //
+    // BREAKING CHANGES: https://github.com/monix/monix/pull/801
+    //
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.create"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.subjects.ConcurrentSubject#SubjectAsConcurrent.this"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.subjects.ConcurrentSubject.from"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.internal.builders.CreateObservable.this"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.Builders.batched"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.Builders.synchronous"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.Builders.apply"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.Builders.synchronous$default$3"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.Builders.batched$default$3"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.Builders.apply$default$3"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.Builders.batched"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.Builders.synchronous"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.Builders.apply"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.BufferedSubscriber.batched"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.BufferedSubscriber.synchronous"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.BufferedSubscriber.apply"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.BuildersImpl.batched"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.BuildersImpl.synchronous"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.BuildersImpl.apply"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.buffers.BuildersImpl.synchronous$default$3"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.buffers.BuildersImpl.batched"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.buffers.BuildersImpl.synchronous"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.buffers.BuildersImpl.batched$default$3"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.buffers.BuildersImpl.apply$default$3"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.observers.buffers.BuildersImpl.apply"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.buffers.SimpleBufferedSubscriber.this"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.BackPressuredBufferedSubscriber.apply"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.BackPressuredBufferedSubscriber.this"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.SimpleBufferedSubscriber.unbounded"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.SimpleBufferedSubscriber.overflowTriggering"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.BatchedBufferedSubscriber.this"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.BatchedBufferedSubscriber.apply"),
+    exclude[IncompatibleResultTypeProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.queue"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.buffers.AbstractSimpleBufferedSubscriber.this"),
+    exclude[FinalClassProblem]("monix.reactive.OverflowStrategy$Unbounded$")
   )
 
   lazy val changesFor_3_0_0_RC2 = Seq(

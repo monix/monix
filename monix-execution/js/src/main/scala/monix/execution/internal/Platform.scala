@@ -43,6 +43,7 @@ private[monix] object Platform {
     *
     * It's always a power of 2, because then for
     * applying the modulo operation we can just do:
+    *
     * {{{
     *   val modulus = Platform.recommendedBatchSize - 1
     *   // ...
@@ -50,6 +51,13 @@ private[monix] object Platform {
     * }}}
     */
   final val recommendedBatchSize: Int = 512
+
+  /** Recommended chunk size in unbounded buffer implementations that are chunked,
+    * or in chunked streams.
+    *
+    * Should be a power of 2.
+    */
+  final val recommendedBufferChunkSize: Int = 128
 
   /**
     * Auto cancelable run loops are set to `false` if Monix

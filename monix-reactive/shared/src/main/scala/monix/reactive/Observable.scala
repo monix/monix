@@ -19,11 +19,12 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.{Alternative, Applicative, Apply, CoflatMap, Eval, FlatMap, Monoid, NonEmptyParallel, Order, Eq, ~>, FunctorFilter, Functor}
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, Eval, FlatMap, Functor, FunctorFilter, Monoid, NonEmptyParallel, Order, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
 import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.MultiProducer
 import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
@@ -4304,10 +4305,24 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * This builder represents the safe way of building observables
     * from data-sources that cannot be back-pressured.
+    *
+    * @param overflowStrategy is the [[OverflowStrategy overflow strategy]]
+    *        that specifies the type of the underlying buffer (unbounded,
+    *        that overflows the head, etc). This parameter can only specify
+    *        a "synchronous" strategy, so no back-pressuring allowed.
+    *
+    * @param producerType (UNSAFE) is the
+    *        [[monix.execution.ChannelType.ProducerSide producer type]]
+    *        and can be `MultiProducer` or `SingleProducer`, specified as an
+    *        optimization option; if you don't know what you're doing, stick to
+    *        `MultiProducer`, which says that multiple producers can push
+    *        events at the same time, which is the default
     */
-  def create[A](overflowStrategy: OverflowStrategy.Synchronous[A])
+  def create[A](
+    overflowStrategy: OverflowStrategy.Synchronous[A],
+    producerType: ChannelType.ProducerSide = MultiProducer)
     (f: Subscriber.Sync[A] => Cancelable): Observable[A] =
-    new builders.CreateObservable(overflowStrategy, f)
+    new builders.CreateObservable(overflowStrategy, producerType, f)
 
   /** $multicastDesc
     *
@@ -4855,7 +4870,7 @@ object Observable extends ObservableDeprecatedBuilders {
     new builders.Interleave2Observable(oa1, oa2)
 
   /** Creates an Observable that emits auto-incremented natural numbers
-    * (longs) spaced by a given time interval. Starts from 0 with `initialDelay`, 
+    * (longs) spaced by a given time interval. Starts from 0 with `initialDelay`,
     * after which it emits incremented numbers spaced by the
     * `delay` of time. The given `delay` of time acts as a fixed
     * delay between successive events.

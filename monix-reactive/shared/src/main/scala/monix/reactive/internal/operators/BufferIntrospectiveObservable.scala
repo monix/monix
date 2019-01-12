@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Cancelable
+import monix.execution.ChannelType.SingleProducer
 import monix.reactive.Observable
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
@@ -26,5 +27,5 @@ class BufferIntrospectiveObservable[+A](source: Observable[A], maxSize: Int)
   extends Observable[List[A]] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[List[A]]): Cancelable =
-    source.unsafeSubscribeFn(BufferedSubscriber.batched(subscriber, maxSize))
+    source.unsafeSubscribeFn(BufferedSubscriber.batched(subscriber, maxSize, SingleProducer))
 }

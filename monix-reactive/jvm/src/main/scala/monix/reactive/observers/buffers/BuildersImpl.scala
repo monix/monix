@@ -17,19 +17,22 @@
 
 package monix.reactive.observers.buffers
 
+import monix.execution.ChannelType
+import monix.execution.ChannelType.MultiProducer
+import monix.execution.internal.Platform
 import monix.reactive.OverflowStrategy
 import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
 private[observers] trait BuildersImpl {  self: BufferedSubscriber.type =>
-  def apply[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy[A]): Subscriber[A] = {
+  def apply[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy[A], producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A] = {
     bufferPolicy match {
       case Unbounded =>
-        SimpleBufferedSubscriber.unbounded(subscriber)
+        SimpleBufferedSubscriber.unbounded(subscriber, Some(Platform.recommendedBufferChunkSize), producerType)
       case Fail(bufferSize) =>
-        SimpleBufferedSubscriber.overflowTriggering(subscriber, bufferSize)
+        SimpleBufferedSubscriber.overflowTriggering(subscriber, bufferSize, producerType)
       case BackPressure(bufferSize) =>
-        BackPressuredBufferedSubscriber(subscriber, bufferSize)
+        BackPressuredBufferedSubscriber(subscriber, bufferSize, producerType)
 
       case DropNew(bufferSize) =>
         DropNewBufferedSubscriber.simple(subscriber, bufferSize)
@@ -48,12 +51,12 @@ private[observers] trait BuildersImpl {  self: BufferedSubscriber.type =>
     }
   }
 
-  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A]): Subscriber.Sync[A] = {
+  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A], producerType: ChannelType.ProducerSide = MultiProducer): Subscriber.Sync[A] = {
     bufferPolicy match {
       case Unbounded =>
-        SimpleBufferedSubscriber.unbounded(subscriber)
+        SimpleBufferedSubscriber.unbounded(subscriber, Some(Platform.recommendedBufferChunkSize), producerType)
       case Fail(bufferSize) =>
-        SimpleBufferedSubscriber.overflowTriggering(subscriber, bufferSize)
+        SimpleBufferedSubscriber.overflowTriggering(subscriber, bufferSize, producerType)
 
       case DropNew(bufferSize) =>
         DropNewBufferedSubscriber.simple(subscriber, bufferSize)
@@ -72,6 +75,6 @@ private[observers] trait BuildersImpl {  self: BufferedSubscriber.type =>
     }
   }
 
-  def batched[A](underlying: Subscriber[List[A]], bufferSize: Int): Subscriber[A] =
-    BatchedBufferedSubscriber(underlying, bufferSize)
+  def batched[A](underlying: Subscriber[List[A]], bufferSize: Int, producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A] =
+    BatchedBufferedSubscriber(underlying, bufferSize, producerType)
 }
