@@ -123,4 +123,20 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val r = task.runSyncUnsafeOpt(Duration.Inf)
     assertEquals(r, 100)
   }
+
+  test("local state is encapsulated by Task run loop") {
+    import monix.execution.Scheduler.Implicits.global
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    val local = TaskLocal(0).memoize
+
+    val task = for {
+      l <- local
+      x <- l.read
+      _ <- l.write(x + 1)
+    } yield x
+
+    for (_ <- 1 to 10) task.runSyncUnsafeOpt()
+    val r = task.runSyncUnsafeOpt()
+    assertEquals(r, 0)
+  }
 }
