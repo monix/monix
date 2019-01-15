@@ -1908,8 +1908,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param keySelector  a function that extracts the key for each item
     */
   final def groupBy[K](keySelector: A => K)
-    (implicit keysBuffer: Synchronous[Nothing] = OverflowStrategy.Unbounded): Observable[GroupedObservable[K, A]] =
-    self.liftByOperator(new GroupByOperator[A, K](keysBuffer, keySelector))
+    (implicit os: Synchronous[Nothing] = OverflowStrategy.Unbounded): Observable[GroupedObservable[K, A]] =
+    self.liftByOperator(new GroupByOperator[A, K](os, keySelector))
 
   /** Given a routine make sure to execute it whenever the current
     * stream reaches the end, successfully, in error, or canceled.
