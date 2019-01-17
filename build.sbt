@@ -26,7 +26,7 @@ val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
-val minitestVersion = "2.1.1"
+val minitestVersion = "2.3.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
