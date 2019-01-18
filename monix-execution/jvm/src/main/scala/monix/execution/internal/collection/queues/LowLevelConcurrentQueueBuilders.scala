@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -69,7 +69,8 @@ private[internal] trait LowLevelConcurrentQueueBuilders {
     * Builds an bounded `ConcurrentQueue` reference.
     */
   private def unbounded[A](chunkSize: Option[Int], ct: ChannelType, fenced: Boolean): LowLevelConcurrentQueue[A] = {
-    val chunk = chunkSize.getOrElse(Platform.recommendedBatchSize)
+    val chunk = chunkSize.getOrElse(Platform.recommendedBufferChunkSize)
+
     if (UnsafeAccess.IS_OPENJDK_COMPATIBLE) {
       // Support for memory fences in Unsafe is only available in Java 8+
       if (UnsafeAccess.HAS_JAVA8_INTRINSICS || !fenced) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.reactive.observers
 
 import minitest.TestSuite
+import monix.eval.Coeval
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.AtomicLong
 import monix.execution.internal.{Platform, RunnableAction}
@@ -26,6 +27,7 @@ import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.ClearBufferAndSignal
 import monix.execution.exceptions.DummyException
+
 import scala.concurrent.{Future, Promise}
 
 object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
@@ -39,14 +41,14 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     (implicit s: Scheduler) = {
 
     BufferedSubscriber(Subscriber(underlying, s),
-      ClearBufferAndSignal(bufferSize, nr => Some(nr.toInt)))
+      ClearBufferAndSignal(bufferSize, nr => Coeval(Some(nr.toInt))))
   }
 
   def buildNewWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)
     (implicit s: Scheduler) = {
 
     BufferedSubscriber[Int](Subscriber(underlying, s),
-      ClearBufferAndSignal(bufferSize, { nr => log.set(nr); None }))
+      ClearBufferAndSignal(bufferSize, nr => Coeval { log.set(nr); None }))
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -187,10 +189,10 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
 
     if (Platform.isJVM) {
       assertEquals(received, 28 + (2000 to 2004).sum)
-      assertEquals(log.get, 2000)
+      assertEquals(log.get(), 2000)
     }
     else {
-      assertEquals(log.get, 2002)
+      assertEquals(log.get(), 2002)
       assertEquals(received, 28 + (2002 to 2004).sum)
     }
 

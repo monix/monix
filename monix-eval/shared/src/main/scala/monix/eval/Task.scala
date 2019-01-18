@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,6 +27,7 @@ import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseBlocking, UnsafeBecauseImpure}
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
+import monix.execution.misc.Local
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
@@ -577,7 +578,9 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
-    TaskRunLoop.startFuture(this, s, opts)
+    Local.bindCurrentIf(opts.localContextPropagation) {
+      TaskRunLoop.startFuture(this, s, opts)
+    }
 
   /** Triggers the asynchronous execution, with a provided callback
     * that's going to be called at some point in the future with
@@ -697,7 +700,9 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable =
-    UnsafeCancelUtils.taskToCancelable(runAsyncOptF(cb)(s, opts))
+    Local.bindCurrentIf(opts.localContextPropagation) {
+      UnsafeCancelUtils.taskToCancelable(runAsyncOptF(cb)(s, opts))
+    }
 
   /** Triggers the asynchronous execution, returning a `Task[Unit]`
     * (aliased to `CancelToken[Task]` in Cats-Effect) which can
@@ -795,7 +800,9 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): CancelToken[Task] =
-    TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb))
+    Local.bindCurrentIf(opts.localContextPropagation) {
+      TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb))
+    }
 
   /** Triggers the asynchronous execution of the source task
     * in a "fire and forget" fashion.
@@ -914,7 +921,9 @@ sealed abstract class Task[+A] extends Serializable {
   @UnsafeBecauseImpure
   def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)
     (implicit s: Scheduler, opts: Task.Options): Unit =
-    TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb), isCancelable = false)
+    Local.bindCurrentIf(opts.localContextPropagation) {
+      TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb), isCancelable = false)
+    }
 
   /** Executes the source until completion, or until the first async
     * boundary, whichever comes first.
@@ -975,7 +984,9 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   final def runSyncStepOpt(implicit s: Scheduler, opts: Options): Either[Task[A], A] =
-    TaskRunLoop.startStep(this, s, opts)
+    Local.bindCurrentIf(opts.localContextPropagation) {
+      TaskRunLoop.startStep(this, s, opts)
+    }
 
   /** Evaluates the source task synchronously and returns the result
     * immediately or blocks the underlying thread until the result is
@@ -1070,7 +1081,9 @@ sealed abstract class Task[+A] extends Serializable {
   final def runSyncUnsafeOpt(timeout: Duration = Duration.Inf)
     (implicit s: Scheduler, opts: Options, permit: CanBlock): A = {
     /*_*/
-    TaskRunSyncUnsafe(this, timeout, s, opts)
+    Local.bindCurrentIf(opts.localContextPropagation) {
+      TaskRunSyncUnsafe(this, timeout, s, opts)
+    }
     /*_*/
   }
 

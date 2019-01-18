@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -392,7 +392,6 @@ object TestScheduler {
 
     val newID = state.lastID + 1
     SingleAssignCancelable()
-
     val task = Task(newID, r, state.clock + delay)
     val cancelable = new Cancelable {
       def cancel(): Unit = cancelTask(task)

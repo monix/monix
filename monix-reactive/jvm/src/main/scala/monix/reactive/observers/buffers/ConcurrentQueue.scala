@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,10 +42,10 @@ private[buffers] object ConcurrentQueue {
     val maxCapacity = math.max(4, nextPowerOf2(capacity))
     if (UnsafeAccess.IS_OPENJDK_COMPATIBLE) {
       new FromMessagePassingQueue[A](
-        if (maxCapacity <= Platform.recommendedBatchSize)
+        if (maxCapacity <= Platform.recommendedBufferChunkSize)
           new MpscArrayQueue[A](maxCapacity)
         else {
-          val initialCapacity = math.min(Platform.recommendedBatchSize, maxCapacity / 2)
+          val initialCapacity = math.min(Platform.recommendedBufferChunkSize, maxCapacity / 2)
           new MpscChunkedArrayQueue[A](initialCapacity, maxCapacity)
         }
       )
@@ -58,7 +58,7 @@ private[buffers] object ConcurrentQueue {
   /** Builds an unbounded queue. */
   def unbounded[A](): ConcurrentQueue[A] = {
     if (UnsafeAccess.IS_OPENJDK_COMPATIBLE) {
-      val size = Platform.recommendedBatchSize
+      val size = Platform.recommendedBufferChunkSize
       new FromMessagePassingQueue[A](new MpscUnboundedArrayQueue[A](size))
     }
     else {

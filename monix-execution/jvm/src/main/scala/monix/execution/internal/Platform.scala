@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -65,6 +65,36 @@ private[monix] object Platform {
       .getOrElse(1024)
   }
 
+  /** Recommended chunk size in unbounded buffer implementations that are chunked,
+    * or in chunked streaming.
+    *
+    * Examples:
+    *
+    *  - the default when no `chunkSizeHint` is specified in
+    *    [[monix.execution.BufferCapacity.Unbounded BufferCapacity.Unbounded]]
+    *  - the chunk size used in
+    *    [[monix.reactive.OverflowStrategy.Unbounded OverflowStrategy.Unbounded]]
+    *  - the default in
+    *    [[monix.tail.Iterant.fromConsumer Iterant.fromConsumer]] or in
+    *    [[monix.tail.Iterant.fromConsumer Iterant.fromChannel]]
+    *
+    * Can be configured by setting Java properties:
+    *
+    * <pre>
+    *   java -Dmonix.environment.bufferChunkSize=128 \
+    *        ...
+    * </pre>
+    *
+    * Should be a power of 2 or it gets rounded to one.
+    */
+  val recommendedBufferChunkSize: Int = {
+    Option(System.getProperty("monix.environment.bufferChunkSize", ""))
+      .filter(s => s != null && s.nonEmpty)
+      .flatMap(s => Try(s.toInt).toOption)
+      .map(math.nextPowerOf2)
+      .getOrElse(256)
+  }
+
   /** Default value for auto cancelable loops, set to `false`.
     *
     * On top of the JVM the default can be overridden by setting the following
@@ -78,14 +108,15 @@ private[monix] object Platform {
     *  - `no`, `false` or `0` for disabling
     *
     * NOTE: this values was `false` by default prior to the Monix 3.0.0
-    * release. This changed along with the release of Cats-Effect 1.0.0
+    * release. This changed along with the release of Cats-Effect 1.1.0
     * which now recommends for this default to be `true` due to the design
     * of its type classes.
     */
-  val autoCancelableRunLoops: Boolean =
+  val autoCancelableRunLoops: Boolean = {
     Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
       .map(_.toLowerCase)
       .forall(v => v != "no" && v != "false" && v != "0")
+  }
 
   /**
     * Default value for local context propagation loops is set to

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,6 +30,9 @@ private[internal] abstract class FromCircularQueue[A](queue: ConcurrentCircularA
 
   def fenceOffer(): Unit
   def fencePoll(): Unit
+
+  final def isEmpty: Boolean =
+    queue.isEmpty
 
   final def offer(elem: A): Int =
     if (queue.offer(elem)) 0 else 1

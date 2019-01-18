@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -197,6 +197,8 @@ final class ConcurrentQueue[F[_], A] private (
     */
   @UnsafeProtocol
   def tryPoll: F[Option[A]] = tryPollRef
+  private[this] val tryPollRef =
+    F.delay(Option(tryPollUnsafe()))
 
   /** Fetches a value from the queue, or if the queue is empty it awaits
     * asynchronously until a value is made available.
@@ -354,10 +356,6 @@ final class ConcurrentQueue[F[_], A] private (
   private[this] val pollMap: A => A = a => a
   private[this] val offerTest: Boolean => Boolean = x => x
   private[this] val offerMap: Boolean => Unit = _ => ()
-
-  /** Cached implementation for [[tryPoll]]. */
-  private[this] val tryPollRef =
-    F.delay(Option(tryPollUnsafe()))
 
   private def toSeq(buffer: ArrayBuffer[A]): Seq[A] =
     buffer.toArray[Any].toSeq.asInstanceOf[Seq[A]]

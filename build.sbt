@@ -1,8 +1,5 @@
 import com.typesafe.sbt.GitVersioning
 import sbt.Keys.version
-// For getting Scoverage out of the generated POM
-import scala.xml.Elem
-import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 val allProjects = List(
   "execution",
@@ -21,12 +18,12 @@ addCommandAlias("ci-jvm-all", s";ci-jvm ;unidoc")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned")
 
 val catsVersion = "1.4.0"
-val catsEffectVersion = "1.0.0"
+val catsEffectVersion = "1.1.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
-val minitestVersion = "2.1.1"
+val minitestVersion = "2.3.2"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -42,20 +39,20 @@ lazy val doNotPublishArtifact = Seq(
 lazy val warnUnusedImport = Seq(
   scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 10)) =>
-        Seq()
-      case Some((2, n)) if n >= 11 =>
+      case Some((2, 11)) =>
         Seq("-Ywarn-unused-import")
+      case _ =>
+        Seq("-Ywarn-unused:imports")
     }
   },
-  scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
-  scalacOptions in Test ~= {_.filterNot("-Ywarn-unused-import" == _)}
+  scalacOptions in (Compile, console) --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
+  scalacOptions in Test --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports")
 )
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.7",
-  crossScalaVersions := Seq("2.11.12", "2.12.7"),
+  scalaVersion := "2.12.8",
+  crossScalaVersions := Seq("2.11.12", "2.12.8"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -66,11 +63,19 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-language:higherKinds",
     "-language:implicitConversions",
     "-language:experimental.macros",
-    // possibly deprecated options
-    "-Ywarn-inaccessible",
-    // absolutely necessary for Iterant
-    "-Ypartial-unification"
   ),
+
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      Seq(
+        // possibly deprecated options
+        "-Ywarn-inaccessible",
+        // absolutely necessary for Iterant
+        "-Ypartial-unification",
+      )
+    case _ =>
+      Seq.empty
+  }),
 
   // Force building with Java 8
   initialize := {
@@ -102,26 +107,28 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   }),
 
   // Linter
+  scalacOptions ++= Seq(
+    // Turns all warnings into errors ;-)
+    "-Xfatal-warnings",
+    // Enables linter options
+    "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
+    "-Xlint:nullary-unit", // warn when nullary methods return Unit
+    "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
+    "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
+    "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
+    "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
+    "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
+    "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
+    "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
+    "-Xlint:option-implicit", // Option.apply used implicit view
+    "-Xlint:delayedinit-select", // Selecting member of DelayedInit
+    "-Xlint:package-object-classes", // Class or object defined in package object
+  ),
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion >= 11 =>
+    case Some((2, majorVersion)) if majorVersion <= 12 =>
       Seq(
-        // Turns all warnings into errors ;-)
-        "-Xfatal-warnings",
-        // Enables linter options
-        "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
-        "-Xlint:nullary-unit", // warn when nullary methods return Unit
         "-Xlint:inaccessible", // warn about inaccessible types in method signatures
-        "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
-        "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
-        "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
-        "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
-        "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
-        "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
-        "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
-        "-Xlint:option-implicit", // Option.apply used implicit view
-        "-Xlint:delayedinit-select", // Selecting member of DelayedInit
         "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
-        "-Xlint:package-object-classes", // Class or object defined in package object
         "-Xlint:unsound-match" // Pattern match may not be typesafe
       )
     case _ =>
@@ -183,22 +190,10 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
 
-  // For evicting Scoverage out of the generated POM
-  // See: https://github.com/scoverage/sbt-scoverage/issues/153
-  pomPostProcess := { (node: xml.Node) =>
-    new RuleTransformer(new RewriteRule {
-      override def transform(node: xml.Node): Seq[xml.Node] = node match {
-        case e: Elem
-          if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
-        case _ => Seq(node)
-      }
-    }).transform(node).head
-  },
-
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
   headerLicense := Some(HeaderLicense.Custom(
-    """|Copyright (c) 2014-2018 by The Monix Project Developers.
+    """|Copyright (c) 2014-2019 by The Monix Project Developers.
        |See the project homepage at: https://monix.io
        |
        |Licensed under the Apache License, Version 2.0 (the "License");
@@ -269,8 +264,8 @@ lazy val unidocSettings = Seq(
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
-  scalacOptions in (ScalaUnidoc, unidoc) -=
-    "-Ywarn-unused-import",
+  scalacOptions in (ScalaUnidoc, unidoc) --=
+    Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
@@ -284,7 +279,7 @@ lazy val unidocSettings = Seq(
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies ++= Seq(
-    "io.monix" %%% "minitest-laws" % minitestVersion % Test,
+    "io.monix" %%% "minitest-laws-legacy" % minitestVersion % Test,
     "org.typelevel" %%% "cats-laws" % catsVersion % Test,
     "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion % Test
   )
@@ -295,7 +290,15 @@ lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
 )
 
 lazy val scalaJSSettings = Seq(
-  coverageExcludedFiles := ".*"
+  // Use globally accessible (rather than local) source paths in JS source maps
+  scalacOptions += {
+    val tagOrHash =
+      if (isSnapshot.value) git.gitHeadCommit.value.get
+      else s"v${git.baseVersion.value}"
+    val l = (baseDirectory in LocalRootProject).value.toURI.toString
+    val g = s"https://raw.githubusercontent.com/monix/monix/$tagOrHash/"
+    s"-P:scalajs:mapSourceURI:$l->$g"
+  }
 )
 
 lazy val cmdlineProfile =
@@ -307,9 +310,8 @@ def mimaSettings(projectName: String) = Seq(
 )
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
-  case "coverage" => pr
-  case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
-      .enablePlugins(AutomateHeaderPlugin)
+  case _ =>
+    pr.enablePlugins(AutomateHeaderPlugin)
 }
 
 lazy val doctestTestSettings = Seq(

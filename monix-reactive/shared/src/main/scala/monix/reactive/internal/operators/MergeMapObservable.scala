@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.MultiProducer
 import monix.execution.{Ack, Cancelable}
 import monix.execution.cancelables._
 import monix.execution.exceptions.CompositeException
@@ -25,7 +26,6 @@ import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
-
 import scala.collection.mutable
 
 private[reactive] final class MergeMapObservable[A,B](
@@ -41,7 +41,7 @@ private[reactive] final class MergeMapObservable[A,B](
     composite += source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = downstream.scheduler
       private[this] val subscriberB: Subscriber[B] =
-        BufferedSubscriber(downstream, overflowStrategy)
+        BufferedSubscriber(downstream, overflowStrategy, MultiProducer)
 
       private[this] val upstreamIsDone = Atomic(false)
       private[this] val errors = if (delayErrors)

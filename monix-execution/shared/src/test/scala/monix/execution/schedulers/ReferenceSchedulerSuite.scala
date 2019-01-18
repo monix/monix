@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,6 +39,11 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
       underlying.scheduleOnce(initialDelay, unit, r)
   }
 
+  class DummyTimeScheduler extends DummyScheduler() {
+    override def clockRealTime(unit: TimeUnit): Long = underlying.clockRealTime(unit)
+    override def clockMonotonic(unit: TimeUnit): Long = underlying.clockMonotonic(unit)
+  }
+
   test("clockRealTime") {
     val s = new DummyScheduler
     val ws = s.withExecutionModel(SynchronousExecution)
@@ -73,7 +78,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
   }
 
   test("schedule at fixed rate") {
-    val s = new DummyScheduler
+    val s = new DummyTimeScheduler
     val ws = s.withExecutionModel(SynchronousExecution)
 
     var effect = 0
