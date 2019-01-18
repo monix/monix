@@ -1,8 +1,5 @@
 import com.typesafe.sbt.GitVersioning
 import sbt.Keys.version
-// For getting Scoverage out of the generated POM
-import scala.xml.Elem
-import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 val allProjects = List(
   "execution",
@@ -193,18 +190,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
 
-  // For evicting Scoverage out of the generated POM
-  // See: https://github.com/scoverage/sbt-scoverage/issues/153
-  pomPostProcess := { (node: xml.Node) =>
-    new RuleTransformer(new RewriteRule {
-      override def transform(node: xml.Node): Seq[xml.Node] = node match {
-        case e: Elem
-          if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
-        case _ => Seq(node)
-      }
-    }).transform(node).head
-  },
-
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
   headerLicense := Some(HeaderLicense.Custom(
@@ -305,8 +290,6 @@ lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
 )
 
 lazy val scalaJSSettings = Seq(
-  coverageExcludedFiles := ".*",
-
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions += {
     val tagOrHash =
@@ -327,9 +310,8 @@ def mimaSettings(projectName: String) = Seq(
 )
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
-  case "coverage" => pr
-  case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
-      .enablePlugins(AutomateHeaderPlugin)
+  case _ =>
+    pr.enablePlugins(AutomateHeaderPlugin)
 }
 
 lazy val doctestTestSettings = Seq(
