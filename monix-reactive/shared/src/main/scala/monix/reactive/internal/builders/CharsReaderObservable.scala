@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,14 +19,18 @@ package monix.reactive.internal.builders
 
 import java.io.Reader
 import java.util
+
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
 import monix.execution.exceptions.APIContractViolationException
+import monix.execution.internal.Platform
+
 import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
 import scala.util.{Failure, Success}
@@ -48,10 +52,7 @@ private[reactive] final class CharsReaderObservable(
       val cancelable = BooleanCancelable()
       val em = out.scheduler.executionModel
       // Schedule first cycle
-      if (em.isAlwaysAsync)
-        reschedule(Continue, buffer, out, cancelable, em)(out.scheduler)
-      else
-        fastLoop(buffer, out, cancelable, em, 0)(out.scheduler)
+      reschedule(Continue, buffer, out, cancelable, em)(out.scheduler)
 
       cancelable
     }
@@ -65,13 +66,9 @@ private[reactive] final class CharsReaderObservable(
         // Should we continue, or should we close the stream?
         if (next == Continue && !c.isCanceled)
           fastLoop(b, out, c, em, 0)
-        else
-          triggerCancel(s)
-
+        // else stop
       case Failure(ex) =>
-        // This branch should never happen, but you never know.
-        try s.reportFailure(ex)
-        finally triggerCancel(s)
+        reportFailure(ex)
     }
   }
 
@@ -83,18 +80,12 @@ private[reactive] final class CharsReaderObservable(
     // loop tail-recursive :-(
     var errorThrown: Throwable = null
     var ack: Future[Ack] = Continue
-
-    // Protects calls to user code from within the operator and
-    // stream the error downstream if it happens, but if the
-    // error happens because of calls to `onNext` or other
-    // protocol calls, then we can just log it, but not stream it,
-    // as we'd be breaching the protocol.
     var streamErrors = true
 
     try {
       // Using Scala's BlockContext, since this is potentially a blocking call
       val length = blocking(in.read(buffer))
-      // We did our I/O, from now on we can no longer stream onError
+      // From this point on, whatever happens is a protocol violation
       streamErrors = false
 
       ack = if (length >= 0) {
@@ -104,15 +95,7 @@ private[reactive] final class CharsReaderObservable(
         val next = util.Arrays.copyOf(buffer, length)
         out.onNext(next)
       } else {
-        // We have reached EOF, which means we need to close
-        // the stream and send onComplete. But I/O errors can happen
-        // and these we are allowed to stream.
-        val ex =
-          try { blocking(in.close()); null }
-          catch { case err if NonFatal(err) => err }
-
-        if (ex == null) out.onComplete()
-        else out.onError(ex)
+        out.onComplete()
         Stop
       }
     } catch {
@@ -127,29 +110,35 @@ private[reactive] final class CharsReaderObservable(
         else if (ack == Stop) -1
         else 0
 
-      if (nextIndex < 0 || c.isCanceled)
-        triggerCancel(s)
-      else if (nextIndex > 0)
-        fastLoop(buffer, out, c, em, nextIndex)
-      else
-        reschedule(ack, buffer, out, c, em)
+      if (!c.isCanceled) {
+        if (nextIndex > 0)
+          fastLoop(buffer, out, c, em, nextIndex)
+        else if (nextIndex >= 0)
+          reschedule(ack, buffer, out, c, em)
+      }
     }
     else {
       // Dealing with unexpected errors
-      try {
-        if (streamErrors)
-          out.onError(errorThrown)
-        else
-          s.reportFailure(errorThrown)
-      } finally {
-        triggerCancel(s)
-      }
+      if (streamErrors)
+        sendError(out, errorThrown)
+      else
+        reportFailure(errorThrown)
     }
   }
 
-  private def triggerCancel(s: UncaughtExceptionReporter): Unit =
-    try blocking(in.close()) catch {
-      case ex if NonFatal(ex) =>
-        s.reportFailure(ex)
+  private def sendError(out: Subscriber[Nothing], e: Throwable)(implicit s: UncaughtExceptionReporter): Unit = {
+    try {
+      out.onError(e)
+    } catch {
+      case NonFatal(e2) =>
+        reportFailure(Platform.composeErrors(e, e2))
     }
+  }
+
+  private def reportFailure(e: Throwable)(implicit s: UncaughtExceptionReporter): Unit = {
+    s.reportFailure(e)
+    // Forcefully close in case of protocol violations, because we are
+    // not signaling the error downstream, which could lead to leaks
+    try in.close() catch { case NonFatal(_) => () }
+  }
 }

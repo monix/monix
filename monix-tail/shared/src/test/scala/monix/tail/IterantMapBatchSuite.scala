@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,7 +60,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].empty[Int])).guarantee(Task.evalAsync {
       isCanceled = true
     })
-    val result = stream.mapBatch[Int](_ => throw dummy).toListL.runAsync
+    val result = stream.mapBatch[Int](_ => throw dummy).toListL.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -75,7 +75,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
       .guarantee(Task.evalAsync {
         isCanceled = true
       })
-    val result = stream.mapBatch[Int](_ => throw dummy).toListL.runAsync
+    val result = stream.mapBatch[Int](_ => throw dummy).toListL.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -94,7 +94,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
           effect += 1
         })
         .mapBatch[Int](_ => throw dummy)
-        .completeL.map(_ => 0)
+        .completedL.map(_ => 0)
         .onErrorRecover { case _: DummyException => effect }
 
       received <-> Task.pure(1)
@@ -228,7 +228,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.mapBatch(Batch.apply(_))
-    stream.completeL.value()
+    stream.completedL.value()
     assertEquals(effect, 1)
   }
 }

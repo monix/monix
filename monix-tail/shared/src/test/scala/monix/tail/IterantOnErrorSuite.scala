@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -135,7 +135,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
       .guarantee(
         Coeval { effect += 1 })
 
-    errorInTail.onErrorHandleWith(_ => Iterant[Coeval].empty[Int]).completeL.value()
+    errorInTail.onErrorHandleWith(_ => Iterant[Coeval].empty[Int]).completedL.value()
     assertEquals(effect, 3)
   }
 
@@ -162,7 +162,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
         })
       .guarantee(Coeval { effect += 1 })
 
-    errorInTail.attempt.completeL.value()
+    errorInTail.attempt.completedL.value()
     assertEquals(effect, 3)
   }
 
@@ -178,18 +178,18 @@ object IterantOnErrorSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     Iterant[IO]
       .eval { throw dummy }
-      .onErrorIgnore.completeL.unsafeRunSync()
+      .onErrorIgnore.completedL.unsafeRunSync()
 
     Iterant[IO].of(1)
       .mapEval(_ => IO { throw dummy })
-      .onErrorIgnore.completeL.unsafeRunSync()
+      .onErrorIgnore.completedL.unsafeRunSync()
 
     Iterant[IO].of(1)
       .mapEval(_ => throw dummy)
-      .onErrorIgnore.completeL.unsafeRunSync()
+      .onErrorIgnore.completedL.unsafeRunSync()
 
     Iterant[IO].liftF(IO { throw dummy })
-      .onErrorIgnore.completeL.unsafeRunSync()
+      .onErrorIgnore.completedL.unsafeRunSync()
   }
 
   test("attempt should capture exceptions from mapEval") { _ =>

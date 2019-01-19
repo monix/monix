@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,7 +57,7 @@ object IterantDumpSuite extends BaseTestSuite {
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out = Iterant[Task].nextS(el, Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
-      out.completeL.runAsync
+      out.completedL.runToFuture
       s.tick()
 
       counter.get <-> 2
@@ -68,7 +68,7 @@ object IterantDumpSuite extends BaseTestSuite {
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out = Iterant[Task].nextCursorS(BatchCursor(el), Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
-      out.completeL.runAsync
+      out.completedL.runToFuture
       s.tick()
 
       counter.get <-> 2
@@ -79,7 +79,7 @@ object IterantDumpSuite extends BaseTestSuite {
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out = Iterant[Task].nextBatchS(Batch(el), Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
-      out.completeL.runAsync
+      out.completedL.runToFuture
       s.tick()
 
       counter.get <-> 2
@@ -89,7 +89,7 @@ object IterantDumpSuite extends BaseTestSuite {
   test("Iterant.dump works for Suspend") { implicit s =>
     val counter = AtomicInt(0)
     val out = Iterant[Task].suspend(Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
-    out.completeL.runAsync
+    out.completedL.runToFuture
     s.tick()
 
     assertEquals(counter.get, 2)
@@ -99,7 +99,7 @@ object IterantDumpSuite extends BaseTestSuite {
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out = Iterant[Task].lastS(el).dump("O", dummyOut(counter))
-      out.completeL.runAsync
+      out.completedL.runToFuture
       s.tick()
 
       counter.get <-> 1
@@ -110,7 +110,7 @@ object IterantDumpSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val counter = AtomicInt(0)
     val out = Iterant[Task].haltS(Some(dummy)).dump("O", dummyOut(counter))
-    out.completeL.runAsync
+    out.completedL.runToFuture
     s.tick()
 
     assertEquals(counter.get, 1)
@@ -122,7 +122,7 @@ object IterantDumpSuite extends BaseTestSuite {
       val out = Iterant.concatS(Task.pure(Iterant[Task].of(el)), Task.pure(Iterant[Task].of(el)))
       val stream = out.dump("O", dummyOut(counter))
 
-      stream.completeL.runAsync
+      stream.completedL.runToFuture
       s.tick()
 
       counter.get <-> 5
@@ -135,7 +135,7 @@ object IterantDumpSuite extends BaseTestSuite {
       val out = Iterant.scopeS[Task, Unit, Int](Task.unit, _ => Task.pure(Iterant[Task].of(el)), (_, _) => Task.unit)
       val stream = out.dump("O", dummyOut(counter))
 
-      stream.completeL.runAsync
+      stream.completedL.runToFuture
       s.tick()
 
       counter.get <-> 4
@@ -147,7 +147,7 @@ object IterantDumpSuite extends BaseTestSuite {
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.dump("O", dummyOut(AtomicInt(0)))
-    stream.completeL.value()
+    stream.completedL.value()
 
     assertEquals(effect, 1)
   }

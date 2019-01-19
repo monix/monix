@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,7 @@ object TaskDelaySuite extends BaseTestSuite {
     val task = Task.evalAsync(trigger()).delayExecution(1.second)
     assert(!wasTriggered, "!wasTriggered")
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assert(!wasTriggered, "!wasTriggered")
     assertEquals(f.value, None)
 
@@ -51,7 +51,7 @@ object TaskDelaySuite extends BaseTestSuite {
           .flatMap(n => loop(n - 1))
 
     val count = if (Platform.isJVM) 50000 else 5000
-    val result = loop(count).runAsync
+    val result = loop(count).runToFuture
     s.tick(count.seconds)
     assertEquals(result.value, Some(Success(0)))
   }
@@ -60,7 +60,7 @@ object TaskDelaySuite extends BaseTestSuite {
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.now(0)
     for (_ <- 0 until count) task = task.delayExecution(1.second)
-    val result = task.runAsync
+    val result = task.runToFuture
     s.tick(count.seconds)
     assertEquals(result.value, Some(Success(0)))
   }
@@ -72,7 +72,7 @@ object TaskDelaySuite extends BaseTestSuite {
     val task = Task.evalAsync(trigger()).delayExecution(1.second)
     assert(!wasTriggered, "!wasTriggered")
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assert(!wasTriggered, "!wasTriggered")
     assertEquals(f.value, None)
 
@@ -95,7 +95,7 @@ object TaskDelaySuite extends BaseTestSuite {
     val task = Task.evalAsync(trigger()).delayResult(1.second)
     assert(!wasTriggered, "!wasTriggered")
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assert(!wasTriggered, "!wasTriggered")
     assertEquals(f.value, None)
 
@@ -114,7 +114,7 @@ object TaskDelaySuite extends BaseTestSuite {
           .flatMap(n => loop(n - 1))
 
     val count = if (Platform.isJVM) 50000 else 5000
-    val result = loop(count).runAsync
+    val result = loop(count).runToFuture
     s.tick(count.seconds)
     assertEquals(result.value, Some(Success(0)))
   }
@@ -123,7 +123,7 @@ object TaskDelaySuite extends BaseTestSuite {
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.now(0)
     for (_ <- 0 until count) task = task.delayResult(1.second)
-    val result = task.runAsync
+    val result = task.runToFuture
     s.tick(count.seconds)
     assertEquals(result.value, Some(Success(0)))
   }
@@ -135,7 +135,7 @@ object TaskDelaySuite extends BaseTestSuite {
     val task = Task.evalAsync(trigger()).delayResult(1.second)
     assert(!wasTriggered, "!wasTriggered")
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assert(!wasTriggered, "!wasTriggered")
     assertEquals(f.value, None)
 
@@ -152,7 +152,7 @@ object TaskDelaySuite extends BaseTestSuite {
   test("Task#delayResult should not delay in case of error") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.raiseError[Int](ex).delayResult(1.second)
-    val result = task.runAsync
+    val result = task.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(ex)))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Suspend, Scope}
 import monix.tail.batches.BatchCursor
 
@@ -63,10 +63,10 @@ private[tail] object IterantFoldWhileLeftL {
 
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
-      if (stackRef == null) stackRef = new ArrayStack()
+      if (stackRef == null) stackRef = ChunkedArrayStack()
       stackRef.push(item)
     }
 
@@ -161,10 +161,10 @@ private[tail] object IterantFoldWhileLeftL {
 
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
-      if (stackRef == null) stackRef = new ArrayStack()
+      if (stackRef == null) stackRef = ChunkedArrayStack()
       stackRef.push(item)
     }
 

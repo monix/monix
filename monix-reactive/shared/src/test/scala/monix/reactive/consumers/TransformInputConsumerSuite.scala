@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,7 +44,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     check1 { (random: Observable[Int]) =>
       val source = random.map(Math.floorMod(_, 10))
       val consumer = Consumer.foldLeft[Long, Long](0L)(_ + _)
-      val transformed = consumer.transformInput[Int](_.mapFuture(x => Future(x + 100)))
+      val transformed = consumer.transformInput[Int](_.mapEvalF(x => Future(x + 100L)))
       source.consumeWith(transformed) <-> source.foldLeftL(0L)(_ + _ + 100)
     }
   }
@@ -53,7 +53,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.foldLeft[Long,Long](0L)(_+_).transformInput[Int](_ => throw ex))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -81,7 +81,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     val transformed = sumEvens.transformInput[Int](_.map(_ + 1000))
     val obs = Observable(1, 2, 3).delayOnNext(1.second)
 
-    val result = obs.consumeWith(transformed).runAsync
+    val result = obs.consumeWith(transformed).runToFuture
     assertEquals(result.value, None)
 
     s.tick()

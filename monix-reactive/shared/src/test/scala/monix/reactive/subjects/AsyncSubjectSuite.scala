@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -226,7 +226,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
 
     val observable = Observable(1, 2, 3, 4, 5, 6).publishLast
 
-    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runAsync
+    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
     observable.foreach(e => foreachSum += e)
     observable.subscribe { e => subscribeSum += e; Continue }
 

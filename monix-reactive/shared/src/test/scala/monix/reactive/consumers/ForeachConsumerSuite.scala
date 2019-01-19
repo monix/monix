@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,7 +34,7 @@ object ForeachConsumerSuite extends TestSuite[TestScheduler] {
     val count = 10000L
     val obs = Observable.range(0, count)
     var sum = 0L
-    val f = obs.consumeWith(Consumer.foreach(x => sum += x)).runAsync
+    val f = obs.consumeWith(Consumer.foreach(x => sum += x)).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -45,7 +45,7 @@ object ForeachConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     var sum = 0L
-    val f = obs.consumeWith(Consumer.foreach(x => sum += x)).runAsync
+    val f = obs.consumeWith(Consumer.foreach(x => sum += x)).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -55,7 +55,7 @@ object ForeachConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     val f = Observable.now(1)
       .consumeWith(Consumer.foreach(_ => throw ex))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))

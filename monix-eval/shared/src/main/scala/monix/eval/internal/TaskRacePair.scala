@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,9 @@
 package monix.eval
 package internal
 
+import monix.execution.Callback
 import monix.execution.atomic.Atomic
+
 import scala.concurrent.Promise
 
 private[eval] object TaskRacePair {
@@ -39,7 +41,7 @@ private[eval] object TaskRacePair {
   private final class Register[A, B](fa: Task[A], fb: Task[B])
     extends ForkedRegister[RaceEither[A, B]] {
 
-    def apply(context: Task.Context, cb: Callback[RaceEither[A, B]]): Unit = {
+    def apply(context: Task.Context, cb: Callback[Throwable, RaceEither[A, B]]): Unit = {
       implicit val s = context.scheduler
       val conn = context.connection
 
@@ -55,7 +57,7 @@ private[eval] object TaskRacePair {
       val contextB = context.withConnection(connB)
 
       // First task: A
-      Task.unsafeStartEnsureAsync(fa, contextA, new Callback[A] {
+      Task.unsafeStartEnsureAsync(fa, contextA, new Callback[Throwable, A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
             val fiberB = Fiber(TaskFromFuture.strict(pb.future), connB.cancel)
@@ -76,7 +78,7 @@ private[eval] object TaskRacePair {
       })
 
       // Second task: B
-      Task.unsafeStartEnsureAsync(fb, contextB, new Callback[B] {
+      Task.unsafeStartEnsureAsync(fb, contextB, new Callback[Throwable, B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
             val fiberA = Fiber(TaskFromFuture.strict(pa.future), connA.cancel)

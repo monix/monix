@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -65,8 +65,8 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
       val n = math.round(
         (length * (nr.toDouble - Int.MinValue.toDouble)) / (Int.MaxValue.toDouble - Int.MinValue.toDouble) + 1
       ).toInt
-      val actual = stream.takeEveryNth(n).toListL.runAsync
-      val expected = naiveImp(stream, n).toListL.runAsync
+      val actual = stream.takeEveryNth(n).toListL.runToFuture
+      val expected = naiveImp(stream, n).toListL.runToFuture
       s.tick()
       actual.value <-> expected.value
     }
@@ -105,6 +105,6 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
 
   test("Iterant.takeEveryNth throws on invalid n") { implicit s =>
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
-    intercept[IllegalArgumentException] { source.takeEveryNth(0).completeL.value() }
+    intercept[IllegalArgumentException] { source.takeEveryNth(0).completedL.value() }
   }
 }

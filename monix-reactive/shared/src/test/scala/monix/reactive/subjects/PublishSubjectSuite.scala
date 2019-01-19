@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,7 +40,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     val p = PublishSubject[Int]()
     var received = 0
 
-    Observable.merge(p).subscribe(new Observer[Int] {
+    Observable(p).merge.subscribe(new Observer[Int] {
       def onNext(elem: Int) = {
         received += elem
         Continue

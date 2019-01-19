@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 
 package monix.reactive.observables
 
+import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.{Cancelable, Scheduler}
 import monix.reactive.observers.{CacheUntilConnectSubscriber, Subscriber}
 import monix.reactive.subjects.Subject
@@ -29,6 +30,7 @@ import monix.reactive.{Observable, Pipe}
   * Represents a hot observable (an observable that shares its data-source
   * to multiple subscribers).
   */
+@UnsafeBecauseImpure
 abstract class ConnectableObservable[+A] extends Observable[A] { self =>
   /** Starts emitting events to subscribers. */
   def connect(): Cancelable
@@ -46,6 +48,8 @@ object ConnectableObservable {
   /** Builds a [[ConnectableObservable]] for the given observable source
     * and a given [[monix.reactive.subjects.Subject Subject]].
     */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
   def unsafeMulticast[A, B](source: Observable[A], subject: Subject[A, B])
     (implicit s: Scheduler): ConnectableObservable[B] = {
 
@@ -64,6 +68,7 @@ object ConnectableObservable {
   /** Builds a [[ConnectableObservable]] for the given observable source
     * and a given [[Pipe]].
     */
+  @UnsafeBecauseImpure
   def multicast[A, B](source: Observable[A], recipe: Pipe[A, B])
     (implicit s: Scheduler): ConnectableObservable[B] = {
 
@@ -86,6 +91,7 @@ object ConnectableObservable {
     * the events are piped through the given `subject` to the final
     * subscribers.
     */
+  @UnsafeBecauseImpure
   def cacheUntilConnect[A, B](source: Observable[A], subject: Subject[A, B])
     (implicit s: Scheduler): ConnectableObservable[B] = {
 

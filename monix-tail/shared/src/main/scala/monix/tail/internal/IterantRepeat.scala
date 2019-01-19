@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.Platform
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.{BatchCursor, GenericBatch, GenericCursor}
@@ -57,7 +57,7 @@ private[tail] object IterantRepeat {
     extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
     private[this] var isEmpty = true
-    private[this] var stack: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var stack: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       if (isEmpty) isEmpty = false
@@ -83,7 +83,7 @@ private[tail] object IterantRepeat {
       Suspend[F, A](ref.rest.map(this))
 
     def visit(ref: Concat[F, A]): Iterant[F, A] = {
-      if (stack == null) stack = new ArrayStack()
+      if (stack == null) stack = ChunkedArrayStack()
       stack.push(ref.rh)
       Suspend(ref.lh.map(this))
     }

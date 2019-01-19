@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,8 @@ package monix.reactive.consumers
 import cats.laws._
 import cats.laws.discipline._
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseTestSuite, Consumer, Observable, Observer}

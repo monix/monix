@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,7 @@ object TaskMapBothSuite extends BaseTestSuite {
     val tb = Task.eval(2)
 
     val r = Task.mapBoth(ta,tb)(_ + _)
-    val f = r.runAsync
+    val f = r.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(3)))
@@ -39,7 +39,7 @@ object TaskMapBothSuite extends BaseTestSuite {
     val tb = Task.evalAsync(2)
 
     val r = Task.mapBoth(ta, tb)(_ + _)
-    val f = r.runAsync; s.tick()
+    val f = r.runToFuture; s.tick()
     assertEquals(f.value.get, Success(3))
   }
 
@@ -48,7 +48,7 @@ object TaskMapBothSuite extends BaseTestSuite {
     val tb = Task.eval(2)
 
     val r = Task.mapBoth(ta, tb)(_ + _)
-    val f = r.runAsync; s.tick()
+    val f = r.runToFuture; s.tick()
     assertEquals(f.value.get, Success(3))
   }
 
@@ -58,7 +58,7 @@ object TaskMapBothSuite extends BaseTestSuite {
     val init = Task.eval(0L)
 
     val sum = tasks.foldLeft(init)((acc,t) => Task.mapBoth(acc, t)(_ + _))
-    val result = sum.runAsync
+    val result = sum.runToFuture
 
     s.tick()
     assertEquals(result.value.get, Success(count * (count-1) / 2))
@@ -70,7 +70,7 @@ object TaskMapBothSuite extends BaseTestSuite {
     val init = Task.eval(0L)
 
     val sum = tasks.foldLeft(init)((acc,t) => Task.mapBoth(acc, t)(_ + _))
-    val result = sum.runAsync
+    val result = sum.runToFuture
 
     s.tick()
     assertEquals(result.value.get, Success(count * (count-1) / 2))
@@ -81,7 +81,7 @@ object TaskMapBothSuite extends BaseTestSuite {
 
     val tasks = (0 until count).map(_ => Task.never[Int])
     val all = tasks.foldLeft(Task.now(0))((acc, t) => Task.mapBoth(acc, t)(_ + _))
-    val f = all.runAsync
+    val f = all.runToFuture
 
     sc.tick()
     f.cancel()
@@ -113,7 +113,7 @@ object TaskMapBothSuite extends BaseTestSuite {
 
     val fb = Task.mapBoth(t1, t2)(_ + _)
       .executeWithOptions(_.disableAutoCancelableRunLoops)
-      .runAsync
+      .runToFuture
 
     s.tick()
     fb.value match {

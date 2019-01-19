@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.reactive.observers.buffers
 
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.internal.collection.ArrayQueue
+import monix.execution.internal.collection.JSArrayQueue
 import monix.execution.internal.math.nextPowerOf2
 import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -46,7 +46,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
   private[this] var isLoopActive = false
   private[this] var backPressured: Promise[Ack] = null
   private[this] var lastIterationAck: Future[Ack] = Continue
-  protected val queue = ArrayQueue.unbounded[A]
+  protected val queue = JSArrayQueue.unbounded[A]
 
   final def onNext(elem: A): Future[Ack] = {
     if (upstreamIsComplete || downstreamIsComplete)

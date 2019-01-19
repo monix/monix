@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.reactive.observers
 
 import minitest.TestSuite
+import monix.eval.Coeval
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.AtomicLong
 import monix.execution.internal.Platform
@@ -26,6 +27,7 @@ import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.DropNewAndSignal
 import monix.execution.exceptions.DummyException
+
 import scala.concurrent.Promise
 
 object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
@@ -37,14 +39,14 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
 
   def buildNewForIntWithSignal(bufferSize: Int, underlying: Observer[Int])
     (implicit s: Scheduler) =
-    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Some(nr.toInt)))
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Coeval(Some(nr.toInt))))
 
   def buildNewForIntWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)
     (implicit s: Scheduler) =
-    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal[Int](bufferSize, { nr => log.set(nr); None }))
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal[Int](bufferSize, nr => Coeval { log.set(nr); None }))
 
   def buildNewForLongWithSignal(bufferSize: Int, underlying: Observer[Long])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Some(nr)))
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Coeval(Some(nr))))
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -184,12 +186,12 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
 
     promise.success(Continue); s.tick()
     assertEquals(received, (1 to 9).sum)
-    assertEquals(log.get, 5)
+    assertEquals(log.get(), 5)
     for (i <- 1 to 8) assertEquals(buffer.onNext(i), Continue)
 
     s.tick()
     assertEquals(received, (1 to 8).sum * 2 + 9)
-    assertEquals(log.get, 5)
+    assertEquals(log.get(), 5)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,11 +37,13 @@ import scala.reflect.ClassTag
   *
   * Sample:
   * {{{
-  *   try while (cursor.hasNext()) {
-  *     println(cursor.next())
-  *   }
-  *   catch {
-  *     case NonFatal(ex) => report(ex)
+  *   def sum(cursor: BatchCursor[Int]): Long = {
+  *     var sum = 0L
+  *
+  *     while (cursor.hasNext()) {
+  *       sum += cursor.next()
+  *     }
+  *     sum
   *   }
   * }}}
   *
@@ -258,8 +260,7 @@ abstract class BatchCursor[+A] extends Serializable {
   *         This will have lower performance than working with
   *         [[BatchCursor.fromArray[A](array:Array[A])* BatchCursor.fromArray]],
   *         since the values are boxed, however there is no requirement for a
-  *         [[scala.reflect.ClassTag ClassTag]] and thus it can
-  *         be used in any generic context.
+  *         `ClassTag` and thus it can be used in any generic context.
   *
   * @define paramArray is the underlying reference to use for traversing
   *         and transformations

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ object TaskExecuteOnSuite extends BaseTestSuite {
   test("executeOn(forceAsync = false)") { implicit sc =>
     val sc2 = TestScheduler()
     val fa = Task.eval(1).executeOn(sc2, forceAsync = false)
-    val f = fa.runAsync
+    val f = fa.runToFuture
 
     assertEquals(f.value, Some(Success(1)))
   }
@@ -33,7 +33,7 @@ object TaskExecuteOnSuite extends BaseTestSuite {
   test("executeOn(forceAsync = true)") { implicit sc =>
     val sc2 = TestScheduler()
     val fa = Task.eval(1).executeOn(sc2)
-    val f = fa.runAsync
+    val f = fa.runToFuture
 
     assertEquals(f.value, None)
     sc.tick()
@@ -55,7 +55,7 @@ object TaskExecuteOnSuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; sc.tick()
+    val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
 
@@ -70,7 +70,7 @@ object TaskExecuteOnSuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync
+    val f = loop(10000, 0).runToFuture
     sc.tick()
     sc2.tick()
 
@@ -88,7 +88,7 @@ object TaskExecuteOnSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }
@@ -104,7 +104,7 @@ object TaskExecuteOnSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }

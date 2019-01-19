@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
@@ -40,11 +40,11 @@ private[tail] object IterantInterleave {
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used by Concat:
 
-    private[this] var _lhStack: ArrayStack[F[Iterant[F, A]]] = _
-    private[this] var _rhStack: ArrayStack[F[Iterant[F, A]]] = _
+    private[this] var _lhStack: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private[this] var _rhStack: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
     private def lhStackPush(ref: F[Iterant[F, A]]): Unit = {
-      if (_lhStack == null) _lhStack = new ArrayStack()
+      if (_lhStack == null) _lhStack = ChunkedArrayStack()
       _lhStack.push(ref)
     }
 
@@ -53,7 +53,7 @@ private[tail] object IterantInterleave {
       else _lhStack.pop()
 
     private def rhStackPush(ref: F[Iterant[F, A]]): Unit = {
-      if (_rhStack == null) _rhStack = new ArrayStack()
+      if (_rhStack == null) _rhStack = ChunkedArrayStack()
       _rhStack.push(ref)
     }
 

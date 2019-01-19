@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -87,8 +87,8 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     val publisher = new RangePublisher(1 to 64, None, cancelled)
     Iterant[Task].fromReactivePublisher(publisher, 8)
       .take(5)
-      .completeL
-      .runAsync
+      .completedL
+      .runToFuture
 
     s.tick()
     assertEquals(cancelled.future.value, Some(Success(())))
@@ -98,8 +98,8 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val publisher = new RangePublisher(1 to 64, Some(dummy))
     val f = Iterant[Task].fromReactivePublisher(publisher)
-      .completeL
-      .runAsync
+      .completedL
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))

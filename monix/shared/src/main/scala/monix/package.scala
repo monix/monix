@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +22,9 @@
   *  - '''[[monix.execution]]''' exposes lower level primitives for dealing
   *    with asynchronous execution, corresponding to the `monix-execution`
   *    sub-project
+  *  - '''[[monix.catnap]]''' exposes pure abstractions built on top of
+  *    the [[https://typelevel.org/cats-effect/ Cats-Effect]] type classes,
+  *    corresponding to the `monix-catnap` sub-project
   *  - '''[[monix.eval]]''' is for dealing with evaluation of results,
   *    thus exposing [[monix.eval.Task Task]] and [[monix.eval.Coeval Coeval]],
   *    corresponding to the `monix-eval` sub-project

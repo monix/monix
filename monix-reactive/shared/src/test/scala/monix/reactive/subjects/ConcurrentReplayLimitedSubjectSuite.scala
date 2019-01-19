@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,7 +40,7 @@ object ConcurrentReplayLimitedSubjectSuite extends BaseConcurrentSubjectSuite wi
       val capacity = 10
       val c = ConcurrentSubject.replayLimited[Long](capacity, list, Unbounded)
 
-      val sum = c.sumL.runAsync
+      val sum = c.sumL.runToFuture
       c.onComplete()
       s.tick()
 

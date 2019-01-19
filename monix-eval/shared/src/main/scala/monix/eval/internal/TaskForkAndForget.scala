@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.eval
 package internal
 
+import monix.execution.Callback
 import monix.eval.Task.Context
 
 private[eval] object TaskForkAndForget {
@@ -25,7 +26,7 @@ private[eval] object TaskForkAndForget {
     * Implementation for `Task.startAndForget`.
     */
   def apply[A](fa: Task[A]): Task[Unit] = {
-    val start = (ctx: Context, cb: Callback[Unit]) => {
+    val start = (ctx: Context, cb: Callback[Throwable, Unit]) => {
       implicit val sc = ctx.scheduler
       // It needs its own context, its own cancelable
       val ctx2 = Task.Context(sc, ctx.options)

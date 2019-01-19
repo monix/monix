@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,9 @@
 
 package monix.reactive.internal.operators
 
+import cats.effect.IO
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
@@ -34,7 +36,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     var elem = 0
     Observable
       .now(10)
-      .doOnSubscribe { () => elem = 20 }
+      .doOnSubscribeF { () => elem = 20 }
       .foreach { x => elem = elem / x }
 
     s.tick()
@@ -46,7 +48,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
     Observable
       .range(1,10)
-      .doOnSubscribe { () => throw dummy }
+      .doOnSubscribe(Task.raiseError[Unit](dummy))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = Continue
         def onComplete() = ()
@@ -61,11 +63,11 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     var elem = 0
     Observable
       .now(10)
-      .doAfterSubscribe { () => elem = 20 }
+      .doAfterSubscribeF { () => elem = 20 }
       .foreach { x => elem = elem / x }
 
     s.tick()
-    assertEquals(elem, 20)
+    assertEquals(elem, 2)
   }
 
   test("doAfterSubscribe should protect against error") { implicit s =>
@@ -73,7 +75,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
     Observable
       .range(1,10)
-      .doAfterSubscribe { () => throw dummy }
+      .doAfterSubscribeF(IO.raiseError[Unit](dummy))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = Continue
         def onComplete() = ()
@@ -81,7 +83,6 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
       })
 
     s.tick()
-    assertEquals(wasThrown, null)
-    assertEquals(s.state.lastReportedError, dummy)
+    assertEquals(wasThrown, dummy)
   }
 }

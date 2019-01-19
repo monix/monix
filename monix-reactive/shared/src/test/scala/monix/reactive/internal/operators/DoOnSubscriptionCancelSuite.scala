@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,7 +36,7 @@ object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     val c = Observable.now(1).delayExecution(1.second)
-      .doOnSubscriptionCancel(() => wasCanceled += 1)
+      .doOnSubscriptionCancelF(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -57,7 +57,7 @@ object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     val c = Observable.now(1).delayExecution(1.second)
-      .doOnSubscriptionCancel(() => wasCanceled += 1)
+      .doOnSubscriptionCancelF(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue

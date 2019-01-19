@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -85,10 +85,10 @@ trait TaskApp {
   final def main(args: Array[String]): Unit = {
     val self = this
     val app = new IOApp {
-      override lazy val timer: Timer[IO] =
-        scheduler.timer[IO]
-      override lazy val contextShift: ContextShift[IO] =
-        scheduler.contextShift[IO]
+      override implicit lazy val contextShift: ContextShift[IO] =
+        scheduler.contextShift[IO](IO.ioEffect)
+      override implicit lazy val timer: Timer[IO] =
+        scheduler.timerLiftIO[IO](IO.ioEffect)
       def run(args: List[String]): IO[ExitCode] =
         self.run(args).toIO
     }

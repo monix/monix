@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,13 +31,13 @@ object MiscIsEmptySuite extends BaseOperatorSuite {
     else
       Observable.range(0, sourceCount)
 
-    val o = source.isEmptyF.map(x => if (x) 2L else 1L)
+    val o = source.isEmpty.map(x => if (x) 2L else 1L)
     Sample(o, 1, sum, Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.raiseError(ex)
-      .isEmptyF.map(x => if (x) 1L else 0L)
+      .isEmpty.map(x => if (x) 1L else 0L)
 
     Sample(o, 0, 0, Zero, Zero)
   }
@@ -48,11 +48,11 @@ object MiscIsEmptySuite extends BaseOperatorSuite {
   override def cancelableObservables() = {
     val source1 = Observable.empty
       .delayOnComplete(1.second)
-      .isEmptyF.map(x => if (x) 2L else 1L)
+      .isEmpty.map(x => if (x) 2L else 1L)
 
     val source2 = Observable.now(1)
       .delayOnNext(1.second)
-      .isEmptyF.map(x => if (x) 2L else 1L)
+      .isEmpty.map(x => if (x) 2L else 1L)
 
     Seq(
       Sample(source1, 0, 0, Zero, Zero),

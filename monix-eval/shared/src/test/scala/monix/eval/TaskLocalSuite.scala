@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,7 +42,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 0))
       } yield ()
 
-    test.runAsyncOpt
+    test.runToFutureOpt
   }
 
   testAsync("TaskLocal.wrap") {
@@ -62,7 +62,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 0))
       } yield ()
 
-    test.runAsyncOpt
+    test.runToFutureOpt
   }
 
   testAsync("TaskLocal.defaultLazy") {
@@ -83,7 +83,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v3, 2))
       } yield ()
 
-    test.runAsyncOpt
+    test.runToFutureOpt
   }
 
   testAsync("TaskLocal!.bind") {
@@ -98,7 +98,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsyncOpt
+    test.runToFutureOpt
   }
 
   testAsync("TaskLocal!.bindL") {
@@ -113,7 +113,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsyncOpt
+    test.runToFutureOpt
   }
 
   testAsync("TaskLocal!.bindClear") {
@@ -128,7 +128,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v2, 100))
       } yield ()
 
-    test.runAsyncOpt
+    test.runToFutureOpt
   }
 
   testAsync("TaskLocal canceled") {
@@ -143,7 +143,7 @@ object TaskLocalSuite extends SimpleTestSuite {
       _ <- Task.now(assertEquals(s, "Good"))
     } yield ()
 
-    test.runAsyncOpt
+    test.runToFutureOpt
   }
 
   testAsync("TaskLocal!.local") {
@@ -165,7 +165,7 @@ object TaskLocalSuite extends SimpleTestSuite {
         _ <- Task.now(assertEquals(v4, local.get))
       } yield ()
 
-    test.runAsyncOpt
+    test.runToFutureOpt
   }
 
   testAsync("TaskLocals get restored in Task.create on error") {
@@ -185,6 +185,6 @@ object TaskLocalSuite extends SimpleTestSuite {
       _ <- Task.eval(assertEquals(l, 10))
     } yield ()
 
-    t.runAsyncOpt
+    t.runToFutureOpt
   }
 }

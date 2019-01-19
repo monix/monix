@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +19,8 @@ package monix.tail
 
 import cats.Eq
 import cats.data.EitherT
-import cats.effect.laws.discipline.SyncTests
-import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
+import cats.laws.discipline.{CoflatMapTests, DeferTests, FunctorFilterTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
+import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
 import monix.eval.Coeval
 
 object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
@@ -34,9 +34,8 @@ object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
   lazy val eqEitherT: Eq[EitherT[F, Throwable, Int]] =
     implicitly[Eq[EitherT[F, Throwable, Int]]]
 
-  checkAllAsync("Sync[Iterant[Coeval]]") { implicit ec =>
-    implicit val eqE = eqEitherT
-    SyncTests[F].sync[Int, Int, Int]
+  checkAllAsync("Defer[Iterant[Coeval]]") { implicit ec =>
+    DeferTests[F].defer[Int]
   }
 
   checkAllAsync("MonadError[Iterant[Coeval]]") { implicit ec =>
@@ -48,7 +47,11 @@ object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
     MonoidKTests[F].monoidK[Int]
   }
 
-  checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
+  checkAllAsync("CoflatMap[Iterant[Coeval]]") { implicit ec =>
     CoflatMapTests[F].coflatMap[Int, Int, Int]
+  }
+
+  checkAllAsync("FunctorFilter[Iterant[Coeval]]") { implicit ec =>
+    FunctorFilterTests[F].functorFilter[Int, Int, Int]
   }
 }

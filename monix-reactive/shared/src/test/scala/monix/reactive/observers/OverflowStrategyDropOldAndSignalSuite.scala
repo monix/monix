@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,9 @@
 package monix.reactive.observers
 
 import minitest.TestSuite
+import monix.eval.Coeval
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.MultiProducer
 import monix.execution.atomic.AtomicLong
 import monix.execution.internal.{Platform, RunnableAction}
 import monix.execution.schedulers.TestScheduler
@@ -26,6 +28,7 @@ import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.DropOldAndSignal
 import monix.execution.exceptions.DummyException
+
 import scala.concurrent.{Future, Promise}
 
 object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
@@ -39,14 +42,20 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     (implicit s: Scheduler) = {
 
     BufferedSubscriber.synchronous(
-      Subscriber(underlying, s), DropOldAndSignal(bufferSize, nr => Some(nr.toInt)))
+      Subscriber(underlying, s),
+      DropOldAndSignal(bufferSize, nr => Coeval(Some(nr.toInt))),
+      MultiProducer
+    )
   }
 
   def buildNewWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)
     (implicit s: Scheduler) = {
 
     BufferedSubscriber.synchronous[Int](
-      Subscriber(underlying, s), DropOldAndSignal(bufferSize, { nr => log.set(nr); None }))
+      Subscriber(underlying, s),
+      DropOldAndSignal(bufferSize, nr => Coeval { log.set(nr); None }),
+      MultiProducer
+    )
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -190,14 +199,14 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     val dropped = if (Platform.isJVM) 993 else 986
 
     assertEquals(received, (first to 1100).sum + 28)
-    assertEquals(log.get, dropped)
+    assertEquals(log.get(), dropped)
 
     log.set(0)
     assertEquals(buffer.onNext(42), Continue)
 
     s.tick()
 
-    assertEquals(log.get, 0)
+    assertEquals(log.get(), 0)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")

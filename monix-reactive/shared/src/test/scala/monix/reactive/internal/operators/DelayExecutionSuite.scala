@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -65,8 +65,7 @@ object DelayExecutionSuite extends BaseOperatorSuite {
   }
 
   test("delayExecution.onFuture triggering an error") { implicit s =>
-    val obs = Observable.now(1)
-      .delayExecutionWith(Observable.fromFuture(Future { throw new DummyException("dummy") }))
+    val obs = Observable.now(1).delayExecutionWithF(Future { throw DummyException("dummy") })
 
     var errorThrown: Throwable = null
     obs.unsafeSubscribeFn(new Observer[Int] {

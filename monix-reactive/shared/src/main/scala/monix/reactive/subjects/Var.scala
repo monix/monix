@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,21 +30,25 @@ import monix.reactive.observers.Subscriber
   * Sample usage:
   *
   * {{{
+  *   import monix.reactive._
+  *   import monix.reactive.subjects.Var
+  *   import monix.execution.Scheduler.Implicits.global
+  *
   *   val a = Var(0)
   *   val b = Var(0)
   *
   *   // Sum that gets re-calculated "reactively"
-  *   val sum = Observable.combineLatest(a, b)(_ + _)
+  *   val sum = Observable.combineLatestMap2(a, b)(_ + _)
   *
   *   // Subscribes for updates
-  *   sum.foreach(println)
+  *   sum.dump("Sum").subscribe()
   *
   *   a := 4
-  *   // => 4
+  *   // 0: Sum --> 4
   *   b := 5
-  *   // => 9
+  *   // 1: Sum --> 9
   *   a := 10
-  *   // => 15
+  *   // 0: Sum --> 15
   * }}}
   *
   * @see [[ConcurrentSubject]]

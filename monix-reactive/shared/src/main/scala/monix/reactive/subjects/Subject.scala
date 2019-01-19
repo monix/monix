@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,10 @@
 
 package monix.reactive.subjects
 
+import cats.arrow.Profunctor
 import monix.execution.Scheduler
 import monix.execution.cancelables.SingleAssignCancelable
+import monix.reactive.instances.CatsProfunctorForSubject
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
 import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber => RSubscriber}
@@ -35,7 +37,7 @@ import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber =>
   */
 abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
   /** Returns the number of connected subscribers.
-
+    *
     * Note this might be an expensive operation.
     *
     * Should be used for debugging purposes or for collecting
@@ -89,4 +91,6 @@ object Subject {
       }
     }
   }
+
+  implicit val catsProfunctor: Profunctor[Subject] = CatsProfunctorForSubject
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
       .map { e => effect += 1; e }
       .take(5)
       .toListL
-      .runAsync
+      .runToFuture
 
     assertEquals(lst.value, None)
     assertEquals(effect, 0)
@@ -54,7 +54,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
-    implicit val timer = s.timer[IO]
+    implicit val timer = s.timerLiftIO[IO]
 
     var effect = 0
     val lst = Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)
@@ -90,7 +90,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
       .map { e => effect += 1; e }
       .take(5)
       .toListL
-      .runAsync
+      .runToFuture
 
     assertEquals(lst.value, None)
     assertEquals(effect, 1)
@@ -108,7 +108,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
-    implicit val timer = s.timer[IO]
+    implicit val timer = s.timerLiftIO[IO]
 
     var effect = 0
     val lst = Iterant[IO].intervalWithFixedDelay(2.seconds)
@@ -138,7 +138,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
       .mapEval(e => Task.eval { effect += 1; e }.delayExecution(100.millis))
       .take(3)
       .toListL
-      .runAsync
+      .runToFuture
 
     assertEquals(lst.value, None)
     assertEquals(effect, 0)
@@ -155,7 +155,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
-    implicit val timer = s.timer[IO]
+    implicit val timer = s.timerLiftIO[IO]
 
     var effect = 0
     val lst = Iterant[IO].intervalAtFixedRate(1.second)
@@ -184,7 +184,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
       .mapEval(e => Task.eval { effect += 1; e }.delayExecution(100.millis))
       .take(3)
       .toListL
-      .runAsync
+      .runToFuture
 
     assertEquals(lst.value, None)
     s.tick(2.seconds)
@@ -203,7 +203,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
-    implicit val timer = s.timer[IO]
+    implicit val timer = s.timerLiftIO[IO]
 
     var effect = 0
     val lst = Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)
@@ -234,7 +234,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
       .mapEval(e => Task.eval { effect += 1; e }.delayExecution(2.seconds))
       .take(3)
       .toListL
-      .runAsync
+      .runToFuture
 
     assertEquals(lst.value, None)
     assertEquals(effect, 0)
@@ -252,7 +252,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
-    implicit val timer = s.timer[IO]
+    implicit val timer = s.timerLiftIO[IO]
 
     var effect = 0
     val lst = Iterant[IO].intervalAtFixedRate(1.second)

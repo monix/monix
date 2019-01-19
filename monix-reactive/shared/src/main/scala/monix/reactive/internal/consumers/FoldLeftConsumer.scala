@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Scheduler}
 import monix.execution.cancelables.AssignableCancelable
@@ -30,7 +30,7 @@ private[reactive]
 final class FoldLeftConsumer[A,R](initial: () => R, f: (R,A) => R)
   extends Consumer.Sync[A,R] {
 
-  def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
+  def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {
       implicit val scheduler = s
       private[this] var isDone = false

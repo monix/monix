@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,19 +44,19 @@ import monix.execution.misc.Local
   *   val t = Task(42)
   *   t.executeWithOptions(_.enableLocalContextPropagation)
   *     // triggers the actual execution
-  *     .runAsync
+  *     .runToFuture
   * }}}
   *
-  * Another possibility is to use
-  * [[Task.runAsyncOpt(implicit* .runAsyncOpt]] instead of `runAsync`
-  * and specify the set of options implicitly:
+  * Another possibility is to use [[Task.runToFutureOpt]] or
+  * [[Task.runToFutureOpt]] instead of `runAsync` and specify the set of
+  * options implicitly:
   *
   * {{{
   *   {
   *     implicit val options = Task.defaultOptions.enableLocalContextPropagation
   *
   *     // Options passed implicitly
-  *     val f = t.runAsyncOpt
+  *     val f = t.runToFutureOpt
   *   }
   * }}}
   *
@@ -95,7 +95,7 @@ import monix.execution.misc.Local
   *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
   *
   *   // Triggering actual execution
-  *   val result = task.runAsyncOpt
+  *   val result = task.runToFutureOpt
   * }}}
   */
 final class TaskLocal[A] private (ref: Local[A]) {

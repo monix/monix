@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,7 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
 import scala.concurrent.duration._
-import scala.concurrent.Promise
+import scala.concurrent.{Future, Promise}
 import scala.util.{Success, Try}
 
 object TestSchedulerSuite extends TestSuite[TestScheduler] {
@@ -319,17 +319,54 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(fetch.unsafeRunSync(), 10300L)
   }
 
-  test("timer.sleep") { s =>
-    val timer = s.timer[IO]
+  test("timerLiftIO[IO]") { s =>
+    val timer = s.timerLiftIO[IO]
+    val clockMono = timer.clock.monotonic(MILLISECONDS)
+    val clockReal = timer.clock.realTime(MILLISECONDS)
 
     val f = timer.sleep(10.seconds).unsafeToFuture()
     assertEquals(f.value, None)
 
+    assertEquals(clockMono.unsafeRunSync(), 0)
+    assertEquals(clockReal.unsafeRunSync(), 0)
+
     s.tick(5.seconds)
     assertEquals(f.value, None)
 
+    assertEquals(clockMono.unsafeRunSync(), 5000)
+    assertEquals(clockReal.unsafeRunSync(), 5000)
+
     s.tick(5.seconds)
     assertEquals(f.value, Some(Success(())))
+
+    assertEquals(clockMono.unsafeRunSync(), 10000)
+    assertEquals(clockReal.unsafeRunSync(), 10000)
+  }
+
+  test("timer[IO]") { s =>
+    implicit val cs = s.contextShift[IO]
+
+    val timer = s.timer[IO]
+    val clockMono = timer.clock.monotonic(MILLISECONDS)
+    val clockReal = timer.clock.realTime(MILLISECONDS)
+
+    val f = timer.sleep(10.seconds).unsafeToFuture()
+    assertEquals(f.value, None)
+
+    assertEquals(clockMono.unsafeRunSync(), 0)
+    assertEquals(clockReal.unsafeRunSync(), 0)
+
+    s.tick(5.seconds)
+    assertEquals(f.value, None)
+
+    assertEquals(clockMono.unsafeRunSync(), 5000)
+    assertEquals(clockReal.unsafeRunSync(), 5000)
+
+    s.tick(5.seconds)
+    assertEquals(f.value, Some(Success(())))
+
+    assertEquals(clockMono.unsafeRunSync(), 10000)
+    assertEquals(clockReal.unsafeRunSync(), 10000)
   }
 
   test("contextShift.shift") { s =>
@@ -356,6 +393,24 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("maxImmediateTasks") { implicit ec =>
+    var result: Int = 0
+
+    def loop(): Future[Int] =
+      Future.successful(()).flatMap { _ =>
+        if (result > 0) Future.successful(result)
+        else loop()
+      }
+
+    val f = loop()
+    ec.tick(maxImmediateTasks = Some(1000))
+    assertEquals(f.value, None)
+
+    result = 100
+    ec.tick(maxImmediateTasks = Some(1000))
+    assertEquals(f.value, Some(Success(100)))
   }
 
   def action(f: => Unit): Runnable =

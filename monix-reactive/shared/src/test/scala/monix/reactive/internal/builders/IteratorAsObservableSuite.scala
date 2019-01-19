@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,9 @@
 
 package monix.reactive.internal.builders
 
+import cats.effect.Resource
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.APIContractViolationException
 import monix.execution.{Ack, Scheduler}
@@ -25,8 +27,8 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -37,7 +39,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
 
   test("yields a single subscriber observable") { implicit s =>
     var errorThrown: Throwable = null
-    val obs = Observable.fromIterator(Seq(1,2,3).iterator)
+    val obs = Observable.fromIteratorUnsafe(Seq(1,2,3).iterator)
     obs.unsafeSubscribeFn(Subscriber.empty(s))
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
@@ -54,14 +56,44 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assert(errorThrown.isInstanceOf[APIContractViolationException])
   }
 
-  test("onFinish should be called upon onComplete") { implicit s =>
+  test("fromIterator(resource) should call finalizer") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var sum = 0
 
     val n = s.executionModel.recommendedBatchSize * 4
     val seq = 0 until n
-    val obs = Observable.fromIterator(seq.iterator, () => onFinishCalled += 1)
+    val obs = Observable
+      .fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
+      .map { x => assertEquals(onFinishCalled, 0); x }
+
+    obs.unsafeSubscribeFn(new Subscriber[Int] {
+      implicit val scheduler: Scheduler = s
+
+      def onNext(elem: Int): Ack = { sum += elem; Continue }
+      def onComplete(): Unit =
+        onCompleteCalled += 1
+      def onError(ex: Throwable): Unit =
+        throw new IllegalStateException("onError")
+    })
+
+    s.tick()
+    assertEquals(s.state.lastReportedError, null)
+    assertEquals(onCompleteCalled, 1)
+    assertEquals(onFinishCalled, 1)
+    assertEquals(sum, n * (n - 1) / 2)
+  }
+
+  test("fromIterator(resource) should back-pressure onNext before calling finalizer") { implicit s =>
+    var onFinishCalled = 0
+    var onCompleteCalled = 0
+    var sum = 0
+
+    val n = s.executionModel.recommendedBatchSize * 4
+    val seq = 0 until n
+    val obs = Observable
+      .fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
+      .mapEval(x => Task(assertEquals(onFinishCalled, 0)).map(_ => x).delayExecution(1.millis))
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
@@ -72,7 +104,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
         throw new IllegalStateException("onError")
     })
 
-    s.tick()
+    s.tick(1.millis * n)
     assertEquals(sum, n * (n - 1) / 2)
     assertEquals(onCompleteCalled, 1)
     assertEquals(onFinishCalled, 1)
@@ -86,14 +118,15 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
 
     val n = s.executionModel.recommendedBatchSize * 4
     val seq = 0 until n
-    val obs = Observable.fromIterator(seq.iterator, () => onFinishCalled += 1)
+    val obs = Observable
+      .fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
       .endWithError(ex)
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
       def onNext(elem: Int): Ack =
-        { sum += elem; Continue }
+      { sum += elem; Continue }
       def onComplete(): Unit =
         throw new IllegalStateException("onComplete")
       def onError(ex: Throwable): Unit =
@@ -113,7 +146,8 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
 
     val n = s.executionModel.recommendedBatchSize * 4
     val seq = 0 until (n * 2)
-    val obs = Observable.fromIterator(seq.iterator, () => onFinishCalled += 1)
+    val obs = Observable
+      .fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
       .take(n) // Will trigger Stop
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
@@ -138,7 +172,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
 
     val n = s.executionModel.recommendedBatchSize
     val seq = 0 until (n * 4)
-    val obs = Observable.fromIterator(seq.iterator, () => onFinishCalled += 1)
+    val obs = Observable.fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
 
     val c = obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
@@ -161,10 +195,11 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var received = 0
+    var wasThrown: Throwable = null
 
     val n = s.executionModel.recommendedBatchSize
     val seq = 0 until (n * 4)
-    val obs = Observable.fromIterator(seq.iterator, () => onFinishCalled += 1)
+    val obs = Observable.fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
@@ -178,23 +213,24 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit =
         throw new IllegalStateException("onComplete")
       def onError(ex: Throwable): Unit =
-        throw new IllegalStateException("onError")
+        wasThrown = ex
     })
 
     s.tick()
     assertEquals(received, n)
     assertEquals(onFinishCalled, 1)
-    assertEquals(s.state.lastReportedError, ex)
+    assertEquals(wasThrown, ex)
   }
 
   test("onFinish should be called if onNext triggers error after boundary") { implicit s =>
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var received = 0
+    var wasThrown: Throwable = null
 
     val n = s.executionModel.recommendedBatchSize
     val seq = 0 until (n * 4)
-    val obs = Observable.fromIterator(seq.iterator, () => onFinishCalled += 1)
+    val obs = Observable.fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
@@ -208,23 +244,24 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit =
         throw new IllegalStateException("onComplete")
       def onError(ex: Throwable): Unit =
-        throw new IllegalStateException("onError")
+        wasThrown = ex
     })
 
     s.tick()
     assertEquals(received, n * 2)
     assertEquals(onFinishCalled, 1)
-    assertEquals(s.state.lastReportedError, ex)
+    assertEquals(wasThrown, ex)
   }
 
   test("onFinish should be called if onNext triggers error asynchronously") { implicit s =>
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var received = 0
+    var wasThrown: Throwable = null
 
     val n = s.executionModel.recommendedBatchSize
     val seq = 0 until (n * 4)
-    val obs = Observable.fromIterator(seq.iterator, () => onFinishCalled += 1)
+    val obs = Observable.fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
@@ -240,37 +277,43 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit =
         throw new IllegalStateException("onComplete")
       def onError(ex: Throwable): Unit =
-        throw new IllegalStateException("onError")
+        wasThrown = ex
     })
 
     s.tick()
     assertEquals(received, n * 2)
     assertEquals(onFinishCalled, 1)
-    assertEquals(s.state.lastReportedError, ex)
+    assertEquals(wasThrown, ex)
   }
 
   test("onFinish throwing just before onComplete") { implicit s =>
     val ex = DummyException("ex")
-    var onErrorCalled: Throwable = null
+    var wasThrown: Throwable = null
     var sum = 0
 
     val n = s.executionModel.recommendedBatchSize * 4
     val seq = 0 until n
-    val obs = Observable.fromIterator(seq.iterator, () => throw ex)
+    val obs = Observable
+      .fromIterator(Resource.make(Task(seq.iterator))(_ => Task.raiseError(ex)))
+      .map { x => assertEquals(wasThrown, null); x }
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Ack = { sum += elem; Continue }
+      def onNext(elem: Int): Ack = {
+        sum += elem
+        Continue
+      }
+
       def onComplete(): Unit =
         throw new IllegalStateException("onComplete")
       def onError(ex: Throwable): Unit =
-        onErrorCalled = ex
+        wasThrown = ex
     })
 
     s.tick()
+    assertEquals(wasThrown, ex)
     assertEquals(sum, n * (n - 1) / 2)
-    assertEquals(onErrorCalled, ex)
   }
 
   test("onFinish throwing after Stop") { implicit s =>
@@ -280,12 +323,18 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
 
     val n = s.executionModel.recommendedBatchSize
     val seq = 0 until (n * 4)
-    val obs = Observable.fromIterator(seq.iterator, () => throw ex).take(n)
+    val obs = Observable
+      .fromIterator(Resource.make(Task(seq.iterator))(_ => Task.raiseError(ex)))
+      .take(n)
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Ack = { received += 1; Continue }
+      def onNext(elem: Int): Ack = {
+        received += 1
+        Continue
+      }
+
       def onComplete(): Unit =
         onCompleteCalled += 1
       def onError(ex: Throwable): Unit =
@@ -294,6 +343,8 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(received, n)
+    // onComplete gets called via `take`, which sends `Stop` upstream and
+    // sends onComplete downstream and there isn't much we can do here
     assertEquals(onCompleteCalled, 1)
     assertEquals(s.state.lastReportedError, ex)
   }

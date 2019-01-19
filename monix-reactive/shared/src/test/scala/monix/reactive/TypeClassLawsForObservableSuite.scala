@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,14 @@
 
 package monix.reactive
 
-import cats.laws.discipline.{AlternativeTests, ApplyTests, CoflatMapTests, MonadErrorTests, MonoidKTests, NonEmptyParallelTests}
+import cats.effect.laws.discipline.BracketTests
+import cats.laws.discipline.{AlternativeTests, ApplyTests, CoflatMapTests, FunctorFilterTests, MonoidKTests, NonEmptyParallelTests}
 import monix.reactive.observables.CombineObservable
+import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
 
 object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
-  checkAllAsync("MonadError[Observable, Throwable]") { implicit ec =>
-    MonadErrorTests[Observable, Throwable].monadError[Int, Int, Int]
+  checkAllAsync("Bracket[Observable, Throwable]") { implicit ec =>
+    BracketTests[Observable, Throwable].bracket[Int, Int, Int]
   }
 
   checkAllAsync("CoflatMap[Observable]") { implicit ec =>
@@ -37,11 +39,19 @@ object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
     MonoidKTests[Observable].monoidK[Int]
   }
 
+  checkAllAsync("Bracket[Observable, Throwable]") { implicit ec =>
+    BracketTests[Observable, Throwable].bracket[Int, Int, Int]
+  }
+
   checkAllAsync("Apply[CombineObservable.Type]") { implicit ec =>
     ApplyTests[CombineObservable.Type].apply[Int, Int, Int]
   }
 
   checkAllAsync("NonEmptyParallel[Observable, CombineObservable.Type]") { implicit ec =>
     NonEmptyParallelTests[Observable, CombineObservable.Type].nonEmptyParallel[Int, Int]
+  }
+
+  checkAllAsync("FunctorFilter[Observable]") { implicit ec =>
+    FunctorFilterTests[Observable].functorFilter[Int, Int, Int]
   }
 }

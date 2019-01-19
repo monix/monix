@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,10 +21,10 @@ import java.util.concurrent.TimeoutException
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 /** Utilities for Scala's standard `concurrent.Future`. */
-object FutureUtils {
+object FutureUtils extends internal.FutureUtilsForPlatform {
   /** Utility that returns a new Future that either completes with
     * the original Future's result or with a TimeoutException in case
     * the maximum wait time was exceeded.
@@ -90,14 +90,7 @@ object FutureUtils {
     * error explicitly.
     */
   def materialize[A](source: Future[A])(implicit ec: ExecutionContext): Future[Try[A]] = {
-    if (source.isCompleted) {
-      Future.successful(source.value.get)
-    }
-    else {
-      val p = Promise[Try[A]]()
-      source.onComplete(p.success)(immediate)
-      p.future
-    }
+    source.transform(t => Success(t))(immediate)
   }
 
   /** Given a mapping functions that operates on successful results as well as
@@ -120,22 +113,7 @@ object FutureUtils {
     * hiding errors, being the opposite of [[materialize]].
     */
   def dematerialize[A](source: Future[Try[A]])(implicit ec: ExecutionContext): Future[A] = {
-    if (source.isCompleted)
-      source.value.get match {
-        case Failure(error) => Future.failed(error)
-        case Success(value) => value match {
-          case Success(success) => Future.successful(success)
-          case Failure(error) => Future.failed(error)
-        }
-      }
-    else {
-      val p = Promise[A]()
-      source.onComplete({
-        case Failure(error) => p.failure(error)
-        case Success(result) => p.complete(result)
-      })(immediate)
-      p.future
-    }
+    source.map(_.get)(immediate)
   }
 
   /** Creates a future that completes with the specified `result`, but only

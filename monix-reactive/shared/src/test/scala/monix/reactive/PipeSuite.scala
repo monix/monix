@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ object PipeSuite extends BaseTestSuite {
   test("Pipe works for MulticastStrategy.publish") { implicit s =>
     val ref = Pipe(MulticastStrategy.publish[Int])
     val (in, out) = ref.multicast
-    val f = out.sumL.runAsync
+    val f = out.sumL.runToFuture
 
     in.onNext(1)
     in.onNext(2)
@@ -31,7 +31,7 @@ object PipeSuite extends BaseTestSuite {
     in.onComplete()
     s.tick()
 
-    val g = out.sumL.runAsync
+    val g = out.sumL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(6)))
@@ -41,7 +41,7 @@ object PipeSuite extends BaseTestSuite {
   test("Pipe works for MulticastStrategy.behaviour") { implicit s =>
     val ref = Pipe(MulticastStrategy.behavior[Int](2))
     val (in, out) = ref.concurrent
-    val f = out.sumL.runAsync
+    val f = out.sumL.runToFuture
 
     in.onNext(1)
     in.onNext(2)
@@ -55,7 +55,7 @@ object PipeSuite extends BaseTestSuite {
   test("Pipe works for MulticastStrategy.async") { implicit s =>
     val ref = Pipe(MulticastStrategy.async[Int])
     val (in, out) = ref.concurrent
-    val f = out.sumL.runAsync
+    val f = out.sumL.runToFuture
 
     in.onNext(1)
     in.onNext(2)
@@ -69,7 +69,7 @@ object PipeSuite extends BaseTestSuite {
   test("Pipe works for MulticastStrategy.replay") { implicit s =>
     val ref1 = Pipe(MulticastStrategy.replay[Int])
     val (in1, out1) = ref1.multicast
-    val f1 = out1.sumL.runAsync
+    val f1 = out1.sumL.runToFuture
 
     in1.onNext(1)
     in1.onNext(2)
@@ -77,7 +77,7 @@ object PipeSuite extends BaseTestSuite {
     in1.onComplete()
     s.tick()
 
-    val g1 = out1.sumL.runAsync
+    val g1 = out1.sumL.runToFuture
 
     s.tick()
     assertEquals(f1.value, Some(Success(6)))
@@ -85,13 +85,13 @@ object PipeSuite extends BaseTestSuite {
 
     val ref2 = Pipe(MulticastStrategy.replay[Int](Seq(3)))
     val (in2, out2) = ref2.multicast
-    val f2 = out2.sumL.runAsync
+    val f2 = out2.sumL.runToFuture
 
     in2.onNext(1)
     in2.onComplete()
     s.tick()
 
-    val g2 = out2.sumL.runAsync
+    val g2 = out2.sumL.runToFuture
 
     s.tick()
     assertEquals(f2.value, Some(Success(4)))
@@ -101,7 +101,7 @@ object PipeSuite extends BaseTestSuite {
   test("Pipe works for MulticastStrategy.replayLimited") { implicit s =>
     val ref1 = Pipe.replayLimited[Int](1)
     val (in1, out1) = ref1.multicast
-    val f1 = out1.sumL.runAsync
+    val f1 = out1.sumL.runToFuture
 
     in1.onNext(1)
     in1.onNext(2)
@@ -109,7 +109,7 @@ object PipeSuite extends BaseTestSuite {
     in1.onComplete()
     s.tick()
 
-    val g1 = out1.sumL.runAsync
+    val g1 = out1.sumL.runToFuture
 
     s.tick()
     assertEquals(f1.value, Some(Success(6)))
@@ -117,14 +117,14 @@ object PipeSuite extends BaseTestSuite {
 
     val ref2 = Pipe(MulticastStrategy.replayLimited[Int](1, Seq(3)))
     val (in2, out2) = ref2.multicast
-    val f2 = out2.sumL.runAsync
+    val f2 = out2.sumL.runToFuture
 
     in2.onNext(1)
     in2.onNext(2)
     in2.onComplete()
     s.tick()
 
-    val g2 = out2.sumL.runAsync
+    val g2 = out2.sumL.runToFuture
 
     s.tick()
     assertEquals(f2.value, Some(Success(6)))

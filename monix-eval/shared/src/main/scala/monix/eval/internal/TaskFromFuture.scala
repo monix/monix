@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,12 +18,14 @@
 package monix.eval.internal
 
 import monix.eval.Task.Context
-import monix.eval.{Callback, Task}
+import monix.execution._
+import monix.eval.Task
+import monix.execution.cancelables.SingleAssignCancelable
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-
-import scala.concurrent.Future
+import monix.execution.schedulers.TrampolinedRunnable
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 private[eval] object TaskFromFuture {
   /** Implementation for `Task.fromFuture`. */
@@ -75,14 +77,35 @@ private[eval] object TaskFromFuture {
       }
     }
 
-  private def rawAsync[A](start: (Context, Callback[A]) => Unit): Task[A] =
+  def fromCancelablePromise[A](p: CancelablePromise[A]): Task[A] = {
+    val start: Start[A] = (ctx, cb) => {
+      implicit val ec = ctx.scheduler
+      if (p.isCompleted) {
+        p.subscribe(trampolinedCB(cb, null))
+      } else {
+        val conn = ctx.connection
+        val ref = SingleAssignCancelable()
+        conn.push(ref)
+        ref := p.subscribe(trampolinedCB(cb, conn))
+      }
+    }
+
+    Task.Async(
+      start,
+      trampolineBefore = false,
+      trampolineAfter = false,
+      restoreLocals = true
+    )
+  }
+
+  private def rawAsync[A](start: (Context, Callback[Throwable, A]) => Unit): Task[A] =
     Task.Async(
       start,
       trampolineBefore = true,
       trampolineAfter = false,
       restoreLocals = true)
 
-  private def startSimple[A](ctx: Task.Context, cb: Callback[A], f: Future[A]) = {
+  private def startSimple[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete
@@ -92,7 +115,7 @@ private[eval] object TaskFromFuture {
     }
   }
 
-  private def startCancelable[A](ctx: Task.Context, cb: Callback[A], f: Future[A], c: Cancelable): Unit = {
+  private def startCancelable[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A], c: Cancelable): Unit = {
     f.value match {
       case Some(value) =>
         // Short-circuit the processing, as future is already complete
@@ -107,6 +130,26 @@ private[eval] object TaskFromFuture {
           conn.pop()
           cb(result)
         }(immediate)
+    }
+  }
+
+  private def trampolinedCB[A](cb: Callback[Throwable, A], conn: TaskConnection)
+    (implicit ec: ExecutionContext): Try[A] => Unit = {
+
+    new (Try[A] => Unit) with TrampolinedRunnable {
+      private[this] var value: Try[A] = _
+
+      def apply(value: Try[A]): Unit = {
+        this.value = value
+        ec.execute(this)
+      }
+
+      def run(): Unit = {
+        if (conn ne null) conn.pop()
+        val v = value
+        value = null
+        cb(v)
+      }
     }
   }
 }

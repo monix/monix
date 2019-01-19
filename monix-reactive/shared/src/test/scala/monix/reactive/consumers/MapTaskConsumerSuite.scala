@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,7 +49,7 @@ object MapTaskConsumerSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapTask(_ => Task.evalAsync(throw ex)))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -59,7 +59,7 @@ object MapTaskConsumerSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapTask(_ => throw ex))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -89,7 +89,7 @@ object MapTaskConsumerSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapTask(_ => Task.eval(throw ex)))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))

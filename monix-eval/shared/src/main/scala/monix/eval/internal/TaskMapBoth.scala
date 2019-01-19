@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,8 @@
 package monix.eval.internal
 
 import monix.eval.Task.{Async, Context}
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.Scheduler
 import monix.execution.atomic.PaddingStrategy.LeftRight128
@@ -47,7 +48,7 @@ private[eval] object TaskMapBoth {
     extends ForkedRegister[R] {
 
     /* For signaling the values after the successful completion of both tasks. */
-    def sendSignal(mainConn: TaskConnection, cb: Callback[R], a1: A1, a2: A2)
+    def sendSignal(mainConn: TaskConnection, cb: Callback[Throwable, R], a1: A1, a2: A2)
       (implicit s: Scheduler): Unit = {
 
       var streamErrors = true
@@ -66,7 +67,7 @@ private[eval] object TaskMapBoth {
     }
 
     /* For signaling an error. */
-    @tailrec def sendError(mainConn: TaskConnection, state: AtomicAny[AnyRef], cb: Callback[R], ex: Throwable)
+    @tailrec def sendError(mainConn: TaskConnection, state: AtomicAny[AnyRef], cb: Callback[Throwable, R], ex: Throwable)
       (implicit s: Scheduler): Unit = {
 
       // Guarding the contract of the callback, as we cannot send an error
@@ -85,7 +86,7 @@ private[eval] object TaskMapBoth {
       }
     }
 
-    def apply(context: Context, cb: Callback[R]): Unit = {
+    def apply(context: Context, cb: Callback[Throwable, R]): Unit = {
       implicit val s = context.scheduler
       val mainConn = context.connection
       // for synchronizing the results
@@ -99,7 +100,7 @@ private[eval] object TaskMapBoth {
 
       // Light asynchronous boundary; with most scheduler implementations
       // it will not fork a new (logical) thread!
-      Task.unsafeStartEnsureAsync(fa1, context1, new Callback[A1] {
+      Task.unsafeStartEnsureAsync(fa1, context1, new Callback[Throwable, A1] {
         @tailrec def onSuccess(a1: A1): Unit =
           state.get match {
             case null => // null means this is the first task to complete
@@ -119,7 +120,7 @@ private[eval] object TaskMapBoth {
       })
 
       // Start first task with a "hard" async boundary to ensure parallel evaluation
-      Task.unsafeStartEnsureAsync(fa2, context2, new Callback[A2] {
+      Task.unsafeStartEnsureAsync(fa2, context2, new Callback[Throwable, A2] {
         @tailrec def onSuccess(a2: A2): Unit =
           state.get match {
             case null => // null means this is the first task to complete

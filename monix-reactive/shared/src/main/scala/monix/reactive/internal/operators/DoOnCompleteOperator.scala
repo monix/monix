@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,14 +17,15 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Ack
-import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 private[reactive] final
-class DoOnCompleteOperator[A](cb: () => Unit) extends Operator[A,A] {
+class DoOnCompleteOperator[A](task: Task[Unit]) extends Operator[A,A] {
+
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
@@ -32,19 +33,12 @@ class DoOnCompleteOperator[A](cb: () => Unit) extends Operator[A,A] {
       def onNext(elem: A): Future[Ack] = out.onNext(elem)
       def onError(ex: Throwable): Unit = out.onError(ex)
 
-      def onComplete(): Unit = {
-        // Protects calls to user code from within the operator and
-        // stream the error downstream if it happens.
-        var streamError = true
-        try {
-          cb()
-          streamError = false
-          out.onComplete()
-        }
-        catch {
-          case NonFatal(ex) if streamError =>
+      def onComplete(): Unit =
+        task.attempt.map {
+          case Right(()) =>
+            out.onComplete()
+          case Left(ex) =>
             out.onError(ex)
-        }
-      }
+        }.runToFuture
     }
 }

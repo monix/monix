@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,7 +35,7 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
 
   def unsafeSubscribeFn(subscriber: Subscriber[Long]): Cancelable = {
     val s = subscriber.scheduler
-    if (!isInRange(from, until, step)) {
+    if (!isRangeValid(from, until, step)) {
       subscriber.onComplete()
       Cancelable.empty
     } else {
@@ -53,7 +53,7 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
     val ack = downstream.onNext(from)
     val nextFrom = from+step
 
-    if (!isInRange(nextFrom, until, step))
+    if (!isNextInRange(from, nextFrom, until, step))
       downstream.onComplete()
     else {
       val nextIndex =
@@ -85,9 +85,11 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
     }
   }
 
-  private def isInRange(x: Long, until: Long, step: Long): Boolean = {
-    (step > 0 && x < until) || (step < 0 && x > until)
+  private def isRangeValid(from: Long, until: Long, step: Long): Boolean = {
+    (step > 0 && from < until) || (step < 0 && from > until)
+  }
+
+  private def isNextInRange(from: Long, nextFrom: Long, until: Long, step: Long): Boolean = {
+    (step > 0 && nextFrom < until && nextFrom > from) || (step < 0 && nextFrom > until && nextFrom < from)
   }
 }
-
-

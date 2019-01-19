@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.Callback
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Subscriber, Subscription}
 
@@ -25,19 +26,19 @@ import scala.util.{Failure, Success}
 
 object TaskMiscSuite extends BaseTestSuite {
   test("Task.attempt should succeed") { implicit s =>
-    val result = Task.now(1).attempt.runAsync
+    val result = Task.now(1).attempt.runToFuture
     assertEquals(result.value, Some(Success(Right(1))))
   }
 
   test("Task.raiseError.attempt should expose error") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Task.raiseError[Int](ex).attempt.runAsync
+    val result = Task.raiseError[Int](ex).attempt.runToFuture
     assertEquals(result.value, Some(Success(Left(ex))))
   }
 
   test("Task.fail should expose error") { implicit s =>
     val dummy = DummyException("dummy")
-    val f = Task.raiseError(dummy).failed.runAsync
+    val f = Task.raiseError(dummy).failed.runToFuture
     assertEquals(f.value, Some(Success(dummy)))
   }
 
@@ -49,7 +50,7 @@ object TaskMiscSuite extends BaseTestSuite {
 
   test("Task.map protects against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Task.now(1).map(_ => throw ex).runAsync
+    val result = Task.now(1).map(_ => throw ex).runToFuture
     assertEquals(result.value, Some(Failure(ex)))
   }
 
@@ -59,13 +60,13 @@ object TaskMiscSuite extends BaseTestSuite {
     val result = Task.eval { if (effect < 10) effect += 1 else throw ex }
       .loopForever
       .onErrorFallbackTo(Task.eval(effect))
-      .runAsync
+      .runToFuture
     assertEquals(result.value.get.get, 10)
   }
 
   test("Task.restartUntil") { implicit s =>
     var effect = 0
-    val r = Task.evalAsync { effect += 1; effect }.restartUntil(_ >= 10).runAsync
+    val r = Task.evalAsync { effect += 1; effect }.restartUntil(_ >= 10).runToFuture
     s.tick()
     assertEquals(r.value.get.get, 10)
   }
@@ -191,7 +192,7 @@ object TaskMiscSuite extends BaseTestSuite {
   test("task.executeWithOptions protects against user error") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.now(1).executeWithOptions(_ => throw ex)
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Failure(ex)))
   }
 }

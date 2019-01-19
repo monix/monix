@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,8 @@
 
 package monix.reactive.internal.consumers
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Scheduler}
 import monix.execution.cancelables.AssignableCancelable
@@ -31,7 +32,7 @@ private[reactive]
 final class ForeachAsyncConsumer[A](f: A => Task[Unit])
   extends Consumer[A, Unit] {
 
-  def createSubscriber(cb: Callback[Unit], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
+  def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
     val out = new Subscriber[A] {
       implicit val scheduler = s
       private[this] var isDone = false
@@ -39,7 +40,7 @@ final class ForeachAsyncConsumer[A](f: A => Task[Unit])
       def onNext(elem: A): Future[Ack] = {
         try {
           f(elem).map(_ => Continue)
-            .runAsync
+            .runToFuture
             .syncTryFlatten
         } catch {
           case ex if NonFatal(ex) =>

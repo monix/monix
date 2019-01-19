@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,7 @@ object TaskTraverseSuite extends BaseTestSuite {
     val f = Task.traverse(seq) {
       case (i, d) =>
         Task.evalAsync(i + 1).delayExecution(d.seconds)
-    }.runAsync
+    }.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -44,10 +44,10 @@ object TaskTraverseSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     val seq = Seq((1, 2), (-1, 0), (3, 3), (3, 1))
     val f = Task.traverse(seq) {
-      case (i, d) => 
+      case (i, d) =>
         Task.evalAsync(if (i < 0) throw ex else i + 1)
           .delayExecution(d.seconds)
-    }.runAsync
+    }.runToFuture
 
     // First
     s.tick(1.second)
@@ -61,7 +61,7 @@ object TaskTraverseSuite extends BaseTestSuite {
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task.traverse(seq) {
       case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
-    }.runAsync
+    }.runToFuture
 
     s.tick()
     assertEquals(f.value, None)

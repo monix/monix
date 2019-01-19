@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,16 @@
 
 package monix.reactive.observers.buffers
 
-import monix.execution.Ack
+import monix.execution.{Ack, ChannelType}
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.BufferCapacity.{Bounded, Unbounded}
+import monix.execution.ChannelType.SingleConsumer
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 import monix.execution.exceptions.BufferOverflowException
+import monix.execution.internal.collection.LowLevelConcurrentQueue
 import monix.execution.internal.math.nextPowerOf2
+
 import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
@@ -41,7 +45,7 @@ import scala.util.{Failure, Success}
   * used with care, since it can eat the whole heap memory.
   */
 private[observers] final class SimpleBufferedSubscriber[A] protected
-  (out: Subscriber[A], _qRef: ConcurrentQueue[A], capacity: Int)
+  (out: Subscriber[A], _qRef: LowLevelConcurrentQueue[A], capacity: Int)
   extends AbstractSimpleBufferedSubscriber[A](out, _qRef, capacity) {
 
   @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
@@ -49,7 +53,7 @@ private[observers] final class SimpleBufferedSubscriber[A] protected
 }
 
 private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
-  (out: Subscriber[A], _qRef: ConcurrentQueue[A], capacity: Int)
+  (out: Subscriber[A], _qRef: LowLevelConcurrentQueue[A], capacity: Int)
   extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   private[this] val queue = _qRef
@@ -65,11 +69,10 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
         Stop
       }
       else try {
-        if (queue.offer(elem)) {
+        if (queue.offer(elem) == 0) {
           pushToConsumer()
           Continue
-        }
-        else {
+        } else {
           onError(BufferOverflowException(
             s"Downstream observer is too slow, buffer overflowed with a " +
             s"specified maximum capacity of $capacity"
@@ -249,14 +252,16 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
 }
 
 private[observers] object SimpleBufferedSubscriber {
-  def unbounded[A](underlying: Subscriber[A]): SimpleBufferedSubscriber[A] = {
-    val queue = ConcurrentQueue.unbounded[A]()
+  def unbounded[A](underlying: Subscriber[A], chunkSizeHint: Option[Int], pt: ChannelType.ProducerSide): SimpleBufferedSubscriber[A] = {
+    val ct = ChannelType.assemble(pt, SingleConsumer)
+    val queue = LowLevelConcurrentQueue[A](Unbounded(chunkSizeHint), ct, fenced = false)
     new SimpleBufferedSubscriber[A](underlying, queue, Int.MaxValue)
   }
 
-  def overflowTriggering[A](underlying: Subscriber[A], bufferSize: Int): SimpleBufferedSubscriber[A] = {
+  def overflowTriggering[A](underlying: Subscriber[A], bufferSize: Int, pt: ChannelType.ProducerSide): SimpleBufferedSubscriber[A] = {
     val maxCapacity = math.max(4, nextPowerOf2(bufferSize))
-    val queue = ConcurrentQueue.limited[A](bufferSize)
+    val ct = ChannelType.assemble(pt, SingleConsumer)
+    val queue = LowLevelConcurrentQueue[A](Bounded(bufferSize), ct, fenced = false)
     new SimpleBufferedSubscriber[A](underlying, queue, maxCapacity)
   }
 }

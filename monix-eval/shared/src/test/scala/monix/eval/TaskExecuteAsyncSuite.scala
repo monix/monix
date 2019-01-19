@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ import scala.util.Success
 object TaskExecuteAsyncSuite extends BaseTestSuite {
   test("Task.now.executeAsync should execute async") { implicit s =>
     val t = Task.now(10).executeAsync
-    val f = t.runAsync
+    val f = t.runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -34,7 +34,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
   test("Task.now.executeOn should execute async if forceAsync = true") { implicit s =>
     val s2 = TestScheduler()
     val t = Task.now(10).executeOn(s2)
-    val f = t.runAsync
+    val f = t.runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -48,7 +48,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
   test("Task.now.executeOn should not execute async if forceAsync = false") { implicit s =>
     val s2 = TestScheduler()
     val t = Task.now(10).executeOn(s2, forceAsync = false)
-    val f = t.runAsync
+    val f = t.runToFuture
 
     assertEquals(f.value, Some(Success(10)))
   }
@@ -57,7 +57,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     val s2 = TestScheduler()
     val source = Task.cancelable0[Int] { (_, cb) => cb.onSuccess(10); Task.unit }
     val t = source.executeOn(s2)
-    val f = t.runAsync
+    val f = t.runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -73,7 +73,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     var task = Task.eval(1)
     for (_ <- 0 until count) task = task.executeAsync
 
-    val result = task.runAsync
+    val result = task.runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(1)))
   }
@@ -83,7 +83,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     var task = Task.eval(1)
     for (_ <- 0 until count) task = task.executeOn(s)
 
-    val result = task.runAsync
+    val result = task.runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(1)))
   }
@@ -95,7 +95,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
       if (n <= 0) Task.now(0).executeAsync
       else Task.now(n).executeAsync.flatMap(_ => loop(n-1))
 
-    val result = loop(count).runAsync
+    val result = loop(count).runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(0)))
   }

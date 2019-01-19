@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.Callback
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
@@ -27,7 +28,7 @@ import scala.util.{Failure, Success, Try}
 object TaskGatherUnorderedSuite extends BaseTestSuite {
   test("Task.gatherUnordered should execute in parallel") { implicit s =>
     val seq = Seq(Task.evalAsync(1).delayExecution(2.seconds), Task.evalAsync(2).delayExecution(1.second), Task.evalAsync(3).delayExecution(3.seconds))
-    val f = Task.gatherUnordered(seq).runAsync
+    val f = Task.gatherUnordered(seq).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -45,7 +46,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
       Task.evalAsync(throw ex).delayExecution(2.seconds),
       Task.evalAsync(3).delayExecution(1.seconds))
 
-    val f = Task.gatherUnordered(seq).runAsync
+    val f = Task.gatherUnordered(seq).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -55,7 +56,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
 
   test("Task.gatherUnordered should be canceled") { implicit s =>
     val seq = Seq(Task.evalAsync(1).delayExecution(2.seconds), Task.evalAsync(2).delayExecution(1.second), Task.evalAsync(3).delayExecution(3.seconds))
-    val f = Task.gatherUnordered(seq).runAsync
+    val f = Task.gatherUnordered(seq).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -73,7 +74,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     val it = seq.iterator.map(x => Task.eval(x + 1))
     val sum = Task.gatherUnordered(it).map(_.sum)
 
-    val result = sum.runAsync; s.tick()
+    val result = sum.runToFuture; s.tick()
     assertEquals(result.value.get, Success((count+1) * count / 2))
   }
 
@@ -82,7 +83,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     val tasks = (0 until count).map(x => Task.eval(x))
     val sum = Task.gatherUnordered(tasks).map(_.sum)
 
-    val result = sum.runAsync; s.tick()
+    val result = sum.runToFuture; s.tick()
     assertEquals(result.value.get, Success(count * (count-1) / 2))
   }
 
@@ -109,7 +110,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     var result = Option.empty[Try[Int]]
 
     gatherSpecial(tasks).map(_.sum).runAsync(
-      new Callback[Int] {
+      new Callback[Throwable, Int] {
         def onSuccess(value: Int): Unit =
           result = Some(Success(value))
         def onError(ex: Throwable): Unit =
@@ -131,7 +132,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
       .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
 
     val gather = Task.gatherUnordered(Seq(task1, task2))
-    val result = gather.runAsyncOpt
+    val result = gather.runToFutureOpt
     s.tick()
 
     assertEquals(result.value, Some(Failure(ex)))
@@ -145,11 +146,11 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     val task2 = task1 map { x => effect += 1; x + 1 }
     val task3 = Task.gatherUnordered(List(task2, task2, task2))
 
-    val result1 = task3.runAsync; s.tick()
+    val result1 = task3.runToFuture; s.tick()
     assertEquals(result1.value, Some(Success(List(4,4,4))))
     assertEquals(effect, 1 + 3)
 
-    val result2 = task3.runAsync; s.tick()
+    val result2 = task3.runToFuture; s.tick()
     assertEquals(result2.value, Some(Success(List(4,4,4))))
     assertEquals(effect, 1 + 3 + 3)
   }

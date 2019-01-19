@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,14 +32,14 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     val task = Task.eval(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assert(wasTriggered, "wasTriggered")
     assertEquals(f.value, Some(Success("result")))
   }
 
   test("Task.eval should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task.eval[Int](if (1 == 1) throw ex else 1).runAsync
+    val f = Task.eval[Int](if (1 == 1) throw ex else 1).runToFuture
 
     assertEquals(f.value, Some(Failure(ex)))
     assertEquals(s.state.lastReportedError, null)
@@ -81,14 +81,14 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20
-    val f = loop(iterations, 0).runAsync
+    val f = loop(iterations, 0).runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(iterations * 2)))
   }
 
   test("Task.eval should not be cancelable") { implicit s =>
     val t = Task.eval(10)
-    val f = t.runAsync
+    val f = t.runToFuture
     f.cancel()
     s.tick()
     assertEquals(f.value, Some(Success(10)))
@@ -109,12 +109,12 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     var effect = 0
     val ts = Task.delay { effect += 1; effect }
 
-    assertEquals(ts.runAsync.value, Some(Success(1)))
-    assertEquals(ts.runAsync.value, Some(Success(2)))
-    assertEquals(ts.runAsync.value, Some(Success(3)))
+    assertEquals(ts.runToFuture.value, Some(Success(1)))
+    assertEquals(ts.runToFuture.value, Some(Success(2)))
+    assertEquals(ts.runToFuture.value, Some(Success(3)))
 
     val dummy = new DummyException("dummy")
     val te = Task.delay { throw dummy }
-    assertEquals(te.runAsync.value, Some(Failure(dummy)))
+    assertEquals(te.runToFuture.value, Some(Failure(dummy)))
   }
 }

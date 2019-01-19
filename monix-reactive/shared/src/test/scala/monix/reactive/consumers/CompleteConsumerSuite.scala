@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,7 +35,7 @@ object CompleteConsumerSuite extends TestSuite[TestScheduler] {
 
   test("should run to completion") { implicit s =>
     val obs = Observable(1) ++ Observable.now(2).delayExecution(3.seconds)
-    val f = obs.consumeWith(Consumer.complete).runAsync
+    val f = obs.consumeWith(Consumer.complete).runToFuture
 
     s.tick(); assertEquals(f.value, None)
     s.tick(3.seconds); assertEquals(f.value, Some(Success(())))
@@ -43,7 +43,7 @@ object CompleteConsumerSuite extends TestSuite[TestScheduler] {
 
   test("should trigger error") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Observable.raiseError(ex).consumeWith(Consumer.complete).runAsync
+    val f = Observable.raiseError(ex).consumeWith(Consumer.complete).runToFuture
     s.tick(); assertEquals(f.value, Some(Failure(ex)))
   }
 }

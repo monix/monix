@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ package monix.eval
 
 import minitest.SimpleTestSuite
 import monix.eval.Task.Options
+import monix.execution.Callback
 import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
@@ -32,7 +33,7 @@ object TaskOptionsSuite extends SimpleTestSuite {
     val task = extractOptions(Task.now(1)).map { r =>
       assertEquals(r, opts)
     }
-    task.runAsyncOpt
+    task.runToFutureOpt
   }
 
   testAsync("change options with callback") {

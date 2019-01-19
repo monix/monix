@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,9 +28,7 @@ import scala.concurrent.duration._
 object DelayExecutionWithSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val trigger = Task.now(1).delayExecution(1.second)
-    val o = Observable.range(0, sourceCount)
-      .delayExecutionWith(Observable.fromTask(trigger))
-
+    val o = Observable.range(0, sourceCount).delayExecutionWithF(trigger)
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
@@ -66,8 +64,7 @@ object DelayExecutionWithSuite extends BaseOperatorSuite {
   }
 
   test("delayExecution.onFuture triggering an error") { implicit s =>
-    val obs = Observable.now(1)
-      .delayExecutionWith(Observable.fromFuture(Future { throw new DummyException("dummy") }))
+    val obs = Observable.now(1).delayExecutionWithF(Future { throw DummyException("dummy") })
 
     var errorThrown: Throwable = null
     obs.unsafeSubscribeFn(new Observer[Int] {
@@ -84,9 +81,7 @@ object DelayExecutionWithSuite extends BaseOperatorSuite {
   }
 
   def cancelableObservables() = {
-    val obs = Observable.now(1L)
-      .delayExecutionWith(Observable.fromTask(Task.now(1).delayExecution(1.second)))
-
+    val obs = Observable.now(1L).delayExecutionWithF(Task.now(1).delayExecution(1.second))
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 }

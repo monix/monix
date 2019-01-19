@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
-import monix.execution.Ack.Continue
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.FutureUtils.extensions._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
@@ -137,5 +137,57 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
 
     assertEquals(received, s.executionModel.recommendedBatchSize * 2)
     assertEquals(wasCompleted, 0)
+  }
+
+  test("should complete when Long.MaxValue is reached") { implicit s =>
+    var wasCompleted = false
+    var elements = List.empty[Long]
+
+    val from = Long.MaxValue - 3
+    val until = Long.MaxValue
+
+    Observable
+      .range(from, until, 2)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          if (elem < from) Stop
+          else {
+            elements = elem :: elements
+            Continue
+          }
+        }
+
+        def onComplete(): Unit = wasCompleted = true
+        def onError(ex: Throwable): Unit = ()
+      })
+
+    assertEquals(elements, List(from + 2, from))
+    assertEquals(wasCompleted, true)
+  }
+
+  test("should complete when Long.MinValue is reached") { implicit s =>
+    var wasCompleted = false
+    var elements = List.empty[Long]
+
+    val from = Long.MinValue + 3
+    val until = Long.MinValue
+
+    Observable
+      .range(from, until, -2)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          if (elem > from) Stop
+          else {
+            elements = elem :: elements
+            Continue
+          }
+        }
+
+        def onComplete(): Unit = wasCompleted = true
+        def onError(ex: Throwable): Unit = ()
+      })
+
+    assertEquals(elements, List(from - 2, from))
+    assertEquals(wasCompleted, true)
   }
 }

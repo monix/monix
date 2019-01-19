@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,8 @@ import scala.concurrent.{Future, Promise}
 private[reactive] final class BufferWithSelectorObservable[+A,S](
   source: Observable[A],
   sampler: Observable[S],
-  maxSize: Int)
+  maxSize: Int,
+  sizeOf: A => Int)
   extends Observable[Seq[A]] {
 
   def unsafeSubscribeFn(downstream: Subscriber[Seq[A]]): Cancelable = {
@@ -42,6 +43,11 @@ private[reactive] final class BufferWithSelectorObservable[+A,S](
 
         // MUST BE synchronized by `self`
         private[this] var buffer = ListBuffer.empty[A]
+        // Maintain internal buffer weight not to compute the weight
+        // of the buffer each time an element is added.
+        // So to keep complexity to O(1) for each added element.
+        // MUST BE synchronized by `self`
+        private[this] var bufferWeight: Int = 0
         // MUST BE synchronized by `self`
         private[this] var promise = Promise[Ack]()
         // To be written in onComplete/onError, to be read from tick
@@ -53,7 +59,8 @@ private[reactive] final class BufferWithSelectorObservable[+A,S](
           upstreamSubscriber.synchronized {
             if (downstreamIsDone) Stop else {
               buffer += elem
-              if (maxSize > 0 && buffer.length >= maxSize)
+              bufferWeight += sizeOf(elem)
+              if (maxSize > 0 && bufferWeight >= maxSize)
                 promise.future
               else
                 Continue
@@ -96,6 +103,7 @@ private[reactive] final class BufferWithSelectorObservable[+A,S](
                 val signal = buffer.toList
                 // Refresh Buffer
                 buffer = ListBuffer.empty[A]
+                bufferWeight = 0
                 // Refresh back-pressure promise, but only if we have
                 // a maxSize to worry about
                 if (maxSize > 0) {

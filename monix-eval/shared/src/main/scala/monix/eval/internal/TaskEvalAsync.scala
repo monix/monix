@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,8 @@
 
 package monix.eval.internal
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import scala.util.control.NonFatal
 
 private[eval] object TaskEvalAsync {
@@ -36,7 +37,7 @@ private[eval] object TaskEvalAsync {
   private final class EvalAsyncRegister[A](a: () => A)
     extends ForkedRegister[A] {
 
-    def apply(ctx: Task.Context, cb: Callback[A]): Unit =
+    def apply(ctx: Task.Context, cb: Callback[Throwable, A]): Unit =
       ctx.scheduler.executeAsync(() => {
         ctx.frameRef.reset()
         var streamError = true

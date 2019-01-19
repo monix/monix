@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import cats.laws._
 import cats.laws.discipline._
-
+import monix.eval.Task
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
@@ -48,7 +48,7 @@ object ObserveOnSuite extends BaseTestSuite {
 
     val io = TestScheduler()
     Observable.range(0, count)
-      .doOnNext { _ => signaledBefore += 1 }
+      .doOnNext(_ => Task { signaledBefore += 1  })
       .observeOn(io, Unbounded)
       .foreach { _ => signaledAfter += 1 }
 
@@ -67,7 +67,7 @@ object ObserveOnSuite extends BaseTestSuite {
 
     val io = TestScheduler()
     Observable.range(0, count)
-      .doOnNext { _ => signaledBefore += 1 }
+      .doOnNext(_ => Task { signaledBefore += 1  })
       .observeOn(io)
       .foreach { _ => signaledAfter += 1 }
 

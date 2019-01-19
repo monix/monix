@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,12 +23,12 @@ import scala.concurrent.duration.Duration.Zero
 
 object CountSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).countF
+    val o = Observable.range(0, sourceCount).count
     Sample(o, 1, sourceCount, Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex).countF
+    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex).count
     Sample(o, 0, 0, Zero, Zero)
   }
 
@@ -36,7 +36,7 @@ object CountSuite extends BaseOperatorSuite {
     None
 
   override def cancelableObservables() = {
-    val o = Observable.now(1L).delayOnNext(1.second).countF
+    val o = Observable.now(1L).delayOnNext(1.second).count
     Seq(Sample(o,0,0,0.seconds,0.seconds))
   }
 }

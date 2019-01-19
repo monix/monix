@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 
 object ScanEffectSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).scanEval(IO.pure(0L)) {
+    val o = Observable.range(0, sourceCount).scanEvalF(IO.pure(0L)) {
       (s, x) => IO(s + x)
     }
 
@@ -43,14 +43,14 @@ object ScanEffectSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount == 1) None else Some {
       val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-        .scanEval(IO.pure(0L)) { (s, x) => IO(s + x) }
+        .scanEvalF(IO.pure(0L)) { (s, x) => IO(s + x) }
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount)
-      .scanEval(IO.pure(0L)) { (s, i) =>
+      .scanEvalF(IO.pure(0L)) { (s, i) =>
         if (i == sourceCount-1)
           throw ex
         else
@@ -63,7 +63,7 @@ object ScanEffectSuite extends BaseOperatorSuite {
   override def cancelableObservables(): Seq[Sample] = {
     val sample = Observable.range(0, 100)
       .delayOnNext(1.second)
-      .scanEval(IO.pure(0L))((s, i) => IO(s + i))
+      .scanEvalF(IO.pure(0L))((s, i) => IO(s + i))
 
     Seq(
       Sample(sample, 0, 0, 0.seconds, 0.seconds),
@@ -74,13 +74,13 @@ object ScanEffectSuite extends BaseOperatorSuite {
 
   test("scanEval0.headL.toIO <-> seed") { implicit s =>
     check2 { (obs: Observable[Int], seed: IO[Int]) =>
-      obs.scanEval0(seed)((a, b) => IO.pure(a + b)).headL.toIO <-> seed
+      obs.scanEval0F(seed)((a, b) => IO.pure(a + b)).headL.toIO <-> seed
     }
   }
 
   test("scanEval0.drop(1) <-> scanEval") { implicit s =>
     check2 { (obs: Observable[Int], seed: IO[Int]) =>
-      obs.scanEval0(seed)((a, b) => IO.pure(a + b)).drop(1) <-> obs.scanEval(seed)((a, b) => IO.pure(a + b))
+      obs.scanEval0F(seed)((a, b) => IO.pure(a + b)).drop(1) <-> obs.scanEvalF(seed)((a, b) => IO.pure(a + b))
     }
   }
 }

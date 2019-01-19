@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,7 +34,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
   }
 
   test("should not drop events for synchronous observers") { implicit s =>
-    val f = Observable.range(0, 1000).whileBusyDropEvents.sumF.runAsyncGetFirst
+    val f = Observable.range(0, 1000).whileBusyDropEvents.sum.runAsyncGetFirst
     s.tick()
 
     assertEquals(f.value, Some(Success(Some(999 * 500))))

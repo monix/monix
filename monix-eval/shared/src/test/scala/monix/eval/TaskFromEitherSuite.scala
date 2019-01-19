@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,7 @@ object TaskFromEitherSuite extends BaseTestSuite {
 
   test("Task.fromEither (`E <: Throwable` version) should succeed with a Right") { implicit s =>
     val t = Task.fromEither(Right(10))
-    val f = t.runAsync
+    val f = t.runToFuture
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -44,21 +44,21 @@ object TaskFromEitherSuite extends BaseTestSuite {
   test("Task.fromEither (`E <: Throwable` version) should fail with a Left") { implicit s =>
     val dummy = DummyException("dummy")
     val t = Task.fromEither(Left(dummy))
-    val f = t.runAsync
+    val f = t.runToFuture
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("Task.fromEither (`E <: Throwable` version) with a Right should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
-    var result = Task.fromEither(Right(1)).runAsync
-    for (_ <- 0 until count) result = Task.fromEither(Right(1)).runAsync
+    var result = Task.fromEither(Right(1)).runToFuture
+    for (_ <- 0 until count) result = Task.fromEither(Right(1)).runToFuture
     assertEquals(result.value, Some(Success(1)))
   }
 
   test("Task.fromEither (`E <: Throwable` version) with a Left should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
-    var result = Task.fromEither(Left(DummyException("dummy"))).runAsync
-    for (_ <- 0 until count) result = Task.fromEither(Left(DummyException("dummy"))).runAsync
+    var result = Task.fromEither(Left(DummyException("dummy"))).runToFuture
+    for (_ <- 0 until count) result = Task.fromEither(Left(DummyException("dummy"))).runToFuture
     assertEquals(result.value, Some(Failure(DummyException("dummy"))))
   }
 
@@ -69,7 +69,7 @@ object TaskFromEitherSuite extends BaseTestSuite {
 
   test("Task.fromEither (free `E` version) should succeed with a Right") { implicit s =>
     val t = Task.fromEither(DummyException)(Right(10))
-    val f = t.runAsync
+    val f = t.runToFuture
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -80,21 +80,21 @@ object TaskFromEitherSuite extends BaseTestSuite {
 
   test("Task.fromEither (free `E` version) should fail with a Left") { implicit s =>
     val t = Task.fromEither(DummyException)(Left("dummy"))
-    val f = t.runAsync
+    val f = t.runToFuture
     assertEquals(f.value, Some(Failure(DummyException("dummy"))))
   }
 
   test("Task.fromEither (free `E` version) with a Right should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
-    var result = Task.fromEither(DummyException)(Right(1)).runAsync
-    for (_ <- 0 until count) result = Task.fromEither(DummyException)(Right(1)).runAsync
+    var result = Task.fromEither(DummyException)(Right(1)).runToFuture
+    for (_ <- 0 until count) result = Task.fromEither(DummyException)(Right(1)).runToFuture
     assertEquals(result.value, Some(Success(1)))
   }
 
   test("Task.fromEither (free `E` version) with a Left should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
-    var result = Task.fromEither(DummyException)(Left("dummy")).runAsync
-    for (_ <- 0 until count) result = Task.fromEither(DummyException)(Left("dummy")).runAsync
+    var result = Task.fromEither(DummyException)(Left("dummy")).runToFuture
+    for (_ <- 0 until count) result = Task.fromEither(DummyException)(Left("dummy")).runToFuture
     assertEquals(result.value, Some(Failure(DummyException("dummy"))))
   }
 }

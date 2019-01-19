@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,13 +17,13 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Cancelable
-import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 private[reactive] final
-class DoOnSubscriptionCancelObservable[+A](source: Observable[A], cb: () => Unit)
+class DoOnSubscriptionCancelObservable[+A](source: Observable[A], task: Task[Unit])
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
@@ -32,11 +32,8 @@ class DoOnSubscriptionCancelObservable[+A](source: Observable[A], cb: () => Unit
     Cancelable(() => {
       // First cancel the source
       try subscription.cancel() finally {
-        // Then execute the callback, protected
-        try cb() catch {
-          case ex if NonFatal(ex) =>
-            subscriber.scheduler.reportFailure(ex)
-        }
+        // Then execute the task
+        task.runAsyncAndForget(subscriber.scheduler)
       }
     })
   }

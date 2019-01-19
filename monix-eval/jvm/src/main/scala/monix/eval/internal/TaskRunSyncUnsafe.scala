@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,9 +22,9 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer
 
 import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.internal.TaskRunLoop._
-import monix.eval.{Callback, Task}
-import monix.execution.Scheduler
-import monix.execution.internal.collection.ArrayStack
+import monix.eval.Task
+import monix.execution.{Callback, Scheduler}
+import monix.execution.internal.collection.ChunkedArrayStack
 import scala.util.control.NonFatal
 
 import scala.concurrent.blocking
@@ -46,7 +46,7 @@ private[eval] object TaskRunSyncUnsafe {
       current match {
         case FlatMap(fa, bindNext) =>
           if (bFirst ne null) {
-            if (bRest eq null) bRest = new ArrayStack()
+            if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
           }
           /*_*/bFirst = bindNext/*_*/
@@ -67,7 +67,7 @@ private[eval] object TaskRunSyncUnsafe {
 
         case bindNext @ Map(fa, _, _) =>
           if (bFirst ne null) {
-            if (bRest eq null) bRest = new ArrayStack()
+            if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
           }
           bFirst = bindNext
@@ -164,7 +164,7 @@ private[eval] object TaskRunSyncUnsafe {
   }
 
   private final class BlockingCallback[A](latch: OneShotLatch)
-    extends Callback [A] {
+    extends Callback [Throwable, A] {
 
     private[this] var success: A = _
     private[this] var error: Throwable = _

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.Batch
 
@@ -63,7 +63,7 @@ private[tail] object IterantBuffer {
     extends Iterant.Visitor[F, A, F[Iterant[F, B]]] { loop =>
 
     private[this] val buffer = new Buffer[A](count, skip)
-    private[this] val stack  = new ArrayStack[F[Iterant[F, A]]]()
+    private[this] val stack  = ChunkedArrayStack[F[Iterant[F, A]]]()
 
     def visit(ref: Next[F, A]): F[Iterant[F, B]] = {
       val seq = buffer.push(ref.item)

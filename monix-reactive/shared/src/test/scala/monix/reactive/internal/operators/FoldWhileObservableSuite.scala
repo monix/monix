@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ import scala.util.Failure
 object FoldWhileObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val n = sourceCount/2
-    val obs = Observable.range(0, sourceCount).foldWhileLeftF(0L)(
+    val obs = Observable.range(0, sourceCount).foldWhileLeft(0L)(
       (acc,e) => if (e < n) Left(acc + e) else Right(acc + e))
 
     Sample(obs, 1, n * (n+1) / 2, 0.seconds, 0.seconds)
@@ -33,21 +33,21 @@ object FoldWhileObservableSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val obs = Observable.range(0, sourceCount).endWithError(ex)
-      .foldWhileLeftF(0L)((acc,e) => Left(acc+e))
+      .foldWhileLeft(0L)((acc,e) => Left(acc+e))
 
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
   def cancelableObservables() = {
     val obs = Observable.range(0, 1000).delayExecution(1.seconds)
-      .foldWhileLeftF(0L)((acc,e) => Left(acc + e))
+      .foldWhileLeft(0L)((acc,e) => Left(acc + e))
 
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val obs = Observable.range(0, sourceCount).endWithError(ex)
-      .foldWhileLeftF(0L)((_, _) => throw ex)
+      .foldWhileLeft(0L)((_, _) => throw ex)
 
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
@@ -55,7 +55,7 @@ object FoldWhileObservableSuite extends BaseOperatorSuite {
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable(1,2,3,4)
-      .foldWhileLeftF((throw ex) : Int)((acc, e) => Left(acc + e))
+      .foldWhileLeft((throw ex) : Int)((acc, e) => Left(acc + e))
 
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))

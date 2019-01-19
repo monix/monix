@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,7 +34,7 @@ object CacheSuite extends BaseOperatorSuite {
 
   test("should work with limited capacity") { implicit s =>
     val observable = Observable(1, 2, 3, 4, 5, 6).cache(2)
-    val f = observable.sumL.runAsync
+    val f = observable.sumL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(11)))

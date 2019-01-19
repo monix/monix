@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,15 +17,17 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Stop
-import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 private[reactive] final
-class DoOnStartOperator[A](cb: A => Unit)
+class DoOnStartOperator[A](cb: A => Task[Unit])
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
@@ -36,21 +38,26 @@ class DoOnStartOperator[A](cb: A => Unit)
       private[this] var isStart = true
 
       def onNext(elem: A): Future[Ack] = {
-        // Protects calls to user code from within the operator and
-        // stream the error downstream if it happens, but if the
-        // error happens because of calls to `onNext` or other
-        // protocol calls, then the behavior should be undefined.
-        try {
-          if (isStart) {
+        if (isStart) {
+          // Protects calls to user code from within the operator and
+          // stream the error downstream if it happens, but if the
+          // error happens because of calls to `onNext` or other
+          // protocol calls, then the behavior should be undefined.
+          val t = try {
             cb(elem)
-            isStart = false
+          } catch {
+            case NonFatal(ex) => Task.raiseError(ex)
           }
 
+          val ack = t.redeemWith(
+            ex => Task.eval { onError(ex); Stop },
+            _ => Task.fromFuture(out.onNext(elem))
+          ).runToFuture
+
+          isStart = false
+          ack.syncTryFlatten
+        } else {
           out.onNext(elem)
-        } catch {
-          case NonFatal(ex) if isStart =>
-            onError(ex)
-            Stop
         }
       }
 

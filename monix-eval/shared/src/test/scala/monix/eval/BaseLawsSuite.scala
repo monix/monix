@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,7 +52,7 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
 
     new Eq[Task[A]] {
       def eqv(lh: Task[A], rh: Task[A]): Boolean =
-        equalityFuture(A, sc).eqv(lh.runAsyncOpt, rh.runAsyncOpt)
+        equalityFuture(A, sc).eqv(lh.runToFutureOpt, rh.runToFutureOpt)
     }
   }
 
@@ -211,9 +211,11 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def equalityCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
     new Eq[Coeval[A]] {
       def eqv(lh: Coeval[A], rh: Coeval[A]): Boolean = {
-        val lht = lh.runTry()
-        val rht = rh.runTry()
-        Eq[Try[A]].eqv(lht, rht)
+        silenceSystemErr {
+          val lht = lh.runTry()
+          val rht = rh.runTry()
+          Eq[Try[A]].eqv(lht, rht)
+        }
       }
     }
 

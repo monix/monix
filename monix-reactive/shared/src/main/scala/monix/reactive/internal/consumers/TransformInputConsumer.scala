@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.observers.Subscriber
@@ -29,7 +29,7 @@ final class TransformInputConsumer[In2, -In, +R]
   (source: Consumer[In, R], f: Observable[In2] => Observable[In])
   extends Consumer[In2, R] {
 
-  def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber[In2], AssignableCancelable) = {
+  def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[In2], AssignableCancelable) = {
     val (input1, conn) = source.createSubscriber(cb, s)
 
     val (input2, output1) = Pipe.publishToOne[In2].transform(f).unicast

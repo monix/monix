@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -76,6 +76,9 @@ object Local {
   def bindClear[R](f: => R): R =
     macro Macros.localLetClear
 
+  private[monix] def bindCurrentIf[R](b: => Boolean)(f: => R): R =
+    macro Macros.localLetCurrentIf
+
   /** Convert a closure `() => R` into another closure of the same
     * type whose [[Local.Context]] is saved when calling closed
     * and restored upon invocation.
@@ -145,6 +148,15 @@ object Local {
        $Local.setContext($Map.empty)
        try { $f } finally { $Local.setContext($saved) }
        """)
+    }
+
+    def localLetCurrentIf(b: Tree)(f: Tree): Tree = {
+      val Local = symbolOf[Local[_]].companion
+      resetTree(
+        q"""
+           if (!$b) { $f }
+           else ${localLet(q"$Local.getContext()")(f)}
+         """)
     }
   }
 }

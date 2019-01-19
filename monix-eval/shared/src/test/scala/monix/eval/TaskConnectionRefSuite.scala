@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,16 +93,16 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     cr.cancel.runAsyncAndForget; s.tick()
 
     var effect = 0
-    val b = BooleanCancelableF(Task { effect += 1 }).runAsync.value.get.get
+    val b = BooleanCancelableF(Task { effect += 1 }).runToFuture.value.get.get
     cr := b
 
-    assert(b.isCanceled.runAsync.value.get.get)
+    assert(b.isCanceled.runToFuture.value.get.get)
     assertEquals(effect, 1)
 
     cr.cancel.runAsyncAndForget; s.tick()
     assertEquals(effect, 1)
 
-    val b2 = BooleanCancelableF(Task { effect += 1 }).runAsync.value.get.get
+    val b2 = BooleanCancelableF(Task { effect += 1 }).runToFuture.value.get.get
     intercept[IllegalStateException] { cr := b2 }
     assertEquals(effect, 2)
   }

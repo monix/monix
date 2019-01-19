@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,10 @@
 
 package monix.reactive.observers.buffers
 
+import monix.execution.ChannelType
 import monix.execution.internal.Platform
 import monix.reactive.observers.Subscriber
+
 import scala.collection.mutable.ListBuffer
 
 /** A `BufferedSubscriber` implementation for the
@@ -26,9 +28,12 @@ import scala.collection.mutable.ListBuffer
   * buffer overflowStrategy that sends events in bundles.
   */
 private[monix] final class BatchedBufferedSubscriber[A] private
-  (out: Subscriber[List[A]], _bufferSize: Int)
+  (out: Subscriber[List[A]], _bufferSize: Int, pt: ChannelType.ProducerSide)
   extends AbstractBackPressuredBufferedSubscriber[A, ListBuffer[A]](
-    subscriberBufferToList(out), _bufferSize) { self =>
+    subscriberBufferToList(out),
+    _bufferSize,
+    pt
+  ) { self =>
 
   @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
   @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
@@ -39,13 +44,16 @@ private[monix] final class BatchedBufferedSubscriber[A] private
   override protected def fetchNext(): ListBuffer[A] = {
     val batchSize = Platform.recommendedBatchSize
     val buffer = ListBuffer.empty[A]
-    queue.drain(buffer, batchSize)
+    queue.drainToBuffer(buffer, batchSize)
     if (buffer.nonEmpty) buffer else null
   }
 }
 
 private[monix] object BatchedBufferedSubscriber {
   /** Builder for [[BatchedBufferedSubscriber]] */
-  def apply[A](underlying: Subscriber[List[A]], bufferSize: Int): BatchedBufferedSubscriber[A] =
-    new BatchedBufferedSubscriber[A](underlying, bufferSize)
+  def apply[A](
+    underlying: Subscriber[List[A]],
+    bufferSize: Int,
+    producerType: ChannelType.ProducerSide): BatchedBufferedSubscriber[A] =
+    new BatchedBufferedSubscriber[A](underlying, bufferSize, producerType)
 }

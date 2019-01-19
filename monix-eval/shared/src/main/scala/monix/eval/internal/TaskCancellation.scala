@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package internal
 
 import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context}
-import monix.execution.Scheduler
+import monix.execution.{Scheduler, Callback}
 import monix.execution.atomic.{Atomic, AtomicBoolean}
 import monix.execution.schedulers.TrampolinedRunnable
 
@@ -35,7 +35,7 @@ private[eval] object TaskCancellation {
     * Implementation for `Task.onCancelRaiseError`.
     */
   def raiseError[A](fa: Task[A], e: Throwable): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val sc = ctx.scheduler
       val canCall = Atomic(true)
       // We need a special connection because the main one will be reset on
@@ -56,9 +56,9 @@ private[eval] object TaskCancellation {
   private final class RaiseCallback[A](
     waitsForResult: AtomicBoolean,
     conn: TaskConnection,
-    cb: Callback[A])
+    cb: Callback[Throwable, A])
     (implicit s: Scheduler)
-    extends Callback[A] with TrampolinedRunnable {
+    extends Callback[Throwable, A] with TrampolinedRunnable {
 
     private[this] var value: A = _
     private[this] var error: Throwable = _
@@ -90,7 +90,7 @@ private[eval] object TaskCancellation {
     waitsForResult: AtomicBoolean,
     conn: TaskConnection,
     conn2: TaskConnection,
-    cb: Callback[A],
+    cb: Callback[Throwable, A],
     e: Throwable): CancelToken[Task] = {
 
     Task.suspend {

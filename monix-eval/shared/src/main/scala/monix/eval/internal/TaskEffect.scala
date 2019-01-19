@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ package monix.eval
 package internal
 
 import cats.effect.{CancelToken, IO, SyncIO}
+import monix.execution.Callback
 import monix.execution.Scheduler
 import monix.execution.internal.AttemptCallback.noop
 import scala.util.control.NonFatal
@@ -46,7 +47,7 @@ private[eval] object TaskEffect {
   private def execute[A](fa: Task[A], cb: Either[Throwable, A] => IO[Unit])
     (implicit s: Scheduler, opts: Task.Options) = {
 
-    fa.runAsyncOptF(new Callback[A] {
+    fa.runAsyncOptF(new Callback[Throwable, A] {
       private def signal(value: Either[Throwable, A]): Unit =
         try cb(value).unsafeRunAsync(noop)
         catch { case NonFatal(e) => s.reportFailure(e) }

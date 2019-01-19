@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,8 @@
 
 package monix.eval.internal
 
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.rstreams.Subscription
 import org.reactivestreams.Subscriber
@@ -41,7 +42,7 @@ private[eval] object TaskToReactivePublisher {
 
             if (isActive) {
               Task.unsafeStartEnsureAsync[A](self, context,
-                Callback.safe(new Callback[A] {
+                Callback.safe(new Callback[Throwable, A] {
                   def onError(ex: Throwable): Unit =
                     out.onError(ex)
 

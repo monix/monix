@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,7 +43,7 @@ final class AtomicBoolean private[atomic]
   }
 
   def set(update: Boolean): Unit = ref = update
-  def get: Boolean = ref
+  def get(): Boolean = ref
 }
 
 /** @define createDesc Constructs an [[AtomicBoolean]] reference, allowing

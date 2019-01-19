@@ -5,9 +5,6 @@
 Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/monix/monix.svg?branch=master)](https://travis-ci.org/monix/monix)
-[![Coverage Status](https://codecov.io/gh/monix/monix/coverage.svg?branch=master)](https://codecov.io/gh/monix/monix?branch=master)
-[![Maven Central](https://img.shields.io/maven-central/v/io.monix/monix_2.12.svg)](http://search.maven.org/#search|gav|1|g%3A%22io.monix%22%20AND%20a%3A%22monix_2.12%22)
-
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Overview
@@ -48,13 +45,14 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Current release: `3.0.0-RC1`
 - Stable release: `2.3.3`
+- Current release candidate: `3.0.0-RC2`
+  (compatible with Cats-Effect 1.0.0)
 
-For the 3.x series (that works with Cats `1.x` and Cats-Effect):
+For the 3.x series (that works with Cats `1.x` and Cats-Effect `1.0.0`):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC1"
+libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC2"
 ```
 
 For the 2.x series:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
-
+import monix.execution.Callback
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success, Try}
@@ -31,7 +31,7 @@ object TaskNowSuite extends BaseTestSuite {
 
     val task = Task.now(trigger())
     assert(wasTriggered, "wasTriggered")
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success("result")))
   }
 
@@ -44,7 +44,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.now(trigger())
     assert(wasTriggered, "wasTriggered")
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Success("result")))
   }
 
@@ -83,7 +83,7 @@ object TaskNowSuite extends BaseTestSuite {
 
     val task = Task.raiseError(trigger())
     assert(wasTriggered, "wasTriggered")
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
@@ -97,7 +97,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.raiseError[String](trigger())
     assert(wasTriggered, "wasTriggered")
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
@@ -174,7 +174,7 @@ object TaskNowSuite extends BaseTestSuite {
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20
-    val f = loop(iterations, 0).runAsync
+    val f = loop(iterations, 0).runToFuture
 
     s.tickOne()
     assertEquals(f.value, None)
@@ -184,7 +184,7 @@ object TaskNowSuite extends BaseTestSuite {
 
   test("Task.now should not be cancelable") { implicit s =>
     val t = Task.now(10)
-    val f = t.runAsync
+    val f = t.runToFuture
     f.cancel()
     s.tick()
     assertEquals(f.value, Some(Success(10)))
@@ -193,7 +193,7 @@ object TaskNowSuite extends BaseTestSuite {
   test("Task.raiseError should not be cancelable") { implicit s =>
     val dummy = DummyException("dummy")
     val t = Task.raiseError(dummy)
-    val f = t.runAsync
+    val f = t.runToFuture
     f.cancel()
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))

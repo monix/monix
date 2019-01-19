@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +17,12 @@
 
 package monix.reactive.observers.buffers
 
+import monix.eval.Coeval
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
 import monix.execution.atomic.{Atomic, AtomicInt}
+
 import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
@@ -33,7 +35,7 @@ import scala.util.{Failure, Success}
   * overflow strategies.
   */
 private[observers] final class DropNewBufferedSubscriber[A] private
-  (out: Subscriber[A], bufferSize: Int, onOverflow: Long => Option[A] = null)
+  (out: Subscriber[A], bufferSize: Int, onOverflow: Long => Coeval[Option[A]] = null)
   extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
@@ -170,7 +172,7 @@ private[observers] final class DropNewBufferedSubscriber[A] private
               if (onOverflow == null || droppedCount.get == 0)
                 null.asInstanceOf[A]
               else
-                onOverflow(droppedCount.getAndSet(0)) match {
+                onOverflow(droppedCount.getAndSet(0)).value() match {
                   case Some(value) => value
                   case None => null.asInstanceOf[A]
                 }
@@ -271,7 +273,7 @@ private[observers] object DropNewBufferedSubscriber {
     * [[monix.reactive.OverflowStrategy.DropNewAndSignal DropNewAndSignal]]
     * overflowStrategy.
     */
-  def withSignal[A](underlying: Subscriber[A], bufferSize: Int, onOverflow: Long => Option[A]): DropNewBufferedSubscriber[A] =
+  def withSignal[A](underlying: Subscriber[A], bufferSize: Int, onOverflow: Long => Coeval[Option[A]]): DropNewBufferedSubscriber[A] =
     new DropNewBufferedSubscriber[A](underlying, bufferSize, onOverflow)
 }
 

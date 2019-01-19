@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.subscribers
 
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.Ack.{Continue, Stop}
 import scala.util.control.NonFatal
 import monix.execution.{Ack, Scheduler}
@@ -26,7 +26,7 @@ import monix.reactive.observers.Subscriber
 /** Subscriber implementation for `Observable.foreach` */
 private[reactive] final class ForeachSubscriber[A](
   f: A => Unit,
-  onFinish: Callback[Unit],
+  onFinish: Callback[Throwable, Unit],
   s: Scheduler)
   extends Subscriber.Sync[A] {
 

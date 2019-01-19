@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Cancelable
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.{BaseConcurrencySuite, Observable}
@@ -35,7 +36,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
       val sum = Observable.range(0, count)
         .flatMap(x => Observable(x,x,x))
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)
@@ -50,7 +51,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
       val sum = Observable.range(0, count)
         .flatMap(x => Observable(x,x,x).executeAsync)
         .sumL
-        .runAsync
+        .runToFuture
 
       val result = Await.result(sum, 30.seconds)
       assertEquals(result, expected)
@@ -96,9 +97,9 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
       val c = Observable.range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
-        .doOnError(p.tryFailure)
-        .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
-        .doOnEarlyStop(() => p.trySuccess(()))
+        .doOnError(e => Task(p.tryFailure(e)))
+        .doOnComplete(Task(p.trySuccess(new IllegalStateException("complete"))))
+        .doOnEarlyStop(Task(p.trySuccess(())))
         .flatMap(one(p))
         .subscribe()
 
@@ -114,9 +115,9 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
       val c = Observable.range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
-        .doOnError(p.tryFailure)
-        .doOnComplete(() => p.trySuccess(new IllegalStateException("complete")))
-        .doOnEarlyStop(() => p.trySuccess(()))
+        .doOnError(e => Task(p.tryFailure(e)))
+        .doOnComplete(Task(p.trySuccess(new IllegalStateException("complete"))))
+        .doOnEarlyStop(Task(p.trySuccess(())))
         .flatMap(x => Observable.now(x).executeAsync)
         .subscribe()
 

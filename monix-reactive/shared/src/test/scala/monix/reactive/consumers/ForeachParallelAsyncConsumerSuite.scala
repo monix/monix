@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,8 @@ package monix.reactive.consumers
 
 
 import minitest.TestSuite
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
@@ -42,7 +43,7 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val sum = Atomic(0L)
     val f = obs.consumeWith(Consumer
       .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x))))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -55,7 +56,7 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val sum = Atomic(0L)
     val f = obs.consumeWith(Consumer
       .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x))))
-      .runAsync
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))

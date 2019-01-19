@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,11 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.{Callback, Task}
+import monix.execution.{Ack, AsyncSemaphore, Callback, Cancelable}
+import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.MultiProducer
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.execution.misc.AsyncSemaphore
-import monix.execution.{Ack, Cancelable}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
@@ -39,7 +39,7 @@ import scala.util.{Failure, Success}
   *  - given we've got concurrency in processing `onNext` events, we need
   *    to use a concurrent buffer to guarantee safety
   *  - to ensure the required parallelism factor, we are using an
-  *    [[monix.execution.misc.AsyncSemaphore]]
+  *    [[monix.execution.AsyncSemaphore]]
   */
 private[reactive] final class MapParallelUnorderedObservable[A,B](
    source: Observable[A],
@@ -70,14 +70,14 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
     extends Subscriber[A] with Cancelable { self =>
 
     implicit val scheduler = out.scheduler
-    // Ensures we don't execute more then a maximum number of tasks in parallel
+    // Ensures we don't execute more than a maximum number of tasks in parallel
     private[this] val semaphore = AsyncSemaphore(parallelism)
     // Reusable instance for releasing permits on cancel, but
     // it's debatable whether this is needed, since on cancel
     // everything gets canceled at once
     private[this] val releaseTask = Task.eval(semaphore.release())
     // Buffer with the supplied  overflow strategy.
-    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy)
+    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
 
     // Flag indicating whether a final event was called, after which
     // nothing else can happen. It's a very light protection, as
@@ -181,7 +181,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
       // We need to wait for all semaphore permits to be
       // released, otherwise we can lose events and that's
       // not acceptable for onComplete!
-      semaphore.awaitAllReleased().foreach { _ =>
+      semaphore.awaitAvailable(parallelism).foreach { _ =>
         if (!isDone) {
           isDone = true
           lastAck = Stop

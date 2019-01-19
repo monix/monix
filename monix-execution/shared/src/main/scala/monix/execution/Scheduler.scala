@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.execution
 
 import java.util.concurrent.Executor
+import cats.implicits._
 import cats.effect._
 import monix.execution.internal.AttemptCallback.RunnableTick
 import monix.execution.internal.RunnableAction
@@ -258,17 +259,18 @@ object Scheduler extends SchedulerCompanionImpl {
       * Derives a `cats.effect.Clock` from [[Scheduler]] for any
       * data type that has a `cats.effect.LiftIO` implementation.
       */
-    def clock[F[_]](implicit F: LiftIO[F]): Clock[F] =
+    def clock[F[_]](implicit F: Sync[F]): Clock[F] =
       new Clock[F] {
         override def realTime(unit: TimeUnit): F[Long] =
-          F.liftIO(IO(source.clockRealTime(unit)))
+          F.delay(source.clockRealTime(unit))
         override def monotonic(unit: TimeUnit): F[Long] =
-          F.liftIO(IO(source.clockMonotonic(unit)))
+          F.delay(source.clockMonotonic(unit))
       }
 
     /**
       * Derives a `cats.effect.Timer` from [[Scheduler]] for any
-      * data type that has a `cats.effect.LiftIO` implementation.
+      * data type that has a `cats.effect.Concurrent` type class
+      * instance.
       *
       * {{{
       *   implicit val timer: Timer[IO] = scheduler.timer[IO]
@@ -278,15 +280,46 @@ object Scheduler extends SchedulerCompanionImpl {
       *   }
       * }}}
       */
-    def timer[F[_]](implicit F: LiftIO[F]): Timer[F] =
+    def timer[F[_]](implicit F: Concurrent[F]): Timer[F] =
       new Timer[F] {
         override def sleep(d: FiniteDuration): F[Unit] =
-          F.liftIO(IO.cancelable[Unit] { cb =>
+          F.cancelable { cb =>
+            source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
+              .toCancelToken[F]
+          }
+        override def clock: Clock[F] =
+          source.clock
+      }
+
+    /**
+      * Derives a `cats.effect.Timer` from [[Scheduler]] for any
+      * data type that has a `cats.effect.LiftIO` instance.
+      *
+      * This is the relaxed [[timer]] method, needing only `LiftIO`
+      * to work, by piggybacking on `cats.effect.IO`.
+      *
+      * {{{
+      *   implicit val timer: Timer[IO] = scheduler.timerLiftIO[IO]
+      *
+      *   IO.sleep(10.seconds).flatMap { _ =>
+      *     IO(println("Delayed hello!"))
+      *   }
+      * }}}
+      */
+    def timerLiftIO[F[_]](implicit F: LiftIO[F]): Timer[F] =
+      new Timer[F] {
+        override def sleep(d: FiniteDuration): F[Unit] =
+          F.liftIO(IO.cancelable { cb =>
             source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
               .toCancelToken[IO]
           })
         override def clock: Clock[F] =
-          source.clock
+          new Clock[F] {
+            def realTime(unit: TimeUnit): F[Long] =
+              F.liftIO(IO(source.clockRealTime(unit)))
+            def monotonic(unit: TimeUnit): F[Long] =
+              F.liftIO(IO(source.clockMonotonic(unit)))
+          }
       }
 
     /**
@@ -304,12 +337,12 @@ object Scheduler extends SchedulerCompanionImpl {
       *     }
       * }}}
       */
-    def contextShift[F[_]](implicit F: Effect[F]): ContextShift[F] =
+    def contextShift[F[_]](implicit F: Async[F]): ContextShift[F] =
       new ContextShift[F] {
         override def shift: F[Unit] =
-          F.liftIO(IO.shift(source))
+          Async.shift(source)
         override def evalOn[A](ec: ExecutionContext)(fa: F[A]): F[A] =
-          F.liftIO(IO.contextShift(source).evalOn(ec)(F.toIO(fa)))
+          Async.shift(ec).flatMap(_ => fa.flatMap(a => shift.map(_ => a)))
       }
 
     /** Schedules a task to run in the future, after `initialDelay`.

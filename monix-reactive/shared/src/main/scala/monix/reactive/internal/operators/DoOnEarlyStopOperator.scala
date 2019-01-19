@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,32 +17,53 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Ack
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
+import monix.reactive.internal.util.Instances.ContinueTask
 
 import scala.concurrent.Future
+import scala.util.Success
 
-private[reactive] final class DoOnEarlyStopOperator[A](cb: () => Unit)
+private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit])
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
+      private[this] val isActive = Atomic(true)
 
-      private[this] val onStopRef =
-        (_: Option[Throwable]) => {
-          try cb() catch { case ex if NonFatal(ex) =>
-            scheduler.reportFailure(ex)
-          }
+      def onNext(elem: A): Future[Ack] = {
+        val result =
+          try out.onNext(elem)
+          catch { case ex if NonFatal(ex) => Future.failed(ex) }
+
+        val task = Task.fromFuture(result)
+          .onErrorHandle { ex => onError(ex); Stop }
+          .flatMap { case Continue => ContinueTask; case Stop => onStop.map(_ => Stop) }
+
+        val future = task.runToFuture
+        // Execution might be immediate
+        future.value match {
+          case Some(Success(ack)) => ack
+          case _ => future
         }
+      }
 
-      def onNext(elem: A): Future[Ack] =
-        out.onNext(elem).syncOnStopOrFailure(onStopRef)
-      def onError(ex: Throwable): Unit =
-        out.onError(ex)
-      def onComplete(): Unit =
-        out.onComplete()
+      def onError(ex: Throwable): Unit = {
+        if (isActive.getAndSet(false))
+          out.onError(ex)
+        else
+          scheduler.reportFailure(ex)
+      }
+
+      def onComplete(): Unit = {
+        if (isActive.getAndSet(false))
+          out.onComplete()
+      }
     }
 }

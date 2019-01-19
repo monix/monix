@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,11 +29,11 @@ object TaskBlockingSuite extends SimpleTestSuite {
     val source2 = Task.evalAsync(200).onErrorHandleWith { case e: Exception => Task.raiseError(e) }
 
     val derived = source1.map { x =>
-      val r = Await.result(source2.runAsync, 10.seconds)
+      val r = Await.result(source2.runToFuture, 10.seconds)
       r + x
     }
 
-    val result = Await.result(derived.runAsync, 10.seconds)
+    val result = Await.result(derived.runToFuture, 10.seconds)
     assertEquals(result, 300)
   }
 

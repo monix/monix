@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,9 @@
 
 package monix.reactive
 
-import monix.execution.Scheduler
+import monix.execution.ChannelType.MultiProducer
+import monix.execution.{ChannelType, Scheduler}
+
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
@@ -64,9 +66,27 @@ abstract class Pipe[I, +O] extends Serializable {
     * @param strategy is the [[OverflowStrategy]] used for the underlying
     *                 multi-producer/single-consumer buffer
     */
-  def concurrent(strategy: Synchronous[I])(implicit s: Scheduler): (Observer.Sync[I], Observable[O]) = {
+  def concurrent(strategy: Synchronous[I])(implicit s: Scheduler): (Observer.Sync[I], Observable[O]) =
+    concurrent(strategy, MultiProducer)
+
+
+  /** Returns an input/output pair with an input that can be
+    * used synchronously and concurrently (without back-pressure or
+    * multi-threading issues) to push signals to multiple subscribers.
+    *
+    * @param strategy is the [[OverflowStrategy]] used for the underlying
+    *                 multi-producer/single-consumer buffer
+    *
+    * @param producerType specifies the
+    *        [[monix.execution.ChannelType.ProducerSide ChannelType.ProducerSide]],
+    *        which configures the type of the producer, for performance optimization;
+    *        can be multi producer (the default) or single producer
+    */
+  def concurrent(strategy: Synchronous[I], producerType: ChannelType.ProducerSide)
+    (implicit s: Scheduler): (Observer.Sync[I], Observable[O]) = {
+
     val (in,out) = multicast(s)
-    val buffer = BufferedSubscriber.synchronous[I](Subscriber(in, s), strategy)
+    val buffer = BufferedSubscriber.synchronous[I](Subscriber(in, s), strategy, producerType)
     (buffer, out)
   }
 

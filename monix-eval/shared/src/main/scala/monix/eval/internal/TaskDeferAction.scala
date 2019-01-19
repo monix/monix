@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.eval
 package internal
 
+import monix.execution.Callback
 import monix.eval.Task.Context
 import monix.execution.Scheduler
 import scala.util.control.NonFatal
@@ -25,7 +26,7 @@ import scala.util.control.NonFatal
 private[eval] object TaskDeferAction {
   /** Implementation for `Task.deferAction`. */
   def apply[A](f: Scheduler => Task[A]): Task[A] = {
-    val start = (context: Context, callback: Callback[A]) => {
+    val start = (context: Context, callback: Callback[Throwable, A]) => {
       implicit val ec = context.scheduler
       var streamErrors = true
 

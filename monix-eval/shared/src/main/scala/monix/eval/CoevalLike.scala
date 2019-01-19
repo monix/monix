@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,8 @@
 package monix.eval
 
 import cats.effect.SyncIO
-import cats.Eval
+import cats.{Comonad, Eval}
+
 import scala.util.Try
 
 /** A lawless type class that provides conversions to [[Coeval]].
@@ -51,7 +52,7 @@ trait CoevalLike[F[_]] {
   def toCoeval[A](fa: F[A]): Coeval[A]
 }
 
-object CoevalLike {
+object CoevalLike extends CoevalLikeImplicits0 {
   /**
     * Returns the available instance for `F`.
     */
@@ -93,11 +94,32 @@ object CoevalLike {
     }
 
   /**
+    * Converts `Function0` (parameter-less function, also called
+    * thunks) to [[Coeval]].
+    */
+  implicit val fromFunction0: CoevalLike[Function0] =
+    new CoevalLike[Function0] {
+      def toCoeval[A](thunk: () => A): Coeval[A] =
+        Coeval.Always(thunk)
+    }
+
+  /**
     * Converts a Scala `Either` to a [[Coeval]].
     */
   implicit def fromEither[E <: Throwable]: CoevalLike[Either[E, ?]] =
     new CoevalLike[Either[E, ?]] {
       def toCoeval[A](fa: Either[E, A]): Coeval[A] =
         Coeval.fromEither(fa)
+    }
+}
+
+private[eval] abstract class CoevalLikeImplicits0 {
+  /**
+    * Converts to `Coeval` from `cats.Comonad` values.
+    */
+  implicit def fromComonad[F[_]](implicit F: Comonad[F]): CoevalLike[F] =
+    new CoevalLike[F] {
+      def toCoeval[A](fa: F[A]): Coeval[A] =
+        Coeval(F.extract(fa))
     }
 }

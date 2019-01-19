@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,11 @@
 
 package monix.reactive.observers.buffers
 
+import monix.eval.Coeval
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.internal.collection.{ArrayQueue, _}
+import monix.execution.internal.collection.{JSArrayQueue, _}
+
 import scala.util.control.NonFatal
 import monix.execution.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -31,7 +33,7 @@ import scala.util.{Failure, Success}
   * [[monix.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
   */
 private[observers] final class SyncBufferedSubscriber[-A] private
-  (out: Subscriber[A], queue: EvictingQueue[A], onOverflow: Long => Option[A] = null)
+  (out: Subscriber[A], queue: EvictingQueue[A], onOverflow: Long => Coeval[Option[A]] = null)
   extends BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   implicit val scheduler = out.scheduler
@@ -163,7 +165,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
               if (onOverflow == null || droppedCount == 0)
                 null.asInstanceOf[A]
               else {
-                val msg = onOverflow(droppedCount) match {
+                val msg = onOverflow(droppedCount).value() match {
                   case Some(value) => value
                   case None => null.asInstanceOf[A]
                 }
@@ -244,7 +246,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy.
     */
   def unbounded[A](underlying: Subscriber[A]): Subscriber.Sync[A] = {
-    val buffer = ArrayQueue.unbounded[A]
+    val buffer = JSArrayQueue.unbounded[A]
     new SyncBufferedSubscriber[A](underlying, buffer, null)
   }
 
@@ -255,7 +257,7 @@ private[monix] object SyncBufferedSubscriber {
     */
   def bounded[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
-    val buffer = ArrayQueue.bounded[A](bufferSize, _ => {
+    val buffer = JSArrayQueue.bounded[A](bufferSize, _ => {
       BufferOverflowException(
         s"Downstream observer is too slow, buffer over capacity with a " +
         s"specified buffer size of $bufferSize")
@@ -271,7 +273,7 @@ private[monix] object SyncBufferedSubscriber {
     */
   def dropNew[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
-    val buffer = ArrayQueue.bounded[A](bufferSize)
+    val buffer = JSArrayQueue.bounded[A](bufferSize)
     new SyncBufferedSubscriber[A](underlying, buffer, null)
   }
 
@@ -280,9 +282,9 @@ private[monix] object SyncBufferedSubscriber {
     * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
     * overflow strategy.
     */
-  def dropNewAndSignal[A](underlying: Subscriber[A], bufferSize: Int, onOverflow: Long => Option[A]): Subscriber.Sync[A] = {
+  def dropNewAndSignal[A](underlying: Subscriber[A], bufferSize: Int, onOverflow: Long => Coeval[Option[A]]): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
-    val buffer = ArrayQueue.bounded[A](bufferSize)
+    val buffer = JSArrayQueue.bounded[A](bufferSize)
     new SyncBufferedSubscriber[A](underlying, buffer, onOverflow)
   }
 
@@ -303,7 +305,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy, with signaling of the number of events that
     * were dropped.
     */
-  def dropOldAndSignal[A](underlying: Subscriber[A], bufferSize: Int, onOverflow: Long => Option[A]): Subscriber.Sync[A] = {
+  def dropOldAndSignal[A](underlying: Subscriber[A], bufferSize: Int, onOverflow: Long => Coeval[Option[A]]): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
     val buffer = DropHeadOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[A]]
     new SyncBufferedSubscriber[A](underlying, buffer, onOverflow)
@@ -326,7 +328,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy, with signaling of the number of events that
     * were dropped.
     */
-  def clearBufferAndSignal[A](underlying: Subscriber[A], bufferSize: Int, onOverflow: Long => Option[A]): Subscriber.Sync[A] = {
+  def clearBufferAndSignal[A](underlying: Subscriber[A], bufferSize: Int, onOverflow: Long => Coeval[Option[A]]): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
     val buffer = DropAllOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[A]]
     new SyncBufferedSubscriber[A](underlying, buffer, onOverflow)

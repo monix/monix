@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,7 @@ import monix.execution.internal.atomic.{BoxedLong, Factory}
 final class AtomicLong private (private[this] val ref: BoxedLong)
   extends AtomicNumber[Long] {
 
-  def get: Long = ref.volatileGet()
+  def get(): Long = ref.volatileGet()
   def set(update: Long): Unit = ref.volatileSet(update)
 
   def compareAndSet(expect: Long, update: Long): Boolean =

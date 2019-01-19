@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,14 +18,12 @@
 package monix.reactive.observers.buffers
 
 import java.util
-
 import monix.execution.internal.Platform
 import monix.execution.internal.atomic.UnsafeAccess
 import monix.execution.internal.math.nextPowerOf2
 import org.jctools.queues._
 import org.jctools.queues.MessagePassingQueue.Consumer
 import org.jctools.queues.atomic.{MpscAtomicArrayQueue, MpscLinkedAtomicQueue}
-
 import scala.collection.mutable
 
 /** A simple internal interface providing the needed commonality between
@@ -35,7 +33,7 @@ private[buffers] abstract class ConcurrentQueue[A] {
   def isEmpty: Boolean
   def poll(): A
   def offer(elem: A): Boolean
-  def drain(buffer: mutable.Buffer[A], limit: Int): Unit
+  def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Unit
 }
 
 private[buffers] object ConcurrentQueue {
@@ -44,10 +42,10 @@ private[buffers] object ConcurrentQueue {
     val maxCapacity = math.max(4, nextPowerOf2(capacity))
     if (UnsafeAccess.IS_OPENJDK_COMPATIBLE) {
       new FromMessagePassingQueue[A](
-        if (maxCapacity <= Platform.recommendedBatchSize)
+        if (maxCapacity <= Platform.recommendedBufferChunkSize)
           new MpscArrayQueue[A](maxCapacity)
         else {
-          val initialCapacity = math.min(Platform.recommendedBatchSize, maxCapacity / 2)
+          val initialCapacity = math.min(Platform.recommendedBufferChunkSize, maxCapacity / 2)
           new MpscChunkedArrayQueue[A](initialCapacity, maxCapacity)
         }
       )
@@ -60,7 +58,7 @@ private[buffers] object ConcurrentQueue {
   /** Builds an unbounded queue. */
   def unbounded[A](): ConcurrentQueue[A] = {
     if (UnsafeAccess.IS_OPENJDK_COMPATIBLE) {
-      val size = Platform.recommendedBatchSize
+      val size = Platform.recommendedBufferChunkSize
       new FromMessagePassingQueue[A](new MpscUnboundedArrayQueue[A](size))
     }
     else {
@@ -80,7 +78,7 @@ private[buffers] object ConcurrentQueue {
     def poll(): A =
       underlying.poll()
 
-    def drain(buffer: mutable.Buffer[A], limit: Int): Unit = {
+    def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Unit = {
       var fetched = 0
 
       while (fetched < limit) {
@@ -104,7 +102,7 @@ private[buffers] object ConcurrentQueue {
     def poll(): A =
       underlying.relaxedPoll()
 
-    def drain(buffer: mutable.Buffer[A], limit: Int): Unit = {
+    def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Unit = {
       val consumer: Consumer[A] = new Consumer[A] { def accept(e: A): Unit = buffer += e }
       underlying.drain(consumer, limit)
     }

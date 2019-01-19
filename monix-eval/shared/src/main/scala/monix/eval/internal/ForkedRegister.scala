@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,9 @@
 
 package monix.eval.internal
 
+import monix.execution.Callback
 import monix.eval.Task.{Async, Context, ContextSwitch, FlatMap, Map}
-import monix.eval.{Callback, Task}
-
+import monix.eval.Task
 import scala.annotation.tailrec
 import scala.runtime.AbstractFunction2
 
@@ -33,9 +33,9 @@ import scala.runtime.AbstractFunction2
   * asynchronous boundary.
   */
 private[eval] abstract class ForkedRegister[A]
-  extends AbstractFunction2[Context, Callback[A], Unit] {
+  extends AbstractFunction2[Context, Callback[Throwable, A], Unit] {
 
-  def apply(context: Context, cb: Callback[A]): Unit
+  def apply(context: Context, cb: Callback[Throwable, A]): Unit
 }
 
 private[eval] object ForkedRegister {

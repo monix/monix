@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,7 +44,7 @@ object IterantMapSuite extends BaseTestSuite {
 
     val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { isCanceled = true })
-    val result = stream.map[Int](_ => throw dummy).toListL.runAsync
+    val result = stream.map[Int](_ => throw dummy).toListL.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -57,7 +57,7 @@ object IterantMapSuite extends BaseTestSuite {
 
     val stream = Iterant[Task].nextCursorS(BatchCursor(1,2,3), Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { isCanceled = true })
-    val result = stream.map[Int](_ => throw dummy).toListL.runAsync
+    val result = stream.map[Int](_ => throw dummy).toListL.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -74,7 +74,7 @@ object IterantMapSuite extends BaseTestSuite {
       val received = (iterant ++ Iterant[Task].of(1, 2))
         .guarantee(Task.eval { effect += 1 })
         .map[Int](_ => throw dummy)
-        .completeL.map(_ => 0)
+        .completedL.map(_ => 0)
         .onErrorRecover { case _: DummyException => effect }
 
       received <-> Task.pure(1)

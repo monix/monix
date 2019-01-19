@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.internal.Platform
-import monix.execution.internal.collection.ArrayStack
+import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.rstreams.Subscription
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
 import monix.tail.Iterant
@@ -160,10 +160,10 @@ private[tail] object IterantToReactivePublisher {
 
       //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
       // Used in visit(Concat)
-      private[this] var _stack: ArrayStack[F[Iterant[F, A]]] = _
+      private[this] var _stack: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
       private def stackPush(item: F[Iterant[F, A]]): Unit = {
-        if (_stack == null) _stack = new ArrayStack()
+        if (_stack == null) _stack = ChunkedArrayStack()
         _stack.push(item)
       }
 

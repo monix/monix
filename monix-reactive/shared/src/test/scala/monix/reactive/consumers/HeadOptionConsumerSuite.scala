@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,10 @@
 
 package monix.reactive.consumers
 
+import cats.effect.IO
 import minitest.TestSuite
-import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
+import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Consumer, Observable}
 
 import scala.util.{Failure, Success}
@@ -33,8 +34,8 @@ object HeadOptionConsumerSuite extends TestSuite[TestScheduler] {
 
   test("stops on first on next") { implicit s =>
     var wasStopped = false
-    val obs = Observable.now(1).doOnEarlyStop { () => wasStopped = true }
-    val f = obs.consumeWith(Consumer.headOption).runAsync
+    val obs = Observable.now(1).doOnEarlyStopF { () => wasStopped = true }
+    val f = obs.consumeWith(Consumer.headOption).runToFuture
 
     s.tick()
     assert(wasStopped, "wasStopped")
@@ -45,10 +46,10 @@ object HeadOptionConsumerSuite extends TestSuite[TestScheduler] {
     var wasStopped = false
     var wasCompleted = false
     val obs = Observable.empty[Int]
-      .doOnEarlyStop { () => wasStopped = true }
-      .doOnComplete { () => wasCompleted = true }
+      .doOnEarlyStopF { () => wasStopped = true }
+      .doOnCompleteF { () => wasCompleted = true }
 
-    val f = obs.consumeWith(Consumer.headOption).runAsync
+    val f = obs.consumeWith(Consumer.headOption).runToFuture
 
     s.tick()
     assert(!wasStopped, "!wasStopped")
@@ -61,10 +62,10 @@ object HeadOptionConsumerSuite extends TestSuite[TestScheduler] {
     var wasStopped = false
     var wasCompleted = false
     val obs = Observable.raiseError(ex)
-      .doOnEarlyStop { () => wasStopped = true }
-      .doOnError { _ => wasCompleted = true }
+      .doOnEarlyStopF { () => wasStopped = true }
+      .doOnErrorF { _ => IO { wasCompleted = true } }
 
-    val f = obs.consumeWith(Consumer.headOption).runAsync
+    val f = obs.consumeWith(Consumer.headOption).runToFuture
 
     s.tick()
     assert(!wasStopped, "!wasStopped")

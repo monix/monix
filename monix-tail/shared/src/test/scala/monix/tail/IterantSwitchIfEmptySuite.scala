@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -94,13 +94,6 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
       }
 
       val lh = left.switchIfEmpty(right).toListL
-
-      if (lh.attempt.value() != target.attempt.value()) {
-        println(s"${lh.attempt.value()} != ${target.attempt.value()}")
-        println(s"left = ${left.attempt.toListL.value()}")
-        println(s"right = ${right.attempt.toListL.value()}")
-        left.dump("O").completeL.run()
-      }
       lh <-> target
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,8 @@ package monix.eval.internal
 
 import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context}
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.atomic.PaddingStrategy.LeftRight128
@@ -52,7 +53,7 @@ private[eval] object TaskGatherUnordered {
       ref: AtomicAny[State[A]],
       currentState: State[A],
       mainConn: TaskConnection,
-      finalCallback: Callback[List[A]])
+      finalCallback: Callback[Throwable, List[A]])
       (implicit s: Scheduler): Unit = {
 
       currentState match {
@@ -75,7 +76,8 @@ private[eval] object TaskGatherUnordered {
       stateRef: AtomicAny[State[A]],
       mainConn: TaskConnection,
       ex: Throwable,
-      finalCallback: Callback[List[A]])(implicit s: Scheduler): Unit = {
+      finalCallback: Callback[Throwable, List[A]])
+      (implicit s: Scheduler): Unit = {
 
       val currentState = stateRef.getAndSet(State.Complete)
       if (currentState != State.Complete) {
@@ -86,12 +88,12 @@ private[eval] object TaskGatherUnordered {
       }
     }
 
-    def apply(context: Context, finalCallback: Callback[List[A]]): Unit = {
+    def apply(context: Context, finalCallback: Callback[Throwable, List[A]]): Unit = {
       @tailrec def activate(
         stateRef: AtomicAny[State[A]],
         count: Int,
         conn: TaskConnection,
-        finalCallback: Callback[List[A]])
+        finalCallback: Callback[Throwable, List[A]])
         (implicit s: Scheduler): Unit = {
 
         stateRef.get match {
@@ -140,7 +142,7 @@ private[eval] object TaskGatherUnordered {
 
           // Light asynchronous boundary
           Task.unsafeStartEnsureAsync(task, childCtx,
-            new Callback[A] {
+            new Callback[Throwable, A] {
               @tailrec
               def onSuccess(value: A): Unit = {
                 val current = stateRef.get

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -311,7 +311,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     createObservable(sourceCount) match {
       case None => ignore()
       case Some(Sample(_, count, _, _, _)) if count <= 1 =>ignore()
-      case Some(Sample(o, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(o, _, _, waitForFirst, waitForNext)) =>
         var wasCompleted = false
         var received = 0
 
@@ -341,7 +341,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     val observables = cancelableObservables()
     if (observables.isEmpty) ignore()
 
-    for (Sample(obs, count, sum, waitFirst, waitNext) <- observables) {
+    for (Sample(obs, count, _, waitFirst, waitNext) <- observables) {
       var wasCompleted = 0
       var received = 0L
 

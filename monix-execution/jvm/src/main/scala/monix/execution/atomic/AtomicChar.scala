@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,7 +29,7 @@ final class AtomicChar private (private[this] val ref: BoxedInt)
   extends AtomicNumber[Char] {
   private[this] val mask = 255 + 255 * 256
 
-  def get: Char = (ref.volatileGet() & mask).asInstanceOf[Char]
+  def get(): Char = (ref.volatileGet() & mask).asInstanceOf[Char]
   def set(update: Char): Unit = ref.volatileSet(update)
 
   def lazySet(update: Char): Unit =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,11 @@
 
 package monix.reactive
 
-import monix.eval.{Callback, Task, TaskLike}
+import cats.Contravariant
+import cats.arrow.Profunctor
+import monix.eval.{Task, TaskLike}
 import monix.execution.cancelables.AssignableCancelable
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{Callback, Cancelable, Scheduler}
 import monix.reactive.internal.consumers._
 import monix.reactive.observers.Subscriber
 
@@ -29,7 +31,7 @@ import monix.reactive.observers.Subscriber
   * being effectively a way to transform observables into
   * [[monix.eval.Task tasks]] for less error prone consuming of streams.
   */
-abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
+abstract class Consumer[-In, +R] extends (Observable[In] => Task[R])
   with Serializable { self =>
 
   /** Builds a new [[monix.reactive.observers.Subscriber Subscriber]]
@@ -40,7 +42,7 @@ abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * Notes:
     *
     *  - calling the callback must obey the contract for the
-    *    [[monix.eval.Callback Callback]] type
+    *    [[monix.execution.Callback Callback]] type
     *  - the given callback should always get called, unless the
     *    upstream gets canceled
     *  - the given callback can be called when the subscriber is
@@ -50,7 +52,7 @@ abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     *    loses the ability to cancel the stream, as that `Task` will
     *    complete before the stream is finished
     *
-    * @param cb is the [[monix.eval.Callback Callback]] that will get
+    * @param cb is the [[monix.execution.Callback Callback]] that will get
     *        called once the created subscriber is finished.
     * @param s is the [[monix.execution.Scheduler Scheduler]] that will
     *        get used for subscribing to the source observable and to
@@ -58,7 +60,7 @@ abstract class Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     *
     * @return a new subscriber that can be used to consume observables.
     */
-  def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber[In], AssignableCancelable)
+  def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[In], AssignableCancelable)
 
   /** Given a source [[Observable]], convert it into a [[monix.eval.Task Task]]
     * by piggybacking on [[createSubscriber]].
@@ -195,14 +197,15 @@ object Consumer {
     *  - a [[monix.execution.Cancelable Cancelable]] that can be used for
     *    concurrently canceling the stream (in addition to being able to
     *    return `Stop` from `onNext`)
-    *  - a [[monix.eval.Callback Callback]] that must be called to signal
-    *    the final result, after the observer finished processing the
-    *    stream, or an error if the processing finished in error
+    *  - a [[monix.execution.Callback Callback]] that must be called
+    *    to signal the final result, after the observer finished
+    *    processing the stream, or an error if the processing finished
+    *    in error
     *
     * @param f is the input function with an injected `Scheduler`,
     *        `Cancelable`, `Callback` and that returns an `Observer`
     */
-  def create[In,Out](f: (Scheduler, Cancelable, Callback[Out]) => Observer[In]): Consumer[In,Out] =
+  def create[In,Out](f: (Scheduler, Cancelable, Callback[Throwable, Out]) => Observer[In]): Consumer[In,Out] =
     new CreateConsumer[In,Out](f)
 
   /** Given a function taking a `Scheduler` and returning an [[Observer]],
@@ -398,6 +401,18 @@ object Consumer {
     * [[monix.reactive.observers.Subscriber.Sync synchronous subscribers]].
     */
   trait Sync[-In, +R] extends Consumer[In, R] {
-    override def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
+    override def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
+  }
+
+  /** `cats.Contravariant` instance for [[Consumer]]. */
+  implicit def catsContravariant[C]: Contravariant[Consumer[?, C]] = new Contravariant[Consumer[?, C]] {
+    override def contramap[A, B](fa: Consumer[A, C])(f: B => A): Consumer[B, C] =
+      fa.contramap(f)
+  }
+
+  /** `cats.arrow.Profunctor` instance for [[Consumer]]. */
+  implicit val catsProfunctor: Profunctor[Consumer] = new Profunctor[Consumer] {
+    override def dimap[A, B, C, D](fab: Consumer[A, B])(f: C => A)(g: B => D): Consumer[C, D] =
+      fab.contramap(f).map(g)
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,7 +49,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     var effect = 0
     val stopT = Task.evalAsync { effect += 1}
 
-    val r = b.nextS(1, Task.evalAsync(b.nextS(2, Task.evalAsync(b.raiseError[Int](dummy))).guarantee(stopT))).guarantee(stopT).toListL.runAsync
+    val r = b.nextS(1, Task.evalAsync(b.nextS(2, Task.evalAsync(b.raiseError[Int](dummy))).guarantee(stopT))).guarantee(stopT).toListL.runToFuture
     assertEquals(effect, 0)
 
     s.tick()
@@ -62,7 +62,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     var wasCanceled = false
     val c = Task.evalAsync { wasCanceled = true }
     val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int])).guarantee(c)
-    val result = stream.foldLeftL[Int](throw dummy)((a, e) => a + e).runAsync
+    val result = stream.foldLeftL[Int](throw dummy)((a, e) => a + e).runToFuture
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
     assert(!wasCanceled, "wasCanceled should be false")

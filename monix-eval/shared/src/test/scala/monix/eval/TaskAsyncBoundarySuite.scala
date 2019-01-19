@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
       .executeOn(io)
       .asyncBoundary
       .map(_ + 1)
-      .runAsync
+      .runToFuture
 
     assertEquals(effect, 0)
     s.tick()
@@ -52,7 +52,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
       .executeOn(io)
       .asyncBoundary(s2)
       .map(_ + 1)
-      .runAsync
+      .runToFuture
 
     assertEquals(effect, 0)
     s1.tick()
@@ -78,7 +78,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }
@@ -93,7 +93,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }
@@ -107,7 +107,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; sc.tick()
+    val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
 
@@ -120,7 +120,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync
+    val f = loop(10000, 0).runToFuture
     sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }

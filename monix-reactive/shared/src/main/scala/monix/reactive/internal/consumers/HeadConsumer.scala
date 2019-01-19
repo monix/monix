@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.eval.Callback
+import monix.execution.Callback
 import monix.execution.Ack.Stop
 import monix.execution.{Ack, Scheduler}
 import monix.execution.cancelables.AssignableCancelable
@@ -27,7 +27,7 @@ import monix.reactive.observers.Subscriber
 /** Implementation for [[monix.reactive.Consumer.head]]. */
 private[reactive]
 final class HeadConsumer[A] extends Consumer.Sync[A, A] {
-  override def createSubscriber(cb: Callback[A], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
+  override def createSubscriber(cb: Callback[Throwable, A], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {
       implicit val scheduler = s
       private[this] var isDone = false

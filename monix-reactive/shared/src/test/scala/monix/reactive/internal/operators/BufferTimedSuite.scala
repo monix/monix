@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -137,7 +137,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
     val f = Observable.range(0, 1000)
       .bufferTimedAndCounted(10.seconds, 10000)
       .map(_.sum)
-      .sumF
+      .sum
       .runAsyncGetFirst
 
     s.tick()

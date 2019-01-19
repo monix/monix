@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -113,7 +113,7 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
   }
 
   test("CancelableFuture should be cancelable") { implicit s =>
-    val f = Task.evalAsync(1).delayExecution(1.second).runAsync
+    val f = Task.evalAsync(1).delayExecution(1.second).runToFuture
     var received = 0
     var wasCompleted = false
 

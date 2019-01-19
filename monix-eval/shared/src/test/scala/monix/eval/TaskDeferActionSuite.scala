@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,7 @@ object TaskDeferActionSuite extends BaseTestSuite {
       }
 
     val task = measureLatency(Task.now("hello").delayExecution(1.second))
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -43,7 +43,7 @@ object TaskDeferActionSuite extends BaseTestSuite {
   test("Task.deferAction protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.deferAction(_ => throw dummy)
-    val f = task.runAsync
+    val f = task.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
@@ -58,7 +58,7 @@ object TaskDeferActionSuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; sc.tick()
+    val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
 
@@ -73,7 +73,7 @@ object TaskDeferActionSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }

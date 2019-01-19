@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,8 +47,8 @@ trait BaseConcurrencySuite extends TestSuite[SchedulerService]
     new Eq[Observable[A]] {
       def eqv(lh: Observable[A], rh: Observable[A]): Boolean = {
         val eqList = implicitly[Eq[Option[List[A]]]]
-        val fa = lh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
-        val fb = rh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
+        val fa = lh.foldLeft(List.empty[A])((acc,e) => e :: acc).firstOptionL.runToFuture
+        val fb = rh.foldLeft(List.empty[A])((acc,e) => e :: acc).firstOptionL.runToFuture
         equalityFuture(eqList, ec).eqv(fa, fb)
       }
     }
@@ -56,7 +56,7 @@ trait BaseConcurrencySuite extends TestSuite[SchedulerService]
   implicit def equalityTask[A](implicit A: Eq[A], ec: Scheduler): Eq[Task[A]] =
     new Eq[Task[A]] {
       def eqv(lh: Task[A], rh: Task[A]): Boolean =
-        equalityFuture(A, ec).eqv(lh.runAsync, rh.runAsync)
+        equalityFuture(A, ec).eqv(lh.runToFuture, rh.runToFuture)
     }
 
   implicit def equalityFuture[A](implicit A: Eq[A], ec: Scheduler): Eq[Future[A]] =

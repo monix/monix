@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     val p = Promise[Option[Throwable]]()
 
     val task = Task.evalAsync(10).doOnFinish(s => Task.evalAsync(p.success(s)))
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
 
     assertEquals(f.value, Some(Success(10)))
     assertEquals(p.future.value, Some(Success(None)))
@@ -38,7 +38,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     val p = Promise[Option[Throwable]]()
 
     val task = Task.raiseError[Int](ex).doOnFinish(s => Task.evalAsync(p.success(s)))
-    val f = task.runAsync; s.tick()
+    val f = task.runToFuture; s.tick()
 
     assertEquals(f.value, Some(Failure(ex)))
     assertEquals(p.future.value, Some(Success(Some(ex))))

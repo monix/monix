@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
 import monix.execution.Scheduler
@@ -24,6 +25,7 @@ import monix.reactive.Observable.{empty, now}
 import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
@@ -42,7 +44,7 @@ object MergeOneSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount <= 1) {
-      val o = Observable.now(1L).mergeMap(x => Observable.raiseError(ex))
+      val o = Observable.now(1L).mergeMap(_ => Observable.raiseError(ex))
       Some(Sample(o, 0, 0, Zero, Zero))
     } else Some {
       val o = Observable.range(0, sourceCount)
@@ -68,7 +70,7 @@ object MergeOneSuite extends BaseOperatorSuite {
   }
 
   def toList[A](o: Observable[A])(implicit s: Scheduler) = {
-    o.foldLeftF(Vector.empty[A])(_ :+ _).runAsyncGetLast
+    o.foldLeft(Vector.empty[A])(_ :+ _).runAsyncGetLast
       .map(_.getOrElse(Vector.empty))
   }
 
@@ -154,7 +156,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     var wasThrown: Throwable = null
 
     val sub = PublishSubject[Long]()
-    val obs1 = sub.doOnStart(_ => obs1WasStarted = true)
+    val obs1 = sub.doOnStart(_ => Task { obs1WasStarted = true })
     val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
 
     Observable.fromIterable(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {

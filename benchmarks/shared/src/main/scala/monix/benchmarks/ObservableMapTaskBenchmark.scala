@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+/*
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
@@ -52,7 +53,7 @@ class ObservableMapTaskBenchmark {
 
   @Benchmark
   def run(): Long = {
-    val stream = Observable.range(0, size).mapTask { x =>
+    val stream = Observable.range(0, size).mapEval { x =>
       Task.now(x + 1)
     }
     sum(stream)
@@ -76,3 +77,4 @@ class ObservableMapTaskBenchmark {
     Await.result(p.future, Duration.Inf)
   }
 }
+*/

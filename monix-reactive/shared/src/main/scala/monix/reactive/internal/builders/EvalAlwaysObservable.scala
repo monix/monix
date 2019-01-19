@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,12 +25,12 @@ import monix.reactive.observers.Subscriber
 /** An observable that evaluates the given by-name argument,
   * and emits it.
   */
-private[reactive] final class EvalAlwaysObservable[+A](f: => A)
+private[reactive] final class EvalAlwaysObservable[+A](f: () => A)
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     try {
-      subscriber.onNext(f)
+      subscriber.onNext(f())
       // No need to do back-pressure
       subscriber.onComplete()
     } catch {

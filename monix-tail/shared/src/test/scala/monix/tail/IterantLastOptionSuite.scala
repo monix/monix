@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -63,7 +63,7 @@ object IterantLastOptionSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val iter1: Iterant[Task, Int] = Iterant[Task].haltS(Some(dummy))
     val state1 = iter1.lastOptionL
-    val f = state1.runAsync
+    val f = state1.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))

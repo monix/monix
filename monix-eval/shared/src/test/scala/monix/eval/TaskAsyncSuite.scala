@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 object TaskAsyncSuite extends BaseTestSuite {
   test("Task.never should never complete") { implicit s =>
     val t = Task.never[Int]
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick(365.days)
     assertEquals(f.value, None)
   }
@@ -34,7 +34,7 @@ object TaskAsyncSuite extends BaseTestSuite {
       ec.executeAsync { () => cb.onSuccess(1) }
     }
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -43,7 +43,7 @@ object TaskAsyncSuite extends BaseTestSuite {
   test("Task.async should log errors") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.async0[Int]((_,_) => throw ex)
-    val result = task.runAsync; s.tick()
+    val result = task.runToFuture; s.tick()
     assertEquals(result.value, None)
     assertEquals(s.state.lastReportedError, ex)
   }
@@ -56,19 +56,19 @@ object TaskAsyncSuite extends BaseTestSuite {
         else Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; s.tick()
+    val f = loop(10000, 0).runToFuture; s.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
-  
+
   test("Task.async works for immediate successful value") { implicit sc =>
     val task = Task.async[Int](_.onSuccess(1))
-    assertEquals(task.runAsync.value, Some(Success(1)))
+    assertEquals(task.runToFuture.value, Some(Success(1)))
   }
 
   test("Task.async works for immediate error") { implicit sc =>
     val e = DummyException("dummy")
     val task = Task.async[Int](_.onError(e))
-    assertEquals(task.runAsync.value, Some(Failure(e)))
+    assertEquals(task.runToFuture.value, Some(Failure(e)))
   }
 
   test("Task.async is memory safe in flatMap loops") { implicit sc =>
@@ -80,19 +80,19 @@ object TaskAsyncSuite extends BaseTestSuite {
         else Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; sc.tick()
+    val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
 
   test("Task.async0 works for immediate successful value") { implicit sc =>
     val task = Task.async0[Int]((_, cb) => cb.onSuccess(1))
-    assertEquals(task.runAsync.value, Some(Success(1)))
+    assertEquals(task.runToFuture.value, Some(Success(1)))
   }
 
   test("Task.async0 works for async successful value") { implicit sc =>
     val f = Task
       .async0[Int]((s, cb) => s.executeAsync(() => cb.onSuccess(1)))
-      .runAsync
+      .runToFuture
 
     sc.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -102,7 +102,7 @@ object TaskAsyncSuite extends BaseTestSuite {
     val e = DummyException("dummy")
     val f = Task
       .async0[Int]((s, cb) => s.executeAsync(() => cb.onError(e)))
-      .runAsync
+      .runToFuture
 
     sc.tick()
     assertEquals(f.value, Some(Failure(e)))
@@ -117,7 +117,7 @@ object TaskAsyncSuite extends BaseTestSuite {
         else Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; sc.tick()
+    val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
 
@@ -131,7 +131,7 @@ object TaskAsyncSuite extends BaseTestSuite {
         else Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; sc.tick()
+    val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
 }

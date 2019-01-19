@@ -1,27 +1,33 @@
 import com.typesafe.sbt.GitVersioning
-import com.typesafe.tools.mima.core._
-import com.typesafe.tools.mima.core.ProblemFilters._
 import sbt.Keys.version
-// For getting Scoverage out of the generated POM
-import scala.xml.Elem
-import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
-addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
-addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
-addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned ;sonatypeReleaseAll")
+val allProjects = List(
+  "execution",
+  "catnap",
+  "eval",
+  "tail",
+  "reactive",
+  "java"
+)
 
-val catsVersion = "1.3.1"
-val catsEffectVersion = "1.0.0"
+addCommandAlias("ci",         ";ci-jvm ;ci-js")
+addCommandAlias("ci-all",     ";ci-jvm ;ci-js ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-js",      s";clean ;coreJS/test:compile ;${allProjects.filter(_ != "java").map(_ + "JS/test").mkString(" ;")}")
+addCommandAlias("ci-jvm",     s";clean ;coreJVM/test:compile ;${allProjects.map(_ + "JVM/test").mkString(" ;")} ;mimaReportBinaryIssues")
+addCommandAlias("ci-jvm-all", s";ci-jvm ;unidoc")
+addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned")
+
+val catsVersion = "1.4.0"
+val catsEffectVersion = "1.1.0"
 val catsEffectLawsVersion = catsEffectVersion
-val jcToolsVersion = "2.1.1"
+val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
 val scalaTestVersion = "3.0.4"
-val minitestVersion = "2.1.1"
+val minitestVersion = "2.3.2"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0-RC1"
+val monixSeries = "3.0.0-RC2"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -33,20 +39,20 @@ lazy val doNotPublishArtifact = Seq(
 lazy val warnUnusedImport = Seq(
   scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 10)) =>
-        Seq()
-      case Some((2, n)) if n >= 11 =>
+      case Some((2, 11)) =>
         Seq("-Ywarn-unused-import")
+      case _ =>
+        Seq("-Ywarn-unused:imports")
     }
   },
-  scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
-  scalacOptions in (Test, console) ~= {_.filterNot("-Ywarn-unused-import" == _)}
+  scalacOptions in (Compile, console) --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
+  scalacOptions in Test --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports")
 )
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.6",
-  crossScalaVersions := Seq("2.11.12", "2.12.6"),
+  scalaVersion := "2.12.8",
+  crossScalaVersions := Seq("2.11.12", "2.12.8"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -57,11 +63,19 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-language:higherKinds",
     "-language:implicitConversions",
     "-language:experimental.macros",
-    // possibly deprecated options
-    "-Ywarn-inaccessible",
-    // absolutely necessary for Iterant
-    "-Ypartial-unification"
   ),
+
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      Seq(
+        // possibly deprecated options
+        "-Ywarn-inaccessible",
+        // absolutely necessary for Iterant
+        "-Ypartial-unification",
+      )
+    case _ =>
+      Seq.empty
+  }),
 
   // Force building with Java 8
   initialize := {
@@ -93,26 +107,28 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   }),
 
   // Linter
+  scalacOptions ++= Seq(
+    // Turns all warnings into errors ;-)
+    "-Xfatal-warnings",
+    // Enables linter options
+    "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
+    "-Xlint:nullary-unit", // warn when nullary methods return Unit
+    "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
+    "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
+    "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
+    "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
+    "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
+    "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
+    "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
+    "-Xlint:option-implicit", // Option.apply used implicit view
+    "-Xlint:delayedinit-select", // Selecting member of DelayedInit
+    "-Xlint:package-object-classes", // Class or object defined in package object
+  ),
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion >= 11 =>
+    case Some((2, majorVersion)) if majorVersion <= 12 =>
       Seq(
-        // Turns all warnings into errors ;-)
-        "-Xfatal-warnings",
-        // Enables linter options
-        "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
-        "-Xlint:nullary-unit", // warn when nullary methods return Unit
         "-Xlint:inaccessible", // warn about inaccessible types in method signatures
-        "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
-        "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
-        "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
-        "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
-        "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
-        "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
-        "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
-        "-Xlint:option-implicit", // Option.apply used implicit view
-        "-Xlint:delayedinit-select", // Selecting member of DelayedInit
         "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
-        "-Xlint:package-object-classes", // Class or object defined in package object
         "-Xlint:unsound-match" // Pattern match may not be typesafe
       )
     case _ =>
@@ -123,9 +139,9 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
 
   // For working with partially-applied types
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.6" cross CrossVersion.binary),
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary),
 
-    // ScalaDoc settings
+  // ScalaDoc settings
   autoAPIMappings := true,
   scalacOptions in ThisBuild ++= Seq(
     // Note, this is used by the doc-source-url feature to determine the
@@ -138,8 +154,10 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   parallelExecution in Test := false,
   parallelExecution in IntegrationTest := false,
+  parallelExecution in ThisBuild := false,
   testForkedParallel in Test := false,
   testForkedParallel in IntegrationTest := false,
+  testForkedParallel in ThisBuild := false,
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
   resolvers ++= Seq(
@@ -172,22 +190,10 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
 
-  // For evicting Scoverage out of the generated POM
-  // See: https://github.com/scoverage/sbt-scoverage/issues/153
-  pomPostProcess := { (node: xml.Node) =>
-    new RuleTransformer(new RewriteRule {
-      override def transform(node: xml.Node): Seq[xml.Node] = node match {
-        case e: Elem
-          if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
-        case _ => Seq(node)
-      }
-    }).transform(node).head
-  },
-
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
   headerLicense := Some(HeaderLicense.Custom(
-    """|Copyright (c) 2014-2018 by The Monix Project Developers.
+    """|Copyright (c) 2014-2019 by The Monix Project Developers.
        |See the project homepage at: https://monix.io
        |
        |Licensed under the Apache License, Version 2.0 (the "License");
@@ -247,9 +253,8 @@ lazy val requiredMacroDeps = Seq(
   ))
 
 lazy val unidocSettings = Seq(
-  autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, evalJVM, tailJVM, reactiveJVM),
+    inProjects(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM),
 
   // Exclude monix.*.internal from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
@@ -259,8 +264,8 @@ lazy val unidocSettings = Seq(
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
-  scalacOptions in (ScalaUnidoc, unidoc) -=
-    "-Ywarn-unused-import",
+  scalacOptions in (ScalaUnidoc, unidoc) --=
+    Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
@@ -274,7 +279,7 @@ lazy val unidocSettings = Seq(
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies ++= Seq(
-    "io.monix" %%% "minitest-laws" % minitestVersion % Test,
+    "io.monix" %%% "minitest-laws-legacy" % minitestVersion % Test,
     "org.typelevel" %%% "cats-laws" % catsVersion % Test,
     "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion % Test
   )
@@ -285,7 +290,15 @@ lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
 )
 
 lazy val scalaJSSettings = Seq(
-  coverageExcludedFiles := ".*"
+  // Use globally accessible (rather than local) source paths in JS source maps
+  scalacOptions += {
+    val tagOrHash =
+      if (isSnapshot.value) git.gitHeadCommit.value.get
+      else s"v${git.baseVersion.value}"
+    val l = (baseDirectory in LocalRootProject).value.toURI.toString
+    val g = s"https://raw.githubusercontent.com/monix/monix/$tagOrHash/"
+    s"-P:scalajs:mapSourceURI:$l->$g"
+  }
 )
 
 lazy val cmdlineProfile =
@@ -293,161 +306,17 @@ lazy val cmdlineProfile =
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= Seq(
-    // Breakage — relaxed requirement
-    exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TracingScheduler.apply"),
-    // Breakage — changed Task#foreach signature
-    exclude[IncompatibleResultTypeProblem]("monix.eval.Task.foreach"),
-    // Breakage - changed type
-    exclude[IncompatibleResultTypeProblem]("monix.execution.Cancelable.empty"),
-    // Breackage — made CompositeException final
-    exclude[FinalClassProblem]("monix.execution.exceptions.CompositeException"),
-    // Breakage — extra implicit param
-    exclude[DirectMissingMethodProblem]("monix.eval.TaskInstancesLevel0.catsEffect"),
-    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.this"),
-    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.this"),
-    // Breakage - moved deprecated methods back into Task's class for better compatibility
-    exclude[DirectMissingMethodProblem]("monix.eval.Task.DeprecatedExtensions"),
-    exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions"),
-    exclude[MissingClassProblem]("monix.eval.Task$DeprecatedExtensions$"),
-    // Breakage - PR #675: switch to standard NonFatal
-    exclude[MissingClassProblem]("monix.execution.misc.NonFatal$"),
-    exclude[MissingClassProblem]("monix.execution.misc.NonFatal"),
-      // Semi-Breakage - new method in sealed class
-    exclude[ReversedMissingMethodProblem]("monix.execution.cancelables.StackedCancelable.tryReactivate"),
-    // Cats-Effect RC2 Upgrade
-    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentEffectForTask.onCancelRaiseError"),
-    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsEffectForTask.shift"),
-    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsAsyncForTask.shift"),
-    exclude[DirectMissingMethodProblem]("monix.eval.instances.CatsConcurrentForTask.onCancelRaiseError"),
-    // TaskLocal changes
-    exclude[IncompatibleMethTypeProblem]("monix.eval.TaskLocal.this"),
-    // Hide Task.Context, change conversions (Cats-Effect RC2 upgrade, part 2)
-    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.frameRef"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.copy"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.copy$default$4"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.this"),
-    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$Local"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.toIO"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Task.to"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.apply"),
-    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef"),
-    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$Dummy$"),
-    exclude[MissingClassProblem]("monix.eval.Task$FrameIndexRef$"),
-    // Change TaskApp
-    exclude[DirectMissingMethodProblem]("monix.eval.TaskApp.runl"),
-    exclude[DirectMissingMethodProblem]("monix.eval.TaskApp.runc"),
-    exclude[DirectMissingMethodProblem]("monix.eval.TaskApp.run"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.catsEffect"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.run"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.TaskApp.run"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.options"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskApp.scheduler"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.options"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.TaskApp.scheduler"),
-    // Switched to TaskLike instead of Effect, in the implementation of observable
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.repeatEvalF"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.mapEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnErrorEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnTerminateEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.mapEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnCompleteEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.scanEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnNextEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnNextAckEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doAfterTerminateEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observable.doOnEarlyStopEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.foreachEval"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.Consumer.foldLeftEval"),
-    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.fromEffect"),
-    // Breakage - PR #700: renamed methods
-    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscriptionWith"),
-    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.delaySubscription"),
-    // Breakage — PR 724: https://github.com/monix/monix/pull/724
-    exclude[MissingClassProblem]("monix.eval.Fiber$Impl"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Fiber.apply"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.lightBuild"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation.signal"),
-    // Changing internal Task cancelation model to back-pressure finalizers
-    exclude[DirectMissingMethodProblem]("monix.execution.Cancelable#Extensions.cancelIO$extension"),
-    exclude[DirectMissingMethodProblem]("monix.execution.Cancelable#Extensions.cancelIO"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.connection"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.copy$default$3"),
-    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
-    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.Callback.apply"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.async"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Task.unsafeCreate"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Task.create"),
-    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
-    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
-    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
-    exclude[FinalMethodProblem]("monix.eval.Task.runAsync"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskCancellation#RaiseCallback.this"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskRunLoop.startLight"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskConversions#CreateCallback.this"),
-    exclude[MissingClassProblem]("monix.eval.internal.TaskCancellation$RaiseCancelable"),
-    // Internals ...
-    exclude[DirectMissingMethodProblem]("monix.eval.Task#MaterializeTask.recover"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#MaterializeCoeval.recover"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#AttemptCoeval.recover"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Task#AttemptTask.recover"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.StackFrame.recover"),
-    exclude[ReversedMissingMethodProblem]("monix.eval.internal.StackFrame.recover"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.StackFrame.errorHandler"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.StackFrame.fold"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskBracket#ReleaseRecover.recover"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskBracket#ReleaseRecover.this"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalBracket#ReleaseRecover.recover"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalBracket#ReleaseRecover.this"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskBracket.apply"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.runAsync"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.runCancelable"),
-    exclude[MissingClassProblem]("monix.eval.internal.CoevalBracket$ReleaseFrame"),
-    exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseFrame"),
-    exclude[MissingClassProblem]("monix.eval.internal.StackFrame$Fold"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.StackFrame#ErrorHandler.recover"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.CoevalBracket.apply"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.apply"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.apply"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.copy"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.this"),
-    exclude[MissingClassProblem]("monix.eval.internal.TaskRunLoop$RestartCallback"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.executeAsyncTask"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.restartAsync"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.startFull"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.cancelable"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskEffect.async"),
-    exclude[DirectMissingMethodProblem]("monix.execution.internal.collection.ArrayStack.currentCapacity"),
-    exclude[DirectMissingMethodProblem]("monix.execution.internal.collection.ArrayStack.minimumCapacity"),
-    exclude[DirectMissingMethodProblem]("monix.execution.internal.collection.ArrayStack.size"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskStart.apply"),
-    exclude[MissingClassProblem]("monix.eval.internal.TaskEffect$CreateCallback"),
-    exclude[IncompatibleResultTypeProblem]("monix.execution.internal.collection.ArrayStack.clone"),
-    exclude[MissingTypesProblem]("monix.execution.internal.collection.ArrayStack"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCancellation#RaiseCancelable.this"),
-    exclude[MissingClassProblem]("monix.eval.internal.TaskBracket$ReleaseRecover"),
-    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative$"),
-    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.from"),
-    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConversions.to"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsConcurrentEffectForTask.runCancelable"),
-    exclude[IncompatibleResultTypeProblem]("monix.eval.instances.CatsEffectForTask.runAsync"),
-    exclude[MissingClassProblem]("monix.eval.instances.ParallelApplicative"),
-    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionByTimespanObservable"),
-    exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable")
-  )
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0
 )
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
-  case "coverage" => pr
-  case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
-      .enablePlugins(AutomateHeaderPlugin)
+  case _ =>
+    pr.enablePlugins(AutomateHeaderPlugin)
 }
 
 lazy val doctestTestSettings = Seq(
   doctestTestFramework := DoctestTestFramework.Minitest,
-  doctestIgnoreRegex := Some(s".*TaskApp.scala"),
+  doctestIgnoreRegex := Some(s".*TaskApp.scala|.*reactive.internal.(builders|operators|rstreams).*"),
   doctestOnlyCodeBlocksMode := true
 )
 
@@ -461,16 +330,16 @@ lazy val monix = project.in(file("."))
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
-  .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
-  .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .dependsOn(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, evalJS, tailJS, reactiveJS)
-  .aggregate(executionJS, evalJS, tailJS, reactiveJS)
+  .dependsOn(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
+  .aggregate(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -487,6 +356,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(testSettings)
   .settings(requiredMacroDeps)
   .settings(executionCommon)
+  .settings(libraryDependencies += "org.jctools" % "jctools-core" % jcToolsVersion)
   .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % reactiveStreamsVersion)
   .settings(mimaSettings("monix-execution"))
 
@@ -500,7 +370,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(executionCommon)
 
 lazy val catnapCommon =
-  crossSettings ++ testSettings ++ Seq(
+  crossSettings ++ crossVersionSharedSources ++ testSettings ++ Seq(
     name := "monix-catnap"
   )
 
@@ -519,9 +389,10 @@ lazy val catnapJS = project.in(file("monix-catnap/js"))
   .settings(catnapCommon)
 
 lazy val evalCommon =
-  crossSettings ++ testSettings ++ Seq(
-    name := "monix-eval"
-  )
+  crossSettings ++ crossVersionSharedSources ++ testSettings ++
+    Seq(
+      name := "monix-eval"
+    )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .configure(profile)
@@ -547,14 +418,16 @@ lazy val tailCommon =
 lazy val tailJVM = project.in(file("monix-tail/jvm"))
   .configure(profile)
   .dependsOn(evalJVM % "test->test")
-  .dependsOn(executionJVM)
+  .dependsOn(catnapJVM)
   .settings(tailCommon)
+  .settings(doctestTestSettings)
+  .settings(mimaSettings("monix-tail"))
 
 lazy val tailJS = project.in(file("monix-tail/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
   .dependsOn(evalJS % "test->test")
-  .dependsOn(executionJS)
+  .dependsOn(catnapJS)
   .settings(scalaJSSettings)
   .settings(tailCommon)
 
@@ -567,8 +440,8 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .configure(profile)
   .dependsOn(executionJVM, evalJVM % "compile->compile; test->test")
   .settings(reactiveCommon)
-  .settings(libraryDependencies += "org.jctools" % "jctools-core" % jcToolsVersion)
   .settings(mimaSettings("monix-reactive"))
+  .settings(doctestTestSettings)
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -619,7 +492,7 @@ enablePlugins(GitVersioning)
 /* The BaseVersion setting represents the in-development (upcoming) version,
  * as an alternative to SNAPSHOTS.
  */
-git.baseVersion := "3.0.0"
+git.baseVersion := "3.0.0-RC2"
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {
@@ -634,3 +507,4 @@ git.formattedShaVersion := {
     git.baseVersion.value + "-" + sha + suffix
   }
 }
+

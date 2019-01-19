@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,8 @@ package monix.eval.internal
 
 import cats.effect._
 import monix.eval.Task.Context
-import monix.eval.{Callback, Task}
+import monix.execution.Callback
+import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.schedulers.TrampolinedRunnable
 import scala.util.control.NonFatal
@@ -79,7 +80,7 @@ private[eval] object TaskConversions {
     }
 
   private def fromEffect0[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       try {
         implicit val sc = ctx.scheduler
         val io = F.runAsync(fa)(new CreateCallback(null, cb))
@@ -103,7 +104,7 @@ private[eval] object TaskConversions {
     }
 
   private def fromConcurrentEffect0[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] = {
-    val start = (ctx: Context, cb: Callback[A]) => {
+    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       try {
         implicit val sc = ctx.scheduler
         val conn = ctx.connection
@@ -121,7 +122,7 @@ private[eval] object TaskConversions {
   }
 
   private final class CreateCallback[A](
-    conn: TaskConnection, cb: Callback[A])
+    conn: TaskConnection, cb: Callback[Throwable, A])
     (implicit s: Scheduler)
     extends (Either[Throwable, A] => IO[Unit]) with TrampolinedRunnable {
 

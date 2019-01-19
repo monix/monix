@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,6 @@ import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
 import monix.reactive.{Observable, Observer}
-
 import scala.concurrent.duration._
 
 object CombineLatest2Suite extends BaseOperatorSuite {
@@ -147,7 +146,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs1.combineLatestMap(obs2.doOnEarlyStop { () => wasCanceled = true })((o1,o2) => (o1,o2))
+    obs1.combineLatestMap(obs2.doOnEarlyStopF { () => wasCanceled = true })((o1,o2) => (o1,o2))
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -171,7 +170,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs2.doOnEarlyStop { () => wasCanceled = true }
+    obs2.doOnEarlyStopF { () => wasCanceled = true }
       .combineLatestMap(obs1)((o1,o2) => (o1,o2))
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }

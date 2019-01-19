@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+/*
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
@@ -133,9 +134,9 @@ class TaskShiftBenchmark {
 }
 
 object TaskShiftBenchmark {
-  import monix.eval.Callback
+  import monix.execution.Callback
 
-  def async[A](k: Callback[A] => Unit): Task[A] =
+  def async[A](k: Callback[Throwable, A] => Unit): Task[A] =
     Task.unsafeCreate { (ctx, cb) =>
       try k(Callback.async(cb)(ctx.scheduler)) catch {
         case ex if NonFatal(ex) =>
@@ -154,3 +155,4 @@ object TaskShiftBenchmark {
       ctx.scheduler.executeTrampolined(() => cb.onSuccess(()))
     }
 }
+ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,9 @@
 
 package monix.reactive.internal.operators
 
+import cats.effect.IO
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
@@ -31,11 +33,45 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
-  test("should work for Observable.range") { implicit s =>
+  test("should work for cats.effect.IO") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNext(x => sum += x)
+    Observable.range(0, 20).doOnNextF(x => IO(sum += x))
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onError(ex: Throwable): Unit = ()
+        def onNext(elem: Long) = Continue
+        def onComplete(): Unit = wasCompleted += 1
+      })
+
+    s.tick()
+    assertEquals(sum, 190)
+    assertEquals(wasCompleted, 1)
+  }
+
+  test("should work for Observable.range and async task") { implicit s =>
+    var sum = 0L
+    var wasCompleted = 0
+
+    Observable.range(0, 20).doOnNext(x => Task.evalAsync(sum += x))
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onError(ex: Throwable): Unit = ()
+        def onNext(elem: Long) = Continue
+        def onComplete(): Unit = wasCompleted += 1
+      })
+
+    s.tick()
+    assertEquals(sum, 190)
+    assertEquals(wasCompleted, 1)
+  }
+
+  test("should work for Observable.range and sync task") { implicit s =>
+    var sum = 0L
+    var wasCompleted = 0
+
+    Observable.range(0, 20).doOnNext(x => Task.eval(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -47,11 +83,28 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("should work for Observable.now") { implicit s =>
+  test("should work for Observable.now and async task") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.now(10L).doOnNext(x => sum += x)
+    Observable.now(10L).doOnNext(x => Task.evalAsync(sum += x))
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onError(ex: Throwable): Unit = ()
+        def onNext(elem: Long) = Continue
+        def onComplete(): Unit = wasCompleted += 1
+      })
+
+    s.tick()
+    assertEquals(sum, 10L)
+    assertEquals(wasCompleted, 1)
+  }
+
+  test("should work for Observable.now and sync task") { implicit s =>
+    var sum = 0L
+    var wasCompleted = 0
+
+    Observable.now(10L).doOnNext(x => Task.eval(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -63,26 +116,7 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("should protect against user code for Observable.now") { implicit s =>
-    val dummy = DummyException("dummy")
-    var received = 0L
-    var wasCompleted = 0L
-    var errorThrown: Throwable = null
-
-    Observable.now(10L).doOnNext(x => throw dummy)
-      .unsafeSubscribeFn(new Subscriber[Long] {
-        val scheduler = s
-        def onError(ex: Throwable): Unit = errorThrown = ex
-        def onNext(elem: Long) = { received += elem; Continue }
-        def onComplete(): Unit = wasCompleted += 1
-      })
-
-    assertEquals(received, 0)
-    assertEquals(errorThrown, dummy)
-    assertEquals(wasCompleted, 0)
-  }
-
-  test("should protect against user code for Observable.range") { implicit s =>
+  test("should protect against user code for direct exceptions") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0L
     var wasCompleted = 0L
@@ -96,6 +130,26 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
         def onComplete(): Unit = wasCompleted += 1
       })
 
+    assertEquals(received, 0)
+    assertEquals(errorThrown, dummy)
+    assertEquals(wasCompleted, 0)
+  }
+
+  test("should protect against user code for indirect exceptions") { implicit s =>
+    val dummy = DummyException("dummy")
+    var received = 0L
+    var wasCompleted = 0L
+    var errorThrown: Throwable = null
+
+    Observable.range(1,10).doOnNext(x => Task.evalAsync(throw dummy))
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onError(ex: Throwable): Unit = errorThrown = ex
+        def onNext(elem: Long) = { received += elem; Continue }
+        def onComplete(): Unit = wasCompleted += 1
+      })
+
+    s.tick()
     assertEquals(received, 0)
     assertEquals(errorThrown, dummy)
     assertEquals(wasCompleted, 0)

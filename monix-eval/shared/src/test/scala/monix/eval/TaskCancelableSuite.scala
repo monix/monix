@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.Callback
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success, Try}
@@ -29,7 +30,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     }
 
     val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => acc.flatMap(x => signal(x + 1)))
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
 
     assertEquals(f.value, Some(Success(10000)))
@@ -42,15 +43,15 @@ object TaskCancelableSuite extends BaseTestSuite {
     }
 
     val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => signal(1).flatMap(x => acc.map(y => x + y)))
-    val f = task.runAsync
+    val f = task.runToFuture
     s.tick()
 
     assertEquals(f.value, Some(Success(10000)))
   }
-  
+
   test("Task.cancelable0 should work onSuccess") { implicit s =>
     val t = Task.cancelable0[Int] { (_,cb) => cb.onSuccess(10); Task.unit }
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
@@ -58,14 +59,14 @@ object TaskCancelableSuite extends BaseTestSuite {
   test("Task.cancelable0 should work onError") { implicit s =>
     val dummy = DummyException("dummy")
     val t = Task.cancelable0[Int] { (_,cb) => cb.onError(dummy); Task.unit }
-    val f = t.runAsync
+    val f = t.runToFuture
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("Task.cancelable0 should execute immediately when executed as future") { implicit s =>
     val t = Task.cancelable0[Int] { (_,cb) => cb.onSuccess(100); Task.unit }
-    val result = t.runAsync
+    val result = t.runToFuture
     assertEquals(result.value, Some(Success(100)))
   }
 
@@ -78,13 +79,13 @@ object TaskCancelableSuite extends BaseTestSuite {
 
   test("Task.cancelable works for immediate successful value") { implicit sc =>
     val task = Task.cancelable[Int] { cb => cb.onSuccess(1); Task.unit }
-    assertEquals(task.runAsync.value, Some(Success(1)))
+    assertEquals(task.runToFuture.value, Some(Success(1)))
   }
 
   test("Task.cancelable works for immediate error") { implicit sc =>
     val e = DummyException("dummy")
     val task = Task.cancelable[Int] { cb => cb.onError(e); Task.unit }
-    assertEquals(task.runAsync.value, Some(Failure(e)))
+    assertEquals(task.runToFuture.value, Some(Failure(e)))
   }
 
   test("Task.cancelable is memory safe in flatMap loops") { implicit sc =>
@@ -97,13 +98,13 @@ object TaskCancelableSuite extends BaseTestSuite {
         else Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; sc.tick()
+    val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
 
   test("Task.cancelable is cancelable") { implicit sc =>
     val c = BooleanCancelable()
-    val f = Task.cancelable[Int](_ => Task(c.cancel())).runAsync
+    val f = Task.cancelable[Int](_ => Task(c.cancel())).runToFuture
 
     assertEquals(f.value, None)
     f.cancel()

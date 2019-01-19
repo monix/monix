@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,10 +28,10 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
   test("executeWithModel works") { implicit sc =>
     assertEquals(sc.executionModel, ExecutionModel.Default)
 
-    val f1 = readModel.executeWithModel(SynchronousExecution).runAsync
+    val f1 = readModel.executeWithModel(SynchronousExecution).runToFuture
     assertEquals(f1.value, Some(Success(SynchronousExecution)))
 
-    val f2 = readModel.executeWithModel(AlwaysAsyncExecution).runAsync
+    val f2 = readModel.executeWithModel(AlwaysAsyncExecution).runToFuture
     sc.tick()
     assertEquals(f2.value, Some(Success(AlwaysAsyncExecution)))
   }
@@ -47,7 +47,7 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }
@@ -63,7 +63,7 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
       v <- l.read
     } yield v
 
-    for (v <- task.runAsyncOpt) yield {
+    for (v <- task.runToFutureOpt) yield {
       assertEquals(v, 100)
     }
   }
@@ -77,7 +77,7 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
           Task.now(acc)
       }
 
-    val f = loop(10000, 0).runAsync; sc.tick()
+    val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -107,7 +107,7 @@ object Zip2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs1.zip(obs2.doOnEarlyStop { () => wasCanceled = true })
+    obs1.zip(obs2.doOnEarlyStopF { () => wasCanceled = true })
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -130,7 +130,7 @@ object Zip2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs2.doOnEarlyStop { () => wasCanceled = true }.zip(obs1)
+    obs2.doOnEarlyStopF { () => wasCanceled = true }.zip(obs1)
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = { received = elem; Continue }
       def onError(ex: Throwable) = wasThrown = ex

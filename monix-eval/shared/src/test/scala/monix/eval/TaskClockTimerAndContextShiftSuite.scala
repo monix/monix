@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
   test("Task.clock.monotonic") { implicit s =>
     s.tick(1.seconds)
 
-    val f = Task.clock.monotonic(TimeUnit.SECONDS).runAsync
+    val f = Task.clock.monotonic(TimeUnit.SECONDS).runToFuture
     s.tick()
 
     assertEquals(f.value, Some(Success(1)))
@@ -42,7 +42,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
   test("Task.clock.realTime") { implicit s =>
     s.tick(1.seconds)
 
-    val f = Task.clock.realTime(TimeUnit.SECONDS).runAsync
+    val f = Task.clock.realTime(TimeUnit.SECONDS).runToFuture
     s.tick()
 
     assertEquals(f.value, Some(Success(1)))
@@ -52,7 +52,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     val s2 = TestScheduler()
     s2.tick(1.seconds)
 
-    val f = Task.clock(s2).monotonic(TimeUnit.SECONDS).runAsync
+    val f = Task.clock(s2).monotonic(TimeUnit.SECONDS).runToFuture
     s.tick()
 
     assertEquals(f.value, Some(Success(1)))
@@ -62,7 +62,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     val s2 = TestScheduler()
     s2.tick(1.seconds)
 
-    val f = Task.clock(s2).realTime(TimeUnit.SECONDS).runAsync
+    val f = Task.clock(s2).realTime(TimeUnit.SECONDS).runToFuture
     s.tick()
 
     assertEquals(f.value, Some(Success(1)))
@@ -74,7 +74,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
   }
 
   test("Task.timer") { implicit s =>
-    val f = Task.timer.sleep(1.second).runAsync
+    val f = Task.timer.sleep(1.second).runToFuture
     s.tick()
     assertEquals(f.value, None)
     s.tick(1.second)
@@ -83,7 +83,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
 
   test("Task.timer(s)") { implicit s =>
     val s2 = TestScheduler()
-    val f = Task.timer(s2).sleep(1.second).runAsync
+    val f = Task.timer(s2).sleep(1.second).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -98,7 +98,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     val s2 = TestScheduler()
     s2.tick(1.second)
 
-    val f = Task.timer(s2).clock.monotonic(TimeUnit.SECONDS).runAsync
+    val f = Task.timer(s2).clock.monotonic(TimeUnit.SECONDS).runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
@@ -108,7 +108,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
   }
 
   test("Task.contextShift.shift") { implicit s =>
-    val f = Task.contextShift.shift.runAsync
+    val f = Task.contextShift.shift.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -116,7 +116,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
 
   test("Task.contextShift.evalOn(s2)") { implicit s =>
     val s2 = TestScheduler()
-    val f = Task.contextShift.evalOn(s2)(Task(1)).runAsync
+    val f = Task.contextShift.evalOn(s2)(Task(1)).runToFuture
 
     assertEquals(f.value, None)
     s.tick()
@@ -127,7 +127,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
   }
 
   test("Task.contextShift(s).shift") { implicit s =>
-    val f = Task.contextShift(s).shift.runAsync
+    val f = Task.contextShift(s).shift.runToFuture
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -135,7 +135,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
 
   test("Task.contextShift(s).evalOn(s2)") { implicit s =>
     val s2 = TestScheduler()
-    val f = Task.contextShift(s).evalOn(s2)(Task(1)).runAsync
+    val f = Task.contextShift(s).evalOn(s2)(Task(1)).runToFuture
 
     assertEquals(f.value, None)
     s.tick()

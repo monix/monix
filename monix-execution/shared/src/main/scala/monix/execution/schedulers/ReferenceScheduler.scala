@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,12 +57,13 @@ trait ReferenceScheduler extends Scheduler {
   override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val sub = OrderedCancelable()
 
-    def loop(initialDelayMs: Long, periodMs: Long): Unit =
+    def loop(initialDelayMs: Long, periodMs: Long): Unit = {
+      // Measuring the duration of the task + possible scheduler lag
+      val startedAtMillis = clockMonotonic(MILLISECONDS) + initialDelayMs
+
       if (!sub.isCanceled) {
         sub := scheduleOnce(initialDelayMs, MILLISECONDS, new Runnable {
           def run(): Unit = {
-            // Measuring the duration of the task
-            val startedAtMillis = clockMonotonic(MILLISECONDS)
             r.run()
 
             val delay = {
@@ -76,6 +77,7 @@ trait ReferenceScheduler extends Scheduler {
           }
         })
       }
+    }
 
     val initialMs = MILLISECONDS.convert(initialDelay, unit)
     val periodMs = MILLISECONDS.convert(period, unit)

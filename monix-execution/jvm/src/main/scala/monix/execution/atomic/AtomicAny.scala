@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,7 @@ import monix.execution.internal.atomic.{BoxedObject, Factory}
   *         by reference and not by value.
   */
 final class AtomicAny[A <: AnyRef] private (private[this] val ref: BoxedObject) extends Atomic[A] {
-  def get: A = ref.volatileGet().asInstanceOf[A]
+  def get(): A = ref.volatileGet().asInstanceOf[A]
   def set(update: A): Unit = ref.volatileSet(update)
 
   def compareAndSet(expect: A, update: A): Boolean =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.reactive.internal.rstreams
 
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.TestScheduler
@@ -77,7 +78,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var streamed = 0L
 
-    out.doOnNext { _ => streamed += 1 }.toReactivePublisher.subscribe(
+    out.doOnNext(_ => Task { streamed += 1  }).toReactivePublisher.subscribe(
       new Subscriber[Long] {
         def onSubscribe(s: Subscription): Unit =
           subscription := s

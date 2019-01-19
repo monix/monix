@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +25,7 @@ import monix.reactive.Observer
 import monix.reactive.internal.rstreams._
 import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 /** A `Subscriber` is an `Observer` with an attached `Scheduler`.
   *
@@ -95,6 +96,12 @@ object Subscriber {
       val scheduler = s
     }
   }
+
+  /** Given a contravariant mapping function, transform
+    * the source [[Subscriber]] by transforming the input.
+    */
+  def contramap[A, B](fa: Subscriber[A])(f: B => A): Subscriber[B] =
+    new ContravariantSubscriber(fa)(f)
 
   /** Given an `org.reactivestreams.Subscriber` as defined by the
     * [[http://www.reactive-streams.org/ Reactive Streams]] specification,
@@ -194,6 +201,12 @@ object Subscriber {
       */
     def feed(subscription: BooleanCancelable, iterator: Iterator[A]): Future[Ack] =
       Observer.feed(target, subscription, iterator)(target.scheduler)
+
+    /** Given a contravariant mapping function, transform
+      * the source [[Subscriber]] by transforming the input.
+      */
+    def contramap[B](f: B => A): Subscriber[B] =
+      Subscriber.contramap(target)(f)
   }
 
   private[this] final class Implementation[-A]
@@ -218,5 +231,33 @@ object Subscriber {
     def onNext(elem: A): Ack = observer.onNext(elem)
     def onError(ex: Throwable): Unit = observer.onError(ex)
     def onComplete(): Unit = observer.onComplete()
+  }
+
+  private[this] final class ContravariantSubscriber[A, B]
+    (source: Subscriber[A])(f: B => A)
+    extends Subscriber[B] {
+    override implicit def scheduler: Scheduler = source.scheduler
+    // For protecting the contract
+    private[this] var isDone = false
+
+    override def onNext(elem: B): Future[Ack] = {
+      if (isDone) Stop
+      else {
+        var streamError = true
+        try {
+          val b = f(elem)
+          streamError = false
+          source.onNext(b)
+        } catch {
+          case NonFatal(ex) if streamError =>
+            onError(ex)
+            Stop
+        }
+      }
+    }
+    override def onError(ex: Throwable): Unit =
+      if (!isDone) { isDone = true; source.onError(ex) }
+    override def onComplete(): Unit =
+      if (!isDone) { isDone = true; source.onComplete() }
   }
 }

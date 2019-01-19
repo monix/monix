@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +20,7 @@ package monix.reactive.internal.builders
 import java.io.{ByteArrayInputStream, InputStream}
 
 import minitest.SimpleTestSuite
+import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -33,10 +34,10 @@ import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Random, Success}
 
 object InputStreamObservableSuite extends SimpleTestSuite {
-  test("yields a single subscriber observable") {
+  test("fromInputStreamUnsafe yields a single subscriber observable") {
     implicit val s = TestScheduler()
     var errorThrown: Throwable = null
-    val obs = Observable.fromInputStream(new ByteArrayInputStream(randomByteArray()))
+    val obs = Observable.fromInputStreamUnsafe(new ByteArrayInputStream(randomByteArray()))
     obs.unsafeSubscribeFn(Subscriber.empty(s))
     s.tick()
 
@@ -55,13 +56,13 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("it works for BatchedExecution") {
+  test("fromInputStreamUnsafe works for BatchedExecution") {
     implicit val s = TestScheduler(BatchedExecution(1024))
     val array = randomByteArray()
     val in = new ByteArrayInputStream(array)
 
-    val result = Observable.fromInputStream(in, 40)
-      .foldLeftF(Array.empty[Byte])(_ ++ _)
+    val result = Observable.fromInputStreamUnsafe(in, 40)
+      .foldLeft(Array.empty[Byte])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(_.toList))
 
@@ -70,13 +71,13 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("it works for AlwaysAsyncExecution") {
+  test("fromInputStreamUnsafe it works for AlwaysAsyncExecution") {
     implicit val s = TestScheduler(AlwaysAsyncExecution)
     val array = randomByteArray()
     val in = new ByteArrayInputStream(array)
 
-    val result = Observable.fromInputStream(in, 40)
-      .foldLeftF(Array.empty[Byte])(_ ++ _)
+    val result = Observable.fromInputStreamUnsafe(in, 40)
+      .foldLeft(Array.empty[Byte])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(_.toList))
 
@@ -85,7 +86,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("it works for SynchronousExecution") {
+  test("fromInputStreamUnsafe it works for SynchronousExecution") {
     implicit val s = TestScheduler(SynchronousExecution)
 
     var wasCompleted = 0
@@ -94,8 +95,8 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     val in = new ByteArrayInputStream(array)
 
     val obs: Observable[Array[Byte]] = Observable
-      .fromInputStream(in)
-      .foldLeftF(Array.empty[Byte])(_ ++ _)
+      .fromInputStreamUnsafe(in)
+      .foldLeft(Array.empty[Byte])(_ ++ _)
 
     obs.unsafeSubscribeFn(new Subscriber[Array[Byte]] {
       implicit val scheduler = s
@@ -110,17 +111,32 @@ object InputStreamObservableSuite extends SimpleTestSuite {
         Continue
       }
     })
+    s.tick()
 
     assertEquals(received.toList, array.toList)
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("closes the file handle onComplete") {
+  test("fromInputStream does not block on initial execution") {
+    implicit val s = TestScheduler()
+    var didRead = false
+    val is = new InputStream {
+      def read(): Int = {
+        didRead = true
+        -1
+      }
+    }
+    // Should not fail without s.tick()
+    Observable.fromInputStreamUnsafe(is).foreach(_ => ())
+    assert(!didRead)
+  }
+
+  test("fromInputStream closes the file handle onComplete") {
     implicit val s = TestScheduler()
 
     var wasClosed = false
     val in = randomInputWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromInputStream(in).completedL.runAsync
+    val f = Observable.fromInputStreamF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -128,13 +144,13 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("closes the file handle onError on first call") {
+  test("fromInputStream closes the file handle onError on first call") {
     implicit val s = TestScheduler()
 
     var wasClosed = false
     val ex = DummyException("dummy")
     val in = inputWithError(ex, 1, () => wasClosed = true)
-    val f = Observable.fromInputStream(in).completedL.runAsync
+    val f = Observable.fromInputStreamF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -142,13 +158,13 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("closes the file handle onError on second call") {
+  test("fromInputStream closes the file handle onError on second call") {
     implicit val s = TestScheduler()
 
     var wasClosed = false
     val ex = DummyException("dummy")
     val in = inputWithError(ex, 2, () => wasClosed = true)
-    val f = Observable.fromInputStream(in).completedL.runAsync
+    val f = Observable.fromInputStreamF(Task(in)).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -156,26 +172,21 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  // TODO: fix observable, fix test!
-  /*
-  test("closes the file handle on cancel") {
+  test("fromInputStream closes the file handle on cancel") {
     implicit val s = TestScheduler(AlwaysAsyncExecution)
 
     var wasClosed = false
     val in = randomInputWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromInputStream(in).completedL.runAsync
+    val f = Observable.fromInputStreamF(Task(in)).completedL.runToFuture
 
     s.tickOne()
     f.cancel()
     s.tick()
 
-    assertEquals(f.value, None)
     assert(wasClosed, "InputStream should have been closed")
-
     assertEquals(s.state.lastReportedError, null)
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
-  */
 
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): InputStream =
     new InputStream {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -76,7 +76,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     val stream2 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(2)).delayExecution(1.second))
     val task = stream1.zip(stream2).headOptionL
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
 
     s.tick(1.second)
@@ -91,7 +91,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     val stream2 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(2)).delayExecution(1.second))
     val task = stream1.parZip(stream2).headOptionL
 
-    val f = task.runAsync
+    val f = task.runToFuture
     assertEquals(f.value, None)
 
     s.tick(1.second)
