@@ -2066,7 +2066,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *      powered by [[monix.eval.TaskLike]]
     */
   final def mapEval[B](f: A => Task[B]): Observable[B] =
-    new MapTaskObservable[A, B](self, f)
+    new MapEvalObservable[A, B](self, f)
 
   /** Version of [[mapEval]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]

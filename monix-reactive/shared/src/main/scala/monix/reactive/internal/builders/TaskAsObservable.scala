@@ -22,13 +22,15 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import monix.execution.Callback
 import monix.eval.Task
+import monix.reactive.internal.util.TaskRun
 
 private[reactive] final
 class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
+    implicit val opts = TaskRun.options(scheduler)
 
-    task.runAsync(new Callback[Throwable, A] {
+    task.runAsyncOpt(new Callback[Throwable, A] {
       def onSuccess(value: A): Unit = {
         subscriber.onNext(value)
         subscriber.onComplete()

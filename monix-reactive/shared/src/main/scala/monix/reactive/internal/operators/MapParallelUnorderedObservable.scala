@@ -22,6 +22,7 @@ import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.ChannelType.MultiProducer
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
@@ -55,7 +56,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
     }
     else if (parallelism == 1) {
       // optimization for one worker
-      new MapTaskObservable[A,B](source, f).unsafeSubscribeFn(out)
+      new MapEvalObservable[A,B](source, f).unsafeSubscribeFn(out)
     }
     else {
       val composite = CompositeCancelable()
@@ -70,6 +71,8 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
     extends Subscriber[A] with Cancelable { self =>
 
     implicit val scheduler = out.scheduler
+    private[this] implicit val opts = TaskRun.options(scheduler)
+
     // Ensures we don't execute more than a maximum number of tasks in parallel
     private[this] val semaphore = AsyncSemaphore(parallelism)
     // Reusable instance for releasing permits on cancel, but
@@ -125,7 +128,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
         // No longer allowed to stream errors downstream
         streamErrors = false
         // Start execution
-        subscription := task.runAsync(Callback.empty)
+        subscription := task.runAsyncOpt(Callback.empty)
       } catch {
         case ex if NonFatal(ex) =>
           if (streamErrors) self.onError(ex)

@@ -22,10 +22,13 @@ import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
+
 import scala.util.control.NonFatal
 import monix.reactive.internal.util.Instances._
 import monix.reactive.Observable.Operator
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 import scala.util.Success
 
@@ -39,6 +42,7 @@ class DoOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], hap
       // being called multiple times
       private[this] val active = Atomic(true)
       implicit val scheduler = out.scheduler
+      private[this] implicit val opts = TaskRun.options(scheduler)
 
       def onNext(elem: A): Future[Ack] = {
         val result =
@@ -62,7 +66,7 @@ class DoOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], hap
           Stop
         }
 
-        val future = errorCoverage.runToFuture
+        val future = errorCoverage.runToFutureOpt
         // Execution might be immediate
         future.value match {
           case Some(Success(ack)) => ack
@@ -104,8 +108,8 @@ class DoOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], hap
       }
 
       def onComplete(): Unit =
-        onFinish(None).runAsync(Callback.empty)
+        onFinish(None).runAsyncOpt(Callback.empty)
       def onError(ex: Throwable): Unit =
-        onFinish(Some(ex)).runAsync(Callback.empty)
+        onFinish(Some(ex)).runAsyncOpt(Callback.empty)
     }
 }

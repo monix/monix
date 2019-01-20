@@ -27,7 +27,9 @@ import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{Ack, Cancelable, FutureUtils, Scheduler}
 import monix.reactive.Observable
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -39,7 +41,9 @@ private[reactive] class GuaranteeCaseObservable[A](
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     implicit val s = out.scheduler
+    implicit val opts = TaskRun.options(s)
     val isActive = Atomic(true)
+
     try {
       val out2 = new GuaranteeSubscriber(out, isActive)
       val c = source.unsafeSubscribeFn(out2)
@@ -52,12 +56,13 @@ private[reactive] class GuaranteeCaseObservable[A](
     }
   }
 
-  private def fireAndForget(isActive: AtomicBoolean, ec: ExitCase[Throwable])(implicit s: Scheduler): Unit = {
+  private def fireAndForget(isActive: AtomicBoolean, ec: ExitCase[Throwable])
+    (implicit s: Scheduler, opts: Task.Options): Unit = {
     if (isActive.getAndSet(false))
       s.execute(new TrampolinedRunnable {
         def run(): Unit =
           try {
-            f(ec).runAsyncAndForget
+            f(ec).runAsyncAndForgetOpt
           } catch {
             case NonFatal(e) =>
               s.reportFailure(e)
@@ -70,6 +75,7 @@ private[reactive] class GuaranteeCaseObservable[A](
     extends Subscriber[A] with Cancelable {
 
     implicit val scheduler: Scheduler = out.scheduler
+    private[this] implicit val opts = TaskRun.options(scheduler)
     private[this] var ack: Future[Ack] = Continue
 
     def onNext(elem: A): Future[Ack] = {
@@ -113,7 +119,7 @@ private[reactive] class GuaranteeCaseObservable[A](
       if (isActive.getAndSet(false)) {
         Task.suspend(f(e))
           .redeem(e => { scheduler.reportFailure(e); Stop }, _ => Stop)
-          .runToFuture
+          .runToFutureOpt
       } else {
         Stop
       }
@@ -146,7 +152,7 @@ private[reactive] class GuaranteeCaseObservable[A](
           }
         })
 
-      task.runAsyncUncancelable(
+      task.runAsyncUncancelableOpt(
         new Callback[Throwable, Ack] {
           def onSuccess(value: Ack): Unit = {
             if (value == Continue) {

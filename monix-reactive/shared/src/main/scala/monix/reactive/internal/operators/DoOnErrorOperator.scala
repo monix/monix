@@ -19,9 +19,12 @@ package monix.reactive.internal.operators
 
 import monix.eval.Task
 import monix.execution.Ack
+
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 
 private[reactive] final
@@ -30,6 +33,7 @@ class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] {
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
+      private[this] implicit val opts = TaskRun.options(scheduler)
 
       def onNext(elem: A): Future[Ack] = out.onNext(elem)
       def onComplete(): Unit = out.onComplete()
@@ -43,7 +47,7 @@ class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] {
             case Left(err) =>
               scheduler.reportFailure(err)
               out.onError(ex)
-          }.runToFuture
+          }.runToFutureOpt
         }
         catch {
           case err if NonFatal(err) =>

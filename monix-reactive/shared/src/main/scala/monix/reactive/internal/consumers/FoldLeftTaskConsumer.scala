@@ -22,9 +22,12 @@ import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Scheduler}
 import monix.execution.cancelables.AssignableCancelable
+
 import scala.util.control.NonFatal
 import monix.reactive.Consumer
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 
 /** Implementation for [[monix.reactive.Consumer.foldLeftTask]]. */
@@ -35,6 +38,7 @@ final class FoldLeftTaskConsumer[A,R](initial: () => R, f: (R,A) => Task[R])
   def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
     val out = new Subscriber[A] {
       implicit val scheduler = s
+      private[this] implicit val opts = TaskRun.options(scheduler)
       private[this] var isDone = false
       private[this] var state = initial()
 
@@ -52,7 +56,7 @@ final class FoldLeftTaskConsumer[A,R](initial: () => R, f: (R,A) => Task[R])
               Continue
             })
 
-          task.runToFuture
+          task.runToFutureOpt
         } catch {
           case ex if NonFatal(ex) =>
             onError(ex)

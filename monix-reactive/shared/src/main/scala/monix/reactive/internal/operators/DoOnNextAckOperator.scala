@@ -22,6 +22,7 @@ import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.reactive.Observable.Operator
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
@@ -33,6 +34,7 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] { self =>
       implicit val scheduler = out.scheduler
+      private[this] implicit val opts = TaskRun.options(scheduler)
       private[this] val isActive = Atomic(true)
 
       def onNext(elem: A): Future[Ack] = {
@@ -47,7 +49,7 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
         }
 
         // Execution might be immediate
-        task.runToFuture.syncTryFlatten
+        task.runToFutureOpt.syncTryFlatten
       }
 
       def onComplete(): Unit = {

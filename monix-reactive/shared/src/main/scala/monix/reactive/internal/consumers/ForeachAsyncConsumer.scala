@@ -22,9 +22,12 @@ import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Scheduler}
 import monix.execution.cancelables.AssignableCancelable
+
 import scala.util.control.NonFatal
 import monix.reactive.Consumer
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 
 /** Implementation for [[monix.reactive.Consumer.foreachTask]]. */
@@ -35,12 +38,13 @@ final class ForeachAsyncConsumer[A](f: A => Task[Unit])
   def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
     val out = new Subscriber[A] {
       implicit val scheduler = s
+      private[this] implicit val opts = TaskRun.options(scheduler)
       private[this] var isDone = false
 
       def onNext(elem: A): Future[Ack] = {
         try {
           f(elem).map(_ => Continue)
-            .runToFuture
+            .runToFutureOpt
             .syncTryFlatten
         } catch {
           case ex if NonFatal(ex) =>

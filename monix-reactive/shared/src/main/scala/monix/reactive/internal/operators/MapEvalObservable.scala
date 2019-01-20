@@ -21,13 +21,14 @@ import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 /** Implementation for `Observable.mapTask`.
   *
@@ -62,7 +63,7 @@ import scala.concurrent.Future
   *    however it's OK-ish, since these CAS operations are not going
   *    to be contended
   */
-private[reactive] final class MapTaskObservable[A,B]
+private[reactive] final class MapEvalObservable[A,B]
   (source: Observable[A], f: A => Task[B])
   extends Observable[B] {
 
@@ -79,10 +80,10 @@ private[reactive] final class MapTaskObservable[A,B]
   private final class MapAsyncSubscriber(out: Subscriber[B])
     extends Subscriber[A] with Cancelable { self =>
 
-    import MapTaskObservable.MapTaskState
-    import MapTaskObservable.MapTaskState._
+    import MapEvalObservable.MapTaskState
+    import MapEvalObservable.MapTaskState._
 
-    implicit val scheduler = out.scheduler
+    implicit val scheduler: Scheduler = out.scheduler
 
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
@@ -93,6 +94,11 @@ private[reactive] final class MapTaskObservable[A,B]
     // out on seeing a `Cancelled` state due to the `lazySet` instructions,
     // making the visibility of the `Cancelled` state thread-unsafe!
     private[this] val isActive = Atomic(true)
+
+    // For executing the task — if we detect a `TracingScheduler` used,
+    // then also enable TaskLocal support
+    private[this] implicit val opts: Task.Options =
+      TaskRun.options(scheduler)
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
@@ -105,7 +111,7 @@ private[reactive] final class MapTaskObservable[A,B]
     }
 
     @tailrec private def cancelState(): Unit =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ Active(ref) =>
           if (stateRef.compareAndSet(current, Cancelled)) {
             ref.cancel()
@@ -158,7 +164,7 @@ private[reactive] final class MapTaskObservable[A,B]
         stateRef.lazySet(WaitActiveTask)
 
         // Start execution
-        val ack = task.runToFuture
+        val ack = task.runToFutureOpt(scheduler, opts)
 
         // This `getAndSet` is concurrent with the task being finished
         // (the `getAndSet` in the Task.flatMap above), but not with
@@ -187,7 +193,7 @@ private[reactive] final class MapTaskObservable[A,B]
             // `isActive == false` here b/c it was updated before `stateRef` (JMM);
             // And if `stateRef = Cancelled` happened afterwards, then we should
             // see it in the outer match statement
-            if (isActive.get) {
+            if (isActive.get()) {
               ack
             } else {
               cancelState()
@@ -288,7 +294,7 @@ private[reactive] final class MapTaskObservable[A,B]
       // the only race condition that can happen is for the child to
       // set this to `null` between this `get` and the upcoming
       // `getAndSet`, which is totally fine
-      val childRef = stateRef.get match {
+      val childRef = stateRef.get() match {
         case Active(ref) => ref
         case WaitComplete(_,ref) => ref
         case _ => null
@@ -359,15 +365,15 @@ private[reactive] final class MapTaskObservable[A,B]
   }
 }
 
-private[reactive] object MapTaskObservable {
-  /** Internal, private state for the [[MapTaskObservable]]
+private[reactive] object MapEvalObservable {
+  /** Internal, private state for the [[MapEvalObservable]]
     * implementation, modeling its state machine for managing
     * the active task.
     */
   private[internal] sealed abstract class MapTaskState
 
   private[internal] object MapTaskState {
-    /** The initial state of our internal atomic in [[MapTaskObservable]].
+    /** The initial state of our internal atomic in [[MapEvalObservable]].
       *
       * This state is being set in `onNext` and when it is observed it
       * means that no task is currently being executed. If during this

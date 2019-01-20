@@ -25,6 +25,7 @@ import monix.execution.cancelables.{OrderedCancelable, SingleAssignCancelable, S
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.{Ack, Cancelable, FutureUtils}
 import monix.reactive.Observable
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.{Future, Promise}
@@ -35,9 +36,10 @@ private[reactive] object DoOnSubscribeObservable {
   final class Before[+A](source: Observable[A], task: Task[Unit]) extends Observable[A] {
     def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
       implicit val s = subscriber.scheduler
+      implicit val opts = TaskRun.options(s)
       val conn = OrderedCancelable()
 
-      val c = task.runAsync(
+      val c = task.runAsyncOpt(
         new Callback[Throwable, Unit] {
           def onSuccess(value: Unit): Unit = {
             val c = source.unsafeSubscribeFn(subscriber)
@@ -57,6 +59,7 @@ private[reactive] object DoOnSubscribeObservable {
   final class After[+A](source: Observable[A], task: Task[Unit]) extends Observable[A] {
     def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
       implicit val scheduler = out.scheduler
+      implicit val opts = TaskRun.options(scheduler)
       val p = Promise[Unit]()
 
       val cancelable = source.unsafeSubscribeFn(
@@ -107,7 +110,7 @@ private[reactive] object DoOnSubscribeObservable {
       val ref = SingleAssignCancelable()
       val conn = StackedCancelable(List(cancelable, ref))
 
-      ref := task.runAsync(new Callback[Throwable, Unit] {
+      ref := task.runAsyncOpt(new Callback[Throwable, Unit] {
         def onSuccess(value: Unit): Unit = {
           conn.pop()
           p.success(())

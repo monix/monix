@@ -21,14 +21,17 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.Cancelable
+
 import scala.util.control.NonFatal
 import monix.reactive.Observable
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
 
 private[reactive] final
 class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
+    implicit val opts = TaskRun.options(scheduler)
     var streamErrors = true
     try {
       val init = seed
@@ -36,7 +39,7 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
 
       Task.defer(loop(subscriber, init))
         .executeWithOptions(_.enableAutoCancelableRunLoops)
-        .runAsync(Callback.empty)
+        .runAsyncOpt(Callback.empty)
     }
     catch {
       case ex if NonFatal(ex) =>

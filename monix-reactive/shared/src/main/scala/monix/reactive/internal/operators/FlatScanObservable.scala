@@ -32,7 +32,7 @@ import scala.util.Failure
 
 /** Implementation for `Observable.scanTask`.
   *
-  * Implementation is based on [[MapTaskObservable]].
+  * Implementation is based on [[MapEvalObservable]].
   *
   * Tricky concurrency handling within, here be dragons!
   */

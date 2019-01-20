@@ -21,6 +21,7 @@ import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.reactive.Observable.Operator
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
@@ -33,6 +34,7 @@ class DoOnStartOperator[A](cb: A => Task[Unit])
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
+      private[this] implicit val opts = TaskRun.options(scheduler)
 
       private[this] var isDone = false
       private[this] var isStart = true
@@ -52,7 +54,7 @@ class DoOnStartOperator[A](cb: A => Task[Unit])
           val ack = t.redeemWith(
             ex => Task.eval { onError(ex); Stop },
             _ => Task.fromFuture(out.onNext(elem))
-          ).runToFuture
+          ).runToFutureOpt
 
           isStart = false
           ack.syncTryFlatten

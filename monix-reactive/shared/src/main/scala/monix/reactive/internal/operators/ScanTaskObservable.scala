@@ -23,16 +23,19 @@ import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.cancelables.OrderedCancelable
+
 import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
+
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
 /** Implementation for `Observable.scanTask`.
   *
-  * Implementation is based on [[MapTaskObservable]].
+  * Implementation is based on [[MapEvalObservable]].
   *
   * Tricky concurrency handling within, here be dragons!
   */
@@ -60,16 +63,19 @@ private[reactive] final class ScanTaskObservable[A, S](
         out.onError(ex)
     }
 
-    conn.orderedUpdate(seed.runAsync(cb)(out.scheduler), 1)
+    import out.scheduler
+    implicit val opts = TaskRun.options(scheduler)
+    conn.orderedUpdate(seed.runAsyncOpt(cb), 1)
   }
 
   private final class ScanTaskSubscriber(out: Subscriber[S], initial: S)
     extends Subscriber[A] with Cancelable { self =>
 
-    import MapTaskObservable.MapTaskState
-    import MapTaskObservable.MapTaskState._
+    import MapEvalObservable.MapTaskState
+    import MapEvalObservable.MapTaskState._
 
     implicit val scheduler = out.scheduler
+    private[this] implicit val opts = TaskRun.options(scheduler)
 
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
@@ -94,7 +100,7 @@ private[reactive] final class ScanTaskObservable[A, S](
     }
 
     @tailrec private def cancelState(): Unit =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ Active(ref) =>
           if (stateRef.compareAndSet(current, Cancelled)) {
             ref.cancel()
@@ -147,7 +153,7 @@ private[reactive] final class ScanTaskObservable[A, S](
         stateRef.lazySet(WaitActiveTask)
 
         // Start execution
-        val ack = task.runToFuture
+        val ack = task.runToFutureOpt
 
         // This `getAndSet` is concurrent with the task being finished
         // (the `getAndSet` in the Task.flatMap above), but not with
@@ -176,7 +182,7 @@ private[reactive] final class ScanTaskObservable[A, S](
             // `isActive == false` here b/c it was updated before `stateRef` (JMM);
             // And if `stateRef = Cancelled` happened afterwards, then we should
             // see it in the outer match statement
-            if (isActive.get) {
+            if (isActive.get()) {
               ack
             } else {
               cancelState()
@@ -280,7 +286,7 @@ private[reactive] final class ScanTaskObservable[A, S](
       // the only race condition that can happen is for the child to
       // set this to `null` between this `get` and the upcoming
       // `getAndSet`, which is totally fine
-      val childRef = stateRef.get match {
+      val childRef = stateRef.get() match {
         case Active(ref) => ref
         case WaitComplete(_,ref) => ref
         case _ => null

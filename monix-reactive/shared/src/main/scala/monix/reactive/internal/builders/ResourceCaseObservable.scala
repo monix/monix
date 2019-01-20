@@ -25,8 +25,10 @@ import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.Cancelable
 import monix.execution.cancelables.AssignableCancelable
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
+
 import scala.util.Success
 
 private[reactive] final class ResourceCaseObservable[A](
@@ -35,8 +37,9 @@ private[reactive] final class ResourceCaseObservable[A](
 
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, subscriber: Subscriber[A]): Unit = {
     implicit val s = subscriber.scheduler
+    implicit val opts = TaskRun.options(s)
 
-    acquire.runAsyncUncancelable(new Callback[Throwable, A] {
+    acquire.runAsyncUncancelableOpt(new Callback[Throwable, A] {
       def onSuccess(value: A): Unit = {
         conn := new StreamOne(value)
           .guaranteeCase(e => release(value, e))

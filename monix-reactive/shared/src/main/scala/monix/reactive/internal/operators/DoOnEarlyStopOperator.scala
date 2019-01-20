@@ -21,10 +21,12 @@ import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
+
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import monix.reactive.internal.util.Instances.ContinueTask
+import monix.reactive.internal.util.TaskRun
 
 import scala.concurrent.Future
 import scala.util.Success
@@ -35,6 +37,7 @@ private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit])
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
+      private[this] implicit val opts = TaskRun.options(scheduler)
       private[this] val isActive = Atomic(true)
 
       def onNext(elem: A): Future[Ack] = {
@@ -46,7 +49,7 @@ private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit])
           .onErrorHandle { ex => onError(ex); Stop }
           .flatMap { case Continue => ContinueTask; case Stop => onStop.map(_ => Stop) }
 
-        val future = task.runToFuture
+        val future = task.runToFutureOpt
         // Execution might be immediate
         future.value match {
           case Some(Success(ack)) => ack

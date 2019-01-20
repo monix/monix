@@ -21,8 +21,10 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
+
 import scala.util.control.NonFatal
 import monix.reactive.Consumer
+import monix.reactive.internal.util.TaskRun
 import monix.reactive.observers.Subscriber
 
 /** Implementation for [[monix.reactive.Consumer.mapTask]]. */
@@ -32,6 +34,8 @@ final class MapTaskConsumer[In, R, R2](source: Consumer[In,R], f: R => Task[R2])
 
   def createSubscriber(cb: Callback[Throwable, R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     val asyncCallback = new Callback[Throwable, R] {
+      implicit val opts = TaskRun.options(s)
+
       def onSuccess(value: R): Unit =
         s.execute(new Runnable {
           // Forcing async boundary, otherwise we might
@@ -44,7 +48,7 @@ final class MapTaskConsumer[In, R, R2](source: Consumer[In,R], f: R => Task[R2])
             try {
               val task = f(value)
               streamErrors = false
-              task.runAsync(cb)
+              task.runAsyncOpt(cb)
             } catch {
               case ex if NonFatal(ex) =>
                 if (streamErrors) cb.onError(ex)
