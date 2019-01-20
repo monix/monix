@@ -131,6 +131,22 @@ private[eval] object TaskRunLoop {
                   current = FlatMap(next, new RestoreContext(old, restore))
                   /*_*/
               }
+              // If LCP has changed to "enable", encapsulate local context
+              val useLCP = context.options.localContextPropagation
+              if (useLCP && useLCP != old.options.localContextPropagation) {
+                Local.bind(Local.getContext()) {
+                  startFull(
+                    current,
+                    context,
+                    cba,
+                    rcb,
+                    bFirstRef,
+                    bRestRef,
+                    currentIndex
+                  )
+                }
+                return
+              }
             } catch {
               case e if NonFatal(e) && catchError =>
                 current = Error(e)

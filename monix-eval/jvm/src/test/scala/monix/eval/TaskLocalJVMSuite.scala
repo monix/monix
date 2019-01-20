@@ -20,8 +20,9 @@ package monix.eval
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.Duration
+
+import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.duration._
 
 object TaskLocalJVMSuite extends SimpleTestSuite {
   def createShift(ec: ExecutionContext): Task[Unit] =
@@ -135,8 +136,20 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       _ <- l.write(x + 1)
     } yield x
 
-    for (_ <- 1 to 10) task.runSyncUnsafeOpt()
-    val r = task.runSyncUnsafeOpt()
-    assertEquals(r, 0)
+    val runMethods: List[Task[Int] => Int] = List(
+      _.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe(),
+      _.executeAsync.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe(),
+      _.runSyncUnsafeOpt(),
+      _.executeWithOptions(_.enableLocalContextPropagation).toIO.unsafeRunSync(),
+      t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).runToFuture, 1.second),
+      t => Await.result(t.runToFutureOpt, 1.second),
+      t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).toIO.unsafeToFuture(), 1.second)
+    )
+
+    for (method <- runMethods) {
+      for (_ <- 1 to 10) method(task)
+      val r = method(task)
+      assertEquals(r, 0)
+    }
   }
 }
