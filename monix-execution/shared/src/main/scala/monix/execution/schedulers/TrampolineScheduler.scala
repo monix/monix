@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{Cancelable, Features, Scheduler}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 
@@ -77,6 +77,8 @@ final class TrampolineScheduler(
     underlying.clockMonotonic(unit)
   override def withExecutionModel(em: ExecModel): TrampolineScheduler =
     new TrampolineScheduler(underlying, em)
+  override val features: Features =
+    underlying.features + Scheduler.TRAMPOLINE
 }
 
 object TrampolineScheduler {

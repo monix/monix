@@ -18,8 +18,9 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
-import monix.execution.{Cancelable, UncaughtExceptionReporter}
-import monix.execution.{ExecutionModel => ExecModel}
+
+import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+
 import scala.concurrent.ExecutionContext
 
 /** An `AsyncScheduler` schedules tasks to happen in the future with the
@@ -52,6 +53,9 @@ final class AsyncScheduler private (
 
   override def withExecutionModel(em: ExecModel): AsyncScheduler =
     new AsyncScheduler(scheduler, ec, r, em)
+
+  override val features: Features =
+    Features(Scheduler.BATCHING)
 }
 
 object AsyncScheduler {

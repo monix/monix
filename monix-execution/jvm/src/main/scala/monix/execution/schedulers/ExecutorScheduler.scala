@@ -19,9 +19,12 @@ package monix.execution.schedulers
 
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.{ExecutorService, ScheduledExecutorService}
+
 import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThreadFactory, StandardWorkerThreadFactory}
+
 import scala.util.control.NonFatal
-import monix.execution.{Cancelable, UncaughtExceptionReporter}
+import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter}
+
 import scala.concurrent.{ExecutionContext, Future, Promise, blocking}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
@@ -76,18 +79,22 @@ object ExecutorScheduler {
     * @param executionModel is the preferred
     *        [[monix.execution.ExecutionModel ExecutionModel]], a guideline
     *        for run-loops and producers of data.
+    * @param features is the set of [[Features]] that the
+    *        provided `ExecutorService` implements, see the documentation
+    *        for [[monix.execution.Scheduler.features Scheduler.features]]
     */
   def apply(
     service: ExecutorService,
     reporter: UncaughtExceptionReporter,
-    executionModel: ExecModel): ExecutorScheduler = {
+    executionModel: ExecModel,
+    features: Features): ExecutorScheduler = {
 
     service match {
       case ref: ScheduledExecutorService =>
-        new FromScheduledExecutor(ref, reporter, executionModel)
+        new FromScheduledExecutor(ref, reporter, executionModel, features)
       case _ =>
         val s = Defaults.scheduledExecutor
-        new FromSimpleExecutor(s, service, reporter, executionModel)
+        new FromSimpleExecutor(s, service, reporter, executionModel, features)
     }
   }
 
@@ -113,7 +120,7 @@ object ExecutorScheduler {
       asyncMode = true
     )
 
-    apply(pool, reporter, executionModel)
+    apply(pool, reporter, executionModel, Features(Scheduler.BATCHING))
   }
 
   /** Creates an [[ExecutorScheduler]] backed by a `ForkJoinPool`
@@ -139,7 +146,8 @@ object ExecutorScheduler {
       asyncMode = true
     )
 
-    apply(pool, reporter, executionModel)
+    val set = Features(Scheduler.BATCHING, Scheduler.BLOCK_CONTEXT)
+    apply(pool, reporter, executionModel, set)
   }
 
   /** Converts a Java `ExecutorService`.
@@ -153,7 +161,8 @@ object ExecutorScheduler {
     scheduler: ScheduledExecutorService,
     executor: ExecutorService,
     r: UncaughtExceptionReporter,
-    val executionModel: ExecModel)
+    val executionModel: ExecModel,
+    val features: Features)
     extends ExecutorScheduler(executor, r) {
 
     override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
@@ -168,14 +177,15 @@ object ExecutorScheduler {
     }
 
     override def withExecutionModel(em: ExecModel): SchedulerService =
-      new FromSimpleExecutor(scheduler, executor, r, em)
+      new FromSimpleExecutor(scheduler, executor, r, em, features)
   }
 
   /** Converts a Java `ScheduledExecutorService`. */
   private final class FromScheduledExecutor(
     s: ScheduledExecutorService,
     r: UncaughtExceptionReporter,
-    override val executionModel: ExecModel)
+    override val executionModel: ExecModel,
+    override val features: Features)
     extends ExecutorScheduler(s, r) {
 
     override def executor: ScheduledExecutorService = s
@@ -201,6 +211,6 @@ object ExecutorScheduler {
     }
 
     override def withExecutionModel(em: ExecModel): SchedulerService =
-      new FromScheduledExecutor(s, r, em)
+      new FromScheduledExecutor(s, r, em, features)
   }
 }

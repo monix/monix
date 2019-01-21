@@ -173,6 +173,9 @@ final class TestScheduler private (
   override def withExecutionModel(em: ExecutionModel): TestScheduler =
     new TestScheduler(stateRef, em)
 
+  override val features: Features =
+    Features(Scheduler.BATCHING, Scheduler.SIMULATED_TIME)
+
   /**
     * Executes just one tick, one task, from the internal queue, useful
     * for testing that some runnable will definitely be executed next.
