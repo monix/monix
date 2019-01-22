@@ -263,7 +263,7 @@ private[eval] object TaskDeprecated {
     /**
       * DEPRECATED — subsumed by [[Task.start start]].
       *
-      * To be consistent with cats-effect 1.1.0, `start` now
+      * To be consistent with cats-effect 1.2.0, `start` now
       * enforces an asynchronous boundary, being exactly the same
       * as `fork` from 3.0.0-RC1
       */
