@@ -50,7 +50,7 @@ final class SingleAssignCancelableF[F[_]] private (extra: CancelableF[F])(implic
         case IsCanceled | IsEmptyCanceled => F.unit
         case current @ IsActive(s) =>
           if (state.compareAndSet(current, IsCanceled))
-            F.guarantee(s.cancel)(extra.cancel)
+            CancelableF.cancelAllTokens(s.cancel, extra.cancel)
           else
             loop()
         case Empty =>
