@@ -21,8 +21,7 @@ import cats.Applicative
 import cats.effect.{CancelToken, Sync}
 import monix.catnap.cancelables.BooleanCancelableF
 import monix.execution.annotations.UnsafeBecauseImpure
-import monix.execution.internal.Platform
-
+import monix.execution.exceptions.CompositeException
 import scala.collection.mutable.ListBuffer
 
 /** Represents a pure data structure that describes an effectful,
@@ -144,8 +143,10 @@ object CancelableF {
         errors.toList match {
           case Nil =>
             F.unit
-          case first :: rest =>
-            F.raiseError(Platform.composeErrors(first, rest: _*))
+          case first :: Nil =>
+            F.raiseError(first)
+          case list =>
+            F.raiseError(CompositeException(list))
         }
       }
     }
