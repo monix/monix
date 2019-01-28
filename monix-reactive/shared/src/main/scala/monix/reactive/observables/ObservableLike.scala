@@ -1019,6 +1019,16 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def filter(p: A => Boolean): Self[A] =
     self.liftByOperator(new FilterOperator(p))
 
+  /** Only emits those items for which the given predicate doesn't hold.
+    *
+    * @param p a function that evaluates the items emitted by the source
+    *        returning `true` if they should be filtered out
+    * @return a new observable that emits only those items in the source
+    *         for which the filter evaluates as `false`
+    */
+  def filterNot(p: A => Boolean): Self[A] =
+    filter(p.andThen(!_))
+
   /** Returns an Observable which only emits the first item for which
     * the predicate holds.
     *
