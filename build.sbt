@@ -17,7 +17,7 @@ addCommandAlias("ci-jvm",     s";clean ;coreJVM/test:compile ;${allProjects.map(
 addCommandAlias("ci-jvm-all", s";ci-jvm ;unidoc")
 addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned")
 
-val catsVersion = "1.4.0"
+val catsVersion = "1.5.0"
 val catsEffectVersion = "1.2.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
