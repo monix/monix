@@ -32,7 +32,7 @@ object FutureLiftSuite extends TestSuite[TestScheduler] {
     assert(env.state.tasks.isEmpty, "There should be no tasks left!")
 
   implicit def contextShift(implicit ec: TestScheduler) =
-    ec.contextShift[IO]
+    SchedulerEffect.contextShift[IO](ec)
 
   test("IO(future).futureLift") { implicit s =>
     var effect = 0

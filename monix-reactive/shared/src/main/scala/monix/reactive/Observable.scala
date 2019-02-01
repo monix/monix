@@ -1410,8 +1410,9 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import cats.effect._
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
+    *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = global.timerLiftIO[IO]
+    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 100)
     *     .delayExecution(1.second)
@@ -1462,8 +1463,9 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import cats.effect._
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
+    *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = global.timerLiftIO[IO]
+    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 10)
     *     .doOnSubscribeF(IO.sleep(1.second))
@@ -1508,8 +1510,9 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import cats.effect._
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
+    *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = global.timerLiftIO[IO]
+    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 100)
     *     .doAfterSubscribeF(IO.sleep(1.second))
@@ -2085,8 +2088,9 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import cats.effect.IO
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
+    *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = global.timerLiftIO[IO]
+    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 100).mapEvalF { x =>
     *     IO.sleep(1.second) *> IO(x)
@@ -4811,9 +4815,10 @@ object Observable extends ObservableDeprecatedBuilders {
     *    import cats.effect.IO
     *    import scala.concurrent.duration._
     *    import monix.execution.Scheduler.global
+    *    import monix.catnap.SchedulerEffect
     *
     *    // Needed for IO.sleep
-    *    implicit val timer = global.timerLiftIO[IO]
+    *    implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
     *    val task = IO.sleep(5.seconds) *> IO(println("Hello!"))
     *
     *    Observable.fromTaskLike(task)

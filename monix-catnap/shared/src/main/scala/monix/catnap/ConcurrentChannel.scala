@@ -51,9 +51,9 @@ import scala.collection.mutable.ArrayBuffer
   *   import monix.execution.Scheduler.global
   *
   *   // For being able to do IO.start
-  *   implicit val cs = global.contextShift[IO]
+  *   implicit val cs = SchedulerEffect.contextShift[IO](global)
   *   // We need a `Timer` for this to work
-  *   implicit val timer = global.timer[IO]
+  *   implicit val timer = SchedulerEffect.timer[IO](global)
   *
   *   // Completion event
   *   sealed trait Complete

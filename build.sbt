@@ -345,9 +345,7 @@ lazy val coreJS = project.in(file("monix/js"))
   .settings(name := "monix")
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution",
-  // Filtering out breaking changes from 3.0.0
-  libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion
+  name := "monix-execution"
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
@@ -371,8 +369,9 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 
 lazy val catnapCommon =
   crossSettings ++ crossVersionSharedSources ++ testSettings ++ Seq(
-    name := "monix-catnap"
-  )
+    name := "monix-catnap",
+    libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion
+)
 
 lazy val catnapJVM = project.in(file("monix-catnap/jvm"))
   .configure(profile)

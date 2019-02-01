@@ -549,15 +549,6 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assert(c.isCanceled, "c.isCanceled")
   }
 
-  test("flatMap should be stack safe") { implicit s =>
-    val n = 100000
-    val M = Monad[CancelableFuture]
-    val f = M.tailRecM(0)(i => M.pure(if (i < n) Left(i + 1) else Right(i)))
-    s.tick()
-    assert(f.isCompleted, "!f.isCompleted")
-    assertEquals(f.value, Some(Success(n)))
-  }
-
   test("async works for success") { implicit s =>
     val fa = CancelableFuture.async[Int] { cb =>
       s.executeAsync(() => cb(Success(1)))

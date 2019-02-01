@@ -210,6 +210,6 @@ object FutureLift extends internal.FutureLiftForPlatform {
   private def startCancelable[F[_], A](fa: CancelableFuture[A])(implicit F: Concurrent[F]): F[A] =
     F.cancelable { cb =>
       start(fa, cb)
-      fa.toCancelToken[F]
+      F.delay(fa.cancel())
     }
 }

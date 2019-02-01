@@ -17,7 +17,6 @@
 
 package monix.execution.exceptions
 
-import cats.Show
 
 /**
   * The [[UncaughtErrorException]] wraps uncaught, generic errors.
@@ -27,14 +26,12 @@ import cats.Show
   *     UncaughtErrorException("Error!")
   * }}}
   *
-  * Note this is using `cats.Show` to customize the `toString`
-  * implementation, for debugging purposes.
   */
-class UncaughtErrorException[E] private (error: E)(implicit E: Show[E])
+class UncaughtErrorException[E] private (error: E)
   extends RuntimeException {
 
   override def toString: String = {
-    getClass.getName + "(" + E.show(error) + ")"
+    getClass.getName + "(" + error.toString + ")"
   }
 }
 
@@ -42,7 +39,7 @@ object UncaughtErrorException {
   /**
     * Builds an [[UncaughtErrorException]] value.
     */
-  def apply[E](error: E)(implicit E: Show[E] = Show.fromToString[E]): UncaughtErrorException[E] =
+  def apply[E](error: E): UncaughtErrorException[E] =
     new UncaughtErrorException[E](error)
 
   /**

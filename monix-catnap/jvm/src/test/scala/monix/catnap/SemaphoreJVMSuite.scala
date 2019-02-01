@@ -44,9 +44,9 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
   }
 
   implicit def contextShift(implicit ec: Scheduler): ContextShift[IO] =
-    ec.contextShift[IO](IO.ioEffect)
+    SchedulerEffect.contextShift[IO](ec)(IO.ioEffect)
   implicit def timer(implicit ec: Scheduler): Timer[IO] =
-    ec.timerLiftIO[IO](IO.ioEffect)
+    SchedulerEffect.timerLiftIO[IO](ec)(IO.ioEffect)
 
   // ----------------------------------------------------------------------------
   val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"

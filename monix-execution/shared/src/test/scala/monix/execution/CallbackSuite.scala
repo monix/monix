@@ -85,14 +85,6 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assert(callback.successCalled)
   }
 
-  test("contramap has a cats Contramap instance") { implicit s =>
-    val instance = implicitly[Contravariant[Callback[Throwable, ?]]]
-    val callback = TestCallback()
-    val stringCallback = instance.contramap(callback)((x: String) => x.toInt)
-    stringCallback.onSuccess("1")
-    assert(callback.successCalled)
-  }
-
   test("Callback.fromPromise (success)") { _ =>
     val p = Promise[Int]()
     val cb = Callback.fromPromise(p)

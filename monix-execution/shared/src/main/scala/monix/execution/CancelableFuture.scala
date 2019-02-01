@@ -17,7 +17,6 @@
 
 package monix.execution
 
-import cats.{CoflatMap, Eval, Monad, MonadError, StackSafeMonad}
 import monix.execution.Cancelable.IsDummy
 import monix.execution.CancelableFuture.{Async, Never, Pure}
 import monix.execution.cancelables.{ChainedCancelable, SingleAssignCancelable}
@@ -360,72 +359,4 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
       cancelable.cancel()
   }
 
-  /** Returns the associated Cats type class instances for the
-    * [[CancelableFuture]] data type.
-    *
-    * @param ec is the
-    *        [[scala.concurrent.ExecutionContext ExecutionContext]]
-    *        needed in order to create the needed type class instances,
-    *        since future transformations rely on an `ExecutionContext`
-    *        passed explicitly (by means of an implicit parameter)
-    *        on each operation
-    */
-  implicit def catsInstances(implicit ec: ExecutionContext): CatsInstances =
-    new CatsInstances()
-
-  /** Implementation of Cats type classes for the
-    * [[CancelableFuture]] data type.
-    *
-    * @param ec is the
-    *        [[scala.concurrent.ExecutionContext ExecutionContext]]
-    *        needed since future transformations rely on an
-    *        `ExecutionContext` passed explicitly (by means of an
-    *        implicit parameter) on each operation
-    */
-  final class CatsInstances(implicit ec: ExecutionContext)
-    extends Monad[CancelableFuture]
-    with StackSafeMonad[CancelableFuture]
-    with CoflatMap[CancelableFuture]
-    with MonadError[CancelableFuture, Throwable] {
-
-    override def pure[A](x: A): CancelableFuture[A] =
-      CancelableFuture.successful(x)
-    override def map[A, B](fa: CancelableFuture[A])(f: A => B): CancelableFuture[B] =
-      fa.map(f)
-    override def flatMap[A, B](fa: CancelableFuture[A])(f: A => CancelableFuture[B]): CancelableFuture[B] =
-      fa.flatMap(f)
-    override def coflatMap[A, B](fa: CancelableFuture[A])(f: CancelableFuture[A] => B): CancelableFuture[B] =
-      CancelableFuture(Future(f(fa)), fa)
-    override def handleErrorWith[A](fa: CancelableFuture[A])(f: Throwable => CancelableFuture[A]): CancelableFuture[A] =
-      fa.recoverWith { case t => f(t) }
-    override def raiseError[A](e: Throwable): CancelableFuture[Nothing] =
-      CancelableFuture.failed(e)
-    override def handleError[A](fea: CancelableFuture[A])(f: Throwable => A): CancelableFuture[A] =
-      fea.recover { case t => f(t) }
-    override def attempt[A](fa: CancelableFuture[A]): CancelableFuture[Either[Throwable, A]] =
-      fa.transformWith(liftToEitherRef).asInstanceOf[CancelableFuture[Either[Throwable, A]]]
-    override def recover[A](fa: CancelableFuture[A])(pf: PartialFunction[Throwable, A]): CancelableFuture[A] =
-      fa.recover(pf)
-    override def recoverWith[A](fa: CancelableFuture[A])(pf: PartialFunction[Throwable, CancelableFuture[A]]): CancelableFuture[A] =
-      fa.recoverWith(pf)
-    override def catchNonFatal[A](a: => A)(implicit ev: Throwable <:< Throwable): CancelableFuture[A] =
-      CancelableFuture(Future(a), Cancelable.empty)
-    override def catchNonFatalEval[A](a: Eval[A])(implicit ev: Throwable <:< Throwable): CancelableFuture[A] =
-      CancelableFuture(Future(a.value), Cancelable.empty)
-
-    override def adaptError[A](fa: CancelableFuture[A])(pf: PartialFunction[Throwable, Throwable]): CancelableFuture[A] =
-      fa.transformWith {
-        case Failure(e) if pf.isDefinedAt(e) =>
-          Future.failed(pf(e))
-        case _ =>
-          fa
-      }
-  }
-
-  // Reusable reference to use in `CatsInstances.attempt`
-  private[this] val liftToEitherRef: (Try[Any] => CancelableFuture[Either[Throwable, Any]]) =
-    tryA => new Pure(Success(tryA match {
-      case Success(a) => Right(a)
-      case Failure(e) => Left(e)
-    }))
 }

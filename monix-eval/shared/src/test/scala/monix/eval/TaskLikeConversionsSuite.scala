@@ -19,9 +19,11 @@ package monix.eval
 
 import cats.Eval
 import cats.effect.{IO, SyncIO}
+import monix.catnap.SchedulerEffect
 import monix.eval.utils.EvalComonad
 import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -186,7 +188,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.from(custom Effect)") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomEffect()
 
     var effect = false
@@ -201,7 +203,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.from(custom Effect) for errors") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomEffect()
 
     var effect = false
@@ -217,7 +219,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.from(custom ConcurrentEffect)") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomConcurrentEffect()
 
     var effect = false
@@ -232,7 +234,7 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.from(custom ConcurrentEffect) for errors") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomConcurrentEffect()
 
     var effect = false
