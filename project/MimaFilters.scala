@@ -4,6 +4,10 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
+    exclude[IncompatibleResultTypeProblem]("monix.execution.Cancelable.empty"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.CancelableFuture#Pure.cancelable"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.CancelableFuture#Never.cancelable"),
+
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.producerType"),
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.consumerType"),
     exclude[IncompatibleMethTypeProblem]("monix.catnap.ConcurrentQueue.offerMany"),
