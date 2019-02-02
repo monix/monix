@@ -21,6 +21,7 @@ import monix.catnap.CancelableF
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.atomic.{Atomic, PaddingStrategy}
+import monix.execution.internal.compat._
 
 private[eval] object TaskRaceList {
   /**
@@ -42,9 +43,9 @@ private[eval] object TaskRaceList {
       val conn = context.connection
 
       val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
-      val taskArray = tasks.toArray
+      val taskArray = toArray(tasks)
       val cancelableArray = buildCancelableArray(taskArray.length)
-      conn.pushConnections(cancelableArray:_*)
+      conn.pushConnections(cancelableArray.toIndexedSeq:_*)
 
       var index = 0
       while (index < taskArray.length) {
@@ -60,7 +61,7 @@ private[eval] object TaskRaceList {
               case cc if cc ne taskCancelable =>
                 cc.cancel
             }
-            CancelableF.cancelAllTokens[Task](arr2:_*)
+            CancelableF.cancelAllTokens[Task](arr2.toIndexedSeq:_*)
               .runAsyncAndForget
           }
 

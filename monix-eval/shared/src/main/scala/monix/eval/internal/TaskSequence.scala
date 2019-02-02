@@ -18,13 +18,13 @@
 package monix.eval.internal
 
 import monix.eval.Task
-import scala.collection.generic.CanBuildFrom
+import monix.execution.internal.compat._
 import scala.collection.mutable
 
 private[eval] object TaskSequence {
   /** Implementation for `Task.sequence`. */
   def list[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
+    (implicit bf: BuildFromCompat[M[Task[A]], A, M[A]]): Task[M[A]] = {
 
     def loop(cursor: Iterator[Task[A]], acc: mutable.Builder[A, M[A]]): Task[M[A]] = {
       if (cursor.hasNext) {
@@ -36,14 +36,14 @@ private[eval] object TaskSequence {
     }
 
     Task.defer {
-      val cursor: Iterator[Task[A]] = in.toIterator
-      loop(cursor, cbf(in))
+      val cursor: Iterator[Task[A]] = toIterator(in)
+      loop(cursor, bf.newBuilder(in))
     }
   }
 
   /** Implementation for `Task.traverse`. */
   def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A], f: A => Task[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
+    (implicit bf: BuildFromCompat[M[A], B, M[B]]): Task[M[B]] = {
 
     def loop(cursor: Iterator[A], acc: mutable.Builder[B, M[B]]): Task[M[B]] = {
       if (cursor.hasNext) {
@@ -55,7 +55,7 @@ private[eval] object TaskSequence {
     }
 
     Task.defer {
-      loop(in.toIterator, cbf(in))
+      loop(toIterator(in), bf.newBuilder(in))
     }
   }
 }

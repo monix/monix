@@ -35,7 +35,7 @@ object ScanEffectSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) =
     sourceCount
   def sum(sourceCount: Int) =
-    0.until(sourceCount).scan(0)(_ + _).sum
+    0.until(sourceCount).scanLeft(0)(_ + _).sum
 
   def waitFirst = Duration.Zero
   def waitNext = Duration.Zero

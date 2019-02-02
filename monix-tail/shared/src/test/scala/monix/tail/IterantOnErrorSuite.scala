@@ -18,6 +18,7 @@
 package monix.tail
 
 import cats.effect.IO
+import cats.syntax.either._
 import cats.syntax.eq._
 import cats.laws._
 import cats.laws.discipline._
@@ -32,7 +33,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
 
     assertEquals(
       i.attempt.toListL.value(),
-      i.map(Right.apply).toListL.value()
+      i.map(_.asRight).toListL.value()
     )
   }
 
@@ -297,7 +298,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
       assertEquals(list.length, 2)
       assertEquals(list.head, Right(1))
       val two = list(1)
-      assert(two.isLeft && two.left.get.isInstanceOf[CompositeException])
+      assert(two.isLeft && two.swap.forall(_.isInstanceOf[CompositeException]))
     }
   }
 
@@ -358,7 +359,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
       assertEquals(list.length, 2)
       assertEquals(list.head, Right(1))
       val two = list(1)
-      assert(two.isLeft && two.left.get.isInstanceOf[CompositeException])
+      assert(two.isLeft && two.swap.forall(_.isInstanceOf[CompositeException]))
     }
   }
 }

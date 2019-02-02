@@ -141,7 +141,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     check1 { (el: Int) =>
       val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]))
       val received = stream.mapBatch(Batch.apply(_)).take(10).toListL
-      val expected = Coeval(Stream.continually(el).take(10).toList)
+      val expected = Coeval(Iterator.continually(el).take(10).toList)
 
       received <-> expected
     }

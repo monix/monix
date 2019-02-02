@@ -78,10 +78,16 @@ object IterantDropLastSuite extends BaseTestSuite {
   }
 
   test("Iterant.dropLast works for infinite cursors") { implicit s =>
+    // always produces at least one item
+    def dropRight[A](i: Iterator[A], n: Int) = {
+      // https://stackoverflow.com/a/3511985/4094860
+      i.sliding(n + 1, step = 1).map(_.head)
+    }
+
     check2 { (el: Int, _: Int) =>
       val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]))
       val received = stream.dropLast(1).take(1).toListL
-      val expected = Coeval(Stream.continually(el).dropRight(1).take(1).toList)
+      val expected = Coeval(dropRight(Iterator.continually(el), 1).take(1).toList)
 
       received <-> expected
     }

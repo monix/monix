@@ -39,7 +39,7 @@ object IterantFromSeqSuite extends BaseTestSuite {
 
   test("Iterant[Task].fromSeq(iterable)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = Iterant[Task].fromSeq(list.to[ListBuffer]).toListL
+      val result = Iterant[Task].fromSeq(ListBuffer(list:_*).toSeq).toListL
       result <-> Task.now(list)
     }
   }

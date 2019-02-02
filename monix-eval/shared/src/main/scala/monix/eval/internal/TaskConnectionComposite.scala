@@ -24,9 +24,9 @@ import monix.eval.internal.TaskConnectionComposite.{Active, Cancelled, State}
 import monix.execution.{Cancelable, Scheduler}
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.atomic.{Atomic, AtomicAny}
+import monix.execution.internal.compat._
 
 import scala.annotation.tailrec
-import scala.collection.GenTraversableOnce
 
 private[eval] final class TaskConnectionComposite private
   (stateRef: AtomicAny[State]) {
@@ -91,7 +91,7 @@ private[eval] final class TaskConnectionComposite private
     * connection is still active, or cancels the whole collection
     * otherwise.
     */
-  def addAll(that: GenTraversableOnce[CancelToken[Task]])
+  def addAll(that: IterableOnce[CancelToken[Task]])
     (implicit s: Scheduler): Unit = {
 
     @tailrec def loop(that: Iterable[CancelToken[Task]]): Unit =
@@ -106,7 +106,7 @@ private[eval] final class TaskConnectionComposite private
           }
       }
 
-    loop(that.toIterable.seq)
+    loop(toIterator(that).toSeq)
   }
 
   /**

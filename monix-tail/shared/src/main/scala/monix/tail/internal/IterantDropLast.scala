@@ -81,7 +81,7 @@ private[tail] object IterantDropLast {
 
       queue = queueLoop(queue, limit)
       val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
-      NextCursor(BatchCursor.fromSeq(buffer), next.map(this))
+      NextCursor(BatchCursor.fromSeq(buffer.toSeq), next.map(this))
     }
 
     def visit(ref: Suspend[F, A]): Iterant[F, A] =

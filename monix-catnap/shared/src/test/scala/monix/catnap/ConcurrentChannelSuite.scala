@@ -152,7 +152,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
       fiber <- chan.consume.use(_.pullMany(10, 10)).start
       _     <- chan.awaitConsumers(1)
       _     <- chan.pushMany(1 to 10)
-      r     <- fiber.join.map(_.right.map(_.sum))
+      r     <- fiber.join.map(_.map(_.sum))
     } yield {
       assertEquals(r, Right(55))
     }

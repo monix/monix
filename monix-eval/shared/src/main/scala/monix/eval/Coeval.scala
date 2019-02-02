@@ -24,11 +24,11 @@ import monix.eval.Coeval._
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal.{CoevalBracket, CoevalRunLoop, LazyVal, StackFrame}
 import monix.execution.annotations.UnsafeBecauseImpure
+import monix.execution.internal.compat._
 
 import scala.util.control.NonFatal
 import monix.execution.internal.Platform.fusionMaxStackDepth
 
-import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
@@ -1012,9 +1012,9 @@ object Coeval extends CoevalInstancesLevel0 {
     * It's a simple version of [[traverse]].
     */
   def sequence[A, M[X] <: TraversableOnce[X]](sources: M[Coeval[A]])
-    (implicit cbf: CanBuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
-    val init = eval(cbf(sources))
-    val r = sources.foldLeft(init)((acc,elem) => acc.zipMap(elem)(_ += _))
+    (implicit bf: BuildFromCompat[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
+    val init = eval(bf.newBuilder(sources))
+    val r = toIterator(sources).foldLeft(init)((acc,elem) => acc.zipMap(elem)(_ += _))
     r.map(_.result())
   }
 
@@ -1024,9 +1024,9 @@ object Coeval extends CoevalInstancesLevel0 {
     * It's a generalized version of [[sequence]].
     */
   def traverse[A, B, M[X] <: TraversableOnce[X]](sources: M[A])(f: A => Coeval[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
-    val init = eval(cbf(sources))
-    val r = sources.foldLeft(init)((acc,elem) => acc.zipMap(f(elem))(_ += _))
+    (implicit bf: BuildFromCompat[M[A], B, M[B]]): Coeval[M[B]] = {
+    val init = eval(bf.newBuilder(sources))
+    val r = toIterator(sources).foldLeft(init)((acc,elem) => acc.zipMap(f(elem))(_ += _))
     r.map(_.result())
   }
 

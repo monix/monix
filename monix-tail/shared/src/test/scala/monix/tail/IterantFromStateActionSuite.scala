@@ -29,7 +29,7 @@ object IterantFromStateActionSuite extends BaseTestSuite {
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
       val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateAction[Int, Int](f)(seed)
-      val expected = Stream.continually(0)
+      val expected = Iterator.continually(0)
         .scanLeft(f(seed)) { case ((_, newSeed), _) => f(newSeed) }
         .map { case (value, _) => value }
         .take(n).toList
@@ -62,7 +62,7 @@ object IterantFromStateActionSuite extends BaseTestSuite {
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
       val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateActionL[Int, Int](f andThen Task.now)(Task.now(seed))
-      val expected = Stream.continually(0)
+      val expected = Iterator.continually(0)
         .scanLeft(f(seed)) { case ((_, newSeed), _) => f(newSeed) }
         .map { case (value, _) => value }
         .take(n).toList

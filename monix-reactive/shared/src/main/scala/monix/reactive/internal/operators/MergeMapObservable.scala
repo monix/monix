@@ -52,7 +52,7 @@ private[reactive] final class MergeMapObservable[A,B](
           if (delayErrors)
             errors.synchronized {
               if (errors.nonEmpty)
-                subscriberB.onError(CompositeException(errors))
+                subscriberB.onError(CompositeException(errors.toSeq))
               else
                 subscriberB.onComplete()
             }

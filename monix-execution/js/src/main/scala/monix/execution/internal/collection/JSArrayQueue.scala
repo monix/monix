@@ -42,8 +42,6 @@ private[monix] final class JSArrayQueue[A] private
     queue.length - offset
   override def isEmpty: Boolean =
     queue.length - offset == 0
-  override def nonEmpty: Boolean =
-    queue.length - offset > 0
 
   def fenceOffer(): Unit = ()
   def fencePoll(): Unit = ()

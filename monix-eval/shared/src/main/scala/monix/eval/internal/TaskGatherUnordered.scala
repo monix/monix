@@ -24,6 +24,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.internal.compat._
 
 import scala.util.control.NonFatal
 import scala.annotation.tailrec
@@ -124,7 +125,7 @@ private[eval] object TaskGatherUnordered {
         // expensive, so we do it at the end
         val allCancelables = ListBuffer.empty[CancelToken[Task]]
         val batchSize = s.executionModel.recommendedBatchSize
-        val cursor = in.toIterator
+        val cursor = toIterator(in)
 
         var continue = true
         var count = 0

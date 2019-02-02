@@ -22,6 +22,7 @@ import monix.eval.Task.{Async, Context}
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Scheduler
+import monix.execution.internal.compat._
 import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -103,7 +104,7 @@ private[eval] object TaskGather {
 
       try {
         implicit val s = context.scheduler
-        tasks = in.toArray
+        tasks = toArray(in)
         tasksCount = tasks.length
 
         if (tasksCount == 0) {

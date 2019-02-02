@@ -47,14 +47,14 @@ object IterantDropWhileIndexSuite extends BaseTestSuite {
     }
   }
 
-  @tailrec
-  def dropWhileWithIndex(list: Stream[Int], index: Int)(p: (Int, Int) => Boolean): Stream[Int] = {
-    list match {
-      case Empty => Empty
-      case x #:: xs =>
-        if (p(x, index)) dropWhileWithIndex(xs, index + 1)(p)
-        else list
+  def dropWhileWithIndex(list: Iterator[Int], index: Int)(p: (Int, Int) => Boolean): Iterator[Int] = {
+    var i = index
+    while (list.hasNext) {
+      val x = list.next()
+      if (p(x, i)) i = i + 1
+      else return list
     }
+    list
   }
 
   test("Iterant.dropWhileWithIndex equivalence with List.dropWhileWithIndex") { implicit s =>
@@ -108,7 +108,7 @@ object IterantDropWhileIndexSuite extends BaseTestSuite {
     check3 { (el: Int, p: (Int, Int) => Boolean, _: Int) =>
       val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]))
       val received = stream.dropWhileWithIndex(p).take(1).toListL
-      val expected = Coeval(dropWhileWithIndex(Stream.continually(el), 0)(p).take(1).toList)
+      val expected = Coeval(dropWhileWithIndex(Iterator.continually(el), 0)(p).take(1).toList)
 
       received <-> expected
     }

@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect._
+import cats.effect.{Fiber => _, _}
 import cats.{Monoid, Semigroup}
 import monix.catnap.FutureLift
 import monix.eval.instances._
@@ -29,9 +29,9 @@ import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.Local
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
+import monix.execution.internal.compat._
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
-import scala.collection.generic.CanBuildFrom
 import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
@@ -2404,7 +2404,7 @@ object Task extends TaskInstancesLevel1 {
     * Switch to [[Task.evalAsync]] if you wish the old behavior, or combine
     * [[Task.eval]] with [[Task.executeAsync]].
     */
-  def apply[A](@deprecatedName('f) a: => A): Task[A] =
+  def apply[A](a: => A): Task[A] =
     eval(a)
 
   /** Returns a `Task` that on execution is always successful, emitting
@@ -3347,8 +3347,8 @@ object Task extends TaskInstancesLevel1 {
     *  It's a simple version of [[traverse]].
     */
   def sequence[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
-    TaskSequence.list(in)(cbf)
+    (implicit bf: BuildFromCompat[M[Task[A]], A, M[A]]): Task[M[A]] =
+    TaskSequence.list(in)(bf)
 
   /** Given a `TraversableOnce[A]` and a function `A => Task[B]`, sequentially
     * apply the function to each element of the collection and gather their
@@ -3357,8 +3357,8 @@ object Task extends TaskInstancesLevel1 {
     *  It's a generalized version of [[sequence]].
     */
   def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] =
-    TaskSequence.traverse(in, f)(cbf)
+    (implicit bf: BuildFromCompat[M[A], B, M[B]]): Task[M[B]] =
+    TaskSequence.traverse(in, f)(bf)
 
   /** Executes the given sequence of tasks in parallel, non-deterministically
     * gathering their results, returning a task that will signal the sequence
@@ -3387,8 +3387,8 @@ object Task extends TaskInstancesLevel1 {
     * $parallelismNote
     */
   def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
-    TaskGather[A, M](in, () => cbf(in))
+    (implicit bf: BuildFromCompat[M[Task[A]], A, M[A]]): Task[M[A]] =
+    TaskGather[A, M](in, () => bf.newBuilder(in))
 
   /** Given a `TraversableOnce[A]` and a function `A => Task[B]`,
     * nondeterministically apply the function to each element of the collection
@@ -3412,8 +3412,8 @@ object Task extends TaskInstancesLevel1 {
     * $parallelismNote
     */
   def wander[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] =
-    Task.eval(in.map(f)).flatMap(col => TaskGather[B, M](col, () => cbf(in)))
+    (implicit bf: BuildFromCompat[M[A], B, M[B]]): Task[M[B]] =
+    Task.eval(toIterator(in).map(f)).flatMap(col => TaskGather[B, M](col, () => bf.newBuilder(in)))
 
   /** Processes the given collection of tasks in parallel and
     * nondeterministically gather the results without keeping the original
@@ -3461,7 +3461,7 @@ object Task extends TaskInstancesLevel1 {
     * $parallelismNote
     */
   def wanderUnordered[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B]): Task[List[B]] =
-    Task.eval(in.map(f)).flatMap(gatherUnordered)
+    Task.eval(toIterator(in).map(f)).flatMap(gatherUnordered)
 
   /** Yields a task that on evaluation will process the given tasks
     * in parallel, then apply the given mapping function on their results.

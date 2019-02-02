@@ -49,8 +49,6 @@ private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recomm
     size >= modulus
   override def isEmpty: Boolean =
     headIdx == tailIdx
-  override def nonEmpty: Boolean =
-    headIdx != tailIdx
 
   def offer(elem: A): Int = {
     if (elem == null) throw new NullPointerException("Null is not supported")
@@ -105,9 +103,6 @@ private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recomm
     count
   }
 
-  override val hasDefiniteSize: Boolean =
-    true
-
   override def size: Int = {
     if (tailIdx >= headIdx)
       tailIdx - headIdx
@@ -134,7 +129,7 @@ private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recomm
 
   /** Returns an `Iterator` for this queue.
     *
-    * @param exactSize specified if the `Iterator` should be relaxed 
+    * @param exactSize specified if the `Iterator` should be relaxed
     *        regarding the `_recommendedCapacity` (if `false`), or
     *        whether it should have a fixed size and thus not exceed
     *        `_recommendedCapacity` (if `true`)

@@ -20,6 +20,7 @@ package batches
 
 import scala.reflect.ClassTag
 import monix.execution.internal.Platform.recommendedBatchSize
+import monix.execution.internal.compat._
 
 /** The `Batch` is a [[BatchCursor]] factory, similar in spirit
   * with Scala's [[scala.collection.Iterable Iterable]].
@@ -181,7 +182,7 @@ object Batch {
     * semantics on transformations.
     */
   def fromSeq[A](seq: Seq[A]): Batch[A] = {
-    val bs = if (seq.hasDefiniteSize) recommendedBatchSize else 1
+    val bs = if (hasDefiniteSize(seq)) recommendedBatchSize else 1
     fromSeq(seq, bs)
   }
 
