@@ -2072,6 +2072,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * implementable by recursing into a Resource:
     *
     * {{{
+    *   import cats._, cats.implicits._, cats.effect._
+    *
     *   def fold[F[_]: Sync, A: Monoid](iterant: Iterant[F, A]): F[A] = {
     *     def go(iterant: Iterant[F, A], acc: A): Resource[F, A] =
     *       iterant.unconsR.flatMap {
