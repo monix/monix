@@ -2061,9 +2061,41 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def toListL(implicit F: Sync[F]): F[List[A]] =
     IterantFoldLeftL.toListL(self)(F)
 
+  /**
+    * Pull the first element out of this Iterant and return it and the rest.
+    * If the returned Option is None, the remainder is always empty.
+    *
+    * The value returned is wrapped in Resource to preserve resource safety,
+    * and consumption of the rest must not leak outside of use.
+    *
+    * This can be used to implement custom operators. For example, `fold` is
+    * implementable by recursing into a Resource:
+    *
+    * {{{
+    *   def fold[F[_]: Sync, A: Monoid](iterant: Iterant[F, A]): F[A] = {
+    *     def go(iterant: Iterant[F, A], acc: A): Resource[F, A] =
+    *       iterant.unconsR.flatMap {
+    *         case (None, _) => Resource.pure(acc)
+    *         case (Some(a), rest) => go(rest, acc |+| a)
+    *       }
+    *
+    *     go(iterant, Monoid[A].empty).use(_.pure[F])
+    *   }
+    * }}}
+    *
+    * @see [[uncons]] for version that wraps value in Iterant
+    */
   final def unconsR(implicit F: Sync[F]): Resource[F, (Option[A], Iterant[F, A])] =
     IterantUncons(self)
 
+  /**
+    * Pull the first element out of this Iterant and return it and the rest.
+    * If the returned Option is None, the remainder is always empty.
+    *
+    * The value returned is wrapped in Iterant to preserve resource safety.
+    *
+    * This is equivalent to doing Iterant.fromResource on a result of [[unconsR]]
+    */
   final def uncons(implicit F: Sync[F]): Iterant[F, (Option[A], Iterant[F, A])] =
     Iterant.fromResource(unconsR)
 
