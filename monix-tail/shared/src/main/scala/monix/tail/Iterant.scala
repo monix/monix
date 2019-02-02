@@ -2061,6 +2061,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def toListL(implicit F: Sync[F]): F[List[A]] =
     IterantFoldLeftL.toListL(self)(F)
 
+  final def unconsR(implicit F: Sync[F]): Resource[F, (Option[A], Iterant[F, A])] =
+    IterantUncons(self)
+
+  final def uncons(implicit F: Sync[F]): Iterant[F, (Option[A], Iterant[F, A])] =
+    Iterant.fromResource(unconsR)
+
   /** Lazily zip two iterants together.
     *
     * The length of the result will be the shorter of the two
