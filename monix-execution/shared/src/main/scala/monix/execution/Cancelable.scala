@@ -56,7 +56,7 @@ object Cancelable {
     new CancelableTask(callback)
 
   /** Returns a dummy [[Cancelable]] that doesn't do anything. */
-  val empty: Empty =
+  val empty: Cancelable =
     new Empty {
       def cancel(): Unit = ()
       override def toString = "monix.execution.Cancelable.empty"
