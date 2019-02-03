@@ -19,8 +19,8 @@ package monix.execution.schedulers
 
 import monix.execution.cancelables.OrderedCancelable
 import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
-import monix.execution.{Cancelable, Scheduler}
-import scala.concurrent.duration.{TimeUnit, MILLISECONDS, NANOSECONDS}
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
+import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 
@@ -86,22 +86,27 @@ trait ReferenceScheduler extends Scheduler {
   }
 
   override def withExecutionModel(em: ExecModel): Scheduler =
-    WrappedScheduler(this, em)
+    WrappedScheduler(this, em, this)
+
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
+    WrappedScheduler(this, executionModel, r)
 }
 
 object ReferenceScheduler {
   /** Wrapper around any scheduler implementation,
-    * for specifying any execution model.
+    * for specifying any execution model and UncaughtExceptionReporter.
     */
   private final case class WrappedScheduler(
     s: Scheduler,
-    override val executionModel: ExecModel)
+    override val executionModel: ExecModel,
+    r: UncaughtExceptionReporter
+  )
     extends Scheduler {
 
     override def execute(runnable: Runnable): Unit =
       s.execute(runnable)
     override def reportFailure(t: Throwable): Unit =
-      s.reportFailure(t)
+      r.reportFailure(t)
     override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
       s.scheduleOnce(initialDelay, unit, r)
     override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable =
@@ -114,5 +119,7 @@ object ReferenceScheduler {
       s.clockMonotonic(unit)
     override def withExecutionModel(em: ExecModel): Scheduler =
       copy(s, em)
+    override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
+      copy(r = r)
   }
 }

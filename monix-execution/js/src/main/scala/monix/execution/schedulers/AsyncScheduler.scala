@@ -28,7 +28,9 @@ import scala.concurrent.ExecutionContext
   */
 final class AsyncScheduler private (
   context: ExecutionContext,
-  override val executionModel: ExecModel)
+  override val executionModel: ExecModel,
+  r: UncaughtExceptionReporter
+)
   extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(r: Runnable): Unit =
@@ -45,9 +47,12 @@ final class AsyncScheduler private (
   }
 
   override def reportFailure(t: Throwable): Unit =
-    context.reportFailure(t)
+    r.reportFailure(t)
   override def withExecutionModel(em: ExecModel): AsyncScheduler =
-    new AsyncScheduler(context, em)
+    new AsyncScheduler(context, em, r)
+
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): AsyncScheduler =
+    new AsyncScheduler(context, executionModel, r)
 }
 
 object AsyncScheduler {
@@ -60,6 +65,6 @@ object AsyncScheduler {
     *        [[monix.execution.ExecutionModel ExecutionModel]], a guideline
     *        for run-loops and producers of data.
     */
-  def apply(context: ExecutionContext, executionModel: ExecModel): AsyncScheduler =
-    new AsyncScheduler(context, executionModel)
+  def apply(context: ExecutionContext, executionModel: ExecModel, r: UncaughtExceptionReporter): AsyncScheduler =
+    new AsyncScheduler(context, executionModel, r)
 }

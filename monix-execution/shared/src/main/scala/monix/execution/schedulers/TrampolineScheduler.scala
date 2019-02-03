@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 
@@ -55,7 +55,8 @@ import monix.execution.{ExecutionModel => ExecModel}
   */
 final class TrampolineScheduler(
   underlying: Scheduler,
-  override val executionModel: ExecModel)
+  override val executionModel: ExecModel,
+  r: UncaughtExceptionReporter)
   extends Scheduler { self =>
 
   private[this] val trampoline =
@@ -64,7 +65,7 @@ final class TrampolineScheduler(
     trampoline.execute(runnable)
 
   override def reportFailure(t: Throwable): Unit =
-    underlying.reportFailure(t)
+    r.reportFailure(t)
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
     underlying.scheduleOnce(initialDelay, unit, r)
   override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable =
@@ -76,7 +77,9 @@ final class TrampolineScheduler(
   override def clockMonotonic(unit: TimeUnit): Long =
     underlying.clockMonotonic(unit)
   override def withExecutionModel(em: ExecModel): TrampolineScheduler =
-    new TrampolineScheduler(underlying, em)
+    new TrampolineScheduler(underlying, em, r)
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
+    new TrampolineScheduler(underlying, executionModel, r)
 }
 
 object TrampolineScheduler {
@@ -92,5 +95,21 @@ object TrampolineScheduler {
     *         for the default.
     */
   def apply(underlying: Scheduler, em: ExecModel): TrampolineScheduler =
-    new TrampolineScheduler(underlying, em)
+    new TrampolineScheduler(underlying, em, underlying)
+
+  /** Builds a [[TrampolineScheduler]] instance.
+    *
+    * @param underlying is the [[monix.execution.Scheduler Scheduler]]
+    *        to which the we defer to in case asynchronous or time-delayed
+    *        execution is needed
+    *
+    * @param em is the preferred [[ExecutionModel]],
+    *         a guideline for run-loops and producers of data. Use
+    *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
+    *         for the default.
+    *
+    * @param r is the [[UncaughtExceptionReporter]] to use for logging uncaught exceptions
+    */
+  def apply(underlying: Scheduler, em: ExecModel, r: UncaughtExceptionReporter): TrampolineScheduler =
+    new TrampolineScheduler(underlying, em, r)
 }

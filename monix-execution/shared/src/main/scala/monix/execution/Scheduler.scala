@@ -236,6 +236,35 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     * }}}
     */
   def withExecutionModel(em: ExecutionModel): Scheduler
+
+
+  /** Given an [[monix.execution.UncaughtExceptionReporter UncaughtExceptionReporter]],
+    * returns a new [[Scheduler]] reference, based on the source,
+    * but using the provided `UncaughtExceptionReporter`.
+    *
+    * The contract of this method (things you can rely on):
+    *
+    *  1. the source `Scheduler` must not be modified in any way
+    *  2. the implementation should wrap the source efficiently, such that the
+    *     result mirrors the source `Scheduler` in every way except for
+    *     the exception reporter
+    *  3. The `reportException` of original Scheduler must not be called
+    *
+    * E.g. this is how you can use global scheduler to write uncaught exceptions to file:
+    * {{{
+    *   import monix.execution.Scheduler.global
+    *
+    *   implicit val scheduler = global.withUncaughtExceptionReporter { e: Throwable =>
+    *     try {
+    *       val fw = new FileWriter("exceptions.txt", append = true);
+    *       e.printStackTrace(new PrintWriter(fw))
+    *     } finally {
+    *       fw.close()
+   *      }
+    *   }
+    * }}}
+    */
+  def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler
 }
 
 private[monix] trait SchedulerCompanion {
