@@ -59,6 +59,9 @@ final class TrampolineScheduler(
   r: UncaughtExceptionReporter)
   extends Scheduler { self =>
 
+  def this(underlying: Scheduler, execModel: ExecModel) =
+    this(underlying, execModel, underlying)
+
   private[this] val trampoline =
     TrampolineExecutionContext(underlying)
   override def execute(runnable: Runnable): Unit =

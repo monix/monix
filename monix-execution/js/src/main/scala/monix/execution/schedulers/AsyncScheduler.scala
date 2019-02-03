@@ -65,6 +65,19 @@ object AsyncScheduler {
     *        [[monix.execution.ExecutionModel ExecutionModel]], a guideline
     *        for run-loops and producers of data.
     */
+  def apply(context: ExecutionContext, executionModel: ExecModel): AsyncScheduler =
+    new AsyncScheduler(context, executionModel, UncaughtExceptionReporter(context.reportFailure))
+
+  /** Builder for [[AsyncScheduler]].
+    *
+    * @param context is the `scala.concurrent.ExecutionContext` that gets used
+    *        for executing `Runnable` values and for reporting errors
+    *
+    * @param executionModel is the preferred
+    *        [[monix.execution.ExecutionModel ExecutionModel]], a guideline
+    *        for run-loops and producers of data.
+    * @param r is the [[UncaughtExceptionReporter]] to use for logging uncaught exceptions
+    */
   def apply(context: ExecutionContext, executionModel: ExecModel, r: UncaughtExceptionReporter): AsyncScheduler =
     new AsyncScheduler(context, executionModel, r)
 }
