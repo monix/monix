@@ -28,7 +28,7 @@ import monix.execution.BufferCapacity.Bounded
 import monix.execution.{BufferCapacity, ChannelType}
 import monix.execution.ChannelType.{MultiProducer, SingleConsumer}
 import monix.execution.annotations.UnsafeProtocol
-import monix.execution.internal.compat._
+import monix.execution.compat.internal._
 
 import scala.util.control.NonFatal
 import monix.execution.internal.Platform.{recommendedBatchSize, recommendedBufferChunkSize}

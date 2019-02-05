@@ -29,7 +29,8 @@ import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.Local
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
-import monix.execution.internal.compat._
+import monix.execution.compat.BuildFrom
+import monix.execution.compat.internal.newBuilder
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
@@ -3347,7 +3348,7 @@ object Task extends TaskInstancesLevel1 {
     *  It's a simple version of [[traverse]].
     */
   def sequence[A, M[X] <: Iterable[X]](in: M[Task[A]])
-    (implicit bf: BuildFromCompat[M[Task[A]], A, M[A]]): Task[M[A]] =
+    (implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
     TaskSequence.list(in)(bf)
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`, sequentially
@@ -3357,7 +3358,7 @@ object Task extends TaskInstancesLevel1 {
     *  It's a generalized version of [[sequence]].
     */
   def traverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])
-    (implicit bf: BuildFromCompat[M[A], B, M[B]]): Task[M[B]] =
+    (implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     TaskSequence.traverse(in, f)(bf)
 
   /** Executes the given sequence of tasks in parallel, non-deterministically
@@ -3387,7 +3388,7 @@ object Task extends TaskInstancesLevel1 {
     * $parallelismNote
     */
   def gather[A, M[X] <: Iterable[X]](in: M[Task[A]])
-    (implicit bf: BuildFromCompat[M[Task[A]], A, M[A]]): Task[M[A]] =
+    (implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
     TaskGather[A, M](in, () => newBuilder(bf, in))
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`,
@@ -3412,7 +3413,7 @@ object Task extends TaskInstancesLevel1 {
     * $parallelismNote
     */
   def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])
-    (implicit bf: BuildFromCompat[M[A], B, M[B]]): Task[M[B]] =
+    (implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     Task.eval(in.map(f)).flatMap(col => TaskGather[B, M](col, () => newBuilder(bf, in)))
 
   /** Processes the given collection of tasks in parallel and

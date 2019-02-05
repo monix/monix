@@ -18,8 +18,8 @@
 package monix.tail
 package batches
 
+import monix.execution.compat.internal._
 import monix.execution.internal.Platform.recommendedBatchSize
-import monix.execution.internal.compat._
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.reflect.ClassTag
 

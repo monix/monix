@@ -18,13 +18,14 @@
 package monix.eval.internal
 
 import monix.eval.Task
-import monix.execution.internal.compat._
+import monix.execution.compat.BuildFrom
+import monix.execution.compat.internal._
 import scala.collection.mutable
 
 private[eval] object TaskSequence {
   /** Implementation for `Task.sequence`. */
   def list[A, M[X] <: Iterable[X]](in: M[Task[A]])
-    (implicit bf: BuildFromCompat[M[Task[A]], A, M[A]]): Task[M[A]] = {
+    (implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
 
     def loop(cursor: Iterator[Task[A]], acc: mutable.Builder[A, M[A]]): Task[M[A]] = {
       if (cursor.hasNext) {
@@ -43,7 +44,7 @@ private[eval] object TaskSequence {
 
   /** Implementation for `Task.traverse`. */
   def traverse[A, B, M[X] <: Iterable[X]](in: M[A], f: A => Task[B])
-    (implicit bf: BuildFromCompat[M[A], B, M[B]]): Task[M[B]] = {
+    (implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] = {
 
     def loop(cursor: Iterator[A], acc: mutable.Builder[B, M[B]]): Task[M[B]] = {
       if (cursor.hasNext) {

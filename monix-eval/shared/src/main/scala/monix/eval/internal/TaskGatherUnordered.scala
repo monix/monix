@@ -24,7 +24,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import monix.execution.internal.compat._
+import monix.execution.compat.internal.toIterator
 
 import scala.util.control.NonFatal
 import scala.annotation.tailrec

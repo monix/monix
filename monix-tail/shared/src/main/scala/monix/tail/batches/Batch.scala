@@ -19,8 +19,8 @@ package monix.tail
 package batches
 
 import scala.reflect.ClassTag
+import monix.execution.compat.internal._
 import monix.execution.internal.Platform.recommendedBatchSize
-import monix.execution.internal.compat._
 
 /** The `Batch` is a [[BatchCursor]] factory, similar in spirit
   * with Scala's [[scala.collection.Iterable Iterable]].

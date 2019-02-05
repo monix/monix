@@ -15,18 +15,21 @@
  * limitations under the License.
  */
 
-package monix.execution.internal
+package monix.execution
 
-import scala.collection.BuildFrom
+import scala.collection.{BuildFrom => ScalaBuildFrom}
 import scala.collection.mutable
 
-package object compat {
+object compat {
 
-  private[monix] type IterableOnce[+X] = scala.collection.IterableOnce[X]
-  private[monix] def toIterator[X](i: IterableOnce[X]): Iterator[X] = i.iterator
-  private[monix] def hasDefiniteSize[X](i: IterableOnce[X]): Boolean = i.knownSize >= 0
+  type BuildFrom[-From, -A, +C] = ScalaBuildFrom[From, A, C]
 
-  private[monix] type BuildFromCompat[-From, -A, +C] = BuildFrom[From, A, C]
-  private[monix] def newBuilder[From, A, C](bf: BuildFromCompat[From, A, C], from: From): mutable.Builder[A, C] = bf.newBuilder(from)
+  object internal {
 
+    private[monix] type IterableOnce[+X] = scala.collection.IterableOnce[X]
+    private[monix] def toIterator[X](i: IterableOnce[X]): Iterator[X] = i.iterator
+    private[monix] def hasDefiniteSize[X](i: IterableOnce[X]): Boolean = i.knownSize >= 0
+
+    private[monix] def newBuilder[From, A, C](bf: BuildFrom[From, A, C], from: From): mutable.Builder[A, C] = bf.newBuilder(from)
+  }
 }
