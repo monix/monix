@@ -4,6 +4,29 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
+    // Breaking changes for https://github.com/monix/monix/pull/822
+    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture.catsInstances"),
+    exclude[MissingClassProblem]("monix.execution.CancelableFuture$CatsInstances"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Scheduler#Extensions.timerLiftIO$extension"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Scheduler#Extensions.contextShift$extension"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Scheduler#Extensions.timer$extension"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Scheduler#Extensions.clock$extension"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Cancelable.Extensions"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Cancelable.fromIO"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Cancelable.fromIOUnsafe"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Callback.contravariantCallback"),
+    exclude[MissingClassProblem]("monix.execution.Cancelable$Extensions$"),
+    exclude[MissingClassProblem]("monix.execution.Cancelable$Extensions"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Scheduler#Extensions.timer"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Scheduler#Extensions.contextShift"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Scheduler#Extensions.clock"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Scheduler#Extensions.timerLiftIO"),
+    exclude[MissingClassProblem]("monix.execution.internal.ParallelApplicative"),
+    exclude[MissingClassProblem]("monix.execution.internal.ParallelApplicative$"),
+    exclude[DirectMissingMethodProblem]("monix.execution.exceptions.UncaughtErrorException.apply"),
+    exclude[DirectMissingMethodProblem]("monix.execution.exceptions.UncaughtErrorException.apply$default$2"),
+    exclude[DirectMissingMethodProblem]("monix.execution.exceptions.UncaughtErrorException.this"),
+
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.producerType"),
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.consumerType"),
     exclude[IncompatibleMethTypeProblem]("monix.catnap.ConcurrentQueue.offerMany"),
