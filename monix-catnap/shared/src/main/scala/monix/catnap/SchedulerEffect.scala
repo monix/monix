@@ -29,7 +29,7 @@ import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 object SchedulerEffect {
 
   /**
-    * Derives a `cats.effect.Clock` from [[Scheduler]] for any
+    * Derives a `cats.effect.Clock` from [[monix.execution.Scheduler Scheduler]] for any
     * data type that has a `cats.effect.LiftIO` implementation.
     */
   def clock[F[_]](source: Scheduler)(implicit F: Sync[F]): Clock[F] =
@@ -41,7 +41,7 @@ object SchedulerEffect {
     }
 
   /**
-    * Derives a `cats.effect.Timer` from [[Scheduler]] for any
+    * Derives a `cats.effect.Timer` from [[monix.execution.Scheduler Scheduler]] for any
     * data type that has a `cats.effect.Concurrent` type class
     * instance.
     *
@@ -73,7 +73,7 @@ object SchedulerEffect {
     }
 
   /**
-    * Derives a `cats.effect.Timer` from [[Scheduler]] for any
+    * Derives a `cats.effect.Timer` from [[monix.execution.Scheduler Scheduler]] for any
     * data type that has a `cats.effect.LiftIO` instance.
     *
     * This is the relaxed [[timer]] method, needing only `LiftIO`
@@ -108,7 +108,7 @@ object SchedulerEffect {
     }
 
   /**
-    * Derives a `cats.effect.ContextShift` from [[Scheduler]] for any
+    * Derives a `cats.effect.ContextShift` from [[monix.execution.Scheduler Scheduler]] for any
     * data type that has a `cats.effect.Effect` implementation.
     *
     * {{{
