@@ -41,19 +41,19 @@ object IterantUnconsSuite extends BaseTestSuite {
 
   test("uncons ignoring tail is equivalent to headOptionL") { _ =>
     check1 { stream: Iterant[Coeval, Int] =>
-      stream.headOptionL <-> stream.unconsR.use { case (hd, _) => Coeval.pure(hd) }
+      Iterant[Coeval].liftF(stream.headOptionL) <-> stream.uncons.map { case (hd, _) => hd }
     }
   }
 
   test("any fold is expressible using unconsR") { _ =>
     def unconsFold[F[_]: Sync, A: Monoid](iterant: Iterant[F, A]): F[A] = {
-      def go(iterant: Iterant[F, A], acc: A): Resource[F, A] =
-        iterant.unconsR.flatMap {
-          case (None, _) => Resource.pure(acc)
+      def go(iterant: Iterant[F, A], acc: A): Iterant[F, A] =
+        iterant.uncons.flatMap {
+          case (None, _) => Iterant.pure(acc)
           case (Some(a), rest) => go(rest, acc |+| a)
         }
 
-      go(iterant, Monoid[A].empty).use(_.pure[F])
+      go(iterant, Monoid[A].empty).headOptionL.map(_.getOrElse(Monoid[A].empty))
     }
 
     check1 { stream: Iterant[Coeval, Int] =>
