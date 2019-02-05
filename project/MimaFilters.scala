@@ -27,6 +27,11 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.execution.exceptions.UncaughtErrorException.apply$default$2"),
     exclude[DirectMissingMethodProblem]("monix.execution.exceptions.UncaughtErrorException.this"),
 
+    exclude[IncompatibleResultTypeProblem]("monix.execution.Cancelable.empty"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.CancelableFuture#Pure.cancelable"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.CancelableFuture#Never.cancelable"),
+
+
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.producerType"),
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.consumerType"),
     exclude[IncompatibleMethTypeProblem]("monix.catnap.ConcurrentQueue.offerMany"),
