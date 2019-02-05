@@ -34,7 +34,7 @@ private[eval] object TaskGatherUnordered {
   /**
     * Implementation for `Task.gatherUnordered`
     */
-  def apply[A](in: TraversableOnce[Task[A]]): Task[List[A]] = {
+  def apply[A](in: Iterable[Task[A]]): Task[List[A]] = {
     Async(
       new Register(in),
       trampolineBefore = true,
@@ -47,7 +47,7 @@ private[eval] object TaskGatherUnordered {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Register[A](in: TraversableOnce[Task[A]])
+  private final class Register[A](in: Iterable[Task[A]])
     extends ForkedRegister[List[A]] {
 
     def maybeSignalFinal(

@@ -23,7 +23,7 @@ import scala.collection.mutable
 
 private[eval] object TaskSequence {
   /** Implementation for `Task.sequence`. */
-  def list[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
+  def list[A, M[X] <: Iterable[X]](in: M[Task[A]])
     (implicit bf: BuildFromCompat[M[Task[A]], A, M[A]]): Task[M[A]] = {
 
     def loop(cursor: Iterator[Task[A]], acc: mutable.Builder[A, M[A]]): Task[M[A]] = {
@@ -37,12 +37,12 @@ private[eval] object TaskSequence {
 
     Task.defer {
       val cursor: Iterator[Task[A]] = toIterator(in)
-      loop(cursor, bf.newBuilder(in))
+      loop(cursor, newBuilder(bf, in))
     }
   }
 
   /** Implementation for `Task.traverse`. */
-  def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A], f: A => Task[B])
+  def traverse[A, B, M[X] <: Iterable[X]](in: M[A], f: A => Task[B])
     (implicit bf: BuildFromCompat[M[A], B, M[B]]): Task[M[B]] = {
 
     def loop(cursor: Iterator[A], acc: mutable.Builder[B, M[B]]): Task[M[B]] = {
@@ -55,7 +55,7 @@ private[eval] object TaskSequence {
     }
 
     Task.defer {
-      loop(toIterator(in), bf.newBuilder(in))
+      loop(toIterator(in), newBuilder(bf, in))
     }
   }
 }

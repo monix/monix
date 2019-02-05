@@ -15,21 +15,16 @@
  * limitations under the License.
  */
 
-package monix.execution.internal.compat
+package monix.execution.schedulers
 
-import scala.annotation.implicitNotFound
-import scala.collection.BuildFrom
-import scala.collection.mutable
-
-@implicitNotFound(msg = "Cannot construct a collection of type ${C} with elements of type ${A} based on a collection of type ${From}.")
-trait BuildFromCompat[-From, -A, +C] {
-  def newBuilder(from: From): mutable.Builder[A, C]
-}
-
-object BuildFromCompat {
-
-  implicit def fromBuildFrom[From, A, C](implicit bf: BuildFrom[From, A, C]): BuildFromCompat[From, A, C] =
-    new BuildFromCompat[From, A, C] {
-      def newBuilder(from: From): mutable.Builder[A, C] = bf.newBuilder(from)
-    }
-}
+/** A marker for callbacks that can be batched and executed
+  * locally (on the current thread) by means of a trampoline
+  * (if the execution context / scheduler allows it).
+  *
+  * Idea was taken from the `scala.concurrent.Future`
+  * implementation. Credit should be given where due.
+  *
+  * DO NOT use unless you know what you're doing.
+  */
+@FunctionalInterface
+trait TrampolinedRunnable extends Runnable

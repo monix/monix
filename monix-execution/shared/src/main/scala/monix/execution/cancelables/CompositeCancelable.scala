@@ -19,7 +19,6 @@ package monix.execution.cancelables
 
 import monix.execution.Cancelable
 import monix.execution.atomic.{PaddingStrategy, AtomicAny}
-import monix.execution.internal.compat._
 import scala.annotation.tailrec
 
 /** Represents a composite of multiple cancelables. In case it is canceled, all
@@ -120,11 +119,11 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
     *
     * Alias for [[addAll]].
     */
-  def ++=(that: IterableOnce[Cancelable]): this.type =
+  def ++=(that: Iterable[Cancelable]): this.type =
     addAll(that)
 
   /** $addAllOp */
-  def addAll(that: IterableOnce[Cancelable]): this.type = {
+  def addAll(that: Iterable[Cancelable]): this.type = {
     @tailrec def loop(that: Iterable[Cancelable]): this.type =
       stateRef.get match {
         case Cancelled =>
@@ -140,7 +139,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
           }
       }
 
-    loop(toIterator(that).toSeq)
+    loop(that.toSeq)
   }
 
   /** $removeOp
@@ -167,11 +166,11 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
     *
     * Alias for [[removeAll]].
     */
-  def --=(that: IterableOnce[Cancelable]): this.type =
+  def --=(that: Iterable[Cancelable]): this.type =
     removeAll(that)
 
   /** $removeAllOp */
-  def removeAll(that: IterableOnce[Cancelable]): this.type = {
+  def removeAll(that: Iterable[Cancelable]): this.type = {
     @tailrec def loop(that: Iterable[Cancelable]): this.type =
       stateRef.get match {
         case Cancelled => this
@@ -185,7 +184,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
           }
       }
 
-    loop(toIterator(that).toSeq)
+    loop(that.toSeq)
   }
 
   /** Resets this composite to an empty state, if not canceled,
@@ -207,7 +206,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
   /** Replaces the underlying set of cancelables with a new one,
     * returning the old set just before the substitution happened.
     */
-  def getAndSet(that: IterableOnce[Cancelable]): Set[Cancelable] = {
+  def getAndSet(that: Iterable[Cancelable]): Set[Cancelable] = {
     @tailrec def loop(that: Set[Cancelable]): Set[Cancelable] =
       stateRef.get match {
         case Cancelled =>
@@ -227,7 +226,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
       case ref: Set[_] =>
         loop(ref.asInstanceOf[Set[Cancelable]])
       case _ =>
-        loop(toIterator(that).toSet[Cancelable])
+        loop(that.toSet[Cancelable])
     }
   }
 }

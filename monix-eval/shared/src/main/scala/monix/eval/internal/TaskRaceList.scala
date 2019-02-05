@@ -21,13 +21,12 @@ import monix.catnap.CancelableF
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.atomic.{Atomic, PaddingStrategy}
-import monix.execution.internal.compat._
 
 private[eval] object TaskRaceList {
   /**
     * Implementation for `Task.raceList`
     */
-  def apply[A](tasks: TraversableOnce[Task[A]]): Task[A] =
+  def apply[A](tasks: Iterable[Task[A]]): Task[A] =
     Task.Async(new Register(tasks), trampolineBefore = true, trampolineAfter = true)
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
@@ -35,7 +34,7 @@ private[eval] object TaskRaceList {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Register[A](tasks: TraversableOnce[Task[A]])
+  private final class Register[A](tasks: Iterable[Task[A]])
     extends ForkedRegister[A] {
 
     def apply(context: Task.Context, callback: Callback[Throwable, A]): Unit = {
@@ -43,7 +42,7 @@ private[eval] object TaskRaceList {
       val conn = context.connection
 
       val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
-      val taskArray = toArray(tasks)
+      val taskArray = tasks.toArray
       val cancelableArray = buildCancelableArray(taskArray.length)
       conn.pushConnections(cancelableArray.toIndexedSeq:_*)
 

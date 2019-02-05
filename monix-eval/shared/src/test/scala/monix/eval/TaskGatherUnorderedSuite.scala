@@ -68,10 +68,10 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.gatherUnordered should run over an iterator") { implicit s =>
+  test("Task.gatherUnordered should run over an iterable") { implicit s =>
     val count = 10
     val seq = 0 until count
-    val it = seq.iterator.map(x => Task.eval(x + 1))
+    val it = seq.map(x => Task.eval(x + 1))
     val sum = Task.gatherUnordered(it).map(_.sum)
 
     val result = sum.runToFuture; s.tick()

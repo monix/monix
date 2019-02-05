@@ -17,14 +17,16 @@
 
 package monix.execution.internal
 
-import scala.reflect.ClassTag
+import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable
 
 package object compat {
 
-  type IterableOnce[+X] = scala.collection.GenTraversableOnce[X]
-  type TraversableOnce[+X] = scala.collection.TraversableOnce[X]
+  private[monix] type IterableOnce[+X] = scala.collection.GenTraversableOnce[X]
+  private[monix] def toIterator[X](i: IterableOnce[X]): Iterator[X] = i.toIterator
+  private[monix] def hasDefiniteSize[X](i: IterableOnce[X]): Boolean = i.hasDefiniteSize
 
-  def toIterator[X](i: IterableOnce[X]): Iterator[X] = i.toIterator
-  def toArray[X : ClassTag](i: IterableOnce[X]): Array[X] = i.toArray
-  def hasDefiniteSize[X](i: IterableOnce[X]): Boolean = i.hasDefiniteSize
+  private[monix] type BuildFromCompat[-From, -A, +C] = CanBuildFrom[From, A, C]
+  private[monix] def newBuilder[From, A, C](bf: BuildFromCompat[From, A, C], from: From): mutable.Builder[A, C] = bf.apply(from)
+
 }

@@ -22,7 +22,6 @@ import java.io.PrintStream
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.internal.compat._
 import monix.reactive.internal.rstreams._
 import monix.reactive.observers.Subscriber
 import org.reactivestreams.{Subscriber => RSubscriber}
@@ -290,8 +289,8 @@ object Observer {
       * @param xs the traversable object containing the elements to feed
       *        into our observer.
       */
-    def onNextAll(xs: TraversableOnce[A])(implicit s: Scheduler): Future[Ack] =
-      Observer.feed(target, toIterator(xs))(s)
+    def onNextAll(xs: Iterable[A])(implicit s: Scheduler): Future[Ack] =
+      Observer.feed(target, xs)(s)
 
     /** $feedCollectionDesc
       *

@@ -22,7 +22,6 @@ import monix.eval.Task.{Async, Context}
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Scheduler
-import monix.execution.internal.compat._
 import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -31,7 +30,7 @@ private[eval] object TaskGather {
   /**
     * Implementation for `Task.gather`
     */
-  def apply[A, M[X] <: TraversableOnce[X]](in: TraversableOnce[Task[A]], makeBuilder: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
+  def apply[A, M[X] <: Iterable[X]](in: Iterable[Task[A]], makeBuilder: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
     Async(
       new Register(in, makeBuilder),
       trampolineBefore = true,
@@ -44,8 +43,8 @@ private[eval] object TaskGather {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Register[A, M[X] <: TraversableOnce[X]](
-    in: TraversableOnce[Task[A]],
+  private final class Register[A, M[X] <: Iterable[X]](
+    in: Iterable[Task[A]],
     makeBuilder: () => mutable.Builder[A, M[A]])
     extends ForkedRegister[M[A]] {
 
@@ -104,7 +103,7 @@ private[eval] object TaskGather {
 
       try {
         implicit val s = context.scheduler
-        tasks = toArray(in)
+        tasks = in.toArray
         tasksCount = tasks.length
 
         if (tasksCount == 0) {
