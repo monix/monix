@@ -21,8 +21,10 @@ import java.util.concurrent.TimeUnit
 
 import cats.effect.IO
 import minitest.SimpleTestSuite
-import monix.execution.Cancelable
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
+import monix.execution.exceptions.DummyException
+
 import scala.concurrent.duration._
 import scala.util.Success
 
@@ -37,6 +39,8 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     def reportFailure(t: Throwable): Unit = underlying.reportFailure(t)
     def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
       underlying.scheduleOnce(initialDelay, unit, r)
+    def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
+      new DummyScheduler(underlying.withUncaughtExceptionReporter(r).asInstanceOf[TestScheduler])
   }
 
   class DummyTimeScheduler extends DummyScheduler() {

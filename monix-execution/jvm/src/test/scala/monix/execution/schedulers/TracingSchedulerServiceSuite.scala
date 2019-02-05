@@ -21,7 +21,8 @@ import java.util.concurrent.TimeUnit
 
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.Scheduler
+import monix.execution.exceptions.DummyException
+import monix.execution.{Scheduler, UncaughtExceptionReporter}
 import monix.execution.misc.Local
 
 import scala.concurrent.Future

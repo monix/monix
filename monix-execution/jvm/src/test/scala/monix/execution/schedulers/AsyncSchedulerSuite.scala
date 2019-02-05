@@ -18,11 +18,12 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
+
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Cancelable, Scheduler}
-import monix.execution.{ExecutionModel => ExecModel}
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
@@ -130,6 +131,16 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     assertEquals(s.executionModel, ExecModel.Default)
     assertEquals(s2.executionModel, AlwaysAsyncExecution)
+  }
+
+  testAsync("withUncaughtExceptionReporter") {
+    import monix.execution.FutureUtils.extensions._
+    val p: Promise[Unit] = Promise()
+    val ws = s.withUncaughtExceptionReporter(UncaughtExceptionReporter(_ =>
+      p.success(())
+    ))
+    ws.executeAsync { () => throw new Exception() }
+    p.future.timeout(5.seconds)(ws)
   }
 
   test("Scheduler.cached") {

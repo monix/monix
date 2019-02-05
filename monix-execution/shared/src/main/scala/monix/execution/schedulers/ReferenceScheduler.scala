@@ -86,10 +86,7 @@ trait ReferenceScheduler extends Scheduler {
   }
 
   override def withExecutionModel(em: ExecModel): Scheduler =
-    WrappedScheduler(this, em, this)
-
-  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
-    WrappedScheduler(this, executionModel, r)
+    WrappedScheduler(this, em)
 }
 
 object ReferenceScheduler {
@@ -98,15 +95,14 @@ object ReferenceScheduler {
     */
   private final case class WrappedScheduler(
     s: Scheduler,
-    override val executionModel: ExecModel,
-    r: UncaughtExceptionReporter
+    override val executionModel: ExecModel
   )
     extends Scheduler {
 
     override def execute(runnable: Runnable): Unit =
       s.execute(runnable)
     override def reportFailure(t: Throwable): Unit =
-      r.reportFailure(t)
+      s.reportFailure(t)
     override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
       s.scheduleOnce(initialDelay, unit, r)
     override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable =
@@ -120,6 +116,6 @@ object ReferenceScheduler {
     override def withExecutionModel(em: ExecModel): Scheduler =
       copy(s, em)
     override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
-      copy(r = r)
+      copy(s = s.withUncaughtExceptionReporter(r))
   }
 }

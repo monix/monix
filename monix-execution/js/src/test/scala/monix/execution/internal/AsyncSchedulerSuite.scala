@@ -19,6 +19,7 @@ package monix.execution.internal
 
 import minitest.TestSuite
 import monix.execution.atomic.Atomic
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.{AsyncScheduler, StandardContext}
 import monix.execution.{Cancelable, ExecutionModel, Scheduler, UncaughtExceptionReporter}
 
@@ -119,5 +120,15 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
     val t1 = System.nanoTime()
     val t2 = s.clockMonotonic(NANOSECONDS)
     assert(t2 >= t1, "t2 >= t1")
+  }
+
+  testAsync("withUncaughtExceptionReporter") { implicit s =>
+    import monix.execution.FutureUtils.extensions._
+    val p: Promise[Unit] = Promise()
+    val ws = s.withUncaughtExceptionReporter(UncaughtExceptionReporter(ex =>
+      p.success(())
+    ))
+    ws.executeAsync { () => throw new Exception() }
+    p.future.timeout(5.seconds)
   }
 }

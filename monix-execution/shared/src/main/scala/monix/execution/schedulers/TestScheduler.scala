@@ -125,7 +125,7 @@ import scala.util.Random
   *   assert(f.value == Some(Failure(timeoutError)))
   * }}}
   */
-final class TestScheduler private (
+class TestScheduler private (
   private[this] val stateRef: AtomicAny[State],
   override val executionModel: ExecutionModel)
   extends ReferenceScheduler with BatchingScheduler {
@@ -145,7 +145,7 @@ final class TestScheduler private (
     clockRealTime(unit)
 
   @tailrec
-  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
+  override final def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val current: State = stateRef.get
     val (cancelable, newState) = TestScheduler.scheduleOnce(
       current,
@@ -157,18 +157,17 @@ final class TestScheduler private (
   }
 
   @tailrec
-  protected override def executeAsync(r: Runnable): Unit = {
+  protected override final def executeAsync(r: Runnable): Unit = {
     val current: State = stateRef.get
     val update = TestScheduler.execute(current, r)
     if (!stateRef.compareAndSet(current, update)) executeAsync(r)
   }
 
-  @tailrec
-  override def reportFailure(t: Throwable): Unit = {
+  override def reportFailure(t: Throwable): Unit = while ({
     val current: State = stateRef.get
     val update = current.copy(lastReportedError = t)
-    if (!stateRef.compareAndSet(current, update)) reportFailure(t)
-  }
+    !stateRef.compareAndSet(current, update)
+  }) { }
 
   override def withExecutionModel(em: ExecutionModel): TestScheduler =
     new TestScheduler(stateRef, em)
@@ -194,7 +193,7 @@ final class TestScheduler private (
     * @return `true` if a task was available in the internal queue, and
     *        was executed, or `false` otherwise
     */
-  @tailrec def tickOne(): Boolean = {
+  @tailrec final def tickOne(): Boolean = {
     val current = stateRef.get
 
     // extracting one task by taking the immediate tasks
@@ -320,6 +319,10 @@ final class TestScheduler private (
         None
     }
   }
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
+    new TestScheduler(stateRef, executionModel) {
+      override def reportFailure(t: Throwable): Unit = r.reportFailure(t)
+    }
 }
 
 object TestScheduler {

@@ -18,9 +18,11 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
-import monix.execution.{Cancelable, UncaughtExceptionReporter}
-import monix.execution.{ExecutionModel => ExecModel}
+
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+
 import scala.concurrent.ExecutionContext
+import scala.util.control.NonFatal
 
 /** An `AsyncScheduler` schedules tasks to happen in the future with the
   * given `ScheduledExecutorService` and the tasks themselves are executed on
@@ -52,6 +54,14 @@ final class AsyncScheduler private (
 
   override def withExecutionModel(em: ExecModel): AsyncScheduler =
     new AsyncScheduler(scheduler, ec, r, em)
+
+  def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
+    new AsyncScheduler(scheduler, new ExecutionContext {
+      def execute(runnable: Runnable): Unit = ec.execute(new Runnable {
+        def run(): Unit = try { runnable.run() } catch { case NonFatal(ex) => reportFailure(ex)}
+      })
+      def reportFailure(cause: Throwable): Unit = r.reportFailure(cause)
+    }, r, executionModel)
 }
 
 object AsyncScheduler {

@@ -20,8 +20,10 @@ package monix.execution.schedulers
 import minitest.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.ExecutionModel.{Default => DefaultExecModel}
-import monix.execution.Scheduler
+import monix.execution.{Scheduler, UncaughtExceptionReporter}
+import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+
 import scala.concurrent.Promise
 
 object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
