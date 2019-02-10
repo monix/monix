@@ -24,12 +24,12 @@ object compat {
 
   type BuildFrom[-From, -A, +C] = CanBuildFrom[From, A, C]
 
-  object internal {
+  private[monix] object internal {
 
-    private[monix] type IterableOnce[+X] = scala.collection.GenTraversableOnce[X]
-    private[monix] def toIterator[X](i: IterableOnce[X]): Iterator[X] = i.toIterator
-    private[monix] def hasDefiniteSize[X](i: IterableOnce[X]): Boolean = i.hasDefiniteSize
+    type IterableOnce[+X] = scala.collection.GenTraversableOnce[X]
+    def toIterator[X](i: IterableOnce[X]): Iterator[X] = i.toIterator
+    def hasDefiniteSize[X](i: IterableOnce[X]): Boolean = i.hasDefiniteSize
 
-    private[monix] def newBuilder[From, A, C](bf: BuildFrom[From, A, C], from: From): mutable.Builder[A, C] = bf.apply(from)
+    def newBuilder[From, A, C](bf: BuildFrom[From, A, C], from: From): mutable.Builder[A, C] = bf.apply(from)
   }
 }
