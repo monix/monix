@@ -409,7 +409,23 @@ lazy val catnapJS = project.in(file("monix-catnap/js"))
 lazy val evalCommon =
   crossSettings ++ crossVersionSharedSources ++ testSettings ++
     Seq(
-      name := "monix-eval"
+      name := "monix-eval",
+
+      // used to skip a test in 2.13.0-M5, remove when upgrading
+      // from https://stackoverflow.com/a/48518559/4094860
+      sourceGenerators in Test += Def.task {
+        val file = (sourceManaged in Test).value / "monix" / "eval" / "internal" / "ScalaVersion.scala"
+        val scalaV = scalaVersion.value
+        IO.write(file,
+          s"""package monix.eval.internal
+             |
+             |object ScalaVersion {
+             |  val Full = "$scalaV"
+             |}
+           """.stripMargin
+        )
+        Seq(file)
+      }.taskValue
     )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
