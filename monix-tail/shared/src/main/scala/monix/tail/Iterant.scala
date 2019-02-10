@@ -2061,6 +2061,32 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def toListL(implicit F: Sync[F]): F[List[A]] =
     IterantFoldLeftL.toListL(self)(F)
 
+  /**
+    * Pull the first element out of this Iterant and return it and the rest.
+    * If the returned Option is None, the remainder is always empty.
+    *
+    * The value returned is wrapped in Iterant to preserve resource safety,
+    * and consumption of the rest must not leak outside of use. The returned
+    * Iterant always contains a single element
+    *
+    * {{{
+    *   import cats._, cats.implicits._, cats.effect._
+    *
+    *    def unconsFold[F[_]: Sync, A: Monoid](iterant: Iterant[F, A]): F[A] = {
+    *     def go(iterant: Iterant[F, A], acc: A): Iterant[F, A] =
+    *       iterant.uncons.flatMap {
+    *         case (None, _) => Iterant.pure(acc)
+    *         case (Some(a), rest) => go(rest, acc |+| a)
+    *       }
+    *
+    *     go(iterant, Monoid[A].empty).headOptionL.map(_.getOrElse(Monoid[A].empty))
+    *   }
+    * }}}
+    *
+    */
+  final def uncons(implicit F: Sync[F]): Iterant[F, (Option[A], Iterant[F, A])] =
+    IterantUncons(self)
+
   /** Lazily zip two iterants together.
     *
     * The length of the result will be the shorter of the two
