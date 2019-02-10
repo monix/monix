@@ -99,7 +99,41 @@ object MimaFilters {
     exclude[IncompatibleResultTypeProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.queue"),
     exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.this"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.buffers.AbstractSimpleBufferedSubscriber.this"),
-    exclude[FinalClassProblem]("monix.reactive.OverflowStrategy$Unbounded$")
+    exclude[FinalClassProblem]("monix.reactive.OverflowStrategy$Unbounded$"),
+    //
+    // BREAKING CHANGES: https://github.com/monix/monix/pull/823 Scala 2.13 support
+    //
+    exclude[MissingTypesProblem]("monix.execution.Cancelable$CollectionTrampolined"),
+    exclude[MissingTypesProblem]("monix.execution.Callback$TrampolinedCallback"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.cancelables.CompositeCancelable.removeAll"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.cancelables.CompositeCancelable.--="),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.cancelables.CompositeCancelable.++="),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.cancelables.CompositeCancelable.getAndSet"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.cancelables.CompositeCancelable.addAll"),
+    exclude[MissingTypesProblem]("monix.execution.schedulers.TrampolinedRunnable"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.raceMany"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.gather"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.gatherUnordered"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.wanderUnordered"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.wander"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.traverse"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task.sequence"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Coeval.traverse"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Coeval.sequence"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskGather.apply"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskGather#Register.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskSequence.traverse"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskSequence.list"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRaceList#Register.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRaceList.apply"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskGatherUnordered#Register.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskConnectionComposite.addAll"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskGatherUnordered.apply"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observer#Extensions.onNextAll$extension"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.Observer#Extensions.onNextAll"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.ConnectableSubscriber.pushFirstAll"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.Subscriber#Extensions.onNextAll"),
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.Subscriber#Extensions.onNextAll$extension"),
   )
 
   lazy val changesFor_3_0_0_RC2 = Seq(
