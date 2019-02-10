@@ -3017,9 +3017,8 @@ object Task extends TaskInstancesLevel1 {
     *         catch { case NonFatal(e) => cb.onError(e) }
     *       }
     *       // `scheduleOnce` above returns a Cancelable, which
-    *       // has to be converted into a Task[Unit]; the following
-    *       // is equivalent with Task(cancelable.cancel()):
-    *       cancelable.toCancelToken
+    *       // has to be converted into a Task[Unit]
+    *       Task(cancelable.cancel())
     *     }
     * }}}
     *

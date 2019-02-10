@@ -17,7 +17,6 @@
 
 package monix.execution
 
-import cats.Contravariant
 import monix.execution.exceptions.UncaughtErrorException
 import monix.execution.schedulers.TrampolinedRunnable
 import scala.concurrent.{ExecutionContext, Promise}
@@ -298,14 +297,4 @@ object Callback {
     def onError(error: E): Unit =
       underlying.onError(error)
   }
-
-  /** Contravariant type class instance of [[Callback]] for Cats. */
-  implicit def contravariantCallback[E]: Contravariant[Callback[E, ?]] =
-    contravariantRef.asInstanceOf[Contravariant[Callback[E, ?]]]
-
-  private[this] val contravariantRef: Contravariant[Callback[Any, ?]] =
-    new Contravariant[Callback[Any, ?]] {
-      override def contramap[A, B](cb: Callback[Any, A])(f: B => A): Callback[Any, B] =
-        cb.contramap(f)
-    }
 }

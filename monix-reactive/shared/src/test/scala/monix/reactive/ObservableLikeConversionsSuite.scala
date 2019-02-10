@@ -19,6 +19,7 @@ package monix.reactive
 
 import cats.Eval
 import cats.effect.{IO, SyncIO}
+import monix.catnap.SchedulerEffect
 import monix.eval.TaskConversionsSuite.{CIO, CustomConcurrentEffect, CustomEffect}
 import monix.eval.utils.EvalComonad
 import monix.eval.{Coeval, Task}
@@ -212,7 +213,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(custom Effect)") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomEffect()
 
     var effect = false
@@ -227,7 +228,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(custom Effect) for errors") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomEffect()
 
     var effect = false
@@ -243,7 +244,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(custom ConcurrentEffect)") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomConcurrentEffect()
 
     var effect = false
@@ -258,7 +259,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(custom ConcurrentEffect) for errors") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomConcurrentEffect()
 
     var effect = false

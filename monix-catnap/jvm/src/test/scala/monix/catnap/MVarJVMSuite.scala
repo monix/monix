@@ -110,9 +110,9 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
   }
 
   implicit def contextShift(implicit ec: Scheduler): ContextShift[IO] =
-    ec.contextShift[IO](IO.ioEffect)
+    SchedulerEffect.contextShift[IO](ec)(IO.ioEffect)
   implicit def timer(implicit ec: Scheduler): Timer[IO] =
-    ec.timerLiftIO[IO](IO.ioEffect)
+    SchedulerEffect.timerLiftIO[IO](ec)(IO.ioEffect)
 
   // ----------------------------------------------------------------------------
 

@@ -23,7 +23,7 @@ import monix.execution.UncaughtExceptionReporter.{default => Logger}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.internal.Platform
+import monix.execution.internal.{AttemptCallback, Platform}
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.rstreams.Subscription
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
@@ -146,11 +146,13 @@ private[tail] object IterantToReactivePublisher {
 
     def startLoop(): Unit = {
       val loop = new Loop
-      cancelable := Cancelable.fromIO(
-        F.toIO(loop(source)).unsafeRunCancelable({
-          case Left(error) => Logger.reportFailure(error)
-          case _ => ()
-      }))(UncaughtExceptionReporter.default)
+      val token = F.toIO(loop(source)).unsafeRunCancelable({
+        case Left(error) => Logger.reportFailure(error)
+        case _ => ()
+      })
+      cancelable := Cancelable(() => token.unsafeRunAsync(
+        AttemptCallback.empty(UncaughtExceptionReporter.default)
+      ))
     }
 
     private final class Loop extends Iterant.Visitor[F, A, F[Unit]] {

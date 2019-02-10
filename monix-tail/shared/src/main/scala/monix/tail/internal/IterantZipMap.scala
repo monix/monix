@@ -20,7 +20,8 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import cats.{Applicative, Parallel}
-import monix.execution.internal.{ParallelApplicative, Platform}
+import monix.execution.internal.Platform
+import monix.catnap.internal.ParallelApplicative
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}

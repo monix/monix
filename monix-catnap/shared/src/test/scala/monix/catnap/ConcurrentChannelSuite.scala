@@ -80,9 +80,9 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
   val unboundedConfig = ConsumerF.Config(capacity = Some(Unbounded()))
 
   implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
-    s.contextShift[IO](IO.ioEffect)
+    SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
   implicit def timer(implicit s: Scheduler): Timer[IO] =
-    s.timerLiftIO[IO](IO.ioEffect)
+    SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
   /** TO IMPLEMENT ... */
   def testIO(name: String, times: Int = 1)(f: Scheduler => IO[Unit]): Unit

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.execution.internal
+package monix.catnap.internal
 
 import cats.{Applicative, Parallel}
 

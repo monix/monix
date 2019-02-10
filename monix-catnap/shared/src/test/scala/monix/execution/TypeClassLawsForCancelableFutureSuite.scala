@@ -16,11 +16,11 @@
  */
 
 package monix.execution
-
-import cats.{MonadError, Eval}
 import cats.laws.discipline.{CoflatMapTests, MonadErrorTests}
+import cats.{Eval, Monad, MonadError}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
+
 import scala.util.{Failure, Success}
 
 object TypeClassLawsForCancelableFutureSuite extends BaseLawsSuite {
@@ -54,5 +54,15 @@ object TypeClassLawsForCancelableFutureSuite extends BaseLawsSuite {
     val dummy = DummyException("dummy")
     val fa2 = F.catchNonFatalEval(Eval.always(throw dummy)); ec.tick()
     assertEquals(fa2.value, Some(Failure(dummy)))
+  }
+
+  test("flatMap should be stack safe") {
+    implicit val s = TestScheduler()
+    val n = 100000
+    val M = Monad[CancelableFuture]
+    val f = M.tailRecM(0)(i => M.pure(if (i < n) Left(i + 1) else Right(i)))
+    s.tick()
+    assert(f.isCompleted, "!f.isCompleted")
+    assertEquals(f.value, Some(Success(n)))
   }
 }

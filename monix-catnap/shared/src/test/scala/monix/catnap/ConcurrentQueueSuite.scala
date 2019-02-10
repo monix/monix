@@ -71,9 +71,9 @@ object ConcurrentQueueGlobalSuite extends BaseConcurrentQueueSuite[Scheduler] {
 
 abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
   implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
-    s.contextShift[IO](IO.ioEffect)
+    SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
   implicit def timer(implicit s: Scheduler): Timer[IO] =
-    s.timerLiftIO[IO](IO.ioEffect)
+    SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
   val repeatForFastTests = {
     if (Platform.isJVM) 1000 else 100

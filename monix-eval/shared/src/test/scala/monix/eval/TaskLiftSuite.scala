@@ -17,6 +17,7 @@
 
 package monix.eval
 import cats.effect.IO
+import monix.catnap.SchedulerEffect
 import monix.execution.exceptions.DummyException
 
 import scala.util.{Failure, Success}
@@ -50,7 +51,7 @@ object TaskLiftSuite extends BaseTestSuite {
   }
 
   test("task.to[Effect]") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomEffect()
 
     val task = Task(1)
@@ -62,7 +63,7 @@ object TaskLiftSuite extends BaseTestSuite {
   }
 
   test("task.to[Effect] for errors") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomEffect()
 
     val dummy = DummyException("dummy")
@@ -75,7 +76,7 @@ object TaskLiftSuite extends BaseTestSuite {
   }
 
   test("task.to[ConcurrentEffect]") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomConcurrentEffect()
 
     val task = Task(1)
@@ -87,7 +88,7 @@ object TaskLiftSuite extends BaseTestSuite {
   }
 
   test("task.to[ConcurrentEffect] for errors") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
     implicit val F = new CustomConcurrentEffect()
 
     val dummy = DummyException("dummy")
