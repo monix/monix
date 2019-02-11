@@ -30,8 +30,8 @@ private[tail] object IterantBuffer {
     (implicit F: Sync[F]): Iterant[F, Seq[A]] = {
 
     build[F, A, Seq[A]](self, count, skip,
-      (seq, rest) => Next(seq, rest),
-      seq => Last(seq))
+      (seq, rest) => Next(seq.toIndexedSeq, rest),
+      seq => Last(seq.toIndexedSeq))
   }
 
   /** Implementation for `Iterant.batched`. */

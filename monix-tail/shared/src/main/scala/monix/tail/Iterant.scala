@@ -28,6 +28,7 @@ import monix.execution.BufferCapacity.Bounded
 import monix.execution.{BufferCapacity, ChannelType}
 import monix.execution.ChannelType.{MultiProducer, SingleConsumer}
 import monix.execution.annotations.UnsafeProtocol
+import monix.execution.compat.internal._
 
 import scala.util.control.NonFatal
 import monix.execution.internal.Platform.{recommendedBatchSize, recommendedBufferChunkSize}
@@ -2519,13 +2520,13 @@ object Iterant extends IterantInstances {
 
   /** Converts a `scala.collection.Iterable` into a stream. */
   def fromIterable[F[_], A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F, A] = {
-    val bs = if (xs.hasDefiniteSize) recommendedBatchSize else 1
+    val bs = if (hasDefiniteSize(xs)) recommendedBatchSize else 1
     NextBatch(Batch.fromIterable(xs, bs), F.pure(empty[F, A]))
   }
 
   /** Converts a `scala.collection.Iterator` into a stream. */
   def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] = {
-    val bs = if (xs.hasDefiniteSize) recommendedBatchSize else 1
+    val bs = if (hasDefiniteSize(xs)) recommendedBatchSize else 1
     NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty))
   }
 
@@ -2596,7 +2597,7 @@ object Iterant extends IterantInstances {
         currentState = newState
         toProcess -= 1
       }
-      NextBatch[F, A](Batch.fromSeq(buffer), F.delay(loop(currentState)))
+      NextBatch[F, A](Batch.fromSeq(buffer.toSeq), F.delay(loop(currentState)))
     }
     try loop(seed)
     catch { case e if NonFatal(e) => Halt(Some(e)) }

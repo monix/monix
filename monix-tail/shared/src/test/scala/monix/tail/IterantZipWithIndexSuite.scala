@@ -56,7 +56,7 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
     check2 { (el: Int, _: Int) =>
       val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]))
       val received = stream.zipWithIndex.take(1).toListL
-      val expected = Coeval(Stream.continually(el).zipWithIndex.map { case (a, b) => (a, b.toLong) }.take(1).toList)
+      val expected = Coeval(Iterator.continually(el).zipWithIndex.map { case (a, b) => (a, b.toLong) }.take(1).toList)
 
       received <-> expected
     }

@@ -21,6 +21,14 @@ matrix:
     - jdk: oraclejdk8
       scala: 2.12.8
       env: COMMAND=ci-js
+    # Scala 2.13, JVM
+    - jdk: oraclejdk8
+      scala: 2.13.0-M5
+      env: COMMAND=ci-jvm
+    # Scala 2.13, JavaScript
+    - jdk: oraclejdk8
+      scala: 2.13.0-M5
+      env: COMMAND=ci-js
 
 env:
   global:

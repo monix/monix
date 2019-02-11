@@ -229,7 +229,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A])
     * eventually get streamed with [[onNext]], because of
     * the applied back-pressure from `onNext`.
     */
-  def pushFirstAll[U <: A](xs: TraversableOnce[U]): Unit =
+  def pushFirstAll[U <: A](xs: Iterable[U]): Unit =
     self.synchronized {
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushFirst")

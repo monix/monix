@@ -289,8 +289,8 @@ object Observer {
       * @param xs the traversable object containing the elements to feed
       *        into our observer.
       */
-    def onNextAll(xs: TraversableOnce[A])(implicit s: Scheduler): Future[Ack] =
-      Observer.feed(target, xs.toIterator)(s)
+    def onNextAll(xs: Iterable[A])(implicit s: Scheduler): Future[Ack] =
+      Observer.feed(target, xs)(s)
 
     /** $feedCollectionDesc
       *

@@ -46,7 +46,7 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
 
       @inline
       private def toSeq(array: Array[AnyRef]): Seq[A] =
-        new WrappedArray.ofRef(array).asInstanceOf[Seq[A]]
+        new WrappedArray.ofRef(array).toSeq.asInstanceOf[Seq[A]]
 
       def onNext(elem: A): Future[Ack] = {
         if (isDone)

@@ -48,8 +48,6 @@ private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recom
 
   override def isEmpty: Boolean =
     headIdx == tailIdx
-  override def nonEmpty: Boolean =
-    headIdx != tailIdx
   override def isAtCapacity: Boolean =
     size >= modulus
 
@@ -109,9 +107,6 @@ private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recom
 
     count
   }
-
-  override val hasDefiniteSize: Boolean =
-    true
 
   override def size: Int = {
     if (tailIdx >= headIdx)

@@ -19,7 +19,6 @@ package monix.execution.misc.test
 
 import monix.execution.misc._
 import scala.reflect.macros.whitebox
-import scala.language.experimental.macros
 
 private[execution] object TestInlineMacros {
   def testInlineSingleArg(): Either[String, Unit] =

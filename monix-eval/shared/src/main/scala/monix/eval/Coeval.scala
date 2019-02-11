@@ -24,11 +24,12 @@ import monix.eval.Coeval._
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal.{CoevalBracket, CoevalRunLoop, LazyVal, StackFrame}
 import monix.execution.annotations.UnsafeBecauseImpure
+import monix.execution.compat.BuildFrom
+import monix.execution.compat.internal.newBuilder
 
 import scala.util.control.NonFatal
 import monix.execution.internal.Platform.fusionMaxStackDepth
 
-import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
@@ -1006,26 +1007,26 @@ object Coeval extends CoevalInstancesLevel0 {
       case Right(b) => Coeval.now(b)
     }
 
-  /** Transforms a `TraversableOnce` of coevals into a coeval producing
+  /** Transforms a `Iterable` of coevals into a coeval producing
     * the same collection of gathered results.
     *
     * It's a simple version of [[traverse]].
     */
-  def sequence[A, M[X] <: TraversableOnce[X]](sources: M[Coeval[A]])
-    (implicit cbf: CanBuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
-    val init = eval(cbf(sources))
+  def sequence[A, M[X] <: Iterable[X]](sources: M[Coeval[A]])
+    (implicit bf: BuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
+    val init = eval(newBuilder(bf, sources))
     val r = sources.foldLeft(init)((acc,elem) => acc.zipMap(elem)(_ += _))
     r.map(_.result())
   }
 
-  /** Transforms a `TraversableOnce[A]` into a coeval of the same collection
+  /** Transforms a `Iterable[A]` into a coeval of the same collection
     * using the provided function `A => Coeval[B]`.
     *
     * It's a generalized version of [[sequence]].
     */
-  def traverse[A, B, M[X] <: TraversableOnce[X]](sources: M[A])(f: A => Coeval[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
-    val init = eval(cbf(sources))
+  def traverse[A, B, M[X] <: Iterable[X]](sources: M[A])(f: A => Coeval[B])
+    (implicit bf: BuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
+    val init = eval(newBuilder(bf, sources))
     val r = sources.foldLeft(init)((acc,elem) => acc.zipMap(f(elem))(_ += _))
     r.map(_.result())
   }

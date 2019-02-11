@@ -36,7 +36,7 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
   require(0 <= _offset && _offset <= _array.length, "0 <= offset <= length")
 
   def this(array: Array[A], offset: Int, length: Int)(implicit tag: ClassTag[A]) =
-    this(array, offset, length, () => ArrayBuilder.make[A]())
+    this(array, offset, length, () => ArrayBuilder.make[A])
   def this(array: Array[A])(implicit tag: ClassTag[A]) =
     this(array, 0, array.length)
 
@@ -108,7 +108,7 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
 
   override def collect[B](pf: PartialFunction[A, B]): ArrayCursor[B] = {
     val oldOffset = getNextIndex
-    val buffer = ArrayBuilder.make[AnyRef]()
+    val buffer = ArrayBuilder.make[AnyRef]
 
     var oldIndex = oldOffset
     while (oldIndex < limit) {

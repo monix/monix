@@ -402,7 +402,7 @@ private[reactive] final class ConcatMapObservable[A, B](
               case Some(result) =>
                 asyncUpstreamAck.tryComplete(result)
               case None =>
-                asyncUpstreamAck.tryCompleteWith(ack)
+                asyncUpstreamAck.completeWith(ack)
             }
 
           case Cancelled =>

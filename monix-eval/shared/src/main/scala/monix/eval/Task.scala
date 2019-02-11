@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect._
+import cats.effect.{Fiber => _, _}
 import cats.{Monoid, Semigroup}
 import monix.catnap.FutureLift
 import monix.eval.instances._
@@ -29,9 +29,10 @@ import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.Local
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
+import monix.execution.compat.BuildFrom
+import monix.execution.compat.internal.newBuilder
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
-import scala.collection.generic.CanBuildFrom
 import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
@@ -180,7 +181,7 @@ import scala.util.{Failure, Success, Try}
   *
   *   // Split our list in chunks of 30 items per chunk,
   *   // this being the maximum parallelism allowed
-  *   val chunks = list.sliding(30, 30)
+  *   val chunks = list.sliding(30, 30).toSeq
   *
   *   // Specify that each batch should process stuff in parallel
   *   val batchedTasks = chunks.map(chunk => Task.gather(chunk))
@@ -188,7 +189,7 @@ import scala.util.{Failure, Success, Try}
   *   val allBatches = Task.sequence(batchedTasks)
   *
   *   // Flatten the result, within the context of Task
-  *   val all: Task[Iterator[Int]] = allBatches.map(_.flatten)
+  *   val all: Task[Seq[Int]] = allBatches.map(_.flatten)
   * }}}
   *
   * Note that the built `Task` reference is just a specification at
@@ -2404,7 +2405,7 @@ object Task extends TaskInstancesLevel1 {
     * Switch to [[Task.evalAsync]] if you wish the old behavior, or combine
     * [[Task.eval]] with [[Task.executeAsync]].
     */
-  def apply[A](@deprecatedName('f) a: => A): Task[A] =
+  def apply[A](a: => A): Task[A] =
     eval(a)
 
   /** Returns a `Task` that on execution is always successful, emitting
@@ -3250,7 +3251,7 @@ object Task extends TaskInstancesLevel1 {
     * @see [[race]] or [[racePair]] for racing two tasks, for more
     *      control.
     */
-  def raceMany[A](tasks: TraversableOnce[Task[A]]): Task[A] =
+  def raceMany[A](tasks: Iterable[Task[A]]): Task[A] =
     TaskRaceList(tasks)
 
   /** Run two `Task` actions concurrently, and returns a pair
@@ -3335,7 +3336,7 @@ object Task extends TaskInstancesLevel1 {
   def sleep(timespan: FiniteDuration): Task[Unit] =
     TaskSleep.apply(timespan)
 
-  /** Given a `TraversableOnce` of tasks, transforms it to a task signaling
+  /** Given a `Iterable` of tasks, transforms it to a task signaling
     * the collection, executing the tasks one by one and gathering their
     * results in the same collection.
     *
@@ -3345,19 +3346,19 @@ object Task extends TaskInstancesLevel1 {
     *
     *  It's a simple version of [[traverse]].
     */
-  def sequence[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
-    TaskSequence.list(in)(cbf)
+  def sequence[A, M[X] <: Iterable[X]](in: M[Task[A]])
+    (implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
+    TaskSequence.list(in)(bf)
 
-  /** Given a `TraversableOnce[A]` and a function `A => Task[B]`, sequentially
+  /** Given a `Iterable[A]` and a function `A => Task[B]`, sequentially
     * apply the function to each element of the collection and gather their
     * results in the same collection.
     *
     *  It's a generalized version of [[sequence]].
     */
-  def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] =
-    TaskSequence.traverse(in, f)(cbf)
+  def traverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])
+    (implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
+    TaskSequence.traverse(in, f)(bf)
 
   /** Executes the given sequence of tasks in parallel, non-deterministically
     * gathering their results, returning a task that will signal the sequence
@@ -3385,11 +3386,11 @@ object Task extends TaskInstancesLevel1 {
     *
     * $parallelismNote
     */
-  def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
-    TaskGather[A, M](in, () => cbf(in))
+  def gather[A, M[X] <: Iterable[X]](in: M[Task[A]])
+    (implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
+    TaskGather[A, M](in, () => newBuilder(bf, in))
 
-  /** Given a `TraversableOnce[A]` and a function `A => Task[B]`,
+  /** Given a `Iterable[A]` and a function `A => Task[B]`,
     * nondeterministically apply the function to each element of the collection
     * and return a task that will signal a collection of the results once all
     * tasks are finished.
@@ -3410,9 +3411,9 @@ object Task extends TaskInstancesLevel1 {
     *
     * $parallelismNote
     */
-  def wander[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] =
-    Task.eval(in.map(f)).flatMap(col => TaskGather[B, M](col, () => cbf(in)))
+  def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])
+    (implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
+    Task.eval(in.map(f)).flatMap(col => TaskGather[B, M](col, () => newBuilder(bf, in)))
 
   /** Processes the given collection of tasks in parallel and
     * nondeterministically gather the results without keeping the original
@@ -3439,10 +3440,10 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param in is a list of tasks to execute
     */
-  def gatherUnordered[A](in: TraversableOnce[Task[A]]): Task[List[A]] =
+  def gatherUnordered[A](in: Iterable[Task[A]]): Task[List[A]] =
     TaskGatherUnordered(in)
 
-  /** Given a `TraversableOnce[A]` and a function `A => Task[B]`,
+  /** Given a `Iterable[A]` and a function `A => Task[B]`,
     * nondeterministically apply the function to each element of the collection
     * without keeping the original ordering of the results.
     *
@@ -3459,7 +3460,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * $parallelismNote
     */
-  def wanderUnordered[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B]): Task[List[B]] =
+  def wanderUnordered[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B]): Task[List[B]] =
     Task.eval(in.map(f)).flatMap(gatherUnordered)
 
   /** Yields a task that on evaluation will process the given tasks

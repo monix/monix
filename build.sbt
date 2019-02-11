@@ -22,7 +22,10 @@ val catsEffectVersion = "1.2.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
-val scalaTestVersion = "3.0.4"
+def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
+  case Some((2, v)) if v >= 13 => "3.0.6-SNAP5"
+  case _                       => "3.0.4"
+}
 val minitestVersion = "2.3.2"
 
 // The Monix version with which we must keep binary compatibility.
@@ -52,7 +55,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", "2.12.8"),
+  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-M5"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -74,7 +77,9 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
         "-Ypartial-unification",
       )
     case _ =>
-      Seq.empty
+      Seq(
+        "-Ymacro-annotations",
+      )
   }),
 
   // Force building with Java 8
@@ -237,11 +242,24 @@ def scalaPartV = Def setting (CrossVersion partialVersion scalaVersion.value)
 lazy val crossVersionSharedSources: Seq[Setting[_]] =
   Seq(Compile, Test).map { sc =>
     (unmanagedSourceDirectories in sc) ++= {
-      (unmanagedSourceDirectories in sc).value.map { dir =>
-        scalaPartV.value match {
-          case Some((2, y)) if y == 11 => new File(dir.getPath + "_2.11")
-          case Some((2, y)) if y >= 12 => new File(dir.getPath + "_2.12")
-        }
+      (unmanagedSourceDirectories in sc).value.flatMap { dir =>
+        Seq(
+          scalaPartV.value match {
+            case Some((2, y)) if y == 11 => new File(dir.getPath + "_2.11")
+            case Some((2, y)) if y == 12 => new File(dir.getPath + "_2.12")
+            case Some((2, y)) if y >= 13 => new File(dir.getPath + "_2.13")
+          },
+
+          scalaPartV.value match {
+            case Some((2, n)) if n >= 12 => new File(dir.getPath + "_2.12+")
+            case _                       => new File(dir.getPath + "_2.12-")
+          },
+
+          scalaPartV.value match {
+            case Some((2, n)) if n >= 13 => new File(dir.getPath + "_2.13+")
+            case _                       => new File(dir.getPath + "_2.13-")
+          },
+        )
       }
     }
   }
@@ -390,7 +408,23 @@ lazy val catnapJS = project.in(file("monix-catnap/js"))
 lazy val evalCommon =
   crossSettings ++ crossVersionSharedSources ++ testSettings ++
     Seq(
-      name := "monix-eval"
+      name := "monix-eval",
+
+      // used to skip a test in 2.13.0-M5, remove when upgrading
+      // from https://stackoverflow.com/a/48518559/4094860
+      sourceGenerators in Test += Def.task {
+        val file = (sourceManaged in Test).value / "monix" / "eval" / "internal" / "ScalaVersion.scala"
+        val scalaV = scalaVersion.value
+        IO.write(file,
+          s"""package monix.eval.internal
+             |
+             |object ScalaVersion {
+             |  val Full = "$scalaV"
+             |}
+           """.stripMargin
+        )
+        Seq(file)
+      }.taskValue
     )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -463,7 +497,7 @@ lazy val reactiveTests = project.in(file("reactiveTests"))
   .settings(
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams-tck" % reactiveStreamsVersion % Test,
-      "org.scalatest" %% "scalatest" % scalaTestVersion % Test
+      "org.scalatest" %% "scalatest" % scalaTestVersion(scalaVersion.value) % Test
     ))
 
 lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))

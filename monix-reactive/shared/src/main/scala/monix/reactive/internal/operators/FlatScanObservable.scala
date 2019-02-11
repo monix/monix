@@ -379,7 +379,7 @@ private[reactive] final class FlatScanObservable[A,R](
               case Some(result) =>
                 asyncUpstreamAck.tryComplete(result)
               case None =>
-                asyncUpstreamAck.tryCompleteWith(ack)
+                asyncUpstreamAck.completeWith(ack)
             }
 
           case Cancelled =>

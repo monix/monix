@@ -17,8 +17,6 @@
 
 package monix.execution.atomic
 
-import scala.language.experimental.macros
-
 /** Represents an Atomic reference holding a number, providing helpers
   * for easily incrementing and decrementing it.
   *

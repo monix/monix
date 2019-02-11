@@ -19,6 +19,7 @@ package monix.tail
 package batches
 
 import scala.reflect.ClassTag
+import monix.execution.compat.internal._
 import monix.execution.internal.Platform.recommendedBatchSize
 
 /** The `Batch` is a [[BatchCursor]] factory, similar in spirit
@@ -181,7 +182,7 @@ object Batch {
     * semantics on transformations.
     */
   def fromSeq[A](seq: Seq[A]): Batch[A] = {
-    val bs = if (seq.hasDefiniteSize) recommendedBatchSize else 1
+    val bs = if (hasDefiniteSize(seq)) recommendedBatchSize else 1
     fromSeq(seq, bs)
   }
 

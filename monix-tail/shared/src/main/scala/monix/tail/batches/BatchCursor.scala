@@ -18,6 +18,7 @@
 package monix.tail
 package batches
 
+import monix.execution.compat.internal._
 import monix.execution.internal.Platform.recommendedBatchSize
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.reflect.ClassTag
@@ -284,7 +285,7 @@ object BatchCursor {
     *        to wrap in a `BatchCursor` instance
     */
   def fromIterator[A](iter: Iterator[A]): BatchCursor[A] = {
-    val bs = if (iter.hasDefiniteSize) recommendedBatchSize else 1
+    val bs = if (hasDefiniteSize(iter)) recommendedBatchSize else 1
     new IteratorCursor[A](iter, bs)
   }
 
@@ -341,7 +342,7 @@ object BatchCursor {
     * semantics on transformations.
     */
   def fromSeq[A](seq: Seq[A]): BatchCursor[A] = {
-    val bs = if (seq.hasDefiniteSize) recommendedBatchSize else 1
+    val bs = if (hasDefiniteSize(seq)) recommendedBatchSize else 1
     fromSeq(seq, bs)
   }
 

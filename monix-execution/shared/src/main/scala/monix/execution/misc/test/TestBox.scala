@@ -19,7 +19,6 @@ package monix.execution.misc.test
 
 import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
 import scala.reflect.macros.whitebox
-import scala.language.experimental.macros
 
 /** Represents a boxed value, to be used in the testing
   * of [[InlineMacros]].

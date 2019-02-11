@@ -101,7 +101,7 @@ class Zip4Observable[A1,A2,A3,A4,+R]
           }
       }
 
-      continueP.tryCompleteWith(lastAck)
+      continueP.completeWith(lastAck)
       continueP = Promise[Ack]()
       lastAck
     }

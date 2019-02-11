@@ -53,8 +53,8 @@ private[reactive] final class Interleave2Observable[+A]
           isDone = true
           out.onError(ex)
           downstreamAck = Stop
-          pauseA1.tryCompleteWith(Stop)
-          pauseA2.tryCompleteWith(Stop)
+          pauseA1.completeWith(Stop)
+          pauseA2.completeWith(Stop)
         }
       }
 
@@ -83,7 +83,7 @@ private[reactive] final class Interleave2Observable[+A]
           if (isDone) Stop else {
             downstreamAck = out.onNext(a)
             pauseA1 = Promise[Ack]()
-            pauseA2.tryCompleteWith(downstreamAck)
+            pauseA2.completeWith(downstreamAck)
             downstreamAck
           }
         }
@@ -117,7 +117,7 @@ private[reactive] final class Interleave2Observable[+A]
           if (isDone) Stop else {
             downstreamAck = out.onNext(a)
             pauseA2 = Promise[Ack]()
-            pauseA1.tryCompleteWith(downstreamAck)
+            pauseA1.completeWith(downstreamAck)
             downstreamAck
           }
         }

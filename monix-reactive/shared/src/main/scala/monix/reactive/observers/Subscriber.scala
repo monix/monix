@@ -169,8 +169,8 @@ object Subscriber {
       * @param xs the traversable object containing the elements to feed
       *        into our subscriber
       */
-    def onNextAll(xs: TraversableOnce[A]): Future[Ack] =
-      Observer.feed(target, xs.toIterator)(target.scheduler)
+    def onNextAll(xs: Iterable[A]): Future[Ack] =
+      Observer.feed(target, xs)(target.scheduler)
 
     /** $feedCollectionDesc
       *

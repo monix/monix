@@ -15,18 +15,21 @@
  * limitations under the License.
  */
 
-package monix.execution.schedulers
+package monix.execution
 
-import scala.concurrent.OnCompleteRunnable
+import scala.collection.{BuildFrom => ScalaBuildFrom}
+import scala.collection.mutable
 
-/** A marker for callbacks that can be batched and executed
-  * locally (on the current thread) by means of a trampoline
-  * (if the execution context / scheduler allows it).
-  *
-  * Idea was taken from the `scala.concurrent.Future`
-  * implementation. Credit should be given where due.
-  *
-  * DO NOT use unless you know what you're doing.
-  */
-@FunctionalInterface
-trait TrampolinedRunnable extends Runnable with OnCompleteRunnable
+object compat {
+
+  type BuildFrom[-From, -A, +C] = ScalaBuildFrom[From, A, C]
+
+  private[monix] object internal {
+
+    type IterableOnce[+X] = scala.collection.IterableOnce[X]
+    def toIterator[X](i: IterableOnce[X]): Iterator[X] = i.iterator
+    def hasDefiniteSize[X](i: IterableOnce[X]): Boolean = i.knownSize >= 0
+
+    def newBuilder[From, A, C](bf: BuildFrom[From, A, C], from: From): mutable.Builder[A, C] = bf.newBuilder(from)
+  }
+}

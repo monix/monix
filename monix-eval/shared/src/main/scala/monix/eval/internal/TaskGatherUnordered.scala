@@ -24,6 +24,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.compat.internal.toIterator
 
 import scala.util.control.NonFatal
 import scala.annotation.tailrec
@@ -33,7 +34,7 @@ private[eval] object TaskGatherUnordered {
   /**
     * Implementation for `Task.gatherUnordered`
     */
-  def apply[A](in: TraversableOnce[Task[A]]): Task[List[A]] = {
+  def apply[A](in: Iterable[Task[A]]): Task[List[A]] = {
     Async(
       new Register(in),
       trampolineBefore = true,
@@ -46,7 +47,7 @@ private[eval] object TaskGatherUnordered {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Register[A](in: TraversableOnce[Task[A]])
+  private final class Register[A](in: Iterable[Task[A]])
     extends ForkedRegister[List[A]] {
 
     def maybeSignalFinal(
@@ -124,7 +125,7 @@ private[eval] object TaskGatherUnordered {
         // expensive, so we do it at the end
         val allCancelables = ListBuffer.empty[CancelToken[Task]]
         val batchSize = s.executionModel.recommendedBatchSize
-        val cursor = in.toIterator
+        val cursor = toIterator(in)
 
         var continue = true
         var count = 0

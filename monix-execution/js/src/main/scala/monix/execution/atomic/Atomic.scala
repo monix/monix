@@ -17,11 +17,9 @@
 
 package monix.execution.atomic
 
-
 import monix.execution.misc._
 import scala.reflect.macros.whitebox
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import scala.language.experimental.macros
 
 /**
   * Base trait of all atomic references, no matter the type.
