@@ -35,7 +35,6 @@ class ReduceOperator[A](op: (A,A) => A)
       private[this] var isDone = false
       private[this] var state: A = _
       private[this] var isFirst = true
-      private[this] var wasApplied = false
 
       def onNext(elem: A): Future[Ack] = {
         try {
@@ -45,7 +44,6 @@ class ReduceOperator[A](op: (A,A) => A)
           }
           else {
             state = op(state, elem)
-            if (!wasApplied) wasApplied = true
           }
 
           Continue
@@ -59,7 +57,7 @@ class ReduceOperator[A](op: (A,A) => A)
       def onComplete(): Unit =
         if (!isDone) {
           isDone = true
-          if (wasApplied) out.onNext(state)
+          if (!isFirst) out.onNext(state)
           out.onComplete()
         }
 

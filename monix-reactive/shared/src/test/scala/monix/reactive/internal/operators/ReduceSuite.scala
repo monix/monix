@@ -17,7 +17,11 @@
 
 package monix.reactive.internal.operators
 
+import cats.laws._
+import cats.laws.discipline._
+import monix.eval.Task
 import monix.reactive.Observable
+
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
@@ -55,5 +59,14 @@ object ReduceSuite extends BaseOperatorSuite {
   override def cancelableObservables(): Seq[Sample] = {
     val o = Observable.range(0, 100).delayOnNext(1.second).reduce(_ + _)
     Seq(Sample(o,0,0,0.seconds,0.seconds))
+  }
+
+  test("Observable.reduce is equivalent with List.reduce") { implicit s =>
+    check1 { list: List[Int] =>
+      val obs = Observable.fromIterable(list)
+      val result = obs.reduce(_ + _).lastL
+
+      result <-> Task.eval(list.reduce(_ + _))
+    }
   }
 }
