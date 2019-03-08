@@ -2266,6 +2266,7 @@ sealed abstract class Task[+A] extends Serializable {
     *     .timeoutL(actualTimeout)
     *     .onErrorRestart(100)
     *     .timeout(deadline.time)
+    * }}}
     **/
   final def timeoutLTo[B >: A](after: Task[FiniteDuration], backup: Task[B]): Task[B] =
     Task.race(this, after.flatMap(sleep)).flatMap {
