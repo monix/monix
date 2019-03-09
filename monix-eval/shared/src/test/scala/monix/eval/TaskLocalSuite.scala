@@ -187,4 +187,17 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     t.runToFutureOpt
   }
+
+  testAsync("TaskLocal should work with bracket") {
+    val t = for {
+      local <- TaskLocal(0)
+      _ <- Task.unit
+        .executeAsync
+        .guarantee(local.write(10))
+      value <- local.read
+      _ <- Task.eval(assertEquals(value, 10))
+    } yield ()
+
+    t.runToFutureOpt
+  }
 }
