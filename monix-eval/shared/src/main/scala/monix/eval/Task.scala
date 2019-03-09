@@ -2231,13 +2231,13 @@ sealed abstract class Task[+A] extends Serializable {
     *   def call(): Unit = ()
     *
     *   val remoteCall = Task(call())
-    *     .timeoutLTo(actualTimeout, Task.unit)
+    *     .timeoutToL(actualTimeout, Task.unit)
     *     .onErrorRestart(100)
     *     .timeout(deadline.time)
     * }}}
     */
   final def timeoutL(after: Task[FiniteDuration]): Task[A] =
-    timeoutLTo(after, raiseError(new TimeoutException(s"Task timed-out after $after of inactivity")))
+    timeoutToL(after, raiseError(new TimeoutException(s"Task timed-out after $after of inactivity")))
 
   /** Returns a Task that mirrors the source Task but switches to the
     * given backup Task in case the given duration passes without the
@@ -2268,13 +2268,22 @@ sealed abstract class Task[+A] extends Serializable {
     *     .timeout(deadline.time)
     * }}}
     **/
-  final def timeoutLTo[B >: A](after: Task[FiniteDuration], backup: Task[B]): Task[B] =
-    Task.race(this, after.flatMap(sleep)).flatMap {
+  final def timeoutToL[B >: A](after: Task[FiniteDuration], backup: Task[B]): Task[B] = {
+    val timeoutTask = after.timed.flatMap { case (took, need) =>
+      val left = need - took
+      if (left.length <= 0) {
+        Task.unit
+      } else {
+        Task.sleep(left)
+      }
+    }
+    Task.race(this, timeoutTask).flatMap {
       case Left(a) =>
         Task.now(a)
       case Right(_) =>
         backup
     }
+  }
 
   /** Returns a Task that mirrors the source Task but that triggers a
     * `TimeoutException` in case the given duration passes without the
@@ -2288,7 +2297,7 @@ sealed abstract class Task[+A] extends Serializable {
     * source emitting any item.
     */
   final def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
-    timeoutLTo(now(after), backup)
+    timeoutToL(now(after), backup)
 
   /** Returns a string representation of this task meant for
     * debugging purposes only.

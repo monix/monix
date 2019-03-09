@@ -286,6 +286,31 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(f.value.get.failed.get.isInstanceOf[TimeoutException])
   }
 
+  test("Task#timeoutL considers time taken to evaluate the duration task") { implicit s =>
+    // "3 seconds" after delay of 2s
+    val timeout = Task(3.seconds).delayExecution(2.seconds)
+    // "10" after delay of 4 seconds
+    val f = Task(10).delayExecution(4.seconds).timeoutToL(timeout, Task(-10)).runToFuture
+
+    // 2 seconds passed, timeout "3s" seen
+    s.tick(2.seconds)
+    assertEquals(f.value, None)
+
+    // 2+1 = 3 === timeout, so should see -10
+    s.tick(1.seconds)
+    assertEquals(f.value, Some(Success(-10)))
+  }
+
+  test("Task#timeoutL: evaluation time took > timeout => timeout is immediately completed") { implicit s =>
+    // "2 seconds" after delay of 3s
+    val timeout = Task(2.seconds).delayExecution(3.seconds)
+    // "10" after delay of 4 seconds
+    val f = Task(10).delayExecution(4.seconds).timeoutToL(timeout, Task(-10)).runToFuture
+
+    s.tick(3.seconds)
+    assertEquals(f.value, Some(Success(-10)))
+  }
+
   test("Task.racePair(a,b) should work if a completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
