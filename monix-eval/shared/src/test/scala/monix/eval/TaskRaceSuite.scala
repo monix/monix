@@ -311,6 +311,19 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(-10)))
   }
 
+  test("Task#timeoutL: ignoring timeout timings") { implicit s =>
+    // "2 seconds" after delay of 3s
+    val timeout = Task(2.seconds).delayExecution(3.seconds)
+    // "10" after delay of 4 seconds
+    val f = Task(10).delayExecution(4.seconds).timeoutToL(timeout, Task(-10), false).runToFuture
+
+    s.tick(3.seconds)
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(10)))
+  }
+
   test("Task.racePair(a,b) should work if a completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)

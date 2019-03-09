@@ -17,6 +17,10 @@
 
 package monix.eval
 
+import scala.annotation.unchecked.{uncheckedVariance => uV}
+import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
+import scala.concurrent.{ExecutionContext, Future, TimeoutException}
+import scala.util.{Failure, Success, Try}
 import cats.effect.{Fiber => _, _}
 import cats.{Monoid, Semigroup}
 import monix.catnap.FutureLift
@@ -25,17 +29,12 @@ import monix.eval.internal._
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseBlocking, UnsafeBecauseImpure}
+import monix.execution.compat.BuildFrom
+import monix.execution.compat.internal.newBuilder
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.Local
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
-import monix.execution.compat.BuildFrom
-import monix.execution.compat.internal.newBuilder
-
-import scala.annotation.unchecked.{uncheckedVariance => uV}
-import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
-import scala.concurrent.{ExecutionContext, Future, TimeoutException}
-import scala.util.{Failure, Success, Try}
 
 /** `Task` represents a specification for a possibly lazy or
   * asynchronous computation, which when executed will produce an `A`
@@ -2236,8 +2235,13 @@ sealed abstract class Task[+A] extends Serializable {
     *     .timeout(deadline.time)
     * }}}
     */
-  final def timeoutL(after: Task[FiniteDuration]): Task[A] =
-    timeoutToL(after, raiseError(new TimeoutException(s"Task timed-out after $after of inactivity")))
+  final def timeoutL(after: Task[FiniteDuration],
+                     respectTimeoutTimings: Boolean = true): Task[A] =
+    timeoutToL(
+      after,
+      raiseError(new TimeoutException(s"Task timed-out after $after of inactivity")),
+      respectTimeoutTimings
+    )
 
   /** Returns a Task that mirrors the source Task but switches to the
     * given backup Task in case the given duration passes without the
@@ -2267,14 +2271,33 @@ sealed abstract class Task[+A] extends Serializable {
     *     .onErrorRestart(100)
     *     .timeout(deadline.time)
     * }}}
+    *
+    * @param respectTimeoutTimings whether or not to include time
+    *                              it took to evaluate `after`.
+    *                              E.g. if it took 3 seconds to evaluate `after`
+    *                              to a value of `5 seconds`, then,
+    *                              if the value of this parameter is `true`,
+    *                              this task will timeout in exactly 5 seconds
+    *                              from the momemnt computation started;
+    *                              and if the value of this parameter is `false`,
+    *                              this will timeout in 5 seconds _after_
+    *                              the evaluation of timeout task was completed.
     **/
-  final def timeoutToL[B >: A](after: Task[FiniteDuration], backup: Task[B]): Task[B] = {
-    val timeoutTask = after.timed.flatMap { case (took, need) =>
-      val left = need - took
-      if (left.length <= 0) {
-        Task.unit
+  final def timeoutToL[B >: A](after: Task[FiniteDuration],
+                               backup: Task[B],
+                               respectTimeoutTimings: Boolean = true): Task[B] = {
+    val timeoutTask = {
+      if (respectTimeoutTimings) {
+        after.timed.flatMap { case (took, need) =>
+          val left = need - took
+          if (left.length <= 0) {
+            Task.unit
+          } else {
+            Task.sleep(left)
+          }
+        }
       } else {
-        Task.sleep(left)
+        after.flatMap(Task.sleep)
       }
     }
     Task.race(this, timeoutTask).flatMap {
@@ -2290,14 +2313,17 @@ sealed abstract class Task[+A] extends Serializable {
     * task emitting any item.
     */
   final def timeout(after: FiniteDuration): Task[A] =
-    timeoutTo(after, raiseError(new TimeoutException(s"Task timed-out after $after of inactivity")))
+    timeoutTo(
+      after,
+      raiseError(new TimeoutException(s"Task timed-out after $after of inactivity"))
+    )
 
   /** Returns a Task that mirrors the source Task but switches to the
     * given backup Task in case the given duration passes without the
     * source emitting any item.
     */
   final def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
-    timeoutToL(now(after), backup)
+    timeoutToL(now(after), backup, respectTimeoutTimings = false)
 
   /** Returns a string representation of this task meant for
     * debugging purposes only.
