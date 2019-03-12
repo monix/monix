@@ -25,6 +25,7 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
 import monix.execution.AsyncSemaphore
 import monix.execution.ChannelType.MultiProducer
+import monix.execution.atomic.AtomicAny
 import monix.execution.{Ack, Cancelable, CancelableFuture}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
@@ -78,7 +79,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     // Buffer for signaling new elements downstream preserving original order
     // It needs to be thread safe Queue because we want to allow adding and removing
     // elements at the same time.
-    private[this] val queue = new ConcurrentLinkedQueue[CancelableFuture[B]]
+    private[this] val queue = new ConcurrentLinkedQueue[AtomicAny[CancelableFuture[B]]]
     // This lock makes sure that only one thread at the time sends processed elements downstream
     // Note that we only use `tryLock()` - we never wait for acquiring lock
     private[this] val sendDownstreamLock = new ReentrantLock()
@@ -91,8 +92,8 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
       if (sendDownstreamLock.tryLock()) {
         try {
         // Keep checking the head of a queue since we have to signal elements in order
-          while (!shouldStop && !queue.isEmpty && queue.peek().isCompleted) {
-            val head = queue.poll()
+          while (!shouldStop && !queue.isEmpty && queue.peek().get().isCompleted) {
+            val head = queue.poll().get()
             head.value match {
               case Some(Success(value)) =>
                 buffer.onNext(value).syncOnComplete {
@@ -122,7 +123,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
       }
     }
 
-    private def process(elem: A) = {
+    private def process(elem: A, futureRef: AtomicAny[CancelableFuture[B]]) = {
       // For protecting against user code, without violating the
       // observer's contract, by marking the boundary after which
       // we can no longer stream errors downstream
@@ -138,7 +139,8 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
         streamErrors = false
         // Start execution
         val future = task.runToFuture
-        queue.offer(future)
+        futureRef.set(future)
+
         future.onComplete {
           case Success(_) =>
             // Current task finished, we can check if there is
@@ -166,26 +168,22 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
         // This will wait asynchronously, if there are no permits left
         val permit = semaphore.acquire()
         composite += permit
+        val futureRef = AtomicAny(CancelableFuture.never[B])
+        queue.offer(futureRef)
 
         val ack: Future[Ack] = permit.value match {
-          case None =>
-            permit.flatMap { _ =>
-              composite -= permit
-              process(elem)
-              Continue
-            }
-          case Some(_) =>
-            composite -= permit
-            process(elem)
-            Continue
+          case None => permit.flatMap(_ => Continue)
+          case Some(_) => Continue
         }
 
         ack.onComplete {
+          case Success(_) =>
+            composite -= permit
+            process(elem, futureRef)
           case Failure(ex) =>
             // Take out the garbage
             composite -= permit
             self.onError(ex)
-          case _ =>
         }
 
         // As noted already, the back-pressure happening here
