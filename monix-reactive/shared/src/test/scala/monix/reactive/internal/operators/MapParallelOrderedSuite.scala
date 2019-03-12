@@ -54,7 +54,6 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables(): Seq[Sample] = {
-    Seq.empty
     val sample1 = Observable.range(1, 100)
       .mapParallelOrdered(parallelism = 4)(x => Task.now(x).delayExecution(1.second))
     val sample2 = Observable.range(0, 100).delayOnNext(1.second)
