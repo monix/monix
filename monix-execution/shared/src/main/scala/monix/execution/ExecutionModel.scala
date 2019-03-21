@@ -112,7 +112,7 @@ object ExecutionModel {
     def nextFrameIndex(current: Int): Int = 0
   }
 
-  /** [[ExecutionModel]] specifying an mixed execution mode under
+  /** [[ExecutionModel]] specifying a mixed execution mode under
     * which tasks are executed synchronously in batches up
     * to a maximum size.
     *
