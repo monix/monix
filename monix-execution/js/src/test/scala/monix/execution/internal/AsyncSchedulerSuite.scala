@@ -105,7 +105,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
 
     for (_ <- p.future) yield {
       val duration = s.clockMonotonic(MILLISECONDS) - startAt
-      assert(Math.abs(duration - 10000) <= 30, "Error <= 30ms")
+      assert(Math.abs(duration - 15000) <= 30, "Error <= 30ms")
     }
   }
 
