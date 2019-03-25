@@ -17,12 +17,14 @@
 
 package monix.eval
 
-import monix.execution.{Cancelable, CancelableFuture}
+import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+
+import monix.execution.schedulers.TracingScheduler
 
 object TaskFromFutureSuite extends BaseTestSuite {
   test("Task.fromFuture should be faster for completed futures, success") { implicit s =>
@@ -148,6 +150,24 @@ object TaskFromFutureSuite extends BaseTestSuite {
     val count = if (Platform.isJVM) 100000 else 5000
     var result = Task.now(1).runToFuture
     for (_ <- 0 until count) result = Task.fromFuture(result).runToFuture
+    assertEquals(result.value, Some(Success(1)))
+  }
+
+  test("Task.fromFuture should cooperate with TaskLocal") { s =>
+    implicit val sc: Scheduler = TracingScheduler(s)
+    val task = for {
+      local  <- TaskLocal(0)
+      direct <- local.local
+      _      <- Task.deferFuture(Future { direct := 1 })
+      result <- local.read
+    } yield result
+
+    val result =
+      task
+        .executeWithOptions(_.enableLocalContextPropagation)
+        .runToFuture
+
+    s.tick()
     assertEquals(result.value, Some(Success(1)))
   }
 }

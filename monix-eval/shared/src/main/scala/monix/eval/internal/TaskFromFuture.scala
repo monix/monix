@@ -94,7 +94,7 @@ private[eval] object TaskFromFuture {
       start,
       trampolineBefore = false,
       trampolineAfter = false,
-      restoreLocals = true
+      restoreLocals = false
     )
   }
 
@@ -103,7 +103,7 @@ private[eval] object TaskFromFuture {
       start,
       trampolineBefore = true,
       trampolineAfter = false,
-      restoreLocals = true)
+      restoreLocals = false)
 
   private def startSimple[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {
     f.value match {
