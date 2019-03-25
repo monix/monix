@@ -94,7 +94,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
     val p = Promise[Unit]()
     val startAt = s.clockMonotonic(MILLISECONDS)
     var count = 0
-    lazy val c: Cancelable = s.scheduleAtFixedRate(Duration.Zero, 20.millis) {
+    lazy val c: Cancelable = s.scheduleAtFixedRate(Duration.Zero, 30.millis) {
       count += 1
       if (count == 500) {
         c.cancel()
@@ -105,7 +105,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
 
     for (_ <- p.future) yield {
       val duration = s.clockMonotonic(MILLISECONDS) - startAt
-      assert(Math.abs(duration - 10000) <= 20, "Error <= 20ms")
+      assert(Math.abs(duration - 15000) <= 30, "Error <= 30ms")
     }
   }
 
