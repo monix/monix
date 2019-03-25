@@ -32,7 +32,8 @@ private[eval] object TaskShift {
     Async(
       new Register(ec),
       trampolineBefore = false,
-      trampolineAfter = false)
+      trampolineAfter = false,
+      restoreLocals = false)
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
