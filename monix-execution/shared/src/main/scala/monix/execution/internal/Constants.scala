@@ -28,5 +28,5 @@ private[monix] object Constants {
 
   val successOfUnit: Try[Unit] = Success(())
 
-  val toUnit = (_: Any) => Unit
+  val toUnit = (_: Any) => ()
 }
