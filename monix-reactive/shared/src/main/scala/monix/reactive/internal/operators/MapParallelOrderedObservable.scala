@@ -136,8 +136,8 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
         val task = f(elem).doOnCancel(releaseTask)
         // No longer allowed to stream errors downstream
         streamErrors = false
-        // Start execution
-        val future = task.runToFuture
+        // Start execution (forcing an async boundary)
+        val future = task.executeAsync.runToFuture
         queue.offer(future)
         future.onComplete {
           case Success(_) =>

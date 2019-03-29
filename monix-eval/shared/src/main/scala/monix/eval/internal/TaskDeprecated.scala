@@ -276,9 +276,9 @@ private[eval] object TaskDeprecated {
 
     /** DEPRECATED — replace with usage of [[Task.runSyncStep]]:
       *
-      * `task.coeval <-> Coeval(task.runSyncMaybe)`
+      * `task.coeval <-> Coeval(task.runSyncStep)`
       */
-    @deprecated("Replaced with start", since="3.0.0-RC2")
+    @deprecated("Replaced with Coeval(task.runSyncStep)", since="3.0.0-RC2")
     def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] = {
       // $COVERAGE-OFF$
       Coeval.eval(runSyncMaybeOptPrv(s, Task.defaultOptions))

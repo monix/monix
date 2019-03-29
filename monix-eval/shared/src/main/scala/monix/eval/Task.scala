@@ -2300,10 +2300,16 @@ sealed abstract class Task[+A] extends Serializable {
     * task emitting any item.
     */
   final def timeout(after: FiniteDuration): Task[A] =
-    timeoutTo(
-      after,
-      raiseError(new TimeoutException(s"Task timed-out after $after of inactivity"))
-    )
+    timeoutWith(after, new TimeoutException(s"Task timed-out after $after of inactivity"))
+
+  /** Returns a Task that mirrors the source Task but that triggers a
+    * specified `Exception` in case the given duration passes
+    * without the task emitting any item.
+    * @param exception The `Exception` to throw after given duration
+    *                  passes
+    */
+  final def timeoutWith(after: FiniteDuration, exception: Exception): Task[A] =
+    timeoutTo(after, raiseError(exception))
 
   /** Returns a Task that mirrors the source Task but switches to the
     * given backup Task in case the given duration passes without the
