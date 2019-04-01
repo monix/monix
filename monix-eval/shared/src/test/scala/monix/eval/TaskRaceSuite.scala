@@ -20,10 +20,10 @@ package monix.eval
 import monix.execution.CancelableFuture
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-
 import scala.concurrent.{Promise, TimeoutException}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import monix.execution.atomic.Atomic
 
 object TaskRaceSuite extends BaseTestSuite {
   test("Task.raceMany should switch to other") { implicit s =>
@@ -249,6 +249,60 @@ object TaskRaceSuite extends BaseTestSuite {
 
     s.tick(1.seconds)
     assert(s.state.tasks.isEmpty, "all task should be completed")
+  }
+
+  test("Task#timeoutL should evaluate as specified: lazy, no memoization") { implicit s =>
+    val cnt = Atomic(0L)
+    val timeout = Task(cnt.incrementAndGet().seconds)
+    val loop = Task(10).delayExecution(2.9.seconds).timeoutL(timeout).onErrorRestart(3)
+    val f = loop.runToFuture
+
+    s.tick(1.second)
+    assertEquals(f.value, None)
+    s.tick(2.seconds)
+    assertEquals(f.value, None)
+    s.tick(3.seconds)
+    assertEquals(f.value, Some(Success(10)))
+  }
+
+  test("Task#timeoutL should evaluate as specified: lazy, with memoization") { implicit s =>
+    val cnt = Atomic(0L)
+    val timeout = Task.evalOnce(cnt.incrementAndGet().seconds)
+    val loop = Task(10).delayExecution(10.seconds).timeoutL(timeout).onErrorRestart(3)
+    val f = loop.runToFuture
+
+    s.tick(1.second)
+    assertEquals(f.value, None)
+
+    s.tick(1.seconds)
+    assertEquals(f.value, None)
+
+    s.tick(1.seconds)
+    assertEquals(f.value, None)
+
+    s.tick(1.seconds)
+    assert(f.value.isDefined)
+    assert(f.value.get.isFailure)
+    assert(f.value.get.failed.get.isInstanceOf[TimeoutException])
+  }
+
+  test("Task#timeoutL considers time taken to evaluate the duration task") { implicit s =>
+    val timeout = Task(3.seconds).delayExecution(2.seconds)
+    val f = Task(10).delayExecution(4.seconds).timeoutToL(timeout, Task(-10)).runToFuture
+
+    s.tick(2.seconds)
+    assertEquals(f.value, None)
+
+    s.tick(1.seconds)
+    assertEquals(f.value, Some(Success(-10)))
+  }
+
+  test("Task#timeoutL: evaluation time took > timeout => timeout is immediately completed") { implicit s =>
+    val timeout = Task(2.seconds).delayExecution(3.seconds)
+    val f = Task(10).delayExecution(4.seconds).timeoutToL(timeout, Task(-10)).runToFuture
+
+    s.tick(3.seconds)
+    assertEquals(f.value, Some(Success(-10)))
   }
 
   test("Task.racePair(a,b) should work if a completes first") { implicit s =>
