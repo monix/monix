@@ -19,7 +19,7 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 import monix.execution.ChannelType.{MPMC, SPMC, SPSC}
-import monix.execution.{AsyncQueue, CancelableFuture, ChannelType}
+import monix.execution.{AsyncQueue, CancelableFuture, ChannelType, BufferCapacity}
 import org.openjdk.jmh.annotations._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -61,7 +61,8 @@ class AsyncQueueBenchmark {
   }
 
   def test(producers: Int, workers: Int, channelType: ChannelType): Long = {
-    val queue = AsyncQueue[Int](capacity = 1024, channelType = channelType)
+    val capacity = BufferCapacity.Bounded(1024)
+    val queue = new AsyncQueue[Int](capacity, channelType = channelType)
     val workers = 1
 
     def producer(n: Int): Future[Long] =

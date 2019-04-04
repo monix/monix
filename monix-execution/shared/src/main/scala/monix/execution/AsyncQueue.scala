@@ -109,7 +109,7 @@ import scala.concurrent.duration._
   * concurrency bugs. If you're not sure what multi-threading scenario you
   * have, then just stick with the default `MPMC`.
   */
-final class AsyncQueue[A] private (
+final class AsyncQueue[A] private[monix] (
   capacity: BufferCapacity,
   channelType: ChannelType,
   retryDelay: FiniteDuration = 10.millis)
