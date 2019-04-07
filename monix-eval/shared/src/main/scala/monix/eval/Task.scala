@@ -35,6 +35,7 @@ import monix.execution.compat.internal.newBuilder
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 /** `Task` represents a specification for a possibly lazy or
@@ -2775,6 +2776,19 @@ object Task extends TaskInstancesLevel1 {
       case Failure(ex) => Error(ex)
     }
 
+  /** Builds a [[Task]] instance out of a Scala `Try`, lazily */
+  def fromTryL[A](a: => Try[A]): Task[A] = {
+    Task.create { (s, cb) =>
+      s.execute { () =>
+        try cb(a)
+        catch {
+          case NonFatal(e) =>
+            cb.onError(e)
+        }
+      }
+    }
+  }
+
   /** Builds a [[Task]] instance out of a Scala `Either`. */
   def fromEither[E <: Throwable, A](a: Either[E, A]): Task[A] =
     a match {
@@ -3145,7 +3159,7 @@ object Task extends TaskInstancesLevel1 {
   def cancelable0[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
     TaskCreate.cancelable0(register)
 
-  /** Returns a cancelable boundary — a `Task` that checks for the
+  /** Returns a cancelable boundary — a `Task` that checks for the
     * cancellation status of the run-loop and does not allow for the
     * bind continuation to keep executing in case cancellation happened.
     *
@@ -4145,7 +4159,7 @@ object Task extends TaskInstancesLevel1 {
       }
   }
 
-  /** Internal API — The `Context` under which [[Task]] is supposed to be executed.
+  /** Internal API — The `Context` under which [[Task]] is supposed to be executed.
     *
     * This has been hidden in version 3.0.0-RC2, becoming an internal
     * implementation detail. Soon to be removed or changed completely.
@@ -4320,7 +4334,7 @@ object Task extends TaskInstancesLevel1 {
     extends Task[A]
 
   /**
-    * Internal API — starts the execution of a Task with a guaranteed
+    * Internal API — starts the execution of a Task with a guaranteed
     * asynchronous boundary.
     */
   private[monix] def unsafeStartAsync[A](source: Task[A], context: Context, cb: Callback[Throwable, A]): Unit =
