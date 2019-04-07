@@ -2778,14 +2778,16 @@ object Task extends TaskInstancesLevel1 {
 
   /** Builds a [[Task]] instance out of a Scala `Try`, lazily */
   def fromTryL[A](a: => Try[A]): Task[A] = {
-    Task.create { (s, cb) =>
-      s.execute { () =>
-        try cb(a)
-        catch {
-          case NonFatal(e) =>
-            cb.onError(e)
+    Task.create[A] { (s, cb) =>
+      s.execute(new Runnable {
+        override def run(): Unit = {
+          try cb(a)
+          catch {
+            case NonFatal(e) =>
+              cb.onError(e)
+          }
         }
-      }
+      })
     }
   }
 
