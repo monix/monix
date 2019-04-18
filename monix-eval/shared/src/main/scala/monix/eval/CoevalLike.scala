@@ -19,7 +19,6 @@ package monix.eval
 
 import cats.effect.SyncIO
 import cats.{Comonad, Eval}
-
 import scala.util.Try
 
 /** A lawless type class that provides conversions to [[Coeval]].

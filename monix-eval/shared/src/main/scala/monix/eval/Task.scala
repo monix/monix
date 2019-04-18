@@ -2317,7 +2317,7 @@ sealed abstract class Task[+A] extends Serializable {
         backup
     }
   }
- 
+
   /** Returns a string representation of this task meant for
     * debugging purposes only.
     */
@@ -2766,7 +2766,7 @@ object Task extends TaskInstancesLevel1 {
 
   /** Builds a [[Task]] instance out of a `cats.Eval`. */
   def fromEval[A](a: cats.Eval[A]): Task[A] =
-    Coeval.fromEval(a).task
+    Coeval.fromEval(a).to[Task]
 
   /** Builds a [[Task]] instance out of a Scala `Try`. */
   def fromTry[A](a: Try[A]): Task[A] =

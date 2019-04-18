@@ -18,59 +18,60 @@
 package monix.eval
 
 import cats.Eval
+import cats.effect.IO
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 
-import scala.util.Failure
+import scala.util.{Failure, Success}
 
 object CoevalCatsConversions extends BaseTestSuite {
-  test("Coeval.now(value).toEval") { _ =>
-    assertEquals(Coeval.now(10).toEval.value, 10)
+  test("Coeval.now(value).to[Eval]") { _ =>
+    assertEquals(Coeval.now(10).to[Eval].value, 10)
   }
 
-  test("Coeval.raiseError(e).toEval") { _ =>
+  test("Coeval.raiseError(e).to[Eval]") { _ =>
     val dummy = DummyException("dummy")
-    val eval = Coeval.raiseError(dummy).toEval
+    val eval = Coeval.raiseError(dummy).to[Eval]
     intercept[DummyException] { eval.value }
   }
 
-  test("Coeval.eval(thunk).toEval") { _ =>
+  test("Coeval.eval(thunk).to[Eval]") { _ =>
     val effect = Atomic(0)
-    val eval = Coeval.eval(effect.incrementAndGet()).toEval
+    val eval = Coeval.eval(effect.incrementAndGet()).to[Eval]
 
     assertEquals(eval.value, 1)
     assertEquals(eval.value, 2)
   }
 
-  test("Coeval.evalOnce(thunk).toEval") { _ =>
+  test("Coeval.evalOnce(thunk).to[Eval]") { _ =>
     val effect = Atomic(0)
-    val eval = Coeval.evalOnce(effect.incrementAndGet()).toEval
+    val eval = Coeval.evalOnce(effect.incrementAndGet()).to[Eval]
 
     assertEquals(eval.value, 1)
     assertEquals(eval.value, 1)
   }
 
-  test("Coeval.now(value).toIO") { _ =>
-    assertEquals(Coeval.now(10).toIO.unsafeRunSync(), 10)
+  test("Coeval.now(value).to[IO]") { _ =>
+    assertEquals(Coeval.now(10).to[IO].unsafeRunSync(), 10)
   }
 
-  test("Coeval.raiseError(e).toIO") { _ =>
+  test("Coeval.raiseError(e).to[IO]") { _ =>
     val dummy = DummyException("dummy")
-    val ioRef = Coeval.raiseError(dummy).toIO
+    val ioRef = Coeval.raiseError(dummy).to[IO]
     intercept[DummyException] { ioRef.unsafeRunSync() }
   }
 
-  test("Coeval.eval(thunk).toIO") { _ =>
+  test("Coeval.eval(thunk).to[IO]") { _ =>
     val effect = Atomic(0)
-    val ioRef = Coeval.eval(effect.incrementAndGet()).toIO
+    val ioRef = Coeval.eval(effect.incrementAndGet()).to[IO]
 
     assertEquals(ioRef.unsafeRunSync(), 1)
     assertEquals(ioRef.unsafeRunSync(), 2)
   }
 
-  test("Coeval.evalOnce(thunk).toIO") { _ =>
+  test("Coeval.evalOnce(thunk).to[IO]") { _ =>
     val effect = Atomic(0)
-    val eval = Coeval.evalOnce(effect.incrementAndGet()).toIO
+    val eval = Coeval.evalOnce(effect.incrementAndGet()).to[IO]
 
     assertEquals(eval.unsafeRunSync(), 1)
     assertEquals(eval.unsafeRunSync(), 1)
@@ -101,5 +102,67 @@ object CoevalCatsConversions extends BaseTestSuite {
     val dummy = new DummyException("dummy")
     val eval = Coeval.fromEval(Eval.always { throw dummy })
     assertEquals(eval.runTry(), Failure(dummy))
+  }
+
+  test("Coeval().toSync[IO]") { _ =>
+    var effect = 0
+    val test = Coeval { effect += 1; effect }
+    val io = test.toSync[IO]
+
+    assertEquals(effect, 0)
+    assertEquals(io.unsafeRunSync(), 1)
+    assertEquals(io.unsafeRunSync(), 2)
+  }
+
+  test("Coeval().toSync[IO]") { _ =>
+    var effect = 0
+    val test = Coeval { effect += 1; effect }
+    val io = test.toSync[IO]
+
+    assertEquals(effect, 0)
+    assertEquals(io.unsafeRunSync(), 1)
+    assertEquals(io.unsafeRunSync(), 2)
+  }
+
+  test("Coeval().toSync[Task]") { implicit s =>
+    var effect = 0
+    val test = Coeval { effect += 1; effect }
+    val task = test.toSync[Task]
+
+    assertEquals(effect, 0)
+    assertEquals(task.runToFuture.value, Some(Success(1)))
+    assertEquals(task.runToFuture.value, Some(Success(2)))
+  }
+
+  test("Coeval.toK[Task]") { implicit s =>
+    var effect = 0
+    val test = Coeval { effect += 1; effect }
+    val task = Coeval.toK[Task].apply(test)
+
+    assertEquals(effect, 0)
+    assertEquals(task.runToFuture.value, Some(Success(1)))
+    assertEquals(task.runToFuture.value, Some(Success(2)))
+  }
+
+  test("Coeval.toSyncK[IO]") { _ =>
+    var effect = 0
+    val test = Coeval { effect += 1; effect }
+    val io = Coeval.toSyncK[IO].apply(test)
+
+    assertEquals(effect, 0)
+    assertEquals(io.unsafeRunSync(), 1)
+    assertEquals(io.unsafeRunSync(), 2)
+  }
+
+  test("Coeval().to[Coeval]") { _ =>
+    val ref1 = Coeval { 1 + 1 }
+    val ref2 = ref1.to[Coeval]
+    assertEquals(ref1, ref2)
+  }
+
+  test("Coeval().toSync[Coeval]") { _ =>
+    val ref1 = Coeval { 1 + 1 }
+    val ref2 = ref1.toSync[Coeval]
+    assertEquals(ref1, ref2)
   }
 }
