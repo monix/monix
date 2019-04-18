@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import cats.arrow.FunctionK
 import cats.effect.{Fiber => _, _}
 import cats.{Monoid, Semigroup}
 import monix.catnap.FutureLift
@@ -3956,6 +3957,48 @@ object Task extends TaskInstancesLevel1 {
   /** Pairs six [[Task]] instances using [[parMap6]]. */
   def parZip6[A1,A2,A3,A4,A5,A6](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6]): Task[(A1,A2,A3,A4,A5,A6)] =
     parMap6(fa1,fa2,fa3,fa4,fa5,fa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
+
+  /**
+    * Generates `cats.FunctionK` values for converting from `Task` to
+    * supporting types (for which we have a [[TaskLift]] instance).
+    *
+    * See [[https://typelevel.org/cats/datatypes/functionk.html]].
+    */
+  def toK[F[_]](implicit F: TaskLift[F]): FunctionK[Task, F] =
+    new FunctionK[Task, F] {
+      def apply[A](fa: Task[A]): F[A] =
+        F.taskLift(fa)
+    }
+
+  /**
+    * Generates `cats.FunctionK` values for converting from `Task` to
+    * supporting types (for which we have a `cats.effect.Async`) instance.
+    *
+    * See [[https://typelevel.org/cats/datatypes/functionk.html]].
+    *
+    * Prefer to use [[toK]], this alternative is provided in order to force
+    * the usage of `cats.effect.Async`, since [[TaskLift]] is lawless.
+    */
+  def toAsyncK[F[_]](implicit F: cats.effect.Async[F], eff: cats.effect.Effect[Task]): FunctionK[Task, F] =
+    new FunctionK[Task, F] {
+      def apply[A](fa: Task[A]): F[A] =
+        TaskLift.toAsync[F].taskLift(fa)
+    }
+
+  /**
+    * Generates `cats.FunctionK` values for converting from `Task` to
+    * supporting types (for which we have a `cats.effect.Concurrent`) instance.
+    *
+    * See [[https://typelevel.org/cats/datatypes/functionk.html]].
+    *
+    * Prefer to use [[toK]], this alternative is provided in order to force
+    * the usage of `cats.effect.Concurrent`, since [[TaskLift]] is lawless.
+    */
+  def toConcurrentK[F[_]](implicit F: cats.effect.Concurrent[F], eff: cats.effect.ConcurrentEffect[Task]): FunctionK[Task, F] =
+    new FunctionK[Task, F] {
+      def apply[A](fa: Task[A]): F[A] =
+        TaskLift.toConcurrent[F].taskLift(fa)
+    }
 
   /** Returns the current [[Task.Options]] configuration, which determine the
     * task's run-loop behavior.
