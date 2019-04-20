@@ -17,6 +17,9 @@
 
 package monix.execution.misc
 
+import monix.execution.atomic.AtomicAny
+
+import scala.annotation.tailrec
 import scala.reflect.macros.whitebox
 
 object Local {
@@ -43,26 +46,33 @@ object Local {
     * This should be treated as an opaque value and direct modifications
     * and access are considered verboten.
     */
-  type Context = scala.collection.immutable.Map[Key, _]
+  type Context = scala.collection.immutable.Map[Key, Any]
+  type ContextRef = AtomicAny[Context]
 
   /** Internal — key type used in [[Context]]. */
   final class Key extends Serializable
 
   /** Current [[Context]] kept in a `ThreadLocal`. */
-  private[this] val localContext: ThreadLocal[Context] =
-    ThreadLocal(Map.empty)
+  private[this] val localContext: ThreadLocal[ContextRef] =
+    ThreadLocal(AtomicAny(Map.empty))
 
   /** Return the state of the current Local state. */
-  def getContext(): Context =
+  def getContext(): ContextRef =
     localContext.get
 
   /** Restore the Local state to a given Context. */
-  def setContext(ctx: Context): Unit =
+  def setContext(ctx: ContextRef): Unit =
     localContext.set(ctx)
 
   /** Clear the Local state. */
   def clearContext(): Unit =
-    localContext.reset()
+    localContext.set(AtomicAny(Map.empty))
+
+  def isolate[R](f: => R): R =
+    macro Macros.isolate
+
+  def bindRef[R](ctx: ContextRef)(f: => R): R =
+    macro Macros.localLetRef
 
   /** Execute a block of code using the specified state of
     * `Local.Context` and restore the current state when complete.
@@ -93,20 +103,37 @@ object Local {
   }
 
   private def getKey[A](key: Key): Option[A] =
-    localContext.get().get(key).asInstanceOf[Option[A]]
+    localContext.get.get.get(key).asInstanceOf[Option[A]]
 
   private def getKeyOrElse[A](key: Key, default: => A): A = {
-    val ctx = localContext.get()
-    ctx.getOrElse(key, default).asInstanceOf[A]
+    val ctx: Context = localContext.get.get
+    val result: Any = ctx.getOrElse(key, default)
+    result.asInstanceOf[A]
   }
 
   private def saveKey(key: Key, value: Any): Unit = {
-    val newCtx = localContext.get().updated(key, value)
-    localContext.set(newCtx)
+    val ref = localContext.get
+    @tailrec def loop(): Unit = {
+      val old = ref.get
+      val next = old.updated(key, value)
+      if (!ref.compareAndSet(old, next)) {
+        loop()
+      }
+    }
+    loop()
   }
 
-  private def clearKey(key: Key): Unit =
-    localContext.set(localContext.get - key)
+  private def clearKey(key: Key): Unit = {
+    val ref = localContext.get
+    @tailrec def loop(): Unit = {
+      val old = ref.get
+      val next = old - key
+      if (!ref.compareAndSet(old, next)) {
+        loop()
+      }
+    }
+    loop()
+  }
 
   private def restoreKey(key: Key, value: Option[_]): Unit =
     value match {
@@ -119,6 +146,27 @@ object Local {
     import c.universe._
 
     def localLet(ctx: Tree)(f: Tree): Tree = {
+      val ctxRef = util.name("ctx")
+      val saved = util.name("saved")
+      val Local = symbolOf[Local[_]].companion
+      val AnyRefSym = symbolOf[AnyRef]
+      val AtomicAny = symbolOf[AtomicAny[_]].companion
+
+      resetTree(
+        q"""
+       val $ctxRef = ($ctx)
+       if (($ctxRef : $AnyRefSym) eq null) {
+         $f
+       } else {
+         val $saved = $Local.getContext()
+         $Local.setContext($AtomicAny($ctxRef))
+         try { $f } finally { $Local.setContext($saved) }
+       }
+       """)
+    }
+
+    def localLetRef(ctx: Tree)(f: Tree): Tree = {
+      // TODO - reduce copy-paste in localLetXXX macros
       val ctxRef = util.name("ctx")
       val saved = util.name("saved")
       val Local = symbolOf[Local[_]].companion
@@ -141,21 +189,24 @@ object Local {
       val saved = util.name("saved")
       val Local = symbolOf[Local[_]].companion
       val Map = symbolOf[scala.collection.immutable.Map[_, _]].companion
-
+      val AtomicAny = symbolOf[AtomicAny[_]].companion
       resetTree(
         q"""
        val $saved = $Local.getContext()
-       $Local.setContext($Map.empty)
+       $Local.setContext($AtomicAny($Map.empty))
        try { $f } finally { $Local.setContext($saved) }
        """)
     }
+
+    def isolate(f: Tree): Tree =
+      localLet(q"${symbolOf[Local[_]].companion}.getContext().get")(f)
 
     def localLetCurrentIf(b: Tree)(f: Tree): Tree = {
       val Local = symbolOf[Local[_]].companion
       resetTree(
         q"""
            if (!$b) { $f }
-           else ${localLet(q"$Local.getContext()")(f)}
+           else ${isolate(f)}
          """)
     }
   }
@@ -211,18 +262,23 @@ final class Local[A](default: () => A) {
     * current state upon completion.
     */
   def bind[R](value: A)(f: => R): R = {
-    val saved = this.value
-    update(value)
-    try f finally this.value = saved
+    // TODO - currently this doesn't propagate concurrent writes
+    // to other locals, if any, so acts like freeze all
+    val parent: AtomicAny[Local.Context] = Local.getContext()
+    Local.setContext(AtomicAny(parent.get))
+    Local.saveKey(key, value)
+    try f finally Local.setContext(parent)
   }
 
   /** Execute a block with the `Local` cleared, restoring the current
     * state upon completion.
     */
   def bindClear[R](f: => R): R = {
-    val saved = Local.getKey[A](key)
-    clear()
-    try f finally Local.restoreKey(key, saved)
+    // TODO - see comment above for bind
+    val parent: AtomicAny[Local.Context] = Local.getContext()
+    Local.setContext(AtomicAny(parent.get))
+    Local.clearKey(key)
+    try f finally Local.setContext(parent)
   }
 
   /** Clear the Local's value. Other [[Local Locals]] are not modified.

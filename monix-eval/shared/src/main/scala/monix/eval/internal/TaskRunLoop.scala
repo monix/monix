@@ -24,6 +24,7 @@ import monix.eval.Task
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
 import monix.execution.{CancelableFuture, ExecutionModel, Scheduler}
+
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
@@ -134,7 +135,7 @@ private[eval] object TaskRunLoop {
               // If LCP has changed to "enable", encapsulate local context
               val useLCP = context.options.localContextPropagation
               if (useLCP && useLCP != old.options.localContextPropagation) {
-                Local.bind(Local.getContext()) {
+                Local.isolate {
                   startFull(
                     current,
                     context,
@@ -203,7 +204,7 @@ private[eval] object TaskRunLoop {
         context.frameRef.reset()
 
         // Transporting the current context if localContextPropagation == true.
-        Local.bind(savedLocals) {
+        Local.bindRef(savedLocals) {
           // Using frameIndex = 1 to ensure at least one cycle gets executed
           startFull(source, context, cb, rcb, bindCurrent, bindRest, 1)
         }

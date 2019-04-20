@@ -57,12 +57,15 @@ object TracingSchedulerSuite extends SimpleTestSuite {
     local2 := 100
 
     val f = local1.bind(100)(Future(local1.get + local2.get))
-    local1 := 999
+    local1 := 42
     local2 := 999
+
+    val f2 = local2.bindClear(Future(local1.get + local2.get))
 
     assertEquals(f.value, None)
     ec.tick()
     assertEquals(f.value, Some(Success(200)))
+    assertEquals(f2.value, Some(Success(42)))
   }
 
   testAsync("captures locals in actual async execution") {
