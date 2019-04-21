@@ -145,7 +145,12 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
 
   // For working with partially-applied types
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary),
+  libraryDependencies += {
+    if (scalaVersion.value == "2.13.0-M5")
+      compilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary)
+    else
+      compilerPlugin("org.typelevel" % "kind-projector" % "0.10.0" cross CrossVersion.binary)
+  },
 
   // ScalaDoc settings
   autoAPIMappings := true,
