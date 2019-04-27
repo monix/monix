@@ -200,4 +200,19 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     t.runToFutureOpt
   }
+
+  testAsync("TaskLocal.isolate should prevent context changes") {
+    val t = for {
+      local <- TaskLocal(0)
+      inc = local.read.map(_ + 1).flatMap(local.write)
+      _     <- inc
+      res1  <- local.read
+      _     <- Task(assertEquals(res1, 1))
+      _     <- TaskLocal.isolate(inc)
+      res2  <- local.read
+      _     <- Task(assertEquals(res1, res2))
+    } yield ()
+
+    t.runToFutureOpt
+  }
 }
