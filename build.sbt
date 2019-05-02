@@ -18,8 +18,8 @@ addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
 addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
-val catsVersion = "1.6.0"
-val catsEffectVersion = "1.3.0"
+val catsVersion = "2.0.0-M1"
+val catsEffectVersion = "2.0.0-M1"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
@@ -27,7 +27,7 @@ def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVe
   case Some((2, v)) if v >= 13 => "3.0.6-SNAP5"
   case _                       => "3.0.4"
 }
-val minitestVersion = "2.3.2"
+val minitestVersion = "2.4.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -56,7 +56,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-M5"),
+  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-RC1"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -145,12 +145,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
 
   // For working with partially-applied types
-  libraryDependencies += {
-    if (scalaVersion.value == "2.13.0-M5")
-      compilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary)
-    else
-      compilerPlugin("org.typelevel" % "kind-projector" % "0.10.0" cross CrossVersion.binary)
-  },
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.0" cross CrossVersion.binary),
 
   // ScalaDoc settings
   autoAPIMappings := true,
@@ -414,23 +409,7 @@ lazy val catnapJS = project.in(file("monix-catnap/js"))
 lazy val evalCommon =
   crossSettings ++ crossVersionSharedSources ++ testSettings ++
     Seq(
-      name := "monix-eval",
-
-      // used to skip a test in 2.13.0-M5, remove when upgrading
-      // from https://stackoverflow.com/a/48518559/4094860
-      sourceGenerators in Test += Def.task {
-        val file = (sourceManaged in Test).value / "monix" / "eval" / "internal" / "ScalaVersion.scala"
-        val scalaV = scalaVersion.value
-        IO.write(file,
-          s"""package monix.eval.internal
-             |
-             |object ScalaVersion {
-             |  val Full = "$scalaV"
-             |}
-           """.stripMargin
-        )
-        Seq(file)
-      }.taskValue
+      name := "monix-eval"
     )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
