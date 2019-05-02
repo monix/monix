@@ -19,7 +19,7 @@ addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
 val catsVersion = "1.6.0"
-val catsEffectVersion = "1.2.0"
+val catsEffectVersion = "1.3.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
