@@ -5239,7 +5239,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
     *       .fromIterator(Task(Iterator.from(1)))
-    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *       .mapEval(i => Task { writer.println(s"Line #\\$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file, closing the writer
@@ -5293,7 +5293,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
     *       .fromIterator(Task(Iterator.from(1)))
-    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *       .mapEval(i => Task { writer.println(s"Line #\\$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file, closing the writer
