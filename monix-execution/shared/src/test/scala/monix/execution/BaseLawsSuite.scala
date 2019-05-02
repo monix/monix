@@ -47,7 +47,7 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       .withMaxSize(6)
 
   def checkAll(name: String, ruleSet: Laws#RuleSet, config: Parameters = checkConfig): Unit = {
-    for ((id, prop: Prop) ← ruleSet.all.properties)
+    for ((id, prop: Prop) <- ruleSet.all.properties)
       test(name + "." + id) {
         check(prop)
       }
@@ -59,7 +59,7 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
     val s = TestScheduler()
     val ruleSet = f(s)
 
-    for ((id, prop: Prop) ← ruleSet.all.properties)
+    for ((id, prop: Prop) <- ruleSet.all.properties)
       test(name + "." + id) {
         s.tick(1.day)
         check(prop)

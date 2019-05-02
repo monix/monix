@@ -3750,8 +3750,8 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def filterEval(p: A => Task[Boolean]): Observable[A] =
     self
-      .mapEval(a ⇒ p(a).map((a, _)))
-      .collect { case x if x._2 ⇒ x._1 }
+      .mapEval(a => p(a).map((a, _)))
+      .collect { case x if x._2 => x._1 }
 
   /** Version of [[filterEval]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]

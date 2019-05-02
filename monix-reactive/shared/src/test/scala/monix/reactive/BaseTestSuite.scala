@@ -53,7 +53,7 @@ trait BaseLawsTestSuite extends SimpleTestSuite with Checkers with ArbitraryInst
     val s = TestScheduler()
     val ruleSet = f(s)
 
-    for ((id, prop: Prop) ← ruleSet.all.properties)
+    for ((id, prop: Prop) <- ruleSet.all.properties)
       test(name + "." + id) {
         s.tick(1.day)
         check(prop)

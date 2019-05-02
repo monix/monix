@@ -328,7 +328,7 @@ def mimaSettings(projectName: String) = Seq(
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0
 )
 
-def profile: Project ⇒ Project = pr => cmdlineProfile match {
+def profile: Project => Project = pr => cmdlineProfile match {
   case _ =>
     pr.enablePlugins(AutomateHeaderPlugin)
 }
