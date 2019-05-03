@@ -7,7 +7,9 @@ val allProjects = List(
   "eval",
   "tail",
   "reactive",
-  "java"
+  "java",
+  "benchmarksPrev",
+  "benchmarksNext"
 )
 
 addCommandAlias("ci",          ";ci-jvm ;ci-js")
