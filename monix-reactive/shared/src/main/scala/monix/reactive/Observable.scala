@@ -1169,7 +1169,10 @@ abstract class Observable[+A] extends Serializable { self =>
     * Example:
     * {{{
     *   import monix.eval.Task
+    *   import monix.execution.Scheduler
     *
+    *   implicit val s = Scheduler.global
+    *   
     *   val cancelable =
     *     Observable
     *       .range(0, Int.MaxValue)
@@ -1200,6 +1203,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * Example:
     * {{{
     *   import cats.effect.IO
+    *   import monix.execution.Scheduler
+    *
+    *   implicit val s = Scheduler.global
     *
     *   val cancelable =
     *     Observable
