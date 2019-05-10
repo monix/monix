@@ -1170,9 +1170,13 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   import monix.eval.Task
     *
-    *   Observable.range(0, Int.MaxValue)
-    *     .doOnEarlyStop(Task(println("Cancelled!")))
-    *     .take(100)
+    *   val cancelable =
+    *     Observable
+    *       .range(0, Int.MaxValue)
+    *       .doOnSubscriptionCancel(Task(println("Cancelled!")))
+    *       .subscribe()
+    *
+    *   cancelable.cancel()
     * }}}
     *
     * NOTE: in most cases what you want is [[guaranteeCase]]
@@ -1197,10 +1201,13 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   import cats.effect.IO
     *
-    *   Observable
-    *     .range(0, Int.MaxValue)
-    *     .doOnEarlyStopF(IO(println("Cancelled!")))
-    *     .take(100)
+    *   val cancelable =
+    *     Observable
+    *       .range(0, Int.MaxValue)
+    *       .doOnSubscriptionCancelF(IO(println("Cancelled!")))
+    *       .subscribe()
+    *
+    *   cancelable.cancel()
     * }}}
     *
     * NOTE: in most cases what you want is [[guaranteeCase]]
