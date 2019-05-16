@@ -24,7 +24,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final class DropByPredicateOperator[A](p: A => Boolean)
+private[reactive] final class DropByPredicateOperator[A](p: A => Boolean, inclusive: Boolean)
   extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
@@ -46,7 +46,10 @@ private[reactive] final class DropByPredicateOperator[A](p: A => Boolean)
               Continue
             else {
               continueDropping = false
-              out.onNext(elem)
+              if (inclusive)
+                Continue
+              else
+                out.onNext(elem)
             }
           } catch {
             case NonFatal(ex) if streamError =>
