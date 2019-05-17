@@ -54,7 +54,7 @@ private[reactive] final class RepeatEvalObservable[+A](eval: => A)
     em: ExecutionModel, syncIndex: Int)(implicit s: Scheduler): Unit = {
 
     val ack = try o.onNext(eval) catch {
-      case ex if NonFatal(ex) =>
+      case NonFatal(ex) =>
         Future.failed(ex)
     }
 

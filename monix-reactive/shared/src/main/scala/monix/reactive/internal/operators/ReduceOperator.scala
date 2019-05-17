@@ -48,7 +48,7 @@ class ReduceOperator[A](op: (A,A) => A)
 
           Continue
         } catch {
-          case ex if NonFatal(ex) =>
+          case NonFatal(ex) =>
             onError(ex)
             Stop
         }

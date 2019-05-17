@@ -145,7 +145,7 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     val f2 = FutureUtils.transformWith(underlying, { result: Try[A] =>
       val nextRef: Future[S] =
         try f(result)
-        catch { case e if NonFatal(e) => Future.failed(e) }
+        catch { case NonFatal(e) => Future.failed(e) }
 
       // Checking to see if we are dealing with a "flatMap"
       // future, in which case we need to chain the cancelable
@@ -279,7 +279,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
         try {
           cRef := register(p.complete)
         } catch {
-          case e if NonFatal(e) =>
+          case NonFatal(e) =>
             if (!p.tryComplete(Failure(e)))
               ec.reportFailure(e)
         }

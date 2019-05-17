@@ -2600,7 +2600,7 @@ object Iterant extends IterantInstances {
       NextBatch[F, A](Batch.fromSeq(buffer.toSeq), F.delay(loop(currentState)))
     }
     try loop(seed)
-    catch { case e if NonFatal(e) => Halt(Some(e)) }
+    catch { case NonFatal(e) => Halt(Some(e)) }
   }
 
   /** Given an initial state and a generator function that produces the
@@ -2628,7 +2628,7 @@ object Iterant extends IterantInstances {
           Next(elem, F.suspend(loop(newState)))
         }
       } catch {
-        case e if NonFatal(e) => F.pure(Halt(Some(e)))
+        case NonFatal(e) => F.pure(Halt(Some(e)))
       }
     Suspend(F.suspend(seed.flatMap(loop)))
   }
@@ -3109,7 +3109,7 @@ object Iterant extends IterantInstances {
 
     def apply(fa: Iterant[F, A]): R =
       try fa.accept(this)
-      catch { case e if NonFatal(e) => fail(e) }
+      catch { case NonFatal(e) => fail(e) }
   }
 }
 

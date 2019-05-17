@@ -213,7 +213,7 @@ private[reactive] final class FlatScanObservable[A,R](
             Stop
           // $COVERAGE-ON$
         }
-      } catch { case ex if NonFatal(ex) =>
+      } catch { case NonFatal(ex) =>
         if (streamErrors) {
           onError(ex)
           Stop

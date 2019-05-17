@@ -91,7 +91,7 @@ private[tail] object IterantZipWithIndex {
           node.runMap(this)
       }
       catch {
-        case ex if NonFatal(ex) => Iterant.raiseError(ex)
+        case NonFatal(ex) => Iterant.raiseError(ex)
       }
     }
   }

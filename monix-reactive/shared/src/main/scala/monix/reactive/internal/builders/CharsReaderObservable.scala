@@ -99,7 +99,7 @@ private[reactive] final class CharsReaderObservable(
         Stop
       }
     } catch {
-      case ex if NonFatal(ex) =>
+      case NonFatal(ex) =>
         errorThrown = ex
     }
 

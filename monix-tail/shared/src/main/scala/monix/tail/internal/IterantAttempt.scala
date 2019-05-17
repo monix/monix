@@ -63,7 +63,7 @@ private[tail] object IterantAttempt {
         signalError = false
         handleCursor(NextCursor(cursor, rest), cursor, rest)
       } catch {
-        case e if NonFatal(e) && signalError =>
+        case NonFatal(e) if signalError =>
           Iterant.now(self.handleError(e))
       }
     }
@@ -173,7 +173,7 @@ private[tail] object IterantAttempt {
         else
           Suspend(next)
       } catch {
-        case e if NonFatal(e) => Iterant.pure(handleError(e))
+        case NonFatal(e) => Iterant.pure(handleError(e))
       }
     }
 

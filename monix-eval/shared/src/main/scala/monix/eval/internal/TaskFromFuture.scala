@@ -71,7 +71,7 @@ private[eval] object TaskFromFuture {
             }
         }
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           if (streamErrors) callback.onError(ex)
           else sc.reportFailure(ex)
       }

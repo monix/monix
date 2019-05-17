@@ -230,7 +230,7 @@ object CancelablePromise {
                 // Aggregating errors, because we want to throw them all
                 // as a composite and to prevent listeners from spoiling
                 // the fun for other listeners by throwing errors
-                case e if NonFatal(e) =>
+                case NonFatal(e) =>
                   if (errors eq null) errors = ListBuffer.empty
                   errors += e
               }

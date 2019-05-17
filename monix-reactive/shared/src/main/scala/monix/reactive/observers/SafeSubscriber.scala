@@ -47,7 +47,7 @@ final class SafeSubscriber[-A] private (subscriber: Subscriber[A])
       ack = try {
         flattenAndCatchFailures(subscriber.onNext(elem))
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           onError(ex)
           Stop
       }
@@ -67,7 +67,7 @@ final class SafeSubscriber[-A] private (subscriber: Subscriber[A])
         isDone = true
 
         try subscriber.onComplete() catch {
-          case err if NonFatal(err) =>
+          case NonFatal(err) =>
             scheduler.reportFailure(err)
         }
       }
@@ -91,7 +91,7 @@ final class SafeSubscriber[-A] private (subscriber: Subscriber[A])
       isDone = true
 
       try subscriber.onError(ex) catch {
-        case err if NonFatal(err) =>
+        case NonFatal(err) =>
           scheduler.reportFailure(err)
       }
     }
@@ -102,7 +102,7 @@ final class SafeSubscriber[-A] private (subscriber: Subscriber[A])
       if (ack eq Stop) isDone = true
       ack
     } catch {
-      case ex if NonFatal(ex) =>
+      case NonFatal(ex) =>
         signalError(value.failed.get)
         Stop
     }

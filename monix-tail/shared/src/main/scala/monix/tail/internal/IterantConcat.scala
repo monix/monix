@@ -56,7 +56,7 @@ private[tail] object IterantConcat {
     source match {
       case Last(item) =>
         try f(item)
-        catch { case e if NonFatal(e) => Iterant.raiseError(e) }
+        catch { case NonFatal(e) => Iterant.raiseError(e) }
       case empty @ Halt(_) =>
         empty.asInstanceOf[Iterant[F, B]]
       case _ =>

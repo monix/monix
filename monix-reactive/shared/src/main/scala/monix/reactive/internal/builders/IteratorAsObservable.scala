@@ -63,7 +63,7 @@ private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) ext
         cancelable
       }
     } catch {
-      case ex if NonFatal(ex) =>
+      case NonFatal(ex) =>
         // We can only stream onError events if we have a guarantee
         // that no other final events happened, otherwise we could
         // violate the contract.
@@ -95,7 +95,7 @@ private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) ext
           try {
             fastLoop(iter, out, c, em, 0)
           } catch {
-            case ex if NonFatal(ex) =>
+            case NonFatal(ex) =>
               // Protocol violation
               s.reportFailure(ex)
           }

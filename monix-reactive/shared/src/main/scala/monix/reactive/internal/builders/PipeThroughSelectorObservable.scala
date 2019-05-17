@@ -57,7 +57,7 @@ private[reactive] final class PipeThroughSelectorObservable[A,B,C]
         downstream.cancel()
       }
     } catch {
-      case ex if NonFatal(ex) =>
+      case NonFatal(ex) =>
         upstream.cancel()
         if (streamErrors) out.onError(ex)
         else out.scheduler.reportFailure(ex)

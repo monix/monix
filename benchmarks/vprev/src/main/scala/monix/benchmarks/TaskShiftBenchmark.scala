@@ -139,7 +139,7 @@ object TaskShiftBenchmark {
   def async[A](k: Callback[Throwable, A] => Unit): Task[A] =
     Task.unsafeCreate { (ctx, cb) =>
       try k(Callback.async(cb)(ctx.scheduler)) catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
           // been called already and we'd be violating its contract,
           // hence the only thing possible is to log the error.

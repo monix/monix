@@ -212,7 +212,7 @@ private[reactive] final class MapTaskObservable[A,B]
             Stop
         }
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           if (streamErrors) {
             onError(ex)
             Stop

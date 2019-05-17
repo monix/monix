@@ -41,7 +41,7 @@ private[tail] object IterantFoldLeftL {
         catchErrors = false
         new Loop(init, op).apply(source)
       } catch {
-        case e if NonFatal(e) && catchErrors =>
+        case NonFatal(e) if catchErrors =>
           F.raiseError(e)
       }
     }

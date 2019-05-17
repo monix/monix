@@ -102,7 +102,7 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
         Stop
       }
     } catch {
-      case ex if NonFatal(ex) =>
+      case NonFatal(ex) =>
         errorThrown = ex
     }
 

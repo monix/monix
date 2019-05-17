@@ -34,9 +34,9 @@ private[reactive] final class RunnableObservable(r: Runnable)
       // No need to do back-pressure
       subscriber.onComplete()
     } catch {
-      case ex if NonFatal(ex) =>
+      case NonFatal(ex) =>
         try subscriber.onError(ex) catch {
-          case err if NonFatal(err) =>
+          case NonFatal(err) =>
             val s = subscriber.scheduler
             s.reportFailure(ex)
             s.reportFailure(err)

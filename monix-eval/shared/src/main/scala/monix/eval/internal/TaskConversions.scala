@@ -114,7 +114,7 @@ private[eval] object TaskConversions {
         val syncIO = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
         cancelable := fromEffect(syncIO.unsafeRunSync() : F[Unit])
       } catch {
-        case e if NonFatal(e) =>
+        case NonFatal(e) =>
           ctx.scheduler.reportFailure(e)
       }
     }

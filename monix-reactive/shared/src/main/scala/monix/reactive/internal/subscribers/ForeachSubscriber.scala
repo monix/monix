@@ -38,7 +38,7 @@ private[reactive] final class ForeachSubscriber[A](
       f(elem)
       Continue
     } catch {
-      case ex if NonFatal(ex) =>
+      case NonFatal(ex) =>
         onError(ex)
         Stop
     }

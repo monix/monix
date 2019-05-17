@@ -153,7 +153,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
 
         subscription := future.cancelable
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           if (streamErrors) self.onError(ex)
           else scheduler.reportFailure(ex)
       }

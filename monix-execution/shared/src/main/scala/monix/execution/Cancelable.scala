@@ -109,7 +109,7 @@ object Cancelable {
     val cursor = seq.iterator
     while (cursor.hasNext) {
       try cursor.next().cancel()
-      catch { case ex if NonFatal(ex) => errors += ex }
+      catch { case NonFatal(ex) => errors += ex }
     }
 
     errors.toList match {

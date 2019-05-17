@@ -36,7 +36,7 @@ private[tail] object IterantScan {
     // to suspend
     val task = F.delay {
       try new Loop(initial, f).apply(fa)
-      catch { case e if NonFatal(e) => Halt[F, S](Some(e)) }
+      catch { case NonFatal(e) => Halt[F, S](Some(e)) }
     }
     Suspend(task)
   }

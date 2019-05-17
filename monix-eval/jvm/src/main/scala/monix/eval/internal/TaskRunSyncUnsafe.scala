@@ -61,7 +61,7 @@ private[eval] object TaskRunSyncUnsafe {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
           } catch {
-            case e if NonFatal(e) =>
+            case NonFatal(e) =>
               current = Error(e)
           }
 
@@ -79,7 +79,7 @@ private[eval] object TaskRunSyncUnsafe {
             current = thunk()
           }
           catch {
-            case ex if NonFatal(ex) => current = Error(ex)
+            case NonFatal(ex) => current = Error(ex)
           }
 
         case Error(error) =>
@@ -88,7 +88,7 @@ private[eval] object TaskRunSyncUnsafe {
             case bind =>
               // Try/catch described as statement to prevent ObjectRef ;-)
               try { current = bind.recover(error) }
-              catch { case e if NonFatal(e) => current = Error(e) }
+              catch { case NonFatal(e) => current = Error(e) }
               bFirst = null
           }
 
@@ -111,7 +111,7 @@ private[eval] object TaskRunSyncUnsafe {
             try {
               current = bind(unboxed)
             } catch {
-              case ex if NonFatal(ex) => current = Error(ex)
+              case NonFatal(ex) => current = Error(ex)
             }
             hasUnboxed = false
             unboxed = null

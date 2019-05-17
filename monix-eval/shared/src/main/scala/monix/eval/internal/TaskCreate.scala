@@ -53,7 +53,7 @@ private[eval] object TaskCreate {
         if (!ref.isInstanceOf[Cancelable.IsDummy])
           setConnection(cancelable, ref)
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
           // been called already and we'd be violating its contract,
           // hence the only thing possible is to log the error.
@@ -101,7 +101,7 @@ private[eval] object TaskCreate {
         fn(s, Callback.trampolined(cb))
         ()
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
           // been called already and we'd be violating its contract,
           // hence the only thing possible is to log the error.
@@ -123,7 +123,7 @@ private[eval] object TaskCreate {
       try {
         k(Callback.trampolined(cb))
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
           // been called already and we'd be violating its contract,
           // hence the only thing possible is to log the error.
@@ -149,7 +149,7 @@ private[eval] object TaskCreate {
         val task = k(TaskConnection.trampolineCallback(conn, cb))
         Task.unsafeStartNow(task, ctx2, Callback.empty)
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
           // been called already and we'd be violating its contract,
           // hence the only thing possible is to log the error.

@@ -46,7 +46,7 @@ final class MapTaskConsumer[In, R, R2](source: Consumer[In,R], f: R => Task[R2])
               streamErrors = false
               task.runAsync(cb)
             } catch {
-              case ex if NonFatal(ex) =>
+              case NonFatal(ex) =>
                 if (streamErrors) cb.onError(ex)
                 else s.reportFailure(ex)
             }

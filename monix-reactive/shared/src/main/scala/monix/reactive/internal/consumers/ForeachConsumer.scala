@@ -40,7 +40,7 @@ final class ForeachConsumer[A](f: A => Unit)
           f(elem)
           Continue
         } catch {
-          case ex if NonFatal(ex) =>
+          case NonFatal(ex) =>
             onError(ex)
             Stop
         }

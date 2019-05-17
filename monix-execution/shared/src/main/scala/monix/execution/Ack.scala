@@ -32,14 +32,14 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
   // For Scala 2.12 compatibility
   final def transform[S](f: (Try[Ack]) => Try[S])(implicit executor: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    onComplete(r => p.complete(try f(r) catch { case t if NonFatal(t) => Failure(t) }))
+    onComplete(r => p.complete(try f(r) catch { case NonFatal(t) => Failure(t) }))
     p.future
   }
 
   // For Scala 2.12 compatibility
   final def transformWith[S](f: (Try[Ack]) => Future[S])(implicit executor: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    onComplete(r => p.completeWith(try f(r) catch { case t if NonFatal(t) => Future.failed(t) }))
+    onComplete(r => p.completeWith(try f(r) catch { case NonFatal(t) => Future.failed(t) }))
     p.future
   }
 
@@ -108,11 +108,11 @@ object Ack {
       */
     def syncOnContinue(thunk: => Unit)(implicit r: UncaughtExceptionReporter): Self = {
       if (source eq Continue)
-        try thunk catch { case e if NonFatal(e) => r.reportFailure(e) }
+        try thunk catch { case NonFatal(e) => r.reportFailure(e) }
       else if (source ne Stop)
         source.onComplete {
           case Success(Continue) =>
-            try thunk catch { case e if NonFatal(e) => r.reportFailure(e) }
+            try thunk catch { case NonFatal(e) => r.reportFailure(e) }
           case _ =>
             ()
         }(immediate)
@@ -128,7 +128,7 @@ object Ack {
       */
     def syncOnStopOrFailure(cb: Option[Throwable] => Unit)(implicit r: UncaughtExceptionReporter): Self = {
       if (source eq Stop)
-        try cb(None) catch { case e if NonFatal(e) => r.reportFailure(e) }
+        try cb(None) catch { case NonFatal(e) => r.reportFailure(e) }
       else if (source ne Continue)
         source.onComplete { ack =>
           try ack match {
@@ -136,7 +136,7 @@ object Ack {
             case Failure(e) => cb(Some(e))
             case _ => ()
           } catch {
-            case e if NonFatal(e) => r.reportFailure(e)
+            case NonFatal(e) => r.reportFailure(e)
           }
         }(immediate)
       source
@@ -165,7 +165,7 @@ object Ack {
       */
     def syncFlatMap(f: Ack => Future[Ack])(implicit r: UncaughtExceptionReporter): Future[Ack] = {
       if ((source eq Continue) || (source eq Stop))
-        try f(source.asInstanceOf[Ack]) catch { case e if NonFatal(e) =>
+        try f(source.asInstanceOf[Ack]) catch { case NonFatal(e) =>
           r.reportFailure(e)
           Stop
         }
@@ -183,11 +183,11 @@ object Ack {
     def syncOnComplete(f: Try[Ack] => Unit)(implicit r: UncaughtExceptionReporter): Unit = {
       if ((source eq Continue) || (source eq Stop))
         try f(Success(source.asInstanceOf[Ack]))
-        catch { case e if NonFatal(e) => r.reportFailure(e) }
+        catch { case NonFatal(e) => r.reportFailure(e) }
       else
         source.onComplete { ack =>
           try f(ack)
-          catch { case e if NonFatal(e) => r.reportFailure(e) }
+          catch { case NonFatal(e) => r.reportFailure(e) }
         }(immediate)
     }
 

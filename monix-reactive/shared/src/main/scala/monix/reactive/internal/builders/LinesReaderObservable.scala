@@ -99,7 +99,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
         Stop
       }
     } catch {
-      case ex if NonFatal(ex) =>
+      case NonFatal(ex) =>
         errorThrown = ex
     }
 

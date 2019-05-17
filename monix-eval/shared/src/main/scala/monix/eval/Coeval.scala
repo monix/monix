@@ -1249,7 +1249,7 @@ object Coeval extends CoevalInstancesLevel0 {
     /** Promotes a non-strict value to a [[Coeval.Eager]]. */
     def apply[A](f: => A): Eager[A] =
       try Now(f) catch {
-        case ex if NonFatal(ex) => Error(ex)
+        case NonFatal(ex) => Error(ex)
       }
 
     /** Builds an [[Coeval.Eager Eager]] from a `scala.util.Try` */
@@ -1290,11 +1290,11 @@ object Coeval extends CoevalInstancesLevel0 {
     override def apply(): A = f()
 
     override def run(): Eager[A] =
-      try Now(f()) catch { case e if NonFatal(e) => Error(e) }
+      try Now(f()) catch { case NonFatal(e) => Error(e) }
     override def runAttempt(): Either[Throwable, A] =
-      try Right(f()) catch { case e if NonFatal(e) => Left (e) }
+      try Right(f()) catch { case NonFatal(e) => Left (e) }
     override def runTry(): Try[A] =
-      try Success(f()) catch { case e if NonFatal(e) => Failure(e) }
+      try Success(f()) catch { case NonFatal(e) => Failure(e) }
   }
 
   /** Internal state, the result of [[Coeval.defer]] */

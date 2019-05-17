@@ -273,7 +273,7 @@ object Callback {
       if (isActive) {
         isActive = false
         try underlying.onSuccess(value) catch {
-          case ex if NonFatal(ex) =>
+          case NonFatal(ex) =>
             r.reportFailure(ex)
         }
       }
@@ -282,7 +282,7 @@ object Callback {
       if (isActive) {
         isActive = false
         try underlying.onError(error) catch {
-          case err if NonFatal(err) =>
+          case NonFatal(err) =>
             r.reportFailure(UncaughtErrorException.wrap(error))
             r.reportFailure(err)
         }

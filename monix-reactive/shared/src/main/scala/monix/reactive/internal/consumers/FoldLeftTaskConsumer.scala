@@ -54,7 +54,7 @@ final class FoldLeftTaskConsumer[A,R](initial: () => R, f: (R,A) => Task[R])
 
           task.runToFuture
         } catch {
-          case ex if NonFatal(ex) =>
+          case NonFatal(ex) =>
             onError(ex)
             Stop
         }

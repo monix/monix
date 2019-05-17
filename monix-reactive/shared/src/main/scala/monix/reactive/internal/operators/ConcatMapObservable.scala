@@ -237,7 +237,7 @@ private[reactive] final class ConcatMapObservable[A, B](
             Stop
             // $COVERAGE-ON$
         }
-      } catch { case ex if NonFatal(ex) =>
+      } catch { case NonFatal(ex) =>
         if (streamErrors) {
           onError(ex)
           Stop

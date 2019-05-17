@@ -299,7 +299,7 @@ private[tail] object IterantToReactivePublisher {
         try {
           super.apply(fa)
         } catch {
-          case e if NonFatal(e) =>
+          case NonFatal(e) =>
             if (streamErrors) F.delay(out.onError(e))
             else F.delay(Logger.reportFailure(e))
         }

@@ -47,7 +47,7 @@ private[tail] object IterantOnErrorHandleWith {
 
     private[this] val f = (e: Throwable) => {
       self.wasErrorHandled = true
-      try handler(e) catch { case e2 if NonFatal(e) =>
+      try handler(e) catch { case NonFatal(e2) =>
         Iterant.raiseError[F, A](Platform.composeErrors(e, e2))
       }
     }
@@ -62,7 +62,7 @@ private[tail] object IterantOnErrorHandleWith {
         handleError = false
         visit(NextCursor(cursor, ref.rest))
       } catch {
-        case e if NonFatal(e) && handleError =>
+        case NonFatal(e) if handleError =>
           f(e)
       }
     }
@@ -81,7 +81,7 @@ private[tail] object IterantOnErrorHandleWith {
         else
           Suspend(next)
       } catch {
-        case e if NonFatal(e) => f(e)
+        case NonFatal(e) => f(e)
       }
     }
 

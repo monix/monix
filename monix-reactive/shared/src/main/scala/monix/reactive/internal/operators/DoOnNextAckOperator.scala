@@ -42,7 +42,7 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
         // back-pressure for the following onNext events
         val f = out.onNext(elem)
         val task = Task.fromFuture(f).flatMap { ack =>
-          val r = try cb(elem,ack) catch { case ex if NonFatal(ex) => Task.raiseError(ex) }
+          val r = try cb(elem,ack) catch { case NonFatal(ex) => Task.raiseError(ex) }
           r.map(_ => ack).onErrorHandle { ex => onError(ex); Stop }
         }
 

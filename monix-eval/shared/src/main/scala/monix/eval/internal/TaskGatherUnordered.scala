@@ -168,7 +168,7 @@ private[eval] object TaskGatherUnordered {
         // callback to be triggered
         activate(stateRef, count, mainConn, finalCallback)(s)
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           reportError(stateRef, context.connection, ex, finalCallback)
       }
     }

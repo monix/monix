@@ -43,7 +43,7 @@ final class ForeachAsyncConsumer[A](f: A => Task[Unit])
             .runToFuture
             .syncTryFlatten
         } catch {
-          case ex if NonFatal(ex) =>
+          case NonFatal(ex) =>
             onError(ex)
             Stop
         }

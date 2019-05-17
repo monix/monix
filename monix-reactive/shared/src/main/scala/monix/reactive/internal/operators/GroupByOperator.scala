@@ -114,7 +114,7 @@ private[reactive] final class GroupByOperator[A,K](
               acc
             }
             catch {
-              case ex if NonFatal(ex) =>
+              case NonFatal(ex) =>
                 acc :+ ex
             }
           }

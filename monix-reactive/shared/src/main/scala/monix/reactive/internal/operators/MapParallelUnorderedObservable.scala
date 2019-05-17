@@ -127,7 +127,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
         // Start execution
         subscription := task.runAsync(Callback.empty)
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           if (streamErrors) self.onError(ex)
           else scheduler.reportFailure(ex)
       }

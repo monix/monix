@@ -89,7 +89,7 @@ private[tail] object IterantIntersperse {
               Next(a, some.map(this))
           }
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           Halt(Some(ex))
       }
     }

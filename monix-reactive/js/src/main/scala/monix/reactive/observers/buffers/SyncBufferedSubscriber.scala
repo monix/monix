@@ -64,7 +64,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
         Continue
       }
       catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           onError(ex)
           Stop
       }
@@ -116,7 +116,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
             ack
         }
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           downstreamSignalComplete(ex)
           Stop
       }
@@ -127,7 +127,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
         if (ex != null) out.onError(ex)
         else out.onComplete()
       } catch {
-        case err if NonFatal(err) =>
+        case NonFatal(err) =>
           scheduler.reportFailure(err)
       }
     }
@@ -223,7 +223,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
             return
           }
         } catch {
-          case ex if NonFatal(ex) =>
+          case NonFatal(ex) =>
             if (streamErrors) {
               // ending loop
               downstreamSignalComplete(ex)

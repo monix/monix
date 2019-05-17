@@ -229,7 +229,7 @@ final class LoadBalanceConsumer[-In, R]
             case Failure(ex) =>
               interruptAll(ex)
           } catch {
-            case ex if NonFatal(ex) =>
+            case NonFatal(ex) =>
               interruptAll(ex)
           }
         }
@@ -256,7 +256,7 @@ final class LoadBalanceConsumer[-In, R]
                 if (ex == null) subscriber.out.onComplete()
                 else subscriber.out.onError(ex)
               } catch {
-                case err if NonFatal(err) => s.reportFailure(err)
+                case NonFatal(err) => s.reportFailure(err)
               }
 
               if (activeCount > 0) loop(activeCount-1)

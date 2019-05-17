@@ -35,7 +35,7 @@ private[eval] object TaskDeferAction {
         streamErrors = false
         Task.unsafeStartNow(fa, context, callback)
       } catch {
-        case ex if NonFatal(ex) =>
+        case NonFatal(ex) =>
           if (streamErrors)
             callback.onError(ex)
           else {
