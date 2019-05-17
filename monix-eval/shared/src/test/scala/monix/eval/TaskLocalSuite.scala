@@ -17,6 +17,8 @@
 
 package monix.eval
 
+import scala.concurrent.Future
+
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
@@ -211,6 +213,23 @@ object TaskLocalSuite extends SimpleTestSuite {
       _     <- TaskLocal.isolate(inc)
       res2  <- local.read
       _     <- Task(assertEquals(res1, res2))
+    } yield ()
+
+    t.runToFutureOpt
+  }
+
+  testAsync("TaskLocal interop with future via deferFutureAction") {
+    val t = for {
+      local <- TaskLocal(0)
+      unsafe <- local.local
+      _ <- local.write(1)
+      _ <- Task.deferFutureAction { implicit ec =>
+        Future {
+          assertEquals(unsafe.get, 1)
+        }.map { _ => unsafe := 50 }
+      }
+      x <- local.read
+      _ <- Task(assertEquals(x, 50))
     } yield ()
 
     t.runToFutureOpt

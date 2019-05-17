@@ -261,8 +261,8 @@ final class Local[A](default: () => A) {
   /** Execute a block with a specific local value, restoring the
     * current state upon completion.
     */
+  @deprecated("Binds on Local prevent propagation of writes to other locals. Use Local.isolate directly", "3.0.0-RC3")
   def bind[R](value: A)(f: => R): R = {
-    // TODO - currently this doesn't propagate concurrent writes
     // to other locals, if any, so acts like freeze all
     val parent: AtomicAny[Local.Context] = Local.getContext()
     Local.setContext(AtomicAny(parent.get))
@@ -273,8 +273,8 @@ final class Local[A](default: () => A) {
   /** Execute a block with the `Local` cleared, restoring the current
     * state upon completion.
     */
+  @deprecated("Binds on Local prevent propagation of writes to other locals. Use Local.isolate directly", "3.0.0-RC3")
   def bindClear[R](f: => R): R = {
-    // TODO - see comment above for bind
     val parent: AtomicAny[Local.Context] = Local.getContext()
     Local.setContext(AtomicAny(parent.get))
     Local.clearKey(key)
@@ -283,7 +283,7 @@ final class Local[A](default: () => A) {
 
   /** Clear the Local's value. Other [[Local Locals]] are not modified.
     *
-    * General usage should be via [[bindClear]] to avoid leaks.
+    * General usage should be in [[Local.isolate]] to avoid leaks.
     */
   def clear(): Unit =
     Local.clearKey(key)

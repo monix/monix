@@ -49,35 +49,15 @@ object LocalSuite extends SimpleTestSuite {
     assertEquals(local.get, 3)
   }
 
-  test("bind") {
-    val local = Local(0)
-    local := 100
-    assertEquals(local.get, 100)
-
-    val r = local.bind(200) {
-      local.get * 2
-    }
-
-    assertEquals(r, 400)
-    assertEquals(local.get, 100)
-  }
-
-  test("bindClear") {
-    val local = Local(10)
-    local := 100
-    assertEquals(local.get, 100)
-
-    val r = local.bindClear(local.get * 2)
-    assertEquals(r, 20)
-    assertEquals(local.get, 100)
-  }
-
   test("snapshot doesn't get captured in lazy execution") {
     val local1 = Local(0)
     val local2 = Local(0)
     local2 := 100
 
-    val value = local1.bind(100)(Eval.always(local1.get + local2.get))
+    val value = Local.isolate {
+      local1 := 100
+      Eval.always(local1.get + local2.get)
+    }
     local1 := 999
     local2 := 999
 
@@ -92,7 +72,10 @@ object LocalSuite extends SimpleTestSuite {
     val local2 = Local(0)
     local2 := 100
 
-    val f = local1.bind(100)(Future(local1.get + local2.get))
+    val f = Local.isolate {
+      local1 := 100
+      Future(local1.get + local2.get)
+    }
     local1 := 999
     local2 := 999
 
@@ -108,7 +91,10 @@ object LocalSuite extends SimpleTestSuite {
     val local2 = Local(0)
     local2 := 100
 
-    val f = local1.bind(100)(Future(local1.get + local2.get))
+    val f = Local.isolate {
+      local1 := 100
+      Future(local1.get + local2.get)
+    }
     local1 := 999
     local2 := 999
 
@@ -119,7 +105,10 @@ object LocalSuite extends SimpleTestSuite {
     val local = Local(0)
     local := 100
 
-    val f = local.bind(200)(Local.closed(() => local.get))
+    val f = Local.isolate {
+      local := 200
+      Local.closed(() => local.get)
+    }
     assertEquals(local.get, 100)
     assertEquals(f(), 200)
   }
