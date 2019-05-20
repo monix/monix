@@ -17,16 +17,49 @@
 
 package monix.reactive.internal.builders
 
+import java.time.Instant
+
 import minitest.SimpleTestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object IntervalObservableSuite extends SimpleTestSuite {
+  test("should do atGivenTimesUnfold") {
+    implicit val s: TestScheduler = TestScheduler()
+    var received = 0
+
+    Observable
+      .atGivenTimesUnfold(1)(i => Some((i + 1, Instant.ofEpochMilli(s.clockRealTime(MILLISECONDS) + i * 100))))
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long): Future[Ack] = {
+          received += 1
+          Future.delayedResult(10.millis)(Continue)
+        }
+
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = ()
+      })
+
+    assertEquals(received, 0)
+
+    s.tick()
+    assertEquals(received, 0)
+
+    s.tick(100.millis)
+    assertEquals(received, 1)
+
+    s.tick(210.millis)
+    assertEquals(received, 2)
+
+    s.tick(310.millis)
+    assertEquals(received, 3)
+  }
   test("should do intervalWithFixedDelay") {
     implicit val s = TestScheduler()
     var received = 0

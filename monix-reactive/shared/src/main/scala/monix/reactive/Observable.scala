@@ -18,6 +18,7 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
+import java.time.Instant
 
 import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, Eval, FlatMap, Functor, FunctorFilter, Monoid, NonEmptyParallel, Order, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
@@ -4958,6 +4959,21 @@ object Observable extends ObservableDeprecatedBuilders {
     */
   def intervalAtFixedRate(period: FiniteDuration): Observable[Long] =
     new builders.IntervalFixedRateObservable(Duration.Zero, period)
+
+  /** Creates on Observable that emits auto-incremented natural numbers
+    * (longs) at a schedule defined by a `start` and `next` parameters.
+    * Particularly, `next` function is called continuously until it returns
+    * `None`, when the resulting Observable completes. Otherwise, its return
+    * value is used to determine next execution instant, as well as input to
+    * its own subsequent invocation.
+    *
+    * @param start input to the `next` function to produce the first tick instant
+    * @param next function emitting the next tick instants based on the result
+    *             of the previous invocation or the `start` parameter
+    * @tparam A type of the elements fed into the `next` function
+    */
+  def atGivenTimesUnfold[A](start: A)(next: A => Option[(A, Instant)]): Observable[Long] =
+    new builders.AtGivenTimesUnfoldObservable[A](start, next)
 
   /** Creates an Observable that emits auto-incremented natural numbers
     * (longs) at a fixed rate, as given by the specified `period`. The
