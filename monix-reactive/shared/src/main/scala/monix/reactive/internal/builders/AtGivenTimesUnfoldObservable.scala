@@ -17,8 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import java.time.Instant
-
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.MultiAssignCancelable
 import monix.execution.{Ack, Cancelable}
@@ -30,22 +28,20 @@ import scala.concurrent.duration._
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
-private[reactive] class AtGivenTimesUnfoldObservable[A](start: A, next: A => Option[(A, Instant)])
-    extends Observable[Long] {
+private[reactive] class AtGivenTimesUnfoldObservable[A](start: A, next: A => Option[(A, Long)])
+    extends Observable[A] {
 
-  override def unsafeSubscribeFn(subscriber: Subscriber[Long]): Cancelable = {
+  override def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.{scheduler => s}
 
     val o = subscriber
     val task = MultiAssignCancelable()
 
-    def runnable(a: A, instant: Instant) = new Runnable { self =>
-      private[this] var counter = 0L
+    def runnable(a: A, instant: Long) = new Runnable { self =>
       private[this] var prevInstant = instant
       private[this] var prevInput = a
 
       def scheduleNext(): Unit = {
-        counter += 1
         try {
           next(prevInput) match {
             case Some((nextInput, nextInstant)) =>
@@ -53,7 +49,7 @@ private[reactive] class AtGivenTimesUnfoldObservable[A](start: A, next: A => Opt
               // relationship between scheduleOnce invocations.
               prevInstant = nextInstant
               prevInput = nextInput
-              task := s.scheduleOnce(nextInstant.toEpochMilli - s.clockRealTime(MILLISECONDS), MILLISECONDS, self)
+              task := s.scheduleOnce(nextInstant - s.clockRealTime(MILLISECONDS), MILLISECONDS, self)
             case None =>
               o.onComplete()
           }
@@ -78,7 +74,7 @@ private[reactive] class AtGivenTimesUnfoldObservable[A](start: A, next: A => Opt
         }
 
       def run(): Unit = {
-        val ack = o.onNext(counter)
+        val ack = o.onNext(prevInput)
 
         if (ack == Continue)
           scheduleNext()
@@ -92,7 +88,7 @@ private[reactive] class AtGivenTimesUnfoldObservable[A](start: A, next: A => Opt
         // No need to synchronize, since we have a happens-before
         // relationship between scheduleOnce invocations.
         task := s.scheduleOnce(
-          nextInstant.toEpochMilli - s.clockRealTime(MILLISECONDS),
+          nextInstant - s.clockRealTime(MILLISECONDS),
           MILLISECONDS,
           runnable(a, nextInstant))
       case None =>

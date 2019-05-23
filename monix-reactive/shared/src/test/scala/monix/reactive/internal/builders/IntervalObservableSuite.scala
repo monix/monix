@@ -35,10 +35,13 @@ object IntervalObservableSuite extends SimpleTestSuite {
     var received = 0
 
     Observable
-      .atGivenTimesUnfold(1)(i => Some((i + 1, Instant.ofEpochMilli(s.clockRealTime(MILLISECONDS) + i * 100))))
-      .unsafeSubscribeFn(new Observer[Long] {
-        def onNext(elem: Long): Future[Ack] = {
-          received += 1
+      .atGivenTimesUnfold(0) { i =>
+        val j = i + 1
+        Some((j, s.clockRealTime(MILLISECONDS) + j * 100))
+      }
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          received = elem
           Future.delayedResult(10.millis)(Continue)
         }
 
