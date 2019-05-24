@@ -137,7 +137,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(ec: ExecutionContext): Scheduler =
     AsyncScheduler(
       DefaultScheduledExecutor, ec,
-      UncaughtExceptionReporter(ec.reportFailure),
+      null,
       ExecModel.Default
     )
 
@@ -350,7 +350,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     }
 
 
-    ExecutorScheduler(executor, reporter, executionModel)
+    ExecutorScheduler(executor, null, executionModel)
   }
 
   /** Builds a [[monix.execution.Scheduler Scheduler]] with a fixed thread-pool.
@@ -378,7 +378,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
         reporter.reportFailure(t)
     }
 
-    ExecutorScheduler(executor, reporter, executionModel)
+    ExecutorScheduler(executor, null, executionModel)
   }
 
   /** The default `ScheduledExecutor` instance.
@@ -463,7 +463,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       AsyncScheduler(
         DefaultScheduledExecutor,
         ExecutionContext.Implicits.global,
-        UncaughtExceptionReporter.default,
+        null,
         ExecModel.Default
       )
 
