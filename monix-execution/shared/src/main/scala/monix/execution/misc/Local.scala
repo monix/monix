@@ -18,7 +18,6 @@
 package monix.execution.misc
 
 import monix.execution.atomic.AtomicAny
-
 import scala.annotation.tailrec
 import scala.reflect.macros.whitebox
 
@@ -40,39 +39,29 @@ object Local {
   def apply[A](default: A): Local[A] =
     new Local[A](() => default)
 
-  /** Represents the current state of all [[Local locals]] for a given
-    * execution context.
-    *
-    * This should be treated as an opaque value and direct modifications
-    * and access are considered verboten.
-    */
-  type Context = scala.collection.immutable.Map[Key, Any]
-  type ContextRef = AtomicAny[Context]
-
   /** Internal — key type used in [[Context]]. */
   final class Key extends Serializable
 
+  def defaultContext() = new Unbound(AtomicAny(Map()))
+
   /** Current [[Context]] kept in a `ThreadLocal`. */
-  private[this] val localContext: ThreadLocal[ContextRef] =
-    ThreadLocal(AtomicAny(Map.empty))
+  private[this] val localContext: ThreadLocal[Context] =
+    ThreadLocal(defaultContext())
 
   /** Return the state of the current Local state. */
-  def getContext(): ContextRef =
+  def getContext(): Context =
     localContext.get
 
   /** Restore the Local state to a given Context. */
-  def setContext(ctx: ContextRef): Unit =
+  def setContext(ctx: Context): Unit =
     localContext.set(ctx)
 
   /** Clear the Local state. */
   def clearContext(): Unit =
-    localContext.set(AtomicAny(Map.empty))
+    localContext.set(defaultContext())
 
   def isolate[R](f: => R): R =
     macro Macros.isolate
-
-  def bindRef[R](ctx: ContextRef)(f: => R): R =
-    macro Macros.localLetRef
 
   /** Execute a block of code using the specified state of
     * `Local.Context` and restore the current state when complete.
@@ -103,36 +92,18 @@ object Local {
   }
 
   private def getKey[A](key: Key): Option[A] =
-    localContext.get.get.get(key).asInstanceOf[Option[A]]
+    localContext.get().getOption(key)
 
   private def getKeyOrElse[A](key: Key, default: => A): A = {
-    val ctx: Context = localContext.get.get
-    val result: Any = ctx.getOrElse(key, default)
-    result.asInstanceOf[A]
+    localContext.get().getOr(key, default)
   }
 
   private def saveKey(key: Key, value: Any): Unit = {
-    val ref = localContext.get
-    @tailrec def loop(): Unit = {
-      val old = ref.get
-      val next = old.updated(key, value)
-      if (!ref.compareAndSet(old, next)) {
-        loop()
-      }
-    }
-    loop()
+    localContext.get().set(key, value, isPresent = true)
   }
 
   private def clearKey(key: Key): Unit = {
-    val ref = localContext.get
-    @tailrec def loop(): Unit = {
-      val old = ref.get
-      val next = old - key
-      if (!ref.compareAndSet(old, next)) {
-        loop()
-      }
-    }
-    loop()
+    localContext.get().set(key, null, isPresent = false)
   }
 
   private def restoreKey(key: Key, value: Option[_]): Unit =
@@ -146,26 +117,6 @@ object Local {
     import c.universe._
 
     def localLet(ctx: Tree)(f: Tree): Tree = {
-      val ctxRef = util.name("ctx")
-      val saved = util.name("saved")
-      val Local = symbolOf[Local[_]].companion
-      val AnyRefSym = symbolOf[AnyRef]
-      val AtomicAny = symbolOf[AtomicAny[_]].companion
-
-      resetTree(
-        q"""
-       val $ctxRef = ($ctx)
-       if (($ctxRef : $AnyRefSym) eq null) {
-         $f
-       } else {
-         val $saved = $Local.getContext()
-         $Local.setContext($AtomicAny($ctxRef))
-         try { $f } finally { $Local.setContext($saved) }
-       }
-       """)
-    }
-
-    def localLetRef(ctx: Tree)(f: Tree): Tree = {
       // TODO - reduce copy-paste in localLetXXX macros
       val ctxRef = util.name("ctx")
       val saved = util.name("saved")
@@ -186,23 +137,14 @@ object Local {
     }
 
     def localLetClear(f: Tree): Tree = {
-      val saved = util.name("saved")
       val Local = symbolOf[Local[_]].companion
-      val Map = symbolOf[scala.collection.immutable.Map[_, _]].companion
-      val AtomicAny = symbolOf[AtomicAny[_]].companion
-      resetTree(
-        q"""
-       val $saved = $Local.getContext()
-       $Local.setContext($AtomicAny($Map.empty))
-       try { $f } finally { $Local.setContext($saved) }
-       """)
+      localLet(q"$Local.defaultContext()")(f)
     }
 
     def isolate(f: Tree): Tree =
-      localLet(q"${symbolOf[Local[_]].companion}.getContext().get")(f)
+      localLet(q"${symbolOf[Local[_]].companion}.getContext().mkIsolated")(f)
 
     def localLetCurrentIf(b: Tree)(f: Tree): Tree = {
-      val Local = symbolOf[Local[_]].companion
       resetTree(
         q"""
            if (!$b) { $f }
@@ -210,6 +152,82 @@ object Local {
          """)
     }
   }
+  /** Represents the current state of all [[Local locals]] for a given
+    * execution context.
+    *
+    * This should be treated as an opaque value and direct modifications
+    * and access are considered verboten.
+    */
+  sealed abstract class Context {
+    @tailrec final def set(key: Key, value: Any, isPresent: Boolean): Unit = this match {
+      case unbound: Unbound =>
+        val start = unbound.ref.get()
+        val update = if (isPresent) start.updated(key, value) else start - key
+        if (!unbound.ref.compareAndSet(start, update)) set(key, value, isPresent)
+      case bound: Bound if bound.key == key =>
+        bound.hasValue = isPresent
+        bound.value = value
+      case bound: Bound => bound.rest.set(key, value, isPresent)
+    }
+
+    @tailrec final def getOr[A](key: Key, default: => A): A = this match {
+      case unbound: Unbound => unbound.ref.get().getOrElse(key, default).asInstanceOf[A]
+      case bound: Bound if bound.key == key =>
+        if (bound.hasValue) bound.value.asInstanceOf[A] else default
+      case bound: Bound =>
+        bound.rest.getOr(key, default)
+    }
+
+    @tailrec final def getOption[A](key: Key): Option[A] = this match {
+      case unbound: Unbound =>
+        unbound.ref.get().get(key).asInstanceOf[Option[A]]
+      case bound: Bound if bound.key == key =>
+        if (bound.hasValue) Some(bound.value.asInstanceOf[A]) else None
+      case bound: Bound =>
+        bound.rest.getOption(key)
+    }
+
+    final def mkIsolated: Unbound = {
+      this match {
+        case unbound: Unbound =>
+          val map = unbound.ref.get()
+          new Unbound(AtomicAny(map))
+        case _ =>
+          var it = this
+          var done = false
+          var map = Map.empty[Key, Any]
+          val bannedKeys = collection.mutable.Set.empty[Key]
+          while (!done) {
+            it match {
+              case unbound: Unbound =>
+                done = true
+                unbound.ref.get().foreach {
+                  case (k, v) if !bannedKeys(k) && !map.contains(k) => map = map.updated(k, v)
+                  case _ => ()
+                }
+              case bound: Bound =>
+                if (!map.contains(bound.key) && !bannedKeys(bound.key)) {
+                  if (bound.hasValue) map = map.updated(bound.key, bound.value)
+                  else bannedKeys += bound.key
+                }
+                it = bound.rest
+            }
+          }
+          new Unbound(AtomicAny(map))
+      }
+    }
+
+    final def bind(key: Key, value: Option[Any]): Context =
+      new Bound(key, value.orNull, value.isDefined, this)
+  }
+  final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
+
+  final class Bound(
+    val key: Key,
+    @volatile var value: Any,
+    @volatile var hasValue: Boolean,
+    val rest: Context
+  ) extends Context
 }
 
 /** A `Local` is a [[ThreadLocal]] whose scope is flexible. The state
@@ -226,7 +244,7 @@ object Local {
   */
 final class Local[A](default: () => A) {
   import Local.Key
-  private[this] val key: Key = new Key
+  val key: Key = new Key
 
   /** Returns the current value of this `Local`. */
   def apply(): A =
@@ -261,23 +279,18 @@ final class Local[A](default: () => A) {
   /** Execute a block with a specific local value, restoring the
     * current state upon completion.
     */
-  @deprecated("Binds on Local prevent propagation of writes to other locals. Use Local.isolate directly", "3.0.0-RC3")
   def bind[R](value: A)(f: => R): R = {
-    // to other locals, if any, so acts like freeze all
-    val parent: AtomicAny[Local.Context] = Local.getContext()
-    Local.setContext(AtomicAny(parent.get))
-    Local.saveKey(key, value)
+    val parent = Local.getContext()
+    Local.setContext(parent.bind(key, Some(value)))
     try f finally Local.setContext(parent)
   }
 
   /** Execute a block with the `Local` cleared, restoring the current
     * state upon completion.
     */
-  @deprecated("Binds on Local prevent propagation of writes to other locals. Use Local.isolate directly", "3.0.0-RC3")
   def bindClear[R](f: => R): R = {
-    val parent: AtomicAny[Local.Context] = Local.getContext()
-    Local.setContext(AtomicAny(parent.get))
-    Local.clearKey(key)
+    val parent = Local.getContext()
+    Local.setContext(parent.bind(key, None))
     try f finally Local.setContext(parent)
   }
 

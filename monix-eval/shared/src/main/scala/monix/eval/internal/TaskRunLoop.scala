@@ -204,7 +204,7 @@ private[eval] object TaskRunLoop {
         context.frameRef.reset()
 
         // Transporting the current context if localContextPropagation == true.
-        Local.bindRef(savedLocals) {
+        Local.bind(savedLocals) {
           // Using frameIndex = 1 to ensure at least one cycle gets executed
           startFull(source, context, cb, rcb, bindCurrent, bindRest, 1)
         }

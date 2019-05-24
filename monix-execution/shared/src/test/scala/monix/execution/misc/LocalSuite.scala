@@ -130,4 +130,19 @@ object LocalSuite extends SimpleTestSuite {
     val r = Local.bind(null) { 10 + 10 }
     assertEquals(r, 20)
   }
+
+  test("local.bind scoping works and preserves write-ability") {
+    val l1, l2, l3 = Local(999)
+    def setAll(n: Int): Unit = List(l1, l2, l3).foreach(_ := n)
+
+    l1.bind(0) {
+      setAll(0)
+      l2.bind(1) {
+        setAll(1)
+      }
+    }
+    assertEquals(l1.get, 999)
+    assertEquals(l2.get, 0)
+    assertEquals(l3.get, 1)
+  }
 }

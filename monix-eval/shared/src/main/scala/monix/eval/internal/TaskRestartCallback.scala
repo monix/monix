@@ -151,8 +151,8 @@ private[internal] object TaskRestartCallback {
   private final class WithLocals(context: Context, callback: Callback[Throwable, Any])
     extends TaskRestartCallback(context, callback) {
 
-    private[this] var preparedLocals: Local.ContextRef = _
-    private[this] var previousLocals: Local.ContextRef = _
+    private[this] var preparedLocals: Local.Context = _
+    private[this] var previousLocals: Local.Context = _
 
     override protected def prepareStart(task: Task.Async[_]): Unit = {
       preparedLocals =
