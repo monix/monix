@@ -54,5 +54,5 @@ object InterceptableRunnable {
   }
 
   def apply(r: Runnable, handler: UncaughtExceptionReporter): Runnable =
-    apply(r).intercept(handler)
+    if (handler eq null) r else apply(r).intercept(handler)
 }

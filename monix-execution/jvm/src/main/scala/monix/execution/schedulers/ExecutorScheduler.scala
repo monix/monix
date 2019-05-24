@@ -67,6 +67,9 @@ abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporte
 
   override def withExecutionModel(em: ExecModel): SchedulerService =
     throw new NotImplementedError("ExecutorService.withExecutionModel")
+
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): SchedulerService =
+    throw new NotImplementedError("ExecutorService.withUncaughtExceptionReporter")
 }
 
 object ExecutorScheduler {
@@ -172,6 +175,9 @@ object ExecutorScheduler {
 
     override def withExecutionModel(em: ExecModel): SchedulerService =
       new FromSimpleExecutor(scheduler, executor, r, em)
+
+    override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): SchedulerService =
+      new FromSimpleExecutor(scheduler, executor, r, executionModel)
   }
 
   /** Converts a Java `ScheduledExecutorService`. */
@@ -205,5 +211,8 @@ object ExecutorScheduler {
 
     override def withExecutionModel(em: ExecModel): SchedulerService =
       new FromScheduledExecutor(s, r, em)
+
+    override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): SchedulerService =
+      new FromScheduledExecutor(s, r, executionModel)
   }
 }

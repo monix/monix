@@ -233,6 +233,8 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     * }}}
     */
   def withExecutionModel(em: ExecutionModel): Scheduler
+
+  def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler
 }
 
 private[monix] trait SchedulerCompanion {

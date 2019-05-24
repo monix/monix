@@ -43,14 +43,22 @@ class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
     ()
   }
 
-  def testReports(name: String)(f: UncaughtExceptionReporter => Scheduler) =
+  def testReports(name: String)(f: UncaughtExceptionReporter => Scheduler) = {
     testAsync(name) { p =>
       f(reporter(p)).execute(throwRunnable)
       FutureUtils.timeout(p.future.collect { case Dummy => }(immediateEC), 500.millis)(Scheduler.global)
     }
+
+    testAsync(name + ".withUncaughtExceptionReporter") { p =>
+      f(UncaughtExceptionReporter.default).withUncaughtExceptionReporter(reporter(p)).execute(throwRunnable)
+      FutureUtils.timeout(p.future.collect { case Dummy => }(immediateEC), 500.millis)(Scheduler.global)
+    }
+  }
+
 }
 
 object UncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
+
   testReports("Scheduler(_, ExecModel)")(Scheduler(_, ExecutionModel.Default))
   testReports("Scheduler(global, _)")(Scheduler(Scheduler.global, _))
   testReports("Scheduler(ExecutionContext, _)")(Scheduler(ExecutionContext.global, _))

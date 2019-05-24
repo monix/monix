@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 
@@ -77,6 +77,9 @@ final class TrampolineScheduler(
     underlying.clockMonotonic(unit)
   override def withExecutionModel(em: ExecModel): TrampolineScheduler =
     new TrampolineScheduler(underlying, em)
+
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): TrampolineScheduler =
+    new TrampolineScheduler(underlying.withUncaughtExceptionReporter(r), executionModel)
 }
 
 object TrampolineScheduler {
