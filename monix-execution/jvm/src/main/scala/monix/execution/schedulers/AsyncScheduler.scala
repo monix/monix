@@ -31,8 +31,8 @@ import monix.execution.internal.InterceptableRunnable
 final class AsyncScheduler private (
   scheduler: ScheduledExecutorService,
   ec: ExecutionContext,
-  r: UncaughtExceptionReporter,
-  val executionModel: ExecModel)
+  val executionModel: ExecModel,
+  r: UncaughtExceptionReporter)
   extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(runnable: Runnable): Unit = {
@@ -56,7 +56,7 @@ final class AsyncScheduler private (
     else r.reportFailure(t)
 
   override def withExecutionModel(em: ExecModel): AsyncScheduler =
-    new AsyncScheduler(scheduler, ec, r, em)
+    new AsyncScheduler(scheduler, ec, em, r)
 }
 
 object AsyncScheduler {
@@ -73,7 +73,7 @@ object AsyncScheduler {
   def apply(
     schedulerService: ScheduledExecutorService,
     ec: ExecutionContext,
-    reporter: UncaughtExceptionReporter,
-    executionModel: ExecModel): AsyncScheduler =
-    new AsyncScheduler(schedulerService, ec, reporter, executionModel)
+    executionModel: ExecModel,
+    reporter: UncaughtExceptionReporter = null): AsyncScheduler =
+    new AsyncScheduler(schedulerService, ec, executionModel, reporter)
 }

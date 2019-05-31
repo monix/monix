@@ -24,7 +24,8 @@ import monix.execution.schedulers.TrampolinedRunnable
 
 
 /**
-  * A `Runnable` which can be wrapped to
+  * A `Runnable` which can be wrapped to report exceptions raised using another
+  * [[UncaughtExceptionReporter]]
   */
 trait InterceptableRunnable extends Runnable {
   def intercept(handler: UncaughtExceptionReporter): Runnable

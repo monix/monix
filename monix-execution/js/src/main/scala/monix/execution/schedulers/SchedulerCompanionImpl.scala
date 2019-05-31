@@ -32,8 +32,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     */
   def apply(
     context: ExecutionContext = StandardContext,
-    executionModel: ExecModel = ExecModel.Default,
-  ): Scheduler =
+    executionModel: ExecModel = ExecModel.Default): Scheduler =
     AsyncScheduler(context, executionModel)
 
   def apply(
