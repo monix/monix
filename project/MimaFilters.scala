@@ -4,7 +4,18 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
-    // Breaking changes for https://github.com/monix/monix/pull/822
+    // Breaking changes for https://github.com/monix/monix/pull/888
+    exclude[ReversedMissingMethodProblem]("monix.execution.Scheduler.withUncaughtExceptionReporter"),
+    exclude[ReversedMissingMethodProblem]("monix.execution.schedulers.SchedulerService.withUncaughtExceptionReporter"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler#WrappedScheduler.copy"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler#WrappedScheduler.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.AsyncScheduler.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.AsyncScheduler.apply"),
+    exclude[MissingTypesProblem]("monix.execution.schedulers.ReferenceScheduler$WrappedScheduler$"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler#WrappedScheduler.apply"),
+
+
+      // Breaking changes for https://github.com/monix/monix/pull/822
     exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture.catsInstances"),
     exclude[MissingClassProblem]("monix.execution.CancelableFuture$CatsInstances"),
     exclude[DirectMissingMethodProblem]("monix.execution.Scheduler#Extensions.timerLiftIO$extension"),
