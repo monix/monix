@@ -5,6 +5,7 @@ object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
     // Breaking changes for https://github.com/monix/monix/pull/888
+    exclude[ReversedMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler.withUncaughtExceptionReporter"),
     exclude[ReversedMissingMethodProblem]("monix.execution.Scheduler.withUncaughtExceptionReporter"),
     exclude[ReversedMissingMethodProblem]("monix.execution.schedulers.SchedulerService.withUncaughtExceptionReporter"),
     exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler#WrappedScheduler.copy"),
