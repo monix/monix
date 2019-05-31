@@ -178,13 +178,20 @@ object Local {
         bound.rest.getOr(key, default)
     }
 
-    @tailrec final def getOption[A](key: Key): Option[A] = this match {
-      case unbound: Unbound =>
-        unbound.ref.get().get(key).asInstanceOf[Option[A]]
-      case bound: Bound if bound.key == key =>
-        if (bound.hasValue) Some(bound.value.asInstanceOf[A]) else None
-      case bound: Bound =>
-        bound.rest.getOption(key)
+    final def getOption[A](key: Key): Option[A] = {
+      var it = this
+      var r: Option[A] = null
+      while (r eq null) {
+        this match {
+          case unbound: Unbound =>
+            r = unbound.ref.get().get(key).asInstanceOf[Option[A]]
+          case bound: Bound if bound.key == key =>
+            r = if (bound.hasValue) Some(bound.value.asInstanceOf[A]) else None
+          case bound: Bound =>
+            it = bound.rest
+        }
+      }
+      r
     }
 
     final def mkIsolated: Unbound = {
