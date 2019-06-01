@@ -1169,10 +1169,17 @@ abstract class Observable[+A] extends Serializable { self =>
     * Example:
     * {{{
     *   import monix.eval.Task
+    *   import monix.execution.Scheduler
     *
-    *   Observable.range(0, Int.MaxValue)
-    *     .doOnEarlyStop(Task(println("Cancelled!")))
-    *     .take(100)
+    *   implicit val s = Scheduler.global
+    *   
+    *   val cancelable =
+    *     Observable
+    *       .range(0, Int.MaxValue)
+    *       .doOnSubscriptionCancel(Task(println("Cancelled!")))
+    *       .subscribe()
+    *
+    *   cancelable.cancel()
     * }}}
     *
     * NOTE: in most cases what you want is [[guaranteeCase]]
@@ -1196,11 +1203,17 @@ abstract class Observable[+A] extends Serializable { self =>
     * Example:
     * {{{
     *   import cats.effect.IO
+    *   import monix.execution.Scheduler
     *
-    *   Observable
-    *     .range(0, Int.MaxValue)
-    *     .doOnEarlyStopF(IO(println("Cancelled!")))
-    *     .take(100)
+    *   implicit val s = Scheduler.global
+    *
+    *   val cancelable =
+    *     Observable
+    *       .range(0, Int.MaxValue)
+    *       .doOnSubscriptionCancelF(IO(println("Cancelled!")))
+    *       .subscribe()
+    *
+    *   cancelable.cancel()
     * }}}
     *
     * NOTE: in most cases what you want is [[guaranteeCase]]
@@ -1556,7 +1569,14 @@ abstract class Observable[+A] extends Serializable { self =>
     * predicate and returns a new observable that emits the rest.
     */
   final def dropWhile(p: A => Boolean): Observable[A] =
-    self.liftByOperator(new DropByPredicateOperator(p))
+    self.liftByOperator(new DropByPredicateOperator(p, inclusive = false))
+
+  /** Drops the longest prefix of elements that satisfy the given
+    * predicate, inclusive of the value that caused `predicate` to return `false` and
+    * returns a new observable that emits the rest.
+    */
+  final def dropWhileInclusive(p: A => Boolean): Observable[A] =
+    self.liftByOperator(new DropByPredicateOperator(p, inclusive = true))
 
   /** Drops the longest prefix of elements that satisfy the given
     * function and returns a new observable that emits the rest. In
@@ -2931,7 +2951,13 @@ abstract class Observable[+A] extends Serializable { self =>
     * and returns a new Observable that emits those elements.
     */
   final def takeWhile(p: A => Boolean): Observable[A] =
-    self.liftByOperator(new TakeByPredicateOperator(p))
+    self.liftByOperator(new TakeByPredicateOperator(p, inclusive = false))
+
+  /** Takes longest prefix of elements that satisfy the given predicate, inclusive of
+    * the value that caused `predicate` to return `false` and returns a new Observable that emits those elements.
+    */
+  final def takeWhileInclusive(p: A => Boolean): Observable[A] =
+    self.liftByOperator(new TakeByPredicateOperator(p, inclusive = true))
 
   /** Takes longest prefix of elements while given [[monix.execution.cancelables.BooleanCancelable BooleanCancelable]]
     * is not canceled and returns a new Observable that emits those elements.

@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock
 
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
+import monix.execution.cancelables.CompositeCancelable
 import monix.execution.AsyncSemaphore
 import monix.execution.ChannelType.MultiProducer
 import monix.execution.{Ack, Cancelable, CancelableFuture}
@@ -128,16 +128,12 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
       // we can no longer stream errors downstream
       var streamErrors = true
       try {
-        // We need a forward reference, because of the
-        // interaction with the `composite` below
-        val subscription = SingleAssignCancelable()
-        composite += subscription
-
         val task = f(elem).doOnCancel(releaseTask)
         // No longer allowed to stream errors downstream
         streamErrors = false
         // Start execution (forcing an async boundary)
         val future = task.executeAsync.runToFuture
+        composite += future.cancelable
         queue.offer(future)
         future.onComplete {
           case Success(_) =>
@@ -147,11 +143,9 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
 
           case Failure(error) =>
             lastAck = Stop
-            composite -= subscription
+            composite -= future.cancelable
             self.onError(error)
         }
-
-        subscription := future.cancelable
       } catch {
         case ex if NonFatal(ex) =>
           if (streamErrors) self.onError(ex)

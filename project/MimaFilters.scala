@@ -162,6 +162,9 @@ object MimaFilters {
     exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.ConnectableSubscriber.pushFirstAll"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.Subscriber#Extensions.onNextAll"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.Subscriber#Extensions.onNextAll$extension"),
+
+    exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.DropByPredicateOperator.this"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.TakeByPredicateOperator.this"),
   )
 
   lazy val changesFor_3_0_0_RC2 = Seq(
