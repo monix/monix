@@ -17,10 +17,14 @@
 
 package monix.eval
 
+import scala.concurrent.Future
+import scala.concurrent.duration._
+
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.misc.Local
+import cats.implicits._
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
@@ -196,6 +200,66 @@ object TaskLocalSuite extends SimpleTestSuite {
         .guarantee(local.write(10))
       value <- local.read
       _ <- Task.eval(assertEquals(value, 10))
+    } yield ()
+
+    t.runToFutureOpt
+  }
+
+  testAsync("TaskLocal.isolate should prevent context changes") {
+    val t = for {
+      local <- TaskLocal(0)
+      inc = local.read.map(_ + 1).flatMap(local.write)
+      _     <- inc
+      res1  <- local.read
+      _     <- Task(assertEquals(res1, 1))
+      _     <- TaskLocal.isolate(inc)
+      res2  <- local.read
+      _     <- Task(assertEquals(res1, res2))
+    } yield ()
+
+    t.runToFutureOpt
+  }
+
+  testAsync("TaskLocal interop with future via deferFutureAction") {
+    val t = for {
+      local <- TaskLocal(0)
+      unsafe <- local.local
+      _ <- local.write(1)
+      _ <- Task.deferFutureAction { implicit ec =>
+        Future {
+          assertEquals(unsafe.get, 1)
+        }.map { _ => unsafe := 50 }
+      }
+      x <- local.read
+      _ <- Task(assertEquals(x, 50))
+    } yield ()
+
+    t.runToFutureOpt
+  }
+
+  testAsync("TaskLocal.bind scoping works") {
+    val tl = TaskLocal(999)
+    val t = Task.map3(tl, tl, tl) { (l1, l2, l3) =>
+      def setAll(x: Int) = Task.traverse(List(l1, l2, l3))(_.write(x))
+      l1.bind(0) {
+        setAll(0) >> l2.bind(1) {
+          setAll(1)
+        }
+      } >> List(l1, l2, l3).traverse(_.read).map(assertEquals(_, List(999, 0, 1)))
+    }.flatten.map(_ => ())
+    t.runToFutureOpt
+  }
+
+  testAsync("TaskLocal.bind actually isolates reads") {
+    val t = for {
+      l1 <- TaskLocal(0)
+      l2 <- TaskLocal(0)
+      f  <- l1.bind(0)(Task.sleep(1.second) *> (l1.read, l2.read).tupled).start
+      _  <- l1.write(5)
+      _  <- l2.write(5)
+      r  <- f.join
+      _  = assertEquals(r._1, 0)
+      _  = assertEquals(r._2, 5)
     } yield ()
 
     t.runToFutureOpt

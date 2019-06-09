@@ -4,6 +4,11 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
+    // Breaking changes for https://github.com/monix/monix/pull/866
+    exclude[IncompatibleResultTypeProblem]("monix.execution.schedulers.TracingRunnable.<init>$default$2"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TracingRunnable.this"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.misc.Local.getContext"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.misc.Local.setContext"),
     // Breaking changes for https://github.com/monix/monix/pull/822
     exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture.catsInstances"),
     exclude[MissingClassProblem]("monix.execution.CancelableFuture$CatsInstances"),
