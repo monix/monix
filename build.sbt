@@ -11,7 +11,8 @@ val allProjects = List(
 )
 
 val benchmarkProjects = List(
-  "benchmarksPrev",
+  // Enable after 2.13 version is released for previous version
+  // "benchmarksPrev",
   "benchmarksNext"
 ).map(_ + "/compile")
 
