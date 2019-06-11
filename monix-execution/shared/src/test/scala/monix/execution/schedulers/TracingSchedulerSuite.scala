@@ -39,7 +39,10 @@ object TracingSchedulerSuite extends SimpleTestSuite {
     val local2 = Local(0)
     local2 := 100
 
-    val f = local1.bind(100)(Future(local1.get + local2.get))
+    val f = Local.isolate {
+      local1 := 100
+      Future(local1.get + local2.get)
+    }
     local1 := 999
     local2 := 999
 
@@ -56,13 +59,22 @@ object TracingSchedulerSuite extends SimpleTestSuite {
     val local2 = Local(0)
     local2 := 100
 
-    val f = local1.bind(100)(Future(local1.get + local2.get))
-    local1 := 999
+    val f = Local.isolate {
+      local1 := 100
+      Future(local1.get + local2.get)
+    }
+    local1 := 42
     local2 := 999
+
+    val f2 = Local.isolate {
+      local2.clear()
+      Future(local1.get + local2.get)
+    }
 
     assertEquals(f.value, None)
     ec.tick()
     assertEquals(f.value, Some(Success(200)))
+    assertEquals(f2.value, Some(Success(42)))
   }
 
   testAsync("captures locals in actual async execution") {
@@ -71,7 +83,10 @@ object TracingSchedulerSuite extends SimpleTestSuite {
     val local2 = Local(0)
     local2 := 100
 
-    val f = local1.bind(100)(Future(local1.get + local2.get))
+    val f = Local.isolate {
+      local1 := 100
+      Future(local1.get + local2.get)
+    }
     local1 := 999
     local2 := 999
 
@@ -86,7 +101,10 @@ object TracingSchedulerSuite extends SimpleTestSuite {
     val local2 = Local(0)
     local2 := 100
 
-    val f = local1.bind(100)(Future.delayedResult(1.second)(local1.get + local2.get))
+    val f = Local.isolate {
+      local1 := 100
+      Future.delayedResult(1.second)(local1.get + local2.get)
+    }
     local1 := 999
     local2 := 999
 
@@ -103,7 +121,8 @@ object TracingSchedulerSuite extends SimpleTestSuite {
     val local2 = Local(0)
     local2 := 100
 
-    val f = local1.bind(100) {
+    val f = Local.isolate {
+      local1 := 100
       var sum = 0
       var count = 0
       val p = Promise[Int]()

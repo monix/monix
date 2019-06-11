@@ -18,7 +18,6 @@
 package monix.execution.schedulers
 
 import monix.execution.misc.Local
-import monix.execution.misc.Local.Context
 
 /** Wraps a `Runnable` into one that restores the given
   * [[monix.execution.misc.Local.Context Local.Context]]
@@ -26,12 +25,12 @@ import monix.execution.misc.Local.Context
   *
   * Used by [[TracingScheduler]].
   */
-final class TracingRunnable(r: Runnable, context: Context = Local.getContext())
+final class TracingRunnable(r: Runnable, contextRef: Local.Context = Local.getContext())
   extends Runnable {
 
   override def run(): Unit = {
-    val prev: Context = Local.getContext()
-    Local.setContext(context)
+    val prev = Local.getContext()
+    Local.setContext(contextRef)
     try r.run() finally Local.setContext(prev)
   }
 }
