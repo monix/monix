@@ -18,59 +18,59 @@ shared: &shared
           apt-get install -y nodejs
           apt-get clean && apt-get autoclean
 
-        - checkout
-        - restore_cache:
-            # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
-            key: monix-cache
+      - checkout
+      - restore_cache:
+          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
+          key: monix-cache
 
-        - run:
-            name: Compile and test project
-            working_directory: ~/monix
-            command: cat /dev/null | sbt -J-Xmx3584m -J-XX:MaxMetaspaceSize=512m ++$SCALA_VERSION $COMMAND
+      - run:
+          name: Compile and test project
+          working_directory: ~/monix
+          command: cat /dev/null | sbt -J-Xmx3584m -J-XX:MaxMetaspaceSize=512m ++$SCALA_VERSION $COMMAND
 
-        - save_cache:
-            key: monix-cache
-            paths:
-              - "~/.ivy2/cache"
-              - "~/.sbt"
-              - "~/.m2"
+      - save_cache:
+          key: monix-cache
+          paths:
+            - "~/.ivy2/cache"
+            - "~/.sbt"
+            - "~/.m2"
 
-#jobs:
-#  java-8-scala-2.11-jvm:
-#    docker:
-#      - image: openjdk:8
-#    environment:
-#      SBT_VERSION: 1.2.8
-#      SCALA_VERSION: 2.11.12
-#      COMMAND: ci-jvm-mima
-#    <<: *shared
-#
-#  java-8-scala-2.11-js:
-#    docker:
-#      - image: openjdk:8
-#    environment:
-#      SBT_VERSION: 1.2.8
-#      SCALA_VERSION: 2.11.12
-#      COMMAND: ci-js
-#    <<: *shared
-#
-#  java-8-scala-2.12-jvm:
-#    docker:
-#      - image: openjdk:8
-#    environment:
-#      SBT_VERSION: 1.2.8
-#      SCALA_VERSION: 2.12.8
-#      COMMAND: ci-jvm-all
-#    <<: *shared
-#
-#  java-8-scala-2.12-js:
-#    docker:
-#      - image: openjdk:8
-#    environment:
-#      SBT_VERSION: 1.2.8
-#      SCALA_VERSION: 2.12.8
-#      COMMAND: ci-js
-#    <<: *shared
+jobs:
+  java-8-scala-2.11-jvm:
+    docker:
+      - image: openjdk:8
+    environment:
+      SBT_VERSION: 1.2.8
+      SCALA_VERSION: 2.11.12
+      COMMAND: ci-jvm-mima
+    <<: *shared
+
+  java-8-scala-2.11-js:
+    docker:
+      - image: openjdk:8
+    environment:
+      SBT_VERSION: 1.2.8
+      SCALA_VERSION: 2.11.12
+      COMMAND: ci-js
+    <<: *shared
+
+  java-8-scala-2.12-jvm:
+    docker:
+      - image: openjdk:8
+    environment:
+      SBT_VERSION: 1.2.8
+      SCALA_VERSION: 2.12.8
+      COMMAND: ci-jvm-all
+    <<: *shared
+
+  java-8-scala-2.12-js:
+    docker:
+      - image: openjdk:8
+    environment:
+      SBT_VERSION: 1.2.8
+      SCALA_VERSION: 2.12.8
+      COMMAND: ci-js
+    <<: *shared
 
 notify:
   webhooks:
