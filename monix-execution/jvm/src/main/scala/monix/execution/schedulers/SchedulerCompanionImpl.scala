@@ -66,7 +66,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     ec: ExecutionContext,
     reporter: UncaughtExceptionReporter,
     executionModel: ExecModel): Scheduler =
-    AsyncScheduler(executor, ec, reporter, executionModel)
+    AsyncScheduler(executor, ec, executionModel, reporter)
 
   /** [[monix.execution.Scheduler Scheduler]] builder.
     *
@@ -74,7 +74,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param ec $executionContext
     */
   def apply(executor: ScheduledExecutorService, ec: ExecutionContext): Scheduler =
-    AsyncScheduler(executor, ec, UncaughtExceptionReporter(ec.reportFailure), ExecModel.Default)
+    AsyncScheduler(executor, ec, ExecModel.Default)
 
   /** [[monix.execution.Scheduler Scheduler]] builder.
     *
@@ -82,7 +82,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param reporter $reporter
     */
   def apply(ec: ExecutionContext, reporter: UncaughtExceptionReporter): Scheduler =
-    AsyncScheduler(DefaultScheduledExecutor, ec, reporter, ExecModel.Default)
+    AsyncScheduler(DefaultScheduledExecutor, ec, ExecModel.Default, reporter)
 
   /** [[monix.execution.Scheduler Scheduler]] builder .
     *
@@ -91,7 +91,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param executionModel $executionModel
     */
   def apply(ec: ExecutionContext, reporter: UncaughtExceptionReporter, executionModel: ExecModel): Scheduler =
-    AsyncScheduler(DefaultScheduledExecutor, ec, reporter, executionModel)
+    AsyncScheduler(DefaultScheduledExecutor, ec, executionModel, reporter)
 
   /** [[monix.execution.Scheduler Scheduler]] builder that converts a
     * Java `ExecutorService` into a scheduler.
@@ -137,7 +137,6 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(ec: ExecutionContext): Scheduler =
     AsyncScheduler(
       DefaultScheduledExecutor, ec,
-      UncaughtExceptionReporter(ec.reportFailure),
       ExecModel.Default
     )
 
@@ -150,8 +149,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(ec: ExecutionContext, executionModel: ExecModel): Scheduler =
     AsyncScheduler(
       DefaultScheduledExecutor, ec,
-      UncaughtExceptionReporter(ec.reportFailure),
-      executionModel
+      executionModel,
+      UncaughtExceptionReporter(ec.reportFailure)
     )
 
   /** [[monix.execution.Scheduler Scheduler]] builder - uses monix's
@@ -163,7 +162,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     */
   def apply(reporter: UncaughtExceptionReporter, executionModel: ExecModel): Scheduler = {
     val ec = ExecutionContext.Implicits.global
-    AsyncScheduler(DefaultScheduledExecutor, ec, reporter, executionModel)
+    AsyncScheduler(DefaultScheduledExecutor, ec, executionModel, reporter)
   }
 
   /** [[monix.execution.Scheduler Scheduler]] builder - uses monix's
@@ -176,7 +175,6 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     val ec = ExecutionContext.Implicits.global
     AsyncScheduler(
       DefaultScheduledExecutor, ec,
-      UncaughtExceptionReporter(ec.reportFailure),
       executionModel
     )
   }
@@ -350,7 +348,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     }
 
 
-    ExecutorScheduler(executor, reporter, executionModel)
+    ExecutorScheduler(executor, null, executionModel)
   }
 
   /** Builds a [[monix.execution.Scheduler Scheduler]] with a fixed thread-pool.
@@ -378,7 +376,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
         reporter.reportFailure(t)
     }
 
-    ExecutorScheduler(executor, reporter, executionModel)
+    ExecutorScheduler(executor, null, executionModel)
   }
 
   /** The default `ScheduledExecutor` instance.
@@ -463,7 +461,6 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       AsyncScheduler(
         DefaultScheduledExecutor,
         ExecutionContext.Implicits.global,
-        UncaughtExceptionReporter.default,
         ExecModel.Default
       )
 

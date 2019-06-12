@@ -174,9 +174,9 @@ final class TaskLocal[A] private (ref: Local[A]) {
     */
   def bindL[R](value: Task[A])(task: Task[R]): Task[R] =
     local.flatMap { r =>
-      val saved = r.value
+      val saved = Local.getContext()
       value.bracket { v =>
-        r.update(v)
+        Local.setContext(saved.bind(r.key, Some(v)))
         task
       }(_ => restore(saved))
     }
@@ -201,13 +201,16 @@ final class TaskLocal[A] private (ref: Local[A]) {
     */
   def bindClear[R](task: Task[R]): Task[R] =
     local.flatMap { r =>
-      val saved = r.value
-      r.clear()
-      Task.unit.bracket(_ => task)(_ => restore(saved))
+      val saved = Local.getContext()
+
+      Task.unit.bracket { _ =>
+        Local.setContext(saved.bind(r.key, None))
+        task
+      }(_ => restore(saved))
     }
 
-  private def restore(value: Option[A]): Task[Unit] =
-    Task(ref.value = value)
+  private def restore(value: Local.Context): Task[Unit] =
+    Task(Local.setContext(value))
 }
 
 /**
@@ -259,6 +262,17 @@ object TaskLocal {
     */
   def wrap[A](local: Task[Local[A]]): Task[TaskLocal[A]] =
     checkPropagation(local.map(new TaskLocal(_)))
+
+  /** Wraps a provided `task`, such that any changes to any TaskLocal variable
+    * during its execution will not be observable outside of that Task.
+    */
+  def isolate[A](task: Task[A]): Task[A] = checkPropagation {
+    Task {
+      val current = Local.getContext()
+      Local.setContext(current.mkIsolated)
+      current
+    }.bracket(_ => task)(backup => Task(Local.setContext(backup)))
+  }
 
   private def checkPropagation[A](fa: Task[A]): Task[A] =
     ContextSwitch(fa, checkPropagationRef, null)

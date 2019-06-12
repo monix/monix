@@ -17,6 +17,8 @@
 
 package monix.execution.misc
 
+import monix.execution.atomic.AtomicAny
+import scala.annotation.tailrec
 import scala.reflect.macros.whitebox
 
 object Local {
@@ -37,20 +39,14 @@ object Local {
   def apply[A](default: A): Local[A] =
     new Local[A](() => default)
 
-  /** Represents the current state of all [[Local locals]] for a given
-    * execution context.
-    *
-    * This should be treated as an opaque value and direct modifications
-    * and access are considered verboten.
-    */
-  type Context = scala.collection.immutable.Map[Key, _]
-
   /** Internal — key type used in [[Context]]. */
   final class Key extends Serializable
 
+  def defaultContext() = new Unbound(AtomicAny(Map()))
+
   /** Current [[Context]] kept in a `ThreadLocal`. */
   private[this] val localContext: ThreadLocal[Context] =
-    ThreadLocal(Map.empty)
+    ThreadLocal(defaultContext())
 
   /** Return the state of the current Local state. */
   def getContext(): Context =
@@ -62,7 +58,10 @@ object Local {
 
   /** Clear the Local state. */
   def clearContext(): Unit =
-    localContext.reset()
+    localContext.set(defaultContext())
+
+  def isolate[R](f: => R): R =
+    macro Macros.isolate
 
   /** Execute a block of code using the specified state of
     * `Local.Context` and restore the current state when complete.
@@ -93,20 +92,19 @@ object Local {
   }
 
   private def getKey[A](key: Key): Option[A] =
-    localContext.get().get(key).asInstanceOf[Option[A]]
+    localContext.get().getOption(key)
 
   private def getKeyOrElse[A](key: Key, default: => A): A = {
-    val ctx = localContext.get()
-    ctx.getOrElse(key, default).asInstanceOf[A]
+    localContext.get().getOr(key, default)
   }
 
   private def saveKey(key: Key, value: Any): Unit = {
-    val newCtx = localContext.get().updated(key, value)
-    localContext.set(newCtx)
+    localContext.get().set(key, value, isPresent = true)
   }
 
-  private def clearKey(key: Key): Unit =
-    localContext.set(localContext.get - key)
+  private def clearKey(key: Key): Unit = {
+    localContext.get().set(key, null, isPresent = false)
+  }
 
   private def restoreKey(key: Key, value: Option[_]): Unit =
     value match {
@@ -119,6 +117,7 @@ object Local {
     import c.universe._
 
     def localLet(ctx: Tree)(f: Tree): Tree = {
+      // TODO - reduce copy-paste in localLetXXX macros
       val ctxRef = util.name("ctx")
       val saved = util.name("saved")
       val Local = symbolOf[Local[_]].companion
@@ -138,27 +137,104 @@ object Local {
     }
 
     def localLetClear(f: Tree): Tree = {
-      val saved = util.name("saved")
       val Local = symbolOf[Local[_]].companion
-      val Map = symbolOf[scala.collection.immutable.Map[_, _]].companion
-
-      resetTree(
-        q"""
-       val $saved = $Local.getContext()
-       $Local.setContext($Map.empty)
-       try { $f } finally { $Local.setContext($saved) }
-       """)
+      localLet(q"$Local.defaultContext()")(f)
     }
 
+    def isolate(f: Tree): Tree =
+      localLet(q"${symbolOf[Local[_]].companion}.getContext().mkIsolated")(f)
+
     def localLetCurrentIf(b: Tree)(f: Tree): Tree = {
-      val Local = symbolOf[Local[_]].companion
       resetTree(
         q"""
            if (!$b) { $f }
-           else ${localLet(q"$Local.getContext()")(f)}
+           else ${isolate(f)}
          """)
     }
   }
+  /** Represents the current state of all [[Local locals]] for a given
+    * execution context.
+    *
+    * This should be treated as an opaque value and direct modifications
+    * and access are considered verboten.
+    */
+  sealed abstract class Context {
+    @tailrec final def set(key: Key, value: Any, isPresent: Boolean): Unit = this match {
+      case unbound: Unbound =>
+        val start = unbound.ref.get()
+        val update = if (isPresent) start.updated(key, value) else start - key
+        if (!unbound.ref.compareAndSet(start, update)) set(key, value, isPresent)
+      case bound: Bound if bound.key == key =>
+        bound.hasValue = isPresent
+        bound.value = value
+      case bound: Bound => bound.rest.set(key, value, isPresent)
+    }
+
+    @tailrec final def getOr[A](key: Key, default: => A): A = this match {
+      case unbound: Unbound => unbound.ref.get().getOrElse(key, default).asInstanceOf[A]
+      case bound: Bound if bound.key == key =>
+        if (bound.hasValue) bound.value.asInstanceOf[A] else default
+      case bound: Bound =>
+        bound.rest.getOr(key, default)
+    }
+
+    final def getOption[A](key: Key): Option[A] = {
+      var it = this
+      var r: Option[A] = null
+      while (r eq null) {
+        this match {
+          case unbound: Unbound =>
+            r = unbound.ref.get().get(key).asInstanceOf[Option[A]]
+          case bound: Bound if bound.key == key =>
+            r = if (bound.hasValue) Some(bound.value.asInstanceOf[A]) else None
+          case bound: Bound =>
+            it = bound.rest
+        }
+      }
+      r
+    }
+
+    final def mkIsolated: Unbound = {
+      this match {
+        case unbound: Unbound =>
+          val map = unbound.ref.get()
+          new Unbound(AtomicAny(map))
+        case _ =>
+          var it = this
+          var done = false
+          var map = Map.empty[Key, Any]
+          val bannedKeys = collection.mutable.Set.empty[Key]
+          while (!done) {
+            it match {
+              case unbound: Unbound =>
+                done = true
+                unbound.ref.get().foreach {
+                  case (k, v) if !bannedKeys(k) && !map.contains(k) => map = map.updated(k, v)
+                  case _ => ()
+                }
+              case bound: Bound =>
+                if (!map.contains(bound.key) && !bannedKeys(bound.key)) {
+                  if (bound.hasValue) map = map.updated(bound.key, bound.value)
+                  else bannedKeys += bound.key
+                }
+                it = bound.rest
+            }
+          }
+          new Unbound(AtomicAny(map))
+      }
+    }
+
+    final def bind(key: Key, value: Option[Any]): Context =
+      new Bound(key, value.orNull, value.isDefined, this)
+  }
+  final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
+
+  final class Bound(
+    val key: Key,
+    @volatile var value: Any,
+    @volatile var hasValue: Boolean,
+    val rest: Context
+  ) extends Context
 }
 
 /** A `Local` is a [[ThreadLocal]] whose scope is flexible. The state
@@ -175,7 +251,7 @@ object Local {
   */
 final class Local[A](default: () => A) {
   import Local.Key
-  private[this] val key: Key = new Key
+  val key: Key = new Key
 
   /** Returns the current value of this `Local`. */
   def apply(): A =
@@ -211,23 +287,23 @@ final class Local[A](default: () => A) {
     * current state upon completion.
     */
   def bind[R](value: A)(f: => R): R = {
-    val saved = this.value
-    update(value)
-    try f finally this.value = saved
+    val parent = Local.getContext()
+    Local.setContext(parent.bind(key, Some(value)))
+    try f finally Local.setContext(parent)
   }
 
   /** Execute a block with the `Local` cleared, restoring the current
     * state upon completion.
     */
   def bindClear[R](f: => R): R = {
-    val saved = Local.getKey[A](key)
-    clear()
-    try f finally Local.restoreKey(key, saved)
+    val parent = Local.getContext()
+    Local.setContext(parent.bind(key, None))
+    try f finally Local.setContext(parent)
   }
 
   /** Clear the Local's value. Other [[Local Locals]] are not modified.
     *
-    * General usage should be via [[bindClear]] to avoid leaks.
+    * General usage should be in [[Local.isolate]] to avoid leaks.
     */
   def clear(): Unit =
     Local.clearKey(key)

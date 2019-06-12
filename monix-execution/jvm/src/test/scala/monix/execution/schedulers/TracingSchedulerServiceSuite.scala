@@ -36,7 +36,10 @@ object TracingSchedulerServiceSuite extends SimpleTestSuite {
       val local2 = Local(0)
       local2 := 100
 
-      val ref = local1.bind(100)(Future(local1.get + local2.get))
+      val ref = Local.isolate {
+        local1 := 100
+        Future(local1.get + local2.get)
+      }
       local1 := 999
       local2 := 999
       ref

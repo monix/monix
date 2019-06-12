@@ -1744,6 +1744,7 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * Exceptions in `f` are reported using provided (implicit) Scheduler
     */
+  @UnsafeBecauseImpure
   final def foreach(f: A => Unit)(implicit s: Scheduler): Unit =
     runToFuture.foreach(f)
 

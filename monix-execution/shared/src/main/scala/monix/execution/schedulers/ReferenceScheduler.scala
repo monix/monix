@@ -19,8 +19,10 @@ package monix.execution.schedulers
 
 import monix.execution.cancelables.OrderedCancelable
 import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
-import monix.execution.{Cancelable, Scheduler}
-import scala.concurrent.duration.{TimeUnit, MILLISECONDS, NANOSECONDS}
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
+import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
+
+import monix.execution.internal.InterceptableRunnable
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 
@@ -87,6 +89,9 @@ trait ReferenceScheduler extends Scheduler {
 
   override def withExecutionModel(em: ExecModel): Scheduler =
     WrappedScheduler(this, em)
+
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
+    WrappedScheduler(this, executionModel, r)
 }
 
 object ReferenceScheduler {
@@ -95,13 +100,17 @@ object ReferenceScheduler {
     */
   private final case class WrappedScheduler(
     s: Scheduler,
-    override val executionModel: ExecModel)
+    override val executionModel: ExecModel,
+    reporter: UncaughtExceptionReporter = null
+  )
     extends Scheduler {
+    private[this] val reporterRef = if (reporter eq null) s else reporter
+
 
     override def execute(runnable: Runnable): Unit =
-      s.execute(runnable)
+      s.execute(InterceptableRunnable(runnable, reporter))
     override def reportFailure(t: Throwable): Unit =
-      s.reportFailure(t)
+      reporterRef.reportFailure(t)
     override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
       s.scheduleOnce(initialDelay, unit, r)
     override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable =
@@ -114,5 +123,7 @@ object ReferenceScheduler {
       s.clockMonotonic(unit)
     override def withExecutionModel(em: ExecModel): Scheduler =
       copy(s, em)
+    override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
+      copy(reporter = r)
   }
 }

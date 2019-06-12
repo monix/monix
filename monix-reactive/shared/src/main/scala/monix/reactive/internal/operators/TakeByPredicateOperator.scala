@@ -24,7 +24,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final class TakeByPredicateOperator[A](p: A => Boolean)
+private[reactive] final class TakeByPredicateOperator[A](p: A => Boolean, inclusive: Boolean)
   extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
@@ -45,6 +45,9 @@ private[reactive] final class TakeByPredicateOperator[A](p: A => Boolean)
               out.onNext(elem)
             } else {
               isActive = false
+              if (inclusive) {
+                out.onNext(elem)
+              }
               out.onComplete()
               Stop
             }

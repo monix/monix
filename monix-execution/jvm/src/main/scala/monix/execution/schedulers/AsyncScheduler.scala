@@ -22,6 +22,8 @@ import monix.execution.{Cancelable, UncaughtExceptionReporter}
 import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
 
+import monix.execution.internal.InterceptableRunnable
+
 /** An `AsyncScheduler` schedules tasks to happen in the future with the
   * given `ScheduledExecutorService` and the tasks themselves are executed on
   * the given `ExecutionContext`.
@@ -29,12 +31,14 @@ import scala.concurrent.ExecutionContext
 final class AsyncScheduler private (
   scheduler: ScheduledExecutorService,
   ec: ExecutionContext,
-  r: UncaughtExceptionReporter,
-  val executionModel: ExecModel)
+  val executionModel: ExecModel,
+  r: UncaughtExceptionReporter)
   extends ReferenceScheduler with BatchingScheduler {
 
-  protected def executeAsync(r: Runnable): Unit =
-    ec.execute(r)
+  protected def executeAsync(runnable: Runnable): Unit = {
+    if (((r: AnyRef) eq ec) || (r eq null)) ec.execute(runnable)
+    else ec.execute(InterceptableRunnable(runnable, this))
+  }
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     if (initialDelay <= 0) {
@@ -48,10 +52,11 @@ final class AsyncScheduler private (
   }
 
   override def reportFailure(t: Throwable): Unit =
-    r.reportFailure(t)
+    if (r eq null) ec.reportFailure(t)
+    else r.reportFailure(t)
 
   override def withExecutionModel(em: ExecModel): AsyncScheduler =
-    new AsyncScheduler(scheduler, ec, r, em)
+    new AsyncScheduler(scheduler, ec, em, r)
 }
 
 object AsyncScheduler {
@@ -68,7 +73,7 @@ object AsyncScheduler {
   def apply(
     schedulerService: ScheduledExecutorService,
     ec: ExecutionContext,
-    reporter: UncaughtExceptionReporter,
-    executionModel: ExecModel): AsyncScheduler =
-    new AsyncScheduler(schedulerService, ec, reporter, executionModel)
+    executionModel: ExecModel,
+    reporter: UncaughtExceptionReporter = null): AsyncScheduler =
+    new AsyncScheduler(schedulerService, ec, executionModel, reporter)
 }
