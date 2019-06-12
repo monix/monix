@@ -29,8 +29,10 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
   test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
-    val f = obs.consumeWith(Consumer
-      .foldLeftTask(0L)((s,a) => Task.evalAsync(s+a)))
+    val f = obs
+      .consumeWith(
+        Consumer
+          .foldLeftTask(0L)((s, a) => Task.evalAsync(s + a)))
       .runToFuture
 
     s.tick()
@@ -40,8 +42,10 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
   test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
-    val f = obs.consumeWith(Consumer
-      .foldLeftTask(0L)((s,a) => Task.evalAsync(s+a)))
+    val f = obs
+      .consumeWith(
+        Consumer
+          .foldLeftTask(0L)((s, a) => Task.evalAsync(s + a)))
       .runToFuture
 
     s.tick()
@@ -50,8 +54,9 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
 
   test("should protect against user simple error") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Observable.now(1)
-      .consumeWith(Consumer.foldLeftTask(0L)((s,a) => throw ex))
+    val f = Observable
+      .now(1)
+      .consumeWith(Consumer.foldLeftTask(0L)((s, a) => throw ex))
       .runToFuture
 
     s.tick()
@@ -60,8 +65,9 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
 
   test("should protect against user task error") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Observable.now(1)
-      .consumeWith(Consumer.foldLeftTask(0L)((s,a) => Task.raiseError(ex)))
+    val f = Observable
+      .now(1)
+      .consumeWith(Consumer.foldLeftTask(0L)((s, a) => Task.raiseError(ex)))
       .runToFuture
 
     s.tick()
@@ -70,8 +76,8 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
 
   test("foldLeftTask <-> foldLeftEval") { implicit s =>
     check1 { (source: Observable[Int]) =>
-      val fa1 = source.consumeWith(Consumer.foldLeftTask(0L)((s,a) => Task.evalAsync(s+a)))
-      val fa2 = source.consumeWith(Consumer.foldLeftEval(0L)((s,a) => IO(s + a)))
+      val fa1 = source.consumeWith(Consumer.foldLeftTask(0L)((s, a) => Task.evalAsync(s + a)))
+      val fa2 = source.consumeWith(Consumer.foldLeftEval(0L)((s, a) => IO(s + a)))
       fa1 <-> fa2
     }
   }

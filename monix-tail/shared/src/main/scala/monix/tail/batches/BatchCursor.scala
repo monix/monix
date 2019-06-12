@@ -200,7 +200,7 @@ abstract class BatchCursor[+A] extends Serializable {
     * @return a new cursor which yields each value `x` produced by this
     *         cursor for which `pf` is defined
     */
-  def collect[B](pf: PartialFunction[A,B]): BatchCursor[B]
+  def collect[B](pf: PartialFunction[A, B]): BatchCursor[B]
 
   /** Applies a binary operator to a start value and all elements
     * of this cursor, going left to right.
@@ -217,7 +217,7 @@ abstract class BatchCursor[+A] extends Serializable {
     *         `initial` on the left. Returns `initial` if the cursor
     *         is empty.
     */
-  def foldLeft[R](initial: R)(op: (R,A) => R): R = {
+  def foldLeft[R](initial: R)(op: (R, A) => R): R = {
     var result = initial
     while (hasNext()) result = op(result, next())
     result
@@ -235,7 +235,7 @@ abstract class BatchCursor[+A] extends Serializable {
   /** Converts this cursor into an `Array`,
     * consuming it in the process.
     */
-  def toArray[B >: A : ClassTag]: Array[B] = {
+  def toArray[B >: A: ClassTag]: Array[B] = {
     val buffer = ArrayBuffer.empty[B]
     while (hasNext()) buffer += next()
     buffer.toArray

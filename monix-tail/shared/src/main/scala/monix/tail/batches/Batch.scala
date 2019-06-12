@@ -96,7 +96,7 @@ abstract class Batch[+A] extends Serializable {
     * @return a new generator which yields each value `x` produced by this
     *         generator for which `pf` is defined
     */
-  def collect[B](pf: PartialFunction[A,B]): Batch[B]
+  def collect[B](pf: PartialFunction[A, B]): Batch[B]
 
   /** Applies a binary operator to a start value and all elements
     * of this generator, going left to right.
@@ -110,13 +110,13 @@ abstract class Batch[+A] extends Serializable {
     *         `initial` on the left. Returns `initial` if the generator
     *         is empty.
     */
-  def foldLeft[R](initial: R)(op: (R,A) => R): R
+  def foldLeft[R](initial: R)(op: (R, A) => R): R
 
   /** Converts this generator into a Scala immutable `List`. */
   def toList: List[A] = cursor().toList
 
   /** Converts this generator into a standard `Array`. */
-  def toArray[B >: A : ClassTag]: Array[B] = cursor().toArray
+  def toArray[B >: A: ClassTag]: Array[B] = cursor().toArray
 
   /** Converts this generator into a Scala `Iterable`. */
   def toIterable: Iterable[A] =

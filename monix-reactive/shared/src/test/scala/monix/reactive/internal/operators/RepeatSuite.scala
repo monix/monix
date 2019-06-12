@@ -32,15 +32,17 @@ object RepeatSuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) =
-    if (sourceCount <= 1) None else Some {
-      val o = createObservableEndingInError(Observable.range(0, 5), ex).repeat
-      Sample(o, 5, sum(5), Zero, Zero)
-    }
+    if (sourceCount <= 1) None
+    else
+      Some {
+        val o = createObservableEndingInError(Observable.range(0, 5), ex).repeat
+        Sample(o, 5, sum(5), Zero, Zero)
+      }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables() = {
-    val o = Observable.range(0,5).map(_ => 1L).delayOnNext(1.second).repeat
+    val o = Observable.range(0, 5).map(_ => 1L).delayOnNext(1.second).repeat
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

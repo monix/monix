@@ -31,7 +31,8 @@ private[reactive] final class CreateObservable[+A](
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val out = BufferedSubscriber.synchronous(subscriber, overflowStrategy, producerType)
-    try f(out) catch {
+    try f(out)
+    catch {
       case ex if NonFatal(ex) =>
         subscriber.scheduler.reportFailure(ex)
         Cancelable.empty

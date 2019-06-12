@@ -28,16 +28,13 @@ import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.batches.BatchCursor
 
-
 private[tail] object IterantIntersperse {
   def apply[F[_], A](source: Iterant[F, A], separator: A)(implicit F: Sync[F]): Iterant[F, A] =
     Suspend {
       F.delay(new Loop[F, A](separator).apply(source))
     }
 
-  private class Loop[F[_], A](separator: A)(implicit F: Sync[F])
-    extends (Iterant[F, A] => Iterant[F, A])
-  {
+  private class Loop[F[_], A](separator: A)(implicit F: Sync[F]) extends (Iterant[F, A] => Iterant[F, A]) {
     private[this] var prepend = false
     private[this] val stack = ChunkedArrayStack[F[Iterant[F, A]]]()
 

@@ -22,9 +22,7 @@ import monix.execution.{Cancelable, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-private[reactive] final
-class SubscribeOnObservable[+A](source: Observable[A], s: Scheduler)
-  extends Observable[A] {
+private[reactive] final class SubscribeOnObservable[+A](source: Observable[A], s: Scheduler) extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val subscription = SingleAssignCancelable()

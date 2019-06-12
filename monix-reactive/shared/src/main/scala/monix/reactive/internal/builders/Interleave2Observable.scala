@@ -17,15 +17,15 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.{Future, Promise}
 
-private[reactive] final class Interleave2Observable[+A]
-  (obsA1: Observable[A], obsA2: Observable[A]) extends Observable[A] {
+private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], obsA2: Observable[A])
+  extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     import out.scheduler
@@ -34,18 +34,18 @@ private[reactive] final class Interleave2Observable[+A]
     // MUST BE synchronized by `lock`
     var isDone = false
     // MUST BE synchronized by `lock`
-    var downstreamAck = Continue : Future[Ack]
+    var downstreamAck = Continue: Future[Ack]
     // MUST BE synchronized by `lock`.
     // This essentially serves as a lock for obsA1 when `select` is not assigned to it
     // pauseA1 is initialized to be `Continue`, so that obsA1 is deterministically emitted before obsA2
-    var pauseA1 = Promise.successful(Continue : Ack)
+    var pauseA1 = Promise.successful(Continue: Ack)
     // This essentially serves as a lock for obsA2 when `select` is not assigned to it
     var pauseA2 = Promise[Ack]()
 
     // MUST BE synchronized by `lock`
     var completedCount = 0
-    var lastAck1 = Continue : Future[Ack]
-    var lastAck2 = Continue : Future[Ack]
+    var lastAck1 = Continue: Future[Ack]
+    var lastAck2 = Continue: Future[Ack]
 
     def signalOnError(ex: Throwable): Unit =
       lock.synchronized {
@@ -66,11 +66,10 @@ private[reactive] final class Interleave2Observable[+A]
       }
 
       if (shouldComplete)
-        ack.syncOnContinue(
-          lock.synchronized(if (!isDone) {
-            isDone = true
-            out.onComplete()
-          }))
+        ack.syncOnContinue(lock.synchronized(if (!isDone) {
+          isDone = true
+          out.onComplete()
+        }))
     }
 
     val composite = CompositeCancelable()
@@ -80,7 +79,8 @@ private[reactive] final class Interleave2Observable[+A]
 
       def onNext(elem: A): Future[Ack] = lock.synchronized {
         @inline def sendSignal(a: A): Future[Ack] = lock.synchronized {
-          if (isDone) Stop else {
+          if (isDone) Stop
+          else {
             downstreamAck = out.onNext(a)
             pauseA1 = Promise[Ack]()
             pauseA2.completeWith(downstreamAck)
@@ -114,7 +114,8 @@ private[reactive] final class Interleave2Observable[+A]
 
       def onNext(elem: A): Future[Ack] = lock.synchronized {
         @inline def sendSignal(a: A): Future[Ack] = lock.synchronized {
-          if (isDone) Stop else {
+          if (isDone) Stop
+          else {
             downstreamAck = out.onNext(a)
             pauseA2 = Promise[Ack]()
             pauseA1.completeWith(downstreamAck)

@@ -26,7 +26,7 @@ import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 object AsyncSchedulerSuite extends TestSuite[Scheduler] {
-  val lastReported = Atomic(null : Throwable)
+  val lastReported = Atomic(null: Throwable)
   val reporter = new StandardContext(new UncaughtExceptionReporter {
     def reportFailure(ex: Throwable): Unit =
       lastReported set ex
@@ -57,8 +57,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
 
     // Should not be executed yet
     assertEquals(effect, 0)
-    for (result <- p.future) yield
-      assertEquals(result, 1 + 2 + 3)
+    for (result <- p.future) yield assertEquals(result, 1 + 2 + 3)
   }
 
   test("execute local should work") { implicit s =>
@@ -115,7 +114,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
     assert(t2 >= t1, "t2 >= t1")
   }
 
-  test("clockMonotonic") {  s =>
+  test("clockMonotonic") { s =>
     val t1 = System.nanoTime()
     val t2 = s.clockMonotonic(NANOSECONDS)
     assert(t2 >= t1, "t2 >= t1")

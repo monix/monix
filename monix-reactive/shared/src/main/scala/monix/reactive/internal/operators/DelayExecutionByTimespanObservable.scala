@@ -23,18 +23,15 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.duration.FiniteDuration
 
-private[reactive] final class DelayExecutionByTimespanObservable[A]
-  (source: Observable[A], timespan: FiniteDuration)
+private[reactive] final class DelayExecutionByTimespanObservable[A](source: Observable[A], timespan: FiniteDuration)
   extends Observable[A] { self =>
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val conn = OrderedCancelable()
-    val main = out.scheduler.scheduleOnce(
-      timespan.length, timespan.unit,
-      new Runnable {
-        def run(): Unit =
-          conn.orderedUpdate(source.unsafeSubscribeFn(out), order = 2)
-      })
+    val main = out.scheduler.scheduleOnce(timespan.length, timespan.unit, new Runnable {
+      def run(): Unit =
+        conn.orderedUpdate(source.unsafeSubscribeFn(out), order = 2)
+    })
 
     conn.orderedUpdate(main, order = 1)
   }

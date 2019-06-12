@@ -24,9 +24,7 @@ import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] final
-class DistinctUntilChangedOperator[A](implicit A: Eq[A])
-  extends Operator[A,A] {
+private[reactive] final class DistinctUntilChangedOperator[A](implicit A: Eq[A]) extends Operator[A, A] {
 
   /** Implementation for `Observable.distinctUntilChanged`. */
   def apply(out: Subscriber[A]): Subscriber[A] =
@@ -46,13 +44,11 @@ class DistinctUntilChangedOperator[A](implicit A: Eq[A])
             lastElem = elem
             isFirst = false
             out.onNext(elem)
-          }
-          else if (A.neqv(lastElem, elem)) {
+          } else if (A.neqv(lastElem, elem)) {
             lastElem = elem
             streamErrors = false
             out.onNext(elem)
-          }
-          else {
+          } else {
             Continue
           }
         } catch {

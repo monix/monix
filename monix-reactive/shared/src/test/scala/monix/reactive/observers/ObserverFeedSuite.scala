@@ -39,7 +39,7 @@ object ObserverFeedSuite extends BaseTestSuite {
       val ack = downstream.onNextAll(xs)
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 
@@ -58,7 +58,7 @@ object ObserverFeedSuite extends BaseTestSuite {
       val ack = downstream.onNextAll(xs)
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 

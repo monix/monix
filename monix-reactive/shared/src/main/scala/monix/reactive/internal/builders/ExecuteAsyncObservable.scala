@@ -21,12 +21,11 @@ import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-private[reactive] final
-class ExecuteAsyncObservable[A](source: Observable[A])
-  extends Observable[A] {
+private[reactive] final class ExecuteAsyncObservable[A](source: Observable[A]) extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    source.subscribeOn(out.scheduler)
+    source
+      .subscribeOn(out.scheduler)
       .unsafeSubscribeFn(out)
   }
 }

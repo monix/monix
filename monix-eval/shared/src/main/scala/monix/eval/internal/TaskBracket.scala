@@ -40,11 +40,8 @@ private[monix] object TaskBracket {
     use: A => Task[B],
     release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] = {
 
-    Task.Async(
-      new StartE(acquire, use, release),
-      trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = false)
+    Task
+      .Async(new StartE(acquire, use, release), trampolineBefore = true, trampolineAfter = true, restoreLocals = false)
   }
 
   private final class StartE[A, B](
@@ -57,10 +54,7 @@ private[monix] object TaskBracket {
       new ReleaseFrameE(ctx, value, release)
   }
 
-  private final class ReleaseFrameE[A, B](
-    ctx: Context,
-    a: A,
-    release: (A, Either[Option[Throwable], B]) => Task[Unit])
+  private final class ReleaseFrameE[A, B](ctx: Context, a: A, release: (A, Either[Option[Throwable], B]) => Task[Unit])
     extends BaseReleaseFrame[A, B](ctx, a) {
 
     def releaseOnSuccess(a: A, b: B): Task[Unit] =
@@ -78,10 +72,7 @@ private[monix] object TaskBracket {
   /**
     * [[monix.eval.Task.bracketE]]
     */
-  def exitCase[A, B](
-    acquire: Task[A],
-    use: A => Task[B],
-    release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] = {
+  def exitCase[A, B](acquire: Task[A], use: A => Task[B], release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] = {
 
     Task.Async(
       new StartCase(acquire, use, release),
@@ -100,10 +91,7 @@ private[monix] object TaskBracket {
       new ReleaseFrameCase(ctx, value, release)
   }
 
-  private final class ReleaseFrameCase[A, B](
-    ctx: Context,
-    a: A,
-    release: (A, ExitCase[Throwable]) => Task[Unit])
+  private final class ReleaseFrameCase[A, B](ctx: Context, a: A, release: (A, ExitCase[Throwable]) => Task[Unit])
     extends BaseReleaseFrame[A, B](ctx, a) {
 
     def releaseOnSuccess(a: A, b: B): Task[Unit] =
@@ -118,16 +106,16 @@ private[monix] object TaskBracket {
   // Base Implementation
   // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-  private abstract class BaseStart[A, B](
-    acquire: Task[A],
-    use: A => Task[B])
+  private abstract class BaseStart[A, B](acquire: Task[A], use: A => Task[B])
     extends ((Context, Callback[Throwable, B]) => Unit) {
 
     protected def makeReleaseFrame(ctx: Context, value: A): BaseReleaseFrame[A, B]
 
     final def apply(ctx: Context, cb: Callback[Throwable, B]): Unit = {
       // Async boundary needed, but it is guaranteed via Task.Async below;
-      Task.unsafeStartNow(acquire, ctx.withConnection(TaskConnection.uncancelable),
+      Task.unsafeStartNow(
+        acquire,
+        ctx.withConnection(TaskConnection.uncancelable),
         new Callback[Throwable, A] {
           def onSuccess(value: A): Unit = {
             implicit val sc = ctx.scheduler
@@ -135,7 +123,8 @@ private[monix] object TaskBracket {
 
             val releaseFrame = makeReleaseFrame(ctx, value)
             val onNext = {
-              val fb = try use(value) catch { case NonFatal(e) => Task.raiseError(e) }
+              val fb = try use(value)
+              catch { case NonFatal(e) => Task.raiseError(e) }
               fb.flatMap(releaseFrame)
             }
 
@@ -145,12 +134,12 @@ private[monix] object TaskBracket {
 
           def onError(ex: Throwable): Unit =
             cb.onError(ex)
-        })
+        }
+      )
     }
   }
 
-  private abstract class BaseReleaseFrame[A, B](ctx: Context, a: A)
-    extends StackFrame[B, Task[B]] {
+  private abstract class BaseReleaseFrame[A, B](ctx: Context, a: A) extends StackFrame[B, Task[B]] {
 
     private[this] val waitsForResult = Atomic(true)
 
@@ -205,8 +194,7 @@ private[monix] object TaskBracket {
       }
   }
 
-  private final class ReleaseRecover(e: Throwable)
-    extends StackFrame[Unit, Task[Nothing]] {
+  private final class ReleaseRecover(e: Throwable) extends StackFrame[Unit, Task[Nothing]] {
 
     def apply(a: Unit): Task[Nothing] =
       Task.raiseError(e)

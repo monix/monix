@@ -24,8 +24,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final class CollectOperator[-A,+B](pf: PartialFunction[A,B])
-  extends Operator[A,B] {
+private[reactive] final class CollectOperator[-A, +B](pf: PartialFunction[A, B]) extends Operator[A, B] {
 
   import CollectOperator.{checkFallback, isDefined}
 
@@ -45,11 +44,9 @@ private[reactive] final class CollectOperator[-A,+B](pf: PartialFunction[A,B])
           if (isDefined(next)) {
             streamError = false
             out.onNext(next)
-          }
-          else
+          } else
             Continue
-        }
-        catch {
+        } catch {
           case NonFatal(ex) if streamError =>
             onError(ex)
             Stop

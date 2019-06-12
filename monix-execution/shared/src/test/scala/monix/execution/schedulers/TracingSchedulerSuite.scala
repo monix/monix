@@ -209,4 +209,3 @@ object TracingSchedulerSuite extends SimpleTestSuite {
     assertEquals(f.value, Some(Success(true)))
   }
 }
-

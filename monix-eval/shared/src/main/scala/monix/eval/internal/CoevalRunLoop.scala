@@ -55,8 +55,9 @@ private[eval] object CoevalRunLoop {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
             current = null
-          } catch { case e if NonFatal(e) =>
-            current = Error(e)
+          } catch {
+            case e if NonFatal(e) =>
+              current = Error(e)
           }
 
         case bindNext @ Map(fa, _, _) =>
@@ -69,8 +70,9 @@ private[eval] object CoevalRunLoop {
 
         case Suspend(thunk) =>
           // Try/catch described as statement, otherwise ObjectRef happens ;-)
-          try { current = thunk() }
-          catch { case ex if NonFatal(ex) => current = Error(ex) }
+          try {
+            current = thunk()
+          } catch { case ex if NonFatal(ex) => current = Error(ex) }
 
         case ref @ Error(ex) =>
           findErrorHandler(bFirst, bRest) match {
@@ -78,8 +80,9 @@ private[eval] object CoevalRunLoop {
               return ref
             case bind =>
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
-              try { current = bind.recover(ex) }
-              catch { case e if NonFatal(e) => current = Error(e) }
+              try {
+                current = bind.recover(ex)
+              } catch { case e if NonFatal(e) => current = Error(e) }
               bFirst = null
           }
       }
@@ -90,8 +93,9 @@ private[eval] object CoevalRunLoop {
             return (if (current ne null) current else Now(unboxed)).asInstanceOf[Eager[A]]
           case bind =>
             // Try/catch described as statement, otherwise ObjectRef happens ;-)
-            try { current = bind(unboxed) }
-            catch { case ex if NonFatal(ex) => current = Error(ex) }
+            try {
+              current = bind(unboxed)
+            } catch { case ex if NonFatal(ex) => current = Error(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null
@@ -107,7 +111,8 @@ private[eval] object CoevalRunLoop {
     bFirst match {
       case ref: StackFrame[Any, Coeval[Any]] @unchecked => ref
       case _ =>
-        if (bRest eq null) null else {
+        if (bRest eq null) null
+        else {
           do {
             val ref = bRest.pop()
             if (ref eq null)

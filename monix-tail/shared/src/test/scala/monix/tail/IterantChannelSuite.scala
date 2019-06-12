@@ -110,11 +110,7 @@ object IterantChannelSuite extends SimpleTestSuite {
     )
   }
 
-  def testConcurrentSum(
-    producers: Int,
-    consumers: Int,
-    capacity: BufferCapacity,
-    count: Int) = {
+  def testConcurrentSum(producers: Int, consumers: Int, capacity: BufferCapacity, count: Int) = {
 
     def produce(channel: ProducerF[IO, Option[Throwable], Int]): IO[Unit] = {
       def loop(channel: ProducerF[IO, Option[Throwable], Int], n: Int): IO[Unit] =
@@ -144,17 +140,18 @@ object IterantChannelSuite extends SimpleTestSuite {
 
     val pt = if (producers > 1) MultiProducer else SingleProducer
 
-    Iterant[IO].channel[Int](capacity, producerType = pt).flatMap { case (producer, stream) =>
-      for {
-        fiber   <- consumeMany(stream).start
-        _       <- producer.awaitConsumers(consumers)
-        _       <- produce(producer)
-        _       <- producer.halt(None)
-        sum     <- fiber.join
-      } yield {
-        val perProducer = count.toLong * (count + 1) / 2
-        assertEquals(sum, perProducer * producers * consumers)
-      }
+    Iterant[IO].channel[Int](capacity, producerType = pt).flatMap {
+      case (producer, stream) =>
+        for {
+          fiber <- consumeMany(stream).start
+          _     <- producer.awaitConsumers(consumers)
+          _     <- produce(producer)
+          _     <- producer.halt(None)
+          sum   <- fiber.join
+        } yield {
+          val perProducer = count.toLong * (count + 1) / 2
+          assertEquals(sum, perProducer * producers * consumers)
+        }
     }
   }
 }

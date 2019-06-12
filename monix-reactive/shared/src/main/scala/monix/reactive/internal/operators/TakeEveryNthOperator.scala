@@ -23,8 +23,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final class TakeEveryNthOperator[A](n: Int)
-  extends Operator[A, A] {
+private[reactive] final class TakeEveryNthOperator[A](n: Int) extends Operator[A, A] {
 
   require(n > 0, "n must be strictly positive")
 
@@ -49,4 +48,3 @@ private[reactive] final class TakeEveryNthOperator[A](n: Int)
         out.onComplete()
     }
 }
-

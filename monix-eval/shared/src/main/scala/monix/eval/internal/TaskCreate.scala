@@ -29,8 +29,7 @@ private[eval] object TaskCreate {
     */
   def cancelable0[A](fn: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] = {
     val start = new Cancelable0Start[A, CancelToken[Task]](fn) {
-      def setConnection(ref:  TaskConnectionRef, token:  CancelToken[Task])
-        (implicit s:  Scheduler): Unit = ref := token
+      def setConnection(ref: TaskConnectionRef, token: CancelToken[Task])(implicit s: Scheduler): Unit = ref := token
     }
     Async(start, trampolineBefore = false, trampolineAfter = false)
   }
@@ -38,8 +37,7 @@ private[eval] object TaskCreate {
   private abstract class Cancelable0Start[A, Token](fn: (Scheduler, Callback[Throwable, A]) => Token)
     extends ((Context, Callback[Throwable, A]) => Unit) {
 
-    def setConnection(ref: TaskConnectionRef, token: Token)
-      (implicit s: Scheduler): Unit
+    def setConnection(ref: TaskConnectionRef, token: Token)(implicit s: Scheduler): Unit
 
     final def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
       implicit val s = ctx.scheduler
@@ -66,21 +64,24 @@ private[eval] object TaskCreate {
     * Implementation for `cats.effect.Concurrent#cancelable`.
     */
   def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => CancelToken[Task]): Task[A] =
-    cancelable0 { (_, cb) => k(cb) }
+    cancelable0 { (_, cb) =>
+      k(cb)
+    }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableIO[A](start: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
-    cancelable0 { (sc, cb) => Task.fromIO(start(sc, cb)) }
+    cancelable0 { (sc, cb) =>
+      Task.fromIO(start(sc, cb))
+    }
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableCancelable[A](fn: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] = {
     val start = new Cancelable0Start[A, Cancelable](fn) {
-      def setConnection(ref:  TaskConnectionRef, token:  Cancelable)
-        (implicit s:  Scheduler): Unit = ref := token
+      def setConnection(ref: TaskConnectionRef, token: Cancelable)(implicit s: Scheduler): Unit = ref := token
     }
     Async(start, trampolineBefore = false, trampolineAfter = false)
   }
@@ -89,7 +90,9 @@ private[eval] object TaskCreate {
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
   def cancelableCoeval[A](start: (Scheduler, Callback[Throwable, A]) => Coeval[Unit]): Task[A] =
-    cancelable0 { (sc, cb) => Task.from(start(sc, cb)) }
+    cancelable0 { (sc, cb) =>
+      Task.from(start(sc, cb))
+    }
 
   /**
     * Implementation for `Task.async`

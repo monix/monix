@@ -30,19 +30,13 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *        [[monix.execution.ExecutionModel ExecutionModel]],
     *        a guideline for run-loops and producers of data.
     */
-  def apply(
-    context: ExecutionContext = StandardContext,
-    executionModel: ExecModel = ExecModel.Default): Scheduler =
+  def apply(context: ExecutionContext = StandardContext, executionModel: ExecModel = ExecModel.Default): Scheduler =
     AsyncScheduler(context, executionModel)
 
-  def apply(
-    ec: ExecutionContext,
-    reporter: UncaughtExceptionReporter): Scheduler =
+  def apply(ec: ExecutionContext, reporter: UncaughtExceptionReporter): Scheduler =
     AsyncScheduler(ec, ExecModel.Default, reporter)
 
-  def apply(
-    reporter: UncaughtExceptionReporter,
-    execModel: ExecModel): Scheduler =
+  def apply(reporter: UncaughtExceptionReporter, execModel: ExecModel): Scheduler =
     AsyncScheduler(StandardContext, execModel, reporter)
   /** Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
     *
@@ -56,9 +50,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
     *         for the default.
     */
-  def trampoline(
-    underlying: Scheduler = Implicits.global,
-    executionModel: ExecModel = ExecModel.Default): Scheduler =
+  def trampoline(underlying: Scheduler = Implicits.global, executionModel: ExecModel = ExecModel.Default): Scheduler =
     TrampolineScheduler(underlying, executionModel)
 
   /** The explicit global `Scheduler`. Invoke `global` when you want

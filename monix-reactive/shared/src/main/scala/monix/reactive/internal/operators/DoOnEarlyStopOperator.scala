@@ -29,8 +29,7 @@ import monix.reactive.internal.util.Instances.ContinueTask
 import scala.concurrent.Future
 import scala.util.Success
 
-private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit])
-  extends Operator[A,A] {
+private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit]) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -42,8 +41,11 @@ private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit])
           try out.onNext(elem)
           catch { case ex if NonFatal(ex) => Future.failed(ex) }
 
-        val task = Task.fromFuture(result)
-          .onErrorHandle { ex => onError(ex); Stop }
+        val task = Task
+          .fromFuture(result)
+          .onErrorHandle { ex =>
+            onError(ex); Stop
+          }
           .flatMap { case Continue => ContinueTask; case Stop => onStop.map(_ => Stop) }
 
         val future = task.runToFuture

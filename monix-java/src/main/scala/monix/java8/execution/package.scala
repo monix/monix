@@ -23,7 +23,6 @@ import monix.execution.{Cancelable, CancelableFuture}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-
 /**
   * DEPRECATED — switch to Scala 2.12+ and [[monix.execution.FutureUtils]].
   */

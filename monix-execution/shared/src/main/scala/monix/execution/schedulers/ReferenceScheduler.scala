@@ -64,20 +64,24 @@ trait ReferenceScheduler extends Scheduler {
       val startedAtMillis = clockMonotonic(MILLISECONDS) + initialDelayMs
 
       if (!sub.isCanceled) {
-        sub := scheduleOnce(initialDelayMs, MILLISECONDS, new Runnable {
-          def run(): Unit = {
-            r.run()
+        sub := scheduleOnce(
+          initialDelayMs,
+          MILLISECONDS,
+          new Runnable {
+            def run(): Unit = {
+              r.run()
 
-            val delay = {
-              val durationMillis = clockMonotonic(MILLISECONDS) - startedAtMillis
-              val d = periodMs - durationMillis
-              if (d >= 0) d else 0
+              val delay = {
+                val durationMillis = clockMonotonic(MILLISECONDS) - startedAtMillis
+                val d = periodMs - durationMillis
+                if (d >= 0) d else 0
+              }
+
+              // Recursive call
+              loop(delay, periodMs)
             }
-
-            // Recursive call
-            loop(delay, periodMs)
           }
-        })
+        )
       }
     }
 
@@ -102,10 +106,8 @@ object ReferenceScheduler {
     s: Scheduler,
     override val executionModel: ExecModel,
     reporter: UncaughtExceptionReporter = null
-  )
-    extends Scheduler {
+  ) extends Scheduler {
     private[this] val reporterRef = if (reporter eq null) s else reporter
-
 
     override def execute(runnable: Runnable): Unit =
       s.execute(InterceptableRunnable(runnable, reporter))

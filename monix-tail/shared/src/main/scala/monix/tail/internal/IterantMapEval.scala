@@ -28,8 +28,7 @@ private[tail] object IterantMapEval {
   /**
     * Implementation for `Iterant#mapEval`
     */
-  def apply[F[_], A, B](source: Iterant[F, A], ff: A => F[B])
-    (implicit F: Sync[F]): Iterant[F, B] = {
+  def apply[F[_], A, B](source: Iterant[F, A], ff: A => F[B])(implicit F: Sync[F]): Iterant[F, B] = {
 
     Suspend(F.delay(new Loop(ff).apply(source)))
   }
@@ -57,7 +56,7 @@ private[tail] object IterantMapEval {
       processCursor(ref, ref.cursor, ref.rest)
 
     def visit(ref: Suspend[F, A]): Iterant[F, B] =
-      Suspend[F,B](ref.rest.map(this))
+      Suspend[F, B](ref.rest.map(this))
 
     def visit(ref: Concat[F, A]): Iterant[F, B] =
       ref.runMap(this)
@@ -79,7 +78,8 @@ private[tail] object IterantMapEval {
         Suspend[F, B](rest.map(this))
       } else {
         val head = cursor.next()
-        val fb = try ff(head) catch { case NonFatal(e) => F.raiseError[B](e) }
+        val fb = try ff(head)
+        catch { case NonFatal(e) => F.raiseError[B](e) }
         // If the iterator is empty, then we can skip a beat
         val tail = if (cursor.hasNext()) F.pure(ref: Iterant[F, A]) else rest
         val suspended = fb.map(continue(tail))

@@ -99,11 +99,7 @@ private[eval] object TaskFromFuture {
   }
 
   private def rawAsync[A](start: (Context, Callback[Throwable, A]) => Unit): Task[A] =
-    Task.Async(
-      start,
-      trampolineBefore = true,
-      trampolineAfter = false,
-      restoreLocals = true)
+    Task.Async(start, trampolineBefore = true, trampolineAfter = false, restoreLocals = true)
 
   private def startSimple[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {
     f.value match {
@@ -133,8 +129,8 @@ private[eval] object TaskFromFuture {
     }
   }
 
-  private def trampolinedCB[A](cb: Callback[Throwable, A], conn: TaskConnection)
-    (implicit ec: ExecutionContext): Try[A] => Unit = {
+  private def trampolinedCB[A](cb: Callback[Throwable, A], conn: TaskConnection)(
+    implicit ec: ExecutionContext): Try[A] => Unit = {
 
     new (Try[A] => Unit) with TrampolinedRunnable {
       private[this] var value: Try[A] = _

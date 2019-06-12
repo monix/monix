@@ -28,7 +28,7 @@ import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import scala.collection.mutable
 
-private[reactive] final class MergeMapObservable[A,B](
+private[reactive] final class MergeMapObservable[A, B](
   source: Observable[A],
   f: A => Observable[B],
   overflowStrategy: OverflowStrategy[B],
@@ -44,8 +44,10 @@ private[reactive] final class MergeMapObservable[A,B](
         BufferedSubscriber(downstream, overflowStrategy, MultiProducer)
 
       private[this] val upstreamIsDone = Atomic(false)
-      private[this] val errors = if (delayErrors)
-        mutable.ArrayBuffer.empty[Throwable] else null
+      private[this] val errors =
+        if (delayErrors)
+          mutable.ArrayBuffer.empty[Throwable]
+        else null
 
       private[this] val refCount = RefCountCancelable { () =>
         if (!upstreamIsDone.getAndSet(true)) {
@@ -55,8 +57,7 @@ private[reactive] final class MergeMapObservable[A,B](
                 subscriberB.onError(CompositeException(errors.toSeq))
               else
                 subscriberB.onComplete()
-            }
-          else {
+            } else {
             subscriberB.onComplete()
           }
         }
@@ -92,10 +93,9 @@ private[reactive] final class MergeMapObservable[A,B](
               if (delayErrors) errors.synchronized {
                 errors += ex
                 refID.cancel()
-              }
-              else if (!upstreamIsDone.getAndSet(true)) {
-                try subscriberB.onError(ex) finally
-                  composite.cancel()
+              } else if (!upstreamIsDone.getAndSet(true)) {
+                try subscriberB.onError(ex)
+                finally composite.cancel()
               }
             }
 
@@ -120,8 +120,7 @@ private[reactive] final class MergeMapObservable[A,B](
         if (delayErrors) errors.synchronized {
           errors += ex
           onComplete()
-        }
-        else if (!upstreamIsDone.getAndSet(true)) {
+        } else if (!upstreamIsDone.getAndSet(true)) {
           // oops, error happened on main thread,
           // piping that along should cancel everything
           composite.cancel()

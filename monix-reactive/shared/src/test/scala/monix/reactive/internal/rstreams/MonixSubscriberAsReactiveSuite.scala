@@ -29,8 +29,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
   def tearDown(s: TestScheduler) = {
     s.state.lastReportedError match {
       case null =>
-        assert(s.state.tasks.isEmpty,
-          "TestScheduler should have no pending tasks")
+        assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
       case error =>
         throw error
     }
@@ -55,7 +54,9 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.range(0, 10000).toReactivePublisher
+    Observable
+      .range(0, 10000)
+      .toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 128))
 
     scheduler.tick()
@@ -78,7 +79,9 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit = ()
     }
 
-    Observable.range(0, 10000).toReactivePublisher
+    Observable
+      .range(0, 10000)
+      .toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 128))
 
     scheduler.tick()
@@ -86,7 +89,6 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
   }
 
   test("should throw NullPointerException for null elements with Async Subscriber") { implicit s =>
-
     val observer = new Observer[Any] {
       def onNext(elem: Any) = Continue
 
@@ -102,17 +104,16 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
 
     s.tick()
 
-    intercept[NullPointerException]{
+    intercept[NullPointerException] {
       reactiveSubscriber.onNext(null)
     }
 
-    intercept[NullPointerException]{
+    intercept[NullPointerException] {
       reactiveSubscriber.onError(null)
     }
   }
 
   test("should throw NullPointerException for null elements with Sync Subscriber") { implicit s =>
-
     val observer = new Observer.Sync[Any] {
       def onNext(elem: Any) = Continue
 
@@ -128,11 +129,11 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
 
     s.tick()
 
-    intercept[NullPointerException]{
+    intercept[NullPointerException] {
       reactiveSubscriber.onNext(null)
     }
 
-    intercept[NullPointerException]{
+    intercept[NullPointerException] {
       reactiveSubscriber.onError(null)
     }
   }
@@ -157,11 +158,13 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
 
     val requested = 100
-    Observable.range(0, requested).toReactivePublisher
+    Observable
+      .range(0, requested)
+      .toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 1))
 
     s.tick()
-    assertEquals(sum, requested * (requested-1) / 2)
+    assertEquals(sum, requested * (requested - 1) / 2)
   }
 
   test("should work with asynchronous boundaries and batched requests") { implicit s =>
@@ -184,7 +187,9 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.range(0, 10000).toReactivePublisher
+    Observable
+      .range(0, 10000)
+      .toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 128))
 
     s.tick()
@@ -211,7 +216,9 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.range(0, 10000).toReactivePublisher
+    Observable
+      .range(0, 10000)
+      .toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 1))
 
     scheduler.tick()
@@ -234,8 +241,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
         else if (received == 10) {
           completed -= 1
           Stop
-        }
-        else
+        } else
           throw new IllegalStateException(s"onNext($elem)")
       }
 
@@ -250,7 +256,9 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.range(1, 10000).toReactivePublisher
+    Observable
+      .range(1, 10000)
+      .toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 128))
 
     s.tick()
@@ -275,8 +283,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
           else if (received == 10) {
             completed += 1
             Stop
-          }
-          else
+          } else
             throw new IllegalStateException(s"onNext($elem)")
         }
 
@@ -291,7 +298,9 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
         }
       }
 
-      Observable.range(1, 10000).toReactivePublisher
+      Observable
+        .range(1, 10000)
+        .toReactivePublisher
         .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 1))
 
       s.tick()
@@ -323,7 +332,9 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
         completed += 1
     }
 
-    Observable.now(100L).toReactivePublisher
+    Observable
+      .now(100L)
+      .toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 128))
 
     s.tick()
@@ -354,7 +365,9 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
         completed += 1
     }
 
-    Observable.now(100L).toReactivePublisher
+    Observable
+      .now(100L)
+      .toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 1))
 
     s.tick()

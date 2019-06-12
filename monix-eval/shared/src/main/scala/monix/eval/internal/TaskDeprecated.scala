@@ -172,18 +172,18 @@ private[eval] object TaskDeprecated {
     /**
       * DEPRECATED — switch to [[Task.parZip2]], which has the same behavior.
       */
-    @deprecated("Switch to Task.parZip2", since="3.0.0-RC2")
+    @deprecated("Switch to Task.parZip2", since = "3.0.0-RC2")
     def zip[B](that: Task[B]): Task[(A, B)] = {
       // $COVERAGE-OFF$
-      Task.mapBoth(self, that)((a,b) => (a,b))
+      Task.mapBoth(self, that)((a, b) => (a, b))
       // $COVERAGE-ON$
     }
 
     /**
       * DEPRECATED — switch to [[Task.parMap2]], which has the same behavior.
       */
-    @deprecated("Use Task.parMap2", since="3.0.0-RC2")
-    def zipMap[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
+    @deprecated("Use Task.parMap2", since = "3.0.0-RC2")
+    def zipMap[B, C](that: Task[B])(f: (A, B) => C): Task[C] =
       Task.mapBoth(self, that)(f)
 
     /** DEPRECATED — renamed to [[Task.executeAsync executeAsync]].
@@ -267,7 +267,7 @@ private[eval] object TaskDeprecated {
       * enforces an asynchronous boundary, being exactly the same
       * as `fork` from 3.0.0-RC1
       */
-    @deprecated("Replaced with start", since="3.0.0-RC2")
+    @deprecated("Replaced with start", since = "3.0.0-RC2")
     def fork: Task[Fiber[A @uncheckedVariance]] = {
       // $COVERAGE-OFF$
       self.start
@@ -278,7 +278,7 @@ private[eval] object TaskDeprecated {
       *
       * `task.coeval <-> Coeval(task.runSyncStep)`
       */
-    @deprecated("Replaced with Coeval(task.runSyncStep)", since="3.0.0-RC2")
+    @deprecated("Replaced with Coeval(task.runSyncStep)", since = "3.0.0-RC2")
     def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] = {
       // $COVERAGE-OFF$
       Coeval.eval(runSyncMaybeOptPrv(s, Task.defaultOptions))
@@ -289,7 +289,7 @@ private[eval] object TaskDeprecated {
   private[eval] abstract class Companion {
     /** DEPRECATED — renamed to [[Task.parZip2]]. */
     @deprecated("Renamed to Task.parZip2", since = "3.0.0-RC2")
-    def zip2[A1,A2,R](fa1: Task[A1], fa2: Task[A2]): Task[(A1,A2)] = {
+    def zip2[A1, A2, R](fa1: Task[A1], fa2: Task[A2]): Task[(A1, A2)] = {
       // $COVERAGE-OFF$
       Task.parZip2(fa1, fa2)
       // $COVERAGE-ON$
@@ -297,7 +297,7 @@ private[eval] object TaskDeprecated {
 
     /** DEPRECATED — renamed to [[Task.parZip3]]. */
     @deprecated("Renamed to Task.parZip3", since = "3.0.0-RC2")
-    def zip3[A1,A2,A3](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3]): Task[(A1,A2,A3)] = {
+    def zip3[A1, A2, A3](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3]): Task[(A1, A2, A3)] = {
       // $COVERAGE-OFF$
       Task.parZip3(fa1, fa2, fa3)
       // $COVERAGE-ON$
@@ -305,7 +305,7 @@ private[eval] object TaskDeprecated {
 
     /** DEPRECATED — renamed to [[Task.parZip4]]. */
     @deprecated("Renamed to Task.parZip4", since = "3.0.0-RC2")
-    def zip4[A1,A2,A3,A4](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4]): Task[(A1,A2,A3,A4)] = {
+    def zip4[A1, A2, A3, A4](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4]): Task[(A1, A2, A3, A4)] = {
       // $COVERAGE-OFF$
       Task.parZip4(fa1, fa2, fa3, fa4)
       // $COVERAGE-ON$
@@ -313,7 +313,12 @@ private[eval] object TaskDeprecated {
 
     /** DEPRECATED — renamed to [[Task.parZip5]]. */
     @deprecated("Renamed to Task.parZip5", since = "3.0.0-RC2")
-    def zip5[A1,A2,A3,A4,A5](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5]): Task[(A1,A2,A3,A4,A5)] = {
+    def zip5[A1, A2, A3, A4, A5](
+      fa1: Task[A1],
+      fa2: Task[A2],
+      fa3: Task[A3],
+      fa4: Task[A4],
+      fa5: Task[A5]): Task[(A1, A2, A3, A4, A5)] = {
       // $COVERAGE-OFF$
       Task.parZip5(fa1, fa2, fa3, fa4, fa5)
       // $COVERAGE-ON$
@@ -321,7 +326,13 @@ private[eval] object TaskDeprecated {
 
     /** DEPRECATED — renamed to [[Task.parZip6]]. */
     @deprecated("Renamed to Task.parZip6", since = "3.0.0-RC2")
-    def zip6[A1,A2,A3,A4,A5,A6](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6]): Task[(A1,A2,A3,A4,A5,A6)] = {
+    def zip6[A1, A2, A3, A4, A5, A6](
+      fa1: Task[A1],
+      fa2: Task[A2],
+      fa3: Task[A3],
+      fa4: Task[A4],
+      fa5: Task[A5],
+      fa6: Task[A6]): Task[(A1, A2, A3, A4, A5, A6)] = {
       // $COVERAGE-OFF$
       Task.parZip6(fa1, fa2, fa3, fa4, fa5, fa6)
       // $COVERAGE-ON$

@@ -45,10 +45,6 @@ private[eval] object TaskDeferAction {
           }
       }
     }
-    Task.Async(
-      start,
-      trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = false)
+    Task.Async(start, trampolineBefore = true, trampolineAfter = true, restoreLocals = false)
   }
 }

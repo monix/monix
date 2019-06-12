@@ -29,15 +29,16 @@ import monix.reactive.observers.Subscriber
 object DoOnNextSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should work for cats.effect.IO") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNextF(x => IO(sum += x))
+    Observable
+      .range(0, 20)
+      .doOnNextF(x => IO(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -54,7 +55,9 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNext(x => Task.evalAsync(sum += x))
+    Observable
+      .range(0, 20)
+      .doOnNext(x => Task.evalAsync(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -71,7 +74,9 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnNext(x => Task.eval(sum += x))
+    Observable
+      .range(0, 20)
+      .doOnNext(x => Task.eval(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -87,7 +92,9 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.now(10L).doOnNext(x => Task.evalAsync(sum += x))
+    Observable
+      .now(10L)
+      .doOnNext(x => Task.evalAsync(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -104,7 +111,9 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = 0
 
-    Observable.now(10L).doOnNext(x => Task.eval(sum += x))
+    Observable
+      .now(10L)
+      .doOnNext(x => Task.eval(sum += x))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = ()
@@ -122,7 +131,9 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0L
     var errorThrown: Throwable = null
 
-    Observable.range(1,10).doOnNext(x => throw dummy)
+    Observable
+      .range(1, 10)
+      .doOnNext(x => throw dummy)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = errorThrown = ex
@@ -141,7 +152,9 @@ object DoOnNextSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0L
     var errorThrown: Throwable = null
 
-    Observable.range(1,10).doOnNext(x => Task.evalAsync(throw dummy))
+    Observable
+      .range(1, 10)
+      .doOnNext(x => Task.evalAsync(throw dummy))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onError(ex: Throwable): Unit = errorThrown = ex

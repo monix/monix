@@ -18,7 +18,7 @@
 package monix.execution
 
 import monix.execution.atomic.AtomicAny
-import monix.execution.internal. Platform
+import monix.execution.internal.Platform
 
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolinedRunnable
@@ -71,7 +71,9 @@ object Cancelable {
     * cancelling everything on `cancel`.
     */
   def collection(seq: Iterable[Cancelable]): Cancelable =
-    apply { () => cancelAll(seq) }
+    apply { () =>
+      cancelAll(seq)
+    }
 
   /** Wraps a collection of cancelable references into a `Cancelable`
     * that will cancel them all by triggering a trampolined async
@@ -126,12 +128,12 @@ object Cancelable {
   trait Empty extends Cancelable with IsDummy
 
   /** Marker for cancelables that are dummies that can be ignored. */
-  trait IsDummy { self: Cancelable => }
+  trait IsDummy { self: Cancelable =>
+  }
 
-  private final class CancelableTask(cb: () => Unit)
-    extends Cancelable {
+  private final class CancelableTask(cb: () => Unit) extends Cancelable {
 
-    private[this] val callbackRef = /*_*/AtomicAny(cb)/*_*/
+    private[this] val callbackRef = /*_*/ AtomicAny(cb) /*_*/
 
     def cancel(): Unit = {
       // Setting the callback to null with a `getAndSet` is solving
@@ -144,12 +146,10 @@ object Cancelable {
     }
   }
 
-  private final class CollectionTrampolined(
-    refs: Iterable[Cancelable],
-    sc: Scheduler)
+  private final class CollectionTrampolined(refs: Iterable[Cancelable], sc: Scheduler)
     extends Cancelable with TrampolinedRunnable {
 
-    private[this] val atomic = /*_*/AtomicAny(refs)/*_*/
+    private[this] val atomic = /*_*/ AtomicAny(refs) /*_*/
 
     def cancel(): Unit =
       sc.execute(this)

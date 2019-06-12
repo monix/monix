@@ -29,9 +29,8 @@ object CallbackSuite extends TestSuite[TestScheduler] {
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
-  case class TestCallback(
-    success: Int => Unit = _ => (),
-    error: Throwable => Unit = _ => ()) extends Callback[Throwable, Int] {
+  case class TestCallback(success: Int => Unit = _ => (), error: Throwable => Unit = _ => ())
+    extends Callback[Throwable, Int] {
 
     var successCalled = false
     var errorCalled = false
@@ -67,9 +66,11 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
   test("contramap should pipe onError") { implicit s =>
     var result = Option.empty[Try[Int]]
-    val callback = TestCallback(
-      { v => result = Some(Success(v)) },
-      { e => result = Some(Failure(e)) })
+    val callback = TestCallback({ v =>
+      result = Some(Success(v))
+    }, { e =>
+      result = Some(Failure(e))
+    })
 
     val stringCallback = callback.contramap[String](_.toInt)
     val dummy = DummyException("dummy")

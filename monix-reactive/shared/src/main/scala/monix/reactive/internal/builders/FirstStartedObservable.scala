@@ -26,8 +26,7 @@ import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.{Future, Promise}
 
-private[reactive] final class FirstStartedObservable[A](source: Observable[A]*)
-  extends Observable[A] {
+private[reactive] final class FirstStartedObservable[A](source: Observable[A]*) extends Observable[A] {
 
   override def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
@@ -64,9 +63,12 @@ private[reactive] final class FirstStartedObservable[A](source: Observable[A]*)
   }
 
   // Helper function used for creating a subscription that uses `finishLine` as guard
-  def createSubscription(observable: Observable[A], observer: Observer[A],
-    finishLine: AtomicInt, idx: Int, p: Promise[Int])
-    (implicit s: Scheduler): Cancelable = {
+  def createSubscription(
+    observable: Observable[A],
+    observer: Observer[A],
+    finishLine: AtomicInt,
+    idx: Int,
+    p: Promise[Int])(implicit s: Scheduler): Cancelable = {
 
     observable.unsafeSubscribeFn(new Observer[A] {
       // for fast path

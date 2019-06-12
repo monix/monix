@@ -81,8 +81,7 @@ import monix.execution.Cancelable.IsDummy
   * [[ChainedCancelable]]. Use [[OrderedCancelable]] or
   * [[SingleAssignCancelable]] for most purposes.
   */
-final class ChainedCancelable private (private var stateRef: AnyRef)
-  extends AssignableCancelable {
+final class ChainedCancelable private (private var stateRef: AnyRef) extends AssignableCancelable {
 
   import ChainedCancelable.{Canceled, WeakRef}
   private type CC = ChainedCancelable
@@ -160,7 +159,9 @@ final class ChainedCancelable private (private var stateRef: AnyRef)
             cursor = ref2
             continue = cursor ne null
           case ref2 =>
-            if (ref2 eq Canceled) { cancel(); return }
+            if (ref2 eq Canceled) {
+              cancel(); return
+            }
             continue = false
         }
       }

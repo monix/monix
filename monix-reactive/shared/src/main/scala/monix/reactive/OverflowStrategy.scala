@@ -54,8 +54,7 @@ object OverflowStrategy {
     * @param bufferSize specifies how many events our buffer can hold
     *                   before overflowing
     */
-  final case class Fail(bufferSize: Int)
-    extends Synchronous[Nothing] {
+  final case class Fail(bufferSize: Int) extends Synchronous[Nothing] {
 
     require(bufferSize > 1, "bufferSize must be strictly greater than 1")
   }
@@ -68,8 +67,7 @@ object OverflowStrategy {
     * @param bufferSize specifies how many events our buffer can hold
     *                   before overflowing
     */
-  final case class BackPressure(bufferSize: Int)
-    extends OverflowStrategy[Nothing] {
+  final case class BackPressure(bufferSize: Int) extends OverflowStrategy[Nothing] {
 
     require(bufferSize > 1, "bufferSize must be strictly greater than 1")
   }
@@ -81,8 +79,7 @@ object OverflowStrategy {
     * @param bufferSize specifies how many events our buffer can hold
     *                   before overflowing
     */
-  final case class DropNew(bufferSize: Int)
-    extends Evicted[Nothing] {
+  final case class DropNew(bufferSize: Int) extends Evicted[Nothing] {
 
     require(bufferSize > 1, "bufferSize must be strictly greater than 1")
   }
@@ -104,8 +101,7 @@ object OverflowStrategy {
     *        a new message that will be sent to downstream. If it returns
     *        `None`, then no message gets sent to downstream.
     */
-  final case class DropNewAndSignal[A](bufferSize: Int, onOverflow: Long => Coeval[Option[A]])
-    extends Evicted[A] {
+  final case class DropNewAndSignal[A](bufferSize: Int, onOverflow: Long => Coeval[Option[A]]) extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize must be strictly greater than 1")
   }
@@ -117,8 +113,7 @@ object OverflowStrategy {
     * @param bufferSize specifies how many events our buffer can hold
     *                   before overflowing
     */
-  final case class DropOld(bufferSize: Int)
-    extends Evicted[Nothing] {
+  final case class DropOld(bufferSize: Int) extends Evicted[Nothing] {
 
     require(bufferSize > 1, "bufferSize must be strictly greater than 1")
   }
@@ -140,8 +135,7 @@ object OverflowStrategy {
     *        a new message that will be sent to downstream. If it returns
     *        `None`, then no message gets sent to downstream.
     */
-  final case class DropOldAndSignal[A](bufferSize: Int, onOverflow: Long => Coeval[Option[A]])
-    extends Evicted[A] {
+  final case class DropOldAndSignal[A](bufferSize: Int, onOverflow: Long => Coeval[Option[A]]) extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize must be strictly greater than 1")
   }
@@ -153,8 +147,7 @@ object OverflowStrategy {
     * @param bufferSize specifies how many events our buffer can hold
     *        before overflowing
     */
-  final case class ClearBuffer(bufferSize: Int)
-    extends Evicted[Nothing] {
+  final case class ClearBuffer(bufferSize: Int) extends Evicted[Nothing] {
 
     require(bufferSize > 1, "bufferSize must be strictly greater than 1")
   }
@@ -175,8 +168,7 @@ object OverflowStrategy {
     *        a number of messages that were dropped, a function that builds
     *        a new message that will be sent to downstream.
     */
-  final case class ClearBufferAndSignal[A](bufferSize: Int, onOverflow: Long => Coeval[Option[A]])
-    extends Evicted[A] {
+  final case class ClearBufferAndSignal[A](bufferSize: Int, onOverflow: Long => Coeval[Option[A]]) extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize must be strictly greater than 1")
   }

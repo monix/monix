@@ -27,10 +27,11 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.Success
 
-private[reactive] final
-class CombineLatest4Observable[A1,A2,A3,A4,+R]
-  (obsA1: Observable[A1], obsA2: Observable[A2], obsA3: Observable[A3], obsA4: Observable[A4])
-  (f: (A1,A2,A3,A4) => R)
+private[reactive] final class CombineLatest4Observable[A1, A2, A3, A4, +R](
+  obsA1: Observable[A1],
+  obsA2: Observable[A2],
+  obsA3: Observable[A3],
+  obsA4: Observable[A4])(f: (A1, A2, A3, A4) => R)
   extends Observable[R] { lock =>
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
@@ -39,7 +40,7 @@ class CombineLatest4Observable[A1,A2,A3,A4,+R]
     val lock = new AnyRef
     var isDone = false
     // MUST BE synchronized by `lock`
-    var lastAck = Continue : Future[Ack]
+    var lastAck = Continue: Future[Ack]
     // MUST BE synchronized by `lock`
     var elemA1: A1 = null.asInstanceOf[A1]
     // MUST BE synchronized by `lock`
@@ -61,10 +62,11 @@ class CombineLatest4Observable[A1,A2,A3,A4,+R]
 
     // MUST BE synchronized by `lock`
     def rawOnNext(a1: A1, a2: A2, a3: A3, a4: A4): Future[Ack] =
-      if (isDone) Stop else {
+      if (isDone) Stop
+      else {
         var streamError = true
         try {
-          val c = f(a1,a2,a3,a4)
+          val c = f(a1, a2, a3, a4)
           streamError = false
           out.onNext(c)
         } catch {
@@ -78,12 +80,12 @@ class CombineLatest4Observable[A1,A2,A3,A4,+R]
     // MUST BE synchronized by `lock`
     def signalOnNext(a1: A1, a2: A2, a3: A3, a4: A4): Future[Ack] = {
       lastAck = lastAck match {
-        case Continue => rawOnNext(a1,a2,a3,a4)
+        case Continue => rawOnNext(a1, a2, a3, a4)
         case Stop => Stop
         case async =>
           async.flatMap {
             // async execution, we have to re-sync
-            case Continue => lock.synchronized(rawOnNext(a1,a2,a3,a4))
+            case Continue => lock.synchronized(rawOnNext(a1, a2, a3, a4))
             case Stop => Stop
           }
       }
@@ -99,7 +101,7 @@ class CombineLatest4Observable[A1,A2,A3,A4,+R]
       }
     }
 
-    def signalOnComplete(): Unit = lock.synchronized  {
+    def signalOnComplete(): Unit = lock.synchronized {
       completedCount += 1
 
       if (completedCount == 4 && !isDone) {
@@ -133,7 +135,8 @@ class CombineLatest4Observable[A1,A2,A3,A4,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = lock.synchronized {
-        if (isDone) Stop else {
+        if (isDone) Stop
+        else {
           elemA1 = elem
           if (!hasElemA1) hasElemA1 = true
 
@@ -154,7 +157,8 @@ class CombineLatest4Observable[A1,A2,A3,A4,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = lock.synchronized {
-        if (isDone) Stop else {
+        if (isDone) Stop
+        else {
           elemA2 = elem
           if (!hasElemA2) hasElemA2 = true
 
@@ -175,7 +179,8 @@ class CombineLatest4Observable[A1,A2,A3,A4,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A3): Future[Ack] = lock.synchronized {
-        if (isDone) Stop else {
+        if (isDone) Stop
+        else {
           elemA3 = elem
           if (!hasElemA3) hasElemA3 = true
 
@@ -196,7 +201,8 @@ class CombineLatest4Observable[A1,A2,A3,A4,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A4): Future[Ack] = lock.synchronized {
-        if (isDone) Stop else {
+        if (isDone) Stop
+        else {
           elemA4 = elem
           if (!hasElemA4) hasElemA4 = true
 

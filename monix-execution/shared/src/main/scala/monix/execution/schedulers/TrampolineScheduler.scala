@@ -53,10 +53,8 @@ import monix.execution.{ExecutionModel => ExecModel}
   * @param underlying is the `ExecutionContext` to which the it defers
   *        to in case real asynchronous is needed
   */
-final class TrampolineScheduler(
-  underlying: Scheduler,
-  override val executionModel: ExecModel)
-  extends Scheduler { self =>
+final class TrampolineScheduler(underlying: Scheduler, override val executionModel: ExecModel) extends Scheduler {
+  self =>
 
   private[this] val trampoline =
     TrampolineExecutionContext(underlying)

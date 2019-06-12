@@ -27,7 +27,7 @@ import scala.reflect.ClassTag
   * This implementation is not thread-safe and on the JVM it
   * needs to be synchronized.
   */
-private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recommendedCapacity: Int)
+private[monix] final class DropAllOnOverflowQueue[A: ClassTag] private (_recommendedCapacity: Int)
   extends EvictingQueue[A] { self =>
 
   require(_recommendedCapacity > 0, "recommendedCapacity must be positive")
@@ -55,7 +55,8 @@ private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recomm
     array(tailIdx) = elem
     tailIdx = (tailIdx + 1) & modulus
 
-    if (tailIdx != headIdx) 0 else {
+    if (tailIdx != headIdx) 0
+    else {
       // overflow just happened, dropping all by decrementing head
       headIdx = (headIdx - 1) & modulus
       capacity
@@ -65,13 +66,13 @@ private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recomm
   def offerMany(seq: A*): Long = {
     val iterator = seq.iterator
     var acc = 0L
-    while (iterator.hasNext)
-      acc += offer(iterator.next())
+    while (iterator.hasNext) acc += offer(iterator.next())
     acc
   }
 
   def poll(): A = {
-    if (headIdx == tailIdx) null.asInstanceOf[A] else {
+    if (headIdx == tailIdx) null.asInstanceOf[A]
+    else {
       val elem = array(headIdx)
       // incrementing head pointer
       headIdx = (headIdx + 1) & modulus
@@ -118,7 +119,8 @@ private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recomm
   }
 
   override def headOption: Option[A] = {
-    try Some(head) catch {
+    try Some(head)
+    catch {
       case _: NoSuchElementException =>
         None
     }
@@ -142,7 +144,8 @@ private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recomm
       private[this] var headIdx = 0
 
       private[this] val initialHeadIdx = {
-        if (!exactSize) self.headIdx else {
+        if (!exactSize) self.headIdx
+        else {
           // Dropping extra elements
           val currentSize = self.size
           if (currentSize < _recommendedCapacity) self.headIdx
@@ -198,8 +201,8 @@ private[monix] object DropAllOnOverflowQueue {
   /** Builder for [[DropAllOnOverflowQueue]]
     *
     * @param recommendedCapacity $recommendedCapacityDesc
-   */
-  def apply[A : ClassTag](recommendedCapacity: Int): DropAllOnOverflowQueue[A] =
+    */
+  def apply[A: ClassTag](recommendedCapacity: Int): DropAllOnOverflowQueue[A] =
     new DropAllOnOverflowQueue[A](recommendedCapacity)
 
   /** Builder for [[DropAllOnOverflowQueue]] that boxes

@@ -66,15 +66,13 @@ private[internal] object FromMessagePassingQueue {
         else new Java7[A](queue, ct)
     }
 
-  private final class MPMC[A](queue: MessagePassingQueue[A])
-    extends FromMessagePassingQueue[A](queue) {
+  private final class MPMC[A](queue: MessagePassingQueue[A]) extends FromMessagePassingQueue[A](queue) {
 
     def fenceOffer(): Unit = ()
     def fencePoll(): Unit = ()
   }
 
-  private final class Java8SPMC[A](queue: MessagePassingQueue[A])
-    extends FromMessagePassingQueue[A](queue) {
+  private final class Java8SPMC[A](queue: MessagePassingQueue[A]) extends FromMessagePassingQueue[A](queue) {
 
     private[this] val UNSAFE =
       UnsafeAccess.getInstance().asInstanceOf[Unsafe]
@@ -83,8 +81,7 @@ private[internal] object FromMessagePassingQueue {
     def fencePoll(): Unit = ()
   }
 
-  private final class Java8MPSC[A](queue: MessagePassingQueue[A])
-    extends FromMessagePassingQueue[A](queue) {
+  private final class Java8MPSC[A](queue: MessagePassingQueue[A]) extends FromMessagePassingQueue[A](queue) {
 
     private[this] val UNSAFE =
       UnsafeAccess.getInstance().asInstanceOf[Unsafe]
@@ -93,8 +90,7 @@ private[internal] object FromMessagePassingQueue {
     def fencePoll(): Unit = UNSAFE.fullFence()
   }
 
-  private final class Java8SPSC[A](queue: MessagePassingQueue[A])
-    extends FromMessagePassingQueue[A](queue) {
+  private final class Java8SPSC[A](queue: MessagePassingQueue[A]) extends FromMessagePassingQueue[A](queue) {
 
     private[this] val UNSAFE =
       UnsafeAccess.getInstance().asInstanceOf[Unsafe]

@@ -87,7 +87,8 @@ object Local {
     () => {
       val save = Local.getContext()
       Local.setContext(closure)
-      try fn() finally Local.setContext(save)
+      try fn()
+      finally Local.setContext(save)
     }
   }
 
@@ -123,8 +124,7 @@ object Local {
       val Local = symbolOf[Local[_]].companion
       val AnyRefSym = symbolOf[AnyRef]
 
-      resetTree(
-        q"""
+      resetTree(q"""
        val $ctxRef = ($ctx)
        if (($ctxRef : $AnyRefSym) eq null) {
          $f
@@ -145,8 +145,7 @@ object Local {
       localLet(q"${symbolOf[Local[_]].companion}.getContext().mkIsolated")(f)
 
     def localLetCurrentIf(b: Tree)(f: Tree): Tree = {
-      resetTree(
-        q"""
+      resetTree(q"""
            if (!$b) { $f }
            else ${isolate(f)}
          """)
@@ -289,7 +288,8 @@ final class Local[A](default: () => A) {
   def bind[R](value: A)(f: => R): R = {
     val parent = Local.getContext()
     Local.setContext(parent.bind(key, Some(value)))
-    try f finally Local.setContext(parent)
+    try f
+    finally Local.setContext(parent)
   }
 
   /** Execute a block with the `Local` cleared, restoring the current
@@ -298,7 +298,8 @@ final class Local[A](default: () => A) {
   def bindClear[R](f: => R): R = {
     val parent = Local.getContext()
     Local.setContext(parent.bind(key, None))
-    try f finally Local.setContext(parent)
+    try f
+    finally Local.setContext(parent)
   }
 
   /** Clear the Local's value. Other [[Local Locals]] are not modified.

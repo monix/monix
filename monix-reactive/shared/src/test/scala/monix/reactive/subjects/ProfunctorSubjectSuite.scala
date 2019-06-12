@@ -215,7 +215,9 @@ object ProfunctorSubjectSuite extends BaseSubjectSuite {
   test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = BehaviorSubject[String]("0").dimap[Int, Int](_.toString)(_.toInt)
-    val c = subject.subscribe { e => result = e; Continue }
+    val c = subject.subscribe { e =>
+      result = e; Continue
+    }
 
     subject.onNext(1)
     subject.onComplete()

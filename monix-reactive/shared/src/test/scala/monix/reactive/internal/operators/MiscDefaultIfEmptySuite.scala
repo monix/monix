@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object MiscDefaultIfEmptySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = (Observable.empty : Observable[Long])
+    val o = (Observable.empty: Observable[Long])
       .defaultIfEmpty(222L)
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

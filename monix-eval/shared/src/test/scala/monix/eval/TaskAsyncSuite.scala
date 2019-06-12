@@ -31,7 +31,9 @@ object TaskAsyncSuite extends BaseTestSuite {
 
   test("Task.async should execute") { implicit s =>
     val task = Task.async0[Int] { (ec, cb) =>
-      ec.executeAsync { () => cb.onSuccess(1) }
+      ec.executeAsync { () =>
+        cb.onSuccess(1)
+      }
     }
 
     val f = task.runToFuture
@@ -42,7 +44,7 @@ object TaskAsyncSuite extends BaseTestSuite {
 
   test("Task.async should log errors") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task.async0[Int]((_,_) => throw ex)
+    val task = Task.async0[Int]((_, _) => throw ex)
     val result = task.runToFuture; s.tick()
     assertEquals(result.value, None)
     assertEquals(s.state.lastReportedError, ex)

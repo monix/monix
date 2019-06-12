@@ -37,7 +37,7 @@ object CoevalSequenceSuite extends BaseTestSuite {
 
   test("Coeval.zipList") { implicit s =>
     check1 { (numbers: List[Int]) =>
-      val coeval = Coeval.zipList(numbers.map(x => Coeval(x)):_*)
+      val coeval = Coeval.zipList(numbers.map(x => Coeval(x)): _*)
       coeval <-> Coeval(numbers)
     }
   }

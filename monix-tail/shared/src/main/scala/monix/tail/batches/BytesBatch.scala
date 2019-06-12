@@ -23,8 +23,7 @@ package monix.tail.batches
   * implementation, which is `@specialized`. Using `BytesBatch`
   * might be desirable instead for `isInstanceOf` checks.
   */
-final class BytesBatch(underlying: ArrayBatch[Byte])
-  extends Batch[Byte] {
+final class BytesBatch(underlying: ArrayBatch[Byte]) extends Batch[Byte] {
 
   override def cursor(): BytesCursor =
     new BytesCursor(underlying.cursor())

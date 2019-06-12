@@ -17,7 +17,6 @@
 
 package monix.execution.exceptions
 
-
 /**
   * The [[UncaughtErrorException]] wraps uncaught, generic errors.
   *
@@ -27,8 +26,7 @@ package monix.execution.exceptions
   * }}}
   *
   */
-class UncaughtErrorException[E] private (error: E)
-  extends RuntimeException {
+class UncaughtErrorException[E] private (error: E) extends RuntimeException {
 
   override def toString: String = {
     getClass.getName + "(" + error.toString + ")"

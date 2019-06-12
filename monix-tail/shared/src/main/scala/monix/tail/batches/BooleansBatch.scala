@@ -24,9 +24,8 @@ package batches
   * implementation, which is `@specialized`. Using `BooleansBatch`
   * might be desirable instead for `isInstanceOf` checks.
   */
-final class BooleansBatch(underlying: ArrayBatch[Boolean])
-  extends Batch[Boolean] {
-  
+final class BooleansBatch(underlying: ArrayBatch[Boolean]) extends Batch[Boolean] {
+
   override def cursor(): BooleansCursor =
     new BooleansCursor(underlying.cursor())
 

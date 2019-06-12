@@ -89,7 +89,8 @@ object TaskEvalAsyncSuite extends BaseTestSuite {
   test("Task.evalAsync should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
       Task.evalAsync(idx).flatMap { idx =>
-        if (idx < n) loop(n, idx + 1).map(_ + 1) else
+        if (idx < n) loop(n, idx + 1).map(_ + 1)
+        else
           Task.evalAsync(idx)
       }
 

@@ -30,8 +30,7 @@ import scala.concurrent.ExecutionContext
   * @param underlying the [[monix.execution.Scheduler Scheduler]]
   *        in charge of the actual execution and scheduling
   */
-final class TracingScheduler private (underlying: Scheduler)
-  extends TracingScheduler.Base(underlying) {
+final class TracingScheduler private (underlying: Scheduler) extends TracingScheduler.Base(underlying) {
 
   override def withExecutionModel(em: ExecModel): TracingScheduler =
     new TracingScheduler(underlying.withExecutionModel(em))
@@ -54,8 +53,7 @@ object TracingScheduler {
   /** Common implementation between [[TracingScheduler]]
     * and [[TracingSchedulerService]].
     */
-  private[execution] abstract class Base(underlying: Scheduler)
-    extends Scheduler with BatchingScheduler {
+  private[execution] abstract class Base(underlying: Scheduler) extends Scheduler with BatchingScheduler {
 
     override final def executeAsync(r: Runnable): Unit =
       underlying.execute(new TracingRunnable(r))

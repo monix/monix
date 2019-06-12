@@ -36,8 +36,9 @@ object MinBySuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = sourceCount
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount+1)
-      .minBy(x => if (x == sourceCount-1) throw ex else x)
+    val o = Observable
+      .range(0, sourceCount + 1)
+      .minBy(x => if (x == sourceCount - 1) throw ex else x)
 
     Sample(o, 0, 0, Zero, Zero)
   }
@@ -45,7 +46,7 @@ object MinBySuite extends BaseOperatorSuite {
   override def cancelableObservables() = {
     import scala.concurrent.duration._
     val o = Observable.now(1L).delayOnNext(1.second).minBy(x => x)
-    Seq(Sample(o,0,0,0.seconds,0.seconds))
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
   test("empty observable should be empty") { implicit s =>
@@ -53,11 +54,13 @@ object MinBySuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    source.minBy(x => 100 - x).unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = { received += 1; Continue }
-      def onError(ex: Throwable) = ()
-      def onComplete() = { wasCompleted = true }
-    })
+    source
+      .minBy(x => 100 - x)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = { received += 1; Continue }
+        def onError(ex: Throwable) = ()
+        def onComplete() = { wasCompleted = true }
+      })
 
     assertEquals(received, 0)
     assert(wasCompleted)

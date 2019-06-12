@@ -25,14 +25,12 @@ import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scop
 
 private[tail] object IterantLiftMap {
   /** Implementation for `Iterant#liftMap`. */
-  def apply[F[_], G[_], A](self: Iterant[F, A], f: FunctionK[F, G])
-    (implicit G: Sync[G]): Iterant[G, A] = {
+  def apply[F[_], G[_], A](self: Iterant[F, A], f: FunctionK[F, G])(implicit G: Sync[G]): Iterant[G, A] = {
 
     Suspend(G.delay(new LoopK(f).apply(self)))
   }
 
-  private final class LoopK[F[_], G[_], A](f: FunctionK[F, G])
-    (implicit G: Sync[G])
+  private final class LoopK[F[_], G[_], A](f: FunctionK[F, G])(implicit G: Sync[G])
     extends Iterant.Visitor[F, A, Iterant[G, A]] {
 
     def visit(ref: Next[F, A]): Iterant[G, A] =

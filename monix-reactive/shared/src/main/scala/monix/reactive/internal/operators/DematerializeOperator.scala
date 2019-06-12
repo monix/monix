@@ -25,8 +25,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final
-class DematerializeOperator[A] extends Operator[Notification[A],A] {
+private[reactive] final class DematerializeOperator[A] extends Operator[Notification[A], A] {
 
   def apply(out: Subscriber[A]): Subscriber[Notification[A]] =
     new Subscriber[Notification[A]] {
@@ -34,7 +33,8 @@ class DematerializeOperator[A] extends Operator[Notification[A],A] {
       private[this] var isDone = false
 
       def onNext(elem: Notification[A]): Future[Ack] = {
-        if (isDone) Stop else
+        if (isDone) Stop
+        else
           elem match {
             case OnNext(e) =>
               out.onNext(e)

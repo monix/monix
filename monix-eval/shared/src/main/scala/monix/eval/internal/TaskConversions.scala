@@ -112,7 +112,7 @@ private[eval] object TaskConversions {
         conn push cancelable.cancel
 
         val syncIO = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
-        cancelable := fromEffect(syncIO.unsafeRunSync() : F[Unit])
+        cancelable := fromEffect(syncIO.unsafeRunSync(): F[Unit])
       } catch {
         case e if NonFatal(e) =>
           ctx.scheduler.reportFailure(e)
@@ -121,9 +121,7 @@ private[eval] object TaskConversions {
     Task.Async(start, trampolineBefore = false, trampolineAfter = false)
   }
 
-  private final class CreateCallback[A](
-    conn: TaskConnection, cb: Callback[Throwable, A])
-    (implicit s: Scheduler)
+  private final class CreateCallback[A](conn: TaskConnection, cb: Callback[Throwable, A])(implicit s: Scheduler)
     extends (Either[Throwable, A] => IO[Unit]) with TrampolinedRunnable {
 
     private[this] var canCall = true

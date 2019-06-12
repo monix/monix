@@ -17,15 +17,13 @@
 
 package monix.tail.batches
 
-
 /** [[Batch]] implementation specialized for `Double`.
   *
   * Under the hood it uses an [[monix.tail.batches.ArrayBatch ArrayBatch]]
   * implementation, which is `@specialized`. Using `DoublesBatch`
   * might be desirable instead for `isInstanceOf` checks.
   */
-final class DoublesBatch(underlying: ArrayBatch[Double])
-  extends Batch[Double] {
+final class DoublesBatch(underlying: ArrayBatch[Double]) extends Batch[Double] {
 
   override def cursor(): DoublesCursor =
     new DoublesCursor(underlying.cursor())

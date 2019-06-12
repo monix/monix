@@ -26,16 +26,11 @@ private[eval] object TaskEvalAsync {
     * Implementation for `Task.evalAsync`.
     */
   def apply[A](a: () => A): Task[A] =
-    Task.Async(
-      new EvalAsyncRegister[A](a),
-      trampolineAfter = false,
-      trampolineBefore = false,
-      restoreLocals = true)
+    Task.Async(new EvalAsyncRegister[A](a), trampolineAfter = false, trampolineBefore = false, restoreLocals = true)
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is a task that forks on evaluation
-  private final class EvalAsyncRegister[A](a: () => A)
-    extends ForkedRegister[A] {
+  private final class EvalAsyncRegister[A](a: () => A) extends ForkedRegister[A] {
 
     def apply(ctx: Task.Context, cb: Callback[Throwable, A]): Unit =
       ctx.scheduler.executeAsync(() => {
@@ -45,8 +40,9 @@ private[eval] object TaskEvalAsync {
           val result = a()
           streamError = false
           cb.onSuccess(result)
-        } catch { case e if streamError && NonFatal(e) =>
-          cb.onError(e)
+        } catch {
+          case e if streamError && NonFatal(e) =>
+            cb.onError(e)
         }
       })
   }

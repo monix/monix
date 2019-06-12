@@ -53,8 +53,8 @@ import scala.collection.mutable.ArrayBuffer
   *       println(s"Worker $$index: $$a")
   *       consumer(queue, index)
   *     }
- *
- *   for {
+  *
+  *   for {
   *     queue     <- ConcurrentQueue[IO].bounded[Int](capacity = 32)
   *     consumer1 <- consumer(queue, 1).start
   *     consumer2 <- consumer(queue, 1).start
@@ -121,10 +121,9 @@ import scala.collection.mutable.ArrayBuffer
   * concurrency bugs. If you're not sure what multi-threading scenario you
   * have, then just stick with the default `MPMC`.
   */
-final class ConcurrentQueue[F[_], A] private (
-  capacity: BufferCapacity,
-  channelType: ChannelType)
-  (implicit F: Concurrent[F], cs: ContextShift[F])
+final class ConcurrentQueue[F[_], A] private (capacity: BufferCapacity, channelType: ChannelType)(
+  implicit F: Concurrent[F],
+  cs: ContextShift[F])
   extends Serializable {
 
   /** Try pushing a value to the queue.
@@ -213,13 +212,15 @@ final class ConcurrentQueue[F[_], A] private (
     if (happy != null)
       F.pure(happy)
     else
-      F.asyncF(cb => helpers.sleepThenRepeat(
-        consumersAwaiting,
-        pollQueue,
-        pollTest,
-        pollMap,
-        cb
-      ))
+      F.asyncF(
+        cb =>
+          helpers.sleepThenRepeat(
+            consumersAwaiting,
+            pollQueue,
+            pollTest,
+            pollMap,
+            cb
+          ))
   }
 
   /** Fetches multiple elements from the queue, if available.
@@ -247,13 +248,15 @@ final class ConcurrentQueue[F[_], A] private (
         F.pure(toSeq(buffer))
       } else {
         // Going async
-        F.asyncF(cb => helpers.sleepThenRepeat[Int, Seq[A]](
-          consumersAwaiting,
-          () => tryDrainUnsafe(buffer, maxLength - buffer.length),
-          _ => buffer.length >= minLength,
-          _ => toSeq(buffer),
-          cb
-        ))
+        F.asyncF(
+          cb =>
+            helpers.sleepThenRepeat[Int, Seq[A]](
+              consumersAwaiting,
+              () => tryDrainUnsafe(buffer, maxLength - buffer.length),
+              _ => buffer.length >= minLength,
+              _ => toSeq(buffer),
+              cb
+            ))
       }
     }
 
@@ -329,13 +332,15 @@ final class ConcurrentQueue[F[_], A] private (
     }
 
   private def offerWait(a: A): F[Unit] =
-    F.asyncF(cb => helpers.sleepThenRepeat(
-      producersAwaiting,
-      () => tryOfferUnsafe(a),
-      offerTest,
-      offerMap,
-      cb
-    ))
+    F.asyncF(
+      cb =>
+        helpers.sleepThenRepeat(
+          producersAwaiting,
+          () => tryOfferUnsafe(a),
+          offerTest,
+          offerMap,
+          cb
+        ))
 
   private[this] val queue: LowLevelQueue[A] =
     LowLevelQueue(capacity, channelType, fenced = true)
@@ -421,8 +426,8 @@ object ConcurrentQueue {
     * @param cs $csParam
     * @param F $concurrentParam
     */
-  def unbounded[F[_], A](chunkSizeHint: Option[Int] = None)
-    (implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+  def unbounded[F[_], A](
+    chunkSizeHint: Option[Int] = None)(implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
     withConfig(Unbounded(chunkSizeHint), MPMC)
 
   /**
@@ -439,8 +444,9 @@ object ConcurrentQueue {
     * @param F $concurrentParam
     */
   @UnsafeProtocol
-  def withConfig[F[_], A](capacity: BufferCapacity, channelType: ChannelType)
-    (implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentQueue[F, A]] = {
+  def withConfig[F[_], A](capacity: BufferCapacity, channelType: ChannelType)(
+    implicit F: Concurrent[F],
+    cs: ContextShift[F]): F[ConcurrentQueue[F, A]] = {
 
     F.delay(unsafe(capacity, channelType))
   }
@@ -465,8 +471,9 @@ object ConcurrentQueue {
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def unsafe[F[_], A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
-    (implicit F: Concurrent[F], cs: ContextShift[F]): ConcurrentQueue[F, A] = {
+  def unsafe[F[_], A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
+    implicit F: Concurrent[F],
+    cs: ContextShift[F]): ConcurrentQueue[F, A] = {
 
     new ConcurrentQueue[F, A](capacity, channelType)(F, cs)
   }
@@ -490,15 +497,15 @@ object ConcurrentQueue {
     /**
       * @see documentation for [[ConcurrentQueue.withConfig]]
       */
-    def withConfig[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
-      (implicit cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+    def withConfig[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
+      implicit cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
       ConcurrentQueue.withConfig(capacity, channelType)(F, cs)
 
     /**
       * @see documentation for [[ConcurrentQueue.unsafe]]
       */
-    def unsafe[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)
-      (implicit cs: ContextShift[F]): ConcurrentQueue[F, A] =
+    def unsafe[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
+      implicit cs: ContextShift[F]): ConcurrentQueue[F, A] =
       ConcurrentQueue.unsafe(capacity, channelType)(F, cs)
   }
 }

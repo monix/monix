@@ -96,7 +96,8 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
 
     val subscription = SingleAssignSubscription()
 
-    Iterant[Task].range(0, count)
+    Iterant[Task]
+      .range(0, count)
       .mapEval(x => Task.eval { emitted += 1; x })
       .toReactivePublisher
       .subscribe(new Subscriber[Int] {
@@ -136,7 +137,8 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     var effect = 0
     var wasStopped = false
 
-    val source = Iterant[Task].range(0, count)
+    val source = Iterant[Task]
+      .range(0, count)
       .guarantee(Task.evalAsync { wasStopped = true })
       .mapEval(_ => Task.eval { effect += 1; 1 })
 
@@ -160,9 +162,12 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     var wasStopped = false
 
     val batch = Batch.fromIterable(Iterable.range(0, count), Int.MaxValue)
-    val source = Iterant[Task].nextBatchS(batch, Task.pure(Iterant[Task].empty[Int]))
+    val source = Iterant[Task]
+      .nextBatchS(batch, Task.pure(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { wasStopped = true })
-      .map { _ => effect += 1; 1 }
+      .map { _ =>
+        effect += 1; 1
+      }
 
     val f = sum(source, 16).runToFuture
     var times = 1000
@@ -187,7 +192,8 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
 
     val subscription = SingleAssignSubscription()
 
-    Iterant[Task].range(0, count)
+    Iterant[Task]
+      .range(0, count)
       .mapEval(_ => Task.eval { emitted += 1; 1 })
       .toReactivePublisher
       .subscribe(new Subscriber[Int] {
@@ -233,7 +239,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       .nextCursorS[Int](ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty[Int]))
       .guarantee(Task.eval { effect += 1 })
 
-    assertEquals(effect,0)
+    assertEquals(effect, 0)
 
     val f = sum(stream, Long.MaxValue).runToFuture
     s.tick()
@@ -250,7 +256,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       .nextBatchS[Int](ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty[Int]))
       .guarantee(Task.eval { effect += 1 })
 
-    assertEquals(effect,0)
+    assertEquals(effect, 0)
 
     val f = sum(stream, Long.MaxValue).runToFuture
     s.tick()
@@ -262,8 +268,10 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   test("Iterant.empty completes immediately on subscribe") { implicit s =>
     var wasCompleted: Option[Throwable] = null
 
-    Iterant[Task].empty[Int].toReactivePublisher.subscribe(
-      new Subscriber[Int] {
+    Iterant[Task]
+      .empty[Int]
+      .toReactivePublisher
+      .subscribe(new Subscriber[Int] {
         def onSubscribe(s: Subscription): Unit = ()
         def onNext(t: Int): Unit = ()
 
@@ -306,8 +314,10 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   test("Iterant.empty produces EmptySubscription") { implicit s =>
     var wasCompleted: Option[Throwable] = null
 
-    Iterant[Task].empty[Int].toReactivePublisher.subscribe(
-      new Subscriber[Int] {
+    Iterant[Task]
+      .empty[Int]
+      .toReactivePublisher
+      .subscribe(new Subscriber[Int] {
         def onNext(t: Int): Unit = ()
         def onSubscribe(s: Subscription): Unit = {
           s.request(10000)
@@ -328,40 +338,39 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       implicit val ec = scheduler
       val subscription = SingleAssignSubscription()
 
-      stream.toReactivePublisher.subscribe(
-        new Subscriber[Int] {
-          private[this] var s: Subscription = _
-          private[this] var requested = 0L
-          private[this] var sum = 0L
+      stream.toReactivePublisher.subscribe(new Subscriber[Int] {
+        private[this] var s: Subscription = _
+        private[this] var requested = 0L
+        private[this] var sum = 0L
 
-          def onSubscribe(s: Subscription): Unit = {
-            this.s = s
-            subscription := s
+        def onSubscribe(s: Subscription): Unit = {
+          this.s = s
+          subscription := s
+          requested = request
+          s.request(request)
+        }
+
+        def onNext(t: Int): Unit = {
+          sum += t
+          if (request != Long.MaxValue) requested -= 1
+
+          if (requested <= 0) {
             requested = request
             s.request(request)
           }
+        }
 
-          def onNext(t: Int): Unit = {
-            sum += t
-            if (request != Long.MaxValue) requested -= 1
-
-            if (requested <= 0) {
-              requested = request
-              s.request(request)
-            }
-          }
-
-          def onError(t: Throwable): Unit =
-            cb.onError(t)
-          def onComplete(): Unit =
-            cb.onSuccess(sum)
-        })
+        def onError(t: Throwable): Unit =
+          cb.onError(t)
+        def onComplete(): Unit =
+          cb.onSuccess(sum)
+      })
 
       subscription
     }
 
   class CustomIOEffect(implicit contextShift: ContextShift[IO]) extends Effect[IO] {
-    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit]=
+    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit] =
       fa.runAsync(cb)
     def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
       IO.async(k)
@@ -381,7 +390,8 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       IO.pure(x)
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
-    override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+    override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(
+      release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
       acquire.bracketCase(use)(release)
   }
 }

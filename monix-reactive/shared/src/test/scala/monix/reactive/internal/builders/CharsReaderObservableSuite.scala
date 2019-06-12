@@ -61,7 +61,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     val string = randomString()
     val in = new StringReader(string)
 
-    val result = Observable.fromCharsReaderUnsafe(in, 40)
+    val result = Observable
+      .fromCharsReaderUnsafe(in, 40)
       .foldLeft(Array.empty[Char])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(arr => new String(arr)))
@@ -76,7 +77,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     val string = randomString()
     val in = new StringReader(string)
 
-    val result = Observable.fromCharsReaderUnsafe(in, 40)
+    val result = Observable
+      .fromCharsReaderUnsafe(in, 40)
       .foldLeft(Array.empty[Char])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(arr => new String(arr)))
@@ -166,7 +168,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     var wasClosed = false
     val in = randomReaderWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromCharsReaderF(Task(in))
+    val f = Observable
+      .fromCharsReaderF(Task(in))
       .mapEval(_ => Task.sleep(1.second))
       .completedL
       .runToFuture
@@ -205,8 +208,9 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
       def read(cbuf: Array[Char], off: Int, len: Int): Int = {
         callIdx += 1
         if (callIdx == whenToThrow) throw ex
-        else if (off < len) { cbuf(off) = 'a'; 1 }
-        else 0
+        else if (off < len) {
+          cbuf(off) = 'a'; 1
+        } else 0
       }
 
       override def close(): Unit =
@@ -231,8 +235,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     for (_ <- 0 until lines) {
       val lineLength = Random.nextInt(100)
-      val line = for (_ <- 0 until lineLength) yield
-        chars(Random.nextInt(chars.length))
+      val line = for (_ <- 0 until lineLength) yield chars(Random.nextInt(chars.length))
       builder.append(new String(line.toArray))
       builder.append('\n')
     }

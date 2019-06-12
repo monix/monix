@@ -37,7 +37,9 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("should execute asynchronously") { s =>
     var wasExecuted = false
-    s.executeAsync { () => wasExecuted = true }
+    s.executeAsync { () =>
+      wasExecuted = true
+    }
     assert(!wasExecuted)
 
     s.tick()
@@ -213,7 +215,9 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("execute extension method") { implicit s =>
     var wasExecuted = false
-    s.executeAsync { () => wasExecuted = true }
+    s.executeAsync { () =>
+      wasExecuted = true
+    }
 
     assert(!wasExecuted, "should not be executed yet")
     s.tick()
@@ -266,7 +270,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     def loop(n: Int): Unit =
       s.executeTrampolined { () =>
         result += 1
-        if (n-1 > 0) loop(n-1)
+        if (n - 1 > 0) loop(n - 1)
       }
 
     val count = if (Platform.isJVM) 100000 else 10000
@@ -291,7 +295,6 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(effect, 3)
   }
-
 
   test("maxImmediateTasks") { implicit ec =>
     var result: Int = 0

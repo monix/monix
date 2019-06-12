@@ -22,8 +22,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 /** Builds an observable that only triggers an `onError` */
-private[reactive] final class ErrorObservable(ex: Throwable)
-  extends Observable[Nothing] {
+private[reactive] final class ErrorObservable(ex: Throwable) extends Observable[Nothing] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[Nothing]): Cancelable = {
     subscriber.onError(ex)

@@ -55,7 +55,7 @@ object CancelableSuite extends SimpleTestSuite {
 
   test("Cancelable.collection(refs)") {
     var effect = 0
-    val c = Cancelable.collection((0 until 100).map(_ => Cancelable(() => effect += 1)) : _*)
+    val c = Cancelable.collection((0 until 100).map(_ => Cancelable(() => effect += 1)): _*)
 
     assertEquals(effect, 0)
     c.cancel()
@@ -99,7 +99,7 @@ object CancelableSuite extends SimpleTestSuite {
   test("Cancelable.trampolined(refs)") {
     implicit val sc = TestScheduler()
     var effect = 0
-    val c = Cancelable.trampolined((0 until 100).map(_ => Cancelable(() => effect += 1)) : _*)
+    val c = Cancelable.trampolined((0 until 100).map(_ => Cancelable(() => effect += 1)): _*)
 
     assertEquals(effect, 0)
     c.cancel()

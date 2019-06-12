@@ -61,9 +61,11 @@ object BufferTumblingSuite extends BaseOperatorSuite {
     None
 
   override def cancelableObservables(): Seq[BufferTumblingSuite.Sample] = {
-    val o = Observable.range(0, Platform.recommendedBatchSize)
+    val o = Observable
+      .range(0, Platform.recommendedBatchSize)
       .delayOnNext(1.second)
-      .bufferTumbling(10).map(_.sum)
+      .bufferTumbling(10)
+      .map(_.sum)
 
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
@@ -98,7 +100,8 @@ object BufferTumblingSuite extends BaseOperatorSuite {
     val count = 157
     val dummy = DummyException("dummy")
     val obs = createObservableEndingInError(Observable.range(0, count * 10), dummy)
-      .bufferTumbling(20).map(_.sum)
+      .bufferTumbling(20)
+      .map(_.sum)
 
     var errorThrown: Throwable = null
     var received = 0

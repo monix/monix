@@ -46,12 +46,12 @@ object TypeClassLawsForTaskAutoCancelableWithCallbackSuite
     Task.defaultOptions.enableAutoCancelableRunLoops
   )
 
-class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options)
-  extends BaseLawsSuite {
+class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) extends BaseLawsSuite {
 
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 
-  override implicit def equalityTask[A](implicit
+  override implicit def equalityTask[A](
+    implicit
     A: Eq[A],
     ec: TestScheduler,
     opts: Options) = {
@@ -63,8 +63,8 @@ class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options)
     }
   }
 
-
-  override implicit def equalityTaskPar[A](implicit
+  override implicit def equalityTaskPar[A](
+    implicit
     A: Eq[A],
     ec: TestScheduler,
     opts: Options): Eq[Task.Par[A]] = {
@@ -78,15 +78,15 @@ class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options)
   }
 
   checkAllAsync("CoflatMap[Task]") { implicit ec =>
-    CoflatMapTests[Task].coflatMap[Int,Int,Int]
+    CoflatMapTests[Task].coflatMap[Int, Int, Int]
   }
 
   checkAllAsync("Concurrent[Task]") { implicit ec =>
-    ConcurrentTests[Task].async[Int,Int,Int]
+    ConcurrentTests[Task].async[Int, Int, Int]
   }
 
   checkAllAsync("ConcurrentEffect[Task]") { implicit ec =>
-    ConcurrentEffectTests[Task].effect[Int,Int,Int]
+    ConcurrentEffectTests[Task].effect[Int, Int, Int]
   }
 
   checkAllAsync("Applicative[Task.Par]") { implicit ec =>

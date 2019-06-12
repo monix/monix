@@ -24,8 +24,7 @@ import monix.reactive.observables.ChainedObservable
 import monix.reactive.observables.ChainedObservable.{subscribe => chain}
 import monix.reactive.observers.Subscriber
 
-private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A])
-  extends ChainedObservable[A] {
+private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A]) extends ChainedObservable[A] {
 
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
     import out.{scheduler => s}

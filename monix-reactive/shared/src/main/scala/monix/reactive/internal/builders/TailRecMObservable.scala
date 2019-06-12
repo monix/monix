@@ -29,8 +29,7 @@ import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
 /** Implementation for `Observable.tailRecM`. */
-private[monix] final class TailRecMObservable[A,B](seed: A, f: A => Observable[Either[A,B]])
-  extends Observable[B] {
+private[monix] final class TailRecMObservable[A, B](seed: A, f: A => Observable[Either[A, B]]) extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     implicit val s = out.scheduler
@@ -90,7 +89,8 @@ private[monix] final class TailRecMObservable[A,B](seed: A, f: A => Observable[E
         // but before that it pops the current cancelable from our
         // `StackedCancelable`, for freeing memory
         private def tryFinish(ack: Future[Ack]): Boolean =
-          if (!isActive.getAndSet(false)) false else {
+          if (!isActive.getAndSet(false)) false
+          else {
             conn.pop()
             callback.success(ack)
             true

@@ -54,7 +54,8 @@ object AsyncQueueGlobalSuite extends BaseAsyncQueueSuite[Scheduler] {
   def testFuture(name: String, times: Int)(f: Scheduler => Future[Unit]): Unit = {
     def repeatTest(test: Future[Unit], n: Int)(implicit ec: Scheduler): Future[Unit] =
       if (n > 0)
-        FutureUtils.timeout(test, 60.seconds)
+        FutureUtils
+          .timeout(test, 60.seconds)
           .flatMap(_ => repeatTest(test, n - 1))
       else
         Future.successful(())
@@ -64,7 +65,6 @@ object AsyncQueueGlobalSuite extends BaseAsyncQueueSuite[Scheduler] {
     }
   }
 }
-
 
 abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
   val repeatForFastTests = {
@@ -77,15 +77,15 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
   /** TO IMPLEMENT ... */
   def testFuture(name: String, times: Int = 1)(f: Scheduler => Future[Unit]): Unit
 
-  testFuture("simple offer and poll", times=repeatForFastTests) { implicit s =>
+  testFuture("simple offer and poll", times = repeatForFastTests) { implicit s =>
     val queue = AsyncQueue.bounded[Int](10)
     for {
-      _     <- queue.offer(1)
-      _     <- queue.offer(2)
-      _     <- queue.offer(3)
-      r1    <- queue.poll()
-      r2    <- queue.poll()
-      r3    <- queue.poll()
+      _  <- queue.offer(1)
+      _  <- queue.offer(2)
+      _  <- queue.offer(3)
+      r1 <- queue.poll()
+      r2 <- queue.poll()
+      r3 <- queue.poll()
     } yield {
       assertEquals(r1, 1)
       assertEquals(r2, 2)
@@ -93,22 +93,22 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
-  testFuture("async poll", times=repeatForFastTests) { implicit s =>
+  testFuture("async poll", times = repeatForFastTests) { implicit s =>
     val queue = AsyncQueue.bounded[Int](10)
     for {
-      _     <- queue.offer(1)
-      r1    <- queue.poll()
-      _     <- Future(assertEquals(r1, 1))
-      f     <- Future(queue.poll())
-      _     <- Future(assertEquals(f.value, None))
-      _     <- queue.offer(2)
-      r2    <- f
+      _  <- queue.offer(1)
+      r1 <- queue.poll()
+      _  <- Future(assertEquals(r1, 1))
+      f  <- Future(queue.poll())
+      _  <- Future(assertEquals(f.value, None))
+      _  <- queue.offer(2)
+      r2 <- f
     } yield {
       assertEquals(r2, 2)
     }
   }
 
-  testFuture("offer/poll over capacity", times=repeatForFastTests) { implicit s =>
+  testFuture("offer/poll over capacity", times = repeatForFastTests) { implicit s =>
     val queue = AsyncQueue.bounded[Int](10)
     val count = 1000
 
@@ -118,8 +118,9 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
 
     def consumer(n: Int, acc: Queue[Int] = Queue.empty): Future[Long] =
       if (n > 0)
-        queue.poll().flatMap { a => consumer(n - 1, acc.enqueue(a)) }
-      else
+        queue.poll().flatMap { a =>
+          consumer(n - 1, acc.enqueue(a))
+        } else
         Future.successful(acc.sum)
 
     val p = producer(count)
@@ -132,7 +133,7 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
-  testFuture("tryOffer / tryPoll", times=repeatForFastTests) { implicit ec =>
+  testFuture("tryOffer / tryPoll", times = repeatForFastTests) { implicit ec =>
     val queue = AsyncQueue.bounded[Int](16)
     val count = 1000
 
@@ -152,8 +153,7 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
           case Some(a) => consumer(n - 1, acc.enqueue(a))
           case None =>
             FutureUtils.delayedResult(10.millis)(()).flatMap(_ => consumer(n, acc))
-        }
-      else
+        } else
         Future.successful(acc.sum)
 
     val c = consumer(count)
@@ -166,35 +166,35 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
-  testFuture("drain; MPMC; unbounded", times=repeatForFastTests) { implicit ec =>
+  testFuture("drain; MPMC; unbounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Unbounded(), MPMC)
   }
 
-  testFuture("drain; MPSC; unbounded", times=repeatForFastTests) { implicit ec =>
+  testFuture("drain; MPSC; unbounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Unbounded(), MPSC)
   }
 
-  testFuture("drain; SPMC; unbounded", times=repeatForFastTests) { implicit ec =>
+  testFuture("drain; SPMC; unbounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Unbounded(), SPMC)
   }
 
-  testFuture("drain; SPMC; unbounded", times=repeatForFastTests) { implicit ec =>
+  testFuture("drain; SPMC; unbounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Unbounded(), SPSC)
   }
 
-  testFuture("drain; MPMC; bounded", times=repeatForFastTests) { implicit ec =>
+  testFuture("drain; MPMC; bounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Bounded(32), MPMC)
   }
 
-  testFuture("drain; MPSC; bounded", times=repeatForFastTests) { implicit ec =>
+  testFuture("drain; MPSC; bounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Bounded(32), MPSC)
   }
 
-  testFuture("drain; SPMC; bounded", times=repeatForFastTests) { implicit ec =>
+  testFuture("drain; SPMC; bounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Bounded(32), SPMC)
   }
 
-  testFuture("drain; SPMC; bounded", times=repeatForFastTests) { implicit ec =>
+  testFuture("drain; SPMC; bounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Bounded(32), SPSC)
   }
 
@@ -206,8 +206,8 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
     val f1 = queue.drain(1000, 1000)
     val f2 = queue.offerMany(elems)
     for {
-      _  <- f2
-      r  <- f1
+      _ <- f2
+      r <- f1
     } yield {
       assertEquals(r.sum, count * (count - 1) / 2)
     }
@@ -216,9 +216,9 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
   testFuture("clear") { implicit s =>
     val queue = AsyncQueue.bounded[Int](10)
     for {
-      _     <- queue.offer(1)
-      _     <- Future(queue.clear())
-      r     <- Future(queue.tryPoll())
+      _ <- queue.offer(1)
+      _ <- Future(queue.clear())
+      r <- Future(queue.tryPoll())
     } yield {
       assertEquals(r, None)
     }
@@ -282,8 +282,7 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
     testConcurrency(queue, count, 1)
   }
 
-  def testConcurrency(queue: AsyncQueue[Int], n: Int, workers: Int)
-    (implicit s: Scheduler): Future[Unit] = {
+  def testConcurrency(queue: AsyncQueue[Int], n: Int, workers: Int)(implicit s: Scheduler): Future[Unit] = {
 
     def producer(n: Int): Future[Unit] = {
       def offerViaTry(n: Int): Future[Unit] =

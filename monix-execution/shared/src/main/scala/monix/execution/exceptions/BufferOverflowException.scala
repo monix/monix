@@ -22,8 +22,7 @@ import scala.runtime.AbstractFunction1
 /** An exception emitted on buffer overflows, like when using
   * [[monix.reactive.OverflowStrategy.Fail OverflowStrategy.Fail]].
   */
-class BufferOverflowException(val message: String)
-  extends RuntimeException(message) with Serializable
+class BufferOverflowException(val message: String) extends RuntimeException(message) with Serializable
 
 object BufferOverflowException extends AbstractFunction1[String, BufferOverflowException] {
   /** Builder for [[BufferOverflowException]]. */

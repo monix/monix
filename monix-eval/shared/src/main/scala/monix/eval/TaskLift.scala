@@ -83,7 +83,7 @@ private[eval] abstract class TaskLiftImplicits1 extends TaskLiftImplicits2 {
     * Instance for converting to any type implementing
     * [[https://typelevel.org/cats-effect/typeclasses/async.html cats.effect.Async]].
     */
-  implicit def toAsync[F[_]](implicit F: Async[F],eff: Effect[Task]): TaskLift[F] =
+  implicit def toAsync[F[_]](implicit F: Async[F], eff: Effect[Task]): TaskLift[F] =
     new TaskLift[F] {
       def taskLift[A](task: Task[A]): F[A] =
         task.toAsync(F, eff)

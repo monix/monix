@@ -26,7 +26,8 @@ import scala.concurrent.duration._
 
 object DelayExecutionSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .delayExecution(1.second)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -39,8 +40,6 @@ object DelayExecutionSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
-
-
 
   test("it delays") { implicit s =>
     val obs = Observable.now(1).delayExecution(1.second)

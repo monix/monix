@@ -24,7 +24,9 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
   test("cancel()") {
     var effect = 0
     val s = SingleAssignCancelable()
-    val b = BooleanCancelable { () => effect += 1 }
+    val b = BooleanCancelable { () =>
+      effect += 1
+    }
 
     s := b
     assert(!s.isCanceled, "!s.isCanceled")
@@ -40,8 +42,12 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
 
   test("cancel() (plus one)") {
     var effect = 0
-    val extra = BooleanCancelable { () => effect += 1 }
-    val b = BooleanCancelable { () => effect += 2 }
+    val extra = BooleanCancelable { () =>
+      effect += 1
+    }
+    val b = BooleanCancelable { () =>
+      effect += 2
+    }
 
     val s = SingleAssignCancelable.plusOne(extra)
     s := b
@@ -62,7 +68,9 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
     assert(s.isCanceled)
 
     var effect = 0
-    val b = BooleanCancelable { () => effect += 1 }
+    val b = BooleanCancelable { () =>
+      effect += 1
+    }
     s := b
 
     assert(b.isCanceled)
@@ -74,7 +82,9 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
 
   test("cancel on single assignment (plus one)") {
     var effect = 0
-    val extra = BooleanCancelable { () => effect += 1 }
+    val extra = BooleanCancelable { () =>
+      effect += 1
+    }
     val s = SingleAssignCancelable.plusOne(extra)
 
     s.cancel()
@@ -82,7 +92,9 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
     assert(extra.isCanceled, "extra.isCanceled")
     assert(effect == 1)
 
-    val b = BooleanCancelable { () => effect += 1 }
+    val b = BooleanCancelable { () =>
+      effect += 1
+    }
     s := b
 
     assert(b.isCanceled)

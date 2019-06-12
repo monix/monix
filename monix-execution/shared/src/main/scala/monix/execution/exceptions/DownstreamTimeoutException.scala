@@ -26,11 +26,9 @@ import scala.runtime.AbstractFunction1
   * a received event.
   */
 class DownstreamTimeoutException(val timeout: FiniteDuration)
-  extends TimeoutException(s"Downstream timeout after $timeout")
-  with Serializable
+  extends TimeoutException(s"Downstream timeout after $timeout") with Serializable
 
-object DownstreamTimeoutException
-  extends AbstractFunction1[FiniteDuration, DownstreamTimeoutException] {
+object DownstreamTimeoutException extends AbstractFunction1[FiniteDuration, DownstreamTimeoutException] {
 
   /** Builder for [[DownstreamTimeoutException]]. */
   def apply(timeout: FiniteDuration): DownstreamTimeoutException =

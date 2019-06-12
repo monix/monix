@@ -33,8 +33,7 @@ import scala.concurrent.{ExecutionContext, Future}
   *        in charge of the actual execution and scheduling
   */
 final class TracingSchedulerService(underlying: SchedulerService)
-  extends TracingScheduler.Base(underlying)
-  with SchedulerService { self =>
+  extends TracingScheduler.Base(underlying) with SchedulerService { self =>
 
   override def isShutdown: Boolean =
     underlying.isShutdown

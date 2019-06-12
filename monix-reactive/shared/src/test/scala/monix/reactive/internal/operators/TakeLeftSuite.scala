@@ -31,10 +31,11 @@ object TakeLeftSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.range(1, 10).take(1)
-      else
-        Observable.range(1, sourceCount * 2).take(sourceCount)
+      val o =
+        if (sourceCount == 1)
+          Observable.range(1, 10).take(1)
+        else
+          Observable.range(1, sourceCount * 2).take(sourceCount)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -43,21 +44,20 @@ object TakeLeftSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        createObservableEndingInError(Observable.range(1, 2), ex)
-          .take(2)
-      else
-        createObservableEndingInError(Observable.range(1, sourceCount), ex)
-          .take(sourceCount)
+      val o =
+        if (sourceCount == 1)
+          createObservableEndingInError(Observable.range(1, 2), ex)
+            .take(2)
+        else
+          createObservableEndingInError(Observable.range(1, sourceCount), ex)
+            .take(sourceCount)
 
-      Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+      Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
     }
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
-
-
 
   test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
@@ -98,6 +98,6 @@ object TakeLeftSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val o = Observable.range(1, 10).delayOnNext(1.second).take(1)
-    Seq(Sample(o,0,0,0.seconds,0.seconds))
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

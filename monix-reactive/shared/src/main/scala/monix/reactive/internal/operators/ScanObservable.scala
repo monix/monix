@@ -25,9 +25,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive] final
-class ScanObservable[A,R](
-  source: Observable[A], initial: () => R, f: (R,A) => R)
+private[reactive] final class ScanObservable[A, R](source: Observable[A], initial: () => R, f: (R, A) => R)
   extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
@@ -37,44 +35,41 @@ class ScanObservable[A,R](
       streamErrors = false
 
       // Initial state was evaluated, subscribing to source
-      source.unsafeSubscribeFn(
-        new Subscriber[A] {
-          implicit val scheduler = out.scheduler
-          private[this] var isDone = false
-          private[this] var state = initialState
+      source.unsafeSubscribeFn(new Subscriber[A] {
+        implicit val scheduler = out.scheduler
+        private[this] var isDone = false
+        private[this] var state = initialState
 
-          def onNext(elem: A): Future[Ack] = {
-            // Protects calls to user code from within the operator and
-            // stream the error downstream if it happens, but if the
-            // error happens because of calls to `onNext` or other
-            // protocol calls, then the behavior should be undefined.
-            var streamError = true
-            try {
-              state = f(state, elem)
-              streamError = false
-              out.onNext(state)
-            }
-            catch {
-              case NonFatal(ex) if streamError =>
-                onError(ex)
-                Stop
-            }
+        def onNext(elem: A): Future[Ack] = {
+          // Protects calls to user code from within the operator and
+          // stream the error downstream if it happens, but if the
+          // error happens because of calls to `onNext` or other
+          // protocol calls, then the behavior should be undefined.
+          var streamError = true
+          try {
+            state = f(state, elem)
+            streamError = false
+            out.onNext(state)
+          } catch {
+            case NonFatal(ex) if streamError =>
+              onError(ex)
+              Stop
+          }
+        }
+
+        def onError(ex: Throwable): Unit =
+          if (!isDone) {
+            isDone = true
+            out.onError(ex)
           }
 
-          def onError(ex: Throwable): Unit =
-            if (!isDone) {
-              isDone = true
-              out.onError(ex)
-            }
-
-          def onComplete(): Unit =
-            if (!isDone) {
-              isDone = true
-              out.onComplete()
-            }
-        })
-    }
-    catch {
+        def onComplete(): Unit =
+          if (!isDone) {
+            isDone = true
+            out.onComplete()
+          }
+      })
+    } catch {
       case NonFatal(ex) if streamErrors =>
         // The initial state triggered an error
         out.onError(ex)

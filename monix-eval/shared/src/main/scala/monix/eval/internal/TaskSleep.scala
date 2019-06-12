@@ -39,10 +39,7 @@ private[eval] object TaskSleep {
       val c = TaskConnectionRef()
       ctx.connection.push(c.cancel)
 
-      c := ctx.scheduler.scheduleOnce(
-        timespan.length,
-        timespan.unit,
-        new SleepRunnable(ctx, cb))
+      c := ctx.scheduler.scheduleOnce(timespan.length, timespan.unit, new SleepRunnable(ctx, cb))
       ()
     }
   }
@@ -52,8 +49,7 @@ private[eval] object TaskSleep {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class SleepRunnable(ctx: Context, cb: Callback[Throwable, Unit])
-    extends Runnable {
+  private final class SleepRunnable(ctx: Context, cb: Callback[Throwable, Unit]) extends Runnable {
 
     def run(): Unit = {
       ctx.connection.pop()

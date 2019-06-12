@@ -99,7 +99,8 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
   test("Iterant.zipWithIndex releases resources on completion") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
+    val source = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
       .guarantee(stop)
     val stream = source.zipWithIndex
 

@@ -104,7 +104,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
       parallelism = parallelism
     )
 
-  def tearDown(env:  SchedulerService): Unit = {
+  def tearDown(env: SchedulerService): Unit = {
     env.shutdown()
     assert(env.awaitTermination(30.seconds), "env.awaitTermination")
   }
@@ -139,12 +139,12 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
         } yield ()
 
       val task = for {
-        df    <- allocateConcurrent
-        fb    <- get(df).start
-        _     <- IO(assertEquals(Thread.currentThread().getName, name))
-        _     <- release(df)
-        _     <- IO(assertEquals(Thread.currentThread().getName, name))
-        _     <- fb.join
+        df <- allocateConcurrent
+        fb <- get(df).start
+        _  <- IO(assertEquals(Thread.currentThread().getName, name))
+        _  <- release(df)
+        _  <- IO(assertEquals(Thread.currentThread().getName, name))
+        _  <- fb.join
       } yield ()
 
       assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -183,9 +183,9 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
 
       try {
         val task = for {
-          df    <- allocateConcurrent
-          fb    <- (acquire(df) *> unit.foreverM).start
-          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
+          df <- allocateConcurrent
+          fb <- (acquire(df) *> unit.foreverM).start
+          _  <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -198,7 +198,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
   test("MVar (concurrent) — issue #380: with cooperative light async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
       }
 
@@ -219,14 +219,14 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
   test("MVar (concurrent) — issue #380: with cooperative light async boundaries; without latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
       }
 
       for {
-        d     <- allocateConcurrent
-        fb    <- (acquire(d) *> foreverAsync(0)).start
-        _     <- release(d).timeout(5.seconds).guarantee(fb.cancel)
+        d  <- allocateConcurrent
+        fb <- (acquire(d) *> foreverAsync(0)).start
+        _  <- release(d).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 
@@ -238,7 +238,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
   test("MVar (concurrent) — issue #380: with cooperative full async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+        if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
       }
 
@@ -259,14 +259,14 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
   test("MVar (concurrent) — issue #380: with cooperative full async boundaries; without latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+        if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
       }
 
       for {
-        d     <- allocateConcurrent
-        fb    <- (acquire(d) *> foreverAsync(0)).start
-        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
+        d  <- allocateConcurrent
+        fb <- (acquire(d) *> foreverAsync(0)).start
+        _  <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -287,12 +287,12 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
         } yield ()
 
       val task = for {
-        df    <- allocateAsync
-        fb    <- get(df).start
-        _     <- IO(assertEquals(Thread.currentThread().getName, name))
-        _     <- release(df)
-        _     <- IO(assertEquals(Thread.currentThread().getName, name))
-        _     <- fb.join
+        df <- allocateAsync
+        fb <- get(df).start
+        _  <- IO(assertEquals(Thread.currentThread().getName, name))
+        _  <- release(df)
+        _  <- IO(assertEquals(Thread.currentThread().getName, name))
+        _  <- fb.join
       } yield ()
 
       assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -331,9 +331,9 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
 
       try {
         val task = for {
-          df    <- allocateAsync
-          fb    <- (acquire(df) *> unit.foreverM).start
-          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
+          df <- allocateAsync
+          fb <- (acquire(df) *> unit.foreverM).start
+          _  <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -343,11 +343,10 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-
   test("MVar (async) — issue #380: with cooperative light async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
       }
 
@@ -368,14 +367,14 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
   test("MVar (async) — issue #380: with cooperative light async boundaries; without latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
       }
 
       for {
-        d     <- allocateAsync
-        fb    <- (acquire(d) *> foreverAsync(0)).start
-        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
+        d  <- allocateAsync
+        fb <- (acquire(d) *> foreverAsync(0)).start
+        _  <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -387,7 +386,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
   test("MVar (async) — issue #380: with cooperative full async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+        if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
       }
 

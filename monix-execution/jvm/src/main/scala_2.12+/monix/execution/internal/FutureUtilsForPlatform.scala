@@ -27,8 +27,7 @@ private[execution] abstract class FutureUtilsForPlatform { self =>
   /**
     * Convert any Scala `Future` to Java's `CompletableFuture`
     */
-  def toJavaCompletable[A](source: Future[A])
-    (implicit ec: ExecutionContext): CompletableFuture[A] = {
+  def toJavaCompletable[A](source: Future[A])(implicit ec: ExecutionContext): CompletableFuture[A] = {
 
     source match {
       case ref: CancelableFuture[A] @unchecked =>

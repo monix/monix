@@ -30,7 +30,8 @@ import scala.util.Failure
 
 object FlatScanSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .flatScan(1L)((acc, elem) => Observable.repeat(acc + elem).take(3))
 
     val sum = (0 until sourceCount).map(x => (1 to x).sum + 1L).sum * 3
@@ -38,16 +39,21 @@ object FlatScanSuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) =
-    if (sourceCount == 1) None else Some {
-      val o = Observable.range(0, sourceCount).endWithError(ex)
-        .flatScan(1L)((acc, elem) => Observable.fromIterable(Seq(1L,1L,1L)))
+    if (sourceCount == 1) None
+    else
+      Some {
+        val o = Observable
+          .range(0, sourceCount)
+          .endWithError(ex)
+          .flatScan(1L)((acc, elem) => Observable.fromIterable(Seq(1L, 1L, 1L)))
 
-      Sample(o, sourceCount * 3, sourceCount * 3, Zero, Zero)
-    }
+        Sample(o, sourceCount * 3, sourceCount * 3, Zero, Zero)
+      }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount+1).flatScan(1L) { (acc, elem) =>
-      if (elem == sourceCount) throw ex else
+    val o = Observable.range(0, sourceCount + 1).flatScan(1L) { (acc, elem) =>
+      if (elem == sourceCount) throw ex
+      else
         Observable.repeat(acc + elem).take(3)
     }
 
@@ -56,20 +62,23 @@ object FlatScanSuite extends BaseOperatorSuite {
   }
 
   override def cancelableObservables() = {
-    val sample1 = Observable.range(0, 10)
-      .flatScan(1L)((acc,e) => Observable.now(acc+e).delayExecution(1.second))
-    val sample2 = Observable.range(0, 10).delayOnNext(1.second)
-      .flatScan(1L)((acc,e) => Observable.now(acc+e).delayExecution(1.second))
+    val sample1 = Observable
+      .range(0, 10)
+      .flatScan(1L)((acc, e) => Observable.now(acc + e).delayExecution(1.second))
+    val sample2 = Observable
+      .range(0, 10)
+      .delayOnNext(1.second)
+      .flatScan(1L)((acc, e) => Observable.now(acc + e).delayExecution(1.second))
 
     Seq(
-      Sample(sample1,0,0,0.seconds,0.seconds),
-      Sample(sample2,0,0,0.seconds,0.seconds)
+      Sample(sample1, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample2, 0, 0, 0.seconds, 0.seconds)
     )
   }
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1,2,3,4).flatScan[Int](throw ex)((_,e) => Observable(e))
+    val obs = Observable(1, 2, 3, 4).flatScan[Int](throw ex)((_, e) => Observable(e))
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }

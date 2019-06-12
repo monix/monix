@@ -26,7 +26,6 @@ import monix.tail.batches.BatchCursor
 
 object IterantDropLastSuite extends BaseTestSuite {
   test("Iterant.dropLast is equivalent with List.dropRight") { implicit s =>
-
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1).onErrorIgnore
       val n = if (nr == 0) 0 else math.abs(math.abs(nr) % 20)
@@ -56,7 +55,8 @@ object IterantDropLastSuite extends BaseTestSuite {
 
   test("Iterant.dropLast preserves resource safety") { implicit s =>
     var effect = 0
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
+    val source = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval.eval(effect += 1))
     val stream = source.dropLast(3)
     stream.completedL.value()

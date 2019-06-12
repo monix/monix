@@ -25,7 +25,7 @@ import monix.reactive.observers.Subscriber
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, Promise}
 
-private[reactive] final class BufferWithSelectorObservable[+A,S](
+private[reactive] final class BufferWithSelectorObservable[+A, S](
   source: Observable[A],
   sampler: Observable[S],
   maxSize: Int,
@@ -37,98 +37,100 @@ private[reactive] final class BufferWithSelectorObservable[+A,S](
     val samplerSubscription = SingleAssignCancelable()
     val composite = CompositeCancelable(upstreamSubscription, samplerSubscription)
 
-    upstreamSubscription := source.unsafeSubscribeFn(
-      new Subscriber[A] { upstreamSubscriber =>
+    upstreamSubscription := source.unsafeSubscribeFn(new Subscriber[A] { upstreamSubscriber =>
+      implicit val scheduler = downstream.scheduler
+
+      // MUST BE synchronized by `self`
+      private[this] var buffer = ListBuffer.empty[A]
+      // Maintain internal buffer weight not to compute the weight
+      // of the buffer each time an element is added.
+      // So to keep complexity to O(1) for each added element.
+      // MUST BE synchronized by `self`
+      private[this] var bufferWeight: Int = 0
+      // MUST BE synchronized by `self`
+      private[this] var promise = Promise[Ack]()
+      // To be written in onComplete/onError, to be read from tick
+      private[this] var upstreamIsDone = false
+      // MUST BE synchronized by `self`.
+      private[this] var downstreamIsDone = false
+
+      def onNext(elem: A): Future[Ack] =
+        upstreamSubscriber.synchronized {
+          if (downstreamIsDone) Stop
+          else {
+            buffer += elem
+            bufferWeight += sizeOf(elem)
+            if (maxSize > 0 && bufferWeight >= maxSize)
+              promise.future
+            else
+              Continue
+          }
+        }
+
+      def onError(ex: Throwable): Unit =
+        upstreamSubscriber.synchronized {
+          if (!downstreamIsDone) {
+            downstreamIsDone = true
+            samplerSubscription.cancel()
+            downstream.onError(ex)
+          }
+        }
+
+      def onComplete(): Unit =
+        upstreamSubscriber.synchronized {
+          upstreamIsDone = true
+        }
+
+      samplerSubscription := sampler.unsafeSubscribeFn(new Subscriber[S] {
         implicit val scheduler = downstream.scheduler
 
-        // MUST BE synchronized by `self`
-        private[this] var buffer = ListBuffer.empty[A]
-        // Maintain internal buffer weight not to compute the weight
-        // of the buffer each time an element is added.
-        // So to keep complexity to O(1) for each added element.
-        // MUST BE synchronized by `self`
-        private[this] var bufferWeight: Int = 0
-        // MUST BE synchronized by `self`
-        private[this] var promise = Promise[Ack]()
-        // To be written in onComplete/onError, to be read from tick
-        private[this] var upstreamIsDone = false
-        // MUST BE synchronized by `self`.
-        private[this] var downstreamIsDone = false
-
-        def onNext(elem: A): Future[Ack] =
-          upstreamSubscriber.synchronized {
-            if (downstreamIsDone) Stop else {
-              buffer += elem
-              bufferWeight += sizeOf(elem)
-              if (maxSize > 0 && bufferWeight >= maxSize)
-                promise.future
-              else
-                Continue
-            }
-          }
+        def onNext(elem: S): Future[Ack] =
+          upstreamSubscriber.synchronized(signalNext())
 
         def onError(ex: Throwable): Unit =
-          upstreamSubscriber.synchronized {
-            if (!downstreamIsDone) {
-              downstreamIsDone = true
-              samplerSubscription.cancel()
-              downstream.onError(ex)
-            }
-          }
+          upstreamSubscriber.onError(ex)
 
         def onComplete(): Unit =
           upstreamSubscriber.synchronized {
             upstreamIsDone = true
+            signalNext()
           }
 
-        samplerSubscription := sampler.unsafeSubscribeFn(new Subscriber[S] {
-          implicit val scheduler = downstream.scheduler
-
-          def onNext(elem: S): Future[Ack] =
-            upstreamSubscriber.synchronized(signalNext())
-
-          def onError(ex: Throwable): Unit =
-            upstreamSubscriber.onError(ex)
-
-          def onComplete(): Unit =
-            upstreamSubscriber.synchronized {
-              upstreamIsDone = true
-              signalNext()
-            }
-
-          // MUST BE synchronized by `self`
-          private def signalNext(): Future[Ack] =
-            if (downstreamIsDone) Stop else {
-              val next = {
-                val signal = buffer.toList
-                // Refresh Buffer
-                buffer = ListBuffer.empty[A]
-                bufferWeight = 0
-                // Refresh back-pressure promise, but only if we have
-                // a maxSize to worry about
-                if (maxSize > 0) {
-                  val oldPromise = promise
-                  promise = Promise()
-                  oldPromise.success(Continue)
-                }
-                // Actual signaling
-                val ack = downstream.onNext(signal)
-                // Callback for cleaning
-                ack.syncOnStopOrFailure { _ =>
-                  downstreamIsDone = true
-                  upstreamSubscription.cancel()
-                }
+        // MUST BE synchronized by `self`
+        private def signalNext(): Future[Ack] =
+          if (downstreamIsDone) Stop
+          else {
+            val next = {
+              val signal = buffer.toList
+              // Refresh Buffer
+              buffer = ListBuffer.empty[A]
+              bufferWeight = 0
+              // Refresh back-pressure promise, but only if we have
+              // a maxSize to worry about
+              if (maxSize > 0) {
+                val oldPromise = promise
+                promise = Promise()
+                oldPromise.success(Continue)
               }
-
-              if (!upstreamIsDone) next else {
+              // Actual signaling
+              val ack = downstream.onNext(signal)
+              // Callback for cleaning
+              ack.syncOnStopOrFailure { _ =>
                 downstreamIsDone = true
                 upstreamSubscription.cancel()
-                if (next != Stop) downstream.onComplete()
-                Stop
               }
             }
-        })
+
+            if (!upstreamIsDone) next
+            else {
+              downstreamIsDone = true
+              upstreamSubscription.cancel()
+              if (next != Stop) downstream.onComplete()
+              Stop
+            }
+          }
       })
+    })
 
     composite
   }

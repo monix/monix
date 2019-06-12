@@ -41,7 +41,8 @@ private[monix] class LinkedMap[K, +V](
 
   /** Removes the element at the specified key. */
   def -(k: K): LinkedMap[K, V] =
-    new LinkedMap(entries - k,
+    new LinkedMap(
+      entries - k,
       entries
         .get(k)
         .map { case (_, id) => insertionOrder - id }

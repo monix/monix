@@ -118,10 +118,13 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val ref = Iterant[Coeval].of(1, 2, 3)
-      .mapEval { x => Coeval { effect += 1; x } }
+    val ref = Iterant[Coeval]
+      .of(1, 2, 3)
+      .mapEval { x =>
+        Coeval { effect += 1; x }
+      }
       .guarantee(Coeval { effect += 1 })
-      .foldWhileLeftL((throw dummy) : Int)((acc, i) => Left(acc + i))
+      .foldWhileLeftL((throw dummy): Int)((acc, i) => Left(acc + i))
 
     assertEquals(ref.runTry(), Failure(dummy))
     assertEquals(effect, 0)
@@ -131,7 +134,8 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val ref = Iterant[Coeval].of(1, 2, 3)
+    val ref = Iterant[Coeval]
+      .of(1, 2, 3)
       .guarantee(Coeval { effect += 1 })
       .foldWhileLeftL(0)((_, _) => throw dummy)
 
@@ -144,7 +148,8 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val ref = Iterant[Coeval].nextCursorS(ThrowExceptionCursor[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
+    val ref = Iterant[Coeval]
+      .nextCursorS(ThrowExceptionCursor[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval { effect += 1 })
       .foldWhileLeftL(0)((a, e) => Left(a + e))
 
@@ -157,7 +162,8 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val ref = Iterant[Coeval].nextBatchS(ThrowExceptionBatch[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
+    val ref = Iterant[Coeval]
+      .nextBatchS(ThrowExceptionBatch[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval { effect += 1 })
       .foldWhileLeftL(0)((a, e) => Left(a + e))
 
@@ -170,8 +176,11 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val ref = Iterant[Coeval].of(1, 2, 3)
-      .map { x => effect += 1; x }
+    val ref = Iterant[Coeval]
+      .of(1, 2, 3)
+      .map { x =>
+        effect += 1; x
+      }
       .guarantee(Coeval { effect += 1 })
       .foldWhileLeftEvalL(Coeval.raiseError[Int](dummy))((acc, i) => Coeval(Left(acc + i)))
 
@@ -183,7 +192,8 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val ref = Iterant[Coeval].of(1, 2, 3)
+    val ref = Iterant[Coeval]
+      .of(1, 2, 3)
       .guarantee(Coeval { effect += 1 })
       .foldWhileLeftEvalL(Coeval(0))((_, _) => throw dummy)
 
@@ -196,7 +206,8 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val ref = Iterant[Coeval].of(1, 2, 3)
+    val ref = Iterant[Coeval]
+      .of(1, 2, 3)
       .guarantee(Coeval { effect += 1 })
       .foldWhileLeftEvalL(Coeval(0))((_, _) => Coeval.raiseError(dummy))
 
@@ -209,7 +220,8 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val ref = Iterant[Coeval].nextCursorS(ThrowExceptionCursor[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
+    val ref = Iterant[Coeval]
+      .nextCursorS(ThrowExceptionCursor[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval { effect += 1 })
       .foldWhileLeftEvalL(Coeval(0))((a, e) => Coeval(Left(a + e)))
 
@@ -222,7 +234,8 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val ref = Iterant[Coeval].nextBatchS(ThrowExceptionBatch[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
+    val ref = Iterant[Coeval]
+      .nextBatchS(ThrowExceptionBatch[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval { effect += 1 })
       .foldWhileLeftEvalL(Coeval(0))((a, e) => Coeval(Left(a + e)))
 
@@ -249,7 +262,6 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-
   test("existsL does not execute early stop when full stream is processed") { implicit s =>
     var effect = 0
 
@@ -265,7 +277,8 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val ref = Iterant[Coeval].of(1, 2, 3)
+    val ref = Iterant[Coeval]
+      .of(1, 2, 3)
       .guarantee(Coeval { effect += 1 })
     val r = ref.existsL(_ => throw dummy).runTry()
 
@@ -283,7 +296,8 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
   test("forallL executes early stop on short-circuit") { implicit s =>
     var effect = 0
 
-    val ref = Iterant[Coeval].of(1, 2, 3, 4, 5)
+    val ref = Iterant[Coeval]
+      .of(1, 2, 3, 4, 5)
       .guarantee(Coeval { effect += 1 })
     val r = ref.forallL(_ == 1).runTry()
 
@@ -306,7 +320,8 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val ref = Iterant[Coeval].of(1, 2, 3)
+    val ref = Iterant[Coeval]
+      .of(1, 2, 3)
       .guarantee(Coeval { effect += 1 })
     val r = ref.forallL(_ => throw dummy).runTry()
 
@@ -326,7 +341,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
 
     val ref =
       Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 }) ++
-      Iterant[Coeval].of(4, 5, 6).guarantee(Coeval { effect += 1 })
+        Iterant[Coeval].of(4, 5, 6).guarantee(Coeval { effect += 1 })
 
     val r = ref.findL(_ == 2).runTry()
 
@@ -339,7 +354,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
 
     val ref =
       Iterant[Coeval].of(1, 2, 3).guarantee(Coeval { effect += 1 }) ++
-      Iterant[Coeval].of(4, 5, 6).guarantee(Coeval { effect += 1 })
+        Iterant[Coeval].of(4, 5, 6).guarantee(Coeval { effect += 1 })
 
     val r = ref.findL(_ == 10).runTry()
     assertEquals(r, Success(None))
@@ -400,9 +415,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
         Iterant[Coeval].empty[Int]
     })
 
-    assertEquals(
-      stream.foldWhileLeftL(List.empty[Int])((acc, i) => Left(i :: acc)).value(),
-      List(1))
+    assertEquals(stream.foldWhileLeftL(List.empty[Int])((acc, i) => Left(i :: acc)).value(), List(1))
   }
 
   test("foldWhileLeftL handles Scope's release after use is finished") { implicit s =>
@@ -411,20 +424,19 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
 
     val stream = Iterant[Coeval].scopeS[Unit, Int](
       Coeval.unit,
-      _ => Coeval(1 +: Iterant[Coeval].suspend {
-        if (triggered.getAndSet(true))
-          Iterant[Coeval].raiseError[Int](fail)
-        else
-          Iterant[Coeval].empty[Int]
-      }),
+      _ =>
+        Coeval(1 +: Iterant[Coeval].suspend {
+          if (triggered.getAndSet(true))
+            Iterant[Coeval].raiseError[Int](fail)
+          else
+            Iterant[Coeval].empty[Int]
+        }),
       (_, _) => {
         Coeval(triggered.set(true))
       }
     )
 
-    assertEquals(
-      (0 +: stream :+ 2).foldWhileLeftL(List.empty[Int])((acc, i) => Left(i :: acc)).value(),
-      List(2, 1, 0))
+    assertEquals((0 +: stream :+ 2).foldWhileLeftL(List.empty[Int])((acc, i) => Left(i :: acc)).value(), List(2, 1, 0))
   }
 
   test("foldWhileLeftEvalL handles Scope's release before the rest of the stream") { implicit s =>
@@ -455,12 +467,13 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
 
     val stream = Iterant[Coeval].scopeS[Unit, Int](
       Coeval.unit,
-      _ => Coeval(1 +: Iterant[Coeval].suspend {
-        if (triggered.getAndSet(true))
-          Iterant[Coeval].raiseError[Int](fail)
-        else
-          Iterant[Coeval].empty[Int]
-      }),
+      _ =>
+        Coeval(1 +: Iterant[Coeval].suspend {
+          if (triggered.getAndSet(true))
+            Iterant[Coeval].raiseError[Int](fail)
+          else
+            Iterant[Coeval].empty[Int]
+        }),
       (_, _) => {
         Coeval(triggered.set(true))
       }

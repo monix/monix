@@ -25,14 +25,11 @@ import monix.tail.batches.BatchCursor
 import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantTakeWhile {
-  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] = {
     Suspend(F.delay(new Loop(p).apply(source)))
   }
 
-  private class Loop[F[_], A](p: A => Boolean)
-    (implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+  private class Loop[F[_], A](p: A => Boolean)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
     private[this] var isActive = true
 
@@ -53,21 +50,20 @@ private[tail] object IterantTakeWhile {
       Suspend(ref.rest.map(this))
 
     def visit(ref: Concat[F, A]): Iterant[F, A] =
-      Concat(
-        ref.lh.map(this),
-        F.suspend {
-          if (isActive)
-            ref.rh.map(this)
-          else
-            F.pure(Iterant.empty)
-        })
+      Concat(ref.lh.map(this), F.suspend {
+        if (isActive)
+          ref.rh.map(this)
+        else
+          F.pure(Iterant.empty)
+      })
 
     def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
       ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, A] = {
       val item = ref.item
-      if (p(item)) ref else {
+      if (p(item)) ref
+      else {
         isActive = false
         Iterant.empty
       }
@@ -93,8 +89,7 @@ private[tail] object IterantTakeWhile {
           isActive = false
           Iterant.empty
         }
-      }
-      else {
+      } else {
         val buffer = ArrayBuffer.empty[A]
         var continue = true
         var idx = 0

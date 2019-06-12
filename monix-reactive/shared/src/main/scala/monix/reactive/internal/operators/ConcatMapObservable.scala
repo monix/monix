@@ -81,8 +81,7 @@ private[reactive] final class ConcatMapObservable[A, B](
     }
   }
 
-  private final class ConcatMapSubscriber(out: Subscriber[B])
-    extends Subscriber[A] with Cancelable { self =>
+  private final class ConcatMapSubscriber(out: Subscriber[B]) extends Subscriber[A] with Cancelable { self =>
 
     import ConcatMapObservable.FlatMapState
     import ConcatMapObservable.FlatMapState._
@@ -102,7 +101,7 @@ private[reactive] final class ConcatMapObservable[A, B](
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
     private[this] val stateRef =
-      Atomic.withPadding(WaitOnNextChild(Continue) : FlatMapState, LeftRight128)
+      Atomic.withPadding(WaitOnNextChild(Continue): FlatMapState, LeftRight128)
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
@@ -142,7 +141,7 @@ private[reactive] final class ConcatMapObservable[A, B](
         case Cancelled =>
           // $COVERAGE-OFF$
           () // do nothing else
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
 
@@ -161,91 +160,94 @@ private[reactive] final class ConcatMapObservable[A, B](
         if (release eq null) {
           Stop
         } else {
-          Task.suspend(release(elem, ExitCase.Canceled))
+          Task
+            .suspend(release(elem, ExitCase.Canceled))
             .redeem(e => { scheduler.reportFailure(e); Stop }, _ => Stop)
             .runToFuture
             .syncTryFlatten
         }
-      } else try {
-        val asyncUpstreamAck = Promise[Ack]()
-        val child = {
-          val ref = f(elem)
-          if (release eq null) ref else ref.guaranteeCase(release(elem, _))
-        }
-        // No longer allowed to stream errors downstream
-        streamErrors = false
+      } else
+        try {
+          val asyncUpstreamAck = Promise[Ack]()
+          val child = {
+            val ref = f(elem)
+            if (release eq null) ref else ref.guaranteeCase(release(elem, _))
+          }
+          // No longer allowed to stream errors downstream
+          streamErrors = false
 
-        // Simple, ordered write - we cannot use WaitOnNext as the start of an
-        // iteration because we cannot detect synchronous execution below;
-        // WARN: this can override the `Cancelled` status!
-        stateRef.lazySet(WaitOnActiveChild)
+          // Simple, ordered write - we cannot use WaitOnNext as the start of an
+          // iteration because we cannot detect synchronous execution below;
+          // WARN: this can override the `Cancelled` status!
+          stateRef.lazySet(WaitOnActiveChild)
 
-        // Shoot first, ask questions later :-)
-        val cancellable = child.unsafeSubscribeFn(new ChildSubscriber(out, asyncUpstreamAck))
+          // Shoot first, ask questions later :-)
+          val cancellable = child.unsafeSubscribeFn(new ChildSubscriber(out, asyncUpstreamAck))
 
-        // Execution already started at this point This `getAndSet` is
-        // concurrent with the task being finished (the `getAndSet` in
-        // the Task.flatMap above), but not with the `getAndSet`
-        // happening in `onComplete` and `onError`, therefore a
-        // `WaitComplete` state is invalid here. The state we do
-        // expect most of the time is either `WaitOnNext` or
-        // `WaitActiveTask`.
-        stateRef.getAndSet(Active(cancellable)) match {
-          case previous @ WaitOnNextChild(ack) =>
-            // Task execution was synchronous, w00t, so redo state!
-            //
-            // NOTE: we don't need to worry about cancellation here, b/c we
-            // have no child active and the cancellation of the parent stream
-            // is not our concern
-            stateRef.lazySet(previous)
-            ack.syncTryFlatten
+          // Execution already started at this point This `getAndSet` is
+          // concurrent with the task being finished (the `getAndSet` in
+          // the Task.flatMap above), but not with the `getAndSet`
+          // happening in `onComplete` and `onError`, therefore a
+          // `WaitComplete` state is invalid here. The state we do
+          // expect most of the time is either `WaitOnNext` or
+          // `WaitActiveTask`.
+          stateRef.getAndSet(Active(cancellable)) match {
+            case previous @ WaitOnNextChild(ack) =>
+              // Task execution was synchronous, w00t, so redo state!
+              //
+              // NOTE: we don't need to worry about cancellation here, b/c we
+              // have no child active and the cancellation of the parent stream
+              // is not our concern
+              stateRef.lazySet(previous)
+              ack.syncTryFlatten
 
-          case WaitOnActiveChild =>
-            // Expected outcome for async observables ...
-            //
-            // Concurrent cancellation might have happened, the `Cancelled` state
-            // being thread-unsafe, hence this check;
-            //
-            // WARN: the assumption is that if the `Cancelled` state was set
-            // right before `lazySet(WaitOnActiveChild)`, then we would see
-            // `isActive == false` here b/c it was updated before `stateRef` (JMM);
-            // And if `stateRef = Cancelled` happened afterwards, then we should
-            // see it in the outer match statement
-            if (isActive.get) {
-              asyncUpstreamAck.future.syncTryFlatten
-            } else {
+            case WaitOnActiveChild =>
+              // Expected outcome for async observables ...
+              //
+              // Concurrent cancellation might have happened, the `Cancelled` state
+              // being thread-unsafe, hence this check;
+              //
+              // WARN: the assumption is that if the `Cancelled` state was set
+              // right before `lazySet(WaitOnActiveChild)`, then we would see
+              // `isActive == false` here b/c it was updated before `stateRef` (JMM);
+              // And if `stateRef = Cancelled` happened afterwards, then we should
+              // see it in the outer match statement
+              if (isActive.get) {
+                asyncUpstreamAck.future.syncTryFlatten
+              } else {
+                cancelState()
+                Stop
+              }
+
+            case WaitComplete(_, _) =>
+              // Branch that can happen in case the child has finished
+              // already in error, so stop further onNext events.
+              stateRef.lazySet(Cancelled) // GC purposes
+              Stop
+
+            case Cancelled =>
+              // Race condition, oops, now cancel the active task
               cancelState()
               Stop
-            }
 
-          case WaitComplete(_, _) =>
-            // Branch that can happen in case the child has finished
-            // already in error, so stop further onNext events.
-            stateRef.lazySet(Cancelled) // GC purposes
-            Stop
-
-          case Cancelled =>
-            // Race condition, oops, now cancel the active task
-            cancelState()
-            Stop
-
-          case state @ Active(_) =>
-            // This should never, ever happen!
-            // Something is screwed up in our state machine :-(
-            // $COVERAGE-OFF$
-            reportInvalidState(state, "onNext")
-            Stop
+            case state @ Active(_) =>
+              // This should never, ever happen!
+              // Something is screwed up in our state machine :-(
+              // $COVERAGE-OFF$
+              reportInvalidState(state, "onNext")
+              Stop
             // $COVERAGE-ON$
+          }
+        } catch {
+          case ex if NonFatal(ex) =>
+            if (streamErrors) {
+              onError(ex)
+              Stop
+            } else {
+              scheduler.reportFailure(ex)
+              Stop
+            }
         }
-      } catch { case ex if NonFatal(ex) =>
-        if (streamErrors) {
-          onError(ex)
-          Stop
-        } else {
-          scheduler.reportFailure(ex)
-          Stop
-        }
-      }
     }
 
     private def signalFinish(ex: Option[Throwable]): Unit = {
@@ -256,7 +258,7 @@ private[reactive] final class ConcatMapObservable[A, B](
       // `getAndSet`, which is totally fine
       val childRef = stateRef.get match {
         case Active(ref) => ref
-        case WaitComplete(_,ref) => ref
+        case WaitComplete(_, ref) => ref
         case _ => null
       }
 
@@ -284,7 +286,7 @@ private[reactive] final class ConcatMapObservable[A, B](
           // a race condition!
           if (!isActive.get) cancelState()
 
-        case WaitComplete(_,_) =>
+        case WaitComplete(_, _) =>
           // This branch happens if the child has triggered the completion
           // event already, thus there's nothing for us left to do.
           // GC purposes: we no longer need `childRef`.
@@ -300,7 +302,7 @@ private[reactive] final class ConcatMapObservable[A, B](
           // Something is screwed up in our state machine :-(
           // $COVERAGE-OFF$
           reportInvalidState(WaitOnActiveChild, "signalFinish")
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
 
@@ -308,13 +310,15 @@ private[reactive] final class ConcatMapObservable[A, B](
       signalFinish(None)
 
     def onError(ex: Throwable): Unit =
-      if (!delayErrors) signalFinish(Some(ex)) else {
+      if (!delayErrors) signalFinish(Some(ex))
+      else {
         errors.transform(list => ex :: list)
         signalFinish(None)
       }
 
     private def sendOnComplete(): Unit = {
-      if (!delayErrors) out.onComplete() else
+      if (!delayErrors) out.onComplete()
+      else
         this.errors.get match {
           case Nil => out.onComplete()
           case list => out.onError(CompositeException(list))
@@ -327,14 +331,13 @@ private[reactive] final class ConcatMapObservable[A, B](
       scheduler.reportFailure(
         new IllegalStateException(
           s"State $state in the Monix ConcatMap.$method implementation is invalid, " +
-          "due to either a broken Subscriber implementation, or a bug, " +
-          "please open an issue, see: https://monix.io"
+            "due to either a broken Subscriber implementation, or a bug, " +
+            "please open an issue, see: https://monix.io"
         ))
       // $COVERAGE-ON$
     }
 
-    private final class ChildSubscriber(out: Subscriber[B], asyncUpstreamAck: Promise[Ack])
-      extends Subscriber[B] {
+    private final class ChildSubscriber(out: Subscriber[B], asyncUpstreamAck: Promise[Ack]) extends Subscriber[B] {
 
       implicit val scheduler = out.scheduler
       private[this] var ack: Future[Ack] = Continue
@@ -354,7 +357,8 @@ private[reactive] final class ConcatMapObservable[A, B](
         signalChildOnComplete(ack, isStop = false)
 
       def onError(ex: Throwable): Unit =
-        if (!delayErrors) signalChildOnError(ex) else {
+        if (!delayErrors) signalChildOnError(ex)
+        else {
           errors.transform(list => ex :: list)
           onComplete()
         }
@@ -420,14 +424,14 @@ private[reactive] final class ConcatMapObservable[A, B](
             if (!isStop) exOpt match {
               case None => sendOnComplete()
               case Some(ex) => out.onError(ex)
-            }
-            else ack.value match {
-              case Some(Failure(ex)) =>
-                // An error happened and we need to report it somewhere
-                scheduler.reportFailure(ex)
-              case _ =>
-                () // do nothing else
-            }
+            } else
+              ack.value match {
+                case Some(Failure(ex)) =>
+                  // An error happened and we need to report it somewhere
+                  scheduler.reportFailure(ex)
+                case _ =>
+                  () // do nothing else
+              }
         }
       }
     }

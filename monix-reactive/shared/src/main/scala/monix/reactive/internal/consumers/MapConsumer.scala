@@ -25,9 +25,7 @@ import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 
 /** Implementation for [[monix.reactive.Consumer.map]]. */
-private[reactive]
-final class MapConsumer[In, R, R2](source: Consumer[In,R], f: R => R2)
-  extends Consumer[In, R2] {
+private[reactive] final class MapConsumer[In, R, R2](source: Consumer[In, R], f: R => R2) extends Consumer[In, R2] {
 
   def createSubscriber(cb: Callback[Throwable, R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     val cb1 = new Callback[Throwable, R] {

@@ -29,7 +29,7 @@ object Zip5Suite extends BaseOperatorSuite {
     val o4 = Observable.range(0, sourceCount + 3).executeAsync
     val o5 = Observable.range(0, sourceCount + 4).executeAsync
 
-    val o = Observable.zipMap5(o1,o2,o3,o4,o5)(_+_+_+_+_)
+    val o = Observable.zipMap5(o1, o2, o3, o4, o5)(_ + _ + _ + _ + _)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -43,7 +43,7 @@ object Zip5Suite extends BaseOperatorSuite {
     val o4 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o5 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    val o = Observable.zipMap5(o1,o2,o3,o4,o5)(_+_+_+_+_)
+    val o = Observable.zipMap5(o1, o2, o3, o4, o5)(_ + _ + _ + _ + _)
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
@@ -69,7 +69,7 @@ object Zip5Suite extends BaseOperatorSuite {
       val o3 = Observable.range(0, 10).delayOnNext(1.second)
       val o4 = Observable.range(0, 10).delayOnNext(1.second)
       val o5 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.zipMap5(o1,o2,o3,o4,o5)(_+_+_+_+_)
+      Observable.zipMap5(o1, o2, o3, o4, o5)(_ + _ + _ + _ + _)
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))

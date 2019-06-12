@@ -22,8 +22,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 /** Builds an observable that emits a single strict value. */
-private[reactive] final class NowObservable[+A](elem: A)
-  extends Observable[A] {
+private[reactive] final class NowObservable[+A](elem: A) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     // No need to back-pressure for onComplete

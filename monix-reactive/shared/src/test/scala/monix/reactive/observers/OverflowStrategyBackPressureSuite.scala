@@ -29,8 +29,7 @@ import scala.concurrent.{Future, Promise}
 object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should do back-pressure") { implicit s =>
@@ -43,7 +42,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw new IllegalStateException()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     assertEquals(buffer.onNext(1), Continue)
     assertEquals(buffer.onNext(2), Continue)
@@ -130,8 +131,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
     val buffer = BufferedSubscriber[Int](underlying, BackPressure(1000))
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
-      else
+        s.executeAsync { () =>
+          buffer.onNext(n); loop(n - 1)
+        } else
         buffer.onComplete()
 
     loop(10000)
@@ -167,8 +169,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
     val buffer = BufferedSubscriber[Int](underlying, BackPressure(512))
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
-      else
+        s.executeAsync { () =>
+          buffer.onNext(n); loop(n - 1)
+        } else
         buffer.onComplete()
 
     loop(10000)
@@ -188,7 +191,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onError(DummyException("dummy"))
     s.tickOne()
@@ -206,7 +211,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = Continue
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
@@ -225,7 +232,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = promise.future
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     for (i <- 0 until 20) buffer.onNext(i)
     buffer.onError(DummyException("dummy"))
@@ -242,7 +251,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onComplete()
     s.tickOne()
@@ -258,7 +269,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = promise.future
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onNext(1)
     buffer.onComplete()
@@ -279,7 +292,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = promise.future
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onNext(1)
     buffer.onNext(2)
@@ -309,7 +324,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, BackPressure(10000))
+      },
+      BackPressure(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -333,7 +350,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, BackPressure(10000))
+      },
+      BackPressure(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -357,7 +376,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(10000))
+      },
+      BackPressure(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -381,7 +402,9 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(10000))
+      },
+      BackPressure(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -405,7 +428,8 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
         def onComplete() = wasCompleted = true
         val scheduler = s
       },
-      BackPressure(Platform.recommendedBatchSize * 3))
+      BackPressure(Platform.recommendedBatchSize * 3)
+    )
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
@@ -656,8 +680,7 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assert(errorThrown != null, "errorThrown != null")
-    assert(errorThrown.isInstanceOf[NullPointerException],
-      "errorThrown.isInstanceOf[NullPointerException]")
+    assert(errorThrown.isInstanceOf[NullPointerException], "errorThrown.isInstanceOf[NullPointerException]")
   }
 
   test("buffer size is required to be greater than 1") { implicit s =>

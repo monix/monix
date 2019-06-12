@@ -33,10 +33,11 @@ object MapSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.now(1L).map(_ * 2)
-      else
-        Observable.range(1, sourceCount+1, 1).map(_ * 2)
+      val o =
+        if (sourceCount == 1)
+          Observable.now(1L).map(_ * 2)
+        else
+          Observable.range(1, sourceCount + 1, 1).map(_ * 2)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -46,12 +47,13 @@ object MapSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val o = if (sourceCount == 1)
-        createObservableEndingInError(Observable.now(1L), ex)
-          .map(_ * 2)
-      else
-        createObservableEndingInError(Observable.range(1, sourceCount+1, 1), ex)
-          .map(_ * 2)
+      val o =
+        if (sourceCount == 1)
+          createObservableEndingInError(Observable.now(1L), ex)
+            .map(_ * 2)
+        else
+          createObservableEndingInError(Observable.range(1, sourceCount + 1, 1), ex)
+            .map(_ * 2)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -60,17 +62,18 @@ object MapSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.now(1).map(_ => throw ex)
-      else
-        Observable.range(1, sourceCount + 1, 1).map { x =>
-          if (x == sourceCount)
-            throw ex
-          else
-            x * 2
-        }
+      val o =
+        if (sourceCount == 1)
+          Observable.now(1).map(_ => throw ex)
+        else
+          Observable.range(1, sourceCount + 1, 1).map { x =>
+            if (x == sourceCount)
+              throw ex
+            else
+              x * 2
+          }
 
-      Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+      Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
     }
   }
 

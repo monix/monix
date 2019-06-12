@@ -23,7 +23,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success}
 
 object TaskLiftSuite extends BaseTestSuite {
-  import TaskConversionsSuite.{CIO, CustomEffect, CustomConcurrentEffect}
+  import TaskConversionsSuite.{CIO, CustomConcurrentEffect, CustomEffect}
 
   test("task.to[Task]") { _ =>
     val task = Task(1)

@@ -33,22 +33,22 @@ private[tail] object IterantOnErrorHandleWith {
   /**
     * Implementation for `Iterant.onErrorHandleWith`.
     */
-  def apply[F[_], A](fa: Iterant[F, A], f: Throwable => Iterant[F, A])
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def apply[F[_], A](fa: Iterant[F, A], f: Throwable => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] = {
 
     Suspend(F.delay(new Loop(f).apply(fa)))
   }
 
-  private final class Loop[F[_], A](handler: Throwable => Iterant[F, A])
-    (implicit F: Sync[F])
+  private final class Loop[F[_], A](handler: Throwable => Iterant[F, A])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] { self =>
 
     private[this] var wasErrorHandled = false
 
     private[this] val f = (e: Throwable) => {
       self.wasErrorHandled = true
-      try handler(e) catch { case e2 if NonFatal(e) =>
-        Iterant.raiseError[F, A](Platform.composeErrors(e, e2))
+      try handler(e)
+      catch {
+        case e2 if NonFatal(e) =>
+          Iterant.raiseError[F, A](Platform.composeErrors(e, e2))
       }
     }
 
@@ -100,38 +100,42 @@ private[tail] object IterantOnErrorHandleWith {
       val Scope(acquire, use, release) = ref
 
       Suspend(F.delay {
-        val errors = Atomic(null : Throwable)
+        val errors = Atomic(null: Throwable)
 
         val lh: Iterant[F, A] =
           Scope[F, Either[Throwable, S], A](
             acquire.attempt,
-            es => F.pure(es).flatMap {
-              case Left(e) =>
-                pushError(errors, e)
-                F.pure(Iterant.empty)
-
-              case Right(s) =>
-                try {
-                  use(s).handleError { e =>
-                    pushError(errors, e)
-                    Iterant.empty
-                  }.map(this)
-                } catch { case NonFatal(e) =>
+            es =>
+              F.pure(es).flatMap {
+                case Left(e) =>
                   pushError(errors, e)
                   F.pure(Iterant.empty)
-                }
-            },
+
+                case Right(s) =>
+                  try {
+                    use(s).handleError { e =>
+                      pushError(errors, e)
+                      Iterant.empty
+                    }.map(this)
+                  } catch {
+                    case NonFatal(e) =>
+                      pushError(errors, e)
+                      F.pure(Iterant.empty)
+                  }
+              },
             (es, exit) => {
               es match {
                 case Left(_) => F.unit
                 case Right(s) =>
                   try F.handleError(release(s, exit)) { e =>
                     pushError(errors, e)
-                  } catch { case NonFatal(e) =>
-                    F.delay(pushError(errors, e))
+                  } catch {
+                    case NonFatal(e) =>
+                      F.delay(pushError(errors, e))
                   }
               }
-            })
+            }
+          )
 
         Concat(F.pure(lh), F.delay {
           val err = errors.getAndSet(null)

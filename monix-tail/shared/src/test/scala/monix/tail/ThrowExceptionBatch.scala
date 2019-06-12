@@ -21,8 +21,7 @@ import monix.execution.atomic.Atomic
 import monix.tail.batches.{BatchCursor, GenericBatch}
 
 /** Batch that throws exception on access. */
-final class ThrowExceptionBatch[A](ex: Throwable)
-  extends GenericBatch[A] {
+final class ThrowExceptionBatch[A](ex: Throwable) extends GenericBatch[A] {
 
   private[this] val triggered = Atomic(false)
   def isTriggered: Boolean = triggered.get

@@ -27,8 +27,7 @@ import monix.execution.atomic.{Atomic, AtomicAny}
 
 import scala.annotation.tailrec
 
-private[eval] final class TaskConnectionComposite private
-  (stateRef: AtomicAny[State]) {
+private[eval] final class TaskConnectionComposite private (stateRef: AtomicAny[State]) {
 
   val cancel: CancelToken[Task] =
     Task.suspend {
@@ -73,7 +72,8 @@ private[eval] final class TaskConnectionComposite private
     add(conn)
 
   @tailrec
-  private def addAny(ref: AnyRef/* CancelToken[Task] | CancelableF[Task] | Cancelable */)(implicit s: Scheduler): Unit =
+  private def addAny(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(
+    implicit s: Scheduler): Unit =
     stateRef.get match {
       case Cancelled =>
         UnsafeCancelUtils.triggerCancel(ref)
@@ -90,8 +90,7 @@ private[eval] final class TaskConnectionComposite private
     * connection is still active, or cancels the whole collection
     * otherwise.
     */
-  def addAll(that: Iterable[CancelToken[Task]])
-    (implicit s: Scheduler): Unit = {
+  def addAll(that: Iterable[CancelToken[Task]])(implicit s: Scheduler): Unit = {
 
     @tailrec def loop(that: Iterable[CancelToken[Task]]): Unit =
       stateRef.get match {
@@ -146,10 +145,10 @@ private[eval] object TaskConnectionComposite {
     * Builder for [[TaskConnectionComposite]].
     */
   def apply(initial: CancelToken[Task]*): TaskConnectionComposite =
-    new TaskConnectionComposite(
-      Atomic.withPadding(Active(Set(initial:_*)) : State, LeftRight128))
+    new TaskConnectionComposite(Atomic.withPadding(Active(Set(initial: _*)): State, LeftRight128))
 
   private sealed abstract class State
-  private final case class Active(set: Set[AnyRef/* CancelToken[Task] | CancelableF[Task] | Cancelable */]) extends State
+  private final case class Active(set: Set[AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ ])
+    extends State
   private case object Cancelled extends State
 }

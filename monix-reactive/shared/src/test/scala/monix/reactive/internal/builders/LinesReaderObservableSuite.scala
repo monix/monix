@@ -60,7 +60,8 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     val string = randomString()
     val in = new BufferedReader(new StringReader(string))
 
-    val result = Observable.fromLinesReaderUnsafe(in)
+    val result = Observable
+      .fromLinesReaderUnsafe(in)
       .foldLeft("")(_ + "\n" + _)
       .map(_.trim)
       .runAsyncGetFirst
@@ -75,7 +76,8 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     val string = randomString()
     val in = new BufferedReader(new StringReader(string))
 
-    val result = Observable.fromLinesReaderUnsafe(in)
+    val result = Observable
+      .fromLinesReaderUnsafe(in)
       .foldLeft("")(_ + "\n" + _)
       .map(_.trim)
       .runAsyncGetFirst
@@ -93,7 +95,8 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     val string = randomString()
     val in = new BufferedReader(new StringReader(string))
 
-    val obs = Observable.fromLinesReaderUnsafe(in)
+    val obs = Observable
+      .fromLinesReaderUnsafe(in)
       .foldLeft("")(_ + "\n" + _)
       .map(_.trim)
 
@@ -129,7 +132,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     }
 
     // Should not fail without s.tick()
-    Observable.fromLinesReaderUnsafe(new BufferedReader(reader)).foreach(_ =>())
+    Observable.fromLinesReaderUnsafe(new BufferedReader(reader)).foreach(_ => ())
     assert(!didRead)
   }
 
@@ -180,7 +183,8 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
 
     var wasClosed = false
     val in = randomReaderWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromLinesReaderF(Task(in))
+    val f = Observable
+      .fromLinesReaderF(Task(in))
       .mapEval(_ => Task.sleep(1.second))
       .completedL
       .runToFuture
@@ -203,8 +207,9 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
       def read(cbuf: Array[Char], off: Int, len: Int): Int = {
         callIdx += 1
         if (callIdx == whenToThrow) throw ex
-        else if (off < len) { cbuf(off) = 'a'; 1 }
-        else 0
+        else if (off < len) {
+          cbuf(off) = 'a'; 1
+        } else 0
       }
 
       override def close(): Unit =
@@ -248,8 +253,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
 
     for (_ <- 0 until lines) {
       val lineLength = Random.nextInt(100)
-      val line = for (_ <- 0 until lineLength) yield
-        chars(Random.nextInt(chars.length))
+      val line = for (_ <- 0 until lineLength) yield chars(Random.nextInt(chars.length))
       builder.append(new String(line.toArray))
       builder.append('\n')
     }

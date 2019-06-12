@@ -36,10 +36,11 @@ object TakeByPredicateInclusiveSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.range(1, 10).takeWhileInclusive(_ < 1)
-      else
-        Observable.range(1, sourceCount * 2).takeWhileInclusive(_ < sourceCount)
+      val o =
+        if (sourceCount == 1)
+          Observable.range(1, 10).takeWhileInclusive(_ < 1)
+        else
+          Observable.range(1, sourceCount * 2).takeWhileInclusive(_ < sourceCount)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -64,11 +65,9 @@ object TakeByPredicateInclusiveSuite extends BaseOperatorSuite {
         if (x < sourceCount) true else throw ex
       }
 
-      Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+      Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
     }
   }
-
-
 
   test("should not call onComplete multiple times for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
@@ -94,6 +93,6 @@ object TakeByPredicateInclusiveSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val s = Observable.range(1, 10).delayOnNext(1.second).takeWhileInclusive(_ <= 1)
-    Seq(Sample(s,0,0,0.seconds,0.seconds))
+    Seq(Sample(s, 0, 0, 0.seconds, 0.seconds))
   }
 }

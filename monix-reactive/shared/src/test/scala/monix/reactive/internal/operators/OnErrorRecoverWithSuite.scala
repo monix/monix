@@ -25,7 +25,8 @@ import scala.concurrent.duration.Duration.Zero
 object OnErrorRecoverWithSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val fallback = Observable.range(0, 10)
-    val source = Observable.range(0, sourceCount)
+    val source = Observable
+      .range(0, sourceCount)
       .endWithError(DummyException("expected"))
 
     val obs = source.onErrorHandleWith {
@@ -35,28 +36,31 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
         Observable.raiseError(other)
     }
 
-    val sum = sourceCount * (sourceCount-1) / 2 + 9 * 5
-    Sample(obs, sourceCount+10, sum, Zero, Zero)
+    val sum = sourceCount * (sourceCount - 1) / 2 + 9 * 5
+    Sample(obs, sourceCount + 10, sum, Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) =
-    if (sourceCount <= 1) None else Some {
-      val fallback = Observable.range(0, 10)
-      val source = Observable.range(0, sourceCount).endWithError(ex)
+    if (sourceCount <= 1) None
+    else
+      Some {
+        val fallback = Observable.range(0, 10)
+        val source = Observable.range(0, sourceCount).endWithError(ex)
 
-      val obs = source.onErrorHandleWith {
-        case DummyException("not happening") =>
-          fallback
-        case other =>
-          Observable.raiseError(other)
+        val obs = source.onErrorHandleWith {
+          case DummyException("not happening") =>
+            fallback
+          case other =>
+            Observable.raiseError(other)
+        }
+
+        val sum = sourceCount * (sourceCount - 1) / 2
+        Sample(obs, sourceCount, sum, Zero, Zero)
       }
 
-      val sum = sourceCount * (sourceCount-1) / 2
-      Sample(obs, sourceCount, sum, Zero, Zero)
-    }
-
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.range(0, sourceCount)
+    val source = Observable
+      .range(0, sourceCount)
       .endWithError(DummyException("expected"))
 
     val obs = source.onErrorHandleWith {
@@ -66,13 +70,15 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
         Observable.raiseError(other)
     }
 
-    val sum = sourceCount * (sourceCount-1) / 2
+    val sum = sourceCount * (sourceCount - 1) / 2
     Sample(obs, sourceCount, sum, Zero, Zero)
   }
 
   override def cancelableObservables() = {
     val fallback = Observable.range(0, 10).delayOnNext(1.second)
-    val sample = Observable.range(0, 10).map(_ => 1L)
+    val sample = Observable
+      .range(0, 10)
+      .map(_ => 1L)
       .delayOnNext(1.second)
       .endWithError(DummyException("expected"))
       .onErrorHandleWith {
