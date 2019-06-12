@@ -615,7 +615,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
     resetTimeout: FiniteDuration,
     exponentialBackoffFactor: Double = 1.0,
     maxResetTimeout: Duration = Duration.Inf,
-    padding: PaddingStrategy = NoPadding)(implicit F: Sync[F], clock: Clock[F]): F[CircuitBreaker[F]] = {
+    padding: PaddingStrategy = NoPadding
+  )(implicit F: Sync[F], clock: Clock[F]): F[CircuitBreaker[F]] = {
 
     CircuitBreaker[F].of(
       maxFailures = maxFailures,
@@ -645,7 +646,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
     resetTimeout: FiniteDuration,
     exponentialBackoffFactor: Double = 1.0,
     maxResetTimeout: Duration = Duration.Inf,
-    padding: PaddingStrategy = NoPadding)(implicit F: Sync[F], clock: Clock[F]): CircuitBreaker[F] = {
+    padding: PaddingStrategy = NoPadding
+  )(implicit F: Sync[F], clock: Clock[F]): CircuitBreaker[F] = {
 
     CircuitBreaker[F].unsafe(
       maxFailures = maxFailures,
@@ -684,7 +686,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
       onClosed: F[Unit] = F.unit,
       onHalfOpen: F[Unit] = F.unit,
       onOpen: F[Unit] = F.unit,
-      padding: PaddingStrategy = NoPadding)(implicit clock: Clock[F]): F[CircuitBreaker[F]] = {
+      padding: PaddingStrategy = NoPadding
+    )(implicit clock: Clock[F]): F[CircuitBreaker[F]] = {
 
       F.delay(
         unsafe(
@@ -725,7 +728,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
       onClosed: F[Unit] = F.unit,
       onHalfOpen: F[Unit] = F.unit,
       onOpen: F[Unit] = F.unit,
-      padding: PaddingStrategy = NoPadding)(implicit clock: Clock[F]): CircuitBreaker[F] = {
+      padding: PaddingStrategy = NoPadding
+    )(implicit clock: Clock[F]): CircuitBreaker[F] = {
 
       val atomic = Atomic.withPadding(Closed(0): State, padding)
       new CircuitBreaker[F](
