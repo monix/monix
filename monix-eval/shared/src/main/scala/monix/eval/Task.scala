@@ -921,8 +921,7 @@ sealed abstract class Task[+A] extends Serializable {
     * @param opts $optionsDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)
-    (implicit s: Scheduler, opts: Task.Options): Unit =
+  def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): Unit =
     Local.bindCurrentIf(opts.localContextPropagation) {
       TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb), isCancelable = false)
     }
@@ -1050,8 +1049,7 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  final def runSyncUnsafe(timeout: Duration = Duration.Inf)
-    (implicit s: Scheduler, permit: CanBlock): A = {
+  final def runSyncUnsafe(timeout: Duration = Duration.Inf)(implicit s: Scheduler, permit: CanBlock): A = {
     /*_*/
     TaskRunSyncUnsafe(this, timeout, s, defaultOptions)
     /*_*/
@@ -1080,8 +1078,8 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  final def runSyncUnsafeOpt(timeout: Duration = Duration.Inf)
-    (implicit s: Scheduler, opts: Options, permit: CanBlock): A = {
+  final def runSyncUnsafeOpt(
+    timeout: Duration = Duration.Inf)(implicit s: Scheduler, opts: Options, permit: CanBlock): A = {
     /*_*/
     Local.bindCurrentIf(opts.localContextPropagation) {
       TaskRunSyncUnsafe(this, timeout, s, opts)
@@ -1734,7 +1732,9 @@ sealed abstract class Task[+A] extends Serializable {
     * obviously nothing gets executed at this point.
     */
   final def foreachL(f: A => Unit): Task[Unit] =
-    this.map { a => f(a); () }
+    this.map { a =>
+      f(a); ()
+    }
 
   /** Triggers the evaluation of the source, executing the given
     * function for the generated element.
@@ -1919,9 +1919,10 @@ sealed abstract class Task[+A] extends Serializable {
     * will be `maxRetries + 1`.
     */
   final def onErrorRestart(maxRetries: Long): Task[A] =
-    this.onErrorHandleWith(ex =>
-      if (maxRetries > 0) this.onErrorRestart(maxRetries-1)
-      else raiseError(ex))
+    this.onErrorHandleWith(
+      ex =>
+        if (maxRetries > 0) this.onErrorRestart(maxRetries - 1)
+        else raiseError(ex))
 
   /** Creates a new task that in case of error will retry executing the
     * source again and again, until it succeeds, or until the given
@@ -2008,7 +2009,7 @@ sealed abstract class Task[+A] extends Serializable {
     *        the next task
     */
   final def onErrorRestartLoop[S, B >: A](initial: S)(f: (Throwable, S, S => Task[B]) => Task[B]): Task[B] =
-    onErrorHandleWith(err => f(err, initial, state => (this : Task[B]).onErrorRestartLoop(state)(f)))
+    onErrorHandleWith(err => f(err, initial, state => (this: Task[B]).onErrorRestartLoop(state)(f)))
 
   /** Creates a new task that will handle any matching throwable that
     * this task might emit.
@@ -2087,7 +2088,7 @@ sealed abstract class Task[+A] extends Serializable {
     * }}}
     */
   final def to[F[_]](implicit F: TaskLift[F]): F[A @uV] =
-    F.taskLift(this)
+    F(this)
 
   /** Converts the source `Task` to any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]].
@@ -2232,7 +2233,7 @@ sealed abstract class Task[+A] extends Serializable {
   final def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
     timeoutToL(now(after), backup)
 
-   /** Returns a Task that mirrors the source Task but that triggers a
+  /** Returns a Task that mirrors the source Task but that triggers a
     * `TimeoutException` in case the given duration passes without the
     * task emitting any item.
     *
@@ -2415,8 +2416,8 @@ sealed abstract class Task[+A] extends Serializable {
   final def timed: Task[(FiniteDuration, A)] =
     for {
       start <- Task.clock.monotonic(NANOSECONDS)
-      a     <- this
-      end   <- Task.clock.monotonic(NANOSECONDS)
+      a <- this
+      end <- Task.clock.monotonic(NANOSECONDS)
     } yield (FiniteDuration(end - start, NANOSECONDS), a)
 }
 
@@ -3179,7 +3180,9 @@ object Task extends TaskInstancesLevel1 {
     * want to fine tune the cancelation boundaries.
     */
   val cancelBoundary: Task[Unit] =
-    Task.Async { (ctx, cb) => if (!ctx.connection.isCanceled) cb.onSuccess(()) }
+    Task.Async { (ctx, cb) =>
+      if (!ctx.connection.isCanceled) cb.onSuccess(())
+    }
 
   /** Polymorphic `Task` builder that is able to describe asynchronous
     * tasks depending on the type of the given callback.
@@ -3440,8 +3443,7 @@ object Task extends TaskInstancesLevel1 {
     *
     *  It's a simple version of [[traverse]].
     */
-  def sequence[A, M[X] <: Iterable[X]](in: M[Task[A]])
-    (implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
+  def sequence[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
     TaskSequence.list(in)(bf)
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`, sequentially
@@ -3450,8 +3452,8 @@ object Task extends TaskInstancesLevel1 {
     *
     *  It's a generalized version of [[sequence]].
     */
-  def traverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])
-    (implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
+  def traverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(
+    implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     TaskSequence.traverse(in, f)(bf)
 
   /** Executes the given sequence of tasks in parallel, non-deterministically
@@ -3480,8 +3482,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * $parallelismNote
     */
-  def gather[A, M[X] <: Iterable[X]](in: M[Task[A]])
-    (implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
+  def gather[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
     TaskGather[A, M](in, () => newBuilder(bf, in))
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`,
@@ -3505,8 +3506,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * $parallelismNote
     */
-  def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])
-    (implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
+  def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     Task.eval(in.map(f)).flatMap(col => TaskGather[B, M](col, () => newBuilder(bf, in)))
 
   /** Processes the given collection of tasks in parallel and
@@ -3635,8 +3635,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[Task.parMap3]] for parallel processing.
     */
-  def map3[A1, A2, A3, R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])
-    (f: (A1, A2, A3) => R): Task[R] = {
+  def map3[A1, A2, A3, R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])(f: (A1, A2, A3) => R): Task[R] = {
 
     for (a1 <- fa1; a2 <- fa2; a3 <- fa3)
       yield f(a1, a2, a3)
@@ -3671,9 +3670,8 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[Task.parMap4]] for parallel processing.
     */
-  def map4[A1, A2, A3, A4, R]
-    (fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])
-    (f: (A1, A2, A3, A4) => R): Task[R] = {
+  def map4[A1, A2, A3, A4, R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])(
+    f: (A1, A2, A3, A4) => R): Task[R] = {
 
     for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4)
       yield f(a1, a2, a3, a4)
@@ -3709,9 +3707,8 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[Task.parMap5]] for parallel processing.
     */
-  def map5[A1, A2, A3, A4, A5, R]
-    (fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])
-    (f: (A1, A2, A3, A4, A5) => R): Task[R] = {
+  def map5[A1, A2, A3, A4, A5, R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])(
+    f: (A1, A2, A3, A4, A5) => R): Task[R] = {
 
     for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4; a5 <- fa5)
       yield f(a1, a2, a3, a4, a5)
@@ -3748,9 +3745,13 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[Task.parMap6]] for parallel processing.
     */
-  def map6[A1, A2, A3, A4, A5, A6, R]
-    (fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6])
-    (f: (A1, A2, A3, A4, A5, A6) => R): Task[R] = {
+  def map6[A1, A2, A3, A4, A5, A6, R](
+    fa1: Task[A1],
+    fa2: Task[A2],
+    fa3: Task[A3],
+    fa4: Task[A4],
+    fa5: Task[A5],
+    fa6: Task[A6])(f: (A1, A2, A3, A4, A5, A6) => R): Task[R] = {
 
     for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4; a5 <- fa5; a6 <- fa6)
       yield f(a1, a2, a3, a4, a5, a6)
@@ -3786,7 +3787,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[Task.map2]] for sequential processing.
     */
-  def parMap2[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
+  def parMap2[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] =
     Task.mapBoth(fa1, fa2)(f)
 
   /** Pairs 3 `Task` values, applying the given mapping function,
@@ -3820,9 +3821,9 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[Task.map3]] for sequential processing.
     */
-  def parMap3[A1,A2,A3,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])(f: (A1,A2,A3) => R): Task[R] = {
+  def parMap3[A1, A2, A3, R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])(f: (A1, A2, A3) => R): Task[R] = {
     val fa12 = parZip2(fa1, fa2)
-    parMap2(fa12, fa3) { case ((a1,a2), a3) => f(a1,a2,a3) }
+    parMap2(fa12, fa3) { case ((a1, a2), a3) => f(a1, a2, a3) }
   }
 
   /** Pairs 4 `Task` values, applying the given mapping function,
@@ -3857,9 +3858,10 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[Task.map4]] for sequential processing.
     */
-  def parMap4[A1,A2,A3,A4,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])(f: (A1,A2,A3,A4) => R): Task[R] = {
+  def parMap4[A1, A2, A3, A4, R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])(
+    f: (A1, A2, A3, A4) => R): Task[R] = {
     val fa123 = parZip3(fa1, fa2, fa3)
-    parMap2(fa123, fa4) { case ((a1,a2,a3), a4) => f(a1,a2,a3,a4) }
+    parMap2(fa123, fa4) { case ((a1, a2, a3), a4) => f(a1, a2, a3, a4) }
   }
 
   /** Pairs 5 `Task` values, applying the given mapping function,
@@ -3895,9 +3897,10 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[Task.map5]] for sequential processing.
     */
-  def parMap5[A1,A2,A3,A4,A5,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])(f: (A1,A2,A3,A4,A5) => R): Task[R] = {
+  def parMap5[A1, A2, A3, A4, A5, R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])(
+    f: (A1, A2, A3, A4, A5) => R): Task[R] = {
     val fa1234 = parZip4(fa1, fa2, fa3, fa4)
-    parMap2(fa1234, fa5) { case ((a1,a2,a3,a4), a5) => f(a1,a2,a3,a4,a5) }
+    parMap2(fa1234, fa5) { case ((a1, a2, a3, a4), a5) => f(a1, a2, a3, a4, a5) }
   }
 
   /** Pairs 6 `Task` values, applying the given mapping function,
@@ -3934,30 +3937,47 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[Task.map6]] for sequential processing.
     */
-  def parMap6[A1,A2,A3,A4,A5,A6,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Task[R] = {
+  def parMap6[A1, A2, A3, A4, A5, A6, R](
+    fa1: Task[A1],
+    fa2: Task[A2],
+    fa3: Task[A3],
+    fa4: Task[A4],
+    fa5: Task[A5],
+    fa6: Task[A6])(f: (A1, A2, A3, A4, A5, A6) => R): Task[R] = {
     val fa12345 = parZip5(fa1, fa2, fa3, fa4, fa5)
-    parMap2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
+    parMap2(fa12345, fa6) { case ((a1, a2, a3, a4, a5), a6) => f(a1, a2, a3, a4, a5, a6) }
   }
 
   /** Pairs two [[Task]] instances using [[parMap2]]. */
-  def parZip2[A1,A2,R](fa1: Task[A1], fa2: Task[A2]): Task[(A1,A2)] =
-    Task.mapBoth(fa1, fa2)((_,_))
+  def parZip2[A1, A2, R](fa1: Task[A1], fa2: Task[A2]): Task[(A1, A2)] =
+    Task.mapBoth(fa1, fa2)((_, _))
 
   /** Pairs three [[Task]] instances using [[parMap3]]. */
-  def parZip3[A1,A2,A3](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3]): Task[(A1,A2,A3)] =
-    parMap3(fa1,fa2,fa3)((a1,a2,a3) => (a1,a2,a3))
+  def parZip3[A1, A2, A3](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3]): Task[(A1, A2, A3)] =
+    parMap3(fa1, fa2, fa3)((a1, a2, a3) => (a1, a2, a3))
 
   /** Pairs four [[Task]] instances using [[parMap4]]. */
-  def parZip4[A1,A2,A3,A4](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4]): Task[(A1,A2,A3,A4)] =
-    parMap4(fa1,fa2,fa3,fa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
+  def parZip4[A1, A2, A3, A4](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4]): Task[(A1, A2, A3, A4)] =
+    parMap4(fa1, fa2, fa3, fa4)((a1, a2, a3, a4) => (a1, a2, a3, a4))
 
   /** Pairs five [[Task]] instances using [[parMap5]]. */
-  def parZip5[A1,A2,A3,A4,A5](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5]): Task[(A1,A2,A3,A4,A5)] =
-    parMap5(fa1,fa2,fa3,fa4,fa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
+  def parZip5[A1, A2, A3, A4, A5](
+    fa1: Task[A1],
+    fa2: Task[A2],
+    fa3: Task[A3],
+    fa4: Task[A4],
+    fa5: Task[A5]): Task[(A1, A2, A3, A4, A5)] =
+    parMap5(fa1, fa2, fa3, fa4, fa5)((a1, a2, a3, a4, a5) => (a1, a2, a3, a4, a5))
 
   /** Pairs six [[Task]] instances using [[parMap6]]. */
-  def parZip6[A1,A2,A3,A4,A5,A6](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6]): Task[(A1,A2,A3,A4,A5,A6)] =
-    parMap6(fa1,fa2,fa3,fa4,fa5,fa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
+  def parZip6[A1, A2, A3, A4, A5, A6](
+    fa1: Task[A1],
+    fa2: Task[A2],
+    fa3: Task[A3],
+    fa4: Task[A4],
+    fa5: Task[A5],
+    fa6: Task[A6]): Task[(A1, A2, A3, A4, A5, A6)] =
+    parMap6(fa1, fa2, fa3, fa4, fa5, fa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
 
   /**
     * Generates `cats.FunctionK` values for converting from `Task` to
@@ -3965,11 +3985,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html]].
     */
-  def toK[F[_]](implicit F: TaskLift[F]): FunctionK[Task, F] =
-    new FunctionK[Task, F] {
-      def apply[A](fa: Task[A]): F[A] =
-        F.taskLift(fa)
-    }
+  def to[F[_]](implicit F: TaskLift[F]): FunctionK[Task, F] = F
 
   /**
     * Generates `cats.FunctionK` values for converting from `Task` to
@@ -3977,14 +3993,11 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html]].
     *
-    * Prefer to use [[toK]], this alternative is provided in order to force
+    * Prefer to use [[to]], this alternative is provided in order to force
     * the usage of `cats.effect.Async`, since [[TaskLift]] is lawless.
     */
-  def toAsyncK[F[_]](implicit F: cats.effect.Async[F], eff: cats.effect.Effect[Task]): FunctionK[Task, F] =
-    new FunctionK[Task, F] {
-      def apply[A](fa: Task[A]): F[A] =
-        TaskLift.toAsync[F].taskLift(fa)
-    }
+  def toAsync[F[_]](implicit F: cats.effect.Async[F], eff: cats.effect.Effect[Task]): FunctionK[Task, F] =
+    TaskLift.toAsync[F]
 
   /**
     * Generates `cats.FunctionK` values for converting from `Task` to
@@ -3992,14 +4005,13 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html]].
     *
-    * Prefer to use [[toK]], this alternative is provided in order to force
+    * Prefer to use [[to]], this alternative is provided in order to force
     * the usage of `cats.effect.Concurrent`, since [[TaskLift]] is lawless.
     */
-  def toConcurrentK[F[_]](implicit F: cats.effect.Concurrent[F], eff: cats.effect.ConcurrentEffect[Task]): FunctionK[Task, F] =
-    new FunctionK[Task, F] {
-      def apply[A](fa: Task[A]): F[A] =
-        TaskLift.toConcurrent[F].taskLift(fa)
-    }
+  def toConcurrent[F[_]](
+    implicit F: cats.effect.Concurrent[F],
+    eff: cats.effect.ConcurrentEffect[Task]): FunctionK[Task, F] =
+    TaskLift.toConcurrent[F]
 
   /** Returns the current [[Task.Options]] configuration, which determine the
     * task's run-loop behavior.
@@ -4007,16 +4019,12 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.executeWithOptions]]
     */
   val readOptions: Task[Options] =
-    Task.Async(
-      (ctx, cb) => cb.onSuccess(ctx.options),
-      trampolineBefore = false,
-      trampolineAfter = true)
+    Task.Async((ctx, cb) => cb.onSuccess(ctx.options), trampolineBefore = false, trampolineAfter = true)
 
   /**
     * Deprecated operations, described as extension methods.
     */
-  implicit final class DeprecatedExtensions[+A](val self: Task[A])
-    extends AnyVal with TaskDeprecated.Extensions[A]
+  implicit final class DeprecatedExtensions[+A](val self: Task[A]) extends AnyVal with TaskDeprecated.Extensions[A]
 
   /** Set of options for customizing the task's behavior.
     *
@@ -4032,9 +4040,7 @@ object Task extends TaskInstancesLevel1 {
     *        variables to be propagated on async boundaries.
     *        Defaults to `false`.
     */
-  final case class Options(
-    autoCancelableRunLoops: Boolean,
-    localContextPropagation: Boolean) {
+  final case class Options(autoCancelableRunLoops: Boolean, localContextPropagation: Boolean) {
 
     /** Creates a new set of options from the source, but with
       * the [[autoCancelableRunLoops]] value set to `true`.
@@ -4113,11 +4119,10 @@ object Task extends TaskInstancesLevel1 {
       * Read about the
       * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type Technique]].
       */
-    private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true)
-      extends AnyVal {
+    private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true) extends AnyVal {
 
-      def apply[CancelationToken](register: (Scheduler, Callback[Throwable, A]) => CancelationToken)
-        (implicit B: AsyncBuilder[CancelationToken]): Task[A] =
+      def apply[CancelationToken](register: (Scheduler, Callback[Throwable, A]) => CancelationToken)(
+        implicit B: AsyncBuilder[CancelationToken]): Task[A] =
         B.create(register)
     }
 
@@ -4209,7 +4214,7 @@ object Task extends TaskInstancesLevel1 {
 
     def shouldCancel: Boolean =
       options.autoCancelableRunLoops &&
-      connection.isCanceled
+        connection.isCanceled
 
     def executionModel: ExecutionModel =
       schedulerRef.executionModel
@@ -4241,7 +4246,8 @@ object Task extends TaskInstancesLevel1 {
   /** [[Task]] state describing an immediate synchronous value. */
   private[eval] final case class Now[A](value: A) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
+    override def runAsyncOptF(
+      cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
       if (s.executionModel != AlwaysAsyncExecution) {
         Callback.callSuccess(cb, value)
         Task.unit
@@ -4263,7 +4269,8 @@ object Task extends TaskInstancesLevel1 {
       }
     }
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Unit = {
+    override def runAsyncUncancelableOpt(
+      cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Unit = {
       if (s.executionModel != AlwaysAsyncExecution)
         Callback.callSuccess(cb, value)
       else
@@ -4277,7 +4284,8 @@ object Task extends TaskInstancesLevel1 {
   /** [[Task]] state describing an immediate exception. */
   private[eval] final case class Error[A](e: Throwable) extends Task[A] {
     // Optimization to avoid the run-loop
-    override def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
+    override def runAsyncOptF(
+      cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
       if (s.executionModel != AlwaysAsyncExecution) {
         Callback.callError(cb, e)
         Task.unit
@@ -4302,7 +4310,8 @@ object Task extends TaskInstancesLevel1 {
     override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
       s.reportFailure(e)
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Unit = {
+    override def runAsyncUncancelableOpt(
+      cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Unit = {
       if (s.executionModel != AlwaysAsyncExecution)
         Callback.callError(cb, e)
       else
@@ -4311,16 +4320,13 @@ object Task extends TaskInstancesLevel1 {
   }
 
   /** [[Task]] state describing an immediate synchronous value. */
-  private[eval] final case class Eval[A](thunk: () => A)
-    extends Task[A]
+  private[eval] final case class Eval[A](thunk: () => A) extends Task[A]
 
   /** Internal state, the result of [[Task.defer]] */
-  private[eval] final case class Suspend[+A](thunk: () => Task[A])
-    extends Task[A]
+  private[eval] final case class Suspend[+A](thunk: () => Task[A]) extends Task[A]
 
   /** Internal [[Task]] state that is the result of applying `flatMap`. */
-  private[eval] final case class FlatMap[A, B](source: Task[A], f: A => Task[B])
-    extends Task[B]
+  private[eval] final case class FlatMap[A, B](source: Task[A], f: A => Task[B]) extends Task[B]
 
   /** Internal [[Coeval]] state that is the result of applying `map`. */
   private[eval] final case class Map[S, +A](source: Task[S], f: S => A, index: Int)
@@ -4399,7 +4405,7 @@ object Task extends TaskInstancesLevel1 {
 
   /** Internal, reusable reference. */
   private[this] val neverRef: Async[Nothing] =
-    Async((_,_) => (), trampolineBefore = false, trampolineAfter = false)
+    Async((_, _) => (), trampolineBefore = false, trampolineAfter = false)
 
   /** Internal, reusable reference. */
   private val nowConstructor: Any => Task[Nothing] =
@@ -4418,8 +4424,7 @@ object Task extends TaskInstancesLevel1 {
   }
 
   /** Used as optimization by [[Task.doOnFinish]]. */
-  private final class DoOnFinish[A](f: Option[Throwable] => Task[Unit])
-    extends StackFrame[A, Task[A]] {
+  private final class DoOnFinish[A](f: Option[Throwable] => Task[Unit]) extends StackFrame[A, Task[A]] {
 
     def apply(a: A): Task[A] =
       f(None).map(_ => a)
@@ -4428,9 +4433,7 @@ object Task extends TaskInstancesLevel1 {
   }
 
   /** Used as optimization by [[Task.redeem]]. */
-  private final class Redeem[A, B](fe: Throwable => B, fs: A => B)
-    extends StackFrame[A, Task[B]] {
-
+  private final class Redeem[A, B](fe: Throwable => B, fs: A => B) extends StackFrame[A, Task[B]] {
     def apply(a: A): Task[B] = new Now(fs(a))
     def recover(e: Throwable): Task[B] = new Now(fe(e))
   }
@@ -4539,7 +4542,9 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     * @param s is a [[monix.execution.Scheduler Scheduler]] that needs
     *        to be available in scope
     */
-  implicit def catsEffect(implicit s: Scheduler, opts: Task.Options = Task.defaultOptions): CatsConcurrentEffectForTask =
+  implicit def catsEffect(
+    implicit s: Scheduler,
+    opts: Task.Options = Task.defaultOptions): CatsConcurrentEffectForTask =
     new CatsConcurrentEffectForTask
 
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,

@@ -21,7 +21,7 @@ import cats.effect._
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
-import cats.{Eval, effect}
+import cats.{effect, Eval}
 import monix.catnap.SchedulerEffect
 import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
@@ -379,7 +379,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   test("Task.toK[IO]") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }
-    val io = Task.toK[IO].apply(task)
+    val io = Task.to[IO].apply(task)
 
     assertEquals(io.unsafeRunSync(), 1)
     assertEquals(io.unsafeRunSync(), 2)
@@ -388,7 +388,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   test("Task.toAsyncK[IO]") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }
-    val io = Task.toAsyncK[IO].apply(task)
+    val io = Task.toAsync[IO].apply(task)
 
     assertEquals(io.unsafeRunSync(), 1)
     assertEquals(io.unsafeRunSync(), 2)
@@ -398,7 +398,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val cs = SchedulerEffect.contextShift[IO](s)
     var effect = 0
     val task = Task { effect += 1; effect }
-    val io = Task.toConcurrentK[IO].apply(task)
+    val io = Task.toConcurrent[IO].apply(task)
 
     assertEquals(io.unsafeRunSync(), 1)
     assertEquals(io.unsafeRunSync(), 2)
@@ -427,12 +427,12 @@ object TaskConversionsSuite extends BaseTestSuite {
       CIO(IO.pure(x))
     override def liftIO[A](ioa: IO[A]): CIO[A] =
       CIO(ioa)
-    override def bracketCase[A, B](acquire: CIO[A])(use: A => CIO[B])(release: (A, ExitCase[Throwable]) => CIO[Unit]): CIO[B] =
+    override def bracketCase[A, B](acquire: CIO[A])(use: A => CIO[B])(
+      release: (A, ExitCase[Throwable]) => CIO[Unit]): CIO[B] =
       CIO(acquire.io.bracketCase(a => use(a).io)((a, e) => release(a, e).io))
   }
 
-  class CustomConcurrentEffect(implicit cs: ContextShift[IO])
-    extends CustomEffect with ConcurrentEffect[CIO] {
+  class CustomConcurrentEffect(implicit cs: ContextShift[IO]) extends CustomEffect with ConcurrentEffect[CIO] {
 
     override def runCancelable[A](fa: CIO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[CIO]] =
       fa.io.runCancelable(cb).map(CIO(_))

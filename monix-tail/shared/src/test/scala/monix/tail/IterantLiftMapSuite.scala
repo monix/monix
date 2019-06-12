@@ -31,7 +31,7 @@ object IterantLiftMapSuite extends BaseTestSuite {
 
       val r = source.liftMap(new (Coeval ~> Task) {
         def apply[A](fa: Coeval[A]): Task[A] =
-          fa.task
+          fa.to[Task]
       })
 
       r <-> expected

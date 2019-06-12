@@ -18,6 +18,7 @@
 package monix.eval
 
 import cats.Eval
+import cats.arrow.FunctionK
 import cats.effect._
 
 import scala.annotation.implicitNotFound
@@ -25,17 +26,18 @@ import scala.annotation.implicitNotFound
 /**
   * A lawless type class that specifies conversions from `Coeval`
   * to similar data types (i.e. pure, synchronous).
+  *
+  * This is nothing more than a
+  * [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]].
   */
-@implicitNotFound("""Cannot find implicit value for CoevalLift[${F}].
-Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait CoevalLift[F[_]] {
+@implicitNotFound("""Cannot find implicit value for CoevalLift[${F}].""")
+trait CoevalLift[F[_]] extends FunctionK[Coeval, F] {
   /**
     * Converts `Coeval[A]` into `F[A]`.
     *
-    * The operation should preserve referential transparency.
+    * The operation should preserve laziness if possible.
     */
-  def coevalLift[A](coeval: Coeval[A]): F[A]
+  def apply[A](coeval: Coeval[A]): F[A]
 }
 
 object CoevalLift extends CoevalLiftImplicits0 {
@@ -49,7 +51,8 @@ object CoevalLift extends CoevalLiftImplicits0 {
     */
   implicit val toCoeval: CoevalLift[Coeval] =
     new CoevalLift[Coeval] {
-      def coevalLift[A](coeval: Coeval[A]): Coeval[A] = coeval
+      def apply[A](coeval: Coeval[A]): Coeval[A] =
+        coeval
     }
 
   /**
@@ -57,7 +60,7 @@ object CoevalLift extends CoevalLiftImplicits0 {
     */
   implicit val toTask: CoevalLift[Task] =
     new CoevalLift[Task] {
-      def coevalLift[A](coeval: Coeval[A]): Task[A] =
+      def apply[A](coeval: Coeval[A]): Task[A] =
         Task.coeval(coeval)
     }
 
@@ -66,7 +69,7 @@ object CoevalLift extends CoevalLiftImplicits0 {
     */
   implicit val toEval: CoevalLift[Eval] =
     new CoevalLift[Eval] {
-      def coevalLift[A](coeval: Coeval[A]): Eval[A] =
+      def apply[A](coeval: Coeval[A]): Eval[A] =
         coeval match {
           case Coeval.Now(value) => Eval.now(value)
           case Coeval.Error(e) => Eval.always(throw e)
@@ -74,6 +77,15 @@ object CoevalLift extends CoevalLiftImplicits0 {
           case other => Eval.always(other.value())
         }
     }
+
+  /**
+    * Deprecated method, which happened on extending `FunctionK`.
+    */
+  implicit class Deprecated[F[_]](val inst: CoevalLift[F]) {
+    @deprecated("Switch to FunctorK.apply", since = "3.0.0-RC3")
+    def coevalLift[A](coeval: Coeval[A]): F[A] =
+      inst(coeval)
+  }
 }
 
 private[eval] abstract class CoevalLiftImplicits0 {
@@ -83,7 +95,7 @@ private[eval] abstract class CoevalLiftImplicits0 {
     */
   implicit def toSync[F[_]](implicit F: Sync[F]): CoevalLift[F] =
     new CoevalLift[F] {
-      def coevalLift[A](coeval: Coeval[A]): F[A] =
+      def apply[A](coeval: Coeval[A]): F[A] =
         coeval match {
           case Coeval.Now(a) => F.pure(a)
           case Coeval.Error(e) => F.raiseError(e)
