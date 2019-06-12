@@ -5,35 +5,35 @@ shared: &shared
   working_directory: ~/monix
   resource_class: medium
   steps:
+    - run:
+      name: Install dependencies
+      command: |
+        apt update && apt install -y curl
+        curl -L -o sbt-$SBT_VERSION.deb https://dl.bintray.com/sbt/debian/sbt-$SBT_VERSION.deb
+        dpkg -i sbt-$SBT_VERSION.deb
+        rm sbt-$SBT_VERSION.deb
+        apt-get update
+        apt-get install -y sbt python-pip git
+        curl -sL https://deb.nodesource.com/setup_10.x | bash -
+        apt-get install -y nodejs
+        apt-get clean && apt-get autoclean
+
+      - checkout
+      - restore_cache:
+          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
+          key: monix-cache
+
       - run:
-        name: Install dependencies
-        command: |
-          apt update && apt install -y curl
-          curl -L -o sbt-$SBT_VERSION.deb https://dl.bintray.com/sbt/debian/sbt-$SBT_VERSION.deb
-          dpkg -i sbt-$SBT_VERSION.deb
-          rm sbt-$SBT_VERSION.deb
-          apt-get update
-          apt-get install -y sbt python-pip git
-          curl -sL https://deb.nodesource.com/setup_10.x | bash -
-          apt-get install -y nodejs
-          apt-get clean && apt-get autoclean
+          name: Compile and test project
+          working_directory: ~/monix
+          command: cat /dev/null | sbt -J-Xmx3584m -J-XX:MaxMetaspaceSize=512m ++$SCALA_VERSION $COMMAND
 
-        - checkout
-        - restore_cache:
-            # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
-            key: monix-cache
-
-        - run:
-            name: Compile and test project
-            working_directory: ~/monix
-            command: cat /dev/null | sbt -J-Xmx3584m -J-XX:MaxMetaspaceSize=512m ++$SCALA_VERSION $COMMAND
-
-        - save_cache:
-            key: monix-cache
-            paths:
-              - "~/.ivy2/cache"
-              - "~/.sbt"
-              - "~/.m2"
+      - save_cache:
+          key: monix-cache
+          paths:
+            - "~/.ivy2/cache"
+            - "~/.sbt"
+            - "~/.m2"
 
 jobs:
   java-8-scala-2.11-jvm:
