@@ -17,18 +17,16 @@
 
 package monix.eval
 
+import cats.Monoid
 import cats.arrow.FunctionK
 import cats.effect.{ExitCase, Sync, SyncIO}
 import cats.kernel.Semigroup
-import cats.{Eval, Monoid}
-import monix.eval.Coeval._
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal.{CoevalBracket, CoevalDeprecated, CoevalRunLoop, LazyVal, StackFrame}
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
 import monix.execution.internal.Platform.fusionMaxStackDepth
-
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -183,6 +181,8 @@ import scala.util.{Failure, Success, Try}
   *         a parameter.
   */
 sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
+  import monix.eval.Coeval._
+
   /** Evaluates the underlying computation and returns the result.
     *
     * NOTE: this can throw exceptions.
@@ -963,16 +963,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * Converts any value that has a [[CoevalLike]] instance into a `Coeval`.
     */
   def from[F[_], A](fa: F[A])(implicit F: CoevalLike[F]): Coeval[A] =
-    F.toCoeval(fa)
-
-  /**
-    * Converts a `cats.Eval` into a [[Coeval]].
-    */
-  def fromEval[A](a: Eval[A]): Coeval[A] =
-    a match {
-      case cats.Now(v) => Coeval.Now(v)
-      case other => Coeval.eval(other.value)
-    }
+    F(fa)
 
   /**
     * Converts a Scala `Try` into a [[Coeval]].
@@ -1240,7 +1231,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html]].
     */
-  def to[F[_]](implicit F: CoevalLift[F]): FunctionK[Coeval, F] = F
+  def toK[F[_]](implicit F: CoevalLift[F]): FunctionK[Coeval, F] = F
 
   /**
     * Generates `cats.FunctionK` values for converting from `Coeval` to
@@ -1248,10 +1239,10 @@ object Coeval extends CoevalInstancesLevel0 {
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html]].
     *
-    * Prefer to use [[to]], this alternative is provided in order to force
+    * Prefer to use [[toK]], this alternative is provided in order to force
     * the usage of `cats.effect.Sync`, since [[CoevalLift]] is lawless.
     */
-  def toSync[F[_]](implicit F: Sync[F]): FunctionK[Coeval, F] =
+  def toSyncK[F[_]](implicit F: Sync[F]): FunctionK[Coeval, F] =
     CoevalLift.toSync[F]
 
   /**
@@ -1419,7 +1410,7 @@ object Coeval extends CoevalInstancesLevel0 {
     new CatsMonadToMonoid[Coeval, A]()(CatsSyncForCoeval, A)
 }
 
-private[eval] abstract class CoevalInstancesLevel0 {
+private[eval] abstract class CoevalInstancesLevel0 extends CoevalDeprecated.Companion {
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
     * then this provides the evidence that `Coeval[A]` also has
     * a `Semigroup[Coeval[A]]` implementation.
@@ -1428,5 +1419,5 @@ private[eval] abstract class CoevalInstancesLevel0 {
     * in order to avoid conflicts.
     */
   implicit def catsSemigroup[A](implicit A: Semigroup[A]): Semigroup[Coeval[A]] =
-    new CatsMonadToSemigroup[Coeval, A]()(catsSync, A)
+    new CatsMonadToSemigroup[Coeval, A]()(Coeval.catsSync, A)
 }

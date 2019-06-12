@@ -17,8 +17,9 @@
 
 package monix.eval
 
+import cats.arrow.FunctionK
 import cats.{Comonad, Eval}
-import cats.effect.{ConcurrentEffect, Effect, IO, SyncIO}
+import cats.effect.{Concurrent, ConcurrentEffect, Effect, IO, SyncIO}
 import monix.catnap.FutureLift
 import monix.execution.CancelablePromise
 
@@ -34,19 +35,19 @@ import scala.util.Try
   *   import cats.Eval
   *
   *   val source0 = Eval.always(1 + 1)
-  *   val task0 = TaskLike[Eval].toTask(source0)
+  *   val task0 = TaskLike[Eval].apply(source0)
   *
   *   // Conversion from Future
   *   import scala.concurrent.Future
   *
   *   val source1 = Future.successful(1 + 1)
-  *   val task1 = TaskLike[Future].toTask(source1)
+  *   val task1 = TaskLike[Future].apply(source1)
   *
   *   // Conversion from IO
   *   import cats.effect.IO
   *
   *   val source2 = IO(1 + 1)
-  *   val task2 = TaskLike[IO].toTask(source2)
+  *   val task2 = TaskLike[IO].apply(source2)
   * }}}
   *
   * This is an alternative to usage of `cats.effect.Effect`
@@ -56,13 +57,13 @@ import scala.util.Try
 @implicitNotFound("""Cannot find implicit value for TaskLike[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait TaskLike[F[_]] {
+trait TaskLike[F[_]] extends FunctionK[F, Task] {
   /**
     * Converts from `F[A]` to `Task[A]`, preserving referential
     * transparency if `F[_]` is a pure data type and preserving
     * interruptibility if the source is cancelable.
     */
-  def toTask[A](fa: F[A]): Task[A]
+  def apply[A](fa: F[A]): Task[A]
 }
 
 object TaskLike extends TaskLikeImplicits0 {
@@ -76,7 +77,7 @@ object TaskLike extends TaskLikeImplicits0 {
     */
   implicit val fromTask: TaskLike[Task] =
     new TaskLike[Task] {
-      def toTask[A](fa: Task[A]): Task[A] = fa
+      def apply[A](fa: Task[A]): Task[A] = fa
     }
 
   /**
@@ -84,7 +85,7 @@ object TaskLike extends TaskLikeImplicits0 {
     */
   implicit val fromFuture: TaskLike[Future] =
     new TaskLike[Future] {
-      def toTask[A](fa: Future[A]): Task[A] =
+      def apply[A](fa: Future[A]): Task[A] =
         Task.fromFuture(fa)
     }
 
@@ -93,7 +94,7 @@ object TaskLike extends TaskLikeImplicits0 {
     */
   implicit val fromCoeval: TaskLike[Coeval] =
     new TaskLike[Coeval] {
-      def toTask[A](fa: Coeval[A]): Task[A] =
+      def apply[A](fa: Coeval[A]): Task[A] =
         Task.coeval(fa)
     }
 
@@ -102,8 +103,8 @@ object TaskLike extends TaskLikeImplicits0 {
     */
   implicit val fromEval: TaskLike[Eval] =
     new TaskLike[Eval] {
-      def toTask[A](fa: Eval[A]): Task[A] =
-        Task.fromEval(fa)
+      def apply[A](fa: Eval[A]): Task[A] =
+        Coeval.from(fa).to[Task]
     }
 
   /**
@@ -112,8 +113,8 @@ object TaskLike extends TaskLikeImplicits0 {
     */
   implicit val fromIO: TaskLike[IO] =
     new TaskLike[IO] {
-      def toTask[A](fa: IO[A]): Task[A] =
-        Task.fromIO(fa)
+      def apply[A](fa: IO[A]): Task[A] =
+        Concurrent.liftIO[Task, A](fa)
     }
 
   /**
@@ -121,8 +122,8 @@ object TaskLike extends TaskLikeImplicits0 {
     */
   implicit val fromSyncIO: TaskLike[SyncIO] =
     new TaskLike[SyncIO] {
-      def toTask[A](fa: SyncIO[A]): Task[A] =
-        Task.fromIO(fa.toIO)
+      def apply[A](fa: SyncIO[A]): Task[A] =
+        Concurrent.liftIO[Task, A](fa.toIO)
     }
 
   /**
@@ -130,7 +131,7 @@ object TaskLike extends TaskLikeImplicits0 {
     */
   implicit val fromTry: TaskLike[Try] =
     new TaskLike[Try] {
-      def toTask[A](fa: Try[A]): Task[A] =
+      def apply[A](fa: Try[A]): Task[A] =
         Task.fromTry(fa)
     }
 
@@ -139,7 +140,7 @@ object TaskLike extends TaskLikeImplicits0 {
     */
   implicit val fromCancelablePromise: TaskLike[CancelablePromise] =
     new TaskLike[CancelablePromise] {
-      def toTask[A](p: CancelablePromise[A]): Task[A] =
+      def apply[A](p: CancelablePromise[A]): Task[A] =
         Task.fromCancelablePromise(p)
     }
 
@@ -149,7 +150,7 @@ object TaskLike extends TaskLikeImplicits0 {
     */
   implicit val fromFunction0: TaskLike[Function0] =
     new TaskLike[Function0] {
-      def toTask[A](thunk: () => A): Task[A] =
+      def apply[A](thunk: () => A): Task[A] =
         Task.Eval(thunk)
     }
 
@@ -158,9 +159,18 @@ object TaskLike extends TaskLikeImplicits0 {
     */
   implicit def fromEither[E <: Throwable]: TaskLike[Either[E, ?]] =
     new TaskLike[Either[E, ?]] {
-      def toTask[A](fa: Either[E, A]): Task[A] =
+      def apply[A](fa: Either[E, A]): Task[A] =
         Task.fromEither(fa)
     }
+
+  /**
+    * Deprecated method, which happened on extending `FunctionK`.
+    */
+  implicit class Deprecated[F[_]](val inst: TaskLike[F]) {
+    @deprecated("Switch to FunctorK.apply", since = "3.0.0-RC3")
+    def toTask[A](task: F[A]): Task[A] =
+      inst(task)
+  }
 }
 
 private[eval] abstract class TaskLikeImplicits0 extends TaskLikeImplicits1 {
@@ -170,7 +180,7 @@ private[eval] abstract class TaskLikeImplicits0 extends TaskLikeImplicits1 {
     */
   implicit def fromConcurrentEffect[F[_]](implicit F: ConcurrentEffect[F]): TaskLike[F] =
     new TaskLike[F] {
-      def toTask[A](fa: F[A]): Task[A] =
+      def apply[A](fa: F[A]): Task[A] =
         Task.fromConcurrentEffect(fa)
     }
 }
@@ -182,7 +192,7 @@ private[eval] abstract class TaskLikeImplicits1 extends TaskLikeImplicits2 {
     */
   implicit def fromEffect[F[_]](implicit F: Effect[F]): TaskLike[F] =
     new TaskLike[F] {
-      def toTask[A](fa: F[A]): Task[A] =
+      def apply[A](fa: F[A]): Task[A] =
         Task.fromEffect(fa)
     }
 }
@@ -193,7 +203,7 @@ private[eval] abstract class TaskLikeImplicits2 extends TaskLikeImplicits3 {
     */
   implicit def fromComonad[F[_]](implicit F: Comonad[F]): TaskLike[F] =
     new TaskLike[F] {
-      def toTask[A](fa: F[A]): Task[A] =
+      def apply[A](fa: F[A]): Task[A] =
         Task(F.extract(fa))
     }
 }
@@ -204,7 +214,7 @@ private[eval] abstract class TaskLikeImplicits3 {
     */
   implicit def fromAnyFutureViaLift[F[_]](implicit F: FutureLift[Task, F]): TaskLike[F] =
     new TaskLike[F] {
-      def toTask[A](fa: F[A]): Task[A] =
+      def apply[A](fa: F[A]): Task[A] =
         Task.fromFutureLike(Task.now(fa))
     }
 }

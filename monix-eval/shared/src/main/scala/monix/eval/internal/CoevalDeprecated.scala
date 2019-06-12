@@ -31,7 +31,7 @@ private[eval] object CoevalDeprecated {
     /**
       * DEPRECATED — Converts the source [[Coeval]] into a `cats.effect.IO`.
       *
-      * Please switch to [[Coeval.to]]:
+      * Please switch to [[Coeval.toK]]:
       * {{{
       *   import cats.effect.IO
       *   import monix.eval._
@@ -48,7 +48,7 @@ private[eval] object CoevalDeprecated {
     /**
       * DEPRECATED — Converts the source [[Coeval]] into a `cats.Eval`.
       *
-      * Please switch to [[Coeval.to]]:
+      * Please switch to [[Coeval.toK]]:
       * {{{
       *   import cats.Eval
       *   import monix.eval._
@@ -65,7 +65,7 @@ private[eval] object CoevalDeprecated {
     /**
       * DEPRECATED — Converts the source [[Coeval]] into a [[Task]].
       *
-      * Please switch to [[Coeval.to]]:
+      * Please switch to [[Coeval.toK]]:
       * {{{
       *   import monix.eval._
       *
@@ -77,5 +77,17 @@ private[eval] object CoevalDeprecated {
     @deprecated("Use value.to[Task]", "3.0.0")
     final def task: Task[A] =
       self.to[Task]
+  }
+
+  /**
+    * Deprecated builders.
+    */
+  private[eval] abstract class Companion {
+    /**
+      * DEPRECATED — please switch to [[Coeval.from]].
+      */
+    @deprecated("Switch to Coeval.from", since = "3.0.0-RC3")
+    def fromEval[A](a: Eval[A]): Coeval[A] =
+      Coeval.from(a)
   }
 }

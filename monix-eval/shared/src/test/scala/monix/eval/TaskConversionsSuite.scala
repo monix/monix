@@ -31,21 +31,21 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object TaskConversionsSuite extends BaseTestSuite {
-  test("Task.fromIO(task.toIO) == task") { implicit s =>
+  test("Task.from(task.to[IO]) == task") { implicit s =>
     check1 { (task: Task[Int]) =>
-      Task.fromIO(task.toIO) <-> task
+      Task.from(task.to[IO]) <-> task
     }
   }
 
-  test("Task.fromIO(IO.raiseError(e))") { implicit s =>
+  test("Task.from(IO.raiseError(e))") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.fromIO(IO.raiseError(dummy))
+    val task = Task.from(IO.raiseError(dummy))
     assertEquals(task.runToFuture.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromIO(IO.raiseError(e).shift)") { implicit s =>
+  test("Task.from(IO.raiseError(e).shift)") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.fromIO(for (_ <- IO.shift(s); x <- IO.raiseError[Int](dummy)) yield x)
+    val task = Task.from(for (_ <- IO.shift(s); x <- IO.raiseError[Int](dummy)) yield x)
     val f = task.runToFuture
 
     assertEquals(f.value, None)
@@ -53,32 +53,32 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.now(v).toIO") { implicit s =>
-    assertEquals(Task.now(10).toIO.unsafeRunSync(), 10)
+  test("Task.now(v).to[IO]") { implicit s =>
+    assertEquals(Task.now(10).to[IO].unsafeRunSync(), 10)
   }
 
-  test("Task.raiseError(dummy).toIO") { implicit s =>
+  test("Task.raiseError(dummy).to[IO]") { implicit s =>
     val dummy = DummyException("dummy")
     intercept[DummyException] {
-      Task.raiseError(dummy).toIO.unsafeRunSync()
+      Task.raiseError(dummy).to[IO].unsafeRunSync()
     }
   }
 
-  test("Task.eval(thunk).toIO") { implicit s =>
-    assertEquals(Task.eval(10).toIO.unsafeRunSync(), 10)
+  test("Task.eval(thunk).to[IO]") { implicit s =>
+    assertEquals(Task.eval(10).to[IO].unsafeRunSync(), 10)
   }
 
-  test("Task.eval(fa).asyncBoundary.toIO") { implicit s =>
-    val io = Task.eval(1).asyncBoundary.toIO
+  test("Task.eval(fa).asyncBoundary.to[IO]") { implicit s =>
+    val io = Task.eval(1).asyncBoundary.to[IO]
     val f = io.unsafeToFuture()
 
     assertEquals(f.value, None); s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.raiseError(dummy).asyncBoundary.toIO") { implicit s =>
+  test("Task.raiseError(dummy).asyncBoundary.to[IO]") { implicit s =>
     val dummy = DummyException("dummy")
-    val io = Task.raiseError[Int](dummy).executeAsync.toIO
+    val io = Task.raiseError[Int](dummy).executeAsync.to[IO]
     val f = io.unsafeToFuture()
 
     assertEquals(f.value, None); s.tick()
@@ -179,10 +179,10 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("Task.fromIO is cancelable") { implicit s =>
+  test("Task.from is cancelable") { implicit s =>
     val timer = SchedulerEffect.timerLiftIO[IO](s)
     val io = timer.sleep(10.seconds)
-    val f = Task.fromIO(io).runToFuture
+    val f = Task.from(io).runToFuture
 
     s.tick()
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -379,7 +379,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   test("Task.toK[IO]") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }
-    val io = Task.to[IO].apply(task)
+    val io = Task.toK[IO].apply(task)
 
     assertEquals(io.unsafeRunSync(), 1)
     assertEquals(io.unsafeRunSync(), 2)
@@ -388,7 +388,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   test("Task.toAsyncK[IO]") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }
-    val io = Task.toAsync[IO].apply(task)
+    val io = Task.toAsyncK[IO].apply(task)
 
     assertEquals(io.unsafeRunSync(), 1)
     assertEquals(io.unsafeRunSync(), 2)
@@ -398,7 +398,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     implicit val cs = SchedulerEffect.contextShift[IO](s)
     var effect = 0
     val task = Task { effect += 1; effect }
-    val io = Task.toConcurrent[IO].apply(task)
+    val io = Task.toConcurrentK[IO].apply(task)
 
     assertEquals(io.unsafeRunSync(), 1)
     assertEquals(io.unsafeRunSync(), 2)

@@ -17,7 +17,6 @@
 
 package monix.eval
 
-
 import cats.effect.ExitCode
 import minitest.SimpleTestSuite
 import monix.eval.Task.Options
@@ -68,10 +67,15 @@ object TaskAppSuite extends SimpleTestSuite {
     val wasExecuted = Promise[Boolean]()
     val app = new TaskApp {
       def run(args: List[String]) = {
-        Task.fromIO(
-          Task.async[ExitCode] { cb => wasExecuted.success(true); cb.onSuccess(ExitCode.Success) }
+        Task.from(
+          Task
+            .async[ExitCode] { cb =>
+              wasExecuted.success(true)
+              cb.onSuccess(ExitCode.Success)
+            }
             .executeAsync
-            .toIO)
+            .toIO
+        )
       }
     }
 

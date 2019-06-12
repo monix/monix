@@ -137,7 +137,7 @@ object CoevalCatsConversions extends BaseTestSuite {
   test("Coeval.toK[Task]") { implicit s =>
     var effect = 0
     val test = Coeval { effect += 1; effect }
-    val task = Coeval.to[Task].apply(test)
+    val task = Coeval.toK[Task].apply(test)
 
     assertEquals(effect, 0)
     assertEquals(task.runToFuture.value, Some(Success(1)))
@@ -147,7 +147,7 @@ object CoevalCatsConversions extends BaseTestSuite {
   test("Coeval.toSyncK[IO]") { _ =>
     var effect = 0
     val test = Coeval { effect += 1; effect }
-    val io = Coeval.toSync[IO].apply(test)
+    val io = Coeval.toSyncK[IO].apply(test)
 
     assertEquals(effect, 0)
     assertEquals(io.unsafeRunSync(), 1)
