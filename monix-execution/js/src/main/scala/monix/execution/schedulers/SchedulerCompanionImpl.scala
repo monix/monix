@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{Scheduler, SchedulerCompanion, ExecutionModel => ExecModel}
+import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
 
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
@@ -35,6 +35,15 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executionModel: ExecModel = ExecModel.Default): Scheduler =
     AsyncScheduler(context, executionModel)
 
+  def apply(
+    ec: ExecutionContext,
+    reporter: UncaughtExceptionReporter): Scheduler =
+    AsyncScheduler(ec, ExecModel.Default, reporter)
+
+  def apply(
+    reporter: UncaughtExceptionReporter,
+    execModel: ExecModel): Scheduler =
+    AsyncScheduler(StandardContext, execModel, reporter)
   /** Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
     *
     * @param underlying is the [[monix.execution.Scheduler Scheduler]]

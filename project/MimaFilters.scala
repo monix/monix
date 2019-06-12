@@ -4,6 +4,16 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
+    // Breaking changes for https://github.com/monix/monix/pull/888
+    exclude[ReversedMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler.withUncaughtExceptionReporter"),
+    exclude[ReversedMissingMethodProblem]("monix.execution.Scheduler.withUncaughtExceptionReporter"),
+    exclude[ReversedMissingMethodProblem]("monix.execution.schedulers.SchedulerService.withUncaughtExceptionReporter"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler#WrappedScheduler.copy"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler#WrappedScheduler.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.AsyncScheduler.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.AsyncScheduler.apply"),
+    exclude[MissingTypesProblem]("monix.execution.schedulers.ReferenceScheduler$WrappedScheduler$"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler#WrappedScheduler.apply"),
     // Breaking changes for https://github.com/monix/monix/pull/866
     exclude[IncompatibleResultTypeProblem]("monix.execution.schedulers.TracingRunnable.<init>$default$2"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TracingRunnable.this"),
