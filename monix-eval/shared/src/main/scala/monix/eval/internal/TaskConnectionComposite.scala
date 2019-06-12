@@ -73,8 +73,9 @@ private[eval] final class TaskConnectionComposite private (stateRef: AtomicAny[S
 
   @tailrec
   private def addAny(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(
-    implicit s: Scheduler): Unit =
-    stateRef.get match {
+    implicit s: Scheduler): Unit = {
+
+    stateRef.get() match {
       case Cancelled =>
         UnsafeCancelUtils.triggerCancel(ref)
       case current @ Active(set) =>
@@ -84,6 +85,7 @@ private[eval] final class TaskConnectionComposite private (stateRef: AtomicAny[S
           // $COVERAGE-ON$
         }
     }
+  }
 
   /**
     * Adds a whole collection of cancellation tokens, if the
@@ -93,7 +95,7 @@ private[eval] final class TaskConnectionComposite private (stateRef: AtomicAny[S
   def addAll(that: Iterable[CancelToken[Task]])(implicit s: Scheduler): Unit = {
 
     @tailrec def loop(that: Iterable[CancelToken[Task]]): Unit =
-      stateRef.get match {
+      stateRef.get() match {
         case Cancelled =>
           UnsafeCancelUtils.cancelAllUnsafe(that).runAsyncAndForget
         case current @ Active(set) =>
@@ -129,7 +131,7 @@ private[eval] final class TaskConnectionComposite private (stateRef: AtomicAny[S
 
   @tailrec
   private def removeAny(ref: AnyRef): Unit =
-    stateRef.get match {
+    stateRef.get() match {
       case Cancelled => ()
       case current @ Active(set) =>
         if (!stateRef.compareAndSet(current, Active(set - ref))) {

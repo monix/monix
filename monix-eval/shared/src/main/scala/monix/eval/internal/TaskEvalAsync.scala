@@ -26,7 +26,12 @@ private[eval] object TaskEvalAsync {
     * Implementation for `Task.evalAsync`.
     */
   def apply[A](a: () => A): Task[A] =
-    Task.Async(new EvalAsyncRegister[A](a), trampolineAfter = false, trampolineBefore = false, restoreLocals = true)
+    Task.Async(
+      new EvalAsyncRegister[A](a),
+      trampolineAfter = false,
+      trampolineBefore = false,
+      restoreLocals = true
+    )
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is a task that forks on evaluation

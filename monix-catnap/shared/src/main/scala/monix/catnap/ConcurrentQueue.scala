@@ -121,9 +121,10 @@ import scala.collection.mutable.ArrayBuffer
   * concurrency bugs. If you're not sure what multi-threading scenario you
   * have, then just stick with the default `MPMC`.
   */
-final class ConcurrentQueue[F[_], A] private (capacity: BufferCapacity, channelType: ChannelType)(
-  implicit F: Concurrent[F],
-  cs: ContextShift[F])
+final class ConcurrentQueue[F[_], A] private (
+  capacity: BufferCapacity,
+  channelType: ChannelType
+)(implicit F: Concurrent[F], cs: ContextShift[F])
   extends Serializable {
 
   /** Try pushing a value to the queue.
@@ -212,15 +213,15 @@ final class ConcurrentQueue[F[_], A] private (capacity: BufferCapacity, channelT
     if (happy != null)
       F.pure(happy)
     else
-      F.asyncF(
-        cb =>
-          helpers.sleepThenRepeat(
-            consumersAwaiting,
-            pollQueue,
-            pollTest,
-            pollMap,
-            cb
-          ))
+      F.asyncF { cb =>
+        helpers.sleepThenRepeat(
+          consumersAwaiting,
+          pollQueue,
+          pollTest,
+          pollMap,
+          cb
+        )
+      }
   }
 
   /** Fetches multiple elements from the queue, if available.
@@ -248,15 +249,15 @@ final class ConcurrentQueue[F[_], A] private (capacity: BufferCapacity, channelT
         F.pure(toSeq(buffer))
       } else {
         // Going async
-        F.asyncF(
-          cb =>
-            helpers.sleepThenRepeat[Int, Seq[A]](
-              consumersAwaiting,
-              () => tryDrainUnsafe(buffer, maxLength - buffer.length),
-              _ => buffer.length >= minLength,
-              _ => toSeq(buffer),
-              cb
-            ))
+        F.asyncF { cb =>
+          helpers.sleepThenRepeat[Int, Seq[A]](
+            consumersAwaiting,
+            () => tryDrainUnsafe(buffer, maxLength - buffer.length),
+            _ => buffer.length >= minLength,
+            _ => toSeq(buffer),
+            cb
+          )
+        }
       }
     }
 
@@ -332,15 +333,15 @@ final class ConcurrentQueue[F[_], A] private (capacity: BufferCapacity, channelT
     }
 
   private def offerWait(a: A): F[Unit] =
-    F.asyncF(
-      cb =>
-        helpers.sleepThenRepeat(
-          producersAwaiting,
-          () => tryOfferUnsafe(a),
-          offerTest,
-          offerMap,
-          cb
-        ))
+    F.asyncF { cb =>
+      helpers.sleepThenRepeat(
+        producersAwaiting,
+        () => tryOfferUnsafe(a),
+        offerTest,
+        offerMap,
+        cb
+      )
+    }
 
   private[this] val queue: LowLevelQueue[A] =
     LowLevelQueue(capacity, channelType, fenced = true)

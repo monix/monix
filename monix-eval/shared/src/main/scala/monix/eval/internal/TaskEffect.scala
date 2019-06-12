@@ -33,16 +33,22 @@ private[eval] object TaskEffect {
   /**
     * `cats.effect.Effect#runAsync`
     */
-  def runAsync[A](fa: Task[A])(
-    cb: Either[Throwable, A] => IO[Unit])(implicit s: Scheduler, opts: Task.Options): SyncIO[Unit] =
-    SyncIO { execute(fa, cb); () }
+  def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])(
+    implicit s: Scheduler,
+    opts: Task.Options
+  ): SyncIO[Unit] = SyncIO {
+    execute(fa, cb); ()
+  }
 
   /**
     * `cats.effect.ConcurrentEffect#runCancelable`
     */
-  def runCancelable[A](fa: Task[A])(
-    cb: Either[Throwable, A] => IO[Unit])(implicit s: Scheduler, opts: Task.Options): SyncIO[CancelToken[Task]] =
-    SyncIO(execute(fa, cb))
+  def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])(
+    implicit s: Scheduler,
+    opts: Task.Options
+  ): SyncIO[CancelToken[Task]] = SyncIO {
+    execute(fa, cb)
+  }
 
   private def execute[A](fa: Task[A], cb: Either[Throwable, A] => IO[Unit])(
     implicit s: Scheduler,

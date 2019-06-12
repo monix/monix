@@ -25,7 +25,11 @@ import scala.concurrent.duration.Duration
 private[eval] object TaskSleep {
   /** Implementation for `Task.sleep`. */
   def apply(timespan: Duration): Task[Unit] =
-    Async(new Register(timespan), trampolineBefore = false, trampolineAfter = false)
+    Async(
+      new Register(timespan),
+      trampolineBefore = false,
+      trampolineAfter = false
+    )
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is a task that forks on evaluation.

@@ -90,7 +90,11 @@ private[eval] object TaskConversions {
           ctx.scheduler.reportFailure(e)
       }
     }
-    Task.Async(start, trampolineBefore = false, trampolineAfter = false)
+    Task.Async(
+      start,
+      trampolineBefore = false,
+      trampolineAfter = false
+    )
   }
 
   /**
@@ -118,7 +122,11 @@ private[eval] object TaskConversions {
           ctx.scheduler.reportFailure(e)
       }
     }
-    Task.Async(start, trampolineBefore = false, trampolineAfter = false)
+    Task.Async(
+      start,
+      trampolineBefore = false,
+      trampolineAfter = false
+    )
   }
 
   private final class CreateCallback[A](conn: TaskConnection, cb: Callback[Throwable, A])(implicit s: Scheduler)

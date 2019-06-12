@@ -31,7 +31,12 @@ private[eval] object TaskGather {
     * Implementation for `Task.gather`
     */
   def apply[A, M[X] <: Iterable[X]](in: Iterable[Task[A]], makeBuilder: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
-    Async(new Register(in, makeBuilder), trampolineBefore = true, trampolineAfter = true, restoreLocals = true)
+    Async(
+      new Register(in, makeBuilder),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = true
+    )
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal

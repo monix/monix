@@ -31,7 +31,11 @@ private[eval] object TaskCreate {
     val start = new Cancelable0Start[A, CancelToken[Task]](fn) {
       def setConnection(ref: TaskConnectionRef, token: CancelToken[Task])(implicit s: Scheduler): Unit = ref := token
     }
-    Async(start, trampolineBefore = false, trampolineAfter = false)
+    Async(
+      start,
+      trampolineBefore = false,
+      trampolineAfter = false
+    )
   }
 
   private abstract class Cancelable0Start[A, Token](fn: (Scheduler, Callback[Throwable, A]) => Token)
@@ -81,7 +85,8 @@ private[eval] object TaskCreate {
     */
   def cancelableCancelable[A](fn: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] = {
     val start = new Cancelable0Start[A, Cancelable](fn) {
-      def setConnection(ref: TaskConnectionRef, token: Cancelable)(implicit s: Scheduler): Unit = ref := token
+      def setConnection(ref: TaskConnectionRef, token: Cancelable)(implicit s: Scheduler): Unit =
+        ref := token
     }
     Async(start, trampolineBefore = false, trampolineAfter = false)
   }

@@ -99,7 +99,12 @@ private[eval] object TaskFromFuture {
   }
 
   private def rawAsync[A](start: (Context, Callback[Throwable, A]) => Unit): Task[A] =
-    Task.Async(start, trampolineBefore = true, trampolineAfter = false, restoreLocals = true)
+    Task.Async(
+      start,
+      trampolineBefore = true,
+      trampolineAfter = false,
+      restoreLocals = true
+    )
 
   private def startSimple[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {
     f.value match {

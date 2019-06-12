@@ -40,8 +40,12 @@ private[monix] object TaskBracket {
     use: A => Task[B],
     release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] = {
 
-    Task
-      .Async(new StartE(acquire, use, release), trampolineBefore = true, trampolineAfter = true, restoreLocals = false)
+    Task.Async(
+      new StartE(acquire, use, release),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = false
+    )
   }
 
   private final class StartE[A, B](

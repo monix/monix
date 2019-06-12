@@ -53,8 +53,11 @@ private[eval] object TaskCancellation {
     Async(start, trampolineBefore = true, trampolineAfter = false, restoreLocals = false)
   }
 
-  private final class RaiseCallback[A](waitsForResult: AtomicBoolean, conn: TaskConnection, cb: Callback[Throwable, A])(
-    implicit s: Scheduler)
+  private final class RaiseCallback[A](
+    waitsForResult: AtomicBoolean,
+    conn: TaskConnection,
+    cb: Callback[Throwable, A]
+  )(implicit s: Scheduler)
     extends Callback[Throwable, A] with TrampolinedRunnable {
 
     private[this] var value: A = _

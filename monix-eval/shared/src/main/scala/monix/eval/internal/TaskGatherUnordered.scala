@@ -35,7 +35,12 @@ private[eval] object TaskGatherUnordered {
     * Implementation for `Task.gatherUnordered`
     */
   def apply[A](in: Iterable[Task[A]]): Task[List[A]] = {
-    Async(new Register(in), trampolineBefore = true, trampolineAfter = true, restoreLocals = true)
+    Async(
+      new Register(in),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = true
+    )
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal

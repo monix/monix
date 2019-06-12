@@ -33,7 +33,12 @@ private[eval] object TaskExecuteOn {
       if (forceAsync) new AsyncRegister(source, s)
       else new TrampolinedStart(source, s)
 
-    Async(start, trampolineBefore = withTrampoline, trampolineAfter = withTrampoline, restoreLocals = false)
+    Async(
+      start,
+      trampolineBefore = withTrampoline,
+      trampolineAfter = withTrampoline,
+      restoreLocals = false
+    )
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
