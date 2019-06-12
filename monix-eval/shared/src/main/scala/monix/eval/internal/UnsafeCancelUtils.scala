@@ -39,20 +39,23 @@ private[eval] object UnsafeCancelUtils {
     * Internal API — very unsafe!
     */
   private[internal] def cancelAllUnsafe(
-    cursor: Iterable[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ]): CancelToken[Task] =
-    if (cursor.isEmpty) {
+    cursor: Iterable[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ]): CancelToken[Task] = {
+
+    if (cursor.isEmpty)
       Task.unit
-    } else
+    else
       Task.suspend {
         val frame = new CancelAllFrame(cursor.iterator)
         frame.loop()
       }
+  }
 
   /**
     * Internal API — very unsafe!
     */
   private[internal] def unsafeCancel(
-    task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ): CancelToken[Task] =
+    task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ): CancelToken[Task] = {
+
     task match {
       case ref: Task[Unit] @unchecked =>
         ref
@@ -66,6 +69,7 @@ private[eval] object UnsafeCancelUtils {
         reject(other)
       // $COVERAGE-ON$
     }
+  }
 
   /**
     * Internal API — very unsafe!

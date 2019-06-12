@@ -29,7 +29,12 @@ private[eval] object TaskShift {
     * Implementation for `Task.shift`
     */
   def apply(ec: ExecutionContext): Task[Unit] = {
-    Async(new Register(ec), trampolineBefore = false, trampolineAfter = false, restoreLocals = false)
+    Async(
+      new Register(ec),
+      trampolineBefore = false,
+      trampolineAfter = false,
+      restoreLocals = false
+    )
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal

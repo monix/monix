@@ -43,7 +43,11 @@ private[eval] object TaskSleep {
       val c = TaskConnectionRef()
       ctx.connection.push(c.cancel)
 
-      c := ctx.scheduler.scheduleOnce(timespan.length, timespan.unit, new SleepRunnable(ctx, cb))
+      c := ctx.scheduler.scheduleOnce(
+        timespan.length,
+        timespan.unit,
+        new SleepRunnable(ctx, cb)
+      )
       ()
     }
   }

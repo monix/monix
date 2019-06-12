@@ -1077,8 +1077,11 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  final def runSyncUnsafeOpt(
-    timeout: Duration = Duration.Inf)(implicit s: Scheduler, opts: Options, permit: CanBlock): A = {
+  final def runSyncUnsafeOpt(timeout: Duration = Duration.Inf)(
+    implicit s: Scheduler,
+    opts: Options,
+    permit: CanBlock
+  ): A = {
     /*_*/
     Local.bindCurrentIf(opts.localContextPropagation) {
       TaskRunSyncUnsafe(this, timeout, s, opts)
@@ -1918,10 +1921,10 @@ sealed abstract class Task[+A] extends Serializable {
     * will be `maxRetries + 1`.
     */
   final def onErrorRestart(maxRetries: Long): Task[A] =
-    this.onErrorHandleWith(
-      ex =>
-        if (maxRetries > 0) this.onErrorRestart(maxRetries - 1)
-        else raiseError(ex))
+    this.onErrorHandleWith { ex =>
+      if (maxRetries > 0) this.onErrorRestart(maxRetries - 1)
+      else raiseError(ex)
+    }
 
   /** Creates a new task that in case of error will retry executing the
     * source again and again, until it succeeds, or until the given
@@ -4005,7 +4008,10 @@ object Task extends TaskInstancesLevel1 {
     *        variables to be propagated on async boundaries.
     *        Defaults to `false`.
     */
-  final case class Options(autoCancelableRunLoops: Boolean, localContextPropagation: Boolean) {
+  final case class Options(
+    autoCancelableRunLoops: Boolean,
+    localContextPropagation: Boolean
+  ) {
 
     /** Creates a new set of options from the source, but with
       * the [[autoCancelableRunLoops]] value set to `true`.
@@ -4220,10 +4226,12 @@ object Task extends TaskInstancesLevel1 {
         super.runAsyncOptF(cb)(s, opts)
       }
     }
+
     // Optimization to avoid the run-loop
     override def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
       CancelableFuture.successful(value)
     }
+
     // Optimization to avoid the run-loop
     override def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) {
@@ -4233,14 +4241,18 @@ object Task extends TaskInstancesLevel1 {
         super.runAsyncOpt(cb)(s, opts)
       }
     }
+
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(
-      cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Unit = {
+    override def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(
+      implicit s: Scheduler,
+      opts: Options
+    ): Unit = {
       if (s.executionModel != AlwaysAsyncExecution)
         Callback.callSuccess(cb, value)
       else
         super.runAsyncUncancelableOpt(cb)(s, opts)
     }
+
     // Optimization to avoid the run-loop
     override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
       ()
@@ -4258,10 +4270,12 @@ object Task extends TaskInstancesLevel1 {
         super.runAsyncOptF(cb)(s, opts)
       }
     }
+
     // Optimization to avoid the run-loop
     override def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
       CancelableFuture.failed(e)
     }
+
     // Optimization to avoid the run-loop
     override def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) {
@@ -4271,12 +4285,16 @@ object Task extends TaskInstancesLevel1 {
         super.runAsyncOpt(cb)(s, opts)
       }
     }
+
     // Optimization to avoid the run-loop
     override def runAsyncAndForgetOpt(implicit s: Scheduler, opts: Options): Unit =
       s.reportFailure(e)
+
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(
-      cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Unit = {
+    override def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(
+      implicit s: Scheduler,
+      opts: Options
+    ): Unit = {
       if (s.executionModel != AlwaysAsyncExecution)
         Callback.callError(cb, e)
       else

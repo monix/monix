@@ -57,7 +57,7 @@ private[eval] object TaskMemoize {
 
     def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
       implicit val sc = ctx.scheduler
-      state.get match {
+      state.get() match {
         case result: Try[A] @unchecked =>
           cb(result)
         case _ =>
@@ -87,7 +87,7 @@ private[eval] object TaskMemoize {
         self.thunk = null
       } else {
         // Error happened and we are not caching errors!
-        state.get match {
+        state.get() match {
           case p: Promise[A] @unchecked =>
             // Resetting the state to `null` will trigger the
             // execution again on next `runAsync`
@@ -136,7 +136,7 @@ private[eval] object TaskMemoize {
       */
     @tailrec private def start(context: Context, cb: Callback[Throwable, A]): Unit = {
       implicit val sc: Scheduler = context.scheduler
-      self.state.get match {
+      self.state.get() match {
         case null =>
           val update = Promise[A]()
 

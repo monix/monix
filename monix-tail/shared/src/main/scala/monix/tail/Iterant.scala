@@ -1804,9 +1804,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        [[monix.catnap.ConsumerF.Config ConsumerF.Config1]]
     */
   @UnsafeProtocol
-  final def consumeWithConfig(
-    config: ConsumerF.Config)(implicit F: Concurrent[F], cs: ContextShift[F]): Resource[F, Consumer[F, A]] = {
-
+  final def consumeWithConfig(config: ConsumerF.Config)(
+    implicit F: Concurrent[F],
+    cs: ContextShift[F]
+  ): Resource[F, Consumer[F, A]] = {
     IterantConsume(self, config)(F, cs)
   }
 
@@ -2572,8 +2573,11 @@ object Iterant extends IterantInstances {
   def fromReactivePublisher[F[_], A](
     publisher: Publisher[A],
     requestCount: Int = recommendedBufferChunkSize,
-    eagerBuffer: Boolean = true)(implicit F: Async[F]): Iterant[F, A] =
+    eagerBuffer: Boolean = true)(
+    implicit F: Async[F]
+  ): Iterant[F, A] = {
     IterantFromReactivePublisher(publisher, requestCount, eagerBuffer)
+  }
 
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
@@ -2630,7 +2634,9 @@ object Iterant extends IterantInstances {
     * @see [[fromStateAction]] for version without `F[_]` context which
     *     generates `NextBatch` items
     */
-  def fromLazyStateAction[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] = {
+  def fromLazyStateAction[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(
+    implicit F: Sync[F]
+  ): Iterant[F, A] = {
     def loop(state: S): F[Iterant[F, A]] =
       try {
         f(state).map {

@@ -98,7 +98,9 @@ private[eval] object TaskRunLoop {
             // Try/catch described as statement, otherwise ObjectRef happens ;-)
             try {
               current = thunk()
-            } catch { case ex if NonFatal(ex) => current = Error(ex) }
+            } catch {
+              case ex if NonFatal(ex) => current = Error(ex)
+            }
 
           case Error(error) =>
             findErrorHandler(bFirstRef, bRestRef) match {
@@ -165,7 +167,9 @@ private[eval] object TaskRunLoop {
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
               try {
                 current = bind(unboxed)
-              } catch { case ex if NonFatal(ex) => current = Error(ex) }
+              } catch {
+                case ex if NonFatal(ex) => current = Error(ex)
+              }
               currentIndex = em.nextFrameIndex(currentIndex)
               hasUnboxed = false
               unboxed = null
@@ -275,7 +279,10 @@ private[eval] object TaskRunLoop {
             // Try/catch described as statement, otherwise ObjectRef happens ;-)
             try {
               current = thunk()
-            } catch { case ex if NonFatal(ex) => current = Error(ex) }
+            } catch {
+              case ex if NonFatal(ex) =>
+                current = Error(ex)
+            }
 
           case Error(error) =>
             findErrorHandler(bFirst, bRest) match {
@@ -313,7 +320,9 @@ private[eval] object TaskRunLoop {
               // Try/catch described as statement, otherwise ObjectRef happens ;-)
               try {
                 current = bind(unboxed)
-              } catch { case ex if NonFatal(ex) => current = Error(ex) }
+              } catch {
+                case ex if NonFatal(ex) => current = Error(ex)
+              }
               frameIndex = em.nextFrameIndex(frameIndex)
               hasUnboxed = false
               unboxed = null
@@ -511,7 +520,15 @@ private[eval] object TaskRunLoop {
             }
 
           case async =>
-            return goAsync4Future(async, scheduler, opts, bFirst, bRest, frameIndex, forceFork = false)
+            return goAsync4Future(
+              async,
+              scheduler,
+              opts,
+              bFirst,
+              bRest,
+              frameIndex,
+              forceFork = false
+            )
         }
 
         if (hasUnboxed) {
@@ -643,7 +660,12 @@ private[eval] object TaskRunLoop {
         ctx.scheduler.executeAsync(() => startFull(source, ctx, cb, null, bFirst, bRest, 1))
       }
 
-    Left(Async(start.asInstanceOf[Start[A]], trampolineBefore = false, trampolineAfter = false))
+    Left(
+      Async(
+        start.asInstanceOf[Start[A]],
+        trampolineBefore = false,
+        trampolineAfter = false
+      ))
   }
 
   private[internal] def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {

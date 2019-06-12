@@ -72,7 +72,10 @@ private[eval] object CoevalRunLoop {
           // Try/catch described as statement, otherwise ObjectRef happens ;-)
           try {
             current = thunk()
-          } catch { case ex if NonFatal(ex) => current = Error(ex) }
+          } catch {
+            case ex if NonFatal(ex) =>
+              current = Error(ex)
+          }
 
         case ref @ Error(ex) =>
           findErrorHandler(bFirst, bRest) match {
@@ -95,7 +98,9 @@ private[eval] object CoevalRunLoop {
             // Try/catch described as statement, otherwise ObjectRef happens ;-)
             try {
               current = bind(unboxed)
-            } catch { case ex if NonFatal(ex) => current = Error(ex) }
+            } catch {
+              case ex if NonFatal(ex) => current = Error(ex)
+            }
             hasUnboxed = false
             unboxed = null
             bFirst = null
