@@ -45,6 +45,15 @@ jobs:
       COMMAND: ci-jvm-mima
     <<: *shared
 
+  java-8-scala-2.11-js:
+    docker:
+      - image: openjdk:8
+    environment:
+      SBT_VERSION: 1.2.8
+      SCALA_VERSION: 2.11.12
+      COMMAND: ci-js
+    <<: *shared
+
   java-8-scala-2.12-jvm:
     docker:
       - image: openjdk:8
@@ -52,6 +61,15 @@ jobs:
       SBT_VERSION: 1.2.8
       SCALA_VERSION: 2.12.8
       COMMAND: ci-jvm-all
+    <<: *shared
+
+  java-8-scala-2.12-js:
+    docker:
+      - image: openjdk:8
+    environment:
+      SBT_VERSION: 1.2.8
+      SCALA_VERSION: 2.12.8
+      COMMAND: ci-js
     <<: *shared
 
 notify:
