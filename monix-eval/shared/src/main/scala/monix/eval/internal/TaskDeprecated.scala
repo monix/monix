@@ -288,8 +288,9 @@ private[eval] object TaskDeprecated {
       * DEPRECATED — replace with usage of [[Task.to]]:
       *
       * {{{
-      *   import monix.execution.Scheduler.Implicits.global
       *   import cats.effect.IO
+      *   import monix.execution.Scheduler.Implicits.global
+      *   import monix.eval.Task
       *
       *   Task(1 + 1).to[IO]
       * }}}

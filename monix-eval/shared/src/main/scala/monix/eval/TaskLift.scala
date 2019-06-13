@@ -19,6 +19,7 @@ package monix.eval
 
 import cats.arrow.FunctionK
 import cats.effect._
+import monix.eval.internal.TaskConversions
 
 import scala.annotation.implicitNotFound
 
@@ -64,16 +65,20 @@ object TaskLift extends TaskLiftImplicits0 {
   implicit def toIO(implicit eff: ConcurrentEffect[Task]): TaskLift[IO] =
     new TaskLift[IO] {
       def apply[A](task: Task[A]): IO[A] =
-        task.toIO(eff)
+        TaskConversions.toIO(task)(eff)
     }
 
   /**
     * Deprecated method, which happened on extending `FunctionK`.
     */
   implicit class Deprecated[F[_]](val inst: TaskLift[F]) {
-    @deprecated("Switch to FunctorK.apply", since = "3.0.0-RC3")
-    def taskLift[A](task: Task[A]): F[A] =
+    /** DEPRECATED — switch to [[TaskLift.apply]]. */
+    @deprecated("Switch to TaskLift.apply", since = "3.0.0-RC3")
+    def taskLift[A](task: Task[A]): F[A] = {
+      // $COVERAGE-OFF$
       inst(task)
+      // $COVERAGE-ON$
+    }
   }
 }
 
@@ -109,6 +114,6 @@ private[eval] abstract class TaskLiftImplicits2 {
   implicit def toAnyLiftIO[F[_]](implicit F: LiftIO[F], eff: ConcurrentEffect[Task]): TaskLift[F] =
     new TaskLift[F] {
       def apply[A](task: Task[A]): F[A] =
-        F.liftIO(task.toIO(eff))
+        F.liftIO(TaskConversions.toIO(task)(eff))
     }
 }

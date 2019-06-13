@@ -120,9 +120,13 @@ object CoevalLike extends CoevalLikeImplicits0 {
     * Deprecated method, which happened on extending `FunctionK`.
     */
   implicit class Deprecated[F[_]](val inst: CoevalLike[F]) {
-    @deprecated("Switch to FunctorK.apply", since = "3.0.0-RC3")
-    def toCoeval[A](coeval: F[A]): Coeval[A] =
+    /** DEPRECATED — switch to [[CoevalLike.apply]]. */
+    @deprecated("Switch to CoevalLike.apply", since = "3.0.0-RC3")
+    def toCoeval[A](coeval: F[A]): Coeval[A] = {
+      // $COVERAGE-OFF$
       inst(coeval)
+      // $COVERAGE-ON$
+    }
   }
 }
 

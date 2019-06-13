@@ -18,8 +18,8 @@
 package monix.eval
 
 import cats.Monoid
-import cats.arrow.FunctionK
-import cats.effect.{ExitCase, Sync, SyncIO}
+import cats.~>
+import cats.effect.{ExitCase, Sync}
 import cats.kernel.Semigroup
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal.{CoevalBracket, CoevalDeprecated, CoevalRunLoop, LazyVal, StackFrame}
@@ -960,6 +960,32 @@ object Coeval extends CoevalInstancesLevel0 {
   val unit: Coeval[Unit] = Now(())
 
   /**
+    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
+    * supported data-type into [[Coeval]].
+    *
+    * Useful for `mapK` transformations, for example when working with `Resource`:
+    *
+    * {{{
+    *   import cats.effect._
+    *   import monix.eval._
+    *   import java.io._
+    *
+    *   def open(file: File) =
+    *     Resource[SyncIO, InputStream](SyncIO {
+    *       val in = new FileInputStream(file)
+    *       (in, SyncIO(in.close()))
+    *     })
+    *
+    *   // Lifting to a Resource of Coeval
+    *   val res: Resource[Coeval, InputStream] =
+    *     open(new File("sample")).mapK(Coeval.fromK[SyncIO])
+    * }}}
+    *
+    * See [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]].
+    */
+  def fromK[F[_]](implicit F: CoevalLike[F]): F ~> Coeval = F
+
+  /**
     * Converts any value that has a [[CoevalLike]] instance into a `Coeval`.
     */
   def from[F[_], A](fa: F[A])(implicit F: CoevalLike[F]): Coeval[A] =
@@ -991,12 +1017,6 @@ object Coeval extends CoevalInstancesLevel0 {
       case Right(v) => Coeval.now(v)
       case Left(ex) => Coeval.raiseError(f(ex))
     }
-
-  /**
-    * Converts a `cats.effect.SyncIO` into a `Coeval`.
-    */
-  def fromSyncIO[A](a: SyncIO[A]): Coeval[A] =
-    Coeval(a.unsafeRunSync())
 
   /** Keeps calling `f` until it returns a `Right` result.
     *
@@ -1226,23 +1246,24 @@ object Coeval extends CoevalInstancesLevel0 {
     map6(fa1, fa2, fa3, fa4, fa5, fa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
 
   /**
-    * Generates `cats.FunctionK` values for converting from `Coeval` to
-    * supporting types (for which we have a [[CoevalLift]] instance).
+    * Generates `Coeval ~> F` (`FunctionK`) values for converting from `Coeval`
+    * to supporting types (for which we have a [[CoevalLift]] instance).
     *
-    * See [[https://typelevel.org/cats/datatypes/functionk.html]].
+    * See [[https://typelevel.org/cats/datatypes/functionk.html the documentation]].
     */
-  def toK[F[_]](implicit F: CoevalLift[F]): FunctionK[Coeval, F] = F
+  def toK[F[_]](implicit F: CoevalLift[F]): Coeval ~> F = F
 
   /**
-    * Generates `cats.FunctionK` values for converting from `Coeval` to
-    * supporting types (for which we have a `cats.effect.Sync`) instance.
+    * Generates `Coeval ~> F` function values (`FunctionK`) for converting
+    * from `Coeval` to types for which we have a `cats.effect.Sync` instance.
     *
-    * See [[https://typelevel.org/cats/datatypes/functionk.html]].
+    * @see [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]]
+    * @see [[https://typelevel.org/cats-effect/typeclasses/sync.html cats.effect.Sync]]
     *
-    * Prefer to use [[toK]], this alternative is provided in order to force
-    * the usage of `cats.effect.Sync`, since [[CoevalLift]] is lawless.
+    * Prefer to use [[toK]], this alternative is provided in order to
+    * force the usage of `cats.effect.Sync`, since [[CoevalLift]] is lawless.
     */
-  def toSyncK[F[_]](implicit F: Sync[F]): FunctionK[Coeval, F] =
+  def toSyncK[F[_]](implicit F: Sync[F]): Coeval ~> F =
     CoevalLift.toSync[F]
 
   /**

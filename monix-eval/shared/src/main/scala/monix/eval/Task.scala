@@ -3240,7 +3240,7 @@ object Task extends TaskInstancesLevel1 {
     * Converts any Future-like data-type via [[monix.catnap.FutureLift]].
     */
   def fromFutureLike[F[_], A](tfa: Task[F[A]])(implicit F: FutureLift[Task, F]): Task[A] =
-    F.futureLift(tfa)
+    F.apply(tfa)
 
   /** Run two `Task` actions concurrently, and return the first to
     * finish, either in success or error. The loser of the race is

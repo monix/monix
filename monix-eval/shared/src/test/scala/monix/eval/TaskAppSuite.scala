@@ -17,10 +17,11 @@
 
 package monix.eval
 
-import cats.effect.ExitCode
+import cats.effect.{ExitCode, IO}
 import minitest.SimpleTestSuite
 import monix.eval.Task.Options
 import monix.execution.Scheduler.Implicits.global
+
 import scala.concurrent.Promise
 
 object TaskAppSuite extends SimpleTestSuite {
@@ -74,7 +75,7 @@ object TaskAppSuite extends SimpleTestSuite {
               cb.onSuccess(ExitCode.Success)
             }
             .executeAsync
-            .toIO
+            .to[IO]
         )
       }
     }

@@ -320,18 +320,18 @@ object TaskConversionsSuite extends BaseTestSuite {
     }
   }
 
-  test("Task.fromEval") { implicit s =>
+  test("Task.from[Eval]") { implicit s =>
     var effect = 0
-    val task = Task.fromEval(Eval.always { effect += 1; effect })
+    val task = Task.from(Eval.always { effect += 1; effect })
 
     assertEquals(task.runToFuture.value, Some(Success(1)))
     assertEquals(task.runToFuture.value, Some(Success(2)))
     assertEquals(task.runToFuture.value, Some(Success(3)))
   }
 
-  test("Task.fromEval protects against user error") { implicit s =>
+  test("Task.from[Eval] protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.fromEval(Eval.always { throw dummy })
+    val task = Task.from(Eval.always { throw dummy })
     assertEquals(task.runToFuture.value, Some(Failure(dummy)))
   }
 

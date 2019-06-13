@@ -167,9 +167,13 @@ object TaskLike extends TaskLikeImplicits0 {
     * Deprecated method, which happened on extending `FunctionK`.
     */
   implicit class Deprecated[F[_]](val inst: TaskLike[F]) {
-    @deprecated("Switch to FunctorK.apply", since = "3.0.0-RC3")
-    def toTask[A](task: F[A]): Task[A] =
+    /** DEPRECATED — switch to [[TaskLike.apply]]. */
+    @deprecated("Switch to TaskLike.apply", since = "3.0.0-RC3")
+    def toTask[A](task: F[A]): Task[A] = {
+      // $COVERAGE-OFF$
       inst(task)
+      // $COVERAGE-ON$
+    }
   }
 }
 

@@ -77,30 +77,30 @@ object CoevalCatsConversions extends BaseTestSuite {
     assertEquals(eval.unsafeRunSync(), 1)
   }
 
-  test("Coeval.fromEval(Eval.now(v))") { _ =>
-    assertEquals(Coeval.fromEval(Eval.now(10)), Coeval.Now(10))
+  test("Coeval.from(Eval.now(v))") { _ =>
+    assertEquals(Coeval.from(Eval.now(10)), Coeval.Now(10))
   }
 
-  test("Coeval.fromEval(Eval.always(v))") { _ =>
+  test("Coeval.from(Eval.always(v))") { _ =>
     val effect = Atomic(0)
-    val eval = Coeval.fromEval(Eval.always(effect.incrementAndGet()))
+    val eval = Coeval.from(Eval.always(effect.incrementAndGet()))
 
     assertEquals(eval.value(), 1)
     assertEquals(eval.value(), 2)
     assertEquals(eval.value(), 3)
   }
 
-  test("Coeval.fromEval(Eval.later(v))") { _ =>
+  test("Coeval.from(Eval.later(v))") { _ =>
     val effect = Atomic(0)
-    val eval = Coeval.fromEval(Eval.later(effect.incrementAndGet()))
+    val eval = Coeval.from(Eval.later(effect.incrementAndGet()))
 
     assertEquals(eval.value(), 1)
     assertEquals(eval.value(), 1)
   }
 
-  test("Coeval.fromEval protects against user error") { implicit s =>
+  test("Coeval.from protects against user error") { implicit s =>
     val dummy = new DummyException("dummy")
-    val eval = Coeval.fromEval(Eval.always { throw dummy })
+    val eval = Coeval.from(Eval.always { throw dummy })
     assertEquals(eval.runTry(), Failure(dummy))
   }
 
