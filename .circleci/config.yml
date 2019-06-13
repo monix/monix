@@ -42,7 +42,7 @@ jobs:
             - "~/.sbt"
             - "~/.m2"
 
-  test-jvm:
+  test_jvm:
     # Can this be shared?
     working_directory: ~/monix
     docker:
@@ -60,9 +60,9 @@ jobs:
 
 workflows:
   version: 2
-  test-jvm:
+  test_jvm:
     jobs:
-      - test-jvm
+      - test_jvm
     requires:
       - build
 
