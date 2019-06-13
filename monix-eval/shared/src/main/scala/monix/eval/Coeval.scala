@@ -1249,7 +1249,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *   }
     * }}}
     */
-  def liftTo[F[_]](implicit F: CoevalLift[F]): Coeval ~> F = F
+  def liftTo[F[_]](implicit F: CoevalLift[F]): (Coeval ~> F) = F
 
   /**
     * Generates `Coeval ~> F` function values (`FunctionK`) for converting
@@ -1261,7 +1261,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * Prefer to use [[liftTo]], this alternative is provided in order to
     * force the usage of `cats.effect.Sync`, since [[CoevalLift]] is lawless.
     */
-  def liftToSync[F[_]](implicit F: Sync[F]): Coeval ~> F =
+  def liftToSync[F[_]](implicit F: Sync[F]): (Coeval ~> F) =
     CoevalLift.toSync[F]
 
   /**
@@ -1289,7 +1289,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]].
     */
-  def liftFrom[F[_]](implicit F: CoevalLike[F]): F ~> Coeval = F
+  def liftFrom[F[_]](implicit F: CoevalLike[F]): (F ~> Coeval) = F
 
   /**
     * Deprecated operations, described as extension methods.

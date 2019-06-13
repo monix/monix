@@ -4881,7 +4881,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
     * supported data-type into [[Observable]].
     */
-  def liftFrom[F[_]](implicit F: ObservableLike[F]): F ~> Observable = F
+  def liftFrom[F[_]](implicit F: ObservableLike[F]): (F ~> Observable) = F
 
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Observable[A]): Observable[A] = defer(fa)
