@@ -17,10 +17,9 @@
 
 package monix.eval
 
-import cats.arrow.FunctionK
 import cats.effect._
+import cats.~>
 import monix.eval.internal.TaskConversions
-
 import scala.annotation.implicitNotFound
 
 /**
@@ -31,7 +30,7 @@ import scala.annotation.implicitNotFound
 @implicitNotFound("""Cannot find implicit value for TaskLift[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait TaskLift[F[_]] extends FunctionK[Task, F] {
+trait TaskLift[F[_]] extends (Task ~> F) {
   /**
     * Converts `Task[A]` into `F[A]`.
     *

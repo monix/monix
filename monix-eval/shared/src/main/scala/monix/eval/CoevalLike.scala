@@ -17,10 +17,8 @@
 
 package monix.eval
 
-import cats.arrow.FunctionK
 import cats.effect.SyncIO
-import cats.{Comonad, Eval}
-
+import cats.{~>, Comonad, Eval}
 import scala.util.Try
 
 /** A lawless type class that provides conversions to [[Coeval]].
@@ -44,7 +42,7 @@ import scala.util.Try
   * where the internals are specialized to `Coeval` anyway, like for
   * example the implementation of `monix.reactive.Observable`.
   */
-trait CoevalLike[F[_]] extends FunctionK[F, Coeval] {
+trait CoevalLike[F[_]] extends (F ~> Coeval) {
   /**
     * Converts from `F[A]` to `Coeval[A]`, preserving referential
     * transparency if `F[_]` is a pure data type and preserving

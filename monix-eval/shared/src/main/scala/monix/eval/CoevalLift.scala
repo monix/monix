@@ -17,10 +17,8 @@
 
 package monix.eval
 
-import cats.Eval
-import cats.arrow.FunctionK
+import cats.{~>, Eval}
 import cats.effect._
-
 import scala.annotation.implicitNotFound
 
 /**
@@ -31,7 +29,7 @@ import scala.annotation.implicitNotFound
   * [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]].
   */
 @implicitNotFound("""Cannot find implicit value for CoevalLift[${F}].""")
-trait CoevalLift[F[_]] extends FunctionK[Coeval, F] {
+trait CoevalLift[F[_]] extends (Coeval ~> F) {
   /**
     * Converts `Coeval[A]` into `F[A]`.
     *

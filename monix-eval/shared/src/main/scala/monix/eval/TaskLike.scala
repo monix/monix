@@ -17,12 +17,10 @@
 
 package monix.eval
 
-import cats.arrow.FunctionK
-import cats.{Comonad, Eval}
+import cats.{~>, Comonad, Eval}
 import cats.effect.{Concurrent, ConcurrentEffect, Effect, IO, SyncIO}
 import monix.catnap.FutureLift
 import monix.execution.CancelablePromise
-
 import scala.annotation.implicitNotFound
 import scala.concurrent.Future
 import scala.util.Try
@@ -57,7 +55,7 @@ import scala.util.Try
 @implicitNotFound("""Cannot find implicit value for TaskLike[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait TaskLike[F[_]] extends FunctionK[F, Task] {
+trait TaskLike[F[_]] extends (F ~> Task) {
   /**
     * Converts from `F[A]` to `Task[A]`, preserving referential
     * transparency if `F[_]` is a pure data type and preserving
