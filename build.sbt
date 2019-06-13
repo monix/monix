@@ -73,6 +73,8 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-language:higherKinds",
     "-language:implicitConversions",
     "-language:experimental.macros",
+    // Fixes a weird issue on CircleCI
+    "-Xmax-classfile-name", "241",
   ),
 
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {

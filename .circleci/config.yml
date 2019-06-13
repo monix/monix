@@ -8,7 +8,7 @@ jobs:
       - image: openjdk:8
     environment:
       SBT_VERSION: 1.2.8
-      SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m -J-Xmax-classfile-name
+      SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m
     resource_class: medium
     steps:
       - run:
