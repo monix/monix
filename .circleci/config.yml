@@ -8,6 +8,7 @@ jobs:
       - image: openjdk:8
     environment:
       SBT_VERSION: 1.2.8
+      SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m -J-Xmax-classfile-name
     resource_class: medium
     steps:
       - run:
@@ -32,7 +33,7 @@ jobs:
       - run:
           name: Compile project
           working_directory: ~/monix
-          command: cat /dev/null | sbt -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m +clean +test:compile +package
+          command: cat /dev/null | sbt $SBT_OPTIONS +clean +test:compile +package
 
       - save_cache:
           key: monix-cache
@@ -48,13 +49,14 @@ jobs:
       - image: openjdk:8
     environment:
       SBT_VERSION: 1.2.8
+      SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m -J-Xmax-classfile-name
     resource_class: medium
     # ------
     steps:
       - run:
           name: Tests for the JVM
           working_directory: ~/monix
-          command: cat /dev/null | sbt -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m +coreJVM/test
+          command: cat /dev/null | sbt $SBT_OPTIONS +coreJVM/test
 
 workflows:
   version: 2
