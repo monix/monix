@@ -1,5 +1,5 @@
 # N.B. with 2.1 the webhook notification no longer works
-version: 2.0
+version: 2.1
 
 jobs:
   build:
