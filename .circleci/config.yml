@@ -41,6 +41,6 @@ jobs:
             - "~/.sbt"
             - "~/.m2"
 
-notify:
-  webhooks:
-    - url: https://webhooks.gitter.im/e/f1a7ec8fc9a34c6a9108
+# notify:
+#   webhooks:
+#     - url: https://webhooks.gitter.im/e/f1a7ec8fc9a34c6a9108
