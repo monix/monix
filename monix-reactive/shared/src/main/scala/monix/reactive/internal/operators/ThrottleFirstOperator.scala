@@ -25,8 +25,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
-private[reactive] final class ThrottleFirstOperator[A](interval: FiniteDuration)
-  extends Operator[A,A] {
+private[reactive] final class ThrottleFirstOperator[A](interval: FiniteDuration) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -40,8 +39,7 @@ private[reactive] final class ThrottleFirstOperator[A](interval: FiniteDuration)
         if (nextChange <= rightNow) {
           nextChange = rightNow + intervalMs
           out.onNext(elem)
-        }
-        else
+        } else
           Continue
       }
 

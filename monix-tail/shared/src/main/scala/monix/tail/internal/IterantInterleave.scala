@@ -27,11 +27,10 @@ private[tail] object IterantInterleave {
   /**
     * Implementation for `Iterant.interleave`.
     */
-  def apply[F[_], A](l: Iterant[F, A], r: Iterant[F, A]) (implicit F: Sync[F]): Iterant[F, A] =
+  def apply[F[_], A](l: Iterant[F, A], r: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     Suspend(F.delay(new Loop().apply(l, r)))
 
-  private final class Loop[F[_], A](implicit F: Sync[F])
-    extends ((Iterant[F, A], Iterant[F, A]) => Iterant[F, A]) {
+  private final class Loop[F[_], A](implicit F: Sync[F]) extends ((Iterant[F, A], Iterant[F, A]) => Iterant[F, A]) {
     loop =>
 
     def apply(lh: Iterant[F, A], rh: Iterant[F, A]): Iterant[F, A] =

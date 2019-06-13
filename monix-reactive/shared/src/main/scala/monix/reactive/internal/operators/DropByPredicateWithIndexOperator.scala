@@ -22,9 +22,7 @@ import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] final
-class DropByPredicateWithIndexOperator[A](p: (A, Int) => Boolean)
-  extends Operator[A,A] {
+private[reactive] final class DropByPredicateWithIndexOperator[A](p: (A, Int) => Boolean) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -54,8 +52,7 @@ class DropByPredicateWithIndexOperator[A](p: (A, Int) => Boolean)
               onError(ex)
               Stop
           }
-        }
-        else
+        } else
           out.onNext(elem)
       }
 

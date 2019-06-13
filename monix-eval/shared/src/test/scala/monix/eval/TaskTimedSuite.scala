@@ -77,11 +77,12 @@ object TaskTimedSuite extends BaseTestSuite {
 
   test("Task.timed is stack safe") { implicit sc =>
     def loop(n: Int, acc: Duration): Task[Duration] =
-      Task.unit.delayResult(1.second).timed.flatMap { case (duration, _) =>
-        if (n > 0)
-          loop(n - 1, acc + duration)
-        else
-          Task.now(acc)
+      Task.unit.delayResult(1.second).timed.flatMap {
+        case (duration, _) =>
+          if (n > 0)
+            loop(n - 1, acc + duration)
+          else
+            Task.now(acc)
       }
 
     val f = loop(10000, 0.second).runToFuture; sc.tick(10001.seconds)

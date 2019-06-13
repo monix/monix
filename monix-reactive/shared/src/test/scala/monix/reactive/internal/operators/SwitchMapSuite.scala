@@ -25,9 +25,11 @@ import scala.concurrent.duration._
 object SwitchMapSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val mainPeriod = 2.seconds + 500.millis
-    val o = Observable.interval(mainPeriod)
+    val o = Observable
+      .interval(mainPeriod)
       .switchMap(i => Observable.interval(1.second))
-      .bufferTimed(mainPeriod).map(_.sum)
+      .bufferTimed(mainPeriod)
+      .map(_.sum)
       .take(sourceCount)
 
     val sum = 3 * sourceCount
@@ -41,10 +43,11 @@ object SwitchMapSuite extends BaseOperatorSuite {
     val mainPeriod = 2.seconds + 500.millis
     val o = createObservableEndingInError(Observable.interval(mainPeriod).take(sourceCount), ex)
       .switchMap(i => Observable.interval(1.second))
-      .bufferTimed(mainPeriod).map(_.sum)
+      .bufferTimed(mainPeriod)
+      .map(_.sum)
 
-    val sum = 3 * (sourceCount-1)
-    Sample(o, sourceCount-1, sum, waitFirst, waitNext)
+    val sum = 3 * (sourceCount - 1)
+    Sample(o, sourceCount - 1, sum, waitFirst, waitNext)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
@@ -89,16 +92,15 @@ object SwitchMapSuite extends BaseOperatorSuite {
     }
 
     var total = 0L
-    source.unsafeSubscribeFn(
-      new Observer.Sync[Long] {
-        def onNext(elem: Long): Ack = {
-          total += elem
-          Continue
-        }
+    source.unsafeSubscribeFn(new Observer.Sync[Long] {
+      def onNext(elem: Long): Ack = {
+        total += elem
+        Continue
+      }
 
-        def onError(ex: Throwable): Unit = throw ex
-        def onComplete(): Unit = ()
-      })
+      def onError(ex: Throwable): Unit = throw ex
+      def onComplete(): Unit = ()
+    })
 
     s.tick()
     assertEquals(total, 0)

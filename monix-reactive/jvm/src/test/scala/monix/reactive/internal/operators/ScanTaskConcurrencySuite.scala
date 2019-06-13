@@ -33,7 +33,8 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
     val expected = 3L * count * (count - 1) / 2
 
     for (_ <- 0 until 100) {
-      val sum = Observable.range(0, count)
+      val sum = Observable
+        .range(0, count)
         .scanEval(Task.now(0L))((_, x) => Task.now(x * 3))
         .sumL
         .runToFuture
@@ -48,7 +49,8 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
     val expected = 3L * count * (count - 1) / 2
 
     for (_ <- 0 until 100) {
-      val sum = Observable.range(0, count)
+      val sum = Observable
+        .range(0, count)
         .scanEval(Task.now(0L))((_, x) => Task.evalAsync(x * 3))
         .sumL
         .runToFuture

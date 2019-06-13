@@ -37,8 +37,9 @@ private[tail] object IterantUncons {
       if (ref.cursor.isEmpty) Iterant.liftF(ref.rest).flatMap(this)
       else {
         val head = ref.cursor.next()
-        val tail = if (ref.cursor.isEmpty) Suspend(ref.rest)
-                   else NextCursor(ref.cursor, ref.rest)
+        val tail =
+          if (ref.cursor.isEmpty) Suspend(ref.rest)
+          else NextCursor(ref.cursor, ref.rest)
         Iterant.pure((Some(head), tail))
       }
 

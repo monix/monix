@@ -45,7 +45,8 @@ object IterantCompleteLSuite extends BaseTestSuite {
     val cursor = ThrowExceptionCursor[Int](dummy)
     var earlyStop = false
 
-    val fa = Iterant[Coeval].resource(Coeval.unit)(_ => Coeval { earlyStop = true })
+    val fa = Iterant[Coeval]
+      .resource(Coeval.unit)(_ => Coeval { earlyStop = true })
       .flatMap(_ => Iterant[Coeval].fromBatchCursor(cursor))
 
     assertEquals(fa.completedL.runTry(), Failure(dummy))
@@ -57,7 +58,8 @@ object IterantCompleteLSuite extends BaseTestSuite {
     val batch = ThrowExceptionBatch[Int](dummy)
     var earlyStop = false
 
-    val fa = Iterant[Coeval].resource(Coeval.unit)(_ => Coeval { earlyStop = true })
+    val fa = Iterant[Coeval]
+      .resource(Coeval.unit)(_ => Coeval { earlyStop = true })
       .flatMap(_ => Iterant[Coeval].fromBatch(batch))
 
     assertEquals(fa.completedL.runTry(), Failure(dummy))
@@ -105,12 +107,13 @@ object IterantCompleteLSuite extends BaseTestSuite {
 
     val stream = Iterant[Coeval].scopeS[Unit, Int](
       Coeval.unit,
-      _ => Coeval(1 +: Iterant[Coeval].suspend {
-        if (triggered.getAndSet(true))
-          Iterant[Coeval].raiseError[Int](fail)
-        else
-          Iterant[Coeval].empty[Int]
-      }),
+      _ =>
+        Coeval(1 +: Iterant[Coeval].suspend {
+          if (triggered.getAndSet(true))
+            Iterant[Coeval].raiseError[Int](fail)
+          else
+            Iterant[Coeval].empty[Int]
+        }),
       (_, _) => {
         Coeval(triggered.set(true))
       }

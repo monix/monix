@@ -22,8 +22,7 @@ package monix.execution.atomic
   * Note that the equality test in `compareAndSet` is value based,
   * since `Short` is a primitive.
   */
-final class AtomicShort private[atomic]
-  (initialValue: Short) extends AtomicNumber[Short] {
+final class AtomicShort private[atomic] (initialValue: Short) extends AtomicNumber[Short] {
 
   private[this] var ref = initialValue
   private[this] val mask = 255 + 255 * 256
@@ -38,8 +37,7 @@ final class AtomicShort private[atomic]
     if (ref == expect) {
       ref = update
       true
-    }
-    else
+    } else
       false
   }
 

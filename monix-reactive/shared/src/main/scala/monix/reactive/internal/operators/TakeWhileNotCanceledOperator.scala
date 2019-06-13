@@ -25,8 +25,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelable)
-  extends Operator[A, A] {
+private[reactive] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelable) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -34,7 +33,8 @@ private[reactive] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelab
       private[this] var isActive = true
 
       def onNext(elem: A): Future[Ack] =
-        if (!isActive) Stop else {
+        if (!isActive) Stop
+        else {
           var streamError = true
           try {
             val isCanceled = c.isCanceled

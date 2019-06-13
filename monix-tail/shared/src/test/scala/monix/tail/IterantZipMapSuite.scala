@@ -43,15 +43,15 @@ object IterantZipMapSuite extends BaseTestSuite {
       val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
 
       val received = stream1.zipMap(stream2)(f).toListL
-      val expected = Coeval(list1.zip(list2).map { case (a,b) => f(a,b) })
+      val expected = Coeval(list1.zip(list2).map { case (a, b) => f(a, b) })
       received <-> expected
     }
   }
 
   test("Iterant.zipMap protects against user error") { implicit s =>
-    check2{ (s1: Iterant[Task, Int], s2: Iterant[Task, Int]) =>
+    check2 { (s1: Iterant[Task, Int], s2: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val f = (_: Int, _: Int) => (throw dummy) : Long
+      val f = (_: Int, _: Int) => (throw dummy): Long
       val suffix = Iterant[Task].now(1)
       val stream1 = s1.onErrorIgnore ++ suffix
       val stream2 = s2.onErrorIgnore ++ suffix

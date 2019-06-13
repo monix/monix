@@ -27,17 +27,15 @@ object MergeDelayErrorOneSuite extends BaseOperatorSuite {
   case class SomeException(value: Long) extends RuntimeException
 
   def create(sourceCount: Int, ex: Throwable = null) = Some {
-    val source = if (ex == null) Observable.range(0, sourceCount)
-    else Observable.range(0, sourceCount).endWithError(ex)
+    val source =
+      if (ex == null) Observable.range(0, sourceCount)
+      else Observable.range(0, sourceCount).endWithError(ex)
 
-    val o = source.mergeMapDelayErrors(i =>
-      Observable.now(i).endWithError(SomeException(10)))
+    val o = source.mergeMapDelayErrors(i => Observable.now(i).endWithError(SomeException(10)))
 
     val recovered = o.onErrorHandleWith {
       case composite: CompositeException =>
-        val sum = composite
-          .errors.collect { case ex: SomeException => ex.value }
-          .sum
+        val sum = composite.errors.collect { case ex: SomeException => ex.value }.sum
 
         Observable.now(sum)
     }
@@ -60,9 +58,12 @@ object MergeDelayErrorOneSuite extends BaseOperatorSuite {
   def waitNext = Duration.Zero
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample1 =  Observable.range(1, 100)
+    val sample1 = Observable
+      .range(1, 100)
       .mergeMapDelayErrors(x => Observable.now(x).delayExecution(2.second))
-    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
+    val sample2 = Observable
+      .range(0, 100)
+      .delayOnNext(1.second)
       .mergeMapDelayErrors(x => Observable.now(x).delayExecution(2.second))
 
     Seq(

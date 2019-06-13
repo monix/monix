@@ -49,8 +49,7 @@ private[buffers] object ConcurrentQueue {
           new MpscChunkedArrayQueue[A](initialCapacity, maxCapacity)
         }
       )
-    }
-    else {
+    } else {
       new FromAbstractQueue[A](new MpscAtomicArrayQueue[A](maxCapacity))
     }
   }
@@ -60,16 +59,14 @@ private[buffers] object ConcurrentQueue {
     if (UnsafeAccess.IS_OPENJDK_COMPATIBLE) {
       val size = Platform.recommendedBufferChunkSize
       new FromMessagePassingQueue[A](new MpscUnboundedArrayQueue[A](size))
-    }
-    else {
+    } else {
       val ref = new MpscLinkedAtomicQueue[A]()
       new FromAbstractQueue[A](ref)
     }
   }
 
   /** Builds an instance from a `java.util.AbstractQueue`. */
-  private final class FromAbstractQueue[A](underlying: util.AbstractQueue[A])
-    extends ConcurrentQueue[A] {
+  private final class FromAbstractQueue[A](underlying: util.AbstractQueue[A]) extends ConcurrentQueue[A] {
 
     def isEmpty: Boolean =
       underlying.isEmpty
@@ -90,10 +87,8 @@ private[buffers] object ConcurrentQueue {
     }
   }
 
-
   /** Builds an instance from a `MessagePassingQueue`. */
-  private final class FromMessagePassingQueue[A](underlying: MessagePassingQueue[A])
-    extends ConcurrentQueue[A] {
+  private final class FromMessagePassingQueue[A](underlying: MessagePassingQueue[A]) extends ConcurrentQueue[A] {
 
     def isEmpty: Boolean =
       underlying.isEmpty

@@ -25,16 +25,19 @@ private[eval] object TaskRace {
   /**
     * Implementation for `Task.race`.
     */
-  def apply[A,B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
-    Task.Async(new Register(fa, fb), trampolineBefore = true, trampolineAfter = true)
+  def apply[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
+    Task.Async(
+      new Register(fa, fb),
+      trampolineBefore = true,
+      trampolineAfter = true
+    )
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is a task that forks on evaluation.
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Register[A, B](fa: Task[A], fb: Task[B])
-    extends ForkedRegister[Either[A, B]] {
+  private final class Register[A, B](fa: Task[A], fb: Task[B]) extends ForkedRegister[Either[A, B]] {
 
     def apply(context: Task.Context, cb: Callback[Throwable, Either[A, B]]): Unit = {
       implicit val sc = context.scheduler
@@ -49,42 +52,50 @@ private[eval] object TaskRace {
       val contextB = context.withConnection(connB)
 
       // First task: A
-      Task.unsafeStartEnsureAsync(fa, contextA, new Callback[Throwable, A] {
-        def onSuccess(valueA: A): Unit =
-          if (isActive.getAndSet(false)) {
-            connB.cancel.runAsyncAndForget
-            conn.pop()
-            cb.onSuccess(Left(valueA))
-          }
+      Task.unsafeStartEnsureAsync(
+        fa,
+        contextA,
+        new Callback[Throwable, A] {
+          def onSuccess(valueA: A): Unit =
+            if (isActive.getAndSet(false)) {
+              connB.cancel.runAsyncAndForget
+              conn.pop()
+              cb.onSuccess(Left(valueA))
+            }
 
-        def onError(ex: Throwable): Unit =
-          if (isActive.getAndSet(false)) {
-            conn.pop()
-            connB.cancel.runAsyncAndForget
-            cb.onError(ex)
-          } else {
-            sc.reportFailure(ex)
-          }
-      })
+          def onError(ex: Throwable): Unit =
+            if (isActive.getAndSet(false)) {
+              conn.pop()
+              connB.cancel.runAsyncAndForget
+              cb.onError(ex)
+            } else {
+              sc.reportFailure(ex)
+            }
+        }
+      )
 
       // Second task: B
-      Task.unsafeStartEnsureAsync(fb, contextB, new Callback[Throwable, B] {
-        def onSuccess(valueB: B): Unit =
-          if (isActive.getAndSet(false)) {
-            connA.cancel.runAsyncAndForget
-            conn.pop()
-            cb.onSuccess(Right(valueB))
-          }
+      Task.unsafeStartEnsureAsync(
+        fb,
+        contextB,
+        new Callback[Throwable, B] {
+          def onSuccess(valueB: B): Unit =
+            if (isActive.getAndSet(false)) {
+              connA.cancel.runAsyncAndForget
+              conn.pop()
+              cb.onSuccess(Right(valueB))
+            }
 
-        def onError(ex: Throwable): Unit =
-          if (isActive.getAndSet(false)) {
-            conn.pop()
-            connA.cancel.runAsyncAndForget
-            cb.onError(ex)
-          } else {
-            sc.reportFailure(ex)
-          }
-      })
+          def onError(ex: Throwable): Unit =
+            if (isActive.getAndSet(false)) {
+              conn.pop()
+              connA.cancel.runAsyncAndForget
+              cb.onError(ex)
+            } else {
+              sc.reportFailure(ex)
+            }
+        }
+      )
     }
   }
 }

@@ -24,8 +24,11 @@ import scala.reflect.ClassTag
 /** [[Batch]] implementation that wraps
   * an array, based on [[ArrayCursor]].
   */
-final class ArrayBatch[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
-  (ref: Array[A], offset: Int, length: Int, newBuilder: () => ArrayBuilder[A])
+final class ArrayBatch[@specialized(Boolean, Byte, Char, Int, Long, Double) A](
+  ref: Array[A],
+  offset: Int,
+  length: Int,
+  newBuilder: () => ArrayBuilder[A])
   extends Batch[A] {
 
   def this(ref: Array[A], offset: Int, length: Int)(implicit tag: ClassTag[A]) =

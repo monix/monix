@@ -107,7 +107,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
-        obs.foldLeftL(0)(_+_).map(Some.apply).materialize.runToFuture
+        obs.foldLeftL(0)(_ + _).map(Some.apply).materialize.runToFuture
 
       result <-> Future.successful(Success(Some(list.sum)))
     }
@@ -116,8 +116,8 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
   test("foldWhileL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
-      val sum1 = obs.foldLeftL(0)(_+_)
-      val sum2 = obs.foldWhileLeftL(0)((acc,e) => Left(acc + e))
+      val sum1 = obs.foldLeftL(0)(_ + _)
+      val sum2 = obs.foldWhileLeftL(0)((acc, e) => Left(acc + e))
       sum1 <-> sum2
     }
   }
@@ -194,8 +194,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
-        obs.map(Some.apply).lastOrElseL(None)
-          .materialize.runToFuture
+        obs.map(Some.apply).lastOrElseL(None).materialize.runToFuture
 
       result <-> first(obs.last)
     }

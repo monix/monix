@@ -147,7 +147,7 @@ object StackedCancelableSuite extends SimpleTestSuite {
     val c2 = StackedCancelable(d3)
     c2 push d4
 
-    assertEquals(c2.popAndPushList(List(d1,d2)), d4)
+    assertEquals(c2.popAndPushList(List(d1, d2)), d4)
     c2.cancel()
     assertEquals(effect, 13)
   }
@@ -265,7 +265,7 @@ object StackedCancelableSuite extends SimpleTestSuite {
     assert(c3.isCanceled, "c3.isCanceled")
     assert(c4.isCanceled, "c4.isCanceled")
   }
-  
+
   test("uncanceled returns same reference") {
     val ref1 = StackedCancelable.uncancelable
     val ref2 = StackedCancelable.uncancelable

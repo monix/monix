@@ -34,9 +34,7 @@ import monix.execution.Scheduler
   *
   * @param s is the scheduler that gets used for execution.
   */
-final case class StartAsyncBatchRunnable(
-  start: TrampolinedRunnable, s: Scheduler)
-  extends Runnable with Serializable {
+final case class StartAsyncBatchRunnable(start: TrampolinedRunnable, s: Scheduler) extends Runnable with Serializable {
 
   def run(): Unit = {
     // Scheduler might not be an actual `BatchingScheduler`, in which case

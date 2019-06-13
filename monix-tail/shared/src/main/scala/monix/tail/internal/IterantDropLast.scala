@@ -35,8 +35,7 @@ private[tail] object IterantDropLast {
     else Suspend(F.delay(new Loop(n).apply(source)))
   }
 
-  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
     private[this] var queue = Queue[A]()
     private[this] var length = 0
@@ -47,8 +46,7 @@ private[tail] object IterantDropLast {
         val (nextItem, nextQueue) = queue.dequeue
         queue = nextQueue
         Next(nextItem, ref.rest.map(this))
-      }
-      else {
+      } else {
         length += 1
         Suspend(ref.rest.map(this))
       }

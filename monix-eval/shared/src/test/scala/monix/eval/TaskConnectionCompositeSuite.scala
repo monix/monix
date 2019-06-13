@@ -163,9 +163,15 @@ object TaskConnectionCompositeSuite extends BaseTestSuite {
 
   test("remove Cancelable") { implicit sc =>
     var effect = 0
-    val task1 = Cancelable { () => effect += 1 }
-    val task2 = Cancelable { () => effect += 2 }
-    val task3 = Cancelable { () => effect += 3 }
+    val task1 = Cancelable { () =>
+      effect += 1
+    }
+    val task2 = Cancelable { () =>
+      effect += 2
+    }
+    val task3 = Cancelable { () =>
+      effect += 3
+    }
 
     val conn = TaskConnectionComposite()
     for (ref <- Seq(task1, task2, task3)) conn += ref

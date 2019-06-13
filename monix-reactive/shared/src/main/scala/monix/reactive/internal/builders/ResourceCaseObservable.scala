@@ -30,7 +30,8 @@ import monix.reactive.observers.Subscriber
 import scala.util.Success
 
 private[reactive] final class ResourceCaseObservable[A](
-  acquire: Task[A], release: (A, ExitCase[Throwable]) => Task[Unit])
+  acquire: Task[A],
+  release: (A, ExitCase[Throwable]) => Task[Unit])
   extends ChainedObservable[A] {
 
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, subscriber: Subscriber[A]): Unit = {

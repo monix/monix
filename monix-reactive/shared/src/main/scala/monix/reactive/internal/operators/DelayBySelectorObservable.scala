@@ -26,8 +26,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.{Future, Promise}
 
-private[reactive] final
-class DelayBySelectorObservable[A,S](source: Observable[A], selector: A => Observable[S])
+private[reactive] final class DelayBySelectorObservable[A, S](source: Observable[A], selector: A => Observable[S])
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -75,8 +74,7 @@ class DelayBySelectorObservable[A,S](source: Observable[A], selector: A => Obser
           streamErrors = false
           task := obs.unsafeSubscribeFn(trigger)
           ack.future
-        }
-        catch {
+        } catch {
           case NonFatal(ex) if streamErrors =>
             onError(ex)
             Stop

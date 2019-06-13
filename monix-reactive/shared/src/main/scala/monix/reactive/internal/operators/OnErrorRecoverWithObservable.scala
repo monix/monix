@@ -26,8 +26,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive] final
-class OnErrorRecoverWithObservable[A](source: Observable[A], f: Throwable => Observable[A])
+private[reactive] final class OnErrorRecoverWithObservable[A](source: Observable[A], f: Throwable => Observable[A])
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -55,13 +54,13 @@ class OnErrorRecoverWithObservable[A](source: Observable[A], f: Throwable => Obs
           // on the last ack, otherwise we break back-pressure.
           ack.onComplete { r =>
             if (r.isSuccess && (r.get eq Continue))
-              cancelable.orderedUpdate(fallbackTo.unsafeSubscribeFn(out), order=2)
+              cancelable.orderedUpdate(fallbackTo.unsafeSubscribeFn(out), order = 2)
           }
-        }
-        catch {
+        } catch {
           case NonFatal(err) if streamError =>
             // streaming the immediate exception
-            try out.onError(err) finally {
+            try out.onError(err)
+            finally {
               // logging the original exception
               scheduler.reportFailure(ex)
             }
@@ -69,6 +68,6 @@ class OnErrorRecoverWithObservable[A](source: Observable[A], f: Throwable => Obs
       }
     })
 
-    cancelable.orderedUpdate(main, order=1)
+    cancelable.orderedUpdate(main, order = 1)
   }
 }

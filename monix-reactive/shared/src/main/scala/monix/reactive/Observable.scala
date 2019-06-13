@@ -19,7 +19,21 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, Eval, FlatMap, Functor, FunctorFilter, Monoid, NonEmptyParallel, Order, ~>}
+import cats.{
+  ~>,
+  Alternative,
+  Applicative,
+  Apply,
+  CoflatMap,
+  Eq,
+  Eval,
+  FlatMap,
+  Functor,
+  FunctorFilter,
+  Monoid,
+  NonEmptyParallel,
+  Order
+}
 import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
 import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
@@ -384,8 +398,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[consumeWith]] for another way of consuming observables
     */
   @UnsafeBecauseImpure
-  final def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)
-    (implicit s: Scheduler): Cancelable = {
+  final def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)(
+    implicit s: Scheduler): Cancelable = {
 
     subscribe(new Subscriber[A] {
       implicit val scheduler = s
@@ -746,7 +760,10 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param sizeOf is the function to compute the weight of each
     *        element in the buffer
     */
-  final def bufferTimedWithPressure(period: FiniteDuration, maxSize: Int, sizeOf: A => Int = _ => 1): Observable[Seq[A]] = {
+  final def bufferTimedWithPressure(
+    period: FiniteDuration,
+    maxSize: Int,
+    sizeOf: A => Int = _ => 1): Observable[Seq[A]] = {
     val sampler = Observable.intervalAtFixedRate(period, period)
     new BufferWithSelectorObservable(self, sampler, maxSize, sizeOf)
   }
@@ -800,8 +817,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  final def bracketF[F[_], B](use: A => Observable[B])(release: A => F[Unit])
-    (implicit F: TaskLike[F]): Observable[B] =
+  final def bracketF[F[_], B](use: A => Observable[B])(release: A => F[Unit])(implicit F: TaskLike[F]): Observable[B] =
     bracket(use)(release.andThen(F.toTask))
 
   /** Implementation of `bracketCase` from `cats.effect.Bracket`.
@@ -822,8 +838,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  final def bracketCaseF[F[_], B](use: A => Observable[B])(release: (A, ExitCase[Throwable]) => F[Unit])
-    (implicit F: TaskLike[F]): Observable[B] =
+  final def bracketCaseF[F[_], B](use: A => Observable[B])(release: (A, ExitCase[Throwable]) => F[Unit])(
+    implicit F: TaskLike[F]): Observable[B] =
     bracketCase(use)((a, e) => F.toTask(release(a, e)))
 
   /** Applies the given partial function to the source
@@ -1172,7 +1188,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import monix.execution.Scheduler
     *
     *   implicit val s = Scheduler.global
-    *   
+    *
     *   val cancelable =
     *     Observable
     *       .range(0, Int.MaxValue)
@@ -1930,8 +1946,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * @param keySelector  a function that extracts the key for each item
     */
-  final def groupBy[K](keySelector: A => K)
-    (implicit os: Synchronous[Nothing] = OverflowStrategy.Unbounded): Observable[GroupedObservable[K, A]] =
+  final def groupBy[K](keySelector: A => K)(
+    implicit os: Synchronous[Nothing] = OverflowStrategy.Unbounded): Observable[GroupedObservable[K, A]] =
     self.liftByOperator(new GroupByOperator[A, K](os, keySelector))
 
   /** Given a routine make sure to execute it whenever the current
@@ -2023,8 +2039,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  final def guaranteeCaseF[F[_]](f: ExitCase[Throwable] => F[Unit])
-    (implicit F: TaskLike[F]): Observable[A] =
+  final def guaranteeCaseF[F[_]](f: ExitCase[Throwable] => F[Unit])(implicit F: TaskLike[F]): Observable[A] =
     guaranteeCase(e => F.toTask(f(e)))
 
   /** Alias for [[completed]]. Ignores all items emitted by
@@ -2148,8 +2163,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *     which may lead to faster execution times
     * @see [[mapEval]] for serial execution
     */
-  final def mapParallelOrdered[B](parallelism: Int)(f: A => Task[B])
-    (implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+  final def mapParallelOrdered[B](parallelism: Int)(f: A => Task[B])(
+    implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MapParallelOrderedObservable[A, B](self, parallelism, f, os)
 
   /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
@@ -2176,8 +2191,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[mapParallelOrdered]] for a variant that does preserve order
     * @see [[mapEval]] for serial execution
     */
-  final def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B])
-    (implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+  final def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B])(
+    implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MapParallelUnorderedObservable[A, B](self, parallelism, f, os)
 
   /** Converts the source Observable that emits `A` into an Observable
@@ -2210,7 +2225,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @note $defaultOverflowStrategy
     * @return $mergeReturn
     */
-  final def merge[B](implicit ev: A <:< Observable[B],
+  final def merge[B](
+    implicit ev: A <:< Observable[B],
     os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     self.mergeMap(x => x)(os)
 
@@ -2244,8 +2260,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param f is a generator for the streams that will get merged
     * @return $mergeMapReturn
     */
-  final def mergeMap[B](f: A => Observable[B])
-    (implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+  final def mergeMap[B](f: A => Observable[B])(
+    implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MergeMapObservable[A, B](self, f, os, delayErrors = false)
 
   /** $mergeDescription
@@ -2255,7 +2271,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @note $defaultOverflowStrategy
     * @return $mergeReturn
     */
-  final def mergeDelayErrors[B](implicit ev: A <:< Observable[B],
+  final def mergeDelayErrors[B](
+    implicit ev: A <:< Observable[B],
     os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     self.mergeMap(x => x)(os)
 
@@ -2266,8 +2283,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param f is a generator for the streams that will get merged
     * @return $mergeMapReturn
     */
-  final def mergeMapDelayErrors[B](f: A => Observable[B])
-    (implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+  final def mergeMapDelayErrors[B](f: A => Observable[B])(
+    implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MergeMapObservable[A, B](self, f, os, delayErrors = true)
 
   /** Overrides the default [[monix.execution.Scheduler Scheduler]],
@@ -2481,7 +2498,9 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorHandle[B >: A](f: Throwable => B): Observable[B] =
-    onErrorHandleWith { elem => Observable.now(f(elem)) }
+    onErrorHandleWith { elem =>
+      Observable.now(f(elem))
+    }
 
   /** Returns an observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which
@@ -2753,19 +2772,18 @@ abstract class Observable[+A] extends Serializable { self =>
     * @return a new observable that emits all intermediate states being
     *         resulted from applying the given function
     */
-  final def scanEvalF[F[_], S](seed: F[S])(op: (S, A) => F[S])
-    (implicit F: TaskLike[F]): Observable[S] =
+  final def scanEvalF[F[_], S](seed: F[S])(op: (S, A) => F[S])(implicit F: TaskLike[F]): Observable[S] =
     scanEval(Task.from(seed)(F))((s, a) => Task.from(op(s, a))(F))
 
-/** Applies a binary operator to a start value and all elements of
-  * this stream, going left to right and returns a new stream that
-  * emits on each step the result of the applied function.
-  *
-  * This is a version of [[scanEvalF]] that emits seed element at the beginning,
-  * similar to `scanLeft` on Scala collections
-  */
-  final def scanEval0F[F[_], S](seed: F[S])(op: (S, A) => F[S])
-    (implicit F: TaskLike[F], A: Applicative[F]): Observable[S] =
+  /** Applies a binary operator to a start value and all elements of
+    * this stream, going left to right and returns a new stream that
+    * emits on each step the result of the applied function.
+    *
+    * This is a version of [[scanEvalF]] that emits seed element at the beginning,
+    * similar to `scanLeft` on Scala collections
+    */
+  final def scanEval0F[F[_], S](seed: F[S])(
+    op: (S, A) => F[S])(implicit F: TaskLike[F], A: Applicative[F]): Observable[S] =
     Observable.fromTaskLike(seed).flatMap(s => s +: scanEvalF(A.pure(s))(op))
 
   /** Applies a binary operator to a start value and all elements of
@@ -3188,8 +3206,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param o3 is the third observable that gets paired with the source
     * @param f is a mapping function over the generated pairs
     */
-  final def withLatestFrom3[B1, B2, B3, R](o1: Observable[B1], o2: Observable[B2], o3: Observable[B3])
-    (f: (A, B1, B2, B3) => R): Observable[R] = {
+  final def withLatestFrom3[B1, B2, B3, R](o1: Observable[B1], o2: Observable[B2], o3: Observable[B3])(
+    f: (A, B1, B2, B3) => R): Observable[R] = {
 
     self.withLatestFrom(Observable.combineLatest3(o1, o2, o3)) { (a, o) =>
       f(a, o._1, o._2, o._3)
@@ -3210,8 +3228,10 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param f is a mapping function over the generated pairs
     */
   final def withLatestFrom4[B1, B2, B3, B4, R](
-    o1: Observable[B1], o2: Observable[B2], o3: Observable[B3], o4: Observable[B4])
-    (f: (A, B1, B2, B3, B4) => R): Observable[R] = {
+    o1: Observable[B1],
+    o2: Observable[B2],
+    o3: Observable[B3],
+    o4: Observable[B4])(f: (A, B1, B2, B3, B4) => R): Observable[R] = {
 
     self.withLatestFrom(Observable.combineLatest4(o1, o2, o3, o4)) { (a, o) =>
       f(a, o._1, o._2, o._3, o._4)
@@ -3233,9 +3253,11 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param f is a mapping function over the generated pairs
     */
   final def withLatestFrom5[B1, B2, B3, B4, B5, R](
-    o1: Observable[B1], o2: Observable[B2], o3: Observable[B3],
-    o4: Observable[B4], o5: Observable[B5])
-    (f: (A, B1, B2, B3, B4, B5) => R): Observable[R] = {
+    o1: Observable[B1],
+    o2: Observable[B2],
+    o3: Observable[B3],
+    o4: Observable[B4],
+    o5: Observable[B5])(f: (A, B1, B2, B3, B4, B5) => R): Observable[R] = {
 
     self.withLatestFrom(Observable.combineLatest5(o1, o2, o3, o4, o5)) { (a, o) =>
       f(a, o._1, o._2, o._3, o._4, o._5)
@@ -3258,9 +3280,12 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param f is a mapping function over the generated pairs
     */
   final def withLatestFrom6[B1, B2, B3, B4, B5, B6, R](
-    o1: Observable[B1], o2: Observable[B2], o3: Observable[B3],
-    o4: Observable[B4], o5: Observable[B5], o6: Observable[B6])
-    (f: (A, B1, B2, B3, B4, B5, B6) => R): Observable[R] = {
+    o1: Observable[B1],
+    o2: Observable[B2],
+    o3: Observable[B3],
+    o4: Observable[B4],
+    o5: Observable[B5],
+    o6: Observable[B6])(f: (A, B1, B2, B3, B4, B5, B6) => R): Observable[R] = {
 
     self.withLatestFrom(Observable.combineLatest6(o1, o2, o3, o4, o5, o6)) { (a, o) =>
       f(a, o._1, o._2, o._3, o._4, o._5, o._6)
@@ -3421,9 +3446,10 @@ abstract class Observable[+A] extends Serializable { self =>
     new RPublisher[B] {
       def subscribe(subscriber: RSubscriber[_ >: B]): Unit = {
         val subscription = SingleAssignCancelable()
-        subscription := unsafeSubscribeFn(SafeSubscriber(
-          Subscriber.fromReactiveSubscriber(subscriber, subscription)
-        ))
+        subscription := unsafeSubscribeFn(
+          SafeSubscriber(
+            Subscriber.fromReactiveSubscriber(subscriber, subscription)
+          ))
       }
     }
 
@@ -4206,7 +4232,6 @@ abstract class Observable[+A] extends Serializable { self =>
     }
 }
 
-
 /** Observable builders.
   *
   * @define multicastDesc Creates an input channel and an output observable
@@ -4360,8 +4385,7 @@ object Observable extends ObservableDeprecatedBuilders {
     */
   def create[A](
     overflowStrategy: OverflowStrategy.Synchronous[A],
-    producerType: ChannelType.ProducerSide = MultiProducer)
-    (f: Subscriber.Sync[A] => Cancelable): Observable[A] =
+    producerType: ChannelType.ProducerSide = MultiProducer)(f: Subscriber.Sync[A] => Cancelable): Observable[A] =
     new builders.CreateObservable(overflowStrategy, producerType, f)
 
   /** $multicastDesc
@@ -4369,8 +4393,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * @param multicast is the multicast strategy to use (e.g. publish, behavior,
     *        reply, async)
     */
-  def multicast[A](multicast: MulticastStrategy[A])
-    (implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
+  def multicast[A](multicast: MulticastStrategy[A])(implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
 
     val ref = ConcurrentSubject(multicast)
     (ref, ref)
@@ -4384,8 +4407,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *        in front (since this will be a hot data-source that cannot be
     *        back-pressured)
     */
-  def multicast[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])
-    (implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
+  def multicast[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])(
+    implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
 
     val ref = ConcurrentSubject(multicast, overflow)
     (ref, ref)
@@ -4518,9 +4541,13 @@ object Observable extends ObservableDeprecatedBuilders {
           .resourceCase(F.toTask(fa)) { case ((a, release), exitCase) => F.toTask(release(exitCase)) }
           .map(_._1)
       case Resource.Suspend(fa) =>
-        Observable.from(fa).flatMap { res => fromResource(res) }
+        Observable.from(fa).flatMap { res =>
+          fromResource(res)
+        }
       case Resource.Bind(source, fs) =>
-        fromResource(source).flatMap { s => fromResource(fs(s)) }
+        fromResource(source).flatMap { s =>
+          fromResource(fs(s))
+        }
     }
 
   /** Safely converts a `java.io.InputStream` into an observable that will
@@ -4539,7 +4566,8 @@ object Observable extends ObservableDeprecatedBuilders {
     * @param chunkSize is the maximum length of the emitted arrays of bytes
     */
   def fromInputStream(in: Task[InputStream], chunkSize: Int = 4096): Observable[Array[Byte]] = {
-    Observable.resource(in)(h => Task(h.close()))
+    Observable
+      .resource(in)(h => Task(h.close()))
       .flatMap(fromInputStreamUnsafe(_, chunkSize))
       .executeAsync
   }
@@ -4555,8 +4583,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  def fromInputStreamF[F[_]](in: F[InputStream], chunkSize: Int = 4096)
-    (implicit F: TaskLike[F]): Observable[Array[Byte]] =
+  def fromInputStreamF[F[_]](in: F[InputStream], chunkSize: Int = 4096)(
+    implicit F: TaskLike[F]): Observable[Array[Byte]] =
     fromInputStream(F.toTask(in), chunkSize)
 
   /** Converts a `java.io.InputStream` into an observable that will
@@ -4602,7 +4630,8 @@ object Observable extends ObservableDeprecatedBuilders {
     * @param chunkSize is the maximum length of the emitted arrays of chars
     */
   def fromCharsReader(in: Task[Reader], chunkSize: Int = 4096): Observable[Array[Char]] = {
-    Observable.resource(in)(h => Task(h.close()))
+    Observable
+      .resource(in)(h => Task(h.close()))
       .flatMap(fromCharsReaderUnsafe(_, chunkSize))
       .executeAsync
   }
@@ -4618,8 +4647,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  def fromCharsReaderF[F[_]](in: F[Reader], chunkSize: Int = 4096)
-    (implicit F: TaskLike[F]): Observable[Array[Char]] =
+  def fromCharsReaderF[F[_]](in: F[Reader], chunkSize: Int = 4096)(implicit F: TaskLike[F]): Observable[Array[Char]] =
     fromCharsReader(F.toTask(in), chunkSize)
 
   /** Converts a `java.io.Reader` into an observable that will emit
@@ -4668,7 +4696,8 @@ object Observable extends ObservableDeprecatedBuilders {
     * @param in is the `Task[BufferedReader]` generator to convert into an observable
     */
   def fromLinesReader(in: Task[BufferedReader]): Observable[String] = {
-    Observable.resource(in)(h => Task(h.close()))
+    Observable
+      .resource(in)(h => Task(h.close()))
       .flatMap(fromLinesReaderUnsafe)
       .executeAsync
   }
@@ -5110,8 +5139,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zipMap3[A1, A2, A3, R](oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3])
-    (f: (A1, A2, A3) => R): Observable[R] =
+  def zipMap3[A1, A2, A3, R](oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3])(
+    f: (A1, A2, A3) => R): Observable[R] =
     new builders.Zip3Observable(oa1, oa2, oa3)(f)
 
   /** Creates a new observable from four observable sequences
@@ -5126,8 +5155,11 @@ object Observable extends ObservableDeprecatedBuilders {
     * See [[combineLatestMap4]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     */
-  def zip4[A1, A2, A3, A4]
-  (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3], oa4: Observable[A4]): Observable[(A1, A2, A3, A4)] =
+  def zip4[A1, A2, A3, A4](
+    oa1: Observable[A1],
+    oa2: Observable[A2],
+    oa3: Observable[A3],
+    oa4: Observable[A4]): Observable[(A1, A2, A3, A4)] =
     new builders.Zip4Observable(oa1, oa2, oa3, oa4)((a1, a2, a3, a4) => (a1, a2, a3, a4))
 
   /** Creates a new observable from four observable sequences
@@ -5144,9 +5176,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zipMap4[A1, A2, A3, A4, R]
-  (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3], oa4: Observable[A4])
-    (f: (A1, A2, A3, A4) => R): Observable[R] =
+  def zipMap4[A1, A2, A3, A4, R](oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3], oa4: Observable[A4])(
+    f: (A1, A2, A3, A4) => R): Observable[R] =
     new builders.Zip4Observable(oa1, oa2, oa3, oa4)(f)
 
   /** Creates a new observable from five observable sequences
@@ -5162,8 +5193,11 @@ object Observable extends ObservableDeprecatedBuilders {
     * combine items in strict sequence.
     */
   def zip5[A1, A2, A3, A4, A5](
-    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
-    oa4: Observable[A4], oa5: Observable[A5]): Observable[(A1, A2, A3, A4, A5)] =
+    oa1: Observable[A1],
+    oa2: Observable[A2],
+    oa3: Observable[A3],
+    oa4: Observable[A4],
+    oa5: Observable[A5]): Observable[(A1, A2, A3, A4, A5)] =
     new builders.Zip5Observable(oa1, oa2, oa3, oa4, oa5)((a1, a2, a3, a4, a5) => (a1, a2, a3, a4, a5))
 
   /** Creates a new observable from five observable sequences
@@ -5180,10 +5214,12 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zipMap5[A1, A2, A3, A4, A5, R]
-  (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
-    oa4: Observable[A4], oa5: Observable[A5])
-    (f: (A1, A2, A3, A4, A5) => R): Observable[R] =
+  def zipMap5[A1, A2, A3, A4, A5, R](
+    oa1: Observable[A1],
+    oa2: Observable[A2],
+    oa3: Observable[A3],
+    oa4: Observable[A4],
+    oa5: Observable[A5])(f: (A1, A2, A3, A4, A5) => R): Observable[R] =
     new builders.Zip5Observable(oa1, oa2, oa3, oa4, oa5)(f)
 
   /** Creates a new observable from five observable sequences
@@ -5199,8 +5235,12 @@ object Observable extends ObservableDeprecatedBuilders {
     * combine items in strict sequence.
     */
   def zip6[A1, A2, A3, A4, A5, A6](
-    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
-    oa4: Observable[A4], oa5: Observable[A5], oa6: Observable[A6]): Observable[(A1, A2, A3, A4, A5, A6)] =
+    oa1: Observable[A1],
+    oa2: Observable[A2],
+    oa3: Observable[A3],
+    oa4: Observable[A4],
+    oa5: Observable[A5],
+    oa6: Observable[A6]): Observable[(A1, A2, A3, A4, A5, A6)] =
     new builders.Zip6Observable(oa1, oa2, oa3, oa4, oa5, oa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
 
   /** Creates a new observable from five observable sequences
@@ -5217,10 +5257,13 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zipMap6[A1, A2, A3, A4, A5, A6, R]
-  (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
-    oa4: Observable[A4], oa5: Observable[A5], oa6: Observable[A6])
-    (f: (A1, A2, A3, A4, A5, A6) => R): Observable[R] =
+  def zipMap6[A1, A2, A3, A4, A5, A6, R](
+    oa1: Observable[A1],
+    oa2: Observable[A2],
+    oa3: Observable[A3],
+    oa4: Observable[A4],
+    oa5: Observable[A5],
+    oa6: Observable[A6])(f: (A1, A2, A3, A4, A5, A6) => R): Observable[R] =
     new builders.Zip6Observable(oa1, oa2, oa3, oa4, oa5, oa6)(f)
 
   /** Given an observable sequence, it [[Observable!.zip zips]] them
@@ -5343,8 +5386,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  def resourceCaseF[F[_], A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])
-    (implicit F: TaskLike[F]): Observable[A] =
+  def resourceCaseF[F[_], A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])(
+    implicit F: TaskLike[F]): Observable[A] =
     resourceCase(F.toTask(acquire))((a, e) => F.toTask(release(a, e)))
 
   /** Creates a combined observable from 2 source observables.
@@ -5386,8 +5429,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * result: (1, 1), (2, 2), (2, 3), (3, 3), (4, 3), (4, 4)
     * </pre>
     */
-  def combineLatestMap2[A1, A2, R](oa1: Observable[A1], oa2: Observable[A2])
-    (f: (A1, A2) => R): Observable[R] =
+  def combineLatestMap2[A1, A2, R](oa1: Observable[A1], oa2: Observable[A2])(f: (A1, A2) => R): Observable[R] =
     new builders.CombineLatest2Observable[A1, A2, R](oa1, oa2)(f)
 
   /** Creates a combined observable from 3 source observables.
@@ -5400,7 +5442,9 @@ object Observable extends ObservableDeprecatedBuilders {
     * least one item).
     */
   def combineLatest3[A1, A2, A3](
-    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3]): Observable[(A1, A2, A3)] =
+    oa1: Observable[A1],
+    oa2: Observable[A2],
+    oa3: Observable[A3]): Observable[(A1, A2, A3)] =
     new builders.CombineLatest3Observable(oa1, oa2, oa3)((a1, a2, a3) => (a1, a2, a3))
 
   /** Creates a combined observable from 3 source observables.
@@ -5412,8 +5456,8 @@ object Observable extends ObservableDeprecatedBuilders {
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatestMap3[A1, A2, A3, R](a1: Observable[A1], a2: Observable[A2], a3: Observable[A3])
-    (f: (A1, A2, A3) => R): Observable[R] =
+  def combineLatestMap3[A1, A2, A3, R](a1: Observable[A1], a2: Observable[A2], a3: Observable[A3])(
+    f: (A1, A2, A3) => R): Observable[R] =
     new builders.CombineLatest3Observable[A1, A2, A3, R](a1, a2, a3)(f)
 
   /** Creates a combined observable from 4 source observables.
@@ -5426,7 +5470,9 @@ object Observable extends ObservableDeprecatedBuilders {
     * least one item).
     */
   def combineLatest4[A1, A2, A3, A4](
-    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
+    oa1: Observable[A1],
+    oa2: Observable[A2],
+    oa3: Observable[A3],
     oa4: Observable[A4]): Observable[(A1, A2, A3, A4)] =
     new builders.CombineLatest4Observable(oa1, oa2, oa3, oa4)((a1, a2, a3, a4) => (a1, a2, a3, a4))
 
@@ -5439,9 +5485,11 @@ object Observable extends ObservableDeprecatedBuilders {
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatestMap4[A1, A2, A3, A4, R]
-  (a1: Observable[A1], a2: Observable[A2], a3: Observable[A3], a4: Observable[A4])
-    (f: (A1, A2, A3, A4) => R): Observable[R] =
+  def combineLatestMap4[A1, A2, A3, A4, R](
+    a1: Observable[A1],
+    a2: Observable[A2],
+    a3: Observable[A3],
+    a4: Observable[A4])(f: (A1, A2, A3, A4) => R): Observable[R] =
     new builders.CombineLatest4Observable[A1, A2, A3, A4, R](a1, a2, a3, a4)(f)
 
   /** Creates a combined observable from 5 source observables.
@@ -5454,8 +5502,11 @@ object Observable extends ObservableDeprecatedBuilders {
     * least one item).
     */
   def combineLatest5[A1, A2, A3, A4, A5](
-    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
-    oa4: Observable[A4], oa5: Observable[A5]): Observable[(A1, A2, A3, A4, A5)] =
+    oa1: Observable[A1],
+    oa2: Observable[A2],
+    oa3: Observable[A3],
+    oa4: Observable[A4],
+    oa5: Observable[A5]): Observable[(A1, A2, A3, A4, A5)] =
     new builders.CombineLatest5Observable(oa1, oa2, oa3, oa4, oa5)((a1, a2, a3, a4, a5) => (a1, a2, a3, a4, a5))
 
   /** Creates a combined observable from 5 source observables.
@@ -5467,9 +5518,12 @@ object Observable extends ObservableDeprecatedBuilders {
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatestMap5[A1, A2, A3, A4, A5, R]
-  (a1: Observable[A1], a2: Observable[A2], a3: Observable[A3], a4: Observable[A4], a5: Observable[A5])
-    (f: (A1, A2, A3, A4, A5) => R): Observable[R] =
+  def combineLatestMap5[A1, A2, A3, A4, A5, R](
+    a1: Observable[A1],
+    a2: Observable[A2],
+    a3: Observable[A3],
+    a4: Observable[A4],
+    a5: Observable[A5])(f: (A1, A2, A3, A4, A5) => R): Observable[R] =
     new builders.CombineLatest5Observable[A1, A2, A3, A4, A5, R](a1, a2, a3, a4, a5)(f)
 
   /** Creates a combined observable from 6 source observables.
@@ -5482,9 +5536,14 @@ object Observable extends ObservableDeprecatedBuilders {
     * least one item).
     */
   def combineLatest6[A1, A2, A3, A4, A5, A6](
-    oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
-    oa4: Observable[A4], oa5: Observable[A5], oa6: Observable[A6]): Observable[(A1, A2, A3, A4, A5, A6)] =
-    new builders.CombineLatest6Observable(oa1, oa2, oa3, oa4, oa5, oa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
+    oa1: Observable[A1],
+    oa2: Observable[A2],
+    oa3: Observable[A3],
+    oa4: Observable[A4],
+    oa5: Observable[A5],
+    oa6: Observable[A6]): Observable[(A1, A2, A3, A4, A5, A6)] =
+    new builders.CombineLatest6Observable(oa1, oa2, oa3, oa4, oa5, oa6)(
+      (a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
 
   /** Creates a combined observable from 6 source observables.
     *
@@ -5495,10 +5554,13 @@ object Observable extends ObservableDeprecatedBuilders {
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatestMap6[A1, A2, A3, A4, A5, A6, R]
-  (a1: Observable[A1], a2: Observable[A2], a3: Observable[A3],
-    a4: Observable[A4], a5: Observable[A5], a6: Observable[A6])
-    (f: (A1, A2, A3, A4, A5, A6) => R): Observable[R] =
+  def combineLatestMap6[A1, A2, A3, A4, A5, A6, R](
+    a1: Observable[A1],
+    a2: Observable[A2],
+    a3: Observable[A3],
+    a4: Observable[A4],
+    a5: Observable[A5],
+    a6: Observable[A6])(f: (A1, A2, A3, A4, A5, A6) => R): Observable[R] =
     new builders.CombineLatest6Observable[A1, A2, A3, A4, A5, A6, R](a1, a2, a3, a4, a5, a6)(f)
 
   /** Given an observable sequence, it combines them together
@@ -5510,7 +5572,9 @@ object Observable extends ObservableDeprecatedBuilders {
     else {
       val seed = sources.head.map(t => Vector(t))
       sources.tail.foldLeft(seed) { (acc, obs) =>
-        acc.combineLatestMap(obs) { (seq, elem) => seq :+ elem }
+        acc.combineLatestMap(obs) { (seq, elem) =>
+          seq :+ elem
+        }
       }
     }
   }
@@ -5536,11 +5600,9 @@ object Observable extends ObservableDeprecatedBuilders {
     new CatsInstances
 
   /** Cats instances for [[Observable]]. */
-  class CatsInstances extends Bracket[Observable, Throwable]
-    with Alternative[Observable]
-    with CoflatMap[Observable]
-    with FunctorFilter[Observable]
-    with TaskLift[Observable] {
+  class CatsInstances
+    extends Bracket[Observable, Throwable] with Alternative[Observable] with CoflatMap[Observable]
+    with FunctorFilter[Observable] with TaskLift[Observable] {
 
     override def unit: Observable[Unit] =
       Observable.unit
@@ -5576,13 +5638,16 @@ object Observable extends ObservableDeprecatedBuilders {
       Observable.empty[A]
     override def taskLift[A](task: Task[A]): Observable[A] =
       Observable.fromTask(task)
-    override def bracketCase[A, B](acquire: Observable[A])(use: A => Observable[B])(release: (A, ExitCase[Throwable]) => Observable[Unit]): Observable[B] =
+    override def bracketCase[A, B](acquire: Observable[A])(use: A => Observable[B])(
+      release: (A, ExitCase[Throwable]) => Observable[Unit]): Observable[B] =
       acquire.bracketCase(use)((a, e) => release(a, e).completedL)
-    override def bracket[A, B](acquire: Observable[A])(use: A => Observable[B])(release: A => Observable[Unit]): Observable[B] =
+    override def bracket[A, B](acquire: Observable[A])(use: A => Observable[B])(
+      release: A => Observable[Unit]): Observable[B] =
       acquire.bracket(use)(release.andThen(_.completedL))
     override def guarantee[A](fa: Observable[A])(finalizer: Observable[Unit]): Observable[A] =
       fa.guarantee(finalizer.completedL)
-    override def guaranteeCase[A](fa: Observable[A])(finalizer: ExitCase[Throwable] => Observable[Unit]): Observable[A] =
+    override def guaranteeCase[A](fa: Observable[A])(
+      finalizer: ExitCase[Throwable] => Observable[Unit]): Observable[A] =
       fa.guaranteeCase(e => finalizer(e).completedL)
     override def uncancelable[A](fa: Observable[A]): Observable[A] =
       fa.uncancelable
@@ -5610,7 +5675,7 @@ object Observable extends ObservableDeprecatedBuilders {
       override val parallel = new (Observable ~> CombineObservable.Type) {
         def apply[A](fa: Observable[A]): CombineObservable.Type[A] = wrap(fa)
       }
-  }
+    }
 
   /**
     * Exposes extension methods for deprecated [[Observable]] methods.

@@ -20,7 +20,14 @@ package monix.tail
 import cats.Eq
 import cats.data.EitherT
 import cats.effect.IO
-import cats.laws.discipline.{CoflatMapTests, DeferTests, FunctorFilterTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
+import cats.laws.discipline.{
+  CoflatMapTests,
+  DeferTests,
+  FunctorFilterTests,
+  MonadErrorTests,
+  MonoidKTests,
+  SemigroupalTests
+}
 import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
 import monix.execution.schedulers.TestScheduler
 

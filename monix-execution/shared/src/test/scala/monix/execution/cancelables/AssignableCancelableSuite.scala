@@ -22,14 +22,12 @@ import minitest.SimpleTestSuite
 object AssignableCancelableSuite extends SimpleTestSuite {
   test("AssignableCancelable.multi() returns a MultiAssignmentCancelable") {
     val c = AssignableCancelable.multi()
-    assert(c.isInstanceOf[MultiAssignCancelable],
-      "isInstanceOf[MultiAssignCancelable]")
+    assert(c.isInstanceOf[MultiAssignCancelable], "isInstanceOf[MultiAssignCancelable]")
   }
 
   test("AssignableCancelable.single() returns a SingleAssignmentCancelable") {
     val c = AssignableCancelable.single()
-    assert(c.isInstanceOf[SingleAssignCancelable],
-      "isInstanceOf[SingleAssignmentCancelable]")
+    assert(c.isInstanceOf[SingleAssignCancelable], "isInstanceOf[SingleAssignmentCancelable]")
   }
 
   test("AssignableCancelable.alreadyCanceled") {

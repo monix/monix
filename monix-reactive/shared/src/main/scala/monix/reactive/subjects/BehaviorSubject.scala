@@ -38,8 +38,7 @@ import scala.util.Success
   *
   * @see [[Subject]]
   */
-final class BehaviorSubject[A] private (initialValue: A)
-  extends Subject[A,A] { self =>
+final class BehaviorSubject[A] private (initialValue: A) extends Subject[A, A] { self =>
 
   private[this] val stateRef =
     Atomic(BehaviorSubject.State[A](initialValue))
@@ -55,12 +54,11 @@ final class BehaviorSubject[A] private (initialValue: A)
     if (state.errorThrown != null) {
       subscriber.onError(state.errorThrown)
       Cancelable.empty
-    }
-    else if (state.isDone) {
-      Observable.now(state.cached)
+    } else if (state.isDone) {
+      Observable
+        .now(state.cached)
         .unsafeSubscribeFn(subscriber)
-    }
-    else {
+    } else {
       val c = ConnectableSubscriber(subscriber)
       val newState = state.addNewSubscriber(c)
 
@@ -68,11 +66,12 @@ final class BehaviorSubject[A] private (initialValue: A)
         c.pushFirst(state.cached)
         val connecting = c.connect()
 
-        val cancelable = Cancelable { () => removeSubscriber(c) }
+        val cancelable = Cancelable { () =>
+          removeSubscriber(c)
+        }
         connecting.syncOnStopOrFailure(_ => cancelable.cancel())
         cancelable
-      }
-      else {
+      } else {
         // retry
         unsafeSubscribeFn(subscriber)
       }
@@ -83,12 +82,12 @@ final class BehaviorSubject[A] private (initialValue: A)
   def onNext(elem: A): Future[Ack] = {
     val state = stateRef.get
 
-    if (state.isDone) Stop else {
+    if (state.isDone) Stop
+    else {
       val newState = state.cacheElem(elem)
       if (!stateRef.compareAndSet(state, newState)) {
         onNext(elem) // retry
-      }
-      else {
+      } else {
         val iterator = state.subscribers.iterator
         // counter that's only used when we go async, hence the null
         var result: PromiseCounter[Continue.type] = null
@@ -98,7 +97,8 @@ final class BehaviorSubject[A] private (initialValue: A)
           // using the scheduler defined by each subscriber
           import subscriber.scheduler
 
-          val ack = try subscriber.onNext(elem) catch {
+          val ack = try subscriber.onNext(elem)
+          catch {
             case ex if NonFatal(ex) => Future.failed(ex)
           }
 
@@ -107,8 +107,7 @@ final class BehaviorSubject[A] private (initialValue: A)
             // subscriber canceled or triggered an error? then remove
             if (ack != Continue && ack.value.get != Continue.AsSuccess)
               removeSubscriber(subscriber)
-          }
-          else {
+          } else {
             // going async, so we've got to count active futures for final Ack
             // the counter starts from 1 because zero implies isCompleted
             if (result == null) result = PromiseCounter(Continue, 1)
@@ -126,7 +125,8 @@ final class BehaviorSubject[A] private (initialValue: A)
         }
 
         // has fast-path for completely synchronous invocation
-        if (result == null) Continue else {
+        if (result == null) Continue
+        else {
           result.countdown()
           result.future
         }

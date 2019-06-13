@@ -22,8 +22,7 @@ import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-private[reactive] final
-class DoOnSubscriptionCancelObservable[+A](source: Observable[A], task: Task[Unit])
+private[reactive] final class DoOnSubscriptionCancelObservable[+A](source: Observable[A], task: Task[Unit])
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
@@ -31,7 +30,8 @@ class DoOnSubscriptionCancelObservable[+A](source: Observable[A], task: Task[Uni
 
     Cancelable(() => {
       // First cancel the source
-      try subscription.cancel() finally {
+      try subscription.cancel()
+      finally {
         // Then execute the task
         task.runAsyncAndForget(subscriber.scheduler)
       }

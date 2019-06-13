@@ -29,9 +29,10 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.Success
 
-private[reactive] final
-class DoOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], happensBefore: Boolean)
-  extends Operator[A,A] {
+private[reactive] final class DoOnTerminateOperator[A](
+  onTerminate: Option[Throwable] => Task[Unit],
+  happensBefore: Boolean)
+  extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -79,23 +80,26 @@ class DoOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], hap
         if (active.getAndSet(false)) {
           var streamErrors = true
           try if (happensBefore) {
-            val task = onTerminate(ex).onErrorHandle { ex => scheduler.reportFailure(ex) }
+            val task = onTerminate(ex).onErrorHandle { ex =>
+              scheduler.reportFailure(ex)
+            }
             streamErrors = false
-            task.map { _ => triggerSignal() }
-          }
-          else {
+            task.map { _ =>
+              triggerSignal()
+            }
+          } else {
             streamErrors = false
             triggerSignal()
             onTerminate(ex)
-          }
-          catch { case err if NonFatal(err) =>
-            if (streamErrors) {
-              out.onError(err)
-              ex.foreach(scheduler.reportFailure)
-            } else {
-              scheduler.reportFailure(err)
-            }
-            Task.unit
+          } catch {
+            case err if NonFatal(err) =>
+              if (streamErrors) {
+                out.onError(err)
+                ex.foreach(scheduler.reportFailure)
+              } else {
+                scheduler.reportFailure(err)
+              }
+              Task.unit
           }
         } else {
           ex.foreach(scheduler.reportFailure)

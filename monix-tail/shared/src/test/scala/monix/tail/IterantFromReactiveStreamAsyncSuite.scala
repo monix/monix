@@ -36,7 +36,8 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
     def test() = {
       val count = if (async || Platform.isJS) 1000 else 5000
       val pub = new RangePublisher(0 until count, None)
-      val f = Iterant[Task].fromReactivePublisher(pub, request, eagerBuffer)
+      val f = Iterant[Task]
+        .fromReactivePublisher(pub, request, eagerBuffer)
         .mapEval(x => if (async) Task.evalAsync(x) else Task(x))
         .sumL
         .runToFuture
@@ -54,51 +55,51 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
   }
 
   testAsync("convert range publisher with requestCount=1,   eagerBuffer=true  and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=1, eagerBuffer=true, async=true)
+    testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = true, async = true)
   }
 
   testAsync("convert range publisher with requestCount=1,   eagerBuffer=false and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=1, eagerBuffer=false, async=true)
+    testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = false, async = true)
   }
 
   testAsync("convert range publisher with requestCount=16,  eagerBuffer=true  and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=16, eagerBuffer=true, async=true)
+    testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = true, async = true)
   }
 
   testAsync("convert range publisher with requestCount=16,  eagerBuffer=false and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=16, eagerBuffer=false, async=true)
+    testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = false, async = true)
   }
 
   testAsync("convert range publisher with requestCount=256, eagerBuffer=true  and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=256, eagerBuffer=true, async=true)
+    testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = true, async = true)
   }
 
   testAsync("convert range publisher with requestCount=256, eagerBuffer=false and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=256, eagerBuffer=false, async=true)
+    testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = false, async = true)
   }
 
   testAsync("convert range publisher with requestCount=1,   eagerBuffer=true  and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=1, eagerBuffer=true, async=false)
+    testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = true, async = false)
   }
 
   testAsync("convert range publisher with requestCount=1,   eagerBuffer=false and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=1, eagerBuffer=false, async=false)
+    testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = false, async = false)
   }
 
   testAsync("convert range publisher with requestCount=16,  eagerBuffer=true  and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=16, eagerBuffer=true, async=false)
+    testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = true, async = false)
   }
 
   testAsync("convert range publisher with requestCount=16,  eagerBuffer=false and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=16, eagerBuffer=false, async=false)
+    testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = false, async = false)
   }
 
   testAsync("convert range publisher with requestCount=256, eagerBuffer=true  and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=256, eagerBuffer=true, async=false)
+    testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = true, async = false)
   }
 
   testAsync("convert range publisher with requestCount=256, eagerBuffer=false and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request=256, eagerBuffer=false, async=false)
+    testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = false, async = false)
   }
 
   def testStreamEndingInError(request: Int, eagerBuffer: Boolean, async: Boolean)(implicit sc: Scheduler) = {
@@ -107,7 +108,8 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
       val count = 1000
       val pub = new RangePublisher(0 until count, Some(dummy))
       val effect = Atomic(0)
-      val f = Iterant[Task].fromReactivePublisher(pub, request, eagerBuffer)
+      val f = Iterant[Task]
+        .fromReactivePublisher(pub, request, eagerBuffer)
         .mapEval(x => if (async) Task.evalAsync(effect.increment(x)) else Task(effect.increment(x)))
         .completedL
         .attempt
@@ -123,12 +125,11 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
       if (n > 0) test().flatMap(_ => loop(n - 1))
       else Future.successful(())
 
-    loop(
-      if (Platform.isJVM) {
-        if (async) 100 else 1000
-      } else {
-        1
-      })
+    loop(if (Platform.isJVM) {
+      if (async) 100 else 1000
+    } else {
+      1
+    })
   }
 
   testAsync("stream ending in error with requestCount=1,   eagerBuffer=true  and async tasks") { implicit sc =>
@@ -179,8 +180,8 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
     testStreamEndingInError(256, eagerBuffer = false, async = false)
   }
 
-  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])
-    (implicit sc: Scheduler)
+  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
+    implicit sc: Scheduler)
     extends Publisher[Int] {
 
     def this(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) =

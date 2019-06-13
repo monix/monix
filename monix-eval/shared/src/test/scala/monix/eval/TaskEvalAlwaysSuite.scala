@@ -76,7 +76,8 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
   test("Task.eval.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
       Task.eval(idx).flatMap { a =>
-        if (idx < n) loop(n, idx + 1).map(_ + 1) else
+        if (idx < n) loop(n, idx + 1).map(_ + 1)
+        else
           Task.eval(idx)
       }
 

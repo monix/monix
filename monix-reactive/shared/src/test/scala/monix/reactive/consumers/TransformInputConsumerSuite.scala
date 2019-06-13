@@ -52,7 +52,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
   test("Consumer#transformInput protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
-      .consumeWith(Consumer.foldLeft[Long,Long](0L)(_+_).transformInput[Int](_ => throw ex))
+      .consumeWith(Consumer.foldLeft[Long, Long](0L)(_ + _).transformInput[Int](_ => throw ex))
       .runToFuture
 
     s.tick()

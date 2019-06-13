@@ -24,8 +24,11 @@ import monix.reactive.OverflowStrategy
 import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
-private[observers] trait BuildersImpl {  self: BufferedSubscriber.type =>
-  def apply[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy[A], producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A] = {
+private[observers] trait BuildersImpl { self: BufferedSubscriber.type =>
+  def apply[A](
+    subscriber: Subscriber[A],
+    bufferPolicy: OverflowStrategy[A],
+    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A] = {
     bufferPolicy match {
       case Unbounded =>
         SimpleBufferedSubscriber.unbounded(subscriber, Some(Platform.recommendedBufferChunkSize), producerType)
@@ -51,7 +54,10 @@ private[observers] trait BuildersImpl {  self: BufferedSubscriber.type =>
     }
   }
 
-  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A], producerType: ChannelType.ProducerSide = MultiProducer): Subscriber.Sync[A] = {
+  def synchronous[A](
+    subscriber: Subscriber[A],
+    bufferPolicy: OverflowStrategy.Synchronous[A],
+    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber.Sync[A] = {
     bufferPolicy match {
       case Unbounded =>
         SimpleBufferedSubscriber.unbounded(subscriber, Some(Platform.recommendedBufferChunkSize), producerType)
@@ -75,6 +81,9 @@ private[observers] trait BuildersImpl {  self: BufferedSubscriber.type =>
     }
   }
 
-  def batched[A](underlying: Subscriber[List[A]], bufferSize: Int, producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A] =
+  def batched[A](
+    underlying: Subscriber[List[A]],
+    bufferSize: Int,
+    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A] =
     BatchedBufferedSubscriber(underlying, bufferSize, producerType)
 }

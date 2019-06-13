@@ -98,6 +98,5 @@ object MulticastStrategy {
     ReplayLimited(capacity, initial)
 
   /** $replayLimited */
-  case class ReplayLimited[A](capacity: Int, initial: Seq[A])
-    extends MulticastStrategy[A]
+  case class ReplayLimited[A](capacity: Int, initial: Seq[A]) extends MulticastStrategy[A]
 }

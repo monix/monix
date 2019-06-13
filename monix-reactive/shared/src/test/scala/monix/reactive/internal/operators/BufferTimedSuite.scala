@@ -43,7 +43,8 @@ object BufferTimedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
-      val o = Observable.intervalAtFixedRate(100.millis)
+      val o = Observable
+        .intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
         .bufferTimed(1.second)
         .map(_.sum)
@@ -54,19 +55,23 @@ object BufferTimedSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) =
     Some {
-      val o = createObservableEndingInError(Observable
-        .intervalAtFixedRate(100.millis, 100.millis).take(sourceCount), ex)
+      val o = createObservableEndingInError(
+        Observable
+          .intervalAtFixedRate(100.millis, 100.millis)
+          .take(sourceCount),
+        ex)
         .bufferTimed(1.second)
         .map(_.sum)
 
-      Sample(o, count(sourceCount/10), sum(sourceCount/10), waitFirst, waitNext)
+      Sample(o, count(sourceCount / 10), sum(sourceCount / 10), waitFirst, waitNext)
     }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 
   override def cancelableObservables(): Seq[Sample] = {
-    val o = Observable.range(0, Platform.recommendedBatchSize)
+    val o = Observable
+      .range(0, Platform.recommendedBatchSize)
       .delayOnNext(1.second)
       .bufferTimed(1.second)
       .map(_.sum)
@@ -77,7 +82,8 @@ object BufferTimedSuite extends BaseOperatorSuite {
   test("should emit buffer onComplete") { implicit s =>
     val count = 157
 
-    val obs = Observable.intervalAtFixedRate(100.millis)
+    val obs = Observable
+      .intervalAtFixedRate(100.millis)
       .take(count * 10)
       .bufferTimed(2.seconds)
       .map(_.sum)
@@ -106,7 +112,8 @@ object BufferTimedSuite extends BaseOperatorSuite {
 
   test("should throw on negative timespan") { implicit s =>
     intercept[IllegalArgumentException] {
-      Observable.intervalAtFixedRate(100.millis)
+      Observable
+        .intervalAtFixedRate(100.millis)
         .bufferTimed(Duration.Zero - 1.second)
     }
   }
@@ -134,7 +141,8 @@ object BufferTimedSuite extends BaseOperatorSuite {
   }
 
   test("should emit everything onComplete") { implicit s =>
-    val f = Observable.range(0, 1000)
+    val f = Observable
+      .range(0, 1000)
       .bufferTimedAndCounted(10.seconds, 10000)
       .map(_.sum)
       .sum
@@ -148,7 +156,8 @@ object BufferTimedSuite extends BaseOperatorSuite {
     var received: Long = 0
     var isCompleted: Long = 0
 
-    val obs = Observable.range(0, 1000)
+    val obs = Observable
+      .range(0, 1000)
       .bufferTimedAndCounted(10.seconds, 1000)
       .map(_.sum)
 
@@ -173,7 +182,8 @@ object BufferTimedSuite extends BaseOperatorSuite {
 
   test("trigger IllegalArgumentException on maxCount < 0") { implicit s =>
     intercept[IllegalArgumentException] {
-      Observable.range(0, 1000)
+      Observable
+        .range(0, 1000)
         .bufferTimedAndCounted(10.seconds, -1)
     }
   }

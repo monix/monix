@@ -31,19 +31,18 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   /**
-   * Returns a sample subject that needs testing.
-   */
+    * Returns a sample subject that needs testing.
+    */
   def alreadyTerminatedTest(expectedElems: Seq[Long]): Sample
 
   /**
-   * Returns a sample subject for the test of
-   * continuous streaming.
-   */
+    * Returns a sample subject for the test of
+    * continuous streaming.
+    */
   def continuousStreamingTest(expectedElems: Seq[Long]): Option[Sample]
 
   test("already completed and empty subject terminates observers") { implicit s =>
@@ -154,7 +153,8 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     }
 
     val Sample(subject, _) = alreadyTerminatedTest(elems)
-    Observable.fromIterable(elems)
+    Observable
+      .fromIterable(elems)
       .endWithError(DummyException("dummy"))
       .unsafeSubscribeFn(subject)
 

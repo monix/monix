@@ -147,12 +147,10 @@ final class TestScheduler private (
   @tailrec
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val current: State = stateRef.get
-    val (cancelable, newState) = TestScheduler.scheduleOnce(
-      current,
-      FiniteDuration(initialDelay, unit),
-      r, cancelTask)
+    val (cancelable, newState) = TestScheduler.scheduleOnce(current, FiniteDuration(initialDelay, unit), r, cancelTask)
 
-    if (stateRef.compareAndSet(current, newState)) cancelable else
+    if (stateRef.compareAndSet(current, newState)) cancelable
+    else
       scheduleOnce(initialDelay, unit, r)
   }
 
@@ -204,7 +202,8 @@ final class TestScheduler private (
           tickOne()
         else {
           // execute task
-          try head.task.run() catch {
+          try head.task.run()
+          catch {
             case ex if NonFatal(ex) =>
               reportFailure(ex)
           }
@@ -271,7 +270,8 @@ final class TestScheduler private (
             loop(time, iterCount, maxIterCount)
           else {
             // execute task
-            try head.task.run() catch {
+            try head.task.run()
+            catch {
               case ex if NonFatal(ex) =>
                 reportFailure(ex)
             }
@@ -329,12 +329,13 @@ object TestScheduler {
 
   /** Builder for [[TestScheduler]]. */
   def apply(executionModel: ExecutionModel): TestScheduler = {
-    val state = AtomicAny(State(
-      lastID = 0,
-      clock = Duration.Zero,
-      tasks = SortedSet.empty[Task],
-      lastReportedError = null
-    ))
+    val state = AtomicAny(
+      State(
+        lastID = 0,
+        clock = Duration.Zero,
+        tasks = SortedSet.empty[Task],
+        lastReportedError = null
+      ))
 
     new TestScheduler(state, executionModel)
   }
@@ -366,16 +367,10 @@ object TestScheduler {
   /** Used internally by [[TestScheduler]], represents the internal
     * state used for task scheduling and execution.
     */
-  final case class State(
-    lastID: Long,
-    clock: FiniteDuration,
-    tasks: SortedSet[Task],
-    lastReportedError: Throwable) {
+  final case class State(lastID: Long, clock: FiniteDuration, tasks: SortedSet[Task], lastReportedError: Throwable) {
 
     // $COVERAGE-OFF$
-    assert(
-      !tasks.headOption.exists(_.runsAt < clock),
-      "The runsAt for any task must never be in the past")
+    assert(!tasks.headOption.exists(_.runsAt < clock), "The runsAt for any task must never be in the past")
     // $COVERAGE-ON$
   }
 
@@ -385,7 +380,11 @@ object TestScheduler {
     state.copy(lastID = newID, tasks = state.tasks + task)
   }
 
-  private def scheduleOnce(state: State, delay: FiniteDuration, r: Runnable, cancelTask: Task => Unit): (Cancelable, State) = {
+  private def scheduleOnce(
+    state: State,
+    delay: FiniteDuration,
+    r: Runnable,
+    cancelTask: Task => Unit): (Cancelable, State) = {
     // $COVERAGE-OFF$
     require(delay >= Duration.Zero, "The given delay must be positive")
     // $COVERAGE-ON$
@@ -402,9 +401,11 @@ object TestScheduler {
       }
     }
 
-    (cancelable, state.copy(
-      lastID = newID,
-      tasks = state.tasks + task
-    ))
+    (
+      cancelable,
+      state.copy(
+        lastID = newID,
+        tasks = state.tasks + task
+      ))
   }
 }

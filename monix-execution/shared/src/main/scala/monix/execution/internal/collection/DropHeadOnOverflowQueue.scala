@@ -28,7 +28,7 @@ import scala.reflect.ClassTag
   * This implementation is not thread-safe and on the JVM it
   * needs to be synchronized.
   */
-private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recommendedCapacity: Int)
+private[monix] final class DropHeadOnOverflowQueue[A: ClassTag] private (_recommendedCapacity: Int)
   extends EvictingQueue[A] { self =>
 
   require(_recommendedCapacity > 0, "recommendedCapacity must be positive")
@@ -56,7 +56,8 @@ private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recom
     array(tailIdx) = elem
     tailIdx = (tailIdx + 1) & modulus
 
-    if (tailIdx != headIdx) 0 else {
+    if (tailIdx != headIdx) 0
+    else {
       // overflow just happened, dropping one by incrementing head
       headIdx = (headIdx + 1) & modulus
       1
@@ -70,13 +71,13 @@ private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recom
   def offerMany(seq: A*): Long = {
     val iterator = seq.iterator
     var acc = 0L
-    while (iterator.hasNext)
-      acc += offer(iterator.next())
+    while (iterator.hasNext) acc += offer(iterator.next())
     acc
   }
 
   def poll(): A = {
-    if (headIdx == tailIdx) null.asInstanceOf[A] else {
+    if (headIdx == tailIdx) null.asInstanceOf[A]
+    else {
       val elem = array(headIdx)
       // incrementing head pointer
       headIdx = (headIdx + 1) & modulus
@@ -123,7 +124,8 @@ private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recom
   }
 
   override def headOption: Option[A] = {
-    try Some(head) catch {
+    try Some(head)
+    catch {
       case _: NoSuchElementException =>
         None
     }
@@ -144,7 +146,8 @@ private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recom
 
       private[this] val initialTailIdx = self.tailIdx
       private[this] val initialHeadIdx = {
-        if (!exactSize) self.headIdx else {
+        if (!exactSize) self.headIdx
+        else {
           // Dropping extra elements
           val currentSize = self.size
           if (currentSize < _recommendedCapacity) self.headIdx
@@ -205,7 +208,7 @@ private[monix] object DropHeadOnOverflowQueue {
     *
     * @param recommendedCapacity $recommendedCapacityDesc
     */
-  def apply[A : ClassTag](recommendedCapacity: Int): DropHeadOnOverflowQueue[A] = {
+  def apply[A: ClassTag](recommendedCapacity: Int): DropHeadOnOverflowQueue[A] = {
     new DropHeadOnOverflowQueue[A](recommendedCapacity)
   }
 

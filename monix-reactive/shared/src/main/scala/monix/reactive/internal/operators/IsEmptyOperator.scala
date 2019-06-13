@@ -22,7 +22,7 @@ import monix.execution.Ack.Stop
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] object IsEmptyOperator extends Operator[Any,Boolean] {
+private[reactive] object IsEmptyOperator extends Operator[Any, Boolean] {
   def apply(out: Subscriber[Boolean]): Subscriber[Any] =
     new Subscriber[Any] {
       implicit val scheduler = out.scheduler

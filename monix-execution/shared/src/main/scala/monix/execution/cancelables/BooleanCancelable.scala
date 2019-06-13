@@ -71,8 +71,7 @@ object BooleanCancelable {
       def cancel() = ()
     }
 
-  private final class BooleanCancelableTask(cb: () => Unit)
-    extends BooleanCancelable {
+  private final class BooleanCancelableTask(cb: () => Unit) extends BooleanCancelable {
 
     private[this] val callbackRef = AtomicAny(cb)
     def isCanceled: Boolean = callbackRef.get eq null

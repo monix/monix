@@ -32,10 +32,8 @@ import scala.util.{Failure, Success, Try}
   *        implicit parameter) on each operation
   */
 final class CancelableFutureCatsInstances(implicit ec: ExecutionContext)
-  extends Monad[CancelableFuture]
-    with StackSafeMonad[CancelableFuture]
-    with CoflatMap[CancelableFuture]
-    with MonadError[CancelableFuture, Throwable] {
+  extends Monad[CancelableFuture] with StackSafeMonad[CancelableFuture] with CoflatMap[CancelableFuture]
+  with MonadError[CancelableFuture, Throwable] {
   import CancelableFutureCatsInstances._
 
   override def pure[A](x: A): CancelableFuture[A] =
@@ -56,7 +54,8 @@ final class CancelableFutureCatsInstances(implicit ec: ExecutionContext)
     fa.transformWith(liftToEitherRef).asInstanceOf[CancelableFuture[Either[Throwable, A]]]
   override def recover[A](fa: CancelableFuture[A])(pf: PartialFunction[Throwable, A]): CancelableFuture[A] =
     fa.recover(pf)
-  override def recoverWith[A](fa: CancelableFuture[A])(pf: PartialFunction[Throwable, CancelableFuture[A]]): CancelableFuture[A] =
+  override def recoverWith[A](fa: CancelableFuture[A])(
+    pf: PartialFunction[Throwable, CancelableFuture[A]]): CancelableFuture[A] =
     fa.recoverWith(pf)
   override def catchNonFatal[A](a: => A)(implicit ev: Throwable <:< Throwable): CancelableFuture[A] =
     CancelableFuture(Future(a), Cancelable.empty)
@@ -72,12 +71,12 @@ final class CancelableFutureCatsInstances(implicit ec: ExecutionContext)
     }
 }
 
-
 object CancelableFutureCatsInstances {
   // Reusable reference to use in `CatsInstances.attempt`
   private val liftToEitherRef: (Try[Any] => CancelableFuture[Either[Throwable, Any]]) =
-    tryA => new Pure(Success(tryA match {
-      case Success(a) => Right(a)
-      case Failure(e) => Left(e)
-    }))
+    tryA =>
+      new Pure(Success(tryA match {
+        case Success(a) => Right(a)
+        case Failure(e) => Left(e)
+      }))
 }

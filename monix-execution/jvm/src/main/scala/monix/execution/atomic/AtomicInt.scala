@@ -25,8 +25,7 @@ import monix.execution.internal.atomic.{BoxedInt, Factory}
   * Note that the equality test in `compareAndSet` is value based,
   * since `Int` is a primitive.
   */
-final class AtomicInt private (private[this] val ref: BoxedInt)
-  extends AtomicNumber[Int] {
+final class AtomicInt private (private[this] val ref: BoxedInt) extends AtomicNumber[Int] {
 
   def get(): Int = ref.volatileGet()
   def set(update: Int): Unit = ref.volatileSet(update)
@@ -115,12 +114,13 @@ object AtomicInt {
     *        for `getAndSet` and for `getAndAdd`
     */
   def create(initialValue: Int, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicInt = {
-    new AtomicInt(Factory.newBoxedInt(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      true, // allowUnsafe
-      allowPlatformIntrinsics
-    ))
+    new AtomicInt(
+      Factory.newBoxedInt(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        true, // allowUnsafe
+        allowPlatformIntrinsics
+      ))
   }
 
   /** $createDesc
@@ -139,11 +139,12 @@ object AtomicInt {
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def safe(initialValue: Int, padding: PaddingStrategy): AtomicInt = {
-    new AtomicInt(Factory.newBoxedInt(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      false, // allowUnsafe
-      false  // allowJava8Intrinsics
-    ))
+    new AtomicInt(
+      Factory.newBoxedInt(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        false, // allowUnsafe
+        false // allowJava8Intrinsics
+      ))
   }
 }

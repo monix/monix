@@ -20,8 +20,7 @@ package monix.execution.internal.collection.queues
 import org.jctools.queues.MessagePassingQueue.Consumer
 import scala.collection.mutable
 
-private[internal] final class QueueDrain[A](buffer: mutable.Buffer[A])
-  extends Consumer[A] {
+private[internal] final class QueueDrain[A](buffer: mutable.Buffer[A]) extends Consumer[A] {
 
   private[this] var _count = 0
   def count: Int = _count

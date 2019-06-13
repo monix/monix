@@ -27,8 +27,10 @@ import scala.collection.mutable.ListBuffer
   * [[monix.reactive.OverflowStrategy.BackPressure BackPressured]]
   * buffer overflowStrategy that sends events in bundles.
   */
-private[monix] final class BatchedBufferedSubscriber[A] private
-  (out: Subscriber[List[A]], _bufferSize: Int, pt: ChannelType.ProducerSide)
+private[monix] final class BatchedBufferedSubscriber[A] private (
+  out: Subscriber[List[A]],
+  _bufferSize: Int,
+  pt: ChannelType.ProducerSide)
   extends AbstractBackPressuredBufferedSubscriber[A, ListBuffer[A]](
     subscriberBufferToList(out),
     _bufferSize,

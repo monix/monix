@@ -42,7 +42,8 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].empty[Int]))
+    val stream = Iterant[Task]
+      .nextS(1, Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runToFuture
 
@@ -55,7 +56,8 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextCursorS(BatchCursor(1,2,3), Task.evalAsync(Iterant[Task].empty[Int]))
+    val stream = Iterant[Task]
+      .nextCursorS(BatchCursor(1, 2, 3), Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runToFuture
 
@@ -74,7 +76,8 @@ object IterantMapSuite extends BaseTestSuite {
       val received = (iterant ++ Iterant[Task].of(1, 2))
         .guarantee(Task.eval { effect += 1 })
         .map[Int](_ => throw dummy)
-        .completedL.map(_ => 0)
+        .completedL
+        .map(_ => 0)
         .onErrorRecover { case _: DummyException => effect }
 
       received <-> Task.pure(1)
@@ -118,7 +121,8 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int]))
+    val stream = Iterant[Coeval]
+      .nextS(1, Coeval(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry()
 
@@ -130,7 +134,8 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval(Iterant[Coeval].empty[Int]))
+    val stream = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry()
 
@@ -172,7 +177,9 @@ object IterantMapSuite extends BaseTestSuite {
     check1 { (iter: Iterant[Coeval, Int]) =>
       val fa = Coeval.suspend {
         var sum = 0
-        iter.foreach { e => sum += e }.map(_ => sum)
+        iter.foreach { e =>
+          sum += e
+        }.map(_ => sum)
       }
 
       fa <-> iter.foldLeftL(0)(_ + _)

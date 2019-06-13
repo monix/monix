@@ -47,8 +47,7 @@ trait BaseLawsTestSuite extends SimpleTestSuite with Checkers with ArbitraryInst
       .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
       .withMaxSize(10)
 
-  def checkAllAsync(name: String, config: Parameters = checkConfig)
-    (f: TestScheduler => Laws#RuleSet): Unit = {
+  def checkAllAsync(name: String, config: Parameters = checkConfig)(f: TestScheduler => Laws#RuleSet): Unit = {
 
     val s = TestScheduler()
     val ruleSet = f(s)
@@ -66,10 +65,11 @@ trait ArbitraryInstances extends ArbitraryInstancesBase with monix.eval.Arbitrar
     new Eq[Notification[A]] {
       def eqv(x: Notification[A], y: Notification[A]): Boolean = {
         x match {
-          case OnNext(v1) => y match {
-            case OnNext(v2) => A.eqv(v1, v2)
-            case _ => false
-          }
+          case OnNext(v1) =>
+            y match {
+              case OnNext(v2) => A.eqv(v1, v2)
+              case _ => false
+            }
           case OnError(ex1) =>
             y match {
               case OnError(ex2) => equalityThrowable.eqv(ex1, ex2)
@@ -134,13 +134,13 @@ trait ArbitraryInstances extends ArbitraryInstancesBase with monix.eval.Arbitrar
 }
 
 trait ArbitraryInstancesBase extends monix.eval.ArbitraryInstancesBase {
-  implicit def arbitraryObservable[A : Arbitrary]: Arbitrary[Observable[A]] =
+  implicit def arbitraryObservable[A: Arbitrary]: Arbitrary[Observable[A]] =
     Arbitrary {
       implicitly[Arbitrary[List[A]]].arbitrary
         .map(Observable.fromIterable)
     }
 
-  implicit def arbitraryCombineObservable[A : Arbitrary]: Arbitrary[CombineObservable.Type[A]] = {
+  implicit def arbitraryCombineObservable[A: Arbitrary]: Arbitrary[CombineObservable.Type[A]] = {
     import CombineObservable.{apply => wrap}
     Arbitrary {
       implicitly[Arbitrary[List[A]]].arbitrary
@@ -153,7 +153,8 @@ trait ArbitraryInstancesBase extends monix.eval.ArbitraryInstancesBase {
       Gen.const(AsyncSubject[A]()),
       Gen.const(PublishSubject[A]()),
       arb.arbitrary.map(BehaviorSubject(_)),
-      implicitly[Arbitrary[List[A]]].arbitrary.map(ReplaySubject.create(_)))
+      implicitly[Arbitrary[List[A]]].arbitrary.map(ReplaySubject.create(_))
+    )
   }
 
   implicit def arbitraryConsumer[A](implicit arb: Arbitrary[A], M: Monoid[A]): Arbitrary[Consumer[A, A]] =

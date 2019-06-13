@@ -27,11 +27,11 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 /** Implementation for [[monix.reactive.Observable.unsafeCreate]]. */
-private[reactive] final class UnsafeCreateObservable[+A](f: Subscriber[A] => Cancelable)
-  extends Observable[A] {
+private[reactive] final class UnsafeCreateObservable[+A](f: Subscriber[A] => Cancelable) extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable =
-    try f(new SafeSubscriber[A](out)) catch {
+    try f(new SafeSubscriber[A](out))
+    catch {
       case ex if NonFatal(ex) =>
         out.scheduler.reportFailure(ex)
         Cancelable.empty
@@ -42,15 +42,16 @@ private[reactive] object UnsafeCreateObservable {
   /** Wraps a subscriber into an implementation that protects the
     * grammar. The light version of [[monix.reactive.observers.SafeSubscriber]].
     */
-  private final class SafeSubscriber[-A](underlying: Subscriber[A])
-    extends Subscriber[A] { self =>
+  private final class SafeSubscriber[-A](underlying: Subscriber[A]) extends Subscriber[A] { self =>
 
     implicit val scheduler: Scheduler = underlying.scheduler
     private[this] var isDone = false
 
     def onNext(elem: A): Future[Ack] =
-      if (isDone) Stop else {
-        val ack = try underlying.onNext(elem) catch {
+      if (isDone) Stop
+      else {
+        val ack = try underlying.onNext(elem)
+        catch {
           case ex if NonFatal(ex) =>
             self.onError(ex)
             Stop
@@ -61,8 +62,7 @@ private[reactive] object UnsafeCreateObservable {
         else if (ack eq Stop) {
           isDone = true
           Stop
-        }
-        else
+        } else
           ack
       }
 

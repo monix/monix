@@ -24,8 +24,7 @@ import monix.execution.schedulers.TestScheduler
 object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty,
-      "should not have tasks left to execute")
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
   test("Task.foreachL") { implicit s =>
@@ -61,7 +60,6 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
       assertEquals(s.state.lastReportedError, dummy)
     }
   }
-
 
   test("Coeval.foreachL") { _ =>
     var effect = 0

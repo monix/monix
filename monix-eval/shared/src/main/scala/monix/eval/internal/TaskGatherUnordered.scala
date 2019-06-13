@@ -39,7 +39,8 @@ private[eval] object TaskGatherUnordered {
       new Register(in),
       trampolineBefore = true,
       trampolineAfter = true,
-      restoreLocals = true)
+      restoreLocals = true
+    )
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
@@ -47,15 +48,13 @@ private[eval] object TaskGatherUnordered {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Register[A](in: Iterable[Task[A]])
-    extends ForkedRegister[List[A]] {
+  private final class Register[A](in: Iterable[Task[A]]) extends ForkedRegister[List[A]] {
 
     def maybeSignalFinal(
       ref: AtomicAny[State[A]],
       currentState: State[A],
       mainConn: TaskConnection,
-      finalCallback: Callback[Throwable, List[A]])
-      (implicit s: Scheduler): Unit = {
+      finalCallback: Callback[Throwable, List[A]])(implicit s: Scheduler): Unit = {
 
       currentState match {
         case State.Active(list, 0) =>
@@ -77,8 +76,7 @@ private[eval] object TaskGatherUnordered {
       stateRef: AtomicAny[State[A]],
       mainConn: TaskConnection,
       ex: Throwable,
-      finalCallback: Callback[Throwable, List[A]])
-      (implicit s: Scheduler): Unit = {
+      finalCallback: Callback[Throwable, List[A]])(implicit s: Scheduler): Unit = {
 
       val currentState = stateRef.getAndSet(State.Complete)
       if (currentState != State.Complete) {
@@ -94,11 +92,10 @@ private[eval] object TaskGatherUnordered {
         stateRef: AtomicAny[State[A]],
         count: Int,
         conn: TaskConnection,
-        finalCallback: Callback[Throwable, List[A]])
-        (implicit s: Scheduler): Unit = {
+        finalCallback: Callback[Throwable, List[A]])(implicit s: Scheduler): Unit = {
 
         stateRef.get match {
-          case current @ State.Initializing(_,_) =>
+          case current @ State.Initializing(_, _) =>
             val update = current.activate(count)
             if (!stateRef.compareAndSet(current, update))
               activate(stateRef, count, conn, finalCallback)(s)
@@ -142,7 +139,9 @@ private[eval] object TaskGatherUnordered {
           allCancelables += stacked.cancel
 
           // Light asynchronous boundary
-          Task.unsafeStartEnsureAsync(task, childCtx,
+          Task.unsafeStartEnsureAsync(
+            task,
+            childCtx,
             new Callback[Throwable, A] {
               @tailrec
               def onSuccess(value: A): Unit = {
@@ -158,7 +157,8 @@ private[eval] object TaskGatherUnordered {
 
               def onError(ex: Throwable): Unit =
                 reportError(stateRef, mainConn, ex, finalCallback)
-            })
+            }
+          )
         }
 
         // Note that if an error happened, this should cancel all
@@ -190,8 +190,7 @@ private[eval] object TaskGatherUnordered {
         this
     }
 
-    final case class Initializing[+A](list: List[A], remaining: Int)
-      extends State[A] {
+    final case class Initializing[+A](list: List[A], remaining: Int) extends State[A] {
 
       def isActive = true
       def enqueue[B >: A](value: B): Initializing[B] =
@@ -201,8 +200,7 @@ private[eval] object TaskGatherUnordered {
         Active(list, remaining + totalCount)
     }
 
-    final case class Active[+A](list: List[A], remaining: Int)
-      extends State[A] {
+    final case class Active[+A](list: List[A], remaining: Int) extends State[A] {
 
       def isActive = true
       def enqueue[B >: A](value: B): Active[B] =

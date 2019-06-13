@@ -244,8 +244,8 @@ import scala.collection.mutable.ArrayBuffer
 final class ConcurrentChannel[F[_], E, A] private (
   state: AtomicAny[ConcurrentChannel.State[F, E, A]],
   defaultConsumerConfig: ConsumerF.Config,
-  producerType: ChannelType.ProducerSide)
-  (implicit F: Concurrent[F], cs: ContextShift[F])
+  producerType: ChannelType.ProducerSide
+)(implicit F: Concurrent[F], cs: ContextShift[F])
   extends ProducerF[F, E, A] with ChannelF[F, E, A] {
 
   import ConcurrentChannel._
@@ -418,10 +418,10 @@ final class ConcurrentChannel[F[_], E, A] private (
         val padding = config.padding.getOrElse(LeftRight128)
 
         val queue = LowLevelQueue[A](capacity, ChannelType.assemble(producerType, consumerType), fenced = true)
-        val consumersAwait = AtomicAny.withPadding(null : CancelablePromise[Unit], padding)
+        val consumersAwait = AtomicAny.withPadding(null: CancelablePromise[Unit], padding)
         val producersAwait =
           capacity match {
-            case Bounded(_) => AtomicAny.withPadding(null : CancelablePromise[Unit], padding)
+            case Bounded(_) => AtomicAny.withPadding(null: CancelablePromise[Unit], padding)
             case Unbounded(_) => null
           }
 
@@ -563,9 +563,8 @@ object ConcurrentChannel {
   @UnsafeProtocol
   def withConfig[F[_], E, A](
     defaultConsumerConfig: ConsumerF.Config = ConsumerF.Config.default,
-    producerType: ChannelType.ProducerSide = MultiProducer)
-    (implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentChannel[F, E, A]] = {
-
+    producerType: ChannelType.ProducerSide = MultiProducer
+  )(implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentChannel[F, E, A]] = {
     F.delay(unsafe(defaultConsumerConfig, producerType))
   }
 
@@ -589,13 +588,9 @@ object ConcurrentChannel {
   @UnsafeBecauseImpure
   def unsafe[F[_], E, A](
     defaultConsumerConfig: ConsumerF.Config = ConsumerF.Config.default,
-    producerType: ChannelType.ProducerSide = MultiProducer)
-    (implicit F: Concurrent[F], cs: ContextShift[F]): ConcurrentChannel[F, E, A] = {
-
-    new ConcurrentChannel[F, E, A](
-      AtomicAny(State.empty),
-      defaultConsumerConfig,
-      producerType)(F, cs)
+    producerType: ChannelType.ProducerSide = MultiProducer
+  )(implicit F: Concurrent[F], cs: ContextShift[F]): ConcurrentChannel[F, E, A] = {
+    new ConcurrentChannel[F, E, A](AtomicAny(State.empty), defaultConsumerConfig, producerType)(F, cs)
   }
 
   /**
@@ -613,32 +608,33 @@ object ConcurrentChannel {
       */
     def withConfig[E, A](
       defaultConsumerConfig: ConsumerF.Config = ConsumerF.Config.default,
-      producerType: ChannelType.ProducerSide = MultiProducer)
-      (implicit cs: ContextShift[F]): F[ConcurrentChannel[F, E, A]] =
+      producerType: ChannelType.ProducerSide = MultiProducer
+    )(implicit cs: ContextShift[F]): F[ConcurrentChannel[F, E, A]] = {
       ConcurrentChannel.withConfig(defaultConsumerConfig, producerType)(F, cs)
+    }
 
     /**
       * @see documentation for [[ConcurrentChannel.unsafe]]
       */
     def unsafe[E, A](
       defaultConsumerConfig: ConsumerF.Config = ConsumerF.Config.default,
-      producerType: ChannelType.ProducerSide = MultiProducer)
-      (implicit cs: ContextShift[F]): ConcurrentChannel[F, E, A] =
+      producerType: ChannelType.ProducerSide = MultiProducer
+    )(implicit cs: ContextShift[F]): ConcurrentChannel[F, E, A] = {
       ConcurrentChannel.unsafe(defaultConsumerConfig, producerType)(F, cs)
+    }
   }
 
   private sealed abstract class State[F[_], E, A]
 
   private final case class Connected[F[_], E, A](
     refs: Set[ChanProducer[F, E, A]],
-    onChange: CancelablePromise[Unit])
-    extends State[F, E, A] {
+    onChange: CancelablePromise[Unit]
+  ) extends State[F, E, A] {
 
     val array = refs.toArray
   }
 
-  private final case class Halt[F[_], E, A](e: E)
-    extends State[F, E, A]
+  private final case class Halt[F[_], E, A](e: E) extends State[F, E, A]
 
   private object State {
     def empty[F[_], E, A]: State[F, E, A] =
@@ -665,21 +661,19 @@ object ConcurrentChannel {
   private def triggerBroadcastBool[F[_], E, A](
     helpers: Helpers[F],
     refs: Array[ChanProducer[F, E, A]],
-    f: ChanProducer[F, E, A] => F[Boolean])
-    (implicit F: Concurrent[F]): F[Boolean] = {
+    f: ChanProducer[F, E, A] => F[Boolean]
+  )(implicit F: Concurrent[F]): F[Boolean] = {
 
-    triggerBroadcastR(
-      refs, f, helpers.boolTest, helpers.continueF, helpers.stopF)
+    triggerBroadcastR(refs, f, helpers.boolTest, helpers.continueF, helpers.stopF)
   }
 
   private def triggerBroadcastUnit[F[_], E, A](
     helpers: Helpers[F],
     refs: Array[ChanProducer[F, E, A]],
-    f: ChanProducer[F, E, A] => F[Unit])
-    (implicit F: Concurrent[F]): F[Unit] = {
+    f: ChanProducer[F, E, A] => F[Unit]
+  )(implicit F: Concurrent[F]): F[Unit] = {
 
-    triggerBroadcastR(
-      refs, f, helpers.unitTest, F.unit, F.unit)
+    triggerBroadcastR(refs, f, helpers.unitTest, F.unit, F.unit)
   }
 
   private[this] def triggerBroadcastR[F[_], E, A, R](
@@ -687,20 +681,22 @@ object ConcurrentChannel {
     f: ChanProducer[F, E, A] => F[R],
     canContinue: R => Boolean,
     continueF: F[R],
-    stopF: F[R])
-    (implicit F: Concurrent[F]): F[R] = {
+    stopF: F[R]
+  )(implicit F: Concurrent[F]): F[R] = {
 
     def loop(cursor: Iterator[ChanProducer[F, E, A]], bind: R => F[R]): F[R] = {
       val task = f(cursor.next())
       if (cursor.hasNext) {
-        val bindRef = if (bind ne null) bind else {
-          var bindVar: R => F[R] = null
-          bindVar = { r =>
-            if (canContinue(r)) loop(cursor, bindVar)
-            else stopF
+        val bindRef =
+          if (bind ne null) bind
+          else {
+            var bindVar: R => F[R] = null
+            bindVar = { r =>
+              if (canContinue(r)) loop(cursor, bindVar)
+              else stopF
+            }
+            bindVar
           }
-          bindVar
-        }
         F.flatMap(task)(bindRef)
       } else {
         task
@@ -719,8 +715,8 @@ object ConcurrentChannel {
     producersAwait: AtomicAny[CancelablePromise[Unit]],
     consumersAwait: AtomicAny[CancelablePromise[Unit]],
     isFinished: () => Option[E],
-    helpers: Helpers[F])
-    (implicit F: Concurrent[F], cs: ContextShift[F]) {
+    helpers: Helpers[F]
+  )(implicit F: Concurrent[F], cs: ContextShift[F]) {
 
     @tailrec
     private[this] def notifyConsumers(): Unit = {
@@ -743,14 +739,9 @@ object ConcurrentChannel {
 
     def push(a: A): F[Boolean] =
       F.suspend {
-        (tryPushToOurQueue(a) : @switch) match {
+        (tryPushToOurQueue(a): @switch) match {
           case Repeat =>
-            F.asyncF(cb => helpers.sleepThenRepeat(
-              producersAwait,
-              () => tryPushToOurQueue(a),
-              pushFilter,
-              pushMap,
-              cb))
+            F.asyncF(cb => helpers.sleepThenRepeat(producersAwait, () => tryPushToOurQueue(a), pushFilter, pushMap, cb))
           case Continue =>
             helpers.continueF
           case Stop =>
@@ -762,10 +753,11 @@ object ConcurrentChannel {
       if (queue.offer(a) == 0) {
         notifyConsumers()
         Continue
-      } else isFinished() match {
-        case None => Repeat
-        case _ => Stop
-      }
+      } else
+        isFinished() match {
+          case None => Repeat
+          case _ => Stop
+        }
     }
 
     def pushMany(seq: Iterable[A]): F[Boolean] = {
@@ -782,12 +774,8 @@ object ConcurrentChannel {
         // Do we need to await on consumers?
         if (!hasCapacity) {
           assert(producersAwait ne null, "producersAwait ne null (Bug!)")
-          val offerWait = F.asyncF[Ack](cb => helpers.sleepThenRepeat(
-            producersAwait,
-            () => tryPushToOurQueue(elem),
-            pushFilter,
-            pushManyMap,
-            cb))
+          val offerWait = F.asyncF[Ack](cb =>
+            helpers.sleepThenRepeat(producersAwait, () => tryPushToOurQueue(elem), pushFilter, pushManyMap, cb))
           offerWait.flatMap {
             case Continue => loop(cursor)
             case Stop => helpers.stopF
@@ -806,8 +794,7 @@ object ConcurrentChannel {
     producersAwait: AtomicAny[CancelablePromise[Unit]],
     consumersAwait: AtomicAny[CancelablePromise[Unit]],
     isFinished: () => Option[E],
-    helpers: Helpers[F])
-    (implicit F: Concurrent[F], cs: ContextShift[F])
+    helpers: Helpers[F])(implicit F: Concurrent[F], cs: ContextShift[F])
     extends ConsumerF[F, E, A] {
 
     @tailrec
@@ -845,27 +832,30 @@ object ConcurrentChannel {
         }
       }
 
-      val task: () => Either[E, A] = () => queue.poll() match {
-        case null =>
-          isFinished() match {
-            case Some(e) => end(e)
-            case _ => null.asInstanceOf[Either[E, A]]
-          }
-        case a =>
-          notifyProducers()
-          Right(a)
-      }
+      val task: () => Either[E, A] = () =>
+        queue.poll() match {
+          case null =>
+            isFinished() match {
+              case Some(e) => end(e)
+              case _ => null.asInstanceOf[Either[E, A]]
+            }
+          case a =>
+            notifyProducers()
+            Right(a)
+        }
 
       F.suspend {
         task() match {
           case null =>
-            F.asyncF(cb => helpers.sleepThenRepeat(
-              consumersAwait,
-              task,
-              pullFilter,
-              pullMap.asInstanceOf[Either[E, A] => Either[E, A]],
-              cb
-            ))
+            F.asyncF(
+              cb =>
+                helpers.sleepThenRepeat(
+                  consumersAwait,
+                  task,
+                  pullFilter,
+                  pullMap.asInstanceOf[Either[E, A] => Either[E, A]],
+                  cb
+                ))
           case value =>
             F.pure(value)
         }
@@ -898,10 +888,11 @@ object ConcurrentChannel {
 
         if (buffer.length >= minLength)
           Right(toSeq(buffer))
-        else isFinished() match {
-          case Some(e) => end(buffer, maxLength, e)
-          case _ => null.asInstanceOf[Either[E, Seq[A]]]
-        }
+        else
+          isFinished() match {
+            case Some(e) => end(buffer, maxLength, e)
+            case _ => null.asInstanceOf[Either[E, Seq[A]]]
+          }
       }
 
       F.suspend[Either[E, Seq[A]]] {
@@ -916,25 +907,26 @@ object ConcurrentChannel {
 
         if (extracted > 1 && extracted >= minLength)
           F.pure(Right(toSeq(buffer)))
-        else isFinished() match {
-          case Some(e) =>
-            F.pure(end(buffer, maxLength, e))
-          case _ =>
-            F.asyncF(cb => helpers.sleepThenRepeat(
-              consumersAwait,
-              () => task(buffer, minLength, maxLength),
-              pullFilter,
-              pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
-              cb
-            ))
-        }
+        else
+          isFinished() match {
+            case Some(e) =>
+              F.pure(end(buffer, maxLength, e))
+            case _ =>
+              F.asyncF(
+                cb =>
+                  helpers.sleepThenRepeat(
+                    consumersAwait,
+                    () => task(buffer, minLength, maxLength),
+                    pullFilter,
+                    pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
+                    cb
+                  ))
+          }
       }
     }
   }
 
-  private final class Helpers[F[_]](implicit F: Concurrent[F], cs: ContextShift[F])
-    extends QueueHelpers[F] {
-
+  private final class Helpers[F[_]](implicit F: Concurrent[F], cs: ContextShift[F]) extends QueueHelpers[F] {
     val continueF = F.pure(true)
     val stopF = F.pure(false)
     val boolTest = (b: Boolean) => b

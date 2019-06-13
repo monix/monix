@@ -22,7 +22,20 @@ import java.io.PrintStream
 import cats.implicits._
 import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
-import cats.{Applicative, CoflatMap, Defer, Eq, Functor, FunctorFilter, MonadError, Monoid, MonoidK, Order, Parallel, StackSafeMonad}
+import cats.{
+  Applicative,
+  CoflatMap,
+  Defer,
+  Eq,
+  Functor,
+  FunctorFilter,
+  MonadError,
+  Monoid,
+  MonoidK,
+  Order,
+  Parallel,
+  StackSafeMonad
+}
 import monix.catnap.{ConcurrentChannel, ConsumerF}
 import monix.execution.BufferCapacity.Bounded
 import monix.execution.{BufferCapacity, ChannelType}
@@ -990,7 +1003,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   def findL(p: A => Boolean)(implicit F: Sync[F]): F[Option[A]] = {
     val init = Option.empty[A]
     val next = Left(init)
-    foldWhileLeftL(init) { (_, a) => if (p(a)) Right(Some(a)) else next }
+    foldWhileLeftL(init) { (_, a) =>
+      if (p(a)) Right(Some(a)) else next
+    }
   }
 
   /** Given evidence that type `A` has a `cats.Monoid` implementation,
@@ -1427,7 +1442,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        backup throwable that is subscribed when the source
     *        throws an error.
     */
-  final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Iterant[F, B]])(implicit F: Sync[F]): Iterant[F, B] =
+  final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Iterant[F, B]])(
+    implicit F: Sync[F]): Iterant[F, B] =
     onErrorHandleWith { ex =>
       if (pf.isDefinedAt(ex)) pf(ex)
       else Iterant.raiseError[F, B](ex)
@@ -1523,7 +1539,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        throws an error.
     */
   final def onErrorHandle[B >: A](f: Throwable => B)(implicit F: Sync[F]): Iterant[F, B] =
-    onErrorHandleWith { e => Iterant.pure[F, B](f(e)) }
+    onErrorHandleWith { e =>
+      Iterant.pure[F, B](f(e))
+    }
 
   /** Returns a new `Iterant` that mirrors the source, but ignores
     * any errors in case they happen.
@@ -1541,9 +1559,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param rhs is the other iterant to zip the source with (the
     *        right hand side)
     */
-  final def parZip[G[_], B](rhs: Iterant[F, B])
-    (implicit F: Sync[F], P: Parallel[F, G]): Iterant[F, (A, B)] =
-    (self parZipMap rhs) ((a, b) => (a, b))
+  final def parZip[G[_], B](rhs: Iterant[F, B])(implicit F: Sync[F], P: Parallel[F, G]): Iterant[F, (A, B)] =
+    (self parZipMap rhs)((a, b) => (a, b))
 
   /** Lazily zip two iterants together, in parallel, using the given
     * function `f` to produce output values.
@@ -1558,8 +1575,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param f is the mapping function to transform the zipped
     *        `(A, B)` elements
     */
-  final def parZipMap[G[_], B, C](rhs: Iterant[F, B])(f: (A, B) => C)
-    (implicit F: Sync[F], P: Parallel[F, G]): Iterant[F, C] =
+  final def parZipMap[G[_], B, C](rhs: Iterant[F, B])(
+    f: (A, B) => C)(implicit F: Sync[F], P: Parallel[F, G]): Iterant[F, C] =
     IterantZipMap.par(this, rhs, f)
 
   /** Applies the function to the elements of the source and
@@ -1787,9 +1804,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        [[monix.catnap.ConsumerF.Config ConsumerF.Config1]]
     */
   @UnsafeProtocol
-  final def consumeWithConfig(config: ConsumerF.Config)
-    (implicit F: Concurrent[F], cs: ContextShift[F]): Resource[F, Consumer[F, A]] = {
-
+  final def consumeWithConfig(config: ConsumerF.Config)(
+    implicit F: Concurrent[F],
+    cs: ContextShift[F]
+  ): Resource[F, Consumer[F, A]] = {
     IterantConsume(self, config)(F, cs)
   }
 
@@ -1909,14 +1927,14 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def scan[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): Iterant[F, S] =
     IterantScan(self, seed, op)
 
-/** Applies a binary operator to a start value and all elements of
-  * this `Iterant`, going left to right and returns a new
-  * `Iterant` that emits on each step the result of the applied
-  * function.
-  *
-  * This is a version of [[scan]] that emits seed element at the beginning,
-  * similar to `scanLeft` on Scala collections.
-  */
+  /** Applies a binary operator to a start value and all elements of
+    * this `Iterant`, going left to right and returns a new
+    * `Iterant` that emits on each step the result of the applied
+    * function.
+    *
+    * This is a version of [[scan]] that emits seed element at the beginning,
+    * similar to `scanLeft` on Scala collections.
+    */
   final def scan0[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): Iterant[F, S] =
     suspend(F.map(F.delay(seed))(s => s +: scan(s)(op)))
 
@@ -1983,14 +2001,14 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def scanEval[S](seed: F[S])(op: (S, A) => F[S])(implicit F: Sync[F]): Iterant[F, S] =
     IterantScanEval(self, seed, op)
 
-/** Applies a binary operator to a start value and all elements of
-  * this `Iterant`, going left to right and returns a new
-  * `Iterant` that emits on each step the result of the applied
-  * function.
-  *
-  * This is a version of [[scanEval]] that emits seed element at the beginning,
-  * similar to `scanLeft` on Scala collections.
-  */
+  /** Applies a binary operator to a start value and all elements of
+    * this `Iterant`, going left to right and returns a new
+    * `Iterant` that emits on each step the result of the applied
+    * function.
+    *
+    * This is a version of [[scanEval]] that emits seed element at the beginning,
+    * similar to `scanLeft` on Scala collections.
+    */
   final def scanEval0[S](seed: F[S])(op: (S, A) => F[S])(implicit F: Sync[F]): Iterant[F, S] =
     Iterant.suspend(F.map(seed)(s => s +: self.scanEval(F.pure(s))(op)))
 
@@ -2025,17 +2043,16 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def scanMap[B](f: A => B)(implicit F: Sync[F], B: Monoid[B]): Iterant[F, B] =
     self.scan(B.empty)((acc, a) => B.combine(acc, f(a)))
 
-/** Given a mapping function that returns a `B` type for which we have
-  * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
-  * elements of the sources using the provided `Monoid[B].combine`, with the
-  * initial seed being the `Monoid[B].empty` value, emitting the generated values
-  * at each step.
-  *
-  * This is a version of [[scanMap]] that emits seed element at the beginning.
-  */
+  /** Given a mapping function that returns a `B` type for which we have
+    * a [[cats.Monoid]] instance, returns a new stream that folds the incoming
+    * elements of the sources using the provided `Monoid[B].combine`, with the
+    * initial seed being the `Monoid[B].empty` value, emitting the generated values
+    * at each step.
+    *
+    * This is a version of [[scanMap]] that emits seed element at the beginning.
+    */
   final def scanMap0[B](f: A => B)(implicit F: Sync[F], B: Monoid[B]): Iterant[F, B] =
     B.empty +: self.scanMap(f)
-
 
   /** Given evidence that type `A` has a `scala.math.Numeric` implementation,
     * sums the stream of elements.
@@ -2107,7 +2124,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        right hand side)
     */
   final def zip[B](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, (A, B)] =
-    (self zipMap rhs) ((a, b) => (a, b))
+    (self zipMap rhs)((a, b) => (a, b))
 
   /** Lazily zip two iterants together, using the given function `f` to
     * produce output values.
@@ -2131,8 +2148,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param f is the mapping function to transform the zipped
     *        `(A, B)` elements
     */
-  final def zipMap[B, C](rhs: Iterant[F, B])(f: (A, B) => C)
-    (implicit F: Sync[F]): Iterant[F, C] =
+  final def zipMap[B, C](rhs: Iterant[F, B])(f: (A, B) => C)(implicit F: Sync[F]): Iterant[F, C] =
     IterantZipMap.seq(this, rhs, f)
 
   /** Zips the emitted elements of the source with their indices.
@@ -2369,8 +2385,7 @@ object Iterant extends IterantInstances {
     * @param acquire resource to acquire at the start of the stream
     * @param release function that releases the acquired resource
     */
-  def resource[F[_], A](acquire: F[A])(release: A => F[Unit])
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def resource[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: Sync[F]): Iterant[F, A] = {
 
     resourceCase(acquire)((a, _) => release(a))
   }
@@ -2408,14 +2423,10 @@ object Iterant extends IterantInstances {
     * @param acquire an effect that acquires an expensive resource
     * @param release function that releases the acquired resource
     */
-  def resourceCase[F[_], A](acquire: F[A])
-    (release: (A, ExitCase[Throwable]) => F[Unit])
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def resourceCase[F[_], A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])(
+    implicit F: Sync[F]): Iterant[F, A] = {
 
-    Scope[F, A, A](
-      acquire,
-      a => F.pure(Iterant.pure(a)),
-      release)
+    Scope[F, A, A](acquire, a => F.pure(Iterant.pure(a)), release)
   }
 
   /** Lifts a strict value into the stream context, returning a
@@ -2562,9 +2573,11 @@ object Iterant extends IterantInstances {
   def fromReactivePublisher[F[_], A](
     publisher: Publisher[A],
     requestCount: Int = recommendedBufferChunkSize,
-    eagerBuffer: Boolean = true)
-    (implicit F: Async[F]): Iterant[F, A] =
+    eagerBuffer: Boolean = true)(
+    implicit F: Async[F]
+  ): Iterant[F, A] = {
     IterantFromReactivePublisher(publisher, requestCount, eagerBuffer)
+  }
 
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
@@ -2621,11 +2634,14 @@ object Iterant extends IterantInstances {
     * @see [[fromStateAction]] for version without `F[_]` context which
     *     generates `NextBatch` items
     */
-  def fromLazyStateAction[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] = {
+  def fromLazyStateAction[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(
+    implicit F: Sync[F]
+  ): Iterant[F, A] = {
     def loop(state: S): F[Iterant[F, A]] =
       try {
-        f(state).map { case (elem, newState) =>
-          Next(elem, F.suspend(loop(newState)))
+        f(state).map {
+          case (elem, newState) =>
+            Next(elem, F.suspend(loop(newState)))
         }
       } catch {
         case e if NonFatal(e) => F.pure(Halt(Some(e)))
@@ -2646,8 +2662,8 @@ object Iterant extends IterantInstances {
     *        [[Iterant.NextBatch]] nodes, effectively specifying how many
     *        items can be pulled from the queue and processed in batches
     */
-  def fromConsumer[F[_], A](consumer: Consumer[F, A], maxBatchSize: Int = recommendedBufferChunkSize)
-    (implicit F: Async[F]): Iterant[F, A] = {
+  def fromConsumer[F[_], A](consumer: Consumer[F, A], maxBatchSize: Int = recommendedBufferChunkSize)(
+    implicit F: Async[F]): Iterant[F, A] = {
 
     IterantFromConsumer(consumer, maxBatchSize)
   }
@@ -2671,8 +2687,7 @@ object Iterant extends IterantInstances {
   def fromChannel[F[_], A](
     channel: Channel[F, A],
     bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
-    maxBatchSize: Int = recommendedBufferChunkSize)
-    (implicit F: Async[F]): Iterant[F, A] = {
+    maxBatchSize: Int = recommendedBufferChunkSize)(implicit F: Async[F]): Iterant[F, A] = {
 
     val config = ConsumerF.Config(
       capacity = Some(bufferCapacity),
@@ -2723,11 +2738,16 @@ object Iterant extends IterantInstances {
   def fromResource[F[_], A](r: Resource[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     r match {
       case Resource.Allocate(fa) =>
-        Iterant.resourceCase(fa) { (a, ec) => a._2(ec) }.map(_._1)
+        Iterant
+          .resourceCase(fa) { (a, ec) =>
+            a._2(ec)
+          }
+          .map(_._1)
       case Resource.Bind(source, f) =>
         Iterant.suspendS(F.delay {
-          Iterant.fromResource(source)
-            .flatMap { a => Iterant.fromResource(f(a)) }
+          Iterant.fromResource(source).flatMap { a =>
+            Iterant.fromResource(f(a))
+          }
         })
       case Resource.Suspend(fr) =>
         Iterant.suspendS(F.map(fr)(fromResource(_)))
@@ -2759,8 +2779,9 @@ object Iterant extends IterantInstances {
   def channel[F[_], A](
     bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
     maxBatchSize: Int = recommendedBufferChunkSize,
-    producerType: ChannelType.ProducerSide = MultiProducer)
-    (implicit F: Concurrent[F], cs: ContextShift[F]): F[(Producer[F, A], Iterant[F, A])] = {
+    producerType: ChannelType.ProducerSide = MultiProducer)(
+    implicit F: Concurrent[F],
+    cs: ContextShift[F]): F[(Producer[F, A], Iterant[F, A])] = {
 
     val channelF = ConcurrentChannel[F].withConfig[Option[Throwable], A](
       producerType = producerType
@@ -2846,8 +2867,7 @@ object Iterant extends IterantInstances {
     * @param timer is the timer implementation used to generate
     *        delays and to fetch the current time
     */
-  def intervalAtFixedRate[F[_]](period: FiniteDuration)
-    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+  def intervalAtFixedRate[F[_]](period: FiniteDuration)(implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
     IterantIntervalAtFixedRate(Duration.Zero, period)
 
   /** $intervalAtFixedRateDesc
@@ -2860,8 +2880,9 @@ object Iterant extends IterantInstances {
     * @param timer is the timer implementation used to generate
     *        delays and to fetch the current time
     */
-  def intervalAtFixedRate[F[_]](initialDelay: FiniteDuration, period: FiniteDuration)
-    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+  def intervalAtFixedRate[F[_]](initialDelay: FiniteDuration, period: FiniteDuration)(
+    implicit F: Async[F],
+    timer: Timer[F]): Iterant[F, Long] =
     IterantIntervalAtFixedRate(initialDelay, period)
 
   /** $intervalWithFixedDelayDesc
@@ -2873,8 +2894,7 @@ object Iterant extends IterantInstances {
     * @param timer is the timer implementation used to generate
     *        delays and to fetch the current time
     */
-  def intervalWithFixedDelay[F[_]](delay: FiniteDuration)
-    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+  def intervalWithFixedDelay[F[_]](delay: FiniteDuration)(implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
     IterantIntervalWithFixedDelay(Duration.Zero, delay)
 
   /** $intervalWithFixedDelayDesc
@@ -2884,8 +2904,9 @@ object Iterant extends IterantInstances {
     * @param timer is the timer implementation used to generate
     *        delays and to fetch the current time
     */
-  def intervalWithFixedDelay[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)
-    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+  def intervalWithFixedDelay[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)(
+    implicit F: Async[F],
+    timer: Timer[F]): Iterant[F, Long] =
     IterantIntervalWithFixedDelay(initialDelay, delay)
 
   /** Concatenates list of Iterants into a single stream
@@ -2952,7 +2973,10 @@ object Iterant extends IterantInstances {
     * @param use   $useParamDesc
     * @param release $closeParamDesc
     */
-  def scopeS[F[_], A, B](acquire: F[A], use: A => F[Iterant[F, B]], release: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
+  def scopeS[F[_], A, B](
+    acquire: F[A],
+    use: A => F[Iterant[F, B]],
+    release: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
     Scope(acquire, use, release)
 
   /** Builds a stream state equivalent with [[Iterant.Concat]].
@@ -2970,8 +2994,7 @@ object Iterant extends IterantInstances {
     * @param item $headParamDesc
     * @param rest $restParamDesc
     */
-  final case class Next[F[_], A](item: A, rest: F[Iterant[F, A]])
-    extends Iterant[F, A] {
+  final case class Next[F[_], A](item: A, rest: F[Iterant[F, A]]) extends Iterant[F, A] {
 
     def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
@@ -2981,8 +3004,7 @@ object Iterant extends IterantInstances {
     *
     * @param item $lastParamDesc
     */
-  final case class Last[F[_], A](item: A)
-    extends Iterant[F, A] {
+  final case class Last[F[_], A](item: A) extends Iterant[F, A] {
 
     def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
@@ -2993,8 +3015,7 @@ object Iterant extends IterantInstances {
     * @param cursor $cursorParamDesc
     * @param rest $restParamDesc
     */
-  final case class NextCursor[F[_], A](cursor: BatchCursor[A], rest: F[Iterant[F, A]])
-    extends Iterant[F, A] {
+  final case class NextCursor[F[_], A](cursor: BatchCursor[A], rest: F[Iterant[F, A]]) extends Iterant[F, A] {
 
     def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
@@ -3005,8 +3026,7 @@ object Iterant extends IterantInstances {
     * @param batch $generatorParamDesc
     * @param rest $restParamDesc
     */
-  final case class NextBatch[F[_], A](batch: Batch[A], rest: F[Iterant[F, A]])
-    extends Iterant[F, A] {
+  final case class NextBatch[F[_], A](batch: Batch[A], rest: F[Iterant[F, A]]) extends Iterant[F, A] {
 
     def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
@@ -3021,8 +3041,7 @@ object Iterant extends IterantInstances {
     *
     * @param rest $restParamDesc
     */
-  final case class Suspend[F[_], A](rest: F[Iterant[F, A]])
-    extends Iterant[F, A] {
+  final case class Suspend[F[_], A](rest: F[Iterant[F, A]]) extends Iterant[F, A] {
 
     def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
@@ -3032,8 +3051,7 @@ object Iterant extends IterantInstances {
     *
     * @param e $exParamDesc
     */
-  final case class Halt[F[_], A](e: Option[Throwable])
-    extends Iterant[F, A] {
+  final case class Halt[F[_], A](e: Option[Throwable]) extends Iterant[F, A] {
 
     def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
@@ -3060,8 +3078,7 @@ object Iterant extends IterantInstances {
     * @param lh $concatLhDesc
     * @param rh $concatRhDesc
     */
-  final case class Concat[F[_], A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]])
-    extends Iterant[F, A] {
+  final case class Concat[F[_], A](lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]) extends Iterant[F, A] {
 
     def accept[R](visitor: Visitor[F, A, R]): R =
       visitor.visit(this)
@@ -3120,12 +3137,8 @@ private[tail] trait IterantInstances {
 
   /** Provides the `cats.effect.Sync` instance for [[Iterant]]. */
   class CatsSyncInstances[F[_]](implicit F: Sync[F])
-    extends StackSafeMonad[Iterant[F, ?]]
-      with MonadError[Iterant[F, ?], Throwable]
-      with Defer[Iterant[F, ?]]
-      with MonoidK[Iterant[F, ?]]
-      with CoflatMap[Iterant[F, ?]]
-      with FunctorFilter[Iterant[F, ?]] {
+    extends StackSafeMonad[Iterant[F, ?]] with MonadError[Iterant[F, ?], Throwable] with Defer[Iterant[F, ?]]
+    with MonoidK[Iterant[F, ?]] with CoflatMap[Iterant[F, ?]] with FunctorFilter[Iterant[F, ?]] {
 
     override def pure[A](a: A): Iterant[F, A] =
       Iterant.pure(a)

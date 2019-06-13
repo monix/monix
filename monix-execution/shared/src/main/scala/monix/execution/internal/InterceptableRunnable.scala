@@ -22,7 +22,6 @@ import scala.util.control.NonFatal
 import monix.execution.UncaughtExceptionReporter
 import monix.execution.schedulers.TrampolinedRunnable
 
-
 /**
   * A `Runnable` which can be wrapped to report exceptions raised using another
   * [[UncaughtExceptionReporter]]
@@ -34,8 +33,9 @@ trait InterceptableRunnable extends Runnable {
 object InterceptableRunnable {
   private[this] class Wrapped(r: Runnable, handler: UncaughtExceptionReporter) extends InterceptableRunnable {
     def run(): Unit =
-      try { r.run() }
-      catch { case NonFatal(ex) => handler.reportFailure(ex) }
+      try {
+        r.run()
+      } catch { case NonFatal(ex) => handler.reportFailure(ex) }
 
     // can't reinstall a handler on top
     def intercept(handler: UncaughtExceptionReporter): Runnable = this

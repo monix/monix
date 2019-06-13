@@ -24,8 +24,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final
-class ExecuteOnObservable[+A](source: Observable[A], s: Scheduler, forceAsync: Boolean)
+private[reactive] final class ExecuteOnObservable[+A](source: Observable[A], s: Scheduler, forceAsync: Boolean)
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -35,12 +34,10 @@ class ExecuteOnObservable[+A](source: Observable[A], s: Scheduler, forceAsync: B
     conn
   }
 
-  private final class TrampolinedThunk
-    (conn: AssignableCancelable, out: Subscriber[A])
+  private final class TrampolinedThunk(conn: AssignableCancelable, out: Subscriber[A])
     extends Thunk(conn, out) with TrampolinedRunnable
 
-  private class Thunk(conn: AssignableCancelable, out: Subscriber[A])
-    extends Runnable {
+  private class Thunk(conn: AssignableCancelable, out: Subscriber[A]) extends Runnable {
 
     final def run(): Unit = {
       val out2 = new Subscriber[A] {

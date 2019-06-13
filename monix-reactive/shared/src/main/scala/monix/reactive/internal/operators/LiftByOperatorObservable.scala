@@ -22,8 +22,7 @@ import monix.reactive.Observable
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] final class LiftByOperatorObservable[A, B](
-  self: Observable[A], operator: Operator[A, B])
+private[reactive] final class LiftByOperatorObservable[A, B](self: Observable[A], operator: Operator[A, B])
   extends Observable[B] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[B]): Cancelable = {

@@ -33,7 +33,9 @@ object TaskCreateSuite extends BaseTestSuite {
   }
 
   test("can use Cancelable.empty as return type") { implicit sc =>
-    val task = Task.create[Int] { (_, cb) => cb.onSuccess(1); Cancelable.empty }
+    val task = Task.create[Int] { (_, cb) =>
+      cb.onSuccess(1); Cancelable.empty
+    }
     val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
@@ -172,7 +174,7 @@ object TaskCreateSuite extends BaseTestSuite {
   test("throwing error when returning Unit reports it") { implicit sc =>
     val dummy = DummyException("dummy")
     val task = Task.create[Int] { (_, _) =>
-      (throw dummy) : Unit
+      (throw dummy): Unit
     }
 
     val f = task.runToFuture
@@ -185,7 +187,7 @@ object TaskCreateSuite extends BaseTestSuite {
   test("throwing error when returning Cancelable reports it") { implicit sc =>
     val dummy = DummyException("dummy")
     val task = Task.create[Int] { (_, _) =>
-      (throw dummy) : Cancelable
+      (throw dummy): Cancelable
     }
 
     val f = task.runToFuture

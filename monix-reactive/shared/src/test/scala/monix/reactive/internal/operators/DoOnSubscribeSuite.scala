@@ -28,16 +28,19 @@ import monix.execution.exceptions.DummyException
 object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("doOnSubscribe should work") { implicit s =>
     var elem = 0
     Observable
       .now(10)
-      .doOnSubscribeF { () => elem = 20 }
-      .foreach { x => elem = elem / x }
+      .doOnSubscribeF { () =>
+        elem = 20
+      }
+      .foreach { x =>
+        elem = elem / x
+      }
 
     s.tick()
     assertEquals(elem, 2)
@@ -47,7 +50,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     Observable
-      .range(1,10)
+      .range(1, 10)
       .doOnSubscribe(Task.raiseError[Unit](dummy))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = Continue
@@ -63,8 +66,12 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     var elem = 0
     Observable
       .now(10)
-      .doAfterSubscribeF { () => elem = 20 }
-      .foreach { x => elem = elem / x }
+      .doAfterSubscribeF { () =>
+        elem = 20
+      }
+      .foreach { x =>
+        elem = elem / x
+      }
 
     s.tick()
     assertEquals(elem, 2)
@@ -74,7 +81,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     Observable
-      .range(1,10)
+      .range(1, 10)
       .doAfterSubscribeF(IO.raiseError[Unit](dummy))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = Continue

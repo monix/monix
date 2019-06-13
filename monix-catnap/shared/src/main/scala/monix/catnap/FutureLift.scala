@@ -102,8 +102,7 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * and if the given future is cancelable, then the resulting instance
     * is also cancelable.
     */
-  def scalaToAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])
-    (implicit F: Async[F]): F[A] = {
+  def scalaToAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(implicit F: Async[F]): F[A] = {
 
     F.flatMap(fa) { future =>
       future.value match {
@@ -123,8 +122,7 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * and if the given future is cancelable, then the resulting instance
     * is also cancelable.
     */
-  def scalaToConcurrent[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])
-    (implicit F: Concurrent[F]): F[A] = {
+  def scalaToConcurrent[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(implicit F: Concurrent[F]): F[A] = {
 
     F.flatMap(fa) { future =>
       future.value match {
@@ -147,8 +145,8 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * N.B. this works with [[monix.execution.CancelableFuture]]
     * if the given `Future` is such an instance.
     */
-  def scalaToConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])
-    (implicit F: Concurrent[F] OrElse Async[F]): F[A] = {
+  def scalaToConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(
+    implicit F: Concurrent[F] OrElse Async[F]): F[A] = {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked =>
@@ -163,8 +161,8 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * [[scala.concurrent.Future]] or [[monix.execution.CancelableFuture]] to
     * any `Concurrent` or `Async` data type.
     */
-  implicit def scalaFutureLiftForConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T]]
-    (implicit F: Concurrent[F] OrElse Async[F]): FutureLift[F, MF] = {
+  implicit def scalaFutureLiftForConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T]](
+    implicit F: Concurrent[F] OrElse Async[F]): FutureLift[F, MF] = {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked =>
@@ -205,7 +203,9 @@ object FutureLift extends internal.FutureLiftForPlatform {
   }
 
   private def startAsync[F[_], A](fa: ScalaFuture[A])(implicit F: Async[F]): F[A] =
-    F.async { cb => start(fa, cb) }
+    F.async { cb =>
+      start(fa, cb)
+    }
 
   private def startCancelable[F[_], A](fa: CancelableFuture[A])(implicit F: Concurrent[F]): F[A] =
     F.cancelable { cb =>

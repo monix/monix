@@ -60,11 +60,11 @@ object IterantBuilders {
     */
   final class Apply[F[_]](val v: Boolean = true) extends AnyVal {
     /** Aliased builder, see documentation for [[Iterant.now]]. */
-    def now[A](a: A): Iterant[F,A] =
+    def now[A](a: A): Iterant[F, A] =
       Iterant.now(a)
 
     /** Aliased builder, see documentation for [[Iterant.pure]]. */
-    def pure[A](a: A): Iterant[F,A] =
+    def pure[A](a: A): Iterant[F, A] =
       Iterant.pure(a)
 
     /** Aliased builder, see documentation for [[Iterant.nextS]]. */
@@ -88,7 +88,10 @@ object IterantBuilders {
       Iterant.concatS(lh, rh)
 
     /** Aliased builder, see documentation for [[Iterant.scopeS]]. */
-    def scopeS[A, B](acquire: F[A], use: A => F[Iterant[F, B]], close: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
+    def scopeS[A, B](
+      acquire: F[A],
+      use: A => F[Iterant[F, B]],
+      close: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
       Iterant.scopeS(acquire, use, close)
 
     /** Aliased builder, see documentation for [[Iterant.lastS]]. */
@@ -111,7 +114,7 @@ object IterantBuilders {
     // -- Requiring Applicative
 
     /** Given a list of elements build a stream out of it. */
-    def of[A](elems: A*)(implicit F: Applicative[F]): Iterant[F,A] =
+    def of[A](elems: A*)(implicit F: Applicative[F]): Iterant[F, A] =
       Iterant.fromSeq(elems)(F)
 
     /** Aliased builder, see documentation for [[Iterant.liftF]]. */
@@ -162,21 +165,20 @@ object IterantBuilders {
     // cats.effect.Sync
 
     /** Aliased builder, see documentation for [[Iterant.eval]]. */
-    def eval[A](a: => A)(implicit F: Sync[F]): Iterant[F,A] =
+    def eval[A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
       Iterant.eval(a)(F)
 
     /** Aliased builder, see documentation for [[Iterant.eval]]. */
-    def delay[A](a: => A)(implicit F: Sync[F]): Iterant[F,A] =
+    def delay[A](a: => A)(implicit F: Sync[F]): Iterant[F, A] =
       Iterant.delay(a)(F)
 
     /** Aliased builder, see documentation for [[Iterant.resource]]. */
-    def resource[A](acquire: F[A])(release: A => F[Unit])
-      (implicit F: Sync[F]): Iterant[F, A] =
+    def resource[A](acquire: F[A])(release: A => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
       Iterant.resource(acquire)(release)
 
     /** Aliased builder, see documentation for [[Iterant.resourceCase]]. */
-    def resourceCase[A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])
-      (implicit F: Sync[F]): Iterant[F, A] =
+    def resourceCase[A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])(
+      implicit F: Sync[F]): Iterant[F, A] =
       Iterant.resourceCase(acquire)(release)
 
     /** Aliased builder, see documentation for [[Iterant.fromResource]]. */
@@ -192,18 +194,15 @@ object IterantBuilders {
       Iterant.defer(fa)(F)
 
     /** Aliased builder, see documentation for [[Iterant.tailRecM]]. */
-    def tailRecM[A, B](a: A)(f: A => Iterant[F, Either[A, B]])
-      (implicit F: Sync[F]): Iterant[F, B] =
+    def tailRecM[A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Sync[F]): Iterant[F, B] =
       Iterant.tailRecM(a)(f)(F)
 
     /** Aliased builder, see documentation for [[Iterant.fromStateAction]]. */
-    def fromStateAction[S, A](f: S => (A, S))(seed: => S)
-      (implicit F: Sync[F]): Iterant[F, A] =
+    def fromStateAction[S, A](f: S => (A, S))(seed: => S)(implicit F: Sync[F]): Iterant[F, A] =
       Iterant.fromStateAction(f)(seed)
 
     /** Aliased builder, see documentation for [[Iterant.fromLazyStateAction]]. */
-    def fromStateActionL[S, A](f: S => F[(A, S)])(seed: => F[S])
-      (implicit F: Sync[F]): Iterant[F, A] =
+    def fromStateActionL[S, A](f: S => F[(A, S)])(seed: => F[S])(implicit F: Sync[F]): Iterant[F, A] =
       Iterant.fromLazyStateAction(f)(seed)
 
     /** Aliased builder, see documentation for [[Iterant.repeat]]. */
@@ -229,55 +228,60 @@ object IterantBuilders {
       * Aliased builder, see documentation for
       * [[[Iterant.intervalAtFixedRate[F[_]](period* Iterant.intervalAtFixedRate]]].
       */
-    def intervalAtFixedRate(period: FiniteDuration)
-      (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    def intervalAtFixedRate(period: FiniteDuration)(implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
       Iterant.intervalAtFixedRate(period)
 
     /**
       * Aliased builder, see documentation for
       * [[[Iterant.intervalAtFixedRate[F[_]](initialDelay* Iterant.intervalAtFixedRate]]].
       */
-    def intervalAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)
-      (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    def intervalAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(
+      implicit F: Async[F],
+      timer: Timer[F]): Iterant[F, Long] =
       Iterant.intervalAtFixedRate(initialDelay, period)
 
     /**
       * Aliased builder, see documentation for
       * [[[Iterant.intervalWithFixedDelay[F[_]](delay* Iterant.intervalAtFixedRate]]].
       */
-    def intervalWithFixedDelay(delay: FiniteDuration)
-      (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    def intervalWithFixedDelay(delay: FiniteDuration)(implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
       Iterant.intervalWithFixedDelay(delay)
 
     /**
       * Aliased builder, see documentation for
       * [[[Iterant.intervalWithFixedDelay[F[_]](initialDelay* Iterant.intervalAtFixedRate]]].
       */
-    def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)
-      (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(
+      implicit F: Async[F],
+      timer: Timer[F]): Iterant[F, Long] =
       Iterant.intervalWithFixedDelay(initialDelay, delay)
 
     /** Aliased builder, see documentation for [[Iterant.fromReactivePublisher]]. */
-    def fromReactivePublisher[A](publisher: Publisher[A], requestCount: Int = recommendedBufferChunkSize, eagerBuffer: Boolean = true)
-      (implicit F: Async[F]): Iterant[F, A] =
+    def fromReactivePublisher[A](
+      publisher: Publisher[A],
+      requestCount: Int = recommendedBufferChunkSize,
+      eagerBuffer: Boolean = true)(implicit F: Async[F]): Iterant[F, A] =
       Iterant.fromReactivePublisher(publisher, requestCount, eagerBuffer)
 
     /** Aliased builder, see documentation for [[Iterant.fromConsumer]]. */
-    def fromConsumer[A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int = recommendedBufferChunkSize)
-      (implicit F: Async[F]): Iterant[F, A] =
+    def fromConsumer[A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int = recommendedBufferChunkSize)(
+      implicit F: Async[F]): Iterant[F, A] =
       Iterant.fromConsumer(consumer, maxBatchSize)
 
     /** Aliased builder, see documentation for [[Iterant.fromChannel]]. */
-    def fromChannel[A](channel: Channel[F, A], bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize), maxBatchSize: Int = recommendedBufferChunkSize)
-      (implicit F: Async[F]): Iterant[F, A] =
+    def fromChannel[A](
+      channel: Channel[F, A],
+      bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
+      maxBatchSize: Int = recommendedBufferChunkSize)(implicit F: Async[F]): Iterant[F, A] =
       Iterant.fromChannel(channel, bufferCapacity, maxBatchSize)
 
     /** Aliased builder, see documentation for [[Iterant.channel]]. */
     def channel[A](
       bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
       maxBatchSize: Int = recommendedBufferChunkSize,
-      producerType: ChannelType.ProducerSide = MultiProducer)
-      (implicit F: Concurrent[F], cs: ContextShift[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] =
+      producerType: ChannelType.ProducerSide = MultiProducer)(
+      implicit F: Concurrent[F],
+      cs: ContextShift[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] =
       Iterant.channel(bufferCapacity, maxBatchSize, producerType)
   }
 }

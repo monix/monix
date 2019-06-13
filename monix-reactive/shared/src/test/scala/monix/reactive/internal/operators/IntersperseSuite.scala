@@ -29,8 +29,8 @@ object IntersperseSuite extends BaseOperatorSuite {
     Sample(sample, count(sourceCount), sum(sourceCount), 0.seconds, 0.seconds)
   }
 
-  def count(sourceCount: Int) = sourceCount*2 - 1
-  def sum(sourceCount: Int) = (sourceCount*(sourceCount - 1))/2 + sourceCount - 1
+  def count(sourceCount: Int) = sourceCount * 2 - 1
+  def sum(sourceCount: Int) = (sourceCount * (sourceCount - 1)) / 2 + sourceCount - 1
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val sample = createObservableEndingInError(Observable.range(0, sourceCount), ex).intersperse(0L)
@@ -50,15 +50,17 @@ object IntersperseSuite extends BaseOperatorSuite {
     var received = Vector.empty[Int]
     var wasCompleted = false
 
-    obs.intersperse(start = -1, separator = -2, end = -3).subscribe(new Observer[Int] {
-      def onNext(elem: Int) = {
-        received :+= elem
-        Continue
-      }
+    obs
+      .intersperse(start = -1, separator = -2, end = -3)
+      .subscribe(new Observer[Int] {
+        def onNext(elem: Int) = {
+          received :+= elem
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     obs.onNext(1); s.tick()
     assertEquals(received.headOption, Some(-1))
@@ -73,15 +75,17 @@ object IntersperseSuite extends BaseOperatorSuite {
     var received = Vector.empty[Int]
     var wasCompleted = false
 
-    obs.intersperse(start = -1, separator = -2, end = -3).unsafeSubscribeFn(new Observer[Int] {
-      def onNext(elem: Int) = {
-        received :+= elem
-        Continue
-      }
+    obs
+      .intersperse(start = -1, separator = -2, end = -3)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int) = {
+          received :+= elem
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     obs.onNext(1); s.tick()
     obs.onNext(2); s.tick()
@@ -96,15 +100,17 @@ object IntersperseSuite extends BaseOperatorSuite {
     var received = Vector.empty[Int]
     var wasCompleted = false
 
-    obs.intersperse(-1,0,-1).unsafeSubscribeFn(new Observer[Int] {
-      def onNext(elem: Int) = {
-        received :+= elem
-        Continue
-      }
+    obs
+      .intersperse(-1, 0, -1)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int) = {
+          received :+= elem
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     obs.onNext(1); s.tick()
     obs.onNext(2); s.tick()
@@ -113,7 +119,7 @@ object IntersperseSuite extends BaseOperatorSuite {
     obs.onNext(5); s.tick()
     obs.onComplete(); s.tick()
 
-    assertEquals(received, Vector(-1,1,0,2,0,3,0,4,0,5,-1))
+    assertEquals(received, Vector(-1, 1, 0, 2, 0, 3, 0, 4, 0, 5, -1))
     assert(wasCompleted)
   }
 
@@ -123,15 +129,17 @@ object IntersperseSuite extends BaseOperatorSuite {
     var received = Vector.empty[Int]
     var wasCompleted = false
 
-    obs.intersperse(start = -1, separator = -2, end = -3).unsafeSubscribeFn(new Observer[Int] {
-      def onNext(elem: Int) = {
-        received :+= elem
-        Continue
-      }
+    obs
+      .intersperse(start = -1, separator = -2, end = -3)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int) = {
+          received :+= elem
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     obs.onComplete(); s.tick()
     assertEquals(received, List())

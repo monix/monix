@@ -24,9 +24,11 @@ import scala.concurrent.Future
 
 object ConcatDelayErrorsSuite extends BaseTestSuite {
   test("flatMapDelayErrors works for synchronous observers") { implicit s =>
-    val obs = Observable.range(0, 100)
-      .flatMapDelayErrors(x => Observable(x,x,x)
-        .endWithError(DummyException(x.toString)))
+    val obs = Observable
+      .range(0, 100)
+      .flatMapDelayErrors(x =>
+        Observable(x, x, x)
+          .endWithError(DummyException(x.toString)))
 
     var result = 0L
     var errorThrown: Throwable = null
@@ -60,8 +62,9 @@ object ConcatDelayErrorsSuite extends BaseTestSuite {
   }
 
   test("flatMapDelayErrors works for asynchronous observers") { implicit s =>
-    val obs = Observable.range(0, 100)
-      .flatMapDelayErrors(x => Observable(x,x,x).endWithError(DummyException(x.toString)))
+    val obs = Observable
+      .range(0, 100)
+      .flatMapDelayErrors(x => Observable(x, x, x).endWithError(DummyException(x.toString)))
 
     var result = 0L
     var errorThrown: Throwable = null

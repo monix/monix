@@ -73,15 +73,21 @@ object OrderedCancelableSuite extends SimpleTestSuite {
     val mc = OrderedCancelable()
     var effect = 0
 
-    val c1 = Cancelable { () => effect = 1 }
+    val c1 = Cancelable { () =>
+      effect = 1
+    }
     mc.orderedUpdate(c1, 1)
     assertEquals(mc.currentOrder, 1)
 
-    val c2 = Cancelable { () => effect = 2 }
+    val c2 = Cancelable { () =>
+      effect = 2
+    }
     mc.orderedUpdate(c2, 2)
     assertEquals(mc.currentOrder, 2)
 
-    val c3 = Cancelable { () => effect = 3 }
+    val c3 = Cancelable { () =>
+      effect = 3
+    }
     mc.orderedUpdate(c3, 1)
     assertEquals(mc.currentOrder, 2)
 
@@ -94,13 +100,21 @@ object OrderedCancelableSuite extends SimpleTestSuite {
     val mc = OrderedCancelable()
     var effect = 0
 
-    val c1 = Cancelable { () => effect = 1 }
+    val c1 = Cancelable { () =>
+      effect = 1
+    }
     mc.orderedUpdate(c1, Long.MaxValue)
-    val c2 = Cancelable { () => effect = 2 }
-    mc.orderedUpdate(c2, Long.MaxValue+1)
-    val c3 = Cancelable { () => effect = 3 }
-    mc.orderedUpdate(c3, Long.MaxValue+2)
-    val c4 = Cancelable { () => effect = 4 }
+    val c2 = Cancelable { () =>
+      effect = 2
+    }
+    mc.orderedUpdate(c2, Long.MaxValue + 1)
+    val c3 = Cancelable { () =>
+      effect = 3
+    }
+    mc.orderedUpdate(c3, Long.MaxValue + 2)
+    val c4 = Cancelable { () =>
+      effect = 4
+    }
     mc.orderedUpdate(c4, Long.MaxValue)
 
     mc.cancel()

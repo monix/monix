@@ -22,9 +22,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final
-class EndWithErrorOperator[A](error: Throwable)
-  extends Operator[A,A] {
+private[reactive] final class EndWithErrorOperator[A](error: Throwable) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {

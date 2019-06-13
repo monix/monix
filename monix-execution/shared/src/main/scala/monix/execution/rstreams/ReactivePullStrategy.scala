@@ -17,7 +17,6 @@
 
 package monix.execution.rstreams
 
-
 /**
   * Describes a strategy of buffering data when converting a `Publisher` into other
   * data types like `monix.tail.Iterant`.
@@ -71,8 +70,7 @@ object ReactivePullStrategy {
     * be used with a busy source, but for slow producers
     * [[StopAndWait]] is a better strategy.
     */
-  final case class FixedWindow(bufferSize: Int)
-    extends ReactivePullStrategy {
+  final case class FixedWindow(bufferSize: Int) extends ReactivePullStrategy {
 
     require(bufferSize > 0, "Batch size must be strictly positive!")
   }

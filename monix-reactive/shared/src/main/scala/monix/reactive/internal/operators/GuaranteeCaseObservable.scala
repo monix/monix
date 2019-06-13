@@ -32,9 +32,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
-private[reactive] class GuaranteeCaseObservable[A](
-  source: Observable[A],
-  f: ExitCase[Throwable] => Task[Unit])
+private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: ExitCase[Throwable] => Task[Unit])
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -64,7 +62,6 @@ private[reactive] class GuaranteeCaseObservable[A](
           }
       })
   }
-
 
   private final class GuaranteeSubscriber(out: Subscriber[A], isActive: AtomicBoolean)
     extends Subscriber[A] with Cancelable {
@@ -111,7 +108,8 @@ private[reactive] class GuaranteeCaseObservable[A](
     private def stopAsFuture(e: ExitCase[Throwable]): Future[Ack] = {
       // Thread-safety guard
       if (isActive.getAndSet(false)) {
-        Task.suspend(f(e))
+        Task
+          .suspend(f(e))
           .redeem(e => { scheduler.reportFailure(e); Stop }, _ => Stop)
           .runToFuture
       } else {
@@ -127,37 +125,39 @@ private[reactive] class GuaranteeCaseObservable[A](
 
       // We have to back-pressure the final acknowledgement, otherwise
       // the implementation is broken
-      val task = Task.fromFuture(ack).redeemWith(
-        e2 => {
-          if (isActive.getAndSet(false)) {
-            val error = composeError(e, e2)
-            f(ExitCase.Error(error)).map(_ => Stop)
-          } else {
-            scheduler.reportFailure(e2)
-            Task.now(Stop)
-          }
-        },
-        ack => {
-          if (isActive.getAndSet(false)) {
-            val code = if (e != null) ExitCase.Error(e) else ExitCase.Completed
-            f(code).map(_ => ack)
-          } else {
-            Task.now(Stop)
-          }
-        })
-
-      task.runAsyncUncancelable(
-        new Callback[Throwable, Ack] {
-          def onSuccess(value: Ack): Unit = {
-            if (value == Continue) {
-              if (e != null) out.onError(e)
-              else out.onComplete()
+      val task = Task
+        .fromFuture(ack)
+        .redeemWith(
+          e2 => {
+            if (isActive.getAndSet(false)) {
+              val error = composeError(e, e2)
+              f(ExitCase.Error(error)).map(_ => Stop)
+            } else {
+              scheduler.reportFailure(e2)
+              Task.now(Stop)
+            }
+          },
+          ack => {
+            if (isActive.getAndSet(false)) {
+              val code = if (e != null) ExitCase.Error(e) else ExitCase.Completed
+              f(code).map(_ => ack)
+            } else {
+              Task.now(Stop)
             }
           }
+        )
 
-          def onError(e2: Throwable): Unit =
-            out.onError(composeError(e, e2))
-        })
+      task.runAsyncUncancelable(new Callback[Throwable, Ack] {
+        def onSuccess(value: Ack): Unit = {
+          if (value == Continue) {
+            if (e != null) out.onError(e)
+            else out.onComplete()
+          }
+        }
+
+        def onError(e2: Throwable): Unit =
+          out.onError(composeError(e, e2))
+      })
     }
   }
 }

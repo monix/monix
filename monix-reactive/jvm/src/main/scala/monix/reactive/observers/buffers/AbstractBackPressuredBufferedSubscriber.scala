@@ -24,7 +24,7 @@ import monix.execution.ChannelType._
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 import monix.execution.internal.collection.LowLevelConcurrentQueue
-import monix.execution.internal.{Platform, math}
+import monix.execution.internal.{math, Platform}
 
 import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -36,8 +36,10 @@ import scala.util.{Failure, Success}
 /** Shared internals between [[BackPressuredBufferedSubscriber]] and
   * [[BatchedBufferedSubscriber]].
   */
-private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
-  (out: Subscriber[R], _bufferSize: Int, pt: ChannelType.ProducerSide)
+private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
+  out: Subscriber[R],
+  _bufferSize: Int,
+  pt: ChannelType.ProducerSide)
   extends CommonBufferMembers with BufferedSubscriber[A] {
 
   require(_bufferSize > 0, "bufferSize must be a strictly positive number")
@@ -56,7 +58,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
   private[this] val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
   private[this] val backPressured =
-    Atomic.withPadding(null : Promise[Ack], LeftRight256)
+    Atomic.withPadding(null: Promise[Ack], LeftRight256)
 
   @tailrec
   private final def pushOnNext(elem: A, lastToPush: Option[Int]): Future[Ack] = {
@@ -65,8 +67,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
     else if (elem == null) {
       onError(new NullPointerException("Null not supported in onNext"))
       Stop
-    }
-    else {
+    } else {
       val toPush = lastToPush match {
         case None => itemsToPush.getAndIncrement()
         case Some(v) => v
@@ -78,8 +79,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
             queue.offer(elem)
             pushToConsumer(toPush)
             Continue
-          }
-          else {
+          } else {
             val promise = Promise[Ack]()
 
             if (!backPressured.compareAndSet(null, promise))
@@ -140,15 +140,16 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
         // synchronous value
         if (ack == Continue || ack == Stop)
           ack
-        else ack.value match {
-          case Some(Success(success)) =>
-            success
-          case Some(Failure(ex)) =>
-            signalError(ex)
-            Stop
-          case None =>
-            ack
-        }
+        else
+          ack.value match {
+            case Some(Success(success)) =>
+              success
+            case Some(Failure(ex)) =>
+              signalError(ex)
+              Stop
+            case None =>
+              ack
+          }
       } catch {
         case ex if NonFatal(ex) =>
           signalError(ex)
@@ -156,13 +157,15 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
       }
 
     private final def signalComplete(): Unit =
-      try out.onComplete() catch {
+      try out.onComplete()
+      catch {
         case ex if NonFatal(ex) =>
           scheduler.reportFailure(ex)
       }
 
     private final def signalError(ex: Throwable): Unit =
-      try out.onError(ex) catch {
+      try out.onError(ex)
+      catch {
         case err if NonFatal(err) =>
           scheduler.reportFailure(err)
       }
@@ -226,13 +229,11 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
                 goAsync(next, nextSize, ack, processed)
                 return
             }
-          }
-          else {
+          } else {
             goAsync(next, nextSize, ack, processed)
             return
           }
-        }
-        else if (upstreamIsComplete) {
+        } else if (upstreamIsComplete) {
           // Race-condition check, but if upstreamIsComplete=true is
           // visible, then the queue should be fully published because
           // there's a clear happens-before relationship between
@@ -246,8 +247,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
             else signalComplete()
             return
           }
-        }
-        else {
+        } else {
           // Given we are writing in `itemsToPush` before this
           // assignment, it means that writes will not get reordered,
           // so when we observe that itemsToPush is zero on the

@@ -24,9 +24,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final
-class ReduceOperator[A](op: (A,A) => A)
-  extends Operator[A,A] {
+private[reactive] final class ReduceOperator[A](op: (A, A) => A) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -41,8 +39,7 @@ class ReduceOperator[A](op: (A,A) => A)
           if (isFirst) {
             isFirst = false
             state = elem
-          }
-          else {
+          } else {
             state = op(state, elem)
           }
 

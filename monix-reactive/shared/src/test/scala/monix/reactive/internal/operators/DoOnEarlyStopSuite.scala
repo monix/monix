@@ -32,15 +32,16 @@ import scala.concurrent.Future
 object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should execute for cats.effect.IO") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnEarlyStopF(IO { wasCanceled += 1 })
+    Observable
+      .now(1)
+      .doOnEarlyStopF(IO { wasCanceled += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Stop
@@ -56,7 +57,9 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnEarlyStop(Task.eval { wasCanceled += 1 })
+    Observable
+      .now(1)
+      .doOnEarlyStop(Task.eval { wasCanceled += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Stop
@@ -72,7 +75,9 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnEarlyStop(Task.evalAsync { wasCanceled += 1 })
+    Observable
+      .now(1)
+      .doOnEarlyStop(Task.evalAsync { wasCanceled += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Future(Stop)
@@ -89,7 +94,9 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.range(0,10).doOnEarlyStop(Task.eval { wasCanceled += 1 })
+    Observable
+      .range(0, 10)
+      .doOnEarlyStop(Task.eval { wasCanceled += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Ack] =
@@ -110,7 +117,9 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
     var errorThrown: Throwable = null
 
-    Observable.raiseError(dummy).doOnEarlyStop(Task.eval { wasCanceled += 1 })
+    Observable
+      .raiseError(dummy)
+      .doOnEarlyStop(Task.eval { wasCanceled += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Ack] =
@@ -132,7 +141,9 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     val dummy = DummyException("dummy")
     var hasError = false
 
-    Observable.repeat(1).doOnEarlyStop(Task.eval { throw dummy })
+    Observable
+      .repeat(1)
+      .doOnEarlyStop(Task.eval { throw dummy })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Stop

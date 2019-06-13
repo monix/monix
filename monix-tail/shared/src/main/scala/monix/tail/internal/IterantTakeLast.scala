@@ -35,8 +35,7 @@ private[tail] object IterantTakeLast {
       Suspend(F.delay(new Loop(n).apply(source)))
   }
 
-  private class Loop[F[_], A](n: Int)(implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
+  private class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
 
     private val buffer = DropHeadOnOverflowQueue.boxed[A](n)
     private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _

@@ -23,8 +23,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final
-class SwitchIfEmptyObservable[+A](source: Observable[A], backup: Observable[A])
+private[reactive] final class SwitchIfEmptyObservable[+A](source: Observable[A], backup: Observable[A])
   extends Observable[A] {
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {

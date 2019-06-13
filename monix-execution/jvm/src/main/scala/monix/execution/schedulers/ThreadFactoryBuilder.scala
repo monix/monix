@@ -35,11 +35,10 @@ private[schedulers] object ThreadFactoryBuilder {
         val thread = new Thread(r)
         thread.setName(name + "-" + thread.getId)
         thread.setDaemon(daemonic)
-        thread.setUncaughtExceptionHandler(
-          new UncaughtExceptionHandler {
-            override def uncaughtException(t: Thread, e: Throwable): Unit =
-              reporter.reportFailure(e)
-          })
+        thread.setUncaughtExceptionHandler(new UncaughtExceptionHandler {
+          override def uncaughtException(t: Thread, e: Throwable): Unit =
+            reporter.reportFailure(e)
+        })
 
         thread
       }

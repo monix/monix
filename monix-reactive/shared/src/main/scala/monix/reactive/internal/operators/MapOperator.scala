@@ -24,8 +24,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final class MapOperator[-A,+B](f: A => B)
-  extends Operator[A,B] {
+private[reactive] final class MapOperator[-A, +B](f: A => B) extends Operator[A, B] {
 
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {

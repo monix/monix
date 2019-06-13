@@ -17,7 +17,6 @@
 
 package monix.reactive.consumers
 
-
 import minitest.TestSuite
 import monix.execution.Callback
 import monix.eval.Task
@@ -33,16 +32,17 @@ import scala.util.{Failure, Success}
 object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
     val sum = Atomic(0L)
-    val f = obs.consumeWith(Consumer
-      .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x))))
+    val f = obs
+      .consumeWith(
+        Consumer
+          .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x))))
       .runToFuture
 
     s.tick()
@@ -54,8 +54,10 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     val sum = Atomic(0L)
-    val f = obs.consumeWith(Consumer
-      .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x))))
+    val f = obs
+      .consumeWith(
+        Consumer
+          .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x))))
       .runToFuture
 
     s.tick()
@@ -70,7 +72,9 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val onFinish = Promise[Unit]()
 
     val (out, c) = consumer.createSubscriber(Callback.fromPromise(onFinish), s)
-    c := Cancelable { () => mainWasCanceled = true }
+    c := Cancelable { () =>
+      mainWasCanceled = true
+    }
 
     s.tick()
     assertEquals(out.onNext(1), Continue)

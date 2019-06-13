@@ -30,14 +30,12 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 /** Implementation for [[monix.reactive.Consumer.fromObserver]]. */
-private[reactive]
-final class FromObserverConsumer[In](f: Scheduler => Observer[In])
-  extends Consumer[In, Unit] {
+private[reactive] final class FromObserverConsumer[In](f: Scheduler => Observer[In]) extends Consumer[In, Unit] {
 
   def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     Try(f(s)) match {
       case Failure(ex) =>
-        Consumer.raiseError(ex).createSubscriber(cb,s)
+        Consumer.raiseError(ex).createSubscriber(cb, s)
 
       case Success(out) =>
         val sub = new Subscriber[In] { self =>
@@ -49,15 +47,15 @@ final class FromObserverConsumer[In](f: Scheduler => Observer[In])
               if (ex == null) {
                 try out.onComplete()
                 finally cb.onSuccess(())
-              }
-              else {
+              } else {
                 try out.onError(ex)
                 finally cb.onError(ex)
               }
             }
 
           def onNext(elem: In): Future[Ack] = {
-            val ack = try out.onNext(elem) catch {
+            val ack = try out.onNext(elem)
+            catch {
               case ex if NonFatal(ex) => Future.failed(ex)
             }
 

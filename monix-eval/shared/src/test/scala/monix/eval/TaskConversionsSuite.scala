@@ -21,7 +21,7 @@ import cats.effect._
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
-import cats.{Eval, effect}
+import cats.{effect, Eval}
 import monix.catnap.SchedulerEffect
 import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
@@ -399,12 +399,12 @@ object TaskConversionsSuite extends BaseTestSuite {
       CIO(IO.pure(x))
     override def liftIO[A](ioa: IO[A]): CIO[A] =
       CIO(ioa)
-    override def bracketCase[A, B](acquire: CIO[A])(use: A => CIO[B])(release: (A, ExitCase[Throwable]) => CIO[Unit]): CIO[B] =
+    override def bracketCase[A, B](acquire: CIO[A])(use: A => CIO[B])(
+      release: (A, ExitCase[Throwable]) => CIO[Unit]): CIO[B] =
       CIO(acquire.io.bracketCase(a => use(a).io)((a, e) => release(a, e).io))
   }
 
-  class CustomConcurrentEffect(implicit cs: ContextShift[IO])
-    extends CustomEffect with ConcurrentEffect[CIO] {
+  class CustomConcurrentEffect(implicit cs: ContextShift[IO]) extends CustomEffect with ConcurrentEffect[CIO] {
 
     override def runCancelable[A](fa: CIO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[CIO]] =
       fa.io.runCancelable(cb).map(CIO(_))

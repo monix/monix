@@ -42,15 +42,15 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       val task =
         for {
           local <- TaskLocal(0)
-          _ <- local.write(100).executeOn(ec2)
-          v1 <- local.read.executeOn(ec)
-          _ <- Task.shift(Scheduler.global)
-          v2 <- local.read.executeOn(ec2)
-          _ <- Task.shift
-          v3 <- local.read.executeOn(ec2)
-          _ <- createShift(ec2)
-          v4 <- local.read
-          v5 <- local.read.executeOn(ec)
+          _     <- local.write(100).executeOn(ec2)
+          v1    <- local.read.executeOn(ec)
+          _     <- Task.shift(Scheduler.global)
+          v2    <- local.read.executeOn(ec2)
+          _     <- Task.shift
+          v3    <- local.read.executeOn(ec2)
+          _     <- createShift(ec2)
+          v4    <- local.read
+          v5    <- local.read.executeOn(ec)
         } yield v1 :: v2 :: v3 :: v4 :: v5 :: Nil
 
       val r = task.runSyncUnsafeOpt(Duration.Inf)
@@ -68,9 +68,9 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val task =
       for {
         local <- TaskLocal(0)
-        _ <- local.write(100).executeWithModel(AlwaysAsyncExecution)
-        _ <- Task.shift
-        v <- local.read
+        _     <- local.write(100).executeWithModel(AlwaysAsyncExecution)
+        _     <- Task.shift
+        v     <- local.read
       } yield v
 
     val r = task.runSyncUnsafeOpt(Duration.Inf)
@@ -84,9 +84,9 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val task =
       for {
         local <- TaskLocal(0)
-        _ <- local.write(100).executeWithOptions(_.enableAutoCancelableRunLoops)
-        _ <- Task.shift
-        v <- local.read
+        _     <- local.write(100).executeWithOptions(_.enableAutoCancelableRunLoops)
+        _     <- Task.shift
+        v     <- local.read
       } yield v
 
     val r = task.runSyncUnsafeOpt(Duration.Inf)

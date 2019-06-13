@@ -28,8 +28,7 @@ import scala.util.Success
 object ExecuteOnObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
   test("executeOn must execute async if forceAsync=true") { implicit s =>

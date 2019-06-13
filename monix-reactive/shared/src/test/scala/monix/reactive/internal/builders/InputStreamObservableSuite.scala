@@ -61,7 +61,8 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     val array = randomByteArray()
     val in = new ByteArrayInputStream(array)
 
-    val result = Observable.fromInputStreamUnsafe(in, 40)
+    val result = Observable
+      .fromInputStreamUnsafe(in, 40)
       .foldLeft(Array.empty[Byte])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(_.toList))
@@ -76,7 +77,8 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     val array = randomByteArray()
     val in = new ByteArrayInputStream(array)
 
-    val result = Observable.fromInputStreamUnsafe(in, 40)
+    val result = Observable
+      .fromInputStreamUnsafe(in, 40)
       .foldLeft(Array.empty[Byte])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(_.toList))

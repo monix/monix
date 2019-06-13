@@ -37,7 +37,8 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
   source: Observable[A],
   parallelism: Int,
   f: A => Task[B],
-  overflowStrategy: OverflowStrategy[B]) extends Observable[B] {
+  overflowStrategy: OverflowStrategy[B])
+  extends Observable[B] {
 
   override def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     if (parallelism <= 0) {
@@ -54,8 +55,8 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     }
   }
 
-  private final class MapAsyncParallelSubscription(
-    out: Subscriber[B], composite: CompositeCancelable) extends Subscriber[A] with Cancelable { self =>
+  private final class MapAsyncParallelSubscription(out: Subscriber[B], composite: CompositeCancelable)
+    extends Subscriber[A] with Cancelable { self =>
 
     implicit val scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
@@ -90,7 +91,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
       // We can ignore it if there is one doing the work
       if (sendDownstreamLock.tryLock()) {
         try {
-        // Keep checking the head of a queue since we have to signal elements in order
+          // Keep checking the head of a queue since we have to signal elements in order
           while (!shouldStop && !queue.isEmpty && queue.peek().isCompleted) {
             val head = queue.poll()
             head.value match {

@@ -32,7 +32,8 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
     val expected = 3L * count * (count - 1) / 2
 
     for (_ <- 0 until 100) {
-      val sum = Observable.range(0, count)
+      val sum = Observable
+        .range(0, count)
         .mapEval(x => Task.now(x * 3))
         .sumL
         .runToFuture
@@ -47,7 +48,8 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
     val expected = 3L * count * (count - 1) / 2
 
     for (_ <- 0 until 100) {
-      val sum = Observable.range(0, count)
+      val sum = Observable
+        .range(0, count)
         .mapEval(x => Task.evalAsync(3 * x))
         .sumL
         .runToFuture

@@ -17,7 +17,6 @@
 
 package monix.catnap
 
-
 import cats.implicits._
 import cats.effect._
 import monix.execution.Scheduler

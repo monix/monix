@@ -74,14 +74,14 @@ object CoevalLikeConversionsSuite extends SimpleTestSuite {
   }
 
   test("Coeval.from(Try)") {
-    val source = Success(1) : Try[Int]
+    val source = Success(1): Try[Int]
     val conv = Coeval.from(source)
     assertEquals(conv.value(), 1)
   }
 
   test("Coeval.from(Try) for errors") {
     val dummy = DummyException("dummy")
-    val source = Failure(dummy) : Try[Int]
+    val source = Failure(dummy): Try[Int]
     val conv = Coeval.from(source)
     assertEquals(conv.runTry(), Failure(dummy))
   }

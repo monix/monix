@@ -26,10 +26,10 @@ object ThrottleFirstSuite extends BaseOperatorSuite {
     if (sourceCount == 1) {
       val o = Observable.now(100L).delayExecution(500.millis).throttleFirst(1.second)
       Sample(o, 1, 100, 500.millis, 1.second)
-    }
-    else {
+    } else {
       val div2 = sourceCount / 2 * 2
-      val o = Observable.intervalAtFixedRate(500.millis)
+      val o = Observable
+        .intervalAtFixedRate(500.millis)
         .take(div2)
         .throttleFirst(1.second)
 
