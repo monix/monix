@@ -3982,7 +3982,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param autoCancelableRunLoops should be set to `true` in
     *        case you want `flatMap` driven loops to be
-    *        auto-cancelable. Defaults to `false`.
+    *        auto-cancelable. Defaults to `true`.
     *
     * @param localContextPropagation should be set to `true` in
     *        case you want the [[monix.execution.misc.Local Local]]
