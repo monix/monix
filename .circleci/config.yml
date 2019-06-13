@@ -2,7 +2,7 @@
 version: 2.1
 
 jobs:
-  build:
+  build_openjdk_8:
     working_directory: ~/monix
     docker:
       - image: openjdk:8
@@ -42,30 +42,49 @@ jobs:
             - "~/.sbt"
             - "~/.m2"
 
-  test_jvm:
+  test_openjdk8_jvm:
     # Can this be shared?
     working_directory: ~/monix
     docker:
       - image: openjdk:8
     environment:
       SBT_VERSION: 1.2.8
-      SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m -J-Xmax-classfile-name
+      SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m -J-XX:ReservedCodeCacheSize=1024m
     resource_class: medium
     # ------
     steps:
       - run:
-          name: Tests for the JVM
+          name: Tests for the JVM (OpenJDK 8)
           working_directory: ~/monix
-          command: cat /dev/null | sbt $SBT_OPTIONS +coreJVM/test
+          command: cat /dev/null | sbt $SBT_OPTIONS +coreJVM/test -J-XX:ReservedCodeCacheSize=1024m
+
+  test_openjdk8_js:
+    # Can this be shared?
+    working_directory: ~/monix
+    docker:
+      - image: openjdk:8
+    environment:
+      SBT_VERSION: 1.2.8
+      SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m  -J-XX:ReservedCodeCacheSize=1024m
+    resource_class: medium
+    # ------
+    steps:
+      - run:
+          name: Tests for JavaScript / Node.js (OpenJDK 8)
+          working_directory: ~/monix
+          command: cat /dev/null | sbt $SBT_OPTIONS +coreJS/test
 
 workflows:
   version: 2
-  test_jvm:
+  test_openjdk8_jvm:
     jobs:
-      - build
-      - test_jvm:
+      - build_openjdk_8
+      - test_openjdk8_jvm:
           requires:
-            - build
+            - build_openjdk_8
+      - test_openjdk8_js:
+          requires:
+            - build_openjdk_8
 
 # notify:
 #   webhooks:
