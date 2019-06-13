@@ -17,7 +17,7 @@
 
 package monix.reactive
 
-import cats.Eval
+import cats.{~>, Eval}
 import cats.effect.{IO, SyncIO}
 import monix.eval.{Coeval, Task, TaskLike}
 import monix.reactive.internal.builders.EvalAlwaysObservable
@@ -35,19 +35,19 @@ import scala.util.Try
   *   import cats.Eval
   *
   *   val source0 = Eval.always(1 + 1)
-  *   val task0 = ObservableLike[Eval].toObservable(source0)
+  *   val task0 = ObservableLike[Eval].apply(source0)
   *
   *   // Conversion from Future
   *   import scala.concurrent.Future
   *
   *   val source1 = Future.successful(1 + 1)
-  *   val task1 = ObservableLike[Future].toObservable(source1)
+  *   val task1 = ObservableLike[Future].apply(source1)
   *
   *   // Conversion from IO
   *   import cats.effect.IO
   *
   *   val source2 = IO(1 + 1)
-  *   val task2 = ObservableLike[IO].toObservable(source2)
+  *   val task2 = ObservableLike[IO].apply(source2)
   * }}}
   *
   * See [[Observable.from]]
@@ -55,13 +55,13 @@ import scala.util.Try
 @implicitNotFound("""Cannot find implicit value for ObservableLike[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait ObservableLike[F[_]] {
+trait ObservableLike[F[_]] extends (F ~> Observable) {
   /**
     * Converts from `F[A]` to `Observable[A]`, preserving referential
     * transparency if `F[_]` is a pure data type and preserving
     * interruptibility if the source is cancelable.
     */
-  def toObservable[A](fa: F[A]): Observable[A]
+  def apply[A](fa: F[A]): Observable[A]
 }
 
 object ObservableLike extends ObservableLikeImplicits0 {
@@ -75,7 +75,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit val fromObservable: ObservableLike[Observable] =
     new ObservableLike[Observable] {
-      def toObservable[A](fa: Observable[A]): Observable[A] = fa
+      def apply[A](fa: Observable[A]): Observable[A] = fa
     }
 
   /**
@@ -83,7 +83,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit val fromTask: ObservableLike[Task] =
     new ObservableLike[Task] {
-      def toObservable[A](fa: Task[A]): Observable[A] =
+      def apply[A](fa: Task[A]): Observable[A] =
         Observable.fromTask(fa)
     }
 
@@ -92,7 +92,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit val fromFuture: ObservableLike[Future] =
     new ObservableLike[Future] {
-      def toObservable[A](fa: Future[A]): Observable[A] =
+      def apply[A](fa: Future[A]): Observable[A] =
         Observable.fromFuture(fa)
     }
 
@@ -101,7 +101,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit val fromCoeval: ObservableLike[Coeval] =
     new ObservableLike[Coeval] {
-      def toObservable[A](fa: Coeval[A]): Observable[A] =
+      def apply[A](fa: Coeval[A]): Observable[A] =
         Observable.coeval(fa)
     }
 
@@ -110,7 +110,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit val fromEval: ObservableLike[Eval] =
     new ObservableLike[Eval] {
-      def toObservable[A](fa: Eval[A]): Observable[A] =
+      def apply[A](fa: Eval[A]): Observable[A] =
         Observable.fromEval(fa)
     }
 
@@ -120,7 +120,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit val fromIO: ObservableLike[IO] =
     new ObservableLike[IO] {
-      def toObservable[A](fa: IO[A]): Observable[A] =
+      def apply[A](fa: IO[A]): Observable[A] =
         Observable.fromIO(fa)
     }
 
@@ -129,7 +129,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit val fromSyncIO: ObservableLike[SyncIO] =
     new ObservableLike[SyncIO] {
-      def toObservable[A](fa: SyncIO[A]): Observable[A] =
+      def apply[A](fa: SyncIO[A]): Observable[A] =
         Observable.fromIO(fa.toIO)
     }
 
@@ -138,7 +138,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit val fromTry: ObservableLike[Try] =
     new ObservableLike[Try] {
-      def toObservable[A](fa: Try[A]): Observable[A] =
+      def apply[A](fa: Try[A]): Observable[A] =
         Observable.fromTry(fa)
     }
 
@@ -148,7 +148,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit val fromFunction0: ObservableLike[Function0] =
     new ObservableLike[Function0] {
-      def toObservable[A](thunk: () => A): Observable[A] =
+      def apply[A](thunk: () => A): Observable[A] =
         new EvalAlwaysObservable(thunk)
     }
 
@@ -157,7 +157,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit def fromEither[E <: Throwable]: ObservableLike[Either[E, ?]] =
     new ObservableLike[Either[E, ?]] {
-      def toObservable[A](fa: Either[E, A]): Observable[A] =
+      def apply[A](fa: Either[E, A]): Observable[A] =
         Observable.fromEither(fa)
     }
 
@@ -166,9 +166,22 @@ object ObservableLike extends ObservableLikeImplicits0 {
     */
   implicit def fromIterable[F[X] <: Iterable[X]]: ObservableLike[F] =
     new ObservableLike[F] {
-      def toObservable[A](fa: F[A]): Observable[A] =
+      def apply[A](fa: F[A]): Observable[A] =
         Observable.fromIterable(fa)
     }
+
+  /**
+    * Deprecated method, which happened on extending `FunctionK`.
+    */
+  implicit class Deprecated[F[_]](val inst: ObservableLike[F]) {
+    /** DEPRECATED — switch to [[ObservableLike.apply]]. */
+    @deprecated("Switch to ObservableLike.apply", since = "3.0.0-RC3")
+    def toObservable[A](observable: F[A]): Observable[A] = {
+      // $COVERAGE-OFF$
+      inst(observable)
+      // $COVERAGE-ON$
+    }
+  }
 }
 
 private[reactive] abstract class ObservableLikeImplicits0 {
@@ -178,7 +191,7 @@ private[reactive] abstract class ObservableLikeImplicits0 {
     */
   implicit val fromReactivePublisher: ObservableLike[RPublisher] =
     new ObservableLike[RPublisher] {
-      def toObservable[A](fa: RPublisher[A]): Observable[A] =
+      def apply[A](fa: RPublisher[A]): Observable[A] =
         Observable.fromReactivePublisher(fa)
     }
 
@@ -188,7 +201,7 @@ private[reactive] abstract class ObservableLikeImplicits0 {
     */
   implicit def fromTaskLike[F[_]](implicit F: TaskLike[F]): ObservableLike[F] =
     new ObservableLike[F] {
-      def toObservable[A](fa: F[A]): Observable[A] =
+      def apply[A](fa: F[A]): Observable[A] =
         Observable.fromTaskLike(fa)
     }
 }

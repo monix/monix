@@ -1063,7 +1063,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *  - ...
     */
   final def delayExecutionWithF[F[_]](trigger: F[_])(implicit F: ObservableLike[F]): Observable[A] =
-    delayExecutionWith(F.toObservable(trigger))
+    delayExecutionWith(F.apply(trigger))
 
   /** Converts the source Observable that emits `Notification[A]` (the
     * result of [[materialize]]) back to an Observable that emits `A`.
@@ -4432,7 +4432,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *  - [[scala.concurrent.Future]]
     */
   def from[F[_], A](fa: F[A])(implicit F: ObservableLike[F]): Observable[A] =
-    F.toObservable(fa)
+    F.apply(fa)
 
   /**
     * Converts any `Iterable` into an [[Observable]].

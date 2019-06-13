@@ -960,10 +960,17 @@ object Coeval extends CoevalInstancesLevel0 {
   val unit: Coeval[Unit] = Now(())
 
   /**
+    * Converts any value that has a [[CoevalLike]] instance into a `Coeval`.
+    */
+  def from[F[_], A](fa: F[A])(implicit F: CoevalLike[F]): Coeval[A] =
+    F(fa)
+
+  /**
     * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
     * supported data-type into [[Coeval]].
     *
-    * Useful for `mapK` transformations, for example when working with `Resource`:
+    * Useful for `mapK` transformations, for example when working
+    * with `Resource` or `Iterant`:
     *
     * {{{
     *   import cats.effect._
@@ -984,12 +991,6 @@ object Coeval extends CoevalInstancesLevel0 {
     * See [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]].
     */
   def fromK[F[_]](implicit F: CoevalLike[F]): F ~> Coeval = F
-
-  /**
-    * Converts any value that has a [[CoevalLike]] instance into a `Coeval`.
-    */
-  def from[F[_], A](fa: F[A])(implicit F: CoevalLike[F]): Coeval[A] =
-    F(fa)
 
   /**
     * Converts a Scala `Try` into a [[Coeval]].

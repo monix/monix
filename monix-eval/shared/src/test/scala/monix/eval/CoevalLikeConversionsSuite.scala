@@ -18,10 +18,10 @@
 package monix.eval
 
 import cats.Eval
-import cats.effect.{Resource, SyncIO}
+import cats.effect.SyncIO
 import minitest.SimpleTestSuite
-import monix.execution.exceptions.DummyException
 import monix.eval.utils.EvalComonad
+import monix.execution.exceptions.DummyException
 
 import scala.util.{Failure, Success, Try}
 
@@ -108,15 +108,5 @@ object CoevalLikeConversionsSuite extends SimpleTestSuite {
   test("Coeval.from(Comonad)") {
     val value = Coeval.from(EvalComonad(() => 1))
     assertEquals(value.value(), 1)
-  }
-
-  test("Coeval.from[F] (FunctionK)") {
-    val res = Coeval.fromK[SyncIO].apply(SyncIO(1 + 1))
-    assertEquals(res.value(), 2)
-  }
-
-  test("Coeval.from[F] (FunctionK) as function") {
-    val res = Resource.liftF(SyncIO(1 + 1)).mapK(Coeval.fromK[SyncIO])
-    assertEquals(res.use(Coeval.pure).value(), 2)
   }
 }
