@@ -41,6 +41,29 @@ jobs:
             - "~/.sbt"
             - "~/.m2"
 
+  test-jvm:
+    # Can this be shared?
+    working_directory: ~/monix
+    docker:
+      - image: openjdk:8
+    environment:
+      SBT_VERSION: 1.2.8
+    resource_class: medium
+    # ------
+    steps:
+      - run:
+          name: Tests for the JVM
+          working_directory: ~/monix
+          command: cat /dev/null | sbt -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m +coreJVM/test
+
+workflows:
+  version: 2
+  test-jvm:
+    jobs:
+      - test-jvm
+    requires:
+      - build
+
 # notify:
 #   webhooks:
 #     - url: https://webhooks.gitter.im/e/f1a7ec8fc9a34c6a9108
