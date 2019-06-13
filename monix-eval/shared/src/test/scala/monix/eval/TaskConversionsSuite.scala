@@ -376,34 +376,6 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(99)))
   }
 
-  test("Task.toK[IO]") { implicit s =>
-    var effect = 0
-    val task = Task { effect += 1; effect }
-    val io = Task.toK[IO].apply(task)
-
-    assertEquals(io.unsafeRunSync(), 1)
-    assertEquals(io.unsafeRunSync(), 2)
-  }
-
-  test("Task.toAsyncK[IO]") { implicit s =>
-    var effect = 0
-    val task = Task { effect += 1; effect }
-    val io = Task.toAsyncK[IO].apply(task)
-
-    assertEquals(io.unsafeRunSync(), 1)
-    assertEquals(io.unsafeRunSync(), 2)
-  }
-
-  test("Task.toConcurrentK[IO]") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    var effect = 0
-    val task = Task { effect += 1; effect }
-    val io = Task.toConcurrentK[IO].apply(task)
-
-    assertEquals(io.unsafeRunSync(), 1)
-    assertEquals(io.unsafeRunSync(), 2)
-  }
-
   final case class CIO[+A](io: IO[A])
 
   class CustomEffect(implicit cs: ContextShift[IO]) extends Effect[CIO] {

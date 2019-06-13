@@ -17,7 +17,6 @@
 
 package monix.eval
 
-import cats.arrow.FunctionK
 import cats.effect.{Fiber => _, _}
 import cats.{~>, Monoid, Semigroup}
 import monix.catnap.FutureLift
@@ -2645,31 +2644,6 @@ object Task extends TaskInstancesLevel1 {
   def from[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Task[A] =
     F(fa)
 
-  /**
-    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
-    * supported data-type into [[Coeval]].
-    *
-    * Useful for `mapK` transformations, for example when working
-    * with `Resource` or `Iterant`:
-    *
-    * {{{
-    *   import cats.effect._
-    *   import monix.eval._
-    *   import java.io._
-    *
-    *   def open(file: File) =
-    *     Resource[IO, InputStream](IO {
-    *       val in = new FileInputStream(file)
-    *       (in, IO(in.close()))
-    *     })
-    *
-    *   // Lifting to a Resource of Task
-    *   val res: Resource[Task, InputStream] =
-    *     open(new File("sample")).mapK(Task.fromK[IO])
-    * }}}
-    */
-  def fromK[F[_]](implicit F: TaskLike[F]): (F ~> Task) = F
-
   /** Builds a [[Task]] instance out of any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]] and
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html ConcurrentEffect]].
@@ -2693,7 +2667,7 @@ object Task extends TaskInstancesLevel1 {
     * Cancellation / finalization behavior is carried over, so the
     * resulting task can be safely cancelled.
     *
-    * @see [[Task.toConcurrentK]] for its dual
+    * @see [[Task.liftToConcurrent]] for its dual
     *
     * @see [[Task.fromEffect]] for a version that works with simpler,
     *      non-cancelable `Async` data types
@@ -2708,21 +2682,6 @@ object Task extends TaskInstancesLevel1 {
     */
   def fromConcurrentEffect[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] =
     TaskConversions.fromConcurrentEffect(fa)(F)
-
-  /**
-    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
-    * supported data-type into [[Coeval]].
-    *
-    * Useful for `mapK` transformations, for example when working
-    * with `Resource` or `Iterant`.
-    *
-    * This is the less generic [[fromK]] operation, supplied
-    * in order order to force the usage of
-    * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html ConcurrentEffect]]
-    * for where it matters.
-    */
-  def fromConcurrentEffectK[F[_]](implicit F: ConcurrentEffect[F]): (F ~> Task) =
-    fromK[F]
 
   /** Builds a [[Task]] instance out of any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/async.html Async]] and
@@ -2749,7 +2708,7 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.from]] for a more generic version that works with
     *      any [[TaskLike]] data type
     *
-    * @see [[Task.toAsyncK]] for its dual
+    * @see [[Task.liftToAsync]] for its dual
     *
     * @param F is the `cats.effect.Effect` type class instance necessary
     *        for converting to `Task`; this instance can also be a
@@ -2758,21 +2717,6 @@ object Task extends TaskInstancesLevel1 {
     */
   def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
     TaskConversions.fromEffect(fa)
-
-  /**
-    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
-    * supported data-type into [[Coeval]].
-    *
-    * Useful for `mapK` transformations, for example when working
-    * with `Resource` or `Iterant`.
-    *
-    * This is the less generic [[fromK]] operation, supplied
-    * in order order to force the usage of
-    * [[https://typelevel.org/cats-effect/typeclasses/effect.html Effect]]
-    * for where it matters.
-    */
-  def fromEffectK[F[_]](implicit F: Effect[F]): (F ~> Task) =
-    fromK[F]
 
   /** Builds a [[Task]] instance out of a Scala `Try`. */
   def fromTry[A](a: Try[A]): Task[A] =
@@ -2818,8 +2762,13 @@ object Task extends TaskInstancesLevel1 {
     *   })
     * }}}
     */
-  val coeval: FunctionK[Coeval, Task] =
-    Coeval.toK[Task]
+  def coeval[A](value: Coeval[A]): Task[A] =
+    value match {
+      case Coeval.Now(a) => Task.Now(a)
+      case Coeval.Error(e) => Task.Error(e)
+      case Coeval.Always(f) => Task.Eval(f)
+      case _ => Task.Eval(value)
+    }
 
   /** Create a non-cancelable `Task` from an asynchronous computation,
     * which takes the form of a function with which we can register a
@@ -3989,9 +3938,38 @@ object Task extends TaskInstancesLevel1 {
     * Generates `cats.FunctionK` values for converting from `Task` to
     * supporting types (for which we have a [[TaskLift]] instance).
     *
-    * See [[https://typelevel.org/cats/datatypes/functionk.html]].
+    * See [[cats.arrow.FunctionK https://typelevel.org/cats/datatypes/functionk.html]].
+    *
+    * {{{
+    *   import cats.effect._
+    *   import monix.eval._
+    *   import java.io._
+    *
+    *   // Needed for converting from Task to something else, because we need
+    *   // ConcurrentEffect[Task] capabilities, also provided by TaskApp
+    *   import monix.execution.Scheduler.Implicits.global
+    *
+    *   def open(file: File) =
+    *     Resource[Task, InputStream](Task {
+    *       val in = new FileInputStream(file)
+    *       (in, Task(in.close()))
+    *     })
+    *
+    *   // Lifting to a Resource of IO
+    *   val res: Resource[IO, InputStream] =
+    *     open(new File("sample")).mapK(Task.liftTo[IO])
+    *
+    *   // This was needed in order to process the resource
+    *   // with a Task, instead of a Coeval
+    *   res.use { in =>
+    *     IO {
+    *       in.read()
+    *     }
+    *   }
+    * }}}
+    *
     */
-  def toK[F[_]](implicit F: TaskLift[F]): FunctionK[Task, F] = F
+  def liftTo[F[_]](implicit F: TaskLift[F]): (Task ~> F) = F
 
   /**
     * Generates `cats.FunctionK` values for converting from `Task` to
@@ -3999,10 +3977,10 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html]].
     *
-    * Prefer to use [[toK]], this alternative is provided in order to force
+    * Prefer to use [[liftTo]], this alternative is provided in order to force
     * the usage of `cats.effect.Async`, since [[TaskLift]] is lawless.
     */
-  def toAsyncK[F[_]](implicit F: cats.effect.Async[F], eff: cats.effect.Effect[Task]): FunctionK[Task, F] =
+  def liftToAsync[F[_]](implicit F: cats.effect.Async[F], eff: cats.effect.Effect[Task]): (Task ~> F) =
     TaskLift.toAsync[F]
 
   /**
@@ -4011,13 +3989,69 @@ object Task extends TaskInstancesLevel1 {
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html]].
     *
-    * Prefer to use [[toK]], this alternative is provided in order to force
+    * Prefer to use [[liftTo]], this alternative is provided in order to force
     * the usage of `cats.effect.Concurrent`, since [[TaskLift]] is lawless.
     */
-  def toConcurrentK[F[_]](
+  def liftToConcurrent[F[_]](
     implicit F: cats.effect.Concurrent[F],
-    eff: cats.effect.ConcurrentEffect[Task]): FunctionK[Task, F] =
+    eff: cats.effect.ConcurrentEffect[Task]): (Task ~> F) =
     TaskLift.toConcurrent[F]
+
+  /**
+    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
+    * supported data-type into [[Task]].
+    *
+    * Useful for `mapK` transformations, for example when working
+    * with `Resource` or `Iterant`:
+    *
+    * {{{
+    *   import cats.effect._
+    *   import monix.eval._
+    *   import java.io._
+    *
+    *   def open(file: File) =
+    *     Resource[IO, InputStream](IO {
+    *       val in = new FileInputStream(file)
+    *       (in, IO(in.close()))
+    *     })
+    *
+    *   // Lifting to a Resource of Task
+    *   val res: Resource[Task, InputStream] =
+    *     open(new File("sample")).mapK(Task.liftFrom[IO])
+    * }}}
+    */
+  def liftFrom[F[_]](implicit F: TaskLike[F]): (F ~> Task) = F
+
+  /**
+    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
+    * supported data-type, that implements `ConcurrentEffect`,
+    * into [[Task]].
+    *
+    * Useful for `mapK` transformations, for example when working
+    * with `Resource` or `Iterant`.
+    *
+    * This is the less generic [[liftFrom]] operation, supplied
+    * in order order to force the usage of
+    * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html ConcurrentEffect]]
+    * for where it matters.
+    */
+  def liftFromConcurrentEffect[F[_]](implicit F: ConcurrentEffect[F]): (F ~> Task) =
+    liftFrom[F]
+
+  /**
+    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
+    * supported data-type, that implements `Effect`, into [[Task]].
+    *
+    * Useful for `mapK` transformations, for example when working
+    * with `Resource` or `Iterant`.
+    *
+    * This is the less generic [[liftFrom]] operation, supplied
+    * in order order to force the usage of
+    * [[https://typelevel.org/cats-effect/typeclasses/effect.html Effect]]
+    * for where it matters.
+    */
+  def liftFromEffect[F[_]](implicit F: Effect[F]): (F ~> Task) =
+    liftFrom[F]
 
   /** Returns the current [[Task.Options]] configuration, which determine the
     * task's run-loop behavior.

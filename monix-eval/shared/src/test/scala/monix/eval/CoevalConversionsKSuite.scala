@@ -21,33 +21,33 @@ import cats.effect.{Resource, SyncIO}
 import minitest.SimpleTestSuite
 
 object CoevalConversionsKSuite extends SimpleTestSuite {
-  test("Coeval.fromK[F]") {
-    val res = Coeval.fromK[SyncIO].apply(SyncIO(1 + 1))
+  test("Coeval.liftFrom[F]") {
+    val res = Coeval.liftFrom[SyncIO].apply(SyncIO(1 + 1))
     assertEquals(res.value(), 2)
   }
 
-  test("Coeval.fromK[F] as param to mapK") {
-    val res = Resource.liftF(SyncIO(1 + 1)).mapK(Coeval.fromK[SyncIO])
+  test("Coeval.liftFrom[F] as param to mapK") {
+    val res = Resource.liftF(SyncIO(1 + 1)).mapK(Coeval.liftFrom[SyncIO])
     assertEquals(res.use(Coeval.pure).value(), 2)
   }
 
-  test("Coeval.toK[SyncIO]") {
-    val eval = Coeval.toK[SyncIO].apply(Coeval(1 + 1))
+  test("Coeval.liftTo[SyncIO]") {
+    val eval = Coeval.liftTo[SyncIO].apply(Coeval(1 + 1))
     assertEquals(eval.unsafeRunSync(), 2)
   }
 
-  test("Coeval.toK[SyncIO] as a param to mapK") {
-    val res = Resource.liftF(Coeval(1 + 1)).mapK(Coeval.toK[SyncIO])
+  test("Coeval.liftTo[SyncIO] as a param to mapK") {
+    val res = Resource.liftF(Coeval(1 + 1)).mapK(Coeval.liftTo[SyncIO])
     assertEquals(res.use(SyncIO.pure).unsafeRunSync(), 2)
   }
 
-  test("Coeval.toSyncK[SyncIO]") {
-    val eval = Coeval.toSyncK[SyncIO].apply(Coeval(1 + 1))
+  test("Coeval.liftToSync[SyncIO]") {
+    val eval = Coeval.liftToSync[SyncIO].apply(Coeval(1 + 1))
     assertEquals(eval.unsafeRunSync(), 2)
   }
 
-  test("Coeval.toSyncK[SyncIO] as a param to mapK") {
-    val res = Resource.liftF(Coeval(1 + 1)).mapK(Coeval.toSyncK[SyncIO])
+  test("Coeval.liftToSync[SyncIO] as a param to mapK") {
+    val res = Resource.liftF(Coeval(1 + 1)).mapK(Coeval.liftToSync[SyncIO])
     assertEquals(res.use(SyncIO.pure).unsafeRunSync(), 2)
   }
 }

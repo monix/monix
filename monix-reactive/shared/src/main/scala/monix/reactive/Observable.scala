@@ -26,7 +26,6 @@ import cats.{
   Apply,
   CoflatMap,
   Eq,
-  Eval,
   FlatMap,
   Functor,
   FunctorFilter,
@@ -34,7 +33,7 @@ import cats.{
   NonEmptyParallel,
   Order
 }
-import cats.effect.{Bracket, Effect, ExitCase, IO, Resource}
+import cats.effect.{Bracket, Effect, ExitCase, Resource}
 import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
 import monix.execution.Ack.{Continue, Stop}
@@ -4793,23 +4792,6 @@ object Observable extends ObservableDeprecatedBuilders {
       case other => Observable.eval(other.value())
     }
 
-  /** Converts a `cats.Eval` value into an `Observable`
-    * that emits a single element.
-    *
-    * {{{
-    *   import cats.Eval
-    *
-    *   val value = Eval.always("Hello!")
-    *
-    *   Observable.fromEval(value)
-    * }}}
-    */
-  def fromEval[A](fa: Eval[A]): Observable[A] =
-    fa match {
-      case cats.Now(v) => Observable.now(v)
-      case _ => Observable.eval(fa.value)
-    }
-
   /** Converts a Scala `Try` into an `Observable`.
     *
     * {{{
@@ -4883,20 +4865,6 @@ object Observable extends ObservableDeprecatedBuilders {
   def fromTaskLike[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Observable[A] =
     fromTask(F(fa))
 
-  /** Converts any `cats.effect.IO` value that implements into an
-    * `Observable` that emits a single element.
-    *
-    * {{{
-    *   import cats.effect.IO
-    *
-    *   val io = IO("Hello!")
-    *
-    *   Observable.fromIO(io)
-    * }}}
-    */
-  def fromIO[A](fa: IO[A]): Observable[A] =
-    fromTask(Task.from(fa))
-
   /** Converts any [[monix.eval.Task Task]] into an [[Observable]].
     *
     * {{{
@@ -4909,6 +4877,12 @@ object Observable extends ObservableDeprecatedBuilders {
     */
   def fromTask[A](task: Task[A]): Observable[A] =
     new builders.TaskAsObservable(task)
+
+  /**
+    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
+    * supported data-type into [[Observable]].
+    */
+  def liftFrom[F[_]](implicit F: ObservableLike[F]): F ~> Observable = F
 
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Observable[A]): Observable[A] = defer(fa)

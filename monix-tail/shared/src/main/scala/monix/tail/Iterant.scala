@@ -1236,7 +1236,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   val source = Iterant[Coeval].of(1, 2, 3, 4)
     *
     *   // Transformation to an Iterant of Task
-    *   source.mapK(Coeval.toK[Task])
+    *   source.mapK(Coeval.liftTo[Task])
     * }}}
     *
     * This operator can be used for more than transforming the `F`

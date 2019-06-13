@@ -966,33 +966,6 @@ object Coeval extends CoevalInstancesLevel0 {
     F(fa)
 
   /**
-    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
-    * supported data-type into [[Coeval]].
-    *
-    * Useful for `mapK` transformations, for example when working
-    * with `Resource` or `Iterant`:
-    *
-    * {{{
-    *   import cats.effect._
-    *   import monix.eval._
-    *   import java.io._
-    *
-    *   def open(file: File) =
-    *     Resource[SyncIO, InputStream](SyncIO {
-    *       val in = new FileInputStream(file)
-    *       (in, SyncIO(in.close()))
-    *     })
-    *
-    *   // Lifting to a Resource of Coeval
-    *   val res: Resource[Coeval, InputStream] =
-    *     open(new File("sample")).mapK(Coeval.fromK[SyncIO])
-    * }}}
-    *
-    * See [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]].
-    */
-  def fromK[F[_]](implicit F: CoevalLike[F]): F ~> Coeval = F
-
-  /**
     * Converts a Scala `Try` into a [[Coeval]].
     */
   def fromTry[A](a: Try[A]): Coeval[A] =
@@ -1251,8 +1224,32 @@ object Coeval extends CoevalInstancesLevel0 {
     * to supporting types (for which we have a [[CoevalLift]] instance).
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html the documentation]].
+    *
+    * {{{
+    *   import cats.effect._
+    *   import monix.eval._
+    *   import java.io._
+    *
+    *   def open(file: File) =
+    *     Resource[Coeval, InputStream](Coeval {
+    *       val in = new FileInputStream(file)
+    *       (in, Coeval(in.close()))
+    *     })
+    *
+    *   // Lifting to a Resource of Task
+    *   val res: Resource[Task, InputStream] =
+    *     open(new File("sample")).mapK(Coeval.liftTo[Task])
+    *
+    *   // This was needed in order to process the resource
+    *   // with a Task, instead of a Coeval
+    *   res.use { in =>
+    *     Task {
+    *       in.read()
+    *     }
+    *   }
+    * }}}
     */
-  def toK[F[_]](implicit F: CoevalLift[F]): Coeval ~> F = F
+  def liftTo[F[_]](implicit F: CoevalLift[F]): Coeval ~> F = F
 
   /**
     * Generates `Coeval ~> F` function values (`FunctionK`) for converting
@@ -1261,11 +1258,38 @@ object Coeval extends CoevalInstancesLevel0 {
     * @see [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]]
     * @see [[https://typelevel.org/cats-effect/typeclasses/sync.html cats.effect.Sync]]
     *
-    * Prefer to use [[toK]], this alternative is provided in order to
+    * Prefer to use [[liftTo]], this alternative is provided in order to
     * force the usage of `cats.effect.Sync`, since [[CoevalLift]] is lawless.
     */
-  def toSyncK[F[_]](implicit F: Sync[F]): Coeval ~> F =
+  def liftToSync[F[_]](implicit F: Sync[F]): Coeval ~> F =
     CoevalLift.toSync[F]
+
+  /**
+    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
+    * supported data-type into [[Coeval]].
+    *
+    * Useful for `mapK` transformations, for example when working
+    * with `Resource` or `Iterant`:
+    *
+    * {{{
+    *   import cats.effect._
+    *   import monix.eval._
+    *   import java.io._
+    *
+    *   def open(file: File) =
+    *     Resource[SyncIO, InputStream](SyncIO {
+    *       val in = new FileInputStream(file)
+    *       (in, SyncIO(in.close()))
+    *     })
+    *
+    *   // Lifting to a Resource of Coeval
+    *   val res: Resource[Coeval, InputStream] =
+    *     open(new File("sample")).mapK(Coeval.liftFrom[SyncIO])
+    * }}}
+    *
+    * See [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]].
+    */
+  def liftFrom[F[_]](implicit F: CoevalLike[F]): F ~> Coeval = F
 
   /**
     * Deprecated operations, described as extension methods.

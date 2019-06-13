@@ -60,13 +60,8 @@ object CoevalLift extends CoevalLiftImplicits0 {
     */
   implicit val toTask: CoevalLift[Task] =
     new CoevalLift[Task] {
-      def apply[A](coeval: Coeval[A]): Task[A] =
-        coeval match {
-          case Coeval.Now(value) => Task.Now(value)
-          case Coeval.Error(e) => Task.Error(e)
-          case Coeval.Always(f) => Task.Eval(f)
-          case _ => Task.Eval(coeval)
-        }
+      def apply[A](value: Coeval[A]): Task[A] =
+        Task.coeval(value)
     }
 
   /**

@@ -29,7 +29,6 @@ object MimaFilters {
     exclude[InheritedNewAbstractMethodProblem]("monix.eval.CoevalLike.and"),
     exclude[InheritedNewAbstractMethodProblem]("monix.eval.CoevalLike.apply"),
     exclude[InheritedNewAbstractMethodProblem]("monix.eval.CoevalLike.andThen"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Task.coeval"),
     exclude[DirectMissingMethodProblem]("monix.eval.Task.toIO"),
     exclude[DirectMissingMethodProblem]("monix.eval.TaskLike.toTask"),
     exclude[ReversedMissingMethodProblem]("monix.eval.TaskLike.apply"),
@@ -48,6 +47,8 @@ object MimaFilters {
     exclude[InheritedNewAbstractMethodProblem]("monix.reactive.ObservableLike.apply"),
     exclude[InheritedNewAbstractMethodProblem]("monix.reactive.ObservableLike.andThen"),
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable#CatsInstances.taskLift"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.internal.deprecated.ObservableDeprecatedBuilders.fromEval"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.internal.deprecated.ObservableDeprecatedBuilders.fromIO"),
     // Breaking changes for https://github.com/monix/monix/pull/888
     exclude[ReversedMissingMethodProblem](
       "monix.execution.schedulers.ReferenceScheduler.withUncaughtExceptionReporter"),
@@ -228,7 +229,7 @@ object MimaFilters {
     exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.Subscriber#Extensions.onNextAll"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.Subscriber#Extensions.onNextAll$extension"),
     exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.DropByPredicateOperator.this"),
-    exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.TakeByPredicateOperator.this"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.TakeByPredicateOperator.this")
   )
 
   lazy val changesFor_3_0_0_RC2 = Seq(

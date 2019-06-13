@@ -28,7 +28,7 @@ object IterantLiftMapSuite extends BaseTestSuite {
       val source = arbitraryListToIterant[Coeval, Int](list, idx)
       val expected = arbitraryListToIterant[Task, Int](list, idx)
 
-      val r = source.mapK(Coeval.toK[Task])
+      val r = source.mapK(Coeval.liftTo[Task])
       r <-> expected
     }
   }
@@ -38,7 +38,7 @@ object IterantLiftMapSuite extends BaseTestSuite {
       val source = arbitraryListToIterant[Task, Int](list, idx)
       val expected = arbitraryListToIterant[IO, Int](list, idx)
 
-      val r = source.mapK(Task.toK[IO])
+      val r = source.mapK(Task.liftTo[IO])
       r <-> expected
     }
   }

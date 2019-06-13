@@ -111,7 +111,10 @@ object ObservableLike extends ObservableLikeImplicits0 {
   implicit val fromEval: ObservableLike[Eval] =
     new ObservableLike[Eval] {
       def apply[A](fa: Eval[A]): Observable[A] =
-        Observable.fromEval(fa)
+        fa match {
+          case cats.Now(v) => Observable.now(v)
+          case _ => Observable.eval(fa.value)
+        }
     }
 
   /**
@@ -121,7 +124,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
   implicit val fromIO: ObservableLike[IO] =
     new ObservableLike[IO] {
       def apply[A](fa: IO[A]): Observable[A] =
-        Observable.fromIO(fa)
+        Observable.fromTask(Task.from(fa))
     }
 
   /**
@@ -130,7 +133,7 @@ object ObservableLike extends ObservableLikeImplicits0 {
   implicit val fromSyncIO: ObservableLike[SyncIO] =
     new ObservableLike[SyncIO] {
       def apply[A](fa: SyncIO[A]): Observable[A] =
-        Observable.fromIO(fa.toIO)
+        Observable.from(fa.toIO)
     }
 
   /**
