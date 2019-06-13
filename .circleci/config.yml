@@ -63,8 +63,8 @@ workflows:
   test_jvm:
     jobs:
       - test_jvm
-    requires:
-      - build
+          requires:
+            - build
 
 # notify:
 #   webhooks:
