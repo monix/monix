@@ -62,6 +62,7 @@ workflows:
   version: 2
   test_jvm:
     jobs:
+      - build
       - test_jvm
           requires:
             - build
