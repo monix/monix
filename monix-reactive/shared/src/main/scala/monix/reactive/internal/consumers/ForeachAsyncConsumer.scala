@@ -28,9 +28,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 /** Implementation for [[monix.reactive.Consumer.foreachTask]]. */
-private[reactive]
-final class ForeachAsyncConsumer[A](f: A => Task[Unit])
-  extends Consumer[A, Unit] {
+private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extends Consumer[A, Unit] {
 
   def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
     val out = new Subscriber[A] {
@@ -39,9 +37,7 @@ final class ForeachAsyncConsumer[A](f: A => Task[Unit])
 
       def onNext(elem: A): Future[Ack] = {
         try {
-          f(elem).map(_ => Continue)
-            .runToFuture
-            .syncTryFlatten
+          f(elem).map(_ => Continue).runToFuture.syncTryFlatten
         } catch {
           case ex if NonFatal(ex) =>
             onError(ex)

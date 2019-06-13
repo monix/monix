@@ -25,7 +25,8 @@ import scala.concurrent.duration._
 object TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.now(sourceCount.toLong).delayOnComplete(1.hour)
-    val o = source.timeoutOnSlowDownstream(1.second)
+    val o = source
+      .timeoutOnSlowDownstream(1.second)
       .delayOnNext(30.minutes)
       .onErrorHandleWith { case DownstreamTimeoutException(_) => Observable.now(20L) }
 
@@ -43,7 +44,10 @@ object TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {
     None
 
   override def cancelableObservables() = {
-    val o = Observable.now(1L).delayOnNext(30.minutes).delayOnComplete(1.hour)
+    val o = Observable
+      .now(1L)
+      .delayOnNext(30.minutes)
+      .delayOnComplete(1.hour)
       .timeoutOnSlowDownstream(1.second)
 
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))

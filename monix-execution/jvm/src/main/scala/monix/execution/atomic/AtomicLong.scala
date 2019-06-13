@@ -25,8 +25,7 @@ import monix.execution.internal.atomic.{BoxedLong, Factory}
   * Note that the equality test in `compareAndSet` is value based,
   * since `Long` is a primitive.
   */
-final class AtomicLong private (private[this] val ref: BoxedLong)
-  extends AtomicNumber[Long] {
+final class AtomicLong private (private[this] val ref: BoxedLong) extends AtomicNumber[Long] {
 
   def get(): Long = ref.volatileGet()
   def set(update: Long): Unit = ref.volatileSet(update)
@@ -115,12 +114,13 @@ object AtomicLong {
     *        for `getAndSet` and for `getAndAdd`
     */
   def create(initialValue: Long, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicLong = {
-    new AtomicLong(Factory.newBoxedLong(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      true, // allowUnsafe
-      allowPlatformIntrinsics
-    ))
+    new AtomicLong(
+      Factory.newBoxedLong(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        true, // allowUnsafe
+        allowPlatformIntrinsics
+      ))
   }
 
   /** $createDesc
@@ -139,11 +139,12 @@ object AtomicLong {
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def safe(initialValue: Long, padding: PaddingStrategy): AtomicLong = {
-    new AtomicLong(Factory.newBoxedLong(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      false, // allowUnsafe
-      false // allowPlatformIntrinsics
-    ))
+    new AtomicLong(
+      Factory.newBoxedLong(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        false, // allowUnsafe
+        false // allowPlatformIntrinsics
+      ))
   }
 }

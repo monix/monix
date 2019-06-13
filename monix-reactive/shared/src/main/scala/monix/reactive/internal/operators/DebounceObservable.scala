@@ -27,8 +27,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
-private[reactive] final
-class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repeat: Boolean)
+private[reactive] final class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repeat: Boolean)
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -74,8 +73,10 @@ class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repe
               out.onNext(lastEvent).syncFlatMap {
                 case Continue =>
                   val executionTime = scheduler.clockMonotonic(MILLISECONDS) - rightNow
-                  val delay = if (timeoutMillis > executionTime)
-                    timeoutMillis - executionTime else 0L
+                  val delay =
+                    if (timeoutMillis > executionTime)
+                      timeoutMillis - executionTime
+                    else 0L
 
                   scheduleNext(delay)
                   Continue
@@ -87,8 +88,7 @@ class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repe
                   }
                   Stop
               }
-            }
-            else {
+            } else {
               val remainingTime = timeoutMillis - sinceLastOnNext
               scheduleNext(remainingTime)
             }

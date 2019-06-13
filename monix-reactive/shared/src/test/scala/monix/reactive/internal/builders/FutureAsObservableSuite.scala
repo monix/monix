@@ -30,8 +30,7 @@ import scala.concurrent.duration._
 object FutureAsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
   test("should work for synchronous futures and synchronous observers") { implicit s =>
@@ -39,8 +38,9 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasCompleted = false
 
-    Observable.fromFuture(f).unsafeSubscribeFn(
-      new Observer[Int] {
+    Observable
+      .fromFuture(f)
+      .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = {
           received += elem
           Continue
@@ -62,8 +62,9 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasCompleted = false
 
-    Observable.fromFuture(f).unsafeSubscribeFn(
-      new Observer[Int] {
+    Observable
+      .fromFuture(f)
+      .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = {
           received += elem
           Future.delayedResult(100.millis)(Continue)
@@ -87,8 +88,9 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
     val f = Future.failed(DummyException("dummy"))
     var errorThrown: Throwable = null
 
-    Observable.fromFuture(f).unsafeSubscribeFn(
-      new Observer[Int] {
+    Observable
+      .fromFuture(f)
+      .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = Continue
         def onError(ex: Throwable): Unit = errorThrown = ex
         def onComplete(): Unit = ()
@@ -101,8 +103,9 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
     val f = Future.delayedResult(100.millis)(throw DummyException("dummy"))
     var errorThrown: Throwable = null
 
-    Observable.fromFuture(f).unsafeSubscribeFn(
-      new Observer[Int] {
+    Observable
+      .fromFuture(f)
+      .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = Continue
         def onError(ex: Throwable): Unit = errorThrown = ex
         def onComplete(): Unit = ()
@@ -117,8 +120,9 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasCompleted = false
 
-    val cancelable = Observable.fromFuture(f).unsafeSubscribeFn(
-      new Observer[Int] {
+    val cancelable = Observable
+      .fromFuture(f)
+      .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = { received += 1; Continue }
         def onError(ex: Throwable) = wasCompleted = true
         def onComplete() = wasCompleted = true

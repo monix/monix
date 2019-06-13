@@ -29,22 +29,28 @@ import scala.concurrent.duration.MILLISECONDS
 object StateActionObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("first execution is sync") { implicit s =>
     var received = 0
-    Observable.fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
-      .take(1).subscribe { _ => received += 1; Continue }
+    Observable
+      .fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
+      .take(1)
+      .subscribe { _ =>
+        received += 1; Continue
+      }
     assertEquals(received, 1)
   }
 
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
-    Observable.fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
+    Observable
+      .fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
       .take(Platform.recommendedBatchSize * 2)
-      .subscribe { _ => received += 1; Continue }
+      .subscribe { _ =>
+        received += 1; Continue
+      }
 
     assertEquals(received, Platform.recommendedBatchSize)
     s.tickOne()
@@ -57,18 +63,18 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    val cancelable = Observable.fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
-      .unsafeSubscribeFn(
-        new Subscriber[Int] {
-          implicit val scheduler = s
-          def onNext(elem: Int) = {
-            sum += 1
-            Continue
-          }
+    val cancelable = Observable
+      .fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
+      .unsafeSubscribeFn(new Subscriber[Int] {
+        implicit val scheduler = s
+        def onNext(elem: Int) = {
+          sum += 1
+          Continue
+        }
 
-          def onComplete() = wasCompleted = true
-          def onError(ex: Throwable) = wasCompleted = true
-        })
+        def onComplete() = wasCompleted = true
+        def onError(ex: Throwable) = wasCompleted = true
+      })
 
     cancelable.cancel()
     s.tick()
@@ -79,7 +85,7 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
 
   def int(seed: Long): (Int, Long) = {
     // `&` is bitwise AND. We use the current seed to generate a new seed.
-    val newSeed = (seed * 0x5DEECE66DL + 0xBL) & 0xFFFFFFFFFFFFL
+    val newSeed = (seed * 0X5DEECE66DL + 0XBL) & 0XFFFFFFFFFFFFL
     // The next state, which is an `RNG` instance created from the new seed.
     val nextRNG = newSeed
     // `>>>` is right binary shift with zero fill. The value `n` is our new pseudo-random integer.

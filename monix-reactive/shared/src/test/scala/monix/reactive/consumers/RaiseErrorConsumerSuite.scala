@@ -29,7 +29,7 @@ import scala.util.Failure
 object RaiseErrorConsumerSuite extends BaseTestSuite {
   test("cancels and raises error") { implicit s =>
     val ex = DummyException("dummy")
-    val consumer = Consumer.raiseError[Int,Unit](ex)
+    val consumer = Consumer.raiseError[Int, Unit](ex)
 
     val p = Promise[Unit]()
     val conn = BooleanCancelable()

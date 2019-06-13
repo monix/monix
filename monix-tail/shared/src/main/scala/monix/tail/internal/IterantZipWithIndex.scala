@@ -35,8 +35,7 @@ private[tail] object IterantZipWithIndex {
     Suspend(F.delay(new Loop().apply(source)))
   }
 
-  private class Loop[F[_], A](implicit F: Sync[F])
-    extends (Iterant[F, A] => Iterant[F, (A, Long)]) {
+  private class Loop[F[_], A](implicit F: Sync[F]) extends (Iterant[F, A] => Iterant[F, (A, Long)]) {
 
     private[this] var index = 0L
 
@@ -72,7 +71,7 @@ private[tail] object IterantZipWithIndex {
           index += 1
           r
 
-        case ref@NextCursor(_, _) =>
+        case ref @ NextCursor(_, _) =>
           processSeq(ref)
 
         case NextBatch(batch, rest) =>
@@ -81,7 +80,7 @@ private[tail] object IterantZipWithIndex {
         case Suspend(rest) =>
           Suspend(rest.map(this))
 
-        case empty@Halt(_) =>
+        case empty @ Halt(_) =>
           empty.asInstanceOf[Iterant[F, (A, Long)]]
 
         case node @ Scope(_, _, _) =>
@@ -89,8 +88,7 @@ private[tail] object IterantZipWithIndex {
 
         case node @ Concat(_, _) =>
           node.runMap(this)
-      }
-      catch {
+      } catch {
         case ex if NonFatal(ex) => Iterant.raiseError(ex)
       }
     }

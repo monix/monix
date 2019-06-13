@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
 import monix.execution.{Ack, Cancelable}
 import monix.execution.exceptions.DummyException
@@ -29,8 +29,7 @@ import scala.util.Success
 object UnsafeCreateObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "Scheduler should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
   test("should work") { implicit s =>

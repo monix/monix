@@ -17,7 +17,6 @@
 
 package monix.execution.atomic
 
-
 /** For applying padding to atomic references, in order to reduce
   * cache contention. JEP 142 should reduce the need for this along
   * with the `@Contended` annotation, however that might have

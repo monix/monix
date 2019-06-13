@@ -27,49 +27,55 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
     val retriesCount = Atomic(0)
     val ex = DummyException("expected")
 
-    val o = Observable.range(0, sourceCount).endWithError(ex)
+    val o = Observable
+      .range(0, sourceCount)
+      .endWithError(ex)
       .onErrorRestartIf { case DummyException("expected") => retriesCount.incrementAndGet() <= 3 }
       .onErrorHandle(_ => 10L)
 
     val count = sourceCount * 4 + 1
-    val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4 + 10
+    val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4 + 10
     Sample(o, count, sum, Duration.Zero, Duration.Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount == 1) {
       val o = Observable.now(1L).endWithError(ex).onErrorRestartIf(_ => false)
-      Some(Sample(o,1,1,Duration.Zero,Duration.Zero))
+      Some(Sample(o, 1, 1, Duration.Zero, Duration.Zero))
     } else {
       val retriesCount = Atomic(0)
 
-      val o = Observable.range(0, sourceCount).endWithError(ex)
+      val o = Observable
+        .range(0, sourceCount)
+        .endWithError(ex)
         .onErrorRestartIf(_ => retriesCount.incrementAndGet() <= 3)
 
       val count = sourceCount * 4
-      val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4
+      val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4
       Some(Sample(o, count, sum, Duration.Zero, Duration.Zero))
     }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val retriesCount = Atomic(0)
-    val o = Observable.range(0, sourceCount).endWithError(DummyException("unexpected"))
-      .onErrorRestartIf { _ =>
-        if (retriesCount.incrementAndGet() <= 3)
-          true
-        else
-          throw ex
-      }
+    val o = Observable.range(0, sourceCount).endWithError(DummyException("unexpected")).onErrorRestartIf { _ =>
+      if (retriesCount.incrementAndGet() <= 3)
+        true
+      else
+        throw ex
+    }
 
     val count = sourceCount * 4
-    val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4
+    val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4
     Sample(o, count, sum, Duration.Zero, Duration.Zero)
   }
 
   override def cancelableObservables() = {
     val dummy = DummyException("dummy")
-    val sample = Observable.range(0, 20).map(_ => 1L)
-      .endWithError(dummy).delayExecution(1.second)
+    val sample = Observable
+      .range(0, 20)
+      .map(_ => 1L)
+      .endWithError(dummy)
+      .delayExecution(1.second)
       .onErrorRestartIf(ex => true)
 
     Seq(

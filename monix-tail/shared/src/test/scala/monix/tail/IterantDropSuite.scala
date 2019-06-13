@@ -66,7 +66,8 @@ object IterantDropSuite extends BaseTestSuite {
   test("Iterant.drop preserves resource safety") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
+    val source = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
       .guarantee(stop)
     val stream = source.drop(1)
     stream.completedL.value()

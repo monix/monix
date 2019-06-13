@@ -25,7 +25,11 @@ import scala.concurrent.duration.Duration
 private[eval] object TaskSleep {
   /** Implementation for `Task.sleep`. */
   def apply(timespan: Duration): Task[Unit] =
-    Async(new Register(timespan), trampolineBefore = false, trampolineAfter = false)
+    Async(
+      new Register(timespan),
+      trampolineBefore = false,
+      trampolineAfter = false
+    )
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is a task that forks on evaluation.
@@ -42,7 +46,8 @@ private[eval] object TaskSleep {
       c := ctx.scheduler.scheduleOnce(
         timespan.length,
         timespan.unit,
-        new SleepRunnable(ctx, cb))
+        new SleepRunnable(ctx, cb)
+      )
       ()
     }
   }
@@ -52,8 +57,7 @@ private[eval] object TaskSleep {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class SleepRunnable(ctx: Context, cb: Callback[Throwable, Unit])
-    extends Runnable {
+  private final class SleepRunnable(ctx: Context, cb: Callback[Throwable, Unit]) extends Runnable {
 
     def run(): Unit = {
       ctx.connection.pop()

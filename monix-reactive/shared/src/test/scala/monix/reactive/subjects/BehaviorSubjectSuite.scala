@@ -36,7 +36,6 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     Some(Sample(s, expectedElems.sum))
   }
 
-
   test("should work synchronously for synchronous subscribers") { implicit s =>
     val subject = BehaviorSubject[Int](10)
     var received = 0
@@ -159,7 +158,9 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
   test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = BehaviorSubject[Int](0)
-    val c = subject.subscribe { e => result = e; Continue }
+    val c = subject.subscribe { e =>
+      result = e; Continue
+    }
 
     subject.onNext(1)
     subject.onComplete()
@@ -181,7 +182,9 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
 
     observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
     observable.foreach(e => foreachSum += e)
-    observable.subscribe { e => subscribeSum += e; Continue }
+    observable.subscribe { e =>
+      subscribeSum += e; Continue
+    }
 
     assertEquals(foreachSum, 6)
     assertEquals(consumerSum, 6)

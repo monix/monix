@@ -23,17 +23,14 @@ import cats.syntax.all._
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
-
 private[tail] object IterantReduce {
   /** Implementation for `Iterant.reduce`. */
-  def apply[F[_], A](self: Iterant[F, A], op: (A, A) => A)
-    (implicit F: Sync[F]): F[Option[A]] = {
+  def apply[F[_], A](self: Iterant[F, A], op: (A, A) => A)(implicit F: Sync[F]): F[Option[A]] = {
 
     F.suspend { new Loop[F, A](op).apply(self) }
   }
 
-  private class Loop[F[_], A](op: (A, A) => A)(implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, F[Option[A]]] {
+  private class Loop[F[_], A](op: (A, A) => A)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Option[A]]] {
 
     private[this] var isEmpty = true
     private[this] var state: A = _
@@ -53,10 +50,11 @@ private[tail] object IterantReduce {
     }
 
     private[this] val concatContinue: (Option[A] => F[Option[A]]) =
-      state => stackPop() match {
-        case null => F.pure(state)
-        case xs => xs.flatMap(this)
-      }
+      state =>
+        stackPop() match {
+          case null => F.pure(state)
+          case xs => xs.flatMap(this)
+        }
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[Option[A]] = {

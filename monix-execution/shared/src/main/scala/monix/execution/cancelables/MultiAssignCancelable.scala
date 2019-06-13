@@ -47,8 +47,7 @@ import scala.annotation.tailrec
   *    `MultiAssignCancelable`, but with the capability of forcing
   *    ordering on concurrent updates
   */
-final class MultiAssignCancelable private (initial: Cancelable)
-  extends AssignableCancelable.Multi {
+final class MultiAssignCancelable private (initial: Cancelable) extends AssignableCancelable.Multi {
 
   private[this] val state = {
     AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)

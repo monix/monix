@@ -25,8 +25,7 @@ import monix.execution.internal.atomic.{BoxedInt, Factory}
   * Note that the equality test in `compareAndSet` is value based,
   * since `Byte` is a primitive.
   */
-final class AtomicByte private (private[this] val ref: BoxedInt)
-  extends AtomicNumber[Byte] {
+final class AtomicByte private (private[this] val ref: BoxedInt) extends AtomicNumber[Byte] {
 
   private[this] val mask = 255
 
@@ -113,12 +112,13 @@ object AtomicByte {
     *        for `getAndSet` and for `getAndAdd`
     */
   def create(initialValue: Byte, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicByte =
-    new AtomicByte(Factory.newBoxedInt(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      true, // allowUnsafe
-      allowPlatformIntrinsics
-    ))
+    new AtomicByte(
+      Factory.newBoxedInt(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        true, // allowUnsafe
+        allowPlatformIntrinsics
+      ))
 
   /** $createDesc
     *
@@ -136,11 +136,12 @@ object AtomicByte {
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def safe(initialValue: Byte, padding: PaddingStrategy): AtomicByte = {
-    new AtomicByte(Factory.newBoxedInt(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      false, // allowUnsafe
-      false  // allowJava8Intrinsics
-    ))
+    new AtomicByte(
+      Factory.newBoxedInt(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        false, // allowUnsafe
+        false // allowJava8Intrinsics
+      ))
   }
 }

@@ -27,8 +27,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object DematerializeSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount)
-      .materialize.dematerialize
+    val o = Observable.range(0, sourceCount).materialize.dematerialize
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
@@ -40,8 +39,11 @@ object DematerializeSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables(): Seq[Sample] = {
-    val obs = Observable.range(0, 1000).materialize
-      .delayOnNext(1.second).dematerialize
+    val obs = Observable
+      .range(0, 1000)
+      .materialize
+      .delayOnNext(1.second)
+      .dematerialize
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 

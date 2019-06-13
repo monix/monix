@@ -46,13 +46,15 @@ object MergeOneSuite extends BaseOperatorSuite {
     if (sourceCount <= 1) {
       val o = Observable.now(1L).mergeMap(_ => Observable.raiseError(ex))
       Some(Sample(o, 0, 0, Zero, Zero))
-    } else Some {
-      val o = Observable.range(0, sourceCount)
-        .endWithError(ex)
-        .mergeMap(i => Observable.now(i))
+    } else
+      Some {
+        val o = Observable
+          .range(0, sourceCount)
+          .endWithError(ex)
+          .mergeMap(i => Observable.now(i))
 
-      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
-    }
+        Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+      }
 
   def sum(sourceCount: Int) = {
     sourceCount * (sourceCount - 1) / 2
@@ -60,24 +62,28 @@ object MergeOneSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount).flatMap { i =>
-      if (i == sourceCount-1)
+      if (i == sourceCount - 1)
         throw ex
       else
         Observable.now(i)
     }
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
   def toList[A](o: Observable[A])(implicit s: Scheduler) = {
-    o.foldLeft(Vector.empty[A])(_ :+ _).runAsyncGetLast
+    o.foldLeft(Vector.empty[A])(_ :+ _)
+      .runAsyncGetLast
       .map(_.getOrElse(Vector.empty))
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample1 =  Observable.range(1, 100)
+    val sample1 = Observable
+      .range(1, 100)
       .mergeMap(x => Observable.now(x).delayExecution(2.second))
-    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
+    val sample2 = Observable
+      .range(0, 100)
+      .delayOnNext(1.second)
       .mergeMap(x => Observable.now(x).delayExecution(2.second))
 
     Seq(
@@ -118,20 +124,25 @@ object MergeOneSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     val obs1 = PublishSubject[Long]()
-    val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
+    val obs2 = Observable.range(1, 100).map { x =>
+      obs2WasStarted = true; x
+    }
 
-    Observable.fromIterable(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = {
-        received += elem
-        if (elem == 1000)
-          Future.delayedResult(1.second)(Continue)
-        else
-          Continue
-      }
+    Observable
+      .fromIterable(Seq(obs1, obs2))
+      .flatten
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += elem
+          if (elem == 1000)
+            Future.delayedResult(1.second)(Continue)
+          else
+            Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     s.tickOne()
     assertEquals(received, 0)
@@ -157,13 +168,18 @@ object MergeOneSuite extends BaseOperatorSuite {
 
     val sub = PublishSubject[Long]()
     val obs1 = sub.doOnStart(_ => Task { obs1WasStarted = true })
-    val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
+    val obs2 = Observable.range(1, 100).map { x =>
+      obs2WasStarted = true; x
+    }
 
-    Observable.fromIterable(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = Continue
-      def onError(ex: Throwable) = wasThrown = ex
-      def onComplete() = ()
-    })
+    Observable
+      .fromIterable(Seq(obs1, obs2))
+      .flatten
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = Continue
+        def onError(ex: Throwable) = wasThrown = ex
+        def onComplete() = ()
+      })
 
     s.tick()
     sub.onNext(1)

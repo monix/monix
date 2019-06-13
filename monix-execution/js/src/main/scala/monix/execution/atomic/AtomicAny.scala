@@ -35,8 +35,7 @@ final class AtomicAny[A <: AnyRef] private[atomic] (initialValue: A) extends Ato
     if (ref eq expect) {
       ref = update
       true
-    }
-    else
+    } else
       false
   }
 
@@ -108,4 +107,3 @@ object AtomicAny {
   def safe[A <: AnyRef](initialValue: A, padding: PaddingStrategy): AtomicAny[A] =
     new AtomicAny(initialValue)
 }
-

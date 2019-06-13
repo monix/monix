@@ -26,9 +26,8 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive] final
-class RestartUntilObservable[A](source: Observable[A], p: A => Boolean)
-  extends Observable[A] { self =>
+private[reactive] final class RestartUntilObservable[A](source: Observable[A], p: A => Boolean) extends Observable[A] {
+  self =>
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val conn = SerialCancelable()
@@ -47,7 +46,8 @@ class RestartUntilObservable[A](source: Observable[A], p: A => Boolean)
 
         def onNext(elem: A): Future[Ack] = {
           // Stream was validated, so we can just stream the event.
-          if (isValidated) out.onNext(elem) else {
+          if (isValidated) out.onNext(elem)
+          else {
             // Protects calls to user code from within the operator and
             // stream the error downstream if it happens, but if the
             // error happens because of calls to `onNext` or other
@@ -57,7 +57,8 @@ class RestartUntilObservable[A](source: Observable[A], p: A => Boolean)
               isValidated = p(elem)
               streamErrors = false
 
-              if (isValidated) out.onNext(elem) else {
+              if (isValidated) out.onNext(elem)
+              else {
                 // Oh noes, we have to resubscribe.
                 // First we make sure no other events can happen
                 isDone = true

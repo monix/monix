@@ -23,7 +23,6 @@ import scala.concurrent.duration._
 import minitest.TestSuite
 import monix.execution.{ExecutionModel, FutureUtils, Scheduler, UncaughtExceptionReporter}
 
-
 class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
   object Dummy extends Throwable
   private[this] val throwRunnable: Runnable = new Runnable {

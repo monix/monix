@@ -84,7 +84,6 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(100)))
   }
 
-
   test("Task.eval(throw).map(...).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.eval[Int](throw dummy).map(_ + 1).materialize.map {
@@ -134,7 +133,6 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100)))
   }
-
 
   test("Task.evalAsync(throw).map(...).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
@@ -186,7 +184,6 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(100)))
   }
 
-
   test("Task.suspend(throw).map(...).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.suspend[Int](throw dummy).map(_ + 1).materialize.map {
@@ -236,7 +233,6 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     val f = task.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(100)))
   }
-
 
   test("Task.evalAsync(throw).memoize.map(...).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")

@@ -23,8 +23,7 @@ package monix.tail.batches
   * implementation, which is `@specialized`. Using `LongsBatch`
   * might be desirable instead for `isInstanceOf` checks.
   */
-final class LongsBatch(underlying: ArrayBatch[Long])
-  extends Batch[Long] {
+final class LongsBatch(underlying: ArrayBatch[Long]) extends Batch[Long] {
 
   override def cursor(): LongsCursor =
     new LongsCursor(underlying.cursor())

@@ -187,14 +187,14 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(Try)") { implicit s =>
-    val source = Success(1) : Try[Int]
+    val source = Success(1): Try[Int]
     val conv = Observable.from(source)
     assertEquals(conv.runAsyncGetFirst.value, Some(Success(Some(1))))
   }
 
   test("Observable.from(Try) for errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val source = Failure(dummy) : Try[Int]
+    val source = Failure(dummy): Try[Int]
     val conv = Observable.from(source)
     assertEquals(conv.runAsyncGetFirst.value, Some(Failure(dummy)))
   }

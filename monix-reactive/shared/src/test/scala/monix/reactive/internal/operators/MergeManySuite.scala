@@ -25,8 +25,9 @@ import scala.concurrent.duration.Duration.Zero
 
 object MergeManySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount)
-      .mergeMap(i => Observable.fromIterable(Seq(i,i,i,i)))
+    val o = Observable
+      .range(0, sourceCount)
+      .mergeMap(i => Observable.fromIterable(Seq(i, i, i, i)))
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -48,10 +49,13 @@ object MergeManySuite extends BaseOperatorSuite {
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample1 =  Observable.range(1, 100)
-      .mergeMap(x => Observable.range(0,100).delayExecution(2.second))
-    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
-      .mergeMap(x => Observable.range(0,100).delayExecution(2.second))
+    val sample1 = Observable
+      .range(1, 100)
+      .mergeMap(x => Observable.range(0, 100).delayExecution(2.second))
+    val sample2 = Observable
+      .range(0, 100)
+      .delayOnNext(1.second)
+      .mergeMap(x => Observable.range(0, 100).delayExecution(2.second))
 
     Seq(
       Sample(sample1, 0, 0, 0.seconds, 0.seconds),
@@ -67,16 +71,15 @@ object MergeManySuite extends BaseOperatorSuite {
     }
 
     var total = 0L
-    val subscription = source.unsafeSubscribeFn(
-      new Observer.Sync[Long] {
-        def onNext(elem: Long): Ack = {
-          total += elem
-          Continue
-        }
+    val subscription = source.unsafeSubscribeFn(new Observer.Sync[Long] {
+      def onNext(elem: Long): Ack = {
+        total += elem
+        Continue
+      }
 
-        def onError(ex: Throwable): Unit = throw ex
-        def onComplete(): Unit = ()
-      })
+      def onError(ex: Throwable): Unit = throw ex
+      def onComplete(): Unit = ()
+    })
 
     s.tick(10.seconds)
     assertEquals(total, 5 * 11L)

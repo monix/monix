@@ -25,8 +25,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.collection.mutable
 
-private[reactive] final class TakeLastOperator[A](n: Int)
-  extends Operator[A, A] {
+private[reactive] final class TakeLastOperator[A](n: Int) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] = {
     require(n > 0, "n should be strictly positive")

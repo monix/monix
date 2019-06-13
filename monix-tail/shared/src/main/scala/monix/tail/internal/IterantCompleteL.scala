@@ -28,14 +28,12 @@ private[tail] object IterantCompleteL {
   /**
     * Implementation for `Iterant#completedL`
     */
-  final def apply[F[_], A](source: Iterant[F, A])
-    (implicit F: Sync[F]): F[Unit] = {
+  final def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[Unit] = {
 
     F.suspend(new Loop[F, A]().apply(source))
   }
 
-  private final class Loop[F[_], A](implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, F[Unit]] {
+  private final class Loop[F[_], A](implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Unit]] {
 
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
@@ -52,10 +50,11 @@ private[tail] object IterantCompleteL {
     }
 
     private[this] val concatContinue: (Unit => F[Unit]) =
-      _ => stackPop() match {
-        case null => F.unit
-        case xs => xs.flatMap(this)
-      }
+      _ =>
+        stackPop() match {
+          case null => F.unit
+          case xs => xs.flatMap(this)
+        }
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[Unit] =

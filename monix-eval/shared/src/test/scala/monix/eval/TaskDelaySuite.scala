@@ -46,8 +46,11 @@ object TaskDelaySuite extends BaseTestSuite {
 
   test("Task#delayExecution is stack safe, test 1") { implicit s =>
     def loop(n: Int): Task[Int] =
-      if (n <= 0) Task.now(n) else
-        Task.now(n).delayExecution(1.second)
+      if (n <= 0) Task.now(n)
+      else
+        Task
+          .now(n)
+          .delayExecution(1.second)
           .flatMap(n => loop(n - 1))
 
     val count = if (Platform.isJVM) 50000 else 5000
@@ -84,8 +87,7 @@ object TaskDelaySuite extends BaseTestSuite {
     assert(!wasTriggered, "!wasTriggered")
 
     assertEquals(f.value, None)
-    assert(s.state.tasks.isEmpty,
-      "should cancel the scheduleOnce(delay) as well")
+    assert(s.state.tasks.isEmpty, "should cancel the scheduleOnce(delay) as well")
   }
 
   test("Task#delayResult should work") { implicit s =>
@@ -109,8 +111,11 @@ object TaskDelaySuite extends BaseTestSuite {
 
   test("Task#delayResult is stack safe, test 1") { implicit s =>
     def loop(n: Int): Task[Int] =
-      if (n <= 0) Task.now(n) else
-        Task.now(n).delayResult(1.second)
+      if (n <= 0) Task.now(n)
+      else
+        Task
+          .now(n)
+          .delayResult(1.second)
           .flatMap(n => loop(n - 1))
 
     val count = if (Platform.isJVM) 50000 else 5000
@@ -145,8 +150,7 @@ object TaskDelaySuite extends BaseTestSuite {
 
     f.cancel(); s.tick()
     assertEquals(f.value, None)
-    assert(s.state.tasks.isEmpty,
-      "should cancel the scheduleOnce(delay) as well")
+    assert(s.state.tasks.isEmpty, "should cancel the scheduleOnce(delay) as well")
   }
 
   test("Task#delayResult should not delay in case of error") { implicit s =>

@@ -21,7 +21,6 @@ import cats.effect.{ExitCode, IO}
 import minitest.SimpleTestSuite
 import monix.eval.Task.Options
 import monix.execution.Scheduler.Implicits.global
-
 import scala.concurrent.Promise
 
 object TaskAppSuite extends SimpleTestSuite {

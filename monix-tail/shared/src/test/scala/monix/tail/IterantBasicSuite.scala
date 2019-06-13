@@ -93,7 +93,9 @@ object IterantBasicSuite extends BaseTestSuite {
 
   test("tailRecM should protect against user error") { implicit s =>
     val dummy = DummyException("dummy")
-    val fa = Iterant[Coeval].tailRecM(0) { _ => throw dummy }
+    val fa = Iterant[Coeval].tailRecM(0) { _ =>
+      throw dummy
+    }
     assertEquals(fa.completedL.runTry(), Failure(dummy))
   }
 }

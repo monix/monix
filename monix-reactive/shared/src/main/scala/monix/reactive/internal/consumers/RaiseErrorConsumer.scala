@@ -25,9 +25,7 @@ import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 
 /** Implementation for [[monix.reactive.Consumer.raiseError]]. */
-private[reactive]
-final class RaiseErrorConsumer(ex: Throwable)
-  extends Consumer.Sync[Any,Nothing] {
+private[reactive] final class RaiseErrorConsumer(ex: Throwable) extends Consumer.Sync[Any, Nothing] {
 
   def createSubscriber(cb: Callback[Throwable, Nothing], s: Scheduler): (Subscriber.Sync[Any], AssignableCancelable) = {
     val out = new Subscriber.Sync[Any] {

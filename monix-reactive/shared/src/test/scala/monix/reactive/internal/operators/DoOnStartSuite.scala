@@ -33,15 +33,16 @@ import scala.concurrent.duration.DurationLong
 object DoOnStartSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should work for cats.effect.IO") { implicit s =>
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.range(0, 20).doOnStartF(_ => IO { wasTriggered += 1 })
+    Observable
+      .range(0, 20)
+      .doOnStartF(_ => IO { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Continue
@@ -58,7 +59,9 @@ object DoOnStartSuite extends TestSuite[TestScheduler] {
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.now(1L).doOnStart(_ => Task.eval { wasTriggered += 1 })
+    Observable
+      .now(1L)
+      .doOnStart(_ => Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Continue
@@ -74,7 +77,9 @@ object DoOnStartSuite extends TestSuite[TestScheduler] {
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.now(1L).doOnStart(_ => Task.eval { wasTriggered += 1 })
+    Observable
+      .now(1L)
+      .doOnStart(_ => Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Future(Continue)
@@ -94,7 +99,9 @@ object DoOnStartSuite extends TestSuite[TestScheduler] {
     var onNextCalled = 0
     var errorThrown: Throwable = null
 
-    Observable.raiseError(dummy).doOnStart(_ => Task.eval { wasTriggered += 1 })
+    Observable
+      .raiseError(dummy)
+      .doOnStart(_ => Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Ack] =
@@ -114,7 +121,9 @@ object DoOnStartSuite extends TestSuite[TestScheduler] {
 
   test("should be cancelable") { implicit s =>
     var wasTriggered = 0
-    val cancelable = Observable.now(1).delayOnNext(1.second)
+    val cancelable = Observable
+      .now(1)
+      .delayOnNext(1.second)
       .doOnStart(_ => Task.eval { wasTriggered += 1 })
       .subscribe()
 
@@ -130,7 +139,9 @@ object DoOnStartSuite extends TestSuite[TestScheduler] {
     var onNextCalled = 0
     var errorThrown: Throwable = null
 
-    Observable.now(1L).doOnStart(_ => throw dummy)
+    Observable
+      .now(1L)
+      .doOnStart(_ => throw dummy)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = { onNextCalled += 1; Continue }
@@ -147,7 +158,9 @@ object DoOnStartSuite extends TestSuite[TestScheduler] {
     var onNextCalled = 0
     var errorThrown: Throwable = null
 
-    Observable.now(1L).doOnStart(_ => Task.eval { throw dummy })
+    Observable
+      .now(1L)
+      .doOnStart(_ => Task.eval { throw dummy })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = { onNextCalled += 1; Continue }

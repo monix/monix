@@ -109,7 +109,10 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param reporter $reporter
     * @param executionModel $executionModel
     */
-  def apply(executor: ExecutorService, reporter: UncaughtExceptionReporter, executionModel: ExecModel): SchedulerService =
+  def apply(
+    executor: ExecutorService,
+    reporter: UncaughtExceptionReporter,
+    executionModel: ExecModel): SchedulerService =
     ExecutorScheduler(executor, reporter, executionModel)
 
   /** [[monix.execution.Scheduler Scheduler]] builder that converts a
@@ -136,7 +139,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     */
   def apply(ec: ExecutionContext): Scheduler =
     AsyncScheduler(
-      DefaultScheduledExecutor, ec,
+      DefaultScheduledExecutor,
+      ec,
       ExecModel.Default
     )
 
@@ -148,7 +152,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     */
   def apply(ec: ExecutionContext, executionModel: ExecModel): Scheduler =
     AsyncScheduler(
-      DefaultScheduledExecutor, ec,
+      DefaultScheduledExecutor,
+      ec,
       executionModel,
       UncaughtExceptionReporter(ec.reportFailure)
     )
@@ -174,7 +179,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(executionModel: ExecModel): Scheduler = {
     val ec = ExecutionContext.Implicits.global
     AsyncScheduler(
-      DefaultScheduledExecutor, ec,
+      DefaultScheduledExecutor,
+      ec,
       executionModel
     )
   }
@@ -191,9 +197,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
     *         for the default.
     */
-  def trampoline(
-    underlying: Scheduler = Implicits.global,
-    executionModel: ExecModel = ExecModel.Default): Scheduler =
+  def trampoline(underlying: Scheduler = Implicits.global, executionModel: ExecModel = ExecModel.Default): Scheduler =
     TrampolineScheduler(underlying, executionModel)
 
   /** Creates a [[monix.execution.Scheduler Scheduler]] meant for
@@ -219,8 +223,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
-    ExecutorScheduler.forkJoinStatic(
-      name, parallelism, daemonic, reporter, executionModel)
+    ExecutorScheduler.forkJoinStatic(name, parallelism, daemonic, reporter, executionModel)
   }
 
   /** Creates a general purpose [[monix.execution.Scheduler Scheduler]]
@@ -248,8 +251,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
-    ExecutorScheduler.forkJoinDynamic(
-      name, parallelism, maxThreads, daemonic, reporter, executionModel)
+    ExecutorScheduler.forkJoinDynamic(name, parallelism, maxThreads, daemonic, reporter, executionModel)
   }
 
   /** Creates a [[monix.execution.Scheduler Scheduler]] meant for blocking I/O tasks.
@@ -267,14 +269,18 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param reporter $reporter
     * @param executionModel $executionModel
     */
-  def io(name: String = "monix-io", daemonic: Boolean = true,
+  def io(
+    name: String = "monix-io",
+    daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     val threadFactory = ThreadFactoryBuilder(name, reporter, daemonic)
     val executor = new ThreadPoolExecutor(
-      0, Int.MaxValue,
-      60, TimeUnit.SECONDS,
+      0,
+      Int.MaxValue,
+      60,
+      TimeUnit.SECONDS,
       new SynchronousQueue[Runnable](false),
       threadFactory)
 
@@ -313,8 +319,10 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
 
     val threadFactory = ThreadFactoryBuilder(name, reporter, daemonic)
     val executor = new ThreadPoolExecutor(
-      minThreads, maxThreads,
-      keepAliveTime.toMillis, TimeUnit.MILLISECONDS,
+      minThreads,
+      maxThreads,
+      keepAliveTime.toMillis,
+      TimeUnit.MILLISECONDS,
       new SynchronousQueue[Runnable](false),
       threadFactory)
 
@@ -336,17 +344,17 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param reporter $reporter
     * @param executionModel $executionModel
     */
-  def singleThread(name: String, daemonic: Boolean = true,
+  def singleThread(
+    name: String,
+    daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     val factory = ThreadFactoryBuilder(name, reporter, daemonic)
-    val executor = new ScheduledThreadPoolExecutor(1, factory)
-      with AdaptedThreadPoolExecutorMixin {
+    val executor = new ScheduledThreadPoolExecutor(1, factory) with AdaptedThreadPoolExecutorMixin {
       override def reportFailure(t: Throwable): Unit =
         reporter.reportFailure(t)
     }
-
 
     ExecutorScheduler(executor, null, executionModel)
   }
@@ -364,13 +372,15 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param daemonic specifies whether the created thread should be daemonic
     * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
     */
-  def fixedPool(name: String, poolSize: Int, daemonic: Boolean = true,
+  def fixedPool(
+    name: String,
+    poolSize: Int,
+    daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     val factory = ThreadFactoryBuilder(name, reporter, daemonic)
-    val executor = new ScheduledThreadPoolExecutor(poolSize, factory)
-      with AdaptedThreadPoolExecutorMixin {
+    val executor = new ScheduledThreadPoolExecutor(poolSize, factory) with AdaptedThreadPoolExecutorMixin {
 
       override def reportFailure(t: Throwable): Unit =
         reporter.reportFailure(t)

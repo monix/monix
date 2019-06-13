@@ -22,8 +22,7 @@ package monix.execution.atomic
   * Note that the equality test in `compareAndSet` is value based,
   * since `Float` is a primitive.
   */
-final class AtomicFloat private[atomic]
-  (initialValue: Float) extends AtomicNumber[Float] {
+final class AtomicFloat private[atomic] (initialValue: Float) extends AtomicNumber[Float] {
 
   private[this] var ref = initialValue
 
@@ -37,8 +36,7 @@ final class AtomicFloat private[atomic]
     if (ref == expect) {
       ref = update
       true
-    }
-    else
+    } else
       false
   }
 

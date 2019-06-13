@@ -23,8 +23,7 @@ import monix.execution.{BufferCapacity, Scheduler}
 import monix.execution.schedulers.SchedulerService
 import scala.concurrent.duration._
 
-abstract class ConcurrentChannelJVMSuite(parallelism: Int)
-  extends BaseConcurrentChannelSuite[SchedulerService] {
+abstract class ConcurrentChannelJVMSuite(parallelism: Int) extends BaseConcurrentChannelSuite[SchedulerService] {
 
   def setup(): SchedulerService =
     Scheduler.computation(
@@ -32,12 +31,12 @@ abstract class ConcurrentChannelJVMSuite(parallelism: Int)
       parallelism = parallelism
     )
 
-  def tearDown(env:  SchedulerService): Unit = {
+  def tearDown(env: SchedulerService): Unit = {
     env.shutdown()
     assert(env.awaitTermination(30.seconds), "env.awaitTermination")
   }
 
-  def testIO(name:  String, times: Int = 1)(f:  Scheduler => IO[Unit]): Unit = {
+  def testIO(name: String, times: Int = 1)(f: Scheduler => IO[Unit]): Unit = {
     def repeatTest(test: IO[Unit], n: Int): IO[Unit] =
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit

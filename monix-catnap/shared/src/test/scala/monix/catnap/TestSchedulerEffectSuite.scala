@@ -17,7 +17,6 @@
 
 package monix.catnap
 
-
 import cats.effect.IO
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
@@ -30,7 +29,6 @@ object TestSchedulerEffectSuite extends TestSuite[TestScheduler] {
   def tearDown(env: TestScheduler): Unit = {
     assert(env.state.tasks.isEmpty)
   }
-
 
   test("clock.monotonic") { s =>
     val clock = SchedulerEffect.clock[IO](s)

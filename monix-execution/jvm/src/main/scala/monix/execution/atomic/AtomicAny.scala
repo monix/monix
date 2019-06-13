@@ -80,12 +80,13 @@ object AtomicAny {
     *        for `getAndSet` and for `getAndAdd`
     */
   def create[A <: AnyRef](initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicAny[A] = {
-    new AtomicAny(Factory.newBoxedObject(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      true, // allowUnsafe
-      allowPlatformIntrinsics
-    ))
+    new AtomicAny(
+      Factory.newBoxedObject(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        true, // allowUnsafe
+        allowPlatformIntrinsics
+      ))
   }
 
   /** $createDesc
@@ -104,10 +105,11 @@ object AtomicAny {
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def safe[A <: AnyRef](initialValue: A, padding: PaddingStrategy): AtomicAny[A] =
-    new AtomicAny(Factory.newBoxedObject(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      false, // allowUnsafe
-      false  // allowPlatformIntrinsics
-    ))
+    new AtomicAny(
+      Factory.newBoxedObject(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        false, // allowUnsafe
+        false // allowPlatformIntrinsics
+      ))
 }

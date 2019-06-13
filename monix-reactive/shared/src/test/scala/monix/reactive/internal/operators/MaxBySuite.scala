@@ -23,7 +23,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object MaxBySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int): Option[Sample] = Some {
-    val o = Observable.range(0, sourceCount+1).maxBy[Long](x => x + 1)
+    val o = Observable.range(0, sourceCount + 1).maxBy[Long](x => x + 1)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -36,14 +36,14 @@ object MaxBySuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample] = {
-    val o = Observable.range(0, sourceCount+1).maxBy[Long](x => throw ex)
+    val o = Observable.range(0, sourceCount + 1).maxBy[Long](x => throw ex)
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 
   override def cancelableObservables(): Seq[Sample] = {
     import scala.concurrent.duration._
     val o = Observable.now(1L).delayOnNext(1.second).maxBy(x => x)
-    Seq(Sample(o,0,0,0.seconds,0.seconds))
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
   test("empty observable should be empty") { implicit s =>
@@ -51,11 +51,13 @@ object MaxBySuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    source.maxBy(x => 100 - x).unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = { received += 1; Continue }
-      def onError(ex: Throwable) = ()
-      def onComplete() = { wasCompleted = true }
-    })
+    source
+      .maxBy(x => 100 - x)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = { received += 1; Continue }
+        def onError(ex: Throwable) = ()
+        def onComplete() = { wasCompleted = true }
+      })
 
     assertEquals(received, 0)
     assert(wasCompleted)

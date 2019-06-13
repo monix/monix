@@ -76,8 +76,7 @@ object CoevalErrorSuite extends BaseTestSuite {
   }
 
   test("Coeval.flatMap.materialize") { implicit s =>
-    assertEquals(Coeval.eval(10).flatMap(x => Coeval.now(x))
-      .materialize.runTry(), Success(Success(10)))
+    assertEquals(Coeval.eval(10).flatMap(x => Coeval.now(x)).materialize.runTry(), Success(Success(10)))
   }
 
   test("Coeval.now.flatMap(error).materialize") { implicit s =>
@@ -127,21 +126,21 @@ object CoevalErrorSuite extends BaseTestSuite {
     val ex1 = DummyException("one")
     val ex2 = DummyException("two")
 
-    val coeval = Coeval[Int](if (1 == 1) throw ex1 else 1)
-      .onErrorRecover { case _ => throw ex2 }
+    val coeval = Coeval[Int](if (1 == 1) throw ex1 else 1).onErrorRecover { case _ => throw ex2 }
 
     assertEquals(coeval.runTry(), Failure(ex2))
   }
 
   test("Coeval#onErrorHandle should mirror source on success") { implicit s =>
-    val f = Coeval(1).onErrorHandle { _: Throwable => 99 }
+    val f = Coeval(1).onErrorHandle { _: Throwable =>
+      99
+    }
     assertEquals(f.runTry(), Success(1))
   }
 
   test("Coeval#onErrorHandle should recover") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Coeval[Int](if (1 == 1) throw ex else 1)
-      .onErrorHandle { case _: DummyException => 99 }
+    val f = Coeval[Int](if (1 == 1) throw ex else 1).onErrorHandle { case _: DummyException => 99 }
 
     assertEquals(f.runTry(), Success(99))
   }
@@ -149,8 +148,9 @@ object CoevalErrorSuite extends BaseTestSuite {
   test("Coeval#onErrorHandle should protect against user code") { implicit s =>
     val ex1 = DummyException("one")
     val ex2 = DummyException("two")
-    val f = Coeval[Int](if (1 == 1) throw ex1 else 1)
-      .onErrorHandle { _ => throw ex2 }
+    val f = Coeval[Int](if (1 == 1) throw ex1 else 1).onErrorHandle { _ =>
+      throw ex2
+    }
 
     assertEquals(f.runTry(), Failure(ex2))
   }
@@ -243,8 +243,7 @@ object CoevalErrorSuite extends BaseTestSuite {
     val ex1 = DummyException("one")
     val ex2 = DummyException("two")
 
-    val f = Coeval[Int](throw ex1)
-      .onErrorRecoverWith { case _ => throw ex2 }
+    val f = Coeval[Int](throw ex1).onErrorRecoverWith { case _ => throw ex2 }
 
     assertEquals(f.runTry(), Failure(ex2))
   }

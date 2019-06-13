@@ -33,11 +33,9 @@ class ExecutionRejectedException(val message: String, cause: Throwable)
   def this(cause: Throwable) = this(null, cause)
 }
 
-object ExecutionRejectedException
-  extends AbstractFunction1[String, ExecutionRejectedException] {
+object ExecutionRejectedException extends AbstractFunction1[String, ExecutionRejectedException] {
 
   /** Builder for [[ExecutionRejectedException]]. */
   def apply(message: String): ExecutionRejectedException =
     new ExecutionRejectedException(message)
 }
-  

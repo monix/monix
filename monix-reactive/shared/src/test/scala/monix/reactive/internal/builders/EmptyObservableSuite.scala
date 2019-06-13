@@ -25,8 +25,7 @@ object EmptyObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
 
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "Scheduler should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
   test("should complete immediately") { implicit s =>

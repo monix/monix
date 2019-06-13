@@ -26,9 +26,7 @@ import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 
 /** Implementation for [[monix.reactive.Consumer.foreach]]. */
-private[reactive]
-final class ForeachConsumer[A](f: A => Unit)
-  extends Consumer.Sync[A, Unit] {
+private[reactive] final class ForeachConsumer[A](f: A => Unit) extends Consumer.Sync[A, Unit] {
 
   def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {

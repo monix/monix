@@ -28,8 +28,7 @@ import java.io.Serializable
   * until PR [[https://github.com/typelevel/cats/pull/2297 #2297]]
   * gets merged and shipped, if ever.
   */
-private[tail] sealed abstract class AndThen[-T, +R]
-  extends (T => R) with Product with Serializable {
+private[tail] sealed abstract class AndThen[-T, +R] extends (T => R) with Product with Serializable {
 
   import AndThen._
 
@@ -116,10 +115,8 @@ private[tail] object AndThen {
       case _ => Single(f, 0)
     }
 
-  private final case class Single[-A, +B](f: A => B, index: Int)
-    extends AndThen[A, B]
-  private final case class Concat[-A, E, +B](left: AndThen[A, E], right: AndThen[E, B])
-    extends AndThen[A, B]
+  private final case class Single[-A, +B](f: A => B, index: Int) extends AndThen[A, B]
+  private final case class Concat[-A, E, +B](left: AndThen[A, E], right: AndThen[E, B]) extends AndThen[A, B]
 
   /**
     * Establishes the maximum stack depth when fusing `andThen` or

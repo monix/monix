@@ -21,8 +21,7 @@ import monix.execution.Ack.Stop
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] final class TakeLeftOperator[A](n: Long)
-  extends Operator[A, A] {
+private[reactive] final class TakeLeftOperator[A](n: Long) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] = {
     require(n > 0, "n should be strictly positive")

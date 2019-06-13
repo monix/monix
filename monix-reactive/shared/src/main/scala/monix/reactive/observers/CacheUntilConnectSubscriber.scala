@@ -30,8 +30,7 @@ import scala.util.{Failure, Success}
   * the buffer is drained into the `underlying` observer, after which all
   * subsequent events are pushed directly.
   */
-final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A])
-  extends Subscriber[A] { self =>
+final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) extends Subscriber[A] { self =>
 
   implicit val scheduler = downstream.scheduler
   // MUST BE synchronized by `self`, only available if isConnected == false
@@ -72,62 +71,64 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A])
       isConnectionStarted = true
       val bufferWasDrained = Promise[Ack]()
 
-      val cancelable = Observable.fromIterable(queue).unsafeSubscribeFn(new Subscriber[A] {
-        implicit val scheduler = downstream.scheduler
-        private[this] var ack: Future[Ack] = Continue
+      val cancelable = Observable
+        .fromIterable(queue)
+        .unsafeSubscribeFn(new Subscriber[A] {
+          implicit val scheduler = downstream.scheduler
+          private[this] var ack: Future[Ack] = Continue
 
-        bufferWasDrained.future.onComplete {
-          case Success(Continue) =>
-            connectedPromise.success(Continue)
-            isConnected = true
-            // GC relief
-            queue = null
-            connectedPromise = null
-            // This might be a race condition problem, but it only
-            // matters for GC relief purposes
-            connectionRef = CancelableFuture.successful(Continue)
+          bufferWasDrained.future.onComplete {
+            case Success(Continue) =>
+              connectedPromise.success(Continue)
+              isConnected = true
+              // GC relief
+              queue = null
+              connectedPromise = null
+              // This might be a race condition problem, but it only
+              // matters for GC relief purposes
+              connectionRef = CancelableFuture.successful(Continue)
 
-          case Success(Stop) =>
-            wasCanceled = true
-            connectedPromise.success(Stop)
-            isConnected = true
-            // GC relief
-            queue = null
-            connectedPromise = null
-            // This might be a race condition problem, but it only
-            // matters for GC relief purposes
-            connectionRef = CancelableFuture.successful(Stop)
+            case Success(Stop) =>
+              wasCanceled = true
+              connectedPromise.success(Stop)
+              isConnected = true
+              // GC relief
+              queue = null
+              connectedPromise = null
+              // This might be a race condition problem, but it only
+              // matters for GC relief purposes
+              connectionRef = CancelableFuture.successful(Stop)
 
-          case Failure(ex) =>
-            wasCanceled = true
-            connectedPromise.failure(ex)
-            isConnected = true
-            // GC relief
-            queue = null
-            connectedPromise = null
-            // This might be a race condition problem, but it only
-            // matters for GC relief purposes
-            connectionRef = CancelableFuture.failed(ex)
-        }
+            case Failure(ex) =>
+              wasCanceled = true
+              connectedPromise.failure(ex)
+              isConnected = true
+              // GC relief
+              queue = null
+              connectedPromise = null
+              // This might be a race condition problem, but it only
+              // matters for GC relief purposes
+              connectionRef = CancelableFuture.failed(ex)
+          }
 
-        def onNext(elem: A): Future[Ack] = {
-          ack = downstream.onNext(elem).syncOnStopFollow(bufferWasDrained, Stop)
-          ack
-        }
+          def onNext(elem: A): Future[Ack] = {
+            ack = downstream.onNext(elem).syncOnStopFollow(bufferWasDrained, Stop)
+            ack
+          }
 
-        def onComplete(): Unit = {
-          // Applying back-pressure, otherwise the next onNext might
-          // break the back-pressure contract.
-          ack.syncOnContinue(bufferWasDrained.trySuccess(Continue))
-        }
+          def onComplete(): Unit = {
+            // Applying back-pressure, otherwise the next onNext might
+            // break the back-pressure contract.
+            ack.syncOnContinue(bufferWasDrained.trySuccess(Continue))
+          }
 
-        def onError(ex: Throwable): Unit = {
-          if (bufferWasDrained.trySuccess(Stop))
-            downstream.onError(ex)
-          else
-            scheduler.reportFailure(ex)
-        }
-      })
+          def onError(ex: Throwable): Unit = {
+            if (bufferWasDrained.trySuccess(Stop))
+              downstream.onError(ex)
+            else
+              scheduler.reportFailure(ex)
+          }
+        })
 
       connectionRef = CancelableFuture(bufferWasDrained.future, cancelable)
     }
@@ -149,8 +150,7 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A])
         // we can cache the incoming event
         queue.append(elem)
         Continue
-      }
-      else {
+      } else {
         // if the connection started, we cannot modify the queue anymore
         // so we must be patient and apply back-pressure
         connectedFuture = connectedFuture.flatMap {
@@ -161,12 +161,10 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A])
 
         connectedFuture
       }
-    }
-    else if (!wasCanceled) {
+    } else if (!wasCanceled) {
       // taking fast path :-)
       downstream.onNext(elem)
-    }
-    else {
+    } else {
       // was canceled either during connect, or the upstream publisher
       // sent an onNext event after onComplete / onError
       Stop

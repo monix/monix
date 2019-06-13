@@ -33,13 +33,12 @@ import scala.concurrent.duration._
 object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
   test("yields a single subscriber observable") { implicit s =>
     var errorThrown: Throwable = null
-    val obs = Observable.fromIteratorUnsafe(Seq(1,2,3).iterator)
+    val obs = Observable.fromIteratorUnsafe(Seq(1, 2, 3).iterator)
     obs.unsafeSubscribeFn(Subscriber.empty(s))
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
@@ -65,7 +64,9 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val seq = 0 until n
     val obs = Observable
       .fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
-      .map { x => assertEquals(onFinishCalled, 0); x }
+      .map { x =>
+        assertEquals(onFinishCalled, 0); x
+      }
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
@@ -125,8 +126,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
 
-      def onNext(elem: Int): Ack =
-      { sum += elem; Continue }
+      def onNext(elem: Int): Ack = { sum += elem; Continue }
       def onComplete(): Unit =
         throw new IllegalStateException("onComplete")
       def onError(ex: Throwable): Unit =
@@ -295,7 +295,9 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val seq = 0 until n
     val obs = Observable
       .fromIterator(Resource.make(Task(seq.iterator))(_ => Task.raiseError(ex)))
-      .map { x => assertEquals(wasThrown, null); x }
+      .map { x =>
+        assertEquals(wasThrown, null); x
+      }
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s

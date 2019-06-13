@@ -30,7 +30,7 @@ object DropByPredicateSuite extends BaseOperatorSuite {
   }
 
   def sum(sourceCount: Int): Long =
-    (1 until sourceCount * 2).drop(sourceCount-1).sum
+    (1 until sourceCount * 2).drop(sourceCount - 1).sum
 
   def count(sourceCount: Int) =
     sourceCount

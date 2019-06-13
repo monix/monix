@@ -22,10 +22,7 @@ package collection
   *
   * INTERNAL API.
   */
-private[monix] final class ChunkedArrayStack[A] private (
-  initialArray: Array[AnyRef],
-  chunkSize: Int,
-  initialIndex: Int)
+private[monix] final class ChunkedArrayStack[A] private (initialArray: Array[AnyRef], chunkSize: Int, initialIndex: Int)
   extends Serializable { self =>
 
   assert(chunkSize > 1, "chunkSize > 1")

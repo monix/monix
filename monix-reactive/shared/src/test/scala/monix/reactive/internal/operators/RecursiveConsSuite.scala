@@ -35,10 +35,12 @@ object RecursiveConsSuite extends BaseOperatorSuite {
 
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
-    if (sourceCount <= 1) None else Some {
-      val o = range(0, sourceCount)
-      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
-    }
+    if (sourceCount <= 1) None
+    else
+      Some {
+        val o = range(0, sourceCount)
+        Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+      }
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None

@@ -37,20 +37,22 @@ private[eval] object TaskExecuteOn {
       start,
       trampolineBefore = withTrampoline,
       trampolineAfter = withTrampoline,
-      restoreLocals = false)
+      restoreLocals = false
+    )
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is task that forks on evaluation
-  private final class AsyncRegister[A](source: Task[A], s: Scheduler)
-    extends ForkedRegister[A] {
+  private final class AsyncRegister[A](source: Task[A], s: Scheduler) extends ForkedRegister[A] {
 
     def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
       val oldS = ctx.scheduler
       val ctx2 = ctx.withScheduler(s)
 
       try {
-        Task.unsafeStartAsync(source, ctx2,
+        Task.unsafeStartAsync(
+          source,
+          ctx2,
           new Callback[Throwable, A] with Runnable {
             private[this] var value: A = _
             private[this] var error: Throwable = _
@@ -69,10 +71,12 @@ private[eval] object TaskExecuteOn {
               if (error ne null) cb.onError(error)
               else cb.onSuccess(value)
             }
-          })
+          }
+        )
       } catch {
         case e: RejectedExecutionException =>
-          Callback.trampolined(cb)(oldS)
+          Callback
+            .trampolined(cb)(oldS)
             .onError(e)
       }
     }
@@ -87,7 +91,8 @@ private[eval] object TaskExecuteOn {
         Task.unsafeStartNow(source, ctx2, cb)
       } catch {
         case e: RejectedExecutionException =>
-          Callback.trampolined(cb)(ctx.scheduler)
+          Callback
+            .trampolined(cb)(ctx.scheduler)
             .onError(e)
       }
     }

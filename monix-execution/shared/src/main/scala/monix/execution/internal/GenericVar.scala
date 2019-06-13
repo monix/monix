@@ -27,9 +27,7 @@ import scala.annotation.tailrec
   *  - `monix.execution.AsyncVar`
   *  - `monix.catnap.MVar`
   */
-private[monix] abstract class GenericVar[A, CancelToken] protected (
-  initial: Option[A],
-  ps: PaddingStrategy) {
+private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Option[A], ps: PaddingStrategy) {
 
   import GenericVar._
   private[this] val stateRef: AtomicAny[State[A]] =
@@ -57,7 +55,8 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (
       case current @ WaitForPut(reads, takes) =>
         var first: Either[Nothing, A] => Unit = null
         val update: State[A] =
-          if (takes.isEmpty) State(a) else {
+          if (takes.isEmpty) State(a)
+          else {
             val (x, rest) = takes.dequeue
             first = x
             if (rest.isEmpty) State.empty[A]
@@ -86,7 +85,8 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (
       case current @ WaitForPut(reads, takes) =>
         var first: Either[Nothing, A] => Unit = null
         val update: State[A] =
-          if (takes.isEmpty) State(a) else {
+          if (takes.isEmpty) State(a)
+          else {
             val (x, rest) = takes.dequeue
             first = x
             if (rest.isEmpty) State.empty[A]
@@ -160,7 +160,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (
       case WaitForTake(value, queue) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty))
-          // Signals completion of `take`
+            // Signals completion of `take`
             Some(value)
           else {
             unsafeTryTake() // retry
@@ -247,13 +247,10 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (
   }
 
   // For streaming a value to a whole `reads` collection
-  private final def streamAll(
-    value: Either[Nothing, A],
-    listeners: LinkedMap[Id, Either[Nothing, A] => Unit]): Unit = {
+  private final def streamAll(value: Either[Nothing, A], listeners: LinkedMap[Id, Either[Nothing, A] => Unit]): Unit = {
 
     val cursor = listeners.values.iterator
-    while (cursor.hasNext)
-      cursor.next().apply(value)
+    while (cursor.hasNext) cursor.next().apply(value)
   }
 }
 
@@ -285,8 +282,6 @@ private[monix] object GenericVar {
   /** `AsyncVar` state signaling it has one or more values enqueued,
     * to be signaled on the next `take`.
     */
-  private final case class WaitForTake[A](
-    value: A,
-    queue: LinkedMap[Id, (A, Either[Nothing, Unit] => Unit)])
+  private final case class WaitForTake[A](value: A, queue: LinkedMap[Id, (A, Either[Nothing, Unit] => Unit)])
     extends State[A]
 }

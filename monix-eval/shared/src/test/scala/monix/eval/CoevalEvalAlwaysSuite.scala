@@ -65,7 +65,8 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
   test("Coeval.eval.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Coeval[Int] =
       Coeval.eval(idx).flatMap { _ =>
-        if (idx < n) loop(n, idx + 1).map(_ + 1) else
+        if (idx < n) loop(n, idx + 1).map(_ + 1)
+        else
           Coeval.eval(idx)
       }
 

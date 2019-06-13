@@ -20,8 +20,7 @@ package monix.execution
 /**
   * An enumeration of all types
   */
-sealed abstract class ChannelType(val value: String)
-  extends Serializable {
+sealed abstract class ChannelType(val value: String) extends Serializable {
 
   def producerType: ChannelType.ProducerSide
   def consumerType: ChannelType.ConsumerSide
@@ -102,8 +101,7 @@ object ChannelType {
     * a single producer can (sequentially) push events and can be used
     * as an (unsafe) optimization.
     */
-  sealed abstract class ProducerSide(val value: String)
-    extends Serializable
+  sealed abstract class ProducerSide(val value: String) extends Serializable
 
   /**
     * Multi-producer channel side, meaning that multiple actors can
@@ -131,8 +129,7 @@ object ChannelType {
     *  - [[MultiConsumer]]
     *  - [[SingleConsumer]]
     */
-  sealed abstract class ConsumerSide(val value: String)
-    extends Serializable
+  sealed abstract class ConsumerSide(val value: String) extends Serializable
 
   /**
     * Multi-consumer channel side, meaning that multiple actors can

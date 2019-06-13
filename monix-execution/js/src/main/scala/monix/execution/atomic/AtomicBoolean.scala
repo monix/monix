@@ -22,8 +22,7 @@ package monix.execution.atomic
   * Note that the equality test in `compareAndSet` is value based,
   * since `Boolean` is a primitive.
   */
-final class AtomicBoolean private[atomic]
-  (initialValue: Boolean) extends Atomic[Boolean] {
+final class AtomicBoolean private[atomic] (initialValue: Boolean) extends Atomic[Boolean] {
 
   private[this] var ref = initialValue
 
@@ -37,8 +36,7 @@ final class AtomicBoolean private[atomic]
     if (ref == expect) {
       ref = update
       true
-    }
-    else
+    } else
       false
   }
 

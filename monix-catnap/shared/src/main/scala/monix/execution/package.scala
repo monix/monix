@@ -36,7 +36,6 @@ package object execution {
   implicit def cancelableFutureCatsInstances(implicit ec: ExecutionContext): CancelableFutureCatsInstances =
     new CancelableFutureCatsInstances()
 
-
   /** Contravariant type class instance of [[Callback]] for Cats. */
   implicit def contravariantCallback[E]: Contravariant[Callback[E, ?]] =
     contravariantRef.asInstanceOf[Contravariant[Callback[E, ?]]]

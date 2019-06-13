@@ -25,8 +25,7 @@ import monix.reactive.observers.Subscriber
 /** An observable that evaluates the given by-name argument,
   * and emits it.
   */
-private[reactive] final class EvalAlwaysObservable[+A](f: () => A)
-  extends Observable[A] {
+private[reactive] final class EvalAlwaysObservable[+A](f: () => A) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     try {
@@ -35,7 +34,8 @@ private[reactive] final class EvalAlwaysObservable[+A](f: () => A)
       subscriber.onComplete()
     } catch {
       case ex if NonFatal(ex) =>
-        try subscriber.onError(ex) catch {
+        try subscriber.onError(ex)
+        catch {
           case err if NonFatal(err) =>
             val s = subscriber.scheduler
             s.reportFailure(ex)

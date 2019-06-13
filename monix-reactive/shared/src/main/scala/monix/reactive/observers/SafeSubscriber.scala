@@ -24,7 +24,6 @@ import scala.util.control.NonFatal
 import scala.concurrent.{Future, Promise}
 import scala.util.Try
 
-
 /** A safe subscriber safe guards subscriber implementations, such that:
   *
   *  - the `onComplete` and `onError` signals are back-pressured
@@ -35,8 +34,7 @@ import scala.util.Try
   *  - if downstream signals a `Stop`, the observer no longer accepts any events,
   *    ensuring that the grammar is respected
   */
-final class SafeSubscriber[-A] private (subscriber: Subscriber[A])
-  extends Subscriber[A] {
+final class SafeSubscriber[-A] private (subscriber: Subscriber[A]) extends Subscriber[A] {
 
   implicit val scheduler = subscriber.scheduler
   private[this] var isDone = false
@@ -66,7 +64,8 @@ final class SafeSubscriber[-A] private (subscriber: Subscriber[A])
       if (!isDone) {
         isDone = true
 
-        try subscriber.onComplete() catch {
+        try subscriber.onComplete()
+        catch {
           case err if NonFatal(err) =>
             scheduler.reportFailure(err)
         }
@@ -81,7 +80,9 @@ final class SafeSubscriber[-A] private (subscriber: Subscriber[A])
     else {
       // Protecting against asynchronous errors
       val p = Promise[Ack]()
-      ack.onComplete { result => p.success(handleFailure(result)) }
+      ack.onComplete { result =>
+        p.success(handleFailure(result))
+      }
       p.future
     }
   }
@@ -90,7 +91,8 @@ final class SafeSubscriber[-A] private (subscriber: Subscriber[A])
     if (!isDone) {
       isDone = true
 
-      try subscriber.onError(ex) catch {
+      try subscriber.onError(ex)
+      catch {
         case err if NonFatal(err) =>
           scheduler.reportFailure(err)
       }

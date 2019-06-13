@@ -67,6 +67,7 @@ private[catnap] abstract class FutureLiftForPlatform {
     */
   implicit def javaCompletableLiftForConcurrentOrAsync[F[_]](
     implicit F: Concurrent[F] OrElse Async[F]): FutureLift[F, CompletableFuture] = {
+
     F.unify match {
       case ref: Concurrent[F] @unchecked =>
         new FutureLift[F, CompletableFuture] {

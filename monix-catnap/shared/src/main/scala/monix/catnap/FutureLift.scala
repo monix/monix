@@ -103,14 +103,13 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * and if the given future is cancelable, then the resulting instance
     * is also cancelable.
     */
-  def scalaToAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(implicit F: Async[F]): F[A] = {
+  def scalaToAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(implicit F: Async[F]): F[A] =
     F.flatMap(fa) { future =>
       future.value match {
         case Some(value) => F.fromTry(value)
         case _ => startAsync(future)
       }
     }
-  }
 
   /**
     * Utility for converting [[scala.concurrent.Future Future]] values into
@@ -122,7 +121,7 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * and if the given future is cancelable, then the resulting instance
     * is also cancelable.
     */
-  def scalaToConcurrent[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(implicit F: Concurrent[F]): F[A] = {
+  def scalaToConcurrent[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(implicit F: Concurrent[F]): F[A] =
     F.flatMap(fa) { future =>
       future.value match {
         case Some(value) => F.fromTry(value)
@@ -135,7 +134,6 @@ object FutureLift extends internal.FutureLiftForPlatform {
           }
       }
     }
-  }
 
   /**
     * A generic function that subsumes both [[scalaToAsync]] and

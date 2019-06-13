@@ -25,8 +25,7 @@ import monix.execution.internal.atomic.{BoxedInt, Factory}
   * Note that the equality test in `compareAndSet` is value based,
   * since `Short` is a primitive.
   */
-final class AtomicShort private (private[this] val ref: BoxedInt)
-  extends AtomicNumber[Short] {
+final class AtomicShort private (private[this] val ref: BoxedInt) extends AtomicNumber[Short] {
   private[this] val mask = 255 + 255 * 256
 
   def get(): Short = (ref.volatileGet() & mask).asInstanceOf[Short]
@@ -112,12 +111,13 @@ object AtomicShort {
     *        for `getAndSet` and for `getAndAdd`
     */
   def create(initialValue: Short, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicShort = {
-    new AtomicShort(Factory.newBoxedInt(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      true, // allowUnsafe
-      allowPlatformIntrinsics
-    ))
+    new AtomicShort(
+      Factory.newBoxedInt(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        true, // allowUnsafe
+        allowPlatformIntrinsics
+      ))
   }
 
   /** $createDesc
@@ -136,11 +136,12 @@ object AtomicShort {
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def safe(initialValue: Short, padding: PaddingStrategy): AtomicShort = {
-    new AtomicShort(Factory.newBoxedInt(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      false, // allowUnsafe
-      false  // allowJava8Intrinsics
-    ))
+    new AtomicShort(
+      Factory.newBoxedInt(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        false, // allowUnsafe
+        false // allowJava8Intrinsics
+      ))
   }
 }

@@ -32,8 +32,7 @@ import scala.runtime.AbstractFunction2
   * is that the injected `Callback` MUST BE called after a full
   * asynchronous boundary.
   */
-private[eval] abstract class ForkedRegister[A]
-  extends AbstractFunction2[Context, Callback[Throwable, A], Unit] {
+private[eval] abstract class ForkedRegister[A] extends AbstractFunction2[Context, Callback[Throwable, A], Unit] {
 
   def apply(context: Context, cb: Callback[Throwable, A]): Unit
 }

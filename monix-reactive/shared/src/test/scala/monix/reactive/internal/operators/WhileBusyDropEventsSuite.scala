@@ -29,8 +29,7 @@ import scala.util.Success
 object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should not drop events for synchronous observers") { implicit s =>
@@ -109,19 +108,18 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L
-    var wasThrown = null : Throwable
+    var wasThrown = null: Throwable
 
-    source.whileBusyDropEvents.unsafeSubscribeFn(
-      new Observer[Long] {
-        def onNext(elem: Long) =
-          p.future.map { continue =>
-            received += elem
-            continue
-          }
+    source.whileBusyDropEvents.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long) =
+        p.future.map { continue =>
+          received += elem
+          continue
+        }
 
-        def onError(ex: Throwable) = wasThrown = ex
-        def onComplete() = ()
-      })
+      def onError(ex: Throwable) = wasThrown = ex
+      def onComplete() = ()
+    })
 
     val ex = DummyException("dummy")
 

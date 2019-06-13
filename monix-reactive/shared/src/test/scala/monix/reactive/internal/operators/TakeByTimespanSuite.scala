@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.FutureUtils.extensions._
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
@@ -38,7 +38,8 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
-    val o = Observable.intervalAtFixedRate(1.second)
+    val o = Observable
+      .intervalAtFixedRate(1.second)
       .takeByTimespan(1.second * sourceCount - 1.milli)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -47,10 +48,11 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val source = if (sourceCount == 1)
-        createObservableEndingInError(Observable.range(1, 10).take(1), ex)
-      else
-        createObservableEndingInError(Observable.range(1, sourceCount * 2).take(sourceCount), ex)
+      val source =
+        if (sourceCount == 1)
+          createObservableEndingInError(Observable.range(1, 10).take(1), ex)
+        else
+          createObservableEndingInError(Observable.range(1, sourceCount * 2).take(sourceCount), ex)
 
       val o = source.takeByTimespan(1.day)
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -59,17 +61,19 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val s = Observable.range(1, 10).delayOnNext(2.seconds).takeByTimespan(1.second)
-    Seq(Sample(s,0,0,0.seconds,0.seconds))
+    Seq(Sample(s, 0, 0, 0.seconds, 0.seconds))
   }
 
   test("should complete even if no element was emitted") { implicit s =>
     var wasCompleted = false
 
-    Observable.never.takeByTimespan(1.second).unsafeSubscribeFn(new Observer[Any] {
-      def onNext(elem: Any) = Continue
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+    Observable.never
+      .takeByTimespan(1.second)
+      .unsafeSubscribeFn(new Observer[Any] {
+        def onNext(elem: Any) = Continue
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     s.tick()
     assert(!wasCompleted)
@@ -80,8 +84,10 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
   test("should cancel if downstream cancels") { implicit s =>
     var received = 0
 
-    Observable.intervalAtFixedRate(1.second).takeByTimespan(10.seconds).subscribe(
-      new Observer[Long] {
+    Observable
+      .intervalAtFixedRate(1.second)
+      .takeByTimespan(10.seconds)
+      .subscribe(new Observer[Long] {
         def onNext(elem: Long) =
           Future.delayedResult(100.millis) {
             received += 1

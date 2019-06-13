@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.atomic.{PaddingStrategy, AtomicAny}
+import monix.execution.atomic.{AtomicAny, PaddingStrategy}
 import scala.annotation.tailrec
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying cancelable
@@ -39,8 +39,7 @@ import scala.annotation.tailrec
   * Also see [[OrderedCancelable]], which is similar, but doesn't cancel
   * the old cancelable upon assignment.
   */
-final class SerialCancelable private (initial: Cancelable)
-  extends AssignableCancelable.Multi {
+final class SerialCancelable private (initial: Cancelable) extends AssignableCancelable.Multi {
 
   private[this] val state = {
     AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)

@@ -33,21 +33,18 @@ import scala.concurrent.{Future, Promise}
 object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  def buildNewWithSignal(bufferSize: Int, underlying: Observer[Int])
-    (implicit s: Scheduler) = {
+  def buildNewWithSignal(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
 
-    BufferedSubscriber(Subscriber(underlying, s),
-      ClearBufferAndSignal(bufferSize, nr => Coeval(Some(nr.toInt))))
+    BufferedSubscriber(Subscriber(underlying, s), ClearBufferAndSignal(bufferSize, nr => Coeval(Some(nr.toInt))))
   }
 
-  def buildNewWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)
-    (implicit s: Scheduler) = {
+  def buildNewWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)(implicit s: Scheduler) = {
 
-    BufferedSubscriber[Int](Subscriber(underlying, s),
+    BufferedSubscriber[Int](
+      Subscriber(underlying, s),
       ClearBufferAndSignal(bufferSize, nr => Coeval { log.set(nr); None }))
   }
 
@@ -103,7 +100,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+        s.execute(RunnableAction { buffer.onNext(n); loop(n - 1) })
       else
         buffer.onComplete()
 
@@ -190,8 +187,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     if (Platform.isJVM) {
       assertEquals(received, 28 + (2000 to 2004).sum)
       assertEquals(log.get(), 2000)
-    }
-    else {
+    } else {
       assertEquals(log.get(), 2002)
       assertEquals(received, 28 + (2002 to 2004).sum)
     }
@@ -202,14 +198,17 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
 
   test("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
-    val buffer = buildNewWithSignal(5, new Observer[Int] {
-      def onError(ex: Throwable) = {
-        errorThrown = ex
-      }
+    val buffer = buildNewWithSignal(
+      5,
+      new Observer[Int] {
+        def onError(ex: Throwable) = {
+          errorThrown = ex
+        }
 
-      def onNext(elem: Int) = throw new IllegalStateException()
-      def onComplete() = throw new IllegalStateException()
-    })
+        def onNext(elem: Int) = throw new IllegalStateException()
+        def onComplete() = throw new IllegalStateException()
+      }
+    )
 
     buffer.onError(DummyException("dummy"))
     s.tickOne()
@@ -306,14 +305,17 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     var errorThrown: Throwable = null
     val startConsuming = Promise[Continue.type]()
 
-    val buffer = buildNewWithSignal(10000, new Observer[Int] {
-      def onNext(elem: Int) = {
-        sum += elem
-        startConsuming.future
+    val buffer = buildNewWithSignal(
+      10000,
+      new Observer[Int] {
+        def onNext(elem: Int) = {
+          sum += elem
+          startConsuming.future
+        }
+        def onError(ex: Throwable) = errorThrown = ex
+        def onComplete() = throw new IllegalStateException()
       }
-      def onError(ex: Throwable) = errorThrown = ex
-      def onComplete() = throw new IllegalStateException()
-    })
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -349,14 +351,17 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     var received = 0L
     var wasCompleted = false
 
-    val buffer = buildNewWithSignal(Platform.recommendedBatchSize * 3, new Observer[Int] {
-      def onNext(elem: Int) = {
-        received += 1
-        Continue
+    val buffer = buildNewWithSignal(
+      Platform.recommendedBatchSize * 3,
+      new Observer[Int] {
+        def onNext(elem: Int) = {
+          received += 1
+          Continue
+        }
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
       }
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+    )
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()

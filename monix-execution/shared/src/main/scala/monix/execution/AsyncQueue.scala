@@ -112,8 +112,7 @@ import scala.concurrent.duration._
 final class AsyncQueue[A] private[monix] (
   capacity: BufferCapacity,
   channelType: ChannelType,
-  retryDelay: FiniteDuration = 10.millis)
-  (implicit scheduler: Scheduler) {
+  retryDelay: FiniteDuration = 10.millis)(implicit scheduler: Scheduler) {
 
   /** Try pushing a value to the queue.
     *
@@ -372,8 +371,7 @@ final class AsyncQueue[A] private[monix] (
     filter: T => Boolean,
     map: T => U,
     cb: Promise[U],
-    token: MultiAssignCancelable)
-    (p: CancelablePromise[Unit]): Unit = {
+    token: MultiAssignCancelable)(p: CancelablePromise[Unit]): Unit = {
 
     // Async boundary, for fairness reasons; also creates a full
     // memory barrier between the promise registration and what follows
@@ -464,8 +462,8 @@ object AsyncQueue {
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def withConfig[A](capacity: BufferCapacity, channelType: ChannelType)
-    (implicit scheduler: Scheduler): AsyncQueue[A] = {
+  def withConfig[A](capacity: BufferCapacity, channelType: ChannelType)(
+    implicit scheduler: Scheduler): AsyncQueue[A] = {
 
     new AsyncQueue[A](capacity, channelType)
   }

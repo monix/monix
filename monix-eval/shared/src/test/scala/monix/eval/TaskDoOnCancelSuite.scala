@@ -28,7 +28,8 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     var effect2 = 0
     var effect3 = 0
 
-    val f = Task.eval(1)
+    val f = Task
+      .eval(1)
       .delayExecution(1.second)
       .doOnCancel(Task.eval { effect1 += 1 })
       .delayExecution(1.second)
@@ -47,7 +48,9 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
   test("doOnCancel should mirror failed sources") { implicit s =>
     var effect = 0
     val dummy = new RuntimeException("dummy")
-    val f = Task.raiseError(dummy).executeAsync
+    val f = Task
+      .raiseError(dummy)
+      .executeAsync
       .doOnCancel(Task.eval { effect += 1 })
       .runToFuture
 
@@ -61,7 +64,8 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     var effect2 = 0
     var effect3 = 0
 
-    val f = Task.eval(1)
+    val f = Task
+      .eval(1)
       .delayResult(1.second)
       .doOnCancel(Task.eval { effect1 += 1 })
       .delayResult(1.second)
@@ -87,7 +91,8 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     var effect2 = 0
     var effect3 = 0
 
-    val f = Task.eval(1)
+    val f = Task
+      .eval(1)
       .delayResult(1.second)
       .doOnCancel(Task.eval { effect1 += 1 })
       .delayResult(1.second)
@@ -113,7 +118,8 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     var effect2 = 0
     var effect3 = 0
 
-    val f = Task.eval(1)
+    val f = Task
+      .eval(1)
       .delayResult(1.second)
       .doOnCancel(Task.eval { effect1 += 1 })
       .delayResult(1.second)
@@ -139,7 +145,8 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     var effect2 = 0
     var effect3 = 0
 
-    val f = Task.eval(1)
+    val f = Task
+      .eval(1)
       .doOnCancel(Task.eval { effect1 += 1 })
       .delayExecution(1.second)
       .doOnCancel(Task.eval { effect2 += 1 })
@@ -165,7 +172,8 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     var effect2 = 0
     var effect3 = 0
 
-    val f = Task.eval(1)
+    val f = Task
+      .eval(1)
       .doOnCancel(Task.eval { effect1 += 1 })
       .delayExecution(1.second)
       .doOnCancel(Task.eval { effect2 += 1 })

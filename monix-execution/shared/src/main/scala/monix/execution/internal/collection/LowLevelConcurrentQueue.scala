@@ -27,5 +27,4 @@ private[monix] trait LowLevelConcurrentQueue[A] extends Serializable {
   def fencePoll(): Unit
 }
 
-private[monix] object LowLevelConcurrentQueue
-  extends queues.LowLevelConcurrentQueueBuilders
+private[monix] object LowLevelConcurrentQueue extends queues.LowLevelConcurrentQueueBuilders

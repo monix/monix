@@ -32,8 +32,6 @@ package monix.execution.exceptions
   *   //=> true
   * }}}
   */
-final case class DummyException(message: String)
-  extends RuntimeException(message) with Serializable {
-
+final case class DummyException(message: String) extends RuntimeException(message) with Serializable {
   def this() = this(null)
 }

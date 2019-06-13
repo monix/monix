@@ -22,7 +22,8 @@ import scala.concurrent.duration._
 
 object DebounceSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.interval(2.seconds)
+    val o = Observable
+      .interval(2.seconds)
       .debounce(1.second)
       .take(sourceCount)
 
@@ -34,8 +35,11 @@ object DebounceSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable
-      .interval(2.seconds).take(sourceCount), ex)
+    val o = createObservableEndingInError(
+      Observable
+        .interval(2.seconds)
+        .take(sourceCount),
+      ex)
       .debounce(1.second)
 
     val count = sourceCount - 1

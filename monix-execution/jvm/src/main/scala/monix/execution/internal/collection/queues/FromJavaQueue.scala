@@ -21,8 +21,7 @@ import java.util
 import monix.execution.internal.collection.LowLevelConcurrentQueue
 import scala.collection.mutable
 
-private[internal] class FromJavaQueue[A](queue: util.Queue[A])
-  extends LowLevelConcurrentQueue[A] {
+private[internal] class FromJavaQueue[A](queue: util.Queue[A]) extends LowLevelConcurrentQueue[A] {
 
   final def fenceOffer(): Unit = ()
   final def fencePoll(): Unit = ()

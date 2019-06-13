@@ -33,16 +33,13 @@ import scala.concurrent.Promise
 object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  def buildNewForIntWithSignal(bufferSize: Int, underlying: Observer[Int])
-    (implicit s: Scheduler) =
+  def buildNewForIntWithSignal(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) =
     BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Coeval(Some(nr.toInt))))
 
-  def buildNewForIntWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)
-    (implicit s: Scheduler) =
+  def buildNewForIntWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)(implicit s: Scheduler) =
     BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal[Int](bufferSize, nr => Coeval { log.set(nr); None }))
 
   def buildNewForLongWithSignal(bufferSize: Int, underlying: Observer[Long])(implicit s: Scheduler) = {
@@ -101,8 +98,9 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
-      else
+        s.executeAsync { () =>
+          buffer.onNext(n); loop(n - 1)
+        } else
         buffer.onComplete()
 
     loop(10000)
@@ -199,14 +197,17 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
 
   test("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
-    val buffer = buildNewForIntWithSignal(5, new Observer[Int] {
-      def onError(ex: Throwable) = {
-        errorThrown = ex
-      }
+    val buffer = buildNewForIntWithSignal(
+      5,
+      new Observer[Int] {
+        def onError(ex: Throwable) = {
+          errorThrown = ex
+        }
 
-      def onNext(elem: Int) = throw new IllegalStateException()
-      def onComplete() = throw new IllegalStateException()
-    })
+        def onNext(elem: Int) = throw new IllegalStateException()
+        def onComplete() = throw new IllegalStateException()
+      }
+    )
 
     buffer.onError(DummyException("dummy"))
     s.tickOne()
@@ -307,14 +308,17 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val startConsuming = Promise[Continue.type]()
 
-    val buffer = buildNewForLongWithSignal(10000, new Observer[Long] {
-      def onNext(elem: Long) = {
-        sum += elem
-        startConsuming.future
+    val buffer = buildNewForLongWithSignal(
+      10000,
+      new Observer[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          startConsuming.future
+        }
+        def onError(ex: Throwable) = errorThrown = ex
+        def onComplete() = throw new IllegalStateException()
       }
-      def onError(ex: Throwable) = errorThrown = ex
-      def onComplete() = throw new IllegalStateException()
-    })
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -329,14 +333,17 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var errorThrown: Throwable = null
 
-    val buffer = buildNewForLongWithSignal(10000, new Observer[Long] {
-      def onNext(elem: Long) = {
-        sum += elem
-        Continue
+    val buffer = buildNewForLongWithSignal(
+      10000,
+      new Observer[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          Continue
+        }
+        def onError(ex: Throwable) = errorThrown = ex
+        def onComplete() = throw new IllegalStateException()
       }
-      def onError(ex: Throwable) = errorThrown = ex
-      def onComplete() = throw new IllegalStateException()
-    })
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -350,15 +357,18 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer = buildNewForIntWithSignal(Platform.recommendedBatchSize * 3, new Observer[Int] {
-      def onNext(elem: Int) = {
-        received += 1
-        Continue
-      }
+    val buffer = buildNewForIntWithSignal(
+      Platform.recommendedBatchSize * 3,
+      new Observer[Int] {
+        def onNext(elem: Int) = {
+          received += 1
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      }
+    )
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()

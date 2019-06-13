@@ -48,7 +48,7 @@ object TimeoutOnSlowUpstreamSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val o = Observable.now(1L).delayOnComplete(1.hour).timeoutOnSlowUpstream(1.second)
-    Seq(Sample(o,1,1,0.seconds,0.seconds))
+    Seq(Sample(o, 1, 1, 0.seconds, 0.seconds))
   }
 
   test("should emit timeout after time passes") { implicit s =>
@@ -56,17 +56,18 @@ object TimeoutOnSlowUpstreamSuite extends BaseOperatorSuite {
     var received = 0
     var errorThrown: Throwable = null
 
-    p.timeoutOnSlowUpstream(10.seconds).subscribe(new Observer.Sync[Int] {
-      def onComplete() = ()
-      def onError(ex: Throwable) = {
-        errorThrown = ex
-      }
+    p.timeoutOnSlowUpstream(10.seconds)
+      .subscribe(new Observer.Sync[Int] {
+        def onComplete() = ()
+        def onError(ex: Throwable) = {
+          errorThrown = ex
+        }
 
-      def onNext(elem: Int) = {
-        received += elem
-        Continue
-      }
-    })
+        def onNext(elem: Int) = {
+          received += elem
+          Continue
+        }
+      })
 
     p.onNext(1)
     assertEquals(received, 1)
@@ -80,7 +81,8 @@ object TimeoutOnSlowUpstreamSuite extends BaseOperatorSuite {
     assertEquals(errorThrown, null)
 
     s.tick(1.second)
-    assert(errorThrown != null && errorThrown.isInstanceOf[TimeoutException],
+    assert(
+      errorThrown != null && errorThrown.isInstanceOf[TimeoutException],
       "errorThrown should be a TimeoutException")
   }
 }

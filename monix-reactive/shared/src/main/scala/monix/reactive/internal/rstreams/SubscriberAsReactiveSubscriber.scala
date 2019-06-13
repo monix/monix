@@ -86,8 +86,7 @@ private[reactive] object SubscriberAsReactiveSubscriber {
   * @param requestCount the parameter passed to `Subscription.request`,
   *                    also representing the buffer size; MUST BE strictly positive
   */
-private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
-  (target: Subscriber[A], requestCount: Int)
+private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Subscriber[A], requestCount: Int)
   extends RSubscriber[A] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
@@ -127,10 +126,11 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
           case Stop => stop()
           case async =>
             async.transform(
-              ack => ack match {
-                case Continue => continue()
-                case Stop => stop()
-              },
+              ack =>
+                ack match {
+                  case Continue => continue()
+                  case Stop => stop()
+                },
               err => {
                 stop()
                 err
@@ -140,17 +140,19 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
       def onNext(elem: A): Future[Ack] = {
         if (isActive) {
           if (isFinite) finiteOnNext(elem) else target.onNext(elem)
-        }
-        else
+        } else
           Stop
       }
 
       def onError(ex: Throwable): Unit =
-        if (isActive) { isActive = false; target.onError(ex) }
+        if (isActive) {
+          isActive = false; target.onError(ex)
+        }
       def onComplete(): Unit =
-        if (isActive) { isActive = false; target.onComplete() }
+        if (isActive) {
+          isActive = false; target.onComplete()
+        }
     }
-
 
   private[this] val buffer: Subscriber.Sync[A] =
     BufferedSubscriber.synchronous(downstream, Unbounded, SingleProducer)
@@ -205,15 +207,14 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
   *   })
   * }}}
   */
-private[reactive] final class SyncSubscriberAsReactiveSubscriber[A]
-  (target: Subscriber.Sync[A], requestCount: Int)
+private[reactive] final class SyncSubscriberAsReactiveSubscriber[A](target: Subscriber.Sync[A], requestCount: Int)
   extends RSubscriber[A] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
 
   private[this] implicit val s = target.scheduler
 
-  private[this] var subscription = null : RSubscription
+  private[this] var subscription = null: RSubscription
   private[this] var expectingCount = 0L
   @volatile private[this] var isCanceled = false
 
@@ -222,19 +223,16 @@ private[reactive] final class SyncSubscriberAsReactiveSubscriber[A]
       subscription = s
       expectingCount = requestCount
       s.request(requestCount)
-    }
-    else {
+    } else {
       s.cancel()
     }
   }
 
   def onNext(elem: A): Unit = {
     if (subscription == null)
-      throw new NullPointerException(
-        "onSubscription never happened, see rule 2.13 in the Reactive Streams spec")
+      throw new NullPointerException("onSubscription never happened, see rule 2.13 in the Reactive Streams spec")
     if (elem == null)
-      throw new NullPointerException(
-        "onNext(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
+      throw new NullPointerException("onNext(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
 
     if (!isCanceled) {
       if (expectingCount > 0) expectingCount -= 1
@@ -255,8 +253,8 @@ private[reactive] final class SyncSubscriberAsReactiveSubscriber[A]
   }
 
   def onError(ex: Throwable): Unit = {
-    if (ex == null) throw new NullPointerException(
-      "onError(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
+    if (ex == null)
+      throw new NullPointerException("onError(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
 
     if (!isCanceled) {
       isCanceled = true

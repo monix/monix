@@ -17,14 +17,15 @@
 
 package monix.execution.internal.forkJoin
 
-private[monix] final class AdaptedForkJoinTask(runnable: Runnable)
-  extends ForkJoinTask[Unit] {
+private[monix] final class AdaptedForkJoinTask(runnable: Runnable) extends ForkJoinTask[Unit] {
 
   def setRawResult(u: Unit): Unit = ()
   def getRawResult(): Unit = ()
 
   def exec(): Boolean =
-    try { runnable.run(); true } catch {
+    try {
+      runnable.run(); true
+    } catch {
       case anything: Throwable =>
         val t = Thread.currentThread
         t.getUncaughtExceptionHandler match {

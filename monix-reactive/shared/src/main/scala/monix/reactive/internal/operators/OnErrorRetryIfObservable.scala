@@ -27,8 +27,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.Success
 
-private[reactive] final
-class OnErrorRetryIfObservable[+A](source: Observable[A], p: Throwable => Boolean)
+private[reactive] final class OnErrorRetryIfObservable[+A](source: Observable[A], p: Throwable => Boolean)
   extends Observable[A] {
 
   private def loop(subscriber: Subscriber[A], task: OrderedCancelable, retryIdx: Long): Unit = {
@@ -66,7 +65,7 @@ class OnErrorRetryIfObservable[+A](source: Observable[A], p: Throwable => Boolea
               // blowing out the call stack
               ack.onComplete {
                 case Success(Continue) =>
-                  loop(subscriber, task, retryIdx+1)
+                  loop(subscriber, task, retryIdx + 1)
                 case _ =>
                   () // stop
               }

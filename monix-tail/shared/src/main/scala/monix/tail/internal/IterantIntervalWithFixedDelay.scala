@@ -25,8 +25,9 @@ private[tail] object IterantIntervalWithFixedDelay {
   /**
     * Implementation for `Iterant.intervalWithFixedDelay`.
     */
-  def apply[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)
-    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] = {
+  def apply[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)(
+    implicit F: Async[F],
+    timer: Timer[F]): Iterant[F, Long] = {
 
     // Recursive loop
     def loop(index: Long): Iterant[F, Long] = {

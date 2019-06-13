@@ -26,18 +26,17 @@ private[tail] object IterantDropWhile {
   /**
     * Implementation for `Iterant#dropWhile`
     */
-  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] = {
     Suspend(F.delay(new Loop(p).apply(source)))
   }
 
-  private class Loop[F[_], A](p: A => Boolean)(implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+  private class Loop[F[_], A](p: A => Boolean)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
     private[this] var dropFinished = false
 
     def visit(ref: Next[F, A]): Iterant[F, A] =
-      if (dropFinished) ref else {
+      if (dropFinished) ref
+      else {
         val item = ref.item
         if (p(item))
           Suspend(ref.rest.map(this))
@@ -52,7 +51,8 @@ private[tail] object IterantDropWhile {
       else visit(ref.toNextCursor())
 
     def visit(ref: NextCursor[F, A]): Iterant[F, A] =
-      if (dropFinished) ref else {
+      if (dropFinished) ref
+      else {
         val cursor = ref.cursor
         var keepDropping = true
         var item: A = null.asInstanceOf[A]

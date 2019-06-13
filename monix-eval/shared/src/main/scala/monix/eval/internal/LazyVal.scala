@@ -35,10 +35,7 @@ import scala.util.control.NonFatal
   *        memoization should happen only for successful results,
   *        or for errors as well
   */
-private[eval] final class LazyVal[A] private (
-  f: () => A,
-  val cacheErrors: Boolean)
-  extends (() => Coeval.Eager[A]) {
+private[eval] final class LazyVal[A] private (f: () => A, val cacheErrors: Boolean) extends (() => Coeval.Eager[A]) {
 
   private[this] var thunk = f
   private[this] var cache: Coeval.Eager[A] = _

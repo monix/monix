@@ -28,7 +28,8 @@ object UncancelableSuite extends BaseTestSuite {
   implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
 
   test("uncancelable works") { implicit ec =>
-    val obs = Observable.eval(1)
+    val obs = Observable
+      .eval(1)
       .delayExecution(1.second)
       .uncancelable
 

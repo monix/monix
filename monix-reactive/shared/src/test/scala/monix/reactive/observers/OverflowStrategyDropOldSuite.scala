@@ -30,8 +30,7 @@ import scala.concurrent.{Future, Promise}
 object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -86,7 +85,7 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+        s.execute(RunnableAction { buffer.onNext(n); loop(n - 1) })
       else
         buffer.onComplete()
 
@@ -146,7 +145,9 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, DropOld(5))
+      },
+      DropOld(5)
+    )
 
     buffer.onError(DummyException("dummy"))
     s.tickOne()
@@ -166,7 +167,9 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = Continue
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, DropOld(5))
+      },
+      DropOld(5)
+    )
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
@@ -187,7 +190,9 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = promise.future
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, DropOld(5))
+      },
+      DropOld(5)
+    )
 
     for (i <- 1 to 10) assertEquals(buffer.onNext(i), Continue)
     buffer.onError(DummyException("dummy"))
@@ -212,7 +217,9 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, DropOld(10000))
+      },
+      DropOld(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -236,7 +243,9 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, DropOld(10000))
+      },
+      DropOld(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -260,7 +269,9 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, DropOld(10000))
+      },
+      DropOld(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -284,7 +295,9 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, DropOld(10000))
+      },
+      DropOld(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -307,7 +320,9 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, DropOld(Platform.recommendedBatchSize * 3))
+      },
+      DropOld(Platform.recommendedBatchSize * 3)
+    )
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
@@ -558,8 +573,7 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assert(errorThrown != null, "errorThrown != null")
-    assert(errorThrown.isInstanceOf[NullPointerException],
-      "errorThrown.isInstanceOf[NullPointerException]")
+    assert(errorThrown.isInstanceOf[NullPointerException], "errorThrown.isInstanceOf[NullPointerException]")
   }
 
   test("buffer size is required to be greater than 1") { implicit s =>

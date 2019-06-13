@@ -34,8 +34,7 @@ import monix.execution.Cancelable
   *
   * Useful in case you need a forward reference.
   */
-final class SingleAssignCancelable private (extra: Cancelable)
-  extends AssignableCancelable.Bool {
+final class SingleAssignCancelable private (extra: Cancelable) extends AssignableCancelable.Bool {
 
   // For binary compatibility
   private[SingleAssignCancelable] def this() = this(null)
@@ -63,7 +62,8 @@ final class SingleAssignCancelable private (extra: Cancelable)
   @throws(classOf[IllegalStateException])
   override def `:=`(value: Cancelable): this.type = {
     // Optimistic CAS, no loop needed
-    if (state.compareAndSet(Empty, IsActive(value))) this else {
+    if (state.compareAndSet(Empty, IsActive(value))) this
+    else {
       state.get match {
         case IsEmptyCanceled =>
           state.getAndSet(IsCanceled) match {
@@ -80,7 +80,7 @@ final class SingleAssignCancelable private (extra: Cancelable)
         case Empty =>
           // $COVERAGE-OFF$
           :=(value)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }
@@ -107,15 +107,15 @@ final class SingleAssignCancelable private (extra: Cancelable)
   private def raiseError(): Nothing = {
     throw new IllegalStateException(
       "Cannot assign to SingleAssignmentCancelable, " +
-      "as it was already assigned once")
+        "as it was already assigned once")
   }
 
-  private[this] val state = AtomicAny(Empty : State)
+  private[this] val state = AtomicAny(Empty: State)
 }
 
 object SingleAssignCancelable {
   /** Builder for [[SingleAssignCancelable]]. */
-  def  apply(): SingleAssignCancelable =
+  def apply(): SingleAssignCancelable =
     new SingleAssignCancelable()
 
   /** Builder for [[SingleAssignCancelable]] that takes an extra reference,

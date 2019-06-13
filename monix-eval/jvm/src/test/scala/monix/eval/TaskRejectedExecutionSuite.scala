@@ -26,12 +26,11 @@ import scala.concurrent.duration._
 
 object TaskRejectedExecutionSuite extends SimpleTestSuite {
 
-  val limited = Scheduler(
-    new ExecutionContext {
-      def execute(runnable: Runnable): Unit = throw new RejectedExecutionException()
-      def reportFailure(cause: Throwable): Unit =
-        fail("Exceptions should not be reported using scheduler")
-    })
+  val limited = Scheduler(new ExecutionContext {
+    def execute(runnable: Runnable): Unit = throw new RejectedExecutionException()
+    def reportFailure(cause: Throwable): Unit =
+      fail("Exceptions should not be reported using scheduler")
+  })
 
   def testRejected[A](task: Task[A]): Unit =
     intercept[RejectedExecutionException] {

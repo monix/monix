@@ -115,15 +115,14 @@ object StackedCancelable {
   /** Implementation for [[StackedCancelable]] backed by a
     * cache-line padded atomic reference for synchronization.
     */
-  private final class Impl(initial: List[Cancelable])
-    extends StackedCancelable {
+  private final class Impl(initial: List[Cancelable]) extends StackedCancelable {
 
     /**
-     * Biasing the implementation for single threaded usage
-     * in push/pop — this value is caching the last value seen,
-     * in order to safe a `state.get` instruction before the
-     * `compareAndSet` happens.
-     */
+      * Biasing the implementation for single threaded usage
+      * in push/pop — this value is caching the last value seen,
+      * in order to safe a `state.get` instruction before the
+      * `compareAndSet` happens.
+      */
     private[this] var cache = initial
 
     private[this] val state =

@@ -40,7 +40,8 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     val o2 = source.map(_ + 3)
     val o3 = source.map(_ + 4)
 
-    val f = Observable.fromIterable(Seq(o1, o2, o3))
+    val f = Observable
+      .fromIterable(Seq(o1, o2, o3))
       .mergeMap(x => x)(Unbounded)
       .sum
       .runAsyncGetFirst
@@ -99,7 +100,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0) s.execute(new Runnable {
-        def run() = { buffer.onNext(n); loop(n-1) }
+        def run() = { buffer.onNext(n); loop(n - 1) }
       })
       else buffer.onComplete()
 
@@ -190,7 +191,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     // Publisher 4
     val p4 = Future.successful(()).flatMap(_ => buffer.onNextAll(range.filter(_ % 4 == 3)))
     // Final event
-    Future.sequence(Seq(p1,p2,p3,p4)).foreach(_ => buffer.onComplete())
+    Future.sequence(Seq(p1, p2, p3, p4)).foreach(_ => buffer.onComplete())
 
     assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
     assertEquals(sum, total * (total - 1) / 2)

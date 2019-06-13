@@ -23,9 +23,8 @@ import monix.reactive.observers.Subscriber
   * [[monix.reactive.OverflowStrategy.BackPressure BackPressured]]
   * buffer overflowStrategy.
   */
-private[monix] final class BackPressuredBufferedSubscriber[A] private
-  (out: Subscriber[A], _size: Int)
-  extends AbstractBackPressuredBufferedSubscriber[A,A](out,_size) { self =>
+private[monix] final class BackPressuredBufferedSubscriber[A] private (out: Subscriber[A], _size: Int)
+  extends AbstractBackPressuredBufferedSubscriber[A, A](out, _size) { self =>
 
   require(_size > 0, "bufferSize must be a strictly positive number")
 

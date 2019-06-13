@@ -38,8 +38,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
   def timeout[A](source: Future[A], atMost: FiniteDuration)(implicit s: Scheduler): Future[A] = {
     val err = new TimeoutException
     val promise = Promise[A]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit,
-      new Runnable { def run() = promise.tryFailure(err) })
+    val task = s.scheduleOnce(atMost.length, atMost.unit, new Runnable { def run() = promise.tryFailure(err) })
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
@@ -63,12 +62,11 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     * @return a new future that will either complete with the result of our
     *         source or with the fallback in case the timeout is reached
     */
-  def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])
-    (implicit s: Scheduler): Future[A] = {
+  def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])(
+    implicit s: Scheduler): Future[A] = {
 
     val promise = Promise[Option[Try[A]]]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit,
-      new Runnable { def run() = promise.trySuccess(None) })
+    val task = s.scheduleOnce(atMost.length, atMost.unit, new Runnable { def run() = promise.trySuccess(None) })
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
@@ -98,7 +96,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     *
     * Similar to `Future.transform` from Scala 2.12.
     */
-  def transform[A,B](source: Future[A], f: Try[A] => Try[B])(implicit ec: ExecutionContext): Future[B] =
+  def transform[A, B](source: Future[A], f: Try[A] => Try[B])(implicit ec: ExecutionContext): Future[B] =
     source.transform(f)
 
   /** Given a mapping functions that operates on successful results
@@ -106,7 +104,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     *
     * Similar to `Future.transformWith` from Scala 2.12.
     */
-  def transformWith[A,B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): Future[B] =
+  def transformWith[A, B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): Future[B] =
     source.transformWith(f)
 
   /** Utility that transforms a `Future[Try[A]]` into a `Future[A]`,
@@ -134,8 +132,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
         FutureUtils.timeout(source, atMost)
 
       /** [[FutureUtils.timeoutTo]] exposed as an extension method. */
-      def timeoutTo[U >: A](atMost: FiniteDuration, fallback: => Future[U])
-        (implicit s: Scheduler): Future[U] =
+      def timeoutTo[U >: A](atMost: FiniteDuration, fallback: => Future[U])(implicit s: Scheduler): Future[U] =
         FutureUtils.timeoutTo(source, atMost, fallback)
 
       /** [[FutureUtils.materialize]] exposed as an extension method. */

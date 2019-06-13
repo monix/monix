@@ -81,7 +81,9 @@ object CoevalMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Coeval.apply.memoizeOnSuccess effects") { implicit s =>
     var effect = 0
     val coeval1 = Coeval { effect += 1; 3 }.memoizeOnSuccess
-    val coeval2 = coeval1.map { x => effect += 1; x + 1 }
+    val coeval2 = coeval1.map { x =>
+      effect += 1; x + 1
+    }
 
     val result1 = coeval2.runTry()
     assertEquals(effect, 2)
@@ -95,7 +97,9 @@ object CoevalMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Coeval.suspend.memoizeOnSuccess effects") { implicit s =>
     var effect = 0
     val coeval1 = Coeval.defer { effect += 1; Coeval.now(3) }.memoizeOnSuccess
-    val coeval2 = coeval1.map { x => effect += 1; x + 1 }
+    val coeval2 = coeval1.map { x =>
+      effect += 1; x + 1
+    }
 
     val result1 = coeval2.runTry()
     assertEquals(effect, 2)
@@ -109,8 +113,11 @@ object CoevalMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Coeval.suspend.flatMap.memoizeOnSuccess effects") { implicit s =>
     var effect = 0
     val coeval1 = Coeval.defer { effect += 1; Coeval.now(2) }
-      .flatMap(x => Coeval.now(x + 1)).memoizeOnSuccess
-    val coeval2 = coeval1.map { x => effect += 1; x + 1 }
+      .flatMap(x => Coeval.now(x + 1))
+      .memoizeOnSuccess
+    val coeval2 = coeval1.map { x =>
+      effect += 1; x + 1
+    }
 
     val result1 = coeval2.runTry()
     assertEquals(effect, 2)
@@ -124,9 +131,9 @@ object CoevalMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Coeval.eval(throw).memoizeOnSuccess should not cache errors") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
-    val coeval = Coeval
-      .eval { effect += 1; if (effect < 3) throw dummy else effect }
-      .memoizeOnSuccess
+    val coeval = Coeval.eval {
+      effect += 1; if (effect < 3) throw dummy else effect
+    }.memoizeOnSuccess
 
     assertEquals(coeval.runTry(), Failure(dummy))
     assertEquals(effect, 1)
@@ -141,10 +148,10 @@ object CoevalMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Coeval.eval(throw).map.memoizeOnSuccess should not cache errors") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
-    val coeval = Coeval
-      .eval { effect += 1; if (effect < 3) throw dummy else effect }
-      .map(_ + 1)
-      .memoizeOnSuccess
+    val coeval =
+      Coeval.eval { effect += 1; if (effect < 3) throw dummy else effect }
+        .map(_ + 1)
+        .memoizeOnSuccess
 
     assertEquals(coeval.runTry(), Failure(dummy))
     assertEquals(effect, 1)
@@ -172,7 +179,7 @@ object CoevalMemoizeOnSuccessSuite extends BaseTestSuite {
   }
 
   test("Coeval.eval.map.memoize eq Coeval.eval.map.memoize.memoizeOnSuccess") { implicit s =>
-    val coeval = Coeval.eval(1).map(_+1).memoize
+    val coeval = Coeval.eval(1).map(_ + 1).memoize
     assertEquals(coeval, coeval.memoizeOnSuccess)
   }
 

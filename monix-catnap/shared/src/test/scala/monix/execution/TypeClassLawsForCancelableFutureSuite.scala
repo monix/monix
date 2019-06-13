@@ -25,11 +25,11 @@ import scala.util.{Failure, Success}
 
 object TypeClassLawsForCancelableFutureSuite extends BaseLawsSuite {
   checkAllAsync("CoflatMap[CancelableFuture]") { implicit ec =>
-    CoflatMapTests[CancelableFuture].coflatMap[Int,Int,Int]
+    CoflatMapTests[CancelableFuture].coflatMap[Int, Int, Int]
   }
 
   checkAllAsync("MonadError[CancelableFuture, Throwable]") { implicit ec =>
-    MonadErrorTests[CancelableFuture, Throwable].monadError[Int,Int,Int]
+    MonadErrorTests[CancelableFuture, Throwable].monadError[Int, Int, Int]
   }
 
   test("adaptError") {

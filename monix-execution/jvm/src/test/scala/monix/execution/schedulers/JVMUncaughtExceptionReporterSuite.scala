@@ -21,7 +21,6 @@ import monix.execution.Scheduler
 
 import java.util.concurrent.Executors
 
-
 object JVMUncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
   testReports("Scheduler(ExecutorService, _)")(Scheduler(Executors.newSingleThreadExecutor(), _))
   testReports("Scheduler.io")(r => Scheduler.io(reporter = r))

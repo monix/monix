@@ -42,7 +42,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
 
   test("trigger error when array of consumers is empty") { implicit s =>
     intercept[IllegalArgumentException] {
-      new LoadBalanceConsumer(1, Array.empty[Consumer[Int,Int]])
+      new LoadBalanceConsumer(1, Array.empty[Consumer[Int, Int]])
     }
   }
 
@@ -55,10 +55,9 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
         (pos % 15) + 1
       }
 
-      val consumer = Consumer.loadBalance(parallelism,
-        Consumer.foldLeft[Long,Int](0L)(_+_))
+      val consumer = Consumer.loadBalance(parallelism, Consumer.foldLeft[Long, Int](0L)(_ + _))
 
-      val task1 = source.foldLeft(0L)(_+_).firstL
+      val task1 = source.foldLeft(0L)(_ + _).firstL
       val task2 = source.consumeWith(consumer).map(_.sum)
       task1 <-> task2
     }
@@ -73,13 +72,12 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
         (pos % 15) + 1
       }
 
-      val fold = Consumer.foldLeft[Long,Int](0L)(_+_)
+      val fold = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val justOne = Consumer.headOption[Int].map(_.getOrElse(0).toLong)
-      val allConsumers = for (i <- 0 until parallelism) yield
-        if (i % 2 == 0) fold else justOne
+      val allConsumers = for (i <- 0 until parallelism) yield if (i % 2 == 0) fold else justOne
 
-      val consumer = Consumer.loadBalance(allConsumers:_*)
-      val task1 = source.foldLeft(0L)(_+_).firstL
+      val consumer = Consumer.loadBalance(allConsumers: _*)
+      val task1 = source.foldLeft(0L)(_ + _).firstL
       val task2 = source.consumeWith(consumer).map(_.sum)
       task1 <-> task2
     }
@@ -87,7 +85,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
 
   test("keep subscribers busy until the end") { implicit s =>
     val iterations = 10000
-    val expectedSum = iterations.toLong * (iterations-1) / 2
+    val expectedSum = iterations.toLong * (iterations - 1) / 2
     val ackPromise = Promise[Ack]()
     val sum = Atomic(0L)
     val wasCompleted = Atomic(0)
@@ -122,7 +120,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     val iterations = 10000
     val ackPromise1 = Promise[Ack]()
     val ackPromise2 = Promise[Ack]()
-    val expectedSum = iterations.toLong * (iterations-1) / 2
+    val expectedSum = iterations.toLong * (iterations - 1) / 2
     val sum = Atomic(0L)
     val wasCompleted = Atomic(0)
 
@@ -168,7 +166,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     val iterations = 10000
     val ackPromise1 = Promise[Ack]()
     val ackPromise2 = Promise[Ack]()
-    val expectedSum = iterations.toLong * (iterations-1) / 2
+    val expectedSum = iterations.toLong * (iterations - 1) / 2
     val sum = Atomic(0L)
     val wasCompleted = Atomic(0)
 
@@ -242,7 +240,9 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
   def createCancelable(sum: AtomicLong, wasCompleted: AtomicInt, conn: CompositeCancelable): Consumer[Int, Unit] =
     new Consumer[Int, Unit] {
       def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[Int], AssignableCancelable) = {
-        val sendFinal = Cancelable { () => cb.onSuccess(()) }
+        val sendFinal = Cancelable { () =>
+          cb.onSuccess(())
+        }
         val c = new AssignableCancelable {
           def cancel(): Unit = conn.cancel()
           def `:=`(value: Cancelable): this.type = {
@@ -255,7 +255,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
         val sub = new Subscriber[Int] {
           implicit val scheduler = s
           def onNext(elem: Int) = {
-            sum.increment(elem+1)
+            sum.increment(elem + 1)
             Continue
           }
 

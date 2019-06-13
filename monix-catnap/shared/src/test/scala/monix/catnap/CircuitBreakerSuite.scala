@@ -77,8 +77,9 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int, acc: Int): IO[Int] = {
       if (n > 0)
-        circuitBreaker.protect(IO.shift *> IO(acc+1))
-          .flatMap(s => loop(n-1, s))
+        circuitBreaker
+          .protect(IO.shift *> IO(acc + 1))
+          .flatMap(s => loop(n - 1, s))
       else
         IO.pure(acc)
     }
@@ -88,15 +89,17 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   }
 
   test("should be stack safe for successful async tasks (inner protect calls)") { implicit s =>
-    val circuitBreaker = CircuitBreaker.of[IO](
-      maxFailures = 5,
-      resetTimeout = 1.minute
-    ).unsafeRunSync()
+    val circuitBreaker = CircuitBreaker
+      .of[IO](
+        maxFailures = 5,
+        resetTimeout = 1.minute
+      )
+      .unsafeRunSync()
 
     def loop(n: Int, acc: Int): IO[Int] =
       IO.shift *> IO.suspend {
         if (n > 0)
-          circuitBreaker.protect(loop(n-1, acc+1))
+          circuitBreaker.protect(loop(n - 1, acc + 1))
         else
           IO.pure(acc)
       }
@@ -106,15 +109,18 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   }
 
   test("should be stack safe for successful immediate tasks (flatMap)") { implicit s =>
-    val circuitBreaker = CircuitBreaker.of[IO](
-      maxFailures = 5,
-      resetTimeout = 1.minute
-    ).unsafeRunSync
+    val circuitBreaker = CircuitBreaker
+      .of[IO](
+        maxFailures = 5,
+        resetTimeout = 1.minute
+      )
+      .unsafeRunSync
 
     def loop(n: Int, acc: Int): IO[Int] = {
       if (n > 0)
-        circuitBreaker.protect(IO(acc+1))
-          .flatMap(s => loop(n-1, s))
+        circuitBreaker
+          .protect(IO(acc + 1))
+          .flatMap(s => loop(n - 1, s))
       else
         IO.pure(acc)
     }
@@ -124,15 +130,17 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   }
 
   test("should be stack safe for successful immediate tasks (defer)") { implicit s =>
-    val circuitBreaker = CircuitBreaker.of[IO](
-      maxFailures = 5,
-      resetTimeout = 1.minute
-    ).unsafeRunSync
+    val circuitBreaker = CircuitBreaker
+      .of[IO](
+        maxFailures = 5,
+        resetTimeout = 1.minute
+      )
+      .unsafeRunSync
 
     def loop(n: Int, acc: Int): IO[Int] =
       IO.suspend {
         if (n > 0)
-          circuitBreaker.protect(loop(n-1, acc+1))
+          circuitBreaker.protect(loop(n - 1, acc + 1))
         else
           IO.pure(acc)
       }
@@ -148,14 +156,16 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     var rejectedCount = 0
 
     val circuitBreaker = {
-      val cb = CircuitBreaker.of[IO](
-        maxFailures = 5,
-        resetTimeout = 1.minute,
-        exponentialBackoffFactor = 2,
-        maxResetTimeout = 10.minutes
-      ).unsafeRunSync()
+      val cb = CircuitBreaker
+        .of[IO](
+          maxFailures = 5,
+          resetTimeout = 1.minute,
+          exponentialBackoffFactor = 2,
+          maxResetTimeout = 10.minutes
+        )
+        .unsafeRunSync()
 
-      cb.doOnOpen(IO { openedCount += 1})
+      cb.doOnOpen(IO { openedCount += 1 })
         .doOnClosed(IO { closedCount += 1 })
         .doOnHalfOpen(IO { halfOpenCount += 1 })
         .doOnRejectedTask(IO { rejectedCount += 1 })
@@ -367,7 +377,6 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     val f3 = cb.protect(SyncIO(1)).attempt.unsafeRunSync()
     assertEquals(f3, Right(1))
   }
-
 
   test("awaitClose with Sync instance override") { implicit s =>
     // Trying to override the Sync[IO] instance.

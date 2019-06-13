@@ -23,7 +23,7 @@ import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThre
 import scala.util.control.NonFatal
 
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
-import scala.concurrent.{ExecutionContext, Future, Promise, blocking}
+import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
 
 import monix.execution.internal.InterceptableRunnable
 // Prevents conflict with the deprecated symbol

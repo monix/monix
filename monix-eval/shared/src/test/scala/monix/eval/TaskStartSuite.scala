@@ -33,7 +33,7 @@ object TaskStartSuite extends BaseTestSuite {
 
   test("task.start.flatMap(id) is cancelable, but the source is memoized") { implicit sc =>
     var effect = 0
-    val task = Task { effect += 1; effect } .delayExecution(1.second).start.flatMap(_.join)
+    val task = Task { effect += 1; effect }.delayExecution(1.second).start.flatMap(_.join)
     val f = task.runToFuture
     sc.tick()
     f.cancel()
@@ -59,9 +59,9 @@ object TaskStartSuite extends BaseTestSuite {
 
     val task = for {
       local <- TaskLocal(0)
-      _ <- local.write(100)
-      v1 <- local.read
-      f <- (Task.shift *> local.read <* local.write(200)).start
+      _     <- local.write(100)
+      v1    <- local.read
+      f     <- (Task.shift *> local.read <* local.write(200)).start
       // Here, before joining, reads are nondeterministic
       v2 <- f.join
       v3 <- local.read

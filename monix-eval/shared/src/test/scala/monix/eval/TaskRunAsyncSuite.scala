@@ -235,7 +235,9 @@ object TaskRunAsyncSuite extends BaseTestSuite {
 
   test("runAsyncAndForget") { implicit s =>
     var effect = 0
-    val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1).foreachL { i => effect = i }
+    val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1).foreachL { i =>
+      effect = i
+    }
     task.runAsyncAndForget
     s.tick()
     assertEquals(effect, 4)

@@ -26,7 +26,8 @@ private[eval] object TaskDoOnCancel {
     * Implementation for `Task.doOnCancel`
     */
   def apply[A](self: Task[A], callback: Task[Unit]): Task[A] = {
-    if (callback eq Task.unit) self else {
+    if (callback eq Task.unit) self
+    else {
       val start = (context: Context, onFinish: Callback[Throwable, A]) => {
         implicit val s = context.scheduler
         implicit val o = context.options

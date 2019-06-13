@@ -93,8 +93,8 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
     val future = new CompletableFuture[Int]()
 
     val p = Promise[Int]()
-    val cancel = convertConcurrent(IO(future)) .unsafeRunCancelable(r =>
-        p.complete(r match { case Right(a) => Success(a); case Left(e) => Failure(e) }))
+    val cancel = convertConcurrent(IO(future)).unsafeRunCancelable(r =>
+      p.complete(r match { case Right(a) => Success(a); case Left(e) => Failure(e) }))
 
     s.tick()
     assertEquals(p.future.value, None)

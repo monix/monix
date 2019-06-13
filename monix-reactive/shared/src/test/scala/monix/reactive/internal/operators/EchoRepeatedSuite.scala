@@ -47,7 +47,8 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     if (sourceCount > 1) {
-      val source = Observable.now(1L)
+      val source = Observable
+        .now(1L)
         .delayOnComplete((sourceCount - 1).seconds + 500.millis)
         .endWithError(ex)
 
@@ -60,14 +61,13 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     }
   }
 
-
-
   test("should timeout on inactivity and start emitting") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
 
-    channel.echoRepeated(1.second)
+    channel
+      .echoRepeated(1.second)
       .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int): Future[Ack] = {
           received += elem
@@ -99,7 +99,8 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    channel.echoRepeated(1.second)
+    channel
+      .echoRepeated(1.second)
       .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int): Future[Ack] = {
           received += 1
@@ -139,7 +140,8 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    channel.echoRepeated(1.second)
+    channel
+      .echoRepeated(1.second)
       .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int): Future[Ack] =
           Future.delayedResult(500.millis) {
@@ -172,8 +174,9 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    channel.echoRepeated(1.second).unsafeSubscribeFn(
-      new Observer[Int] {
+    channel
+      .echoRepeated(1.second)
+      .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int): Future[Ack] =
           Future.delayedResult(500.millis) {
             received += elem
@@ -214,7 +217,8 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     * that can be canceled.
     */
   override def cancelableObservables() = {
-    val sample = Observable.now(1L)
+    val sample = Observable
+      .now(1L)
       .delayOnNext(1.second)
       .delayOnComplete(10.seconds)
       .echoRepeated(1.second)

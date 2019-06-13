@@ -24,15 +24,16 @@ object VarSubjectSuite extends TestSuite[TestScheduler] {
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("initial value is emitted on subscribe") { implicit s =>
     val var0 = Var(0)
     var emitted: Option[Int] = None
 
-    var0.foreach { x => emitted = Some(x) }
+    var0.foreach { x =>
+      emitted = Some(x)
+    }
     s.tick()
 
     emitted match {
@@ -45,7 +46,9 @@ object VarSubjectSuite extends TestSuite[TestScheduler] {
     val var0 = Var(0)
     var emitted: Option[Int] = None
 
-    var0.foreach { x => emitted = Some(x) }
+    var0.foreach { x =>
+      emitted = Some(x)
+    }
 
     s.tick()
     var0 := 123

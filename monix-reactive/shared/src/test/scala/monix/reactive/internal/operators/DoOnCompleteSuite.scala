@@ -33,15 +33,16 @@ import scala.concurrent.duration._
 object DoOnCompleteSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should work for cats.effect.IO") { implicit s =>
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnCompleteF(IO { wasTriggered += 1 })
+    Observable
+      .now(1)
+      .doOnCompleteF(IO { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -57,7 +58,9 @@ object DoOnCompleteSuite extends TestSuite[TestScheduler] {
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnComplete(Task.eval { wasTriggered += 1 })
+    Observable
+      .now(1)
+      .doOnComplete(Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -73,7 +76,9 @@ object DoOnCompleteSuite extends TestSuite[TestScheduler] {
     var wasTriggered = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnComplete(Task.eval { wasTriggered += 1 })
+    Observable
+      .now(1)
+      .doOnComplete(Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Future(Continue)
@@ -92,7 +97,9 @@ object DoOnCompleteSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
     var errorThrown: Throwable = null
 
-    Observable.raiseError(dummy).doOnComplete(Task.eval { wasTriggered += 1 })
+    Observable
+      .raiseError(dummy)
+      .doOnComplete(Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Ack] =
@@ -112,7 +119,9 @@ object DoOnCompleteSuite extends TestSuite[TestScheduler] {
 
   test("should be cancelable") { implicit s =>
     var wasTriggered = 0
-    val cancelable = Observable.now(1).delayOnNext(1.second)
+    val cancelable = Observable
+      .now(1)
+      .delayOnNext(1.second)
       .doOnComplete(Task.eval { wasTriggered += 1 })
       .subscribe()
 
@@ -127,7 +136,9 @@ object DoOnCompleteSuite extends TestSuite[TestScheduler] {
     val dummy = DummyException("dummy")
     var errorThrown: Throwable = null
 
-    Observable.now(1).doOnComplete(Task.eval { throw dummy })
+    Observable
+      .now(1)
+      .doOnComplete(Task.eval { throw dummy })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
 

@@ -29,14 +29,14 @@ object DelayByTimespanSuite extends BaseOperatorSuite {
     val source = Observable.range(0, sourceCount)
     val o = source.delayOnNext(1.second)
     val c = sourceCount
-    Sample(o, c, c * (c-1) / 2, 1.second, 1.second)
+    Sample(o, c, c * (c - 1) / 2, 1.second, 1.second)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val source = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o = source.delayOnNext(1.second)
     val c = sourceCount
-    Sample(o, c-1, (c-1) * (c-2) / 2, 1.second, 1.second)
+    Sample(o, c - 1, (c - 1) * (c - 2) / 2, 1.second, 1.second)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
@@ -54,7 +54,7 @@ object DelayByTimespanSuite extends BaseOperatorSuite {
     source.unsafeSubscribeFn(new Subscriber[Long] {
       val scheduler = s
       def onNext(elem: Long) = {
-        if (1==1) fail("onNext should not happen")
+        if (1 == 1) fail("onNext should not happen")
         Continue
       }
       def onError(ex: Throwable): Unit =
@@ -74,7 +74,7 @@ object DelayByTimespanSuite extends BaseOperatorSuite {
     source.unsafeSubscribeFn(new Subscriber[Long] {
       val scheduler = s
       def onNext(elem: Long) = {
-        if (1==1) fail("onNext should not happen")
+        if (1 == 1) fail("onNext should not happen")
         Continue
       }
 

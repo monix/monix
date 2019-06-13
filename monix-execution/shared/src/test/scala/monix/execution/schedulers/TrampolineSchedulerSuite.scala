@@ -35,115 +35,127 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
     assert(env._2.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("execute async should execute immediately") { case (s, _) =>
-    var effect = 0
-    val p = Promise[Int]()
+  test("execute async should execute immediately") {
+    case (s, _) =>
+      var effect = 0
+      val p = Promise[Int]()
 
-    s.executeAsync { () =>
-      effect += 1
       s.executeAsync { () =>
-        effect += 2
+        effect += 1
         s.executeAsync { () =>
-          effect += 3
-          p.success(effect)
+          effect += 2
+          s.executeAsync { () =>
+            effect += 3
+            p.success(effect)
+          }
         }
       }
-    }
 
-    // Should already be executed
-    assertEquals(effect, 1 + 2 + 3)
+      // Should already be executed
+      assertEquals(effect, 1 + 2 + 3)
   }
 
-  test("execute local should work") { case (s, _) =>
-    var effect = 0
+  test("execute local should work") {
+    case (s, _) =>
+      var effect = 0
 
-    s.executeTrampolined { () =>
-      effect += 1
       s.executeTrampolined { () =>
-        effect += 2
+        effect += 1
         s.executeTrampolined { () =>
-          effect += 3
+          effect += 2
+          s.executeTrampolined { () =>
+            effect += 3
+          }
         }
       }
-    }
 
-    assertEquals(effect, 1 + 2 + 3)
+      assertEquals(effect, 1 + 2 + 3)
   }
 
-  test("schedule for execution with delay") { case (s, u) =>
-    import concurrent.duration._
-    val p = Promise[Unit]()
-    val startAt = s.clockRealTime(MILLISECONDS)
-    s.scheduleOnce(100.millis)(p.success(()))
+  test("schedule for execution with delay") {
+    case (s, u) =>
+      import concurrent.duration._
+      val p = Promise[Unit]()
+      val startAt = s.clockRealTime(MILLISECONDS)
+      s.scheduleOnce(100.millis)(p.success(()))
 
-    u.tick(100.millis)
-    val duration = s.clockRealTime(MILLISECONDS) - startAt
-    assert(duration >= 100, "duration >= 100")
-    assert(p.future.isCompleted, "p.future.isCompleted")
+      u.tick(100.millis)
+      val duration = s.clockRealTime(MILLISECONDS) - startAt
+      assert(duration >= 100, "duration >= 100")
+      assert(p.future.isCompleted, "p.future.isCompleted")
   }
 
-  test("report failure should work") { case (s, u) =>
-    val ex = new RuntimeException("dummy")
-    s.reportFailure(ex)
-    assertEquals(u.state.lastReportedError, ex)
+  test("report failure should work") {
+    case (s, u) =>
+      val ex = new RuntimeException("dummy")
+      s.reportFailure(ex)
+      assertEquals(u.state.lastReportedError, ex)
   }
 
-  test("scheduleWithFixedDelay") { case (s,u) =>
-    import concurrent.duration._
-    var effect = 0
-    val task = s.scheduleWithFixedDelay(1.second, 1.second) { effect += 1 }
+  test("scheduleWithFixedDelay") {
+    case (s, u) =>
+      import concurrent.duration._
+      var effect = 0
+      val task = s.scheduleWithFixedDelay(1.second, 1.second) { effect += 1 }
 
-    u.tick()
-    assertEquals(effect, 0)
-    u.tick(1.second)
-    assertEquals(effect, 1)
-    u.tick(1.second)
-    assertEquals(effect, 2)
-    task.cancel()
-    u.tick(1.second)
-    assertEquals(effect, 2)
+      u.tick()
+      assertEquals(effect, 0)
+      u.tick(1.second)
+      assertEquals(effect, 1)
+      u.tick(1.second)
+      assertEquals(effect, 2)
+      task.cancel()
+      u.tick(1.second)
+      assertEquals(effect, 2)
   }
 
-  test("scheduleAtFixedRate") { case (s,u) =>
-    import concurrent.duration._
-    var effect = 0
-    val task = s.scheduleAtFixedRate(1.second, 1.second) { effect += 1 }
+  test("scheduleAtFixedRate") {
+    case (s, u) =>
+      import concurrent.duration._
+      var effect = 0
+      val task = s.scheduleAtFixedRate(1.second, 1.second) { effect += 1 }
 
-    u.tick()
-    assertEquals(effect, 0)
-    u.tick(1.second)
-    assertEquals(effect, 1)
-    u.tick(1.second)
-    assertEquals(effect, 2)
-    task.cancel()
-    u.tick(1.second)
-    assertEquals(effect, 2)
+      u.tick()
+      assertEquals(effect, 0)
+      u.tick(1.second)
+      assertEquals(effect, 1)
+      u.tick(1.second)
+      assertEquals(effect, 2)
+      task.cancel()
+      u.tick(1.second)
+      assertEquals(effect, 2)
   }
 
-  test("withExecutionModel") { case (s,_) =>
-    val em = AlwaysAsyncExecution
-    val s2 = s.withExecutionModel(em)
+  test("withExecutionModel") {
+    case (s, _) =>
+      val em = AlwaysAsyncExecution
+      val s2 = s.withExecutionModel(em)
 
-    assert(s2.isInstanceOf[TrampolineScheduler], "s2.isInstanceOf[TrampolineScheduler]")
-    assertEquals(s2.executionModel, em)
+      assert(s2.isInstanceOf[TrampolineScheduler], "s2.isInstanceOf[TrampolineScheduler]")
+      assertEquals(s2.executionModel, em)
   }
 
-  test("on blocking it should fork") { case (s,u) =>
-    import concurrent.blocking
-    if (!Platform.isJVM) ignore("test relevant only for the JVM")
+  test("on blocking it should fork") {
+    case (s, u) =>
+      import concurrent.blocking
+      if (!Platform.isJVM) ignore("test relevant only for the JVM")
 
-    var effect = 0
-    s.executeAsync { () =>
-      s.executeAsync { () => effect += 20 }
-      s.executeAsync { () => effect += 20 }
+      var effect = 0
+      s.executeAsync { () =>
+        s.executeAsync { () =>
+          effect += 20
+        }
+        s.executeAsync { () =>
+          effect += 20
+        }
 
-      effect += 3
-      blocking { effect += 10 }
-      effect += 3
-    }
+        effect += 3
+        blocking { effect += 10 }
+        effect += 3
+      }
 
-    assertEquals(effect, 16)
-    u.tickOne()
-    assertEquals(effect, 56)
+      assertEquals(effect, 16)
+      u.tickOne()
+      assertEquals(effect, 56)
   }
 }

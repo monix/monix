@@ -32,8 +32,7 @@ import scala.concurrent.{Future, Promise}
 object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -88,8 +87,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
-      else
+        s.executeAsync { () =>
+          buffer.onNext(n); loop(n - 1)
+        } else
         buffer.onComplete()
 
     loop(10000)
@@ -113,8 +113,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
       }
 
       def onError(ex: Throwable) = {
-        assert(ex.isInstanceOf[BufferOverflowException],
-          s"Exception $ex is not a buffer overflow error")
+        assert(ex.isInstanceOf[BufferOverflowException], s"Exception $ex is not a buffer overflow error")
         errorCaught = ex
       }
 
@@ -149,7 +148,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, Fail(5))
+      },
+      Fail(5)
+    )
 
     buffer.onError(DummyException("dummy"))
     s.tickOne()
@@ -169,7 +170,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = Continue
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, Fail(5))
+      },
+      Fail(5)
+    )
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
@@ -190,7 +193,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = promise.future
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, Fail(5))
+      },
+      Fail(5)
+    )
 
     buffer.onNext(1)
     buffer.onNext(2)
@@ -207,12 +212,15 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
 
   test("should send onComplete when empty") { implicit s =>
     var wasCompleted = false
-      val buffer = BufferedSubscriber[Int](new Subscriber[Int] {
+    val buffer = BufferedSubscriber[Int](
+      new Subscriber[Int] {
         def onError(ex: Throwable) = throw new IllegalStateException()
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Fail(5))
+      },
+      Fail(5)
+    )
 
     buffer.onComplete()
     s.tickOne()
@@ -228,7 +236,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = promise.future
         def onComplete() = wasCompleted += 1
         val scheduler = s
-      }, Fail(5))
+      },
+      Fail(5)
+    )
 
     buffer.onNext(1)
     buffer.onComplete()
@@ -249,7 +259,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = promise.future
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Fail(5))
+      },
+      Fail(5)
+    )
 
     buffer.onNext(1)
     buffer.onNext(2)
@@ -279,7 +291,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Fail(10000))
+      },
+      Fail(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -303,7 +317,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Fail(10000))
+      },
+      Fail(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -328,7 +344,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, Fail(10000))
+      },
+      Fail(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -352,7 +370,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, Fail(10000))
+      },
+      Fail(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -375,7 +395,9 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Fail(Platform.recommendedBatchSize * 3))
+      },
+      Fail(Platform.recommendedBatchSize * 3)
+    )
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
@@ -404,7 +426,8 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Fail(2000)
+      },
+      Fail(2000)
     )
 
     for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) {}
@@ -430,7 +453,8 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Fail(2000)
+      },
+      Fail(2000)
     )
 
     for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) s.tick()
@@ -455,7 +479,8 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Fail(2000)
+      },
+      Fail(2000)
     )
 
     for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) {}
@@ -481,7 +506,8 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Fail(2000)
+      },
+      Fail(2000)
     )
 
     for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) s.tick()
@@ -490,7 +516,6 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assert(!wasCompleted, "!wasCompleted")
     assertEquals(sum, 55)
   }
-
 
   test("subscriber STOP after a synchronous onNext") { implicit s =>
     var received = 0
@@ -729,8 +754,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assert(errorThrown != null, "errorThrown != null")
-    assert(errorThrown.isInstanceOf[NullPointerException],
-      "errorThrown.isInstanceOf[NullPointerException]")
+    assert(errorThrown.isInstanceOf[NullPointerException], "errorThrown.isInstanceOf[NullPointerException]")
   }
 
   test("buffer size is required to be greater than 1") { implicit s =>
