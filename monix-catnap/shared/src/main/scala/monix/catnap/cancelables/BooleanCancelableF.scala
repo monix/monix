@@ -89,14 +89,13 @@ object BooleanCancelableF {
       def cancel = F.unit
     }
 
-  private final class Impl[F[_]](token: CancelToken[F])(implicit F: Sync[F])
-    extends BooleanCancelableF[F] {
+  private final class Impl[F[_]](token: CancelToken[F])(implicit F: Sync[F]) extends BooleanCancelableF[F] {
 
     private[this] val canceled = Atomic(false)
     private[this] var ref = token
 
     def isCanceled =
-      F.delay(canceled.get)
+      F.delay(canceled.get())
 
     def cancel: CancelToken[F] =
       F.suspend {
