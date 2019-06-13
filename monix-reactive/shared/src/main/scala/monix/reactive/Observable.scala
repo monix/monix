@@ -817,7 +817,6 @@ abstract class Observable[+A] extends Serializable { self =>
     *  - ...
     */
   final def bracketF[F[_], B](use: A => Observable[B])(release: A => F[Unit])(implicit F: TaskLike[F]): Observable[B] =
-    // TODO: pula
     bracket(use)(release.andThen(F.apply))
 
   /** Implementation of `bracketCase` from `cats.effect.Bracket`.
