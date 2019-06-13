@@ -63,7 +63,7 @@ workflows:
   test_jvm:
     jobs:
       - build
-      - test_jvm
+      - test_jvm:
           requires:
             - build
 
