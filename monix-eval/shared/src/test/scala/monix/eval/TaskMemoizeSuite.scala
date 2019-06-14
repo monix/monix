@@ -665,44 +665,4 @@ object TaskMemoizeSuite extends BaseTestSuite {
       assertEquals(v, (100, 100))
     }
   }
-
-  testAsync("local.write.memoize works 2") { _ =>
-    import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-
-    val memoizedTask = Task.delay {
-      5
-    }.memoize
-
-    val i = AtomicInt(0)
-
-    val task = for {
-      local <- TaskLocal(0)
-      ii <- Task.shift.flatMap(_ => Task.delay {
-        i.incrementAndGet()
-      })
-      _ <- local.write(ii)
-      result <- Task.parZip2(
-        memoizedTask.flatMap { _ =>
-            local.read
-        },
-        memoizedTask.flatMap { _ =>
-            local.read
-        },
-      )
-    } yield result
-
-    val f1 = task.runToFutureOpt
-    val f2 = task.runToFutureOpt
-    val f3 = task.runToFutureOpt
-
-    for {
-      v1 <- f1
-      v2 <- f2
-      v3 <- f3
-    } yield {
-      val result = Set(v1, v2, v3)
-      assert(result.diff(Set((1, 1), (2, 2), (3, 3))) == Set.empty)
-    }
-  }
 }
