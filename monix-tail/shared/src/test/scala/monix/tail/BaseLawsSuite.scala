@@ -64,7 +64,7 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       val ruleSet = f(s)
       catchErrors = false
 
-      for ((id, prop: Prop) ← ruleSet.all.properties)
+      for ((id, prop: Prop) <- ruleSet.all.properties)
         test(s"$name.$id") {
           s.tick(1.day)
           silenceSystemErr(check(prop, config))
