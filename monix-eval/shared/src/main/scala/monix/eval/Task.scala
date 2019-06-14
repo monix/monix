@@ -4338,8 +4338,7 @@ object Task extends TaskInstancesLevel1 {
   private[monix] final case class Async[+A](
     register: (Context, Callback[Throwable, A]) => Unit,
     trampolineBefore: Boolean = false,
-    trampolineAfter: Boolean = true,
-    restoreLocals: Boolean = true)
+    trampolineAfter: Boolean = true)
     extends Task[A]
 
   /** For changing the context for the rest of the run-loop.

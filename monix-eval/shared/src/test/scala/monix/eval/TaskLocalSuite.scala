@@ -19,12 +19,12 @@ package monix.eval
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.misc.Local
 import cats.implicits._
+import monix.execution.schedulers.TracingRunnable
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
@@ -175,9 +175,9 @@ object TaskLocalSuite extends SimpleTestSuite {
   testAsync("TaskLocals get restored in Task.create on error") {
     val dummy = DummyException("dummy")
     val task = Task.create[Int] { (_, cb) =>
-      ec.execute(new Runnable {
+      ec.execute(new TracingRunnable(new Runnable {
         def run() = cb.onError(dummy)
-      })
+      }))
     }
 
     val t = for {

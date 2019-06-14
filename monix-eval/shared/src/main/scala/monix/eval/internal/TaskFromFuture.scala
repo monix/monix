@@ -93,8 +93,7 @@ private[eval] object TaskFromFuture {
     Task.Async(
       start,
       trampolineBefore = false,
-      trampolineAfter = false,
-      restoreLocals = true
+      trampolineAfter = false
     )
   }
 
@@ -102,8 +101,7 @@ private[eval] object TaskFromFuture {
     Task.Async(
       start,
       trampolineBefore = true,
-      trampolineAfter = false,
-      restoreLocals = true
+      trampolineAfter = false
     )
 
   private def startSimple[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {

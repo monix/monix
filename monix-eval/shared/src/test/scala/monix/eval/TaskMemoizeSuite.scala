@@ -18,8 +18,10 @@
 package monix.eval
 
 import monix.execution.Callback
+import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 import concurrent.duration._
@@ -654,13 +656,53 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
     val task = for {
       local <- TaskLocal(0)
-      v1    <- (local.write(100).flatMap(_ => local.read)).memoize
+      v1    <- local.write(100).flatMap(_ => local.read).memoize
       _     <- Task.shift
       v2    <- local.read
     } yield (v1, v2)
 
     for (v <- task.runToFutureOpt) yield {
       assertEquals(v, (100, 100))
+    }
+  }
+
+  testAsync("local.write.memoize works 2") { _ =>
+    import monix.execution.Scheduler.Implicits.global
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+
+    val memoizedTask = Task.delay {
+      5
+    }.memoize
+
+    val i = AtomicInt(0)
+
+    val task = for {
+      local <- TaskLocal(0)
+      ii <- Task.shift.flatMap(_ => Task.delay {
+        i.incrementAndGet()
+      })
+      _ <- local.write(ii)
+      result <- Task.parZip2(
+        memoizedTask.flatMap { _ =>
+            local.read
+        },
+        memoizedTask.flatMap { _ =>
+            local.read
+        },
+      )
+    } yield result
+
+    val f1 = task.runToFutureOpt
+    val f2 = task.runToFutureOpt
+    val f3 = task.runToFutureOpt
+
+    for {
+      v1 <- f1
+      v2 <- f2
+      v3 <- f3
+    } yield {
+      val result = Set(v1, v2, v3)
+      assert(result.diff(Set((1, 1), (2, 2), (3, 3))) == Set.empty)
     }
   }
 }

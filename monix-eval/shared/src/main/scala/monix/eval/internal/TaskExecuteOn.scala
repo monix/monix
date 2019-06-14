@@ -36,8 +36,7 @@ private[eval] object TaskExecuteOn {
     Async(
       start,
       trampolineBefore = withTrampoline,
-      trampolineAfter = withTrampoline,
-      restoreLocals = false
+      trampolineAfter = withTrampoline
     )
   }
 

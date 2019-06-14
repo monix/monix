@@ -36,7 +36,7 @@ private[eval] object TaskDoOnCancel {
         conn.push(callback)
         Task.unsafeStartNow(self, context, TaskConnection.trampolineCallback(conn, onFinish))
       }
-      Async(start, trampolineBefore = false, trampolineAfter = false, restoreLocals = false)
+      Async(start, trampolineBefore = false, trampolineAfter = false)
     }
   }
 }

@@ -32,8 +32,7 @@ private[eval] object TaskShift {
     Async(
       new Register(ec),
       trampolineBefore = false,
-      trampolineAfter = false,
-      restoreLocals = false
+      trampolineAfter = false
     )
   }
 

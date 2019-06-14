@@ -43,8 +43,7 @@ private[monix] object TaskBracket {
     Task.Async(
       new StartE(acquire, use, release),
       trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = false
+      trampolineAfter = true
     )
   }
 
@@ -78,11 +77,7 @@ private[monix] object TaskBracket {
     */
   def exitCase[A, B](acquire: Task[A], use: A => Task[B], release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] = {
 
-    Task.Async(
-      new StartCase(acquire, use, release),
-      trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = false)
+    Task.Async(new StartCase(acquire, use, release), trampolineBefore = true, trampolineAfter = true)
   }
 
   private final class StartCase[A, B](

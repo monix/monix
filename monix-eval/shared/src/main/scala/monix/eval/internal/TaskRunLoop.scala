@@ -116,7 +116,7 @@ private[eval] object TaskRunLoop {
                 bFirstRef = null
             }
 
-          case async @ Async(_, _, _, _) =>
+          case async @ Async(_, _, _) =>
             executeAsyncTask(async, context, cba, rcb, bFirstRef, bRestRef, currentIndex)
             return
 

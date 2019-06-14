@@ -50,7 +50,7 @@ private[eval] object TaskCancellation {
       val cb2 = new RaiseCallback[A](canCall, conn, cb)
       Task.unsafeStartNow(fa, ctx, cb2)
     }
-    Async(start, trampolineBefore = true, trampolineAfter = false, restoreLocals = false)
+    Async(start, trampolineBefore = true, trampolineAfter = false)
   }
 
   private final class RaiseCallback[A](

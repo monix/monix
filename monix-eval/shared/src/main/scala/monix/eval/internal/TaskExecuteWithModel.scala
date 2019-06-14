@@ -47,8 +47,7 @@ private[eval] object TaskExecuteWithModel {
     Async(
       start,
       trampolineBefore = false,
-      trampolineAfter = true,
-      restoreLocals = false
+      trampolineAfter = true
     )
   }
 }

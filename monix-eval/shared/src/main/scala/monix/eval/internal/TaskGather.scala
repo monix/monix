@@ -34,8 +34,7 @@ private[eval] object TaskGather {
     Async(
       new Register(in, makeBuilder),
       trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = true
+      trampolineAfter = true
     )
   }
 

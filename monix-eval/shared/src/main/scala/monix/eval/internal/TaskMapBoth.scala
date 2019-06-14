@@ -32,7 +32,7 @@ private[eval] object TaskMapBoth {
     * Implementation for `Task.mapBoth`.
     */
   def apply[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] = {
-    Async(new Register(fa1, fa2, f), trampolineBefore = true, trampolineAfter = true, restoreLocals = true)
+    Async(new Register(fa1, fa2, f), trampolineBefore = true, trampolineAfter = true)
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal

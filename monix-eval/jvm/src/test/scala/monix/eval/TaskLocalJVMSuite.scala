@@ -20,6 +20,7 @@ package monix.eval
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
+import monix.execution.schedulers.TracingRunnable
 
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
@@ -27,7 +28,7 @@ import scala.concurrent.duration._
 object TaskLocalJVMSuite extends SimpleTestSuite {
   def createShift(ec: ExecutionContext): Task[Unit] =
     Task.cancelable0 { (_, cb) =>
-      ec.execute(new Runnable { def run() = cb.onSuccess(()) })
+      ec.execute(new TracingRunnable(new Runnable { def run() = cb.onSuccess(()) }))
       Task.unit
     }
 

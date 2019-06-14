@@ -21,7 +21,6 @@ import monix.eval.Task.{Context, Error, Now}
 import monix.eval.internal.TaskRunLoop.{startFull, Bind, CallStack}
 import monix.eval.Task
 import monix.execution.Callback
-import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 
 private[internal] abstract class TaskRestartCallback(contextInit: Context, callback: Callback[Throwable, Any])
@@ -123,60 +122,6 @@ private[internal] object TaskRestartCallback {
     * optimized for the passed in `Task.Options`.
     */
   def apply(context: Context, callback: Callback[Throwable, Any]): TaskRestartCallback = {
-    if (context.options.localContextPropagation)
-      new WithLocals(context, callback)
-    else
-      new NoLocals(context, callback)
-  }
-
-  /** `RestartCallback` class meant for `localContextPropagation == false`. */
-  private final class NoLocals(context: Context, callback: Callback[Throwable, Any])
-    extends TaskRestartCallback(context, callback)
-
-  /** `RestartCallback` class meant for `localContextPropagation == true`. */
-  private final class WithLocals(context: Context, callback: Callback[Throwable, Any])
-    extends TaskRestartCallback(context, callback) {
-
-    private[this] var preparedLocals: Local.Context = _
-    private[this] var previousLocals: Local.Context = _
-
-    override protected def prepareStart(task: Task.Async[_]): Unit = {
-      preparedLocals = if (task.restoreLocals) Local.getContext() else null
-    }
-
-    override def prepareCallback: Callback[Throwable, Any] =
-      new Callback[Throwable, Any] {
-        def onSuccess(value: Any): Unit = {
-          val locals = previousLocals
-          if (locals ne null) Local.setContext(locals)
-          callback.onSuccess(value)
-        }
-
-        def onError(ex: Throwable): Unit = {
-          val locals = previousLocals
-          if (locals ne null) Local.setContext(locals)
-          callback.onError(ex)
-        }
-      }
-
-    override protected def syncOnSuccess(value: Any): Unit = {
-      setPreparedLocals()
-      super.syncOnSuccess(value)
-    }
-
-    override protected def syncOnError(error: Throwable): Unit = {
-      setPreparedLocals()
-      super.syncOnError(error)
-    }
-
-    def setPreparedLocals(): Unit = {
-      val preparedLocals = this.preparedLocals
-      if (preparedLocals ne null) {
-        previousLocals = Local.getContext()
-        Local.setContext(preparedLocals)
-      } else {
-        previousLocals = null
-      }
-    }
+    new TaskRestartCallback(context, callback) {}
   }
 }

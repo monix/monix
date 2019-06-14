@@ -38,8 +38,7 @@ private[eval] object TaskGatherUnordered {
     Async(
       new Register(in),
       trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = true
+      trampolineAfter = true
     )
   }
 
