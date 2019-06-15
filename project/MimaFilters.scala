@@ -49,6 +49,14 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable#CatsInstances.taskLift"),
     exclude[ReversedMissingMethodProblem]("monix.reactive.internal.deprecated.ObservableDeprecatedBuilders.fromEval"),
     exclude[ReversedMissingMethodProblem]("monix.reactive.internal.deprecated.ObservableDeprecatedBuilders.fromIO"),
+    exclude[MissingClassProblem]("monix.eval.CoevalLikeImplicits0"),
+    exclude[MissingClassProblem]("monix.eval.TaskLikeImplicits3"),
+    exclude[MissingTypesProblem]("monix.eval.TaskLike$"),
+    exclude[MissingTypesProblem]("monix.eval.TaskLikeImplicits0"),
+    exclude[MissingTypesProblem]("monix.eval.CoevalLike$"),
+    exclude[MissingTypesProblem]("monix.eval.TaskLikeImplicits1"),
+    exclude[MissingTypesProblem]("monix.eval.TaskLikeImplicits2"),
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskLikeImplicits2.fromComonad"),
     // Breaking changes for https://github.com/monix/monix/pull/888
     exclude[ReversedMissingMethodProblem](
       "monix.execution.schedulers.ReferenceScheduler.withUncaughtExceptionReporter"),

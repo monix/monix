@@ -20,7 +20,6 @@ package monix.eval
 import cats.Eval
 import cats.effect.{IO, SyncIO}
 import monix.catnap.SchedulerEffect
-import monix.eval.utils.EvalComonad
 import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
 
@@ -251,13 +250,6 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
 
   test("Task.from(Function0)") { implicit s =>
     val task = Task.from(() => 1)
-    val f = task.runToFuture
-    s.tick()
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Task.from(comonad)") { implicit s =>
-    val task = Task.from(EvalComonad(() => 1))
     val f = task.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))

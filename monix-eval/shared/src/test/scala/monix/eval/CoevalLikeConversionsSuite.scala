@@ -20,7 +20,6 @@ package monix.eval
 import cats.Eval
 import cats.effect.SyncIO
 import minitest.SimpleTestSuite
-import monix.eval.utils.EvalComonad
 import monix.execution.exceptions.DummyException
 
 import scala.util.{Failure, Success, Try}
@@ -102,11 +101,6 @@ object CoevalLikeConversionsSuite extends SimpleTestSuite {
 
   test("Coeval.from(Function0)") {
     val value = Coeval.from(() => 1)
-    assertEquals(value.value(), 1)
-  }
-
-  test("Coeval.from(Comonad)") {
-    val value = Coeval.from(EvalComonad(() => 1))
     assertEquals(value.value(), 1)
   }
 }

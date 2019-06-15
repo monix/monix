@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect.SyncIO
-import cats.{~>, Comonad, Eval}
+import cats.{~>, Eval}
 import scala.util.Try
 
 /** A lawless type class that provides conversions to [[Coeval]].
@@ -51,7 +51,7 @@ trait CoevalLike[F[_]] extends (F ~> Coeval) {
   def apply[A](fa: F[A]): Coeval[A]
 }
 
-object CoevalLike extends CoevalLikeImplicits0 {
+object CoevalLike {
   /**
     * Returns the available instance for `F`.
     */
@@ -126,15 +126,4 @@ object CoevalLike extends CoevalLikeImplicits0 {
       // $COVERAGE-ON$
     }
   }
-}
-
-private[eval] abstract class CoevalLikeImplicits0 {
-  /**
-    * Converts to `Coeval` from `cats.Comonad` values.
-    */
-  implicit def fromComonad[F[_]](implicit F: Comonad[F]): CoevalLike[F] =
-    new CoevalLike[F] {
-      def apply[A](fa: F[A]): Coeval[A] =
-        Coeval(F.extract(fa))
-    }
 }
