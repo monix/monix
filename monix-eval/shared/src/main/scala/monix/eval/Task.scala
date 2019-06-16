@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect.{Fiber => _, _}
-import cats.{Monoid, Semigroup}
+import cats.{~>, Monoid, Semigroup}
 import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
@@ -2090,7 +2090,7 @@ sealed abstract class Task[+A] extends Serializable {
     * }}}
     */
   final def to[F[_]](implicit F: TaskLift[F]): F[A @uV] =
-    F.taskLift(this)
+    F(this)
 
   /** Converts the source `Task` to any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]].
@@ -2176,32 +2176,6 @@ sealed abstract class Task[+A] extends Serializable {
     */
   final def toAsync[F[_]](implicit F: Async[F], eff: Effect[Task]): F[A @uV] =
     TaskConversions.toAsync(this)(F, eff)
-
-  /** Converts the source to a `cats.effect.IO` value.
-    *
-    * {{{
-    *   import cats.effect.IO
-    *   import monix.execution.Scheduler.Implicits.global
-    *   import scala.concurrent.duration._
-    *
-    *   val task: Task[Unit] = Task
-    *     .eval(println("Hello!"))
-    *     .delayExecution(5.seconds)
-    *
-    *   // Conversion; note the resulting IO is also
-    *   // cancelable if the source is
-    *   val io: IO[Unit] = task.toIO
-    * }}}
-    *
-    * This is an alias for [[toConcurrent]], but specialized for `IO`.
-    * You can use either with the same result.
-    *
-    * @param eff is the `ConcurrentEffect[Task]` instance needed to
-    *        evaluate tasks; when evaluating tasks, this is the pure
-    *        alternative to demanding a `Scheduler`
-    */
-  final def toIO(implicit eff: ConcurrentEffect[Task]): IO[A @uV] =
-    TaskConversions.toIO(this)(eff)
 
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
     * emits a single item on success, or just the error on failure.
@@ -2668,32 +2642,7 @@ object Task extends TaskInstancesLevel1 {
     *  - [[scala.concurrent.Future]]
     */
   def from[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Task[A] =
-    F.toTask(fa)
-
-  /** Converts `IO[A]` values into `Task[A]`.
-    *
-    * Preserves cancelability, if the source `IO` value is cancelable.
-    *
-    * {{{
-    *   import cats.effect._
-    *   import cats.syntax.all._
-    *   import monix.execution.Scheduler.Implicits.global
-    *   import scala.concurrent.duration._
-    *
-    *   implicit val timer = IO.timer(global)
-    *
-    *   val io: IO[Unit] =
-    *     IO.sleep(5.seconds) *> IO(println("Hello!"))
-    *
-    *   // Conversion; note the resulting task is also
-    *   // cancelable if the source is
-    *   val task: Task[Unit] = Task.fromIO(io)
-    * }}}
-    *
-    * @see [[from]], [[fromEffect]] and [[fromConcurrentEffect]]
-    */
-  def fromIO[A](ioa: IO[A]): Task[A] =
-    Concurrent.liftIO(ioa)
+    F(fa)
 
   /** Builds a [[Task]] instance out of any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]] and
@@ -2718,7 +2667,7 @@ object Task extends TaskInstancesLevel1 {
     * Cancellation / finalization behavior is carried over, so the
     * resulting task can be safely cancelled.
     *
-    * @see [[Task.toConcurrent]] for its dual
+    * @see [[Task.liftToConcurrent]] for its dual
     *
     * @see [[Task.fromEffect]] for a version that works with simpler,
     *      non-cancelable `Async` data types
@@ -2759,7 +2708,7 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.from]] for a more generic version that works with
     *      any [[TaskLike]] data type
     *
-    * @see [[Task.toAsync]] for its dual
+    * @see [[Task.liftToAsync]] for its dual
     *
     * @param F is the `cats.effect.Effect` type class instance necessary
     *        for converting to `Task`; this instance can also be a
@@ -2768,10 +2717,6 @@ object Task extends TaskInstancesLevel1 {
     */
   def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
     TaskConversions.fromEffect(fa)
-
-  /** Builds a [[Task]] instance out of a `cats.Eval`. */
-  def fromEval[A](a: cats.Eval[A]): Task[A] =
-    Coeval.fromEval(a).task
 
   /** Builds a [[Task]] instance out of a Scala `Try`. */
   def fromTry[A](a: Try[A]): Task[A] =
@@ -2808,13 +2753,21 @@ object Task extends TaskInstancesLevel1 {
   /** A `Task[Unit]` provided for convenience. */
   val unit: Task[Unit] = Now(())
 
-  /** Transforms a [[Coeval]] into a [[Task]]. */
-  def coeval[A](a: Coeval[A]): Task[A] =
-    a match {
-      case Coeval.Now(value) => Task.Now(value)
+  /**
+    * Transforms a [[Coeval]] into a [[Task]].
+    *
+    * {{{
+    *   Task.coeval(Coeval {
+    *     println("Hello!")
+    *   })
+    * }}}
+    */
+  def coeval[A](value: Coeval[A]): Task[A] =
+    value match {
+      case Coeval.Now(a) => Task.Now(a)
       case Coeval.Error(e) => Task.Error(e)
       case Coeval.Always(f) => Task.Eval(f)
-      case _ => Task.Eval(a)
+      case _ => Task.Eval(value)
     }
 
   /** Create a non-cancelable `Task` from an asynchronous computation,
@@ -3294,7 +3247,7 @@ object Task extends TaskInstancesLevel1 {
     * Converts any Future-like data-type via [[monix.catnap.FutureLift]].
     */
   def fromFutureLike[F[_], A](tfa: Task[F[A]])(implicit F: FutureLift[Task, F]): Task[A] =
-    F.futureLift(tfa)
+    F.apply(tfa)
 
   /** Run two `Task` actions concurrently, and return the first to
     * finish, either in success or error. The loser of the race is
@@ -3981,6 +3934,125 @@ object Task extends TaskInstancesLevel1 {
     fa6: Task[A6]): Task[(A1, A2, A3, A4, A5, A6)] =
     parMap6(fa1, fa2, fa3, fa4, fa5, fa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
 
+  /**
+    * Generates `cats.FunctionK` values for converting from `Task` to
+    * supporting types (for which we have a [[TaskLift]] instance).
+    *
+    * See [[cats.arrow.FunctionK https://typelevel.org/cats/datatypes/functionk.html]].
+    *
+    * {{{
+    *   import cats.effect._
+    *   import monix.eval._
+    *   import java.io._
+    *
+    *   // Needed for converting from Task to something else, because we need
+    *   // ConcurrentEffect[Task] capabilities, also provided by TaskApp
+    *   import monix.execution.Scheduler.Implicits.global
+    *
+    *   def open(file: File) =
+    *     Resource[Task, InputStream](Task {
+    *       val in = new FileInputStream(file)
+    *       (in, Task(in.close()))
+    *     })
+    *
+    *   // Lifting to a Resource of IO
+    *   val res: Resource[IO, InputStream] =
+    *     open(new File("sample")).mapK(Task.liftTo[IO])
+    *
+    *   // This was needed in order to process the resource
+    *   // with a Task, instead of a Coeval
+    *   res.use { in =>
+    *     IO {
+    *       in.read()
+    *     }
+    *   }
+    * }}}
+    *
+    */
+  def liftTo[F[_]](implicit F: TaskLift[F]): (Task ~> F) = F
+
+  /**
+    * Generates `cats.FunctionK` values for converting from `Task` to
+    * supporting types (for which we have a `cats.effect.Async`) instance.
+    *
+    * See [[https://typelevel.org/cats/datatypes/functionk.html]].
+    *
+    * Prefer to use [[liftTo]], this alternative is provided in order to force
+    * the usage of `cats.effect.Async`, since [[TaskLift]] is lawless.
+    */
+  def liftToAsync[F[_]](implicit F: cats.effect.Async[F], eff: cats.effect.Effect[Task]): (Task ~> F) =
+    TaskLift.toAsync[F]
+
+  /**
+    * Generates `cats.FunctionK` values for converting from `Task` to
+    * supporting types (for which we have a `cats.effect.Concurrent`) instance.
+    *
+    * See [[https://typelevel.org/cats/datatypes/functionk.html]].
+    *
+    * Prefer to use [[liftTo]], this alternative is provided in order to force
+    * the usage of `cats.effect.Concurrent`, since [[TaskLift]] is lawless.
+    */
+  def liftToConcurrent[F[_]](
+    implicit F: cats.effect.Concurrent[F],
+    eff: cats.effect.ConcurrentEffect[Task]): (Task ~> F) =
+    TaskLift.toConcurrent[F]
+
+  /**
+    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
+    * supported data-type into [[Task]].
+    *
+    * Useful for `mapK` transformations, for example when working
+    * with `Resource` or `Iterant`:
+    *
+    * {{{
+    *   import cats.effect._
+    *   import monix.eval._
+    *   import java.io._
+    *
+    *   def open(file: File) =
+    *     Resource[IO, InputStream](IO {
+    *       val in = new FileInputStream(file)
+    *       (in, IO(in.close()))
+    *     })
+    *
+    *   // Lifting to a Resource of Task
+    *   val res: Resource[Task, InputStream] =
+    *     open(new File("sample")).mapK(Task.liftFrom[IO])
+    * }}}
+    */
+  def liftFrom[F[_]](implicit F: TaskLike[F]): (F ~> Task) = F
+
+  /**
+    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
+    * supported data-type, that implements `ConcurrentEffect`,
+    * into [[Task]].
+    *
+    * Useful for `mapK` transformations, for example when working
+    * with `Resource` or `Iterant`.
+    *
+    * This is the less generic [[liftFrom]] operation, supplied
+    * in order order to force the usage of
+    * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html ConcurrentEffect]]
+    * for where it matters.
+    */
+  def liftFromConcurrentEffect[F[_]](implicit F: ConcurrentEffect[F]): (F ~> Task) =
+    liftFrom[F]
+
+  /**
+    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
+    * supported data-type, that implements `Effect`, into [[Task]].
+    *
+    * Useful for `mapK` transformations, for example when working
+    * with `Resource` or `Iterant`.
+    *
+    * This is the less generic [[liftFrom]] operation, supplied
+    * in order order to force the usage of
+    * [[https://typelevel.org/cats-effect/typeclasses/effect.html Effect]]
+    * for where it matters.
+    */
+  def liftFromEffect[F[_]](implicit F: Effect[F]): (F ~> Task) =
+    liftFrom[F]
+
   /** Returns the current [[Task.Options]] configuration, which determine the
     * task's run-loop behavior.
     *
@@ -4408,7 +4480,6 @@ object Task extends TaskInstancesLevel1 {
 
   /** Used as optimization by [[Task.doOnFinish]]. */
   private final class DoOnFinish[A](f: Option[Throwable] => Task[Unit]) extends StackFrame[A, Task[A]] {
-
     def apply(a: A): Task[A] =
       f(None).map(_ => a)
     def recover(e: Throwable): Task[A] =
@@ -4417,7 +4488,6 @@ object Task extends TaskInstancesLevel1 {
 
   /** Used as optimization by [[Task.redeem]]. */
   private final class Redeem[A, B](fe: Throwable => B, fs: A => B) extends StackFrame[A, Task[B]] {
-
     def apply(a: A): Task[B] = new Now(fs(a))
     def recover(e: Throwable): Task[B] = new Now(fe(e))
   }

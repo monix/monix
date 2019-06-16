@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
@@ -140,10 +141,10 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       _.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe(),
       _.executeAsync.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe(),
       _.runSyncUnsafeOpt(),
-      _.executeWithOptions(_.enableLocalContextPropagation).toIO.unsafeRunSync(),
+      _.executeWithOptions(_.enableLocalContextPropagation).to[IO].unsafeRunSync(),
       t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).runToFuture, 1.second),
       t => Await.result(t.runToFutureOpt, 1.second),
-      t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).toIO.unsafeToFuture(), 1.second)
+      t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).to[IO].unsafeToFuture(), 1.second)
     )
 
     for (method <- runMethods) {

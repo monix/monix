@@ -71,12 +71,12 @@ private[catnap] abstract class FutureLiftForPlatform {
     F.unify match {
       case ref: Concurrent[F] @unchecked =>
         new FutureLift[F, CompletableFuture] {
-          def futureLift[A](fa: F[CompletableFuture[A]]): F[A] =
+          def apply[A](fa: F[CompletableFuture[A]]): F[A] =
             javaCompletableToConcurrent(fa)(ref)
         }
       case ref =>
         new FutureLift[F, CompletableFuture] {
-          def futureLift[A](fa: F[CompletableFuture[A]]): F[A] =
+          def apply[A](fa: F[CompletableFuture[A]]): F[A] =
             javaCompletableToAsync(fa)(ref)
         }
     }

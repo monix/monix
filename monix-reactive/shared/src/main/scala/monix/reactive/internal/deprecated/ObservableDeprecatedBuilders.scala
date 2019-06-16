@@ -19,6 +19,8 @@ package monix.reactive
 package internal
 package deprecated
 
+import cats.Eval
+import cats.effect.IO
 import monix.execution.Scheduler
 
 private[reactive] trait ObservableDeprecatedBuilders extends Any {
@@ -154,6 +156,26 @@ private[reactive] trait ObservableDeprecatedBuilders extends Any {
   def switch[A](sources: Observable[A]*): Observable[A] = {
     // $COVERAGE-OFF$
     Observable.fromIterable(sources).switch
+    // $COVERAGE-ON$
+  }
+
+  /**
+    * DEPRECATED — switch to [[Observable.from]].
+    */
+  @deprecated("Switch to Observable.from", "3.0.0")
+  def fromEval[A](fa: Eval[A]): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.from(fa)
+    // $COVERAGE-ON$
+  }
+
+  /**
+    * DEPRECATED — switch to [[Observable.from]].
+    */
+  @deprecated("Switch to Observable.from", "3.0.0")
+  def fromIO[A](fa: IO[A]): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.from(fa)
     // $COVERAGE-ON$
   }
 }
