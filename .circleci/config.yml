@@ -42,13 +42,7 @@ executors:
 # Commands
 
 commands:
-  build:
-    parameters:
-      build-steps:
-        description: "build steps"
-        type: steps
-        default: []
-
+  install_dependencies:
     steps:
       - run:
           name: Install dependencies
@@ -65,13 +59,20 @@ commands:
             sudo apt-get install -y nodejs
             sudo apt-get clean && sudo apt-get autoclean
 
+  build:
+    parameters:
+      build-steps:
+        description: "build steps"
+        type: steps
+        default: []
+    steps:
       - checkout
       - restore_cache:
           # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
           key: monix-cache
 
       - run:
-          name: Compile project
+          name: Compile project (Scala $SCALA_VERSION)
           working_directory: ~/monix
           command: cat /dev/null | sbt $SBT_OPTIONS ++$SCALA_VERSION clean test:compile package
 
@@ -90,25 +91,58 @@ jobs:
   install_dependencies_openjdk8:
     executor: scala_212
     steps:
-      - build
+      - install_dependencies
 
   install_dependencies_openjdk11:
     executor: scala_212_jdk11
     steps:
+      - install_dependencies
+
+  build_openjdk8_scala211:
+    executor: scala_211
+    steps:
       - build
+
+  build_openjdk8_scala212:
+    executor: scala_212
+    steps:
+      - build
+
+  build_openjdk11_scala211:
+    executor: scala_211_jdk11
+    steps:
+      - build
+
+  build_openjdk11_scala212:
+    executor: scala_212_jdk11
+    steps:
+      - build
+
 
 ###############################
 
 workflows:
   version: *version
 
-  "Test Scala 2.11 on OpenJDK 8":
+  "Test OpenJDK 8":
     jobs:
       - install_dependencies_openjdk8
+      - build_openjdk8_scala211:
+          requires:
+            - install_dependencies_openjdk8
+      - build_openjdk8_scala212:
+          requires:
+            - install_dependencies_openjdk8
 
-  "Test Scala 2.12 on OpenJDK 8":
+  "Test OpenJDK 11":
     jobs:
-      - install_dependencies_openjdk8
+      - install_dependencies_openjdk11
+      - build_openjdk11_scala211:
+          requires:
+            - install_dependencies_openjdk11
+      - build_openjdk11_scala212:
+          requires:
+            - install_dependencies_openjdk11
 
 #jobs:
 #  build_openjdk_8_scala_212:
