@@ -18,14 +18,14 @@ executors:
   openjdk8: &openjdk8
     <<: [*settings]
     docker:
-      - image: circleci/openjdk:8-jdk
+      - image: openjdk:8
     environment:
       <<: *env
 
   openjdk11:
     <<: [*openjdk8]
     docker:
-      - image: circleci/openjdk:11-jdk
+      - image: openjdk:11
 
 ###############################
 # Commands
