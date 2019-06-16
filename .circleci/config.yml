@@ -66,7 +66,7 @@ commands:
       - run:
           name: Compile and test project for Scala << parameters.scala_version >> / << parameters.target >>
           working_directory: ~/monix
-          command: cat /dev/null | sbt $SBT_OPTIONS ++<< parameters.scala_version >> clean test:compile package
+          command: cat /dev/null | sbt $SBT_OPTIONS ++<< parameters.scala_version >> << parameters.command >>
 
       - save_cache:
           key: monix-cache-<< parameters.scala_version >>-<< parameters.target >>
