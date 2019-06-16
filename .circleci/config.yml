@@ -5,6 +5,7 @@ version: &version 2.1
 
 scala_211: &scala_211 2.11.12
 scala_212: &scala_212 2.12.8
+scala_213: &scala_213 2.13.0-M5
 
 settings: &settings
   working_directory: ~/monix
@@ -12,7 +13,7 @@ settings: &settings
 
 env: &env
   SBT_VERSION: 1.2.8
-  SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m
+  SBT_OPTIONS: -J-Xmx2048m -J-XX:MaxMetaspaceSize=512m
 
 executors:
   openjdk8: &openjdk8
@@ -23,7 +24,6 @@ executors:
       <<: *env
 
 ###############################
-# Commands
 
 commands:
   build:
@@ -36,10 +36,6 @@ commands:
         type: string
 
     steps:
-      - restore_cache:
-          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
-          key: monix-cache-<< parameters.scala_version >>-<< parameters.target >>
-
       - run:
           name: Install dependencies
           command: |
@@ -54,6 +50,10 @@ commands:
             apt-get clean && apt-get autoclean
 
       - checkout
+      - restore_cache:
+          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
+          key: monix-cache-<< parameters.scala_version >>-<< parameters.target >>
+
       - run:
           name: Compile and test project for Scala << parameters.scala_version >> / << parameters.target >>
           working_directory: ~/monix
@@ -67,7 +67,6 @@ commands:
             - "~/.m2"
 
 ###############################
-# Jobs
 
 jobs:
   # Scala 2.11, OpenJDK 8
@@ -103,6 +102,24 @@ jobs:
     steps:
       - build:
           scala_version: *scala_212
+          target: Javascript
+          command: ci-js
+
+  # Scala 2.13, OpenJDK 8
+
+  scala213_jvm:
+    executor: openjdk8
+    steps:
+      - build:
+          scala_version: *scala_213
+          target: JVM
+          command: ci-jvm
+
+  scala213_js:
+    executor: openjdk8
+    steps:
+      - build:
+          scala_version: *scala_213
           target: Javascript
           command: ci-js
 
