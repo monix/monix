@@ -3,6 +3,9 @@ version: &version 2.1
 ###############################
 # Templates
 
+scala_211: &scala_211 2.11.12
+scala_212: &scala_212 2.12.8
+
 settings: &settings
   working_directory: ~/monix
   resource_class: medium
@@ -12,29 +15,15 @@ env: &env
   SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m
 
 executors:
-  scala_212: &scala_212
+  openjdk8: &openjdk8
     <<: [*settings]
     docker:
       - image: circleci/openjdk:8-jdk
     environment:
       <<: *env
-      SCALA_VERSION: 2.12.8
 
-  scala_211: &scala_211
-    <<: [*settings]
-    docker:
-      - image: circleci/openjdk:8-jdk
-    environment:
-      <<: *env
-      SCALA_VERSION: 2.11.12
-
-  scala_212_jdk11:
-    <<: [*scala_212]
-    docker:
-      - image: circleci/openjdk:11-jdk
-
-  scala_211_jdk11:
-    <<: [*scala_211]
+  openjdk11:
+    <<: [*openjdk8]
     docker:
       - image: circleci/openjdk:11-jdk
 
@@ -58,27 +47,29 @@ commands:
             curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
             sudo apt-get install -y nodejs
             sudo apt-get clean && sudo apt-get autoclean
+      - checkout
 
   build:
     parameters:
-      build-steps:
-        description: "build steps"
-        type: steps
-        default: []
+      scala_version:
+        type: string
+      command:
+        type: string
+      target:
+        type: string
+
     steps:
-      - checkout
       - restore_cache:
           # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
-          key: monix-cache
+          key: monix-cache-<< parameters.scala_version >>-<< parameters.target >>
 
       - run:
-          name: Compile project (Scala $SCALA_VERSION)
+          name: Compile and test project for Scala << parameters.scala_version >> / << parameters.target >>
           working_directory: ~/monix
-          command: cat /dev/null | sbt $SBT_OPTIONS ++$SCALA_VERSION clean test:compile package
+          command: cat /dev/null | sbt $SBT_OPTIONS ++<< parameters.scala_version >> clean test:compile package
 
-      - steps: << parameters.build-steps >>
       - save_cache:
-          key: monix-cache
+          key: monix-cache-<< parameters.scala_version >>-<< parameters.target >>
           paths:
             - "~/.ivy2/cache"
             - "~/.sbt"
@@ -89,34 +80,86 @@ commands:
 
 jobs:
   install_dependencies_openjdk8:
-    executor: scala_212
+    executor: openjdk8
     steps:
       - install_dependencies
 
   install_dependencies_openjdk11:
-    executor: scala_212_jdk11
+    executor: openjdk11
     steps:
       - install_dependencies
 
-  build_openjdk8_scala211:
-    executor: scala_211
-    steps:
-      - build
+  # Scala 2.11, OpenJDK 8
 
-  build_openjdk8_scala212:
-    executor: scala_212
+  build_openjdk8_scala211_jvm:
+    executor: openjdk8
     steps:
-      - build
+      - build:
+          scala_version: *scala_211
+          target: JVM
+          command: ci-jvm-mima
 
-  build_openjdk11_scala211:
-    executor: scala_211_jdk11
+  build_openjdk8_scala211_js:
+    executor: openjdk8
     steps:
-      - build
+      - build:
+          scala_version: *scala_211
+          target: Javascript
+          command: ci-js
 
-  build_openjdk11_scala212:
-    executor: scala_212_jdk11
+  # Scala 2.12, OpenJDK 8
+
+  build_openjdk8_scala212_jvm:
+    executor: openjdk8
     steps:
-      - build
+      - build:
+          scala_version: *scala_212
+          target: JVM
+          command: ci-jvm-all
+
+  build_openjdk8_scala212_js:
+    executor: openjdk8
+    steps:
+      - build:
+          scala_version: *scala_212
+          target: Javascript
+          command: ci-js
+
+  # Scala 2.11, OpenJDK 11
+
+  build_openjdk11_scala211_jvm:
+    executor: openjdk11
+    steps:
+      - build:
+          scala_version: *scala_211
+          target: JVM
+          command: ci-jvm-mima
+
+  build_openjdk11_scala211_js:
+    executor: openjdk11
+    steps:
+      - build:
+          scala_version: *scala_211
+          target: Javascript
+          command: ci-js
+
+  # Scala 2.12, OpenJDK 11
+
+  build_openjdk11_scala212_jvm:
+    executor: openjdk11
+    steps:
+      - build:
+          scala_version: *scala_212
+          target: JVM
+          command: ci-jvm-all
+
+  build_openjdk11_scala212_js:
+    executor: openjdk11
+    steps:
+      - build:
+          scala_version: *scala_212
+          target: Javascript
+          command: ci-js
 
 
 ###############################
@@ -127,20 +170,32 @@ workflows:
   "Test OpenJDK 8":
     jobs:
       - install_dependencies_openjdk8
-      - build_openjdk8_scala211:
+      - build_openjdk8_scala211_jvm:
           requires:
             - install_dependencies_openjdk8
-      - build_openjdk8_scala212:
+      - build_openjdk8_scala211_js:
+          requires:
+            - install_dependencies_openjdk8
+      - build_openjdk8_scala212_jvm:
+          requires:
+            - install_dependencies_openjdk8
+      - build_openjdk8_scala212_js:
           requires:
             - install_dependencies_openjdk8
 
   "Test OpenJDK 11":
     jobs:
       - install_dependencies_openjdk11
-      - build_openjdk11_scala211:
+      - build_openjdk11_scala211_jvm:
           requires:
             - install_dependencies_openjdk11
-      - build_openjdk11_scala212:
+      - build_openjdk11_scala211_js:
+          requires:
+            - install_dependencies_openjdk11
+      - build_openjdk11_scala212_jvm:
+          requires:
+            - install_dependencies_openjdk11
+      - build_openjdk11_scala212_js:
           requires:
             - install_dependencies_openjdk11
 
