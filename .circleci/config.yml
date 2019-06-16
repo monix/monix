@@ -22,11 +22,6 @@ executors:
     environment:
       <<: *env
 
-  openjdk11:
-    <<: [*openjdk8]
-    docker:
-      - image: openjdk:11
-
 ###############################
 # Commands
 
@@ -77,7 +72,7 @@ commands:
 jobs:
   # Scala 2.11, OpenJDK 8
 
-  build_openjdk8_scala211_jvm:
+  openjdk8_scala211_jvm:
     executor: openjdk8
     steps:
       - build:
@@ -85,7 +80,7 @@ jobs:
           target: JVM
           command: ci-jvm-mima
 
-  build_openjdk8_scala211_js:
+  openjdk8_scala211_js:
     executor: openjdk8
     steps:
       - build:
@@ -95,7 +90,7 @@ jobs:
 
   # Scala 2.12, OpenJDK 8
 
-  build_openjdk8_scala212_jvm:
+  openjdk8_scala212_jvm:
     executor: openjdk8
     steps:
       - build:
@@ -103,50 +98,13 @@ jobs:
           target: JVM
           command: ci-jvm-all
 
-  build_openjdk8_scala212_js:
+  openjdk8_scala212_js:
     executor: openjdk8
     steps:
       - build:
           scala_version: *scala_212
           target: Javascript
           command: ci-js
-
-  # Scala 2.11, OpenJDK 11
-
-  build_openjdk11_scala211_jvm:
-    executor: openjdk11
-    steps:
-      - build:
-          scala_version: *scala_211
-          target: JVM
-          command: ci-jvm-mima
-
-  build_openjdk11_scala211_js:
-    executor: openjdk11
-    steps:
-      - build:
-          scala_version: *scala_211
-          target: Javascript
-          command: ci-js
-
-  # Scala 2.12, OpenJDK 11
-
-  build_openjdk11_scala212_jvm:
-    executor: openjdk11
-    steps:
-      - build:
-          scala_version: *scala_212
-          target: JVM
-          command: ci-jvm-all
-
-  build_openjdk11_scala212_js:
-    executor: openjdk11
-    steps:
-      - build:
-          scala_version: *scala_212
-          target: Javascript
-          command: ci-js
-
 
 ###############################
 
@@ -155,101 +113,7 @@ workflows:
 
   test:
     jobs:
-      - build_openjdk8_scala211_jvm
-      - build_openjdk8_scala211_js
-      - build_openjdk8_scala212_jvm
-      - build_openjdk8_scala212_js
-      - build_openjdk11_scala211_jvm
-      - build_openjdk11_scala211_js
-      - build_openjdk11_scala212_jvm
-      - build_openjdk11_scala212_js
-
-#jobs:
-#  build_openjdk_8_scala_212:
-#    <<: [*settings]
-#
-#    docker:
-#      - image: openjdk:8
-#    environment:
-#      <<: *env
-#      SCALA_VERSION: 2.12.8
-#
-#    steps:
-#      - run:
-#          name: Install dependencies
-#          command: |
-#                    apt update && apt install -y curl
-#                    curl -L -o sbt-$SBT_VERSION.deb https://dl.bintray.com/sbt/debian/sbt-$SBT_VERSION.deb
-#                    dpkg -i sbt-$SBT_VERSION.deb
-#                    rm sbt-$SBT_VERSION.deb
-#                    apt-get update
-#                    apt-get install -f -y
-#                    apt-get install -y python-pip git
-#                    curl -sL https://deb.nodesource.com/setup_10.x | bash -
-#                    apt-get install -y nodejs
-#                    apt-get clean && apt-get autoclean
-#
-#      - checkout
-#      - restore_cache:
-#          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
-#          key: monix-cache
-#
-#      - run:
-#          name: Compile project
-#          working_directory: ~/monix
-#          command: cat /dev/null | sbt $SBT_OPTIONS +clean +test:compile +package
-#
-#      - save_cache:
-#          key: monix-cache
-#          paths:
-#            - "~/.ivy2/cache"
-#            - "~/.sbt"
-#            - "~/.m2"
-#
-#  test_openjdk8_jvm:
-#    # Can this be shared?
-#    working_directory: ~/monix
-#    docker:
-#      - image: openjdk:8
-#    environment:
-#      SBT_VERSION: 1.2.8
-#      SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m -J-XX:ReservedCodeCacheSize=1024m
-#    resource_class: medium
-#    # ------
-#    steps:
-#      - run:
-#          name: Tests for the JVM (OpenJDK 8)
-#          working_directory: ~/monix
-#          command: cat /dev/null | sbt $SBT_OPTIONS +coreJVM/test -J-XX:ReservedCodeCacheSize=1024m
-#
-#  test_openjdk8_js:
-#    # Can this be shared?
-#    working_directory: ~/monix
-#    docker:
-#      - image: openjdk:8
-#    environment:
-#      SBT_VERSION: 1.2.8
-#      SBT_OPTIONS: -J-Xmx3072m -J-XX:MaxMetaspaceSize=1024m  -J-XX:ReservedCodeCacheSize=1024m
-#    resource_class: medium
-#    # ------
-#    steps:
-#      - run:
-#          name: Tests for JavaScript / Node.js (OpenJDK 8)
-#          working_directory: ~/monix
-#          command: cat /dev/null | sbt $SBT_OPTIONS +coreJS/test
-#
-#workflows:
-#  version: 2
-#  test_openjdk8_jvm:
-#    jobs:
-#      - build_openjdk_8
-#      - test_openjdk8_jvm:
-#          requires:
-#            - build_openjdk_8
-#      - test_openjdk8_js:
-#          requires:
-#            - build_openjdk_8
-
-# notify:
-#   webhooks:
-#     - url: https://webhooks.gitter.im/e/f1a7ec8fc9a34c6a9108
+      - openjdk8_scala211_jvm
+      - openjdk8_scala211_js
+      - openjdk8_scala212_jvm
+      - openjdk8_scala212_js
