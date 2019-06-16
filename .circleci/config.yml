@@ -47,7 +47,6 @@ commands:
             curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
             sudo apt-get install -y nodejs
             sudo apt-get clean && sudo apt-get autoclean
-      - checkout
 
   build:
     parameters:
@@ -63,6 +62,7 @@ commands:
           # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
           key: monix-cache-<< parameters.scala_version >>-<< parameters.target >>
 
+      - checkout
       - run:
           name: Compile and test project for Scala << parameters.scala_version >> / << parameters.target >>
           working_directory: ~/monix
