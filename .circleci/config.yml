@@ -89,7 +89,7 @@ jobs:
   install_dependencies_openjdk8:
     executor: scala_212
     steps:
-      - build:
+      - build
 
   install_dependencies_openjdk11:
     executor: scala_212_jdk11
