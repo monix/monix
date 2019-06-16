@@ -77,9 +77,9 @@ object ScanEffectSuite extends BaseOperatorSuite {
     )
   }
 
-  test("scanEval0.headL.toIO <-> seed") { implicit s =>
+  test("scanEval0.headL.to[IO] <-> seed") { implicit s =>
     check2 { (obs: Observable[Int], seed: IO[Int]) =>
-      obs.scanEval0F(seed)((a, b) => IO.pure(a + b)).headL.toIO <-> seed
+      obs.scanEval0F(seed)((a, b) => IO.pure(a + b)).headL.to[IO] <-> seed
     }
   }
 

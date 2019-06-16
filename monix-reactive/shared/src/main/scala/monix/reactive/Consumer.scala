@@ -122,7 +122,7 @@ abstract class Consumer[-In, +R] extends (Observable[In] => Task[R]) with Serial
     * See [[mapTask]] for the version that's specialized on `Task`.
     */
   final def mapEval[F[_], R2](f: R => F[R2])(implicit F: TaskLike[F]): Consumer[In, R2] =
-    new MapTaskConsumer[In, R, R2](self, r => F.toTask(f(r)))
+    new MapTaskConsumer[In, R, R2](self, r => F(f(r)))
 
   /** Given a mapping function, when consuming a stream,
     * applies the mapping function to the final result,
@@ -257,7 +257,7 @@ object Consumer {
     *        execution.
     */
   def foldLeftEval[F[_], S, A](initial: => S)(f: (S, A) => F[S])(implicit F: TaskLike[F]): Consumer[A, S] =
-    new FoldLeftTaskConsumer[A, S](initial _, (s, a) => F.toTask(f(s, a)))
+    new FoldLeftTaskConsumer[A, S](initial _, (s, a) => F(f(s, a)))
 
   /** Given a fold function and an initial state value, applies the
     * fold function to every element of the stream and finally signaling
@@ -334,7 +334,7 @@ object Consumer {
     * @param cb is the function that will be called for each element
     */
   def foreachEval[F[_], A](cb: A => F[Unit])(implicit F: TaskLike[F]): Consumer[A, Unit] =
-    foreachTask(a => F.toTask(cb(a)))
+    foreachTask(a => F(cb(a)))
 
   /** Builds a consumer that will consume the stream, applying the given
     * function to each element and then finally signaling its completion.

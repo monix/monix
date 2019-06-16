@@ -1,3 +1,293 @@
+## Version 3.0.0-RC3 (June 16, 2019)
+
+This release depends on Cats-Effect 1.3.1 and Cats 1.6.1.
+
+The next planned release will target Cats-Effect 2.0.0 with Scala 2.13 support.
+
+NOTE: this release IS NOT binary compatible with 3.0.0-RC2, as it contains some API changes, but it should be source compatible (with `@deprecated` symbols where the case).
+
+### Sub-project: monix-execution
+
+This sub-project no longer depends on cats-effect and there are various
+improvement to `Local` aimed at fixing interop with `Future`. Note that
+you might have to call `Local.isolate` to disable any sharing between tasks.
+
+- [PR #775](https://github.com/monix/monix/pull/775):
+Simplified FutureUtils materialize & dematerialize
+
+- [PR #790](https://github.com/monix/monix/pull/790):
+improve fixed rate scheduling on JS
+
+- [PR #803](https://github.com/monix/monix/pull/803):
+Eagerly null out dequeued elements in ChunkedArrayQueue
+
+- [PR #822](https://github.com/monix/monix/pull/822):
+remove dependency on cats-effect from monix-execution
+
+- [PR #773](https://github.com/monix/monix/pull/773):
+change Cancelable.empty type to Cancelable
+
+- [PR #887](https://github.com/monix/monix/pull/887):
+Shared locals with binds
+
+- [PR #888](https://github.com/monix/monix/pull/888):
+Fix uncaught exception reporting for Scheduler
+
+### Sub-project: monix-catnap
+
+- [PR #778](https://github.com/monix/monix/pull/778):
+Adds ConcurrentChannel
+
+- [PR #784](https://github.com/monix/monix/pull/784):
+More concurrent tests for MVar/Semaphore
+
+- [PR #865](https://github.com/monix/monix/pull/865):
+Adding FunctionK values for Task, Coeval
+
+### Sub-project: monix-eval
+
+- [PR #802](https://github.com/monix/monix/pull/802):
+encapsulate local ctx on task execution
+
+- [PR #807](https://github.com/monix/monix/pull/807):
+Improve encapsulation test, encapsulate locals on ContextShift
+
+- [PR #838](https://github.com/monix/monix/pull/838):
+Add taskified variants of timeout combinators
+
+- [PR #839](https://github.com/monix/monix/pull/839):
+TaskLocal should propagate when used with Bracket Methods
+
+- [PR #849](https://github.com/monix/monix/pull/849):
+Specify exception on timeout
+
+- [PR #887](https://github.com/monix/monix/pull/887):
+Shared locals with binds
+
+- [PR #865](https://github.com/monix/monix/pull/865):
+Adding FunctionK values for Task, Coeval
+
+### Sub-project: monix-reactive
+
+- [PR #759](https://github.com/monix/monix/pull/759):
+Add Contravariant Observer and Subscriber 
+
+- [PR #760](https://github.com/monix/monix/pull/760):
+add Observable.filterEval
+
+- [PR #774](https://github.com/monix/monix/pull/774):
+Add FunctorFilter instances for Iterant&Observable
+
+- [PR #779](https://github.com/monix/monix/pull/779):
+fork blocking i/o observable ops
+
+- [PR #794](https://github.com/monix/monix/pull/794):
+Acquire lock per subscription instead of observable-wide lock
+
+- [PR #801](https://github.com/monix/monix/pull/801):
+Observable buffers refactoring
+
+- [PR #819](https://github.com/monix/monix/pull/819):
+Extend ObservableLike with filterNot method
+
+- [PR #831](https://github.com/monix/monix/pull/831):
+SerializableSuite to no longer test Future for serializability
+
+- [PR #834](https://github.com/monix/monix/pull/834):
+Observable.reduce should emit for single item source
+
+- [PR #846](https://github.com/monix/monix/pull/846):
+Ensure mapParallelOrdered runs in parallel
+
+- [PR #872](https://github.com/monix/monix/pull/872):
+Add observable take while inclusive 
+
+- [PR #895](https://github.com/monix/monix/pull/895):
+Fix memory leak in MapParallelOrderedObservable
+
+### Sub-project: monix-tail
+
+- [PR #778](https://github.com/monix/monix/pull/778):
+Adds Iterant.channel, Iterant#consume
+
+- [PR #826](https://github.com/monix/monix/pull/826):
+add Iterant.uncons operation
+
+### Chores
+
+- [PR #766](https://github.com/monix/monix/pull/766):
+Update sbt-unidoc to 0.4.2
+
+- [PR #766](https://github.com/monix/monix/pull/766):
+Update sbt-pgp to 1.1.2
+
+- [PR #768](https://github.com/monix/monix/pull/768):
+Update sbt-mima-plugin to 0.3.0
+
+- [PR #769](https://github.com/monix/monix/pull/769):
+Update sbt-git to 1.0.0
+
+- [PR #770](https://github.com/monix/monix/pull/770):
+Update jctools-core to 2.1.2
+
+- [PR #771](https://github.com/monix/monix/pull/771):
+Update kind-projector to 0.9.8
+
+- [PR #772](https://github.com/monix/monix/pull/772):
+Update sbt-jmh to 0.3.4
+
+- [PR #771](https://github.com/monix/monix/pull/771):
+Update kind-projector to 0.9.9
+
+- [PR #783](https://github.com/monix/monix/pull/783):
+Use globally accessible (rather than local) source paths in JS source maps (#781)
+
+- [PR #785](https://github.com/monix/monix/pull/785):
+Update sbt-scalajs, scalajs-compiler, scalajs-library... to 0.6.26
+
+- [PR #788](https://github.com/monix/monix/pull/788):
+Update cats-effect, cats-effect-laws to 1.1.0
+
+- [PR #796](https://github.com/monix/monix/pull/796):
+fix scalacOptions
+
+- [PR #797](https://github.com/monix/monix/pull/797):
+Scala 2.12.8
+
+- [PR #798](https://github.com/monix/monix/pull/798):
+Update intervalWithFixedDelay scaladoc
+
+- [PR #805](https://github.com/monix/monix/pull/805):
+Rename keysBuffer to os in groupBy's parameters
+
+- [PR #808](https://github.com/monix/monix/pull/808):
+Update Copyright to 2019
+
+- [PR #810](https://github.com/monix/monix/pull/810):
+sbt 1.2.8 (was 1.1.0)
+
+- [PR #812](https://github.com/monix/monix/pull/812):
+Update Minitest to 2.3.2
+
+- [PR #813](https://github.com/monix/monix/pull/813):
+Disable code coverage
+
+- [PR #818](https://github.com/monix/monix/pull/818):
+Update Cats-Effect to 1.2.0
+
+- [PR #820](https://github.com/monix/monix/pull/820):
+Update cats-laws to 1.5.0 
+
+- [PR #821](https://github.com/monix/monix/pull/821):
+Update cats-laws to 1.6.0
+
+- [PR #823](https://github.com/monix/monix/pull/823):
+Scala 2.13 support
+
+- [PR #821](https://github.com/monix/monix/pull/821):
+Update sbt-header to 5.1.0
+
+- [PR #827](https://github.com/monix/monix/pull/827):
+Remove comments from .jvmopts
+
+- [PR #833](https://github.com/monix/monix/pull/833):
+Fix build for 2.13.0-M5 by deactivating Mima for it
+
+- [PR #840](https://github.com/monix/monix/pull/840):
+Add adopters list seed
+
+- [PR #842](https://github.com/monix/monix/pull/842):
+Fixed deprecation docs for Task#coeval
+
+- [PR #843](https://github.com/monix/monix/pull/843):
+Remove dead code from tests
+
+- [PR #844](https://github.com/monix/monix/pull/844):
+Update sbt-header to 5.2.0
+
+- [PR #847](https://github.com/monix/monix/pull/847):
+Update ExecutionModel.scala
+
+- [PR #850](https://github.com/monix/monix/pull/850):
+Increase rate in AsyncSchedulerSuite
+
+- [PR #854](https://github.com/monix/monix/pull/854):
+fix apparently erronous code involving Unit companion
+
+- [PR #855](https://github.com/monix/monix/pull/855):
+Update sbt-jmh to 0.3.5 
+
+- [PR #857](https://github.com/monix/monix/pull/857):
+Make benchmarks compile
+
+- [PR #859](https://github.com/monix/monix/pull/859):
+Update sbt-scalajs, scalajs-compiler to 0.6.27
+
+- [PR #867](https://github.com/monix/monix/pull/867):
+Update kind-projector to 0.10.0
+
+- [PR #869](https://github.com/monix/monix/pull/869):
+fix compile errors with latest Scala 2.13 
+
+- [PR #874](https://github.com/monix/monix/pull/874):
+Update cats-effect, cats-effect-laws to 1.3.0
+
+- [PR #878](https://github.com/monix/monix/pull/878):
+Compile Benchmarks in CI
+
+- [PR #879](https://github.com/monix/monix/pull/879):
+Do on subscription cancel scaladoc fix
+
+- [PR #889](https://github.com/monix/monix/pull/889):
+Update cats-effect, cats-effect-laws to 1.3.1
+
+- [PR #894](https://github.com/monix/monix/pull/894):
+Add UnsafeBecauseImpure Annotation to foreach.
+
+- [PR #896](https://github.com/monix/monix/pull/896):
+Update cats-laws to 1.6.1
+
+- [PR #898](https://github.com/monix/monix/pull/898):
+Reformating via Scalafmt
+
+- [PR #899](https://github.com/monix/monix/pull/899):
+Fix autoCancelableRunLoops comment.
+
+- [PR #901](https://github.com/monix/monix/pull/901):
+avoid deprecated unicode arrow chars 
+
+- [PR #902](https://github.com/monix/monix/pull/902):
+reformat build files
+
+### Thanks
+
+People that made this release possible, in alphabetical order:
+
+- Alexandru Nedelcu (@alexandru)
+- Allan Timothy Leong (@allantl)
+- Daniel Neades (@djneades)
+- Dawid Dworak (@ddworak)
+- Eugene Platonov (@jozic)
+- Itamar Ravid (@iravid)
+- Jorge (@jvican)
+- Jorge Branco (@jorgedfbranco)
+- Kenji Yoshida (@xuwei-k)
+- Luke Stephenson (@lukestephenson)
+- Matthew de Detrich (@mdedetrich)
+- Mikhail Chugunkov (@poslegm)
+- Oleg Pyzhcov (@oleg-py)
+- Ota Hauptmann (@Otah)
+- Piotr Gawryś (@Avasil)
+- Roman Tkalenko (@tkroman)
+- Ryo Fukumuro (@rfkm)
+- Sam Guymer (@guymers)
+- Seth Tisue (@SethTisue)
+- Tanaka Takaya (@takayahilton)
+- Yann Simon (@yanns)
+
+And special thanks to our top contributor in this release: 
+https://github.com/fthomas/scala-steward :)
+
 ## Version 3.0.0-RC2 (Nov 6, 2018)
 
 ### Cats-Effect Updates

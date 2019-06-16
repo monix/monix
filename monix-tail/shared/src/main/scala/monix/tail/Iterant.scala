@@ -20,9 +20,9 @@ package monix.tail
 import java.io.PrintStream
 
 import cats.implicits._
-import cats.arrow.FunctionK
 import cats.effect.{Async, Effect, Sync, _}
 import cats.{
+  ~>,
   Applicative,
   CoflatMap,
   Defer,
@@ -1235,11 +1235,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   // Source is using Coeval for evaluation
     *   val source = Iterant[Coeval].of(1, 2, 3, 4)
     *
-    *   // Transformation to an iterant based on Task
-    *   source.liftMap(new (Coeval ~> Task) {
-    *     def apply[A](fa: Coeval[A]): Task[A] =
-    *       fa.task
-    *   })
+    *   // Transformation to an Iterant of Task
+    *   source.mapK(Coeval.liftTo[Task])
     * }}}
     *
     * This operator can be used for more than transforming the `F`
@@ -1251,7 +1248,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @tparam G is the data type that is going to drive the evaluation
     *           of the resulting iterant
     */
-  final def liftMap[G[_]](f: FunctionK[F, G])(implicit G: Sync[G]): Iterant[G, A] =
+  final def mapK[G[_]](f: F ~> G)(implicit G: Sync[G]): Iterant[G, A] =
     IterantLiftMap(self, f)(G)
 
   /** Takes the elements of the source iterant and emits the
@@ -3128,6 +3125,11 @@ object Iterant extends IterantInstances {
       try fa.accept(this)
       catch { case e if NonFatal(e) => fail(e) }
   }
+
+  /**
+    * Extension methods for deprecated methods.
+    */
+  implicit class Deprecated[F[_], A](val self: Iterant[F, A]) extends IterantDeprecated.Extensions[F, A]
 }
 
 private[tail] trait IterantInstances {

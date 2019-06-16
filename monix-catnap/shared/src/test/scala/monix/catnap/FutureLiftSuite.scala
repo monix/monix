@@ -124,7 +124,7 @@ object FutureLiftSuite extends TestSuite[TestScheduler] {
   test("FutureLift[F] instance for Concurrent[F] data types") { implicit s =>
     var wasCanceled = 0
     val source = Promise[Int]()
-    val io = FutureLift[IO, CancelableFuture].futureLift(
+    val io = FutureLift[IO, CancelableFuture].apply(
       IO(
         CancelableFuture[Int](source.future, Cancelable { () =>
           wasCanceled += 1
@@ -156,7 +156,7 @@ object FutureLiftSuite extends TestSuite[TestScheduler] {
     val source = Promise[Int]()
 
     def mkInstance[F[_]](implicit F: Async[F]): F[Int] =
-      FutureLift[F, CancelableFuture].futureLift(
+      FutureLift[F, CancelableFuture].apply(
         F.delay(
           CancelableFuture[Int](source.future, Cancelable { () =>
             wasCanceled += 1

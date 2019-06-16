@@ -77,7 +77,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
 
   test("works with IO") { implicit s =>
     check1 { (stream: Iterant[IO, Int]) =>
-      sum(stream, 1) <-> Task.fromIO(stream.foldLeftL(0L)(_ + _))
+      sum(stream, 1) <-> Task.from(stream.foldLeftL(0L)(_ + _))
     }
   }
 

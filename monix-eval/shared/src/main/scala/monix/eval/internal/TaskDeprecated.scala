@@ -18,11 +18,10 @@
 package monix.eval
 package internal
 
+import cats.effect.{ConcurrentEffect, IO}
 import monix.eval.Task.Options
-import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.execution.annotations.UnsafeBecauseImpure
-import monix.execution.Callback
-
+import monix.execution.{Callback, Cancelable, CancelableFuture, Scheduler}
 import scala.annotation.unchecked.uncheckedVariance
 import scala.util.{Failure, Success, Try}
 
@@ -284,6 +283,24 @@ private[eval] object TaskDeprecated {
       Coeval.eval(runSyncMaybeOptPrv(s, Task.defaultOptions))
       // $COVERAGE-ON$
     }
+
+    /**
+      * DEPRECATED — replace with usage of [[Task.to]]:
+      *
+      * {{{
+      *   import cats.effect.IO
+      *   import monix.execution.Scheduler.Implicits.global
+      *   import monix.eval.Task
+      *
+      *   Task(1 + 1).to[IO]
+      * }}}
+      */
+    @deprecated("Switch to task.to[IO]", since = "3.0.0-RC3")
+    def toIO(implicit eff: ConcurrentEffect[Task]): IO[A] = {
+      // $COVERAGE-OFF$
+      TaskConversions.toIO(self)(eff)
+      // $COVERAGE-ON$
+    }
   }
 
   private[eval] abstract class Companion {
@@ -357,6 +374,26 @@ private[eval] object TaskDeprecated {
     def fork[A](fa: Task[A], s: Scheduler): Task[A] = {
       // $COVERAGE-OFF$
       fa.executeOn(s)
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — please use [[Task.from]].
+      */
+    @deprecated("Please use Task.from", "3.0.0")
+    def fromEval[A](a: cats.Eval[A]): Task[A] = {
+      // $COVERAGE-OFF$
+      Coeval.from(a).to[Task]
+      // $COVERAGE-ON$
+    }
+
+    /**
+      * DEPRECATED — please use [[Task.from]].
+      */
+    @deprecated("Please use Task.from", "3.0.0")
+    def fromIO[A](ioa: IO[A]): Task[A] = {
+      // $COVERAGE-OFF$
+      Task.from(ioa)
       // $COVERAGE-ON$
     }
   }

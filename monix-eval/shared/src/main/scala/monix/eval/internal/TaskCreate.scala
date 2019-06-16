@@ -77,7 +77,7 @@ private[eval] object TaskCreate {
     */
   def cancelableIO[A](start: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
     cancelable0 { (sc, cb) =>
-      Task.fromIO(start(sc, cb))
+      Task.from(start(sc, cb))
     }
 
   /**

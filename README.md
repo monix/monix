@@ -46,13 +46,13 @@ a project exemplifying Monix used both on the server and on the client.
 The packages are published on Maven Central.
 
 - Stable release: `2.3.3`
-- Current release candidate: `3.0.0-RC2`
-  (compatible with Cats-Effect 1.0.0)
+- Current release candidate: `3.0.0-RC3`
+  (compatible with Cats-Effect 1.3.1)
 
 For the 3.x series (that works with Cats `1.x` and Cats-Effect `1.0.0`):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC2"
+libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC3"
 ```
 
 For the 2.x series:

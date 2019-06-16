@@ -296,7 +296,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   @deprecated("Switch to guaranteeCaseF", "3.0.0")
   def doAfterTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
     // $COVERAGE-OFF$
-    self.liftByOperator(new DoOnTerminateOperator[A](e => F.toTask(cb(e)), happensBefore = false))
+    self.liftByOperator(new DoOnTerminateOperator[A](e => F(cb(e)), happensBefore = false))
     // $COVERAGE-ON$
   }
 

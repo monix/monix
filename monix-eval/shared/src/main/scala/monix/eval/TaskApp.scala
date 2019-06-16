@@ -91,7 +91,7 @@ trait TaskApp {
       override implicit lazy val timer: Timer[IO] =
         SchedulerEffect.timerLiftIO[IO](scheduler)(IO.ioEffect)
       def run(args: List[String]): IO[ExitCode] =
-        self.run(args).toIO
+        self.run(args).to[IO]
     }
     app.main(args)
   }
