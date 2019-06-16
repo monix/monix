@@ -53,6 +53,7 @@ commands:
       - run:
           name: Install dependencies
           command: |-
+            echo "Installing SBT version: $SBT_VERSION"
             apt update && apt install -y curl
             curl -L -o sbt-$SBT_VERSION.deb https://dl.bintray.com/sbt/debian/sbt-$SBT_VERSION.deb
             dpkg -i sbt-$SBT_VERSION.deb
