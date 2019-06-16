@@ -61,7 +61,7 @@ commands:
             sudo apt-get update
             sudo apt-get install -f -y
             sudo apt-get install -y python-pip git
-            curl -sL https://deb.nodesource.com/setup_10.x | bash -
+            curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
             sudo apt-get install -y nodejs
             sudo apt-get clean && sudo apt-get autoclean
 
