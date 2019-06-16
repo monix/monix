@@ -31,21 +31,6 @@ executors:
 # Commands
 
 commands:
-  install_dependencies:
-    steps:
-      - run:
-          name: Install dependencies
-          command: |
-            apt update && apt install -y curl
-            curl -L -o sbt-$SBT_VERSION.deb https://dl.bintray.com/sbt/debian/sbt-$SBT_VERSION.deb
-            dpkg -i sbt-$SBT_VERSION.deb
-            rm sbt-$SBT_VERSION.deb
-            apt-get update
-            apt-get install -y sbt git
-            curl -sL https://deb.nodesource.com/setup_10.x | bash -
-            apt-get install -y nodejs
-            apt-get clean && apt-get autoclean
-
   build:
     parameters:
       scala_version:
@@ -59,6 +44,19 @@ commands:
       - restore_cache:
           # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
           key: monix-cache-<< parameters.scala_version >>-<< parameters.target >>
+
+      - run:
+          name: Install dependencies
+          command: |
+            apt update && apt install -y curl
+            curl -L -o sbt-$SBT_VERSION.deb https://dl.bintray.com/sbt/debian/sbt-$SBT_VERSION.deb
+            dpkg -i sbt-$SBT_VERSION.deb
+            rm sbt-$SBT_VERSION.deb
+            apt-get update
+            apt-get install -y sbt git
+            curl -sL https://deb.nodesource.com/setup_10.x | bash -
+            apt-get install -y nodejs
+            apt-get clean && apt-get autoclean
 
       - checkout
       - run:
@@ -77,16 +75,6 @@ commands:
 # Jobs
 
 jobs:
-  install_dependencies_openjdk8:
-    executor: openjdk8
-    steps:
-      - install_dependencies
-
-  install_dependencies_openjdk11:
-    executor: openjdk11
-    steps:
-      - install_dependencies
-
   # Scala 2.11, OpenJDK 8
 
   build_openjdk8_scala211_jvm:
@@ -165,37 +153,16 @@ jobs:
 workflows:
   version: *version
 
-  "Test OpenJDK 8":
+  test:
     jobs:
-      - install_dependencies_openjdk8
-      - build_openjdk8_scala211_jvm:
-          requires:
-            - install_dependencies_openjdk8
-      - build_openjdk8_scala211_js:
-          requires:
-            - install_dependencies_openjdk8
-      - build_openjdk8_scala212_jvm:
-          requires:
-            - install_dependencies_openjdk8
-      - build_openjdk8_scala212_js:
-          requires:
-            - install_dependencies_openjdk8
-
-  "Test OpenJDK 11":
-    jobs:
-      - install_dependencies_openjdk11
-      - build_openjdk11_scala211_jvm:
-          requires:
-            - install_dependencies_openjdk11
-      - build_openjdk11_scala211_js:
-          requires:
-            - install_dependencies_openjdk11
-      - build_openjdk11_scala212_jvm:
-          requires:
-            - install_dependencies_openjdk11
-      - build_openjdk11_scala212_js:
-          requires:
-            - install_dependencies_openjdk11
+      - build_openjdk8_scala211_jvm
+      - build_openjdk8_scala211_js
+      - build_openjdk8_scala212_jvm
+      - build_openjdk8_scala212_js
+      - build_openjdk11_scala211_jvm
+      - build_openjdk11_scala211_js
+      - build_openjdk11_scala212_jvm
+      - build_openjdk11_scala212_js
 
 #jobs:
 #  build_openjdk_8_scala_212:
