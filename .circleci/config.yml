@@ -71,7 +71,7 @@ commands:
 jobs:
   # Scala 2.11, OpenJDK 8
 
-  scala211_jvm:
+  scala2_11_jvm:
     executor: openjdk8
     steps:
       - build:
@@ -79,7 +79,7 @@ jobs:
           target: JVM
           command: ci-jvm-mima
 
-  scala211_js:
+  scala2_11_js:
     executor: openjdk8
     steps:
       - build:
@@ -89,7 +89,7 @@ jobs:
 
   # Scala 2.12, OpenJDK 8
 
-  scala212_jvm:
+  scala2_12_jvm:
     executor: openjdk8
     steps:
       - build:
@@ -97,7 +97,7 @@ jobs:
           target: JVM
           command: ci-jvm-all
 
-  scala212_js:
+  scala2_12_js:
     executor: openjdk8
     steps:
       - build:
@@ -107,7 +107,7 @@ jobs:
 
   # Scala 2.13, OpenJDK 8
 
-  scala213_jvm:
+  scala2_13_jvm:
     executor: openjdk8
     steps:
       - build:
@@ -115,7 +115,7 @@ jobs:
           target: JVM
           command: ci-jvm
 
-  scala213_js:
+  scala2_13_js:
     executor: openjdk8
     steps:
       - build:
@@ -130,7 +130,9 @@ workflows:
 
   test:
     jobs:
-      - scala211_jvm
-      - scala211_js
-      - scala212_jvm
-      - scala212_js
+      - scala2_11_jvm
+      - scala2_11_js
+      - scala2_12_jvm
+      - scala2_12_js
+      - scala2_13_jvm
+      - scala2_13_js
