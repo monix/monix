@@ -52,7 +52,7 @@ commands:
     steps:
       - run:
           name: Install dependencies
-          command: |
+          command: |-
             apt update && apt install -y curl
             curl -L -o sbt-$SBT_VERSION.deb https://dl.bintray.com/sbt/debian/sbt-$SBT_VERSION.deb
             dpkg -i sbt-$SBT_VERSION.deb
@@ -101,11 +101,11 @@ jobs:
 workflows:
   version: *version
 
-  test_openjdk8_scala211:
+  "Test Scala 2.11 on OpenJDK 8":
     jobs:
       - install_dependencies_openjdk8
 
-  test_openjdk8_scala212:
+  "Test Scala 2.12 on OpenJDK 8":
     jobs:
       - install_dependencies_openjdk8
 
