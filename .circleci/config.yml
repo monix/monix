@@ -41,7 +41,7 @@ commands:
             dpkg -i sbt-$SBT_VERSION.deb
             rm sbt-$SBT_VERSION.deb
             apt-get update
-            apt-get install -y sbt
+            apt-get install -y sbt git
             curl -sL https://deb.nodesource.com/setup_10.x | bash -
             apt-get install -y nodejs
             apt-get clean && apt-get autoclean
