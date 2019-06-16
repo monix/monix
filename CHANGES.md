@@ -4,7 +4,7 @@ This release depends on Cats-Effect 1.3.1 and Cats 1.6.1.
 
 The next planned release will target Cats-Effect 2.0.0 with Scala 2.13 support.
 
-NOTE: this release IS NOT binary compatible with 3.0.0-RC2, as it contains some API changes, but it should be source compatible (with `@deprecated` symbols).
+NOTE: this release IS NOT binary compatible with 3.0.0-RC2, as it contains some API changes, but it should be source compatible (with `@deprecated` symbols where the case).
 
 ### Sub-project: monix-execution
 
