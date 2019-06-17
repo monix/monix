@@ -18,7 +18,6 @@
 package monix.eval
 
 import monix.execution.Callback
-import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
