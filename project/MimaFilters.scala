@@ -4,6 +4,16 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
+    // Removing TaskRestartCallback#WithLocals
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.apply$default$4"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.<init>$default$4"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.restoreLocals"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.copy$default$4"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.this"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskRestartCallback$NoLocals"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskRestartCallback$WithLocals"),
     // Breaking changes: https://github.com/monix/monix/pull/865
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval.task"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval.toIO"),
