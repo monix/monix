@@ -205,4 +205,15 @@ object TaskBracketSuite extends BaseTestSuite {
     sc.tick()
     assertEquals(f.value, Some(Success(())))
   }
+
+  test("bracket is stack safe (4)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 1000
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      Task.unit.bracket(_ => acc)(_ => Task.unit)
+    }
+
+    val f = task.runToFuture
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
 }
