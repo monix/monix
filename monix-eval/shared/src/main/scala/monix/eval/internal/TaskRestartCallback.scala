@@ -125,11 +125,23 @@ private[internal] abstract class TaskRestartCallback(contextInit: Context, callb
 
   /** Reusable Runnable reference, to go lighter on memory allocations. */
   private[this] val onSuccessRun: TrampolinedRunnable =
-    new TrampolinedRunnable { def run(): Unit = syncOnSuccess(value) }
+    new TrampolinedRunnable {
+      def run(): Unit = {
+        val v = value
+        value = null
+        syncOnSuccess(v)
+      }
+    }
 
   /** Reusable Runnable reference, to go lighter on memory allocations. */
   private[this] val onErrorRun: TrampolinedRunnable =
-    new TrampolinedRunnable { def run(): Unit = syncOnError(error) }
+    new TrampolinedRunnable {
+      def run(): Unit = {
+        val e = error
+        error = null
+        syncOnError(e)
+      }
+    }
 }
 
 private[internal] object TaskRestartCallback {

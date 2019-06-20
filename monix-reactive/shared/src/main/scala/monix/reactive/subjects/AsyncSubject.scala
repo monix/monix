@@ -17,7 +17,7 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
@@ -31,7 +31,7 @@ import scala.annotation.tailrec
   * items to subsequent subscribers, but will simply pass along the error
   * notification from the source Observable.
   */
-final class AsyncSubject[A] extends Subject[A,A] { self =>
+final class AsyncSubject[A] extends Subject[A, A] { self =>
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
@@ -42,10 +42,11 @@ final class AsyncSubject[A] extends Subject[A,A] { self =>
   private[this] var cachedElem: A = _
 
   def size: Int =
-    stateRef.get.subscribers.size
+    stateRef.get().subscribers.size
 
   def onNext(elem: A): Ack = {
-    if (stateRef.get.isDone) Stop else {
+    if (stateRef.get().isDone) Stop
+    else {
       if (!onNextHappened) onNextHappened = true
       cachedElem = elem
       Continue
@@ -62,7 +63,7 @@ final class AsyncSubject[A] extends Subject[A,A] { self =>
 
   @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val state = stateRef.get
+    val state = stateRef.get()
     val subscribers = state.subscribers
 
     if (subscribers eq null) {
@@ -71,13 +72,11 @@ final class AsyncSubject[A] extends Subject[A,A] { self =>
       if (errorThrown != null) {
         subscriber.onError(errorThrown)
         Cancelable.empty
-      }
-      else if (onNextHappened) {
+      } else if (onNextHappened) {
         subscriber.onNext(cachedElem)
         subscriber.onComplete()
         Cancelable.empty
-      }
-      else {
+      } else {
         subscriber.onComplete()
         Cancelable.empty
       }
@@ -92,7 +91,7 @@ final class AsyncSubject[A] extends Subject[A,A] { self =>
 
   @tailrec
   private def onCompleteOrError(ex: Throwable): Unit = {
-    val state = stateRef.get
+    val state = stateRef.get()
     val subscribers = state.subscribers
     val isDone = subscribers eq null
 
@@ -104,21 +103,21 @@ final class AsyncSubject[A] extends Subject[A,A] { self =>
         while (iterator.hasNext) {
           val ref = iterator.next()
 
-          if (ex != null)
+          if (ex != null) {
             ref.onError(ex)
-          else if (onNextHappened) {
+          } else if (onNextHappened) {
             ref.onNext(cachedElem)
             ref.onComplete()
-          }
-          else
+          } else {
             ref.onComplete()
+          }
         }
       }
     }
   }
 
   @tailrec private def unsubscribe(s: Subscriber[A]): Unit = {
-    val current = stateRef.get
+    val current = stateRef.get()
     if (current.subscribers ne null) {
       val update = current.copy(subscribers = current.subscribers - s)
       if (!stateRef.compareAndSet(current, update))
@@ -128,6 +127,10 @@ final class AsyncSubject[A] extends Subject[A,A] { self =>
 }
 
 object AsyncSubject {
+
+  /**
+    * Builder for [[AsyncSubject]].
+    */
   def apply[A](): AsyncSubject[A] =
     new AsyncSubject[A]()
 }
