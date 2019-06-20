@@ -131,4 +131,26 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
     assertEquals(f.value, None)
   }
+
+  test("stack-safety (1)") { implicit sc =>
+    def loop(n: Int): Task[Unit] =
+      if (n <= 0) Task.unit
+      else Task.unit.guarantee(Task.unit).flatMap(_ => loop(n - 1))
+
+    val cycles = if (Platform.isJVM) 100000 else 10000
+    val f = loop(cycles).runToFuture
+    sc.tick()
+
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("stack-safety (2)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 10000
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      acc.flatMap(_ => Task.unit.guarantee(Task.unit))
+    }
+
+    val f = task.runToFuture; sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
 }
