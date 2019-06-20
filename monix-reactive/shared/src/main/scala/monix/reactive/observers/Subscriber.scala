@@ -89,8 +89,7 @@ object Subscriber {
     }
 
   /** Builds an [[Subscriber]] that just logs incoming events. */
-  def dump[A](prefix: String, out: PrintStream = System.out)
-    (implicit s: Scheduler): Subscriber.Sync[A] = {
+  def dump[A](prefix: String, out: PrintStream = System.out)(implicit s: Scheduler): Subscriber.Sync[A] = {
 
     new Observer.DumpObserver[A](prefix, out) with Subscriber.Sync[A] {
       val scheduler = s
@@ -108,8 +107,8 @@ object Subscriber {
     * it builds an [[Subscriber]] instance compliant with the
     * Monix Rx implementation.
     */
-  def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)
-    (implicit s: Scheduler): Subscriber[A] =
+  def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)(
+    implicit s: Scheduler): Subscriber[A] =
     ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
@@ -209,8 +208,7 @@ object Subscriber {
       Subscriber.contramap(target)(f)
   }
 
-  private[this] final class Implementation[-A]
-    (private val underlying: Observer[A], val scheduler: Scheduler)
+  private[this] final class Implementation[-A](private val underlying: Observer[A], val scheduler: Scheduler)
     extends Subscriber[A] {
 
     require(underlying != null, "Observer should not be null")
@@ -221,8 +219,7 @@ object Subscriber {
     def onComplete(): Unit = underlying.onComplete()
   }
 
-  private[this] final class SyncImplementation[-A]
-    (observer: Observer.Sync[A], val scheduler: Scheduler)
+  private[this] final class SyncImplementation[-A](observer: Observer.Sync[A], val scheduler: Scheduler)
     extends Subscriber.Sync[A] {
 
     require(observer != null, "Observer should not be null")
@@ -233,9 +230,7 @@ object Subscriber {
     def onComplete(): Unit = observer.onComplete()
   }
 
-  private[this] final class ContravariantSubscriber[A, B]
-    (source: Subscriber[A])(f: B => A)
-    extends Subscriber[B] {
+  private[this] final class ContravariantSubscriber[A, B](source: Subscriber[A])(f: B => A) extends Subscriber[B] {
     override implicit def scheduler: Scheduler = source.scheduler
     // For protecting the contract
     private[this] var isDone = false
@@ -256,8 +251,12 @@ object Subscriber {
       }
     }
     override def onError(ex: Throwable): Unit =
-      if (!isDone) { isDone = true; source.onError(ex) }
+      if (!isDone) {
+        isDone = true; source.onError(ex)
+      }
     override def onComplete(): Unit =
-      if (!isDone) { isDone = true; source.onComplete() }
+      if (!isDone) {
+        isDone = true; source.onComplete()
+      }
   }
 }

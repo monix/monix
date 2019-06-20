@@ -47,9 +47,13 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val b = Iterant[Task]
     val dummy = DummyException("dummy")
     var effect = 0
-    val stopT = Task.evalAsync { effect += 1}
+    val stopT = Task.evalAsync { effect += 1 }
 
-    val r = b.nextS(1, Task.evalAsync(b.nextS(2, Task.evalAsync(b.raiseError[Int](dummy))).guarantee(stopT))).guarantee(stopT).toListL.runToFuture
+    val r = b
+      .nextS(1, Task.evalAsync(b.nextS(2, Task.evalAsync(b.raiseError[Int](dummy))).guarantee(stopT)))
+      .guarantee(stopT)
+      .toListL
+      .runToFuture
     assertEquals(effect, 0)
 
     s.tick()
@@ -82,9 +86,11 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("Iterant[Task].foldLeftL (async) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
-    val c = Task.evalAsync { effect += 1}
+    val c = Task.evalAsync { effect += 1 }
     val stream = Iterant[Task]
-      .nextS(1, Task.evalAsync(Iterant[Task].nextCursorS(BatchCursor(2,3), Task.now(Iterant[Task].empty[Int])).guarantee(c)))
+      .nextS(
+        1,
+        Task.evalAsync(Iterant[Task].nextCursorS(BatchCursor(2, 3), Task.now(Iterant[Task].empty[Int])).guarantee(c)))
       .guarantee(c)
       .mapEval(x => Task.evalAsync(x))
 
@@ -98,7 +104,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]))
-      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_ + _)
       result <-> Task.raiseError[Int](dummy)
     }
   }
@@ -108,7 +114,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val generator = new ThrowExceptionBatch(dummy)
       val error = Iterant[Task].nextBatchS(generator, Task.now(Iterant[Task].empty[Int]))
-      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_ + _)
       result <-> Task.raiseError[Int](dummy)
     }
   }
@@ -129,8 +135,10 @@ object IterantFoldLeftSuite extends BaseTestSuite {
 
   test("Iterant[Coeval].toListL (foldLeftL, lazy)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = Iterant[Coeval].fromIterable(list)
-        .mapEval(x => Coeval(x)).toListL
+      val result = Iterant[Coeval]
+        .fromIterable(list)
+        .mapEval(x => Coeval(x))
+        .toListL
 
       result <-> Coeval.now(list)
     }
@@ -152,7 +160,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
     val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c)
-    val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runTry()
+    val result = stream.foldLeftL[Int](throw dummy)((a, e) => a + e).runTry()
     assertEquals(result, Failure(dummy))
     assert(!wasCanceled, "wasCanceled should be false")
   }
@@ -171,7 +179,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c)
+    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c)
     val result = stream.foldLeftL(0)((_, _) => throw dummy)
     check(result <-> Coeval.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
@@ -180,9 +188,11 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("Iterant[Coeval].foldLeftL (async) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
-    val c = Coeval { effect += 1}
-    val stream = Iterant[Coeval].nextS(1,
-      Coeval(Iterant[Coeval].nextCursorS(BatchCursor(2,3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c)))
+    val c = Coeval { effect += 1 }
+    val stream = Iterant[Coeval]
+      .nextS(
+        1,
+        Coeval(Iterant[Coeval].nextCursorS(BatchCursor(2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c)))
       .guarantee(c)
       .mapEval(x => Coeval(x))
 
@@ -196,7 +206,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
       val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]))
-      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_ + _)
       result <-> Coeval.raiseError[Int](dummy)
     }
   }
@@ -206,7 +216,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val generator: Batch[Int] = new ThrowExceptionBatch(dummy)
       val error = Iterant[Coeval].nextBatchS(generator, Coeval.now(Iterant[Coeval].empty[Int]))
-      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_+_)
+      val result = (prefix.onErrorIgnore ++ error).foldLeftL(0)(_ + _)
       result <-> Coeval.raiseError[Int](dummy)
     }
   }
@@ -282,17 +292,17 @@ object IterantFoldLeftSuite extends BaseTestSuite {
 
     val stream = Iterant[Coeval].scopeS[Unit, Int](
       Coeval.unit,
-      _ => Coeval(1 +: Iterant[Coeval].suspend {
-        if (triggered.getAndSet(true))
-          Iterant[Coeval].raiseError[Int](fail)
-        else
-          Iterant[Coeval].empty[Int]
-      }),
+      _ =>
+        Coeval(1 +: Iterant[Coeval].suspend {
+          if (triggered.getAndSet(true))
+            Iterant[Coeval].raiseError[Int](fail)
+          else
+            Iterant[Coeval].empty[Int]
+        }),
       (_, _) => {
         Coeval(triggered.set(true))
       }
     )
-
 
     assertEquals((0 +: stream :+ 2).toListL.value(), List(0, 1, 2))
   }

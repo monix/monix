@@ -31,12 +31,12 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val maxCount = Platform.recommendedBatchSize * 4
 
     def loop(count: AtomicInt): Task[Unit] =
-      if (count.incrementAndGet() >= maxCount) Task.unit else
+      if (count.incrementAndGet() >= maxCount) Task.unit
+      else
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)
-    val f = loop(atomic)
-      .runToFutureOpt
+    val f = loop(atomic).runToFutureOpt
 
     f.cancel(); s.tick()
     assertEquals(atomic.get, maxCount)
@@ -48,7 +48,8 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val expected = Platform.recommendedBatchSize
 
     def loop(count: AtomicInt): Task[Unit] =
-      if (count.getAndIncrement() >= maxCount) Task.unit else
+      if (count.getAndIncrement() >= maxCount) Task.unit
+      else
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)
@@ -71,7 +72,8 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val expected = Platform.recommendedBatchSize
 
     def loop(count: AtomicInt): Task[Unit] =
-      if (count.getAndIncrement() >= maxCount) Task.unit else
+      if (count.getAndIncrement() >= maxCount) Task.unit
+      else
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)

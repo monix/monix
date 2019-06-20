@@ -23,8 +23,7 @@ import scala.concurrent.ExecutionContext
 /**
   * INTERNAL API — implements [[UncaughtExceptionReporter.default]].
   */
-private[execution] object DefaultUncaughtExceptionReporter
-  extends UncaughtExceptionReporter {
+private[execution] object DefaultUncaughtExceptionReporter extends UncaughtExceptionReporter {
 
   def reportFailure(e: Throwable): Unit =
     logger(e)

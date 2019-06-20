@@ -28,8 +28,7 @@ private[monix] object AttemptCallback {
   import Constants.eitherOfUnit
 
   /** Reusable runnable that triggers a tick. */
-  final class RunnableTick(cb: Either[Throwable, Unit] => Unit)
-    extends Runnable {
+  final class RunnableTick(cb: Either[Throwable, Unit] => Unit) extends Runnable {
 
     def run(): Unit =
       cb(eitherOfUnit)

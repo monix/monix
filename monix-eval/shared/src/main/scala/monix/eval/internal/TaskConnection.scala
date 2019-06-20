@@ -133,14 +133,10 @@ private[eval] object TaskConnection {
     def isCanceled: Boolean = false
     def pop(): CancelToken[Task] = Task.unit
     def tryReactivate(): Boolean = true
-    def push(token: CancelToken[Task])
-      (implicit s: Scheduler): Unit = ()
-    def push(cancelable: Cancelable)
-      (implicit s: Scheduler): Unit = ()
-    def push(connection: CancelableF[Task])
-      (implicit s: Scheduler): Unit = ()
-    def pushConnections(seq: CancelableF[Task]*)
-      (implicit s: Scheduler): Unit = ()
+    def push(token: CancelToken[Task])(implicit s: Scheduler): Unit = ()
+    def push(cancelable: Cancelable)(implicit s: Scheduler): Unit = ()
+    def push(connection: CancelableF[Task])(implicit s: Scheduler): Unit = ()
+    def pushConnections(seq: CancelableF[Task]*)(implicit s: Scheduler): Unit = ()
     def toCancelable(implicit s: Scheduler): Cancelable =
       Cancelable.empty
   }
@@ -172,8 +168,7 @@ private[eval] object TaskConnection {
       pushAny(connection)
 
     @tailrec
-    private def pushAny(cancelable: AnyRef)
-      (implicit s: Scheduler): Unit = {
+    private def pushAny(cancelable: AnyRef)(implicit s: Scheduler): Unit = {
 
       state.get match {
         case null =>
@@ -214,12 +209,11 @@ private[eval] object TaskConnection {
       }
   }
 
-  private[internal] def trampolineCallback[A](conn: TaskConnection, cb: Callback[Throwable, A])
-    (implicit s: Scheduler): Callback[Throwable, A] =
+  private[internal] def trampolineCallback[A](conn: TaskConnection, cb: Callback[Throwable, A])(
+    implicit s: Scheduler): Callback[Throwable, A] =
     new TrampolinedWithConn[A](conn, cb)
 
-  private final class TrampolinedWithConn[A](conn: TaskConnection, cb: Callback[Throwable, A])
-    (implicit s: Scheduler)
+  private final class TrampolinedWithConn[A](conn: TaskConnection, cb: Callback[Throwable, A])(implicit s: Scheduler)
     extends Callback.Base[Throwable, A](cb)(s) with TrampolinedRunnable {
 
     override def run(): Unit = {

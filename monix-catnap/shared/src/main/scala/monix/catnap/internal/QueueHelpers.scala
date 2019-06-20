@@ -34,8 +34,7 @@ private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextS
     f: () => T,
     filter: T => Boolean,
     map: T => U,
-    cb: Either[Throwable, U] => Unit)
-    (implicit F: Concurrent[F]): F[Unit] = {
+    cb: Either[Throwable, U] => Unit)(implicit F: Concurrent[F]): F[Unit] = {
 
     // Registering intention to sleep via promise
     state.get() match {
@@ -56,9 +55,7 @@ private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextS
     f: () => T,
     filter: T => Boolean,
     map: T => U,
-    cb: Either[Throwable, U] => Unit)
-    (p: CancelablePromise[Unit])
-    (implicit F: Concurrent[F]): F[Unit] = {
+    cb: Either[Throwable, U] => Unit)(p: CancelablePromise[Unit])(implicit F: Concurrent[F]): F[Unit] = {
 
     // Async boundary, for fairness reasons; also creates a full
     // memory barrier between the promise registration and what follows
@@ -80,8 +77,7 @@ private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextS
     f: () => T,
     filter: T => Boolean,
     map: T => U,
-    cb: Either[Throwable, U] => Unit)
-    (implicit F: Concurrent[F]): F[Unit] = {
+    cb: Either[Throwable, U] => Unit)(implicit F: Concurrent[F]): F[Unit] = {
 
     // Trying to read
     val value = f()

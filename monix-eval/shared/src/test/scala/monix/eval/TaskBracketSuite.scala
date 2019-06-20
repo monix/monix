@@ -98,7 +98,8 @@ object TaskBracketSuite extends BaseTestSuite {
     import scala.concurrent.duration._
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
 
-    val task = Task.evalAsync(1)
+    val task = Task
+      .evalAsync(1)
       .bracketE(x => Task.evalAsync(x + 1).delayExecution(1.second)) { (a, i) =>
         Task.eval { input = Some((a, i)) }
       }
@@ -117,11 +118,13 @@ object TaskBracketSuite extends BaseTestSuite {
     val useError = new DummyException("use")
     val releaseError = new DummyException("release")
 
-    val task = Task.evalAsync(1).bracket[Int] { _ =>
-      Task.raiseError(useError)
-    } { _ =>
-      Task.raiseError(releaseError)
-    }
+    val task = Task
+      .evalAsync(1)
+      .bracket[Int] { _ =>
+        Task.raiseError(useError)
+      } { _ =>
+        Task.raiseError(releaseError)
+      }
 
     val f = task.runToFuture
     sc.tick()
@@ -136,12 +139,13 @@ object TaskBracketSuite extends BaseTestSuite {
             case _ =>
               fail("Unexpected suppressed errors list: " + error.getSuppressed.toList)
           }
-        } else error match {
-          case CompositeException(Seq(`useError`, `releaseError`)) =>
-            () // pass
-          case _ =>
-            fail(s"Unexpected error: $error")
-        }
+        } else
+          error match {
+            case CompositeException(Seq(`useError`, `releaseError`)) =>
+              () // pass
+            case _ =>
+              fail(s"Unexpected error: $error")
+          }
 
       case other =>
         fail(s"Unexpected result: $other")

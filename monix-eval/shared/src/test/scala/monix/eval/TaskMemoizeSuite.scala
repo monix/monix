@@ -28,7 +28,8 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("Task.memoize should work asynchronously for first subscriber") { implicit s =>
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.memoize
-      .flatMap(Task.now).flatMap(Task.now)
+      .flatMap(Task.now)
+      .flatMap(Task.now)
 
     val f = task.runToFuture
     assertEquals(f.value, None)
@@ -39,7 +40,8 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("Task.memoize should work synchronously for next subscribers") { implicit s =>
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.memoize
-      .flatMap(Task.now).flatMap(Task.now)
+      .flatMap(Task.now)
+      .flatMap(Task.now)
 
     task.runToFuture
     s.tick()
@@ -87,7 +89,8 @@ object TaskMemoizeSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
     val task = Task[Int] { effect += 1; throw dummy }.memoize
-      .flatMap(Task.now).flatMap(Task.now)
+      .flatMap(Task.now)
+      .flatMap(Task.now)
 
     val f1 = task.runToFuture; s.tick()
     assertEquals(f1.value, Some(Failure(dummy)))
@@ -303,7 +306,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("Task.memoize effects, sequential") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
-    val task2 = task1.map { x => effect += 1; x + 1 }
+    val task2 = task1.map { x =>
+      effect += 1; x + 1
+    }
 
     val result1 = task2.runToFuture; s.tick()
     assertEquals(effect, 2)
@@ -317,7 +322,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("Task.memoize effects, parallel") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
-    val task2 = task1.map { x => effect += 1; x + 1 }
+    val task2 = task1.map { x =>
+      effect += 1; x + 1
+    }
 
     val result1 = task2.runToFuture
     val result2 = task2.runToFuture
@@ -334,7 +341,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("Task.suspend.memoize effects") { implicit s =>
     var effect = 0
     val task1 = Task.defer { effect += 1; Task.now(3) }.memoize
-    val task2 = task1.map { x => effect += 1; x + 1 }
+    val task2 = task1.map { x =>
+      effect += 1; x + 1
+    }
 
     val result1 = task2.runToFuture; s.tick()
     assertEquals(effect, 2)
@@ -348,8 +357,11 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("Task.suspend.flatMap.memoize effects") { implicit s =>
     var effect = 0
     val task1 = Task.defer { effect += 1; Task.now(2) }
-      .flatMap(x => Task.now(x + 1)).memoize
-    val task2 = task1.map { x => effect += 1; x + 1 }
+      .flatMap(x => Task.now(x + 1))
+      .memoize
+    val task2 = task1.map { x =>
+      effect += 1; x + 1
+    }
 
     val result1 = task2.runToFuture; s.tick()
     assertEquals(effect, 2)
@@ -510,7 +522,6 @@ object TaskMemoizeSuite extends BaseTestSuite {
   }
 
   test("Task.memoize should be re-executable after cancel") { implicit s =>
-
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
     val first = task.runToFuture
@@ -618,7 +629,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
   }
 
   test("Task.eval.map.memoize eq Task.eval.map.memoize.memoize") { implicit s =>
-    val task = Task.eval(1).map(_+1).memoize
+    val task = Task.eval(1).map(_ + 1).memoize
     assertEquals(task, task.memoize)
   }
 
@@ -643,9 +654,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
     val task = for {
       local <- TaskLocal(0)
-      v1 <- (local.write(100).flatMap(_ => local.read)).memoize
-      _ <- Task.shift
-      v2 <- local.read
+      v1    <- (local.write(100).flatMap(_ => local.read)).memoize
+      _     <- Task.shift
+      v2    <- local.read
     } yield (v1, v2)
 
     for (v <- task.runToFutureOpt) yield {

@@ -27,8 +27,9 @@ import monix.eval.Coeval
 object IterantUnconsSuite extends BaseTestSuite {
   test("uncons is reversible with flatMap and concat") { implicit s =>
     check1 { (stream: Iterant[Coeval, Int]) =>
-      stream <-> stream.uncons.flatMap { case (opt, rest) =>
-        opt.map(Iterant[Coeval].pure).foldK ++ rest
+      stream <-> stream.uncons.flatMap {
+        case (opt, rest) =>
+          opt.map(Iterant[Coeval].pure).foldK ++ rest
       }
     }
   }

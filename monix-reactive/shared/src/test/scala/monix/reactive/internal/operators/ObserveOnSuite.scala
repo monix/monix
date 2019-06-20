@@ -47,10 +47,13 @@ object ObserveOnSuite extends BaseTestSuite {
     var signaledAfter = 0L
 
     val io = TestScheduler()
-    Observable.range(0, count)
-      .doOnNext(_ => Task { signaledBefore += 1  })
+    Observable
+      .range(0, count)
+      .doOnNext(_ => Task { signaledBefore += 1 })
       .observeOn(io, Unbounded)
-      .foreach { _ => signaledAfter += 1 }
+      .foreach { _ =>
+        signaledAfter += 1
+      }
 
     s.tick()
     assertEquals(signaledBefore, count)
@@ -66,10 +69,13 @@ object ObserveOnSuite extends BaseTestSuite {
     var signaledAfter = 0L
 
     val io = TestScheduler()
-    Observable.range(0, count)
-      .doOnNext(_ => Task { signaledBefore += 1  })
+    Observable
+      .range(0, count)
+      .doOnNext(_ => Task { signaledBefore += 1 })
       .observeOn(io)
-      .foreach { _ => signaledAfter += 1 }
+      .foreach { _ =>
+        signaledAfter += 1
+      }
 
     s.tick()
     assertEquals(signaledBefore, count)

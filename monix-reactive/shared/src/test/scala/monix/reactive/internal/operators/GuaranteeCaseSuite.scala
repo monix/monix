@@ -33,15 +33,15 @@ import scala.concurrent.Future
 object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should work for cats.effect.IO") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
-    Observable.now(1)
+    Observable
+      .now(1)
       .guaranteeF(IO { wasCalled += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -59,7 +59,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     var wasCalled = 0
     var wasCompleted = 0
 
-    Observable.now(1)
+    Observable
+      .now(1)
       .guaranteeF(() => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -77,7 +78,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var wasThrown: Throwable = null
 
-    Observable.now(1)
+    Observable
+      .now(1)
       .guaranteeCase(_ => throw ex)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -95,7 +97,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var wasThrown: Throwable = null
 
-    Observable.now(1)
+    Observable
+      .now(1)
       .guarantee(Task.raiseError(ex))
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -114,7 +117,9 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     var wasCalled = 0
     var wasThrown: Throwable = null
 
-    Observable.now(1).endWithError(ex)
+    Observable
+      .now(1)
+      .endWithError(ex)
       .guaranteeF(IO { wasCalled += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -134,7 +139,9 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex2 = DummyException("dummy2")
     var wasThrown: Throwable = null
 
-    Observable.now(1).endWithError(ex1)
+    Observable
+      .now(1)
+      .endWithError(ex1)
       .guaranteeCaseF[IO](_ => throw ex2)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -163,7 +170,9 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex2 = DummyException("dummy2")
     var wasThrown: Throwable = null
 
-    Observable.now(1).endWithError(ex1)
+    Observable
+      .now(1)
+      .endWithError(ex1)
       .guarantee(Task.raiseError(ex2))
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -189,7 +198,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     var wasCalled = 0
     var wasCompleted = 0
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guarantee(Task.eval { wasCalled += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
@@ -208,7 +218,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     var wasCalled = 0
     var wasCompleted = 0
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guarantee(Task.eval { wasCalled += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
@@ -226,7 +237,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
   test("should protect against user code on synchronous downstream Stop (direct)") { implicit s =>
     val ex = DummyException("dummy")
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guaranteeCase(_ => throw ex)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
@@ -244,7 +256,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
   test("should protect against user code on synchronous downstream Stop (indirect)") { implicit s =>
     val ex = DummyException("dummy")
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guarantee(Task.raiseError(ex))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
@@ -262,7 +275,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
   test("should protect against user code on asynchronous downstream Stop (direct)") { implicit s =>
     val ex = DummyException("dummy")
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guaranteeCase(_ => throw ex)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
@@ -280,7 +294,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
   test("should protect against user code on asynchronous downstream Stop (indirect)") { implicit s =>
     val ex = DummyException("dummy")
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guarantee(Task.raiseError(ex))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
@@ -299,12 +314,15 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[ExitCase[Throwable]]
 
-    Observable.range(0, 100)
-      .guaranteeCase { ex => Task.eval { errorThrown = Some(ex) } }
+    Observable
+      .range(0, 100)
+      .guaranteeCase { ex =>
+        Task.eval { errorThrown = Some(ex) }
+      }
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) =
-          Future { (throw ex) : Ack }
+          Future { (throw ex): Ack }
         def onError(ex: Throwable): Unit =
           throw new IllegalStateException("onError")
         def onComplete(): Unit =
@@ -319,8 +337,11 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[ExitCase[Throwable]]
 
-    Observable.range(0, 100)
-      .guaranteeCase { ex => Task.eval { errorThrown = Some(ex) } }
+    Observable
+      .range(0, 100)
+      .guaranteeCase { ex =>
+        Task.eval { errorThrown = Some(ex) }
+      }
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) =
@@ -341,7 +362,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var wasThrown: Throwable = null
 
-    Observable.now(1)
+    Observable
+      .now(1)
       .guaranteeF(IO.raiseError[Unit](ex))
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -360,7 +382,9 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     var wasCalled = 0
     var wasThrown: Throwable = null
 
-    Observable.now(1).endWithError(ex)
+    Observable
+      .now(1)
+      .endWithError(ex)
       .guaranteeF(() => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -380,7 +404,9 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex2 = DummyException("dummy2")
     var wasThrown: Throwable = null
 
-    Observable.now(1).endWithError(ex1)
+    Observable
+      .now(1)
+      .endWithError(ex1)
       .guaranteeF(IO.raiseError[Unit](ex2))
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -407,7 +433,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     var wasCalled = 0
     var wasCompleted = 0
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guaranteeF(IO(wasCalled += 1))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
@@ -426,7 +453,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     var wasCalled = 0
     var wasCompleted = 0
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guaranteeF(() => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
@@ -445,7 +473,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var errorThrown: Throwable = null
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guaranteeF(IO.raiseError[Unit](ex))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
@@ -463,7 +492,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
   test("should protect against user code on asynchronous downstream Stop") { implicit s =>
     val ex = DummyException("dummy")
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guaranteeF(IO.raiseError[Unit](ex))
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
@@ -482,7 +512,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[Throwable]
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guaranteeCaseF[IO] {
         case ExitCase.Error(e) =>
           IO { errorThrown = Some(e) }
@@ -492,7 +523,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) =
-          Future { (throw ex) : Ack }
+          Future { (throw ex): Ack }
         def onError(ex: Throwable): Unit =
           throw new IllegalStateException("onError")
         def onComplete(): Unit =
@@ -507,7 +538,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[Throwable]
 
-    Observable.range(0, 100)
+    Observable
+      .range(0, 100)
       .guaranteeCaseF {
         case ExitCase.Error(e) =>
           IO { errorThrown = Some(e) }

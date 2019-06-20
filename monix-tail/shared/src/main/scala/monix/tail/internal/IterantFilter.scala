@@ -26,8 +26,7 @@ private[tail] object IterantFilter {
   /**
     * Implementation for `Iterant#filter`
     */
-  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
-    (implicit F: Sync[F]): Iterant[F,A] = {
+  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] = {
 
     val loop = new Loop[F, A](p)
     source match {
@@ -41,8 +40,7 @@ private[tail] object IterantFilter {
     }
   }
 
-  private class Loop[F[_], A](p: A => Boolean)(implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+  private class Loop[F[_], A](p: A => Boolean)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       val item = ref.item

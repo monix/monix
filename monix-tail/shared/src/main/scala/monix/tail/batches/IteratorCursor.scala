@@ -24,10 +24,7 @@ package batches
   * NOTE: all transformations are delegated to the underlying
   * `Iterator` and may thus have lazy behavior.
   */
-final class IteratorCursor[+A](
-  underlying: Iterator[A],
-  override val recommendedBatchSize: Int)
-  extends BatchCursor[A] {
+final class IteratorCursor[+A](underlying: Iterator[A], override val recommendedBatchSize: Int) extends BatchCursor[A] {
 
   override def hasNext(): Boolean =
     underlying.hasNext

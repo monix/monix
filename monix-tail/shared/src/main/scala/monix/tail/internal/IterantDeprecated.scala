@@ -15,23 +15,25 @@
  * limitations under the License.
  */
 
-package monix.eval.utils
+package monix.tail
+package internal
 
-import cats.Comonad
+import cats.arrow.FunctionK
+import cats.effect.Sync
 
-/**
-  * Custom type useful for testing `Comonad` conversions.
-  */
-final case class EvalComonad[A](thunk: () => A)
+private[tail] object IterantDeprecated {
+  /**
+    * Extension methods describing deprecated `Iterant` operations.
+    */
+  private[tail] trait Extensions[F[_], A] extends Any {
+    def self: Iterant[F, A]
 
-object EvalComonad {
-  implicit val comonadInstance: Comonad[EvalComonad] =
-    new Comonad[EvalComonad] {
-      def extract[A](x: EvalComonad[A]): A =
-        x.thunk()
-      def coflatMap[A, B](fa: EvalComonad[A])(f: EvalComonad[A] => B): EvalComonad[B] =
-        EvalComonad(() => f(fa))
-      def map[A, B](fa: EvalComonad[A])(f: A => B): EvalComonad[B] =
-        EvalComonad(() => f(fa.thunk()))
+    /** DEPRECATED — please switch to [[Iterant.mapK]]. */
+    @deprecated("Renamed to Iterant.mapK", since = "3.0.0-RC3")
+    final def liftMap[G[_]](f: FunctionK[F, G])(implicit G: Sync[G]): Iterant[G, A] = {
+      // $COVERAGE-OFF$
+      self.mapK(f)
+      // $COVERAGE-ON$
     }
+  }
 }

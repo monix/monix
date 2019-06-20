@@ -38,15 +38,13 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
   }
 
   def naiveImp[F[_], A](iter: Iterant[F, A], takeEveryNth: Int)(implicit F: Sync[F]): Iterant[F, A] =
-    iter
-      .zipWithIndex
-      .flatMap {
-        case (a, idx) =>
-          if ((idx + 1) % takeEveryNth == 0)
-            Iterant[F].pure(a)
-          else
-            Iterant[F].empty
-      }
+    iter.zipWithIndex.flatMap {
+      case (a, idx) =>
+        if ((idx + 1) % takeEveryNth == 0)
+          Iterant[F].pure(a)
+        else
+          Iterant[F].empty
+    }
 
   test("naiveImp smoke test") { implicit s =>
     val input = List(1, 2, 3, 4, 5, 6)
@@ -62,9 +60,11 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
       val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
       val length = list.length
       // scale down from (Int.MinValue to Int.MaxValue) to (1 to (length + 1)) range
-      val n = math.round(
-        (length * (nr.toDouble - Int.MinValue.toDouble)) / (Int.MaxValue.toDouble - Int.MinValue.toDouble) + 1
-      ).toInt
+      val n = math
+        .round(
+          (length * (nr.toDouble - Int.MinValue.toDouble)) / (Int.MaxValue.toDouble - Int.MinValue.toDouble) + 1
+        )
+        .toInt
       val actual = stream.takeEveryNth(n).toListL.runToFuture
       val expected = naiveImp(stream, n).toListL.runToFuture
       s.tick()
@@ -104,7 +104,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
   }
 
   test("Iterant.takeEveryNth throws on invalid n") { implicit s =>
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
     intercept[IllegalArgumentException] { source.takeEveryNth(0).completedL.value() }
   }
 }

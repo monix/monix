@@ -4,6 +4,75 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
+    // Breaking changes: https://github.com/monix/monix/pull/865
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval.task"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval.toIO"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval.toEval"),
+    exclude[DirectMissingMethodProblem]("monix.catnap.FutureLift.futureLift"),
+    exclude[ReversedMissingMethodProblem]("monix.catnap.FutureLift.apply"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.catnap.FutureLift.or"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.catnap.FutureLift.compose"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.catnap.FutureLift.and"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.catnap.FutureLift.apply"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.catnap.FutureLift.andThen"),
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskLift.taskLift"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskLift.apply"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskLift.or"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskLift.compose"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskLift.and"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskLift.apply"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskLift.andThen"),
+    exclude[DirectMissingMethodProblem]("monix.eval.CoevalLike.toCoeval"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.CoevalLike.apply"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.CoevalLike.or"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.CoevalLike.compose"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.CoevalLike.and"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.CoevalLike.apply"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.CoevalLike.andThen"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.toIO"),
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskLike.toTask"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskLike.apply"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskLike.or"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskLike.compose"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskLike.and"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskLike.apply"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskLike.andThen"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.internal.TaskDeprecated#Extensions.toIO"),
+    exclude[DirectMissingMethodProblem]("monix.tail.Iterant.liftMap"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.ObservableLike.toObservable"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.ObservableLike.apply"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.reactive.ObservableLike.or"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.reactive.ObservableLike.compose"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.reactive.ObservableLike.and"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.reactive.ObservableLike.apply"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.reactive.ObservableLike.andThen"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable#CatsInstances.taskLift"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.internal.deprecated.ObservableDeprecatedBuilders.fromEval"),
+    exclude[ReversedMissingMethodProblem]("monix.reactive.internal.deprecated.ObservableDeprecatedBuilders.fromIO"),
+    exclude[MissingClassProblem]("monix.eval.CoevalLikeImplicits0"),
+    exclude[MissingClassProblem]("monix.eval.TaskLikeImplicits3"),
+    exclude[MissingTypesProblem]("monix.eval.TaskLike$"),
+    exclude[MissingTypesProblem]("monix.eval.TaskLikeImplicits0"),
+    exclude[MissingTypesProblem]("monix.eval.CoevalLike$"),
+    exclude[MissingTypesProblem]("monix.eval.TaskLikeImplicits1"),
+    exclude[MissingTypesProblem]("monix.eval.TaskLikeImplicits2"),
+    exclude[DirectMissingMethodProblem]("monix.eval.TaskLikeImplicits2.fromComonad"),
+    // Breaking changes for https://github.com/monix/monix/pull/888
+    exclude[ReversedMissingMethodProblem](
+      "monix.execution.schedulers.ReferenceScheduler.withUncaughtExceptionReporter"),
+    exclude[ReversedMissingMethodProblem]("monix.execution.Scheduler.withUncaughtExceptionReporter"),
+    exclude[ReversedMissingMethodProblem]("monix.execution.schedulers.SchedulerService.withUncaughtExceptionReporter"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler#WrappedScheduler.copy"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler#WrappedScheduler.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.AsyncScheduler.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.AsyncScheduler.apply"),
+    exclude[MissingTypesProblem]("monix.execution.schedulers.ReferenceScheduler$WrappedScheduler$"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ReferenceScheduler#WrappedScheduler.apply"),
+    // Breaking changes for https://github.com/monix/monix/pull/866
+    exclude[IncompatibleResultTypeProblem]("monix.execution.schedulers.TracingRunnable.<init>$default$2"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TracingRunnable.this"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.misc.Local.getContext"),
+    exclude[IncompatibleMethTypeProblem]("monix.execution.misc.Local.setContext"),
     // Breaking changes for https://github.com/monix/monix/pull/822
     exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture.catsInstances"),
     exclude[MissingClassProblem]("monix.execution.CancelableFuture$CatsInstances"),
@@ -26,12 +95,9 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.execution.exceptions.UncaughtErrorException.apply"),
     exclude[DirectMissingMethodProblem]("monix.execution.exceptions.UncaughtErrorException.apply$default$2"),
     exclude[DirectMissingMethodProblem]("monix.execution.exceptions.UncaughtErrorException.this"),
-
     exclude[IncompatibleResultTypeProblem]("monix.execution.Cancelable.empty"),
     exclude[IncompatibleResultTypeProblem]("monix.execution.CancelableFuture#Pure.cancelable"),
     exclude[IncompatibleResultTypeProblem]("monix.execution.CancelableFuture#Never.cancelable"),
-
-
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.producerType"),
     exclude[ReversedMissingMethodProblem]("monix.execution.ChannelType.consumerType"),
     exclude[IncompatibleMethTypeProblem]("monix.catnap.ConcurrentQueue.offerMany"),
@@ -81,13 +147,19 @@ object MimaFilters {
     exclude[AbstractClassProblem]("monix.execution.internal.collection.queues.FromCircularQueue"),
     exclude[ReversedMissingMethodProblem]("monix.execution.internal.collection.queues.FromCircularQueue.fenceOffer"),
     exclude[ReversedMissingMethodProblem]("monix.execution.internal.collection.queues.FromCircularQueue.fencePoll"),
-    exclude[InheritedNewAbstractMethodProblem]("monix.execution.internal.collection.queues.FromCircularQueue.fenceOffer"),
-    exclude[InheritedNewAbstractMethodProblem]("monix.execution.internal.collection.queues.FromCircularQueue.fencePoll"),
+    exclude[InheritedNewAbstractMethodProblem](
+      "monix.execution.internal.collection.queues.FromCircularQueue.fenceOffer"),
+    exclude[InheritedNewAbstractMethodProblem](
+      "monix.execution.internal.collection.queues.FromCircularQueue.fencePoll"),
     exclude[AbstractClassProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue"),
-    exclude[ReversedMissingMethodProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.fenceOffer"),
-    exclude[ReversedMissingMethodProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.fencePoll"),
-    exclude[InheritedNewAbstractMethodProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.fenceOffer"),
-    exclude[InheritedNewAbstractMethodProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.fencePoll"),
+    exclude[ReversedMissingMethodProblem](
+      "monix.execution.internal.collection.queues.FromMessagePassingQueue.fenceOffer"),
+    exclude[ReversedMissingMethodProblem](
+      "monix.execution.internal.collection.queues.FromMessagePassingQueue.fencePoll"),
+    exclude[InheritedNewAbstractMethodProblem](
+      "monix.execution.internal.collection.queues.FromMessagePassingQueue.fenceOffer"),
+    exclude[InheritedNewAbstractMethodProblem](
+      "monix.execution.internal.collection.queues.FromMessagePassingQueue.fencePoll"),
     exclude[MissingClassProblem]("monix.execution.internal.collection.queues.ConcurrentQueueBuilders"),
     //
     // BREAKING CHANGES: https://github.com/monix/monix/pull/801
@@ -124,8 +196,10 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.SimpleBufferedSubscriber.overflowTriggering"),
     exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.BatchedBufferedSubscriber.this"),
     exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.BatchedBufferedSubscriber.apply"),
-    exclude[IncompatibleResultTypeProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.queue"),
-    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.this"),
+    exclude[IncompatibleResultTypeProblem](
+      "monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.queue"),
+    exclude[DirectMissingMethodProblem](
+      "monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.this"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.buffers.AbstractSimpleBufferedSubscriber.this"),
     exclude[FinalClassProblem]("monix.reactive.OverflowStrategy$Unbounded$"),
     //
@@ -162,16 +236,16 @@ object MimaFilters {
     exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.ConnectableSubscriber.pushFirstAll"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.Subscriber#Extensions.onNextAll"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.Subscriber#Extensions.onNextAll$extension"),
-
     exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.DropByPredicateOperator.this"),
-    exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.TakeByPredicateOperator.this"),
+    exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.TakeByPredicateOperator.this")
   )
 
   lazy val changesFor_3_0_0_RC2 = Seq(
     //
     // BREAKING CHANGES: AsyncQueue
     //
-    exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue#FromMessagePassingQueue.drain"),
+    exclude[DirectMissingMethodProblem](
+      "monix.reactive.observers.buffers.ConcurrentQueue#FromMessagePassingQueue.drain"),
     exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue.drain"),
     exclude[ReversedMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue.drainToBuffer"),
     exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue#FromAbstractQueue.drain"),
@@ -346,7 +420,8 @@ object MimaFilters {
     exclude[IncompatibleMethTypeProblem]("monix.reactive.internal.consumers.ForeachConsumer.createSubscriber"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.internal.consumers.FoldLeftConsumer.createSubscriber"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.internal.consumers.RaiseErrorConsumer.createSubscriber"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.internal.consumers.FirstNotificationConsumer.createSubscriber"),
+    exclude[IncompatibleMethTypeProblem](
+      "monix.reactive.internal.consumers.FirstNotificationConsumer.createSubscriber"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.internal.consumers.ForeachAsyncConsumer.createSubscriber"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.internal.consumers.MapConsumer.createSubscriber"),
     //

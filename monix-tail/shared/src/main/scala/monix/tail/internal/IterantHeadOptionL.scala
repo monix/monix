@@ -28,8 +28,7 @@ private[tail] object IterantHeadOptionL {
   /**
     * Implementation for `Iterant#headOption`.
     */
-  def apply[F[_], A](source: Iterant[F, A])
-    (implicit F: Sync[F]): F[Option[A]] = {
+  def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[Option[A]] = {
 
     source match {
       case Next(a, _) => F.pure(Some(a))
@@ -39,8 +38,7 @@ private[tail] object IterantHeadOptionL {
     }
   }
 
-  private final class Loop[F[_], A](implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, F[Option[A]]] {
+  private final class Loop[F[_], A](implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Option[A]]] {
 
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)

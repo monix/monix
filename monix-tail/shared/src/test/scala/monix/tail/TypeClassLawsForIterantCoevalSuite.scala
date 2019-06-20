@@ -19,7 +19,14 @@ package monix.tail
 
 import cats.Eq
 import cats.data.EitherT
-import cats.laws.discipline.{CoflatMapTests, DeferTests, FunctorFilterTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
+import cats.laws.discipline.{
+  CoflatMapTests,
+  DeferTests,
+  FunctorFilterTests,
+  MonadErrorTests,
+  MonoidKTests,
+  SemigroupalTests
+}
 import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
 import monix.eval.Coeval
 

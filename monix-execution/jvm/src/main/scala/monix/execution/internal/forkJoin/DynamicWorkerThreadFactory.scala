@@ -57,14 +57,18 @@ private[monix] final class DynamicWorkerThreadFactory(
 
   // As per ThreadFactory contract newThread should return `null` if cannot create new thread.
   def newThread(runnable: Runnable): Thread =
-    if (!reserveThread()) null else
+    if (!reserveThread()) null
+    else
       wire(new Thread(new Runnable {
         // We have to decrement the current thread count when the thread exits
-        override def run() = try runnable.run() finally deregisterThread()
+        override def run() =
+          try runnable.run()
+          finally deregisterThread()
       }))
 
   def newThread(fjp: ForkJoinPool): ForkJoinWorkerThread =
-    if (!reserveThread()) null else {
+    if (!reserveThread()) null
+    else {
       wire(new ForkJoinWorkerThread(fjp) with BlockContext {
         // We have to decrement the current thread count when the thread exits
         final override def onTermination(exception: Throwable): Unit =

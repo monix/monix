@@ -24,29 +24,35 @@ import scala.util.Failure
 
 object FoldWhileObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val n = sourceCount/2
-    val obs = Observable.range(0, sourceCount).foldWhileLeft(0L)(
-      (acc,e) => if (e < n) Left(acc + e) else Right(acc + e))
+    val n = sourceCount / 2
+    val obs =
+      Observable.range(0, sourceCount).foldWhileLeft(0L)((acc, e) => if (e < n) Left(acc + e) else Right(acc + e))
 
-    Sample(obs, 1, n * (n+1) / 2, 0.seconds, 0.seconds)
+    Sample(obs, 1, n * (n + 1) / 2, 0.seconds, 0.seconds)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val obs = Observable.range(0, sourceCount).endWithError(ex)
-      .foldWhileLeft(0L)((acc,e) => Left(acc+e))
+    val obs = Observable
+      .range(0, sourceCount)
+      .endWithError(ex)
+      .foldWhileLeft(0L)((acc, e) => Left(acc + e))
 
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
   def cancelableObservables() = {
-    val obs = Observable.range(0, 1000).delayExecution(1.seconds)
-      .foldWhileLeft(0L)((acc,e) => Left(acc + e))
+    val obs = Observable
+      .range(0, 1000)
+      .delayExecution(1.seconds)
+      .foldWhileLeft(0L)((acc, e) => Left(acc + e))
 
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val obs = Observable.range(0, sourceCount).endWithError(ex)
+    val obs = Observable
+      .range(0, sourceCount)
+      .endWithError(ex)
       .foldWhileLeft(0L)((_, _) => throw ex)
 
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
@@ -54,8 +60,8 @@ object FoldWhileObservableSuite extends BaseOperatorSuite {
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1,2,3,4)
-      .foldWhileLeft((throw ex) : Int)((acc, e) => Left(acc + e))
+    val obs = Observable(1, 2, 3, 4)
+      .foldWhileLeft((throw ex): Int)((acc, e) => Left(acc + e))
 
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))

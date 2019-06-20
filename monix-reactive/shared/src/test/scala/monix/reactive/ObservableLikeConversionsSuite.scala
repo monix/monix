@@ -21,11 +21,9 @@ import cats.Eval
 import cats.effect.{IO, SyncIO}
 import monix.catnap.SchedulerEffect
 import monix.eval.TaskConversionsSuite.{CIO, CustomConcurrentEffect, CustomEffect}
-import monix.eval.utils.EvalComonad
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -187,14 +185,14 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(Try)") { implicit s =>
-    val source = Success(1) : Try[Int]
+    val source = Success(1): Try[Int]
     val conv = Observable.from(source)
     assertEquals(conv.runAsyncGetFirst.value, Some(Success(Some(1))))
   }
 
   test("Observable.from(Try) for errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val source = Failure(dummy) : Try[Int]
+    val source = Failure(dummy): Try[Int]
     val conv = Observable.from(source)
     assertEquals(conv.runAsyncGetFirst.value, Some(Failure(dummy)))
   }
@@ -310,13 +308,6 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
 
   test("Task.from(Function0)") { implicit s =>
     val task = Observable.from(() => 1).firstL
-    val f = task.runToFuture
-    s.tick()
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Task.from(comonad)") { implicit s =>
-    val task = Observable.from(EvalComonad(() => 1)).firstL
     val f = task.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))

@@ -26,13 +26,11 @@ import monix.reactive.subjects.{ReplaySubject, Subject}
 import scala.concurrent.Future
 import scala.util.Success
 
-private[reactive] final class RepeatSourceObservable[A](source: Observable[A])
-  extends Observable[A] {
+private[reactive] final class RepeatSourceObservable[A](source: Observable[A]) extends Observable[A] {
 
   // recursive function - subscribes the observer again when
   // onComplete happens
-  def loop(subject: Subject[A, A], out: Subscriber[A],
-    task: OrderedCancelable, index: Long): Unit = {
+  def loop(subject: Subject[A, A], out: Subscriber[A], task: OrderedCancelable, index: Long): Unit = {
 
     val cancelable = subject.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
@@ -76,7 +74,7 @@ private[reactive] final class RepeatSourceObservable[A](source: Observable[A])
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val subject = ReplaySubject[A]()
     val repeatTask = OrderedCancelable()
-    loop(subject, out, repeatTask, index=0)
+    loop(subject, out, repeatTask, index = 0)
 
     val mainTask = source.unsafeSubscribeFn(Subscriber(subject, out.scheduler))
     CompositeCancelable(mainTask, repeatTask)

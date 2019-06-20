@@ -36,7 +36,8 @@ object IterantFromResourceSuite extends BaseTestSuite {
     val r = new Semaphore
     val res = Resource.make(r.acquire)(_.release)
 
-    val f = Iterant[Task].fromResource(res)
+    val f = Iterant[Task]
+      .fromResource(res)
       .mapEval(_ => Task.now(1).delayExecution(1.second))
       .headOptionL
       .runToFuture
@@ -56,7 +57,8 @@ object IterantFromResourceSuite extends BaseTestSuite {
     val res = Resource.make(r.acquire)(_.release)
     val res2 = Resource.suspend(Task(res.flatMap(_ => res)))
 
-    val f = Iterant[Task].fromResource(res2)
+    val f = Iterant[Task]
+      .fromResource(res2)
       .mapEval(_ => Task.now(1).delayExecution(1.second))
       .headOptionL
       .runToFuture

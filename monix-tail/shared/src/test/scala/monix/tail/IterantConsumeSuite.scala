@@ -106,14 +106,15 @@ object IterantConsumeSuite extends BaseTestSuite {
     import cats.implicits._
     implicit val ec: Scheduler = Scheduler.Implicits.global
 
-    val task = Iterant[Task].channel[Int]().flatMap { case (producer, stream) =>
-      val write = Iterant[Task].range(0, iterationsCount).pushToChannel(producer)
-      for {
-        _   <- (producer.awaitConsumers(1) *> write).start
-        sum <- stream.foldLeftL(0L)(_ + _)
-      } yield {
-        assertEquals(sum, iterationsCount.toLong * (iterationsCount - 1) / 2)
-      }
+    val task = Iterant[Task].channel[Int]().flatMap {
+      case (producer, stream) =>
+        val write = Iterant[Task].range(0, iterationsCount).pushToChannel(producer)
+        for {
+          _   <- (producer.awaitConsumers(1) *> write).start
+          sum <- stream.foldLeftL(0L)(_ + _)
+        } yield {
+          assertEquals(sum, iterationsCount.toLong * (iterationsCount - 1) / 2)
+        }
     }
     task.runToFuture
   }

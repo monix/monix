@@ -27,11 +27,10 @@ import monix.reactive.{Observable, Observer}
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
-object ExecuteAsyncObservableSuite extends TestSuite[TestScheduler]  {
+object ExecuteAsyncObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
   test("Observable.now.executeAsync should execute async") { implicit s =>

@@ -31,15 +31,17 @@ object IntervalObservableSuite extends SimpleTestSuite {
     implicit val s = TestScheduler()
     var received = 0
 
-    Observable.intervalWithFixedDelay(1.second).unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long): Future[Ack] = {
-        received += 1
-        Future.delayedResult(100.millis)(Continue)
-      }
+    Observable
+      .intervalWithFixedDelay(1.second)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long): Future[Ack] = {
+          received += 1
+          Future.delayedResult(100.millis)(Continue)
+        }
 
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit = ()
-    })
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = ()
+      })
 
     assertEquals(received, 1)
 
@@ -60,7 +62,8 @@ object IntervalObservableSuite extends SimpleTestSuite {
     var received = 0
     var wasCompleted = false
 
-    val cancelable = Observable.intervalWithFixedDelay(1.second)
+    val cancelable = Observable
+      .intervalWithFixedDelay(1.second)
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long): Future[Ack] = {
           received += 1
@@ -84,15 +87,17 @@ object IntervalObservableSuite extends SimpleTestSuite {
     implicit val s = TestScheduler()
     var received = 0
 
-    Observable.intervalAtFixedRate(1.second).unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long): Future[Ack] = {
-        received += 1
-        Future.delayedResult(100.millis)(Continue)
-      }
+    Observable
+      .intervalAtFixedRate(1.second)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long): Future[Ack] = {
+          received += 1
+          Future.delayedResult(100.millis)(Continue)
+        }
 
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit = ()
-    })
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = ()
+      })
 
     assertEquals(received, 1)
 

@@ -81,7 +81,9 @@ object CoevalMemoizeSuite extends BaseTestSuite {
   test("Coeval.apply.memoize effects") { implicit s =>
     var effect = 0
     val coeval1 = Coeval { effect += 1; 3 }.memoize
-    val coeval2 = coeval1.map { x => effect += 1; x + 1 }
+    val coeval2 = coeval1.map { x =>
+      effect += 1; x + 1
+    }
 
     val result1 = coeval2.runTry
     assertEquals(effect, 2)
@@ -95,7 +97,9 @@ object CoevalMemoizeSuite extends BaseTestSuite {
   test("Coeval.suspend.memoize effects") { implicit s =>
     var effect = 0
     val coeval1 = Coeval.defer { effect += 1; Coeval.now(3) }.memoize
-    val coeval2 = coeval1.map { x => effect += 1; x + 1 }
+    val coeval2 = coeval1.map { x =>
+      effect += 1; x + 1
+    }
 
     val result1 = coeval2.runTry
     assertEquals(effect, 2)
@@ -109,8 +113,11 @@ object CoevalMemoizeSuite extends BaseTestSuite {
   test("Coeval.suspend.flatMap.memoize effects") { implicit s =>
     var effect = 0
     val coeval1 = Coeval.defer { effect += 1; Coeval.now(2) }
-      .flatMap(x => Coeval.now(x + 1)).memoize
-    val coeval2 = coeval1.map { x => effect += 1; x + 1 }
+      .flatMap(x => Coeval.now(x + 1))
+      .memoize
+    val coeval2 = coeval1.map { x =>
+      effect += 1; x + 1
+    }
 
     val result1 = coeval2.runTry
     assertEquals(effect, 2)

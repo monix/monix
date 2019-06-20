@@ -36,7 +36,7 @@ final class SingleAssignCancelableF[F[_]] private (extra: CancelableF[F])(implic
   extends AssignableCancelableF.Bool[F] {
 
   import SingleAssignCancelableF._
-  private[this] val state = Atomic(Empty : State[F])
+  private[this] val state = Atomic(Empty: State[F])
 
   val isCanceled: F[Boolean] =
     F.delay(state.get() match {
@@ -69,24 +69,25 @@ final class SingleAssignCancelableF[F[_]] private (extra: CancelableF[F])(implic
   private def unsafeLoop(ref: CancelableF[F]): F[Unit] = {
     if (state.compareAndSet(Empty, IsActive(ref)))
       F.unit
-    else state.get() match {
-      case IsEmptyCanceled =>
-        if (state.compareAndSet(IsEmptyCanceled, IsCanceled))
-          ref.cancel
-        else
-          unsafeLoop(ref)
+    else
+      state.get() match {
+        case IsEmptyCanceled =>
+          if (state.compareAndSet(IsEmptyCanceled, IsCanceled))
+            ref.cancel
+          else
+            unsafeLoop(ref)
 
-      case IsCanceled | IsActive(_) =>
-        F.flatMap(ref.cancel)(_ => raiseError)
-      case Empty =>
-        unsafeLoop(ref)
-    }
+        case IsCanceled | IsActive(_) =>
+          F.flatMap(ref.cancel)(_ => raiseError)
+        case Empty =>
+          unsafeLoop(ref)
+      }
   }
 
   private def raiseError: F[Unit] = F.raiseError {
     new IllegalStateException(
       "Cannot assign to SingleAssignmentCancelableF " +
-      "as it was already assigned once")
+        "as it was already assigned once")
   }
 }
 
@@ -125,7 +126,7 @@ object SingleAssignCancelableF {
 
   private sealed trait State[+F[_]]
   private case object Empty extends State[Nothing]
-  private case class  IsActive[F[_]](s: CancelableF[F]) extends State[F]
+  private case class IsActive[F[_]](s: CancelableF[F]) extends State[F]
   private case object IsCanceled extends State[Nothing]
   private case object IsEmptyCanceled extends State[Nothing]
 }

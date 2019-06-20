@@ -27,9 +27,7 @@ import scala.concurrent.duration._
 import scala.util.Success
 
 object ReferenceSchedulerSuite extends SimpleTestSuite {
-  class DummyScheduler(
-    val underlying: TestScheduler = TestScheduler())
-    extends ReferenceScheduler {
+  class DummyScheduler(val underlying: TestScheduler = TestScheduler()) extends ReferenceScheduler {
 
     def executionModel = monix.execution.ExecutionModel.Default
     def tick(time: FiniteDuration = Duration.Zero) = underlying.tick(time)
@@ -108,7 +106,9 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     val ws = s.withExecutionModel(AlwaysAsyncExecution)
 
     var effect = 0
-    ws.executeAsync { () => effect += 1 }
+    ws.executeAsync { () =>
+      effect += 1
+    }
 
     assertEquals(effect, 0)
     s.tick()
@@ -139,7 +139,9 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     val ws = s.withExecutionModel(AlwaysAsyncExecution)
 
     val dummy = new RuntimeException("dummy")
-    ws.executeAsync { () => throw dummy }
+    ws.executeAsync { () =>
+      throw dummy
+    }
 
     s.tick()
     assertEquals(s.underlying.state.lastReportedError, dummy)

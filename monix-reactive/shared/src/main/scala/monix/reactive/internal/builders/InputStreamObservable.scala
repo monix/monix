@@ -30,12 +30,12 @@ import monix.execution.exceptions.APIContractViolationException
 import monix.execution.internal.Platform
 
 import scala.annotation.tailrec
-import scala.concurrent.{Future, blocking}
+import scala.concurrent.{blocking, Future}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
-private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: Int)
-  extends Observable[Array[Byte]] { self =>
+private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: Int) extends Observable[Array[Byte]] {
+  self =>
 
   private[this] val wasSubscribed = Atomic(false)
 
@@ -55,23 +55,31 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
     }
   }
 
-  private def reschedule(ack: Future[Ack], b: Array[Byte], out: Subscriber[Array[Byte]],
-    c: BooleanCancelable, em: ExecutionModel)(implicit s: Scheduler): Unit = {
+  private def reschedule(
+    ack: Future[Ack],
+    b: Array[Byte],
+    out: Subscriber[Array[Byte]],
+    c: BooleanCancelable,
+    em: ExecutionModel)(implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(next) =>
         // Should we continue, or should we close the stream?
         if (next == Continue && !c.isCanceled)
           fastLoop(b, out, c, em, 0)
-        // else stop
+      // else stop
       case Failure(ex) =>
         reportFailure(ex)
     }
   }
 
   @tailrec
-  private def fastLoop(buffer: Array[Byte], out: Subscriber[Array[Byte]],
-    c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(implicit s: Scheduler): Unit = {
+  private def fastLoop(
+    buffer: Array[Byte],
+    out: Subscriber[Array[Byte]],
+    c: BooleanCancelable,
+    em: ExecutionModel,
+    syncIndex: Int)(implicit s: Scheduler): Unit = {
 
     // Dealing with mutable status in order to keep the
     // loop tail-recursive :-(
@@ -141,6 +149,7 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
     s.reportFailure(e)
     // Forcefully close in case of protocol violations, because we are
     // not signaling the error downstream, which could lead to leaks
-    try in.close() catch { case NonFatal(_) => () }
+    try in.close()
+    catch { case NonFatal(_) => () }
   }
 }

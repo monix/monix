@@ -26,23 +26,25 @@ import monix.reactive.{Observable, Observer}
 object MiscCompleteSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should complete") { implicit s =>
     var received = 0
     var wasCompleted = false
 
-    Observable.now(1).ignoreElements.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = {
-        received += 1
-        Continue
-      }
+    Observable
+      .now(1)
+      .ignoreElements
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += 1
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     assertEquals(received, 0)
     assert(wasCompleted)
@@ -51,8 +53,10 @@ object MiscCompleteSuite extends TestSuite[TestScheduler] {
   test("should signal error") { implicit s =>
     var thrown: Throwable = null
 
-    Observable.raiseError(DummyException("dummy")).ignoreElements.unsafeSubscribeFn(
-      new Observer[Long] {
+    Observable
+      .raiseError(DummyException("dummy"))
+      .ignoreElements
+      .unsafeSubscribeFn(new Observer[Long] {
         def onError(ex: Throwable) = thrown = ex
         def onComplete() = ()
         def onNext(elem: Long) = Continue

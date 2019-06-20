@@ -82,7 +82,7 @@ object ExecutionModel {
       * of 2 expressible with a `Int`, which is 2^30^ (or 1,073,741,824).
       */
     val recommendedBatchSize: Int = math.roundToPowerOf2(Int.MaxValue)
-    val batchedExecutionModulus: Int = recommendedBatchSize-1
+    val batchedExecutionModulus: Int = recommendedBatchSize - 1
 
     /** Returns the next frame index in the run-loop.
       *
@@ -124,9 +124,7 @@ object ExecutionModel {
     * By specifying the [[ExecutionModel.recommendedBatchSize]],
     * the configuration can be fine-tuned.
     */
-  final case class BatchedExecution(
-    private val batchSize: Int)
-    extends ExecutionModel {
+  final case class BatchedExecution(private val batchSize: Int) extends ExecutionModel {
 
     val recommendedBatchSize: Int = math.nextPowerOf2(batchSize)
     val batchedExecutionModulus: Int = recommendedBatchSize - 1

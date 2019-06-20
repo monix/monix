@@ -25,10 +25,11 @@ object SwitchIfEmptySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount % 2 == 1)
-        Observable.empty.switchIfEmpty(Observable.range(0, sourceCount))
-      else
-        Observable.range(0, sourceCount)
+      val o =
+        if (sourceCount % 2 == 1)
+          Observable.empty.switchIfEmpty(Observable.range(0, sourceCount))
+        else
+          Observable.range(0, sourceCount)
 
       Sample(o, sourceCount, sourceCount * (sourceCount - 1) / 2, Zero, Zero)
     }
@@ -39,7 +40,8 @@ object SwitchIfEmptySuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val obs1 = Observable.empty.switchIfEmpty(Observable.range(0, 1000).delayOnNext(1.second).map(_ + 1))
-    val obs2 = Observable.empty.delayOnComplete(1.second)
+    val obs2 = Observable.empty
+      .delayOnComplete(1.second)
       .switchIfEmpty(Observable.range(0, 1000).delayOnNext(1.second).map(_ + 1))
 
     Seq(

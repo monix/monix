@@ -49,7 +49,8 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     }
   }
 
-  override final def transform[S](s: (A) => S, f: (Throwable) => Throwable)(implicit executor: ExecutionContext): CancelableFuture[S] =
+  override final def transform[S](s: (A) => S, f: (Throwable) => Throwable)(
+    implicit executor: ExecutionContext): CancelableFuture[S] =
     transform {
       case Success(a) => Success(s(a))
       case Failure(e) => Failure(f(e))
@@ -72,13 +73,15 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
   override final def collect[S](pf: PartialFunction[A, S])(implicit executor: ExecutionContext): CancelableFuture[S] =
     transform {
       case Success(a) =>
-        if (pf.isDefinedAt(a)) Success(pf(a)) else
+        if (pf.isDefinedAt(a)) Success(pf(a))
+        else
           throw new NoSuchElementException("Future.collect partial function is not defined at: " + a)
       case fail @ Failure(_) =>
         fail.asInstanceOf[Failure[S]]
     }
 
-  override final def recover[U >: A](pf: PartialFunction[Throwable, U])(implicit executor: ExecutionContext): CancelableFuture[U] =
+  override final def recover[U >: A](pf: PartialFunction[Throwable, U])(
+    implicit executor: ExecutionContext): CancelableFuture[U] =
     transform {
       case ref @ Success(_) => ref
       case Failure(e) =>
@@ -86,7 +89,8 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
         Success(pf(e))
     }
 
-  override final def recoverWith[U >: A](pf: PartialFunction[Throwable, Future[U]])(implicit executor: ExecutionContext): CancelableFuture[U] =
+  override final def recoverWith[U >: A](pf: PartialFunction[Throwable, Future[U]])(
+    implicit executor: ExecutionContext): CancelableFuture[U] =
     transformWith {
       case Success(_) => this
       case Failure(e) =>
@@ -118,7 +122,8 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     }
   }
 
-  override final def andThen[U](pf: PartialFunction[Try[A], U])(implicit executor: ExecutionContext): CancelableFuture[A] =
+  override final def andThen[U](pf: PartialFunction[Try[A], U])(
+    implicit executor: ExecutionContext): CancelableFuture[A] =
     transformWith { r =>
       if (pf.isDefinedAt(r)) pf(r)
       this
@@ -142,36 +147,38 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
 
     // FutureUtils will use a polyfill for Scala 2.11 and will
     // use the real `transformWith` on Scala 2.12
-    val f2 = FutureUtils.transformWith(underlying, { result: Try[A] =>
-      val nextRef: Future[S] =
-        try f(result)
-        catch { case e if NonFatal(e) => Future.failed(e) }
+    val f2 = FutureUtils.transformWith(
+      underlying, { result: Try[A] =>
+        val nextRef: Future[S] =
+          try f(result)
+          catch { case e if NonFatal(e) => Future.failed(e) }
 
-      // Checking to see if we are dealing with a "flatMap"
-      // future, in which case we need to chain the cancelable
-      // reference in order to not create a memory leak
-      nextRef match {
-        case ref: CancelableFuture[_] if ref ne Never =>
-          val cf = ref.asInstanceOf[CancelableFuture[S]]
-          // If the resulting Future is completed, there's no reason
-          // to chain cancelable tokens
-          if (!cf.isCompleted)
-            cf.cancelable match {
-              case cRef2: ChainedCancelable =>
-                // Chaining ensures we don't leak
-                cRef2.forwardTo(cRef)
-              case cRef2 =>
-                if (!cRef2.isInstanceOf[IsDummy]) cRef := cRef2
-            }
+        // Checking to see if we are dealing with a "flatMap"
+        // future, in which case we need to chain the cancelable
+        // reference in order to not create a memory leak
+        nextRef match {
+          case ref: CancelableFuture[_] if ref ne Never =>
+            val cf = ref.asInstanceOf[CancelableFuture[S]]
+            // If the resulting Future is completed, there's no reason
+            // to chain cancelable tokens
+            if (!cf.isCompleted)
+              cf.cancelable match {
+                case cRef2: ChainedCancelable =>
+                  // Chaining ensures we don't leak
+                  cRef2.forwardTo(cRef)
+                case cRef2 =>
+                  if (!cRef2.isInstanceOf[IsDummy]) cRef := cRef2
+              }
 
-          // Returning underlying b/c otherwise we leak memory in
-          // infinite loops
-          cf.underlying
+            // Returning underlying b/c otherwise we leak memory in
+            // infinite loops
+            cf.underlying
 
-        case _ =>
-          nextRef
+          case _ =>
+            nextRef
+        }
       }
-    })
+    )
 
     CancelableFuture(f2, cRef)
   }
@@ -267,8 +274,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     * This is much like working with Scala's
     * [[scala.concurrent.Promise Promise]], only safer.
     */
-  def async[A](register: (Try[A] => Unit) => Cancelable)
-    (implicit ec: ExecutionContext): CancelableFuture[A] = {
+  def async[A](register: (Try[A] => Unit) => Cancelable)(implicit ec: ExecutionContext): CancelableFuture[A] = {
 
     val p = Promise[A]()
     val cRef = SingleAssignCancelable()
@@ -291,8 +297,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
 
   /** A [[CancelableFuture]] instance that will never complete. */
   private[execution] object Never extends CancelableFuture[Nothing] {
-    def onComplete[U](f: (Try[Nothing]) => U)
-      (implicit executor: ExecutionContext): Unit = ()
+    def onComplete[U](f: (Try[Nothing]) => U)(implicit executor: ExecutionContext): Unit = ()
 
     val isCompleted = false
     val value = None
@@ -313,7 +318,8 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
 
     override def transform[S](f: (Try[Nothing]) => Try[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
       this
-    override def transformWith[S](f: (Try[Nothing]) => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
+    override def transformWith[S](f: (Try[Nothing]) => Future[S])(
+      implicit executor: ExecutionContext): CancelableFuture[S] =
       this
   }
 

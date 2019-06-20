@@ -39,8 +39,8 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
   def `:=`(conn: CancelableF[Task])(implicit s: Scheduler): Unit =
     unsafeSet(conn.cancel)
 
-  private def unsafeSet(ref: AnyRef/* CancelToken[Task] | CancelableF[Task] | Cancelable */)
-    (implicit s: Scheduler): Unit = {
+  private def unsafeSet(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(
+    implicit s: Scheduler): Unit = {
 
     if (!state.compareAndSet(Empty, IsActive(ref))) {
       state.get match {
@@ -58,7 +58,7 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
         case Empty =>
           // $COVERAGE-OFF$
           unsafeSet(ref)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }
@@ -86,10 +86,10 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
   private def raiseError(): Nothing = {
     throw new IllegalStateException(
       "Cannot assign to SingleAssignmentCancelable, " +
-      "as it was already assigned once")
+        "as it was already assigned once")
   }
 
-  private[this] val state = Atomic(Empty : State)
+  private[this] val state = Atomic(Empty: State)
 }
 
 private[eval] object TaskConnectionRef {
@@ -100,7 +100,8 @@ private[eval] object TaskConnectionRef {
 
   private sealed trait State
   private case object Empty extends State
-  private final case class IsActive(token: AnyRef/* CancelToken[Task] | CancelableF[Task] | Cancelable */) extends State
+  private final case class IsActive(token: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )
+    extends State
   private case object IsCanceled extends State
   private case object IsEmptyCanceled extends State
 }

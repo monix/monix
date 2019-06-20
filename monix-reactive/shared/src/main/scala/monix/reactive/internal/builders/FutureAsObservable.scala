@@ -26,8 +26,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /** Converts any `Future` into an observable */
-private[reactive] final class FutureAsObservable[A](factory: => Future[A])
-  extends Observable[A] {
+private[reactive] final class FutureAsObservable[A](factory: => Future[A]) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.{scheduler => s}

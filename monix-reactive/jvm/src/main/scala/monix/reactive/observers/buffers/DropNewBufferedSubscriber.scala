@@ -34,8 +34,10 @@ import scala.util.{Failure, Success}
   * and the [[monix.reactive.OverflowStrategy.DropNewAndSignal DropNewAndSignal]]
   * overflow strategies.
   */
-private[observers] final class DropNewBufferedSubscriber[A] private
-  (out: Subscriber[A], bufferSize: Int, onOverflow: Long => Coeval[Option[A]] = null)
+private[observers] final class DropNewBufferedSubscriber[A] private (
+  out: Subscriber[A],
+  bufferSize: Int,
+  onOverflow: Long => Coeval[Option[A]] = null)
   extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
@@ -54,12 +56,12 @@ private[observers] final class DropNewBufferedSubscriber[A] private
     ConcurrentQueue.limited[A](bufferSize)
 
   def onNext(elem: A): Ack = {
-    if (upstreamIsComplete || downstreamIsComplete) Stop else {
+    if (upstreamIsComplete || downstreamIsComplete) Stop
+    else {
       if (elem == null) {
         onError(new NullPointerException("Null not supported in onNext"))
         Stop
-      }
-      else {
+      } else {
         if (queue.offer(elem)) pushToConsumer()
         else if (onOverflow != null) droppedCount.increment()
         Continue
@@ -108,15 +110,16 @@ private[observers] final class DropNewBufferedSubscriber[A] private
         // synchronous value
         if (ack == Continue || ack == Stop)
           ack
-        else ack.value match {
-          case Some(Success(success)) =>
-            success
-          case Some(Failure(ex)) =>
-            signalError(ex)
-            Stop
-          case None =>
-            ack
-        }
+        else
+          ack.value match {
+            case Some(Success(success)) =>
+              success
+            case Some(Failure(ex)) =>
+              signalError(ex)
+              Stop
+            case None =>
+              ack
+          }
       } catch {
         case ex if NonFatal(ex) =>
           signalError(ex)
@@ -124,13 +127,15 @@ private[observers] final class DropNewBufferedSubscriber[A] private
       }
 
     private final def signalComplete(): Unit =
-      try out.onComplete() catch {
+      try out.onComplete()
+      catch {
         case ex if NonFatal(ex) =>
           scheduler.reportFailure(ex)
       }
 
     private final def signalError(ex: Throwable): Unit =
-      try out.onError(ex) catch {
+      try out.onError(ex)
+      catch {
         case err if NonFatal(err) =>
           scheduler.reportFailure(err)
       }
@@ -177,7 +182,8 @@ private[observers] final class DropNewBufferedSubscriber[A] private
                   case None => null.asInstanceOf[A]
                 }
 
-            if (overflowMessage != null) overflowMessage else {
+            if (overflowMessage != null) overflowMessage
+            else {
               toProcess = 1
               queue.poll()
             }
@@ -213,13 +219,11 @@ private[observers] final class DropNewBufferedSubscriber[A] private
                   goAsync(next, ack, processed, toProcess)
                   return
               }
-            }
-            else {
+            } else {
               goAsync(next, ack, processed, toProcess)
               return
             }
-          }
-          else if (upstreamIsComplete) {
+          } else if (upstreamIsComplete) {
             // Race-condition check, but if upstreamIsComplete=true is
             // visible, then the queue should be fully published because
             // there's a clear happens-before relationship between
@@ -232,8 +236,7 @@ private[observers] final class DropNewBufferedSubscriber[A] private
               else signalComplete()
               return
             }
-          }
-          else {
+          } else {
             // Given we are writing in `itemsToPush` before this
             // assignment, it means that writes will not get reordered,
             // so when we observe that itemsToPush is zero on the
@@ -273,7 +276,9 @@ private[observers] object DropNewBufferedSubscriber {
     * [[monix.reactive.OverflowStrategy.DropNewAndSignal DropNewAndSignal]]
     * overflowStrategy.
     */
-  def withSignal[A](underlying: Subscriber[A], bufferSize: Int, onOverflow: Long => Coeval[Option[A]]): DropNewBufferedSubscriber[A] =
+  def withSignal[A](
+    underlying: Subscriber[A],
+    bufferSize: Int,
+    onOverflow: Long => Coeval[Option[A]]): DropNewBufferedSubscriber[A] =
     new DropNewBufferedSubscriber[A](underlying, bufferSize, onOverflow)
 }
-

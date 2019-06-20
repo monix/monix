@@ -24,7 +24,9 @@ import scala.concurrent.duration._
 object TaskEffectInstanceSuite extends BaseTestSuite {
   test("Effect instance should make use of implicit TaskOptions") { implicit sc =>
     val readOptions: Task[Task.Options] =
-      Task.Async { (ctx, cb) => cb.onSuccess(ctx.options) }
+      Task.Async { (ctx, cb) =>
+        cb.onSuccess(ctx.options)
+      }
 
     implicit val customOptions: Task.Options = Task.Options(
       autoCancelableRunLoops = true,

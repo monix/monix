@@ -25,17 +25,16 @@ import monix.reactive.observers.Subscriber
 import scala.util.{Failure, Success, Try}
 
 /** Implementation for [[monix.reactive.Consumer.create]]. */
-private[reactive]
-final class CreateConsumer[-In,+Out]
-  (f: (Scheduler, Cancelable, Callback[Throwable, Out]) => Observer[In])
-  extends Consumer[In,Out] {
+private[reactive] final class CreateConsumer[-In, +Out](
+  f: (Scheduler, Cancelable, Callback[Throwable, Out]) => Observer[In])
+  extends Consumer[In, Out] {
 
   def createSubscriber(cb: Callback[Throwable, Out], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     val conn = SingleAssignCancelable()
 
     Try(f(s, conn, cb)) match {
       case Failure(ex) =>
-        Consumer.raiseError(ex).createSubscriber(cb,s)
+        Consumer.raiseError(ex).createSubscriber(cb, s)
 
       case Success(out) =>
         val sub = Subscriber(out, s)

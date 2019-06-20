@@ -86,7 +86,8 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val fa = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+    val fa = Iterant[Coeval]
+      .nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
       .guarantee(Coeval { effect += 1 })
       .headOptionL
 
@@ -121,19 +122,18 @@ object IterantHeadOptionSuite extends BaseTestSuite {
 
     val stream = Iterant[Coeval].scopeS[Unit, Int](
       Coeval.unit,
-      _ => Coeval(Iterant.empty ++ Iterant[Coeval].suspend {
-        if (triggered.getAndSet(true))
-          Iterant[Coeval].raiseError[Int](fail)
-        else
-          Iterant[Coeval].empty[Int]
-      }),
+      _ =>
+        Coeval(Iterant.empty ++ Iterant[Coeval].suspend {
+          if (triggered.getAndSet(true))
+            Iterant[Coeval].raiseError[Int](fail)
+          else
+            Iterant[Coeval].empty[Int]
+        }),
       (_, _) => {
         Coeval(triggered.set(true))
       }
     )
 
-    assertEquals(
-      (stream ++ Iterant[Coeval].empty[Int]).headOptionL.value(),
-      None)
+    assertEquals((stream ++ Iterant[Coeval].empty[Int]).headOptionL.value(), None)
   }
 }

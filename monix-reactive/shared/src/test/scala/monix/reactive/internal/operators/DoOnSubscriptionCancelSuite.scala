@@ -27,15 +27,16 @@ import scala.concurrent.duration._
 object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should work") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
-    val c = Observable.now(1).delayExecution(1.second)
+    val c = Observable
+      .now(1)
+      .delayExecution(1.second)
       .doOnSubscriptionCancelF(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
@@ -56,7 +57,9 @@ object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    val c = Observable.now(1).delayExecution(1.second)
+    val c = Observable
+      .now(1)
+      .delayExecution(1.second)
       .doOnSubscriptionCancelF(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s

@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.atomic.{PaddingStrategy, AtomicAny}
+import monix.execution.atomic.{AtomicAny, PaddingStrategy}
 import scala.annotation.tailrec
 
 /** Represents a composite of multiple cancelables. In case it is canceled, all
@@ -71,8 +71,8 @@ import scala.annotation.tailrec
   *         the removed references don't get canceled when the composite
   *         gets canceled. Also useful for garbage collecting purposes.
   */
-final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable.State])
-  extends BooleanCancelable { self =>
+final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable.State]) extends BooleanCancelable {
+  self =>
 
   import CompositeCancelable.{Active, Cancelled}
 
@@ -234,7 +234,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
 object CompositeCancelable {
   /** Builder for [[CompositeCancelable]]. */
   def apply(initial: Cancelable*): CompositeCancelable =
-    withPadding(Set(initial:_*), PaddingStrategy.LeftRight128)
+    withPadding(Set(initial: _*), PaddingStrategy.LeftRight128)
 
   /** Builder for [[CompositeCancelable]]. */
   def fromSet(initial: Set[Cancelable]): CompositeCancelable =

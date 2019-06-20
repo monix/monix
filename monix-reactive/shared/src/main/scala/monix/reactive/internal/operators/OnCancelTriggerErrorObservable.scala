@@ -24,9 +24,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.CancellationException
 
-private[reactive] final
-class OnCancelTriggerErrorObservable[A](source: Observable[A])
-  extends Observable[A] {
+private[reactive] final class OnCancelTriggerErrorObservable[A](source: Observable[A]) extends Observable[A] {
 
   def unsafeSubscribeFn(downstream: Subscriber[A]): Cancelable = {
     val out: Subscriber[A] = new Subscriber[A] { self =>
@@ -35,7 +33,8 @@ class OnCancelTriggerErrorObservable[A](source: Observable[A])
 
       def onNext(elem: A): Future[Ack] =
         self.synchronized {
-          if (isDone) Stop else
+          if (isDone) Stop
+          else
             stopStreamOnCancel(downstream.onNext(elem))
         }
 
@@ -61,16 +60,15 @@ class OnCancelTriggerErrorObservable[A](source: Observable[A])
         else if (ack eq Stop) {
           isDone = true
           Stop
-        }
-        else if (ack.isCompleted) {
+        } else if (ack.isCompleted) {
           val sync = ack.value.get
-          if (sync.isSuccess) stopStreamOnCancel(sync.get) else {
+          if (sync.isSuccess) stopStreamOnCancel(sync.get)
+          else {
             isDone = true
             scheduler.reportFailure(sync.failed.get)
             Stop
           }
-        }
-        else {
+        } else {
           ack.onComplete(result => self.synchronized(stopStreamOnCancel(ack)))
           ack
         }

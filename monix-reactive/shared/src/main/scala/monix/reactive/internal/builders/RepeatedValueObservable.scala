@@ -19,15 +19,14 @@ package monix.reactive.internal.builders
 
 import java.util.concurrent.TimeUnit
 import monix.execution.cancelables.MultiAssignCancelable
-import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-private[reactive] final
-class RepeatedValueObservable[A](initialDelay: FiniteDuration, period: FiniteDuration, unit: A)
+private[reactive] final class RepeatedValueObservable[A](initialDelay: FiniteDuration, period: FiniteDuration, unit: A)
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

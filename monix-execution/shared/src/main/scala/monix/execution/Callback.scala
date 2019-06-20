@@ -204,17 +204,13 @@ object Callback {
       case _ => cb(Left(value))
     }
 
-  private final class AsyncFork[E, A](cb: Callback[E, A])
-    (implicit ec: ExecutionContext)
-    extends Base[E, A](cb)(ec)
+  private final class AsyncFork[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext) extends Base[E, A](cb)(ec)
 
-  private final class TrampolinedCallback[E, A](cb: Callback[E, A])
-    (implicit ec: ExecutionContext)
+  private final class TrampolinedCallback[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Base[E, A](cb)(ec) with TrampolinedRunnable
 
   /** Base implementation for `trampolined` and `forked`. */
-  private[monix] class Base[E, A](cb: Callback[E, A])
-    (implicit ec: ExecutionContext)
+  private[monix] class Base[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Callback[E, A] with Runnable {
 
     private[this] var state = 0
@@ -252,8 +248,7 @@ object Callback {
   /** An "empty" callback instance doesn't do anything `onSuccess` and
     * only logs exceptions `onError`.
     */
-  private final class Empty(r: UncaughtExceptionReporter)
-    extends Callback[Any, Any] {
+  private final class Empty(r: UncaughtExceptionReporter) extends Callback[Any, Any] {
 
     def onSuccess(value: Any): Unit = ()
     def onError(error: Any): Unit =
@@ -263,8 +258,7 @@ object Callback {
   /** A `SafeCallback` is a callback that ensures it can only be called
     * once, with a simple check.
     */
-  private final class Safe[-E, -A](underlying: Callback[E, A])
-    (implicit r: UncaughtExceptionReporter)
+  private final class Safe[-E, -A](underlying: Callback[E, A])(implicit r: UncaughtExceptionReporter)
     extends Callback[E, A] {
 
     private[this] var isActive = true
@@ -272,7 +266,8 @@ object Callback {
     def onSuccess(value: A): Unit =
       if (isActive) {
         isActive = false
-        try underlying.onSuccess(value) catch {
+        try underlying.onSuccess(value)
+        catch {
           case ex if NonFatal(ex) =>
             r.reportFailure(ex)
         }
@@ -281,7 +276,8 @@ object Callback {
     def onError(error: E): Unit =
       if (isActive) {
         isActive = false
-        try underlying.onError(error) catch {
+        try underlying.onError(error)
+        catch {
           case err if NonFatal(err) =>
             r.reportFailure(UncaughtErrorException.wrap(error))
             r.reportFailure(err)
@@ -289,8 +285,7 @@ object Callback {
       }
   }
 
-  private final class Contramap[-E, -A, -B](underlying: Callback[E, A], f: B => A)
-    extends Callback[E, B] {
+  private final class Contramap[-E, -A, -B](underlying: Callback[E, A], f: B => A) extends Callback[E, B] {
 
     def onSuccess(value: B): Unit =
       underlying.onSuccess(f(value))

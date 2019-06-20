@@ -25,9 +25,10 @@ import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 
 /** Implementation for [[monix.reactive.Consumer.headOption]] */
-private[reactive]
-final class HeadOptionConsumer[A] extends Consumer.Sync[A, Option[A]] {
-  override def createSubscriber(cb: Callback[Throwable, Option[A]], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
+private[reactive] final class HeadOptionConsumer[A] extends Consumer.Sync[A, Option[A]] {
+  override def createSubscriber(
+    cb: Callback[Throwable, Option[A]],
+    s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {
       implicit val scheduler = s
       private[this] var isDone = false

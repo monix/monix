@@ -25,9 +25,7 @@ import org.reactivestreams
 import org.reactivestreams.{Subscription, Publisher => RPublisher}
 
 /** Implementation for `Observable.fromReactivePublisher` */
-private[reactive]
-final class ReactiveObservable[A](publisher: RPublisher[A], requestCount: Int)
-  extends Observable[A] {
+private[reactive] final class ReactiveObservable[A](publisher: RPublisher[A], requestCount: Int) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val subscription = SingleAssignSubscription()

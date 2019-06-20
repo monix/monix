@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.subjects.PublishSubject
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
@@ -27,7 +27,8 @@ import scala.concurrent.duration._
 
 object GroupBySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .groupBy(_ % 5)
       .mergeMap(o => o.map(x => o.key + x))
 
@@ -42,7 +43,8 @@ object GroupBySuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) =
-    if (sourceCount <= 1) None else {
+    if (sourceCount <= 1) None
+    else {
       val source = Observable.range(0, sourceCount) ++ Observable.raiseError(ex).executeAsync
       val o = source.groupBy(_ % 5).mergeMap(o => o.map(x => o.key + x))
 
@@ -50,7 +52,7 @@ object GroupBySuite extends BaseOperatorSuite {
     }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).groupBy(x => (throw ex) : Long).concat
+    val o = Observable.range(0, sourceCount).groupBy(x => (throw ex): Long).concat
     Sample(o, 0, 0, Zero, Zero)
   }
 
@@ -66,13 +68,15 @@ object GroupBySuite extends BaseOperatorSuite {
       }
 
     val ch = PublishSubject[Int]()
-    val obs = ch.groupBy(_ % 2)
+    val obs = ch
+      .groupBy(_ % 2)
       .mergeMap(_.timeoutOnSlowUpstream(10.seconds)
         .onErrorFallbackTo(fallbackObservable))
 
     obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] =
-        if (nextShouldCancel) Stop else {
+        if (nextShouldCancel) Stop
+        else {
           received += elem
           Continue
         }
@@ -106,7 +110,6 @@ object GroupBySuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val sample = Observable.range(0, 100).delayOnNext(1.second).groupBy(_ % 5).concat
-    Seq(Sample(sample,0,0,0.second,0.second))
+    Seq(Sample(sample, 0, 0, 0.second, 0.second))
   }
 }
-

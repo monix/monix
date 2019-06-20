@@ -17,9 +17,9 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{TimeUnit, CountDownLatch, Executors}
+import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
 import minitest.SimpleTestSuite
-import monix.execution.{UncaughtExceptionReporter, Scheduler}
+import monix.execution.{Scheduler, UncaughtExceptionReporter}
 
 object TestSchedulerCompanionSuite extends SimpleTestSuite {
   test("scheduler builder, apply, test 1") {
@@ -105,7 +105,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
   }
 
   test("scheduler builder, computation") {
-    val s: SchedulerService = Scheduler.computation(parallelism=1)
+    val s: SchedulerService = Scheduler.computation(parallelism = 1)
     try {
       val latch = new CountDownLatch(2)
       val r = new Runnable { def run() = latch.countDown() }
@@ -118,7 +118,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
   }
 
   test("scheduler builder, io") {
-    val s: SchedulerService = Scheduler.io(name="monix-tests-io")
+    val s: SchedulerService = Scheduler.io(name = "monix-tests-io")
     try {
       val latch = new CountDownLatch(2)
       val r = new Runnable { def run() = latch.countDown() }
@@ -131,7 +131,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
   }
 
   test("scheduler builder, single thread") {
-    val s: SchedulerService = Scheduler.singleThread(name="monix-tests-single-thread")
+    val s: SchedulerService = Scheduler.singleThread(name = "monix-tests-single-thread")
     try {
       val latch = new CountDownLatch(2)
       val r = new Runnable { def run() = latch.countDown() }
@@ -144,7 +144,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
   }
 
   test("scheduler builder, fixed pool") {
-    val s: SchedulerService = Scheduler.fixedPool(name="monix-tests-fixed-pool", poolSize=1)
+    val s: SchedulerService = Scheduler.fixedPool(name = "monix-tests-fixed-pool", poolSize = 1)
     try {
       val latch = new CountDownLatch(2)
       val r = new Runnable { def run() = latch.countDown() }

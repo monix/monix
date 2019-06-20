@@ -38,8 +38,7 @@ object BufferCapacity {
     * rounded to a power of 2 for optimization purposes, so it's not
     * necessarily a precise measurement of how many elements can be stored.
     */
-  final case class Bounded(capacity: Int)
-    extends BufferCapacity {
+  final case class Bounded(capacity: Int) extends BufferCapacity {
 
     def isBounded = true
   }
@@ -52,8 +51,7 @@ object BufferCapacity {
     *        the desired chunk size; this parameter is just a hint and
     *        implementations don't guarantee its usage
     */
-  final case class Unbounded(chunkSizeHint: Option[Int] = None)
-    extends BufferCapacity {
+  final case class Unbounded(chunkSizeHint: Option[Int] = None) extends BufferCapacity {
 
     def isBounded = false
   }

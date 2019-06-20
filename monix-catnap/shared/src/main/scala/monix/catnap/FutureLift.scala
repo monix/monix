@@ -17,6 +17,7 @@
 
 package monix.catnap
 
+import cats.~>
 import cats.effect.{Async, Concurrent}
 import monix.execution.CancelableFuture
 import monix.execution.internal.AttemptCallback
@@ -59,8 +60,8 @@ import scala.concurrent.{Future => ScalaFuture}
   *   val sum: IO[Int] = IO(delayed(1 + 1)).futureLift
   * }}}
   */
-trait FutureLift[F[_], Future[_]] {
-  def futureLift[A](fa: F[Future[A]]): F[A]
+trait FutureLift[F[_], Future[_]] extends (Lambda[A => F[Future[A]]] ~> F) {
+  def apply[A](fa: F[Future[A]]): F[A]
 }
 
 object FutureLift extends internal.FutureLiftForPlatform {
@@ -73,13 +74,13 @@ object FutureLift extends internal.FutureLiftForPlatform {
     *
     *   val F = FutureLift[IO, Future]
     *
-    *   val task: IO[Int] = F.futureLift(IO(Future(1 + 1)))
+    *   val task: IO[Int] = F.apply(IO(Future(1 + 1)))
     * }}}
     */
   def apply[F[_], Future[_]](implicit F: FutureLift[F, Future]): FutureLift[F, Future] = F
 
   /**
-    * Applies [[FutureLift.futureLift]] to the given parameter.
+    * Applies [[FutureLift.apply]] to the given parameter.
     *
     * {{{
     *   import cats.effect.IO
@@ -90,7 +91,7 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * }}}
     */
   def from[F[_], Future[_], A](fa: F[Future[A]])(implicit F: FutureLift[F, Future]): F[A] =
-    F.futureLift(fa)
+    F.apply(fa)
 
   /**
     * Utility for converting [[scala.concurrent.Future Future]] values into
@@ -102,16 +103,13 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * and if the given future is cancelable, then the resulting instance
     * is also cancelable.
     */
-  def scalaToAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])
-    (implicit F: Async[F]): F[A] = {
-
+  def scalaToAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(implicit F: Async[F]): F[A] =
     F.flatMap(fa) { future =>
       future.value match {
         case Some(value) => F.fromTry(value)
         case _ => startAsync(future)
       }
     }
-  }
 
   /**
     * Utility for converting [[scala.concurrent.Future Future]] values into
@@ -123,9 +121,7 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * and if the given future is cancelable, then the resulting instance
     * is also cancelable.
     */
-  def scalaToConcurrent[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])
-    (implicit F: Concurrent[F]): F[A] = {
-
+  def scalaToConcurrent[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(implicit F: Concurrent[F]): F[A] =
     F.flatMap(fa) { future =>
       future.value match {
         case Some(value) => F.fromTry(value)
@@ -138,7 +134,6 @@ object FutureLift extends internal.FutureLiftForPlatform {
           }
       }
     }
-  }
 
   /**
     * A generic function that subsumes both [[scalaToAsync]] and
@@ -147,8 +142,8 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * N.B. this works with [[monix.execution.CancelableFuture]]
     * if the given `Future` is such an instance.
     */
-  def scalaToConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])
-    (implicit F: Concurrent[F] OrElse Async[F]): F[A] = {
+  def scalaToConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(
+    implicit F: Concurrent[F] OrElse Async[F]): F[A] = {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked =>
@@ -163,18 +158,18 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * [[scala.concurrent.Future]] or [[monix.execution.CancelableFuture]] to
     * any `Concurrent` or `Async` data type.
     */
-  implicit def scalaFutureLiftForConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T]]
-    (implicit F: Concurrent[F] OrElse Async[F]): FutureLift[F, MF] = {
+  implicit def scalaFutureLiftForConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T]](
+    implicit F: Concurrent[F] OrElse Async[F]): FutureLift[F, MF] = {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked =>
         new FutureLift[F, MF] {
-          def futureLift[A](fa: F[MF[A]]): F[A] =
+          def apply[A](fa: F[MF[A]]): F[A] =
             scalaToConcurrent[F, MF, A](fa)(ref)
         }
       case ref =>
         new FutureLift[F, MF] {
-          def futureLift[A](fa: F[MF[A]]): F[A] =
+          def apply[A](fa: F[MF[A]]): F[A] =
             scalaToAsync[F, MF, A](fa)(ref)
         }
     }
@@ -196,7 +191,20 @@ object FutureLift extends internal.FutureLiftForPlatform {
       * See [[FutureLift]].
       */
     def futureLift(implicit F: FutureLift[F, Future]): F[A] =
-      F.futureLift(source)
+      F.apply(source)
+  }
+
+  /**
+    * Deprecated method, which happened on extending `FunctionK`.
+    */
+  implicit class Deprecated[F[_], Future[_]](val inst: FutureLift[F, Future]) {
+    /** DEPRECATED — switch to [[FutureLift.apply]]. */
+    @deprecated("Switch to FutureLift.apply", since = "3.0.0-RC3")
+    def futureLift[A](fa: F[Future[A]]): F[A] = {
+      // $COVERAGE-OFF$
+      inst(fa)
+      // $COVERAGE-ON$
+    }
   }
 
   private def start[A](fa: ScalaFuture[A], cb: Either[Throwable, A] => Unit): Unit = {
@@ -205,7 +213,9 @@ object FutureLift extends internal.FutureLiftForPlatform {
   }
 
   private def startAsync[F[_], A](fa: ScalaFuture[A])(implicit F: Async[F]): F[A] =
-    F.async { cb => start(fa, cb) }
+    F.async { cb =>
+      start(fa, cb)
+    }
 
   private def startCancelable[F[_], A](fa: CancelableFuture[A])(implicit F: Concurrent[F]): F[A] =
     F.cancelable { cb =>

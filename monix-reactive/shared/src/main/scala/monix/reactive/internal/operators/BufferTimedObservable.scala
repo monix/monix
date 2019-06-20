@@ -29,10 +29,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration, MILLISECONDS}
 
-private[reactive] final class BufferTimedObservable[+A](
-  source: Observable[A],
-  timespan: FiniteDuration,
-  maxCount: Int)
+private[reactive] final class BufferTimedObservable[+A](source: Observable[A], timespan: FiniteDuration, maxCount: Int)
   extends Observable[Seq[A]] {
 
   require(timespan > Duration.Zero, "timespan must be strictly positive")
@@ -41,98 +38,96 @@ private[reactive] final class BufferTimedObservable[+A](
   def unsafeSubscribeFn(out: Subscriber[Seq[A]]): Cancelable = {
     val periodicTask = MultiAssignCancelable()
 
-    val connection = source.unsafeSubscribeFn(
-      new Subscriber[A] with Runnable { self =>
-        implicit val scheduler = out.scheduler
+    val connection = source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
+      implicit val scheduler = out.scheduler
 
-        private[this] val timespanMillis = timespan.toMillis
-        // MUST BE synchronized by `self`
-        private[this] var ack: Future[Ack] = Continue
-        // MUST BE synchronized by `self`
-        private[this] var buffer = ListBuffer.empty[A]
-        // MUST BE synchronized by `self`
-        private[this] var expiresAt = scheduler.clockMonotonic(MILLISECONDS) + timespanMillis
+      private[this] val timespanMillis = timespan.toMillis
+      // MUST BE synchronized by `self`
+      private[this] var ack: Future[Ack] = Continue
+      // MUST BE synchronized by `self`
+      private[this] var buffer = ListBuffer.empty[A]
+      // MUST BE synchronized by `self`
+      private[this] var expiresAt = scheduler.clockMonotonic(MILLISECONDS) + timespanMillis
 
-        locally {
-          // Scheduling the first tick, in the constructor
-          periodicTask := out.scheduler.scheduleOnce(timespanMillis, TimeUnit.MILLISECONDS, self)
+      locally {
+        // Scheduling the first tick, in the constructor
+        periodicTask := out.scheduler.scheduleOnce(timespanMillis, TimeUnit.MILLISECONDS, self)
+      }
+
+      // Runs periodically, every `timespan`
+      def run(): Unit = self.synchronized {
+        val now = scheduler.clockMonotonic(MILLISECONDS)
+        // Do we still have time remaining?
+        if (now < expiresAt) {
+          // If we still have time remaining, it's either a scheduler
+          // problem, or we rushed to signaling the bundle upon reaching
+          // the maximum size in onNext. So we sleep some more.
+          val remaining = expiresAt - now
+          periodicTask := scheduler.scheduleOnce(remaining, TimeUnit.MILLISECONDS, self)
+        } else if (buffer != null) {
+          // The timespan has passed since the last signal so we need
+          // to send the current bundle
+          sendNextAndReset(now).syncOnContinue(
+            // Schedule the next tick, but only after we are done
+            // sending the bundle
+            run())
         }
+      }
 
-        // Runs periodically, every `timespan`
-        def run(): Unit = self.synchronized {
-          val now = scheduler.clockMonotonic(MILLISECONDS)
-          // Do we still have time remaining?
-          if (now < expiresAt) {
-            // If we still have time remaining, it's either a scheduler
-            // problem, or we rushed to signaling the bundle upon reaching
-            // the maximum size in onNext. So we sleep some more.
-            val remaining = expiresAt - now
-            periodicTask := scheduler.scheduleOnce(remaining, TimeUnit.MILLISECONDS, self)
-          }
-          else if (buffer != null) {
-            // The timespan has passed since the last signal so we need
-            // to send the current bundle
-            sendNextAndReset(now).syncOnContinue(
-              // Schedule the next tick, but only after we are done
-              // sending the bundle
-              run())
-          }
+      // Must be synchronized by `self`
+      private def sendNextAndReset(now: Long): Future[Ack] = {
+        val oldBuffer = buffer.toList
+        // Reset
+        buffer = ListBuffer.empty[A]
+        // Setting the time of the next scheduled tick
+        expiresAt = now + timespanMillis
+        ack = ack.syncTryFlatten.syncFlatMap {
+          case Continue => out.onNext(oldBuffer)
+          case Stop => Stop
         }
+        ack
+      }
 
-        // Must be synchronized by `self`
-        private def sendNextAndReset(now: Long): Future[Ack] = {
-          val oldBuffer = buffer.toList
-          // Reset
-          buffer = ListBuffer.empty[A]
-          // Setting the time of the next scheduled tick
-          expiresAt = now + timespanMillis
-          ack = ack.syncTryFlatten.syncFlatMap {
-            case Continue => out.onNext(oldBuffer)
-            case Stop => Stop
-          }
-          ack
-        }
+      def onNext(elem: A): Future[Ack] = self.synchronized {
+        val now = scheduler.clockMonotonic(MILLISECONDS)
+        buffer.append(elem)
 
-        def onNext(elem: A): Future[Ack] = self.synchronized {
-          val now = scheduler.clockMonotonic(MILLISECONDS)
-          buffer.append(elem)
+        if (expiresAt <= now || (maxCount > 0 && maxCount <= buffer.length))
+          sendNextAndReset(now)
+        else
+          Continue
+      }
 
-          if (expiresAt <= now || (maxCount > 0 && maxCount <= buffer.length))
-            sendNextAndReset(now)
-          else
-            Continue
-        }
+      def onError(ex: Throwable): Unit = self.synchronized {
+        periodicTask.cancel()
+        ack = Stop
+        buffer = null
+        out.onError(ex)
+      }
 
-        def onError(ex: Throwable): Unit = self.synchronized {
-          periodicTask.cancel()
-          ack = Stop
-          buffer = null
-          out.onError(ex)
-        }
+      def onComplete(): Unit = self.synchronized {
+        periodicTask.cancel()
 
-        def onComplete(): Unit = self.synchronized {
-          periodicTask.cancel()
-
-          if (buffer.nonEmpty) {
-            val bundleToSend = buffer.toList
-            // In case the last onNext isn't finished, then
-            // we need to apply back-pressure, otherwise this
-            // onNext will break the contract.
-            ack.syncOnContinue {
-              out.onNext(bundleToSend)
-              out.onComplete()
-            }
-          } else {
-            // We can just stream directly
+        if (buffer.nonEmpty) {
+          val bundleToSend = buffer.toList
+          // In case the last onNext isn't finished, then
+          // we need to apply back-pressure, otherwise this
+          // onNext will break the contract.
+          ack.syncOnContinue {
+            out.onNext(bundleToSend)
             out.onComplete()
           }
-
-          // GC relief
-          buffer = null
-          // Ensuring that nothing else happens
-          ack = Stop
+        } else {
+          // We can just stream directly
+          out.onComplete()
         }
-      })
+
+        // GC relief
+        buffer = null
+        // Ensuring that nothing else happens
+        ack = Stop
+      }
+    })
 
     CompositeCancelable(connection, periodicTask)
   }

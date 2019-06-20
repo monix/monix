@@ -23,18 +23,18 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final
-class WhileBusyDropEventsOperator[A] extends Operator[A,A] {
+private[reactive] final class WhileBusyDropEventsOperator[A] extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber.Sync[A] =
     new Subscriber.Sync[A] {
       implicit val scheduler = out.scheduler
 
-      private[this] var ack = Continue : Future[Ack]
+      private[this] var ack = Continue: Future[Ack]
       private[this] var isDone = false
 
       def onNext(elem: A) =
-        if (isDone) Stop else
+        if (isDone) Stop
+        else
           ack.syncTryFlatten match {
             case Continue =>
               ack = out.onNext(elem)

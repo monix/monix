@@ -27,7 +27,6 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Failure, Success, Try}
 
-
 private[eval] object TaskMemoize {
   /**
     * Implementation for `.memoize` and `.memoizeOnSuccess`.
@@ -36,14 +35,13 @@ private[eval] object TaskMemoize {
     source match {
       case Now(_) | Error(_) =>
         source
-      case Task.Eval(Coeval.Suspend(f: LazyVal[A @unchecked]))
-        if !cacheErrors || f.cacheErrors =>
+      case Task.Eval(Coeval.Suspend(f: LazyVal[A @unchecked])) if !cacheErrors || f.cacheErrors =>
         source
-      case Task.Async(r: Register[A] @unchecked, _, _, _)
-        if !cacheErrors || r.cacheErrors =>
+      case Task.Async(r: Register[A] @unchecked, _, _, _) if !cacheErrors || r.cacheErrors =>
         source
       case _ =>
-        Task.Async(new Register(source, cacheErrors),
+        Task.Async(
+          new Register(source, cacheErrors),
           trampolineBefore = false,
           trampolineAfter = true,
           restoreLocals = false)
@@ -55,11 +53,11 @@ private[eval] object TaskMemoize {
 
     // N.B. keeps state!
     private[this] var thunk = source
-    private[this] val state = Atomic(null : AnyRef)
+    private[this] val state = Atomic(null: AnyRef)
 
     def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
       implicit val sc = ctx.scheduler
-      state.get match {
+      state.get() match {
         case result: Try[A] @unchecked =>
           cb(result)
         case _ =>
@@ -89,7 +87,7 @@ private[eval] object TaskMemoize {
         self.thunk = null
       } else {
         // Error happened and we are not caching errors!
-        state.get match {
+        state.get() match {
           case p: Promise[A] @unchecked =>
             // Resetting the state to `null` will trigger the
             // execution again on next `runAsync`
@@ -104,7 +102,7 @@ private[eval] object TaskMemoize {
           case _ =>
             // $COVERAGE-OFF$
             () // Do nothing, as value is probably null already
-            // $COVERAGE-ON$
+          // $COVERAGE-ON$
         }
       }
     }
@@ -121,11 +119,8 @@ private[eval] object TaskMemoize {
     /** While the task is pending completion, registers a new listener
       * that will receive the result once the task is complete.
       */
-    private def registerListener(
-      p: Promise[A],
-      context: Context,
-      cb: Callback[Throwable, A])
-      (implicit ec: ExecutionContext): Unit = {
+    private def registerListener(p: Promise[A], context: Context, cb: Callback[Throwable, A])(
+      implicit ec: ExecutionContext): Unit = {
 
       p.future.onComplete { r =>
         // Listener is cancelable: we simply ensure that the result isn't streamed
@@ -141,7 +136,7 @@ private[eval] object TaskMemoize {
       */
     @tailrec private def start(context: Context, cb: Callback[Throwable, A]): Unit = {
       implicit val sc: Scheduler = context.scheduler
-      self.state.get match {
+      self.state.get() match {
         case null =>
           val update = Promise[A]()
 
@@ -169,7 +164,7 @@ private[eval] object TaskMemoize {
           // Race condition happened
           // $COVERAGE-OFF$
           cb(ref)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }

@@ -37,10 +37,11 @@ object FilterSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.now(2L).filter(_ % 2 == 0)
-      else
-        Observable.range(1, sourceCount * 2 + 1, 1).filter(_ % 2 == 0)
+      val o =
+        if (sourceCount == 1)
+          Observable.now(2L).filter(_ % 2 == 0)
+        else
+          Observable.range(1, sourceCount * 2 + 1, 1).filter(_ % 2 == 0)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -50,12 +51,13 @@ object FilterSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val o = if (sourceCount == 1)
-        createObservableEndingInError(Observable.now(2L), ex)
-          .filter(_ % 2 == 0)
-      else
-        createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex)
-          .filter(_ % 2 == 0)
+      val o =
+        if (sourceCount == 1)
+          createObservableEndingInError(Observable.now(2L), ex)
+            .filter(_ % 2 == 0)
+        else
+          createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex)
+            .filter(_ % 2 == 0)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -64,24 +66,27 @@ object FilterSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.now(1L).filter(_ => throw ex)
-      else
-        Observable.range(1, sourceCount * 2 + 1, 1).filter { x =>
-          if (x == sourceCount * 2)
-            throw ex
-          else
-            x % 2 == 0
-        }
+      val o =
+        if (sourceCount == 1)
+          Observable.now(1L).filter(_ => throw ex)
+        else
+          Observable.range(1, sourceCount * 2 + 1, 1).filter { x =>
+            if (x == sourceCount * 2)
+              throw ex
+            else
+              x % 2 == 0
+          }
 
-      Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+      Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
     }
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample = Observable.range(0,10)
-      .delayOnNext(1.second).filter(_ % 2 == 0)
-    Seq(Sample(sample, 0,0,0.seconds,0.seconds))
+    val sample = Observable
+      .range(0, 10)
+      .delayOnNext(1.second)
+      .filter(_ % 2 == 0)
+    Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
   }
 
   test("should not do back-pressure for onComplete, for 1 element") { implicit s =>

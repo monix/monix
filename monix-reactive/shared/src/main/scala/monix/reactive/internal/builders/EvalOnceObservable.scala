@@ -25,8 +25,7 @@ import monix.reactive.observers.Subscriber
 /** An observable that evaluates the given by-name argument,
   * and emits it.
   */
-private[reactive] final class EvalOnceObservable[A](a: => A)
-  extends Observable[A] {
+private[reactive] final class EvalOnceObservable[A](a: => A) extends Observable[A] {
 
   private[this] var result: A = _
   private[this] var errorThrown: Throwable = null
@@ -34,25 +33,29 @@ private[reactive] final class EvalOnceObservable[A](a: => A)
 
   private def signalResult(out: Subscriber[A], value: A, ex: Throwable): Unit = {
     if (ex != null)
-      try out.onError(ex) catch {
+      try out.onError(ex)
+      catch {
         case err if NonFatal(err) =>
           out.scheduler.reportFailure(err)
           out.scheduler.reportFailure(ex)
+      } else
+      try {
+        out.onNext(value)
+        out.onComplete()
+      } catch {
+        case err if NonFatal(err) =>
+          out.scheduler.reportFailure(err)
       }
-    else try {
-      out.onNext(value)
-      out.onComplete()
-    } catch {
-      case err if NonFatal(err) =>
-        out.scheduler.reportFailure(err)
-    }
   }
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    if (hasResult) signalResult(subscriber, result, errorThrown) else
+    if (hasResult) signalResult(subscriber, result, errorThrown)
+    else
       synchronized {
-        if (hasResult) signalResult(subscriber, result, errorThrown) else {
-          try result = a catch { case ex if NonFatal(ex) => errorThrown = ex }
+        if (hasResult) signalResult(subscriber, result, errorThrown)
+        else {
+          try result = a
+          catch { case ex if NonFatal(ex) => errorThrown = ex }
           hasResult = true
           signalResult(subscriber, result, errorThrown)
         }

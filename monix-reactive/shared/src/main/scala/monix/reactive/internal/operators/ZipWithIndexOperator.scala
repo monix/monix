@@ -22,10 +22,9 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final class ZipWithIndexOperator[A]
-  extends Operator[A, (A,Long)] {
+private[reactive] final class ZipWithIndexOperator[A] extends Operator[A, (A, Long)] {
 
-  def apply(out: Subscriber[(A,Long)]): Subscriber[A] =
+  def apply(out: Subscriber[(A, Long)]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
       private[this] var index = 0L

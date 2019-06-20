@@ -40,7 +40,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
       val ack = downstream.feed(xs)
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 
@@ -60,7 +60,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
       val ack = downstream.onNextAll(xs)
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 
@@ -80,7 +80,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
       val ack = downstream.feed(toIterator(xs))
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 
@@ -100,7 +100,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
       val ack = downstream.feed(toIterator(xs))
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 

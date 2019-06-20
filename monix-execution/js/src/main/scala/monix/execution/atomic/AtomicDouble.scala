@@ -22,8 +22,7 @@ package monix.execution.atomic
   * Note that the equality test in `compareAndSet` is value based,
   * since `Double` is a primitive.
   */
-final class AtomicDouble private[atomic]
-  (initialValue: Double) extends AtomicNumber[Double] {
+final class AtomicDouble private[atomic] (initialValue: Double) extends AtomicNumber[Double] {
 
   private[this] var ref = initialValue
 
@@ -37,8 +36,7 @@ final class AtomicDouble private[atomic]
     if (ref == expect) {
       ref = update
       true
-    }
-    else
+    } else
       false
   }
 
@@ -104,7 +102,7 @@ object AtomicDouble {
     * @param initialValue is the initial value with which to initialize the atomic
     */
   def apply(initialValue: Double): AtomicDouble =
-      new AtomicDouble(initialValue)
+    new AtomicDouble(initialValue)
 
   /** $createDesc
     *

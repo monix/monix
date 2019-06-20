@@ -24,19 +24,17 @@ import scala.reflect.macros.whitebox
   * of [[InlineMacros]].
   */
 private[execution] final case class TestBox[A](value: A) {
-  def map[B](f: A => B): TestBox[B] = macro TestBox.Macros.mapMacroImpl[A,B]
+  def map[B](f: A => B): TestBox[B] = macro TestBox.Macros.mapMacroImpl[A, B]
 }
 
 /** Represents a boxed value, to be used in the testing
   * of [[InlineMacros]].
   */
 private[execution] object TestBox {
-  class Macros(override val c: whitebox.Context)
-    extends InlineMacros with HygieneUtilMacros {
+  class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
 
-    def mapMacroImpl[A : c.WeakTypeTag, B : c.WeakTypeTag]
-      (f: c.Expr[A => B]): c.Expr[TestBox[B]] = {
+    def mapMacroImpl[A: c.WeakTypeTag, B: c.WeakTypeTag](f: c.Expr[A => B]): c.Expr[TestBox[B]] = {
 
       val selfExpr = c.Expr[TestBox[A]](c.prefix.tree)
 
@@ -45,8 +43,7 @@ private[execution] object TestBox {
           q"""
           TestBox($f($selfExpr.value))
           """
-        }
-        else {
+        } else {
           val fn = util.name("fn")
           q"""
           val $fn = $f

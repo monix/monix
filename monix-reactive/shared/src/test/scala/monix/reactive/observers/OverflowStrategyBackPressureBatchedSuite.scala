@@ -30,8 +30,7 @@ import scala.util.Success
 object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should do back-pressure") { implicit s =>
@@ -135,8 +134,9 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     val buffer = BufferedSubscriber.batched[Int](underlying, 1000, MultiProducer)
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
-      else
+        s.executeAsync { () =>
+          buffer.onNext(n); loop(n - 1)
+        } else
         buffer.onComplete()
 
     loop(10000)
@@ -172,8 +172,9 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     val buffer = BufferedSubscriber.batched[Int](underlying, 512, MultiProducer)
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
-      else
+        s.executeAsync { () =>
+          buffer.onNext(n); loop(n - 1)
+        } else
         buffer.onComplete()
 
     loop(10000)

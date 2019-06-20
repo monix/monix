@@ -68,7 +68,7 @@ object TaskToFutureSuite extends BaseTestSuite {
   test("Task.fromFuture for completed reference is stack safe (flatMap)") { implicit s =>
     def loop(n: Int, acc: Int): Task[Int] =
       if (n > 0)
-        Task.fromFuture(Future.successful(acc+1)).flatMap(loop(n-1, _))
+        Task.fromFuture(Future.successful(acc + 1)).flatMap(loop(n - 1, _))
       else
         Task.fromFuture(Future.successful(acc))
 
@@ -79,7 +79,7 @@ object TaskToFutureSuite extends BaseTestSuite {
   test("Task.deferFuture for completed reference is stack safe (flatMap)") { implicit s =>
     def loop(n: Int, acc: Int): Task[Int] =
       if (n > 0)
-        Task.deferFuture(Future.successful(acc+1)).flatMap(loop(n-1, _))
+        Task.deferFuture(Future.successful(acc + 1)).flatMap(loop(n - 1, _))
       else
         Task.deferFuture(Future.successful(acc))
 
@@ -90,8 +90,9 @@ object TaskToFutureSuite extends BaseTestSuite {
   test("Task.deferFutureAction for completed reference is stack safe (flatMap)") { implicit s =>
     def loop(n: Int, acc: Int): Task[Int] =
       if (n > 0)
-        Task.deferFutureAction(implicit s => Future.successful(acc+1))
-          .flatMap(loop(n-1, _))
+        Task
+          .deferFutureAction(implicit s => Future.successful(acc + 1))
+          .flatMap(loop(n - 1, _))
       else
         Task.deferFutureAction(implicit s => Future.successful(acc))
 

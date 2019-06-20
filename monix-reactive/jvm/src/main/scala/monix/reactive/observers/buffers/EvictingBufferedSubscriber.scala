@@ -39,8 +39,10 @@ import scala.util.{Failure, Success}
   * [[monix.reactive.OverflowStrategy.ClearBuffer ClearBuffer]]
   * overflow strategies.
   */
-private[observers] final class EvictingBufferedSubscriber[-A] private
-  (out: Subscriber[A], strategy: Evicted[Nothing], onOverflow: Long => Coeval[Option[A]])
+private[observers] final class EvictingBufferedSubscriber[-A] private (
+  out: Subscriber[A],
+  strategy: Evicted[Nothing],
+  onOverflow: Long => Coeval[Option[A]])
   extends AbstractEvictingBufferedSubscriber(out, strategy, onOverflow) {
 
   @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
@@ -63,8 +65,10 @@ private[observers] object EvictingBufferedSubscriber {
     * overflow strategy, with signaling of the number of events that
     * were dropped.
     */
-  def dropOldAndSignal[A](underlying: Subscriber[A],
-    bufferSize: Int, onOverflow: Long => Coeval[Option[A]]): EvictingBufferedSubscriber[A] = {
+  def dropOldAndSignal[A](
+    underlying: Subscriber[A],
+    bufferSize: Int,
+    onOverflow: Long => Coeval[Option[A]]): EvictingBufferedSubscriber[A] = {
 
     require(bufferSize > 1, "bufferSize must be a strictly positive number, bigger than 1")
     val maxCapacity = math.nextPowerOf2(bufferSize)
@@ -76,8 +80,7 @@ private[observers] object EvictingBufferedSubscriber {
     * overflow strategy.
     */
   def clearBuffer[A](underlying: Subscriber[A], bufferSize: Int): EvictingBufferedSubscriber[A] = {
-    require(bufferSize > 1,
-      "bufferSize must be a strictly positive number, bigger than 1")
+    require(bufferSize > 1, "bufferSize must be a strictly positive number, bigger than 1")
 
     require(bufferSize > 1, "bufferSize must be a strictly positive number, bigger than 1")
     val maxCapacity = math.nextPowerOf2(bufferSize)
@@ -89,8 +92,10 @@ private[observers] object EvictingBufferedSubscriber {
     * overflow strategy, with signaling of the number of events that
     * were dropped.
     */
-  def clearBufferAndSignal[A](underlying: Subscriber[A],
-    bufferSize: Int, onOverflow: Long => Coeval[Option[A]]): EvictingBufferedSubscriber[A] = {
+  def clearBufferAndSignal[A](
+    underlying: Subscriber[A],
+    bufferSize: Int,
+    onOverflow: Long => Coeval[Option[A]]): EvictingBufferedSubscriber[A] = {
 
     require(bufferSize > 1, "bufferSize must be a strictly positive number, bigger than 1")
     val maxCapacity = math.nextPowerOf2(bufferSize)
@@ -98,8 +103,10 @@ private[observers] object EvictingBufferedSubscriber {
   }
 }
 
-private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
-  (out: Subscriber[A], strategy: Evicted[Nothing], onOverflow: Long => Coeval[Option[A]])
+private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
+  out: Subscriber[A],
+  strategy: Evicted[Nothing],
+  onOverflow: Long => Coeval[Option[A]])
   extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(strategy.bufferSize > 0, "bufferSize must be a strictly positive number")
@@ -117,12 +124,12 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
     new ConcurrentBuffer[A](strategy)
 
   def onNext(elem: A): Ack = {
-    if (upstreamIsComplete || downstreamIsComplete) Stop else {
+    if (upstreamIsComplete || downstreamIsComplete) Stop
+    else {
       if (elem == null) {
         onError(new NullPointerException("Null not supported in onNext"))
         Stop
-      }
-      else {
+      } else {
         val dropped = queue.offer(elem)
         if (dropped > 0 && onOverflow != null)
           droppedCount.increment(dropped)
@@ -180,15 +187,16 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
         // synchronous value
         if (ack == Continue || ack == Stop)
           ack
-        else ack.value match {
-          case Some(Success(success)) =>
-            success
-          case Some(Failure(ex)) =>
-            signalError(ex)
-            Stop
-          case None =>
-            ack
-        }
+        else
+          ack.value match {
+            case Some(Success(success)) =>
+              success
+            case Some(Failure(ex)) =>
+              signalError(ex)
+              Stop
+            case None =>
+              ack
+          }
       } catch {
         case ex if NonFatal(ex) =>
           signalError(ex)
@@ -196,13 +204,15 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
       }
 
     private def signalComplete(): Unit =
-      try out.onComplete() catch {
+      try out.onComplete()
+      catch {
         case ex if NonFatal(ex) =>
           scheduler.reportFailure(ex)
       }
 
     private def signalError(ex: Throwable): Unit =
-      try out.onError(ex) catch {
+      try out.onError(ex)
+      catch {
         case err if NonFatal(err) =>
           scheduler.reportFailure(err)
       }
@@ -252,11 +262,12 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
                   case None => null.asInstanceOf[A]
                 }
 
-            if (overflowMessage != null) overflowMessage else {
+            if (overflowMessage != null) overflowMessage
+            else {
               if (currentQueue.isEmpty)
                 null.asInstanceOf[A]
               else {
-                val (ref,q) = currentQueue.dequeue
+                val (ref, q) = currentQueue.dequeue
                 currentQueue = q
                 toProcess = 1
                 ref
@@ -294,13 +305,11 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
                   goAsync(currentQueue, next, ack, processed, toProcess)
                   return
               }
-            }
-            else {
+            } else {
               goAsync(currentQueue, next, ack, processed, toProcess)
               return
             }
-          }
-          else if (upstreamIsComplete) {
+          } else if (upstreamIsComplete) {
             // Race-condition check, but if upstreamIsComplete=true is
             // visible, then the queue should be fully published because
             // there's a clear happens-before relationship between
@@ -314,8 +323,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
               else signalComplete()
               return
             }
-          }
-          else {
+          } else {
             // Given we are writing in `itemsToPush` before this
             // assignment, it means that writes will not get reordered,
             // so when we observe that itemsToPush is zero on the
@@ -359,7 +367,7 @@ private[observers] object AbstractEvictingBufferedSubscriber {
       val queue = current.queue
 
       if (length < strategy.bufferSize) {
-        val update = Buffer(length+1, queue.enqueue(a))
+        val update = Buffer(length + 1, queue.enqueue(a))
         if (!bufferRef.compareAndSet(current, update))
           offer(a)
         else
@@ -390,9 +398,7 @@ private[observers] object AbstractEvictingBufferedSubscriber {
     }
   }
 
-  private final case class Buffer[+A](
-    length: Int,
-    queue: Queue[A])
+  private final case class Buffer[+A](length: Int, queue: Queue[A])
   private val emptyBuffer =
     Buffer(0, Queue.empty)
 }

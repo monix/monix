@@ -70,7 +70,8 @@ object IterantReduceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+    val stream = Iterant[Coeval]
+      .nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
       .guarantee(Coeval { effect += 1 })
       .reduceL(_ + _)
 
@@ -85,7 +86,7 @@ object IterantReduceSuite extends BaseTestSuite {
 
     val source =
       Iterant[Coeval].pure(1) ++
-      Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+        Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
 
     val stream = source
       .guarantee(Coeval { effect += 1 })
@@ -100,7 +101,8 @@ object IterantReduceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+    val stream = Iterant[Coeval]
+      .nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
       .guarantee(Coeval { effect += 1 })
       .reduceL(_ + _)
 
@@ -115,7 +117,7 @@ object IterantReduceSuite extends BaseTestSuite {
 
     val source =
       Iterant[Coeval].pure(1) ++
-      Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+        Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
 
     val stream = source
       .guarantee(Coeval { effect += 1 })
@@ -130,9 +132,10 @@ object IterantReduceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].of(1, 2)
+    val stream = Iterant[Coeval]
+      .of(1, 2)
       .guarantee(Coeval { effect += 1 })
-      .reduceL((_, _) => (throw dummy) : Int)
+      .reduceL((_, _) => (throw dummy): Int)
 
     assertEquals(effect, 0)
     assertEquals(stream.runTry(), Failure(dummy))
@@ -191,12 +194,13 @@ object IterantReduceSuite extends BaseTestSuite {
 
     val stream = Iterant[Coeval].scopeS[Unit, Int](
       Coeval.unit,
-      _ => Coeval(2 +: Iterant[Coeval].suspend {
-        if (triggered.getAndSet(true))
-          Iterant[Coeval].raiseError[Int](fail)
-        else
-          Iterant[Coeval].empty[Int]
-      }),
+      _ =>
+        Coeval(2 +: Iterant[Coeval].suspend {
+          if (triggered.getAndSet(true))
+            Iterant[Coeval].raiseError[Int](fail)
+          else
+            Iterant[Coeval].empty[Int]
+        }),
       (_, _) => {
         Coeval(triggered.set(true))
       }

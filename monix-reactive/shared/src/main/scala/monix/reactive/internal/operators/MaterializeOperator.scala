@@ -25,8 +25,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final class MaterializeOperator[A]
-  extends Operator[A,Notification[A]] {
+private[reactive] final class MaterializeOperator[A] extends Operator[A, Notification[A]] {
 
   def apply(out: Subscriber[Notification[A]]): Subscriber[A] =
     new Subscriber[A] {

@@ -29,8 +29,7 @@ import monix.execution.Scheduler
   * @param r is the runnable to execute
   * @param s is the scheduler that does the execution
   */
-final class ShiftedRunnable(r: Runnable, s: Scheduler)
-  extends Runnable {
+final class ShiftedRunnable(r: Runnable, s: Scheduler) extends Runnable {
 
   override def run() =
     r match {

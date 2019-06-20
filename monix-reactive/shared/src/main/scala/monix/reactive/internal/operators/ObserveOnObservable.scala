@@ -24,8 +24,7 @@ import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
 import scala.concurrent.Future
 
-private[reactive] final
-class ObserveOnObservable[+A](source: Observable[A], altS: Scheduler, os: OverflowStrategy[A])
+private[reactive] final class ObserveOnObservable[+A](source: Observable[A], altS: Scheduler, os: OverflowStrategy[A])
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {

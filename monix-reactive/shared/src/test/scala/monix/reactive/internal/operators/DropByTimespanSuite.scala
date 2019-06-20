@@ -35,7 +35,8 @@ object DropByTimespanSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
-    val o = Observable.intervalAtFixedRate(500.millis)
+    val o = Observable
+      .intervalAtFixedRate(500.millis)
       .take(sourceCount + 5)
       .dropByTimespan(2300.millis)
 
@@ -45,7 +46,8 @@ object DropByTimespanSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val source = Observable.intervalAtFixedRate(500.millis)
+      val source = Observable
+        .intervalAtFixedRate(500.millis)
         .take(sourceCount + 5)
       val o = createObservableEndingInError(source, ex)
         .dropByTimespan(2300.millis)
@@ -55,7 +57,8 @@ object DropByTimespanSuite extends BaseOperatorSuite {
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val o = Observable.intervalAtFixedRate(500.millis)
+    val o = Observable
+      .intervalAtFixedRate(500.millis)
       .dropByTimespan(2300.millis)
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }

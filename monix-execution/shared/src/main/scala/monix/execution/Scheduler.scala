@@ -29,7 +29,7 @@ import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, TimeUnit}
   */
 @implicitNotFound(
   "Cannot find an implicit Scheduler, either " +
-  "import monix.execution.Scheduler.Implicits.global or use a custom one")
+    "import monix.execution.Scheduler.Implicits.global or use a custom one")
 trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Executor {
   /** Schedules the given `command` for execution at some time in the future.
     *
@@ -233,6 +233,8 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     * }}}
     */
   def withExecutionModel(em: ExecutionModel): Scheduler
+
+  def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler
 }
 
 private[monix] trait SchedulerCompanion {
@@ -295,11 +297,9 @@ object Scheduler extends SchedulerCompanionImpl {
       * @return a cancelable that can be used to cancel the execution of
       *         this repeated task at any time.
       */
-    def scheduleWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)
-      (action: => Unit): Cancelable = {
+    def scheduleWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(action: => Unit): Cancelable = {
 
-      source.scheduleWithFixedDelay(initialDelay.toMillis, delay.toMillis, MILLISECONDS,
-        RunnableAction(action))
+      source.scheduleWithFixedDelay(initialDelay.toMillis, delay.toMillis, MILLISECONDS, RunnableAction(action))
     }
 
     /** Schedules a periodic task that becomes enabled first after the given
@@ -330,11 +330,9 @@ object Scheduler extends SchedulerCompanionImpl {
       * @return a cancelable that can be used to cancel the execution of
       *         this repeated task at any time.
       */
-    def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)
-      (action: => Unit): Cancelable = {
+    def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(action: => Unit): Cancelable = {
 
-      source.scheduleAtFixedRate(initialDelay.toMillis, period.toMillis, MILLISECONDS,
-        RunnableAction(action))
+      source.scheduleAtFixedRate(initialDelay.toMillis, period.toMillis, MILLISECONDS, RunnableAction(action))
     }
 
     /** DEPRECATED — use [[Scheduler.clockRealTime clockRealTime(MILLISECONDS)]]. */

@@ -40,7 +40,8 @@ object DumpSuite extends BaseOperatorSuite {
   }
 
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .dump("o", dummyOut())
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -60,8 +61,10 @@ object DumpSuite extends BaseOperatorSuite {
     sourceCount * (sourceCount - 1) / 2
 
   override def cancelableObservables(): Seq[DumpSuite.Sample] = {
-    val sample = Observable.range(0, 10).delayOnNext(1.second)
+    val sample = Observable
+      .range(0, 10)
+      .delayOnNext(1.second)
       .dump("o", dummyOut())
-    Seq(Sample(sample,0,0,0.seconds,0.seconds))
+    Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
   }
 }

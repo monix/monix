@@ -63,8 +63,8 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
   def cancelableObservables(): Seq[Sample]
 
   /**
-   * Helper for quickly creating an observable ending with onError.
-   */
+    * Helper for quickly creating an observable ending with onError.
+    */
   def createObservableEndingInError(source: Observable[Long], ex: Throwable): Observable[Long] =
     source.endWithError(ex)
 
@@ -191,7 +191,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
             assert(wasCompleted)
             assertEquals(received, count)
           } else {
-            if (index < count-1) assertEquals(received, index)
+            if (index < count - 1) assertEquals(received, index)
             old.success(Continue)
           }
         }
@@ -310,7 +310,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
 
     createObservable(sourceCount) match {
       case None => ignore()
-      case Some(Sample(_, count, _, _, _)) if count <= 1 =>ignore()
+      case Some(Sample(_, count, _, _, _)) if count <= 1 => ignore()
       case Some(Sample(o, _, _, waitForFirst, waitForNext)) =>
         var wasCompleted = false
         var received = 0
@@ -371,4 +371,3 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     }
   }
 }
-

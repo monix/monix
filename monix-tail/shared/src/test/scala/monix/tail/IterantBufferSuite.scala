@@ -37,7 +37,7 @@ object IterantBufferSuite extends BaseTestSuite {
   test("bufferSliding(c, s) is consistent with List.sliding(c, s)") { implicit s =>
     check4 { (list: List[Int], idx: Int, c: Int, s: Int) =>
       val count = math.abs(c % 4) + 2
-      val skip = math.abs(s % 4) + 2
+      val skip = math.abs(s  % 4) + 2
       val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
 
       stream.bufferSliding(count, skip).map(_.toList).toListL <->
@@ -56,7 +56,8 @@ object IterantBufferSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+    val stream = Iterant[Coeval]
+      .nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
       .guarantee(Coeval { effect += 1 })
       .bufferTumbling(10)
 
@@ -69,7 +70,8 @@ object IterantBufferSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+    val stream = Iterant[Coeval]
+      .nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
       .guarantee(Coeval { effect += 1 })
       .bufferTumbling(10)
 
