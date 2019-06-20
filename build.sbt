@@ -24,8 +24,8 @@ addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
 addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc; scalafmtCheck; test:scalafmtCheck; scalafmtSbtCheck")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
-val catsVersion = "2.0.0-M1"
-val catsEffectVersion = "2.0.0-M1"
+val catsVersion = "2.0.0-M4"
+val catsEffectVersion = "2.0.0-M4"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
@@ -33,7 +33,7 @@ def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVe
   case Some((2, v)) if v >= 13 => "3.0.6-SNAP5"
   case _                       => "3.0.4"
 }
-val minitestVersion = "2.4.0"
+val minitestVersion = "2.5.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -62,7 +62,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-RC1"),
+  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0"),
 
   scalacOptions ++= Seq(
     // warnings
