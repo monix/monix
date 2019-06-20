@@ -153,4 +153,14 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     val f = task.runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(())))
   }
+
+  test("stack-safety (3)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 10000
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      acc.guarantee(Task.unit)
+    }
+
+    val f = task.runToFuture; sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
 }
