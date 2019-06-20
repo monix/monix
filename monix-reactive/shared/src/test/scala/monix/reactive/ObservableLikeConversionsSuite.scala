@@ -54,6 +54,8 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(IO)") { implicit s =>
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
+
     val p = Promise[Int]()
     val f = Observable.from(IO.fromFuture(IO.pure(p.future))).runAsyncGetFirst
 
@@ -66,6 +68,8 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(IO) for errors") { implicit s =>
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
+
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
     val f = Observable.from(IO.fromFuture(IO.pure(p.future))).runAsyncGetFirst
