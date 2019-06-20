@@ -218,7 +218,7 @@ object Callback {
     (implicit ec: ExecutionContext)
     extends Callback[E, A] with Runnable {
 
-    private[this] val state = monix.execution.atomic.Atomic(0)
+    private[this] val state = monix.execution.atomic.AtomicInt(0)
     private[this] var value: A = _
     private[this] var error: E = _
 
