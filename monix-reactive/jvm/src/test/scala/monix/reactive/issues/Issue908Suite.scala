@@ -20,7 +20,7 @@ package issues
 
 import minitest.TestSuite
 import monix.eval.Task
-import monix.execution.Scheduler
+import monix.execution.{Scheduler, UncaughtExceptionReporter}
 import monix.execution.schedulers.SchedulerService
 import monix.reactive.subjects.{AsyncSubject, Subject}
 
@@ -36,7 +36,8 @@ object Issue908Suite extends TestSuite[SchedulerService] {
     Scheduler.computation(
       parallelism = math.max(Runtime.getRuntime.availableProcessors(), 2),
       name = "issue908-suite",
-      daemonic = true)
+      daemonic = true,
+      reporter = UncaughtExceptionReporter(_ => ()))
   }
 
   def tearDown(env: SchedulerService): Unit = {
@@ -105,9 +106,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
       val f = Await.result(await.runToFuture, 30.seconds)
 
       assertEquals(f, CONCURRENT_TASKS)
-      print(".")
     }
-    println()
   }
 
   test("concurrent test (2)") { implicit sc =>
@@ -132,9 +131,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
 
       val f = Await.result(await.runToFuture, 30.seconds)
       assertEquals(f, CONCURRENT_TASKS * 2)
-      print(".")
     }
-    println()
   }
 
   def awaitSubscribers(subject: Subject[_, _], nr: Int): Task[Unit] =
