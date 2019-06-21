@@ -24,6 +24,8 @@ import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseTestSuite, Consumer, Observable}
 import scala.util.Failure
 
+import monix.execution.atomic.Atomic
+
 object MapTaskConsumerSuite extends BaseTestSuite {
   test("consumer.mapTask equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
@@ -93,5 +95,25 @@ object MapTaskConsumerSuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("consumer.mapTask(async) propagates cancellation") { implicit s =>
+    var taskCancelled = false
+    val f = Observable(1)
+      .consumeWith(
+        Consumer
+          .head[Int]
+          .mapTask(_ =>
+            Task
+              .never[Int]
+              .doOnCancel(Task {
+                taskCancelled = true
+              })))
+      .runToFuture
+
+    s.tick()
+    f.cancel()
+    s.tick()
+    assert(taskCancelled)
   }
 }
