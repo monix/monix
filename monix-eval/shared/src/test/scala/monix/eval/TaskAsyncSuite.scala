@@ -101,7 +101,7 @@ object TaskAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Ta0sk.async0 works for immediate error") { implicit sc =>
+  test("Task.async0 works for immediate error") { implicit sc =>
     val e = DummyException("dummy")
     val task = Task.async0[Int]((_, cb) => cb.onError(e))
     val f = task.runToFuture

@@ -21,7 +21,7 @@ import minitest.SimpleTestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
-
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 object TaskToFutureJVMSuite extends SimpleTestSuite {
