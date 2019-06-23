@@ -20,6 +20,7 @@ package monix.eval
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
+import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -37,7 +38,7 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
       throw cause
   }
 
-  test("Task.fromFuture should shift back to the main scheduler") { _ =>
+  test("Task.fromFuture should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
     val s2 = Scheduler.global
 
@@ -46,7 +47,7 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
     assertEquals(task.runSyncUnsafe(), ThreadName)
   }
 
-  test("Task.fromFuture(error) should shift back to the main scheduler") { _ =>
+  test("Task.fromFuture(error) should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
     val s2 = Scheduler.global
 
@@ -56,7 +57,7 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
     assertEquals(task.runSyncUnsafe(), ThreadName)
   }
 
-  test("Task.deferFuture should shift back to the main scheduler") { _ =>
+  test("Task.deferFuture should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
     val s2 = Scheduler.global
 
@@ -65,7 +66,7 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
     assertEquals(task.runSyncUnsafe(), ThreadName)
   }
 
-  test("Task.deferFuture(error) should shift back to the main scheduler") { _ =>
+  test("Task.deferFuture(error) should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
     val s2 = Scheduler.global
 
@@ -75,7 +76,7 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
     assertEquals(task.runSyncUnsafe(), ThreadName)
   }
 
-  test("Task.deferFutureAction should shift back to the main scheduler") { _ =>
+  test("Task.deferFutureAction should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
     val s2 = Scheduler.global
 
@@ -84,7 +85,7 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
     assertEquals(task.runSyncUnsafe(), ThreadName)
   }
 
-  test("Task.deferFutureAction(error) should shift back to the main scheduler") { _ =>
+  test("Task.deferFutureAction(error) should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
     val s2 = Scheduler.global
 
@@ -97,7 +98,7 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
     assertEquals(task.runSyncUnsafe(), ThreadName)
   }
 
-  test("Task.deferFuture(cancelable) should shift back to the main scheduler") { _ =>
+  test("Task.deferFuture(cancelable) should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
     val s2 = Scheduler.global
 
@@ -107,7 +108,7 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
     assertEquals(task.runSyncUnsafe(), ThreadName)
   }
 
-  test("Task.deferFutureAction(cancelable) should shift back to the main scheduler") { _ =>
+  test("Task.deferFutureAction(cancelable) should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
     val s2 = Scheduler.global
 
@@ -117,8 +118,9 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
     assertEquals(task.runSyncUnsafe(), ThreadName)
   }
 
-  test("Task.fromFuture(completed) should shift back to the main scheduler") { s2 =>
+  test("Task.fromFuture(completed) should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
+    val s2 = TestScheduler()
 
     val f = Future(1)(s2)
     val task = Task.fromFuture(f).flatMap(_ => Task(Thread.currentThread().getName))
@@ -127,8 +129,9 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
     assertEquals(task.runSyncUnsafe(), ThreadName)
   }
 
-  test("Task.deferFuture(completed) should shift back to the main scheduler") { s2 =>
+  test("Task.deferFuture(completed) should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
+    val s2 = TestScheduler()
 
     val f = Future(1)(s2)
     val task = Task.deferFuture(f).flatMap(_ => Task(Thread.currentThread().getName))
@@ -137,8 +140,9 @@ object TaskToFutureJVMSuite extends SimpleTestSuite {
     assertEquals(task.runSyncUnsafe(), ThreadName)
   }
 
-  test("Task.deferFutureAction(completed) should shift back to the main scheduler") { s2 =>
+  test("Task.deferFutureAction(completed) should shift back to the main scheduler") {
     implicit val s = Scheduler(TestEC)
+    val s2 = TestScheduler()
 
     val f = Future(1)(s2)
     val task = Task.deferFutureAction(_ => f).flatMap(_ => Task(Thread.currentThread().getName))
