@@ -25,24 +25,6 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object TaskFromFutureSuite extends BaseTestSuite {
-  test("Task.fromFuture should be faster for completed futures, success") { implicit s =>
-    val t = Task.fromFuture(Future.successful(10))
-    val f = t.runToFuture
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.fromFuture should be faster for completed futures, failure") { implicit s =>
-    val dummy = DummyException("dummy")
-    val t = Task.fromFuture(Future.failed(dummy))
-    val f = t.runToFuture
-    assertEquals(f.value, Some(Failure(dummy)))
-  }
-
-  test("Task.fromFuture should be faster for completed futures, success") { implicit s =>
-    val t = Task.fromFuture(Future.successful(10))
-    val f = t.runToFuture
-    assertEquals(f.value, Some(Success(10)))
-  }
 
   test("Task.fromFuture should work onSuccess") { implicit s =>
     val t = Task.fromFuture(Future(10))
@@ -56,53 +38,6 @@ object TaskFromFutureSuite extends BaseTestSuite {
     val t = Task.fromFuture(Future(throw dummy))
     val f = t.runToFuture
     s.tick()
-    assertEquals(f.value, Some(Failure(dummy)))
-  }
-
-  test("Task.fromFuture should be short-circuited onSuccess") { implicit s =>
-    val p = Promise[Int]()
-    val t = Task.fromFuture(p.future)
-    p.success(10)
-    val f = t.runToFuture
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.fromFuture should be short-circuited onError") { implicit s =>
-    val dummy = DummyException("dummy")
-    val p = Promise[Int]()
-    val t = Task.fromFuture(p.future)
-    p.failure(dummy)
-    val f = t.runToFuture
-    assertEquals(f.value, Some(Failure(dummy)))
-  }
-
-  test("Task.fromFuture(cancelable) should work for synchronous results onSuccess") { implicit s =>
-    val t = Task.fromFuture(CancelableFuture.successful(10))
-    val f = t.runToFuture
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.fromFuture(cancelable) should work for synchronous results onFailure") { implicit s =>
-    val dummy = DummyException("dummy")
-    val t = Task.fromFuture(CancelableFuture.failed(dummy))
-    val f = t.runToFuture
-    assertEquals(f.value, Some(Failure(dummy)))
-  }
-
-  test("Task.fromFuture(cancelable) should be short-circuited onSuccess") { implicit s =>
-    val p = Promise[Int]()
-    val t = Task.fromFuture(CancelableFuture(p.future, Cancelable.empty))
-    p.success(10)
-    val f = t.runToFuture
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.fromFuture(cancelable) should be short-circuited onError") { implicit s =>
-    val dummy = DummyException("dummy")
-    val p = Promise[Int]()
-    val t = Task.fromFuture(CancelableFuture(p.future, Cancelable.empty))
-    p.failure(dummy)
-    val f = t.runToFuture
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
@@ -148,6 +83,8 @@ object TaskFromFutureSuite extends BaseTestSuite {
     val count = if (Platform.isJVM) 100000 else 5000
     var result = Task.now(1).runToFuture
     for (_ <- 0 until count) result = Task.fromFuture(result).runToFuture
+
+    s.tick()
     assertEquals(result.value, Some(Success(1)))
   }
 }

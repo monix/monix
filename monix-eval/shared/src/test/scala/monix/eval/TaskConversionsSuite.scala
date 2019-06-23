@@ -189,6 +189,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
 
     f.cancel()
+    s.tick()
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     assertEquals(f.value, None)
 
@@ -208,6 +209,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
 
     f.cancel()
+    s.tick()
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     assertEquals(f.value, None)
 

@@ -18,8 +18,9 @@
 package monix.eval
 
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success}
+
 import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 object TaskAsyncSuite extends BaseTestSuite {
   test("Task.never should never complete") { implicit s =>
@@ -64,13 +65,19 @@ object TaskAsyncSuite extends BaseTestSuite {
 
   test("Task.async works for immediate successful value") { implicit sc =>
     val task = Task.async[Int](_.onSuccess(1))
-    assertEquals(task.runToFuture.value, Some(Success(1)))
+    val f = task.runToFuture
+    sc.tick()
+
+    assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.async works for immediate error") { implicit sc =>
     val e = DummyException("dummy")
     val task = Task.async[Int](_.onError(e))
-    assertEquals(task.runToFuture.value, Some(Failure(e)))
+    val f = task.runToFuture
+    sc.tick()
+
+    assertEquals(f.value, Some(Failure(e)))
   }
 
   test("Task.async is memory safe in flatMap loops") { implicit sc =>
@@ -88,7 +95,19 @@ object TaskAsyncSuite extends BaseTestSuite {
 
   test("Task.async0 works for immediate successful value") { implicit sc =>
     val task = Task.async0[Int]((_, cb) => cb.onSuccess(1))
-    assertEquals(task.runToFuture.value, Some(Success(1)))
+    val f = task.runToFuture
+    sc.tick()
+
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Ta0sk.async0 works for immediate error") { implicit sc =>
+    val e = DummyException("dummy")
+    val task = Task.async0[Int]((_, cb) => cb.onError(e))
+    val f = task.runToFuture
+    sc.tick()
+
+    assertEquals(f.value, Some(Failure(e)))
   }
 
   test("Task.async0 works for async successful value") { implicit sc =>

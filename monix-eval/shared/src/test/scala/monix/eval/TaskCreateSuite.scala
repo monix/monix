@@ -29,6 +29,7 @@ object TaskCreateSuite extends BaseTestSuite {
     val task = Task.create[Int]((_, cb) => cb.onSuccess(1))
     val f = task.runToFuture
 
+    sc.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
@@ -37,6 +38,8 @@ object TaskCreateSuite extends BaseTestSuite {
       cb.onSuccess(1); Cancelable.empty
     }
     val f = task.runToFuture
+
+    sc.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 

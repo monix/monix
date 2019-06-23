@@ -20,6 +20,7 @@ package monix.eval
 import monix.execution.Callback
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
+
 import scala.util.{Failure, Success, Try}
 
 object TaskCancelableSuite extends BaseTestSuite {
@@ -68,15 +69,17 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.cancelable0 should execute immediately when executed as future") { implicit s =>
+  test("Task.cancelable0 should work when executed as future") { implicit s =>
     val t = Task.cancelable0[Int] { (_, cb) =>
       cb.onSuccess(100); Task.unit
     }
     val result = t.runToFuture
+
+    s.tick()
     assertEquals(result.value, Some(Success(100)))
   }
 
-  test("Task.cancelable0 should execute immediately when executed with callback") { implicit s =>
+  test("Task.cancelable0 should work when executed with callback") { implicit s =>
     var result = Option.empty[Try[Int]]
     val t = Task.cancelable0[Int] { (_, cb) =>
       cb.onSuccess(100); Task.unit
@@ -84,6 +87,8 @@ object TaskCancelableSuite extends BaseTestSuite {
     t.runAsync(Callback.fromTry[Int]({ r =>
       result = Some(r)
     }))
+
+    s.tick()
     assertEquals(result, Some(Success(100)))
   }
 
@@ -91,7 +96,10 @@ object TaskCancelableSuite extends BaseTestSuite {
     val task = Task.cancelable[Int] { cb =>
       cb.onSuccess(1); Task.unit
     }
-    assertEquals(task.runToFuture.value, Some(Success(1)))
+    val f = task.runToFuture
+
+    sc.tick()
+    assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.cancelable works for immediate error") { implicit sc =>
@@ -99,7 +107,10 @@ object TaskCancelableSuite extends BaseTestSuite {
     val task = Task.cancelable[Int] { cb =>
       cb.onError(e); Task.unit
     }
-    assertEquals(task.runToFuture.value, Some(Failure(e)))
+    val f = task.runToFuture
+
+    sc.tick()
+    assertEquals(f.value, Some(Failure(e)))
   }
 
   test("Task.cancelable is memory safe in flatMap loops") { implicit sc =>

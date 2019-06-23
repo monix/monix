@@ -17,10 +17,13 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.RejectedExecutionException
+
 import cats.effect.{CancelToken, IO}
 import monix.eval.Task.{Async, Context}
 import monix.eval.{Coeval, Task}
 import monix.execution.{Callback, Cancelable, Scheduler}
+
 import scala.util.control.NonFatal
 
 private[eval] object TaskCreate {
@@ -50,7 +53,8 @@ private[eval] object TaskCreate {
       conn push cancelable.cancel
 
       try {
-        val ref = fn(s, TaskConnection.trampolineCallback(conn, cb))
+        val cb2 = executeCallbackOn(ctx, cb)
+        val ref = fn(s, TaskConnection.trampolineCallback(conn, cb2))
         // Optimization to skip the assignment, as it's expensive
         if (!ref.isInstanceOf[Cancelable.IsDummy])
           setConnection(cancelable, ref)
@@ -106,7 +110,9 @@ private[eval] object TaskCreate {
     val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val s = ctx.scheduler
       try {
-        fn(s, Callback.trampolined(cb))
+        val cb2 = executeCallbackOn(ctx, cb)
+
+        fn(s, Callback.trampolined(cb2))
         ()
       } catch {
         case ex if NonFatal(ex) =>
@@ -122,14 +128,16 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `cats.effect.Async#async`.
     *
-    * It duplicates the implementation of `Task.simple` with the purpose
+    * It duplicates the implementation of `Task.async0` with the purpose
     * of avoiding extraneous callback allocations.
     */
   def async[A](k: Callback[Throwable, A] => Unit): Task[A] = {
     val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val s = ctx.scheduler
       try {
-        k(Callback.trampolined(cb))
+        val cb2 = executeCallbackOn(ctx, cb)
+
+        k(Callback.trampolined(cb2))
       } catch {
         case ex if NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
@@ -153,8 +161,11 @@ private[eval] object TaskCreate {
         val ctx2 = Context(ctx.scheduler, ctx.options)
         val conn = ctx.connection
         conn.push(ctx2.connection.cancel)
+
+        val cb2 = executeCallbackOn(ctx, cb)
+
         // Provided callback takes care of `conn.pop()`
-        val task = k(TaskConnection.trampolineCallback(conn, cb))
+        val task = k(TaskConnection.trampolineCallback(conn, cb2))
         Task.unsafeStartNow(task, ctx2, Callback.empty)
       } catch {
         case ex if NonFatal(ex) =>
@@ -165,5 +176,46 @@ private[eval] object TaskCreate {
       }
     }
     Async(start, trampolineBefore = false, trampolineAfter = false)
+  }
+
+  /**
+    * Creates a callback that will forward calls to the provided one
+    * and call it on the default Scheduler (from Context).
+    *
+    * Useful in case the `Callback` could be called from unkown
+    * thread pools.
+    */
+  private def executeCallbackOn[A](ctx: Context, cb: Callback[Throwable, A]): Callback[Throwable, A] = {
+    new Callback[Throwable, A] {
+      override def onSuccess(value: A): Unit =
+        try {
+          ctx.scheduler.execute(new Runnable {
+            def run(): Unit = {
+              ctx.frameRef.reset()
+              cb.onSuccess(value)
+            }
+          })
+        } catch {
+          case e: RejectedExecutionException =>
+            Callback
+              .trampolined(cb)(ctx.scheduler)
+              .onError(e)
+        }
+
+      override def onError(e: Throwable): Unit =
+        try {
+          ctx.scheduler.execute(new Runnable {
+            def run(): Unit = {
+              ctx.frameRef.reset()
+              cb.onError(e)
+            }
+          })
+        } catch {
+          case e: RejectedExecutionException =>
+            Callback
+              .trampolined(cb)(ctx.scheduler)
+              .onError(e)
+        }
+    }
   }
 }
