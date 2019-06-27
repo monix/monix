@@ -137,7 +137,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
   test("*> is stack safe for infinite loops") { implicit s =>
     var wasCancelled = false
     def looped: Task[Unit] = Task.cancelBoundary *> looped
-    val future = looped.doOnCancel(Task{ wasCancelled = true }).runToFuture
+    val future = looped.doOnCancel(Task { wasCancelled = true }).runToFuture
     future.cancel()
     s.tick()
     assert(wasCancelled)
@@ -146,7 +146,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
   test("<* is stack safe for infinite loops") { implicit s =>
     var wasCancelled = false
     def looped: Task[Unit] = Task.cancelBoundary <* looped
-    val future = looped.doOnCancel(Task{ wasCancelled = true }).runToFuture
+    val future = looped.doOnCancel(Task { wasCancelled = true }).runToFuture
     future.cancel()
     s.tick()
     assert(wasCancelled)
