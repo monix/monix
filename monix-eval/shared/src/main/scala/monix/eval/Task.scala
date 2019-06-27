@@ -1179,8 +1179,8 @@ sealed abstract class Task[+A] extends Serializable {
     * Example:
     * {{{
     *   val combined = Task{println("first"); "first"} <* Task{println("second"); "second"}
-    *   // prints "first" and then "second"
-    *   assert(combined.runSyncUnsafe == "first")
+    *   // Prints "first" and then "second"
+    *   // Result value will be "first"
     * }}}
     */
   final def <*[B](tb: => Task[B]): Task[A] =
@@ -1192,8 +1192,8 @@ sealed abstract class Task[+A] extends Serializable {
     * Example:
     * {{{
     *   val combined = Task{println("first"); "first"} *> Task{println("second"); "second"}
-    *   // prints "first" and then "second"
-    *   assert(combined.runSyncUnsafe == "second")
+    *   // Prints "first" and then "second"
+    *   // Result value will be "second"
     * }}}
     */
   final def *>[B](tb: => Task[B]): Task[B] =
