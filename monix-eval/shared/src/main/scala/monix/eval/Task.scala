@@ -1794,7 +1794,11 @@ sealed abstract class Task[+A] extends Serializable {
     * canceling a task.
     */
   final def doOnFinish(f: Option[Throwable] => Task[Unit]): Task[A] =
-    Task.FlatMap(this, new Task.DoOnFinish[A](f))
+    this.guaranteeCase {
+      case ExitCase.Completed => f(None)
+      case ExitCase.Canceled => Task.unit
+      case ExitCase.Error(e) => f(Some(e))
+    }
 
   /** Returns a new `Task` that will mirror the source, but that will
     * execute the given `callback` if the task gets canceled before
