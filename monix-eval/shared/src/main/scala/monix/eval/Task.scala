@@ -4482,14 +4482,6 @@ object Task extends TaskInstancesLevel1 {
       Now(e)
   }
 
-  /** Used as optimization by [[Task.doOnFinish]]. */
-  private final class DoOnFinish[A](f: Option[Throwable] => Task[Unit]) extends StackFrame[A, Task[A]] {
-    def apply(a: A): Task[A] =
-      f(None).map(_ => a)
-    def recover(e: Throwable): Task[A] =
-      f(Some(e)).flatMap(_ => Task.Error(e))
-  }
-
   /** Used as optimization by [[Task.redeem]]. */
   private final class Redeem[A, B](fe: Throwable => B, fs: A => B) extends StackFrame[A, Task[B]] {
     def apply(a: A): Task[B] = new Now(fs(a))
