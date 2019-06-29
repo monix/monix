@@ -27,13 +27,28 @@ escalate into larger problems.
    your work in a local branch of your own fork and then submit a pull
    request. If you do have write access to the repository, never work
    directly on master.
+   
+4. When the work is completed, verify it with following commands:
 
-4. When the work is completed, submit a Pull Request.
+```
+sbt scalafmtAll
+sbt coreJVM/test
+sbt mimaReportBinaryIssues
+```
 
-5. Anyone can comment on a pull request and you are expected to
+If `mimaReportBinaryIssues` fails, it means there are binary incompatibilities.
+- If you're working on stable version (e.g. last released version is `3.0.0` or similar) then we will have to implement the change
+in a way that passes this test. There are few useful guidelines [here](https://github.com/jatcwang/binary-compatibility-guide) 
+but do not hesitate to submit a Pull Request anyway and ask Maintainers for help.
+- If you're not working on stable version (e.g. last released version is `3.0.0-RC3 or similar`), just add proper filter
+[here](project/MimaFilters.scala). It should be included in the report.
+
+5. Submit a Pull Request.
+
+6. Anyone can comment on a pull request and you are expected to
    answer questions or to incorporate feedback.
 
-6. It is not allowed to force push to the branch on which the pull
+7. It is not allowed to force push to the branch on which the pull
    request is based.
 
 ## General Guidelines
