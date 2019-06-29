@@ -589,6 +589,8 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable"),
     exclude[MissingClassProblem]("monix.execution.internal.collection.ArrayStack"),
     exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.findErrorHandler"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.popNextBind")
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.popNextBind"),
+    // Breaking changes for https://github.com/monix/monix/pull/934
+    exclude[MissingClassProblem]("monix.eval.Task$DoOnFinish")
   )
 }
