@@ -40,8 +40,8 @@ If `mimaReportBinaryIssues` fails, it means there are binary incompatibilities.
 - If you're working on stable version (e.g. last released version is `3.0.0` or similar) then we will have to implement the change
 in a way that passes this test. There are few useful guidelines [here](https://github.com/jatcwang/binary-compatibility-guide) 
 but do not hesitate to submit a Pull Request anyway and ask Maintainers for help.
-- If you're not working on stable version (e.g. last released version is `3.0.0-RC3 or similar`), just add proper filter
-[here](project/MimaFilters.scala). It should be included in the report.
+- If you're not working on stable version (e.g. last released version is `3.0.0-RC3` or similar), just add proper filter
+[here](project/MimaFilters.scala). You should be able to find it in the failure output.
 
 5. Submit a Pull Request.
 
