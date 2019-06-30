@@ -134,12 +134,20 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
 
     val ex = DummyException("dummy1")
     var errorsThrow = 0
-    val task1 = Task.raiseError[Int](ex).executeAsync.doOnFinish { x =>
-      if (x.isDefined) errorsThrow += 1; Task.unit
-    }.uncancelable
-    val task2 = Task.raiseError[Int](ex).executeAsync.doOnFinish { x =>
-      if (x.isDefined) errorsThrow += 1; Task.unit
-    }.uncancelable
+    val task1 = Task
+      .raiseError[Int](ex)
+      .executeAsync
+      .doOnFinish { x =>
+        if (x.isDefined) errorsThrow += 1; Task.unit
+      }
+      .uncancelable
+    val task2 = Task
+      .raiseError[Int](ex)
+      .executeAsync
+      .doOnFinish { x =>
+        if (x.isDefined) errorsThrow += 1; Task.unit
+      }
+      .uncancelable
 
     val gather = Task.gatherUnordered(Seq(task1, task2))
     val result = gather.runToFutureOpt

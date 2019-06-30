@@ -143,9 +143,13 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val ex = DummyException("dummy1")
     var errorsThrow = 0
     val gather = Task.wanderUnordered(Seq(0, 0)) { _ =>
-      Task.raiseError[Int](ex).executeAsync.doOnFinish { x =>
-        if (x.isDefined) errorsThrow += 1; Task.unit
-      }.uncancelable
+      Task
+        .raiseError[Int](ex)
+        .executeAsync
+        .doOnFinish { x =>
+          if (x.isDefined) errorsThrow += 1; Task.unit
+        }
+        .uncancelable
     }
 
     val result = gather.runToFutureOpt
