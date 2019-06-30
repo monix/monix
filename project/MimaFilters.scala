@@ -4,6 +4,8 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
+    // Breaking changes for https://github.com/monix/monix/pull/934
+    exclude[MissingClassProblem]("monix.eval.Task$DoOnFinish"),
     // Breaking changes: https://github.com/monix/monix/pull/865
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval.task"),
     exclude[DirectMissingMethodProblem]("monix.eval.Coeval.toIO"),
@@ -589,8 +591,6 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.reactive.internal.operators.DelaySubscriptionWithTriggerObservable"),
     exclude[MissingClassProblem]("monix.execution.internal.collection.ArrayStack"),
     exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.findErrorHandler"),
-    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.popNextBind"),
-    // Breaking changes for https://github.com/monix/monix/pull/934
-    exclude[MissingClassProblem]("monix.eval.Task$DoOnFinish")
+    exclude[IncompatibleMethTypeProblem]("monix.eval.internal.TaskRunLoop.popNextBind")
   )
 }
