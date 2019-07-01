@@ -71,7 +71,7 @@ object AssignableCancelableF {
 
   /**
     * Represents an [[AssignableCancelableF]] with no internal state and that
-    * doesn't do anything, either on assignment or on cancelation.
+    * doesn't do anything, either on assignment or on cancellation.
     *
     * It's a no-op.
     */

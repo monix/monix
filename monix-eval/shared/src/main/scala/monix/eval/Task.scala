@@ -710,7 +710,7 @@ sealed abstract class Task[+A] extends Serializable {
     * cancel the running computation.
     *
     * This is the more potent version of [[runAsync]],
-    * because the returned cancelation token is a `Task[Unit]` that
+    * because the returned cancellation token is a `Task[Unit]` that
     * can be used to back-pressure on the result of the cancellation
     * token, in case the finalizers are specified as asynchronous
     * actions that are expensive to complete.
@@ -730,7 +730,7 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * In this example we have a task with a registered finalizer
     * (via [[bracketCase]]) that takes 3 whole seconds to finish.
-    * Via normal `runAsync` the returned cancelation token has no
+    * Via normal `runAsync` the returned cancellation token has no
     * capability to wait for its completion.
     *
     * {{{
@@ -776,7 +776,7 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * See the description of [[runToFutureOpt]] for an example.
     *
-    * The returned cancelation token is a `Task[Unit]` that
+    * The returned cancellation token is a `Task[Unit]` that
     * can be used to back-pressure on the result of the cancellation
     * token, in case the finalizers are specified as asynchronous
     * actions that are expensive to complete.
@@ -812,7 +812,7 @@ sealed abstract class Task[+A] extends Serializable {
     * generated asynchronously and doesn't return any cancelable
     * tokens either. This affords some optimizations — for example
     * the underlying run-loop doesn't need to worry about
-    * cancelation. Also the call-site is more clear in intent.
+    * cancellation. Also the call-site is more clear in intent.
     *
     * Example:
     * {{{
@@ -877,7 +877,7 @@ sealed abstract class Task[+A] extends Serializable {
     *     } yield r
     *
     *   // Triggering the task's execution, without receiving any
-    *   // cancelation tokens
+    *   // cancellation tokens
     *   task.runAsyncUncancelable {
     *     case Right(str) =>
     *       println(s"Received: $$str")
@@ -1321,7 +1321,7 @@ sealed abstract class Task[+A] extends Serializable {
   /** Returns a new task that treats the source task as the
     * acquisition of a resource, which is then exploited by the `use`
     * function and then `released`, with the possibility of
-    * distinguishing between normal termination and cancelation, such
+    * distinguishing between normal termination and cancellation, such
     * that an appropriate release of resources can be executed.
     *
     * The `bracketCase` operation is the equivalent of
@@ -1330,11 +1330,11 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * The `bracketCase` operation installs the necessary exception handler
     * to release the resource in the event of an exception being raised
-    * during the computation, or in case of cancelation.
+    * during the computation, or in case of cancellation.
     *
     * In comparison with the simpler [[bracket]] version, this one
     * allows the caller to differentiate between normal termination,
-    * termination in error and cancelation via an `ExitCase`
+    * termination in error and cancellation via an `ExitCase`
     * parameter.
     *
     * @see [[bracket]] and [[bracketE]]
@@ -1347,7 +1347,7 @@ sealed abstract class Task[+A] extends Serializable {
     *        terminates, either normally or in error, or if it gets
     *        canceled, receiving as input the resource that needs that
     *        needs release, along with the result of `use`
-    *        (cancelation, error or successful result)
+    *        (cancellation, error or successful result)
     */
   final def bracketCase[B](use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     TaskBracket.exitCase(this, use, release)
@@ -2154,7 +2154,7 @@ sealed abstract class Task[+A] extends Serializable {
     * has to be evaluated in order to be converted.
     *
     * NOTE: the resulting instance will NOT be cancelable, as in
-    * Task's cancelation token doesn't get carried over. This is
+    * Task's cancellation token doesn't get carried over. This is
     * implicit in the usage of `cats.effect.Async` type class.
     * In the example above what this means is that the task will
     * still print `"Hello!"` after 5 seconds, even if the resulting
@@ -2698,7 +2698,7 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     *
     * WARNING: the resulting task might not carry the source's
-    * cancelation behavior if the source is cancelable!
+    * cancellation behavior if the source is cancelable!
     * This is implicit in the usage of `Effect`.
     *
     * @see [[Task.fromConcurrentEffect]] for a version that can use
@@ -2906,7 +2906,7 @@ object Task extends TaskInstancesLevel1 {
     * Contract for the returned `Task[Unit]` in the provided function:
     *
     *  - can be asynchronous
-    *  - can be cancelable, in which case it hooks into IO's cancelation
+    *  - can be cancelable, in which case it hooks into IO's cancellation
     *    mechanism such that the resulting task is cancelable
     *  - it should not end in error, because the provided callback
     *    is the only way to signal the final result and it can only
@@ -2965,7 +2965,7 @@ object Task extends TaskInstancesLevel1 {
     *         timespan.length,
     *         timespan.unit)
     *
-    *       // Returning the cancelation token that is able to cancel the
+    *       // Returning the cancellation token that is able to cancel the
     *       // scheduling in case the active computation hasn't finished yet
     *       Task(future.cancel(false))
     *     }
@@ -3051,7 +3051,7 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     *
     * As can be seen, the passed function needs to pass a
-    * [[monix.execution.Cancelable Cancelable]] in order to specify cancelation
+    * [[monix.execution.Cancelable Cancelable]] in order to specify cancellation
     * logic.
     *
     * This is a sample given for didactic purposes. Our `cancelable0` is
@@ -3132,7 +3132,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * NOTE: that by default `Task` is configured to be auto-cancelable
     * (see [[Task.Options]]), so this isn't strictly needed, unless you
-    * want to fine tune the cancelation boundaries.
+    * want to fine tune the cancellation boundaries.
     */
   val cancelBoundary: Task[Unit] =
     Task.Async { (ctx, cb) =>
@@ -3178,7 +3178,7 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     *
     * Passed function can also return `IO[Unit]` as a task that
-    * describes a cancelation action:
+    * describes a cancellation action:
     *
     * {{{
     *   import cats.effect.IO
@@ -3192,7 +3192,7 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     *
     * Passed function can also return `Task[Unit]` as a task that
-    * describes a cancelation action, thus for an `f` that can be
+    * describes a cancellation action, thus for an `f` that can be
     * passed to [[Task.cancelable0]], and this equivalence holds:
     *
     * `Task.cancelable(f) <-> Task.create(f)`
@@ -3207,7 +3207,7 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     *
     * Passed function can also return `Coeval[Unit]` as a task that
-    * describes a cancelation action:
+    * describes a cancellation action:
     *
     * {{{
     *   def delayResult4[A](timespan: FiniteDuration)(thunk: => A): Task[A] =
@@ -3218,7 +3218,7 @@ object Task extends TaskInstancesLevel1 {
     *     }
     * }}}
     *
-    * The supported types for the cancelation tokens are:
+    * The supported types for the cancellation tokens are:
     *
     *  - `Unit`, yielding non-cancelable tasks
     *  - [[monix.execution.Cancelable Cancelable]], the Monix standard
@@ -4135,27 +4135,27 @@ object Task extends TaskInstancesLevel1 {
 
   /** The `AsyncBuilder` is a type used by the [[Task.create]] builder,
     * in order to change its behavior based on the type of the
-    * cancelation token.
+    * cancellation token.
     *
     * In combination with the
     * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type technique]],
     * this ends up providing a polymorphic [[Task.create]] that can
-    * support multiple cancelation tokens optimally, i.e. without
+    * support multiple cancellation tokens optimally, i.e. without
     * implicit conversions and that can be optimized depending on
     * the `CancelToken` used - for example if `Unit` is returned,
     * then the yielded task will not be cancelable and the internal
     * implementation will not have to worry about managing it, thus
     * increasing performance.
     */
-  abstract class AsyncBuilder[CancelationToken] {
-    def create[A](register: (Scheduler, Callback[Throwable, A]) => CancelationToken): Task[A]
+  abstract class AsyncBuilder[CancellationToken] {
+    def create[A](register: (Scheduler, Callback[Throwable, A]) => CancellationToken): Task[A]
   }
 
   object AsyncBuilder extends AsyncBuilder0 {
     /** Returns the implicit `AsyncBuilder` available in scope for the
       * given `CancelToken` type.
       */
-    def apply[CancelationToken](implicit ref: AsyncBuilder[CancelationToken]): AsyncBuilder[CancelationToken] = ref
+    def apply[CancellationToken](implicit ref: AsyncBuilder[CancellationToken]): AsyncBuilder[CancellationToken] = ref
 
     /** For partial application of type parameters in [[Task.create]].
       *
@@ -4164,8 +4164,8 @@ object Task extends TaskInstancesLevel1 {
       */
     private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true) extends AnyVal {
 
-      def apply[CancelationToken](register: (Scheduler, Callback[Throwable, A]) => CancelationToken)(
-        implicit B: AsyncBuilder[CancelationToken]): Task[A] =
+      def apply[CancellationToken](register: (Scheduler, Callback[Throwable, A]) => CancellationToken)(
+        implicit B: AsyncBuilder[CancellationToken]): Task[A] =
         B.create(register)
     }
 
@@ -4177,7 +4177,7 @@ object Task extends TaskInstancesLevel1 {
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
-      * `cats.effect.IO` values for specifying cancelation actions,
+      * `cats.effect.IO` values for specifying cancellation actions,
       * see [[https://typelevel.org/cats-effect/ Cats Effect]].
       */
     implicit val forIO: AsyncBuilder[IO[Unit]] =
@@ -4187,7 +4187,7 @@ object Task extends TaskInstancesLevel1 {
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
-      * [[Task]] values for specifying cancelation actions.
+      * [[Task]] values for specifying cancellation actions.
       */
     implicit val forTask: AsyncBuilder[Task[Unit]] =
       new AsyncBuilder[Task[Unit]] {
@@ -4196,7 +4196,7 @@ object Task extends TaskInstancesLevel1 {
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
-      * [[Coeval]] values for specifying cancelation actions.
+      * [[Coeval]] values for specifying cancellation actions.
       */
     implicit val forCoeval: AsyncBuilder[Coeval[Unit]] =
       new AsyncBuilder[Coeval[Unit]] {
@@ -4225,7 +4225,7 @@ object Task extends TaskInstancesLevel1 {
     /**
       * Implicit `AsyncBuilder` for cancelable tasks, using
       * [[monix.execution.Cancelable Cancelable]] values for
-      * specifying cancelation actions.
+      * specifying cancellation actions.
       */
     implicit def forCancelable[T <: Cancelable]: AsyncBuilder[T] =
       forCancelableRef.asInstanceOf[AsyncBuilder[T]]

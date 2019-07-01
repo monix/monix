@@ -74,7 +74,7 @@ trait Fiber[A] extends cats.effect.Fiber[Task, A] {
 
 object Fiber {
   /**
-    * Builds a [[Fiber]] value out of a `task` and its cancelation token.
+    * Builds a [[Fiber]] value out of a `task` and its cancellation token.
     */
   def apply[A](task: Task[A], cancel: CancelToken[Task]): Fiber[A] =
     new Tuple(task, cancel)

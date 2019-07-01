@@ -77,7 +77,7 @@ object AssignableCancelable {
 
   /** Represents an [[AssignableCancelable]] with no
     * internal state and that doesn't do anything, either
-    * on assignment or on cancelation.
+    * on assignment or on cancellation.
     */
   val dummy: Multi =
     new Multi with IsDummy {

@@ -50,7 +50,7 @@ import scala.util.control.NonFatal
 sealed abstract class CancelablePromise[A] extends Promise[A] {
   /**
     * Returns a future that can unsubscribe from this promise's
-    * notifications via cancelation.
+    * notifications via cancellation.
     *
     * {{{
     *   val promise = CancelablePromise[Int]()

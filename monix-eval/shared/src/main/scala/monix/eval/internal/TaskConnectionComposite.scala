@@ -38,7 +38,7 @@ private[eval] final class TaskConnectionComposite private (stateRef: AtomicAny[S
       }
     }
 
-  /** Adds a cancelation token to the underlying collection, if
+  /** Adds a cancellation token to the underlying collection, if
     * this connection hasn't been cancelled yet, otherwise it
     * cancels the given token.
     */

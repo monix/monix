@@ -519,7 +519,7 @@ object MimaFilters {
     // Breakage - PR 739: https://github.com/monix/monix/pull/739
     exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.BufferWithSelectorObservable.this"),
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.bufferTimedWithPressure"),
-    // Changing internal Task cancelation model to back-pressure finalizers
+    // Changing internal Task cancellation model to back-pressure finalizers
     exclude[DirectMissingMethodProblem]("monix.execution.Cancelable#Extensions.cancelIO$extension"),
     exclude[DirectMissingMethodProblem]("monix.execution.Cancelable#Extensions.cancelIO"),
     exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Context.connection"),
