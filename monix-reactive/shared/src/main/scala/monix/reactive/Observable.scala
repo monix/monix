@@ -618,7 +618,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  final def consumeWithF[R, F[_]](f: Consumer[A, R])(implicit F: TaskLift[F]): F[R] =
+  final def consumeWithF[F[_], R](f: Consumer[A, R])(implicit F: TaskLift[F]): F[R] =
     f(self).to[F]
 
   /** Alias for [[prepend]]. */
