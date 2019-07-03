@@ -2259,7 +2259,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[mapParallelOrdered]] for a variant that does preserve order
     * @see [[mapEval]] for serial execution
     */
-  final def mapParallelUnorderedF[B, F[_]](parallelism: Int)(
+  final def mapParallelUnorderedF[F[_], B](parallelism: Int)(
     f: A => F[B])(implicit os: OverflowStrategy[B] = OverflowStrategy.Default, F: TaskLike[F]): Observable[B] =
     new MapParallelUnorderedObservable[A, B](self, parallelism, f.andThen(F.apply), os)
 
