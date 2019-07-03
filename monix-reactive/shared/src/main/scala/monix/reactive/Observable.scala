@@ -4561,7 +4561,7 @@ object Observable extends ObservableDeprecatedBuilders {
   def fromIterator[A](resource: Resource[Task, Iterator[A]]): Observable[A] =
     Observable.fromResource(resource).flatMap(fromIteratorUnsafe)
 
-  /** Version of [[fromIterator]] that can work with generic
+  /** Version of fromIterator that can work with generic
     * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
     *
