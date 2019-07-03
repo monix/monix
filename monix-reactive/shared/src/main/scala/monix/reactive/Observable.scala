@@ -4572,7 +4572,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  def fromIteratorF[A, F[_]](iteratorF: F[Iterator[A]])(implicit F: TaskLike[F]): Observable[A] =
+  def fromIteratorF[F[_], A](iteratorF: F[Iterator[A]])(implicit F: TaskLike[F]): Observable[A] =
     fromIterator(F(iteratorF))
 
   /** Converts any `Iterator` into an observable.
