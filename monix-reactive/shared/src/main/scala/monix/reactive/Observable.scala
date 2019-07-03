@@ -607,6 +607,20 @@ abstract class Observable[+A] extends Serializable { self =>
   final def consumeWith[R](f: Consumer[A, R]): Task[R] =
     f(self)
 
+  /** Polymorphic version [[consumeWith]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLift]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  final def consumeWithF[F[_], R](f: Consumer[A, R])(implicit F: TaskLift[F]): F[R] =
+    f(self).to[F]
+
   /** Alias for [[prepend]]. */
   final def +:[B >: A](elem: B): Observable[B] =
     prepend(elem)
@@ -2166,6 +2180,33 @@ abstract class Observable[+A] extends Serializable { self =>
     implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MapParallelOrderedObservable[A, B](self, parallelism, f, os)
 
+  /** Version of [[mapParallelOrderedF]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * @param parallelism is the maximum number of tasks that can be executed
+    *        in parallel, over which the source starts being
+    *        back-pressured
+    *
+    * @param f is the mapping function that produces tasks to execute
+    *        in parallel, which will eventually produce events for the
+    *        resulting observable stream
+    *
+    * @see [[mapParallelUnorderedF]] for a variant that does not preserve order
+    *     which may lead to faster execution times
+    * @see [[mapEvalF]] for serial execution
+    */
+  final def mapParallelOrderedF[F[_], B](parallelism: Int)(
+    f: A => F[B])(implicit os: OverflowStrategy[B] = OverflowStrategy.Default, F: TaskLike[F]): Observable[B] =
+    new MapParallelOrderedObservable[A, B](self, parallelism, f.andThen(F.apply), os)
+
   /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
     * applies it in parallel on the source, but with a specified
     * `parallelism`, which indicates the maximum number of tasks that
@@ -2193,6 +2234,34 @@ abstract class Observable[+A] extends Serializable { self =>
   final def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B])(
     implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MapParallelUnorderedObservable[A, B](self, parallelism, f, os)
+
+  /** Version of [[mapParallelUnordered]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    * Note that when the specified `parallelism` is 1, it has the same
+    * behavior as [[mapEval]].
+    *
+    * @param parallelism is the maximum number of tasks that can be executed
+    *        in parallel, over which the source starts being
+    *        back-pressured
+    *
+    * @param f is the mapping function that produces tasks to execute
+    *        in parallel, which will eventually produce events for the
+    *        resulting observable stream
+    *
+    * @see [[mapParallelOrdered]] for a variant that does preserve order
+    * @see [[mapEval]] for serial execution
+    */
+  final def mapParallelUnorderedF[F[_], B](parallelism: Int)(
+    f: A => F[B])(implicit os: OverflowStrategy[B] = OverflowStrategy.Default, F: TaskLike[F]): Observable[B] =
+    new MapParallelUnorderedObservable[A, B](self, parallelism, f.andThen(F.apply), os)
 
   /** Converts the source Observable that emits `A` into an Observable
     * that emits `Notification[A]`.
@@ -3902,6 +3971,19 @@ abstract class Observable[+A] extends Serializable { self =>
       })
     }
 
+  /** Polymorphic version of [[completedL]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLift]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  final def completedF[F[_]](implicit F: TaskLift[F]): F[Unit] = completedL.to[F]
+
   /** Given a [[cats.Order]] over the stream's elements, returns the
     * maximum element in the stream.
     *
@@ -4478,6 +4560,20 @@ object Observable extends ObservableDeprecatedBuilders {
     */
   def fromIterator[A](resource: Resource[Task, Iterator[A]]): Observable[A] =
     Observable.fromResource(resource).flatMap(fromIteratorUnsafe)
+
+  /** Version of fromIterator that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    */
+  def fromIteratorF[F[_], A](iteratorF: F[Iterator[A]])(implicit F: TaskLike[F]): Observable[A] =
+    fromIterator(F(iteratorF))
 
   /** Converts any `Iterator` into an observable.
     *
