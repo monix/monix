@@ -80,7 +80,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
 
   test("Observable.from(Task)") { implicit s =>
     val p = Promise[Int]()
-    val f = Observable.from(Task.fromFuture(p.future)).runAsyncGetFirst
+    val f = Observable.from(Task.fromFutureUnsafe(p.future)).runAsyncGetFirst
 
     s.tick()
     assertEquals(f.value, None)
@@ -93,7 +93,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   test("Observable.from(Task) for errors") { implicit s =>
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
-    val f = Observable.from(Task.fromFuture(p.future)).runAsyncGetFirst
+    val f = Observable.from(Task.fromFutureUnsafe(p.future)).runAsyncGetFirst
 
     s.tick()
     assertEquals(f.value, None)

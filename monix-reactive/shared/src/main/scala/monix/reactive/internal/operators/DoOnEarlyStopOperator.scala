@@ -42,7 +42,7 @@ private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit]) exten
           catch { case ex if NonFatal(ex) => Future.failed(ex) }
 
         val task = Task
-          .fromFuture(result)
+          .fromFutureUnsafe(result)
           .onErrorHandle { ex =>
             onError(ex); Stop
           }

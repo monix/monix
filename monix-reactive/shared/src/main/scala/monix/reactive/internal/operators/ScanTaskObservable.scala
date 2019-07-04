@@ -223,7 +223,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
       stateRef.getAndSet(WaitOnNext) match {
         case WaitActiveTask | WaitOnNext | Active(_) =>
           // Expected outcome
-          Task.fromFuture(next)
+          Task.fromFutureUnsafe(next)
 
         case Cancelled =>
           Task.now(Stop)

@@ -2540,6 +2540,19 @@ object Task extends TaskInstancesLevel1 {
   def deferFuture[A](fa: => Future[A]): Task[A] =
     defer(fromFuture(fa))
 
+  /** Promote a non-strict Scala `Future` to a `Task` of the same type.
+    *
+    * The equivalent of doing:
+    * {{{
+    *   import scala.concurrent.Future
+    *   val fa = Future.successful(27)
+    *
+    *   Task.defer(Task.fromFutureUnsafe(fa))
+    * }}}
+    */
+  def deferFutureUnsafe[A](fa: => Future[A]): Task[A] =
+    defer(fromFutureUnsafe(fa))
+
   /** Wraps calls that generate `Future` results into [[Task]], provided
     * a callback with an injected [[monix.execution.Scheduler Scheduler]]
     * to act as the necessary `ExecutionContext`.
@@ -2583,6 +2596,9 @@ object Task extends TaskInstancesLevel1 {
     */
   def deferFutureAction[A](f: Scheduler => Future[A]): Task[A] =
     TaskFromFuture.deferAction(f)
+
+  def deferFutureActionUnsafe[A](f: Scheduler => Future[A]): Task[A] =
+    TaskFromFuture.deferActionUnsafe(f)
 
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Task[A]): Task[A] =
@@ -2828,6 +2844,9 @@ object Task extends TaskInstancesLevel1 {
   def async[A](register: Callback[Throwable, A] => Unit): Task[A] =
     TaskCreate.async(register)
 
+  def asyncUnsafe[A](register: Callback[Throwable, A] => Unit): Task[A] =
+    TaskCreateUnsafe.async(register)
+
   /** Create a non-cancelable `Task` from an asynchronous computation,
     * which takes the form of a function with which we can register a
     * callback to execute upon completion, a function that also injects a
@@ -2893,6 +2912,9 @@ object Task extends TaskInstancesLevel1 {
   def async0[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
     TaskCreate.async0(register)
 
+  def asyncUnsafe0[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
+    TaskCreateUnsafe.async0(register)
+
   /** Suspends an asynchronous side effect in `Task`, this being a
     * variant of [[async]] that takes a pure registration function.
     *
@@ -2922,6 +2944,9 @@ object Task extends TaskInstancesLevel1 {
     */
   def asyncF[A](register: Callback[Throwable, A] => Task[Unit]): Task[A] =
     TaskCreate.asyncF(register)
+
+  def asyncUnsafeF[A](register: Callback[Throwable, A] => Task[Unit]): Task[A] =
+    TaskCreateUnsafe.asyncF(register)
 
   /** Create a cancelable `Task` from an asynchronous computation that
     * can be canceled, taking the form of a function with which we can
@@ -3001,6 +3026,9 @@ object Task extends TaskInstancesLevel1 {
     */
   def cancelable[A](register: Callback[Throwable, A] => CancelToken[Task]): Task[A] =
     cancelable0((_, cb) => register(cb))
+
+  def cancelableUnsafe[A](register: Callback[Throwable, A] => CancelToken[Task]): Task[A] =
+    cancelableUnsafe0((_, cb) => register(cb))
 
   /** Create a cancelable `Task` from an asynchronous computation,
     * which takes the form of a function with which we can register a
@@ -3102,6 +3130,9 @@ object Task extends TaskInstancesLevel1 {
     */
   def cancelable0[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
     TaskCreate.cancelable0(register)
+
+  def cancelableUnsafe0[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
+    TaskCreateUnsafe.cancelable0(register)
 
   /** Returns a cancelable boundary — a `Task` that checks for the
     * cancellation status of the run-loop and does not allow for the
@@ -3231,13 +3262,44 @@ object Task extends TaskInstancesLevel1 {
     */
   def create[A]: AsyncBuilder.CreatePartiallyApplied[A] = new AsyncBuilder.CreatePartiallyApplied[A]
 
+  def createUnsafe[A]: AsyncUnsafeBuilder.CreatePartiallyApplied[A] = new AsyncUnsafeBuilder.CreatePartiallyApplied[A]
+
   /** Converts the given Scala `Future` into a `Task`.
     *
     * NOTE: if you want to defer the creation of the future, use
     * in combination with [[defer]].
+    *
+    * @see [[fromFutureUnsafe]] for a version that might not return to the default `Scheduler`
     */
   def fromFuture[A](f: Future[A]): Task[A] =
     TaskFromFuture.strict(f)
+
+  /** Converts the given Scala `Future` into a `Task`.
+    * This version is `unsafe` because it will stay on `ExecutionContext`
+    * used by the `Future` instead of the default `Scheduler`.
+    *
+    * See example below:
+    *
+    * {{{
+    *   import monix.execution.Scheduler
+    *   import scala.concurrent.Future
+    *
+    *   implicit val s1 = Scheduler.global // default Scheduler
+    *   val s2 = Scheduler.io()
+    *
+    *   Task.fromFuture(Future(1)(s2)).flatMap(_ => Task(println("Thread.currentThread().getName")))
+    * }}}
+    *
+    * Here `println` will execute on `s2` instead of `s1`.
+    * If you know that the `Future` won't go to wrong `Scheduler`, this version will be more efficient than [[fromFuture]].
+    *
+    * @see [[fromFuture]] for version that will always shift back to the default `Scheduler`
+    *
+    * NOTE: if you want to defer the creation of the future, use
+    * in combination with [[defer]].
+    */
+  def fromFutureUnsafe[A](f: Future[A]): Task[A] =
+    TaskFromFuture.strictUnsafe(f)
 
   /** Wraps a [[monix.execution.CancelablePromise]] into `Task`. */
   def fromCancelablePromise[A](p: CancelablePromise[A]) =
@@ -4234,6 +4296,111 @@ object Task extends TaskInstancesLevel1 {
       new AsyncBuilder[Cancelable] {
         def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] =
           TaskCreate.cancelableCancelable(register)
+      }
+  }
+
+  /** The `AsyncUnsafe` is a type used by the [[Task.createUnsafe]] builder,
+    * in order to change its behavior based on the type of the
+    * cancelation token.
+    *
+    * In combination with the
+    * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type technique]],
+    * this ends up providing a polymorphic [[Task.createUnsafe]] that can
+    * support multiple cancelation tokens optimally, i.e. without
+    * implicit conversions and that can be optimized depending on
+    * the `CancelToken` used - for example if `Unit` is returned,
+    * then the yielded task will not be cancelable and the internal
+    * implementation will not have to worry about managing it, thus
+    * increasing performance.
+    */
+  abstract class AsyncUnsafeBuilder[CancelationToken] {
+    def createUnsafe[A](register: (Scheduler, Callback[Throwable, A]) => CancelationToken): Task[A]
+  }
+
+  object AsyncUnsafeBuilder extends AsyncUnsafeBuilder0 {
+    /** Returns the implicit `AsyncUnsafeBuilder` available in scope for the
+      * given `CancelToken` type.
+      */
+    def apply[CancelationToken](
+      implicit ref: AsyncUnsafeBuilder[CancelationToken]): AsyncUnsafeBuilder[CancelationToken] = ref
+
+    /** For partial application of type parameters in [[Task.createUnsafe]].
+      *
+      * Read about the
+      * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type Technique]].
+      */
+    private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true) extends AnyVal {
+
+      def apply[CancelationToken](register: (Scheduler, Callback[Throwable, A]) => CancelationToken)(
+        implicit B: AsyncUnsafeBuilder[CancelationToken]): Task[A] =
+        B.createUnsafe(register)
+    }
+
+    /** Implicit `AsyncUnsafeBuilder` for non-cancelable tasks. */
+    implicit val forUnit: AsyncUnsafeBuilder[Unit] =
+      new AsyncUnsafeBuilder[Unit] {
+        def createUnsafe[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
+          TaskCreateUnsafe.async0(register)
+      }
+
+    /** Implicit `AsyncUnsafeBuilder` for cancelable tasks, using
+      * `cats.effect.IO` values for specifying cancelation actions,
+      * see [[https://typelevel.org/cats-effect/ Cats Effect]].
+      */
+    implicit val forIO: AsyncUnsafeBuilder[IO[Unit]] =
+      new AsyncUnsafeBuilder[IO[Unit]] {
+        def createUnsafe[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
+          TaskCreateUnsafe.cancelableIO(register)
+      }
+
+    /** Implicit `AsyncUnsafeBuilder` for cancelable tasks, using
+      * [[Task]] values for specifying cancelation actions.
+      */
+    implicit val forTask: AsyncUnsafeBuilder[Task[Unit]] =
+      new AsyncUnsafeBuilder[Task[Unit]] {
+        def createUnsafe[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
+          TaskCreateUnsafe.cancelable0(register)
+      }
+
+    /** Implicit `AsyncUnsafeBuilder` for cancelable tasks, using
+      * [[Coeval]] values for specifying cancelation actions.
+      */
+    implicit val forCoeval: AsyncUnsafeBuilder[Coeval[Unit]] =
+      new AsyncUnsafeBuilder[Coeval[Unit]] {
+        def createUnsafe[A](register: (Scheduler, Callback[Throwable, A]) => Coeval[Unit]): Task[A] =
+          TaskCreateUnsafe.cancelableCoeval(register)
+      }
+
+    /** Implicit `AsyncUnsafeBuilder` for non-cancelable tasks built by a function
+      * returning a [[monix.execution.Cancelable.Empty Cancelable.Empty]].
+      *
+      * This is a case of applying a compile-time optimization trick,
+      * completely ignoring the provided cancelable value, since we've got
+      * a guarantee that it doesn't do anything.
+      */
+    implicit def forCancelableDummy[T <: Cancelable.Empty]: AsyncUnsafeBuilder[T] =
+      forCancelableDummyRef.asInstanceOf[AsyncUnsafeBuilder[T]]
+
+    private[this] val forCancelableDummyRef: AsyncUnsafeBuilder[Cancelable.Empty] =
+      new AsyncUnsafeBuilder[Cancelable.Empty] {
+        def createUnsafe[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable.Empty): Task[A] =
+          TaskCreateUnsafe.async0(register)
+      }
+  }
+
+  private[Task] abstract class AsyncUnsafeBuilder0 {
+    /**
+      * Implicit `AsyncUnsafeBuilder` for cancelable tasks, using
+      * [[monix.execution.Cancelable Cancelable]] values for
+      * specifying cancelation actions.
+      */
+    implicit def forCancelable[T <: Cancelable]: AsyncUnsafeBuilder[T] =
+      forCancelableRef.asInstanceOf[AsyncUnsafeBuilder[T]]
+
+    private[this] val forCancelableRef =
+      new AsyncUnsafeBuilder[Cancelable] {
+        def createUnsafe[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] =
+          TaskCreateUnsafe.cancelableCancelable(register)
       }
   }
 

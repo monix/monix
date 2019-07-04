@@ -52,7 +52,7 @@ private[reactive] final class AsyncStateActionObservable[S, A](seed: => S, f: S 
         Task.unit
       }, {
         case (a, newState) =>
-          Task.fromFuture(subscriber.onNext(a)).flatMap {
+          Task.fromFutureUnsafe(subscriber.onNext(a)).flatMap {
             case Continue => loop(subscriber, newState)
             case Stop => Task.unit
           }

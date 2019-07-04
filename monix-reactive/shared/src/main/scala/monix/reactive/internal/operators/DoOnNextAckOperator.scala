@@ -40,7 +40,7 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
         // has been sent (like we are doing in mapTask); we only need to apply
         // back-pressure for the following onNext events
         val f = out.onNext(elem)
-        val task = Task.fromFuture(f).flatMap { ack =>
+        val task = Task.fromFutureUnsafe(f).flatMap { ack =>
           val r = try cb(elem, ack)
           catch { case ex if NonFatal(ex) => Task.raiseError(ex) }
           r.map(_ => ack).onErrorHandle { ex =>

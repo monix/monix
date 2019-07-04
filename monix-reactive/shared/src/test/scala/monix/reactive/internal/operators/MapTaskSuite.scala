@@ -158,7 +158,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     val p1 = Promise[Long]()
-    val task1 = Task.fromFuture(p1.future)
+    val task1 = Task.fromFutureUnsafe(p1.future)
     val task2 = Task.eval(100L)
 
     Observable
@@ -198,9 +198,9 @@ object MapTaskSuite extends BaseOperatorSuite {
     var received = 0L
 
     val p1 = Promise[Long]()
-    val task1 = Task.fromFuture(p1.future)
+    val task1 = Task.fromFutureUnsafe(p1.future)
     val p2 = Promise[Long]()
-    val task2 = Task.fromFuture(p2.future)
+    val task2 = Task.fromFutureUnsafe(p2.future)
     val task3 = Task.eval(100L)
 
     Observable

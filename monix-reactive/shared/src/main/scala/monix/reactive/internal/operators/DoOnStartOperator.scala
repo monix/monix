@@ -50,7 +50,7 @@ private[reactive] final class DoOnStartOperator[A](cb: A => Task[Unit]) extends 
           val ack = t
             .redeemWith(
               ex => Task.eval { onError(ex); Stop },
-              _ => Task.fromFuture(out.onNext(elem))
+              _ => Task.fromFutureUnsafe(out.onNext(elem))
             )
             .runToFuture
 
