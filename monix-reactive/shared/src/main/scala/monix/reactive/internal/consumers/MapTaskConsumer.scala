@@ -30,8 +30,8 @@ private[reactive] final class MapTaskConsumer[In, R, R2](source: Consumer[In, R]
   extends Consumer[In, R2] {
 
   def createSubscriber(cb: Callback[Throwable, R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
-    @volatile var lastCancelable: Cancelable = Cancelable.empty
-    @volatile var isCancelled = false
+    var lastCancelable: Cancelable = Cancelable.empty
+    var isCancelled = false
     val asyncCallback = new Callback[Throwable, R] { self =>
       def onSuccess(value: R): Unit =
         s.execute(new Runnable {

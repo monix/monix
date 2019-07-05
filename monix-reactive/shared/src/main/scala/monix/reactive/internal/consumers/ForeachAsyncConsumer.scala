@@ -36,7 +36,6 @@ private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extend
 
     val out = new Subscriber[A] {
       implicit val scheduler = s
-      private[this] var isDone = false
 
       def onNext(elem: A): Future[Ack] = {
         try {
@@ -69,7 +68,7 @@ private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extend
 
     (out, SingleAssignCancelable.plusOne(Cancelable { () =>
       out.synchronized {
-        isDone = false
+        isDone = true
         lastCancelable.cancel()
         lastCancelable = Cancelable.empty
       }

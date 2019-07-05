@@ -24,7 +24,6 @@ import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseTestSuite, Consumer, Observable}
 import scala.util.Failure
 
-import monix.execution.atomic.Atomic
 
 object MapTaskConsumerSuite extends BaseTestSuite {
   test("consumer.mapTask equivalence with task.map") { implicit s =>
