@@ -2873,8 +2873,8 @@ object Task extends TaskInstancesLevel1 {
     *   import scala.concurrent.ExecutionContext
     *   import monix.execution.Scheduler
     *
-    *   val foreignEC: ExecutionContext = ???
-    *   val scheduler: Scheduler = ???
+    *   val foreignEC: ExecutionContext = ExecutionContext.global
+    *   val scheduler: Scheduler = Scheduler.io()
     *
     *   val t: Task[Unit] =
     *     Task.asyncUnsafe[Unit] { cb =>
@@ -2973,8 +2973,8 @@ object Task extends TaskInstancesLevel1 {
     *   import scala.concurrent.ExecutionContext
     *   import monix.execution.Scheduler
     *
-    *   val foreignEC: ExecutionContext = ???
-    *   val scheduler: Scheduler = ???
+    *   val foreignEC: ExecutionContext = ExecutionContext.global
+    *   val scheduler: Scheduler = Scheduler.io()
     *
     *   val t: Task[Unit] =
     *     Task.asyncUnsafe0[Unit] { (scheduler, cb) =>
@@ -3036,8 +3036,8 @@ object Task extends TaskInstancesLevel1 {
     *   import scala.concurrent.ExecutionContext
     *   import monix.execution.Scheduler
     *
-    *   val foreignEC: ExecutionContext = ???
-    *   val scheduler: Scheduler = ???
+    *   val foreignEC: ExecutionContext = ExecutionContext.global
+    *   val scheduler: Scheduler = Scheduler.io()
     *
     *   val t: Task[Unit] =
     *     Task.asyncUnsafeF[Unit] { cb =>
@@ -3407,8 +3407,8 @@ object Task extends TaskInstancesLevel1 {
     *   import scala.concurrent.ExecutionContext
     *   import monix.execution.Scheduler
     *
-    *   val foreignEC: ExecutionContext = ???
-    *   val scheduler: Scheduler = ???
+    *   val foreignEC: ExecutionContext = ExecutionContext.global
+    *   val scheduler: Scheduler = Scheduler.io()
     *
     *   val t: Task[Unit] =
     *     Task.createUnsafe[Unit] { (scheduler, cb) =>
