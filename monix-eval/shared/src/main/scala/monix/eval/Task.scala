@@ -2844,6 +2844,37 @@ object Task extends TaskInstancesLevel1 {
   def async[A](register: Callback[Throwable, A] => Unit): Task[A] =
     TaskCreate.async(register)
 
+  /** Create a non-cancelable `Task` from an asynchronous computation,
+    * which takes the form of a function with which we can register a
+    * callback to execute upon completion.
+    *
+    * Variant of [[async]] returning a `Task` which will continue on the Scheduler
+    * on which register callback was called.
+    *
+    * {{{
+    *   import scala.concurrent.ExecutionContext
+    *   import monix.execution.Scheduler
+    *
+    *   val foreignEC: ExecutionContext = ???
+    *   val scheduler: Scheduler = ???
+    *
+    *   val t: Task[Unit] =
+    *     Task.asyncUnsafe[Unit] { cb =>
+    *       foreignEC.submit(new Runnable {
+    *         override def run(): Unit = {
+    *           cb(Right(()))
+    *         }
+    *       })
+    *
+    *   t.runToFuture(scheduler)
+    * }
+    * }}}
+    *
+    * In the above example, the resulting Task will continue on the `foreignEC` instead of `scheduler`
+    * until the next asynchronous boundary.
+    *
+    * @see [[async]] for version that will always go back to the main `Scheduler`
+    */
   def asyncUnsafe[A](register: Callback[Throwable, A] => Unit): Task[A] =
     TaskCreateUnsafe.async(register)
 
@@ -2912,6 +2943,38 @@ object Task extends TaskInstancesLevel1 {
   def async0[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
     TaskCreate.async0(register)
 
+  /** Create a non-cancelable `Task` from an asynchronous computation,
+    * which takes the form of a function with which we can register a
+    * callback to execute upon completion, a function that also injects a
+    * [[monix.execution.Scheduler Scheduler]] for managing async boundaries.
+    *
+    * Variant of [[async0]] returning a `Task` which will continue on the Scheduler
+    * on which register callback was called.
+    *
+    * {{{
+    *   import scala.concurrent.ExecutionContext
+    *   import monix.execution.Scheduler
+    *
+    *   val foreignEC: ExecutionContext = ???
+    *   val scheduler: Scheduler = ???
+    *
+    *   val t: Task[Unit] =
+    *     Task.asyncUnsafe0[Unit] { (scheduler, cb) =>
+    *       foreignEC.submit(new Runnable {
+    *         override def run(): Unit = {
+    *           cb(Right(()))
+    *         }
+    *       })
+    *
+    *   t.runToFuture(scheduler)
+    * }
+    * }}}
+    *
+    * In the above example, the resulting Task will continue on the `foreignEC` instead of `scheduler`
+    * until the next asynchronous boundary.
+    *
+    * @see [[async0]] for version that will always go back to the main `Scheduler`
+    */
   def asyncUnsafe0[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
     TaskCreateUnsafe.async0(register)
 
@@ -2945,6 +3008,38 @@ object Task extends TaskInstancesLevel1 {
   def asyncF[A](register: Callback[Throwable, A] => Task[Unit]): Task[A] =
     TaskCreate.asyncF(register)
 
+  /** Suspends an asynchronous side effect in `Task`, this being a
+    * variant of [[asyncUnsafe]] that takes a pure registration function.
+    *
+    * Variant of [[asyncF]] returning a `Task` which will continue on the Scheduler
+    * on which register callback was called.
+    *
+    * {{{
+    *   import scala.concurrent.ExecutionContext
+    *   import monix.execution.Scheduler
+    *
+    *   val foreignEC: ExecutionContext = ???
+    *   val scheduler: Scheduler = ???
+    *
+    *   val t: Task[Unit] =
+    *     Task.asyncF[Unit] { cb =>
+    *       Task {
+    *         foreignEC.submit(new Runnable {
+    *           override def run(): Unit = {
+    *             cb(Right(()))
+    *           }
+    *       }
+    *       })
+    *
+    *   t.runToFuture(scheduler)
+    * }
+    * }}}
+    *
+    * In the above example, the resulting Task will continue on the `foreignEC` instead of `scheduler`
+    * until the next asynchronous boundary.
+    *
+    * @see [[asyncF]] for version that will always go back to the main `Scheduler`
+    */
   def asyncUnsafeF[A](register: Callback[Throwable, A] => Task[Unit]): Task[A] =
     TaskCreateUnsafe.asyncF(register)
 
@@ -3027,6 +3122,15 @@ object Task extends TaskInstancesLevel1 {
   def cancelable[A](register: Callback[Throwable, A] => CancelToken[Task]): Task[A] =
     cancelable0((_, cb) => register(cb))
 
+  /** Create a cancelable `Task` from an asynchronous computation that
+    * can be canceled, taking the form of a function with which we can
+    * register a callback to execute upon completion.
+    *
+    * Variant of [[cancelable]] returning a `Task` which will continue on the Scheduler
+    * on which register callback was called.
+    *
+    * @see [[cancelable]] for version that will always go back to the main `Scheduler`
+    */
   def cancelableUnsafe[A](register: Callback[Throwable, A] => CancelToken[Task]): Task[A] =
     cancelableUnsafe0((_, cb) => register(cb))
 
@@ -3131,6 +3235,16 @@ object Task extends TaskInstancesLevel1 {
   def cancelable0[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
     TaskCreate.cancelable0(register)
 
+  /** Create a cancelable `Task` from an asynchronous computation,
+    * which takes the form of a function with which we can register a
+    * callback to execute upon completion, a function that also injects a
+    * [[monix.execution.Scheduler Scheduler]] for managing async boundaries.
+    *
+    * Variant of [[cancelable0]] returning a `Task` which will continue on the Scheduler
+    * on which register callback was called.
+    *
+    * @see [[cancelable0]] for version that will always go back to the main `Scheduler`
+    */
   def cancelableUnsafe0[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
     TaskCreateUnsafe.cancelable0(register)
 
@@ -3262,21 +3376,57 @@ object Task extends TaskInstancesLevel1 {
     */
   def create[A]: AsyncBuilder.CreatePartiallyApplied[A] = new AsyncBuilder.CreatePartiallyApplied[A]
 
+  /** Polymorphic `Task` builder that is able to describe asynchronous
+    * tasks depending on the type of the given callback.
+    *
+    * Note that this function uses the
+    * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type technique]].
+    *
+    * Variant of [[create]] returning a `Task` which will continue on the Scheduler
+    * on which register callback was called.
+    *
+    * {{{
+    *   import scala.concurrent.ExecutionContext
+    *   import monix.execution.Scheduler
+    *
+    *   val foreignEC: ExecutionContext = ???
+    *   val scheduler: Scheduler = ???
+    *
+    *   val t: Task[Unit] =
+    *     Task.createUnsafe[Unit] { (scheduler, cb) =>
+    *       foreignEC.submit(new Runnable {
+    *         override def run(): Unit = {
+    *           cb(Right(()))
+    *         }
+    *       })
+    *
+    *   t.runToFuture(scheduler)
+    * }
+    * }}}
+    *
+    * In the above example, the resulting Task will continue on the `foreignEC` instead of `scheduler`
+    * until the next asynchronous boundary.
+    *
+    * @see [[create]] for version that will always go back to the main `Scheduler`
+    */
   def createUnsafe[A]: AsyncUnsafeBuilder.CreatePartiallyApplied[A] = new AsyncUnsafeBuilder.CreatePartiallyApplied[A]
 
   /** Converts the given Scala `Future` into a `Task`.
+    * There is an async boundary inserted at the end to guarantee
+    * that we stay on the main Scheduler.
     *
     * NOTE: if you want to defer the creation of the future, use
     * in combination with [[defer]].
     *
-    * @see [[fromFutureUnsafe]] for a version that might not return to the default `Scheduler`
+    * @see [[fromFutureUnsafe]] for a version that doesn't insert async boundary at the end
     */
   def fromFuture[A](f: Future[A]): Task[A] =
     TaskFromFuture.strict(f)
 
   /** Converts the given Scala `Future` into a `Task`.
-    * This version is `unsafe` because it will stay on `ExecutionContext`
-    * used by the `Future` instead of the default `Scheduler`.
+    *
+    * This version is considered less safe than [[fromFuture]] because returned `Task` will
+    * continue on the Scheduler on which register callback was called.
     *
     * See example below:
     *
@@ -3291,7 +3441,8 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     *
     * Here `println` will execute on `s2` instead of `s1`.
-    * If you know that the `Future` won't go to wrong `Scheduler`, this version will be more efficient than [[fromFuture]].
+    * If that's desired behavior, or you know that the `Future`complete on the wrong `Scheduler`,
+    * this version will be more efficient than [[fromFuture]].
     *
     * @see [[fromFuture]] for version that will always shift back to the default `Scheduler`
     *

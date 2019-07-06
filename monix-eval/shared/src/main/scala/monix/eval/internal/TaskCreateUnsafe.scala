@@ -23,11 +23,11 @@ import monix.eval.{Coeval, Task}
 import monix.execution.{Callback, Cancelable, Scheduler}
 import scala.util.control.NonFatal
 
+/**
+  * Implementation for `Task.createUnsafe`
+  * which doesn't shift to the default `Scheduler` after execution.
+  */
 private[eval] object TaskCreateUnsafe {
-  /**
-    * Implementation for `Task.cancelableUnsafe`
-    * which doesn't shift to the default `Scheduler` after execution.
-    */
   def cancelable0[A](fn: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] = {
     val start = new Cancelable0Start[A, CancelToken[Task]](fn) {
       def setConnection(ref: TaskConnectionRef, token: CancelToken[Task])(implicit s: Scheduler): Unit = ref := token
@@ -93,8 +93,7 @@ private[eval] object TaskCreateUnsafe {
     }
 
   /**
-    * Implementation for `Task.asyncUnsafe0` which doesn't shift to
-    * the default `Scheduler` after execution.
+    * Implementation for `Task.asyncUnsafe0`
     */
   def async0[A](fn: (Scheduler, Callback[Throwable, A]) => Any): Task[A] = {
     val start = (ctx: Context, cb: Callback[Throwable, A]) => {
@@ -114,10 +113,10 @@ private[eval] object TaskCreateUnsafe {
   }
 
   /**
-    * Implementation for `cats.effect.Async#async` that doesn't shift to
+    * Implementation for `cats.effect.Async#async` which doesn't shift to
     * the default `Scheduler` after execution.
     *
-    * It duplicates the implementation of `Task.async0` with the purpose
+    * It duplicates the implementation of `Task.asyncUnsafe0` with the purpose
     * of avoiding extraneous callback allocations.
     */
   def async[A](k: Callback[Throwable, A] => Unit): Task[A] = {
@@ -137,8 +136,7 @@ private[eval] object TaskCreateUnsafe {
   }
 
   /**
-    * Implementation for `Task.asyncUnsafeF` which doesn't shift to
-    * the default `Scheduler` after execution.
+    * Implementation for `Task.asyncUnsafeF`
     */
   def asyncF[A](k: Callback[Throwable, A] => Task[Unit]): Task[A] = {
     val start = (ctx: Context, cb: Callback[Throwable, A]) => {

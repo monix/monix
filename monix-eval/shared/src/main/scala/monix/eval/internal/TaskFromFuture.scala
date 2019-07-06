@@ -238,7 +238,7 @@ private[eval] object TaskFromFuture {
   /**
     * Executes Callback on the default `Scheduler`.
     *
-    * Useful in case the `Callback` could be called from unkown
+    * Useful in case the `Callback` could be called from unknown
     * thread pools.
     */
   private def executeCallbackOn[A](ctx: Context, cb: Callback[Throwable, A], result: Try[A]): Unit = {
