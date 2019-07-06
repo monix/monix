@@ -2878,7 +2878,7 @@ object Task extends TaskInstancesLevel1 {
     *
     *   val t: Task[Unit] =
     *     Task.asyncUnsafe[Unit] { cb =>
-    *       foreignEC.submit(new Runnable {
+    *       foreignEC.execute(new Runnable {
     *         override def run(): Unit = {
     *           cb(Right(()))
     *         }
@@ -2978,7 +2978,7 @@ object Task extends TaskInstancesLevel1 {
     *
     *   val t: Task[Unit] =
     *     Task.asyncUnsafe0[Unit] { (scheduler, cb) =>
-    *       foreignEC.submit(new Runnable {
+    *       foreignEC.execute(new Runnable {
     *         override def run(): Unit = {
     *           cb(Right(()))
     *         }
@@ -3042,7 +3042,7 @@ object Task extends TaskInstancesLevel1 {
     *   val t: Task[Unit] =
     *     Task.asyncUnsafeF[Unit] { cb =>
     *       Task {
-    *         foreignEC.submit(new Runnable {
+    *         foreignEC.execute(new Runnable {
     *           override def run(): Unit = {
     *             cb(Right(()))
     *           }
@@ -3412,7 +3412,7 @@ object Task extends TaskInstancesLevel1 {
     *
     *   val t: Task[Unit] =
     *     Task.createUnsafe[Unit] { (scheduler, cb) =>
-    *       foreignEC.submit(new Runnable {
+    *       foreignEC.execute(new Runnable {
     *         override def run(): Unit = {
     *           cb(Right(()))
     *         }
