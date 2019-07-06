@@ -2883,9 +2883,9 @@ object Task extends TaskInstancesLevel1 {
     *           cb(Right(()))
     *         }
     *       })
+    *     }
     *
     *   t.runToFuture(scheduler)
-    * }
     * }}}
     *
     * In the above example, the resulting Task will continue on the `foreignEC` instead of `scheduler`
@@ -2983,9 +2983,9 @@ object Task extends TaskInstancesLevel1 {
     *           cb(Right(()))
     *         }
     *       })
+    *     }
     *
     *   t.runToFuture(scheduler)
-    * }
     * }}}
     *
     * In the above example, the resulting Task will continue on the `foreignEC` instead of `scheduler`
@@ -3048,9 +3048,9 @@ object Task extends TaskInstancesLevel1 {
     *           }
     *         })
     *       }
+    *     }
     *
     *   t.runToFuture(scheduler)
-    * }
     * }}}
     *
     * In the above example, the resulting Task will continue on the `foreignEC` instead of `scheduler`
@@ -3417,9 +3417,9 @@ object Task extends TaskInstancesLevel1 {
     *           cb(Right(()))
     *         }
     *       })
+    *     }
     *
     *   t.runToFuture(scheduler)
-    * }
     * }}}
     *
     * In the above example, the resulting Task will continue on the `foreignEC` instead of `scheduler`
