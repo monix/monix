@@ -182,7 +182,7 @@ private[eval] object TaskCreate {
     * Creates a callback that will forward calls to the provided one
     * and call it on the default Scheduler (from Context).
     *
-    * Useful in case the `Callback` could be called from unkown
+    * Useful in case the `Callback` could be called from unknown
     * thread pools.
     */
   private def executeCallbackOn[A](ctx: Context, cb: Callback[Throwable, A]): Callback[Throwable, A] = {
