@@ -2536,9 +2536,9 @@ object Task extends TaskInstancesLevel1 {
     * The equivalent of doing:
     * {{{
     *   import scala.concurrent.Future
-    *   val fa = Future.successful(27)
+    *   def mkFuture = Future.successful(27)
     *
-    *   Task.defer(Task.fromFuture(fa))
+    *   Task.defer(Task.fromFuture(mkFuture))
     * }}}
     */
   def deferFuture[A](fa: => Future[A]): Task[A] =
@@ -2546,13 +2546,18 @@ object Task extends TaskInstancesLevel1 {
 
   /** Promote a non-strict Scala `Future` to a `Task` of the same type.
     *
+    * Variant of [[deferFuture]] returning a `Task` which will
+    * continue on the Scheduler on which the `Future` completes.
+    *
     * The equivalent of doing:
     * {{{
     *   import scala.concurrent.Future
-    *   val fa = Future.successful(27)
+    *   def mkFuture = Future.successful(27)
     *
-    *   Task.defer(Task.fromFutureUnsafe(fa))
+    *   Task.defer(Task.fromFutureUnsafe(mkFuture))
     * }}}
+    *
+    * @see [[deferFuture]] for version that will always go back to the main `Scheduler`
     */
   def deferFutureUnsafe[A](fa: => Future[A]): Task[A] =
     defer(fromFutureUnsafe(fa))
@@ -2601,6 +2606,15 @@ object Task extends TaskInstancesLevel1 {
   def deferFutureAction[A](f: Scheduler => Future[A]): Task[A] =
     TaskFromFuture.deferAction(f)
 
+/** Wraps calls that generate `Future` results into [[Task]], provided
+  * a callback with an injected [[monix.execution.Scheduler Scheduler]]
+  * to act as the necessary `ExecutionContext`.
+  *
+  * Variant of [[deferFutureAction]] returning a `Task` which will
+  * continue on the Scheduler on which the `Future` completes.
+  *
+  * @see [[deferFutureAction]] for version that will always go back to the main `Scheduler`
+  */
   def deferFutureActionUnsafe[A](f: Scheduler => Future[A]): Task[A] =
     TaskFromFuture.deferActionUnsafe(f)
 
@@ -3430,7 +3444,7 @@ object Task extends TaskInstancesLevel1 {
   /** Converts the given Scala `Future` into a `Task`.
     *
     * This version is considered less safe than [[fromFuture]] because returned `Task` will
-    * continue on the Scheduler on which register callback was called.
+    * continue on the Scheduler on which the `Future` completes.
     *
     * See example below:
     *
@@ -3445,13 +3459,14 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     *
     * Here `println` will execute on `s2` instead of `s1`.
-    * If that's desired behavior, or you know that the `Future`complete on the wrong `Scheduler`,
-    * this version will be more efficient than [[fromFuture]].
     *
-    * @see [[fromFuture]] for version that will always shift back to the default `Scheduler`
+    * If that's a desired behavior, or you know that the `Future` will not complete on the wrong `Scheduler`,
+    * this version will be more efficient than [[fromFuture]].
     *
     * NOTE: if you want to defer the creation of the future, use
     * in combination with [[defer]].
+    *
+    * @see [[fromFuture]] for version that will always shift back to the default `Scheduler`
     */
   def fromFutureUnsafe[A](f: Future[A]): Task[A] =
     TaskFromFuture.strictUnsafe(f)
