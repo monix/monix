@@ -3040,14 +3040,14 @@ object Task extends TaskInstancesLevel1 {
     *   val scheduler: Scheduler = ???
     *
     *   val t: Task[Unit] =
-    *     Task.asyncF[Unit] { cb =>
+    *     Task.asyncUnsafeF[Unit] { cb =>
     *       Task {
     *         foreignEC.submit(new Runnable {
     *           override def run(): Unit = {
     *             cb(Right(()))
     *           }
+    *         })
     *       }
-    *       })
     *
     *   t.runToFuture(scheduler)
     * }
