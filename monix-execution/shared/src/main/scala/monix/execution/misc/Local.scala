@@ -42,7 +42,7 @@ object Local {
   /** Internal — key type used in [[Context]]. */
   final class Key extends Serializable
 
-  def defaultContext() = new Unbound(AtomicAny(Map()))
+  def defaultContext(): Local.Context = new Unbound(AtomicAny(Map()))
 
   /** Current [[Context]] kept in a `ThreadLocal`. */
   private[this] val localContext: ThreadLocal[Context] =
@@ -114,7 +114,7 @@ object Local {
     }
 
   /** Macros implementations for [[bind]] and [[bindClear]]. */
-  class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
+  private class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
 
     def localLet(ctx: Tree)(f: Tree): Tree = {
@@ -158,7 +158,7 @@ object Local {
     * and access are considered verboten.
     */
   sealed abstract class Context {
-    @tailrec final def set(key: Key, value: Any, isPresent: Boolean): Unit = this match {
+    @tailrec private[misc] final def set(key: Key, value: Any, isPresent: Boolean): Unit = this match {
       case unbound: Unbound =>
         val start = unbound.ref.get()
         val update = if (isPresent) start.updated(key, value) else start - key
@@ -169,7 +169,7 @@ object Local {
       case bound: Bound => bound.rest.set(key, value, isPresent)
     }
 
-    @tailrec final def getOr[A](key: Key, default: => A): A = this match {
+    @tailrec private[misc] final def getOr[A](key: Key, default: => A): A = this match {
       case unbound: Unbound => unbound.ref.get().getOrElse(key, default).asInstanceOf[A]
       case bound: Bound if bound.key == key =>
         if (bound.hasValue) bound.value.asInstanceOf[A] else default
@@ -177,7 +177,7 @@ object Local {
         bound.rest.getOr(key, default)
     }
 
-    final def getOption[A](key: Key): Option[A] = {
+    private[misc] final def getOption[A](key: Key): Option[A] = {
       var it = this
       var r: Option[A] = null
       while (r eq null) {
@@ -193,7 +193,7 @@ object Local {
       r
     }
 
-    final def mkIsolated: Unbound = {
+    final def mkIsolated: Context = {
       this match {
         case unbound: Unbound =>
           val map = unbound.ref.get()
@@ -226,9 +226,9 @@ object Local {
     final def bind(key: Key, value: Option[Any]): Context =
       new Bound(key, value.orNull, value.isDefined, this)
   }
-  final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
+  private final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
 
-  final class Bound(
+  private final class Bound(
     val key: Key,
     @volatile var value: Any,
     @volatile var hasValue: Boolean,
