@@ -2606,15 +2606,15 @@ object Task extends TaskInstancesLevel1 {
   def deferFutureAction[A](f: Scheduler => Future[A]): Task[A] =
     TaskFromFuture.deferAction(f)
 
-/** Wraps calls that generate `Future` results into [[Task]], provided
-  * a callback with an injected [[monix.execution.Scheduler Scheduler]]
-  * to act as the necessary `ExecutionContext`.
-  *
-  * Variant of [[deferFutureAction]] returning a `Task` which will
-  * continue on the Scheduler on which the `Future` completes.
-  *
-  * @see [[deferFutureAction]] for version that will always go back to the main `Scheduler`
-  */
+  /** Wraps calls that generate `Future` results into [[Task]], provided
+    * a callback with an injected [[monix.execution.Scheduler Scheduler]]
+    * to act as the necessary `ExecutionContext`.
+    *
+    * Variant of [[deferFutureAction]] returning a `Task` which will
+    * continue on the Scheduler on which the `Future` completes.
+    *
+    * @see [[deferFutureAction]] for version that will always go back to the main `Scheduler`
+    */
   def deferFutureActionUnsafe[A](f: Scheduler => Future[A]): Task[A] =
     TaskFromFuture.deferActionUnsafe(f)
 
