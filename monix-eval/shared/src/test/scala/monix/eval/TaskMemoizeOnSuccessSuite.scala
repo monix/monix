@@ -652,13 +652,18 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
 
     val task = for {
       local <- TaskLocal(0)
-      v1    <- local.write(100).flatMap(_ => local.read).memoizeOnSuccess
+      memoizeTask = local.write(100).flatMap(_ => local.read).memoizeOnSuccess
+      v1    <- memoizeTask
       _     <- Task.shift
       v2    <- local.read
-    } yield (v1, v2)
+      _     <- local.write(200)
+      _     <- memoizeTask
+      _     <- Task.shift
+      v3    <- local.read
+    } yield (v1, v2, v3)
 
     for (v <- task.runToFutureOpt) yield {
-      assertEquals(v, (100, 100))
+      assertEquals(v, (100, 100, 200))
     }
   }
 
