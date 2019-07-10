@@ -11,10 +11,14 @@ object MimaFilters {
     exclude[IncompatibleSignatureProblem]("monix.reactive.observers.buffers.AbstractEvictingBufferedSubscriber.this"),
     exclude[IncompatibleSignatureProblem]("monix.reactive.observers.buffers.DropNewBufferedSubscriber.withSignal"),
     exclude[IncompatibleSignatureProblem]("monix.reactive.observers.buffers.EvictingBufferedSubscriber.this"),
-    exclude[IncompatibleSignatureProblem]("monix.reactive.observers.buffers.EvictingBufferedSubscriber.dropOldAndSignal"),
-    exclude[IncompatibleSignatureProblem]("monix.reactive.observers.buffers.EvictingBufferedSubscriber.clearBufferAndSignal"),
-    exclude[IncompatibleSignatureProblem]("monix.reactive.observers.buffers.EvictingBufferedSubscriber.dropOldAndSignal"),
-    exclude[IncompatibleSignatureProblem]("monix.reactive.observers.buffers.EvictingBufferedSubscriber.clearBufferAndSignal"),
+    exclude[IncompatibleSignatureProblem](
+      "monix.reactive.observers.buffers.EvictingBufferedSubscriber.dropOldAndSignal"),
+    exclude[IncompatibleSignatureProblem](
+      "monix.reactive.observers.buffers.EvictingBufferedSubscriber.clearBufferAndSignal"),
+    exclude[IncompatibleSignatureProblem](
+      "monix.reactive.observers.buffers.EvictingBufferedSubscriber.dropOldAndSignal"),
+    exclude[IncompatibleSignatureProblem](
+      "monix.reactive.observers.buffers.EvictingBufferedSubscriber.clearBufferAndSignal"),
     exclude[IncompatibleSignatureProblem]("monix.reactive.observers.buffers.DropNewBufferedSubscriber.this"),
     exclude[IncompatibleSignatureProblem]("monix.reactive.observers.buffers.DropNewBufferedSubscriber.withSignal"),
     exclude[IncompatibleMethTypeProblem]("monix.reactive.internal.consumers.CancelledConsumer.apply"),
