@@ -1794,7 +1794,11 @@ sealed abstract class Task[+A] extends Serializable {
     * canceling a task.
     */
   final def doOnFinish(f: Option[Throwable] => Task[Unit]): Task[A] =
-    Task.FlatMap(this, new Task.DoOnFinish[A](f))
+    this.guaranteeCase {
+      case ExitCase.Completed => f(None)
+      case ExitCase.Canceled => Task.unit
+      case ExitCase.Error(e) => f(Some(e))
+    }
 
   /** Returns a new `Task` that will mirror the source, but that will
     * execute the given `callback` if the task gets canceled before
@@ -4476,14 +4480,6 @@ object Task extends TaskInstancesLevel1 {
       Error(new NoSuchElementException("failed"))
     def recover(e: Throwable): Task[Throwable] =
       Now(e)
-  }
-
-  /** Used as optimization by [[Task.doOnFinish]]. */
-  private final class DoOnFinish[A](f: Option[Throwable] => Task[Unit]) extends StackFrame[A, Task[A]] {
-    def apply(a: A): Task[A] =
-      f(None).map(_ => a)
-    def recover(e: Throwable): Task[A] =
-      f(Some(e)).flatMap(_ => Task.Error(e))
   }
 
   /** Used as optimization by [[Task.redeem]]. */

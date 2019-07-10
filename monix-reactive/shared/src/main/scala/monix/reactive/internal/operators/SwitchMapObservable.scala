@@ -42,6 +42,8 @@ private[reactive] final class SwitchMapObservable[A, B](source: Observable[A], f
       private[this] var activeChildIndex: Int = -1
       // MUST BE synchronized by `self`
       private[this] var upstreamIsDone: Boolean = false
+      // MUST BE synchronized by `self`
+      private[this] var lastChildIsDone: Boolean = false
 
       def onNext(elem: A): Ack = self.synchronized {
         if (upstreamIsDone) Stop
@@ -61,7 +63,7 @@ private[reactive] final class SwitchMapObservable[A, B](source: Observable[A], f
           activeChild := childObservable.unsafeSubscribeFn(new Observer[B] {
             def onNext(elem: B) =
               self.synchronized {
-                if (upstreamIsDone || myChildIndex != activeChildIndex)
+                if (myChildIndex != activeChildIndex)
                   Stop
                 else {
                   ack = out.onNext(elem).syncOnStopOrFailure(_ => cancelFromDownstream())
@@ -69,7 +71,16 @@ private[reactive] final class SwitchMapObservable[A, B](source: Observable[A], f
                 }
               }
 
-            def onComplete(): Unit = ()
+            def onComplete(): Unit = self.synchronized {
+              if (myChildIndex == activeChildIndex) {
+                if (upstreamIsDone) {
+                  activeChildIndex = -1
+                  out.onComplete()
+                } else {
+                  lastChildIsDone = true
+                }
+              }
+            }
             def onError(ex: Throwable): Unit =
               self.synchronized {
                 if (myChildIndex == activeChildIndex)
@@ -104,9 +115,10 @@ private[reactive] final class SwitchMapObservable[A, B](source: Observable[A], f
       def onComplete(): Unit = self.synchronized {
         if (!upstreamIsDone) {
           upstreamIsDone = true
-          activeChildIndex = -1
-          activeChild.cancel()
-          out.onComplete()
+          if (lastChildIsDone) {
+            activeChildIndex = -1
+            out.onComplete()
+          }
         }
       }
     })
