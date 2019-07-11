@@ -865,6 +865,16 @@ abstract class Observable[+A] extends Serializable { self =>
   final def collect[B](pf: PartialFunction[A, B]): Observable[B] =
     self.liftByOperator(new CollectOperator(pf))
 
+  /** Takes longest prefix of elements that satisfy the given partial function
+    * and returns a new Observable that emits those elements.
+    *
+    * @param pf the function that filters and maps the source
+    * @return an observable that emits the transformed items by the
+    *         given partial function until it is contained in the function's domain
+    */
+  final def collectWhile[B](pf: PartialFunction[A, B]): Observable[B] =
+    self.liftByOperator(new CollectWhileOperator(pf))
+
   /** Creates a new observable from the source and another given
     * observable, by emitting elements combined in pairs.
     *
