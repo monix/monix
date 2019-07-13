@@ -2399,6 +2399,11 @@ sealed abstract class Task[+A] extends Serializable {
       a     <- this
       end   <- Task.clock.monotonic(NANOSECONDS)
     } yield (FiniteDuration(end - start, NANOSECONDS), a)
+
+  /** Returns this task mapped to unit
+    */
+  final def void: Task[Unit] =
+    this.map(_ => ())
 }
 
 /** Builders for [[Task]].
