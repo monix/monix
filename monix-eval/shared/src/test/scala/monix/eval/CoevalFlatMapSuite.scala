@@ -47,4 +47,10 @@ object CoevalFlatMapSuite extends BaseTestSuite {
     val coeval = Coeval.raiseError[Int](dummy).redeem(_ => 1, identity)
     assertEquals(coeval.runTry(), Success(1))
   }
+
+  test(">> is stack safe for infinite loops") { implicit s =>
+    def looped: Coeval[Unit] = Coeval.unit >> looped
+    val _ = looped
+    assert(true)
+  }
 }
