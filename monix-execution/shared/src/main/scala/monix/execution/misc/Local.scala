@@ -60,6 +60,9 @@ object Local {
   def clearContext(): Unit =
     localContext.set(defaultContext())
 
+  /** Execute a block of code without propagating any `Local.Context`
+    * changes outside.
+    */
   def isolate[R](f: => R): R =
     macro Macros.isolate
 
@@ -75,7 +78,10 @@ object Local {
   def bindClear[R](f: => R): R =
     macro Macros.localLetClear
 
-  private[monix] def bindCurrentIf[R](b: => Boolean)(f: => R): R =
+  /** If `b` evaluates to `true`, execute a block of code using a current
+    * state of `Local.Context` and restore the current state when complete.
+    */
+  def bindCurrentIf[R](b: => Boolean)(f: => R): R =
     macro Macros.localLetCurrentIf
 
   /** Convert a closure `() => R` into another closure of the same
