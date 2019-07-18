@@ -4669,7 +4669,11 @@ private[eval] abstract class TaskContextShift extends TaskTimers {
       override def shift: Task[Unit] =
         Task.shift(s)
       override def evalOn[A](ec: ExecutionContext)(fa: Task[A]): Task[A] =
-        Task.shift(ec).bracket(_ => fa)(_ => Task.shift(s))
+        ec match {
+          case ref: Scheduler => fa.executeOn(ref, forceAsync = true)
+          case _ => fa.executeOn(Scheduler(ec), forceAsync = true)
+        }
+
     }
 }
 

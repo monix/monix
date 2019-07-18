@@ -20,10 +20,11 @@ package monix.eval
 import java.util.concurrent.TimeUnit
 
 import cats.effect.{Clock, ContextShift, Timer}
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
   test("Task.clock is implicit") { _ =>
@@ -126,6 +127,20 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
+  test("Task.contextShift.evalOn(s2) failure") { implicit s =>
+    val s2 = TestScheduler()
+    val dummy = DummyException("dummy")
+    val f = Task.contextShift.evalOn(s2)(Task.raiseError(dummy)).runToFuture
+
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, None)
+    s2.tick()
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
+
   test("Task.contextShift(s).shift") { implicit s =>
     val f = Task.contextShift(s).shift.runToFuture
     assertEquals(f.value, None)
@@ -143,5 +158,19 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     s2.tick()
     s.tick()
     assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.contextShift(s).evalOn(s2) failure") { implicit s =>
+    val s2 = TestScheduler()
+    val dummy = DummyException("dummy")
+    val f = Task.contextShift(s).evalOn(s2)(Task.raiseError(dummy)).runToFuture
+
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, None)
+    s2.tick()
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Failure(dummy)))
   }
 }
