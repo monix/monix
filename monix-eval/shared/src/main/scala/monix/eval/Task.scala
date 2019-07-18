@@ -1173,6 +1173,19 @@ sealed abstract class Task[+A] extends Serializable {
   final def attempt: Task[Either[Throwable, A]] =
     FlatMap(this, AttemptTask.asInstanceOf[A => Task[Either[Throwable, A]]])
 
+  /** Runs this task first and then, when successful, the given task.
+    * Returns the result of the given task.
+    *
+    * Example:
+    * {{{
+    *   val combined = Task{println("first"); "first"} >> Task{println("second"); "second"}
+    *   // Prints "first" and then "second"
+    *   // Result value will be "second"
+    * }}}
+    */
+  final def >>[B](tb: => Task[B]): Task[B] =
+    this.flatMap(_ => tb)
+
   /** Introduces an asynchronous boundary at the current stage in the
     * asynchronous processing pipeline.
     *
