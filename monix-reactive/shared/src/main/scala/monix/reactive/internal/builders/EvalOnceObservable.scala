@@ -32,20 +32,10 @@ private[reactive] final class EvalOnceObservable[A](a: => A) extends Observable[
   @volatile private[this] var hasResult = false
 
   private def signalResult(out: Subscriber[A], value: A, ex: Throwable): Unit = {
-    if (ex != null)
-      try out.onError(ex)
-      catch {
-        case err if NonFatal(err) =>
-          out.scheduler.reportFailure(err)
-          out.scheduler.reportFailure(ex)
-      } else
-      try {
-        out.onNext(value)
-        out.onComplete()
-      } catch {
-        case err if NonFatal(err) =>
-          out.scheduler.reportFailure(err)
-      }
+    if (ex == null) {
+      out.onNext(value)
+      out.onComplete()
+    } else out.onError(ex)
   }
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

@@ -44,7 +44,7 @@ private[eval] object TaskMemoize {
           new Register(source, cacheErrors),
           trampolineBefore = false,
           trampolineAfter = true,
-          restoreLocals = false)
+          restoreLocals = true)
     }
 
   /** Registration function, used in `Task.Async`. */

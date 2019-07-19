@@ -183,6 +183,19 @@ import scala.util.{Failure, Success, Try}
 sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   import monix.eval.Coeval._
 
+  /** Runs this underlying computation first and then, when successful, the given one.
+    * Returns the result of the given underlying computation.
+    *
+    * Example:
+    * {{{
+    *   val combined = Coeval{println("first"); "first"} >> Coeval{println("second"); "second"}
+    *   // Prints "first" and then "second"
+    *   // Result value will be "second"
+    * }}}
+    */
+  final def >>[B](that: => Coeval[B]): Coeval[B] =
+    this.flatMap(_ => that)
+
   /** Evaluates the underlying computation and returns the result.
     *
     * NOTE: this can throw exceptions.
@@ -860,6 +873,11 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
       e => f(Some(e)).flatMap(_ => Error(e)),
       a => f(None).map(_ => a)
     )
+
+  /** Returns this coeval mapped to unit
+    */
+  final def void: Coeval[Unit] =
+    this.map(_ => ())
 
   /** Zips the values of `this` and `that` coeval, and creates a new coeval
     * that will emit the tuple of their results.

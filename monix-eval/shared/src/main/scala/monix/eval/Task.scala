@@ -1173,6 +1173,19 @@ sealed abstract class Task[+A] extends Serializable {
   final def attempt: Task[Either[Throwable, A]] =
     FlatMap(this, AttemptTask.asInstanceOf[A => Task[Either[Throwable, A]]])
 
+  /** Runs this task first and then, when successful, the given task.
+    * Returns the result of the given task.
+    *
+    * Example:
+    * {{{
+    *   val combined = Task{println("first"); "first"} >> Task{println("second"); "second"}
+    *   // Prints "first" and then "second"
+    *   // Result value will be "second"
+    * }}}
+    */
+  final def >>[B](tb: => Task[B]): Task[B] =
+    this.flatMap(_ => tb)
+
   /** Introduces an asynchronous boundary at the current stage in the
     * asynchronous processing pipeline.
     *
@@ -1794,7 +1807,11 @@ sealed abstract class Task[+A] extends Serializable {
     * canceling a task.
     */
   final def doOnFinish(f: Option[Throwable] => Task[Unit]): Task[A] =
-    Task.FlatMap(this, new Task.DoOnFinish[A](f))
+    this.guaranteeCase {
+      case ExitCase.Completed => f(None)
+      case ExitCase.Canceled => Task.unit
+      case ExitCase.Error(e) => f(Some(e))
+    }
 
   /** Returns a new `Task` that will mirror the source, but that will
     * execute the given `callback` if the task gets canceled before
@@ -2395,6 +2412,11 @@ sealed abstract class Task[+A] extends Serializable {
       a     <- this
       end   <- Task.clock.monotonic(NANOSECONDS)
     } yield (FiniteDuration(end - start, NANOSECONDS), a)
+
+  /** Returns this task mapped to unit
+    */
+  final def void: Task[Unit] =
+    this.map(_ => ())
 }
 
 /** Builders for [[Task]].
@@ -4476,14 +4498,6 @@ object Task extends TaskInstancesLevel1 {
       Error(new NoSuchElementException("failed"))
     def recover(e: Throwable): Task[Throwable] =
       Now(e)
-  }
-
-  /** Used as optimization by [[Task.doOnFinish]]. */
-  private final class DoOnFinish[A](f: Option[Throwable] => Task[Unit]) extends StackFrame[A, Task[A]] {
-    def apply(a: A): Task[A] =
-      f(None).map(_ => a)
-    def recover(e: Throwable): Task[A] =
-      f(Some(e)).flatMap(_ => Task.Error(e))
   }
 
   /** Used as optimization by [[Task.redeem]]. */

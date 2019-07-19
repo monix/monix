@@ -17,11 +17,11 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.Callback
+import monix.execution.{Callback, Cancelable, Scheduler}
 import monix.eval.Task
-import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
 import scala.util.control.NonFatal
+
 import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 
@@ -30,7 +30,9 @@ private[reactive] final class MapTaskConsumer[In, R, R2](source: Consumer[In, R]
   extends Consumer[In, R2] {
 
   def createSubscriber(cb: Callback[Throwable, R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
-    val asyncCallback = new Callback[Throwable, R] {
+    var lastCancelable: Cancelable = Cancelable.empty
+    var isCancelled = false
+    val asyncCallback = new Callback[Throwable, R] { self =>
       def onSuccess(value: R): Unit =
         s.execute(new Runnable {
           // Forcing async boundary, otherwise we might
@@ -43,7 +45,10 @@ private[reactive] final class MapTaskConsumer[In, R, R2](source: Consumer[In, R]
             try {
               val task = f(value)
               streamErrors = false
-              task.runAsync(cb)
+              self.synchronized {
+                if (!isCancelled)
+                  lastCancelable = task.runAsync(cb)
+              }
             } catch {
               case ex if NonFatal(ex) =>
                 if (streamErrors) cb.onError(ex)
@@ -59,6 +64,20 @@ private[reactive] final class MapTaskConsumer[In, R, R2](source: Consumer[In, R]
       }
     }
 
-    source.createSubscriber(asyncCallback, s)
+    val (sub, ac) = source.createSubscriber(asyncCallback, s)
+    (sub, new AssignableCancelable {
+      override def `:=`(value: Cancelable): this.type = {
+        ac := value
+        this
+      }
+
+      override def cancel(): Unit = {
+        ac.cancel()
+        asyncCallback.synchronized {
+          isCancelled = true
+          lastCancelable.cancel()
+        }
+      }
+    })
   }
 }

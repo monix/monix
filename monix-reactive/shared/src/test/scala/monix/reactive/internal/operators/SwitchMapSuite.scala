@@ -86,24 +86,14 @@ object SwitchMapSuite extends BaseOperatorSuite {
     assertEquals(r2.value.get, r1.value.get)
   }
 
-  test("switchMap should cancel child after stream has ended") { implicit s =>
-    val source = Observable.now(1L).switchMap { x =>
-      Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
-    }
+  test("Observable.unit.switchMap(_ => a) <-> a") { implicit s =>
+    val expectedCount = 100
+    val size = Observable.unit
+      .switchMap(_ => Observable.interval(1.second).take(expectedCount))
+      .countL
+      .runToFuture
 
-    var total = 0L
-    source.unsafeSubscribeFn(new Observer.Sync[Long] {
-      def onNext(elem: Long): Ack = {
-        total += elem
-        Continue
-      }
-
-      def onError(ex: Throwable): Unit = throw ex
-      def onComplete(): Unit = ()
-    })
-
-    s.tick()
-    assertEquals(total, 0)
-    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+    s.tick(1.day)
+    assertEquals(size.value.get.get, expectedCount)
   }
 }

@@ -30,7 +30,7 @@ object TypeClassLawsForTaskSuite
 
 object TypeClassLawsForTaskAutoCancelableSuite
   extends BaseTypeClassLawsForTaskSuite()(
-    Task.defaultOptions.disableAutoCancelableRunLoops
+    Task.defaultOptions.enableAutoCancelableRunLoops
   )
 
 class BaseTypeClassLawsForTaskSuite(implicit opts: Task.Options) extends BaseLawsSuite {
