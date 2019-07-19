@@ -156,7 +156,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.contextShift(s).evalOn(s2) injects s2 to Task.deferAction") { implicit s =>
+  test("Task.contextShift.evalOn(s2) injects s2 to Task.deferAction") { implicit s =>
     val s2 = TestScheduler()
 
     var wasScheduled = false
