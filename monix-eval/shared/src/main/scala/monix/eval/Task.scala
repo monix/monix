@@ -3472,6 +3472,12 @@ object Task extends TaskInstancesLevel1 {
   def gather[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
     TaskGather[A, M](in, () => newBuilder(bf, in))
 
+  /**
+    * Similar to `gather`, but bounded by specified parallelism.
+    */
+  def gatherN[A](parallelism: Int)(in: Iterable[Task[A]]): Task[List[A]] =
+    TaskGatherN[A](parallelism, in)
+
   /** Given a `Iterable[A]` and a function `A => Task[B]`,
     * nondeterministically apply the function to each element of the collection
     * and return a task that will signal a collection of the results once all
@@ -3495,6 +3501,14 @@ object Task extends TaskInstancesLevel1 {
     */
   def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     Task.eval(in.map(f)).flatMap(col => TaskGather[B, M](col, () => newBuilder(bf, in)))
+
+  /**
+    * Similar to `wander`, but bounded by specified parallelism.
+    */
+  def wanderN[A, B](parallelism: Int)(in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
+    Task.suspend {
+      TaskGatherN(parallelism, in.map(f))
+    }
 
   /** Processes the given collection of tasks in parallel and
     * nondeterministically gather the results without keeping the original
