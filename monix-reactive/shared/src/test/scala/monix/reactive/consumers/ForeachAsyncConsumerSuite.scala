@@ -86,4 +86,19 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
+
+  test("should cancel the last task that started execution") { implicit s =>
+    var cancelled = false
+    val f = Observable(1)
+      .consumeWith(Consumer.foreachTask(_ =>
+        Task.never.doOnCancel(Task {
+          cancelled = true
+        })))
+      .runToFuture
+
+    s.tick()
+    f.cancel()
+    s.tick()
+    assert(cancelled)
+  }
 }

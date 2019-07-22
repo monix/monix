@@ -81,4 +81,20 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
       fa1 <-> fa2
     }
   }
+
+  test("should cancel the last task that started execution") { implicit s =>
+    var cancelled = false
+    val f = Observable
+      .range(1, 5)
+      .consumeWith(Consumer.foldLeftTask(0L)((_, _) =>
+        Task.never.doOnCancel(Task {
+          cancelled = true
+        })))
+      .runToFuture
+
+    s.tick()
+    f.cancel()
+    s.tick()
+    assert(cancelled)
+  }
 }

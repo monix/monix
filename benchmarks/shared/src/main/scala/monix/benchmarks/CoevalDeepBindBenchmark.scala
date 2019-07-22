@@ -29,15 +29,25 @@ import org.openjdk.jmh.annotations._
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.CoevalDeepBindBenchmark
+  *     jmh:run monix.benchmarks.TaskShiftBenchmark
+  *     The above test will take default values as "10 iterations", "10 warm-up iterations",
+  *     "2 forks", "1 thread".
   *
-  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
+  *     Or to specify custom values use below format:
+  *
+  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.TaskShiftBenchmark
+  *
+  * Which means "20 iterations", "20 warm-up iterations", "4 forks", "2 thread".
   * Please note that benchmarks should be usually executed at least in
   * 10 iterations (as a rule of thumb), but more is better.
   */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
+@Measurement(iterations = 10)
+@Warmup(iterations = 10)
+@Fork(2)
+@Threads(1)
 class CoevalDeepBindBenchmark {
   @Param(Array("3000"))
   var size: Int = _

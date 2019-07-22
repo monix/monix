@@ -333,6 +333,8 @@ def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0
 )
+// https://github.com/lightbend/mima/pull/289
+mimaFailOnNoPrevious in ThisBuild := false
 
 def profile: Project => Project = pr => cmdlineProfile match {
   case _ =>
