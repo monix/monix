@@ -1201,6 +1201,19 @@ sealed abstract class Task[+A] extends Serializable {
   final def attempt: Task[Either[Throwable, A]] =
     FlatMap(this, AttemptTask.asInstanceOf[A => Task[Either[Throwable, A]]])
 
+  /** Runs this task first and then, when successful, the given task.
+    * Returns the result of the given task.
+    *
+    * Example:
+    * {{{
+    *   val combined = Task{println("first"); "first"} >> Task{println("second"); "second"}
+    *   // Prints "first" and then "second"
+    *   // Result value will be "second"
+    * }}}
+    */
+  final def >>[B](tb: => Task[B]): Task[B] =
+    this.flatMap(_ => tb)
+
   /** Introduces an asynchronous boundary at the current stage in the
     * asynchronous processing pipeline.
     *
@@ -2427,6 +2440,11 @@ sealed abstract class Task[+A] extends Serializable {
       a     <- this
       end   <- Task.clock.monotonic(NANOSECONDS)
     } yield (FiniteDuration(end - start, NANOSECONDS), a)
+
+  /** Returns this task mapped to unit
+    */
+  final def void: Task[Unit] =
+    this.map(_ => ())
 }
 
 /** Builders for [[Task]].
@@ -4713,7 +4731,11 @@ private[eval] abstract class TaskContextShift extends TaskTimers {
       override def shift: Task[Unit] =
         Task.shift
       override def evalOn[A](ec: ExecutionContext)(fa: Task[A]): Task[A] =
-        Task.shift(ec).bracket(_ => fa)(_ => Task.shift)
+        ec match {
+          case ref: Scheduler => fa.executeOn(ref, forceAsync = true)
+          case _ => fa.executeOn(Scheduler(ec), forceAsync = true)
+        }
+
     }
 
   /** Builds a `cats.effect.ContextShift` instance, given a
@@ -4724,7 +4746,11 @@ private[eval] abstract class TaskContextShift extends TaskTimers {
       override def shift: Task[Unit] =
         Task.shift(s)
       override def evalOn[A](ec: ExecutionContext)(fa: Task[A]): Task[A] =
-        Task.shift(ec).bracket(_ => fa)(_ => Task.shift(s))
+        ec match {
+          case ref: Scheduler => fa.executeOn(ref, forceAsync = true)
+          case _ => fa.executeOn(Scheduler(ec), forceAsync = true)
+        }
+
     }
 }
 

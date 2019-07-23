@@ -94,4 +94,24 @@ object MapTaskConsumerSuite extends BaseTestSuite {
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
+
+  test("consumer.mapTask(async) propagates cancellation") { implicit s =>
+    var taskCancelled = false
+    val f = Observable(1)
+      .consumeWith(
+        Consumer
+          .head[Int]
+          .mapTask(_ =>
+            Task
+              .never[Int]
+              .doOnCancel(Task {
+                taskCancelled = true
+              })))
+      .runToFuture
+
+    s.tick()
+    f.cancel()
+    s.tick()
+    assert(taskCancelled)
+  }
 }
