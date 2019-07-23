@@ -348,34 +348,6 @@ import scala.util.{Failure, Success, Try}
   *         note that you can use [[monix.execution.Callback]] for extra
   *         performance (avoids the boxing in [[scala.Either]])
   *
-  * @define allowContinueOnCallingThreadParamDesc is a flag that tells
-  *         whether a `Task` should continue on the same thread where
-  *         [[monix.execution.Callback]] was called or insert extra
-  *         asynchronous boundary to go back to the main [[monix.execution.Scheduler]]
-  *
-  *         For example:
-  *         {{{
-  *           import scala.concurrent.ExecutionContext
-  *           import monix.execution.Scheduler
-  *
-  *           val foreignEC: ExecutionContext = ExecutionContext.global
-  *           val scheduler: Scheduler = Scheduler.io()
-  *
-  *           val t: Task[Unit] =
-  *             Task.async[Unit]({ cb =>
-  *               foreignEC.execute(new Runnable {
-  *                 override def run(): Unit = {
-  *                   cb(Right(()))
-  *                 }
-  *               })}, allowContinueOnCallingThread = true
-  *             )
-  *
-  *           t.runToFuture(scheduler)
-  *         }}}
-  *
-  *         In the above example, the resulting Task will continue on the `foreignEC`
-  *         instead of `scheduler` until the next asynchronous boundary.
-  *
   * @define cancelableDesc a [[monix.execution.Cancelable Cancelable]]
   *         that can be used to cancel a running task
   *
@@ -2507,6 +2479,34 @@ sealed abstract class Task[+A] extends Serializable {
   *         doesn't magically speed up the code - it's usually fine for I/O-bound
   *         tasks, however for CPU-bound tasks it can make things worse.
   *         Performance improvements need to be verified.
+  *
+  * @define allowContinueOnCallingThreadParamDesc is a flag that tells
+  *         whether a `Task` should continue on the same thread where
+  *         [[monix.execution.Callback]] was called or insert extra
+  *         asynchronous boundary to go back to the main [[monix.execution.Scheduler]]
+  *
+  *         For example:
+  *         {{{
+  *           import scala.concurrent.ExecutionContext
+  *           import monix.execution.Scheduler
+  *
+  *           val foreignEC: ExecutionContext = ExecutionContext.global
+  *           val scheduler: Scheduler = Scheduler.io()
+  *
+  *           val t: Task[Unit] =
+  *             Task.async[Unit]({ cb =>
+  *               foreignEC.execute(new Runnable {
+  *                 override def run(): Unit = {
+  *                   cb(Right(()))
+  *                 }
+  *               })}, allowContinueOnCallingThread = true
+  *             )
+  *
+  *           t.runToFuture(scheduler)
+  *         }}}
+  *
+  *         In the above example, the resulting Task will continue on the `foreignEC`
+  *         instead of `scheduler` until the next asynchronous boundary.
   */
 object Task extends TaskInstancesLevel1 {
   /** Lifts the given thunk in the `Task` context, processing it synchronously
