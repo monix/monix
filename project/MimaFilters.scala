@@ -4,6 +4,30 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
+    // Breaking changes for https://github.com/monix/monix/pull/921
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#AsyncBuilder.create"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.Task#AsyncBuilder.create"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.async0"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.deferFuture"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.cancelable"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.cancelable0"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.asyncF"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.async"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.fromFuture"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.deferFutureAction"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#AsyncBuilder#CreatePartiallyApplied.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#AsyncBuilder#CreatePartiallyApplied.apply$extension"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.strict"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.deferAction"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate#Cancelable0Start.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.async0"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.cancelableIO"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.cancelableEffect"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.cancelable0"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.cancelableCoeval"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.asyncF"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.async"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskCreate.cancelableCancelable"),
     // Breaking changes for https://github.com/monix/monix/pull/934
     exclude[MissingClassProblem]("monix.eval.Task$DoOnFinish"),
     // Breaking changes: https://github.com/monix/monix/pull/865

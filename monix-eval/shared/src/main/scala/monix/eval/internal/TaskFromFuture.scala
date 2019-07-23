@@ -33,43 +33,26 @@ import scala.util.Try
 
 private[eval] object TaskFromFuture {
   /** Implementation for `Task.fromFuture`. */
-  def strict[A](f: Future[A]): Task[A] = {
+  def strict[A](f: Future[A], allowContinueOnCallingThread: Boolean): Task[A] = {
     f.value match {
       case None =>
         f match {
           // Do we have a CancelableFuture?
           case cf: CancelableFuture[A] @unchecked =>
             // Cancelable future, needs canceling
-            rawAsync(startCancelable(_, _, cf, cf.cancelable))
+            rawAsync(startCancelable(_, _, cf, cf.cancelable, allowContinueOnCallingThread))
           case _ =>
             // Simple future, convert directly
-            rawAsync(startSimple(_, _, f))
+            rawAsync(startSimple(_, _, f, allowContinueOnCallingThread))
         }
       case Some(value) =>
-        Task.async(cb => cb(value))
-    }
-  }
-
-  /** Implementation for `Task.fromFutureUnsafe`. */
-  def strictUnsafe[A](f: Future[A]): Task[A] = {
-    f.value match {
-      case None =>
-        f match {
-          // Do we have a CancelableFuture?
-          case cf: CancelableFuture[A] @unchecked =>
-            // Cancelable future, needs canceling
-            rawAsync(startCancelableUnsafe(_, _, cf, cf.cancelable))
-          case _ =>
-            // Simple future, convert directly
-            rawAsync(startSimpleUnsafe(_, _, f))
-        }
-      case Some(value) =>
-        Task.fromTry(value)
+        if (allowContinueOnCallingThread) Task.fromTry(value)
+        else Task.async(cb => cb(value))
     }
   }
 
   /** Implementation for `Task.deferFutureAction`. */
-  def deferAction[A](f: Scheduler => Future[A]): Task[A] =
+  def deferAction[A](f: Scheduler => Future[A], allowContinueOnCallingThread: Boolean): Task[A] =
     rawAsync[A] { (ctx, cb) =>
       implicit val sc = ctx.scheduler
       // Prevents violations of the Callback contract
@@ -80,49 +63,23 @@ private[eval] object TaskFromFuture {
 
         future.value match {
           case Some(value) =>
-            executeCallbackOn(ctx, cb, value)
+            if (allowContinueOnCallingThread)
+              // Already completed future, streaming value immediately,
+              // but with light async boundary to prevent stack overflows
+              cb(value)
+            else
+              executeCallbackOn(ctx, cb, value)
           case None =>
             future match {
               case cf: CancelableFuture[A] @unchecked =>
-                startCancelable(ctx, cb, cf, cf.cancelable)
+                startCancelable(ctx, cb, cf, cf.cancelable, allowContinueOnCallingThread)
               case _ =>
-                startSimple(ctx, cb, future)
+                startSimple(ctx, cb, future, allowContinueOnCallingThread)
             }
         }
       } catch {
         case ex if NonFatal(ex) =>
           if (streamErrors) cb.onError(ex)
-          else sc.reportFailure(ex)
-      }
-    }
-
-  /** Implementation for `Task.deferFutureActionUnsafe`. */
-  def deferActionUnsafe[A](f: Scheduler => Future[A]): Task[A] =
-    rawAsync[A] { (context, callback) =>
-      implicit val sc = context.scheduler
-      // Prevents violations of the Callback contract
-      var streamErrors = true
-      try {
-        val future = f(sc)
-        streamErrors = false
-
-        future.value match {
-          case Some(value) =>
-            // Already completed future, streaming value immediately,
-            // but with light async boundary to prevent stack overflows
-            callback(value)
-
-          case None =>
-            future match {
-              case cf: CancelableFuture[A] @unchecked =>
-                startCancelableUnsafe(context, callback, cf, cf.cancelable)
-              case _ =>
-                startSimpleUnsafe(context, callback, future)
-            }
-        }
-      } catch {
-        case ex if NonFatal(ex) =>
-          if (streamErrors) callback.onError(ex)
           else sc.reportFailure(ex)
       }
     }
@@ -156,53 +113,33 @@ private[eval] object TaskFromFuture {
       restoreLocals = true
     )
 
-  private def startSimple[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {
-    f.value match {
-      case Some(value) =>
-        executeCallbackOn(ctx, cb, value)
-      case None =>
-        f.onComplete { result =>
-          executeCallbackOn(ctx, cb, result)
-        }(immediate)
-    }
-  }
-
-  private def startSimpleUnsafe[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {
-    f.value match {
-      case Some(value) =>
-        // Short-circuit the processing, as future is already complete
-        cb(value)
-      case None =>
-        f.onComplete(cb(_))(immediate)
-    }
-  }
-
-  private def startCancelable[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A], c: Cancelable): Unit = {
-    f.value match {
-      case Some(value) =>
-        executeCallbackOn(ctx, cb, value)
-      case None =>
-        // Given a cancelable future, we should use it
-        val conn = ctx.connection
-        conn.push(c)(ctx.scheduler)
-        // Async boundary
-        f.onComplete { result =>
-          conn.pop()
-          executeCallbackOn(ctx, cb, result)
-        }(immediate)
-    }
-  }
-
-  private def startCancelableUnsafe[A](
+  private def startSimple[A](
     ctx: Task.Context,
     cb: Callback[Throwable, A],
     f: Future[A],
-    c: Cancelable): Unit = {
+    allowContinueOnCallingThread: Boolean) = {
     f.value match {
       case Some(value) =>
-        // Short-circuit the processing, as future is already complete
-        cb(value)
+        if (allowContinueOnCallingThread) cb(value)
+        else executeCallbackOn(ctx, cb, value)
+      case None =>
+        f.onComplete { result =>
+          if (allowContinueOnCallingThread) cb(result)
+          else executeCallbackOn(ctx, cb, result)
+        }(immediate)
+    }
+  }
 
+  private def startCancelable[A](
+    ctx: Task.Context,
+    cb: Callback[Throwable, A],
+    f: Future[A],
+    c: Cancelable,
+    allowContinueOnCallingThread: Boolean): Unit = {
+    f.value match {
+      case Some(value) =>
+        if (allowContinueOnCallingThread) cb(value)
+        else executeCallbackOn(ctx, cb, value)
       case None =>
         // Given a cancelable future, we should use it
         val conn = ctx.connection
@@ -210,7 +147,7 @@ private[eval] object TaskFromFuture {
         // Async boundary
         f.onComplete { result =>
           conn.pop()
-          cb(result)
+          if (allowContinueOnCallingThread) cb(result) else executeCallbackOn(ctx, cb, result)
         }(immediate)
     }
   }

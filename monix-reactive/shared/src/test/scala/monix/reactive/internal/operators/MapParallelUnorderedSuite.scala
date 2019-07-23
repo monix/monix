@@ -262,7 +262,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     var isComplete = false
     val p = Promise[Int]()
 
-    val tasks = List.fill(8)(Task.fromFutureUnsafe(p.future))
+    val tasks = List.fill(8)(Task.fromFuture(p.future, allowContinueOnCallingThread = true))
     Observable(tasks: _*)
       .doOnNext(_ => Task { initiated += 1 })
       .mapParallelUnordered(parallelism = 4)(x => x)
