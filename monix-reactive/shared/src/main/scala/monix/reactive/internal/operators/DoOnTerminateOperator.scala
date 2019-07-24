@@ -46,7 +46,7 @@ private[reactive] final class DoOnTerminateOperator[A](
           try out.onNext(elem)
           catch { case ex if NonFatal(ex) => Future.failed(ex) }
 
-        val task = Task.fromFuture(result).attempt.flatMap {
+        val task = Task.fromFuture(result, allowContinueOnCallingThread = true).attempt.flatMap {
           case Right(ack) =>
             ack match {
               case Continue => ContinueTask

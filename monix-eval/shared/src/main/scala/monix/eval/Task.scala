@@ -2479,6 +2479,34 @@ sealed abstract class Task[+A] extends Serializable {
   *         doesn't magically speed up the code - it's usually fine for I/O-bound
   *         tasks, however for CPU-bound tasks it can make things worse.
   *         Performance improvements need to be verified.
+  *
+  * @define allowContinueOnCallingThreadParamDesc is a flag that tells
+  *         whether a `Task` should continue on the same thread where
+  *         [[monix.execution.Callback]] was called or insert extra
+  *         asynchronous boundary to go back to the main [[monix.execution.Scheduler]]
+  *
+  *         For example:
+  *         {{{
+  *           import scala.concurrent.ExecutionContext
+  *           import monix.execution.Scheduler
+  *
+  *           val foreignEC: ExecutionContext = ExecutionContext.global
+  *           val scheduler: Scheduler = Scheduler.io()
+  *
+  *           val t: Task[Unit] =
+  *             Task.async[Unit]({ cb =>
+  *               foreignEC.execute(new Runnable {
+  *                 override def run(): Unit = {
+  *                   cb(Right(()))
+  *                 }
+  *               })}, allowContinueOnCallingThread = true
+  *             )
+  *
+  *           t.runToFuture(scheduler)
+  *         }}}
+  *
+  *         In the above example, the resulting Task will continue on the `foreignEC`
+  *         instead of `scheduler` until the next asynchronous boundary.
   */
 object Task extends TaskInstancesLevel1 {
   /** Lifts the given thunk in the `Task` context, processing it synchronously
@@ -2554,13 +2582,15 @@ object Task extends TaskInstancesLevel1 {
     * The equivalent of doing:
     * {{{
     *   import scala.concurrent.Future
-    *   val fa = Future.successful(27)
+    *   def mkFuture = Future.successful(27)
     *
-    *   Task.defer(Task.fromFuture(fa))
+    *   Task.defer(Task.fromFuture(mkFuture))
     * }}}
+    *
+    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def deferFuture[A](fa: => Future[A]): Task[A] =
-    defer(fromFuture(fa))
+  def deferFuture[A](fa: => Future[A], allowContinueOnCallingThread: Boolean = false): Task[A] =
+    defer(fromFuture(fa, allowContinueOnCallingThread))
 
   /** Wraps calls that generate `Future` results into [[Task]], provided
     * a callback with an injected [[monix.execution.Scheduler Scheduler]]
@@ -2602,9 +2632,10 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param f is the function that's going to be executed when the task
     *        gets evaluated, generating the wrapped `Future`
+    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def deferFutureAction[A](f: Scheduler => Future[A]): Task[A] =
-    TaskFromFuture.deferAction(f)
+  def deferFutureAction[A](f: Scheduler => Future[A], allowContinueOnCallingThread: Boolean = false): Task[A] =
+    TaskFromFuture.deferAction(f, allowContinueOnCallingThread)
 
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Task[A]): Task[A] =
@@ -2846,9 +2877,11 @@ object Task extends TaskInstancesLevel1 {
     *      for creating cancelable tasks
     *
     * @see [[Task.create]] for the builder that does it all
+    *
+    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def async[A](register: Callback[Throwable, A] => Unit): Task[A] =
-    TaskCreate.async(register)
+  def async[A](register: Callback[Throwable, A] => Unit, allowContinueOnCallingThread: Boolean = false): Task[A] =
+    TaskCreate.async(register, allowContinueOnCallingThread)
 
   /** Create a non-cancelable `Task` from an asynchronous computation,
     * which takes the form of a function with which we can register a
@@ -2911,9 +2944,14 @@ object Task extends TaskInstancesLevel1 {
     *      for creating cancelable tasks
     *
     * @see [[Task.create]] for the builder that does it all
+    *
+    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def async0[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
-    TaskCreate.async0(register)
+  def async0[A](
+    register: (Scheduler, Callback[Throwable, A]) => Unit,
+    allowContinueOnCallingThread: Boolean = false
+  ): Task[A] =
+    TaskCreate.async0(register, allowContinueOnCallingThread)
 
   /** Suspends an asynchronous side effect in `Task`, this being a
     * variant of [[async]] that takes a pure registration function.
@@ -2941,9 +2979,14 @@ object Task extends TaskInstancesLevel1 {
     *
     * @see [[Task.cancelable[A](register* Task.cancelable]] and
     *      [[Task.cancelable0]] for creating cancelable tasks
+    *
+    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def asyncF[A](register: Callback[Throwable, A] => Task[Unit]): Task[A] =
-    TaskCreate.asyncF(register)
+  def asyncF[A](
+    register: Callback[Throwable, A] => Task[Unit],
+    allowContinueOnCallingThread: Boolean = false
+  ): Task[A] =
+    TaskCreate.asyncF(register, allowContinueOnCallingThread)
 
   /** Create a cancelable `Task` from an asynchronous computation that
     * can be canceled, taking the form of a function with which we can
@@ -3020,9 +3063,13 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.create]] for the builder that does it all
     *
     * @param register $registerParamDesc
+    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def cancelable[A](register: Callback[Throwable, A] => CancelToken[Task]): Task[A] =
-    cancelable0((_, cb) => register(cb))
+  def cancelable[A](
+    register: Callback[Throwable, A] => CancelToken[Task],
+    allowContinueOnCallingThread: Boolean = false
+  ): Task[A] =
+    cancelable0((_, cb) => register(cb), allowContinueOnCallingThread)
 
   /** Create a cancelable `Task` from an asynchronous computation,
     * which takes the form of a function with which we can register a
@@ -3121,9 +3168,13 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.create]] for the builder that does it all
     *
     * @param register $registerParamDesc
+    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def cancelable0[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
-    TaskCreate.cancelable0(register)
+  def cancelable0[A](
+    register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task],
+    allowContinueOnCallingThread: Boolean = false
+  ): Task[A] =
+    TaskCreate.cancelable0(register, allowContinueOnCallingThread)
 
   /** Returns a cancelable boundary — a `Task` that checks for the
     * cancellation status of the run-loop and does not allow for the
@@ -3250,16 +3301,22 @@ object Task extends TaskInstancesLevel1 {
     *    [[https://typelevel.org/cats-effect/datatypes/io.html IO docs]]
     *
     * Support for more might be added in the future.
+    *
+    * `allowContinueOnCallingThread` $allowContinueOnCallingThreadParamDesc
     */
   def create[A]: AsyncBuilder.CreatePartiallyApplied[A] = new AsyncBuilder.CreatePartiallyApplied[A]
 
   /** Converts the given Scala `Future` into a `Task`.
+    * There is an async boundary inserted at the end to guarantee
+    * that we stay on the main Scheduler.
     *
     * NOTE: if you want to defer the creation of the future, use
     * in combination with [[defer]].
+    *
+    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def fromFuture[A](f: Future[A]): Task[A] =
-    TaskFromFuture.strict(f)
+  def fromFuture[A](f: Future[A], allowContinueOnCallingThread: Boolean = false): Task[A] =
+    TaskFromFuture.strict(f, allowContinueOnCallingThread)
 
   /** Wraps a [[monix.execution.CancelablePromise]] into `Task`. */
   def fromCancelablePromise[A](p: CancelablePromise[A]) =
@@ -4170,7 +4227,10 @@ object Task extends TaskInstancesLevel1 {
     * increasing performance.
     */
   abstract class AsyncBuilder[CancelationToken] {
-    def create[A](register: (Scheduler, Callback[Throwable, A]) => CancelationToken): Task[A]
+    def create[A](
+      register: (Scheduler, Callback[Throwable, A]) => CancelationToken,
+      allowContinueOnCallingThread: Boolean = false
+    ): Task[A]
   }
 
   object AsyncBuilder extends AsyncBuilder0 {
@@ -4186,16 +4246,19 @@ object Task extends TaskInstancesLevel1 {
       */
     private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true) extends AnyVal {
 
-      def apply[CancelationToken](register: (Scheduler, Callback[Throwable, A]) => CancelationToken)(
-        implicit B: AsyncBuilder[CancelationToken]): Task[A] =
-        B.create(register)
+      def apply[CancelationToken](
+        register: (Scheduler, Callback[Throwable, A]) => CancelationToken,
+        allowContinueOnCallingThread: Boolean = false)(implicit B: AsyncBuilder[CancelationToken]): Task[A] =
+        B.create(register, allowContinueOnCallingThread)
     }
 
     /** Implicit `AsyncBuilder` for non-cancelable tasks. */
     implicit val forUnit: AsyncBuilder[Unit] =
       new AsyncBuilder[Unit] {
-        def create[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
-          TaskCreate.async0(register)
+        def create[A](
+          register: (Scheduler, Callback[Throwable, A]) => Unit,
+          allowContinueOnCallingThread: Boolean = false): Task[A] =
+          TaskCreate.async0(register, allowContinueOnCallingThread)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -4204,8 +4267,10 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forIO: AsyncBuilder[IO[Unit]] =
       new AsyncBuilder[IO[Unit]] {
-        def create[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
-          TaskCreate.cancelableIO(register)
+        def create[A](
+          register: (Scheduler, Callback[Throwable, A]) => CancelToken[IO],
+          allowContinueOnCallingThread: Boolean = false): Task[A] =
+          TaskCreate.cancelableIO(register, allowContinueOnCallingThread)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -4213,8 +4278,10 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forTask: AsyncBuilder[Task[Unit]] =
       new AsyncBuilder[Task[Unit]] {
-        def create[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
-          TaskCreate.cancelable0(register)
+        def create[A](
+          register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task],
+          allowContinueOnCallingThread: Boolean = false): Task[A] =
+          TaskCreate.cancelable0(register, allowContinueOnCallingThread)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -4222,8 +4289,10 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forCoeval: AsyncBuilder[Coeval[Unit]] =
       new AsyncBuilder[Coeval[Unit]] {
-        def create[A](register: (Scheduler, Callback[Throwable, A]) => Coeval[Unit]): Task[A] =
-          TaskCreate.cancelableCoeval(register)
+        def create[A](
+          register: (Scheduler, Callback[Throwable, A]) => Coeval[Unit],
+          allowContinueOnCallingThread: Boolean = false): Task[A] =
+          TaskCreate.cancelableCoeval(register, allowContinueOnCallingThread)
       }
 
     /** Implicit `AsyncBuilder` for non-cancelable tasks built by a function
@@ -4238,8 +4307,10 @@ object Task extends TaskInstancesLevel1 {
 
     private[this] val forCancelableDummyRef: AsyncBuilder[Cancelable.Empty] =
       new AsyncBuilder[Cancelable.Empty] {
-        def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable.Empty): Task[A] =
-          TaskCreate.async0(register)
+        def create[A](
+          register: (Scheduler, Callback[Throwable, A]) => Cancelable.Empty,
+          allowContinueOnCallingThread: Boolean = false): Task[A] =
+          TaskCreate.async0(register, allowContinueOnCallingThread)
       }
   }
 
@@ -4254,8 +4325,10 @@ object Task extends TaskInstancesLevel1 {
 
     private[this] val forCancelableRef =
       new AsyncBuilder[Cancelable] {
-        def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] =
-          TaskCreate.cancelableCancelable(register)
+        def create[A](
+          register: (Scheduler, Callback[Throwable, A]) => Cancelable,
+          allowContinueOnCallingThread: Boolean = false): Task[A] =
+          TaskCreate.cancelableCancelable(register, allowContinueOnCallingThread)
       }
   }
 
