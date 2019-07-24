@@ -1423,7 +1423,7 @@ sealed abstract class Task[+A] extends Serializable {
     * @see [[bracket]] for the more general operation
     */
   final def guarantee(finalizer: Task[Unit]): Task[A] =
-    unit.bracket(_ => this)(_ => finalizer)
+    guaranteeCase(_ => finalizer)
 
   /**
     * Executes the given `finalizer` when the source is finished,
@@ -1447,7 +1447,7 @@ sealed abstract class Task[+A] extends Serializable {
     * @see [[bracketCase]] for the more general operation
     */
   final def guaranteeCase(finalizer: ExitCase[Throwable] => Task[Unit]): Task[A] =
-    unit.bracketCase(_ => this)((_, e) => finalizer(e))
+    TaskBracket.guaranteeCase(this, finalizer)
 
   /** Returns a task that waits for the specified `timespan` before
     * executing and mirroring the result of the source.

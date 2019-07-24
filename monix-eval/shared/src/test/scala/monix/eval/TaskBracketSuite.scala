@@ -152,20 +152,6 @@ object TaskBracketSuite extends BaseTestSuite {
     }
   }
 
-  test("bracket is stack safe") { implicit sc =>
-    def loop(n: Int): Task[Unit] =
-      if (n > 0)
-        Task(n).bracket(n => Task(n - 1))(_ => Task.unit).flatMap(loop)
-      else
-        Task.unit
-
-    val count = if (Platform.isJVM) 10000 else 1000
-    val f = loop(count).runToFuture
-
-    sc.tick()
-    assertEquals(f.value, Some(Success(())))
-  }
-
   test("bracket works with auto-cancelable run-loops") { implicit sc =>
     import concurrent.duration._
 
@@ -181,5 +167,53 @@ object TaskBracketSuite extends BaseTestSuite {
     f.cancel()
     assertEquals(f.value, None)
     assertEquals(effect, 1)
+  }
+
+  test("bracket is stack safe (1)") { implicit sc =>
+    def loop(n: Int): Task[Unit] =
+      if (n > 0)
+        Task(n).bracket(n => Task(n - 1))(_ => Task.unit).flatMap(loop)
+      else
+        Task.unit
+
+    val cycles = if (Platform.isJVM) 100000 else 1000
+    val f = loop(cycles).runToFuture
+
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("bracket is stack safe (2)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 1000
+    val bracket = Task.unit.bracket(_ => Task.unit)(_ => Task.unit)
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      acc.flatMap(_ => bracket)
+    }
+
+    val f = task.runToFuture
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("bracket is stack safe (3)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 1000
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      acc.bracket(_ => Task.unit)(_ => Task.unit)
+    }
+
+    val f = task.runToFuture
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("bracket is stack safe (4)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 1000
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      Task.unit.bracket(_ => acc)(_ => Task.unit)
+    }
+
+    val f = task.runToFuture
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
   }
 }
