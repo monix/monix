@@ -3061,6 +3061,32 @@ abstract class Observable[+A] extends Serializable { self =>
   final def takeWhileNotCanceled(c: BooleanCancelable): Observable[A] =
     self.liftByOperator(new TakeWhileNotCanceledOperator(c))
 
+  /** Returns an Observable that emits maximum `n` items per given `period`.
+    *
+    * Unlike [[Observable!.throttleLast]] and [[Observable!.throttleFirst]]
+    * it does not discard any elements.
+    *
+    * If the source observable completes, then the current buffer gets
+    * signaled downstream. If the source triggers an error then the
+    * current buffer is being dropped and the error gets propagated
+    * immediately.
+    *
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   // emits two items per second
+    *   Observable.fromIterable(0 to 10)
+    *     .throttle(1.second, 2)
+    * }}}
+    *
+    * @param  period time that has to pass before emiting new items
+    * @param  n      maximum number of items emitted per given `period`
+    */
+  final def throttle(period: FiniteDuration, n: Int): Observable[A] =
+    bufferTimedWithPressure(period, n).flatMap(Observable.fromIterable)
+
   /** Returns an Observable that emits only the first item emitted by
     * the source Observable during sequential time windows of a
     * specified duration.
@@ -3069,6 +3095,20 @@ abstract class Observable[+A] extends Serializable { self =>
     * tracks passage of time whereas `throttleLast` ticks at scheduled
     * intervals.
     *
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   // emits 0, 5, 10 in 1 second intervals
+    *   Observable.fromIterable(0 to 10)
+    *     // without delay, it would return only 0
+    *     .delayOnNext(200.millis)
+    *     .throttleFirst(1.second)
+    * }}}
+    *
+    * @see [[throttle]] for a version that allows to specify number
+    *      of elements processed by a period and does not drop any elements
     * @param interval time to wait before emitting another item after
     *        emitting the last item
     */
@@ -3080,6 +3120,20 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * Alias for [[sample]].
     *
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   // emits 3, 8, 10 in 1 second intervals
+    *   Observable.fromIterable(0 to 10)
+    *     // without delay, it would return only 10
+    *     .delayOnNext(200.millis)
+    *     .throttleLast(1.second)
+    * }}}
+    *
+    * @see [[throttle]] for a version that allows to specify number
+    *      of elements processed by a period and does not drop any elements
     * @param period duration of windows within which the last item
     *        emitted by the source Observable will be emitted
     */
@@ -3096,8 +3150,23 @@ abstract class Observable[+A] extends Serializable { self =>
     * results from the `sample` operator will emit no item for that
     * sampling period.
     *
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   // emits 3, 8, 10 in 1 second intervals
+    *   Observable.fromIterable(0 to 10)
+    *     // without delay, it would return only 10
+    *     .delayOnNext(200.millis)
+    *     .sample(1.second)
+    * }}}
+    *
     * @see [[sampleBy]] for fine control
     * @see [[sampleRepeated]] for repeating the last value on silence
+    * @see [[throttle]] for a version that allows to specify number
+    *      of elements processed by a period and does not drop any elements
+    *
     * @param period the timespan at which sampling occurs
     */
   final def sample(period: FiniteDuration): Observable[A] =

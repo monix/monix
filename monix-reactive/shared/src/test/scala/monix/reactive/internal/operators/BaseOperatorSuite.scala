@@ -75,7 +75,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
 
     createObservable(sourceCount) match {
       case None => ignore()
-      case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, count, _, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
           def onNext(elem: Long): Ack = {
             received += 1
