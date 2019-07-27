@@ -344,7 +344,6 @@ object Scheduler extends SchedulerCompanionImpl {
       *         this repeated task at any time.
       */
     def scheduleWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(action: => Unit): Cancelable = {
-
       source.scheduleWithFixedDelay(initialDelay.toMillis, delay.toMillis, MILLISECONDS, RunnableAction(action))
     }
 
@@ -377,7 +376,6 @@ object Scheduler extends SchedulerCompanionImpl {
       *         this repeated task at any time.
       */
     def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(action: => Unit): Cancelable = {
-
       source.scheduleAtFixedRate(initialDelay.toMillis, period.toMillis, MILLISECONDS, RunnableAction(action))
     }
 
