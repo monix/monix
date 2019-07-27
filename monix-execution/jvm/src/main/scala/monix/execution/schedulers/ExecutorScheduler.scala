@@ -102,6 +102,21 @@ object ExecutorScheduler {
     }
   }
 
+  /**
+    * DEPRECATED — provided for binary backwards compatibility.
+    *
+    * Use the full-featured builder.
+    */
+  @deprecated("Use the full-featured builder", "3.0.0")
+  def apply(
+    service: ExecutorService,
+    reporter: UncaughtExceptionReporter,
+    executionModel: ExecModel): ExecutorScheduler = {
+    // $COVERAGE-OFF$
+    apply(service, reporter, executionModel, Features.empty)
+    // $COVERAGE-ON$
+  }
+
   /** Creates an [[ExecutorScheduler]] backed by a `ForkJoinPool`
     * that isn't integrated with Scala's `BlockContext`.
     */
@@ -164,6 +179,16 @@ object ExecutorScheduler {
     override val features: Features)
     extends ExecutorScheduler(executor, r) {
 
+    @deprecated("Provided for backwards compatibility", "3.0.0")
+    def this(scheduler: ScheduledExecutorService,
+      executor: ExecutorService,
+      r: UncaughtExceptionReporter,
+      executionModel: ExecModel) = {
+      // $COVERAGE-OFF$
+      this(scheduler, executor, r, executionModel, Features.empty)
+      // $COVERAGE-ON$
+    }
+
     override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
       ScheduledExecutors.scheduleOnce(this, scheduler)(initialDelay, unit, r)
 
@@ -181,6 +206,15 @@ object ExecutorScheduler {
     override val executionModel: ExecModel,
     override val features: Features)
     extends ExecutorScheduler(s, r) {
+
+    @deprecated("Provided for backwards compatibility", "3.0.0")
+    def this(scheduler: ScheduledExecutorService,
+      r: UncaughtExceptionReporter,
+      executionModel: ExecModel) = {
+      // $COVERAGE-OFF$
+      this(scheduler, r, executionModel, Features.empty)
+      // $COVERAGE-ON$
+    }
 
     override def executor: ScheduledExecutorService = s
 
