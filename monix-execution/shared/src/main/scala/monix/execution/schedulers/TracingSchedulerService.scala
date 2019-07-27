@@ -54,5 +54,8 @@ object TracingSchedulerService {
     * `underlying` scheduler given.
     */
   def apply(underlying: SchedulerService): TracingSchedulerService =
-    new TracingSchedulerService(underlying)
+    underlying match {
+      case ref: TracingSchedulerService => ref
+      case _ => new TracingSchedulerService(underlying)
+    }
 }

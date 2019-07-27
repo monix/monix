@@ -4200,7 +4200,7 @@ object Task extends TaskInstancesLevel1 {
       if (wLocals == localContextPropagation)
         this
       else
-        copy(localContextPropagation = wLocals)
+        copy(localContextPropagation = wLocals || localContextPropagation)
     }
   }
 
@@ -4359,7 +4359,7 @@ object Task extends TaskInstancesLevel1 {
     frameRef: FrameIndexRef) {
 
     val scheduler: Scheduler = {
-      if (options.localContextPropagation)
+      if (options.localContextPropagation && !schedulerRef.features.contains(Scheduler.TRACING))
         TracingScheduler(schedulerRef)
       else
         schedulerRef
