@@ -74,7 +74,7 @@ trait TaskApp {
     * [[monix.eval.Task.defaultOptions defaultOptions]],
     * but can be overridden.
     */
-  protected def options: Task.Options = Task.defaultOptions
+  protected def options: Task.Options = Task.defaultOptions.withSchedulerFeatures(scheduler)
 
   /** Provides the
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.ConcurrentEffect]]
