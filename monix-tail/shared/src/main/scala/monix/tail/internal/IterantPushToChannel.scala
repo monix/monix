@@ -27,14 +27,13 @@ private[tail] object IterantPushToChannel {
   /**
     * Implementation for [[Iterant.pushToChannel]].
     */
-  def apply[F[_], A](source: Iterant[F, A], channel: ProducerF[F, Option[Throwable], A])
-    (implicit F: Sync[F]): F[Unit] = {
+  def apply[F[_], A](source: Iterant[F, A], channel: ProducerF[F, Option[Throwable], A])(
+    implicit F: Sync[F]): F[Unit] = {
 
     F.suspend(new Loop(channel).apply(source))
   }
 
-  private final class Loop[F[_], A](channel: ProducerF[F, Option[Throwable], A])
-    (implicit F: Sync[F])
+  private final class Loop[F[_], A](channel: ProducerF[F, Option[Throwable], A])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Unit]] { loop =>
 
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -69,10 +68,11 @@ private[tail] object IterantPushToChannel {
       stackRef == null || stackRef.isEmpty
 
     private[this] val concatContinue: (Unit => F[Unit]) =
-      _ => stackPop() match {
-        case null => F.unit
-        case xs => F.flatMap(xs)(loop)
-      }
+      _ =>
+        stackPop() match {
+          case null => F.unit
+          case xs => F.flatMap(xs)(loop)
+        }
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Iterant.Next[F, A]): F[Unit] =

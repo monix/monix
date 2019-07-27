@@ -92,11 +92,12 @@ object AtomicBoolean {
     *        for `getAndSet` and for `getAndAdd`
     */
   def create(initialValue: Boolean, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicBoolean = {
-    new AtomicBoolean(Factory.newBoxedInt(
-      if (initialValue) 1 else 0,
-      boxStrategyToPaddingStrategy(padding),
-      true, // allowUnsafe
-      allowPlatformIntrinsics))
+    new AtomicBoolean(
+      Factory.newBoxedInt(
+        if (initialValue) 1 else 0,
+        boxStrategyToPaddingStrategy(padding),
+        true, // allowUnsafe
+        allowPlatformIntrinsics))
   }
 
   /** $createDesc
@@ -115,11 +116,12 @@ object AtomicBoolean {
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def safe(initialValue: Boolean, padding: PaddingStrategy): AtomicBoolean = {
-    new AtomicBoolean(Factory.newBoxedInt(
-      if (initialValue) 1 else 0,
-      boxStrategyToPaddingStrategy(padding),
-      false, // allowUnsafe
-      false  // allowJava8Intrinsics
-    ))
+    new AtomicBoolean(
+      Factory.newBoxedInt(
+        if (initialValue) 1 else 0,
+        boxStrategyToPaddingStrategy(padding),
+        false, // allowUnsafe
+        false // allowJava8Intrinsics
+      ))
   }
 }

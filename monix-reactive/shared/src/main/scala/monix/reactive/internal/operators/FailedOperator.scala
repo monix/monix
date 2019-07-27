@@ -21,7 +21,7 @@ import monix.execution.Ack.Continue
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] object FailedOperator extends Operator[Any,Throwable] {
+private[reactive] object FailedOperator extends Operator[Any, Throwable] {
   def apply(out: Subscriber[Throwable]): Subscriber[Any] =
     new Subscriber.Sync[Any] {
       implicit val scheduler = out.scheduler

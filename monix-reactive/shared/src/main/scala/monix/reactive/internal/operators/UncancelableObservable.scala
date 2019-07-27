@@ -24,8 +24,7 @@ import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
 
 /** Implementation for `Observable.uncancelable`. */
-private[reactive] final class UncancelableObservable[A](source: Observable[A])
-  extends ChainedObservable[A] {
+private[reactive] final class UncancelableObservable[A](source: Observable[A]) extends ChainedObservable[A] {
 
   override def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
     ChainedObservable.subscribe(source, AssignableCancelable.dummy, out)

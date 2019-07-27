@@ -23,7 +23,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] object CountOperator extends Operator[Any,Long] {
+private[reactive] object CountOperator extends Operator[Any, Long] {
   def apply(out: Subscriber[Long]): Subscriber[Any] =
     new Subscriber[Any] {
       implicit val scheduler = out.scheduler

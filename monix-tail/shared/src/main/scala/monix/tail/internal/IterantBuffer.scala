@@ -26,19 +26,18 @@ import monix.tail.batches.Batch
 
 private[tail] object IterantBuffer {
   /** Implementation for `Iterant.bufferSliding`. */
-  def sliding[F[_], A](self: Iterant[F, A], count: Int, skip: Int)
-    (implicit F: Sync[F]): Iterant[F, Seq[A]] = {
+  def sliding[F[_], A](self: Iterant[F, A], count: Int, skip: Int)(implicit F: Sync[F]): Iterant[F, Seq[A]] = {
 
-    build[F, A, Seq[A]](self, count, skip,
-      (seq, rest) => Next(seq, rest),
-      seq => Last(seq))
+    build[F, A, Seq[A]](self, count, skip, (seq, rest) => Next(seq.toIndexedSeq, rest), seq => Last(seq.toIndexedSeq))
   }
 
   /** Implementation for `Iterant.batched`. */
-  def batched[F[_], A](self: Iterant[F, A], count: Int)
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def batched[F[_], A](self: Iterant[F, A], count: Int)(implicit F: Sync[F]): Iterant[F, A] = {
 
-    build[F, A, A](self, count, count,
+    build[F, A, A](
+      self,
+      count,
+      count,
       (seq, rest) => NextBatch(Batch.fromArray(seq), rest),
       seq => NextBatch(Batch.fromArray(seq), F.pure(Iterant.empty)))
   }
@@ -48,8 +47,7 @@ private[tail] object IterantBuffer {
     count: Int,
     skip: Int,
     f: (Array[A], F[Iterant[F, B]]) => Iterant[F, B],
-    last: Array[A] => Iterant[F, B])
-    (implicit F: Sync[F]): Iterant[F, B] = {
+    last: Array[A] => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] = {
 
     Suspend(F.suspend(new BatchVisitor(count, skip, f, last).apply(self)))
   }
@@ -58,12 +56,11 @@ private[tail] object IterantBuffer {
     count: Int,
     skip: Int,
     f: (Array[A], F[Iterant[F, B]]) => Iterant[F, B],
-    last: Array[A] => Iterant[F, B])
-    (implicit F: Sync[F])
+    last: Array[A] => Iterant[F, B])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Iterant[F, B]]] { loop =>
 
     private[this] val buffer = new Buffer[A](count, skip)
-    private[this] val stack  = ChunkedArrayStack[F[Iterant[F, A]]]()
+    private[this] val stack = ChunkedArrayStack[F[Iterant[F, A]]]()
 
     def visit(ref: Next[F, A]): F[Iterant[F, B]] = {
       val seq = buffer.push(ref.item)
@@ -160,12 +157,13 @@ private[tail] object IterantBuffer {
         buffer(length) = elem.asInstanceOf[AnyRef]
         length += 1
 
-        if (length < count) null else {
+        if (length < count) null
+        else {
           val oldBuffer = buffer
           buffer = new Array(count)
 
           if (toRepeat > 0) {
-            System.arraycopy(oldBuffer, count-toRepeat, buffer, 0, toRepeat)
+            System.arraycopy(oldBuffer, count - toRepeat, buffer, 0, toRepeat)
             length = toRepeat
           } else {
             dropped = toDrop

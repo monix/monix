@@ -40,7 +40,9 @@ object ConnectableObservableSuite extends TestSuite[TestScheduler] {
 
     observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
     observable.foreach(e => foreachSum += e)
-    observable.subscribe { e => subscribeSum += e; Continue }
+    observable.subscribe { e =>
+      subscribeSum += e; Continue
+    }
 
     // Start the streaming
     observable.connect()

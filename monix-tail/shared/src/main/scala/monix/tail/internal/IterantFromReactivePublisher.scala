@@ -32,8 +32,8 @@ private[tail] object IterantFromReactivePublisher {
   /**
     * Implementation for `Iterant.fromReactivePublisher`.
     */
-  def apply[F[_], A](pub: Publisher[A], requestCount: Int, eagerBuffer: Boolean)
-    (implicit F: Async[F]): Iterant[F, A] = {
+  def apply[F[_], A](pub: Publisher[A], requestCount: Int, eagerBuffer: Boolean)(
+    implicit F: Async[F]): Iterant[F, A] = {
 
     if (requestCount < 1) {
       Iterant.raiseError(new IllegalArgumentException("requestSize must be greater than 1"))
@@ -45,19 +45,15 @@ private[tail] object IterantFromReactivePublisher {
           out
         }
 
-      Scope[F, IterantSubscriber[F, A], A](
-        acquire,
-        _.start,
-        (out, _) => F.delay(out.cancel()))
+      Scope[F, IterantSubscriber[F, A], A](acquire, _.start, (out, _) => F.delay(out.cancel()))
     }
   }
 
-  private final class IterantSubscriber[F[_], A](bufferSize: Int, eagerBuffer: Boolean)
-    (implicit F: Async[F])
+  private final class IterantSubscriber[F[_], A](bufferSize: Int, eagerBuffer: Boolean)(implicit F: Async[F])
     extends Subscriber[A] {
 
     private[this] val sub = SingleAssignSubscription()
-    private[this] val state = Atomic.withPadding(null : State[F, A], LeftRight128)
+    private[this] val state = Atomic.withPadding(null: State[F, A], LeftRight128)
 
     def start: F[Iterant[F, A]] =
       F.async { cb =>
@@ -75,8 +71,10 @@ private[tail] object IterantFromReactivePublisher {
       if (eagerBuffer) {
         val task = F.async[Iterant[F, A]](take)
         toReceive => { if (toReceive == 0) sub.request(bufferSize); task }
-      } else {
-        toReceive => F.async { cb => if (toReceive == 0) sub.request(bufferSize); take(cb) }
+      } else { toReceive =>
+        F.async { cb =>
+          if (toReceive == 0) sub.request(bufferSize); take(cb)
+        }
       }
     }
 
@@ -159,8 +157,7 @@ private[tail] object IterantFromReactivePublisher {
           if (length == 0) {
             val update = Take(cb, toReceive)
             if (!state.compareAndSet(current, update)) take(cb)
-          }
-          else {
+          } else {
             val toReceive2 = decrementToReceive(toReceive, length)
             if (state.compareAndSet(current, Empty(updateToReceive(toReceive2)))) {
               val stream = length match {
@@ -195,23 +192,13 @@ private[tail] object IterantFromReactivePublisher {
 
   private sealed abstract class State[+F[_], +A]
 
-  private final case class Stop[F[_], A](
-    fa: Iterant[F, A])
-    extends State[F, A]
+  private final case class Stop[F[_], A](fa: Iterant[F, A]) extends State[F, A]
 
-  private final case class Enqueue[F[_], A](
-    queue: Queue[A],
-    length: Int,
-    toReceive: Int)
-    extends State[F, A]
+  private final case class Enqueue[F[_], A](queue: Queue[A], length: Int, toReceive: Int) extends State[F, A]
 
-  private final case class Take[F[_], A](
-    cb: Either[Nothing, Iterant[F, A]] => Unit,
-    toReceive: Int)
-    extends State[F, A]
+  private final case class Take[F[_], A](cb: Either[Nothing, Iterant[F, A]] => Unit, toReceive: Int) extends State[F, A]
 
-  private case object Canceled
-    extends State[Nothing, Nothing]
+  private case object Canceled extends State[Nothing, Nothing]
 
   private def Empty[F[_], A](toReceive: Int): State[F, A] =
     Enqueue(Queue.empty, 0, toReceive)

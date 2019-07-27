@@ -79,10 +79,12 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
   test("timeoutTo should not evaluate fallback when future finished earlier than timeout") { implicit s =>
     @volatile var called = false
     val expected = 15
-    val f = Future.delayedResult(50.millis)(expected).timeoutTo(100.millis, {
-      called = true
-      Future.failed (new RuntimeException)
-    })
+    val f = Future
+      .delayedResult(50.millis)(expected)
+      .timeoutTo(100.millis, {
+        called = true
+        Future.failed(new RuntimeException)
+      })
 
     s.tick(1.second)
     assertEquals(f.value, Some(Success(expected)))
@@ -94,7 +96,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assertEquals(f1.value, Some(Success(Success(1))))
 
     val dummy = new RuntimeException("dummy")
-    val f2 = (Future.failed(dummy) : Future[Int]).materialize
+    val f2 = (Future.failed(dummy): Future[Int]).materialize
     assertEquals(f2.value, Some(Success(Failure(dummy))))
   }
 
@@ -115,7 +117,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     val f2 = Future.successful(Failure(dummy)).dematerialize
     assertEquals(f2.value, Some(Failure(dummy)))
 
-    val f3 = (Future.failed(dummy) : Future[Try[Int]]).dematerialize
+    val f3 = (Future.failed(dummy): Future[Try[Int]]).dematerialize
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 

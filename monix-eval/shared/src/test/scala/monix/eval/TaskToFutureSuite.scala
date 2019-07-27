@@ -18,6 +18,7 @@
 package monix.eval
 
 import monix.execution.exceptions.DummyException
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -28,6 +29,8 @@ object TaskToFutureSuite extends BaseTestSuite {
       Task.fromFuture(Future.successful(list.sum))
 
     val f = sum((0 until 100).toList).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Success(99 * 50)))
   }
 
@@ -36,6 +39,8 @@ object TaskToFutureSuite extends BaseTestSuite {
       Task.deferFuture(Future.successful(list.sum))
 
     val f = sum((0 until 100).toList).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Success(99 * 50)))
   }
 
@@ -44,31 +49,39 @@ object TaskToFutureSuite extends BaseTestSuite {
       Task.deferFutureAction(implicit s => Future.successful(list.sum))
 
     val f = sum((0 until 100).toList).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Success(99 * 50)))
   }
 
   test("Task.fromFuture(error) for already completed references") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Task.fromFuture(Future.failed(dummy)).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("Task.deferFuture(error) for already completed references") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Task.deferFuture(Future.failed(dummy)).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("Task.deferFutureAction(error) for already completed references") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Task.deferFutureAction(_ => Future.failed(dummy)).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("Task.fromFuture for completed reference is stack safe (flatMap)") { implicit s =>
     def loop(n: Int, acc: Int): Task[Int] =
       if (n > 0)
-        Task.fromFuture(Future.successful(acc+1)).flatMap(loop(n-1, _))
+        Task.fromFuture(Future.successful(acc + 1)).flatMap(loop(n - 1, _))
       else
         Task.fromFuture(Future.successful(acc))
 
@@ -79,7 +92,7 @@ object TaskToFutureSuite extends BaseTestSuite {
   test("Task.deferFuture for completed reference is stack safe (flatMap)") { implicit s =>
     def loop(n: Int, acc: Int): Task[Int] =
       if (n > 0)
-        Task.deferFuture(Future.successful(acc+1)).flatMap(loop(n-1, _))
+        Task.deferFuture(Future.successful(acc + 1)).flatMap(loop(n - 1, _))
       else
         Task.deferFuture(Future.successful(acc))
 
@@ -90,8 +103,9 @@ object TaskToFutureSuite extends BaseTestSuite {
   test("Task.deferFutureAction for completed reference is stack safe (flatMap)") { implicit s =>
     def loop(n: Int, acc: Int): Task[Int] =
       if (n > 0)
-        Task.deferFutureAction(implicit s => Future.successful(acc+1))
-          .flatMap(loop(n-1, _))
+        Task
+          .deferFutureAction(implicit s => Future.successful(acc + 1))
+          .flatMap(loop(n - 1, _))
       else
         Task.deferFutureAction(implicit s => Future.successful(acc))
 

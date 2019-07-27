@@ -22,6 +22,7 @@ import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 
 import scala.concurrent.ExecutionContext
+import monix.execution.internal.{InterceptableRunnable, ScheduledExecutors}
 
 /** An `AsyncScheduler` schedules tasks to happen in the future with the
   * given `ScheduledExecutorService` and the tasks themselves are executed on
@@ -30,29 +31,24 @@ import scala.concurrent.ExecutionContext
 final class AsyncScheduler private (
   scheduler: ScheduledExecutorService,
   ec: ExecutionContext,
-  r: UncaughtExceptionReporter,
-  val executionModel: ExecModel)
+  val executionModel: ExecModel,
+  r: UncaughtExceptionReporter)
   extends ReferenceScheduler with BatchingScheduler {
 
-  protected def executeAsync(r: Runnable): Unit =
-    ec.execute(r)
-
-  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    if (initialDelay <= 0) {
-      ec.execute(r)
-      Cancelable.empty
-    } else {
-      val deferred = new ShiftedRunnable(r, this)
-      val task = scheduler.schedule(deferred, initialDelay, unit)
-      Cancelable(() => task.cancel(true))
-    }
+  protected def executeAsync(runnable: Runnable): Unit = {
+    if (((r: AnyRef) eq ec) || (r eq null)) ec.execute(runnable)
+    else ec.execute(InterceptableRunnable(runnable, this))
   }
 
+  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
+    ScheduledExecutors.scheduleOnce(this, scheduler)(initialDelay, unit, r)
+
   override def reportFailure(t: Throwable): Unit =
-    r.reportFailure(t)
+    if (r eq null) ec.reportFailure(t)
+    else r.reportFailure(t)
 
   override def withExecutionModel(em: ExecModel): AsyncScheduler =
-    new AsyncScheduler(scheduler, ec, r, em)
+    new AsyncScheduler(scheduler, ec, em, r)
 
   override val features: Features =
     Features(Scheduler.BATCHING)
@@ -72,7 +68,7 @@ object AsyncScheduler {
   def apply(
     schedulerService: ScheduledExecutorService,
     ec: ExecutionContext,
-    reporter: UncaughtExceptionReporter,
-    executionModel: ExecModel): AsyncScheduler =
-    new AsyncScheduler(schedulerService, ec, reporter, executionModel)
+    executionModel: ExecModel,
+    reporter: UncaughtExceptionReporter = null): AsyncScheduler =
+    new AsyncScheduler(schedulerService, ec, executionModel, reporter)
 }

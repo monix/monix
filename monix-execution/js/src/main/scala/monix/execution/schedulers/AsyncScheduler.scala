@@ -23,16 +23,22 @@ import monix.execution.schedulers.JSTimer.{clearTimeout, setTimeout}
 import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
 
+import monix.execution.internal.InterceptableRunnable
+
 /** An `AsyncScheduler` schedules tasks to be executed asynchronously,
   * either now or in the future, by means of Javascript's `setTimeout`.
   */
 final class AsyncScheduler private (
   context: ExecutionContext,
-  override val executionModel: ExecModel)
-  extends ReferenceScheduler with BatchingScheduler {
+  override val executionModel: ExecModel,
+  reporter: UncaughtExceptionReporter
+) extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(r: Runnable): Unit =
-    context.execute(r)
+    context.execute {
+      if (reporter ne null) InterceptableRunnable(r, reporter)
+      else r
+    }
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val millis = {
@@ -45,9 +51,12 @@ final class AsyncScheduler private (
   }
 
   override def reportFailure(t: Throwable): Unit =
-    context.reportFailure(t)
+    if (reporter eq null) context.reportFailure(t)
+    else reporter.reportFailure(t)
+
   override def withExecutionModel(em: ExecModel): AsyncScheduler =
-    new AsyncScheduler(context, em)
+    new AsyncScheduler(context, em, reporter)
+
   override val features: Features =
     Features(Scheduler.BATCHING)
 }
@@ -62,6 +71,10 @@ object AsyncScheduler {
     *        [[monix.execution.ExecutionModel ExecutionModel]], a guideline
     *        for run-loops and producers of data.
     */
-  def apply(context: ExecutionContext, executionModel: ExecModel): AsyncScheduler =
-    new AsyncScheduler(context, executionModel)
+  def apply(
+    context: ExecutionContext,
+    executionModel: ExecModel,
+    r: UncaughtExceptionReporter = null
+  ): AsyncScheduler =
+    new AsyncScheduler(context, executionModel, r)
 }

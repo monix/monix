@@ -20,7 +20,8 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import cats.{Applicative, Parallel}
-import monix.execution.internal.{ParallelApplicative, Platform}
+import monix.execution.internal.Platform
+import monix.catnap.internal.ParallelApplicative
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
@@ -32,8 +33,7 @@ private[tail] object IterantZipMap {
   /**
     * Implementation for `Iterant#zipMap`
     */
-  def seq[F[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)
-    (implicit F: Sync[F]): Iterant[F, C] = {
+  def seq[F[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)(implicit F: Sync[F]): Iterant[F, C] = {
 
     Suspend(F.delay(new Loop[F, A, B, C](f)(F, F).apply(lh, rh)))
   }
@@ -41,15 +41,15 @@ private[tail] object IterantZipMap {
   /**
     * Implementation for `Iterant#parZipMap`
     */
-  def par[F[_], G[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)
-    (implicit F: Sync[F], P: Parallel[F, G]): Iterant[F, C] = {
+  def par[F[_], G[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)(
+    implicit F: Sync[F],
+    P: Parallel[F, G]): Iterant[F, C] = {
 
     val A = ParallelApplicative(P)
     Suspend(F.delay(new Loop[F, A, B, C](f)(F, A).apply(lh, rh)))
   }
 
-  private final class Loop[F[_], A, B, C](f: (A, B) => C)
-    (implicit F: Sync[F], A: Applicative[F])
+  private final class Loop[F[_], A, B, C](f: (A, B) => C)(implicit F: Sync[F], A: Applicative[F])
     extends ((Iterant[F, A], Iterant[F, B]) => Iterant[F, C]) { loop =>
 
     def apply(lh: Iterant[F, A], rh: Iterant[F, B]): Iterant[F, C] =
@@ -171,8 +171,7 @@ private[tail] object IterantZipMap {
         Iterant.raiseError(e)
     }
 
-    private abstract class RHBaseLoop[LH <: Iterant[F, A]]
-      extends Iterant.Visitor[F, B, Iterant[F, C]] {
+    private abstract class RHBaseLoop[LH <: Iterant[F, A]] extends Iterant.Visitor[F, B, Iterant[F, C]] {
 
       protected var lhRef: LH = _
 
@@ -371,11 +370,7 @@ private[tail] object IterantZipMap {
         processPair(a, restA, itemsB.next(), F.pure(refB))
     }
 
-    def processSeqAOneB(
-      refA: NextCursor[F, A],
-      rh: Iterant[F, B],
-      b: B,
-      restB: F[Iterant[F, B]]): Iterant[F, C] = {
+    def processSeqAOneB(refA: NextCursor[F, A], rh: Iterant[F, B], b: B, restB: F[Iterant[F, B]]): Iterant[F, C] = {
 
       val NextCursor(itemsA, restA) = refA
       if (!itemsA.hasNext)
@@ -421,32 +416,22 @@ private[tail] object IterantZipMap {
           if (array.isEmpty)
             Suspend(A.map2(restA, restB)(loop))
           else
-            NextBatch(
-              Batch.fromArray(array).asInstanceOf[Batch[C]],
-              A.map2(restA, restB)(loop))
-        }
-        else if (isEmptyItemsA) {
+            NextBatch(Batch.fromArray(array).asInstanceOf[Batch[C]], A.map2(restA, restB)(loop))
+        } else if (isEmptyItemsA) {
           if (array.isEmpty)
             Suspend(restA.map(lhLoop.withRh(refB)))
           else
-            NextBatch(
-              Batch.fromArray(array).asInstanceOf[Batch[C]],
-              restA.map(lhLoop.withRh(refB)))
-        }
-        else if (isEmptyItemsB) {
+            NextBatch(Batch.fromArray(array).asInstanceOf[Batch[C]], restA.map(lhLoop.withRh(refB)))
+        } else if (isEmptyItemsB) {
           if (array.isEmpty)
             Suspend(restB.map(loop(refA, _)))
           else
-            NextBatch(
-              Batch.fromArray(array).asInstanceOf[Batch[C]],
-              restB.map(loop(refA, _)))
-        }
-        else {
+            NextBatch(Batch.fromArray(array).asInstanceOf[Batch[C]], restB.map(loop(refA, _)))
+        } else {
           // We are not done, continue loop
           NextBatch(Batch.fromArray(array).asInstanceOf[Batch[C]], F.delay(loop(refA, refB)))
         }
-      }
-      else if (!itemsA.hasNext)
+      } else if (!itemsA.hasNext)
         Suspend(restA.map(lhLoop.withRh(refB)))
       else if (!itemsB.hasNext)
         Suspend(restB.map(loop(refA, _)))

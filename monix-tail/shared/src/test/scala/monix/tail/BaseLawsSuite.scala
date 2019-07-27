@@ -33,8 +33,7 @@ import scala.concurrent.duration._
 /** Just a marker for what we need to extend in the tests
   * of `monix-tail`.
   */
-trait BaseLawsSuite extends SimpleTestSuite
-  with Checkers with ArbitraryInstances with TestUtils {
+trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstances with TestUtils {
 
   override lazy val checkConfig: Parameters =
     Parameters.default
@@ -50,16 +49,14 @@ trait BaseLawsSuite extends SimpleTestSuite
 
   // Stack-safety tests are very taxing, so reducing burden
   implicit val effectParams =
-    EffectParameters.default.copy(
-      stackSafeIterationsCount = {
-        if (Platform.isJS || System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
-          100
-        else
-          1000
-      })
+    EffectParameters.default.copy(stackSafeIterationsCount = {
+      if (Platform.isJS || System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+        100
+      else
+        1000
+    })
 
-  def checkAllAsync(name: String, config: Parameters = checkConfig)
-    (f: TestScheduler => Laws#RuleSet): Unit = {
+  def checkAllAsync(name: String, config: Parameters = checkConfig)(f: TestScheduler => Laws#RuleSet): Unit = {
 
     val s = TestScheduler()
     var catchErrors = true
@@ -67,7 +64,7 @@ trait BaseLawsSuite extends SimpleTestSuite
       val ruleSet = f(s)
       catchErrors = false
 
-      for ((id, prop: Prop) ← ruleSet.all.properties)
+      for ((id, prop: Prop) <- ruleSet.all.properties)
         test(s"$name.$id") {
           s.tick(1.day)
           silenceSystemErr(check(prop, config))

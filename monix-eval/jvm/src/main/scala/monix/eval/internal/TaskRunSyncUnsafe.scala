@@ -49,7 +49,8 @@ private[eval] object TaskRunSyncUnsafe {
             if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
           }
-          /*_*/bFirst = bindNext/*_*/
+          /*_*/
+          bFirst = bindNext /*_*/
           current = fa
 
         case Now(value) =>
@@ -77,8 +78,7 @@ private[eval] object TaskRunSyncUnsafe {
           // Try/catch described as statement to prevent ObjectRef ;-)
           try {
             current = thunk()
-          }
-          catch {
+          } catch {
             case ex if NonFatal(ex) => current = Error(ex)
           }
 
@@ -87,19 +87,14 @@ private[eval] object TaskRunSyncUnsafe {
             case null => throw error
             case bind =>
               // Try/catch described as statement to prevent ObjectRef ;-)
-              try { current = bind.recover(error) }
-              catch { case e if NonFatal(e) => current = Error(e) }
+              try {
+                current = bind.recover(error)
+              } catch { case e if NonFatal(e) => current = Error(e) }
               bFirst = null
           }
 
         case async =>
-          return blockForResult(
-            async,
-            timeout,
-            scheduler,
-            opts,
-            bFirst,
-            bRest)
+          return blockForResult(async, timeout, scheduler, opts, bFirst, bRest)
       }
 
       if (hasUnboxed) {
@@ -163,8 +158,7 @@ private[eval] object TaskRunSyncUnsafe {
       throw new TimeoutException(s"Task.runSyncUnsafe($limit)")
   }
 
-  private final class BlockingCallback[A](latch: OneShotLatch)
-    extends Callback [Throwable, A] {
+  private final class BlockingCallback[A](latch: OneShotLatch) extends Callback[Throwable, A] {
 
     private[this] var success: A = _
     private[this] var error: Throwable = _

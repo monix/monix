@@ -31,7 +31,7 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
     val task = SingleAssignCancelable()
     val composite = CompositeCancelable(task)
 
-    composite += source.unsafeSubscribeFn(    new Subscriber[A] {
+    composite += source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
       private[this] var isActive = true
@@ -46,13 +46,12 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
       }
 
       locally {
-        task := trigger.unsafeSubscribeFn(
-          new Subscriber.Sync[Any] {
-            implicit val scheduler = out.scheduler
-            def onNext(elem: Any) = interruptDropMode(null)
-            def onComplete(): Unit = interruptDropMode(null)
-            def onError(ex: Throwable): Unit = interruptDropMode(ex)
-          })
+        task := trigger.unsafeSubscribeFn(new Subscriber.Sync[Any] {
+          implicit val scheduler = out.scheduler
+          def onNext(elem: Any) = interruptDropMode(null)
+          def onComplete(): Unit = interruptDropMode(null)
+          def onError(ex: Throwable): Unit = interruptDropMode(ex)
+        })
       }
 
       def onNext(elem: A): Future[Ack] = {
@@ -71,7 +70,8 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
       def onError(ex: Throwable): Unit =
         if (isActive) {
           isActive = false
-          try out.onError(ex) finally {
+          try out.onError(ex)
+          finally {
             task.cancel()
           }
         }
@@ -79,7 +79,8 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
       def onComplete(): Unit =
         if (isActive) {
           isActive = false
-          try out.onComplete() finally {
+          try out.onComplete()
+          finally {
             task.cancel()
           }
         }

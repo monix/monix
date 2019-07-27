@@ -19,8 +19,8 @@ package monix.eval
 
 import cats.Applicative
 import cats.laws.discipline.ApplicativeTests
+import monix.catnap.internal.ParallelApplicative
 import monix.eval.instances.CatsParallelForTask
-import monix.execution.internal.ParallelApplicative
 
 object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
   implicit val ap: Applicative[Task] =

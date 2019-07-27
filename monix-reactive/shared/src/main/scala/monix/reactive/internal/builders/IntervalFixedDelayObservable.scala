@@ -18,16 +18,15 @@
 package monix.reactive.internal.builders
 
 import monix.execution.cancelables.MultiAssignCancelable
-import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
-private[reactive] final class IntervalFixedDelayObservable
-  (initialDelay: FiniteDuration, delay: FiniteDuration)
+private[reactive] final class IntervalFixedDelayObservable(initialDelay: FiniteDuration, delay: FiniteDuration)
   extends Observable[Long] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[Long]): Cancelable = {

@@ -47,19 +47,18 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       .withMaxSize(6)
 
   def checkAll(name: String, ruleSet: Laws#RuleSet, config: Parameters = checkConfig): Unit = {
-    for ((id, prop: Prop) ← ruleSet.all.properties)
+    for ((id, prop: Prop) <- ruleSet.all.properties)
       test(name + "." + id) {
         check(prop)
       }
   }
 
-  def checkAllAsync(name: String, config: Parameters = checkConfig)
-    (f: TestScheduler => Laws#RuleSet): Unit = {
+  def checkAllAsync(name: String, config: Parameters = checkConfig)(f: TestScheduler => Laws#RuleSet): Unit = {
 
     val s = TestScheduler()
     val ruleSet = f(s)
 
-    for ((id, prop: Prop) ← ruleSet.all.properties)
+    for ((id, prop: Prop) <- ruleSet.all.properties)
       test(name + "." + id) {
         s.tick(1.day)
         check(prop)
@@ -79,8 +78,7 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
         inst.eqv(x, y)
     }
 
-  implicit def arbitraryCancelableFuture[A]
-    (implicit A: Arbitrary[A], ec: Scheduler): Arbitrary[CancelableFuture[A]] =
+  implicit def arbitraryCancelableFuture[A](implicit A: Arbitrary[A], ec: Scheduler): Arbitrary[CancelableFuture[A]] =
     Arbitrary {
       for {
         a <- A.arbitrary
@@ -89,7 +87,8 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
           CancelableFuture.raiseError(DummyException(a.toString)),
           CancelableFuture.async[A](cb => { cb(Success(a)); Cancelable.empty }),
           CancelableFuture.async[A](cb => { cb(Failure(DummyException(a.toString))); Cancelable.empty }),
-          CancelableFuture.pure(a).flatMap(CancelableFuture.pure))
+          CancelableFuture.pure(a).flatMap(CancelableFuture.pure)
+        )
       } yield future
     }
 
@@ -153,7 +152,7 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances with TestUtils 
       }
   }
 
-  implicit def equalityTry[A : Eq]: Eq[Try[A]] =
+  implicit def equalityTry[A: Eq]: Eq[Try[A]] =
     new Eq[Try[A]] {
       val optA = implicitly[Eq[Option[A]]]
       val optT = implicitly[Eq[Option[Throwable]]]

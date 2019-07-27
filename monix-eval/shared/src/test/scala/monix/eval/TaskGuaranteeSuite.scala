@@ -17,15 +17,23 @@
 
 package monix.eval
 
+import cats.implicits._
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.{CompositeException, DummyException}
 import monix.execution.internal.Platform
 import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 object TaskGuaranteeSuite extends BaseTestSuite {
 
   test("finalizer is evaluated on success") { implicit sc =>
     var input = Option.empty[Int]
-    val task = Task.evalAsync(1).map(_ + 1).guarantee(Task.evalAsync { input = Some(1) })
+    val task = Task
+      .evalAsync(1)
+      .map(_ + 1)
+      .guarantee(Task.evalAsync {
+        input = Some(1)
+      })
 
     val result = task.runToFuture
     sc.tick()
@@ -37,7 +45,12 @@ object TaskGuaranteeSuite extends BaseTestSuite {
   test("finalizer is evaluated on error") { implicit sc =>
     var input = Option.empty[Int]
     val dummy = DummyException("dummy")
-    val task = Task.raiseError(dummy).guarantee(Task.evalAsync { input = Some(1) })
+    val task = Task
+      .raiseError(dummy)
+      .executeAsync
+      .guarantee(Task.evalAsync {
+        input = Some(1)
+      })
 
     val result = task.runToFuture
     sc.tick()
@@ -64,15 +77,90 @@ object TaskGuaranteeSuite extends BaseTestSuite {
             case _ =>
               fail("Unexpected suppressed errors list: " + error.getSuppressed.toList)
           }
-        } else error match {
-          case CompositeException(Seq(`useError`, `finalizerError`)) =>
-            () // pass
-          case _ =>
-            fail(s"Unexpected error: $error")
-        }
+        } else
+          error match {
+            case CompositeException(Seq(`useError`, `finalizerError`)) =>
+              () // pass
+            case _ =>
+              fail(s"Unexpected error: $error")
+          }
 
       case other =>
         fail(s"Unexpected result: $other")
     }
+  }
+
+  test("finalizer is evaluated on cancelation (1)") { implicit sc =>
+    val effect = Atomic(false)
+    val task = Task
+      .sleep(10.seconds)
+      .guarantee(Task(effect.set(true)))
+      .flatMap(_ => Task.sleep(10.seconds))
+
+    val f = task.runToFuture
+    sc.tick()
+    f.cancel()
+    sc.tick()
+
+    assert(effect.get(), "effect.get")
+    assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
+
+    sc.tick(20.seconds)
+    assertEquals(f.value, None)
+  }
+
+  test("finalizer is evaluated on cancellation (2)") { implicit sc =>
+    val effect = Atomic(false)
+    val task = Task.unit
+      .guarantee(Task.sleep(10.seconds) *> Task(effect.set(true)))
+      .flatMap(_ =>
+        Task.Async[Unit](
+          (ctx, cb) => {
+            println(ctx.connection)
+            cb.onSuccess(())
+          }
+        ))
+      .flatMap(_ => Task.sleep(10.seconds))
+
+    val f = task.runToFuture
+    sc.tick()
+    f.cancel()
+
+    sc.tick(10.seconds)
+    assert(effect.get(), "effect.get")
+    assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
+    assertEquals(f.value, None)
+  }
+
+  test("stack-safety (1)") { implicit sc =>
+    def loop(n: Int): Task[Unit] =
+      if (n <= 0) Task.unit
+      else Task.unit.guarantee(Task.unit).flatMap(_ => loop(n - 1))
+
+    val cycles = if (Platform.isJVM) 100000 else 10000
+    val f = loop(cycles).runToFuture
+    sc.tick()
+
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("stack-safety (2)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 10000
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      acc.flatMap(_ => Task.unit.guarantee(Task.unit))
+    }
+
+    val f = task.runToFuture; sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("stack-safety (3)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 10000
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      acc.guarantee(Task.unit)
+    }
+
+    val f = task.runToFuture; sc.tick()
+    assertEquals(f.value, Some(Success(())))
   }
 }

@@ -10,19 +10,29 @@ val allProjects = List(
   "java"
 )
 
-addCommandAlias("ci",         ";ci-jvm ;ci-js")
-addCommandAlias("ci-all",     ";ci-jvm ;ci-js ;mimaReportBinaryIssues ;unidoc")
-addCommandAlias("ci-js",      s";clean ;coreJS/test:compile ;${allProjects.filter(_ != "java").map(_ + "JS/test").mkString(" ;")}")
-addCommandAlias("ci-jvm",     s";clean ;coreJVM/test:compile ;${allProjects.map(_ + "JVM/test").mkString(" ;")} ;mimaReportBinaryIssues")
-addCommandAlias("ci-jvm-all", s";ci-jvm ;unidoc")
-addCommandAlias("release",    ";project monix ;+clean ;+package ;+publishSigned")
+val benchmarkProjects = List(
+  // Enable after 2.13 version is released for previous version
+  // "benchmarksPrev",
+  "benchmarksNext"
+).map(_ + "/compile")
 
-val catsVersion = "1.4.0"
-val catsEffectVersion = "1.2.0"
+addCommandAlias("ci",          ";ci-jvm ;ci-js")
+addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-js",       s";clean ;coreJS/test:compile ;${(allProjects.filter(_ != "java").map(_ + "JS/test") ++ benchmarkProjects).mkString(" ;")}")
+addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;${(allProjects.map(_ + "JVM/test") ++ benchmarkProjects).mkString(" ;")}")
+addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
+addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc; scalafmtCheck; test:scalafmtCheck; scalafmtSbtCheck")
+addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
+
+val catsVersion = "1.6.1"
+val catsEffectVersion = "1.3.1"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
-val scalaTestVersion = "3.0.4"
+def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
+  case Some((2, v)) if v >= 13 => "3.0.6-SNAP5"
+  case _                       => "3.0.4"
+}
 val minitestVersion = "2.3.2"
 
 // The Monix version with which we must keep binary compatibility.
@@ -52,7 +62,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", "2.12.8"),
+  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-M5"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -74,7 +84,9 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
         "-Ypartial-unification",
       )
     case _ =>
-      Seq.empty
+      Seq(
+        "-Ymacro-annotations",
+      )
   }),
 
   // Force building with Java 8
@@ -139,7 +151,12 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
 
   // For working with partially-applied types
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary),
+  libraryDependencies += {
+    if (scalaVersion.value == "2.13.0-M5")
+      compilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary)
+    else
+      compilerPlugin("org.typelevel" % "kind-projector" % "0.10.0" cross CrossVersion.binary)
+  },
 
   // ScalaDoc settings
   autoAPIMappings := true,
@@ -237,11 +254,24 @@ def scalaPartV = Def setting (CrossVersion partialVersion scalaVersion.value)
 lazy val crossVersionSharedSources: Seq[Setting[_]] =
   Seq(Compile, Test).map { sc =>
     (unmanagedSourceDirectories in sc) ++= {
-      (unmanagedSourceDirectories in sc).value.map { dir =>
-        scalaPartV.value match {
-          case Some((2, y)) if y == 11 => new File(dir.getPath + "_2.11")
-          case Some((2, y)) if y >= 12 => new File(dir.getPath + "_2.12")
-        }
+      (unmanagedSourceDirectories in sc).value.flatMap { dir =>
+        Seq(
+          scalaPartV.value match {
+            case Some((2, y)) if y == 11 => new File(dir.getPath + "_2.11")
+            case Some((2, y)) if y == 12 => new File(dir.getPath + "_2.12")
+            case Some((2, y)) if y >= 13 => new File(dir.getPath + "_2.13")
+          },
+
+          scalaPartV.value match {
+            case Some((2, n)) if n >= 12 => new File(dir.getPath + "_2.12+")
+            case _                       => new File(dir.getPath + "_2.12-")
+          },
+
+          scalaPartV.value match {
+            case Some((2, n)) if n >= 13 => new File(dir.getPath + "_2.13+")
+            case _                       => new File(dir.getPath + "_2.13-")
+          },
+        )
       }
     }
   }
@@ -308,6 +338,8 @@ def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0
 )
+// https://github.com/lightbend/mima/pull/289
+mimaFailOnNoPrevious in ThisBuild := false
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
   case _ =>
@@ -345,9 +377,7 @@ lazy val coreJS = project.in(file("monix/js"))
   .settings(name := "monix")
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution",
-  // Filtering out breaking changes from 3.0.0
-  libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion
+  name := "monix-execution"
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
@@ -371,8 +401,9 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 
 lazy val catnapCommon =
   crossSettings ++ crossVersionSharedSources ++ testSettings ++ Seq(
-    name := "monix-catnap"
-  )
+    name := "monix-catnap",
+    libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion
+)
 
 lazy val catnapJVM = project.in(file("monix-catnap/jvm"))
   .configure(profile)
@@ -391,7 +422,23 @@ lazy val catnapJS = project.in(file("monix-catnap/js"))
 lazy val evalCommon =
   crossSettings ++ crossVersionSharedSources ++ testSettings ++
     Seq(
-      name := "monix-eval"
+      name := "monix-eval",
+
+      // used to skip a test in 2.13.0-M5, remove when upgrading
+      // from https://stackoverflow.com/a/48518559/4094860
+      sourceGenerators in Test += Def.task {
+        val file = (sourceManaged in Test).value / "monix" / "eval" / "internal" / "ScalaVersion.scala"
+        val scalaV = scalaVersion.value
+        IO.write(file,
+          s"""package monix.eval.internal
+             |
+             |object ScalaVersion {
+             |  val Full = "$scalaV"
+             |}
+           """.stripMargin
+        )
+        Seq(file)
+      }.taskValue
     )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -464,7 +511,7 @@ lazy val reactiveTests = project.in(file("reactiveTests"))
   .settings(
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams-tck" % reactiveStreamsVersion % Test,
-      "org.scalatest" %% "scalatest" % scalaTestVersion % Test
+      "org.scalatest" %% "scalatest" % scalaTestVersion(scalaVersion.value) % Test
     ))
 
 lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
@@ -492,7 +539,7 @@ enablePlugins(GitVersioning)
 /* The BaseVersion setting represents the in-development (upcoming) version,
  * as an alternative to SNAPSHOTS.
  */
-git.baseVersion := "3.0.0-RC2"
+git.baseVersion := "3.0.0-RC3"
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {

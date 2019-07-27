@@ -49,7 +49,7 @@ private[tail] object IterantAttempt {
     private[this] var wasErrorHandled = false
     private[this] val handleError = (e: Throwable) => {
       self.wasErrorHandled = true
-      Left(e) : Attempt
+      Left(e): Attempt
     }
 
     def visit(ref: Next[F, A]): Iterant[F, Either[Throwable, A]] =
@@ -86,52 +86,59 @@ private[tail] object IterantAttempt {
       val Scope(acquire, use, release) = ref
 
       Suspend(F.delay {
-        val errors = Atomic(null : Throwable)
+        val errors = Atomic(null: Throwable)
 
         val lh: Iterant[F, Attempt] =
           Scope[F, Either[Throwable, S], Attempt](
             acquire.attempt,
-            es => F.pure(es).flatMap {
-              case Left(e) =>
-                pushError(errors, e)
-                F.pure(Iterant.empty)
-
-              case Right(s) =>
-                try {
-                  use(s).handleError { e =>
-                    pushError(errors, e)
-                    Iterant.empty
-                  }.map(this)
-                } catch { case NonFatal(e) =>
+            es =>
+              F.pure(es).flatMap {
+                case Left(e) =>
                   pushError(errors, e)
                   F.pure(Iterant.empty)
-                }
-            },
+
+                case Right(s) =>
+                  try {
+                    use(s).handleError { e =>
+                      pushError(errors, e)
+                      Iterant.empty
+                    }.map(this)
+                  } catch {
+                    case NonFatal(e) =>
+                      pushError(errors, e)
+                      F.pure(Iterant.empty)
+                  }
+              },
             (es, exit) => {
               es match {
                 case Left(_) => F.unit
                 case Right(s) =>
                   try F.handleError(release(s, exit)) { e =>
                     pushError(errors, e)
-                  } catch { case NonFatal(e) =>
-                    F.delay(pushError(errors, e))
+                  } catch {
+                    case NonFatal(e) =>
+                      F.delay(pushError(errors, e))
                   }
               }
-            })
+            }
+          )
 
-        Concat(F.pure(lh), F.delay {
-          val err = errors.getAndSet(null)
-          if (err != null) {
-            if (!wasErrorHandled)
-              Last(handleError(err))
-            else {
-              Logger.reportFailure(err)
+        Concat(
+          F.pure(lh),
+          F.delay {
+            val err = errors.getAndSet(null)
+            if (err != null) {
+              if (!wasErrorHandled)
+                Last(handleError(err))
+              else {
+                Logger.reportFailure(err)
+                Iterant.empty
+              }
+            } else {
               Iterant.empty
             }
-          } else {
-            Iterant.empty
           }
-        })
+        )
       })
     }
 

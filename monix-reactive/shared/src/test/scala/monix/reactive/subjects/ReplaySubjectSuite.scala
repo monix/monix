@@ -72,7 +72,6 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     assertEquals(completed, 4)
   }
 
-
   test("should work synchronously for synchronous subscribers, but after first onNext") { implicit s =>
     val subject = ReplaySubject[Int]()
     var received = 0
@@ -195,7 +194,9 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
   test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = ReplaySubject[Int]()
-    val c = subject.subscribe { e => result = e; Continue }
+    val c = subject.subscribe { e =>
+      result = e; Continue
+    }
 
     subject.onNext(1)
     subject.onComplete()
@@ -216,7 +217,9 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
 
     observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
     observable.foreach(e => foreachSum += e)
-    observable.subscribe { e => subscribeSum += e; Continue }
+    observable.subscribe { e =>
+      subscribeSum += e; Continue
+    }
 
     assertEquals(foreachSum, 21)
     assertEquals(consumerSum, 21)
@@ -234,7 +237,9 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
 
     observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
     observable.foreach(e => foreachSum += e)
-    observable.subscribe { e => subscribeSum += e; Continue }
+    observable.subscribe { e =>
+      subscribeSum += e; Continue
+    }
 
     assertEquals(foreachSum, 15)
     assertEquals(consumerSum, 15)

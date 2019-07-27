@@ -24,9 +24,9 @@ import monix.reactive.observers.Subscriber
 import monix.reactive.{Consumer, Observable, Pipe}
 
 /** Implementation for [[monix.reactive.Consumer.transformInput]]. */
-private[reactive]
-final class TransformInputConsumer[In2, -In, +R]
-  (source: Consumer[In, R], f: Observable[In2] => Observable[In])
+private[reactive] final class TransformInputConsumer[In2, -In, +R](
+  source: Consumer[In, R],
+  f: Observable[In2] => Observable[In])
   extends Consumer[In2, R] {
 
   def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[In2], AssignableCancelable) = {

@@ -25,8 +25,8 @@ import scala.concurrent.duration._
 
 object ScanEffectSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).scanEvalF(IO.pure(0L)) {
-      (s, x) => IO(s + x)
+    val o = Observable.range(0, sourceCount).scanEvalF(IO.pure(0L)) { (s, x) =>
+      IO(s + x)
     }
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -35,33 +35,39 @@ object ScanEffectSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) =
     sourceCount
   def sum(sourceCount: Int) =
-    0.until(sourceCount).scan(0)(_ + _).sum
+    0.until(sourceCount).scanLeft(0)(_ + _).sum
 
   def waitFirst = Duration.Zero
   def waitNext = Duration.Zero
 
   def observableInError(sourceCount: Int, ex: Throwable) =
-    if (sourceCount == 1) None else Some {
-      val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-        .scanEvalF(IO.pure(0L)) { (s, x) => IO(s + x) }
+    if (sourceCount == 1) None
+    else
+      Some {
+        val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+          .scanEvalF(IO.pure(0L)) { (s, x) =>
+            IO(s + x)
+          }
 
-      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
-    }
+        Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
+      }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .scanEvalF(IO.pure(0L)) { (s, i) =>
-        if (i == sourceCount-1)
+        if (i == sourceCount - 1)
           throw ex
         else
           IO(s + i)
       }
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), waitFirst, waitNext)
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample = Observable.range(0, 100)
+    val sample = Observable
+      .range(0, 100)
       .delayOnNext(1.second)
       .scanEvalF(IO.pure(0L))((s, i) => IO(s + i))
 
@@ -71,10 +77,9 @@ object ScanEffectSuite extends BaseOperatorSuite {
     )
   }
 
-
-  test("scanEval0.headL.toIO <-> seed") { implicit s =>
+  test("scanEval0.headL.to[IO] <-> seed") { implicit s =>
     check2 { (obs: Observable[Int], seed: IO[Int]) =>
-      obs.scanEval0F(seed)((a, b) => IO.pure(a + b)).headL.toIO <-> seed
+      obs.scanEval0F(seed)((a, b) => IO.pure(a + b)).headL.to[IO] <-> seed
     }
   }
 

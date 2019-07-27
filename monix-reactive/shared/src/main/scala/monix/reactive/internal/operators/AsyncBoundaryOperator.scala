@@ -22,9 +22,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
-private[reactive] final
-class AsyncBoundaryOperator[A](overflowStrategy: OverflowStrategy[A])
-  extends Operator[A,A] {
+private[reactive] final class AsyncBoundaryOperator[A](overflowStrategy: OverflowStrategy[A]) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     BufferedSubscriber(out, overflowStrategy, SingleProducer)

@@ -19,7 +19,7 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 import monix.execution.ChannelType.{MPMC, SPMC, SPSC}
-import monix.execution.{AsyncQueue, CancelableFuture, ChannelType}
+import monix.execution.{AsyncQueue, CancelableFuture, ChannelType, BufferCapacity}
 import org.openjdk.jmh.annotations._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -32,15 +32,25 @@ import scala.concurrent.{Await, Future}
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.AsyncQueueBenchmark
+  *     jmh:run monix.benchmarks.TaskShiftBenchmark
+  *     The above test will take default values as "10 iterations", "10 warm-up iterations",
+  *     "2 forks", "1 thread".
   *
-  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
+  *     Or to specify custom values use below format:
+  *
+  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.TaskShiftBenchmark
+  *
+  * Which means "20 iterations", "20 warm-up iterations", "4 forks", "2 thread".
   * Please note that benchmarks should be usually executed at least in
   * 10 iterations (as a rule of thumb), but more is better.
   */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
+@Measurement(iterations = 10)
+@Warmup(iterations = 10)
+@Fork(2)
+@Threads(1)
 class AsyncQueueBenchmark {
   @Param(Array("10000"))
   var size: Int = _
@@ -61,7 +71,8 @@ class AsyncQueueBenchmark {
   }
 
   def test(producers: Int, workers: Int, channelType: ChannelType): Long = {
-    val queue = AsyncQueue[Int](capacity = 1024, channelType = channelType)
+    val capacity = BufferCapacity.Bounded(1024)
+    val queue = new AsyncQueue[Int](capacity, channelType = channelType)
     val workers = 1
 
     def producer(n: Int): Future[Long] =

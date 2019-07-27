@@ -48,7 +48,9 @@ package object eval {
     @deprecated("Switch to Scala 2.12+ and Task.from", "3.0.0")
     def deferCompletableFutureAction[A](f: Scheduler => CompletableFuture[A]): Task[A] = {
       // $COVERAGE-OFF$
-      Task.deferAction { sc => convert(f(sc)) }
+      Task.deferAction { sc =>
+        convert(f(sc))
+      }
       // $COVERAGE-ON$
     }
   }

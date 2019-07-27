@@ -37,7 +37,8 @@ object IterantMapBatchSuite extends BaseTestSuite {
 
   test("Iterant[Task].mapBatch works for functions producing batches bigger than recommendedBatchSize") { implicit s =>
     check2 { (list: List[Int], elem: Int) =>
-      val stream = Iterant[Task].nextBatchS(Batch.fromSeq(list, recommendedBatchSize), Task.delay(Iterant[Task].lastS[Int](elem)))
+      val stream =
+        Iterant[Task].nextBatchS(Batch.fromSeq(list, recommendedBatchSize), Task.delay(Iterant[Task].lastS[Int](elem)))
       val f: Int => List[Int] = List.fill(recommendedBatchSize * 2)(_)
 
       val received = stream.mapBatch(f andThen (Batch.fromSeq(_))).toListL
@@ -57,9 +58,11 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].empty[Int])).guarantee(Task.evalAsync {
-      isCanceled = true
-    })
+    val stream = Iterant[Task]
+      .nextS(1, Task.evalAsync(Iterant[Task].empty[Int]))
+      .guarantee(Task.evalAsync {
+        isCanceled = true
+      })
     val result = stream.mapBatch[Int](_ => throw dummy).toListL.runToFuture
 
     s.tick()
@@ -71,7 +74,8 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextCursorS(BatchCursor(1, 2, 3), Task.evalAsync(Iterant[Task].empty[Int]))
+    val stream = Iterant[Task]
+      .nextCursorS(BatchCursor(1, 2, 3), Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync {
         isCanceled = true
       })
@@ -94,7 +98,8 @@ object IterantMapBatchSuite extends BaseTestSuite {
           effect += 1
         })
         .mapBatch[Int](_ => throw dummy)
-        .completedL.map(_ => 0)
+        .completedL
+        .map(_ => 0)
         .onErrorRecover { case _: DummyException => effect }
 
       received <-> Task.pure(1)
@@ -141,7 +146,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
     check1 { (el: Int) =>
       val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]))
       val received = stream.mapBatch(Batch.apply(_)).take(10).toListL
-      val expected = Coeval(Stream.continually(el).take(10).toList)
+      val expected = Coeval(Iterator.continually(el).take(10).toList)
 
       received <-> expected
     }
@@ -171,9 +176,11 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int])).guarantee(Coeval {
-      isCanceled = true
-    })
+    val stream = Iterant[Coeval]
+      .nextS(1, Coeval(Iterant[Coeval].empty[Int]))
+      .guarantee(Coeval {
+        isCanceled = true
+      })
     val result = stream.mapBatch[Int](_ => throw dummy).toListL.runTry()
 
     assertEquals(result, Failure(dummy))
@@ -184,9 +191,11 @@ object IterantMapBatchSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval(Iterant[Coeval].empty[Int])).guarantee(Coeval {
-      isCanceled = true
-    })
+    val stream = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]))
+      .guarantee(Coeval {
+        isCanceled = true
+      })
     val result = stream.mapBatch[Int](_ => throw dummy).toListL.runTry()
 
     assertEquals(result, Failure(dummy))
@@ -226,7 +235,8 @@ object IterantMapBatchSuite extends BaseTestSuite {
   test("Iterant[Coeval].mapBatch preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
+    val source =
+      Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.mapBatch(Batch.apply(_))
     stream.completedL.value()
     assertEquals(effect, 1)

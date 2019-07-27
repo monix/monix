@@ -21,8 +21,7 @@ import monix.execution.Ack.Continue
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] final class DropFirstOperator[A](nr: Long)
-  extends Operator[A, A] {
+private[reactive] final class DropFirstOperator[A](nr: Long) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {

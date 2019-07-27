@@ -23,16 +23,17 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests, SemigroupKTests}
 import monix.eval.instances.CatsParallelForTask
 
-object TypeClassLawsForTaskSuite extends BaseTypeClassLawsForTaskSuite()(
-  Task.defaultOptions.disableAutoCancelableRunLoops
-)
+object TypeClassLawsForTaskSuite
+  extends BaseTypeClassLawsForTaskSuite()(
+    Task.defaultOptions.disableAutoCancelableRunLoops
+  )
 
-object TypeClassLawsForTaskAutoCancelableSuite extends BaseTypeClassLawsForTaskSuite()(
-  Task.defaultOptions.disableAutoCancelableRunLoops
-)
+object TypeClassLawsForTaskAutoCancelableSuite
+  extends BaseTypeClassLawsForTaskSuite()(
+    Task.defaultOptions.enableAutoCancelableRunLoops
+  )
 
-class BaseTypeClassLawsForTaskSuite(implicit opts: Task.Options)
-  extends BaseLawsSuite {
+class BaseTypeClassLawsForTaskSuite(implicit opts: Task.Options) extends BaseLawsSuite {
 
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 

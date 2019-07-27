@@ -40,7 +40,8 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
     val o2 = source.map(_ + 3)
     val o3 = source.map(_ + 4)
 
-    val f = Observable.fromIterable(Seq(o1, o2, o3))
+    val f = Observable
+      .fromIterable(Seq(o1, o2, o3))
       .mergeMap(x => x)(BackPressure(100))
       .sum
       .runAsyncGetFirst
@@ -61,7 +62,9 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
           def onError(ex: Throwable) = throw new IllegalStateException()
           def onComplete() = completed.countDown()
           val scheduler = s
-        }, BackPressure(8))
+        },
+        BackPressure(8)
+      )
 
       assertEquals(buffer.onNext(1), Continue)
       assertEquals(buffer.onNext(2), Continue)
@@ -151,7 +154,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
 
     def loop(n: Int): Unit =
       if (n > 0) s.execute(new Runnable {
-        def run() = { buffer.onNext(n); loop(n-1) }
+        def run() = { buffer.onNext(n); loop(n - 1) }
       })
       else
         buffer.onComplete()
@@ -264,7 +267,9 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onError(new RuntimeException("dummy"))
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
@@ -284,7 +289,9 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
         def onNext(elem: Int) = Continue
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onNext(1)
     buffer.onError(new RuntimeException("dummy"))
@@ -304,7 +311,9 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
         def onNext(elem: Int) = promise.future
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onNext(1)
     buffer.onNext(2)
@@ -325,7 +334,9 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = latch.countDown()
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onComplete()
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
@@ -340,7 +351,9 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
         def onNext(elem: Int) = promise.future
         def onComplete() = latch.countDown()
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onNext(1)
     buffer.onComplete()
@@ -357,7 +370,9 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
         def onNext(elem: Int) = promise.future
         def onComplete() = latch.countDown()
         val scheduler = s
-      }, BackPressure(5))
+      },
+      BackPressure(5)
+    )
 
     buffer.onNext(1)
     buffer.onNext(2)
@@ -388,7 +403,9 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
         def onError(ex: Throwable) = throw ex
         def onComplete() = complete.countDown()
         val scheduler = s
-      }, BackPressure(totalCount))
+      },
+      BackPressure(totalCount)
+    )
 
     (0 until (totalCount - 1)).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -414,13 +431,15 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
         def onError(ex: Throwable) = throw ex
         def onComplete() = complete.countDown()
         val scheduler = s
-      }, BackPressure(totalCount))
+      },
+      BackPressure(totalCount)
+    )
 
-    (0 until (totalCount-1)).foreach(x => buffer.onNext(x))
+    (0 until (totalCount - 1)).foreach(x => buffer.onNext(x))
     buffer.onComplete()
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-    assert(sum == (0 until (totalCount-1)).sum)
+    assert(sum == (0 until (totalCount - 1)).sum)
   }
 
   test("should do onError only after the queue was drained") { scheduler =>
@@ -440,14 +459,16 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
         def onError(ex: Throwable) = complete.countDown()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(totalCount))
+      },
+      BackPressure(totalCount)
+    )
 
-    (0 until (totalCount-1)).foreach(x => buffer.onNext(x))
+    (0 until (totalCount - 1)).foreach(x => buffer.onNext(x))
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-    assertEquals(sum, (0 until (totalCount-1)).sum)
+    assertEquals(sum, (0 until (totalCount - 1)).sum)
   }
 
   test("should do onError only after all the queue was drained, test2") { scheduler =>
@@ -466,12 +487,14 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
         def onError(ex: Throwable) = complete.countDown()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(totalCount))
+      },
+      BackPressure(totalCount)
+    )
 
-    (0 until (totalCount-1)).foreach(x => buffer.onNext(x))
+    (0 until (totalCount - 1)).foreach(x => buffer.onNext(x))
     buffer.onError(new RuntimeException)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-    assertEquals(sum, (0 until (totalCount-1)).sum)
+    assertEquals(sum, (0 until (totalCount - 1)).sum)
   }
 }

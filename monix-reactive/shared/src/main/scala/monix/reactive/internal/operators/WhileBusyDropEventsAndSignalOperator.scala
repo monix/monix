@@ -25,20 +25,19 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive] final
-class WhileBusyDropEventsAndSignalOperator[A](onOverflow: Long => A)
-  extends Operator[A,A] {
+private[reactive] final class WhileBusyDropEventsAndSignalOperator[A](onOverflow: Long => A) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber.Sync[A] =
     new Subscriber.Sync[A] {
       implicit val scheduler = out.scheduler
 
-      private[this] var ack = Continue : Future[Ack]
+      private[this] var ack = Continue: Future[Ack]
       private[this] var eventsDropped = 0L
       private[this] var isDone = false
 
       def onNext(elem: A) =
-        if (isDone) Stop else
+        if (isDone) Stop
+        else
           ack.syncTryFlatten match {
             case Continue =>
               // Protects calls to user code from within the operator and
@@ -84,22 +83,23 @@ class WhileBusyDropEventsAndSignalOperator[A](onOverflow: Long => A)
 
           if (!hasOverflow)
             out.onComplete()
-          else ack.syncOnContinue {
-            // Protects calls to user code from within the operator and
-            // stream the error downstream if it happens, but if the
-            // error happens because of calls to `onNext` or other
-            // protocol calls, then the behavior should be undefined.
-            var streamError = true
-            try {
-              val message = onOverflow(eventsDropped)
-              streamError = false
-              out.onNext(message)
-              out.onComplete()
-            } catch {
-              case NonFatal(ex) if streamError =>
-                out.onError(ex)
+          else
+            ack.syncOnContinue {
+              // Protects calls to user code from within the operator and
+              // stream the error downstream if it happens, but if the
+              // error happens because of calls to `onNext` or other
+              // protocol calls, then the behavior should be undefined.
+              var streamError = true
+              try {
+                val message = onOverflow(eventsDropped)
+                streamError = false
+                out.onNext(message)
+                out.onComplete()
+              } catch {
+                case NonFatal(ex) if streamError =>
+                  out.onError(ex)
+              }
             }
-          }
         }
     }
 }

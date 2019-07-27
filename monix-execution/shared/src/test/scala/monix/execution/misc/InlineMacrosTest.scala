@@ -63,7 +63,6 @@ object InlineMacrosTest extends SimpleTestSuite {
     }
   }
 
-
   test("Inline function with underscore") {
     val box = TestBox(1)
     val mapped = box.map(_ + 1)
@@ -117,7 +116,8 @@ object InlineMacrosTest extends SimpleTestSuite {
     def increment(x: Int): Int = throw dummy
 
     val mapped = box.map { x =>
-      try increment(x) catch {
+      try increment(x)
+      catch {
         case ex if NonFatal(ex) =>
           assertEquals(ex, dummy)
           x + 1

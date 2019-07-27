@@ -23,7 +23,7 @@ import monix.execution.UncaughtExceptionReporter.{default => Logger}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.internal.Platform
+import monix.execution.internal.{AttemptCallback, Platform}
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.rstreams.Subscription
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
@@ -34,20 +34,16 @@ import org.reactivestreams.{Publisher, Subscriber}
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-
 private[tail] object IterantToReactivePublisher {
   /**
     * Implementation for `toReactivePublisher`
     */
-  def apply[F[_], A](self: Iterant[F, A])
-    (implicit F: Effect[F]): Publisher[A] = {
+  def apply[F[_], A](self: Iterant[F, A])(implicit F: Effect[F]): Publisher[A] = {
 
     new IterantPublisher(self)
   }
 
-  private final class IterantPublisher[F[_], A](source: Iterant[F, A])
-    (implicit F: Effect[F])
-    extends Publisher[A] {
+  private final class IterantPublisher[F[_], A](source: Iterant[F, A])(implicit F: Effect[F]) extends Publisher[A] {
 
     def subscribe(out: Subscriber[_ >: A]): Unit = {
       // Reactive Streams requirement
@@ -69,14 +65,14 @@ private[tail] object IterantToReactivePublisher {
     }
   }
 
-  private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[_ >: A])
-    (implicit F: Effect[F])
+  private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[_ >: A])(
+    implicit F: Effect[F])
     extends Subscription { parent =>
 
     private[this] val cancelable =
       SingleAssignCancelable()
     private[this] val state =
-      Atomic.withPadding(null : RequestState, LeftRight128)
+      Atomic.withPadding(null: RequestState, LeftRight128)
 
     def request(n: Long): Unit = {
       // Tail-recursive function modifying `requested`
@@ -106,11 +102,12 @@ private[tail] object IterantToReactivePublisher {
         }
 
       if (n <= 0) {
-        cancelWithSignal(Some(
-          new IllegalArgumentException(
-            "n must be strictly positive, according to " +
-            "the Reactive Streams contract, rule 3.9"
-          )))
+        cancelWithSignal(
+          Some(
+            new IllegalArgumentException(
+              "n must be strictly positive, according to " +
+                "the Reactive Streams contract, rule 3.9"
+            )))
       } else {
         loop(n)
       }
@@ -146,11 +143,17 @@ private[tail] object IterantToReactivePublisher {
 
     def startLoop(): Unit = {
       val loop = new Loop
-      cancelable := Cancelable.fromIO(
-        F.toIO(loop(source)).unsafeRunCancelable({
+      val token = F
+        .toIO(loop(source))
+        .unsafeRunCancelable({
           case Left(error) => Logger.reportFailure(error)
           case _ => ()
-      }))(UncaughtExceptionReporter.default)
+        })
+      cancelable := Cancelable(
+        () =>
+          token.unsafeRunAsync(
+            AttemptCallback.empty(UncaughtExceptionReporter.default)
+          ))
     }
 
     private final class Loop extends Iterant.Visitor[F, A, F[Unit]] {
@@ -176,10 +179,11 @@ private[tail] object IterantToReactivePublisher {
         _stack == null || _stack.isEmpty
 
       private[this] val concatContinue: (Unit => F[Unit]) =
-        state => stackPop() match {
-          case null => F.pure(state)
-          case xs => xs.flatMap(this)
-        }
+        state =>
+          stackPop() match {
+            case null => F.pure(state)
+            case xs => xs.flatMap(this)
+          }
       //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
       private def poll(cb: Either[Throwable, Unit] => Unit = null): F[Unit] = {
@@ -331,16 +335,11 @@ private[tail] object IterantToReactivePublisher {
 
   private sealed abstract class RequestState
 
-  private final case class Request(n: Long)
-    extends RequestState
+  private final case class Request(n: Long) extends RequestState
 
-  private final case class Await(
-    cb: Either[Throwable, Unit] => Unit)
-    extends RequestState
+  private final case class Await(cb: Either[Throwable, Unit] => Unit) extends RequestState
 
-  private final case class Interrupt(
-    err: Option[Throwable])
-    extends RequestState
+  private final case class Interrupt(err: Option[Throwable]) extends RequestState
 
   private[this] val rightUnit = Right(())
 }

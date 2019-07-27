@@ -25,8 +25,7 @@ import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-private[reactive] final
-class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends Observable[A] {
+private[reactive] final class AsyncStateActionObservable[S, A](seed: => S, f: S => Task[(A, S)]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
     var streamErrors = true
@@ -34,11 +33,11 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
       val init = seed
       streamErrors = false
 
-      Task.defer(loop(subscriber, init))
+      Task
+        .defer(loop(subscriber, init))
         .executeWithOptions(_.enableAutoCancelableRunLoops)
         .runAsync(Callback.empty)
-    }
-    catch {
+    } catch {
       case ex if NonFatal(ex) =>
         if (streamErrors) subscriber.onError(ex)
         else subscriber.scheduler.reportFailure(ex)
@@ -51,14 +50,15 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
       { ex =>
         subscriber.onError(ex)
         Task.unit
-      },
-      { case (a, newState) =>
-        Task.fromFuture(subscriber.onNext(a)).flatMap {
-          case Continue => loop(subscriber, newState)
-          case Stop => Task.unit
-        }
+      }, {
+        case (a, newState) =>
+          Task.fromFuture(subscriber.onNext(a), allowContinueOnCallingThread = true).flatMap {
+            case Continue => loop(subscriber, newState)
+            case Stop => Task.unit
+          }
       }
-    ) catch {
+    )
+    catch {
       case ex if NonFatal(ex) =>
         Task.raiseError(ex)
     }

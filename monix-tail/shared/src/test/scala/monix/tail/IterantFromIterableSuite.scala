@@ -33,7 +33,7 @@ object IterantFromIterableSuite extends BaseTestSuite {
 
   test("Iterant[Task].fromIterable (async)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = Iterant[Task].fromIterable(list) .mapEval(x => Task.evalAsync(x)).toListL
+      val result = Iterant[Task].fromIterable(list).mapEval(x => Task.evalAsync(x)).toListL
       result <-> Task.now(list)
     }
   }
@@ -58,7 +58,7 @@ object IterantFromIterableSuite extends BaseTestSuite {
 
   test("Iterant[Coeval].fromIterable (async)") { _ =>
     check1 { (list: List[Int]) =>
-      val result = Iterant[Coeval].fromIterable(list) .mapEval(x => Coeval(x)).toListL
+      val result = Iterant[Coeval].fromIterable(list).mapEval(x => Coeval(x)).toListL
       result <-> Coeval.now(list)
     }
   }

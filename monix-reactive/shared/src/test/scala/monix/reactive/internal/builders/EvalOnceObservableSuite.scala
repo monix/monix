@@ -20,15 +20,16 @@ package monix.reactive.internal.builders
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.Future
 
 object EvalOnceObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should work") { implicit s =>
@@ -63,5 +64,25 @@ object EvalOnceObservableSuite extends TestSuite[TestScheduler] {
 
     assertEquals(wasCompleted, 2)
     assertEquals(received, 2)
+  }
+
+  test("should not work") { implicit s =>
+    var received = 0
+    var errors = 0
+
+    val obs = Observable.evalOnce { throw new DummyException() }
+
+    obs.unsafeSubscribeFn(new Observer[Int] {
+      def onNext(elem: Int): Future[Ack] = {
+        received += elem
+        Continue
+      }
+
+      def onError(ex: Throwable): Unit = errors += 1
+      def onComplete(): Unit = ()
+    })
+
+    assertEquals(errors, 1)
+    assertEquals(received, 0)
   }
 }

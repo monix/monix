@@ -17,6 +17,8 @@
 
 package monix.execution
 
+import java.lang.Thread.UncaughtExceptionHandler
+
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 
@@ -29,8 +31,8 @@ import scala.concurrent.ExecutionContext
   */
 @implicitNotFound(
   "No ExceptionReporter was found in context for " +
-  "reporting uncaught errors, either build one yourself or use " +
-  "an implicit Scheduler (schedulers are ExceptionReporters)")
+    "reporting uncaught errors, either build one yourself or use " +
+    "an implicit Scheduler (schedulers are ExceptionReporters)")
 trait UncaughtExceptionReporter extends Serializable {
   def reportFailure(ex: Throwable): Unit
 }
@@ -59,10 +61,22 @@ object UncaughtExceptionReporter {
   /**
     * DEPRECATED - use [[default]] instead.
     */
-  @deprecated("Use UncaughtExceptionReporter.default", since="3.0.0")
+  @deprecated("Use UncaughtExceptionReporter.default", since = "3.0.0")
   val LogExceptionsToStandardErr = {
     // $COVERAGE-OFF$
     UncaughtExceptionReporter(ExecutionContext.defaultReporter)
     // $COVERAGE-ON$
+  }
+
+  implicit final class Extensions(val r: UncaughtExceptionReporter) extends AnyVal {
+    /**
+      * Converts [[UncaughtExceptionReporter]] to Java's
+      * [[https://docs.oracle.com/javase/8/docs/api/java/lang/Thread.UncaughtExceptionHandler.html UncaughtExceptionHandler]].
+      */
+    def asJava: UncaughtExceptionHandler =
+      new UncaughtExceptionHandler {
+        override def uncaughtException(t: Thread, e: Throwable): Unit =
+          r.reportFailure(e)
+      }
   }
 }

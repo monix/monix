@@ -41,7 +41,7 @@ object CacheSuite extends BaseOperatorSuite {
   }
 
   test("should require capacity > 0") { implicit s =>
-    intercept[IllegalArgumentException]{
+    intercept[IllegalArgumentException] {
       Observable.empty[Int].cache(0)
     }
   }

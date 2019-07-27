@@ -31,10 +31,11 @@ object PipeThroughSuite extends BaseOperatorSuite {
     Some {
       val pipe = Pipe.publishToOne[Long].transform(_.map(_ * 2))
 
-      val o = if (sourceCount == 1)
-        Observable.now(1L).pipeThrough(pipe)
-      else
-        Observable.range(1, sourceCount+1, 1).pipeThrough(pipe)
+      val o =
+        if (sourceCount == 1)
+          Observable.now(1L).pipeThrough(pipe)
+        else
+          Observable.range(1, sourceCount + 1, 1).pipeThrough(pipe)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -46,12 +47,13 @@ object PipeThroughSuite extends BaseOperatorSuite {
       val ex = DummyException("dummy")
       val pipe = Pipe.publishToOne[Long].transform(_.map(_ * 2))
 
-      val o = if (sourceCount == 1)
-        createObservableEndingInError(Observable.now(1L), ex)
-          .pipeThrough(pipe)
-      else
-        createObservableEndingInError(Observable.range(1, sourceCount+1, 1), ex)
-          .pipeThrough(pipe)
+      val o =
+        if (sourceCount == 1)
+          createObservableEndingInError(Observable.now(1L), ex)
+            .pipeThrough(pipe)
+        else
+          createObservableEndingInError(Observable.range(1, sourceCount + 1, 1), ex)
+            .pipeThrough(pipe)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }

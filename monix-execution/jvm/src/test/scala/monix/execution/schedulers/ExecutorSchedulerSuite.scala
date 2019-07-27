@@ -26,11 +26,11 @@ import monix.execution.exceptions.DummyException
 import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise, blocking}
+import scala.concurrent.{blocking, Await, Promise}
 
 abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self =>
-  var lastReportedFailure = null : Throwable
-  var lastReportedFailureLatch = null : CountDownLatch
+  var lastReportedFailure = null: Throwable
+  var lastReportedFailureLatch = null: CountDownLatch
 
   val testsReporter = UncaughtExceptionReporter { ex =>
     self.synchronized {
@@ -43,7 +43,8 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   }
 
   override def tearDown(scheduler: SchedulerService): Unit = {
-    try assert(!scheduler.isShutdown) finally scheduler.shutdown()
+    try assert(!scheduler.isShutdown)
+    finally scheduler.shutdown()
     assert(scheduler.isShutdown, "scheduler.isShutdown")
     val result = scheduler.awaitTermination(10.seconds)
     assert(result, "scheduler.awaitTermination")
@@ -88,8 +89,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
         value += 1
         sub.cancel()
         p.success(value)
-      }
-      else if (value < 4) {
+      } else if (value < 4) {
         value += 1
       }
     })
@@ -107,8 +107,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
         value += 1
         sub.cancel()
         p.success(value)
-      }
-      else if (value < 4) {
+      } else if (value < 4) {
         value += 1
       }
     })
@@ -121,7 +120,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     def loop(n: Int): Unit =
       scheduler.executeTrampolined { () =>
         result += 1
-        if (n-1 > 0) loop(n-1)
+        if (n - 1 > 0) loop(n - 1)
       }
 
     val count = 100000
@@ -193,20 +192,14 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
 
 object ComputationSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
-    monix.execution.Scheduler.forkJoin(
-      name = "monix-tests-computation",
-      parallelism = 4,
-      maxThreads = 256,
-      reporter=testsReporter)
+    monix.execution.Scheduler
+      .forkJoin(name = "monix-tests-computation", parallelism = 4, maxThreads = 256, reporter = testsReporter)
 }
 
 object ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
-    monix.execution.Scheduler.forkJoin(
-      name = "monix-tests-forkjoin",
-      parallelism = 4,
-      maxThreads = 256,
-      reporter=testsReporter)
+    monix.execution.Scheduler
+      .forkJoin(name = "monix-tests-forkjoin", parallelism = 4, maxThreads = 256, reporter = testsReporter)
 
   test("integrates with Scala's BlockContext") { scheduler =>
     val threadsCount = 100
@@ -228,20 +221,20 @@ object ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
 
 object FixedPoolSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
-    monix.execution.Scheduler.fixedPool("monix-tests-fixedPool", poolSize = 4, reporter=testsReporter)
+    monix.execution.Scheduler.fixedPool("monix-tests-fixedPool", poolSize = 4, reporter = testsReporter)
 }
 
 object SingleThreadSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
-    monix.execution.Scheduler.singleThread("monix-tests-singleThread", reporter=testsReporter)
+    monix.execution.Scheduler.singleThread("monix-tests-singleThread", reporter = testsReporter)
 }
 
 object CachedSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
-    monix.execution.Scheduler.cached("monix-tests-cached", 1, 4, reporter=testsReporter)
+    monix.execution.Scheduler.cached("monix-tests-cached", 1, 4, reporter = testsReporter)
 }
 
 object IOSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
-    monix.execution.Scheduler.io("monix-tests-io", reporter=testsReporter)
+    monix.execution.Scheduler.io("monix-tests-io", reporter = testsReporter)
 }

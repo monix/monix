@@ -40,7 +40,6 @@ object DelayExecutionWithSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-
   test("it delays") { implicit s =>
     val obs = Observable.now(1).delayExecution(1.second)
     var wasCompleted = false

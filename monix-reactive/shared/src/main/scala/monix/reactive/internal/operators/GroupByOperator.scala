@@ -30,10 +30,10 @@ import monix.reactive.{Observer, OverflowStrategy}
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
-private[reactive] final class GroupByOperator[A,K](
+private[reactive] final class GroupByOperator[A, K](
   os: OverflowStrategy.Synchronous[GroupedObservable[K, A]],
   keyFn: A => K)
-  extends Operator[A,GroupedObservable[K,A]] {
+  extends Operator[A, GroupedObservable[K, A]] {
 
   def apply(subscriber: Subscriber[GroupedObservable[K, A]]): Subscriber[A] =
     new Subscriber[A] { self =>
@@ -53,7 +53,8 @@ private[reactive] final class GroupByOperator[A,K](
         onNext(elem)
 
       @tailrec def onNext(elem: A): Future[Ack] =
-        if (isDone) Stop else {
+        if (isDone) Stop
+        else {
           val cache = cacheRef.get()
           var streamError = true
 
@@ -73,7 +74,7 @@ private[reactive] final class GroupByOperator[A,K](
             } else {
               val onCancel = Cancelable(() => recycleKey(key))
               val (observer, observable) =
-                GroupedObservable.broadcast[K,A](key, onCancel)
+                GroupedObservable.broadcast[K, A](key, onCancel)
 
               if (cacheRef.compareAndSet(cache, cache.updated(key, observer)))
                 downstream.onNext(observable).syncFlatMap {
@@ -86,8 +87,7 @@ private[reactive] final class GroupByOperator[A,K](
                     if (errors.nonEmpty)
                       self.onError(CompositeException(errors))
                     Stop
-                }
-              else
+                } else
                 null // this will trigger a tailrec retry
             }
           } catch {
@@ -112,8 +112,7 @@ private[reactive] final class GroupByOperator[A,K](
             try {
               o.onComplete()
               acc
-            }
-            catch {
+            } catch {
               case ex if NonFatal(ex) =>
                 acc :+ ex
             }

@@ -31,8 +31,7 @@ import monix.reactive.observers.Subscriber
   * being effectively a way to transform observables into
   * [[monix.eval.Task tasks]] for less error prone consuming of streams.
   */
-abstract class Consumer[-In, +R] extends (Observable[In] => Task[R])
-  with Serializable { self =>
+abstract class Consumer[-In, +R] extends (Observable[In] => Task[R]) with Serializable { self =>
 
   /** Builds a new [[monix.reactive.observers.Subscriber Subscriber]]
     * that can be subscribed to an [[Observable]] for consuming a stream,
@@ -66,33 +65,36 @@ abstract class Consumer[-In, +R] extends (Observable[In] => Task[R])
     * by piggybacking on [[createSubscriber]].
     */
   final def apply(source: Observable[In]): Task[R] =
-    Task.create { (scheduler, cb) =>
-      val (out, consumerSubscription) = createSubscriber(cb, scheduler)
-      // Start consuming the stream
-      val sourceSubscription = source.subscribe(out)
-      // Assign the observable subscription to our assignable,
-      // thus the subscriber can cancel its subscription
-      consumerSubscription := sourceSubscription
-      // We might not return the assignable returned by `createSubscriber`
-      // because it might be a dummy
-      if (consumerSubscription.isInstanceOf[Cancelable.IsDummy])
-        sourceSubscription
-      else
-        consumerSubscription
-    }
+    Task.create(
+      { (scheduler, cb) =>
+        val (out, consumerSubscription) = createSubscriber(cb, scheduler)
+        // Start consuming the stream
+        val sourceSubscription = source.subscribe(out)
+        // Assign the observable subscription to our assignable,
+        // thus the subscriber can cancel its subscription
+        consumerSubscription := sourceSubscription
+        // We might not return the assignable returned by `createSubscriber`
+        // because it might be a dummy
+        if (consumerSubscription.isInstanceOf[Cancelable.IsDummy])
+          sourceSubscription
+        else
+          consumerSubscription
+      },
+      allowContinueOnCallingThread = true
+    )
 
   /** Given a contravariant mapping function, transform
     * the source consumer by transforming the input.
     */
   final def contramap[In2](f: In2 => In): Consumer[In2, R] =
-    new ContraMapConsumer[In2,In,R](self, f)
+    new ContraMapConsumer[In2, In, R](self, f)
 
   /** Given a function that transforms the input stream, uses it
     * to transform the source consumer into one that accepts events
     * of the type specified by the transformation function.
     */
   final def transformInput[In2](f: Observable[In2] => Observable[In]): Consumer[In2, R] =
-    new TransformInputConsumer[In2,In,R](self, f)
+    new TransformInputConsumer[In2, In, R](self, f)
 
   /** Given a mapping function, when consuming a stream,
     * applies the mapping function to the final result,
@@ -108,7 +110,7 @@ abstract class Consumer[-In, +R] extends (Observable[In] => Task[R])
     *      to a `Task` that can be processed asynchronously.
     */
   final def map[R2](f: R => R2): Consumer[In, R2] =
-    new MapConsumer[In,R,R2](self, f)
+    new MapConsumer[In, R, R2](self, f)
 
   /** Given a mapping function, when consuming a stream,
     * applies the mapping function to the final result,
@@ -123,7 +125,7 @@ abstract class Consumer[-In, +R] extends (Observable[In] => Task[R])
     * See [[mapTask]] for the version that's specialized on `Task`.
     */
   final def mapEval[F[_], R2](f: R => F[R2])(implicit F: TaskLike[F]): Consumer[In, R2] =
-    new MapTaskConsumer[In,R,R2](self, r => F.toTask(f(r)))
+    new MapTaskConsumer[In, R, R2](self, r => F(f(r)))
 
   /** Given a mapping function, when consuming a stream,
     * applies the mapping function to the final result,
@@ -142,7 +144,7 @@ abstract class Consumer[-In, +R] extends (Observable[In] => Task[R])
     * data type that implements `cats.effect.Effect`.
     */
   final def mapTask[R2](f: R => Task[R2]): Consumer[In, R2] =
-    new MapTaskConsumer[In,R,R2](self, f)
+    new MapTaskConsumer[In, R, R2](self, f)
 }
 
 /** The companion object of [[Consumer]], defines consumer builders.
@@ -205,8 +207,8 @@ object Consumer {
     * @param f is the input function with an injected `Scheduler`,
     *        `Cancelable`, `Callback` and that returns an `Observer`
     */
-  def create[In,Out](f: (Scheduler, Cancelable, Callback[Throwable, Out]) => Observer[In]): Consumer[In,Out] =
-    new CreateConsumer[In,Out](f)
+  def create[In, Out](f: (Scheduler, Cancelable, Callback[Throwable, Out]) => Observer[In]): Consumer[In, Out] =
+    new CreateConsumer[In, Out](f)
 
   /** Given a function taking a `Scheduler` and returning an [[Observer]],
     * builds a consumer from it.
@@ -225,7 +227,7 @@ object Consumer {
   /** A consumer that triggers an error and immediately cancels its
     * upstream after subscription.
     */
-  def raiseError[In, R](ex: Throwable): Consumer.Sync[In,R] =
+  def raiseError[In, R](ex: Throwable): Consumer.Sync[In, R] =
     new RaiseErrorConsumer(ex)
 
   /** Given a fold function and an initial state value, applies the
@@ -237,8 +239,8 @@ object Consumer {
     * @param f is the function that calculates a new state on each
     *        emitted value by the stream, for accumulating state
     */
-  def foldLeft[S,A](initial: => S)(f: (S,A) => S): Consumer.Sync[A,S] =
-    new FoldLeftConsumer[A,S](initial _, f)
+  def foldLeft[S, A](initial: => S)(f: (S, A) => S): Consumer.Sync[A, S] =
+    new FoldLeftConsumer[A, S](initial _, f)
 
   /** Given a fold function and an initial state value, applies the
     * fold function to every element of the stream and finally signaling
@@ -258,7 +260,7 @@ object Consumer {
     *        execution.
     */
   def foldLeftEval[F[_], S, A](initial: => S)(f: (S, A) => F[S])(implicit F: TaskLike[F]): Consumer[A, S] =
-    new FoldLeftTaskConsumer[A,S](initial _, (s, a) => F.toTask(f(s, a)))
+    new FoldLeftTaskConsumer[A, S](initial _, (s, a) => F(f(s, a)))
 
   /** Given a fold function and an initial state value, applies the
     * fold function to every element of the stream and finally signaling
@@ -273,8 +275,8 @@ object Consumer {
     *        emitted value by the stream, for accumulating state,
     *        returning a `Task` capable of asynchronous execution.
     */
-  def foldLeftTask[S,A](initial: => S)(f: (S,A) => Task[S]): Consumer[A,S] =
-    new FoldLeftTaskConsumer[A,S](initial _, f)
+  def foldLeftTask[S, A](initial: => S)(f: (S, A) => Task[S]): Consumer[A, S] =
+    new FoldLeftTaskConsumer[A, S](initial _, f)
 
   /** A consumer that will produce the first streamed value on
     * `onNext` after which the streaming gets cancelled.
@@ -335,7 +337,7 @@ object Consumer {
     * @param cb is the function that will be called for each element
     */
   def foreachEval[F[_], A](cb: A => F[Unit])(implicit F: TaskLike[F]): Consumer[A, Unit] =
-    foreachTask(a => F.toTask(cb(a)))
+    foreachTask(a => F(cb(a)))
 
   /** Builds a consumer that will consume the stream, applying the given
     * function to each element and then finally signaling its completion.
@@ -382,8 +384,8 @@ object Consumer {
     *
     * @return $loadBalanceReturn
     */
-  def loadBalance[A,R](parallelism: Int, consumer: Consumer[A,R]): Consumer[A, List[R]] =
-    new LoadBalanceConsumer[A,R](parallelism, Array(consumer))
+  def loadBalance[A, R](parallelism: Int, consumer: Consumer[A, R]): Consumer[A, List[R]] =
+    new LoadBalanceConsumer[A, R](parallelism, Array(consumer))
 
   /** $loadBalanceDesc
     *
@@ -394,8 +396,8 @@ object Consumer {
     *
     * @return $loadBalanceReturn
     */
-  def loadBalance[A,R](consumers: Consumer[A,R]*): Consumer[A, List[R]] =
-    new LoadBalanceConsumer[A,R](consumers.length, consumers.toArray)
+  def loadBalance[A, R](consumers: Consumer[A, R]*): Consumer[A, List[R]] =
+    new LoadBalanceConsumer[A, R](consumers.length, consumers.toArray)
 
   /** Defines a synchronous [[Consumer]] that builds
     * [[monix.reactive.observers.Subscriber.Sync synchronous subscribers]].

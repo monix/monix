@@ -26,8 +26,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive] final
-class DumpObservable[A](source: Observable[A], prefix: String, out: PrintStream)
+private[reactive] final class DumpObservable[A](source: Observable[A], prefix: String, out: PrintStream)
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

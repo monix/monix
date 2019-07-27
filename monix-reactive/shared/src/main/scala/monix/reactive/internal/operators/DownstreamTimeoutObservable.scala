@@ -29,8 +29,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
-private[reactive] final class DownstreamTimeoutObservable[+A](
-  source: Observable[A], timeout: FiniteDuration)
+private[reactive] final class DownstreamTimeoutObservable[+A](source: Observable[A], timeout: FiniteDuration)
   extends Observable[A] {
 
   def unsafeSubscribeFn(downstream: Subscriber[A]): Cancelable = {
@@ -63,8 +62,7 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
           if (sinceLastOnNextInMillis >= timeoutMillis) {
             // Oops, timeout happened, triggering error.
             triggerTimeout()
-          }
-          else {
+          } else {
             val remainingTimeMillis = timeoutMillis - sinceLastOnNextInMillis
             // No need for synchronization or ordering on this assignment, since
             // there is a clear happens-before relationship between invocations
@@ -84,7 +82,8 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
         // we don't synchronize, then we can break the contract by sending
         // an `onNext` concurrently with an `onError` :-(
         self.synchronized {
-          if (isDone) Stop else {
+          if (isDone) Stop
+          else {
             isProcessingOnNext = true
             lastEmittedMillis = scheduler.clockMonotonic(MILLISECONDS)
 
@@ -111,24 +110,24 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
         if (!isDone) {
           isDone = true
           val ex = DownstreamTimeoutException(timeout)
-          try downstream.onError(ex) finally
-            mainTask.cancel()
+          try downstream.onError(ex)
+          finally mainTask.cancel()
         }
       }
 
       def onError(ex: Throwable): Unit = self.synchronized {
         if (!isDone) {
           isDone = true
-          try downstream.onError(ex) finally
-            timeoutCheck.cancel()
+          try downstream.onError(ex)
+          finally timeoutCheck.cancel()
         }
       }
 
       def onComplete(): Unit = self.synchronized {
         if (!isDone) {
           isDone = true
-          try downstream.onComplete() finally
-            timeoutCheck.cancel()
+          try downstream.onComplete()
+          finally timeoutCheck.cancel()
         }
       }
     })

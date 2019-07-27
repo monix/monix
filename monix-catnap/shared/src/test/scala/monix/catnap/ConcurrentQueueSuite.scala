@@ -71,9 +71,9 @@ object ConcurrentQueueGlobalSuite extends BaseConcurrentQueueSuite[Scheduler] {
 
 abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
   implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
-    s.contextShift[IO](IO.ioEffect)
+    SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
   implicit def timer(implicit s: Scheduler): Timer[IO] =
-    s.timerLiftIO[IO](IO.ioEffect)
+    SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
   val repeatForFastTests = {
     if (Platform.isJVM) 1000 else 100
@@ -85,7 +85,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
   /** TO IMPLEMENT ... */
   def testIO(name: String, times: Int = 1)(f: Scheduler => IO[Unit]): Unit
 
-  testIO("simple offer and poll", times=repeatForFastTests) { implicit s =>
+  testIO("simple offer and poll", times = repeatForFastTests) { implicit s =>
     for {
       queue <- ConcurrentQueue[IO].withConfig[Int](Bounded(10))
       _     <- queue.offer(1)
@@ -101,7 +101,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
-  testIO("async poll", times=repeatForFastTests) { implicit s =>
+  testIO("async poll", times = repeatForFastTests) { implicit s =>
     for {
       queue <- ConcurrentQueue[IO].bounded[Int](10)
       _     <- queue.offer(1)
@@ -116,7 +116,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
-  testIO("offer/poll over capacity", times=repeatForFastTests) { implicit s =>
+  testIO("offer/poll over capacity", times = repeatForFastTests) { implicit s =>
     val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(10))
     val count = 1000
 
@@ -126,8 +126,9 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
 
     def consumer(n: Int, acc: Queue[Int] = Queue.empty): IO[Long] =
       if (n > 0)
-        queue.poll.flatMap { a => consumer(n - 1, acc.enqueue(a)) }
-      else
+        queue.poll.flatMap { a =>
+          consumer(n - 1, acc.enqueue(a))
+        } else
         IO.pure(acc.sum)
 
     for {
@@ -140,7 +141,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
-  testIO("tryOffer / tryPoll", times=repeatForFastTests) { implicit ec =>
+  testIO("tryOffer / tryPoll", times = repeatForFastTests) { implicit ec =>
     val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(16))
     val count = 1000
 
@@ -159,8 +160,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
         queue.tryPoll.flatMap {
           case Some(a) => consumer(n - 1, acc.enqueue(a))
           case None => IO.shift *> consumer(n, acc)
-        }
-      else
+        } else
         IO.pure(acc.sum)
 
     for {
@@ -173,35 +173,35 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
-  testIO("drain; MPMC; unbounded", times=repeatForFastTests) { implicit ec =>
+  testIO("drain; MPMC; unbounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Unbounded(), MPMC)
   }
 
-  testIO("drain; MPSC; unbounded", times=repeatForFastTests) { implicit ec =>
+  testIO("drain; MPSC; unbounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Unbounded(), MPSC)
   }
 
-  testIO("drain; SPMC; unbounded", times=repeatForFastTests) { implicit ec =>
+  testIO("drain; SPMC; unbounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Unbounded(), SPMC)
   }
 
-  testIO("drain; SPMC; unbounded", times=repeatForFastTests) { implicit ec =>
+  testIO("drain; SPMC; unbounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Unbounded(), SPSC)
   }
 
-  testIO("drain; MPMC; bounded", times=repeatForFastTests) { implicit ec =>
+  testIO("drain; MPMC; bounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Bounded(32), MPMC)
   }
 
-  testIO("drain; MPSC; bounded", times=repeatForFastTests) { implicit ec =>
+  testIO("drain; MPSC; bounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Bounded(32), MPSC)
   }
 
-  testIO("drain; SPMC; bounded", times=repeatForFastTests) { implicit ec =>
+  testIO("drain; SPMC; bounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Bounded(32), SPMC)
   }
 
-  testIO("drain; SPMC; bounded", times=repeatForFastTests) { implicit ec =>
+  testIO("drain; SPMC; bounded", times = repeatForFastTests) { implicit ec =>
     testDrain(Bounded(32), SPSC)
   }
 
@@ -211,10 +211,10 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
 
     for {
       queue <- ConcurrentQueue[IO].withConfig[Int](bc, ct)
-      f1 <- queue.drain(1000, 1000).start
-      f2 <- queue.offerMany(elems).start
-      _  <- f2.join
-      r  <- f1.join
+      f1    <- queue.drain(1000, 1000).start
+      f2    <- queue.offerMany(elems).start
+      _     <- f2.join
+      r     <- f1.join
     } yield {
       assertEquals(r.sum, count * (count - 1) / 2)
     }
@@ -312,8 +312,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
     testConcurrency(queue, count, 1)
   }
 
-  def testConcurrency(queue: ConcurrentQueue[IO, Int], n: Int, workers: Int)
-    (implicit s: Scheduler): IO[Unit] = {
+  def testConcurrency(queue: ConcurrentQueue[IO, Int], n: Int, workers: Int)(implicit s: Scheduler): IO[Unit] = {
 
     def producer(n: Int): IO[Unit] = {
       def offerViaTry(n: Int): IO[Unit] =

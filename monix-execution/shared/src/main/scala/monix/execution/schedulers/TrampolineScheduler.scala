@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.{Cancelable, Features, Scheduler}
+import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 
@@ -53,10 +53,8 @@ import monix.execution.{ExecutionModel => ExecModel}
   * @param underlying is the `ExecutionContext` to which the it defers
   *        to in case real asynchronous is needed
   */
-final class TrampolineScheduler(
-  underlying: Scheduler,
-  override val executionModel: ExecModel)
-  extends Scheduler { self =>
+final class TrampolineScheduler(underlying: Scheduler, override val executionModel: ExecModel) extends Scheduler {
+  self =>
 
   private[this] val trampoline =
     TrampolineExecutionContext(underlying)
@@ -77,6 +75,8 @@ final class TrampolineScheduler(
     underlying.clockMonotonic(unit)
   override def withExecutionModel(em: ExecModel): TrampolineScheduler =
     new TrampolineScheduler(underlying, em)
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): TrampolineScheduler =
+    new TrampolineScheduler(underlying.withUncaughtExceptionReporter(r), executionModel)
   override def features: Features =
     underlying.features
 }
@@ -88,7 +88,7 @@ object TrampolineScheduler {
     *        to which the we defer to in case asynchronous or time-delayed
     *        execution is needed
     *
-    * @define executionModel is the preferred [[ExecutionModel]],
+    * @define executionModel is the preferred [[monix.execution.ExecutionModel ExecutionModel]],
     *         a guideline for run-loops and producers of data. Use
     *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
     *         for the default.

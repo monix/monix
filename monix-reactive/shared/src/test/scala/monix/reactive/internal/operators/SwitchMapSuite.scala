@@ -25,9 +25,11 @@ import scala.concurrent.duration._
 object SwitchMapSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val mainPeriod = 2.seconds + 500.millis
-    val o = Observable.interval(mainPeriod)
+    val o = Observable
+      .interval(mainPeriod)
       .switchMap(i => Observable.interval(1.second))
-      .bufferTimed(mainPeriod).map(_.sum)
+      .bufferTimed(mainPeriod)
+      .map(_.sum)
       .take(sourceCount)
 
     val sum = 3 * sourceCount
@@ -41,10 +43,11 @@ object SwitchMapSuite extends BaseOperatorSuite {
     val mainPeriod = 2.seconds + 500.millis
     val o = createObservableEndingInError(Observable.interval(mainPeriod).take(sourceCount), ex)
       .switchMap(i => Observable.interval(1.second))
-      .bufferTimed(mainPeriod).map(_.sum)
+      .bufferTimed(mainPeriod)
+      .map(_.sum)
 
-    val sum = 3 * (sourceCount-1)
-    Sample(o, sourceCount-1, sum, waitFirst, waitNext)
+    val sum = 3 * (sourceCount - 1)
+    Sample(o, sourceCount - 1, sum, waitFirst, waitNext)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
@@ -83,25 +86,14 @@ object SwitchMapSuite extends BaseOperatorSuite {
     assertEquals(r2.value.get, r1.value.get)
   }
 
-  test("switchMap should cancel child after stream has ended") { implicit s =>
-    val source = Observable.now(1L).switchMap { x =>
-      Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
-    }
+  test("Observable.unit.switchMap(_ => a) <-> a") { implicit s =>
+    val expectedCount = 100
+    val size = Observable.unit
+      .switchMap(_ => Observable.interval(1.second).take(expectedCount))
+      .countL
+      .runToFuture
 
-    var total = 0L
-    source.unsafeSubscribeFn(
-      new Observer.Sync[Long] {
-        def onNext(elem: Long): Ack = {
-          total += elem
-          Continue
-        }
-
-        def onError(ex: Throwable): Unit = throw ex
-        def onComplete(): Unit = ()
-      })
-
-    s.tick()
-    assertEquals(total, 0)
-    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+    s.tick(1.day)
+    assertEquals(size.value.get.get, expectedCount)
   }
 }

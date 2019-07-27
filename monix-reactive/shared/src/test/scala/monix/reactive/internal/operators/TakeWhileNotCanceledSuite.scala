@@ -34,12 +34,14 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val c = BooleanCancelable()
-      val o = if (sourceCount == 1)
-        Observable.range(1, 10).takeWhileNotCanceled(c)
-          .map { x => c.cancel(); x }
-      else
-        Observable.range(1, sourceCount * 2).takeWhileNotCanceled(c)
-          .map { x => if (x == sourceCount) c.cancel(); x }
+      val o =
+        if (sourceCount == 1)
+          Observable.range(1, 10).takeWhileNotCanceled(c).map { x =>
+            c.cancel(); x
+          } else
+          Observable.range(1, sourceCount * 2).takeWhileNotCanceled(c).map { x =>
+            if (x == sourceCount) c.cancel(); x
+          }
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -60,18 +62,19 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
     }
 
     val o = Observable.range(1, sourceCount * 2).takeWhileNotCanceled(c)
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     val c = BooleanCancelable()
-    val o = if (sourceCount == 1)
-      createObservableEndingInError(Observable.now(1), ex)
-        .takeWhileNotCanceled(c)
-    else
-      createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)
-        .takeWhileNotCanceled(c)
+    val o =
+      if (sourceCount == 1)
+        createObservableEndingInError(Observable.now(1), ex)
+          .takeWhileNotCanceled(c)
+      else
+        createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)
+          .takeWhileNotCanceled(c)
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
@@ -79,6 +82,6 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
   override def cancelableObservables() = {
     val c = BooleanCancelable()
     val o = Observable.range(1, 10).delayOnNext(1.second).takeWhileNotCanceled(c)
-    Seq(Sample(o,0,0,0.seconds,0.seconds))
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

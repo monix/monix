@@ -23,8 +23,7 @@ import monix.reactive.observers.Subscriber
 import monix.execution.Callback
 import monix.eval.Task
 
-private[reactive] final
-class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {
+private[reactive] final class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
 

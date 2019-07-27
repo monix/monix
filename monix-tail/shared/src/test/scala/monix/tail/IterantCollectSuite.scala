@@ -28,7 +28,7 @@ import scala.util.Failure
 object IterantCollectSuite extends BaseTestSuite {
   test("Iterant.collect <=> List.collect") { implicit s =>
     check3 { (stream: Iterant[Task, Int], p: Int => Boolean, f: Int => Int) =>
-      val pf: PartialFunction[Int,Int] = { case x if p(x) => f(x) }
+      val pf: PartialFunction[Int, Int] = { case x if p(x) => f(x) }
       val received = stream.collect(pf).toListL
       val expected = stream.toListL.map(_.collect(pf))
       received <-> expected
@@ -45,7 +45,7 @@ object IterantCollectSuite extends BaseTestSuite {
 
   test("Iterant.collect flatMap equivalence") { implicit s =>
     check3 { (stream: Iterant[Task, Int], p: Int => Boolean, f: Int => Int) =>
-      val pf: PartialFunction[Int,Int] = { case x if p(x) => f(x) }
+      val pf: PartialFunction[Int, Int] = { case x if p(x) => f(x) }
       val received = stream.collect(pf)
       val expected = stream.flatMap(x => if (pf.isDefinedAt(x)) Iterant[Task].now(pf(x)) else Iterant[Task].empty[Int])
       received <-> expected
@@ -58,7 +58,7 @@ object IterantCollectSuite extends BaseTestSuite {
     val iter = Iterant[Coeval].nextBatchS(items, Coeval.now(Iterant.empty[Coeval, Int]))
     val state = iter.collect { case _ => (throw dummy): Int }
 
-    assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
+    assert(state.isInstanceOf[Suspend[Coeval, Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
     assertEquals(state.toListL.runTry(), Failure(dummy))
   }
@@ -69,7 +69,7 @@ object IterantCollectSuite extends BaseTestSuite {
     val iter = Iterant[Coeval].nextCursorS(items, Coeval.now(Iterant.empty[Coeval, Int]))
     val state = iter.collect { case _ => (throw dummy): Int }
 
-    assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
+    assert(state.isInstanceOf[Suspend[Coeval, Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
     assertEquals(state.toListL.runTry(), Failure(dummy))
   }
@@ -101,13 +101,14 @@ object IterantCollectSuite extends BaseTestSuite {
     assertEquals(state1, iter1)
 
     val iter2: Iterant[Coeval, Int] = Iterant[Coeval].haltS(None)
-    val state2 = iter2.collect { case _ => (throw dummy) : Int }
+    val state2 = iter2.collect { case _ => (throw dummy): Int }
     assertEquals(state2, iter2)
   }
 
   test("Iterant.collect preserves the source resource release logic") { implicit s =>
     var effect = 0
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
+    val source = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval.eval(effect += 1))
     val stream = source.collect { case x => x }
     stream.completedL.value()

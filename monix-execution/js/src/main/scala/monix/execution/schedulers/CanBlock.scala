@@ -73,6 +73,6 @@ import scala.annotation.implicitNotFound
   */
 @implicitNotFound(
   "Blocking operations aren't supported \n" +
-  "on top of JavaScript, because it cannot block threads! \n" +
-  "Please use asynchronous API calls.")
+    "on top of JavaScript, because it cannot block threads! \n" +
+    "Please use asynchronous API calls.")
 final class CanBlock private ()

@@ -25,14 +25,15 @@ import monix.execution.BufferCapacity.{Bounded, Unbounded}
 import monix.execution.ChannelType.{MultiProducer, SingleProducer}
 import monix.execution.internal.Platform
 import monix.execution.{BufferCapacity, Scheduler}
+import monix.catnap.SchedulerEffect
 
 object IterantChannelSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = Scheduler.global
 
   implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
-    s.contextShift[IO](IO.ioEffect)
+    SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
   implicit def timer(implicit s: Scheduler): Timer[IO] =
-    s.timerLiftIO[IO](IO.ioEffect)
+    SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
   def testIO(name: String)(f: => IO[Unit]) =
     testAsync(name)(f.unsafeToFuture())
@@ -109,11 +110,7 @@ object IterantChannelSuite extends SimpleTestSuite {
     )
   }
 
-  def testConcurrentSum(
-    producers: Int,
-    consumers: Int,
-    capacity: BufferCapacity,
-    count: Int) = {
+  def testConcurrentSum(producers: Int, consumers: Int, capacity: BufferCapacity, count: Int) = {
 
     def produce(channel: ProducerF[IO, Option[Throwable], Int]): IO[Unit] = {
       def loop(channel: ProducerF[IO, Option[Throwable], Int], n: Int): IO[Unit] =
@@ -143,17 +140,18 @@ object IterantChannelSuite extends SimpleTestSuite {
 
     val pt = if (producers > 1) MultiProducer else SingleProducer
 
-    Iterant[IO].channel[Int](capacity, producerType = pt).flatMap { case (producer, stream) =>
-      for {
-        fiber   <- consumeMany(stream).start
-        _       <- producer.awaitConsumers(consumers)
-        _       <- produce(producer)
-        _       <- producer.halt(None)
-        sum     <- fiber.join
-      } yield {
-        val perProducer = count.toLong * (count + 1) / 2
-        assertEquals(sum, perProducer * producers * consumers)
-      }
+    Iterant[IO].channel[Int](capacity, producerType = pt).flatMap {
+      case (producer, stream) =>
+        for {
+          fiber <- consumeMany(stream).start
+          _     <- producer.awaitConsumers(consumers)
+          _     <- produce(producer)
+          _     <- producer.halt(None)
+          sum   <- fiber.join
+        } yield {
+          val perProducer = count.toLong * (count + 1) / 2
+          assertEquals(sum, perProducer * producers * consumers)
+        }
     }
   }
 }

@@ -22,12 +22,16 @@ import monix.eval.Task
 
 import scala.util.Success
 import scala.concurrent.duration._
+import monix.catnap.SchedulerEffect
 
 object IntervalIntervalSuite extends BaseTestSuite {
   test("Iterant[Task].intervalWithFixedDelay(1.second, 2.seconds)") { implicit s =>
     var effect = 0
-    val lst = Iterant[Task].intervalWithFixedDelay(1.second, 2.seconds)
-      .map { e => effect += 1; e }
+    val lst = Iterant[Task]
+      .intervalWithFixedDelay(1.second, 2.seconds)
+      .map { e =>
+        effect += 1; e
+      }
       .take(5)
       .toListL
       .runToFuture
@@ -54,11 +58,14 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
-    implicit val timer = s.timerLiftIO[IO]
+    implicit val timer = SchedulerEffect.timerLiftIO[IO](s)
 
     var effect = 0
-    val lst = Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)
-      .map { e => effect += 1; e }
+    val lst = Iterant[IO]
+      .intervalWithFixedDelay(1.second, 2.seconds)
+      .map { e =>
+        effect += 1; e
+      }
       .take(5)
       .toListL
       .unsafeToFuture
@@ -86,8 +93,11 @@ object IntervalIntervalSuite extends BaseTestSuite {
 
   test("Iterant[Task].intervalWithFixedDelay(2.seconds)") { implicit s =>
     var effect = 0
-    val lst = Iterant[Task].intervalWithFixedDelay(2.seconds)
-      .map { e => effect += 1; e }
+    val lst = Iterant[Task]
+      .intervalWithFixedDelay(2.seconds)
+      .map { e =>
+        effect += 1; e
+      }
       .take(5)
       .toListL
       .runToFuture
@@ -108,11 +118,14 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
-    implicit val timer = s.timerLiftIO[IO]
+    implicit val timer = SchedulerEffect.timerLiftIO[IO](s)
 
     var effect = 0
-    val lst = Iterant[IO].intervalWithFixedDelay(2.seconds)
-      .map { e => effect += 1; e }
+    val lst = Iterant[IO]
+      .intervalWithFixedDelay(2.seconds)
+      .map { e =>
+        effect += 1; e
+      }
       .take(5)
       .toListL
       .unsafeToFuture
@@ -134,7 +147,8 @@ object IntervalIntervalSuite extends BaseTestSuite {
 
   test("Iterant[Task].intervalAtFixedRate(1.second)") { implicit s =>
     var effect = 0
-    val lst = Iterant[Task].intervalAtFixedRate(1.second)
+    val lst = Iterant[Task]
+      .intervalAtFixedRate(1.second)
       .mapEval(e => Task.eval { effect += 1; e }.delayExecution(100.millis))
       .take(3)
       .toListL
@@ -155,11 +169,15 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
-    implicit val timer = s.timerLiftIO[IO]
+    implicit val timer = SchedulerEffect.timerLiftIO[IO](s)
 
     var effect = 0
-    val lst = Iterant[IO].intervalAtFixedRate(1.second)
-      .mapEval(e => timer.sleep(100.millis).map { _ => effect += 1; e })
+    val lst = Iterant[IO]
+      .intervalAtFixedRate(1.second)
+      .mapEval(e =>
+        timer.sleep(100.millis).map { _ =>
+          effect += 1; e
+        })
       .take(3)
       .toListL
       .unsafeToFuture()
@@ -180,7 +198,8 @@ object IntervalIntervalSuite extends BaseTestSuite {
 
   test("Iterant[Task].intervalAtFixedRate(2.seconds, 1.second)") { implicit s =>
     var effect = 0
-    val lst = Iterant[Task].intervalAtFixedRate(2.seconds, 1.second)
+    val lst = Iterant[Task]
+      .intervalAtFixedRate(2.seconds, 1.second)
       .mapEval(e => Task.eval { effect += 1; e }.delayExecution(100.millis))
       .take(3)
       .toListL
@@ -203,11 +222,15 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
-    implicit val timer = s.timerLiftIO[IO]
+    implicit val timer = SchedulerEffect.timerLiftIO[IO](s)
 
     var effect = 0
-    val lst = Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)
-      .mapEval(e => timer.sleep(100.millis).map { _ => effect += 1; e })
+    val lst = Iterant[IO]
+      .intervalAtFixedRate(2.seconds, 1.second)
+      .mapEval(e =>
+        timer.sleep(100.millis).map { _ =>
+          effect += 1; e
+        })
       .take(3)
       .toListL
       .unsafeToFuture
@@ -230,7 +253,8 @@ object IntervalIntervalSuite extends BaseTestSuite {
 
   test("Iterant[Task].intervalAtFixedRate accounts for time it takes task to finish") { implicit s =>
     var effect = 0
-    val lst = Iterant[Task].intervalAtFixedRate(1.second)
+    val lst = Iterant[Task]
+      .intervalAtFixedRate(1.second)
       .mapEval(e => Task.eval { effect += 1; e }.delayExecution(2.seconds))
       .take(3)
       .toListL
@@ -252,11 +276,15 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
-    implicit val timer = s.timerLiftIO[IO]
+    implicit val timer = SchedulerEffect.timerLiftIO[IO](s)
 
     var effect = 0
-    val lst = Iterant[IO].intervalAtFixedRate(1.second)
-      .mapEval(e => timer.sleep(2.seconds).map { _ => effect += 1; e })
+    val lst = Iterant[IO]
+      .intervalAtFixedRate(1.second)
+      .mapEval(e =>
+        timer.sleep(2.seconds).map { _ =>
+          effect += 1; e
+        })
       .take(3)
       .toListL
       .unsafeToFuture

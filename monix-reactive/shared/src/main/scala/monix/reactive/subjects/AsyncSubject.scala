@@ -17,7 +17,7 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
@@ -31,7 +31,7 @@ import scala.annotation.tailrec
   * items to subsequent subscribers, but will simply pass along the error
   * notification from the source Observable.
   */
-final class AsyncSubject[A] extends Subject[A,A] { self =>
+final class AsyncSubject[A] extends Subject[A, A] { self =>
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
@@ -45,7 +45,8 @@ final class AsyncSubject[A] extends Subject[A,A] { self =>
     stateRef.get.subscribers.size
 
   def onNext(elem: A): Ack = {
-    if (stateRef.get.isDone) Stop else {
+    if (stateRef.get.isDone) Stop
+    else {
       if (!onNextHappened) onNextHappened = true
       cachedElem = elem
       Continue
@@ -71,13 +72,11 @@ final class AsyncSubject[A] extends Subject[A,A] { self =>
       if (errorThrown != null) {
         subscriber.onError(errorThrown)
         Cancelable.empty
-      }
-      else if (onNextHappened) {
+      } else if (onNextHappened) {
         subscriber.onNext(cachedElem)
         subscriber.onComplete()
         Cancelable.empty
-      }
-      else {
+      } else {
         subscriber.onComplete()
         Cancelable.empty
       }
@@ -109,8 +108,7 @@ final class AsyncSubject[A] extends Subject[A,A] { self =>
           else if (onNextHappened) {
             ref.onNext(cachedElem)
             ref.onComplete()
-          }
-          else
+          } else
             ref.onComplete()
         }
       }

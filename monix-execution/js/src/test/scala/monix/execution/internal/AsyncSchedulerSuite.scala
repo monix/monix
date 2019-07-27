@@ -26,7 +26,7 @@ import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 object AsyncSchedulerSuite extends TestSuite[Scheduler] {
-  val lastReported = Atomic(null : Throwable)
+  val lastReported = Atomic(null: Throwable)
   val reporter = new StandardContext(new UncaughtExceptionReporter {
     def reportFailure(ex: Throwable): Unit =
       lastReported set ex
@@ -57,8 +57,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
 
     // Should not be executed yet
     assertEquals(effect, 0)
-    for (result <- p.future) yield
-      assertEquals(result, 1 + 2 + 3)
+    for (result <- p.future) yield assertEquals(result, 1 + 2 + 3)
   }
 
   test("execute local should work") { implicit s =>
@@ -94,7 +93,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
     val p = Promise[Unit]()
     val startAt = s.clockMonotonic(MILLISECONDS)
     var count = 0
-    lazy val c: Cancelable = s.scheduleAtFixedRate(Duration.Zero, 20.millis) {
+    lazy val c: Cancelable = s.scheduleAtFixedRate(Duration.Zero, 30.millis) {
       count += 1
       if (count == 500) {
         c.cancel()
@@ -105,7 +104,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
 
     for (_ <- p.future) yield {
       val duration = s.clockMonotonic(MILLISECONDS) - startAt
-      assert(Math.abs(duration - 10000) <= 20, "Error <= 20ms")
+      assert(Math.abs(duration - 15000) <= 30, "Error <= 30ms")
     }
   }
 
@@ -115,7 +114,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
     assert(t2 >= t1, "t2 >= t1")
   }
 
-  test("clockMonotonic") {  s =>
+  test("clockMonotonic") { s =>
     val t1 = System.nanoTime()
     val t2 = s.clockMonotonic(NANOSECONDS)
     assert(t2 >= t1, "t2 >= t1")

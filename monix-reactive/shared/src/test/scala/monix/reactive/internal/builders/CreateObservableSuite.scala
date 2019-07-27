@@ -28,8 +28,7 @@ import scala.util.Success
 object CreateObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "Scheduler should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
   test("should work") { implicit s =>

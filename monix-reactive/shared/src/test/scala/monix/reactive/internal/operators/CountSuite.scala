@@ -37,6 +37,6 @@ object CountSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val o = Observable.now(1L).delayOnNext(1.second).count
-    Seq(Sample(o,0,0,0.seconds,0.seconds))
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

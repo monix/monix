@@ -27,7 +27,7 @@ object Zip3Suite extends BaseOperatorSuite {
     val o2 = Observable.range(0, sourceCount + 1).executeAsync
     val o3 = Observable.range(0, sourceCount + 2).executeAsync
 
-    val o = Observable.zipMap3(o1,o2,o3)(_+_+_)
+    val o = Observable.zipMap3(o1, o2, o3)(_ + _ + _)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -39,7 +39,7 @@ object Zip3Suite extends BaseOperatorSuite {
     val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o3 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    val o = Observable.zipMap3(o1,o2,o3)(_+_+_)
+    val o = Observable.zipMap3(o1, o2, o3)(_ + _ + _)
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
@@ -60,7 +60,7 @@ object Zip3Suite extends BaseOperatorSuite {
       val o1 = Observable.range(0, 10).delayOnNext(1.second)
       val o2 = Observable.range(0, 10).delayOnNext(1.second)
       val o3 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.zipMap3(o1,o2,o3)(_+_+_)
+      Observable.zipMap3(o1, o2, o3)(_ + _ + _)
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))

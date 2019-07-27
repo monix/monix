@@ -31,15 +31,18 @@ private[eval] object TaskRacePair {
     * Implementation for `Task.racePair`.
     */
   def apply[A, B](fa: Task[A], fb: Task[B]): Task[RaceEither[A, B]] =
-    Task.Async(new Register(fa, fb), trampolineBefore = true, trampolineAfter = true)
+    Task.Async(
+      new Register(fa, fb),
+      trampolineBefore = true,
+      trampolineAfter = true
+    )
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is a task that forks on evaluation.
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Register[A, B](fa: Task[A], fb: Task[B])
-    extends ForkedRegister[RaceEither[A, B]] {
+  private final class Register[A, B](fa: Task[A], fb: Task[B]) extends ForkedRegister[RaceEither[A, B]] {
 
     def apply(context: Task.Context, cb: Callback[Throwable, RaceEither[A, B]]): Unit = {
       implicit val s = context.scheduler
@@ -57,46 +60,54 @@ private[eval] object TaskRacePair {
       val contextB = context.withConnection(connB)
 
       // First task: A
-      Task.unsafeStartEnsureAsync(fa, contextA, new Callback[Throwable, A] {
-        def onSuccess(valueA: A): Unit =
-          if (isActive.getAndSet(false)) {
-            val fiberB = Fiber(TaskFromFuture.strict(pb.future), connB.cancel)
-            conn.pop()
-            cb.onSuccess(Left((valueA, fiberB)))
-          } else {
-            pa.success(valueA)
-          }
+      Task.unsafeStartEnsureAsync(
+        fa,
+        contextA,
+        new Callback[Throwable, A] {
+          def onSuccess(valueA: A): Unit =
+            if (isActive.getAndSet(false)) {
+              val fiberB = Fiber(TaskFromFuture.strict(pb.future, allowContinueOnCallingThread = true), connB.cancel)
+              conn.pop()
+              cb.onSuccess(Left((valueA, fiberB)))
+            } else {
+              pa.success(valueA)
+            }
 
-        def onError(ex: Throwable): Unit =
-          if (isActive.getAndSet(false)) {
-            conn.pop()
-            connB.cancel.runAsyncAndForget
-            cb.onError(ex)
-          } else {
-            pa.failure(ex)
-          }
-      })
+          def onError(ex: Throwable): Unit =
+            if (isActive.getAndSet(false)) {
+              conn.pop()
+              connB.cancel.runAsyncAndForget
+              cb.onError(ex)
+            } else {
+              pa.failure(ex)
+            }
+        }
+      )
 
       // Second task: B
-      Task.unsafeStartEnsureAsync(fb, contextB, new Callback[Throwable, B] {
-        def onSuccess(valueB: B): Unit =
-          if (isActive.getAndSet(false)) {
-            val fiberA = Fiber(TaskFromFuture.strict(pa.future), connA.cancel)
-            conn.pop()
-            cb.onSuccess(Right((fiberA, valueB)))
-          } else {
-            pb.success(valueB)
-          }
+      Task.unsafeStartEnsureAsync(
+        fb,
+        contextB,
+        new Callback[Throwable, B] {
+          def onSuccess(valueB: B): Unit =
+            if (isActive.getAndSet(false)) {
+              val fiberA = Fiber(TaskFromFuture.strict(pa.future, allowContinueOnCallingThread = true), connA.cancel)
+              conn.pop()
+              cb.onSuccess(Right((fiberA, valueB)))
+            } else {
+              pb.success(valueB)
+            }
 
-        def onError(ex: Throwable): Unit =
-          if (isActive.getAndSet(false)) {
-            conn.pop()
-            connA.cancel.runAsyncAndForget
-            cb.onError(ex)
-          } else {
-            pb.failure(ex)
-          }
-      })
+          def onError(ex: Throwable): Unit =
+            if (isActive.getAndSet(false)) {
+              conn.pop()
+              connA.cancel.runAsyncAndForget
+              cb.onError(ex)
+            } else {
+              pb.failure(ex)
+            }
+        }
+      )
     }
   }
 }

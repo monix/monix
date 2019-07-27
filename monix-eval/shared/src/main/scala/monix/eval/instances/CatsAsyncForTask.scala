@@ -36,10 +36,11 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
   override def suspend[A](fa: => Task[A]): Task[A] =
     Task.defer(fa)
   override def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): Task[A] =
-    TaskCreate.async(k)
+    TaskCreate.async(k, allowContinueOnCallingThread = false)
   override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(release: A => Task[Unit]): Task[B] =
     acquire.bracket(use)(release)
-  override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
+  override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(
+    release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     acquire.bracketCase(use)(release)
   override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
     Task.asyncF(k)
@@ -59,7 +60,7 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
   */
 class CatsConcurrentForTask extends CatsAsyncForTask with Concurrent[Task] {
   override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[Task]): Task[A] =
-    TaskCreate.cancelableEffect(k)
+    TaskCreate.cancelableEffect(k, allowContinueOnCallingThread = false)
   override def uncancelable[A](fa: Task[A]): Task[A] =
     fa.uncancelable
   override def start[A](fa: Task[A]): Task[Fiber[A]] =

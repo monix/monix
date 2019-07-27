@@ -60,7 +60,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
 
     def loop(count: Int): Task[Int] =
       Task.now(count).flatMap { nr =>
-        if (nr > 0) loop(count-1)
+        if (nr > 0) loop(count - 1)
         else Task.now(nr)
       }
 
@@ -77,7 +77,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
 
     def loop(count: Int): Task[Int] =
       Task.eval(count).flatMap { nr =>
-        if (nr > 0) loop(count-1)
+        if (nr > 0) loop(count - 1)
         else Task.eval(nr)
       }
 
@@ -94,7 +94,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
 
     def loop(count: Int): Task[Int] =
       Task.evalAsync(count).flatMap { nr =>
-        if (nr > 0) loop(count-1)
+        if (nr > 0) loop(count - 1)
         else Task.evalAsync(nr)
       }
 

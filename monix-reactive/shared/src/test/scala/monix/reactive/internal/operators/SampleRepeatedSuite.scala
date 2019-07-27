@@ -25,7 +25,9 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
   def waitFirst = 500.millis
 
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.now(1L).delayOnComplete(sourceCount.minutes)
+    val o = Observable
+      .now(1L)
+      .delayOnComplete(sourceCount.minutes)
       .sampleRepeated(500.millis)
       .take(sourceCount)
 
@@ -36,7 +38,9 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables() = {
-    val o = Observable.now(1L).delayOnComplete(1.hour)
+    val o = Observable
+      .now(1L)
+      .delayOnComplete(1.hour)
       .sampleRepeated(500.millis)
 
     Seq(

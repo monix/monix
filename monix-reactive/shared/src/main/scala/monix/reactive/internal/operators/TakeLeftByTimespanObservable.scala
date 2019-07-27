@@ -25,10 +25,8 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
-private[reactive] final
-class TakeLeftByTimespanObservable[A](source: Observable[A], timespan: FiniteDuration)
+private[reactive] final class TakeLeftByTimespanObservable[A](source: Observable[A], timespan: FiniteDuration)
   extends Observable[A] {
-
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val composite = CompositeCancelable()

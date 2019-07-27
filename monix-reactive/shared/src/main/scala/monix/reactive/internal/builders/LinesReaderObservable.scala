@@ -30,11 +30,10 @@ import monix.execution.internal.Platform
 
 import scala.util.control.NonFatal
 import scala.annotation.tailrec
-import scala.concurrent.{Future, blocking}
+import scala.concurrent.{blocking, Future}
 import scala.util.{Failure, Success}
 
-private[reactive] final class LinesReaderObservable(reader: Reader)
-  extends Observable[String] { self =>
+private[reactive] final class LinesReaderObservable(reader: Reader) extends Observable[String] { self =>
 
   private[this] val in: BufferedReader =
     if (!reader.isInstanceOf[BufferedReader])
@@ -48,8 +47,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
     if (wasSubscribed.getAndSet(true)) {
       out.onError(APIContractViolationException("LinesReaderObservable does not support multiple subscribers"))
       Cancelable.empty
-    }
-    else {
+    } else {
       // A token that will be checked for cancellation
       val cancelable = BooleanCancelable()
       val em = out.scheduler.executionModel
@@ -60,23 +58,23 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
     }
   }
 
-  private def reschedule(ack: Future[Ack], out: Subscriber[String],
-    c: BooleanCancelable, em: ExecutionModel)(implicit s: Scheduler): Unit = {
+  private def reschedule(ack: Future[Ack], out: Subscriber[String], c: BooleanCancelable, em: ExecutionModel)(
+    implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(next) =>
         // Should we continue, or should we close the stream?
         if (next == Continue && !c.isCanceled)
           fastLoop(out, c, em, 0)
-        // else stop
+      // else stop
       case Failure(ex) =>
         reportFailure(ex)
     }
   }
 
   @tailrec
-  private def fastLoop(out: Subscriber[String], c: BooleanCancelable,
-    em: ExecutionModel, syncIndex: Int)(implicit s: Scheduler): Unit = {
+  private def fastLoop(out: Subscriber[String], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(
+    implicit s: Scheduler): Unit = {
 
     // Dealing with mutable status in order to keep the
     // loop tail-recursive :-(
@@ -116,8 +114,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
         else if (nextIndex >= 0)
           reschedule(ack, out, c, em)
       }
-    }
-    else {
+    } else {
       // Dealing with unexpected errors
       if (streamErrors)
         sendError(out, errorThrown)
@@ -139,6 +136,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
     s.reportFailure(e)
     // Forcefully close in case of protocol violations, because we are
     // not signaling the error downstream, which could lead to leaks
-    try in.close() catch { case NonFatal(_) => () }
+    try in.close()
+    catch { case NonFatal(_) => () }
   }
 }

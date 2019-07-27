@@ -28,28 +28,30 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 /** Implementation for observable concatenation `++`. */
-private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: Observable[A])
-  extends ChainedObservable[A] {
+private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: Observable[A]) extends ChainedObservable[A] {
 
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
-    chain(lh, conn, new Subscriber[A] {
-      private[this] var ack: Future[Ack] = Continue
-      implicit val scheduler = out.scheduler
+    chain(
+      lh,
+      conn,
+      new Subscriber[A] {
+        private[this] var ack: Future[Ack] = Continue
+        implicit val scheduler = out.scheduler
 
-      def onNext(elem: A): Future[Ack] = {
-        ack = out.onNext(elem)
-        ack
+        def onNext(elem: A): Future[Ack] = {
+          ack = out.onNext(elem)
+          ack
+        }
+
+        def onError(ex: Throwable): Unit =
+          out.onError(ex)
+
+        def onComplete(): Unit = {
+          // This can create a stack issue, but `chainedSubscribe`
+          // creates light async boundaries, so should be safe
+          ack.syncOnContinue(chain(rh, conn, out))
+        }
       }
-
-      def onError(ex: Throwable): Unit =
-        out.onError(ex)
-
-      def onComplete(): Unit = {
-        // This can create a stack issue, but `chainedSubscribe`
-        // creates light async boundaries, so should be safe
-        ack.syncOnContinue(chain(rh, conn, out))
-      }
-    })
+    )
   }
 }
-

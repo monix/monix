@@ -56,7 +56,7 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
     check2 { (el: Int, _: Int) =>
       val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]))
       val received = stream.zipWithIndex.take(1).toListL
-      val expected = Coeval(Stream.continually(el).zipWithIndex.map { case (a, b) => (a, b.toLong) }.take(1).toList)
+      val expected = Coeval(Iterator.continually(el).zipWithIndex.map { case (a, b) => (a, b.toLong) }.take(1).toList)
 
       received <-> expected
     }
@@ -99,7 +99,8 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
   test("Iterant.zipWithIndex releases resources on completion") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
+    val source = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
       .guarantee(stop)
     val stream = source.zipWithIndex
 

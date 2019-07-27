@@ -17,9 +17,8 @@
 
 package monix.execution
 
-import cats.effect.{CancelToken, IO, Sync}
 import monix.execution.atomic.AtomicAny
-import monix.execution.internal.{AttemptCallback, Platform}
+import monix.execution.internal.Platform
 
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolinedRunnable
@@ -56,7 +55,7 @@ object Cancelable {
     new CancelableTask(callback)
 
   /** Returns a dummy [[Cancelable]] that doesn't do anything. */
-  val empty: Empty =
+  val empty: Cancelable =
     new Empty {
       def cancel(): Unit = ()
       override def toString = "monix.execution.Cancelable.empty"
@@ -72,7 +71,9 @@ object Cancelable {
     * cancelling everything on `cancel`.
     */
   def collection(seq: Iterable[Cancelable]): Cancelable =
-    apply { () => cancelAll(seq) }
+    apply { () =>
+      cancelAll(seq)
+    }
 
   /** Wraps a collection of cancelable references into a `Cancelable`
     * that will cancel them all by triggering a trampolined async
@@ -96,31 +97,6 @@ object Cancelable {
       def cancel(): Unit =
         p.tryFailure(e)
     }
-
-  /** Builds a [[Cancelable]] reference from an `IO[Unit]`.
-    *
-    * Guarantees idempotency and reports any uncaught errors.
-    *
-    * @param io is the `IO` value to evaluate on `cancel`
-    * @param r is an exception reporter that's used in case our `IO`
-    *        value is throwing an error on evaluation
-    */
-  def fromIO(io: IO[Unit])(implicit r: UncaughtExceptionReporter): Cancelable =
-    Cancelable { () =>
-      io.unsafeRunAsync(AttemptCallback.empty)
-    }
-
-  /** Internal API — builds a `Cancelable` reference from an `IO[Unit]`,
-    * but without any protections for idempotency.
-    */
-  private[monix] def fromIOUnsafe(io: IO[Unit])
-    (implicit r: UncaughtExceptionReporter): Cancelable = {
-
-    new Cancelable {
-      def cancel(): Unit =
-        io.unsafeRunAsync(AttemptCallback.empty)
-    }
-  }
 
   /** Given a collection of cancelables, cancel them all.
     *
@@ -152,26 +128,12 @@ object Cancelable {
   trait Empty extends Cancelable with IsDummy
 
   /** Marker for cancelables that are dummies that can be ignored. */
-  trait IsDummy { self: Cancelable => }
-
-  /** Extension methods for [[Cancelable]]. */
-  implicit final class Extensions(val self: Cancelable) extends AnyVal {
-    /**
-      * Given a [[Cancelable]] reference, turn it into an
-      * `CancelToken[F]` (a Cats-Effect alias for `F[Unit]`) that
-      * will trigger [[Cancelable.cancel cancel]] on evaluation.
-      */
-    def toCancelToken[F[_]](implicit F: Sync[F]): CancelToken[F] =
-      self match {
-        case _: IsDummy => F.unit
-        case _ => F.delay(self.cancel())
-      }
+  trait IsDummy { self: Cancelable =>
   }
 
-  private final class CancelableTask(cb: () => Unit)
-    extends Cancelable {
+  private final class CancelableTask(cb: () => Unit) extends Cancelable {
 
-    private[this] val callbackRef = /*_*/AtomicAny(cb)/*_*/
+    private[this] val callbackRef = /*_*/ AtomicAny(cb) /*_*/
 
     def cancel(): Unit = {
       // Setting the callback to null with a `getAndSet` is solving
@@ -184,12 +146,10 @@ object Cancelable {
     }
   }
 
-  private final class CollectionTrampolined(
-    refs: Iterable[Cancelable],
-    sc: Scheduler)
+  private final class CollectionTrampolined(refs: Iterable[Cancelable], sc: Scheduler)
     extends Cancelable with TrampolinedRunnable {
 
-    private[this] val atomic = /*_*/AtomicAny(refs)/*_*/
+    private[this] val atomic = /*_*/ AtomicAny(refs) /*_*/
 
     def cancel(): Unit =
       sc.execute(this)

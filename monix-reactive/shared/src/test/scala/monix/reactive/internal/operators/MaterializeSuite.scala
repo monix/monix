@@ -50,7 +50,7 @@ object MaterializeSuite extends BaseOperatorSuite {
       case OnError(ex) => throw ex
     }
 
-    Seq(Sample(o,0,0,0.seconds,0.seconds))
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
   test("materializeAttempt error") { implicit s =>

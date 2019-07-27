@@ -8,7 +8,7 @@ matrix:
     # Scala 2.11, JVM
     - jdk: oraclejdk8
       scala: 2.11.12
-      env: COMMAND=ci-jvm
+      env: COMMAND=ci-jvm-mima
     # Scala 2.11, JavaScript
     - jdk: oraclejdk8
       scala: 2.11.12
@@ -20,6 +20,14 @@ matrix:
     # Scala 2.12, JavaScript
     - jdk: oraclejdk8
       scala: 2.12.8
+      env: COMMAND=ci-js
+    # Scala 2.13, JVM
+    - jdk: oraclejdk8
+      scala: 2.13.0-M5
+      env: COMMAND=ci-jvm
+    # Scala 2.13, JavaScript
+    - jdk: oraclejdk8
+      scala: 2.13.0-M5
       env: COMMAND=ci-js
 
 env:

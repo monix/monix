@@ -37,7 +37,9 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("should execute asynchronously") { s =>
     var wasExecuted = false
-    s.executeAsync { () => wasExecuted = true }
+    s.executeAsync { () =>
+      wasExecuted = true
+    }
     assert(!wasExecuted)
 
     s.tick()
@@ -213,7 +215,9 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("execute extension method") { implicit s =>
     var wasExecuted = false
-    s.executeAsync { () => wasExecuted = true }
+    s.executeAsync { () =>
+      wasExecuted = true
+    }
 
     assert(!wasExecuted, "should not be executed yet")
     s.tick()
@@ -266,7 +270,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     def loop(n: Int): Unit =
       s.executeTrampolined { () =>
         result += 1
-        if (n-1 > 0) loop(n-1)
+        if (n - 1 > 0) loop(n - 1)
       }
 
     val count = if (Platform.isJVM) 100000 else 10000
@@ -290,109 +294,6 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 0)
     s.tickOne()
     assertEquals(effect, 3)
-  }
-
-
-  test("clock.monotonic") { s =>
-    val clock = s.clock[IO]
-    val fetch = clock.monotonic(MILLISECONDS)
-
-    assertEquals(fetch.unsafeRunSync(), 0L)
-    s.tick(5.seconds)
-    assertEquals(fetch.unsafeRunSync(), 5000L)
-    s.tick(5.seconds)
-    assertEquals(fetch.unsafeRunSync(), 10000L)
-    s.tick(300.millis)
-    assertEquals(fetch.unsafeRunSync(), 10300L)
-  }
-
-  test("clock.realTime") { s =>
-    val clock = s.clock[IO]
-    val fetch = clock.realTime(MILLISECONDS)
-
-    assertEquals(fetch.unsafeRunSync(), 0L)
-    s.tick(5.seconds)
-    assertEquals(fetch.unsafeRunSync(), 5000L)
-    s.tick(5.seconds)
-    assertEquals(fetch.unsafeRunSync(), 10000L)
-    s.tick(300.millis)
-    assertEquals(fetch.unsafeRunSync(), 10300L)
-  }
-
-  test("timerLiftIO[IO]") { s =>
-    val timer = s.timerLiftIO[IO]
-    val clockMono = timer.clock.monotonic(MILLISECONDS)
-    val clockReal = timer.clock.realTime(MILLISECONDS)
-
-    val f = timer.sleep(10.seconds).unsafeToFuture()
-    assertEquals(f.value, None)
-
-    assertEquals(clockMono.unsafeRunSync(), 0)
-    assertEquals(clockReal.unsafeRunSync(), 0)
-
-    s.tick(5.seconds)
-    assertEquals(f.value, None)
-
-    assertEquals(clockMono.unsafeRunSync(), 5000)
-    assertEquals(clockReal.unsafeRunSync(), 5000)
-
-    s.tick(5.seconds)
-    assertEquals(f.value, Some(Success(())))
-
-    assertEquals(clockMono.unsafeRunSync(), 10000)
-    assertEquals(clockReal.unsafeRunSync(), 10000)
-  }
-
-  test("timer[IO]") { s =>
-    implicit val cs = s.contextShift[IO]
-
-    val timer = s.timer[IO]
-    val clockMono = timer.clock.monotonic(MILLISECONDS)
-    val clockReal = timer.clock.realTime(MILLISECONDS)
-
-    val f = timer.sleep(10.seconds).unsafeToFuture()
-    assertEquals(f.value, None)
-
-    assertEquals(clockMono.unsafeRunSync(), 0)
-    assertEquals(clockReal.unsafeRunSync(), 0)
-
-    s.tick(5.seconds)
-    assertEquals(f.value, None)
-
-    assertEquals(clockMono.unsafeRunSync(), 5000)
-    assertEquals(clockReal.unsafeRunSync(), 5000)
-
-    s.tick(5.seconds)
-    assertEquals(f.value, Some(Success(())))
-
-    assertEquals(clockMono.unsafeRunSync(), 10000)
-    assertEquals(clockReal.unsafeRunSync(), 10000)
-  }
-
-  test("contextShift.shift") { s =>
-    val contextShift = s.contextShift[IO]
-
-    val f = contextShift.shift.unsafeToFuture()
-    assertEquals(f.value, None)
-
-    s.tick()
-    assertEquals(f.value, Some(Success(())))
-  }
-
-  test("contextShift.evalOn") { s =>
-    val contextShift = s.contextShift[IO]
-    val s2 = TestScheduler()
-
-    val f = contextShift.evalOn(s2)(IO(1)).unsafeToFuture()
-    assertEquals(f.value, None)
-
-    s.tick()
-    assertEquals(f.value, None)
-
-    s2.tick()
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(1)))
   }
 
   test("maxImmediateTasks") { implicit ec =>

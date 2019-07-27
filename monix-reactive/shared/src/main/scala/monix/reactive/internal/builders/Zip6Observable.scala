@@ -27,12 +27,13 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
-
-private[reactive] final
-class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
-  (obsA1: Observable[A1], obsA2: Observable[A2], obsA3: Observable[A3],
-   obsA4: Observable[A4], obsA5: Observable[A5], obsA6: Observable[A6])
-  (f: (A1,A2,A3,A4,A5,A6) => R)
+private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
+  obsA1: Observable[A1],
+  obsA2: Observable[A2],
+  obsA3: Observable[A3],
+  obsA4: Observable[A4],
+  obsA5: Observable[A5],
+  obsA6: Observable[A6])(f: (A1, A2, A3, A4, A5, A6) => R)
   extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
@@ -113,7 +114,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
           }
       }
 
-      continueP.tryCompleteWith(lastAck)
+      continueP.completeWith(lastAck)
       continueP = Promise[Ack]()
       lastAck
     }

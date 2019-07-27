@@ -25,8 +25,7 @@ import scala.scalajs.js
   *
   * Inspired by: http://code.stephenmorley.org/javascript/queues/
   */
-private[monix] final class JSArrayQueue[A] private
-  (_size: Int, triggerEx: Int => Throwable = null)
+private[monix] final class JSArrayQueue[A] private (_size: Int, triggerEx: Int => Throwable = null)
   extends EvictingQueue[A] with LowLevelConcurrentQueue[A] {
 
   private[this] var queue = new js.Array[A]()
@@ -42,8 +41,6 @@ private[monix] final class JSArrayQueue[A] private
     queue.length - offset
   override def isEmpty: Boolean =
     queue.length - offset == 0
-  override def nonEmpty: Boolean =
-    queue.length - offset > 0
 
   def fenceOffer(): Unit = ()
   def fencePoll(): Unit = ()
@@ -53,15 +50,15 @@ private[monix] final class JSArrayQueue[A] private
     if (bufferSize > 0 && queue.length - offset >= capacity) {
       if (triggerEx != null) throw triggerEx(capacity)
       1 // rejecting new element as we are at capacity
-    }
-    else {
+    } else {
       queue.push(elem)
       0
     }
   }
 
   def poll(): A = {
-    if (queue.length == 0) null.asInstanceOf[A] else {
+    if (queue.length == 0) null.asInstanceOf[A]
+    else {
       val item = queue(offset)
       offset += 1
 
@@ -77,8 +74,7 @@ private[monix] final class JSArrayQueue[A] private
   def offerMany(seq: A*): Long = {
     val iterator = seq.iterator
     var acc = 0L
-    while (iterator.hasNext)
-      acc += offer(iterator.next())
+    while (iterator.hasNext) acc += offer(iterator.next())
     acc
   }
 
@@ -91,8 +87,7 @@ private[monix] final class JSArrayQueue[A] private
       if (elem != null) {
         array(idx) = elem
         idx += 1
-      }
-      else {
+      } else {
         continue = false
       }
     }
@@ -109,8 +104,7 @@ private[monix] final class JSArrayQueue[A] private
       if (elem != null) {
         buffer += elem
         count += 1
-      }
-      else {
+      } else {
         continue = false
       }
     }

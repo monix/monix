@@ -47,8 +47,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
     val s2 = TestScheduler()
 
     var effect = 0
-    val f = Task
-      .eval { effect += 1; effect }
+    val f = Task.eval { effect += 1; effect }
       .executeOn(io)
       .asyncBoundary(s2)
       .map(_ + 1)

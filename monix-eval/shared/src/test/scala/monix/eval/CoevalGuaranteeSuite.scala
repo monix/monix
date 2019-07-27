@@ -60,12 +60,13 @@ object CoevalGuaranteeSuite extends BaseTestSuite {
             case _ =>
               fail("Unexpected suppressed errors list: " + error.getSuppressed.toList)
           }
-        } else error match {
-          case CompositeException(Seq(`useError`, `finalizerError`)) =>
-            () // pass
-          case _ =>
-            fail(s"Unexpected error: $error")
-        }
+        } else
+          error match {
+            case CompositeException(Seq(`useError`, `finalizerError`)) =>
+              () // pass
+            case _ =>
+              fail(s"Unexpected error: $error")
+          }
 
       case other =>
         fail(s"Unexpected result: $other")

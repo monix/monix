@@ -18,8 +18,7 @@
 package monix.execution.schedulers
 
 import scala.concurrent.duration.TimeUnit
-import monix.execution.{Cancelable, Features, Scheduler, ExecutionModel => ExecModel}
-
+import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
 
 /** The `TracingScheduler` is a [[monix.execution.Scheduler Scheduler]]
@@ -30,13 +29,11 @@ import scala.concurrent.ExecutionContext
   * @param underlying the [[monix.execution.Scheduler Scheduler]]
   *        in charge of the actual execution and scheduling
   */
-final class TracingScheduler private (underlying: Scheduler)
-  extends TracingScheduler.Base(underlying) {
-
+final class TracingScheduler private (underlying: Scheduler) extends TracingScheduler.Base(underlying) {
   override def withExecutionModel(em: ExecModel): TracingScheduler =
     new TracingScheduler(underlying.withExecutionModel(em))
-  override val features: Features =
-    underlying.features + Scheduler.TRACING
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
+    new TracingScheduler(underlying.withUncaughtExceptionReporter(r))
 }
 
 object TracingScheduler {
@@ -53,9 +50,7 @@ object TracingScheduler {
   /** Common implementation between [[TracingScheduler]]
     * and [[TracingSchedulerService]].
     */
-  private[execution] abstract class Base(underlying: Scheduler)
-    extends Scheduler with BatchingScheduler {
-
+  private[execution] abstract class Base(underlying: Scheduler) extends Scheduler with BatchingScheduler {
     override final def executeAsync(r: Runnable): Unit =
       underlying.execute(new TracingRunnable(r))
     override final def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
@@ -72,5 +67,7 @@ object TracingScheduler {
       underlying.clockMonotonic(unit)
     override final def executionModel: ExecModel =
       underlying.executionModel
+    override final val features: Features =
+      underlying.features + Scheduler.TRACING
   }
 }

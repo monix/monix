@@ -27,8 +27,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
-  extends Operator[A,A] {
+private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Task[Unit]) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] { self =>
@@ -41,9 +40,12 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
         // has been sent (like we are doing in mapTask); we only need to apply
         // back-pressure for the following onNext events
         val f = out.onNext(elem)
-        val task = Task.fromFuture(f).flatMap { ack =>
-          val r = try cb(elem,ack) catch { case ex if NonFatal(ex) => Task.raiseError(ex) }
-          r.map(_ => ack).onErrorHandle { ex => onError(ex); Stop }
+        val task = Task.fromFuture(f, allowContinueOnCallingThread = true).flatMap { ack =>
+          val r = try cb(elem, ack)
+          catch { case ex if NonFatal(ex) => Task.raiseError(ex) }
+          r.map(_ => ack).onErrorHandle { ex =>
+            onError(ex); Stop
+          }
         }
 
         // Execution might be immediate

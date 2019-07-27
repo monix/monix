@@ -19,6 +19,7 @@ package monix.catnap
 
 import cats.Applicative
 import cats.effect.{CancelToken, Sync}
+import cats.syntax.either._
 import monix.catnap.cancelables.BooleanCancelableF
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.exceptions.CompositeException
@@ -41,6 +42,10 @@ trait CancelableF[F[_]] {
 }
 
 object CancelableF {
+
+  // ensure import cats.syntax.either._ is used
+  private val dummy = ().asRight
+
   /**
     * Given a token that does not guarantee idempotency, wraps it
     * in a [[CancelableF]] value that guarantees the given token
@@ -85,7 +90,7 @@ object CancelableF {
     * cancelling everything when `cancel` gets evaluated.
     */
   def collection[F[_]](refs: CancelableF[F]*)(implicit F: Sync[F]): CancelableF[F] =
-    wrap[F](cancelAll(refs:_*))
+    wrap[F](cancelAll(refs: _*))
 
   /** Given a collection of cancelables, creates a token that
     * on evaluation will cancel them all.
@@ -96,13 +101,13 @@ object CancelableF {
     *  - for the JVM "Suppressed Exceptions" are used
     *  - for JS they are wrapped in a `CompositeException`
     */
-  def cancelAll[F[_]](seq: CancelableF[F]*)
-    (implicit F: Sync[F]): CancelToken[F] = {
+  def cancelAll[F[_]](seq: CancelableF[F]*)(implicit F: Sync[F]): CancelToken[F] = {
 
-    if (seq.isEmpty) F.unit else F.suspend {
-      new CancelAllFrame[F](seq.map(_.cancel).iterator)(F)
-        .loop
-    }
+    if (seq.isEmpty) F.unit
+    else
+      F.suspend {
+        new CancelAllFrame[F](seq.map(_.cancel).iterator)(F).loop
+      }
   }
 
   /** Given a collection of cancel tokens, creates a token that
@@ -114,24 +119,24 @@ object CancelableF {
     *  - for the JVM "Suppressed Exceptions" are used
     *  - for JS they are wrapped in a `CompositeException`
     */
-  def cancelAllTokens[F[_]](seq: CancelToken[F]*)
-    (implicit F: Sync[F]): CancelToken[F] = {
+  def cancelAllTokens[F[_]](seq: CancelToken[F]*)(implicit F: Sync[F]): CancelToken[F] = {
 
-    if (seq.isEmpty) F.unit else F.suspend {
-      new CancelAllFrame[F](seq.iterator)(F)
-        .loop
-    }
+    if (seq.isEmpty) F.unit
+    else
+      F.suspend {
+        new CancelAllFrame[F](seq.iterator)(F).loop
+      }
   }
 
   /** Interface for cancelables that are empty or already canceled. */
   trait Empty[F[_]] extends CancelableF[F] with IsDummy[F]
 
   /** Marker for cancelables that are dummies that can be ignored. */
-  trait IsDummy[F[_]] { self: CancelableF[F] => }
+  trait IsDummy[F[_]] { self: CancelableF[F] =>
+  }
 
   // Optimization for `cancelAll`
-  private final class CancelAllFrame[F[_]](cursor: Iterator[CancelToken[F]])
-    (implicit F: Sync[F])
+  private final class CancelAllFrame[F[_]](cursor: Iterator[CancelToken[F]])(implicit F: Sync[F])
     extends (Either[Throwable, Unit] => F[Unit]) {
 
     private[this] val errors = ListBuffer.empty[Throwable]
@@ -152,7 +157,7 @@ object CancelableF {
     }
 
     def apply(r: Either[Throwable, Unit]): F[Unit] = {
-      if (r.isLeft) errors += r.left.get
+      if (r.isLeft) r.swap.foreach(t => errors += t)
       loop
     }
   }

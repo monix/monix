@@ -42,10 +42,15 @@ object IterantResourceSuite extends BaseTestSuite {
 
   test("Iterant.resource.flatMap(use) preserves earlyStop of stream returned from `use`") { _ =>
     var earlyStopDone = false
-    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.unit)
-      .flatMap(_ => Iterant[Coeval].of(1, 2, 3).guarantee(Coeval {
-        earlyStopDone = true
-      }))
+    val bracketed = Iterant
+      .resource(Coeval.unit)(_ => Coeval.unit)
+      .flatMap(
+        _ =>
+          Iterant[Coeval]
+            .of(1, 2, 3)
+            .guarantee(Coeval {
+              earlyStopDone = true
+            }))
 
     bracketed.take(1).completedL.value()
     assert(earlyStopDone)
@@ -53,7 +58,8 @@ object IterantResourceSuite extends BaseTestSuite {
 
   test("Iterant.resource releases resource on normal completion") { _ =>
     val rs = new Resource
-    val bracketed = Iterant.resource(rs.acquire)(_.release)
+    val bracketed = Iterant
+      .resource(rs.acquire)(_.release)
       .flatMap(_ => Iterant.range(1, 10))
 
     bracketed.completedL.value()
@@ -77,10 +83,9 @@ object IterantResourceSuite extends BaseTestSuite {
     val rs = new Resource
     val error = DummyException("dummy")
 
-    val bracketed = Iterant.resource(rs.acquire)(_.release)
-      .flatMap { _ =>
-        Iterant.range[Coeval](1, 10) ++ Iterant.raiseError[Coeval, Int](error)
-      }
+    val bracketed = Iterant.resource(rs.acquire)(_.release).flatMap { _ =>
+      Iterant.range[Coeval](1, 10) ++ Iterant.raiseError[Coeval, Int](error)
+    }
 
     intercept[DummyException] {
       bracketed.completedL.value()
@@ -92,8 +97,9 @@ object IterantResourceSuite extends BaseTestSuite {
   test("Iterant.resource.flatMap(use) releases resource if `use` throws") { _ =>
     val rs = new Resource
     val dummy = DummyException("dummy")
-    val bracketed = Iterant.resource(rs.acquire)(_.release)
-      .flatMap { _ => throw dummy }
+    val bracketed = Iterant.resource(rs.acquire)(_.release).flatMap { _ =>
+      throw dummy
+    }
 
     intercept[DummyException] {
       bracketed.completedL.value()
@@ -130,11 +136,11 @@ object IterantResourceSuite extends BaseTestSuite {
   test("Iterant.resource nesting: outer releases even if inner release fails") { _ =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval { released = true })
-      .flatMap { _ =>
-        Iterant.resource(Coeval.unit)(_ => Coeval.raiseError(dummy))
-          .flatMap(_ => Iterant[Coeval].of(1, 2, 3))
-      }
+    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval { released = true }).flatMap { _ =>
+      Iterant
+        .resource(Coeval.unit)(_ => Coeval.raiseError(dummy))
+        .flatMap(_ => Iterant[Coeval].of(1, 2, 3))
+    }
 
     intercept[DummyException] {
       bracketed.completedL.value()
@@ -145,9 +151,9 @@ object IterantResourceSuite extends BaseTestSuite {
   test("Iterant.resource.flatMap(child) calls release when child is broken") { _ =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval { released = true })
-      .flatMap { _ => Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy))
-      }
+    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval { released = true }).flatMap { _ =>
+      Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy))
+    }
 
     intercept[DummyException] {
       bracketed.completedL.value()
@@ -158,11 +164,11 @@ object IterantResourceSuite extends BaseTestSuite {
   test("Iterant.resource nesting: inner releases even if outer release fails") { _ =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.raiseError(dummy))
-      .flatMap { _ =>
-        Iterant.resource(Coeval.unit)(_ => Coeval { released = true })
-          .flatMap(_ => Iterant[Coeval].of(1, 2, 3))
-      }
+    val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.raiseError(dummy)).flatMap { _ =>
+      Iterant
+        .resource(Coeval.unit)(_ => Coeval { released = true })
+        .flatMap(_ => Iterant[Coeval].of(1, 2, 3))
+    }
 
     intercept[DummyException] {
       bracketed.completedL.value()
@@ -226,7 +232,8 @@ object IterantResourceSuite extends BaseTestSuite {
         _.reduceL(_ + _).map(_ => ())
       )
 
-    val pure = Iterant.resource(rs.acquire)(_.release)
+    val pure = Iterant
+      .resource(rs.acquire)(_.release)
       .flatMap(_ => Iterant[Coeval].of(1, 2, 3))
 
     for (method <- completes) {
@@ -237,7 +244,8 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.released, completes.length)
 
     val dummy = DummyException("dummy")
-    val faulty = Iterant.resource(rs.acquire)(_.release)
+    val faulty = Iterant
+      .resource(rs.acquire)(_.release)
       .flatMap(_ => Iterant[Coeval].raiseError[Int](dummy))
 
     for (method <- completes) {
@@ -248,7 +256,8 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.acquired, completes.length * 2)
     assertEquals(rs.released, completes.length * 2)
 
-    val broken = Iterant.resource(rs.acquire)(_.release)
+    val broken = Iterant
+      .resource(rs.acquire)(_.release)
       .flatMap(_ => Iterant[Coeval].suspendS[Int](Coeval.raiseError(dummy)))
 
     for (method <- completes) {

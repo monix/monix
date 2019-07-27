@@ -79,6 +79,5 @@ object Fiber {
   def apply[A](task: Task[A], cancel: CancelToken[Task]): Fiber[A] =
     new Tuple(task, cancel)
 
-  private final case class Tuple[A](join: Task[A], cancel: CancelToken[Task])
-    extends Fiber[A]
+  private final case class Tuple[A](join: Task[A], cancel: CancelToken[Task]) extends Fiber[A]
 }
