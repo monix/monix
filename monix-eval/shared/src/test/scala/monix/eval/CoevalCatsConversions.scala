@@ -163,6 +163,6 @@ object CoevalCatsConversions extends BaseTestSuite {
   test("Coeval().toSync[Coeval]") { _ =>
     val ref1 = Coeval { 1 + 1 }
     val ref2 = ref1.toSync[Coeval]
-    assertEquals(ref1, ref2)
+    assertEquals(ref1.value(), ref2.value())
   }
 }
