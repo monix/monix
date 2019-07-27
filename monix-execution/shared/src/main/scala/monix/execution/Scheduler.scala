@@ -234,7 +234,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     */
   def withExecutionModel(em: ExecutionModel): Scheduler
 
-  /** 
+  /**
     * Returns a new `Scheduler` that piggybacks on this, but uses
     * the given exception reporter for reporting uncaught errors.
     *

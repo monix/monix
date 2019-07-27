@@ -180,7 +180,8 @@ object ExecutorScheduler {
     extends ExecutorScheduler(executor, r) {
 
     @deprecated("Provided for backwards compatibility", "3.0.0")
-    def this(scheduler: ScheduledExecutorService,
+    def this(
+      scheduler: ScheduledExecutorService,
       executor: ExecutorService,
       r: UncaughtExceptionReporter,
       executionModel: ExecModel) = {
@@ -208,9 +209,7 @@ object ExecutorScheduler {
     extends ExecutorScheduler(s, r) {
 
     @deprecated("Provided for backwards compatibility", "3.0.0")
-    def this(scheduler: ScheduledExecutorService,
-      r: UncaughtExceptionReporter,
-      executionModel: ExecModel) = {
+    def this(scheduler: ScheduledExecutorService, r: UncaughtExceptionReporter, executionModel: ExecModel) = {
       // $COVERAGE-OFF$
       this(scheduler, r, executionModel, Features.empty)
       // $COVERAGE-ON$

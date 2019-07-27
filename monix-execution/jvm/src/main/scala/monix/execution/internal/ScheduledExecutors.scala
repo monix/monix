@@ -27,7 +27,9 @@ private[execution] object ScheduledExecutors {
     * Reusable implementation for a `scheduleOnce` that uses
     * an underlying Java `ScheduledExecutorService`.
     */
-  def scheduleOnce(self: Scheduler, executor: ScheduledExecutorService)(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
+  def scheduleOnce(
+    self: Scheduler,
+    executor: ScheduledExecutorService)(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     if (initialDelay <= 0) {
       executor.execute(r)
       Cancelable.empty

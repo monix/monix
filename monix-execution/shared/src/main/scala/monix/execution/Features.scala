@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import monix.execution.Features.{Flags, Flag}
+import monix.execution.Features.{Flag, Flags}
 
 /** `Features` describes a set of features described via
   * bitwise operators applied to ints, but made type safe.
@@ -26,8 +26,7 @@ import monix.execution.Features.{Flags, Flag}
   *
   * Currently used to describe the features of [[Scheduler]].
   */
-final class Features(val flags: Flags)
-  extends AnyVal with Serializable {
+final class Features(val flags: Flags) extends AnyVal with Serializable {
 
   /** Intersects the source with another feature set, such
     * that the new value will contain the flags that are

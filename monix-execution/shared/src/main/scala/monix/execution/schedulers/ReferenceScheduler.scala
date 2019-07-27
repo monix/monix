@@ -19,7 +19,7 @@ package monix.execution.schedulers
 
 import monix.execution.cancelables.OrderedCancelable
 import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
-import monix.execution.{Features, Cancelable, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter}
 import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 import monix.execution.internal.InterceptableRunnable
 // Prevents conflict with the deprecated symbol
