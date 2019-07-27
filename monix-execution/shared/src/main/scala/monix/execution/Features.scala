@@ -114,4 +114,7 @@ object Features {
   /** Wraps an `Int` value into a [[Flag]]. */
   @inline def flag(value: Int): Flag =
     value.asInstanceOf[Flag]
+
+  /** Reusable, empty [[Features]] reference. */
+  val empty = Features()
 }

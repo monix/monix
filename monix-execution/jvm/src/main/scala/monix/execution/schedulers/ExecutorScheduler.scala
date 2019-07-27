@@ -89,12 +89,14 @@ object ExecutorScheduler {
     executionModel: ExecModel,
     features: Features): ExecutorScheduler = {
 
+    // Implementations will inherit BatchingScheduler, so this is guaranteed
+    val ft = features + Scheduler.BATCHING
     service match {
       case ref: ScheduledExecutorService =>
-        new FromScheduledExecutor(ref, reporter, executionModel, features)
+        new FromScheduledExecutor(ref, reporter, executionModel, ft)
       case _ =>
         val s = Defaults.scheduledExecutor
-        new FromSimpleExecutor(s, service, reporter, executionModel, features)
+        new FromSimpleExecutor(s, service, reporter, executionModel, ft)
     }
   }
 
@@ -120,7 +122,7 @@ object ExecutorScheduler {
       asyncMode = true
     )
 
-    apply(pool, reporter, executionModel, Features(Scheduler.BATCHING))
+    apply(pool, reporter, executionModel, Features.empty)
   }
 
   /** Creates an [[ExecutorScheduler]] backed by a `ForkJoinPool`
@@ -146,8 +148,7 @@ object ExecutorScheduler {
       asyncMode = true
     )
 
-    val set = Features(Scheduler.BATCHING, Scheduler.BLOCK_CONTEXT)
-    apply(pool, reporter, executionModel, set)
+    apply(pool, reporter, executionModel, Features.empty)
   }
 
   /** Converts a Java `ExecutorService`.
@@ -161,8 +162,8 @@ object ExecutorScheduler {
     scheduler: ScheduledExecutorService,
     executor: ExecutorService,
     r: UncaughtExceptionReporter,
-    val executionModel: ExecModel,
-    val features: Features)
+    override val executionModel: ExecModel,
+    override val features: Features)
     extends ExecutorScheduler(executor, r) {
 
     override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {

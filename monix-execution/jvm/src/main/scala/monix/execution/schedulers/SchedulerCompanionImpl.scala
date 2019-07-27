@@ -18,7 +18,8 @@
 package monix.execution.schedulers
 
 import java.util.concurrent._
-import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
+
+import monix.execution.{Features, Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
@@ -34,7 +35,7 @@ import scala.concurrent.duration._
   *         default will be used. You can also create one with
   *         `java.util.concurrent.Executors`.
   *
-  * @define executionContext is the execution context in which all tasks will run.
+  * @define executionContext is the execution context on top of which all tasks will run.
   *         Use `scala.concurrent.ExecutionContext.Implicits.global`
   *         for the default.
   *
@@ -100,7 +101,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param reporter $reporter
     */
   def apply(executor: ExecutorService, reporter: UncaughtExceptionReporter): SchedulerService =
-    ExecutorScheduler(executor, reporter, ExecModel.Default)
+    ExecutorScheduler(executor, reporter, ExecModel.Default, Features.empty)
 
   /** [[monix.execution.Scheduler Scheduler]] builder that converts a
     * Java `ExecutorService` into a scheduler.
@@ -110,7 +111,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param executionModel $executionModel
     */
   def apply(executor: ExecutorService, reporter: UncaughtExceptionReporter, executionModel: ExecModel): SchedulerService =
-    ExecutorScheduler(executor, reporter, executionModel)
+    ExecutorScheduler(executor, reporter, executionModel, Features.empty)
 
   /** [[monix.execution.Scheduler Scheduler]] builder that converts a
     * Java `ExecutorService` into a scheduler.
@@ -118,7 +119,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param executor $executorService
     */
   def apply(executor: ExecutorService): SchedulerService =
-    ExecutorScheduler(executor, UncaughtExceptionReporter.default, ExecModel.Default)
+    ExecutorScheduler(executor, UncaughtExceptionReporter.default, ExecModel.Default, Features.empty)
 
   /** [[monix.execution.Scheduler Scheduler]] builder that converts a
     * Java `ExecutorService` into a scheduler.
@@ -127,12 +128,12 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param executionModel $executionModel
     */
   def apply(executor: ExecutorService, executionModel: ExecModel): SchedulerService =
-    ExecutorScheduler(executor, UncaughtExceptionReporter.default, executionModel)
+    ExecutorScheduler(executor, UncaughtExceptionReporter.default, executionModel, Features.empty)
 
   /** [[monix.execution.Scheduler Scheduler]] builder - uses monix's
     * default `ScheduledExecutorService` for handling the scheduling of tasks.
     *
-    * @param ec is the execution context in which all tasks will run.
+    * @param ec is the execution context on top of which all tasks will run.
     */
   def apply(ec: ExecutionContext): Scheduler =
     AsyncScheduler(
@@ -144,7 +145,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   /** [[monix.execution.Scheduler Scheduler]] builder - uses monix's
     * default `ScheduledExecutorService` for handling the scheduling of tasks.
     *
-    * @param ec is the execution context in which all tasks will run.
+    * @param ec is the execution context on top of which all tasks will run.
     * @param executionModel $executionModel
     */
   def apply(ec: ExecutionContext, executionModel: ExecModel): Scheduler =
@@ -280,7 +281,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       new SynchronousQueue[Runnable](false),
       threadFactory)
 
-    ExecutorScheduler(executor, reporter, executionModel)
+    ExecutorScheduler(executor, reporter, executionModel, Features.empty)
   }
 
   /** Builds a [[Scheduler]] backed by an internal
@@ -320,7 +321,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       new SynchronousQueue[Runnable](false),
       threadFactory)
 
-    ExecutorScheduler(executor, reporter, executionModel)
+    ExecutorScheduler(executor, reporter, executionModel, Features.empty)
   }
 
   /** Builds a [[monix.execution.Scheduler Scheduler]] that schedules and executes tasks on its own thread.
@@ -350,7 +351,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     }
 
 
-    ExecutorScheduler(executor, reporter, executionModel)
+    ExecutorScheduler(executor, reporter, executionModel, Features.empty)
   }
 
   /** Builds a [[monix.execution.Scheduler Scheduler]] with a fixed thread-pool.
@@ -377,8 +378,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       override def reportFailure(t: Throwable): Unit =
         reporter.reportFailure(t)
     }
-
-    ExecutorScheduler(executor, reporter, executionModel)
+    ExecutorScheduler(executor, reporter, executionModel, Features.empty)
   }
 
   /** The default `ScheduledExecutor` instance.

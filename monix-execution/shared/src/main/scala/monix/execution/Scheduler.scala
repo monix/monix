@@ -237,8 +237,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     */
   def withExecutionModel(em: ExecutionModel): Scheduler
 
-  /** Exposes a set of flags that describes the [[Scheduler]]'s
-    * features.
+  /** Exposes a set of flags that describes the [[Scheduler]]'s features.
     */
   def features: Features
 }
@@ -272,21 +271,6 @@ object Scheduler extends SchedulerCompanionImpl {
     */
   val BATCHING = Features.flag(1)
 
-  /** Flag signaling that the [[Scheduler]] is implemented as a
-    * trampoline and will execute all incoming `Runnable` on the
-    * current thread.
-    *
-    * Note this is different from [[BATCHING]], as a trampolined
-    * scheduler will execute all queued runnables (via `execute`)
-    * on the current thread.
-    *
-    * This is exposed via [[Scheduler.features]].
-    *
-    * @see [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]]
-    *      for an implementation.
-    */
-  val TRAMPOLINE = Features.flag(2)
-
   /** Flag signaling that the [[Scheduler]] implementation can transport
     * [[monix.execution.misc.Local Local]] variables over async boundaries.
     *
@@ -294,27 +278,7 @@ object Scheduler extends SchedulerCompanionImpl {
     *      [[monix.execution.schedulers.TracingSchedulerService TracingSchedulerService]]
     *      for implementations.
     */
-  val TRACING = Features.flag(4)
-
-  /** Flag signaling that the [[Scheduler]] implementation can is
-    * integrated with [[scala.concurrent.BlockContext]].
-    *
-    * This allows for marking blocking tasks via
-    * [[scala.concurrent.blocking blocking]] blocks, informing
-    * the scheduler of blocking behavior and in response the
-    * scheduler can add threads to the pool, or it can prioritize
-    * other tasks for execution.
-    */
-  val BLOCK_CONTEXT = Features.flag(4)
-
-  /** Flag signaling that the [[Scheduler]] supports simulated time,
-    * meaning that it can be used to test time deterministically.
-    *
-    * See [[monix.execution.schedulers.TestScheduler TestScheduler]].
-    *
-    * This is exposed via [[Scheduler.features]].
-    */
-  val SIMULATED_TIME = Features.flag(16)
+  val TRACING = Features.flag(2)
 
   /** Utilities complementing the `Scheduler` interface. */
   implicit final class Extensions(val source: Scheduler) extends AnyVal with schedulers.ExecuteExtensions {

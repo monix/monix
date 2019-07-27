@@ -48,6 +48,8 @@ final class AsyncScheduler private (
     context.reportFailure(t)
   override def withExecutionModel(em: ExecModel): AsyncScheduler =
     new AsyncScheduler(context, em)
+  override val features: Features =
+    Features(Scheduler.BATCHING)
 }
 
 object AsyncScheduler {

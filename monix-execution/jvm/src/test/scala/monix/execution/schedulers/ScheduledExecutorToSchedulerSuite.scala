@@ -18,11 +18,13 @@
 package monix.execution.schedulers
 
 import java.util.concurrent._
+
 import minitest.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{Features, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
@@ -39,7 +41,8 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
 
     ExecutorScheduler(executor,
       reporter,
-      ExecModel.Default)
+      ExecModel.Default,
+      Features.empty)
   }
 
   override def tearDown(scheduler: ExecutorScheduler): Unit = {

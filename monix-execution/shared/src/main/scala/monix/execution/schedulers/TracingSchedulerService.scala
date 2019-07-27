@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import monix.execution.ExecutionModel
+import monix.execution.{ExecutionModel, Features, Scheduler}
 import scala.concurrent.duration.TimeUnit
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -46,6 +46,8 @@ final class TracingSchedulerService(underlying: SchedulerService)
     underlying.awaitTermination(timeout, unit, awaitOn)
   override def withExecutionModel(em: ExecutionModel): TracingSchedulerService =
     new TracingSchedulerService(underlying.withExecutionModel(em))
+  override val features: Features =
+    underlying.features + Scheduler.TRACING
 }
 
 object TracingSchedulerService {

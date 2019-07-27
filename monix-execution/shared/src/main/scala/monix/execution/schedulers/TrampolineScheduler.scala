@@ -77,8 +77,8 @@ final class TrampolineScheduler(
     underlying.clockMonotonic(unit)
   override def withExecutionModel(em: ExecModel): TrampolineScheduler =
     new TrampolineScheduler(underlying, em)
-  override val features: Features =
-    underlying.features + Scheduler.TRAMPOLINE
+  override def features: Features =
+    underlying.features
 }
 
 object TrampolineScheduler {

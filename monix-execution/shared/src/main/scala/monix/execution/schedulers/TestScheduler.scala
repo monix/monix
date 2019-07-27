@@ -174,7 +174,7 @@ final class TestScheduler private (
     new TestScheduler(stateRef, em)
 
   override val features: Features =
-    Features(Scheduler.BATCHING, Scheduler.SIMULATED_TIME)
+    Features(Scheduler.BATCHING)
 
   /**
     * Executes just one tick, one task, from the internal queue, useful

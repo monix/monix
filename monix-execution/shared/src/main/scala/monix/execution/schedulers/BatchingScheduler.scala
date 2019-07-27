@@ -52,7 +52,4 @@ trait BatchingScheduler extends Scheduler { self =>
         // No local execution, forwards to underlying context
         executeAsync(runnable)
     }
-
-//  override def features: Features =
-//    Features(Scheduler.BATCHING)
 }
