@@ -570,7 +570,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   @UnsafeBecauseImpure
   final def runAsyncGetFirst(implicit s: Scheduler, opts: Task.Options = defaultOptions): CancelableFuture[Option[A]] =
-    firstOptionL.runToFutureOpt(s, opts.withSchedulerFeatures)
+    firstOptionL.runToFutureOpt(s, opts)
 
   /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
     * that upon execution will signal the last generated element of the
@@ -580,7 +580,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   @UnsafeBecauseImpure
   final def runAsyncGetLast(implicit s: Scheduler, opts: Task.Options = defaultOptions): CancelableFuture[Option[A]] =
-    lastOptionL.runToFutureOpt(s, opts.withSchedulerFeatures)
+    lastOptionL.runToFutureOpt(s, opts)
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
@@ -2597,7 +2597,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => (pf.andThen(Observable.now(_))).applyOrElse(ex, Observable.raiseError _))
+    onErrorHandleWith(ex => (pf.andThen(Observable.now)).applyOrElse(ex, Observable.raiseError))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
