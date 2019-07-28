@@ -4,6 +4,9 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 object MimaFilters {
 
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
+    // Internals for https://github.com/monix/monix/pull/917
+    exclude[MissingClassProblem]("monix.eval.internal.TaskConnection$TrampolinedWithConn"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConnection.trampolineCallback"),
     // Breaking changes for https://github.com/monix/monix/pull/921
     exclude[DirectMissingMethodProblem]("monix.eval.Task#AsyncBuilder.create"),
     exclude[ReversedMissingMethodProblem]("monix.eval.Task#AsyncBuilder.create"),
