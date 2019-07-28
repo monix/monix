@@ -1409,6 +1409,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def repeat(implicit F: Sync[F]): Iterant[F, A] =
     IterantRepeat(self)
 
+  /**
+    * Retries processing the source stream after the search is
+    * detected as being empty.
+    *
+    * {{{
+    *
+    * }}}
+    */
+  final def retryIfEmpty(maxRetries: Option[Int])(implicit F: Sync[F]): Iterant[F, A] =
+    IterantRetryIfEmpty(self, maxRetries)
+
   /** Returns an `Iterant` that mirrors the behavior of the source,
     * unless the source is terminated with an error, in which case
     * the streaming of events continues with the specified backup

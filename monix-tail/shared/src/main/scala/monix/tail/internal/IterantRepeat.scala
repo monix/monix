@@ -56,6 +56,7 @@ private[tail] object IterantRepeat {
 
     private[this] var isEmpty = true
     private[this] var stack: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private[this] val continue = F.delay(visit(Constants.emptyRef.asInstanceOf[Halt[F, A]]))
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       if (isEmpty) isEmpty = false
@@ -86,8 +87,10 @@ private[tail] object IterantRepeat {
       Suspend(ref.lh.map(this))
     }
 
-    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] =
-      ref.runMap(this)
+    def visit[S](ref: Scope[F, S, A]): Iterant[F, A] = {
+      isEmpty = false
+      Concat(F.pure(ref), continue)
+    }
 
     def visit(ref: Last[F, A]): Iterant[F, A] = {
       val next =
