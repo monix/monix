@@ -5205,6 +5205,23 @@ object Observable extends ObservableDeprecatedBuilders {
   def fromAsyncStateAction[S, A](f: S => Task[(A, S)])(seed: => S): Observable[A] =
     new builders.AsyncStateActionObservable(seed, f)
 
+  /** Version of [[fromAsyncStateAction]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * @see [[fromAsyncStateAction]] for a version specialized for
+    *      [[monix.eval.Task Task]]
+    */
+  def fromAsyncStateActionF[F[_], S, A](f: S => F[(A, S)])(seed: => S)(implicit F: TaskLike[F]): Observable[A] =
+    fromAsyncStateAction[S, A](a => Task.from(f(a)))(seed)
+
   /** Wraps this Observable into a `org.reactivestreams.Publisher`.
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]
     * protocol that Monix implements.
