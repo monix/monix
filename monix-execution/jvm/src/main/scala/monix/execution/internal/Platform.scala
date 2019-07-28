@@ -204,4 +204,16 @@ private[monix] object Platform {
   def currentThreadId(): Long = {
     Thread.currentThread().getId
   }
+
+  /**
+    * For reporting errors when we don't have access to
+    * an error handler.
+    */
+  def reportFailure(e: Throwable): Unit = {
+    val t = Thread.currentThread()
+    t.getUncaughtExceptionHandler match {
+      case null => DefaultUncaughtExceptionReporter.reportFailure(e)
+      case ref => ref.uncaughtException(t, e)
+    }
+  }
 }

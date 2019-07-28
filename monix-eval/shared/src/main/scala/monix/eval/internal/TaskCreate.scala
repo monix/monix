@@ -228,9 +228,11 @@ private[eval] object TaskCreate {
     }
 
     override def run(): Unit = {
-      ctx.connection.pop()
       if (!isSameThread) {
         ctx.frameRef.reset()
+      }
+      if (shouldPop) {
+        ctx.connection.pop()
       }
 
       state.get() match {

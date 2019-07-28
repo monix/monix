@@ -19,13 +19,14 @@ package monix.execution.schedulers
 
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.{ExecutorService, ScheduledExecutorService}
+
 import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThreadFactory, StandardWorkerThreadFactory}
+
 import scala.util.control.NonFatal
-
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
-import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
 
-import monix.execution.internal.InterceptableRunnable
+import scala.concurrent.{ExecutionContext, Future, Promise, blocking}
+import monix.execution.internal.{InterceptableRunnable, Platform}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.duration.TimeUnit
@@ -43,7 +44,7 @@ abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporte
   override final protected def executeAsync(runnable: Runnable): Unit =
     e.execute(if (r eq null) runnable else InterceptableRunnable(runnable, r))
   override final def reportFailure(t: Throwable): Unit =
-    r.reportFailure(t)
+    if (r ne null) r.reportFailure(t) else Platform.reportFailure(t)
   override final def isShutdown: Boolean =
     e.isShutdown
   override final def isTerminated: Boolean =

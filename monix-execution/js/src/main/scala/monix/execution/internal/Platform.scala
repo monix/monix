@@ -17,8 +17,10 @@
 
 package monix.execution.internal
 
+import monix.execution.UncaughtExceptionReporter
 import monix.execution.exceptions.CompositeException
 import monix.execution.schedulers.CanBlock
+
 import scala.concurrent.Awaitable
 import scala.concurrent.duration.Duration
 
@@ -128,4 +130,12 @@ private[monix] object Platform {
     * in JavaScript this always returns the same value.
     */
   def currentThreadId(): Long = 1L
+
+  /**
+    * For reporting errors when we don't have access to
+    * an error handler.
+    */
+  def reportFailure(e: Throwable): Unit = {
+    UncaughtExceptionReporter.default.reportFailure(e)
+  }
 }

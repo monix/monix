@@ -33,7 +33,7 @@ private[eval] object TaskDoOnCancel {
         implicit val o = context.options
 
         context.connection.push(callback)
-        Task.unsafeStartNow(self, context, TaskCreate.protectedCallback(context, onFinish))
+        Task.unsafeStartNow(self, context, TaskCreate.protectedCallback(context, shouldPop = true, onFinish))
       }
       Async(start, trampolineBefore = false, trampolineAfter = false, restoreLocals = false)
     }
