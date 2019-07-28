@@ -1449,7 +1449,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * }}}
     *
     * @param maxRetries is an optional integer specifying a maximum
-    *        number of retries before it gives up
+    *        number of retries before it gives up and returns an
+    *        empty stream
     */
   final def retryIfEmpty(maxRetries: Option[Int])(implicit F: Sync[F]): Iterant[F, A] =
     IterantRetryIfEmpty(self, maxRetries)
