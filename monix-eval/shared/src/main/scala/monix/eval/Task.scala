@@ -4710,8 +4710,7 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     implicit s: Scheduler,
     opts: Task.Options = Task.defaultOptions): CatsConcurrentEffectForTask = {
 
-    val opts2 = opts.withSchedulerFeatures
-    new CatsConcurrentEffectForTask()(s, opts2)
+    new CatsConcurrentEffectForTask
   }
 
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
