@@ -17,7 +17,6 @@
 
 package monix.execution.schedulers
 
-import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.{ExecutorService, ScheduledExecutorService}
 import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThreadFactory, StandardWorkerThreadFactory}
 import scala.util.control.NonFatal
@@ -64,11 +63,17 @@ abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporte
     p.future
   }
 
-  override def withExecutionModel(em: ExecModel): SchedulerService =
+  override def withExecutionModel(em: ExecModel): SchedulerService = {
+    // $COVERAGE-OFF$
     throw new NotImplementedError("ExecutorService.withExecutionModel")
+    // $COVERAGE-ON$
+  }
 
-  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): SchedulerService =
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): SchedulerService = {
+    // $COVERAGE-OFF$
     throw new NotImplementedError("ExecutorService.withUncaughtExceptionReporter")
+    // $COVERAGE-ON$
+  }
 }
 
 object ExecutorScheduler {
@@ -149,11 +154,7 @@ object ExecutorScheduler {
     reporter: UncaughtExceptionReporter,
     executionModel: ExecModel): ExecutorScheduler = {
 
-    val exceptionHandler = new UncaughtExceptionHandler {
-      def uncaughtException(t: Thread, e: Throwable) =
-        reporter.reportFailure(e)
-    }
-
+    val exceptionHandler = reporter.asJava
     val pool = new AdaptedForkJoinPool(
       parallelism,
       new DynamicWorkerThreadFactory(name, maxThreads, exceptionHandler, daemonic),

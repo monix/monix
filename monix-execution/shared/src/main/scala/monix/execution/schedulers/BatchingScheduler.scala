@@ -17,7 +17,8 @@
 
 package monix.execution.schedulers
 
-import monix.execution.Scheduler
+import monix.execution.{Features, Scheduler}
+
 import scala.concurrent.ExecutionContext
 
 /** Adds trampoline execution capabilities to
@@ -52,4 +53,10 @@ trait BatchingScheduler extends Scheduler { self =>
         // No local execution, forwards to underlying context
         executeAsync(runnable)
     }
+
+  override def features: Features = {
+    // $COVERAGE-OFF$
+    super.features + Scheduler.BATCHING
+    // $COVERAGE-ON$
+  }
 }

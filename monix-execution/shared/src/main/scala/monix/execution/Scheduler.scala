@@ -256,7 +256,11 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
   /**
     * Exposes a set of flags that describes the [[Scheduler]]'s features.
     */
-  def features: Features = Features.empty
+  def features: Features = {
+    // $COVERAGE-OFF$
+    Features.empty
+    // $COVERAGE-ON$
+  }
 }
 
 private[monix] trait SchedulerCompanion {
