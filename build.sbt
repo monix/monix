@@ -37,7 +37,7 @@ val minitestVersion = "2.3.2"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0-RC2"
+val monixSeries = "3.0.0-RC3"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
