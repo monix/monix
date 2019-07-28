@@ -27,7 +27,7 @@ import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-object TaskAsyncAutoShiftSuite extends TestSuite[SchedulerService] {
+object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
   private val ThreadName = "test-thread"
 
   override def setup(): SchedulerService =
@@ -860,6 +860,77 @@ object TaskAsyncAutoShiftSuite extends TestSuite[SchedulerService] {
           cb.onError(dummy)
           Task(())
         }
+        .onErrorHandle(e => assertEquals(e, dummy))
+        .flatMap(_ => Task(Thread.currentThread().getName))
+        .runToFuture(s)
+
+      for (name <- r) yield {
+        assert(!name.startsWith(ThreadName), s"'$name' should not start with '$ThreadName'")
+      }
+    }
+  }
+  
+  ///...
+  testAsync("Task.asyncF(register) should shift back if register forks") { s =>
+    implicit val s2: Scheduler = Scheduler.global
+
+    repeatTest(1000) {
+      val r = Task
+        .asyncF[Unit] { cb =>
+          Task(s2.executeAsync(() => cb.onSuccess(())))
+        }
+        .flatMap(_ => Task(Thread.currentThread().getName))
+        .executeAsync
+        .runToFuture(s)
+
+      for (name <- r) yield {
+        assert(name.startsWith(ThreadName), s"'$name' should start with '$ThreadName'")
+      }
+    }
+  }
+
+  testAsync("Task.asyncF(register) should not shift back if register does not fork") { s =>
+    implicit val ec: Scheduler = Scheduler.global
+
+    repeatTest(1000) {
+      val r = Task
+        .asyncF[Unit](cb => Task(cb.onSuccess(())))
+        .flatMap(_ => Task(Thread.currentThread().getName))
+        .runToFuture(s)
+
+      for (name <- r) yield {
+        assert(!name.startsWith(ThreadName), s"'$name' should not start with '$ThreadName'")
+      }
+    }
+  }
+
+  testAsync("Task.asyncF(register error) should shift back if register forks") { s =>
+    implicit val s2: Scheduler = Scheduler.global
+
+    repeatTest(1000) {
+      val dummy = DummyException("dummy")
+      val r = Task
+        .asyncF[Unit] { cb =>
+          Task(s2.executeAsync(() => cb.onError(dummy)))
+        }
+        .onErrorHandle(e => assertEquals(e, dummy))
+        .flatMap(_ => Task(Thread.currentThread().getName))
+        .executeAsync
+        .runToFuture(s)
+
+      for (name <- r) yield {
+        assert(name.startsWith(ThreadName), s"'$name' should start with '$ThreadName'")
+      }
+    }
+  }
+
+  testAsync("Task.asyncF(register error) should not shift back if register does not fork") { s =>
+    implicit val ec: Scheduler = Scheduler.global
+
+    repeatTest(1000) {
+      val dummy = DummyException("dummy")
+      val r = Task
+        .asyncF[Unit](cb => Task(cb.onError(dummy)))
         .onErrorHandle(e => assertEquals(e, dummy))
         .flatMap(_ => Task(Thread.currentThread().getName))
         .runToFuture(s)
