@@ -88,26 +88,23 @@ object TaskFromFutureSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(1)))
   }
 
-  test("Task.fromFuture() should be faster for completed futures, success") {
-    implicit s =>
-      val t = Task.fromFuture(Future.successful(10))
-      val f = t.runToFuture
-      assertEquals(f.value, Some(Success(10)))
+  test("Task.fromFuture() should be faster for completed futures, success") { implicit s =>
+    val t = Task.fromFuture(Future.successful(10))
+    val f = t.runToFuture
+    assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.fromFuture() should be faster for completed futures, failure") {
-    implicit s =>
-      val dummy = DummyException("dummy")
-      val t = Task.fromFuture(Future.failed(dummy))
-      val f = t.runToFuture
-      assertEquals(f.value, Some(Failure(dummy)))
+  test("Task.fromFuture() should be faster for completed futures, failure") { implicit s =>
+    val dummy = DummyException("dummy")
+    val t = Task.fromFuture(Future.failed(dummy))
+    val f = t.runToFuture
+    assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromFuture() should be faster for completed futures, success") {
-    implicit s =>
-      val t = Task.fromFuture(Future.successful(10))
-      val f = t.runToFuture
-      assertEquals(f.value, Some(Success(10)))
+  test("Task.fromFuture() should be faster for completed futures, success") { implicit s =>
+    val t = Task.fromFuture(Future.successful(10))
+    val f = t.runToFuture
+    assertEquals(f.value, Some(Success(10)))
   }
 
   test("Task.fromFuture() should work onSuccess") { implicit s =>
@@ -142,38 +139,34 @@ object TaskFromFutureSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromFuture(cancelable) should work for synchronous results onSuccess") {
-    implicit s =>
-      val t = Task.fromFuture(CancelableFuture.successful(10))
-      val f = t.runToFuture
-      assertEquals(f.value, Some(Success(10)))
+  test("Task.fromFuture(cancelable) should work for synchronous results onSuccess") { implicit s =>
+    val t = Task.fromFuture(CancelableFuture.successful(10))
+    val f = t.runToFuture
+    assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.fromFuture(cancelable) should work for synchronous results onFailure") {
-    implicit s =>
-      val dummy = DummyException("dummy")
-      val t = Task.fromFuture(CancelableFuture.failed(dummy))
-      val f = t.runToFuture
-      assertEquals(f.value, Some(Failure(dummy)))
+  test("Task.fromFuture(cancelable) should work for synchronous results onFailure") { implicit s =>
+    val dummy = DummyException("dummy")
+    val t = Task.fromFuture(CancelableFuture.failed(dummy))
+    val f = t.runToFuture
+    assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromFuture(cancelable) should be short-circuited onSuccess") {
-    implicit s =>
-      val p = Promise[Int]()
-      val t = Task.fromFuture(CancelableFuture(p.future, Cancelable.empty))
-      p.success(10)
-      val f = t.runToFuture
-      assertEquals(f.value, Some(Success(10)))
+  test("Task.fromFuture(cancelable) should be short-circuited onSuccess") { implicit s =>
+    val p = Promise[Int]()
+    val t = Task.fromFuture(CancelableFuture(p.future, Cancelable.empty))
+    p.success(10)
+    val f = t.runToFuture
+    assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.fromFuture(cancelable) should be short-circuited onError") {
-    implicit s =>
-      val dummy = DummyException("dummy")
-      val p = Promise[Int]()
-      val t = Task.fromFuture(CancelableFuture(p.future, Cancelable.empty))
-      p.failure(dummy)
-      val f = t.runToFuture
-      assertEquals(f.value, Some(Failure(dummy)))
+  test("Task.fromFuture(cancelable) should be short-circuited onError") { implicit s =>
+    val dummy = DummyException("dummy")
+    val p = Promise[Int]()
+    val t = Task.fromFuture(CancelableFuture(p.future, Cancelable.empty))
+    p.failure(dummy)
+    val f = t.runToFuture
+    assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("Task.fromFuture(cancelable) should work onSuccess") { implicit s =>
@@ -243,49 +236,45 @@ object TaskFromFutureSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.deferFutureAction(error, ) for already completed references") {
-    implicit s =>
-      val dummy = DummyException("dummy")
-      val f = Task.deferFutureAction(_ => Future.failed(dummy)).runToFuture
-      assertEquals(f.value, Some(Failure(dummy)))
+  test("Task.deferFutureAction(error, ) for already completed references") { implicit s =>
+    val dummy = DummyException("dummy")
+    val f = Task.deferFutureAction(_ => Future.failed(dummy)).runToFuture
+    assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromFuture() for completed reference is stack safe (flatMap)") {
-    implicit s =>
-      def loop(n: Int, acc: Int): Task[Int] =
-        if (n > 0)
-          Task.fromFuture(Future.successful(acc + 1)).flatMap(loop(n - 1, _))
-        else
-          Task.fromFuture(Future.successful(acc))
+  test("Task.fromFuture() for completed reference is stack safe (flatMap)") { implicit s =>
+    def loop(n: Int, acc: Int): Task[Int] =
+      if (n > 0)
+        Task.fromFuture(Future.successful(acc + 1)).flatMap(loop(n - 1, _))
+      else
+        Task.fromFuture(Future.successful(acc))
 
-      val f = loop(10000, 0).runToFuture; s.tick()
-      assertEquals(f.value, Some(Success(10000)))
+    val f = loop(10000, 0).runToFuture; s.tick()
+    assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.deferFuture() for completed reference is stack safe (flatMap)") {
-    implicit s =>
-      def loop(n: Int, acc: Int): Task[Int] =
-        if (n > 0)
-          Task.deferFuture(Future.successful(acc + 1)).flatMap(loop(n - 1, _))
-        else
-          Task.deferFuture(Future.successful(acc))
+  test("Task.deferFuture() for completed reference is stack safe (flatMap)") { implicit s =>
+    def loop(n: Int, acc: Int): Task[Int] =
+      if (n > 0)
+        Task.deferFuture(Future.successful(acc + 1)).flatMap(loop(n - 1, _))
+      else
+        Task.deferFuture(Future.successful(acc))
 
-      val f = loop(10000, 0).runToFuture; s.tick()
-      assertEquals(f.value, Some(Success(10000)))
+    val f = loop(10000, 0).runToFuture; s.tick()
+    assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.deferFutureAction() for completed reference is stack safe (flatMap)") {
-    implicit s =>
-      def loop(n: Int, acc: Int): Task[Int] =
-        if (n > 0)
-          Task
-            .deferFutureAction(implicit s => Future.successful(acc + 1))
-            .flatMap(loop(n - 1, _))
-        else
-          Task.deferFutureAction(implicit s => Future.successful(acc))
+  test("Task.deferFutureAction() for completed reference is stack safe (flatMap)") { implicit s =>
+    def loop(n: Int, acc: Int): Task[Int] =
+      if (n > 0)
+        Task
+          .deferFutureAction(implicit s => Future.successful(acc + 1))
+          .flatMap(loop(n - 1, _))
+      else
+        Task.deferFutureAction(implicit s => Future.successful(acc))
 
-      val f = loop(10000, 0).runToFuture; s.tick()
-      assertEquals(f.value, Some(Success(10000)))
+    val f = loop(10000, 0).runToFuture; s.tick()
+    assertEquals(f.value, Some(Success(10000)))
   }
 
   test("Task.deferFuture() async result") { implicit s =>

@@ -4187,8 +4187,8 @@ object Task extends TaskInstancesLevel1 {
       * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type Technique]].
       */
     private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true) extends AnyVal {
-      def apply[CancelationToken](
-        register: (Scheduler, Callback[Throwable, A]) => CancelationToken)(implicit B: AsyncBuilder[CancelationToken]): Task[A] =
+      def apply[CancelationToken](register: (Scheduler, Callback[Throwable, A]) => CancelationToken)(
+        implicit B: AsyncBuilder[CancelationToken]): Task[A] =
         B.create(register)
     }
 

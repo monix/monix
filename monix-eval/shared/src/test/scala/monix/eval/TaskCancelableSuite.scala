@@ -140,34 +140,32 @@ object TaskCancelableSuite extends BaseTestSuite {
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.cancelable0() should be stack safe on repeated, right-associated binds") {
-    implicit s =>
-      def signal[A](a: A): Task[A] =
-        Task.cancelable0[A] { (_, cb) =>
-          cb.onSuccess(a)
-          Task.unit
-        }
+  test("Task.cancelable0() should be stack safe on repeated, right-associated binds") { implicit s =>
+    def signal[A](a: A): Task[A] =
+      Task.cancelable0[A] { (_, cb) =>
+        cb.onSuccess(a)
+        Task.unit
+      }
 
-      val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => acc.flatMap(x => signal(x + 1)))
-      val f = task.runToFuture
-      s.tick()
+    val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => acc.flatMap(x => signal(x + 1)))
+    val f = task.runToFuture
+    s.tick()
 
-      assertEquals(f.value, Some(Success(10000)))
+    assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.cancelable0() should be stack safe on repeated, left-associated binds") {
-    implicit s =>
-      def signal[A](a: A): Task[A] =
-        Task.cancelable0[A] { (_, cb) =>
-          cb.onSuccess(a)
-          Task.unit
-        }
+  test("Task.cancelable0() should be stack safe on repeated, left-associated binds") { implicit s =>
+    def signal[A](a: A): Task[A] =
+      Task.cancelable0[A] { (_, cb) =>
+        cb.onSuccess(a)
+        Task.unit
+      }
 
-      val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => signal(1).flatMap(x => acc.map(y => x + y)))
-      val f = task.runToFuture
-      s.tick()
+    val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => signal(1).flatMap(x => acc.map(y => x + y)))
+    val f = task.runToFuture
+    s.tick()
 
-      assertEquals(f.value, Some(Success(10000)))
+    assertEquals(f.value, Some(Success(10000)))
   }
 
   test("Task.cancelable0() should work onSuccess") { implicit s =>
@@ -191,26 +189,26 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.cancelable0() should execute immediately when executed as future") {
-    implicit s =>
-      val t = Task.cancelable0[Int] { (_, cb) =>
-        cb.onSuccess(100); Task.unit
-      }
+  test("Task.cancelable0() should execute immediately when executed as future") { implicit s =>
+    val t = Task.cancelable0[Int] { (_, cb) =>
+      cb.onSuccess(100); Task.unit
+    }
 
-      val result = t.runToFuture
-      assertEquals(result.value, Some(Success(100)))
+    val result = t.runToFuture
+    assertEquals(result.value, Some(Success(100)))
   }
 
-  test("Task.cancelable0() should execute immediately when executed with callback") {
-    implicit s =>
-      var result = Option.empty[Try[Int]]
-      val t = Task.cancelable0[Int] { (_, cb) =>
-        cb.onSuccess(100)
-        Task.unit
-      }
+  test("Task.cancelable0() should execute immediately when executed with callback") { implicit s =>
+    var result = Option.empty[Try[Int]]
+    val t = Task.cancelable0[Int] { (_, cb) =>
+      cb.onSuccess(100)
+      Task.unit
+    }
 
-      t.runAsync(Callback.fromTry[Int] { r => result = Some(r) })
-      assertEquals(result, Some(Success(100)))
+    t.runAsync(Callback.fromTry[Int] { r =>
+      result = Some(r)
+    })
+    assertEquals(result, Some(Success(100)))
   }
 
   test("Task.cancelable() works for immediate successful value") { implicit sc =>
@@ -222,13 +220,17 @@ object TaskCancelableSuite extends BaseTestSuite {
 
   test("Task.cancelable() works for immediate error") { implicit sc =>
     val e = DummyException("dummy")
-    val task = Task.cancelable[Int] { cb => cb.onError(e); Task.unit }
+    val task = Task.cancelable[Int] { cb =>
+      cb.onError(e); Task.unit
+    }
     assertEquals(task.runToFuture.value, Some(Failure(e)))
   }
 
   test("Task.cancelable() is memory safe in flatMap loops") { implicit sc =>
     def signal(n: Int): Task[Int] =
-      Task.cancelable { cb => cb.onSuccess(n); Task.unit }
+      Task.cancelable { cb =>
+        cb.onSuccess(n); Task.unit
+      }
 
     def loop(n: Int, acc: Int): Task[Int] =
       signal(n).flatMap { n =>

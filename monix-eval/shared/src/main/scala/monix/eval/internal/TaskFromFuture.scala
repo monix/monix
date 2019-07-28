@@ -103,24 +103,19 @@ private[eval] object TaskFromFuture {
       restoreLocals = true
     )
 
-  private def startSimple[A](
-    ctx: Task.Context,
-    cb: Callback[Throwable, A],
-    f: Future[A]) = {
+  private def startSimple[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {
 
     f.value match {
       case Some(value) =>
         cb(value)
       case None =>
-        f.onComplete { result => cb(result) }(ctx.scheduler)
+        f.onComplete { result =>
+          cb(result)
+        }(ctx.scheduler)
     }
   }
 
-  private def startCancelable[A](
-    ctx: Task.Context,
-    cb: Callback[Throwable, A],
-    f: Future[A],
-    c: Cancelable): Unit = {
+  private def startCancelable[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A], c: Cancelable): Unit = {
 
     f.value match {
       case Some(value) =>

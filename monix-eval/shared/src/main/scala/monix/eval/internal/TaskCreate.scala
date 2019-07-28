@@ -43,8 +43,7 @@ private[eval] object TaskCreate {
     )
   }
 
-  private abstract class Cancelable0Start[A, Token](
-    fn: (Scheduler, Callback[Throwable, A]) => Token)
+  private abstract class Cancelable0Start[A, Token](fn: (Scheduler, Callback[Throwable, A]) => Token)
     extends ((Context, Callback[Throwable, A]) => Unit) {
 
     def setConnection(ref: TaskConnectionRef, token: Token)(implicit s: Scheduler): Unit
@@ -73,15 +72,13 @@ private[eval] object TaskCreate {
   /**
     * Implementation for `cats.effect.Concurrent#cancelable`.
     */
-  def cancelableEffect[A](
-    k: (Either[Throwable, A] => Unit) => CancelToken[Task]): Task[A] =
+  def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => CancelToken[Task]): Task[A] =
     cancelable0((_, cb) => k(cb))
 
   /**
     * Implementation for `Task.create`, used via `TaskBuilder`.
     */
-  def cancelableIO[A](
-    start: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
+  def cancelableIO[A](start: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
     cancelable0((sc, cb) => Task.from(start(sc, cb)))
 
   /**
@@ -169,7 +166,10 @@ private[eval] object TaskCreate {
     Async(start, trampolineBefore = false, trampolineAfter = false)
   }
 
-  private[internal] def protectedCallback[A](ctx: Context, shouldPop: Boolean, cb: Callback[Throwable, A]): Callback[Throwable, A] =
+  private[internal] def protectedCallback[A](
+    ctx: Context,
+    shouldPop: Boolean,
+    cb: Callback[Throwable, A]): Callback[Throwable, A] =
     new CallbackForCreate[A](ctx, shouldPop, cb)
 
   private final class CallbackForCreate[A](ctx: Context, threadId: Long, shouldPop: Boolean, cb: Callback[Throwable, A])
