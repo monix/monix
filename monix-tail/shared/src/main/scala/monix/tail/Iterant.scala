@@ -1405,6 +1405,25 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Repeats the items emitted by the source continuously
     *
     * It terminates either on error or if the source is empty.
+    *
+    * In case repetition on empty streams is desired, then combine with
+    * [[retryIfEmpty]]:
+    *
+    * {{{
+    *   import monix.eval.Coeval
+    *   import scala.util.Random
+    *
+    *   val stream = Iterant[Coeval].suspend(Coeval {
+    *     val nr = Random.nextInt()
+    *     if (nr % 10 != 0)
+    *       Iterant[Coeval].empty[Int]
+    *     else
+    *       Iterant[Coeval].of(1, 2, 3)
+    *   })
+    *
+    *   // Will eventually repeat elements 1, 2, 3
+    *   stream.retryIfEmpty(None).repeat
+    * }}}
     */
   final def repeat(implicit F: Sync[F]): Iterant[F, A] =
     IterantRepeat(self)
@@ -1414,8 +1433,23 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * detected as being empty.
     *
     * {{{
+    *   import monix.eval.Coeval
+    *   import scala.util.Random
     *
+    *   val stream = Iterant[Coeval].suspend(Coeval {
+    *     val nr = Random.nextInt()
+    *     if (nr % 10 != 0)
+    *       Iterant[Coeval].empty[Int]
+    *     else
+    *       Iterant[Coeval].of(1, 2, 3)
+    *   })
+    *
+    *   // Will eventually stream elements 1, 2, 3
+    *   stream.retryIfEmpty(None)
     * }}}
+    *
+    * @param maxRetries is an optional integer specifying a maximum
+    *        number of retries before it gives up
     */
   final def retryIfEmpty(maxRetries: Option[Int])(implicit F: Sync[F]): Iterant[F, A] =
     IterantRetryIfEmpty(self, maxRetries)
