@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,19 +55,21 @@ object ScanSuite extends BaseOperatorSuite {
         acc + elem
     }
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
   override def cancelableObservables() = {
-    val sample =  Observable.range(1, 100)
-      .delayOnNext(1.second).scan(0L)(_ + _)
+    val sample = Observable
+      .range(1, 100)
+      .delayOnNext(1.second)
+      .scan(0L)(_ + _)
 
     Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
   }
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1,2,3,4).scan[Int](throw ex)(_+_)
+    val obs = Observable(1, 2, 3, 4).scan[Int](throw ex)(_ + _)
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }

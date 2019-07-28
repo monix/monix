@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,11 +33,8 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
-
 /** Implementation for [[monix.reactive.Consumer.loadBalance]]. */
-private[reactive]
-final class LoadBalanceConsumer[-In, R]
-  (parallelism: Int, consumers: Array[Consumer[In, R]])
+private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, consumers: Array[Consumer[In, R]])
   extends Consumer[In, List[R]] {
 
   require(parallelism > 0, s"parallelism = $parallelism, should be > 0")
@@ -145,16 +142,18 @@ final class LoadBalanceConsumer[-In, R]
             // As a matter of protocol, if null values happen, then
             // this means that all subscribers have been deactivated and so
             // we should cancel the streaming.
-            if (subscriber == null) stop() else {
+            if (subscriber == null) stop()
+            else {
               signalNext(subscriber, elem)
               Continue
             }
-          case _ => sf.map {
-            case null => stop()
-            case subscriber =>
-              signalNext(subscriber, elem)
-              Continue
-          }
+          case _ =>
+            sf.map {
+              case null => stop()
+              case subscriber =>
+                signalNext(subscriber, elem)
+                Continue
+            }
         }
       }
 
@@ -246,22 +245,23 @@ final class LoadBalanceConsumer[-In, R]
           // push events into, then the loop is finished
           if (activeCount <= 0)
             Future.successful(())
-          else subscribersQueue.poll().flatMap {
-            // By protocol, if a null happens, then there are
-            // no more active subscribers available
-            case null =>
-              Future.successful(())
-            case subscriber =>
-              try {
-                if (ex == null) subscriber.out.onComplete()
-                else subscriber.out.onError(ex)
-              } catch {
-                case err if NonFatal(err) => s.reportFailure(err)
-              }
+          else
+            subscribersQueue.poll().flatMap {
+              // By protocol, if a null happens, then there are
+              // no more active subscribers available
+              case null =>
+                Future.successful(())
+              case subscriber =>
+                try {
+                  if (ex == null) subscriber.out.onComplete()
+                  else subscriber.out.onError(ex)
+                } catch {
+                  case err if NonFatal(err) => s.reportFailure(err)
+                }
 
-              if (activeCount > 0) loop(activeCount-1)
-              else Future.successful(())
-          }
+                if (activeCount > 0) loop(activeCount - 1)
+                else Future.successful(())
+            }
         }
 
         self.synchronized {
@@ -291,11 +291,9 @@ private[reactive] object LoadBalanceConsumer {
   /** Wraps a subscriber implementation into one
     * that exposes an ID.
     */
-  private[reactive] final
-  case class IndexedSubscriber[-In](id: Int, out: Subscriber[In])
+  private[reactive] final case class IndexedSubscriber[-In](id: Int, out: Subscriber[In])
 
-  private final class AsyncQueue[In](
-    initialQueue: Queue[IndexedSubscriber[In]], parallelism: Int) {
+  private final class AsyncQueue[In](initialQueue: Queue[IndexedSubscriber[In]], parallelism: Int) {
 
     private[this] val stateRef = {
       val initial: State[In] = Available(initialQueue, BitSet.empty, parallelism)
@@ -338,8 +336,7 @@ private[reactive] object LoadBalanceConsumer {
               poll()
             else
               p.future
-          }
-          else {
+          } else {
             val (ref, newQueue) = queue.dequeue
             val update = Available(newQueue, canceledIDs, ac)
             if (!stateRef.compareAndSet(current, update))
@@ -347,7 +344,7 @@ private[reactive] object LoadBalanceConsumer {
             else
               Future.successful(ref)
           }
-        case Waiting(_,_,_) =>
+        case Waiting(_, _, _) =>
           Future.failed(new IllegalStateException("waiting in poll()"))
       }
 
@@ -370,11 +367,14 @@ private[reactive] object LoadBalanceConsumer {
     def deactivate(ref: IndexedSubscriber[In]): Boolean =
       stateRef.get match {
         case current @ Available(queue, canceledIDs, count) =>
-          if (count <= 0) true else {
-            val update = if (canceledIDs(ref.id)) current else {
-              val newQueue = queue.filterNot(_.id == ref.id)
-              Available(newQueue, canceledIDs+ref.id, count-1)
-            }
+          if (count <= 0) true
+          else {
+            val update =
+              if (canceledIDs(ref.id)) current
+              else {
+                val newQueue = queue.filterNot(_.id == ref.id)
+                Available(newQueue, canceledIDs + ref.id, count - 1)
+              }
 
             if (update.activeCount == current.activeCount)
               false // nothing to update
@@ -385,18 +385,18 @@ private[reactive] object LoadBalanceConsumer {
           }
 
         case current @ Waiting(promise, canceledIDs, count) =>
-          if (canceledIDs(ref.id)) count <= 0 else {
+          if (canceledIDs(ref.id)) count <= 0
+          else {
             val update =
-              if (count - 1 > 0) Waiting(promise, canceledIDs+ref.id, count-1)
-              else Available[In](Queue.empty, canceledIDs+ref.id, 0)
+              if (count - 1 > 0) Waiting(promise, canceledIDs + ref.id, count - 1)
+              else Available[In](Queue.empty, canceledIDs + ref.id, 0)
 
             if (!stateRef.compareAndSet(current, update))
               deactivate(ref) // retry
             else if (update.activeCount <= 0) {
               promise.success(null)
               true
-            }
-            else
+            } else
               false
           }
       }

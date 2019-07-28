@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,6 @@ package monix.tail
 import cats.effect.IO
 import cats.laws._
 import cats.laws.discipline._
-import cats.~>
 import monix.eval.{Coeval, Task}
 
 object IterantLiftMapSuite extends BaseTestSuite {
@@ -29,11 +28,7 @@ object IterantLiftMapSuite extends BaseTestSuite {
       val source = arbitraryListToIterant[Coeval, Int](list, idx)
       val expected = arbitraryListToIterant[Task, Int](list, idx)
 
-      val r = source.liftMap(new (Coeval ~> Task) {
-        def apply[A](fa: Coeval[A]): Task[A] =
-          fa.task
-      })
-
+      val r = source.mapK(Coeval.liftTo[Task])
       r <-> expected
     }
   }
@@ -43,11 +38,7 @@ object IterantLiftMapSuite extends BaseTestSuite {
       val source = arbitraryListToIterant[Task, Int](list, idx)
       val expected = arbitraryListToIterant[IO, Int](list, idx)
 
-      val r = source.liftMap(new (Task ~> IO) {
-        def apply[A](fa: Task[A]): IO[A] =
-          fa.toIO
-      })
-
+      val r = source.mapK(Task.liftTo[IO])
       r <-> expected
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +18,12 @@
 package org.reactivestreams
 
 /**
- * Mirrors the `Subscriber` interface from the
- * [[http://www.reactive-streams.org/ Reactive Streams]] project.
- */
+  * Mirrors the `Subscriber` interface from the
+  * [[http://www.reactive-streams.org/ Reactive Streams]] project.
+  */
 trait Subscriber[T] {
   def onSubscribe(s: Subscription): Unit
   def onNext(elem: T): Unit
   def onError(ex: Throwable): Unit
   def onComplete(): Unit
 }
-

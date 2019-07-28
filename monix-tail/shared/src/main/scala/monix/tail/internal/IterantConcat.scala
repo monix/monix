@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,8 +28,7 @@ private[tail] object IterantConcat {
   /**
     * Implementation for `Iterant#flatMap`
     */
-  def flatMap[F[_], A, B](source: Iterant[F, A], f: A => Iterant[F, B])
-    (implicit F: Sync[F]): Iterant[F, B] = {
+  def flatMap[F[_], A, B](source: Iterant[F, A], f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] = {
 
     source match {
       case Halt(_) =>
@@ -50,8 +49,7 @@ private[tail] object IterantConcat {
   /**
     * Implementation for `Iterant#unsafeFlatMap`
     */
-  def unsafeFlatMap[F[_], A, B](source: Iterant[F, A])(f: A => Iterant[F, B])
-    (implicit F: Sync[F]): Iterant[F, B] = {
+  def unsafeFlatMap[F[_], A, B](source: Iterant[F, A])(f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] = {
 
     source match {
       case Last(item) =>
@@ -64,8 +62,7 @@ private[tail] object IterantConcat {
     }
   }
 
-  private final class UnsafeFlatMapLoop[F[_], A, B](f: A => Iterant[F, B])
-    (implicit F: Sync[F])
+  private final class UnsafeFlatMapLoop[F[_], A, B](f: A => Iterant[F, B])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, B]] {
     loop =>
 
@@ -110,8 +107,7 @@ private[tail] object IterantConcat {
     private def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
       if (!cursor.hasNext) {
         Suspend(rest.map(loop))
-      }
-      else {
+      } else {
         val item = cursor.next()
         // If iterator is empty then we can skip a beat
         val tail =
@@ -126,8 +122,7 @@ private[tail] object IterantConcat {
   /**
     * Implementation for `Iterant#++`
     */
-  def concat[F[_], A](lhs: Iterant[F, A], rhs: F[Iterant[F, A]])
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def concat[F[_], A](lhs: Iterant[F, A], rhs: F[Iterant[F, A]])(implicit F: Sync[F]): Iterant[F, A] = {
 
     lhs match {
       case Last(item) =>
@@ -145,8 +140,7 @@ private[tail] object IterantConcat {
   /**
     * Implementation for `Iterant.tailRecM`
     */
-  def tailRecM[F[_], A, B](a: A)(f: A => Iterant[F, Either[A, B]])
-    (implicit F: Sync[F]): Iterant[F, B] = {
+  def tailRecM[F[_], A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Sync[F]): Iterant[F, B] = {
 
     def loop(a: A): Iterant[F, B] =
       unsafeFlatMap(f(a)) {

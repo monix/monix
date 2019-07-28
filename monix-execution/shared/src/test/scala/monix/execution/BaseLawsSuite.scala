@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,19 +47,18 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       .withMaxSize(6)
 
   def checkAll(name: String, ruleSet: Laws#RuleSet, config: Parameters = checkConfig): Unit = {
-    for ((id, prop: Prop) ← ruleSet.all.properties)
+    for ((id, prop: Prop) <- ruleSet.all.properties)
       test(name + "." + id) {
         check(prop)
       }
   }
 
-  def checkAllAsync(name: String, config: Parameters = checkConfig)
-    (f: TestScheduler => Laws#RuleSet): Unit = {
+  def checkAllAsync(name: String, config: Parameters = checkConfig)(f: TestScheduler => Laws#RuleSet): Unit = {
 
     val s = TestScheduler()
     val ruleSet = f(s)
 
-    for ((id, prop: Prop) ← ruleSet.all.properties)
+    for ((id, prop: Prop) <- ruleSet.all.properties)
       test(name + "." + id) {
         s.tick(1.day)
         check(prop)
@@ -79,8 +78,7 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
         inst.eqv(x, y)
     }
 
-  implicit def arbitraryCancelableFuture[A]
-    (implicit A: Arbitrary[A], ec: Scheduler): Arbitrary[CancelableFuture[A]] =
+  implicit def arbitraryCancelableFuture[A](implicit A: Arbitrary[A], ec: Scheduler): Arbitrary[CancelableFuture[A]] =
     Arbitrary {
       for {
         a <- A.arbitrary
@@ -89,7 +87,8 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
           CancelableFuture.raiseError(DummyException(a.toString)),
           CancelableFuture.async[A](cb => { cb(Success(a)); Cancelable.empty }),
           CancelableFuture.async[A](cb => { cb(Failure(DummyException(a.toString))); Cancelable.empty }),
-          CancelableFuture.pure(a).flatMap(CancelableFuture.pure))
+          CancelableFuture.pure(a).flatMap(CancelableFuture.pure)
+        )
       } yield future
     }
 
@@ -103,32 +102,34 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
     Cogen[Unit].contramap(_ => ())
 }
 
-trait ArbitraryInstancesBase extends cats.instances.AllInstances {
+trait ArbitraryInstancesBase extends cats.instances.AllInstances with TestUtils {
   implicit def equalityFuture[A](implicit A: Eq[A], ec: TestScheduler): Eq[Future[A]] =
     new Eq[Future[A]] {
       def eqv(x: Future[A], y: Future[A]): Boolean = {
-        // Executes the whole pending queue of runnables
-        ec.tick(1.day)
+        silenceSystemErr {
+          // Executes the whole pending queue of runnables
+          ec.tick(1.day, maxImmediateTasks = Some(500000))
 
-        x.value match {
-          case None =>
-            y.value.isEmpty
-          case Some(Success(a)) =>
-            y.value match {
-              case Some(Success(b)) => A.eqv(a, b)
-              case _ => false
-            }
-          case Some(Failure(_)) =>
-            y.value match {
-              case Some(Failure(_)) =>
-                // Exceptions aren't values, it's too hard to reason about
-                // throwable equality and all exceptions are essentially
-                // yielding non-terminating futures and tasks from a type
-                // theory point of view, so we simply consider them all equal
-                true
-              case _ =>
-                false
-            }
+          x.value match {
+            case None =>
+              y.value.isEmpty
+            case Some(Success(a)) =>
+              y.value match {
+                case Some(Success(b)) => A.eqv(a, b)
+                case _ => false
+              }
+            case Some(Failure(_)) =>
+              y.value match {
+                case Some(Failure(_)) =>
+                  // Exceptions aren't values, it's too hard to reason about
+                  // throwable equality and all exceptions are essentially
+                  // yielding non-terminating futures and tasks from a type
+                  // theory point of view, so we simply consider them all equal
+                  true
+                case _ =>
+                  false
+              }
+          }
         }
       }
     }
@@ -151,7 +152,7 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
       }
   }
 
-  implicit def equalityTry[A : Eq]: Eq[Try[A]] =
+  implicit def equalityTry[A: Eq]: Eq[Try[A]] =
     new Eq[Try[A]] {
       val optA = implicitly[Eq[Option[A]]]
       val optT = implicitly[Eq[Option[Throwable]]]

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 
@@ -53,10 +53,8 @@ import monix.execution.{ExecutionModel => ExecModel}
   * @param underlying is the `ExecutionContext` to which the it defers
   *        to in case real asynchronous is needed
   */
-final class TrampolineScheduler(
-  underlying: Scheduler,
-  override val executionModel: ExecModel)
-  extends Scheduler { self =>
+final class TrampolineScheduler(underlying: Scheduler, override val executionModel: ExecModel) extends Scheduler {
+  self =>
 
   private[this] val trampoline =
     TrampolineExecutionContext(underlying)
@@ -77,6 +75,9 @@ final class TrampolineScheduler(
     underlying.clockMonotonic(unit)
   override def withExecutionModel(em: ExecModel): TrampolineScheduler =
     new TrampolineScheduler(underlying, em)
+
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): TrampolineScheduler =
+    new TrampolineScheduler(underlying.withUncaughtExceptionReporter(r), executionModel)
 }
 
 object TrampolineScheduler {

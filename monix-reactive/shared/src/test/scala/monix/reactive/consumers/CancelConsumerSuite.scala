@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,8 +30,7 @@ import scala.util.Success
 object CancelConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should cancel immediately") { implicit s =>

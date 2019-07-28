@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,7 +39,7 @@ object ObserverFeedSuite extends BaseTestSuite {
       val ack = downstream.onNextAll(xs)
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 
@@ -58,7 +58,7 @@ object ObserverFeedSuite extends BaseTestSuite {
       val ack = downstream.onNextAll(xs)
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 

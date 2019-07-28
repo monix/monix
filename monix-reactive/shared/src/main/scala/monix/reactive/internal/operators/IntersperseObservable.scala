@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,14 +28,15 @@ private[reactive] final class IntersperseObservable[+A](
   source: Observable[A],
   start: Option[A],
   separator: A,
-  end: Option[A] ) extends Observable[A] { self =>
+  end: Option[A])
+  extends Observable[A] { self =>
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val upstream = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
       private[this] var atLeastOne = false
-      private[this] var downstreamAck = Continue : Future[Ack]
+      private[this] var downstreamAck = Continue: Future[Ack]
 
       override def onNext(elem: A): Future[Ack] = {
         downstreamAck = if (!atLeastOne) {
@@ -44,8 +45,7 @@ private[reactive] final class IntersperseObservable[+A](
             case Continue => out.onNext(elem)
             case ack => ack
           }
-        }
-        else {
+        } else {
           out.onNext(separator).syncFlatMap {
             case Continue => out.onNext(elem)
             case ack => ack

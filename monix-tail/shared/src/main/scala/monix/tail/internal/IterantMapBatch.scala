@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,7 @@ private[tail] object IterantMapBatch {
   /**
     * Implementation for `Iterant#mapBatch`
     */
-  def apply[F[_], A, B](source: Iterant[F, A], f: A => Batch[B])
-    (implicit F: Sync[F]): Iterant[F, B] = {
+  def apply[F[_], A, B](source: Iterant[F, A], f: A => Batch[B])(implicit F: Sync[F]): Iterant[F, B] = {
 
     val loop = new MapBatchLoop[F, A, B](f)
     source match {
@@ -48,8 +47,7 @@ private[tail] object IterantMapBatch {
     * Describing the loop as a class because we can control memory
     * allocation better this way.
     */
-  private final class MapBatchLoop[F[_], A, B](f: A => Batch[B])
-    (implicit F: Sync[F])
+  private final class MapBatchLoop[F[_], A, B](f: A => Batch[B])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, B]] { loop =>
 
     def visit(ref: Next[F, A]): Iterant[F, B] =

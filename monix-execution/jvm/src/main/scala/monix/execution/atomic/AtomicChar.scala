@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +25,7 @@ import monix.execution.internal.atomic.{BoxedInt, Factory}
   * Note that the equality test in `compareAndSet` is value based,
   * since `Char` is a primitive.
   */
-final class AtomicChar private (private[this] val ref: BoxedInt)
-  extends AtomicNumber[Char] {
+final class AtomicChar private (private[this] val ref: BoxedInt) extends AtomicNumber[Char] {
   private[this] val mask = 255 + 255 * 256
 
   def get(): Char = (ref.volatileGet() & mask).asInstanceOf[Char]
@@ -112,12 +111,13 @@ object AtomicChar {
     *        for `getAndSet` and for `getAndAdd`
     */
   def create(initialValue: Char, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicChar = {
-    new AtomicChar(Factory.newBoxedInt(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      true, // allowUnsafe
-      allowPlatformIntrinsics
-    ))
+    new AtomicChar(
+      Factory.newBoxedInt(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        true, // allowUnsafe
+        allowPlatformIntrinsics
+      ))
   }
 
   /** $createDesc
@@ -136,11 +136,12 @@ object AtomicChar {
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def safe(initialValue: Char, padding: PaddingStrategy): AtomicChar = {
-    new AtomicChar(Factory.newBoxedInt(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      false, // allowUnsafe
-      false  // allowJava8Intrinsics
-    ))
+    new AtomicChar(
+      Factory.newBoxedInt(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        false, // allowUnsafe
+        false // allowJava8Intrinsics
+      ))
   }
 }

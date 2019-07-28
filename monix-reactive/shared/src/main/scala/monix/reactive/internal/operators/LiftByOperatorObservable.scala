@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,7 @@ import monix.reactive.Observable
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] final class LiftByOperatorObservable[A, B](
-  self: Observable[A], operator: Operator[A, B])
+private[reactive] final class LiftByOperatorObservable[A, B](self: Observable[A], operator: Operator[A, B])
   extends Observable[B] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[B]): Cancelable = {

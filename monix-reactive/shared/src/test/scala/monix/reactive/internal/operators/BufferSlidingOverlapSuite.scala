@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,28 +28,34 @@ object BufferSlidingOverlapSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "count must be strictly positive")
     if (sourceCount > 1) Some {
       val divBy4 = sourceCount / 4 * 4
-      val o = Observable.range(0, divBy4)
+      val o = Observable
+        .range(0, divBy4)
         .map(_ % 4)
-        .bufferSliding(8,4)
+        .bufferSliding(8, 4)
         .flatMap(x => Observable.fromIterable(x))
 
       val count = 8 + (divBy4 - 8) * 2
       val sum = (count / 4) * 6
       Sample(o, count, sum, waitFirst, waitNext)
-    }
-    else Some {
-      val o = Observable.now(1L)
-        .bufferSliding(2,1).flatMap(x => Observable.fromIterable(x))
-      Sample(o, 1, 1, waitFirst, waitNext)
-    }
+    } else
+      Some {
+        val o = Observable
+          .now(1L)
+          .bufferSliding(2, 1)
+          .flatMap(x => Observable.fromIterable(x))
+        Sample(o, 1, 1, waitFirst, waitNext)
+      }
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
   def observableInError(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables() = {
-    val o = Observable.range(0,1000).delayOnNext(1.second)
-      .bufferSliding(2,1).flatMap(x => Observable.fromIterable(x))
+    val o = Observable
+      .range(0, 1000)
+      .delayOnNext(1.second)
+      .bufferSliding(2, 1)
+      .flatMap(x => Observable.fromIterable(x))
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

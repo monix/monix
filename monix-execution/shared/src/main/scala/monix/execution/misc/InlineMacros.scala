@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,7 +45,7 @@ trait InlineMacros {
 
     class InlineSymbol(symbol: TermName, value: Tree) extends Transformer {
       override def transform(tree: Tree): Tree = tree match {
-        case i@Ident(_) if i.name == symbol =>
+        case i @ Ident(_) if i.name == symbol =>
           value
         case tt: TypeTree if tt.original != null =>
           //super.transform(TypeTree().setOriginal(transform(tt.original)))
@@ -61,13 +61,15 @@ trait InlineMacros {
 
       override def transform(tree: Tree): Tree = tree match {
         case Apply(Select(Function(params, body), ApplyName), args) =>
-          params.zip(args).foldLeft(body) { case (b, (param, arg)) =>
-            inlineSymbol(param.name, b, arg)
+          params.zip(args).foldLeft(body) {
+            case (b, (param, arg)) =>
+              inlineSymbol(param.name, b, arg)
           }
 
         case Apply(Function(params, body), args) =>
-          params.zip(args).foldLeft(body) { case (b, (param, arg)) =>
-            inlineSymbol(param.name, b, arg)
+          params.zip(args).foldLeft(body) {
+            case (b, (param, arg)) =>
+              inlineSymbol(param.name, b, arg)
           }
 
         case _ =>
@@ -92,9 +94,13 @@ trait InlineMacros {
       override def transform(tree: Tree): Tree = {
         super.transform {
           tree match {
-            case UnApply(Apply(Select(qualifier, nme.unapply | nme.unapplySeq), List(Ident(nme.SELECTOR_DUMMY))), args) =>
+            case UnApply(
+                Apply(Select(qualifier, nme.unapply | nme.unapplySeq), List(Ident(nme.SELECTOR_DUMMY))),
+                args) =>
               Apply(transform(qualifier), transformTrees(args))
-            case UnApply(Apply(TypeApply(Select(qualifier, nme.unapply | nme.unapplySeq), _), List(Ident(nme.SELECTOR_DUMMY))), args) =>
+            case UnApply(
+                Apply(TypeApply(Select(qualifier, nme.unapply | nme.unapplySeq), _), List(Ident(nme.SELECTOR_DUMMY))),
+                args) =>
               Apply(transform(qualifier), transformTrees(args))
             case t => t
           }

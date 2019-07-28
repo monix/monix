@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.execution.internal.collection
 
-private[monix] trait EvictingQueue[A] extends Buffer[A] with ConcurrentQueue[A] {
+private[monix] trait EvictingQueue[A] extends Buffer[A] {
   /**
     * Returns the capacity of this queue.
     */

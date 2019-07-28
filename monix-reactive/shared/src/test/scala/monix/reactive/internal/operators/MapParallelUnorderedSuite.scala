@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,10 +48,12 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables(): Seq[Sample] = {
-    Seq.empty
-    val sample1 =  Observable.range(1, 100)
+    val sample1 = Observable
+      .range(1, 100)
       .mapParallelUnordered(parallelism = 4)(x => Task.now(x).delayExecution(1.second))
-    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
+    val sample2 = Observable
+      .range(0, 100)
+      .delayOnNext(1.second)
       .mapParallelUnordered(parallelism = 4)(x => Task.now(x).delayExecution(1.second))
 
     Seq(
@@ -63,9 +65,9 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
   }
 
   test("should work for synchronous observers") { implicit s =>
-    val randomCount= Random.nextInt(300) + 100
+    val randomCount = Random.nextInt(300) + 100
 
-    for (sourceCount <- List(0,1,2,3,4,5,randomCount)) {
+    for (sourceCount <- List(0, 1, 2, 3, 4, 5, randomCount)) {
       var received = 0
       var total = 0L
 
@@ -92,9 +94,9 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
   }
 
   test("should work for asynchronous observers") { implicit s =>
-    val randomCount= Random.nextInt(300) + 100
+    val randomCount = Random.nextInt(300) + 100
 
-    for (sourceCount <- List(0,1,2,3,4,5,randomCount)) {
+    for (sourceCount <- List(0, 1, 2, 3, 4, 5, randomCount)) {
       var received = 0
       var total = 0L
 
@@ -122,8 +124,9 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
 
   test("mapParallelUnordered equivalence with map") { implicit s =>
     check2 { (list: List[Int], isAsync: Boolean) =>
-      val received = Observable.fromIterable(list)
-        .mapParallelUnordered(parallelism=4)(x => if (isAsync) Task.evalAsync(x + 10) else Task.eval(x + 10))
+      val received = Observable
+        .fromIterable(list)
+        .mapParallelUnordered(parallelism = 4)(x => if (isAsync) Task.evalAsync(x + 10) else Task.eval(x + 10))
         .toListL
         .map(_.sorted)
 
@@ -134,11 +137,13 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
 
   test("mapParallelUnordered(parallelism=1) equivalence with mapTask") { implicit s =>
     check2 { (list: List[Int], isAsync: Boolean) =>
-      val received = Observable.fromIterable(list)
-        .mapParallelUnordered(parallelism=1)(x => if (isAsync) Task.evalAsync(x + 10) else Task.eval(x + 10))
+      val received = Observable
+        .fromIterable(list)
+        .mapParallelUnordered(parallelism = 1)(x => if (isAsync) Task.evalAsync(x + 10) else Task.eval(x + 10))
         .toListL
 
-      val expected = Observable.fromIterable(list)
+      val expected = Observable
+        .fromIterable(list)
         .mapEval(x => if (isAsync) Task.evalAsync(x + 10) else Task.eval(x + 10))
         .toListL
 
@@ -157,7 +162,9 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val task3 = Task.never[Long]
     val tasks = List.fill(8)(task1) ::: List(task2) ::: List.fill(10)(task3)
 
-    Observable.fromIterable(tasks).mapParallelUnordered(parallelism=4)(x => x)
+    Observable
+      .fromIterable(tasks)
+      .mapParallelUnordered(parallelism = 4)(x => x)
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = {
           assert(!isComplete, "!isComplete")
@@ -190,7 +197,10 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val task1 = Task.evalAsync(1L)
     val tasks = List.fill(8)(task1)
 
-    Observable.fromIterable(tasks).endWithError(dummy).mapParallelUnordered(parallelism=4)(x => x)
+    Observable
+      .fromIterable(tasks)
+      .endWithError(dummy)
+      .mapParallelUnordered(parallelism = 4)(x => x)
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = {
           assert(!isComplete, "!isComplete")
@@ -220,8 +230,9 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     var wasThrown: Throwable = null
     var received = 0L
 
-    Observable.range(0, 100)
-      .mapParallelUnordered(parallelism=4)(x => if (x >= 50) throw dummy else Task.evalAsync(x))
+    Observable
+      .range(0, 100)
+      .mapParallelUnordered(parallelism = 4)(x => if (x >= 50) throw dummy else Task.evalAsync(x))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = {
           assert(!isComplete, "!isComplete")
@@ -252,8 +263,9 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val p = Promise[Int]()
 
     val tasks = List.fill(8)(Task.fromFuture(p.future))
-    Observable(tasks:_*).doOnNext(_ => Task { initiated += 1 })
-      .mapParallelUnordered(parallelism=4)(x => x)
+    Observable(tasks: _*)
+      .doOnNext(_ => Task { initiated += 1 })
+      .mapParallelUnordered(parallelism = 4)(x => x)
       .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = {
           received += 1
@@ -284,9 +296,10 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val p = Promise[Continue.type]()
     val totalCount = Platform.recommendedBatchSize * 4
 
-    Observable.range(0, totalCount)
+    Observable
+      .range(0, totalCount)
       .doOnNext(_ => Task { initiated += 1 })
-      .mapParallelUnordered(parallelism=4)(x => Task.evalAsync(x))
+      .mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = {
           received += 1
@@ -318,9 +331,11 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val p = Promise[Continue.type]()
     val totalCount = Platform.recommendedBatchSize * 4
 
-    Observable.range(0, totalCount)
+    Observable
+      .range(0, totalCount)
       .doOnNext(_ => Task { initiated += 1 })
-      .mapParallelUnordered(parallelism=4)(x => Task.evalAsync(x))(OverflowStrategy.DropNew(Platform.recommendedBatchSize))
+      .mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x))(
+        OverflowStrategy.DropNew(Platform.recommendedBatchSize))
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = {
           received += 1
@@ -345,8 +360,9 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
   }
 
   test("should be cancelable after the main stream has ended") { implicit s =>
-    val f = Observable.now(1)
-      .mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x+1).delayExecution(1.second))
+    val f = Observable
+      .now(1)
+      .mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x + 1).delayExecution(1.second))
       .sumL
       .runToFuture
 
@@ -388,7 +404,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
       .now(1)
       .mapParallelUnordered(parallelism = 0)(_ => Task.unit)
       .doOnError {
-        case _: IllegalArgumentException => Task{ error = true }
+        case _: IllegalArgumentException => Task { error = true }
         case _ => Task.unit
       }
 

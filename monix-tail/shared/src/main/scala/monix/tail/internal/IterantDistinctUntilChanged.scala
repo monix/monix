@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,8 +29,7 @@ private[tail] object IterantDistinctUntilChanged {
   /**
     * Implementation for `distinctUntilChangedByKey`.
     */
-  def apply[F[_], A, K](self: Iterant[F, A], f: A => K)
-    (implicit F: Sync[F], K: Eq[K]): Iterant[F, A] = {
+  def apply[F[_], A, K](self: Iterant[F, A], f: A => K)(implicit F: Sync[F], K: Eq[K]): Iterant[F, A] = {
     Suspend(F.delay(new Loop(f).apply(self)))
   }
 
@@ -88,18 +87,15 @@ private[tail] object IterantDistinctUntilChanged {
 
       if (!cursor.hasNext()) {
         Suspend(rest.map(this))
-      }
-      else if (cursor.recommendedBatchSize <= 1) {
+      } else if (cursor.recommendedBatchSize <= 1) {
         val a = cursor.next()
         val k = f(a)
         if (current == null || K.neqv(current, k)) {
           current = k
           Next(a, F.delay(this(self)))
-        }
-        else
+        } else
           Suspend(F.delay(this(self)))
-      }
-      else {
+      } else {
         val buffer = ArrayBuffer.empty[A]
         var count = cursor.recommendedBatchSize
 

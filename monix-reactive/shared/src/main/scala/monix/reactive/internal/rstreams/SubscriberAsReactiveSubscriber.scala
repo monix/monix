@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +19,13 @@ package monix.reactive.internal.rstreams
 
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.SingleProducer
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription => RSubscription}
+
 import scala.concurrent.Future
 
 private[reactive] object SubscriberAsReactiveSubscriber {
@@ -35,7 +37,7 @@ private[reactive] object SubscriberAsReactiveSubscriber {
     * the call may pass asynchronous boundaries, the emitted events need to be buffered.
     * The `requestCount` constructor parameter also represents the buffer size.
     *
-    * To async an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used: 
+    * To async an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used:
     * {{{
     *   // uses the default requestCount of 128
     *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
@@ -84,8 +86,7 @@ private[reactive] object SubscriberAsReactiveSubscriber {
   * @param requestCount the parameter passed to `Subscription.request`,
   *                    also representing the buffer size; MUST BE strictly positive
   */
-private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
-  (target: Subscriber[A], requestCount: Int)
+private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Subscriber[A], requestCount: Int)
   extends RSubscriber[A] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
@@ -125,10 +126,11 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
           case Stop => stop()
           case async =>
             async.transform(
-              ack => ack match {
-                case Continue => continue()
-                case Stop => stop()
-              },
+              ack =>
+                ack match {
+                  case Continue => continue()
+                  case Stop => stop()
+                },
               err => {
                 stop()
                 err
@@ -138,20 +140,22 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
       def onNext(elem: A): Future[Ack] = {
         if (isActive) {
           if (isFinite) finiteOnNext(elem) else target.onNext(elem)
-        }
-        else
+        } else
           Stop
       }
 
       def onError(ex: Throwable): Unit =
-        if (isActive) { isActive = false; target.onError(ex) }
+        if (isActive) {
+          isActive = false; target.onError(ex)
+        }
       def onComplete(): Unit =
-        if (isActive) { isActive = false; target.onComplete() }
+        if (isActive) {
+          isActive = false; target.onComplete()
+        }
     }
 
-
   private[this] val buffer: Subscriber.Sync[A] =
-    BufferedSubscriber.synchronous(downstream, Unbounded)
+    BufferedSubscriber.synchronous(downstream, Unbounded, SingleProducer)
 
   def onSubscribe(s: RSubscription): Unit =
     subscription := s
@@ -203,15 +207,14 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
   *   })
   * }}}
   */
-private[reactive] final class SyncSubscriberAsReactiveSubscriber[A]
-  (target: Subscriber.Sync[A], requestCount: Int)
+private[reactive] final class SyncSubscriberAsReactiveSubscriber[A](target: Subscriber.Sync[A], requestCount: Int)
   extends RSubscriber[A] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
 
   private[this] implicit val s = target.scheduler
 
-  private[this] var subscription = null : RSubscription
+  private[this] var subscription = null: RSubscription
   private[this] var expectingCount = 0L
   @volatile private[this] var isCanceled = false
 
@@ -220,19 +223,16 @@ private[reactive] final class SyncSubscriberAsReactiveSubscriber[A]
       subscription = s
       expectingCount = requestCount
       s.request(requestCount)
-    }
-    else {
+    } else {
       s.cancel()
     }
   }
 
   def onNext(elem: A): Unit = {
     if (subscription == null)
-      throw new NullPointerException(
-        "onSubscription never happened, see rule 2.13 in the Reactive Streams spec")
+      throw new NullPointerException("onSubscription never happened, see rule 2.13 in the Reactive Streams spec")
     if (elem == null)
-      throw new NullPointerException(
-        "onNext(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
+      throw new NullPointerException("onNext(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
 
     if (!isCanceled) {
       if (expectingCount > 0) expectingCount -= 1
@@ -253,8 +253,8 @@ private[reactive] final class SyncSubscriberAsReactiveSubscriber[A]
   }
 
   def onError(ex: Throwable): Unit = {
-    if (ex == null) throw new NullPointerException(
-      "onError(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
+    if (ex == null)
+      throw new NullPointerException("onError(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
 
     if (!isCanceled) {
       isCanceled = true

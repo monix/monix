@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,14 +28,10 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
 
-trait BaseConcurrencySuite extends TestSuite[SchedulerService]
-  with Checkers with ArbitraryInstancesBase {
+trait BaseConcurrencySuite extends TestSuite[SchedulerService] with Checkers with ArbitraryInstancesBase {
 
   def setup(): SchedulerService = {
-    Scheduler.computation(
-      parallelism = 4,
-      name = "concurrency-tests",
-      daemonic = true)
+    Scheduler.computation(parallelism = 4, name = "concurrency-tests", daemonic = true)
   }
 
   def tearDown(env: SchedulerService): Unit = {
@@ -47,8 +43,8 @@ trait BaseConcurrencySuite extends TestSuite[SchedulerService]
     new Eq[Observable[A]] {
       def eqv(lh: Observable[A], rh: Observable[A]): Boolean = {
         val eqList = implicitly[Eq[Option[List[A]]]]
-        val fa = lh.foldLeft(List.empty[A])((acc,e) => e :: acc).firstOptionL.runToFuture
-        val fb = rh.foldLeft(List.empty[A])((acc,e) => e :: acc).firstOptionL.runToFuture
+        val fa = lh.foldLeft(List.empty[A])((acc, e) => e :: acc).firstOptionL.runToFuture
+        val fb = rh.foldLeft(List.empty[A])((acc, e) => e :: acc).firstOptionL.runToFuture
         equalityFuture(eqList, ec).eqv(fa, fb)
       }
     }

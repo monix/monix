@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,8 +26,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /** Converts any `Future` into an observable */
-private[reactive] final class FutureAsObservable[A](factory: => Future[A])
-  extends Observable[A] {
+private[reactive] final class FutureAsObservable[A](factory: => Future[A]) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.{scheduler => s}

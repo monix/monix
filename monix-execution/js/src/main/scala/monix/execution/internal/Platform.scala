@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,6 +43,7 @@ private[monix] object Platform {
     *
     * It's always a power of 2, because then for
     * applying the modulo operation we can just do:
+    *
     * {{{
     *   val modulus = Platform.recommendedBatchSize - 1
     *   // ...
@@ -50,6 +51,13 @@ private[monix] object Platform {
     * }}}
     */
   final val recommendedBatchSize: Int = 512
+
+  /** Recommended chunk size in unbounded buffer implementations that are chunked,
+    * or in chunked streams.
+    *
+    * Should be a power of 2.
+    */
+  final val recommendedBufferChunkSize: Int = 128
 
   /**
     * Auto cancelable run loops are set to `false` if Monix
@@ -112,4 +120,12 @@ private[monix] object Platform {
       case Left(e2) => composeErrors(first, e2)
       case _ => first
     }
+
+  /**
+    * Returns the current thread's ID.
+    *
+    * To be used for multi-threading optimizations. Note that
+    * in JavaScript this always returns the same value.
+    */
+  def currentThreadId(): Long = 1L
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +18,13 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Cancelable
+import monix.execution.ChannelType.SingleProducer
 import monix.reactive.Observable
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
-private[reactive] final
-class BufferIntrospectiveObservable[+A](source: Observable[A], maxSize: Int)
+private[reactive] final class BufferIntrospectiveObservable[+A](source: Observable[A], maxSize: Int)
   extends Observable[List[A]] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[List[A]]): Cancelable =
-    source.unsafeSubscribeFn(BufferedSubscriber.batched(subscriber, maxSize))
+    source.unsafeSubscribeFn(BufferedSubscriber.batched(subscriber, maxSize, SingleProducer))
 }

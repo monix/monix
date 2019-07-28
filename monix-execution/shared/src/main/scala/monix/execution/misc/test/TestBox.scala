@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,25 +19,22 @@ package monix.execution.misc.test
 
 import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
 import scala.reflect.macros.whitebox
-import scala.language.experimental.macros
 
 /** Represents a boxed value, to be used in the testing
   * of [[InlineMacros]].
   */
 private[execution] final case class TestBox[A](value: A) {
-  def map[B](f: A => B): TestBox[B] = macro TestBox.Macros.mapMacroImpl[A,B]
+  def map[B](f: A => B): TestBox[B] = macro TestBox.Macros.mapMacroImpl[A, B]
 }
 
 /** Represents a boxed value, to be used in the testing
   * of [[InlineMacros]].
   */
 private[execution] object TestBox {
-  class Macros(override val c: whitebox.Context)
-    extends InlineMacros with HygieneUtilMacros {
+  class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
 
-    def mapMacroImpl[A : c.WeakTypeTag, B : c.WeakTypeTag]
-      (f: c.Expr[A => B]): c.Expr[TestBox[B]] = {
+    def mapMacroImpl[A: c.WeakTypeTag, B: c.WeakTypeTag](f: c.Expr[A => B]): c.Expr[TestBox[B]] = {
 
       val selfExpr = c.Expr[TestBox[A]](c.prefix.tree)
 
@@ -46,8 +43,7 @@ private[execution] object TestBox {
           q"""
           TestBox($f($selfExpr.value))
           """
-        }
-        else {
+        } else {
           val fn = util.name("fn")
           q"""
           val $fn = $f

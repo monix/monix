@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,9 @@ private[eval] object TaskShift {
     Async(
       new Register(ec),
       trampolineBefore = false,
-      trampolineAfter = false)
+      trampolineAfter = false,
+      restoreLocals = false
+    )
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
@@ -40,8 +42,7 @@ private[eval] object TaskShift {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Register(ec: ExecutionContext)
-    extends ForkedRegister[Unit] {
+  private final class Register(ec: ExecutionContext) extends ForkedRegister[Unit] {
 
     def apply(context: Context, cb: Callback[Throwable, Unit]): Unit = {
       val ec2 =
@@ -61,7 +62,8 @@ private[eval] object TaskShift {
         })
       } catch {
         case e: RejectedExecutionException =>
-          Callback.trampolined(cb)(context.scheduler)
+          Callback
+            .trampolined(cb)(context.scheduler)
             .onError(e)
       }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,7 @@ package monix.execution.atomic
   * Note that the equality test in `compareAndSet` is value based,
   * since `Char` is a primitive.
   */
-final class AtomicChar private[atomic]
-  (initialValue: Char) extends AtomicNumber[Char] {
+final class AtomicChar private[atomic] (initialValue: Char) extends AtomicNumber[Char] {
 
   private[this] var ref = initialValue
   private[this] val mask = 255 + 255 * 256
@@ -38,8 +37,7 @@ final class AtomicChar private[atomic]
     if (ref == expect) {
       ref = update
       true
-    }
-    else
+    } else
       false
   }
 

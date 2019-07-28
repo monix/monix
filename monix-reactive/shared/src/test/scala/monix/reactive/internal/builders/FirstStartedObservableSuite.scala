@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,14 +51,21 @@ object FirstStartedObservableSuite extends BaseTestSuite {
     var received = 0
 
     var obs1Canceled = false
-    val obs1 = Observable.intervalAtFixedRate(1.second, 1.second)
+    val obs1 = Observable
+      .intervalAtFixedRate(1.second, 1.second)
       .doOnNextF(_ => IO { received += 1 })
-      .doOnSubscriptionCancelF { () => obs1Canceled = true }
+      .doOnSubscriptionCancelF { () =>
+        obs1Canceled = true
+      }
 
     var obs2Canceled = false
-    val obs2 = Observable.eval(2).delayExecution(10.second)
+    val obs2 = Observable
+      .eval(2)
+      .delayExecution(10.second)
       .doOnNextF(_ => IO { received += 1 })
-      .doOnSubscriptionCancelF { () => obs2Canceled = true }
+      .doOnSubscriptionCancelF { () =>
+        obs2Canceled = true
+      }
 
     val amb = obs1.ambWith(obs2).subscribe()
     assert(!obs1Canceled, "!obs1Canceled")
@@ -80,14 +87,20 @@ object FirstStartedObservableSuite extends BaseTestSuite {
     var received = 0
 
     var obs1Canceled = false
-    val obs1 = Observable.intervalAtFixedRate(10.seconds, 1.second)
+    val obs1 = Observable
+      .intervalAtFixedRate(10.seconds, 1.second)
       .doOnNextF(_ => IO { received += 1 })
-      .doOnSubscriptionCancelF { () => obs1Canceled = true }
+      .doOnSubscriptionCancelF { () =>
+        obs1Canceled = true
+      }
 
     var obs2Canceled = false
-    val obs2 = Observable.intervalAtFixedRate(1.second, 1.second)
+    val obs2 = Observable
+      .intervalAtFixedRate(1.second, 1.second)
       .doOnNextF(_ => IO { received += 1 })
-      .doOnSubscriptionCancelF { () => obs2Canceled = true }
+      .doOnSubscriptionCancelF { () =>
+        obs2Canceled = true
+      }
 
     val amb = obs1.ambWith(obs2).subscribe()
     assert(!obs1Canceled, "!obs1Canceled")
@@ -109,14 +122,20 @@ object FirstStartedObservableSuite extends BaseTestSuite {
     var received = 0
 
     var obs1Canceled = false
-    val obs1 = Observable.intervalAtFixedRate(1.seconds, 1.second)
+    val obs1 = Observable
+      .intervalAtFixedRate(1.seconds, 1.second)
       .doOnNextF(_ => IO { received += 1 })
-      .doOnSubscriptionCancelF { () => obs1Canceled = true }
+      .doOnSubscriptionCancelF { () =>
+        obs1Canceled = true
+      }
 
     var obs2Canceled = false
-    val obs2 = Observable.intervalAtFixedRate(1.second, 1.second)
+    val obs2 = Observable
+      .intervalAtFixedRate(1.second, 1.second)
       .doOnNextF(_ => IO { received += 1 })
-      .doOnSubscriptionCancelF { () => obs2Canceled = true }
+      .doOnSubscriptionCancelF { () =>
+        obs2Canceled = true
+      }
 
     val amb = obs1.ambWith(obs2).subscribe()
     amb.cancel(); s.tick()

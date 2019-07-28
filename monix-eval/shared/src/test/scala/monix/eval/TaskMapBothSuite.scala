@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ object TaskMapBothSuite extends BaseTestSuite {
     val ta = Task.eval(1)
     val tb = Task.eval(2)
 
-    val r = Task.mapBoth(ta,tb)(_ + _)
+    val r = Task.mapBoth(ta, tb)(_ + _)
     val f = r.runToFuture
     assertEquals(f.value, None)
     s.tick()
@@ -57,11 +57,11 @@ object TaskMapBothSuite extends BaseTestSuite {
     val tasks = (0 until count).map(x => Task.eval(x))
     val init = Task.eval(0L)
 
-    val sum = tasks.foldLeft(init)((acc,t) => Task.mapBoth(acc, t)(_ + _))
+    val sum = tasks.foldLeft(init)((acc, t) => Task.mapBoth(acc, t)(_ + _))
     val result = sum.runToFuture
 
     s.tick()
-    assertEquals(result.value.get, Success(count * (count-1) / 2))
+    assertEquals(result.value.get, Success(count * (count - 1) / 2))
   }
 
   test("should be stack-safe for asynchronous tasks") { implicit s =>
@@ -69,11 +69,11 @@ object TaskMapBothSuite extends BaseTestSuite {
     val tasks = (0 until count).map(x => Task.evalAsync(x))
     val init = Task.eval(0L)
 
-    val sum = tasks.foldLeft(init)((acc,t) => Task.mapBoth(acc, t)(_ + _))
+    val sum = tasks.foldLeft(init)((acc, t) => Task.mapBoth(acc, t)(_ + _))
     val result = sum.runToFuture
 
     s.tick()
-    assertEquals(result.value.get, Success(count * (count-1) / 2))
+    assertEquals(result.value.get, Success(count * (count - 1) / 2))
   }
 
   test("should have a stack safe cancelable") { implicit sc =>
@@ -93,14 +93,14 @@ object TaskMapBothSuite extends BaseTestSuite {
 
   test("sum random synchronous tasks") { implicit s =>
     check1 { (numbers: List[Int]) =>
-      val sum = numbers.foldLeft(Task.now(0))((acc,t) => Task.mapBoth(acc, Task.eval(t))(_+_))
+      val sum = numbers.foldLeft(Task.now(0))((acc, t) => Task.mapBoth(acc, Task.eval(t))(_ + _))
       sum <-> Task.now(numbers.sum)
     }
   }
 
   test("sum random asynchronous tasks") { implicit s =>
     check1 { (numbers: List[Int]) =>
-      val sum = numbers.foldLeft(Task.evalAsync(0))((acc,t) => Task.mapBoth(acc, Task.evalAsync(t))(_+_))
+      val sum = numbers.foldLeft(Task.evalAsync(0))((acc, t) => Task.mapBoth(acc, Task.evalAsync(t))(_ + _))
       sum <-> Task.evalAsync(numbers.sum)
     }
   }
@@ -111,7 +111,8 @@ object TaskMapBothSuite extends BaseTestSuite {
     val err2 = new RuntimeException("Error 2")
     val t2 = Task.defer(Task.raiseError[Int](err2)).executeAsync
 
-    val fb = Task.mapBoth(t1, t2)(_ + _)
+    val fb = Task
+      .mapBoth(t1, t2)(_ + _)
       .executeWithOptions(_.disableAutoCancelableRunLoops)
       .runToFuture
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,13 +28,14 @@ import scala.util.{Failure, Success}
 object HeadOptionConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("stops on first on next") { implicit s =>
     var wasStopped = false
-    val obs = Observable.now(1).doOnEarlyStopF { () => wasStopped = true }
+    val obs = Observable.now(1).doOnEarlyStopF { () =>
+      wasStopped = true
+    }
     val f = obs.consumeWith(Consumer.headOption).runToFuture
 
     s.tick()
@@ -45,9 +46,14 @@ object HeadOptionConsumerSuite extends TestSuite[TestScheduler] {
   test("on complete") { implicit s =>
     var wasStopped = false
     var wasCompleted = false
-    val obs = Observable.empty[Int]
-      .doOnEarlyStopF { () => wasStopped = true }
-      .doOnCompleteF { () => wasCompleted = true }
+    val obs = Observable
+      .empty[Int]
+      .doOnEarlyStopF { () =>
+        wasStopped = true
+      }
+      .doOnCompleteF { () =>
+        wasCompleted = true
+      }
 
     val f = obs.consumeWith(Consumer.headOption).runToFuture
 
@@ -61,9 +67,14 @@ object HeadOptionConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var wasStopped = false
     var wasCompleted = false
-    val obs = Observable.raiseError(ex)
-      .doOnEarlyStopF { () => wasStopped = true }
-      .doOnErrorF { _ => IO { wasCompleted = true } }
+    val obs = Observable
+      .raiseError(ex)
+      .doOnEarlyStopF { () =>
+        wasStopped = true
+      }
+      .doOnErrorF { _ =>
+        IO { wasCompleted = true }
+      }
 
     val f = obs.consumeWith(Consumer.headOption).runToFuture
 

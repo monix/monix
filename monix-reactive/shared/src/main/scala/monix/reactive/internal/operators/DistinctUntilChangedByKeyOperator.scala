@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,9 +27,8 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive] final
-class DistinctUntilChangedByKeyOperator[A,K](key: A => K)(implicit K: Eq[K])
-  extends Operator[A,A] {
+private[reactive] final class DistinctUntilChangedByKeyOperator[A, K](key: A => K)(implicit K: Eq[K])
+  extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -53,13 +52,11 @@ class DistinctUntilChangedByKeyOperator[A,K](key: A => K)(implicit K: Eq[K])
             isFirst = false
             streamErrors = false
             out.onNext(elem)
-          }
-          else if (K.neqv(lastKey, k)) {
+          } else if (K.neqv(lastKey, k)) {
             lastKey = k
             streamErrors = false
             out.onNext(elem)
-          }
-          else {
+          } else {
             Continue
           }
         } catch {

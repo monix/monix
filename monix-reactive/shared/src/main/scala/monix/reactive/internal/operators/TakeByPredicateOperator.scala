@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,8 +24,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final class TakeByPredicateOperator[A](p: A => Boolean)
-  extends Operator[A, A] {
+private[reactive] final class TakeByPredicateOperator[A](p: A => Boolean, inclusive: Boolean) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -45,6 +44,9 @@ private[reactive] final class TakeByPredicateOperator[A](p: A => Boolean)
               out.onNext(elem)
             } else {
               isActive = false
+              if (inclusive) {
+                out.onNext(elem)
+              }
               out.onComplete()
               Stop
             }

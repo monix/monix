@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -72,7 +72,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
         .guarantee(Coeval.eval(cancelable.cancel()))
 
       stream.takeWhile(_ => false).toListL.value == Nil &&
-        (list.length < 2 || cancelable.isCanceled)
+      (list.length < 2 || cancelable.isCanceled)
     }
   }
 
@@ -120,7 +120,8 @@ object IterantTakeWhileSuite extends BaseTestSuite {
   test("Iterant.takeWhile preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
+    val source =
+      Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.takeWhile(_ => true)
     stream.completedL.value()
     assertEquals(effect, 1)

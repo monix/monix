@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,12 +29,15 @@ object AsyncBoundarySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.now(1L)
-          .asyncBoundary(Unbounded)
-      else
-        Observable.range(1, sourceCount+1, 1)
-          .asyncBoundary(Unbounded)
+      val o =
+        if (sourceCount == 1)
+          Observable
+            .now(1L)
+            .asyncBoundary(Unbounded)
+        else
+          Observable
+            .range(1, sourceCount + 1, 1)
+            .asyncBoundary(Unbounded)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }

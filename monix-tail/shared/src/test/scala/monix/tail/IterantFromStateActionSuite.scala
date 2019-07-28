@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,10 +29,12 @@ object IterantFromStateActionSuite extends BaseTestSuite {
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
       val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateAction[Int, Int](f)(seed)
-      val expected = Stream.continually(0)
+      val expected = Iterator
+        .continually(0)
         .scanLeft(f(seed)) { case ((_, newSeed), _) => f(newSeed) }
         .map { case (value, _) => value }
-        .take(n).toList
+        .take(n)
+        .toList
 
       stream.take(n).toListL <-> Task.now(expected)
     }
@@ -62,10 +64,12 @@ object IterantFromStateActionSuite extends BaseTestSuite {
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
       val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateActionL[Int, Int](f andThen Task.now)(Task.now(seed))
-      val expected = Stream.continually(0)
+      val expected = Iterator
+        .continually(0)
         .scanLeft(f(seed)) { case ((_, newSeed), _) => f(newSeed) }
         .map { case (value, _) => value }
-        .take(n).toList
+        .take(n)
+        .toList
 
       stream.take(n).toListL <-> Task.now(expected)
     }

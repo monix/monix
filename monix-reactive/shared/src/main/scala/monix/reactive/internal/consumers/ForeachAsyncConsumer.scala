@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,31 +17,35 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.Callback
+import monix.execution.{Ack, Callback, Cancelable, Scheduler}
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Scheduler}
-import monix.execution.cancelables.AssignableCancelable
+import monix.execution.cancelables.{AssignableCancelable, SingleAssignCancelable}
 import scala.util.control.NonFatal
+
 import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 /** Implementation for [[monix.reactive.Consumer.foreachTask]]. */
-private[reactive]
-final class ForeachAsyncConsumer[A](f: A => Task[Unit])
-  extends Consumer[A, Unit] {
+private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extends Consumer[A, Unit] {
 
   def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
+    var isDone = false
+    var lastCancelable = Cancelable.empty
+
     val out = new Subscriber[A] {
       implicit val scheduler = s
-      private[this] var isDone = false
 
       def onNext(elem: A): Future[Ack] = {
         try {
-          f(elem).map(_ => Continue)
-            .runToFuture
-            .syncTryFlatten
+          this.synchronized {
+            if (!isDone) {
+              val future = f(elem).map(_ => Continue).runToFuture
+              lastCancelable = future
+              future.syncTryFlatten
+            } else Stop
+          }
         } catch {
           case ex if NonFatal(ex) =>
             onError(ex)
@@ -62,6 +66,12 @@ final class ForeachAsyncConsumer[A](f: A => Task[Unit])
         }
     }
 
-    (out, AssignableCancelable.dummy)
+    (out, SingleAssignCancelable.plusOne(Cancelable { () =>
+      out.synchronized {
+        isDone = true
+        lastCancelable.cancel()
+        lastCancelable = Cancelable.empty
+      }
+    }))
   }
 }

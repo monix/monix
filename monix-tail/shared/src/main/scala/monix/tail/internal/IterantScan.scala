@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,8 +30,7 @@ import scala.collection.mutable.ArrayBuffer
 
 private[tail] object IterantScan {
   /** Implementation for `Iterant#scan`. */
-  def apply[F[_], A, S](fa: Iterant[F, A], initial: => S, f: (S, A) => S)
-    (implicit F: Sync[F]): Iterant[F, S] = {
+  def apply[F[_], A, S](fa: Iterant[F, A], initial: => S, f: (S, A) => S)(implicit F: Sync[F]): Iterant[F, S] = {
     // Given that `initial` is a by-name value, we have
     // to suspend
     val task = F.delay {
@@ -41,8 +40,7 @@ private[tail] object IterantScan {
     Suspend(task)
   }
 
-  class Loop[F[_], A, S](initial: S, f: (S, A) => S)(implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, S]] {
+  class Loop[F[_], A, S](initial: S, f: (S, A) => S)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, S]] {
 
     private[this] var state = initial
     private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _

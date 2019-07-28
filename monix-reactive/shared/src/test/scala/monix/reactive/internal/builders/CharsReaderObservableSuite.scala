@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,7 +61,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     val string = randomString()
     val in = new StringReader(string)
 
-    val result = Observable.fromCharsReaderUnsafe(in, 40)
+    val result = Observable
+      .fromCharsReaderUnsafe(in, 40)
       .foldLeft(Array.empty[Char])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(arr => new String(arr)))
@@ -76,7 +77,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     val string = randomString()
     val in = new StringReader(string)
 
-    val result = Observable.fromCharsReaderUnsafe(in, 40)
+    val result = Observable
+      .fromCharsReaderUnsafe(in, 40)
       .foldLeft(Array.empty[Char])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(arr => new String(arr)))
@@ -111,6 +113,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
         Continue
       }
     })
+
+    s.tick()
 
     assertEquals(new String(received.toArray), string)
     assertEquals(wasCompleted, 1)
@@ -164,7 +168,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     var wasClosed = false
     val in = randomReaderWithOnFinish(() => wasClosed = true)
-    val f = Observable.fromCharsReaderF(Task(in))
+    val f = Observable
+      .fromCharsReaderF(Task(in))
       .mapEval(_ => Task.sleep(1.second))
       .completedL
       .runToFuture
@@ -180,6 +185,22 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
+  test("fromCharsReader does not block on initial execution") {
+    implicit val s = TestScheduler()
+    var didRead = false
+    val reader = new Reader() {
+      def read(cbuf: Array[Char], off: Int, len: Int): Int = {
+        didRead = true
+        -1
+      }
+
+      def close(): Unit = ()
+    }
+    // Should not fail without s.tick()
+    Observable.fromCharsReaderUnsafe(reader).foreach(_ => ())
+    assert(!didRead)
+  }
+
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): Reader =
     new Reader {
       private[this] var callIdx = 0
@@ -187,8 +208,9 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
       def read(cbuf: Array[Char], off: Int, len: Int): Int = {
         callIdx += 1
         if (callIdx == whenToThrow) throw ex
-        else if (off < len) { cbuf(off) = 'a'; 1 }
-        else 0
+        else if (off < len) {
+          cbuf(off) = 'a'; 1
+        } else 0
       }
 
       override def close(): Unit =
@@ -213,8 +235,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     for (_ <- 0 until lines) {
       val lineLength = Random.nextInt(100)
-      val line = for (_ <- 0 until lineLength) yield
-        chars(Random.nextInt(chars.length))
+      val line = for (_ <- 0 until lineLength) yield chars(Random.nextInt(chars.length))
       builder.append(new String(line.toArray))
       builder.append('\n')
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
     val trigger = Observable.now(1).delayExecution(2.seconds * sourceCount + 1.second)
     val obs = source.takeUntil(trigger)
 
-    Sample(obs, sourceCount, sourceCount * (sourceCount-1) / 2, 2.seconds, 2.seconds)
+    Sample(obs, sourceCount, sourceCount * (sourceCount - 1) / 2, 2.seconds, 2.seconds)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
@@ -39,7 +39,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
     val trigger = Observable.raiseError(ex).delayExecution(2.seconds * sourceCount + 1.second)
     val obs = source.takeUntil(trigger)
 
-    Sample(obs, sourceCount, sourceCount * (sourceCount-1) / 2, 2.seconds, 2.seconds)
+    Sample(obs, sourceCount, sourceCount * (sourceCount - 1) / 2, 2.seconds, 2.seconds)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None

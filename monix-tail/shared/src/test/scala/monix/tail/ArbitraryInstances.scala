@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,8 +30,8 @@ import org.scalacheck.{Arbitrary, Cogen}
 trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
   import ArbitraryInstances.materialize
 
-  def arbitraryListToIterant[F[_], A](list: List[A], idx: Int, allowErrors: Boolean = true)
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def arbitraryListToIterant[F[_], A](list: List[A], idx: Int, allowErrors: Boolean = true)(
+    implicit F: Sync[F]): Iterant[F, A] = {
 
     def loop(list: List[A], idx: Int): Iterant[F, A] =
       list match {
@@ -42,7 +42,7 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             Iterant[F].haltS(Some(DummyException("arbitrary")))
 
         case x :: Nil if math.abs(idx % 2) == 1 =>
-          if (idx % 4 == 1)
+          if (idx                     % 4 == 1)
             Iterant[F].lastS(x)
           else
             Iterant.Concat(F.delay(Iterant[F].lastS(x)), F.delay(Halt(None)))
@@ -50,15 +50,15 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
         case ns =>
           math.abs(idx % 16) match {
             case 0 | 1 =>
-              Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx+1)))
+              Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx + 1)))
             case 2 | 3 =>
-              Iterant[F].suspend(F.delay(loop(list, idx+1)))
+              Iterant[F].suspend(F.delay(loop(list, idx + 1)))
             case 4 | 5 =>
               Iterant[F].suspendS(F.delay(loop(ns, idx + 1)))
             case n @ 6 =>
               val (headSeq, tail) = list.splitAt(3)
               val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, n - 2)
-              Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx+1)))
+              Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx + 1)))
             case n @ (7 | 8 | 9) =>
               val (headSeq, tail) = list.splitAt(3)
               val batch = Batch.fromSeq(headSeq.toVector, n - 6)
@@ -66,10 +66,12 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             case 10 | 11 =>
               Iterant[F].nextBatchS(Batch.empty, F.delay(loop(ns, idx + 1)))
             case 12 | 13 =>
-              Iterant[F].resource(F.delay(1)) {
-                case 1 => F.unit
-                case a => F.raiseError(new IllegalStateException(s"$a"))
-              }.flatMap(_ => loop(list, idx + 1))
+              Iterant[F]
+                .resource(F.delay(1)) {
+                  case 1 => F.unit
+                  case a => F.raiseError(new IllegalStateException(s"$a"))
+                }
+                .flatMap(_ => loop(list, idx + 1))
             case 14 =>
               Iterant.Concat(F.delay(Last(ns.head)), F.delay(loop(ns.tail, idx + 1)))
             case 15 =>
@@ -84,43 +86,43 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
     Arbitrary {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
-      for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        arbitraryListToIterant[Coeval, A](source.reverse, math.abs(i))
+      for (source <- listGen.arbitrary; i <- intGen.arbitrary)
+        yield arbitraryListToIterant[Coeval, A](source.reverse, math.abs(i))
     }
 
   implicit def arbitraryIterantTask[A](implicit A: Arbitrary[A]): Arbitrary[Iterant[Task, A]] =
     Arbitrary {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
-      for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        arbitraryListToIterant[Task, A](source.reverse, math.abs(i))
+      for (source <- listGen.arbitrary; i <- intGen.arbitrary)
+        yield arbitraryListToIterant[Task, A](source.reverse, math.abs(i))
     }
 
   implicit def arbitraryIterantIO[A](implicit A: Arbitrary[A]): Arbitrary[Iterant[IO, A]] =
     Arbitrary {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
-      for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        arbitraryListToIterant[IO, A](source.reverse, math.abs(i))
+      for (source <- listGen.arbitrary; i <- intGen.arbitrary)
+        yield arbitraryListToIterant[IO, A](source.reverse, math.abs(i))
     }
 
   implicit def isEqIterantCoeval[A](implicit A: Eq[A]): Eq[Iterant[Coeval, A]] =
     new Eq[Iterant[Coeval, A]] {
-      def eqv(lh: Iterant[Coeval,  A], rh: Iterant[Coeval,  A]): Boolean = {
+      def eqv(lh: Iterant[Coeval, A], rh: Iterant[Coeval, A]): Boolean = {
         materialize(lh) === materialize(rh)
       }
     }
 
   implicit def isEqIterantTask[A](implicit A: Eq[A], sc: TestScheduler): Eq[Iterant[Task, A]] =
     new Eq[Iterant[Task, A]] {
-      def eqv(lh: Iterant[Task,  A], rh: Iterant[Task,  A]): Boolean = {
+      def eqv(lh: Iterant[Task, A], rh: Iterant[Task, A]): Boolean = {
         materialize(lh) === materialize(rh)
       }
     }
 
   implicit def isEqIterantIO[A](implicit A: Eq[A], sc: TestScheduler): Eq[Iterant[IO, A]] =
     new Eq[Iterant[IO, A]] {
-      def eqv(lh: Iterant[IO,  A], rh: Iterant[IO,  A]): Boolean = {
+      def eqv(lh: Iterant[IO, A], rh: Iterant[IO, A]): Boolean = {
         materialize(lh) === materialize(rh)
       }
     }
@@ -135,8 +137,7 @@ object ArbitraryInstances {
     * i.e. a `List` that only signals when an error happened but not
     * what error it was.
     */
-  private def materialize[F[_], A](fa: Iterant[F, A])
-    (implicit F: Sync[F]): F[List[Notification[A]]] = {
+  private def materialize[F[_], A](fa: Iterant[F, A])(implicit F: Sync[F]): F[List[Notification[A]]] = {
 
     fa.attempt.map {
       case Right(a) => Notification.Elem(a)
@@ -145,14 +146,13 @@ object ArbitraryInstances {
   }
 
   /** To be used for materializing `Iterant` values. */
-  private sealed trait Notification[+A]
-    extends Product with Serializable
+  private sealed trait Notification[+A] extends Product with Serializable
 
   private object Notification {
     final case class Elem[+A](a: A) extends Notification[A]
     case object Error extends Notification[Nothing]
 
-    implicit def equality[A : Eq]: Eq[Notification[A]] =
+    implicit def equality[A: Eq]: Eq[Notification[A]] =
       new Eq[Notification[A]] {
         def eqv(x: Notification[A], y: Notification[A]): Boolean =
           x == y

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,7 +73,7 @@ import scala.annotation.implicitNotFound
   */
 @implicitNotFound(
   "For blocking operations on the JVM, there should be an implicit " +
-  "available by default, or import monix.execution.schedulers.CanBlock.permit.")
+    "available by default, or import monix.execution.schedulers.CanBlock.permit.")
 final class CanBlock private ()
 
 object CanBlock {

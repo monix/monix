@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,8 @@ object DropByPredicateWithIndexSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = Observable.range(1, sourceCount * 2)
+      val o = Observable
+        .range(1, sourceCount * 2)
         .dropWhileWithIndex((e, idx) => e < sourceCount)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -33,7 +34,7 @@ object DropByPredicateWithIndexSuite extends BaseOperatorSuite {
   }
 
   def sum(sourceCount: Int): Long =
-    (1 until sourceCount * 2).drop(sourceCount-1).sum
+    (1 until sourceCount * 2).drop(sourceCount - 1).sum
 
   def count(sourceCount: Int) =
     sourceCount
@@ -49,17 +50,18 @@ object DropByPredicateWithIndexSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(1, sourceCount * 2)
-      .dropWhileWithIndex { (e, idx) =>
-        if (e < sourceCount) true else throw ex
-      }
+    val o = Observable.range(1, sourceCount * 2).dropWhileWithIndex { (e, idx) =>
+      if (e < sourceCount) true else throw ex
+    }
 
     Sample(o, 0, 0, Zero, Zero)
   }
 
   override def cancelableObservables() = {
-    val o = Observable.range(1, 1000).delayOnNext(1.second)
-      .dropWhileWithIndex((e,i) => e < 100)
+    val o = Observable
+      .range(1, 1000)
+      .delayOnNext(1.second)
+      .dropWhileWithIndex((e, i) => e < 100)
 
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }

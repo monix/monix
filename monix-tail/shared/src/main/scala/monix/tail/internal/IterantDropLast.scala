@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,8 +35,7 @@ private[tail] object IterantDropLast {
     else Suspend(F.delay(new Loop(n).apply(source)))
   }
 
-  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
     private[this] var queue = Queue[A]()
     private[this] var length = 0
@@ -47,8 +46,7 @@ private[tail] object IterantDropLast {
         val (nextItem, nextQueue) = queue.dequeue
         queue = nextQueue
         Next(nextItem, ref.rest.map(this))
-      }
-      else {
+      } else {
         length += 1
         Suspend(ref.rest.map(this))
       }
@@ -81,7 +79,7 @@ private[tail] object IterantDropLast {
 
       queue = queueLoop(queue, limit)
       val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
-      NextCursor(BatchCursor.fromSeq(buffer), next.map(this))
+      NextCursor(BatchCursor.fromSeq(buffer.toSeq), next.map(this))
     }
 
     def visit(ref: Suspend[F, A]): Iterant[F, A] =

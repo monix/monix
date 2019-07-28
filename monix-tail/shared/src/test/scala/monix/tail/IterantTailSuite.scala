@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ object IterantTailSuite extends BaseTestSuite {
   test("Iterant.tail is equivalent with List.tail") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx))
-      val stream = iter ++ Iterant[Task].fromList(List(1,2,3))
+      val stream = iter ++ Iterant[Task].fromList(List(1, 2, 3))
       stream.tail.toListL <-> stream.toListL.map(_.tail)
     }
   }
@@ -54,10 +54,12 @@ object IterantTailSuite extends BaseTestSuite {
 
   test("Iterant.tail suspends execution for NextCursor") { implicit s =>
     val dummy = DummyException("dummy")
-    val iter = Iterant[Coeval].nextCursorS[Int](
-      new ThrowExceptionCursor(dummy),
-      Coeval.now(Iterant[Coeval].empty[Int])
-    ).tail
+    val iter = Iterant[Coeval]
+      .nextCursorS[Int](
+        new ThrowExceptionCursor(dummy),
+        Coeval.now(Iterant[Coeval].empty[Int])
+      )
+      .tail
 
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
     intercept[DummyException](iter.toListL.value())
@@ -65,10 +67,12 @@ object IterantTailSuite extends BaseTestSuite {
 
   test("Iterant.tail suspends execution for NextBatch") { implicit s =>
     val dummy = DummyException("dummy")
-    val iter = Iterant[Coeval].nextBatchS[Int](
-      new ThrowExceptionBatch(dummy),
-      Coeval.now(Iterant[Coeval].empty[Int])
-    ).tail
+    val iter = Iterant[Coeval]
+      .nextBatchS[Int](
+        new ThrowExceptionBatch(dummy),
+        Coeval.now(Iterant[Coeval].empty[Int])
+      )
+      .tail
 
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
     intercept[DummyException](iter.toListL.value())

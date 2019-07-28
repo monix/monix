@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,12 +40,10 @@ object CollectSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.now(2L)
-          .collect { case x if x % 2 == 0 => x }
-      else
-        Observable.range(1, sourceCount * 2 + 1, 1)
-          .collect { case x if x % 2 == 0 => x }
+      val o =
+        if (sourceCount == 1)
+          Observable.now(2L).collect { case x if x                          % 2 == 0 => x } else
+          Observable.range(1, sourceCount * 2 + 1, 1).collect { case x if x % 2 == 0 => x }
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
@@ -55,12 +53,12 @@ object CollectSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val o = if (sourceCount == 1)
-        createObservableEndingInError(Observable.now(2L), ex)
-          .collect { case x if x % 2 == 0 => x }
-      else
-        createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex)
-          .collect { case x if x % 2 == 0 => x }
+      val o =
+        if (sourceCount == 1)
+          createObservableEndingInError(Observable.now(2L), ex).collect { case x if x % 2 == 0 => x } else
+          createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex).collect {
+            case x if x % 2 == 0 => x
+          }
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
@@ -69,23 +67,24 @@ object CollectSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.now(1L).collect { case _ => throw ex }
-      else
-        Observable.range(1, sourceCount * 2 + 1, 1).collect {
-          case x if x % 2 == 0 =>
-            if (x == sourceCount * 2)
-              throw ex
-            else
-              x
-        }
+      val o =
+        if (sourceCount == 1)
+          Observable.now(1L).collect { case _ => throw ex } else
+          Observable.range(1, sourceCount * 2 + 1, 1).collect {
+            case x if x % 2 == 0 =>
+              if (x == sourceCount * 2)
+                throw ex
+              else
+                x
+          }
 
-      Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
+      Sample(o, count(sourceCount - 1), sum(sourceCount - 1), waitFirst, waitNext)
     }
   }
 
   override def cancelableObservables(): Seq[CollectSuite.Sample] = {
-    val o = Observable.range(0, Platform.recommendedBatchSize)
+    val o = Observable
+      .range(0, Platform.recommendedBatchSize)
       .delayOnNext(1.second)
       .collect { case x if x % 2 == 0 => x }
 
@@ -123,11 +122,14 @@ object CollectSuite extends BaseOperatorSuite {
       if (x % 2 == 0) Some(x) else None
     }
     val pf = Function.unlift(f)
-    Observable.now(2).collect(pf).unsafeSubscribeFn(new Observer[Int] {
-      def onNext(elem: Int): Future[Ack] = { result = elem; Continue }
-      def onError(ex: Throwable): Unit = throw new IllegalStateException()
-      def onComplete(): Unit = wasCompleted = true
-    })
+    Observable
+      .now(2)
+      .collect(pf)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = { result = elem; Continue }
+        def onError(ex: Throwable): Unit = throw new IllegalStateException()
+        def onComplete(): Unit = wasCompleted = true
+      })
     s.tick()
     assert(wasCompleted)
     assertEquals(result, 2)

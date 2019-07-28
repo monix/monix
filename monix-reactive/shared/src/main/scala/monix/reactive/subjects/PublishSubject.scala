@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,16 +38,16 @@ import scala.concurrent.Future
   *
   * @see [[Subject]]
   */
-final class PublishSubject[A] private () extends Subject[A,A] { self =>
+final class PublishSubject[A] private () extends Subject[A, A] { self =>
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
    */
   private[this] val stateRef = Atomic.withPadding(State[A](), LeftRight128)
 
-  private
-  def onSubscribeCompleted(subscriber: Subscriber[A], ex: Throwable): Cancelable = {
-    if (ex != null) subscriber.onError(ex) else
+  private def onSubscribeCompleted(subscriber: Subscriber[A], ex: Throwable): Cancelable = {
+    if (ex != null) subscriber.onError(ex)
+    else
       subscriber.onComplete()
     Cancelable.empty
   }
@@ -70,8 +70,7 @@ final class PublishSubject[A] private () extends Subject[A,A] { self =>
     if (subscribers eq null) {
       // our subject was completed, taking fast path
       onSubscribeCompleted(subscriber, state.errorThrown)
-    }
-    else {
+    } else {
       // this subscriber type can freeze our `onNext` until
       // it's been fed with our buffer
       val update = State(subscribers + subscriber)
@@ -89,15 +88,15 @@ final class PublishSubject[A] private () extends Subject[A,A] { self =>
 
     if (subscribersArray eq null) {
       val set = state.subscribers
-      if (set == null) Stop else {
+      if (set == null) Stop
+      else {
         val update = state.refresh
         // If CAS fails, it means we have new subscribers;
         // not bothering to recreate the cache for now
         stateRef.compareAndSet(state, update)
         sendOnNextToAll(update.cache, elem)
       }
-    }
-    else {
+    } else {
       sendOnNextToAll(subscribersArray, elem)
     }
   }
@@ -128,8 +127,7 @@ final class PublishSubject[A] private () extends Subject[A,A] { self =>
         // subscriber canceled or triggered an error? Then remove!
         if (ack != Continue && ack.value.get != Continue.AsSuccess)
           unsubscribe(subscriber)
-      }
-      else {
+      } else {
         // going async, so we've got to count active futures for final Ack
         // the counter starts from 1 because zero implies isCompleted
         if (result == null) result = PromiseCounter(Continue, 1)
@@ -147,7 +145,8 @@ final class PublishSubject[A] private () extends Subject[A,A] { self =>
     }
 
     // has fast-path for completely synchronous invocation
-    if (result == null) Continue else {
+    if (result == null) Continue
+    else {
       result.countdown()
       result.future
     }
@@ -184,7 +183,8 @@ final class PublishSubject[A] private () extends Subject[A,A] { self =>
     val state = stateRef.get
     val subscribers = state.subscribers
 
-    if (subscribers eq null) Continue else {
+    if (subscribers eq null) Continue
+    else {
       val update = State(subscribers = subscribers - subscriber)
       if (!stateRef.compareAndSet(state, update))
         unsubscribe(subscriber) // retry
@@ -218,7 +218,8 @@ object PublishSubject {
       subscribers eq null
 
     def complete(errorThrown: Throwable): State[A] = {
-      if (subscribers eq null) this else
+      if (subscribers eq null) this
+      else
         State[A](null, null, errorThrown)
     }
   }

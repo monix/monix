@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,8 +79,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     val semaphore = Semaphore.unsafe[IO](provisioned = 20)
     val count = if (Platform.isJVM) 10000 else 1000
 
-    val futures = for (i <- 0 until count) yield
-      semaphore.withPermit(IO.shift *> IO(i))
+    val futures = for (i <- 0 until count) yield semaphore.withPermit(IO.shift *> IO(i))
     val sum =
       futures.toList.parSequence.map(_.sum).unsafeToFuture()
 
@@ -172,7 +171,9 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
             }
           }
         }
-        futures.toList.parSequence.map { x => x.sum }
+        futures.toList.parSequence.map { x =>
+          x.sum
+        }
       })
 
       for (r <- task; _ <- IO.fromFuture(IO.pure(allReleased.future))) yield {

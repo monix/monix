@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -172,7 +172,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](127)
     assertEquals(q.capacity, 127)
 
-    q.offerMany(0 until 200:_*)
+    q.offerMany(0 until 200: _*)
     assertEquals(q.toList, 73 until 200)
   }
 
@@ -180,15 +180,15 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](1)
     assert(q.isEmpty)
 
-    q.offerMany(0 until 10:_*)
+    q.offerMany(0 until 10: _*)
     assertEquals(q.head, 9)
     assertEquals(q.length, 1)
 
-    q.offerMany(10 until 20:_*)
+    q.offerMany(10 until 20: _*)
     assertEquals(q.head, 19)
     assertEquals(q.length, 1)
 
-    q.offerMany(20 until 30:_*)
+    q.offerMany(20 until 30: _*)
     assertEquals(q.head, 29)
     assertEquals(q.length, 1)
     assertEquals(q.poll(), 29)
@@ -197,7 +197,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
 
   test("should iterate with fixed capacity") {
     val q = DropHeadOnOverflowQueue[Int](10)
-    q.offerMany(0 to 200:_*)
+    q.offerMany(0 to 200: _*)
 
     val list1 = q.iterator(exactSize = false).toList
     assertEquals(list1.length, 15)
@@ -220,7 +220,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
 
   test("should box") {
     val q = DropHeadOnOverflowQueue.boxed[Int](10)
-    q.offerMany(0 until 15:_*)
+    q.offerMany(0 until 15: _*)
     assertEquals(q.toList, (0 until 15).toList)
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,25 +56,27 @@ object Interleave2Suite extends BaseOperatorSuite {
     var received = Vector.empty[Int]
     var wasCompleted = false
 
-    obs1.interleave(obs2).unsafeSubscribeFn(new Observer[Int] {
-      def onNext(elem: Int) = {
-        received :+= elem
-        Continue
-      }
+    obs1
+      .interleave(obs2)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int) = {
+          received :+= elem
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     obs1.onNext(1); s.tick()
     assertEquals(received, Vector(1))
     obs2.onNext(2); s.tick()
-    assertEquals(received, Vector(1,2))
+    assertEquals(received, Vector(1, 2))
 
     obs2.onNext(4); s.tick()
-    assertEquals(received, Vector(1,2))
+    assertEquals(received, Vector(1, 2))
     obs1.onNext(3); s.tick()
-    assert(received == Vector(1,2,3) || received == Vector(1,2,3,4))
+    assert(received == Vector(1, 2, 3) || received == Vector(1, 2, 3, 4))
 
     obs1.onComplete()
     s.tick()
@@ -92,7 +94,10 @@ object Interleave2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = 0
 
-    obs1.interleave(obs2.doOnEarlyStopF { () => wasCanceled = true })
+    obs1
+      .interleave(obs2.doOnEarlyStopF { () =>
+        wasCanceled = true
+      })
       .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -115,7 +120,9 @@ object Interleave2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = 0
 
-    obs2.doOnEarlyStopF { () => wasCanceled = true }.interleave(obs1)
+    obs2.doOnEarlyStopF { () =>
+      wasCanceled = true
+    }.interleave(obs1)
       .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -136,13 +143,15 @@ object Interleave2Suite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
 
-    obs1.interleave(obs2).unsafeSubscribeFn(new Observer[Int] {
-      def onNext(elem: Int) =
-        Future.delayedResult(1.second)(Continue)
-      def onComplete() = ()
-      def onError(ex: Throwable) =
-        wasThrown = ex
-    })
+    obs1
+      .interleave(obs2)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int) =
+          Future.delayedResult(1.second)(Continue)
+        def onComplete() = ()
+        def onError(ex: Throwable) =
+          wasThrown = ex
+      })
 
     obs1.onNext(1)
     obs2.onNext(2)
@@ -159,13 +168,15 @@ object Interleave2Suite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
 
-    obs1.interleave(obs2).unsafeSubscribeFn(new Observer[Int] {
-      def onNext(elem: Int) =
-        Future.delayedResult(1.second)(Continue)
-      def onComplete() = ()
-      def onError(ex: Throwable) =
-        wasThrown = ex
-    })
+    obs1
+      .interleave(obs2)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int) =
+          Future.delayedResult(1.second)(Continue)
+        def onComplete() = ()
+        def onError(ex: Throwable) =
+          wasThrown = ex
+      })
 
     obs1.onNext(1)
     obs2.onNext(2)
@@ -176,4 +187,3 @@ object Interleave2Suite extends BaseOperatorSuite {
     s.tick(2.second)
   }
 }
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,9 +26,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-private[reactive] final
-class DoOnStartOperator[A](cb: A => Task[Unit])
-  extends Operator[A,A] {
+private[reactive] final class DoOnStartOperator[A](cb: A => Task[Unit]) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -49,10 +47,12 @@ class DoOnStartOperator[A](cb: A => Task[Unit])
             case NonFatal(ex) => Task.raiseError(ex)
           }
 
-          val ack = t.redeemWith(
-            ex => Task.eval { onError(ex); Stop },
-            _ => Task.fromFuture(out.onNext(elem))
-          ).runToFuture
+          val ack = t
+            .redeemWith(
+              ex => Task.eval { onError(ex); Stop },
+              _ => Task.fromFuture(out.onNext(elem))
+            )
+            .runToFuture
 
           isStart = false
           ack.syncTryFlatten

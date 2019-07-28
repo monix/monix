@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,8 +29,7 @@ import monix.execution.Scheduler
   * @param r is the runnable to execute
   * @param s is the scheduler that does the execution
   */
-final class ShiftedRunnable(r: Runnable, s: Scheduler)
-  extends Runnable {
+final class ShiftedRunnable(r: Runnable, s: Scheduler) extends Runnable {
 
   override def run() =
     r match {

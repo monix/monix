@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,9 +24,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final
-class ReduceOperator[A](op: (A,A) => A)
-  extends Operator[A,A] {
+private[reactive] final class ReduceOperator[A](op: (A, A) => A) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -35,17 +33,14 @@ class ReduceOperator[A](op: (A,A) => A)
       private[this] var isDone = false
       private[this] var state: A = _
       private[this] var isFirst = true
-      private[this] var wasApplied = false
 
       def onNext(elem: A): Future[Ack] = {
         try {
           if (isFirst) {
             isFirst = false
             state = elem
-          }
-          else {
+          } else {
             state = op(state, elem)
-            if (!wasApplied) wasApplied = true
           }
 
           Continue
@@ -59,7 +54,7 @@ class ReduceOperator[A](op: (A,A) => A)
       def onComplete(): Unit =
         if (!isDone) {
           isDone = true
-          if (wasApplied) out.onNext(state)
+          if (!isFirst) out.onNext(state)
           out.onComplete()
         }
 

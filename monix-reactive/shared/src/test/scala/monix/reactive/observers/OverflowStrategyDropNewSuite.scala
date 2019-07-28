@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,8 +29,7 @@ import scala.concurrent.{Future, Promise}
 object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should not lose events, synchronous test 1") { implicit s =>
@@ -85,8 +84,9 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
-      else
+        s.executeAsync { () =>
+          buffer.onNext(n); loop(n - 1)
+        } else
         buffer.onComplete()
 
     loop(10000)
@@ -146,8 +146,9 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropNew(10000))
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
-      else
+        s.executeAsync { () =>
+          buffer.onNext(n); loop(n - 1)
+        } else
         buffer.onComplete()
 
     loop(10000)
@@ -209,7 +210,9 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, DropNew(5))
+      },
+      DropNew(5)
+    )
 
     buffer.onError(DummyException("dummy"))
     s.tickOne()
@@ -229,7 +232,9 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = Continue
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, DropNew(5))
+      },
+      DropNew(5)
+    )
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
@@ -250,7 +255,9 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = promise.future
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, DropNew(5))
+      },
+      DropNew(5)
+    )
 
     buffer.onNext(1)
     buffer.onNext(2)
@@ -279,7 +286,9 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, DropNew(10000))
+      },
+      DropNew(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -303,7 +312,9 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, DropNew(10000))
+      },
+      DropNew(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -327,7 +338,9 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, DropNew(10000))
+      },
+      DropNew(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -351,7 +364,9 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, DropNew(10000))
+      },
+      DropNew(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -360,7 +375,6 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
     assertEquals(sum, (0 until 9999).sum)
   }
-
 
   test("subscriber STOP after a synchronous onNext") { implicit s =>
     var received = 0
@@ -599,8 +613,7 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assert(errorThrown != null, "errorThrown != null")
-    assert(errorThrown.isInstanceOf[NullPointerException],
-      "errorThrown.isInstanceOf[NullPointerException]")
+    assert(errorThrown.isInstanceOf[NullPointerException], "errorThrown.isInstanceOf[NullPointerException]")
   }
 
   test("buffer size is required to be greater than 1") { implicit s =>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,16 @@
 package monix.reactive
 
 import cats.effect.laws.discipline.BracketTests
-import cats.laws.discipline.{AlternativeTests, ApplyTests, CoflatMapTests, MonoidKTests, NonEmptyParallelTests}
+import cats.laws.discipline.{
+  AlternativeTests,
+  ApplyTests,
+  CoflatMapTests,
+  FunctorFilterTests,
+  MonoidKTests,
+  NonEmptyParallelTests
+}
 import monix.reactive.observables.CombineObservable
+import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
 
 object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
   checkAllAsync("Bracket[Observable, Throwable]") { implicit ec =>
@@ -48,5 +56,9 @@ object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
 
   checkAllAsync("NonEmptyParallel[Observable, CombineObservable.Type]") { implicit ec =>
     NonEmptyParallelTests[Observable, CombineObservable.Type].nonEmptyParallel[Int, Int]
+  }
+
+  checkAllAsync("FunctorFilter[Observable]") { implicit ec =>
+    FunctorFilterTests[Observable].functorFilter[Int, Int, Int]
   }
 }

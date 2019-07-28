@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,8 @@ import monix.tail.batches._
 import org.scalacheck.Arbitrary
 import scala.reflect.ClassTag
 
-abstract class BatchCursorSuite[A : ClassTag](implicit
+abstract class BatchCursorSuite[A: ClassTag](
+  implicit
   arbA: Arbitrary[A],
   arbAtoA: Arbitrary[A => A],
   arbAtoBoolean: Arbitrary[A => Boolean])
@@ -125,14 +126,14 @@ abstract class BatchCursorSuite[A : ClassTag](implicit
   test("cursor.slice(5,5).toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
-      cursor.slice(5,5).toList == list.slice(5,5)
+      cursor.slice(5, 5).toList == list.slice(5, 5)
     }
   }
 
   test("cursor.slice(5,10).toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
-      cursor.slice(5,10).toList == list.slice(5, 10)
+      cursor.slice(5, 10).toList == list.slice(5, 10)
     }
   }
 

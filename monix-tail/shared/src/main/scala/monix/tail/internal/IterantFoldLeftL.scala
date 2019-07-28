@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,8 +30,7 @@ private[tail] object IterantFoldLeftL {
   /**
     * Implementation for `Iterant#foldLeftL`
     */
-  final def apply[F[_], S, A](source: Iterant[F, A], seed: => S)(op: (S, A) => S)
-    (implicit F: Sync[F]): F[S] = {
+  final def apply[F[_], S, A](source: Iterant[F, A], seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): F[S] = {
 
     F.suspend {
       var catchErrors = true
@@ -55,8 +54,7 @@ private[tail] object IterantFoldLeftL {
       .map(_.toList)
   }
 
-  private final class Loop[F[_], S, A](seed: S, op: (S, A) => S)
-    (implicit F: Sync[F])
+  private final class Loop[F[_], S, A](seed: S, op: (S, A) => S)(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[S]] { loop =>
 
     /** Current calculated state. */
@@ -77,10 +75,11 @@ private[tail] object IterantFoldLeftL {
     }
 
     private[this] val concatContinue: (S => F[S]) =
-      state => stackPop() match {
-        case null => F.pure(state)
-        case xs => xs.flatMap(loop)
-      }
+      state =>
+        stackPop() match {
+          case null => F.pure(state)
+          case xs => xs.flatMap(loop)
+        }
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[S] = {
@@ -121,5 +120,6 @@ private[tail] object IterantFoldLeftL {
       }
 
     def fail(e: Throwable): F[S] =
-      F.raiseError(e)}
+      F.raiseError(e)
+  }
 }

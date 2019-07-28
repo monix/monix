@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,7 @@
 package monix.eval
 
 import cats.effect.SyncIO
-import cats.{Comonad, Eval}
-
+import cats.{~>, Eval}
 import scala.util.Try
 
 /** A lawless type class that provides conversions to [[Coeval]].
@@ -30,29 +29,29 @@ import scala.util.Try
   *   import cats.Eval
   *
   *   val source0 = Eval.always(1 + 1)
-  *   val task0 = CoevalLike[Eval].toCoeval(source0)
+  *   val task0 = CoevalLike[Eval].apply(source0)
   *
   *   // Conversion from SyncIO
   *   import cats.effect.SyncIO
   *
   *   val source1 = SyncIO(1 + 1)
-  *   val task1 = CoevalLike[SyncIO].toCoeval(source1)
+  *   val task1 = CoevalLike[SyncIO].apply(source1)
   * }}}
   *
   * This is an alternative to usage of `cats.effect.Effect`
   * where the internals are specialized to `Coeval` anyway, like for
   * example the implementation of `monix.reactive.Observable`.
   */
-trait CoevalLike[F[_]] {
+trait CoevalLike[F[_]] extends (F ~> Coeval) {
   /**
     * Converts from `F[A]` to `Coeval[A]`, preserving referential
     * transparency if `F[_]` is a pure data type and preserving
     * interruptibility if the source is cancelable.
     */
-  def toCoeval[A](fa: F[A]): Coeval[A]
+  def apply[A](fa: F[A]): Coeval[A]
 }
 
-object CoevalLike extends CoevalLikeImplicits0 {
+object CoevalLike {
   /**
     * Returns the available instance for `F`.
     */
@@ -63,7 +62,7 @@ object CoevalLike extends CoevalLikeImplicits0 {
     */
   implicit val fromCoeval: CoevalLike[Coeval] =
     new CoevalLike[Coeval] {
-      def toCoeval[A](fa: Coeval[A]): Coeval[A] = fa
+      def apply[A](fa: Coeval[A]): Coeval[A] = fa
     }
 
   /**
@@ -71,8 +70,11 @@ object CoevalLike extends CoevalLikeImplicits0 {
     */
   implicit val fromEval: CoevalLike[Eval] =
     new CoevalLike[Eval] {
-      def toCoeval[A](fa: Eval[A]): Coeval[A] =
-        Coeval.fromEval(fa)
+      def apply[A](fa: Eval[A]): Coeval[A] =
+        fa match {
+          case cats.Now(v) => Coeval.Now(v)
+          case other => Coeval.eval(other.value)
+        }
     }
 
   /**
@@ -80,7 +82,7 @@ object CoevalLike extends CoevalLikeImplicits0 {
     */
   implicit val fromSyncIO: CoevalLike[SyncIO] =
     new CoevalLike[SyncIO] {
-      def toCoeval[A](fa: SyncIO[A]): Coeval[A] =
+      def apply[A](fa: SyncIO[A]): Coeval[A] =
         Coeval(fa.unsafeRunSync())
     }
 
@@ -89,7 +91,7 @@ object CoevalLike extends CoevalLikeImplicits0 {
     */
   implicit val fromTry: CoevalLike[Try] =
     new CoevalLike[Try] {
-      def toCoeval[A](fa: Try[A]): Coeval[A] =
+      def apply[A](fa: Try[A]): Coeval[A] =
         Coeval.fromTry(fa)
     }
 
@@ -99,7 +101,7 @@ object CoevalLike extends CoevalLikeImplicits0 {
     */
   implicit val fromFunction0: CoevalLike[Function0] =
     new CoevalLike[Function0] {
-      def toCoeval[A](thunk: () => A): Coeval[A] =
+      def apply[A](thunk: () => A): Coeval[A] =
         Coeval.Always(thunk)
     }
 
@@ -108,18 +110,20 @@ object CoevalLike extends CoevalLikeImplicits0 {
     */
   implicit def fromEither[E <: Throwable]: CoevalLike[Either[E, ?]] =
     new CoevalLike[Either[E, ?]] {
-      def toCoeval[A](fa: Either[E, A]): Coeval[A] =
+      def apply[A](fa: Either[E, A]): Coeval[A] =
         Coeval.fromEither(fa)
     }
-}
 
-private[eval] abstract class CoevalLikeImplicits0 {
   /**
-    * Converts to `Coeval` from `cats.Comonad` values.
+    * Deprecated method, which happened on extending `FunctionK`.
     */
-  implicit def fromComonad[F[_]](implicit F: Comonad[F]): CoevalLike[F] =
-    new CoevalLike[F] {
-      def toCoeval[A](fa: F[A]): Coeval[A] =
-        Coeval(F.extract(fa))
+  implicit class Deprecated[F[_]](val inst: CoevalLike[F]) {
+    /** DEPRECATED — switch to [[CoevalLike.apply]]. */
+    @deprecated("Switch to CoevalLike.apply", since = "3.0.0-RC3")
+    def toCoeval[A](coeval: F[A]): Coeval[A] = {
+      // $COVERAGE-OFF$
+      inst(coeval)
+      // $COVERAGE-ON$
     }
+  }
 }

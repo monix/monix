@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,7 @@ import scala.concurrent.Promise
 object EndWithErrorSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should end in the specified error") { implicit s =>
@@ -36,7 +35,8 @@ object EndWithErrorSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
     val p = Promise[Continue.type]()
 
-    val source = Observable.now(1000)
+    val source = Observable
+      .now(1000)
       .endWithError(DummyException("dummy"))
 
     source.unsafeSubscribeFn(new Observer[Int] {
@@ -59,7 +59,8 @@ object EndWithErrorSuite extends TestSuite[TestScheduler] {
 
   test("can end in another unforeseen error") { implicit s =>
     var wasThrown: Throwable = null
-    val source = Observable.raiseError(DummyException("unforeseen"))
+    val source = Observable
+      .raiseError(DummyException("unforeseen"))
       .endWithError(DummyException("expected"))
 
     source.unsafeSubscribeFn(new Observer[Int] {

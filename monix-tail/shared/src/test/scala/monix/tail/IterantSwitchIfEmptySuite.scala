@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,6 @@ import monix.eval.Coeval
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.{EmptyBatch, EmptyCursor}
-
 
 object IterantSwitchIfEmptySuite extends BaseTestSuite {
   val backupStream: Iterant[Coeval, Int] = Iterant[Coeval].of(42)
@@ -75,15 +74,19 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
   }
 
   test("Iterant.switchIfEmpty chooses fallback for empty cursors") { implicit s =>
-    assertChoosesFallback(Iterant[Coeval].nextCursorS(
-      EmptyCursor, Coeval(emptyInts)
-    ))
+    assertChoosesFallback(
+      Iterant[Coeval].nextCursorS(
+        EmptyCursor,
+        Coeval(emptyInts)
+      ))
   }
 
   test("Iterant.switchIfEmpty chooses fallback for empty batches") { implicit s =>
-    assertChoosesFallback(Iterant[Coeval].nextBatchS(
-      EmptyBatch, Coeval(emptyInts)
-    ))
+    assertChoosesFallback(
+      Iterant[Coeval].nextBatchS(
+        EmptyBatch,
+        Coeval(emptyInts)
+      ))
   }
 
   test("Iterant.switchIfEmpty consistent with toListL.isEmpty") { implicit s =>
@@ -94,13 +97,6 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
       }
 
       val lh = left.switchIfEmpty(right).toListL
-
-      if (lh.attempt.value() != target.attempt.value()) {
-        println(s"${lh.attempt.value()} != ${target.attempt.value()}")
-        println(s"left = ${left.attempt.toListL.value()}")
-        println(s"right = ${right.attempt.toListL.value()}")
-        left.dump("O").completedL.run()
-      }
       lh <-> target
     }
   }
@@ -108,7 +104,8 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
   test("Iterant.switchIfEmpty can handle broken batches") { implicit s =>
     val dummy = DummyException("dummy")
     val iterant = Iterant[Coeval].nextBatchS(
-      ThrowExceptionBatch[Int](dummy), Coeval(emptyInts)
+      ThrowExceptionBatch[Int](dummy),
+      Coeval(emptyInts)
     )
     assertEquals(
       iterant.switchIfEmpty(backupStream).toListL.runAttempt(),

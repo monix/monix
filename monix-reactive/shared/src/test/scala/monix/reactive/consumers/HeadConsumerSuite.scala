@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,13 +28,14 @@ import scala.util.{Failure, Success}
 object HeadConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("stops on first on next") { implicit s =>
     var wasStopped = false
-    val obs = Observable.now(1).doOnEarlyStopF { () => wasStopped = true }
+    val obs = Observable.now(1).doOnEarlyStopF { () =>
+      wasStopped = true
+    }
     val f = obs.consumeWith(Consumer.head).runToFuture
 
     s.tick()
@@ -45,26 +46,37 @@ object HeadConsumerSuite extends TestSuite[TestScheduler] {
   test("on complete") { implicit s =>
     var wasStopped = false
     var wasCompleted = false
-    val obs = Observable.empty[Int]
-      .doOnEarlyStopF { () => wasStopped = true }
-      .doOnCompleteF { () => wasCompleted = true }
+    val obs = Observable
+      .empty[Int]
+      .doOnEarlyStopF { () =>
+        wasStopped = true
+      }
+      .doOnCompleteF { () =>
+        wasCompleted = true
+      }
 
     val f = obs.consumeWith(Consumer.head).runToFuture
 
     s.tick()
     assert(!wasStopped, "!wasStopped")
     assert(wasCompleted, "wasCompleted")
-    assert(f.value.isDefined && f.value.get.isFailure &&
-      f.value.get.failed.get.isInstanceOf[NoSuchElementException])
+    assert(
+      f.value.isDefined && f.value.get.isFailure &&
+        f.value.get.failed.get.isInstanceOf[NoSuchElementException])
   }
 
   test("on error") { implicit s =>
     val ex = DummyException("dummy")
     var wasStopped = false
     var wasCompleted = false
-    val obs = Observable.raiseError(ex)
-      .doOnEarlyStopF { () => wasStopped = true }
-      .doOnError { _ => Task { wasCompleted = true } }
+    val obs = Observable
+      .raiseError(ex)
+      .doOnEarlyStopF { () =>
+        wasStopped = true
+      }
+      .doOnError { _ =>
+        Task { wasCompleted = true }
+      }
 
     val f = obs.consumeWith(Consumer.head).runToFuture
 

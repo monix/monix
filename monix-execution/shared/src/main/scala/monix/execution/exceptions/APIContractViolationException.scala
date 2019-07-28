@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,13 +22,12 @@ import scala.runtime.AbstractFunction1
 /** Generic exception thrown on API contract violations. */
 class APIContractViolationException(val message: String, cause: Throwable)
   extends RuntimeException(message, cause) with Serializable {
-  
+
   def this(message: String) = this(message, null)
   def this(cause: Throwable) = this(null, cause)
 }
 
-object APIContractViolationException
-  extends AbstractFunction1[String, APIContractViolationException] {
+object APIContractViolationException extends AbstractFunction1[String, APIContractViolationException] {
 
   /** Builder for [[APIContractViolationException]]. */
   def apply(message: String): APIContractViolationException =

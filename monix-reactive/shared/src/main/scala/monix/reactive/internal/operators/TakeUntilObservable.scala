@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,67 +25,65 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 /** Implementation for [[monix.reactive.Observable.takeUntil]]. */
-private[reactive] final class TakeUntilObservable[+A](
-  source: Observable[A], trigger: Observable[Any])
+private[reactive] final class TakeUntilObservable[+A](source: Observable[A], trigger: Observable[Any])
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val mainConn = SingleAssignCancelable()
     var isComplete = false
 
-    val selectorConn = trigger.unsafeSubscribeFn(
-      new Subscriber.Sync[Any] {
-        implicit val scheduler = out.scheduler
+    val selectorConn = trigger.unsafeSubscribeFn(new Subscriber.Sync[Any] {
+      implicit val scheduler = out.scheduler
 
-        def onNext(elem: Any): Ack = {
-          signalComplete(null)
-          Stop
+      def onNext(elem: Any): Ack = {
+        signalComplete(null)
+        Stop
+      }
+
+      def onComplete(): Unit = signalComplete(null)
+      def onError(ex: Throwable): Unit = signalComplete(ex)
+
+      private def signalComplete(ex: Throwable): Unit =
+        mainConn.synchronized {
+          if (!isComplete) {
+            isComplete = true
+            mainConn.cancel()
+            if (ex == null) out.onComplete()
+            else out.onError(ex)
+          } else if (ex != null) {
+            scheduler.reportFailure(ex)
+          }
+        }
+    })
+
+    mainConn := source.unsafeSubscribeFn(new Subscriber[A] {
+      implicit val scheduler = out.scheduler
+
+      def onNext(elem: A): Future[Ack] =
+        mainConn.synchronized {
+          if (isComplete) Stop
+          else
+            out.onNext(elem).syncOnStopOrFailure { _ =>
+              mainConn.synchronized {
+                isComplete = true
+                selectorConn.cancel()
+              }
+            }
         }
 
-        def onComplete(): Unit = signalComplete(null)
-        def onError(ex: Throwable): Unit = signalComplete(ex)
+      def onError(ex: Throwable): Unit = signalComplete(ex)
+      def onComplete(): Unit = signalComplete(null)
 
-        private def signalComplete(ex: Throwable): Unit =
-          mainConn.synchronized {
-            if (!isComplete) {
-              isComplete = true
-              mainConn.cancel()
-              if (ex == null) out.onComplete()
-              else out.onError(ex)
-            } else if  (ex != null) {
-              scheduler.reportFailure(ex)
-            }
+      def signalComplete(ex: Throwable): Unit =
+        mainConn.synchronized {
+          if (!isComplete) {
+            isComplete = true
+            selectorConn.cancel()
+            if (ex == null) out.onComplete()
+            else out.onError(ex)
           }
-      })
-
-    mainConn := source.unsafeSubscribeFn(
-      new Subscriber[A] {
-        implicit val scheduler = out.scheduler
-
-        def onNext(elem: A): Future[Ack] =
-          mainConn.synchronized {
-            if (isComplete) Stop else
-              out.onNext(elem).syncOnStopOrFailure { _ =>
-                mainConn.synchronized {
-                  isComplete = true
-                  selectorConn.cancel()
-                }
-              }
-          }
-
-        def onError(ex: Throwable): Unit = signalComplete(ex)
-        def onComplete(): Unit = signalComplete(null)
-
-        def signalComplete(ex: Throwable): Unit =
-          mainConn.synchronized {
-            if (!isComplete) {
-              isComplete = true
-              selectorConn.cancel()
-              if (ex == null) out.onComplete()
-              else out.onError(ex)
-            }
-          }
-      })
+        }
+    })
 
     CompositeCancelable(mainConn, selectorConn)
   }

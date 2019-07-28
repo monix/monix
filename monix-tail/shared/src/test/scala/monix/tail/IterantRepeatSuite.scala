@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,12 +36,12 @@ object IterantRepeatSuite extends BaseTestSuite {
     val count = if (Platform.isJVM) 10 else 500
 
     check2 { (list: List[Int], index: Int) =>
-      val fa = arbitraryListToIterant[Coeval, Int](list, index, allowErrors = false)
-        .repeat
+      val fa = arbitraryListToIterant[Coeval, Int](list, index, allowErrors = false).repeat
         .take(count)
 
       val expected =
-        if (list.isEmpty) Iterant.empty[Coeval, Int] else {
+        if (list.isEmpty) Iterant.empty[Coeval, Int]
+        else {
           Iterant[Coeval].fromIterable(
             (0 until (count / list.length + 1))
               .flatMap(_ => list)
@@ -61,12 +61,14 @@ object IterantRepeatSuite extends BaseTestSuite {
 
     intercept[DummyException] {
       source.repeat.map { x =>
-        if (effect == 6) throw dummy else {
+        if (effect == 6) throw dummy
+        else {
           effect += 1
           values ::= x
           x
         }
-      }.toListL.value()}
+      }.toListL.value()
+    }
 
     assertEquals(values, expectedValues)
   }
@@ -134,8 +136,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     val repeats = 66
     var effect = 0
     val increment = Coeval { effect += 1 }
-    Iterant[Coeval].repeatEvalF(increment).take(repeats)
-      .completedL.value()
+    Iterant[Coeval].repeatEvalF(increment).take(repeats).completedL.value()
     assertEquals(effect, repeats)
   }
 

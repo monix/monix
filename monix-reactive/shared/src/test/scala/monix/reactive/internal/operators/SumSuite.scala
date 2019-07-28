@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,7 @@ object SumSuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
-    val o = Observable.range(0, sourceCount+1).endWithError(ex).sum
+    val o = Observable.range(0, sourceCount + 1).endWithError(ex).sum
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 
@@ -50,7 +50,7 @@ object SumSuite extends BaseOperatorSuite {
       def parseString(str: String): Option[Long] = throw ex
     }
 
-    val o = Observable.range(0, sourceCount+1).sum(num)
+    val o = Observable.range(0, sourceCount + 1).sum(num)
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 
@@ -59,6 +59,6 @@ object SumSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val o = Observable.now(1L).delayOnNext(1.second).sum
-    Seq(Sample(o,0,0,0.seconds,0.seconds))
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

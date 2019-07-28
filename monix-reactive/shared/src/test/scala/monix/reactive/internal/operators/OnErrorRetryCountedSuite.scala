@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,30 +24,37 @@ import scala.concurrent.duration.{Duration, _}
 object OnErrorRetryCountedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val ex = DummyException("expected")
-    val o = Observable.range(0, sourceCount).endWithError(ex)
+    val o = Observable
+      .range(0, sourceCount)
+      .endWithError(ex)
       .onErrorRestart(3)
       .onErrorHandle { case _ => 10L }
 
     val count = sourceCount * 4 + 1
-    val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4 + 10
+    val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4 + 10
     Sample(o, count, sum, Duration.Zero, Duration.Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) =
-    if (sourceCount <= 1) None else Some {
-      val o = Observable.range(0, sourceCount).endWithError(ex).onErrorRestart(3)
+    if (sourceCount <= 1) None
+    else
+      Some {
+        val o = Observable.range(0, sourceCount).endWithError(ex).onErrorRestart(3)
 
-      val count = sourceCount * 4
-      val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4
-      Sample(o, count, sum, Duration.Zero, Duration.Zero)
-    }
+        val count = sourceCount * 4
+        val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4
+        Sample(o, count, sum, Duration.Zero, Duration.Zero)
+      }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables() = {
     val dummy = DummyException("dummy")
-    val sample = Observable.range(0, 20).map(_ => 1L)
-      .endWithError(dummy).delayExecution(1.second)
+    val sample = Observable
+      .range(0, 20)
+      .map(_ => 1L)
+      .endWithError(dummy)
+      .delayExecution(1.second)
       .onErrorRestart(100)
 
     Seq(

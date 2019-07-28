@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,6 @@
  */
 
 package monix.execution.rstreams
-
 
 /**
   * Describes a strategy of buffering data when converting a `Publisher` into other
@@ -71,8 +70,7 @@ object ReactivePullStrategy {
     * be used with a busy source, but for slow producers
     * [[StopAndWait]] is a better strategy.
     */
-  final case class FixedWindow(bufferSize: Int)
-    extends ReactivePullStrategy {
+  final case class FixedWindow(bufferSize: Int) extends ReactivePullStrategy {
 
     require(bufferSize > 0, "Batch size must be strictly positive!")
   }

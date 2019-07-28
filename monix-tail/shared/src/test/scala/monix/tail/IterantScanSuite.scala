@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ object IterantScanSuite extends BaseTestSuite {
       case object Init extends State[Nothing] { def count = 0 }
       case class Current[A](current: A, count: Int) extends State[A]
 
-      val scanned = source.scan(Init : State[Int]) { (acc, a) =>
+      val scanned = source.scan(Init: State[Int]) { (acc, a) =>
         acc match {
           case Init => Current(a, 1)
           case Current(_, count) => Current(a, count + 1)
@@ -48,7 +48,7 @@ object IterantScanSuite extends BaseTestSuite {
   test("scan protects against exceptions initial") { implicit s =>
     val dummy = DummyException("dummy")
     val fa = Iterant[Coeval].of(1, 2, 3)
-    val r = fa.scan((throw dummy) : Int)((_, e) => e).attempt.toListL
+    val r = fa.scan((throw dummy): Int)((_, e) => e).attempt.toListL
     assertEquals(r.value(), List(Left(dummy)))
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.tail
 
 import cats.effect.IO
+import cats.syntax.either._
 import cats.syntax.eq._
 import cats.laws._
 import cats.laws.discipline._
@@ -32,7 +33,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
 
     assertEquals(
       i.attempt.toListL.value(),
-      i.map(Right.apply).toListL.value()
+      i.map(_.asRight).toListL.value()
     )
   }
 
@@ -49,11 +50,11 @@ object IterantOnErrorSuite extends BaseTestSuite {
   test("fa.attempt.flatMap <-> fa") { implicit s =>
     check1 { (fa: Iterant[Coeval, Int]) =>
       val fae = fa.attempt
-      val r = fae.flatMap(_.fold(
-        e => Iterant[Coeval].raiseError[Int](e),
-        a => Iterant[Coeval].pure(a)
-      )
-      )
+      val r = fae.flatMap(
+        _.fold(
+          e => Iterant[Coeval].raiseError[Int](e),
+          a => Iterant[Coeval].pure(a)
+        ))
 
       r <-> fa
     }
@@ -127,13 +128,12 @@ object IterantOnErrorSuite extends BaseTestSuite {
     var effect = 0
 
     val errorInTail = Iterant[Coeval]
-      .nextS(1,
-        Coeval {
-          Iterant[Coeval].nextS(2, Coeval { (throw DummyException("Dummy")) : Iterant[Coeval, Int]})
-            .guarantee(Coeval { effect += 2 })
-        })
-      .guarantee(
-        Coeval { effect += 1 })
+      .nextS(1, Coeval {
+        Iterant[Coeval]
+          .nextS(2, Coeval { (throw DummyException("Dummy")): Iterant[Coeval, Int] })
+          .guarantee(Coeval { effect += 2 })
+      })
+      .guarantee(Coeval { effect += 1 })
 
     errorInTail.onErrorHandleWith(_ => Iterant[Coeval].empty[Int]).completedL.value()
     assertEquals(effect, 3)
@@ -141,8 +141,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
 
   test("attempt should protect against broken continuations") { _ =>
     for (broken <- brokenTails) {
-      val end = broken.attempt
-        .toListL
+      val end = broken.attempt.toListL
         .value()
         .last
 
@@ -154,12 +153,11 @@ object IterantOnErrorSuite extends BaseTestSuite {
     var effect = 0
 
     val errorInTail = Iterant[Coeval]
-      .nextS(1,
-        Coeval {
-          Iterant[Coeval].nextS(2,
-            Coeval { (throw DummyException("Dummy")) : Iterant[Coeval, Int]})
-            .guarantee(Coeval { effect += 2 })
-        })
+      .nextS(1, Coeval {
+        Iterant[Coeval]
+          .nextS(2, Coeval { (throw DummyException("Dummy")): Iterant[Coeval, Int] })
+          .guarantee(Coeval { effect += 2 })
+      })
       .guarantee(Coeval { effect += 1 })
 
     errorInTail.attempt.completedL.value()
@@ -176,43 +174,52 @@ object IterantOnErrorSuite extends BaseTestSuite {
 
   test("onErrorIgnore should capture exceptions from eval, mapEval & liftF") { _ =>
     val dummy = DummyException("dummy")
+    Iterant[IO].eval { throw dummy }.onErrorIgnore.completedL.unsafeRunSync()
+
     Iterant[IO]
-      .eval { throw dummy }
-      .onErrorIgnore.completedL.unsafeRunSync()
-
-    Iterant[IO].of(1)
+      .of(1)
       .mapEval(_ => IO { throw dummy })
-      .onErrorIgnore.completedL.unsafeRunSync()
+      .onErrorIgnore
+      .completedL
+      .unsafeRunSync()
 
-    Iterant[IO].of(1)
+    Iterant[IO]
+      .of(1)
       .mapEval(_ => throw dummy)
-      .onErrorIgnore.completedL.unsafeRunSync()
+      .onErrorIgnore
+      .completedL
+      .unsafeRunSync()
 
-    Iterant[IO].liftF(IO { throw dummy })
-      .onErrorIgnore.completedL.unsafeRunSync()
+    Iterant[IO].liftF(IO { throw dummy }).onErrorIgnore.completedL.unsafeRunSync()
   }
 
   test("attempt should capture exceptions from mapEval") { _ =>
     val dummy = DummyException("dummy")
-    val result = Iterant[IO].of(1)
+    val result = Iterant[IO]
+      .of(1)
       .mapEval(_ => IO(throw dummy))
-      .attempt.headOptionL.unsafeRunSync()
+      .attempt
+      .headOptionL
+      .unsafeRunSync()
 
     assertEquals(result, Some(Left(dummy)))
   }
 
   test("attempt should protect against broken batches") { _ =>
     val dummy = DummyException("dummy")
-    val result = Iterant[IO].nextBatchS[Int](ThrowExceptionBatch(dummy), IO(Iterant[IO].empty))
-      .attempt.headOptionL.unsafeRunSync()
+    val result =
+      Iterant[IO].nextBatchS[Int](ThrowExceptionBatch(dummy), IO(Iterant[IO].empty)).attempt.headOptionL.unsafeRunSync()
 
     assertEquals(result, Some(Left(dummy)))
   }
 
   test("attempt should protect against broken cursor") { _ =>
     val dummy = DummyException("dummy")
-    val result = Iterant[IO].nextCursorS[Int](ThrowExceptionCursor(dummy), IO(Iterant[IO].empty))
-      .attempt.headOptionL.unsafeRunSync()
+    val result = Iterant[IO]
+      .nextCursorS[Int](ThrowExceptionCursor(dummy), IO(Iterant[IO].empty))
+      .attempt
+      .headOptionL
+      .unsafeRunSync()
 
     assertEquals(result, Some(Left(dummy)))
   }
@@ -230,15 +237,16 @@ object IterantOnErrorSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val cursor = BatchCursor.fromIterator(semiBrokenIterator(dummy))
 
-    val result = Iterant[IO].nextCursorS(cursor, IO(Iterant[IO].empty[Int]))
-      .attempt.toListL.unsafeRunSync()
+    val result = Iterant[IO].nextCursorS(cursor, IO(Iterant[IO].empty[Int])).attempt.toListL.unsafeRunSync()
 
-    assertEquals(result, List(
-      Right(0),
-      Right(1),
-      Right(2),
-      Left(dummy)
-    ))
+    assertEquals(
+      result,
+      List(
+        Right(0),
+        Right(1),
+        Right(2),
+        Left(dummy)
+      ))
   }
 
   test("Resource.attempt with broken acquire") { _ =>
@@ -297,7 +305,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
       assertEquals(list.length, 2)
       assertEquals(list.head, Right(1))
       val two = list(1)
-      assert(two.isLeft && two.left.get.isInstanceOf[CompositeException])
+      assert(two.isLeft && two.swap.forall(_.isInstanceOf[CompositeException]))
     }
   }
 
@@ -324,7 +332,6 @@ object IterantOnErrorSuite extends BaseTestSuite {
       Right(1) :: Left(dummy) :: Nil
     )
   }
-
 
   test("Resource.onErrorHandleWith with broken release") { _ =>
     val dummy = DummyException("dummy")
@@ -358,7 +365,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
       assertEquals(list.length, 2)
       assertEquals(list.head, Right(1))
       val two = list(1)
-      assert(two.isLeft && two.left.get.isInstanceOf[CompositeException])
+      assert(two.isLeft && two.swap.forall(_.isInstanceOf[CompositeException]))
     }
   }
 }

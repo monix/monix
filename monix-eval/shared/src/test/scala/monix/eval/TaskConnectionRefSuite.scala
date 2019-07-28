@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,9 @@ object TaskConnectionRefSuite extends BaseTestSuite {
   test("assign and cancel a Cancelable") { implicit s =>
     var effect = 0
     val cr = TaskConnectionRef()
-    val b = BooleanCancelable { () => effect += 1 }
+    val b = BooleanCancelable { () =>
+      effect += 1
+    }
 
     cr := b
     assert(!b.isCanceled, "!b.isCanceled")
@@ -72,7 +74,9 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     cr.cancel.runAsyncAndForget; s.tick()
 
     var effect = 0
-    val b = BooleanCancelable { () => effect += 1 }
+    val b = BooleanCancelable { () =>
+      effect += 1
+    }
     cr := b
 
     assert(b.isCanceled)
@@ -81,7 +85,9 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     cr.cancel.runAsyncAndForget; s.tick()
     assertEquals(effect, 1)
 
-    val b2 = BooleanCancelable { () => effect += 1 }
+    val b2 = BooleanCancelable { () =>
+      effect += 1
+    }
     intercept[IllegalStateException] { cr := b2 }
     assertEquals(effect, 2)
   }

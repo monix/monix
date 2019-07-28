@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,14 +26,13 @@ import scala.util.{Failure, Success}
 object FoldLeftConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
-    val f = obs.consumeWith(Consumer.foldLeft(0L)(_+_)).runToFuture
+    val f = obs.consumeWith(Consumer.foldLeft(0L)(_ + _)).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(count * (count - 1) / 2)))
@@ -42,7 +41,7 @@ object FoldLeftConsumerSuite extends TestSuite[TestScheduler] {
   test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
-    val f = obs.consumeWith(Consumer.foldLeft(0L)(_+_)).runToFuture
+    val f = obs.consumeWith(Consumer.foldLeft(0L)(_ + _)).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -50,8 +49,9 @@ object FoldLeftConsumerSuite extends TestSuite[TestScheduler] {
 
   test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Observable.now(1)
-      .consumeWith(Consumer.foldLeft(0L)((_,_) => throw ex))
+    val f = Observable
+      .now(1)
+      .consumeWith(Consumer.foldLeft(0L)((_, _) => throw ex))
       .runToFuture
 
     s.tick()

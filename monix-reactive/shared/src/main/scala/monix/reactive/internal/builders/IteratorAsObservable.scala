@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,8 +55,7 @@ private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) ext
       if (!iteratorHasNext) {
         subscriber.onComplete()
         Cancelable.empty
-      }
-      else {
+      } else {
         // Starting the synchronous loop
         val cancelable = BooleanCancelable()
         fastLoop(iterator, subscriber, cancelable, s.executionModel, 0)(s)
@@ -84,8 +83,12 @@ private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) ext
     * NOTE: the assumption of this method is that `iter` is
     * NOT empty, so the first call is `next()` and not `hasNext()`.
     */
-  private def reschedule(ack: Future[Ack], iter: Iterator[A], out: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)
-    (implicit s: Scheduler): Unit = {
+  private def reschedule(
+    ack: Future[Ack],
+    iter: Iterator[A],
+    out: Subscriber[A],
+    c: BooleanCancelable,
+    em: ExecutionModel)(implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(next) =>
@@ -115,8 +118,12 @@ private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) ext
     * NOTE: the assumption of this method is that `iter` is
     * NOT empty, so the first call is `next()` and not `hasNext()`.
     */
-  @tailrec private
-  def fastLoop(iter: Iterator[A], out: Subscriber[A], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(implicit s: Scheduler): Unit = {
+  @tailrec private def fastLoop(
+    iter: Iterator[A],
+    out: Subscriber[A],
+    c: BooleanCancelable,
+    em: ExecutionModel,
+    syncIndex: Int)(implicit s: Scheduler): Unit = {
     // The result of onNext calls, on which we must do back-pressure
     var ack: Future[Ack] = Continue
     // We do not want to catch errors from our interaction with our
@@ -148,12 +155,10 @@ private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) ext
       // Signaling error only if the subscription isn't canceled
       if (!c.isCanceled) out.onError(iteratorTriggeredError)
       else s.reportFailure(iteratorTriggeredError)
-    }
-    else if (!iteratorHasNext) {
+    } else if (!iteratorHasNext) {
       streamErrors = true
       out.onComplete()
-    }
-    else {
+    } else {
       // Logic for collapsing execution loops
       val nextIndex =
         if (ack == Continue) em.nextFrameIndex(syncIndex)

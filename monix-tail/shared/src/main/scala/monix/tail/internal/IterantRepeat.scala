@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,8 +37,7 @@ private[tail] object IterantRepeat {
         Suspend(F.delay(new Loop(source).apply(source)))
     }
 
-  private def repeatOne[F[_], A](item: A)
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  private def repeatOne[F[_], A](item: A)(implicit F: Sync[F]): Iterant[F, A] = {
 
     val batch = new GenericBatch[A] {
       def cursor(): BatchCursor[A] =
@@ -52,8 +51,7 @@ private[tail] object IterantRepeat {
     NextBatch(batch, F.pure(Iterant.empty))
   }
 
-  private final class Loop[F[_], A](source: Iterant[F, A])
-    (implicit F: Sync[F])
+  private final class Loop[F[_], A](source: Iterant[F, A])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
     private[this] var isEmpty = true
@@ -115,7 +113,8 @@ private[tail] object IterantRepeat {
 
           next match {
             case null =>
-              if (isEmpty) ref else {
+              if (isEmpty) ref
+              else {
                 isEmpty = true
                 Suspend(F.pure(source).map(this))
               }

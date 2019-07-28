@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,8 +73,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
     val semaphore = AsyncSemaphore(provisioned = 4)
     val count = if (Platform.isJVM) 100000 else 1000
 
-    val futures = for (i <- 0 until count) yield
-      semaphore.withPermit(() => Future(i)) : Future[Int]
+    val futures = for (i <- 0 until count) yield semaphore.withPermit(() => Future(i)): Future[Int]
     val sum =
       Future.sequence(futures).map(_.sum)
 
@@ -163,9 +162,11 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
               assert(!allReleased.isCompleted, s"!allReleased.isCompleted (index $i)")
               x
             }
-          } : Future[Int]
+          }: Future[Int]
         }
-        Future.sequence(futures).map { x => x.sum }
+        Future.sequence(futures).map { x =>
+          x.sum
+        }
       }
 
       for (r <- f; _ <- allReleased.future) yield {
@@ -185,8 +186,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
         case false => acquireN(semaphore, n)
       }
 
-    def withPermitN[A](semaphore: AsyncSemaphore, n: Int)
-      (f: () => Future[A]): Future[A] =
+    def withPermitN[A](semaphore: AsyncSemaphore, n: Int)(f: () => Future[A]): Future[A] =
       acquireN(semaphore, n).flatMap { _ =>
         FutureUtils.transform[A, A](f(), r => { semaphore.releaseN(n); r })
       }
@@ -208,7 +208,9 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
             }
           }
         }
-        Future.sequence(futures).map { x => x.sum }
+        Future.sequence(futures).map { x =>
+          x.sum
+        }
       }
 
       for (r <- f; _ <- allReleased.future) yield {

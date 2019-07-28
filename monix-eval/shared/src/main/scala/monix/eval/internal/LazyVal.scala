@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,10 +35,7 @@ import scala.util.control.NonFatal
   *        memoization should happen only for successful results,
   *        or for errors as well
   */
-private[eval] final class LazyVal[A] private (
-  f: () => A,
-  val cacheErrors: Boolean)
-  extends (() => Coeval.Eager[A]) {
+private[eval] final class LazyVal[A] private (f: () => A, val cacheErrors: Boolean) extends (() => Coeval.Eager[A]) {
 
   private[this] var thunk = f
   private[this] var cache: Coeval.Eager[A] = _

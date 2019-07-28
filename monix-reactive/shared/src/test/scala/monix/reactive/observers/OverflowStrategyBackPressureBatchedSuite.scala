@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,16 +20,17 @@ package monix.reactive.observers
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.MultiProducer
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
+
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
 object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should do back-pressure") { implicit s =>
@@ -38,6 +39,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
 
     val buffer = BufferedSubscriber.batched[Int](
       bufferSize = 5,
+      producerType = MultiProducer,
       underlying = new Subscriber[List[Int]] {
         def onNext(elem: List[Int]) = promise.future
         def onError(ex: Throwable) = throw new IllegalStateException()
@@ -98,7 +100,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
       }
     }
 
-    val buffer = BufferedSubscriber.batched[Int](underlying, 1000)
+    val buffer = BufferedSubscriber.batched[Int](underlying, 1000, MultiProducer)
     for (i <- 0 until 1000) buffer.onNext(i)
     buffer.onComplete()
 
@@ -129,11 +131,12 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
       }
     }
 
-    val buffer = BufferedSubscriber.batched[Int](underlying, 1000)
+    val buffer = BufferedSubscriber.batched[Int](underlying, 1000, MultiProducer)
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
-      else
+        s.executeAsync { () =>
+          buffer.onNext(n); loop(n - 1)
+        } else
         buffer.onComplete()
 
     loop(10000)
@@ -166,11 +169,12 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
       }
     }
 
-    val buffer = BufferedSubscriber.batched[Int](underlying, 512)
+    val buffer = BufferedSubscriber.batched[Int](underlying, 512, MultiProducer)
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
-      else
+        s.executeAsync { () =>
+          buffer.onNext(n); loop(n - 1)
+        } else
         buffer.onComplete()
 
     loop(10000)
@@ -191,7 +195,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
       val scheduler = s
     }
 
-    val buffer = BufferedSubscriber.batched(underlying, 5)
+    val buffer = BufferedSubscriber.batched(underlying, 5, MultiProducer)
     buffer.onError(DummyException("dummy"))
     s.tickOne()
 
@@ -210,7 +214,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
       val scheduler = s
     }
 
-    val buffer = BufferedSubscriber.batched(underlying, 5)
+    val buffer = BufferedSubscriber.batched(underlying, 5, MultiProducer)
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
 
@@ -229,7 +233,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
       val scheduler = s
     }
 
-    val buffer = BufferedSubscriber.batched(underlying, 5)
+    val buffer = BufferedSubscriber.batched(underlying, 5, MultiProducer)
     for (i <- 0 until 20) buffer.onNext(i)
     buffer.onError(DummyException("dummy"))
 
@@ -246,7 +250,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
       def onComplete() = wasCompleted = true
     }
 
-    val buffer = BufferedSubscriber.batched(underlying, 8)
+    val buffer = BufferedSubscriber.batched(underlying, 8, MultiProducer)
     buffer.onComplete()
 
     s.tickOne()
@@ -264,7 +268,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
       def onComplete() = wasCompleted = true
     }
 
-    val buffer = BufferedSubscriber.batched(underlying, 8)
+    val buffer = BufferedSubscriber.batched(underlying, 8, MultiProducer)
     buffer.onNext(1)
     buffer.onComplete()
 

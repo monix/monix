@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,23 +31,24 @@ object CombineLatest4Suite extends BaseOperatorSuite {
     val o2 = Observable.now(2)
     val o3 = Observable.now(3)
     val o4 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatestMap4(o1,o2,o3,o4)(_+_+_+_)
+    val o = Observable.combineLatestMap4(o1, o2, o3, o4)(_ + _ + _ + _)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def count(sourceCount: Int) = sourceCount
-  def sum(sourceCount: Int) = sourceCount * (sourceCount + 1) / 2 +
-    (5 * sourceCount)
+  def sum(sourceCount: Int) =
+    sourceCount * (sourceCount + 1) / 2 +
+      (5 * sourceCount)
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o1 = Observable.now(1)
     val o2 = Observable.now(2)
     val o3 = Observable.now(3)
     val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o = Observable.combineLatestMap4(o1,o2,o3, flawed)(_+_+_+_)
+    val o = Observable.combineLatestMap4(o1, o2, o3, flawed)(_ + _ + _ + _)
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), waitFirst, waitNext)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
@@ -56,11 +57,11 @@ object CombineLatest4Suite extends BaseOperatorSuite {
     val o2 = Observable.now(2)
     val o3 = Observable.now(3)
     val o4 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatestMap4(o1,o2,o3,o4) { (a1,a2,a3,a4) =>
-      if (a4 == sourceCount-1) throw dummy else a1+a2+a3+a4
+    val o = Observable.combineLatestMap4(o1, o2, o3, o4) { (a1, a2, a3, a4) =>
+      if (a4 == sourceCount - 1) throw dummy else a1 + a2 + a3 + a4
     }
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), waitFirst, waitNext)
   }
 
   override def cancelableObservables(): Seq[Sample] = {
@@ -69,7 +70,7 @@ object CombineLatest4Suite extends BaseOperatorSuite {
       val o2 = Observable.range(0, 10).delayOnNext(1.second)
       val o3 = Observable.range(0, 10).delayOnNext(1.second)
       val o4 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.combineLatestMap4(o1,o2,o3,o4)(_+_+_+_)
+      Observable.combineLatestMap4(o1, o2, o3, o4)(_ + _ + _ + _)
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))

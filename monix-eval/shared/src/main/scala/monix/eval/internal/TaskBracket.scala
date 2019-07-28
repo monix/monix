@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,6 +29,54 @@ import scala.util.control.NonFatal
 private[monix] object TaskBracket {
 
   // -----------------------------------------------------------------
+  // Task.guaranteeCase
+  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+  def guaranteeCase[A](task: Task[A], finalizer: ExitCase[Throwable] => Task[Unit]): Task[A] =
+    Task.Async(
+      new ReleaseStart(task, finalizer),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = false
+    )
+
+  private final class ReleaseStart[A](source: Task[A], release: ExitCase[Throwable] => Task[Unit])
+    extends ((Context, Callback[Throwable, A]) => Unit) {
+
+    def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
+      implicit val s = ctx.scheduler
+
+      val conn = ctx.connection
+      val frame = new EnsureReleaseFrame[A](ctx, release)
+      val onNext = source.flatMap(frame)
+
+      // Registering our cancelable token ensures that in case
+      // cancellation is detected, `release` gets called
+      conn.push(frame.cancel)
+
+      // Race condition check, avoiding starting `source` in case
+      // the connection was already cancelled — n.b. we don't need
+      // to trigger `release` otherwise, because it already happened
+      if (!conn.isCanceled) {
+        Task.unsafeStartNow(onNext, ctx, cb)
+      }
+    }
+  }
+
+  private final class EnsureReleaseFrame[A](ctx: Context, releaseFn: ExitCase[Throwable] => Task[Unit])
+    extends BaseReleaseFrame[Unit, A](ctx, ()) {
+
+    def releaseOnSuccess(a: Unit, b: A): Task[Unit] =
+      releaseFn(ExitCase.Completed)
+
+    def releaseOnError(a: Unit, e: Throwable): Task[Unit] =
+      releaseFn(ExitCase.Error(e))
+
+    def releaseOnCancel(a: Unit): Task[Unit] =
+      releaseFn(ExitCase.Canceled)
+  }
+
+  // -----------------------------------------------------------------
   // Task.bracketE
   // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -44,7 +92,8 @@ private[monix] object TaskBracket {
       new StartE(acquire, use, release),
       trampolineBefore = true,
       trampolineAfter = true,
-      restoreLocals = false)
+      restoreLocals = false
+    )
   }
 
   private final class StartE[A, B](
@@ -57,16 +106,15 @@ private[monix] object TaskBracket {
       new ReleaseFrameE(ctx, value, release)
   }
 
-  private final class ReleaseFrameE[A, B](
-    ctx: Context,
-    a: A,
-    release: (A, Either[Option[Throwable], B]) => Task[Unit])
+  private final class ReleaseFrameE[A, B](ctx: Context, a: A, release: (A, Either[Option[Throwable], B]) => Task[Unit])
     extends BaseReleaseFrame[A, B](ctx, a) {
 
     def releaseOnSuccess(a: A, b: B): Task[Unit] =
       release(a, Right(b))
+
     def releaseOnError(a: A, e: Throwable): Task[Unit] =
       release(a, Left(Some(e)))
+
     def releaseOnCancel(a: A): Task[Unit] =
       release(a, leftNone)
   }
@@ -78,17 +126,13 @@ private[monix] object TaskBracket {
   /**
     * [[monix.eval.Task.bracketE]]
     */
-  def exitCase[A, B](
-    acquire: Task[A],
-    use: A => Task[B],
-    release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] = {
-
+  def exitCase[A, B](acquire: Task[A], use: A => Task[B], release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     Task.Async(
       new StartCase(acquire, use, release),
       trampolineBefore = true,
       trampolineAfter = true,
-      restoreLocals = false)
-  }
+      restoreLocals = false
+    )
 
   private final class StartCase[A, B](
     acquire: Task[A],
@@ -100,16 +144,15 @@ private[monix] object TaskBracket {
       new ReleaseFrameCase(ctx, value, release)
   }
 
-  private final class ReleaseFrameCase[A, B](
-    ctx: Context,
-    a: A,
-    release: (A, ExitCase[Throwable]) => Task[Unit])
+  private final class ReleaseFrameCase[A, B](ctx: Context, a: A, release: (A, ExitCase[Throwable]) => Task[Unit])
     extends BaseReleaseFrame[A, B](ctx, a) {
 
     def releaseOnSuccess(a: A, b: B): Task[Unit] =
       release(a, Completed)
+
     def releaseOnError(a: A, e: Throwable): Task[Unit] =
       release(a, Error(e))
+
     def releaseOnCancel(a: A): Task[Unit] =
       release(a, Canceled)
   }
@@ -118,16 +161,16 @@ private[monix] object TaskBracket {
   // Base Implementation
   // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-  private abstract class BaseStart[A, B](
-    acquire: Task[A],
-    use: A => Task[B])
+  private abstract class BaseStart[A, B](acquire: Task[A], use: A => Task[B])
     extends ((Context, Callback[Throwable, B]) => Unit) {
 
     protected def makeReleaseFrame(ctx: Context, value: A): BaseReleaseFrame[A, B]
 
     final def apply(ctx: Context, cb: Callback[Throwable, B]): Unit = {
       // Async boundary needed, but it is guaranteed via Task.Async below;
-      Task.unsafeStartNow(acquire, ctx.withConnection(TaskConnection.uncancelable),
+      Task.unsafeStartNow(
+        acquire,
+        ctx.withConnection(TaskConnection.uncancelable),
         new Callback[Throwable, A] {
           def onSuccess(value: A): Unit = {
             implicit val sc = ctx.scheduler
@@ -135,7 +178,8 @@ private[monix] object TaskBracket {
 
             val releaseFrame = makeReleaseFrame(ctx, value)
             val onNext = {
-              val fb = try use(value) catch { case NonFatal(e) => Task.raiseError(e) }
+              val fb = try use(value)
+              catch { case NonFatal(e) => Task.raiseError(e) }
               fb.flatMap(releaseFrame)
             }
 
@@ -145,55 +189,41 @@ private[monix] object TaskBracket {
 
           def onError(ex: Throwable): Unit =
             cb.onError(ex)
-        })
+        }
+      )
     }
   }
 
-  private abstract class BaseReleaseFrame[A, B](ctx: Context, a: A)
-    extends StackFrame[B, Task[B]] {
-
+  private abstract class BaseReleaseFrame[A, B](ctx: Context, a: A) extends StackFrame[B, Task[B]] {
     private[this] val waitsForResult = Atomic(true)
-
     protected def releaseOnSuccess(a: A, b: B): Task[Unit]
     protected def releaseOnError(a: A, e: Throwable): Task[Unit]
     protected def releaseOnCancel(a: A): Task[Unit]
 
-    private final def applyEffect(b: B): Task[B] = {
-      if (waitsForResult.compareAndSet(expect = true, update = false)) {
-        ctx.connection.pop()
-        releaseOnSuccess(a, b).map(_ => b)
-      } else {
-        Task.never
-      }
-    }
-
     final def apply(b: B): Task[B] = {
+      // In case auto-cancelable run-loops are enabled, then the function
+      // call needs to be suspended, because we might evaluate the effect before
+      // the connection is actually made uncancelable
       val task =
         if (ctx.options.autoCancelableRunLoops)
-          Task.suspend(applyEffect(b))
+          Task.suspend(unsafeApply(b))
         else
-          applyEffect(b)
+          unsafeApply(b)
 
-      ContextSwitch(task, withConnectionUncancelable, null)
-    }
-
-    private final def recoverEffect(e: Throwable): Task[B] = {
-      if (waitsForResult.compareAndSet(expect = true, update = false)) {
-        ctx.connection.pop()
-        releaseOnError(a, e).flatMap(new ReleaseRecover(e))
-      } else {
-        Task.never
-      }
+      makeUncancelable(task)
     }
 
     final def recover(e: Throwable): Task[B] = {
+      // In case auto-cancelable run-loops are enabled, then the function
+      // call needs to be suspended, because we might evaluate the effect before
+      // the connection is actually made uncancelable
       val task =
         if (ctx.options.autoCancelableRunLoops)
-          Task.suspend(recoverEffect(e))
+          Task.suspend(unsafeRecover(e))
         else
-          recoverEffect(e)
+          unsafeRecover(e)
 
-      ContextSwitch(task, withConnectionUncancelable, null)
+      makeUncancelable(task)
     }
 
     final def cancel: Task[Unit] =
@@ -203,11 +233,34 @@ private[monix] object TaskBracket {
         else
           Task.unit
       }
+
+    private final def unsafeApply(b: B): Task[B] = {
+      if (waitsForResult.compareAndSet(expect = true, update = false)) {
+        ctx.connection.pop()
+        releaseOnSuccess(a, b).map(_ => b)
+      } else {
+        Task.never
+      }
+    }
+
+    private final def unsafeRecover(e: Throwable): Task[B] = {
+      if (waitsForResult.compareAndSet(expect = true, update = false)) {
+        ctx.connection.pop()
+        releaseOnError(a, e).flatMap(new ReleaseRecover(e))
+      } else {
+        Task.never
+      }
+    }
+
+    private final def makeUncancelable(task: Task[B]): Task[B] = {
+      // NOTE: the "restore" part of this is `null` because we don't need to restore
+      // the original connection. The original connection gets restored automatically
+      // via how "TaskRestartCallback" works. This is risky!
+      ContextSwitch(task, withConnectionUncancelable, null)
+    }
   }
 
-  private final class ReleaseRecover(e: Throwable)
-    extends StackFrame[Unit, Task[Nothing]] {
-
+  private final class ReleaseRecover(e: Throwable) extends StackFrame[Unit, Task[Nothing]] {
     def apply(a: Unit): Task[Nothing] =
       Task.raiseError(e)
 

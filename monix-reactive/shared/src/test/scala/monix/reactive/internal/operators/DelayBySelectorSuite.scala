@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,18 +26,18 @@ object DelayBySelectorSuite extends BaseOperatorSuite {
     val source = Observable.range(0, sourceCount)
     val o = source.delayOnNextBySelector(x => Observable.now(x).delayExecution(1.second))
     val c = sourceCount
-    Sample(o, c, c * (c-1) / 2, 1.second, 1.second)
+    Sample(o, c, c * (c - 1) / 2, 1.second, 1.second)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val source = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o = source.delayOnNextBySelector(x => Observable.now(x).delayExecution(1.second))
     val c = sourceCount
-    Sample(o, c-1, (c-1) * (c-2) / 2, 1.second, 1.second)
+    Sample(o, c - 1, (c - 1) * (c - 2) / 2, 1.second, 1.second)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.range(0, sourceCount+1)
+    val source = Observable.range(0, sourceCount + 1)
     val o = source.delayOnNextBySelector { x =>
       if (x < sourceCount)
         Observable.now(x).delayExecution(1.second)
@@ -46,17 +46,19 @@ object DelayBySelectorSuite extends BaseOperatorSuite {
     }
 
     val c = sourceCount
-    Sample(o, c, c * (c-1) / 2, 1.second, 1.second)
+    Sample(o, c, c * (c - 1) / 2, 1.second, 1.second)
   }
 
   override def cancelableObservables() = {
-    val o = Observable.now(1L)
+    val o = Observable
+      .now(1L)
       .delayOnNextBySelector(x => Observable.now(x).delayExecution(1.second))
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
   test("should terminate immediately on empty observable") { implicit s =>
-    val f = Observable.empty[Int]
+    val f = Observable
+      .empty[Int]
       .delayOnNextBySelector(n => Observable.empty)
       .completedL
       .runToFuture

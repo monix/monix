@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{Scheduler, SchedulerCompanion, ExecutionModel => ExecModel}
+import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
 
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
@@ -30,11 +30,14 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *        [[monix.execution.ExecutionModel ExecutionModel]],
     *        a guideline for run-loops and producers of data.
     */
-  def apply(
-    context: ExecutionContext = StandardContext,
-    executionModel: ExecModel = ExecModel.Default): Scheduler =
+  def apply(context: ExecutionContext = StandardContext, executionModel: ExecModel = ExecModel.Default): Scheduler =
     AsyncScheduler(context, executionModel)
 
+  def apply(ec: ExecutionContext, reporter: UncaughtExceptionReporter): Scheduler =
+    AsyncScheduler(ec, ExecModel.Default, reporter)
+
+  def apply(reporter: UncaughtExceptionReporter, execModel: ExecModel): Scheduler =
+    AsyncScheduler(StandardContext, execModel, reporter)
   /** Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
     *
     * @param underlying is the [[monix.execution.Scheduler Scheduler]]
@@ -47,9 +50,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
     *         for the default.
     */
-  def trampoline(
-    underlying: Scheduler = Implicits.global,
-    executionModel: ExecModel = ExecModel.Default): Scheduler =
+  def trampoline(underlying: Scheduler = Implicits.global, executionModel: ExecModel = ExecModel.Default): Scheduler =
     TrampolineScheduler(underlying, executionModel)
 
   /** The explicit global `Scheduler`. Invoke `global` when you want

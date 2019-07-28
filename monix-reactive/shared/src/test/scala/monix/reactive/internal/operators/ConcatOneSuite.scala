@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,11 +28,12 @@ import monix.reactive.{Observable, Observer}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{Failure, Random}
+import scala.util.{Failure, Random, Try}
 
 object ConcatOneSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .flatMap(i => Observable.now(i))
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -45,12 +46,14 @@ object ConcatOneSuite extends BaseOperatorSuite {
   def waitNext = Duration.Zero
 
   def observableInError(sourceCount: Int, ex: Throwable) =
-    if (sourceCount == 1) None else Some {
-      val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-        .flatMap(i => Observable.now(i))
+    if (sourceCount == 1) None
+    else
+      Some {
+        val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+          .flatMap(i => Observable.now(i))
 
-      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
-    }
+        Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
+      }
 
   def sum(sourceCount: Int) = {
     sourceCount * (sourceCount - 1) / 2
@@ -58,24 +61,28 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount).flatMap { i =>
-      if (i == sourceCount-1)
+      if (i == sourceCount - 1)
         throw ex
       else
         Observable.now(i)
     }
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), waitFirst, waitNext)
   }
 
   def toList[A](o: Observable[A])(implicit s: Scheduler) = {
-    o.foldLeft(Vector.empty[A])(_ :+ _).runAsyncGetLast
+    o.foldLeft(Vector.empty[A])(_ :+ _)
+      .runAsyncGetLast
       .map(_.getOrElse(Vector.empty))
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample1 =  Observable.range(1, 100)
+    val sample1 = Observable
+      .range(1, 100)
       .flatMap(x => Observable.now(x).delayExecution(1.second))
-    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
+    val sample2 = Observable
+      .range(0, 100)
+      .delayOnNext(1.second)
       .flatMap(x => Observable.now(x).delayExecution(1.second))
 
     Seq(
@@ -122,6 +129,30 @@ object ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(lst1.value.get, lst2.value.get)
   }
 
+  test("filterEval can be expressed in terms of flatMap") { implicit s =>
+    val obs1 = Observable.range(0, 100).filterEval(i => Task.pure(i % 2 == 0))
+    val obs2 = Observable.range(0, 100).flatMap(x => if (x          % 2 == 0) now(x) else empty)
+
+    val lst1 = toList(obs1)
+    val lst2 = toList(obs2)
+    s.tick()
+
+    assert(lst1.isCompleted && lst2.isCompleted)
+    assertEquals(lst1.value.get, lst2.value.get)
+  }
+
+  test("filterEvalF can be expressed in terms of flatMap") { implicit s =>
+    val obs1 = Observable.range(0, 100).filterEvalF[Try](i => Try(i % 2 == 0))
+    val obs2 = Observable.range(0, 100).flatMap(x => if (x          % 2 == 0) now(x) else empty)
+
+    val lst1 = toList(obs1)
+    val lst2 = toList(obs2)
+    s.tick()
+
+    assert(lst1.isCompleted && lst2.isCompleted)
+    assertEquals(lst1.value.get, lst2.value.get)
+  }
+
   test("map can be expressed in terms of flatMap") { implicit s =>
     val obs1 = Observable.range(0, 100).map(_ + 10)
     val obs2 = Observable.range(0, 100).flatMap(x => now(x + 10))
@@ -140,20 +171,25 @@ object ConcatOneSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     val obs1 = PublishSubject[Long]()
-    val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
+    val obs2 = Observable.range(1, 100).map { x =>
+      obs2WasStarted = true; x
+    }
 
-    Observable.fromIterable(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = {
-        received += elem
-        if (elem == 1000)
-          Future.delayedResult(1.second)(Continue)
-        else
-          Continue
-      }
+    Observable
+      .fromIterable(Seq(obs1, obs2))
+      .flatten
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += elem
+          if (elem == 1000)
+            Future.delayedResult(1.second)(Continue)
+          else
+            Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     s.tickOne()
     assertEquals(received, 0)
@@ -179,13 +215,18 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
     val sub = PublishSubject[Long]()
     val obs1 = sub.doOnStart(_ => Task { obs1WasStarted = true })
-    val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
+    val obs2 = Observable.range(1, 100).map { x =>
+      obs2WasStarted = true; x
+    }
 
-    Observable.fromIterable(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = Continue
-      def onError(ex: Throwable) = wasThrown = ex
-      def onComplete() = ()
-    })
+    Observable
+      .fromIterable(Seq(obs1, obs2))
+      .flatten
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = Continue
+        def onError(ex: Throwable) = wasThrown = ex
+        def onComplete() = ()
+      })
 
     s.tick()
     sub.onNext(1)
@@ -203,7 +244,9 @@ object ConcatOneSuite extends BaseOperatorSuite {
     val dummy2 = DummyException("dummy2")
 
     val source = Observable.now(1L).endWithError(dummy1)
-    val obs: Observable[Long] = source.flatMap { _ => Observable.raiseError(dummy2) }
+    val obs: Observable[Long] = source.flatMap { _ =>
+      Observable.raiseError(dummy2)
+    }
 
     var thrownError: Throwable = null
     var received = 0

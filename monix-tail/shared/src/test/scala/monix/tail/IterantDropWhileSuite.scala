@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,11 +51,6 @@ object IterantDropWhileSuite extends BaseTestSuite {
       val stream = iter ++ Iterant[Coeval].of(1, 2, 3)
       val received = stream.dropWhile(p).toListL.runTry()
       val expected = stream.toListL.map(dropFromList(p)).runTry()
-
-      if (received != expected) {
-        println(s"$received != $expected")
-      }
-
       received <-> expected
     }
   }
@@ -83,7 +78,7 @@ object IterantDropWhileSuite extends BaseTestSuite {
   test("Iterant.dropWhile protects against user code") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val suffix = Iterant[Task].nextCursorS[Int](BatchCursor(1,2,3), Task.now(Iterant[Task].empty))
+      val suffix = Iterant[Task].nextCursorS[Int](BatchCursor(1, 2, 3), Task.now(Iterant[Task].empty))
       val stream = iter.onErrorIgnore ++ suffix
       val received = stream.dropWhile(_ => throw dummy)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
@@ -93,7 +88,8 @@ object IterantDropWhileSuite extends BaseTestSuite {
   test("Iterant.dropWhile preserves the source earlyStop") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
+    val source =
+      Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.dropWhile(_ => true)
     stream.completedL.value()
     assertEquals(effect, 1)

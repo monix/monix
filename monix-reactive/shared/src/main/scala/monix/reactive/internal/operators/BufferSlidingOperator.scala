@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,8 +24,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.collection.mutable.WrappedArray
 
-private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
-  extends Operator[A, Seq[A]] {
+private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int) extends Operator[A, Seq[A]] {
 
   require(count > 0, "count must be strictly positive")
   require(skip > 0, "skip must be strictly positive")
@@ -46,7 +45,7 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
 
       @inline
       private def toSeq(array: Array[AnyRef]): Seq[A] =
-        new WrappedArray.ofRef(array).asInstanceOf[Seq[A]]
+        new WrappedArray.ofRef(array).toSeq.asInstanceOf[Seq[A]]
 
       def onNext(elem: A): Future[Ack] = {
         if (isDone)
@@ -54,17 +53,17 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
         else if (dropped > 0) {
           dropped -= 1
           Continue
-        }
-        else {
+        } else {
           buffer(length) = elem.asInstanceOf[AnyRef]
           length += 1
 
-          if (length < count) Continue else {
+          if (length < count) Continue
+          else {
             val oldBuffer = buffer
             buffer = new Array(count)
 
             if (toRepeat > 0) {
-              System.arraycopy(oldBuffer, count-toRepeat, buffer, 0, toRepeat)
+              System.arraycopy(oldBuffer, count - toRepeat, buffer, 0, toRepeat)
               length = toRepeat
             } else {
               dropped = toDrop
@@ -97,8 +96,7 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
               out.onComplete()
               buffer = null // GC purposes
             }
-          }
-          else
+          } else
             out.onComplete()
         }
     }

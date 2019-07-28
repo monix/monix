@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,7 +44,7 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
   }
 
   test("convert from async CompletableFuture; on success; with Concurrent[IO]") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
 
     val future = new CompletableFuture[Int]()
     val f = IO(future).futureLift.unsafeToFuture()
@@ -72,7 +72,7 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
   }
 
   test("convert from async CompletableFuture; on failure; with Concurrent[IO]") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
 
     val future = new CompletableFuture[Int]()
     val f = convertConcurrent(IO(future)).unsafeToFuture()
@@ -88,13 +88,13 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
   }
 
   test("CompletableFuture is cancelable via IO") { implicit s =>
-    implicit val cs = s.contextShift[IO]
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
 
     val future = new CompletableFuture[Int]()
 
     val p = Promise[Int]()
-    val cancel = convertConcurrent(IO(future)) .unsafeRunCancelable(r =>
-        p.complete(r match { case Right(a) => Success(a); case Left(e) => Failure(e) }))
+    val cancel = convertConcurrent(IO(future)).unsafeRunCancelable(r =>
+      p.complete(r match { case Right(a) => Success(a); case Left(e) => Failure(e) }))
 
     s.tick()
     assertEquals(p.future.value, None)

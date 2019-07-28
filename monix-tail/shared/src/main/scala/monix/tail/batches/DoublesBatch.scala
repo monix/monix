@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,15 +17,13 @@
 
 package monix.tail.batches
 
-
 /** [[Batch]] implementation specialized for `Double`.
   *
   * Under the hood it uses an [[monix.tail.batches.ArrayBatch ArrayBatch]]
   * implementation, which is `@specialized`. Using `DoublesBatch`
   * might be desirable instead for `isInstanceOf` checks.
   */
-final class DoublesBatch(underlying: ArrayBatch[Double])
-  extends Batch[Double] {
+final class DoublesBatch(underlying: ArrayBatch[Double]) extends Batch[Double] {
 
   override def cursor(): DoublesCursor =
     new DoublesCursor(underlying.cursor())

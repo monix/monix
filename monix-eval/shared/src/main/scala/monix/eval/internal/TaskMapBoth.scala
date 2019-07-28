@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,12 +31,8 @@ private[eval] object TaskMapBoth {
   /**
     * Implementation for `Task.mapBoth`.
     */
-  def apply[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] = {
-    Async(
-      new Register(fa1, fa2, f),
-      trampolineBefore = true,
-      trampolineAfter = true,
-      restoreLocals = true)
+  def apply[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] = {
+    Async(new Register(fa1, fa2, f), trampolineBefore = true, trampolineAfter = true, restoreLocals = true)
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
@@ -44,12 +40,11 @@ private[eval] object TaskMapBoth {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Register[A1, A2, R](fa1: Task[A1], fa2: Task[A2], f: (A1,A2) => R)
-    extends ForkedRegister[R] {
+  private final class Register[A1, A2, R](fa1: Task[A1], fa2: Task[A2], f: (A1, A2) => R) extends ForkedRegister[R] {
 
     /* For signaling the values after the successful completion of both tasks. */
-    def sendSignal(mainConn: TaskConnection, cb: Callback[Throwable, R], a1: A1, a2: A2)
-      (implicit s: Scheduler): Unit = {
+    def sendSignal(mainConn: TaskConnection, cb: Callback[Throwable, R], a1: A1, a2: A2)(
+      implicit s: Scheduler): Unit = {
 
       var streamErrors = true
       try {
@@ -67,8 +62,11 @@ private[eval] object TaskMapBoth {
     }
 
     /* For signaling an error. */
-    @tailrec def sendError(mainConn: TaskConnection, state: AtomicAny[AnyRef], cb: Callback[Throwable, R], ex: Throwable)
-      (implicit s: Scheduler): Unit = {
+    @tailrec def sendError(
+      mainConn: TaskConnection,
+      state: AtomicAny[AnyRef],
+      cb: Callback[Throwable, R],
+      ex: Throwable)(implicit s: Scheduler): Unit = {
 
       // Guarding the contract of the callback, as we cannot send an error
       // if an error has already happened because of the other task
@@ -100,44 +98,52 @@ private[eval] object TaskMapBoth {
 
       // Light asynchronous boundary; with most scheduler implementations
       // it will not fork a new (logical) thread!
-      Task.unsafeStartEnsureAsync(fa1, context1, new Callback[Throwable, A1] {
-        @tailrec def onSuccess(a1: A1): Unit =
-          state.get match {
-            case null => // null means this is the first task to complete
-              if (!state.compareAndSet(null, Left(a1))) onSuccess(a1)
-            case Right(a2) => // the other task completed, so we can send
-              sendSignal(mainConn, cb, a1, a2.asInstanceOf[A2])(s)
-            case Stop => // the other task triggered an error
-              () // do nothing
-            case s@Left(_) =>
-              // This task has triggered multiple onSuccess calls
-              // violating the protocol. Should never happen.
-              onError(new IllegalStateException(s.toString))
-          }
+      Task.unsafeStartEnsureAsync(
+        fa1,
+        context1,
+        new Callback[Throwable, A1] {
+          @tailrec def onSuccess(a1: A1): Unit =
+            state.get match {
+              case null => // null means this is the first task to complete
+                if (!state.compareAndSet(null, Left(a1))) onSuccess(a1)
+              case Right(a2) => // the other task completed, so we can send
+                sendSignal(mainConn, cb, a1, a2.asInstanceOf[A2])(s)
+              case Stop => // the other task triggered an error
+                () // do nothing
+              case s @ Left(_) =>
+                // This task has triggered multiple onSuccess calls
+                // violating the protocol. Should never happen.
+                onError(new IllegalStateException(s.toString))
+            }
 
-        def onError(ex: Throwable): Unit =
-          sendError(mainConn, state, cb, ex)(s)
-      })
+          def onError(ex: Throwable): Unit =
+            sendError(mainConn, state, cb, ex)(s)
+        }
+      )
 
       // Start first task with a "hard" async boundary to ensure parallel evaluation
-      Task.unsafeStartEnsureAsync(fa2, context2, new Callback[Throwable, A2] {
-        @tailrec def onSuccess(a2: A2): Unit =
-          state.get match {
-            case null => // null means this is the first task to complete
-              if (!state.compareAndSet(null, Right(a2))) onSuccess(a2)
-            case Left(a1) => // the other task completed, so we can send
-              sendSignal(mainConn, cb, a1.asInstanceOf[A1], a2)(s)
-            case Stop => // the other task triggered an error
-              () // do nothing
-            case s@Right(_) =>
-              // This task has triggered multiple onSuccess calls
-              // violating the protocol. Should never happen.
-              onError(new IllegalStateException(s.toString))
-          }
+      Task.unsafeStartEnsureAsync(
+        fa2,
+        context2,
+        new Callback[Throwable, A2] {
+          @tailrec def onSuccess(a2: A2): Unit =
+            state.get match {
+              case null => // null means this is the first task to complete
+                if (!state.compareAndSet(null, Right(a2))) onSuccess(a2)
+              case Left(a1) => // the other task completed, so we can send
+                sendSignal(mainConn, cb, a1.asInstanceOf[A1], a2)(s)
+              case Stop => // the other task triggered an error
+                () // do nothing
+              case s @ Right(_) =>
+                // This task has triggered multiple onSuccess calls
+                // violating the protocol. Should never happen.
+                onError(new IllegalStateException(s.toString))
+            }
 
-        def onError(ex: Throwable): Unit =
-          sendError(mainConn, state, cb, ex)(s)
-      })
+          def onError(ex: Throwable): Unit =
+            sendError(mainConn, state, cb, ex)(s)
+        }
+      )
     }
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,16 +29,17 @@ import scala.util.{Failure, Success}
 object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should sum a cats.effect.IO stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
     var sum = 0L
-    val f = obs.consumeWith(Consumer
-      .foreachEval(x => IO(sum += x)))
+    val f = obs
+      .consumeWith(
+        Consumer
+          .foreachEval(x => IO(sum += x)))
       .runToFuture
 
     s.tick()
@@ -50,8 +51,10 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val count = 10000L
     val obs = Observable.range(0, count)
     var sum = 0L
-    val f = obs.consumeWith(Consumer
-      .foreachTask(x => Task.evalAsync(sum += x)))
+    val f = obs
+      .consumeWith(
+        Consumer
+          .foreachTask(x => Task.evalAsync(sum += x)))
       .runToFuture
 
     s.tick()
@@ -63,8 +66,10 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     var sum = 0L
-    val f = obs.consumeWith(Consumer
-      .foreachTask(x => Task.evalAsync(sum += x)))
+    val f = obs
+      .consumeWith(
+        Consumer
+          .foreachTask(x => Task.evalAsync(sum += x)))
       .runToFuture
 
     s.tick()
@@ -73,11 +78,27 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
 
   test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Observable.now(1)
+    val f = Observable
+      .now(1)
       .consumeWith(Consumer.foreachTask(_ => throw ex))
       .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("should cancel the last task that started execution") { implicit s =>
+    var cancelled = false
+    val f = Observable(1)
+      .consumeWith(Consumer.foreachTask(_ =>
+        Task.never.doOnCancel(Task {
+          cancelled = true
+        })))
+      .runToFuture
+
+    s.tick()
+    f.cancel()
+    s.tick()
+    assert(cancelled)
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,8 +26,7 @@ private[tail] object IterantCollect {
   /**
     * Implementation for `Iterant#collect`.
     */
-  def apply[F[_], A, B](source: Iterant[F,A], pf: PartialFunction[A,B])
-    (implicit F: Sync[F]): Iterant[F,B] = {
+  def apply[F[_], A, B](source: Iterant[F, A], pf: PartialFunction[A, B])(implicit F: Sync[F]): Iterant[F, B] = {
 
     val loop = new Loop[F, A, B](pf)
     source match {
@@ -42,14 +41,13 @@ private[tail] object IterantCollect {
     }
   }
 
-  private final class Loop[F[_], A, B](pf: PartialFunction[A, B])
-    (implicit F: Sync[F])
+  private final class Loop[F[_], A, B](pf: PartialFunction[A, B])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, B]] {
 
     def visit(ref: Next[F, A]): Iterant[F, B] = {
       val item = ref.item
       if (pf.isDefinedAt(item))
-        Next[F,B](pf(item), ref.rest.map(this))
+        Next[F, B](pf(item), ref.rest.map(this))
       else
         Suspend(ref.rest.map(this))
     }

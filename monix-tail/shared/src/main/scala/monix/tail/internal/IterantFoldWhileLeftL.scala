@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,42 +21,37 @@ package internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ChunkedArrayStack
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Suspend, Scope}
+import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 import monix.tail.batches.BatchCursor
 
 private[tail] object IterantFoldWhileLeftL {
   /**
     * Implementation for `Iterant.foldWhileLeftL`.
     */
-  def strict[F[_], A, S](self: Iterant[F, A], seed: => S, f: (S, A) => Either[S, S])
-    (implicit F: Sync[F]): F[S] = {
+  def strict[F[_], A, S](self: Iterant[F, A], seed: => S, f: (S, A) => Either[S, S])(implicit F: Sync[F]): F[S] = {
 
     F.delay(seed).flatMap { state =>
-      new StrictLoop(state, f).apply(self)
-        .map {
-          case Right(r) => r
-          case Left(l) => l
-        }
+      new StrictLoop(state, f).apply(self).map {
+        case Right(r) => r
+        case Left(l) => l
+      }
     }
   }
 
   /**
     * Implementation for `Iterant.foldWhileLeftEvalL`.
     */
-  def eval[F[_], A, S](self: Iterant[F, A], seed: F[S], f: (S, A) => F[Either[S, S]])
-    (implicit F: Sync[F]): F[S] = {
+  def eval[F[_], A, S](self: Iterant[F, A], seed: F[S], f: (S, A) => F[Either[S, S]])(implicit F: Sync[F]): F[S] = {
 
     seed.flatMap { state =>
-      new LazyLoop(state, f).apply(self)
-        .map {
-          case Left(l) => l
-          case Right(r) => r
-        }
+      new LazyLoop(state, f).apply(self).map {
+        case Left(l) => l
+        case Right(r) => r
+      }
     }
   }
 
-  private class StrictLoop[F[_], A, S](seed: S, f: (S, A) => Either[S, S])
-    (implicit F: Sync[F])
+  private class StrictLoop[F[_], A, S](seed: S, f: (S, A) => Either[S, S])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Either[S, S]]] { self =>
 
     private[this] var state: S = seed
@@ -153,8 +148,7 @@ private[tail] object IterantFoldWhileLeftL {
     }
   }
 
-  private class LazyLoop[F[_], A, S](seed: S, f: (S, A) => F[Either[S, S]])
-    (implicit F: Sync[F])
+  private class LazyLoop[F[_], A, S](seed: S, f: (S, A) => F[Either[S, S]])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Either[S, S]]] { self =>
 
     private[this] var state: S = seed

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package internal
 
 import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context}
-import monix.execution.{Scheduler, Callback}
+import monix.execution.{Callback, Scheduler}
 import monix.execution.atomic.{Atomic, AtomicBoolean}
 import monix.execution.schedulers.TrampolinedRunnable
 
@@ -56,8 +56,8 @@ private[eval] object TaskCancellation {
   private final class RaiseCallback[A](
     waitsForResult: AtomicBoolean,
     conn: TaskConnection,
-    cb: Callback[Throwable, A])
-    (implicit s: Scheduler)
+    cb: Callback[Throwable, A]
+  )(implicit s: Scheduler)
     extends Callback[Throwable, A] with TrampolinedRunnable {
 
     private[this] var value: A = _
@@ -98,8 +98,7 @@ private[eval] object TaskCancellation {
         conn2.cancel.map { _ =>
           conn.tryReactivate()
           cb.onError(e)
-        }
-      else
+        } else
         Task.unit
     }
   }

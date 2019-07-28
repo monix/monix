@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,9 +29,8 @@ object CallbackSuite extends TestSuite[TestScheduler] {
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
-  case class TestCallback(
-    success: Int => Unit = _ => (),
-    error: Throwable => Unit = _ => ()) extends Callback[Throwable, Int] {
+  case class TestCallback(success: Int => Unit = _ => (), error: Throwable => Unit = _ => ())
+    extends Callback[Throwable, Int] {
 
     var successCalled = false
     var errorCalled = false
@@ -67,9 +66,11 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
   test("contramap should pipe onError") { implicit s =>
     var result = Option.empty[Try[Int]]
-    val callback = TestCallback(
-      { v => result = Some(Success(v)) },
-      { e => result = Some(Failure(e)) })
+    val callback = TestCallback({ v =>
+      result = Some(Success(v))
+    }, { e =>
+      result = Some(Failure(e))
+    })
 
     val stringCallback = callback.contramap[String](_.toInt)
     val dummy = DummyException("dummy")
@@ -81,14 +82,6 @@ object CallbackSuite extends TestSuite[TestScheduler] {
   test("contramap should invoke function before invoking callback") { implicit s =>
     val callback = TestCallback()
     val stringCallback = callback.contramap[String](_.toInt)
-    stringCallback.onSuccess("1")
-    assert(callback.successCalled)
-  }
-
-  test("contramap has a cats Contramap instance") { implicit s =>
-    val instance = implicitly[Contravariant[Callback[Throwable, ?]]]
-    val callback = TestCallback()
-    val stringCallback = instance.contramap(callback)((x: String) => x.toInt)
     stringCallback.onSuccess("1")
     assert(callback.successCalled)
   }

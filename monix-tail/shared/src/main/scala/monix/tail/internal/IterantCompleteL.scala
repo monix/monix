@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,16 +26,14 @@ import monix.tail.batches.BatchCursor
 
 private[tail] object IterantCompleteL {
   /**
-    * Implementation for `Iterant#completeL`
+    * Implementation for `Iterant#completedL`
     */
-  final def apply[F[_], A](source: Iterant[F, A])
-    (implicit F: Sync[F]): F[Unit] = {
+  final def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[Unit] = {
 
     F.suspend(new Loop[F, A]().apply(source))
   }
 
-  private final class Loop[F[_], A](implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, F[Unit]] {
+  private final class Loop[F[_], A](implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Unit]] {
 
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
@@ -52,10 +50,11 @@ private[tail] object IterantCompleteL {
     }
 
     private[this] val concatContinue: (Unit => F[Unit]) =
-      _ => stackPop() match {
-        case null => F.unit
-        case xs => xs.flatMap(this)
-      }
+      _ =>
+        stackPop() match {
+          case null => F.unit
+          case xs => xs.flatMap(this)
+        }
     //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[Unit] =

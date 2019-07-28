@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,9 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     val sourceCount = 10
     val o1 = Observable.now(1)
     val o2 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatestMap2(o1, o2) { (x1, x2) => x1 + x2 }
+    val o = Observable.combineLatestMap2(o1, o2) { (x1, x2) =>
+      x1 + x2
+    }
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -42,27 +44,31 @@ object CombineLatest2Suite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val unit = Observable.now(1)
     val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o = Observable.combineLatestMap2(unit, flawed) { (x1, x2) => x1 + x2 }
+    val o = Observable.combineLatestMap2(unit, flawed) { (x1, x2) =>
+      x1 + x2
+    }
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), waitFirst, waitNext)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val dummy = DummyException("dummy")
     val o1 = Observable.now(1)
     val o2 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatestMap2(o1,o2) { (a1,a2) =>
-      if (a2 == sourceCount-1) throw dummy else a1+a2
+    val o = Observable.combineLatestMap2(o1, o2) { (a1, a2) =>
+      if (a2 == sourceCount - 1) throw dummy else a1 + a2
     }
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), waitFirst, waitNext)
   }
 
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 = {
       val o1 = Observable.range(0, 10).delayOnNext(1.second)
       val o2 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.combineLatestMap2(o1, o2) { (x1, x2) => x1 + x2 }
+      Observable.combineLatestMap2(o1, o2) { (x1, x2) =>
+        x1 + x2
+      }
     }
 
     Seq(
@@ -77,7 +83,8 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     var received = (0, 0)
     var wasCompleted = false
 
-    obs1.combineLatestMap(obs2)((o1,o2) => (o1,o2))
+    obs1
+      .combineLatestMap(obs2)((o1, o2) => (o1, o2))
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = {
           received = elem
@@ -89,17 +96,17 @@ object CombineLatest2Suite extends BaseOperatorSuite {
       })
 
     obs1.onNext(1)
-    assertEquals(received, (0,0))
+    assertEquals(received, (0, 0))
     obs1.onNext(2)
-    assertEquals(received, (0,0))
+    assertEquals(received, (0, 0))
     obs2.onNext(3)
-    assertEquals(received, (2,3))
+    assertEquals(received, (2, 3))
 
     obs1.onComplete()
     assert(!wasCompleted)
 
     obs2.onNext(4)
-    assertEquals(received, (2,4))
+    assertEquals(received, (2, 4))
     obs2.onComplete()
     assert(wasCompleted)
   }
@@ -111,7 +118,8 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     var received = (0, 0)
     var wasCompleted = false
 
-    obs2.combineLatestMap(obs1)((o1,o2) => (o1,o2))
+    obs2
+      .combineLatestMap(obs1)((o1, o2) => (o1, o2))
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = {
           received = elem
@@ -123,17 +131,17 @@ object CombineLatest2Suite extends BaseOperatorSuite {
       })
 
     obs1.onNext(1)
-    assertEquals(received, (0,0))
+    assertEquals(received, (0, 0))
     obs1.onNext(2)
-    assertEquals(received, (0,0))
+    assertEquals(received, (0, 0))
     obs2.onNext(3)
-    assertEquals(received, (3,2))
+    assertEquals(received, (3, 2))
 
     obs1.onComplete()
     assert(!wasCompleted)
 
     obs2.onNext(4)
-    assertEquals(received, (4,2))
+    assertEquals(received, (4, 2))
     obs2.onComplete()
     assert(wasCompleted)
   }
@@ -144,9 +152,12 @@ object CombineLatest2Suite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
     var wasCanceled = false
-    var received = (0,0)
+    var received = (0, 0)
 
-    obs1.combineLatestMap(obs2.doOnEarlyStopF { () => wasCanceled = true })((o1,o2) => (o1,o2))
+    obs1
+      .combineLatestMap(obs2.doOnEarlyStopF { () =>
+        wasCanceled = true
+      })((o1, o2) => (o1, o2))
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -158,7 +169,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     assertEquals(wasThrown, DummyException("dummy"))
 
     obs2.onNext(2); s.tickOne()
-    assertEquals(received, (0,0))
+    assertEquals(received, (0, 0))
     assert(wasCanceled)
   }
 
@@ -168,10 +179,11 @@ object CombineLatest2Suite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
     var wasCanceled = false
-    var received = (0,0)
+    var received = (0, 0)
 
-    obs2.doOnEarlyStopF { () => wasCanceled = true }
-      .combineLatestMap(obs1)((o1,o2) => (o1,o2))
+    obs2.doOnEarlyStopF { () =>
+      wasCanceled = true
+    }.combineLatestMap(obs1)((o1, o2) => (o1, o2))
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -183,7 +195,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     assertEquals(wasThrown, DummyException("dummy"))
 
     obs2.onNext(2); s.tickOne()
-    assertEquals(received, (0,0))
+    assertEquals(received, (0, 0))
     assert(wasCanceled)
   }
 }

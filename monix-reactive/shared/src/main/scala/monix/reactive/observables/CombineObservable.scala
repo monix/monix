@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,11 +36,13 @@ object CombineObservable extends Newtype1[Observable] {
     override def map[A, B](fa: CombineObservable.Type[A])(f: A => B): CombineObservable.Type[B] =
       wrap(unwrap(fa).map(f))
 
-    override def map2[A, B, C](fa: CombineObservable.Type[A], fb: CombineObservable.Type[B])
-      (f: (A, B) => C): CombineObservable.Type[C] =
+    override def map2[A, B, C](fa: CombineObservable.Type[A], fb: CombineObservable.Type[B])(
+      f: (A, B) => C): CombineObservable.Type[C] =
       wrap(unwrap(fa).combineLatestMap(unwrap(fb))(f))
 
-    override def product[A, B](fa: CombineObservable.Type[A], fb: CombineObservable.Type[B]): CombineObservable.Type[(A, B)] =
+    override def product[A, B](
+      fa: CombineObservable.Type[A],
+      fb: CombineObservable.Type[B]): CombineObservable.Type[(A, B)] =
       wrap(unwrap(fa).combineLatest(unwrap(fb)))
   }
 }

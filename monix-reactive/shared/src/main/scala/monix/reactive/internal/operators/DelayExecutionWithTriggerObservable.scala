@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,22 +24,23 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final
-class DelayExecutionWithTriggerObservable[A](source: Observable[A], trigger: Observable[_])
+private[reactive] final class DelayExecutionWithTriggerObservable[A](source: Observable[A], trigger: Observable[_])
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val cancelable = OrderedCancelable()
 
-    val main = trigger.asInstanceOf[Observable[Any]].unsafeSubscribeFn(
-      new Subscriber[Any] {
+    val main = trigger
+      .asInstanceOf[Observable[Any]]
+      .unsafeSubscribeFn(new Subscriber[Any] {
         implicit val scheduler = subscriber.scheduler
         private[this] var isDone = false
 
         def onNext(elem: Any): Future[Ack] = {
-          if (isDone) Stop else {
+          if (isDone) Stop
+          else {
             isDone = true
-            cancelable.orderedUpdate(source.unsafeSubscribeFn(subscriber), order=2)
+            cancelable.orderedUpdate(source.unsafeSubscribeFn(subscriber), order = 2)
             Stop
           }
         }
@@ -53,10 +54,10 @@ class DelayExecutionWithTriggerObservable[A](source: Observable[A], trigger: Obs
         def onComplete(): Unit =
           if (!isDone) {
             isDone = true
-            cancelable.orderedUpdate(source.unsafeSubscribeFn(subscriber), order=2)
+            cancelable.orderedUpdate(source.unsafeSubscribeFn(subscriber), order = 2)
           }
       })
 
-    cancelable.orderedUpdate(main, order=1)
+    cancelable.orderedUpdate(main, order = 1)
   }
 }

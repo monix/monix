@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,13 +25,13 @@ object DropFirstSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = Observable.range(1, sourceCount * 2).drop(sourceCount-1)
+      val o = Observable.range(1, sourceCount * 2).drop(sourceCount - 1)
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
   def sum(sourceCount: Int): Long =
-    (1 until sourceCount * 2).drop(sourceCount-1).sum
+    (1 until sourceCount * 2).drop(sourceCount - 1).sum
 
   def count(sourceCount: Int) =
     sourceCount

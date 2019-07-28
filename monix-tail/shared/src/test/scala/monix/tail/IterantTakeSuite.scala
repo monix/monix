@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,8 +53,7 @@ object IterantTakeSuite extends BaseTestSuite {
   test("Iterant[Coeval].take releases resources") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val cancelable = BooleanCancelable()
-      val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1)
-        .onErrorIgnore
+      val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1).onErrorIgnore
         .guarantee(Coeval.eval(cancelable.cancel()))
 
       val length = list.length
@@ -62,7 +61,7 @@ object IterantTakeSuite extends BaseTestSuite {
       if (n <= 0) n = 1
 
       stream.take(n).toListL.value == list.take(n) &&
-        cancelable.isCanceled
+      cancelable.isCanceled
     }
   }
 
@@ -99,18 +98,19 @@ object IterantTakeSuite extends BaseTestSuite {
   }
 
   test("Iterant.take suspends execution for NextCursor or NextBatch") { _ =>
-    val iter1 = Iterant[Coeval].nextBatchS(Batch(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
+    val iter1 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
     assert(iter1.take(2).isInstanceOf[Suspend[Coeval, Int]], "NextBatch should be suspended")
     assertEquals(iter1.take(2).toListL.value(), List(1, 2))
 
-    val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
+    val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
     assert(iter2.take(2).isInstanceOf[Suspend[Coeval, Int]], "NextCursor should be suspended")
     assertEquals(iter2.take(2).toListL.value(), List(1, 2))
   }
 
   test("Iterant.take preserves the source earlyStop") { implicit s =>
     var effect = 0
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
+    val source = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval.eval(effect += 1))
     val stream = source.take(3)
     stream.completedL.value()

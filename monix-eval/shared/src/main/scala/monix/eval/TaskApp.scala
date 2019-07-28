@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.eval
 
 import cats.effect._
+import monix.catnap.SchedulerEffect
 import monix.eval.instances.CatsConcurrentEffectForTask
 import monix.execution.Scheduler
 
@@ -86,11 +87,11 @@ trait TaskApp {
     val self = this
     val app = new IOApp {
       override implicit lazy val contextShift: ContextShift[IO] =
-        scheduler.contextShift[IO](IO.ioEffect)
+        SchedulerEffect.contextShift[IO](scheduler)(IO.ioEffect)
       override implicit lazy val timer: Timer[IO] =
-        scheduler.timerLiftIO[IO](IO.ioEffect)
+        SchedulerEffect.timerLiftIO[IO](scheduler)(IO.ioEffect)
       def run(args: List[String]): IO[ExitCode] =
-        self.run(args).toIO
+        self.run(args).to[IO]
     }
     app.main(args)
   }

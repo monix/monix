@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,7 @@ private[tail] object IterantSwitchIfEmpty {
   /**
     * Implementation for `Iterant.switchIfEmpty`.
     */
-  def apply[F[_], A](primary: Iterant[F, A], backup: Iterant[F, A])
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def apply[F[_], A](primary: Iterant[F, A], backup: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] = {
 
     primary match {
       case Next(_, _) | Last(_) =>
@@ -43,8 +42,7 @@ private[tail] object IterantSwitchIfEmpty {
     }
   }
 
-  private final class Loop[F[_], A](backup: Iterant[F, A])
-    (implicit F: Sync[F])
+  private final class Loop[F[_], A](backup: Iterant[F, A])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] { self =>
 
     private[this] var isEmpty = true

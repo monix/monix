@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,10 +44,10 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextS(1, Task.evalAsync(Iterant[Task].empty[Int]))
+    val stream = Iterant[Task]
+      .nextS(1, Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { isCanceled = true })
-    val result = stream.flatMap[Int](_ => throw dummy)
-      .toListL.runToFuture
+    val result = stream.flatMap[Int](_ => throw dummy).toListL.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -58,10 +58,10 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextCursorS(BatchCursor(1,2,3), Task.evalAsync(Iterant[Task].empty[Int]))
+    val stream = Iterant[Task]
+      .nextCursorS(BatchCursor(1, 2, 3), Task.evalAsync(Iterant[Task].empty[Int]))
       .guarantee(Task.evalAsync { isCanceled = true })
-    val result = stream.flatMap[Int](_ => throw dummy)
-      .toListL.runToFuture
+    val result = stream.flatMap[Int](_ => throw dummy).toListL.runToFuture
 
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -88,15 +88,16 @@ object IterantFlatMapSuite extends BaseTestSuite {
 
     val result = composed.headOptionL.runToFuture; s.tick()
     assertEquals(result.value, Some(Success(Some(6))))
-    assertEquals(effects, Vector(3,2,1))
+    assertEquals(effects, Vector(3, 2, 1))
   }
 
   test("Iterant[Task].nextCursor.flatMap works for large lists") { implicit s =>
     val count = 100000
     val list = (0 until count).toList
-    val sumTask = Iterant[Task].fromList(list)
-      .flatMap(x => Iterant[Task].fromList(List(x,x,x)))
-      .foldLeftL(0L)(_+_)
+    val sumTask = Iterant[Task]
+      .fromList(list)
+      .flatMap(x => Iterant[Task].fromList(List(x, x, x)))
+      .foldLeftL(0L)(_ + _)
 
     val f = sumTask.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(3 * (count.toLong * (count - 1) / 2))))
@@ -171,10 +172,10 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval(Iterant[Coeval].empty[Int]))
+    val stream = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3), Coeval(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval { isCanceled = true })
-    val result = stream.flatMap[Int](_ => throw dummy)
-      .toListL.runTry()
+    val result = stream.flatMap[Int](_ => throw dummy).toListL.runTry()
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
@@ -199,7 +200,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
         yield x + y + z
 
     assertEquals(composed.headOptionL.value(), Some(6))
-    assertEquals(effects, Vector(3,2,1))
+    assertEquals(effects, Vector(3, 2, 1))
   }
 
   test("Iterant[Coeval].flatMap should protect against indirect user errors") { implicit s =>

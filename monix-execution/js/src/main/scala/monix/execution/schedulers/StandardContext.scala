@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,13 +24,13 @@ import scala.scalajs.js
 /** Internal API — An `ExecutionContext` implementation for JavaScript
   * that executes tasks using either `setImmediate` or `setTimeout`.
   */
-private[execution] class StandardContext(reporter: UncaughtExceptionReporter)
-  extends ExecutionContext {
+private[execution] class StandardContext(reporter: UncaughtExceptionReporter) extends ExecutionContext {
 
   override def execute(r: Runnable): Unit =
-    setImmediateRef(() =>
-      try r.run()
-      catch { case e: Throwable => reporter.reportFailure(e) })
+    setImmediateRef(
+      () =>
+        try r.run()
+        catch { case e: Throwable => reporter.reportFailure(e) })
 
   override def reportFailure(cause: Throwable): Unit =
     reporter.reportFailure(cause)
@@ -43,5 +43,4 @@ private[execution] class StandardContext(reporter: UncaughtExceptionReporter)
   }
 }
 
-private[execution] object StandardContext
-  extends StandardContext(UncaughtExceptionReporter.default)
+private[execution] object StandardContext extends StandardContext(UncaughtExceptionReporter.default)

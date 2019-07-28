@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,12 +35,14 @@ object MapEffectSuite extends BaseOperatorSuite {
   def waitNext = Duration.Zero
 
   def observableInError(sourceCount: Int, ex: Throwable) =
-    if (sourceCount == 1) None else Some {
-      val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-        .mapEvalF(i => IO.pure(i))
+    if (sourceCount == 1) None
+    else
+      Some {
+        val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+          .mapEvalF(i => IO.pure(i))
 
-      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
-    }
+        Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
+      }
 
   def sum(sourceCount: Int) = {
     sourceCount * (sourceCount - 1) / 2
@@ -48,22 +50,24 @@ object MapEffectSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount).mapEvalF { i =>
-      if (i == sourceCount-1)
+      if (i == sourceCount - 1)
         throw ex
       else
         IO.pure(i)
     }
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), waitFirst, waitNext)
   }
 
   def toList[A](o: Observable[A])(implicit s: Scheduler) = {
-    o.foldLeft(Vector.empty[A])(_ :+ _).runAsyncGetLast
+    o.foldLeft(Vector.empty[A])(_ :+ _)
+      .runAsyncGetLast
       .map(_.getOrElse(Vector.empty))
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample = Observable.range(0, 100)
+    val sample = Observable
+      .range(0, 100)
       .delayOnNext(1.second)
       .mapEvalF(x => IO(x))
 

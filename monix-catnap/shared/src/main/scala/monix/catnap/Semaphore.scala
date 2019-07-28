@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -66,8 +66,9 @@ import scala.concurrent.Promise
   * inspired by the implementation in Cats-Effect, which was ported
   * from FS2.
   */
-final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)
-  (implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F])
+final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(
+  implicit F: Concurrent[F] OrElse Async[F],
+  cs: ContextShift[F])
   extends cats.effect.concurrent.Semaphore[F] {
 
   private[this] implicit val F0 = F.unify
@@ -230,8 +231,9 @@ object Semaphore {
     * @param cs is a `ContextShift` instance required in order to introduce
     *        async boundaries after successful `acquire` operations, for safety
     */
-  def apply[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)
-    (implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F]): F[Semaphore[F]] = {
+  def apply[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
+    implicit F: Concurrent[F] OrElse Async[F],
+    cs: ContextShift[F]): F[Semaphore[F]] = {
 
     F.unify.delay(new Semaphore[F](provisioned, ps))
   }
@@ -254,12 +256,12 @@ object Semaphore {
     *        async boundaries after successful `acquire` operations, for safety
     */
   @UnsafeBecauseImpure
-  def unsafe[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)
-    (implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F]): Semaphore[F] =
+  def unsafe[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
+    implicit F: Concurrent[F] OrElse Async[F],
+    cs: ContextShift[F]): Semaphore[F] =
     new Semaphore[F](provisioned, ps)
 
-  implicit final class DeprecatedExtensions[F[_]](val source: Semaphore[F])
-    extends AnyVal {
+  implicit final class DeprecatedExtensions[F[_]](val source: Semaphore[F]) extends AnyVal {
 
     /**
       * DEPRECATED — renamed to [[Semaphore.withPermit withPermit]].
@@ -271,8 +273,10 @@ object Semaphore {
     def greenLight[A](fa: F[A]): F[A] = source.withPermit(fa)
   }
 
-  private final class Impl[F[_]](provisioned: Long, ps: PaddingStrategy)
-    (implicit F: Concurrent[F] OrElse Async[F], F0: Async[F], cs: ContextShift[F])
+  private final class Impl[F[_]](provisioned: Long, ps: PaddingStrategy)(
+    implicit F: Concurrent[F] OrElse Async[F],
+    F0: Async[F],
+    cs: ContextShift[F])
     extends GenericSemaphore[F[Unit]](provisioned, ps) {
 
     val available: F[Long] = F0.delay(unsafeAvailable())
@@ -292,8 +296,7 @@ object Semaphore {
         if (unsafeTryAcquireN(n)) {
           // This cannot be canceled in the context of `bracket`
           (F0.unit, releaseN(n))
-        }
-        else {
+        } else {
           val p = Promise[Unit]()
           val cancelToken = unsafeAsyncAcquireN(n, Callback.fromPromise(p))
           val acquire = FutureLift.scalaToAsync(F0.pure(p.future))

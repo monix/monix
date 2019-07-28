@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,17 +23,16 @@ import scala.runtime.AbstractFunction1
   * A composite exception represents a list of exceptions
   * that were caught while delaying errors.
   */
-final class CompositeException(val errors: Seq[Throwable])
-  extends RuntimeException() with Serializable {
+final class CompositeException(val errors: Seq[Throwable]) extends RuntimeException() with Serializable {
 
   override def toString: String = {
-    getClass.getName + (
-      if (errors.isEmpty) "" else {
-        val (first, last) = errors.splitAt(2)
-        val str = first.map(_.getClass.getName).mkString(", ")
-        val reasons = if (last.nonEmpty) str + "..." else str
-        "(" + reasons + ")"
-      })
+    getClass.getName + (if (errors.isEmpty) ""
+                        else {
+                          val (first, last) = errors.splitAt(2)
+                          val str = first.map(_.getClass.getName).mkString(", ")
+                          val reasons = if (last.nonEmpty) str + "..." else str
+                          "(" + reasons + ")"
+                        })
   }
 }
 

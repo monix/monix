@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,13 @@
 
 package monix.eval
 
+import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.Duration
+
+import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.duration._
 
 object TaskLocalJVMSuite extends SimpleTestSuite {
   def createShift(ec: ExecutionContext): Task[Unit] =
@@ -41,15 +43,15 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       val task =
         for {
           local <- TaskLocal(0)
-          _ <- local.write(100).executeOn(ec2)
-          v1 <- local.read.executeOn(ec)
-          _ <- Task.shift(Scheduler.global)
-          v2 <- local.read.executeOn(ec2)
-          _ <- Task.shift
-          v3 <- local.read.executeOn(ec2)
-          _ <- createShift(ec2)
-          v4 <- local.read
-          v5 <- local.read.executeOn(ec)
+          _     <- local.write(100).executeOn(ec2)
+          v1    <- local.read.executeOn(ec)
+          _     <- Task.shift(Scheduler.global)
+          v2    <- local.read.executeOn(ec2)
+          _     <- Task.shift
+          v3    <- local.read.executeOn(ec2)
+          _     <- createShift(ec2)
+          v4    <- local.read
+          v5    <- local.read.executeOn(ec)
         } yield v1 :: v2 :: v3 :: v4 :: v5 :: Nil
 
       val r = task.runSyncUnsafeOpt(Duration.Inf)
@@ -67,9 +69,9 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val task =
       for {
         local <- TaskLocal(0)
-        _ <- local.write(100).executeWithModel(AlwaysAsyncExecution)
-        _ <- Task.shift
-        v <- local.read
+        _     <- local.write(100).executeWithModel(AlwaysAsyncExecution)
+        _     <- Task.shift
+        v     <- local.read
       } yield v
 
     val r = task.runSyncUnsafeOpt(Duration.Inf)
@@ -83,9 +85,9 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val task =
       for {
         local <- TaskLocal(0)
-        _ <- local.write(100).executeWithOptions(_.enableAutoCancelableRunLoops)
-        _ <- Task.shift
-        v <- local.read
+        _     <- local.write(100).executeWithOptions(_.enableAutoCancelableRunLoops)
+        _     <- Task.shift
+        v     <- local.read
       } yield v
 
     val r = task.runSyncUnsafeOpt(Duration.Inf)
@@ -122,5 +124,33 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
     val r = task.runSyncUnsafeOpt(Duration.Inf)
     assertEquals(r, 100)
+  }
+
+  test("local state is encapsulated by Task run loop") {
+    import monix.execution.Scheduler.Implicits.global
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    val local = TaskLocal(0).memoize
+
+    val task = for {
+      l <- local
+      x <- l.read
+      _ <- l.write(x + 1)
+    } yield x
+
+    val runMethods: List[Task[Int] => Int] = List(
+      _.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe(),
+      _.executeAsync.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe(),
+      _.runSyncUnsafeOpt(),
+      _.executeWithOptions(_.enableLocalContextPropagation).to[IO].unsafeRunSync(),
+      t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).runToFuture, 1.second),
+      t => Await.result(t.runToFutureOpt, 1.second),
+      t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).to[IO].unsafeToFuture(), 1.second)
+    )
+
+    for (method <- runMethods) {
+      for (_ <- 1 to 10) method(task)
+      val r = method(task)
+      assertEquals(r, 0)
+    }
   }
 }

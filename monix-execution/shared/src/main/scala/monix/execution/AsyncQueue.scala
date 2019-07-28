@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +19,11 @@ package monix.execution
 
 import monix.execution.ChannelType.MPMC
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
+import monix.execution.atomic.AtomicAny
+import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.cancelables.MultiAssignCancelable
-import monix.execution.internal.collection.ConcurrentQueue
+import monix.execution.internal.Constants
+import monix.execution.internal.collection.LowLevelConcurrentQueue
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
@@ -58,7 +61,7 @@ import scala.concurrent.duration._
   * precise. Such a bounded queue can be initialized via
   * [[monix.execution.AsyncQueue.bounded AsyncQueue.bounded]].
   * Also see [[BufferCapacity]], the configuration parameter that can be
-  * passed in the [[monix.execution.AsyncQueue.custom AsyncQueue.custom]]
+  * passed in the [[monix.execution.AsyncQueue.withConfig AsyncQueue.withConfig]]
   * builder.
   *
   * On [[offer]], when the queue is full, the implementation back-pressures
@@ -106,11 +109,10 @@ import scala.concurrent.duration._
   * concurrency bugs. If you're not sure what multi-threading scenario you
   * have, then just stick with the default `MPMC`.
   */
-final class AsyncQueue[A] private (
+final class AsyncQueue[A] private[monix] (
   capacity: BufferCapacity,
   channelType: ChannelType,
-  retryDelay: FiniteDuration = 10.millis)
-  (implicit scheduler: Scheduler) {
+  retryDelay: FiniteDuration = 10.millis)(implicit scheduler: Scheduler) {
 
   /** Try pushing a value to the queue.
     *
@@ -125,7 +127,7 @@ final class AsyncQueue[A] private (
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def tryOffer(a: A): Boolean = queue.offer(a) == 0
+  def tryOffer(a: A): Boolean = tryOfferUnsafe(a)
 
   /** Try pulling a value out of the queue.
     *
@@ -138,7 +140,7 @@ final class AsyncQueue[A] private (
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def tryPoll(): Option[A] = Option(queue.poll())
+  def tryPoll(): Option[A] = Option(tryPollUnsafe())
 
   /** Fetches a value from the queue, or if the queue is empty continuously
     * polls the queue until a value is made available.
@@ -148,12 +150,13 @@ final class AsyncQueue[A] private (
     */
   @UnsafeBecauseImpure
   def poll(): CancelableFuture[A] = {
-    val happy = queue.poll()
-    if (happy != null) CancelableFuture.successful(happy)
+    val happy = tryPollUnsafe()
+    if (happy != null)
+      CancelableFuture.successful(happy)
     else {
       val p = Promise[A]()
       val c = MultiAssignCancelable()
-      polled[A, A](pollQueue, pollTest, pollId, p, c)
+      sleepThenRepeat(consumersAwaiting, pollQueue, pollTest, pollMap, p, c)
       CancelableFuture(p.future, c)
     }
   }
@@ -167,9 +170,11 @@ final class AsyncQueue[A] private (
     */
   @UnsafeBecauseImpure
   def offer(a: A): CancelableFuture[Unit] = {
-    val happy = queue.offer(a)
-    if (happy == 0) CancelableFuture.unit
-    else offerWait(a, MultiAssignCancelable())
+    val happy = tryOfferUnsafe(a)
+    if (happy)
+      CancelableFuture.unit
+    else
+      offerWait(a, MultiAssignCancelable())
   }
 
   /** Pushes multiple values in the queue. Back-pressures if the queue is full.
@@ -179,19 +184,22 @@ final class AsyncQueue[A] private (
     *         waiting
     */
   @UnsafeBecauseImpure
-  def offerMany(seq: A*): CancelableFuture[Unit] = {
-    def reschedule(cursor: Iterator[A], c: MultiAssignCancelable): CancelableFuture[Unit] =
-      loop(cursor, c)
-
-    @tailrec def loop(cursor: Iterator[A], c: MultiAssignCancelable): CancelableFuture[Unit] = {
-      if (cursor.hasNext) {
-        val a = cursor.next()
-        queue.offer(a) match {
-          case 0 => loop(cursor, c)
-          case _ =>
-            val conn = if (c != null) c else MultiAssignCancelable()
-            offerWait(a, conn).flatMap { _ => reschedule(cursor, conn) }
-        }
+  def offerMany(seq: Iterable[A]): CancelableFuture[Unit] = {
+    // recursive loop
+    def loop(cursor: Iterator[A], c: MultiAssignCancelable): CancelableFuture[Unit] = {
+      var elem: A = null.asInstanceOf[A]
+      var hasCapacity = true
+      // Happy path
+      while (hasCapacity && cursor.hasNext) {
+        elem = cursor.next()
+        hasCapacity = queue.offer(elem) == 0
+      }
+      // Awaken sleeping consumers
+      notifyConsumers()
+      // Do we need to await on consumers?
+      if (!hasCapacity) {
+        val c2 = if (c != null) c else MultiAssignCancelable()
+        offerWait(elem, c2).flatMap(_ => loop(cursor, c2))
       } else {
         CancelableFuture.unit
       }
@@ -219,15 +227,16 @@ final class AsyncQueue[A] private (
     assert(minLength <= maxLength, s"minLength ($minLength) <= maxLength ($maxLength")
     val buffer = ArrayBuffer.empty[A]
 
-    val length = queue.drainToBuffer(buffer, maxLength)
+    val length = tryDrainUnsafe(buffer, maxLength)
     if (length >= minLength) {
       CancelableFuture.successful(toSeq(buffer))
     } else {
       val promise = Promise[Seq[A]]()
       val conn = MultiAssignCancelable()
 
-      polled[Int, Seq[A]](
-        () => queue.drainToBuffer(buffer, maxLength - buffer.length),
+      sleepThenRepeat[Int, Seq[A]](
+        consumersAwaiting,
+        () => tryDrainUnsafe(buffer, maxLength - buffer.length),
         _ => buffer.length >= minLength,
         _ => toSeq(buffer),
         promise,
@@ -246,62 +255,155 @@ final class AsyncQueue[A] private (
     * so it must be called from the same thread(s) that call [[poll]].
     */
   @UnsafeBecauseImpure
-  def clear(): Unit = queue.clear()
+  def clear(): Unit = {
+    queue.clear()
+    notifyProducers()
+  }
 
-  private[this] val queue: ConcurrentQueue[A] =
-    ConcurrentQueue(capacity, channelType)
-  private[this] val retryDelayNanos =
-    retryDelay.toNanos
+  private[this] val queue: LowLevelConcurrentQueue[A] =
+    LowLevelConcurrentQueue(capacity, channelType, fenced = true)
+
+  private[this] val consumersAwaiting =
+    AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
+
+  private[this] val producersAwaiting =
+    if (capacity.isBounded)
+      AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
+    else
+      null
+
+  private def tryOfferUnsafe(a: A): Boolean = {
+    if (queue.offer(a) == 0) {
+      notifyConsumers()
+      true
+    } else {
+      false
+    }
+  }
+
+  private def tryPollUnsafe(): A = {
+    val a = queue.poll()
+    notifyProducers()
+    a
+  }
+
+  private def tryDrainUnsafe(buffer: ArrayBuffer[A], maxLength: Int): Int = {
+    val length = queue.drainToBuffer(buffer, maxLength)
+    if (length > 0) notifyProducers()
+    length
+  }
+
+  @tailrec
+  private def notifyConsumers(): Unit = {
+    // N.B. in case the queue is single-producer, this is a full memory fence
+    // meant to prevent the re-ordering of `queue.offer` with `consumersAwait.get`
+    queue.fenceOffer()
+
+    val ref = consumersAwaiting.get()
+    if (ref ne null) {
+      if (consumersAwaiting.compareAndSet(ref, null)) {
+        ref.complete(Constants.successOfUnit)
+      } else {
+        notifyConsumers()
+      }
+    }
+  }
+
+  @tailrec
+  private def notifyProducers(): Unit =
+    if (producersAwaiting ne null) {
+      // N.B. in case this isn't a multi-consumer queue, this generates a
+      // full memory fence in order to prevent the re-ordering of queue.poll()
+      // with `producersAwait.get`
+      queue.fencePoll()
+
+      val ref = producersAwaiting.get()
+      if (ref ne null) {
+        if (producersAwaiting.compareAndSet(ref, null)) {
+          ref.complete(Constants.successOfUnit)
+        } else {
+          notifyProducers()
+        }
+      }
+    }
+
+  private def offerWait(a: A, c: MultiAssignCancelable): CancelableFuture[Unit] = {
+    val p = Promise[Unit]()
+    sleepThenRepeat[Boolean, Unit](producersAwaiting, () => tryOfferUnsafe(a), offerTest, offerMap, p, c)
+    CancelableFuture(p.future, c)
+  }
 
   private def toSeq(buffer: ArrayBuffer[A]): Seq[A] =
     buffer.toArray[Any].toSeq.asInstanceOf[Seq[A]]
 
-  private def offerWait(a: A, c: MultiAssignCancelable): CancelableFuture[Unit] = {
-    val p = Promise[Unit]()
-    polled[Int, Unit](() => queue.offer(a), offerTest, offerId, p, c)
-    CancelableFuture(p.future, c)
-  }
-
-  private[this] val pollQueue: () => A = () => queue.poll()
+  private[this] val pollQueue: () => A = () => tryPollUnsafe()
   private[this] val pollTest: A => Boolean = _ != null
-  private[this] val pollId: A => A = a => a
-  private[this] val offerTest: Int => Boolean = _ == 0
-  private[this] val offerId: Int => Unit = _ => ()
+  private[this] val pollMap: A => A = a => a
+  private[this] val offerTest: Boolean => Boolean = x => x
+  private[this] val offerMap: Boolean => Unit = _ => ()
 
-  private def polled[T, U](f: () => T, test: T => Boolean, map: T => U, p: Promise[U], c: MultiAssignCancelable): Unit = {
-    val now = scheduler.clockMonotonic(NANOSECONDS)
-    new PollRunnable[T, U](f, test, map, now, p, c)
-      .loop()
+  @tailrec
+  private def sleepThenRepeat[T, U](
+    state: AtomicAny[CancelablePromise[Unit]],
+    f: () => T,
+    filter: T => Boolean,
+    map: T => U,
+    cb: Promise[U],
+    token: MultiAssignCancelable): Unit = {
+
+    // Registering intention to sleep via promise
+    state.get() match {
+      case null =>
+        val ref = CancelablePromise[Unit]()
+        if (!state.compareAndSet(null, ref))
+          sleepThenRepeat(state, f, filter, map, cb, token)
+        else
+          sleepThenRepeat_Step2TryAgainThenSleep(state, f, filter, map, cb, token)(ref)
+
+      case ref =>
+        sleepThenRepeat_Step2TryAgainThenSleep(state, f, filter, map, cb, token)(ref)
+    }
   }
 
-  private final class PollRunnable[T, U](
+  private def sleepThenRepeat_Step2TryAgainThenSleep[T, U](
+    state: AtomicAny[CancelablePromise[Unit]],
     f: () => T,
-    test: T => Boolean,
+    filter: T => Boolean,
     map: T => U,
-    start: Long,
-    p: Promise[U],
-    c: MultiAssignCancelable)
-    extends Runnable {
+    cb: Promise[U],
+    token: MultiAssignCancelable)(p: CancelablePromise[Unit]): Unit = {
 
-    def loop(): Unit = {
-      // Retry logic
-      val now = scheduler.clockMonotonic(NANOSECONDS)
-      if (now - start < retryDelayNanos)
-        scheduler.execute(this)
-      else
-        c := scheduler.scheduleOnce(retryDelay.length, retryDelay.unit, this)
-    }
-
-    def run(): Unit = {
-      if (!c.isCanceled) {
-        val value = f()
-        if (test(value)) {
-          p.success(map(value))
-        } else {
-          // retry
-          loop()
+    // Async boundary, for fairness reasons; also creates a full
+    // memory barrier between the promise registration and what follows
+    scheduler.executeAsync { () =>
+      // Trying to read one more time
+      val value = f()
+      if (filter(value)) {
+        cb.success(map(value))
+      } else {
+        // Awaits on promise, then repeats
+        token := p.subscribe { _ =>
+          sleepThenRepeat_Step3Awaken(state, f, filter, map, cb, token)
         }
       }
+    }
+  }
+
+  private def sleepThenRepeat_Step3Awaken[T, U](
+    state: AtomicAny[CancelablePromise[Unit]],
+    f: () => T,
+    filter: T => Boolean,
+    map: T => U,
+    cb: Promise[U],
+    token: MultiAssignCancelable): Unit = {
+
+    // Trying to read
+    val value = f()
+    if (filter(value)) {
+      cb.success(map(value))
+    } else {
+      // Go to sleep again
+      sleepThenRepeat(state, f, filter, map, cb, token)
     }
   }
 }
@@ -324,7 +426,7 @@ object AsyncQueue {
     */
   @UnsafeBecauseImpure
   def bounded[A](capacity: Int)(implicit s: Scheduler): AsyncQueue[A] =
-    custom(BufferCapacity.Bounded(capacity), MPMC)
+    withConfig(BufferCapacity.Bounded(capacity), MPMC)
 
   /**
     * Builds an unlimited [[AsyncQueue]] that can use the entire memory
@@ -344,7 +446,7 @@ object AsyncQueue {
     */
   @UnsafeBecauseImpure
   def unbounded[A](chunkSizeHint: Option[Int] = None)(implicit s: Scheduler): AsyncQueue[A] =
-    custom(BufferCapacity.Unbounded(chunkSizeHint), MPMC)
+    withConfig(BufferCapacity.Unbounded(chunkSizeHint), MPMC)
 
   /**
     * Builds an [[AsyncQueue]] with fine-tuned config parameters.
@@ -360,10 +462,8 @@ object AsyncQueue {
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def custom[A](
-    capacity: BufferCapacity,
-    channelType: ChannelType)
-    (implicit scheduler: Scheduler): AsyncQueue[A] = {
+  def withConfig[A](capacity: BufferCapacity, channelType: ChannelType)(
+    implicit scheduler: Scheduler): AsyncQueue[A] = {
 
     new AsyncQueue[A](capacity, channelType)
   }

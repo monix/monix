@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,7 +52,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
   test("Consumer#transformInput protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
-      .consumeWith(Consumer.foldLeft[Long,Long](0L)(_+_).transformInput[Int](_ => throw ex))
+      .consumeWith(Consumer.foldLeft[Long, Long](0L)(_ + _).transformInput[Int](_ => throw ex))
       .runToFuture
 
     s.tick()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,16 +22,11 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{CoflatMapTests, SemigroupKTests}
 
 object TypeClassLawsForCoevalSuite extends BaseLawsSuite {
-  checkAll("Sync[Coeval]",
-    SyncTests[Coeval].sync[Int,Int,Int])
+  checkAll("Sync[Coeval]", SyncTests[Coeval].sync[Int, Int, Int])
 
-  checkAll("CoflatMap[Coeval]",
-    CoflatMapTests[Coeval].coflatMap[Int, Int, Int])
+  checkAll("CoflatMap[Coeval]", CoflatMapTests[Coeval].coflatMap[Int, Int, Int])
 
-  checkAll("Monoid[Coeval[Int]]",
-    MonoidTests[Coeval[Int]].monoid)
+  checkAll("Monoid[Coeval[Int]]", MonoidTests[Coeval[Int]].monoid)
 
-  checkAll("SemigroupK[Coeval[Int]]",
-    SemigroupKTests[Coeval].semigroupK[Int]
-  )
+  checkAll("SemigroupK[Coeval[Int]]", SemigroupKTests[Coeval].semigroupK[Int])
 }

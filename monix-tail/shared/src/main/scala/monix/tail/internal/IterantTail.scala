@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +25,7 @@ private[tail] object IterantTail {
   /**
     * Implementation for `Iterant#tail`
     */
-  def apply[F[_], A](source: Iterant[F, A])
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] = {
 
     source match {
       case Next(_, rest) => Suspend(rest)

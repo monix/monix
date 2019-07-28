@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object MiscDefaultIfEmptySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = (Observable.empty : Observable[Long])
+    val o = (Observable.empty: Observable[Long])
       .defaultIfEmpty(222L)
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -98,7 +98,8 @@ object TaskBracketSuite extends BaseTestSuite {
     import scala.concurrent.duration._
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
 
-    val task = Task.evalAsync(1)
+    val task = Task
+      .evalAsync(1)
       .bracketE(x => Task.evalAsync(x + 1).delayExecution(1.second)) { (a, i) =>
         Task.eval { input = Some((a, i)) }
       }
@@ -117,11 +118,13 @@ object TaskBracketSuite extends BaseTestSuite {
     val useError = new DummyException("use")
     val releaseError = new DummyException("release")
 
-    val task = Task.evalAsync(1).bracket[Int] { _ =>
-      Task.raiseError(useError)
-    } { _ =>
-      Task.raiseError(releaseError)
-    }
+    val task = Task
+      .evalAsync(1)
+      .bracket[Int] { _ =>
+        Task.raiseError(useError)
+      } { _ =>
+        Task.raiseError(releaseError)
+      }
 
     val f = task.runToFuture
     sc.tick()
@@ -136,30 +139,17 @@ object TaskBracketSuite extends BaseTestSuite {
             case _ =>
               fail("Unexpected suppressed errors list: " + error.getSuppressed.toList)
           }
-        } else error match {
-          case CompositeException(Seq(`useError`, `releaseError`)) =>
-            () // pass
-          case _ =>
-            fail(s"Unexpected error: $error")
-        }
+        } else
+          error match {
+            case CompositeException(Seq(`useError`, `releaseError`)) =>
+              () // pass
+            case _ =>
+              fail(s"Unexpected error: $error")
+          }
 
       case other =>
         fail(s"Unexpected result: $other")
     }
-  }
-
-  test("bracket is stack safe") { implicit sc =>
-    def loop(n: Int): Task[Unit] =
-      if (n > 0)
-        Task(n).bracket(n => Task(n - 1))(_ => Task.unit).flatMap(loop)
-      else
-        Task.unit
-
-    val count = if (Platform.isJVM) 10000 else 1000
-    val f = loop(count).runToFuture
-
-    sc.tick()
-    assertEquals(f.value, Some(Success(())))
   }
 
   test("bracket works with auto-cancelable run-loops") { implicit sc =>
@@ -177,5 +167,53 @@ object TaskBracketSuite extends BaseTestSuite {
     f.cancel()
     assertEquals(f.value, None)
     assertEquals(effect, 1)
+  }
+
+  test("bracket is stack safe (1)") { implicit sc =>
+    def loop(n: Int): Task[Unit] =
+      if (n > 0)
+        Task(n).bracket(n => Task(n - 1))(_ => Task.unit).flatMap(loop)
+      else
+        Task.unit
+
+    val cycles = if (Platform.isJVM) 100000 else 1000
+    val f = loop(cycles).runToFuture
+
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("bracket is stack safe (2)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 1000
+    val bracket = Task.unit.bracket(_ => Task.unit)(_ => Task.unit)
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      acc.flatMap(_ => bracket)
+    }
+
+    val f = task.runToFuture
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("bracket is stack safe (3)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 1000
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      acc.bracket(_ => Task.unit)(_ => Task.unit)
+    }
+
+    val f = task.runToFuture
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("bracket is stack safe (4)") { implicit sc =>
+    val cycles = if (Platform.isJVM) 100000 else 1000
+    val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
+      Task.unit.bracket(_ => acc)(_ => Task.unit)
+    }
+
+    val f = task.runToFuture
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
   }
 }

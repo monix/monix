@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import cats.effect.IO
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
@@ -32,23 +33,29 @@ import scala.concurrent.duration.MILLISECONDS
 object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("first execution can be sync") { implicit s =>
     var received = 0
-    Observable.fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
-      .take(1).subscribe { x => received += 1; Continue }
+    Observable
+      .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
+      .take(1)
+      .subscribe { x =>
+        received += 1; Continue
+      }
 
     assertEquals(received, 1)
   }
 
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
-    Observable.fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
+    Observable
+      .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
       .take(Platform.recommendedBatchSize * 3)
-      .subscribe { x => received += 1; Continue }
+      .subscribe { x =>
+        received += 1; Continue
+      }
 
     assertEquals(received, Platform.recommendedBatchSize / 2)
     s.tickOne()
@@ -59,9 +66,12 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
 
   test("should do async execution") { implicit s =>
     var received = 0
-    Observable.fromAsyncStateAction(intAsync)(s.clockMonotonic(MILLISECONDS))
+    Observable
+      .fromAsyncStateAction(intAsync)(s.clockMonotonic(MILLISECONDS))
       .take(Platform.recommendedBatchSize * 2)
-      .subscribe { x => received += 1; Continue }
+      .subscribe { x =>
+        received += 1; Continue
+      }
 
     s.tick()
     assertEquals(received, Platform.recommendedBatchSize * 2)
@@ -71,18 +81,18 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    val cancelable = Observable.fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
-      .unsafeSubscribeFn(
-        new Subscriber[Int] {
-          implicit val scheduler = s
-          def onNext(elem: Int) = {
-            sum += 1
-            Continue
-          }
+    val cancelable = Observable
+      .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
+      .unsafeSubscribeFn(new Subscriber[Int] {
+        implicit val scheduler = s
+        def onNext(elem: Int) = {
+          sum += 1
+          Continue
+        }
 
-          def onComplete() = wasCompleted = true
-          def onError(ex: Throwable) = wasCompleted = true
-        })
+        def onComplete() = wasCompleted = true
+        def onError(ex: Throwable) = wasCompleted = true
+      })
 
     cancelable.cancel()
     s.tick()
@@ -93,8 +103,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
 
   test("should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Observable.fromAsyncStateAction(intError(ex))(s.clockMonotonic(MILLISECONDS))
-      .runAsyncGetFirst
+    val f = Observable.fromAsyncStateAction(intError(ex))(s.clockMonotonic(MILLISECONDS)).runAsyncGetFirst
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -106,7 +115,9 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     val cancelable = Observable
       .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
-      .subscribe { _ => received += 1; Continue }
+      .subscribe { _ =>
+        received += 1; Continue
+      }
 
     assertEquals(received, 0)
     s.tickOne(); s.tickOne()
@@ -118,13 +129,27 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
+  test("should do async execution with cats.effect.IO") { implicit s =>
+    var received = 0
+    Observable
+      .fromAsyncStateActionF(intAsyncIO)(s.clockMonotonic(MILLISECONDS))
+      .take(Platform.recommendedBatchSize * 2)
+      .subscribe { _ =>
+        received += 1; Continue
+      }
+
+    s.tick()
+    assertEquals(received, Platform.recommendedBatchSize * 2)
+  }
+
+  def intAsyncIO(seed: Long): IO[(Int, Long)] = IO.async(cb => cb(Right(int(seed))))
   def intAsync(seed: Long) = Task.evalAsync(int(seed))
   def intNow(seed: Long) = Task.now(int(seed))
   def intError(ex: Throwable)(seed: Long) = Task.raiseError[(Int, Long)](ex)
 
   def int(seed: Long): (Int, Long) = {
     // `&` is bitwise AND. We use the current seed to generate a new seed.
-    val newSeed = (seed * 0x5DEECE66DL + 0xBL) & 0xFFFFFFFFFFFFL
+    val newSeed = (seed * 0X5DEECE66DL + 0XBL) & 0XFFFFFFFFFFFFL
     // The next state, which is an `RNG` instance created from the new seed.
     val nextRNG = newSeed
     // `>>>` is right binary shift with zero fill. The value `n` is our new pseudo-random integer.

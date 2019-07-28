@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,8 +48,7 @@ class CatsMonadToMonoid[F[_], A](implicit F: Monad[F], A: Monoid[A])
   * by Cats for any monad, probably because they aren't useful
   * for every monad.
   */
-class CatsMonadToSemigroup[F[_], A](implicit F: Monad[F], A: Semigroup[A])
-  extends Semigroup[F[A]] {
+class CatsMonadToSemigroup[F[_], A](implicit F: Monad[F], A: Semigroup[A]) extends Semigroup[F[A]] {
 
   override def combine(x: F[A], y: F[A]): F[A] =
     F.flatMap(x)(a1 => F.map(y)(a2 => A.combine(a1, a2)))

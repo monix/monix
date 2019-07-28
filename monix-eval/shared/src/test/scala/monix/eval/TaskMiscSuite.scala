@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,8 +57,7 @@ object TaskMiscSuite extends BaseTestSuite {
   test("Task.forever") { implicit s =>
     val ex = DummyException("dummy")
     var effect = 0
-    val result = Task.eval { if (effect < 10) effect += 1 else throw ex }
-      .loopForever
+    val result = Task.eval { if (effect < 10) effect += 1 else throw ex }.loopForever
       .onErrorFallbackTo(Task.eval(effect))
       .runToFuture
     assertEquals(result.value.get.get, 10)
@@ -130,8 +129,7 @@ object TaskMiscSuite extends BaseTestSuite {
     })
 
     s.tick()
-    assert(s.state.tasks.isEmpty,
-      "should not have tasks left to execute")
+    assert(s.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
   test("Task.toReactivePublisher should throw error on invalid request") { implicit s =>
@@ -153,8 +151,7 @@ object TaskMiscSuite extends BaseTestSuite {
     })
 
     s.tick()
-    assert(s.state.tasks.isEmpty,
-      "should not have tasks left to execute")
+    assert(s.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
   test("Task.pure is an alias of now") { implicit s =>

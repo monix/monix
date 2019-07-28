@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,14 +39,14 @@ object MinSuite extends BaseOperatorSuite {
       def compare(x: Long, y: Long): Int = throw ex
     }
 
-    val o = Observable.range(0, sourceCount+1).min(ord)
+    val o = Observable.range(0, sourceCount + 1).min(ord)
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 
   override def cancelableObservables() = {
     import scala.concurrent.duration._
     val o = Observable.now(1L).delayOnNext(1.second).min
-    Seq(Sample(o,0,0,0.seconds,0.seconds))
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
   test("empty observable should be empty") { implicit s =>

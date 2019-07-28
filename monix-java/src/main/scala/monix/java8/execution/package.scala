@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,6 @@ import java.util.function.BiFunction
 import monix.execution.{Cancelable, CancelableFuture}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
-
 
 /**
   * DEPRECATED — switch to Scala 2.12+ and [[monix.execution.FutureUtils]].

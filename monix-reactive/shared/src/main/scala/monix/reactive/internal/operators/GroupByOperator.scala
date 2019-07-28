@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.SingleProducer
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable, Scheduler}
@@ -29,21 +30,21 @@ import monix.reactive.{Observer, OverflowStrategy}
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
-private[reactive] final class GroupByOperator[A,K](
+private[reactive] final class GroupByOperator[A, K](
   os: OverflowStrategy.Synchronous[GroupedObservable[K, A]],
   keyFn: A => K)
-  extends Operator[A,GroupedObservable[K,A]] {
+  extends Operator[A, GroupedObservable[K, A]] {
 
   def apply(subscriber: Subscriber[GroupedObservable[K, A]]): Subscriber[A] =
     new Subscriber[A] { self =>
       implicit val scheduler: Scheduler = subscriber.scheduler
       private[this] var isDone = false
-      private[this] val downstream = BufferedSubscriber(subscriber, os)
+      private[this] val downstream = BufferedSubscriber(subscriber, os, SingleProducer)
       private[this] val cacheRef = Atomic(Map.empty[K, Observer[A]])
 
       @tailrec
       private[this] def recycleKey(key: K): Unit = {
-        val current = cacheRef.get
+        val current = cacheRef.get()
         if (!cacheRef.compareAndSet(current, current - key))
           recycleKey(key)
       }
@@ -52,8 +53,9 @@ private[reactive] final class GroupByOperator[A,K](
         onNext(elem)
 
       @tailrec def onNext(elem: A): Future[Ack] =
-        if (isDone) Stop else {
-          val cache = cacheRef.get
+        if (isDone) Stop
+        else {
+          val cache = cacheRef.get()
           var streamError = true
 
           val result = try {
@@ -72,7 +74,7 @@ private[reactive] final class GroupByOperator[A,K](
             } else {
               val onCancel = Cancelable(() => recycleKey(key))
               val (observer, observable) =
-                GroupedObservable.broadcast[K,A](key, onCancel)
+                GroupedObservable.broadcast[K, A](key, onCancel)
 
               if (cacheRef.compareAndSet(cache, cache.updated(key, observer)))
                 downstream.onNext(observable).syncFlatMap {
@@ -85,8 +87,7 @@ private[reactive] final class GroupByOperator[A,K](
                     if (errors.nonEmpty)
                       self.onError(CompositeException(errors))
                     Stop
-                }
-              else
+                } else
                 null // this will trigger a tailrec retry
             }
           } catch {
@@ -102,7 +103,7 @@ private[reactive] final class GroupByOperator[A,K](
         }
 
       private[this] def completeAll(): Seq[Throwable] = {
-        val cache = cacheRef.get
+        val cache = cacheRef.get()
 
         if (!cacheRef.compareAndSet(cache, Map.empty))
           completeAll()
@@ -111,8 +112,7 @@ private[reactive] final class GroupByOperator[A,K](
             try {
               o.onComplete()
               acc
-            }
-            catch {
+            } catch {
               case ex if NonFatal(ex) =>
                 acc :+ ex
             }

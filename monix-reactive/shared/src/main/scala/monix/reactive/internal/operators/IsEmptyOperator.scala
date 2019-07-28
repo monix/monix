@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import monix.execution.Ack.Stop
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] object IsEmptyOperator extends Operator[Any,Boolean] {
+private[reactive] object IsEmptyOperator extends Operator[Any, Boolean] {
   def apply(out: Subscriber[Boolean]): Subscriber[Any] =
     new Subscriber[Any] {
       implicit val scheduler = out.scheduler

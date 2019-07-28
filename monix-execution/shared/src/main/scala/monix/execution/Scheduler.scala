@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,6 @@
 package monix.execution
 
 import java.util.concurrent.Executor
-import cats.implicits._
-import cats.effect._
-import monix.execution.internal.AttemptCallback.RunnableTick
 import monix.execution.internal.RunnableAction
 import monix.execution.schedulers.SchedulerCompanionImpl
 import scala.annotation.implicitNotFound
@@ -32,7 +29,7 @@ import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, TimeUnit}
   */
 @implicitNotFound(
   "Cannot find an implicit Scheduler, either " +
-  "import monix.execution.Scheduler.Implicits.global or use a custom one")
+    "import monix.execution.Scheduler.Implicits.global or use a custom one")
 trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Executor {
   /** Schedules the given `command` for execution at some time in the future.
     *
@@ -236,6 +233,8 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     * }}}
     */
   def withExecutionModel(em: ExecutionModel): Scheduler
+
+  def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler
 }
 
 private[monix] trait SchedulerCompanion {
@@ -254,97 +253,6 @@ object Scheduler extends SchedulerCompanionImpl {
 
   /** Utilities complementing the `Scheduler` interface. */
   implicit final class Extensions(val source: Scheduler) extends AnyVal with schedulers.ExecuteExtensions {
-
-    /**
-      * Derives a `cats.effect.Clock` from [[Scheduler]] for any
-      * data type that has a `cats.effect.LiftIO` implementation.
-      */
-    def clock[F[_]](implicit F: Sync[F]): Clock[F] =
-      new Clock[F] {
-        override def realTime(unit: TimeUnit): F[Long] =
-          F.delay(source.clockRealTime(unit))
-        override def monotonic(unit: TimeUnit): F[Long] =
-          F.delay(source.clockMonotonic(unit))
-      }
-
-    /**
-      * Derives a `cats.effect.Timer` from [[Scheduler]] for any
-      * data type that has a `cats.effect.Concurrent` type class
-      * instance.
-      *
-      * {{{
-      *   implicit val timer: Timer[IO] = scheduler.timer[IO]
-      *
-      *   IO.sleep(10.seconds).flatMap { _ =>
-      *     IO(println("Delayed hello!"))
-      *   }
-      * }}}
-      */
-    def timer[F[_]](implicit F: Concurrent[F]): Timer[F] =
-      new Timer[F] {
-        override def sleep(d: FiniteDuration): F[Unit] =
-          F.cancelable { cb =>
-            source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
-              .toCancelToken[F]
-          }
-        override def clock: Clock[F] =
-          source.clock
-      }
-
-    /**
-      * Derives a `cats.effect.Timer` from [[Scheduler]] for any
-      * data type that has a `cats.effect.LiftIO` instance.
-      *
-      * This is the relaxed [[timer]] method, needing only `LiftIO`
-      * to work, by piggybacking on `cats.effect.IO`.
-      *
-      * {{{
-      *   implicit val timer: Timer[IO] = scheduler.timerLiftIO[IO]
-      *
-      *   IO.sleep(10.seconds).flatMap { _ =>
-      *     IO(println("Delayed hello!"))
-      *   }
-      * }}}
-      */
-    def timerLiftIO[F[_]](implicit F: LiftIO[F]): Timer[F] =
-      new Timer[F] {
-        override def sleep(d: FiniteDuration): F[Unit] =
-          F.liftIO(IO.cancelable { cb =>
-            source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
-              .toCancelToken[IO]
-          })
-        override def clock: Clock[F] =
-          new Clock[F] {
-            def realTime(unit: TimeUnit): F[Long] =
-              F.liftIO(IO(source.clockRealTime(unit)))
-            def monotonic(unit: TimeUnit): F[Long] =
-              F.liftIO(IO(source.clockMonotonic(unit)))
-          }
-      }
-
-    /**
-      * Derives a `cats.effect.ContextShift` from [[Scheduler]] for any
-      * data type that has a `cats.effect.Effect` implementation.
-      *
-      * {{{
-      *   val contextShift: ContextShift[IO] = scheduler.contextShift[IO]
-      *   val executor = Executors.newCachedThreadPool()
-      *   val ec = ExecutionContext.fromExecutor(executor)
-      *
-      *   contextShift.evalOn(ec)(IO(println("I'm on different thread pool!"))
-      *     .flatMap { _ =>
-      *       IO(println("I came back to default"))
-      *     }
-      * }}}
-      */
-    def contextShift[F[_]](implicit F: Async[F]): ContextShift[F] =
-      new ContextShift[F] {
-        override def shift: F[Unit] =
-          Async.shift(source)
-        override def evalOn[A](ec: ExecutionContext)(fa: F[A]): F[A] =
-          Async.shift(ec).flatMap(_ => fa.flatMap(a => shift.map(_ => a)))
-      }
-
     /** Schedules a task to run in the future, after `initialDelay`.
       *
       * For example the following schedules a message to be printed to
@@ -389,11 +297,9 @@ object Scheduler extends SchedulerCompanionImpl {
       * @return a cancelable that can be used to cancel the execution of
       *         this repeated task at any time.
       */
-    def scheduleWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)
-      (action: => Unit): Cancelable = {
+    def scheduleWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(action: => Unit): Cancelable = {
 
-      source.scheduleWithFixedDelay(initialDelay.toMillis, delay.toMillis, MILLISECONDS,
-        RunnableAction(action))
+      source.scheduleWithFixedDelay(initialDelay.toMillis, delay.toMillis, MILLISECONDS, RunnableAction(action))
     }
 
     /** Schedules a periodic task that becomes enabled first after the given
@@ -424,11 +330,9 @@ object Scheduler extends SchedulerCompanionImpl {
       * @return a cancelable that can be used to cancel the execution of
       *         this repeated task at any time.
       */
-    def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)
-      (action: => Unit): Cancelable = {
+    def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(action: => Unit): Cancelable = {
 
-      source.scheduleAtFixedRate(initialDelay.toMillis, period.toMillis, MILLISECONDS,
-        RunnableAction(action))
+      source.scheduleAtFixedRate(initialDelay.toMillis, period.toMillis, MILLISECONDS, RunnableAction(action))
     }
 
     /** DEPRECATED — use [[Scheduler.clockRealTime clockRealTime(MILLISECONDS)]]. */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ import scala.util.Failure
 object MapTaskConsumerSuite extends BaseTestSuite {
   test("consumer.mapTask equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
-      val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
+      val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val t1 = obs.consumeWith(consumer.mapTask(x => Task.evalAsync(x + 100)))
       val t2 = obs.consumeWith(consumer).map(_ + 100)
       t1 <-> t2
@@ -37,10 +37,10 @@ object MapTaskConsumerSuite extends BaseTestSuite {
   test("consumer.mapTask streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
-      val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
+      val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
 
       val t1 = withError.consumeWith(consumer.mapTask(x => Task.evalAsync(x + 100)))
-      val t2 = withError.consumeWith(consumer).map(_+100)
+      val t2 = withError.consumeWith(consumer).map(_ + 100)
       t1 <-> t2
     }
   }
@@ -67,7 +67,7 @@ object MapTaskConsumerSuite extends BaseTestSuite {
 
   test("consumer.mapTask(sync) equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
-      val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
+      val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val t1 = obs.consumeWith(consumer.mapTask(x => Task.eval(x + 100)))
       val t2 = obs.consumeWith(consumer).map(_ + 100)
       t1 <-> t2
@@ -77,10 +77,10 @@ object MapTaskConsumerSuite extends BaseTestSuite {
   test("consumer.mapTask(sync) streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
-      val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
+      val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
 
       val t1 = withError.consumeWith(consumer.mapTask(x => Task.eval(x + 100)))
-      val t2 = withError.consumeWith(consumer).map(_+100)
+      val t2 = withError.consumeWith(consumer).map(_ + 100)
       t1 <-> t2
     }
   }
@@ -93,5 +93,25 @@ object MapTaskConsumerSuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("consumer.mapTask(async) propagates cancellation") { implicit s =>
+    var taskCancelled = false
+    val f = Observable(1)
+      .consumeWith(
+        Consumer
+          .head[Int]
+          .mapTask(_ =>
+            Task
+              .never[Int]
+              .doOnCancel(Task {
+                taskCancelled = true
+              })))
+      .runToFuture
+
+    s.tick()
+    f.cancel()
+    s.tick()
+    assert(taskCancelled)
   }
 }

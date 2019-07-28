@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,9 @@
 package monix.reactive.observers
 
 import minitest.TestSuite
+import monix.eval.Coeval
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.MultiProducer
 import monix.execution.atomic.AtomicLong
 import monix.execution.internal.{Platform, RunnableAction}
 import monix.execution.schedulers.TestScheduler
@@ -26,27 +28,31 @@ import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.DropOldAndSignal
 import monix.execution.exceptions.DummyException
+
 import scala.concurrent.{Future, Promise}
 
 object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  def buildNewWithSignal(bufferSize: Int, underlying: Observer[Int])
-    (implicit s: Scheduler) = {
+  def buildNewWithSignal(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
 
     BufferedSubscriber.synchronous(
-      Subscriber(underlying, s), DropOldAndSignal(bufferSize, nr => Some(nr.toInt)))
+      Subscriber(underlying, s),
+      DropOldAndSignal(bufferSize, nr => Coeval(Some(nr.toInt))),
+      MultiProducer
+    )
   }
 
-  def buildNewWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)
-    (implicit s: Scheduler) = {
+  def buildNewWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)(implicit s: Scheduler) = {
 
     BufferedSubscriber.synchronous[Int](
-      Subscriber(underlying, s), DropOldAndSignal(bufferSize, { nr => log.set(nr); None }))
+      Subscriber(underlying, s),
+      DropOldAndSignal(bufferSize, nr => Coeval { log.set(nr); None }),
+      MultiProducer
+    )
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -101,7 +107,7 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+        s.execute(RunnableAction { buffer.onNext(n); loop(n - 1) })
       else
         buffer.onComplete()
 
@@ -190,14 +196,14 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     val dropped = if (Platform.isJVM) 993 else 986
 
     assertEquals(received, (first to 1100).sum + 28)
-    assertEquals(log.get, dropped)
+    assertEquals(log.get(), dropped)
 
     log.set(0)
     assertEquals(buffer.onNext(42), Continue)
 
     s.tick()
 
-    assertEquals(log.get, 0)
+    assertEquals(log.get(), 0)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")
@@ -205,14 +211,17 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
 
   test("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
-    val buffer = buildNewWithSignal(5, new Observer[Int] {
-      def onError(ex: Throwable) = {
-        errorThrown = ex
-      }
+    val buffer = buildNewWithSignal(
+      5,
+      new Observer[Int] {
+        def onError(ex: Throwable) = {
+          errorThrown = ex
+        }
 
-      def onNext(elem: Int) = throw new IllegalStateException()
-      def onComplete() = throw new IllegalStateException()
-    })
+        def onNext(elem: Int) = throw new IllegalStateException()
+        def onComplete() = throw new IllegalStateException()
+      }
+    )
 
     buffer.onError(DummyException("dummy"))
     s.tickOne()
@@ -309,14 +318,17 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val startConsuming = Promise[Continue.type]()
 
-    val buffer = buildNewWithSignal(10000, new Observer[Int] {
-      def onNext(elem: Int) = {
-        sum += elem
-        startConsuming.future
+    val buffer = buildNewWithSignal(
+      10000,
+      new Observer[Int] {
+        def onNext(elem: Int) = {
+          sum += elem
+          startConsuming.future
+        }
+        def onError(ex: Throwable) = errorThrown = ex
+        def onComplete() = throw new IllegalStateException()
       }
-      def onError(ex: Throwable) = errorThrown = ex
-      def onComplete() = throw new IllegalStateException()
-    })
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -352,15 +364,18 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer = buildNewWithSignal(Platform.recommendedBatchSize * 3, new Observer[Int] {
-      def onNext(elem: Int) = {
-        received += 1
-        Continue
-      }
+    val buffer = buildNewWithSignal(
+      Platform.recommendedBatchSize * 3,
+      new Observer[Int] {
+        def onNext(elem: Int) = {
+          received += 1
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      }
+    )
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()

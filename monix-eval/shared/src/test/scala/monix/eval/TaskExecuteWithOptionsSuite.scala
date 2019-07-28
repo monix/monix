@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,9 @@ import scala.util.Success
 
 object TaskExecuteWithOptionsSuite extends BaseTestSuite {
   test("executeWithOptions works") { implicit s =>
-    val task = Task.eval(1).flatMap(_ => Task.eval(2))
+    val task = Task
+      .eval(1)
+      .flatMap(_ => Task.eval(2))
       .flatMap(_ => Task.readOptions)
       .executeWithOptions(_.enableLocalContextPropagation)
       .flatMap(opt1 => Task.readOptions.map(opt2 => (opt1, opt2)))

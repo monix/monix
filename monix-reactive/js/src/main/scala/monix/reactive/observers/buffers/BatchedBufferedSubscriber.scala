@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,12 +25,12 @@ import scala.collection.mutable.ListBuffer
   * [[monix.reactive.OverflowStrategy.BackPressure BackPressured]]
   * buffer overflowStrategy that sends events in bundles.
   */
-private[monix] final class BatchedBufferedSubscriber[A] private
-  (out: Subscriber[List[A]], bufferSize: Int)
+private[monix] final class BatchedBufferedSubscriber[A] private (out: Subscriber[List[A]], bufferSize: Int)
   extends AbstractBackPressuredBufferedSubscriber[A, List[A]](out, bufferSize) { self =>
 
   override protected def fetchNext(): List[A] =
-    if (queue.isEmpty) null else {
+    if (queue.isEmpty) null
+    else {
       val buffer = ListBuffer.empty[A]
       queue.drainToBuffer(buffer, Platform.recommendedBatchSize)
       buffer.toList

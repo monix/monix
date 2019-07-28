@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -63,7 +63,6 @@ object InlineMacrosTest extends SimpleTestSuite {
     }
   }
 
-
   test("Inline function with underscore") {
     val box = TestBox(1)
     val mapped = box.map(_ + 1)
@@ -117,7 +116,8 @@ object InlineMacrosTest extends SimpleTestSuite {
     def increment(x: Int): Int = throw dummy
 
     val mapped = box.map { x =>
-      try increment(x) catch {
+      try increment(x)
+      catch {
         case ex if NonFatal(ex) =>
           assertEquals(ex, dummy)
           x + 1

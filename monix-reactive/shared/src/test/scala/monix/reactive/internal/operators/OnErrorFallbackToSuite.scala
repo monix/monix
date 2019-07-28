@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,12 +24,13 @@ import scala.concurrent.duration.Duration.Zero
 
 object OnErrorFallbackToSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val obs = Observable.range(0, sourceCount)
+    val obs = Observable
+      .range(0, sourceCount)
       .endWithError(DummyException("expected"))
       .onErrorFallbackTo(Observable.range(0, 10))
 
-    val sum = sourceCount * (sourceCount-1) / 2 + 9 * 5
-    Sample(obs, sourceCount+10, sum, Zero, Zero)
+    val sum = sourceCount * (sourceCount - 1) / 2 + 9 * 5
+    Sample(obs, sourceCount + 10, sum, Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
@@ -37,7 +38,9 @@ object OnErrorFallbackToSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val fallback = Observable.range(0, 10).delayOnNext(1.second)
-    val sample = Observable.range(0, 10).map(_ => 1L)
+    val sample = Observable
+      .range(0, 10)
+      .map(_ => 1L)
       .delayOnNext(1.second)
       .endWithError(DummyException("expected"))
       .onErrorFallbackTo(fallback)

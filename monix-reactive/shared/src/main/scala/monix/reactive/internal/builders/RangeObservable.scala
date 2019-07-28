@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,8 +28,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /** Generates ranges */
-private[reactive] final class RangeObservable(from: Long, until: Long, step: Long = 1)
-  extends Observable[Long] {
+private[reactive] final class RangeObservable(from: Long, until: Long, step: Long = 1) extends Observable[Long] {
 
   require(step != 0, "step != 0")
 
@@ -46,12 +45,11 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
   }
 
   @tailrec
-  private def loop(c: BooleanCancelable, downstream: Subscriber[Long],
-    em: ExecutionModel, from: Long, syncIndex: Int)
-    (implicit s: Scheduler): Unit = {
+  private def loop(c: BooleanCancelable, downstream: Subscriber[Long], em: ExecutionModel, from: Long, syncIndex: Int)(
+    implicit s: Scheduler): Unit = {
 
     val ack = downstream.onNext(from)
-    val nextFrom = from+step
+    val nextFrom = from + step
 
     if (!isNextInRange(from, nextFrom, until, step))
       downstream.onComplete()
@@ -73,8 +71,7 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
     ack: Future[Ack],
     downstream: Subscriber[Long],
     em: ExecutionModel,
-    from: Long)
-    (implicit s: Scheduler): Unit = {
+    from: Long)(implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(success) =>

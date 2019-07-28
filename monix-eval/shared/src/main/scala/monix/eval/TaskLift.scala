@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,8 @@
 package monix.eval
 
 import cats.effect._
+import cats.~>
+import monix.eval.internal.TaskConversions
 import scala.annotation.implicitNotFound
 
 /**
@@ -28,7 +30,7 @@ import scala.annotation.implicitNotFound
 @implicitNotFound("""Cannot find implicit value for TaskLift[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait TaskLift[F[_]] {
+trait TaskLift[F[_]] extends (Task ~> F) {
   /**
     * Converts `Task[A]` into `F[A]`.
     *
@@ -38,7 +40,7 @@ trait TaskLift[F[_]] {
     * (although this isn't possible for conversions to
     * `cats.effect.Async` data types that are not also `Concurrent`).
     */
-  def taskLift[A](task: Task[A]): F[A]
+  def apply[A](task: Task[A]): F[A]
 }
 
 object TaskLift extends TaskLiftImplicits0 {
@@ -52,7 +54,7 @@ object TaskLift extends TaskLiftImplicits0 {
     */
   implicit val toTask: TaskLift[Task] =
     new TaskLift[Task] {
-      def taskLift[A](task: Task[A]): Task[A] = task
+      def apply[A](task: Task[A]): Task[A] = task
     }
 
   /**
@@ -61,9 +63,22 @@ object TaskLift extends TaskLiftImplicits0 {
     */
   implicit def toIO(implicit eff: ConcurrentEffect[Task]): TaskLift[IO] =
     new TaskLift[IO] {
-      def taskLift[A](task: Task[A]): IO[A] =
-        task.toIO(eff)
+      def apply[A](task: Task[A]): IO[A] =
+        TaskConversions.toIO(task)(eff)
     }
+
+  /**
+    * Deprecated method, which happened on extending `FunctionK`.
+    */
+  implicit class Deprecated[F[_]](val inst: TaskLift[F]) {
+    /** DEPRECATED — switch to [[TaskLift.apply]]. */
+    @deprecated("Switch to TaskLift.apply", since = "3.0.0-RC3")
+    def taskLift[A](task: Task[A]): F[A] = {
+      // $COVERAGE-OFF$
+      inst(task)
+      // $COVERAGE-ON$
+    }
+  }
 }
 
 private[eval] abstract class TaskLiftImplicits0 extends TaskLiftImplicits1 {
@@ -73,7 +88,7 @@ private[eval] abstract class TaskLiftImplicits0 extends TaskLiftImplicits1 {
     */
   implicit def toConcurrent[F[_]](implicit F: Concurrent[F], eff: ConcurrentEffect[Task]): TaskLift[F] =
     new TaskLift[F] {
-      def taskLift[A](task: Task[A]): F[A] =
+      def apply[A](task: Task[A]): F[A] =
         task.toConcurrent(F, eff)
     }
 }
@@ -83,9 +98,9 @@ private[eval] abstract class TaskLiftImplicits1 extends TaskLiftImplicits2 {
     * Instance for converting to any type implementing
     * [[https://typelevel.org/cats-effect/typeclasses/async.html cats.effect.Async]].
     */
-  implicit def toAsync[F[_]](implicit F: Async[F],eff: Effect[Task]): TaskLift[F] =
+  implicit def toAsync[F[_]](implicit F: Async[F], eff: Effect[Task]): TaskLift[F] =
     new TaskLift[F] {
-      def taskLift[A](task: Task[A]): F[A] =
+      def apply[A](task: Task[A]): F[A] =
         task.toAsync(F, eff)
     }
 }
@@ -97,7 +112,7 @@ private[eval] abstract class TaskLiftImplicits2 {
     */
   implicit def toAnyLiftIO[F[_]](implicit F: LiftIO[F], eff: ConcurrentEffect[Task]): TaskLift[F] =
     new TaskLift[F] {
-      def taskLift[A](task: Task[A]): F[A] =
-        F.liftIO(task.toIO(eff))
+      def apply[A](task: Task[A]): F[A] =
+        F.liftIO(TaskConversions.toIO(task)(eff))
     }
 }

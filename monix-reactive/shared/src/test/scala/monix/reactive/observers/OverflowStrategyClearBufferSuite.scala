@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +19,8 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.internal.{RunnableAction, Platform}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.internal.{Platform, RunnableAction}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.ClearBuffer
@@ -31,8 +31,7 @@ import scala.concurrent.{Future, Promise}
 object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -87,7 +86,7 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+        s.execute(RunnableAction { buffer.onNext(n); loop(n - 1) })
       else
         buffer.onComplete()
 
@@ -150,7 +149,9 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, ClearBuffer(5))
+      },
+      ClearBuffer(5)
+    )
 
     buffer.onError(DummyException("dummy"))
     s.tickOne()
@@ -170,7 +171,9 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = Continue
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, ClearBuffer(5))
+      },
+      ClearBuffer(5)
+    )
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
@@ -191,7 +194,9 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = promise.future
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, ClearBuffer(5))
+      },
+      ClearBuffer(5)
+    )
 
     for (i <- 1 to 10) assertEquals(buffer.onNext(i), Continue)
     buffer.onError(DummyException("dummy"))
@@ -216,7 +221,9 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, ClearBuffer(10000))
+      },
+      ClearBuffer(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -240,7 +247,9 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, ClearBuffer(10000))
+      },
+      ClearBuffer(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -264,7 +273,9 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, ClearBuffer(10000))
+      },
+      ClearBuffer(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -288,7 +299,9 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, ClearBuffer(10000))
+      },
+      ClearBuffer(10000)
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -302,15 +315,18 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer = buildNewWithSignal(Platform.recommendedBatchSize * 3, new Observer[Int] {
-      def onNext(elem: Int) = {
-        received += 1
-        Continue
-      }
+    val buffer = buildNewWithSignal(
+      Platform.recommendedBatchSize * 3,
+      new Observer[Int] {
+        def onNext(elem: Int) = {
+          received += 1
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      }
+    )
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
@@ -323,7 +339,6 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(wasCompleted, true)
   }
-
 
   test("subscriber STOP after a synchronous onNext") { implicit s =>
     var received = 0
@@ -562,8 +577,7 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assert(errorThrown != null, "errorThrown != null")
-    assert(errorThrown.isInstanceOf[NullPointerException],
-      "errorThrown.isInstanceOf[NullPointerException]")
+    assert(errorThrown.isInstanceOf[NullPointerException], "errorThrown.isInstanceOf[NullPointerException]")
   }
 
   test("buffer size is required to be greater than 1") { implicit s =>

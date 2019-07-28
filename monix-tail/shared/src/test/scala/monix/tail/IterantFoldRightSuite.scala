@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,8 +41,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
       if (!p(e)) Coeval(false) else next
     }
 
-  def concat[F[_], A](lh: Iterant[F, A], rh: Iterant[F, A])
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def concat[F[_], A](lh: Iterant[F, A], rh: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] = {
 
     Iterant.suspend[F, A] {
       lh.foldRightL(F.pure(rh)) { (a, rest) =>
@@ -78,10 +77,11 @@ object IterantFoldRightSuite extends BaseTestSuite {
           throw new IllegalStateException("acquire 1")
       },
       _ => Coeval(Iterant.pure(1)),
-      (_, _) => Coeval {
-        if (!state.compareAndSet(1, 0))
-          throw new IllegalStateException("release 1")
-      }
+      (_, _) =>
+        Coeval {
+          if (!state.compareAndSet(1, 0))
+            throw new IllegalStateException("release 1")
+        }
     )
 
     val rh = Iterant[Coeval].scopeS[Unit, Int](
@@ -90,10 +90,11 @@ object IterantFoldRightSuite extends BaseTestSuite {
           throw new IllegalStateException("acquire 2")
       },
       _ => Coeval(Iterant.pure(2)),
-      (_, _) => Coeval {
-        if (!state.compareAndSet(2, 0))
-          throw new IllegalStateException("release 2")
-      }
+      (_, _) =>
+        Coeval {
+          if (!state.compareAndSet(2, 0))
+            throw new IllegalStateException("release 2")
+        }
     )
 
     val list = concat(lh, rh).toListL.value()
@@ -120,7 +121,8 @@ object IterantFoldRightSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val ref = Iterant[Coeval].of(1, 2, 3)
+    val ref = Iterant[Coeval]
+      .of(1, 2, 3)
       .guarantee(Coeval { effect += 1 })
       .foldRightL(Coeval(0))((_, _) => throw dummy)
 
@@ -133,7 +135,8 @@ object IterantFoldRightSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val ref = Iterant[Coeval].nextCursorS(ThrowExceptionCursor[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
+    val ref = Iterant[Coeval]
+      .nextCursorS(ThrowExceptionCursor[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval { effect += 1 })
       .foldRightL(Coeval(0))((a, acc) => acc.map(_ + a))
 
@@ -146,7 +149,8 @@ object IterantFoldRightSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val ref = Iterant[Coeval].nextBatchS(ThrowExceptionBatch[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
+    val ref = Iterant[Coeval]
+      .nextBatchS(ThrowExceptionBatch[Int](dummy), Coeval(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval { effect += 1 })
       .foldRightL(Coeval(0))((a, acc) => acc.map(_ + a))
 

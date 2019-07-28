@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,10 +32,9 @@ object LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
         (pos % 15) + 1
       }
 
-      val consumer = Consumer.loadBalance(parallelism,
-        Consumer.foldLeft[Long,Int](0L)(_+_))
+      val consumer = Consumer.loadBalance(parallelism, Consumer.foldLeft[Long, Int](0L)(_ + _))
 
-      val task1 = source.foldLeft(0L)(_+_).firstL
+      val task1 = source.foldLeft(0L)(_ + _).firstL
       val task2 = source.consumeWith(consumer).map(_.sum)
       task1 <-> task2
     }
@@ -50,13 +49,12 @@ object LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
         (pos % 15) + 1
       }
 
-      val fold = Consumer.foldLeft[Long,Int](0L)(_+_)
+      val fold = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val justOne = Consumer.headOption[Int].map(_.getOrElse(0).toLong)
-      val allConsumers = for (i <- 0 until parallelism) yield
-        if (i % 2 == 0) fold else justOne
+      val allConsumers = for (i <- 0 until parallelism) yield if (i % 2 == 0) fold else justOne
 
-      val consumer = Consumer.loadBalance(allConsumers:_*)
-      val task1 = source.foldLeft(0L)(_+_).firstL
+      val consumer = Consumer.loadBalance(allConsumers: _*)
+      val task1 = source.foldLeft(0L)(_ + _).firstL
       val task2 = source.consumeWith(consumer).map(_.sum)
       task1 <-> task2
     }

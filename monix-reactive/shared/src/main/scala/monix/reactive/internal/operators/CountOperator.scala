@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] object CountOperator extends Operator[Any,Long] {
+private[reactive] object CountOperator extends Operator[Any, Long] {
   def apply(out: Subscriber[Long]): Subscriber[Any] =
     new Subscriber[Any] {
       implicit val scheduler = out.scheduler

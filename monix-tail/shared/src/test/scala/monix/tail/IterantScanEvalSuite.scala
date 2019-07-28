@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,7 +39,7 @@ object IterantScanEvalSuite extends BaseTestSuite {
 
     check2 { (list: List[Int], idx: Int) =>
       val source = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
-      val seed = Coeval.now(Init : State[Person])
+      val seed = Coeval.now(Init: State[Person])
 
       val scanned = source.scanEval(seed) { (state, id) =>
         requestPersonDetails(id).map { person =>
@@ -57,11 +57,14 @@ object IterantScanEvalSuite extends BaseTestSuite {
         .collect { case Current(Some(p), _) => p.name }
         .toListL
 
-      val expected = source.take(20).toListL.map(ls =>
-        ls.take(19)
-          .map(x => requestPersonDetails(x).value())
-          .collect { case Some(p) => p.name }
-      )
+      val expected = source
+        .take(20)
+        .toListL
+        .map(
+          ls =>
+            ls.take(19)
+              .map(x => requestPersonDetails(x).value())
+              .collect { case Some(p) => p.name })
 
       fa <-> expected
     }

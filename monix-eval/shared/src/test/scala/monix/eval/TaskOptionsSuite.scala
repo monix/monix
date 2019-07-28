@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,9 @@ object TaskOptionsSuite extends SimpleTestSuite {
   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
   def extractOptions[A](fa: Task[A]): Task[Options] =
-    Task.Async { (ctx, cb) => cb.onSuccess(ctx.options) }
+    Task.Async { (ctx, cb) =>
+      cb.onSuccess(ctx.options)
+    }
 
   testAsync("change options with future") {
     val task = extractOptions(Task.now(1)).map { r =>

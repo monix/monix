@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,12 +30,13 @@ private[eval] object TaskGather {
   /**
     * Implementation for `Task.gather`
     */
-  def apply[A, M[X] <: TraversableOnce[X]](in: TraversableOnce[Task[A]], makeBuilder: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
+  def apply[A, M[X] <: Iterable[X]](in: Iterable[Task[A]], makeBuilder: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
     Async(
       new Register(in, makeBuilder),
       trampolineBefore = true,
       trampolineAfter = true,
-      restoreLocals = true)
+      restoreLocals = true
+    )
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
@@ -43,8 +44,8 @@ private[eval] object TaskGather {
   //
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
-  private final class Register[A, M[X] <: TraversableOnce[X]](
-    in: TraversableOnce[Task[A]],
+  private final class Register[A, M[X] <: Iterable[X]](
+    in: Iterable[Task[A]],
     makeBuilder: () => mutable.Builder[A, M[A]])
     extends ForkedRegister[M[A]] {
 
@@ -64,8 +65,8 @@ private[eval] object TaskGather {
 
       // MUST BE synchronized by `lock`!
       // MUST NOT BE called if isActive == false!
-      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[Throwable, M[A]])
-        (implicit s: Scheduler): Unit = {
+      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[Throwable, M[A]])(
+        implicit s: Scheduler): Unit = {
 
         completed += 1
         if (completed >= tasksCount) {
@@ -86,8 +87,7 @@ private[eval] object TaskGather {
       }
 
       // MUST BE synchronized by `lock`!
-      def reportError(mainConn: TaskConnection, ex: Throwable)
-        (implicit s: Scheduler): Unit = {
+      def reportError(mainConn: TaskConnection, ex: Throwable)(implicit s: Scheduler): Unit = {
 
         if (isActive) {
           isActive = false
@@ -109,16 +109,13 @@ private[eval] object TaskGather {
         if (tasksCount == 0) {
           // With no tasks available, we need to return an empty sequence;
           // Needs to ensure full async delivery due to implementing ForkedStart!
-          context.scheduler.executeAsync(() =>
-            finalCallback.onSuccess(makeBuilder().result()))
-        }
-        else if (tasksCount == 1) {
+          context.scheduler.executeAsync(() => finalCallback.onSuccess(makeBuilder().result()))
+        } else if (tasksCount == 1) {
           // If it's a single task, then execute it directly
           val source = tasks(0).map(r => (makeBuilder() += r).result())
           // Needs to ensure full async delivery due to implementing ForkedStart!
           Task.unsafeStartEnsureAsync(source, context, finalCallback)
-        }
-        else {
+        } else {
           results = new Array[AnyRef](tasksCount)
 
           // Collecting all cancelables in a buffer, because adding
@@ -139,7 +136,9 @@ private[eval] object TaskGather {
             allCancelables += stacked.cancel
 
             // Light asynchronous boundary
-            Task.unsafeStartEnsureAsync(tasks(idx), childContext,
+            Task.unsafeStartEnsureAsync(
+              tasks(idx),
+              childContext,
               new Callback[Throwable, A] {
                 def onSuccess(value: A): Unit =
                   lock.synchronized {
@@ -151,7 +150,8 @@ private[eval] object TaskGather {
 
                 def onError(ex: Throwable): Unit =
                   lock.synchronized(reportError(mainConn, ex))
-              })
+              }
+            )
 
             idx += 1
           }

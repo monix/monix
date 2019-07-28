@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +21,7 @@ import monix.execution.internal.InternalApi;
 import scala.util.control.NonFatal;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 /**
  * INTERNAL API — Provides access to `sun.misc.Unsafe`.
@@ -144,9 +145,19 @@ import java.lang.reflect.Field;
           if (!NonFatal.apply(e)) throw e;
         }
 
+        boolean supportsMemoryFences = false;
+        try {
+          Method m = cls.getDeclaredMethod("fullFence");
+          supportsMemoryFences = m != null;
+        }
+        catch (Exception e) {
+          if (!NonFatal.apply(e)) throw e;
+        }
+
         isJava8 = supportsGetAndSet &&
           supportsGetAndAddInt &&
-          supportsGetAndAddLong;
+          supportsGetAndAddLong &&
+          supportsMemoryFences;
       }
     }
     catch (Exception ex) {

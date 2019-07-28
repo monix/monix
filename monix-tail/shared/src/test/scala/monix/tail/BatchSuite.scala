@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,12 +22,13 @@ import org.scalacheck.Arbitrary
 
 import scala.reflect.ClassTag
 
-abstract class BatchSuite[A : ClassTag](implicit
+abstract class BatchSuite[A: ClassTag](
+  implicit
   arbA: Arbitrary[A],
   arbAtoA: Arbitrary[A => A],
   arbAtoBoolean: Arbitrary[A => Boolean])
   extends BaseTestSuite {
- 
+
   type Batch <: batches.Batch[A]
 
   def fromList(list: List[A]): Batch
@@ -119,14 +120,14 @@ abstract class BatchSuite[A : ClassTag](implicit
   test("batch.slice(5,5).toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
-      batch.slice(5,5).toList == list.slice(5,5)
+      batch.slice(5, 5).toList == list.slice(5, 5)
     }
   }
 
   test("batch.slice(5,10).toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
-      batch.slice(5,10).toList == list.slice(5, 10)
+      batch.slice(5, 10).toList == list.slice(5, 10)
     }
   }
 

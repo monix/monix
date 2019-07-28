@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,9 @@ package monix.execution
   * For abstractions that use an internal buffer, like [[AsyncQueue]],
   * this type provides the info required to build the internal buffer.
   */
-sealed abstract class BufferCapacity extends Product with Serializable
+sealed abstract class BufferCapacity extends Product with Serializable {
+  def isBounded: Boolean
+}
 
 object BufferCapacity {
   /**
@@ -36,8 +38,10 @@ object BufferCapacity {
     * rounded to a power of 2 for optimization purposes, so it's not
     * necessarily a precise measurement of how many elements can be stored.
     */
-  final case class Bounded(capacity: Int)
-    extends BufferCapacity
+  final case class Bounded(capacity: Int) extends BufferCapacity {
+
+    def isBounded = true
+  }
 
   /**
     * Describes an unbounded buffer that can use the entire memory available.
@@ -47,6 +51,8 @@ object BufferCapacity {
     *        the desired chunk size; this parameter is just a hint and
     *        implementations don't guarantee its usage
     */
-  final case class Unbounded(chunkSizeHint: Option[Int] = None)
-    extends BufferCapacity
+  final case class Unbounded(chunkSizeHint: Option[Int] = None) extends BufferCapacity {
+
+    def isBounded = false
+  }
 }

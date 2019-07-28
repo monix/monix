@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,10 +35,11 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.range(1, 10).takeWhile(_ <= 1)
-      else
-        Observable.range(1, sourceCount * 2).takeWhile(_ <= sourceCount)
+      val o =
+        if (sourceCount == 1)
+          Observable.range(1, 10).takeWhile(_ <= 1)
+        else
+          Observable.range(1, sourceCount * 2).takeWhile(_ <= sourceCount)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -48,8 +49,8 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val o = createObservableEndingInError(Observable.range(1, sourceCount+1), ex)
-          .takeWhile(_ <= sourceCount * 2)
+      val o = createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)
+        .takeWhile(_ <= sourceCount * 2)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -63,11 +64,9 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
         if (x < sourceCount) true else throw ex
       }
 
-      Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+      Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
     }
   }
-
-
 
   test("should not call onComplete multiple times for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
@@ -93,6 +92,6 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val s = Observable.range(1, 10).delayOnNext(1.second).takeWhile(_ <= 1)
-    Seq(Sample(s,0,0,0.seconds,0.seconds))
+    Seq(Sample(s, 0, 0, 0.seconds, 0.seconds))
   }
 }

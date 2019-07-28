@@ -5,9 +5,6 @@
 Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/monix/monix.svg?branch=master)](https://travis-ci.org/monix/monix)
-[![Coverage Status](https://codecov.io/gh/monix/monix/coverage.svg?branch=master)](https://codecov.io/gh/monix/monix?branch=master)
-[![Maven Central](https://img.shields.io/maven-central/v/io.monix/monix_2.12.svg)](http://search.maven.org/#search|gav|1|g%3A%22io.monix%22%20AND%20a%3A%22monix_2.12%22)
-
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Overview
@@ -49,13 +46,13 @@ a project exemplifying Monix used both on the server and on the client.
 The packages are published on Maven Central.
 
 - Stable release: `2.3.3`
-- Current release candidate: `3.0.0-RC2`
-  (compatible with Cats-Effect 1.0.0)
+- Current release candidate: `3.0.0-RC3`
+  (compatible with Cats-Effect 1.3.1)
 
 For the 3.x series (that works with Cats `1.x` and Cats-Effect `1.0.0`):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC2"
+libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC3"
 ```
 
 For the 2.x series:
@@ -163,3 +160,15 @@ innovative and intelligent tools for profiling Java and .NET applications.
 Development of Monix has been initiated by [Eloquentix](http://eloquentix.com/)
 engineers, with Monix being introduced at E.ON Connecting Energies,
 powering the next generation energy grid solutions.
+
+
+## Adopters
+
+Here's a (non-exhaustive) list of companies that use Monix in production. Don't see yours? [You can add it in a PR!](https://github.com/monix/monix/edit/master/README.md)
+
+- [Abacus](https://abacusfi.com)
+- [commercetools](https://commercetools.com)
+- [eBay Inc.](https://www.ebay.com)
+- [Sony Electronics](https://www.sony.com)
+- [Zalando](https://www.zalando.com)
+- [Agoda](https://www.agoda.com)

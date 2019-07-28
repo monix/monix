@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,6 @@
  */
 
 package monix.execution.schedulers
-
 
 import monix.execution.internal.Trampoline
 import scala.util.control.NonFatal
@@ -52,8 +51,7 @@ import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
   * @param underlying is the `ExecutionContext` to which the it defers
   *        to in case real asynchronous is needed
   */
-final class TrampolineExecutionContext private (underlying: ExecutionContext)
-  extends ExecutionContext {
+final class TrampolineExecutionContext private (underlying: ExecutionContext) extends ExecutionContext {
 
   private[this] val trampoline =
     new ThreadLocal[Trampoline]() {
@@ -126,8 +124,7 @@ object TrampolineExecutionContext {
       new JVMNormalTrampoline(underlying)
   }
 
-  private final class JVMOptimalTrampoline(underlying: ExecutionContext)
-    extends Trampoline(underlying) {
+  private final class JVMOptimalTrampoline(underlying: ExecutionContext) extends Trampoline(underlying) {
 
     private[this] val trampolineContext: BlockContext =
       new BlockContext {
@@ -150,8 +147,7 @@ object TrampolineExecutionContext {
     }
   }
 
-  private class JVMNormalTrampoline(underlying: ExecutionContext)
-    extends Trampoline(underlying) {
+  private class JVMNormalTrampoline(underlying: ExecutionContext) extends Trampoline(underlying) {
 
     private[this] val trampolineContext: BlockContext =
       new BlockContext {

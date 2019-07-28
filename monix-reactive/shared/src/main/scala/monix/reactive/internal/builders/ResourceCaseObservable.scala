@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,8 @@ import monix.reactive.observers.Subscriber
 import scala.util.Success
 
 private[reactive] final class ResourceCaseObservable[A](
-  acquire: Task[A], release: (A, ExitCase[Throwable]) => Task[Unit])
+  acquire: Task[A],
+  release: (A, ExitCase[Throwable]) => Task[Unit])
   extends ChainedObservable[A] {
 
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, subscriber: Subscriber[A]): Unit = {

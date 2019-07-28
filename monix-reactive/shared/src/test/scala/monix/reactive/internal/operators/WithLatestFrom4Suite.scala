@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,13 +30,17 @@ object WithLatestFrom4Suite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val other = Observable.fromIterable(0 to 10)
-      val o = if (sourceCount == 1)
-        Observable.now(1L).delayExecution(1.second)
-          .withLatestFrom4(other,other,other,other)(_+_+_+_+_)
-      else
-        Observable.range(1, sourceCount+1, 1)
-          .delayExecution(1.second)
-          .withLatestFrom4(other,other,other,other)(_+_+_+_+_)
+      val o =
+        if (sourceCount == 1)
+          Observable
+            .now(1L)
+            .delayExecution(1.second)
+            .withLatestFrom4(other, other, other, other)(_ + _ + _ + _ + _)
+        else
+          Observable
+            .range(1, sourceCount + 1, 1)
+            .delayExecution(1.second)
+            .withLatestFrom4(other, other, other, other)(_ + _ + _ + _ + _)
 
       Sample(o, count(sourceCount), sum(sourceCount), 1.second, Zero)
     }
@@ -44,14 +48,19 @@ object WithLatestFrom4Suite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val other = Observable.fromIterable(0 to 10)
-    val o = if (sourceCount == 1)
-      Observable.now(1L).delayExecution(1.second).endWithError(ex)
-        .withLatestFrom4(other,other,other,other)(_+_+_+_+_)
-    else
-      Observable.range(1, sourceCount+1, 1)
-        .delayExecution(1.second)
-        .endWithError(ex)
-        .withLatestFrom4(other,other,other,other)(_+_+_+_+_)
+    val o =
+      if (sourceCount == 1)
+        Observable
+          .now(1L)
+          .delayExecution(1.second)
+          .endWithError(ex)
+          .withLatestFrom4(other, other, other, other)(_ + _ + _ + _ + _)
+      else
+        Observable
+          .range(1, sourceCount + 1, 1)
+          .delayExecution(1.second)
+          .endWithError(ex)
+          .withLatestFrom4(other, other, other, other)(_ + _ + _ + _ + _)
 
     Sample(o, count(sourceCount), sum(sourceCount), 1.second, Zero)
   }
@@ -60,27 +69,33 @@ object WithLatestFrom4Suite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val other = Observable.fromIterable(0 to 10)
-      val o = if (sourceCount == 1)
-        Observable.now(1L).delayExecution(1.second)
-          .withLatestFrom3(other,other,other)((x1,x2,x3,x4) => throw ex)
-      else
-        Observable.range(1, sourceCount+1, 1)
-          .delayExecution(1.second)
-          .withLatestFrom4(other,other,other,other) { (x1,x2,x3,x4,x5) =>
-            if (x1 == sourceCount)
-              throw ex
-            else
-              x1 + x2 + x3 + x4 + x5
-          }
+      val o =
+        if (sourceCount == 1)
+          Observable
+            .now(1L)
+            .delayExecution(1.second)
+            .withLatestFrom3(other, other, other)((x1, x2, x3, x4) => throw ex)
+        else
+          Observable
+            .range(1, sourceCount + 1, 1)
+            .delayExecution(1.second)
+            .withLatestFrom4(other, other, other, other) { (x1, x2, x3, x4, x5) =>
+              if (x1 == sourceCount)
+                throw ex
+              else
+                x1 + x2 + x3 + x4 + x5
+            }
 
-      Sample(o, count(sourceCount-1), sum(sourceCount-1), 1.second, Zero)
+      Sample(o, count(sourceCount - 1), sum(sourceCount - 1), 1.second, Zero)
     }
   }
 
   override def cancelableObservables(): Seq[Sample] = {
     val other = Observable.now(1).delayExecution(1.second)
-    val sample = Observable.now(1L).delayExecution(2.seconds)
-      .withLatestFrom4(other,other,other,other)(_+_+_+_+_)
+    val sample = Observable
+      .now(1L)
+      .delayExecution(2.seconds)
+      .withLatestFrom4(other, other, other, other)(_ + _ + _ + _ + _)
 
     Seq(
       Sample(sample, 0, 0, 0.seconds, 0.seconds),

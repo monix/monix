@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +20,11 @@ package monix.reactive.internal.operators
 import monix.execution.{Ack, AsyncSemaphore, Callback, Cancelable}
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.ChannelType.MultiProducer
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -39,23 +41,21 @@ import scala.util.{Failure, Success}
   *  - to ensure the required parallelism factor, we are using an
   *    [[monix.execution.AsyncSemaphore]]
   */
-private[reactive] final class MapParallelUnorderedObservable[A,B](
-   source: Observable[A],
-   parallelism: Int,
-   f: A => Task[B],
-   overflowStrategy: OverflowStrategy[B])
+private[reactive] final class MapParallelUnorderedObservable[A, B](
+  source: Observable[A],
+  parallelism: Int,
+  f: A => Task[B],
+  overflowStrategy: OverflowStrategy[B])
   extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     if (parallelism <= 0) {
       out.onError(new IllegalArgumentException("parallelism > 0"))
       Cancelable.empty
-    }
-    else if (parallelism == 1) {
+    } else if (parallelism == 1) {
       // optimization for one worker
-      new MapTaskObservable[A,B](source, f).unsafeSubscribeFn(out)
-    }
-    else {
+      new MapTaskObservable[A, B](source, f).unsafeSubscribeFn(out)
+    } else {
       val composite = CompositeCancelable()
       val subscription = new MapAsyncParallelSubscription(out, composite)
       composite += source.unsafeSubscribeFn(subscription)
@@ -63,8 +63,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
     }
   }
 
-  private final class MapAsyncParallelSubscription(
-    out: Subscriber[B], composite: CompositeCancelable)
+  private final class MapAsyncParallelSubscription(out: Subscriber[B], composite: CompositeCancelable)
     extends Subscriber[A] with Cancelable { self =>
 
     implicit val scheduler = out.scheduler
@@ -75,7 +74,7 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
     // everything gets canceled at once
     private[this] val releaseTask = Task.eval(semaphore.release())
     // Buffer with the supplied  overflow strategy.
-    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy)
+    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
 
     // Flag indicating whether a final event was called, after which
     // nothing else can happen. It's a very light protection, as
@@ -104,18 +103,20 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
               composite -= subscription
               self.onError(error)
             },
-            value => buffer.onNext(value).syncOnComplete {
-              case Success(Stop) =>
-                lastAck = Stop
-                composite.cancel()
-              case Success(Continue) =>
-                semaphore.release()
-                composite -= subscription
-              case Failure(ex) =>
-                lastAck = Stop
-                composite -= subscription
-                self.onError(ex)
-            })
+            value =>
+              buffer.onNext(value).syncOnComplete {
+                case Success(Stop) =>
+                  lastAck = Stop
+                  composite.cancel()
+                case Success(Continue) =>
+                  semaphore.release()
+                  composite -= subscription
+                case Failure(ex) =>
+                  lastAck = Stop
+                  composite -= subscription
+                  self.onError(ex)
+              }
+          )
 
           ref.doOnCancel(releaseTask)
         }
@@ -133,7 +134,8 @@ private[reactive] final class MapParallelUnorderedObservable[A,B](
 
     def onNext(elem: A): Future[Ack] = {
       // Light protection, since access isn't synchronized
-      if (lastAck == Stop || isDone) Stop else {
+      if (lastAck == Stop || isDone) Stop
+      else {
         // This will wait asynchronously, if there are no permits left
         val permit = semaphore.acquire()
         val ack: Future[Ack] = permit.value match {

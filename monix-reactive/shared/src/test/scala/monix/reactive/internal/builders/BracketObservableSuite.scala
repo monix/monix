@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,8 @@ object BracketObservableSuite extends BaseTestSuite {
   test("simple bracket") { implicit s =>
     val rs = new Semaphore()
 
-    val f = Observable.fromTask(rs.acquire)
+    val f = Observable
+      .fromTask(rs.acquire)
       .bracket(Observable.pure)(_.release)
       .mapEval(_ => Task.now(1).delayExecution(1.second))
       .runAsyncGetFirst
@@ -82,7 +83,8 @@ object BracketObservableSuite extends BaseTestSuite {
         r.release
     }
 
-    val cancelable = obs.flatMap(_ => Observable.never)
+    val cancelable = obs
+      .flatMap(_ => Observable.never)
       .unsafeSubscribeFn(new Subscriber[Handle] {
         implicit val scheduler = s
         def onNext(elem: Handle) =
@@ -106,8 +108,8 @@ object BracketObservableSuite extends BaseTestSuite {
   test("bracket should not be cancelable in its acquire") { implicit s =>
     for (_ <- 0 until 1000) {
       val task = for {
-        start <- Deferred.uncancelable[Task, Unit]
-        latch <- Deferred[Task, Unit]
+        start    <- Deferred.uncancelable[Task, Unit]
+        latch    <- Deferred[Task, Unit]
         canceled <- Deferred.uncancelable[Task, Unit]
         acquire = start.complete(()) *> latch.get
         obs = Observable.fromTask(acquire).bracketCase(Observable.pure) {
@@ -117,10 +119,10 @@ object BracketObservableSuite extends BaseTestSuite {
             Task.unit
         }
         fiber <- obs.flatMap(_ => Observable.never[Unit]).completedL.start
-        _ <- start.get
-        _ <- fiber.cancel.start
-        _ <- latch.complete(()).start
-        _ <- canceled.get
+        _     <- start.get
+        _     <- fiber.cancel.start
+        _     <- latch.complete(()).start
+        _     <- canceled.get
       } yield ()
 
       val f = task.runToFuture; s.tick()

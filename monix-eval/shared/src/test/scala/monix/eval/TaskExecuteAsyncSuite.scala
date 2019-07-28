@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,7 +55,9 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
 
   test("Task.create.executeOn should execute async") { implicit s =>
     val s2 = TestScheduler()
-    val source = Task.cancelable0[Int] { (_, cb) => cb.onSuccess(10); Task.unit }
+    val source = Task.cancelable0[Int] { (_, cb) =>
+      cb.onSuccess(10); Task.unit
+    }
     val t = source.executeOn(s2)
     val f = t.runToFuture
 
@@ -93,7 +95,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
 
     def loop(n: Int): Task[Int] =
       if (n <= 0) Task.now(0).executeAsync
-      else Task.now(n).executeAsync.flatMap(_ => loop(n-1))
+      else Task.now(n).executeAsync.flatMap(_ => loop(n - 1))
 
     val result = loop(count).runToFuture
     s.tick()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,7 +41,7 @@ import scala.util.{Failure, Success}
   *       Continue
   *     }
   *     def onError(e: Throwable) =
-  *       e.printStackTrace()
+  *       println(s"Error: $$e")
   *     def onComplete() =
   *       println("Completed!")
   *   }
@@ -80,8 +80,7 @@ import scala.util.{Failure, Success}
   *   // NOTE: that onNext("c") never happens
   * }}}
   */
-final class ConnectableSubscriber[-A] private (underlying: Subscriber[A])
-  extends Subscriber[A] { self =>
+final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extends Subscriber[A] { self =>
 
   implicit val scheduler: Scheduler =
     underlying.scheduler
@@ -91,7 +90,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A])
   // MUST BE synchronized by `self`, only available if isConnected == false
   private[this] var scheduledDone = false
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var scheduledError = null : Throwable
+  private[this] var scheduledError = null: Throwable
   // MUST BE synchronized by `self`
   private[this] var isConnectionStarted = false
   // MUST BE synchronized by `self`, as long as isConnected == false
@@ -123,75 +122,75 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A])
         isConnectionStarted = true
         val bufferWasDrained = Promise[Ack]()
 
-        val cancelable = Observable.fromIterable(queue).unsafeSubscribeFn(new Subscriber[A] {
-          implicit val scheduler = underlying.scheduler
-          private[this] var ack: Future[Ack] = Continue
+        val cancelable = Observable
+          .fromIterable(queue)
+          .unsafeSubscribeFn(new Subscriber[A] {
+            implicit val scheduler = underlying.scheduler
+            private[this] var ack: Future[Ack] = Continue
 
-          bufferWasDrained.future.onComplete {
-            case Success(Continue) =>
-              connectedPromise.success(Continue)
-              isConnected = true
-              // GC relief
-              queue = null
-              connectedPromise = null
-              // This might be a race condition problem, but it only
-              // matters for GC relief purposes
-              connectionRef = CancelableFuture.successful(Continue)
+            bufferWasDrained.future.onComplete {
+              case Success(Continue) =>
+                connectedPromise.success(Continue)
+                isConnected = true
+                // GC relief
+                queue = null
+                connectedPromise = null
+                // This might be a race condition problem, but it only
+                // matters for GC relief purposes
+                connectionRef = CancelableFuture.successful(Continue)
 
-            case Success(Stop) =>
-              wasCanceled = true
-              connectedPromise.success(Stop)
-              isConnected = true
-              // GC relief
-              queue = null
-              connectedPromise = null
-              // This might be a race condition problem, but it only
-              // matters for GC relief purposes
-              connectionRef = CancelableFuture.successful(Stop)
+              case Success(Stop) =>
+                wasCanceled = true
+                connectedPromise.success(Stop)
+                isConnected = true
+                // GC relief
+                queue = null
+                connectedPromise = null
+                // This might be a race condition problem, but it only
+                // matters for GC relief purposes
+                connectionRef = CancelableFuture.successful(Stop)
 
-            case Failure(ex) =>
-              wasCanceled = true
-              connectedPromise.failure(ex)
-              isConnected = true
-              // GC relief
-              queue = null
-              connectedPromise = null
-              // This might be a race condition problem, but it only
-              // matters for GC relief purposes
-              connectionRef = CancelableFuture.failed(ex)
-          }
-
-          def onNext(elem: A): Future[Ack] = {
-            ack = underlying.onNext(elem).syncOnStopFollow(bufferWasDrained, Stop)
-            ack
-          }
-
-          def onComplete(): Unit = {
-            if (!scheduledDone) {
-              ack.syncOnContinue(bufferWasDrained.trySuccess(Continue))
+              case Failure(ex) =>
+                wasCanceled = true
+                connectedPromise.failure(ex)
+                isConnected = true
+                // GC relief
+                queue = null
+                connectedPromise = null
+                // This might be a race condition problem, but it only
+                // matters for GC relief purposes
+                connectionRef = CancelableFuture.failed(ex)
             }
-            else if (scheduledError ne null) {
-              if (bufferWasDrained.trySuccess(Stop))
-                underlying.onError(scheduledError)
+
+            def onNext(elem: A): Future[Ack] = {
+              ack = underlying.onNext(elem).syncOnStopFollow(bufferWasDrained, Stop)
+              ack
             }
-            else if (bufferWasDrained.trySuccess(Stop))
-              underlying.onComplete()
-          }
 
-          def onError(ex: Throwable): Unit = {
-            if (scheduledError ne null)
-              scheduler.reportFailure(ex)
-            else {
-              scheduledDone = true
-              scheduledError = ex
+            def onComplete(): Unit = {
+              if (!scheduledDone) {
+                ack.syncOnContinue(bufferWasDrained.trySuccess(Continue))
+              } else if (scheduledError ne null) {
+                if (bufferWasDrained.trySuccess(Stop))
+                  underlying.onError(scheduledError)
+              } else if (bufferWasDrained.trySuccess(Stop))
+                underlying.onComplete()
+            }
 
-              if (bufferWasDrained.trySuccess(Stop))
-                underlying.onError(ex)
-              else
+            def onError(ex: Throwable): Unit = {
+              if (scheduledError ne null)
                 scheduler.reportFailure(ex)
+              else {
+                scheduledDone = true
+                scheduledError = ex
+
+                if (bufferWasDrained.trySuccess(Stop))
+                  underlying.onError(ex)
+                else
+                  scheduler.reportFailure(ex)
+              }
             }
-          }
-        })
+          })
 
         connectionRef = CancelableFuture(bufferWasDrained.future, cancelable)
       }
@@ -229,7 +228,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A])
     * eventually get streamed with [[onNext]], because of
     * the applied back-pressure from `onNext`.
     */
-  def pushFirstAll[U <: A](xs: TraversableOnce[U]): Unit =
+  def pushFirstAll[U <: A](xs: Iterable[U]): Unit =
     self.synchronized {
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
@@ -287,12 +286,10 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A])
         case Stop => Stop
       }
       connectedFuture
-    }
-    else if (!wasCanceled) {
+    } else if (!wasCanceled) {
       // taking fast path
       underlying.onNext(elem)
-    }
-    else {
+    } else {
       // was canceled either during connect, or the upstream publisher
       // sent an onNext event after onComplete / onError
       Stop

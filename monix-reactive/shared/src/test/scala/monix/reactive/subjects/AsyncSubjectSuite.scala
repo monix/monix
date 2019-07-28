@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -141,7 +141,6 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(wereCompleted, 4)
   }
 
-
   test("subscribe after complete should complete immediately if empty") { implicit s =>
     val subject = AsyncSubject[Int]()
     subject.onComplete()
@@ -209,7 +208,9 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
   test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = AsyncSubject[Int]()
-    val c = subject.subscribe { e => result = e; Continue }
+    val c = subject.subscribe { e =>
+      result = e; Continue
+    }
 
     subject.onNext(1)
     subject.onComplete()
@@ -228,7 +229,9 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
 
     observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
     observable.foreach(e => foreachSum += e)
-    observable.subscribe { e => subscribeSum += e; Continue }
+    observable.subscribe { e =>
+      subscribeSum += e; Continue
+    }
 
     // Start the streaming
     observable.connect()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,8 +24,7 @@ import monix.execution.schedulers.TestScheduler
 object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty,
-      "should not have tasks left to execute")
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
   test("Task.foreachL") { implicit s =>
@@ -51,12 +50,16 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
   }
 
   test("Task.foreach reports exceptions using scheduler") { implicit s =>
-    val dummy = DummyException("dummy")
-    Task.evalAsync(1).foreach(_ => throw dummy)
-    s.tick()
-    assertEquals(s.state.lastReportedError, dummy)
+    // https://github.com/monix/monix/issues/786#issuecomment-460300517
+    if (monix.eval.internal.ScalaVersion.Full == "2.13.0-M5") {
+      ignore("Fails due to regression in 2.13.0-M5")
+    } else {
+      val dummy = DummyException("dummy")
+      Task.evalAsync(1).foreach(_ => throw dummy)
+      s.tick()
+      assertEquals(s.state.lastReportedError, dummy)
+    }
   }
-
 
   test("Coeval.foreachL") { _ =>
     var effect = 0

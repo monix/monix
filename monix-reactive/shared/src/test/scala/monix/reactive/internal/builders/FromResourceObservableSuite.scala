@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +38,8 @@ object FromResourceObservableSuite extends BaseTestSuite {
     val r = new Semaphore
     val res = Resource.make(r.acquire)(_.release)
 
-    val f = Observable.fromResource(res)
+    val f = Observable
+      .fromResource(res)
       .mapEval(_ => Task.now(1).delayExecution(1.second))
       .runAsyncGetFirst
 
@@ -57,7 +58,8 @@ object FromResourceObservableSuite extends BaseTestSuite {
     val res = Resource.make(r.acquire)(_.release)
     val res2 = Resource.suspend(Task(res.flatMap(_ => res)))
 
-    val f = Observable.fromResource(res2)
+    val f = Observable
+      .fromResource(res2)
       .mapEval(_ => Task.now(1).delayExecution(1.second))
       .runAsyncGetFirst
 

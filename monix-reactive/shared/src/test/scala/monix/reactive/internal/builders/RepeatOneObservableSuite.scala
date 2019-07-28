@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,20 +27,22 @@ import monix.reactive.observers.Subscriber
 object RepeatOneObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("first execution is synchronous") { implicit s =>
     var received = 0
-    Observable.repeat(1).take(1).subscribe{ x => received += x; Continue }
+    Observable.repeat(1).take(1).subscribe { x =>
+      received += x; Continue
+    }
     assertEquals(received, 1)
   }
 
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
-    Observable.repeat(1).take(Platform.recommendedBatchSize * 2)
-      .subscribe { x => received += 1; Continue }
+    Observable.repeat(1).take(Platform.recommendedBatchSize * 2).subscribe { x =>
+      received += 1; Continue
+    }
 
     assertEquals(received, Platform.recommendedBatchSize)
     s.tickOne()
@@ -53,18 +55,18 @@ object RepeatOneObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    val cancelable = Observable.repeat(1)
-      .unsafeSubscribeFn(
-        new Subscriber[Int] {
-          implicit val scheduler = s
-          def onNext(elem: Int) = {
-            sum += elem
-            Continue
-          }
+    val cancelable = Observable
+      .repeat(1)
+      .unsafeSubscribeFn(new Subscriber[Int] {
+        implicit val scheduler = s
+        def onNext(elem: Int) = {
+          sum += elem
+          Continue
+        }
 
-          def onComplete() = wasCompleted = true
-          def onError(ex: Throwable) = wasCompleted = true
-        })
+        def onComplete() = wasCompleted = true
+        def onError(ex: Throwable) = wasCompleted = true
+      })
 
     cancelable.cancel()
     s.tick()

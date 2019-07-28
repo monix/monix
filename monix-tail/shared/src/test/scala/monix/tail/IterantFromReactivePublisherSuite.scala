@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -85,7 +85,8 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
   test("fromReactivePublisher cancels subscription on earlyStop") { implicit s =>
     val cancelled = Promise[Unit]()
     val publisher = new RangePublisher(1 to 64, None, cancelled)
-    Iterant[Task].fromReactivePublisher(publisher, 8)
+    Iterant[Task]
+      .fromReactivePublisher(publisher, 8)
       .take(5)
       .completedL
       .runToFuture
@@ -97,9 +98,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
   test("fromReactivePublisher propagates errors") { implicit s =>
     val dummy = DummyException("dummy")
     val publisher = new RangePublisher(1 to 64, Some(dummy))
-    val f = Iterant[Task].fromReactivePublisher(publisher)
-      .completedL
-      .runToFuture
+    val f = Iterant[Task].fromReactivePublisher(publisher).completedL.runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
@@ -111,8 +110,8 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     }
   }
 
-  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])
-    (implicit sc: Scheduler)
+  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
+    implicit sc: Scheduler)
     extends Publisher[Int] {
 
     def this(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,8 @@
 
 package monix.reactive.subjects
 
-import monix.execution.{ Ack, Cancelable, Scheduler }
-import monix.reactive.{ Observable, OverflowStrategy }
+import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.reactive.{Observable, OverflowStrategy}
 import monix.reactive.observers.Subscriber
 
 /** `Var` when subscribed, will emit the most recently emitted item by the source,
@@ -33,7 +33,7 @@ import monix.reactive.observers.Subscriber
   *   import monix.reactive._
   *   import monix.reactive.subjects.Var
   *   import monix.execution.Scheduler.Implicits.global
-  * 
+  *
   *   val a = Var(0)
   *   val b = Var(0)
   *
@@ -55,7 +55,7 @@ import monix.reactive.observers.Subscriber
   */
 final class Var[A] private (initial: A)(implicit s: Scheduler) extends Observable[A] { self =>
 
-  private[this] var value: A   = initial
+  private[this] var value: A = initial
   private[this] val underlying = ConcurrentSubject.behavior(initial, OverflowStrategy.Unbounded)
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable =
@@ -82,7 +82,7 @@ final class Var[A] private (initial: A)(implicit s: Scheduler) extends Observabl
 
 object Var {
   /** Builder for [[Var]] */
-  def apply[A](initial: A )(implicit s: Scheduler): Var[A] = {
+  def apply[A](initial: A)(implicit s: Scheduler): Var[A] = {
     new Var[A](initial)
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +25,10 @@ import monix.reactive.{Observable, Pipe}
 
 import scala.concurrent.Future
 
-private[reactive] final class PipeThroughSelectorObservable[A,B,C]
-  (source: Observable[A], pipe: Pipe[A,B], f: Observable[B] => Observable[C])
+private[reactive] final class PipeThroughSelectorObservable[A, B, C](
+  source: Observable[A],
+  pipe: Pipe[A, B],
+  f: Observable[B] => Observable[C])
   extends Observable[C] {
 
   def unsafeSubscribeFn(out: Subscriber[C]): Cancelable = {
@@ -39,17 +41,16 @@ private[reactive] final class PipeThroughSelectorObservable[A,B,C]
       val observable = f(connectable)
       streamErrors = false
 
-      val downstream = observable.unsafeSubscribeFn(
-        new Subscriber[C] {
-          implicit val scheduler = out.scheduler
-          def onError(ex: Throwable) = out.onError(ex)
-          def onComplete() = out.onComplete()
+      val downstream = observable.unsafeSubscribeFn(new Subscriber[C] {
+        implicit val scheduler = out.scheduler
+        def onError(ex: Throwable) = out.onError(ex)
+        def onComplete() = out.onComplete()
 
-          def onNext(elem: C): Future[Ack] = {
-            // Treating STOP event
-            out.onNext(elem).syncOnStopOrFailure(_ => upstream.cancel())
-          }
-        })
+        def onNext(elem: C): Future[Ack] = {
+          // Treating STOP event
+          out.onNext(elem).syncOnStopOrFailure(_ => upstream.cancel())
+        }
+      })
 
       upstream := connectable.connect()
       Cancelable { () =>

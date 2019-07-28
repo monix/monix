@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,13 +30,12 @@ import scala.annotation.tailrec
   *
   * Useful in case you need a thread-safe forward reference.
   */
-final class SingleAssignSubscription private ()
-  extends Subscription {
+final class SingleAssignSubscription private () extends Subscription {
 
   import SingleAssignSubscription.State
   import SingleAssignSubscription.State._
 
-  private[this] val state = AtomicAny(Empty : State)
+  private[this] val state = AtomicAny(Empty: State)
 
   def :=(s: org.reactivestreams.Subscription): Unit = set(s)
 

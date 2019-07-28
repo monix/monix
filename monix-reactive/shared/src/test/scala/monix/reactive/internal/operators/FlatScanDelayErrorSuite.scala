@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,18 +30,20 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
   case class SomeException(value: Long) extends RuntimeException
 
   def create(sourceCount: Int, ex: Throwable = null) = Some {
-    val source = if (ex == null) Observable.range(0, sourceCount)
+    val source =
+      if (ex == null) Observable.range(0, sourceCount)
       else Observable.range(0, sourceCount).endWithError(ex)
 
-    val o = source.flatScanDelayErrors(1L)((acc, elem) =>
-      Observable.repeat(acc + elem).take(3)
-        .endWithError(SomeException(10)))
+    val o = source.flatScanDelayErrors(1L)(
+      (acc, elem) =>
+        Observable
+          .repeat(acc + elem)
+          .take(3)
+          .endWithError(SomeException(10)))
 
     val recovered = o.onErrorHandleWith {
       case composite: CompositeException =>
-        val sum = composite
-          .errors.collect { case ex: SomeException => ex.value }
-          .sum
+        val sum = composite.errors.collect { case ex: SomeException => ex.value }.sum
 
         Observable.now(sum)
     }
@@ -57,20 +59,23 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables() = {
-    val sample1 = Observable.range(0, 10)
-      .flatScanDelayErrors(1L)((acc,e) => Observable.now(acc+e).delayExecution(1.second))
-    val sample2 = Observable.range(0, 10).delayOnNext(1.second)
-      .flatScanDelayErrors(1L)((acc,e) => Observable.now(acc+e).delayExecution(1.second))
+    val sample1 = Observable
+      .range(0, 10)
+      .flatScanDelayErrors(1L)((acc, e) => Observable.now(acc + e).delayExecution(1.second))
+    val sample2 = Observable
+      .range(0, 10)
+      .delayOnNext(1.second)
+      .flatScanDelayErrors(1L)((acc, e) => Observable.now(acc + e).delayExecution(1.second))
 
     Seq(
-      Sample(sample1,0,0,0.seconds,0.seconds),
-      Sample(sample2,0,0,0.seconds,0.seconds)
+      Sample(sample1, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample2, 0, 0, 0.seconds, 0.seconds)
     )
   }
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1,2,3,4).flatScanDelayErrors[Int](throw ex)((_,e) => Observable(e))
+    val obs = Observable(1, 2, 3, 4).flatScanDelayErrors[Int](throw ex)((_, e) => Observable(e))
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }

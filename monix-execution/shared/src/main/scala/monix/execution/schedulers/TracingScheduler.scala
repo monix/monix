@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,8 @@
 package monix.execution.schedulers
 
 import scala.concurrent.duration.TimeUnit
-import monix.execution.{Cancelable, Scheduler, ExecutionModel => ExecModel}
+
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
 
 /** The `TracingScheduler` is a [[monix.execution.Scheduler Scheduler]]
@@ -29,11 +30,13 @@ import scala.concurrent.ExecutionContext
   * @param underlying the [[monix.execution.Scheduler Scheduler]]
   *        in charge of the actual execution and scheduling
   */
-final class TracingScheduler private (underlying: Scheduler)
-  extends TracingScheduler.Base(underlying) {
+final class TracingScheduler private (underlying: Scheduler) extends TracingScheduler.Base(underlying) {
 
   override def withExecutionModel(em: ExecModel): TracingScheduler =
     new TracingScheduler(underlying.withExecutionModel(em))
+
+  def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
+    new TracingScheduler(underlying.withUncaughtExceptionReporter(r))
 }
 
 object TracingScheduler {
@@ -50,8 +53,7 @@ object TracingScheduler {
   /** Common implementation between [[TracingScheduler]]
     * and [[TracingSchedulerService]].
     */
-  private[execution] abstract class Base(underlying: Scheduler)
-    extends Scheduler with BatchingScheduler {
+  private[execution] abstract class Base(underlying: Scheduler) extends Scheduler with BatchingScheduler {
 
     override final def executeAsync(r: Runnable): Unit =
       underlying.execute(new TracingRunnable(r))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,23 +28,22 @@ import monix.reactive.{Observable, Observer}
 import scala.util.Random
 
 trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
-  case class Sample(channel: ConcurrentSubject[Long,Long] with Observable[Long], expectedSum: Long)
+  case class Sample(channel: ConcurrentSubject[Long, Long] with Observable[Long], expectedSum: Long)
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   /**
-   * Returns a sample channel that needs testing.
-   */
+    * Returns a sample channel that needs testing.
+    */
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler): Sample
 
   /**
-   * Returns a sample channel for the test of
-   * continuous streaming.
-   */
+    * Returns a sample channel for the test of
+    * continuous streaming.
+    */
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler): Option[Sample]
 
   test("already completed and empty channel terminates observers") { implicit s =>

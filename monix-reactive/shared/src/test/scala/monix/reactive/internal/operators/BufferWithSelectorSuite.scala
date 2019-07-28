@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,7 +36,8 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
 
   def createObservable(sourceCount: Int) = Some {
     require(sourceCount > 0, "sourceCount must be strictly positive")
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .bufferTimedWithPressure(waitNext, 10)
       .map(_.sum)
 
@@ -46,15 +47,18 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     val cnt = (sourceCount / 10) * 10 + 1
-    val o = Observable.range(0, cnt).endWithError(ex)
+    val o = Observable
+      .range(0, cnt)
+      .endWithError(ex)
       .bufferTimedWithPressure(waitNext, 10)
       .map(_.sum)
 
-    Sample(o, count(cnt-1), sum(cnt-1), waitNext, waitNext)
+    Sample(o, count(cnt - 1), sum(cnt - 1), waitNext, waitNext)
   }
 
   override def cancelableObservables() = {
-    val o = Observable.range(0, 1000)
+    val o = Observable
+      .range(0, 1000)
       .bufferTimedWithPressure(waitNext, 10)
       .map(_.sum)
 
@@ -68,7 +72,8 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
 
   test("selector onComplete should complete the resulting observable") { implicit s =>
     val selector = Observable.intervalAtFixedRate(1.second, 1.second).take(2)
-    val f = Observable.range(0, 10000)
+    val f = Observable
+      .range(0, 10000)
       .bufferWithSelector(selector, 10)
       .map(_.sum)
       .sum
@@ -80,10 +85,13 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
 
   test("selector onError should terminate the resulting observable") { implicit s =>
     val ex = DummyException("dummy")
-    val selector = Observable.intervalAtFixedRate(1.second, 1.second)
-      .take(2).endWithError(ex)
+    val selector = Observable
+      .intervalAtFixedRate(1.second, 1.second)
+      .take(2)
+      .endWithError(ex)
 
-    val f = Observable.range(0, 10000)
+    val f = Observable
+      .range(0, 10000)
       .bufferWithSelector(selector, 10)
       .map(_.sum)
       .sum
@@ -97,11 +105,12 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
     // since each element is specified to weight 20 and the maxSize is 50
     // each buffer will be emitted with at most 3 elements
     val selector = Observable.intervalAtFixedRate(1.second, 1.second).take(2)
-    val f = Observable.range(0, 10)
+    val f = Observable
+      .range(0, 10)
       .bufferTimedWithPressure(1.second, 50, _ => 20)
       .runAsyncGetFirst
 
     s.tick(1.seconds)
-    assertEquals(f.value, Some(Success(Some(List(0, 1 ,2)))))
+    assertEquals(f.value, Some(Success(Some(List(0, 1, 2)))))
   }
 }

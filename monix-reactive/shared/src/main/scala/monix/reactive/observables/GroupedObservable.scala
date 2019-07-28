@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,17 +40,16 @@ abstract class GroupedObservable[K, +V] extends Observable[V] { self =>
 
 object GroupedObservable {
   /** Builder returning an input+output pair */
-  private[monix] def broadcast[K,V](key: K, onCancel: Cancelable)
-    (implicit s: Scheduler): (Subscriber[V], GroupedObservable[K,V]) = {
+  private[monix] def broadcast[K, V](key: K, onCancel: Cancelable)(
+    implicit s: Scheduler): (Subscriber[V], GroupedObservable[K, V]) = {
 
-    val ref = new Implementation[K,V](key, onCancel)
+    val ref = new Implementation[K, V](key, onCancel)
     (ref, ref)
   }
 
   /** Implementation for [[GroupedObservable]] */
-  private final class Implementation[K, V](val key: K, onCancel: Cancelable)
-    (implicit val scheduler: Scheduler)
-    extends GroupedObservable[K,V] with Subscriber[V] { self =>
+  private final class Implementation[K, V](val key: K, onCancel: Cancelable)(implicit val scheduler: Scheduler)
+    extends GroupedObservable[K, V] with Subscriber[V] { self =>
 
     // needs to be set upon subscription
     private[this] var ref: Subscriber[V] = _

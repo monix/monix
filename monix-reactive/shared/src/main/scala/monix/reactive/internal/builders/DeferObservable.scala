@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,11 +25,11 @@ import monix.reactive.observables.ChainedObservable
 import monix.reactive.observables.ChainedObservable.{subscribe => chain}
 import monix.reactive.observers.Subscriber
 
-private[reactive] final class DeferObservable[+A](factory: () => Observable[A])
-  extends ChainedObservable[A] {
+private[reactive] final class DeferObservable[+A](factory: () => Observable[A]) extends ChainedObservable[A] {
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val fa = try factory() catch { case e if NonFatal(e) => Observable.raiseError(e) }
+    val fa = try factory()
+    catch { case e if NonFatal(e) => Observable.raiseError(e) }
     if (fa.isInstanceOf[ChainedObservable[_]]) {
       val ch = fa.asInstanceOf[ChainedObservable[A]]
       val conn = MultiAssignCancelable()
@@ -41,7 +41,8 @@ private[reactive] final class DeferObservable[+A](factory: () => Observable[A])
   }
 
   override def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
-    val fa = try factory() catch { case e if NonFatal(e) => Observable.raiseError(e) }
+    val fa = try factory()
+    catch { case e if NonFatal(e) => Observable.raiseError(e) }
     chain(fa, conn, out)
   }
 }

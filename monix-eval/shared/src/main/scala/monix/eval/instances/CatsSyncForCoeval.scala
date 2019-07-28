@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -80,7 +80,8 @@ class CatsSyncForCoeval extends Sync[Coeval] with CoflatMap[Coeval] with Semigro
     Coeval.now(fa)
   override def bracket[A, B](acquire: Coeval[A])(use: A => Coeval[B])(release: A => Coeval[Unit]): Coeval[B] =
     acquire.bracket(use)(release)
-  override def bracketCase[A, B](acquire: Coeval[A])(use: A => Coeval[B])(release: (A, ExitCase[Throwable]) => Coeval[Unit]): Coeval[B] =
+  override def bracketCase[A, B](acquire: Coeval[A])(use: A => Coeval[B])(
+    release: (A, ExitCase[Throwable]) => Coeval[Unit]): Coeval[B] =
     acquire.bracketCase(use)(release)
   override def combineK[A](x: Coeval[A], y: Coeval[A]): Coeval[A] =
     x.onErrorHandleWith(_ => y)

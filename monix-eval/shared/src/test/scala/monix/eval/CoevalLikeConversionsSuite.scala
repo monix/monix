@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.Eval
 import cats.effect.SyncIO
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
-import monix.eval.utils.EvalComonad
+
 import scala.util.{Failure, Success, Try}
 
 object CoevalLikeConversionsSuite extends SimpleTestSuite {
@@ -74,14 +74,14 @@ object CoevalLikeConversionsSuite extends SimpleTestSuite {
   }
 
   test("Coeval.from(Try)") {
-    val source = Success(1) : Try[Int]
+    val source = Success(1): Try[Int]
     val conv = Coeval.from(source)
     assertEquals(conv.value(), 1)
   }
 
   test("Coeval.from(Try) for errors") {
     val dummy = DummyException("dummy")
-    val source = Failure(dummy) : Try[Int]
+    val source = Failure(dummy): Try[Int]
     val conv = Coeval.from(source)
     assertEquals(conv.runTry(), Failure(dummy))
   }
@@ -101,11 +101,6 @@ object CoevalLikeConversionsSuite extends SimpleTestSuite {
 
   test("Coeval.from(Function0)") {
     val value = Coeval.from(() => 1)
-    assertEquals(value.value(), 1)
-  }
-
-  test("Coeval.from(Comonad)") {
-    val value = Coeval.from(EvalComonad(() => 1))
     assertEquals(value.value(), 1)
   }
 }

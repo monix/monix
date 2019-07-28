@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,9 +25,7 @@ import org.reactivestreams
 import org.reactivestreams.{Subscription, Publisher => RPublisher}
 
 /** Implementation for `Observable.fromReactivePublisher` */
-private[reactive]
-final class ReactiveObservable[A](publisher: RPublisher[A], requestCount: Int)
-  extends Observable[A] {
+private[reactive] final class ReactiveObservable[A](publisher: RPublisher[A], requestCount: Int) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val subscription = SingleAssignSubscription()

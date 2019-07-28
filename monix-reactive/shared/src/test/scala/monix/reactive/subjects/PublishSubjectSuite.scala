@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -190,7 +190,9 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = PublishSubject[Int]()
-    val c = subject.subscribe { e => result = e; Continue }
+    val c = subject.subscribe { e =>
+      result = e; Continue
+    }
 
     subject.onNext(1)
     subject.onComplete()

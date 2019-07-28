@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,8 +33,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
   def tearDown(s: TestScheduler) = {
     s.state.lastReportedError match {
       case null =>
-        assert(s.state.tasks.isEmpty,
-          "TestScheduler should have no pending tasks")
+        assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
       case error =>
         throw error
     }
@@ -44,27 +43,30 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0L
 
-    Observable.range(0, 10000).toReactivePublisher.subscribe(new Subscriber[Long] {
-      private[this] var s = null : Subscription
+    Observable
+      .range(0, 10000)
+      .toReactivePublisher
+      .subscribe(new Subscriber[Long] {
+        private[this] var s = null: Subscription
 
-      def onSubscribe(s: Subscription): Unit = {
-        this.s = s
-        s.request(1)
-      }
+        def onSubscribe(s: Subscription): Unit = {
+          this.s = s
+          s.request(1)
+        }
 
-      def onNext(elem: Long): Unit = {
-        sum += elem
-        s.request(1)
-      }
+        def onNext(elem: Long): Unit = {
+          sum += elem
+          s.request(1)
+        }
 
-      def onError(ex: Throwable): Unit = {
-        scheduler.reportFailure(ex)
-      }
+        def onError(ex: Throwable): Unit = {
+          scheduler.reportFailure(ex)
+        }
 
-      def onComplete(): Unit = {
-        wasCompleted = true
-      }
-    })
+        def onComplete(): Unit = {
+          wasCompleted = true
+        }
+      })
 
     scheduler.tick()
     assertEquals(sum, 5000 * 9999L)
@@ -78,8 +80,10 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var streamed = 0L
 
-    out.doOnNext(_ => Task { streamed += 1  }).toReactivePublisher.subscribe(
-      new Subscriber[Long] {
+    out
+      .doOnNext(_ => Task { streamed += 1 })
+      .toReactivePublisher
+      .subscribe(new Subscriber[Long] {
         def onSubscribe(s: Subscription): Unit =
           subscription := s
 
@@ -142,9 +146,11 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0L
 
-    Observable.range(0, range).toReactivePublisher
+    Observable
+      .range(0, range)
+      .toReactivePublisher
       .subscribe(new Subscriber[Long] {
-        private[this] var s = null : Subscription
+        private[this] var s = null: Subscription
         private[this] var requested = chunkSize
 
         def onSubscribe(s: Subscription): Unit = {
@@ -172,7 +178,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
       })
 
     scheduler.tick()
-    assertEquals(sum, range * (range-1) / 2)
+    assertEquals(sum, range * (range - 1) / 2)
     assert(wasCompleted)
   }
 
@@ -183,9 +189,11 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0L
 
-    Observable.range(0, range).toReactivePublisher
+    Observable
+      .range(0, range)
+      .toReactivePublisher
       .subscribe(new Subscriber[Long] {
-        private[this] var s = null : Subscription
+        private[this] var s = null: Subscription
         private[this] var requested = chunkSize
 
         def onSubscribe(s: Subscription): Unit = {
@@ -213,7 +221,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
       })
 
     scheduler.tick()
-    assertEquals(sum, range * (range-1) / 2)
+    assertEquals(sum, range * (range - 1) / 2)
     assert(wasCompleted)
   }
 }

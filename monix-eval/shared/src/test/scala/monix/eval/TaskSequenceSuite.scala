@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,10 @@ import scala.util.{Failure, Success}
 
 object TaskSequenceSuite extends BaseTestSuite {
   test("Task.sequence should not execute in parallel") { implicit s =>
-    val seq = Seq(Task.evalAsync(1).delayExecution(2.seconds), Task.evalAsync(2).delayExecution(1.second), Task.evalAsync(3).delayExecution(3.seconds))
+    val seq = Seq(
+      Task.evalAsync(1).delayExecution(2.seconds),
+      Task.evalAsync(2).delayExecution(1.second),
+      Task.evalAsync(3).delayExecution(3.seconds))
     val f = Task.sequence(seq).runToFuture
 
     s.tick()
@@ -43,7 +46,8 @@ object TaskSequenceSuite extends BaseTestSuite {
       Task.evalAsync(2).delayExecution(1.second),
       Task.evalAsync(throw ex).delayExecution(2.seconds),
       Task.evalAsync(3).delayExecution(3.seconds),
-      Task.evalAsync(3).delayExecution(1.seconds))
+      Task.evalAsync(3).delayExecution(1.seconds)
+    )
 
     val f = Task.sequence(seq).runToFuture
 
@@ -56,7 +60,10 @@ object TaskSequenceSuite extends BaseTestSuite {
   }
 
   test("Task.sequence should be canceled") { implicit s =>
-    val seq = Seq(Task.evalAsync(1).delayExecution(2.seconds), Task.evalAsync(2).delayExecution(1.second), Task.evalAsync(3).delayExecution(3.seconds))
+    val seq = Seq(
+      Task.evalAsync(1).delayExecution(2.seconds),
+      Task.evalAsync(2).delayExecution(1.second),
+      Task.evalAsync(3).delayExecution(3.seconds))
     val f = Task.sequence(seq).runToFuture
 
     s.tick()

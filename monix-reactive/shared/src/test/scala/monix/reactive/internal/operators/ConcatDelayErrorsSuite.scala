@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,9 +24,11 @@ import scala.concurrent.Future
 
 object ConcatDelayErrorsSuite extends BaseTestSuite {
   test("flatMapDelayErrors works for synchronous observers") { implicit s =>
-    val obs = Observable.range(0, 100)
-      .flatMapDelayErrors(x => Observable(x,x,x)
-        .endWithError(DummyException(x.toString)))
+    val obs = Observable
+      .range(0, 100)
+      .flatMapDelayErrors(x =>
+        Observable(x, x, x)
+          .endWithError(DummyException(x.toString)))
 
     var result = 0L
     var errorThrown: Throwable = null
@@ -60,8 +62,9 @@ object ConcatDelayErrorsSuite extends BaseTestSuite {
   }
 
   test("flatMapDelayErrors works for asynchronous observers") { implicit s =>
-    val obs = Observable.range(0, 100)
-      .flatMapDelayErrors(x => Observable(x,x,x).endWithError(DummyException(x.toString)))
+    val obs = Observable
+      .range(0, 100)
+      .flatMapDelayErrors(x => Observable(x, x, x).endWithError(DummyException(x.toString)))
 
     var result = 0L
     var errorThrown: Throwable = null

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,8 +30,7 @@ import scala.util.{Failure, Success}
 /** Shared internals between [[BackPressuredBufferedSubscriber]] and
   * [[BatchedBufferedSubscriber]].
   */
-private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
-  (out: Subscriber[R], _size: Int)
+private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](out: Subscriber[R], _size: Int)
   extends BufferedSubscriber[A] {
 
   require(_size > 0, "bufferSize must be a strictly positive number")
@@ -54,24 +53,24 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
     else if (elem == null) {
       onError(new NullPointerException("Null not supported in onNext"))
       Stop
-    }
-    else backPressured match {
-      case null =>
-        if (queue.length < bufferSize) {
+    } else
+      backPressured match {
+        case null =>
+          if (queue.length < bufferSize) {
+            queue.offer(elem)
+            pushToConsumer()
+            Continue
+          } else {
+            backPressured = Promise[Ack]()
+            queue.offer(elem)
+            pushToConsumer()
+            backPressured.future
+          }
+        case promise =>
           queue.offer(elem)
           pushToConsumer()
-          Continue
-        } else {
-          backPressured = Promise[Ack]()
-          queue.offer(elem)
-          pushToConsumer()
-          backPressured.future
-        }
-      case promise =>
-        queue.offer(elem)
-        pushToConsumer()
-        promise.future
-    }
+          promise.future
+      }
   }
 
   final def onError(ex: Throwable): Unit = {
@@ -107,15 +106,16 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
         // synchronous value
         if (ack == Continue || ack == Stop)
           ack
-        else ack.value match {
-          case Some(Success(success)) =>
-            success
-          case Some(Failure(ex)) =>
-            downstreamSignalComplete(ex)
-            Stop
-          case None =>
-            ack
-        }
+        else
+          ack.value match {
+            case Some(Success(success)) =>
+              success
+            case Some(Failure(ex)) =>
+              downstreamSignalComplete(ex)
+              Stop
+            case None =>
+              ack
+          }
       } catch {
         case ex if NonFatal(ex) =>
           downstreamSignalComplete(ex)
@@ -194,13 +194,11 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
                 goAsync(next, ack)
                 return
             }
-          }
-          else {
+          } else {
             goAsync(next, ack)
             return
           }
-        }
-        else {
+        } else {
           // Ending loop
           if (backPressured != null) {
             backPressured.success(if (upstreamIsComplete) Stop else Continue)
@@ -215,8 +213,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
           isLoopActive = false
           return
         }
-      }
-      catch {
+      } catch {
         case ex if NonFatal(ex) =>
           if (streamErrors) downstreamSignalComplete(ex)
           else scheduler.reportFailure(ex)

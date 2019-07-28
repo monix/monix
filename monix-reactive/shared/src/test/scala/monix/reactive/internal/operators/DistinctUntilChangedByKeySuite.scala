@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,8 @@ import scala.concurrent.duration.Duration.Zero
 object DistinctUntilChangedByKeySuite extends BaseOperatorSuite {
   case class Val(x: Long)
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .flatMap(i => Observable.fromIterable(Seq(Val(i), Val(i), Val(i))))
       .distinctUntilChangedByKey(_.x)
       .map(_.x)
@@ -35,9 +36,10 @@ object DistinctUntilChangedByKeySuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     if (sourceCount == 1) {
       val o = Observable.now(1L).endWithError(ex).distinctUntilChangedByKey(x => x)
-      Sample(o,1,1,Zero,Zero)
+      Sample(o, 1, 1, Zero, Zero)
     } else {
-      val source = Observable.range(0, sourceCount)
+      val source = Observable
+        .range(0, sourceCount)
         .flatMap(i => Observable.fromIterable(Seq(i, i, i)))
 
       val o = createObservableEndingInError(source, ex)
@@ -50,12 +52,13 @@ object DistinctUntilChangedByKeySuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .flatMap(i => Observable.fromIterable(Seq(Val(i), Val(i), Val(i))))
-      .distinctUntilChangedByKey(i => if (i.x == sourceCount-1) throw ex else i.x)
+      .distinctUntilChangedByKey(i => if (i.x == sourceCount - 1) throw ex else i.x)
       .map(_.x)
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
   def count(sourceCount: Int) = sourceCount

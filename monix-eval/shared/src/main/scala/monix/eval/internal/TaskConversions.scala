@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -90,7 +90,11 @@ private[eval] object TaskConversions {
           ctx.scheduler.reportFailure(e)
       }
     }
-    Task.Async(start, trampolineBefore = false, trampolineAfter = false)
+    Task.Async(
+      start,
+      trampolineBefore = false,
+      trampolineAfter = false
+    )
   }
 
   /**
@@ -112,18 +116,20 @@ private[eval] object TaskConversions {
         conn push cancelable.cancel
 
         val syncIO = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
-        cancelable := fromEffect(syncIO.unsafeRunSync() : F[Unit])
+        cancelable := fromEffect(syncIO.unsafeRunSync(): F[Unit])
       } catch {
         case e if NonFatal(e) =>
           ctx.scheduler.reportFailure(e)
       }
     }
-    Task.Async(start, trampolineBefore = false, trampolineAfter = false)
+    Task.Async(
+      start,
+      trampolineBefore = false,
+      trampolineAfter = false
+    )
   }
 
-  private final class CreateCallback[A](
-    conn: TaskConnection, cb: Callback[Throwable, A])
-    (implicit s: Scheduler)
+  private final class CreateCallback[A](conn: TaskConnection, cb: Callback[Throwable, A])(implicit s: Scheduler)
     extends (Either[Throwable, A] => IO[Unit]) with TrampolinedRunnable {
 
     private[this] var canCall = true

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,7 @@ object DropLastSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = Observable.range(0, sourceCount).dropLast(10)
-      Sample(o, count(sourceCount-10), sum(sourceCount-10), Zero, Zero)
+      Sample(o, count(sourceCount - 10), sum(sourceCount - 10), Zero, Zero)
     }
   }
 
@@ -41,7 +41,7 @@ object DropLastSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = Observable.range(0, sourceCount).endWithError(ex).dropLast(1)
-      Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+      Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
     }
   }
 

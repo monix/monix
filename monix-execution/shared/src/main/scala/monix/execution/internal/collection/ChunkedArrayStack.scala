@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,10 +22,7 @@ package collection
   *
   * INTERNAL API.
   */
-private[monix] final class ChunkedArrayStack[A] private (
-  initialArray: Array[AnyRef],
-  chunkSize: Int,
-  initialIndex: Int)
+private[monix] final class ChunkedArrayStack[A] private (initialArray: Array[AnyRef], chunkSize: Int, initialIndex: Int)
   extends Serializable { self =>
 
   assert(chunkSize > 1, "chunkSize > 1")

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,82 +26,83 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive] final class WithLatestFromObservable[A,B,+R](
-  source: Observable[A], other: Observable[B], f: (A,B) => R)
+private[reactive] final class WithLatestFromObservable[A, B, +R](
+  source: Observable[A],
+  other: Observable[B],
+  f: (A, B) => R)
   extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     val connection = CompositeCancelable()
 
-    connection += source.unsafeSubscribeFn(
-      new Subscriber[A] { self =>
-        implicit val scheduler = out.scheduler
+    connection += source.unsafeSubscribeFn(new Subscriber[A] { self =>
+      implicit val scheduler = out.scheduler
 
-        private[this] var isDone = false
-        private[this] var otherStarted = false
-        private[this] var lastOther: B = _
+      private[this] var isDone = false
+      private[this] var otherStarted = false
+      private[this] var lastOther: B = _
 
-        private[this] val otherConnection = {
-          val ref = other.unsafeSubscribeFn(
-            new Subscriber.Sync[B] {
-              implicit val scheduler = out.scheduler
+      private[this] val otherConnection = {
+        val ref = other.unsafeSubscribeFn(new Subscriber.Sync[B] {
+          implicit val scheduler = out.scheduler
 
-              def onNext(elem: B): Ack =
-                self.synchronized {
-                  if (isDone) Stop else {
-                    if (!otherStarted) otherStarted = true
-                    lastOther = elem
-                    Continue
-                  }
-                }
-
-              def onComplete(): Unit = ()
-              def onError(ex: Throwable): Unit =
-                self.onError(ex)
-            })
-
-          connection += ref
-          ref
-        }
-
-        def onNext(elem: A): Future[Ack] =
-          self.synchronized {
-            if (isDone) Stop
-            else if (!otherStarted) Continue
-            else {
-              // Protects calls to user code from within the operator and
-              // stream the error downstream if it happens, but if the
-              // error happens because of calls to `onNext` or other
-              // protocol calls, then the behavior should be undefined.
-              var streamErrors = true
-              try {
-                val r = f(elem, lastOther)
-                streamErrors = false
-                out.onNext(r)
-              } catch {
-                case NonFatal(ex) if streamErrors =>
-                  self.onError(ex)
-                  Stop
+          def onNext(elem: B): Ack =
+            self.synchronized {
+              if (isDone) Stop
+              else {
+                if (!otherStarted) otherStarted = true
+                lastOther = elem
+                Continue
               }
             }
-          }
 
-        def onError(ex: Throwable): Unit =
-          signalComplete(ex)
-        def onComplete(): Unit =
-          signalComplete(null)
+          def onComplete(): Unit = ()
+          def onError(ex: Throwable): Unit =
+            self.onError(ex)
+        })
 
-        private def signalComplete(ex: Throwable): Unit =
-          self.synchronized {
-            if (!isDone)
-              try {
-                isDone = true
-                if (ex == null) out.onComplete()
-                else out.onError(ex)
-              } finally {
-                otherConnection.cancel()
-              }
+        connection += ref
+        ref
+      }
+
+      def onNext(elem: A): Future[Ack] =
+        self.synchronized {
+          if (isDone) Stop
+          else if (!otherStarted) Continue
+          else {
+            // Protects calls to user code from within the operator and
+            // stream the error downstream if it happens, but if the
+            // error happens because of calls to `onNext` or other
+            // protocol calls, then the behavior should be undefined.
+            var streamErrors = true
+            try {
+              val r = f(elem, lastOther)
+              streamErrors = false
+              out.onNext(r)
+            } catch {
+              case NonFatal(ex) if streamErrors =>
+                self.onError(ex)
+                Stop
+            }
           }
-      })
+        }
+
+      def onError(ex: Throwable): Unit =
+        signalComplete(ex)
+      def onComplete(): Unit =
+        signalComplete(null)
+
+      private def signalComplete(ex: Throwable): Unit =
+        self.synchronized {
+          if (!isDone)
+            try {
+              isDone = true
+              if (ex == null) out.onComplete()
+              else out.onError(ex)
+            } finally {
+              otherConnection.cancel()
+            }
+        }
+    })
   }
 }

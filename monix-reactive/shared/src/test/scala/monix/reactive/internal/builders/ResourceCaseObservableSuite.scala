@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,7 +42,6 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     def release = Task { r.released += 1 }
   }
 
-
   test("Observable.resource.flatMap(use) yields all elements `use` provides") { implicit s =>
     check1 { source: Observable[Int] =>
       val bracketed = Observable.resource(Task.unit)(_ => Task.unit).flatMap(_ => source)
@@ -52,10 +51,12 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
 
   test("Observable.resource.flatMap(use) preserves earlyStop of stream returned from `use`") { implicit s =>
     var earlyStopDone = false
-    val bracketed = Observable.resource(Task.unit)(_ => Task.unit)
-      .flatMap(_ => Observable(1, 2, 3).doOnEarlyStop(Task {
-        earlyStopDone = true
-      }))
+    val bracketed = Observable
+      .resource(Task.unit)(_ => Task.unit)
+      .flatMap(_ =>
+        Observable(1, 2, 3).doOnEarlyStop(Task {
+          earlyStopDone = true
+        }))
 
     bracketed.take(1).completedL.runToFuture
     s.tick()
@@ -64,7 +65,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
 
   test("Observable.resource releases resource on normal completion") { implicit s =>
     val rs = new Resource
-    val bracketed = Observable.resource(rs.acquire)(_.release)
+    val bracketed = Observable
+      .resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.range(1, 10))
 
     bracketed.completedL.runToFuture
@@ -89,7 +91,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
   test("Observable.resource flatMap behavior") { implicit s =>
     val rs = new Resource
 
-    val f = Observable.resource(rs.acquire)(_.release)
+    val f = Observable
+      .resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.now(1).delayExecution(1.second))
       .runAsyncGetFirst
 
@@ -106,7 +109,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
   test("Observable.resource mapEval behavior") { implicit s =>
     val rs = new Resource
 
-    val f = Observable.resource(rs.acquire)(_.release)
+    val f = Observable
+      .resource(rs.acquire)(_.release)
       .mapEval(_ => Task.now(1).delayExecution(1.second))
       .runAsyncGetFirst
 
@@ -120,37 +124,38 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-   test("Observable.resource should be cancelable") { implicit s =>
-     val rs = new Resource
-     var wasCanceled = false
+  test("Observable.resource should be cancelable") { implicit s =>
+    val rs = new Resource
+    var wasCanceled = false
 
-     val obs = Observable.resourceCase(rs.acquire) {
-       case (r, ExitCase.Canceled) =>
-         Task { wasCanceled = true }.flatMap(_ => r.release)
-       case (r, _) =>
-         r.release
-     }
+    val obs = Observable.resourceCase(rs.acquire) {
+      case (r, ExitCase.Canceled) =>
+        Task { wasCanceled = true }.flatMap(_ => r.release)
+      case (r, _) =>
+        r.release
+    }
 
-     val cancelable = obs.flatMap(_ => Observable.never)
-       .unsafeSubscribeFn(new Subscriber[Handle] {
-         implicit val scheduler = s
-         def onNext(elem: Handle) =
-           Continue
-         def onComplete() =
-           throw new IllegalStateException("onComplete")
-         def onError(ex: Throwable) =
-           throw new IllegalStateException("onError")
-       })
+    val cancelable = obs
+      .flatMap(_ => Observable.never)
+      .unsafeSubscribeFn(new Subscriber[Handle] {
+        implicit val scheduler = s
+        def onNext(elem: Handle) =
+          Continue
+        def onComplete() =
+          throw new IllegalStateException("onComplete")
+        def onError(ex: Throwable) =
+          throw new IllegalStateException("onError")
+      })
 
-     s.tick()
-     cancelable.cancel()
-     s.tick()
+    s.tick()
+    cancelable.cancel()
+    s.tick()
 
-     assertEquals(rs.acquired, 1)
-     assertEquals(rs.released, 1)
-     assert(wasCanceled)
-     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
-   }
+    assertEquals(rs.acquired, 1)
+    assertEquals(rs.released, 1)
+    assert(wasCanceled)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
 
   test("Observable.resource back-pressures on mapEval continuation") { implicit s =>
     val p = Promise[Unit]()
@@ -185,8 +190,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
   test("Observable.resource should not be cancelable in its acquire") { implicit s =>
     for (_ <- 0 until 1000) {
       val task = for {
-        start <- Deferred.uncancelable[Task, Unit]
-        latch <- Deferred[Task, Unit]
+        start    <- Deferred.uncancelable[Task, Unit]
+        latch    <- Deferred[Task, Unit]
         canceled <- Deferred.uncancelable[Task, Unit]
         obs = Observable.resourceCase(start.complete(()) *> latch.get) {
           case (_, ExitCase.Canceled) =>
@@ -195,10 +200,10 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
             Task.unit
         }
         fiber <- obs.flatMap(_ => Observable.never).completedL.start
-        _ <- start.get
-        _ <- fiber.cancel.start
-        _ <- latch.complete(()).start
-        _ <- canceled.get
+        _     <- start.get
+        _     <- fiber.cancel.start
+        _     <- latch.complete(()).start
+        _     <- canceled.get
       } yield ()
 
       val f = task.runToFuture; s.tick()
@@ -211,10 +216,9 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     val rs = new Resource
     val error = DummyException("dummy")
 
-    val bracketed = Observable.resource(rs.acquire)(_.release)
-      .flatMap { _ =>
-        Observable.range(1, 10) ++ Observable.raiseError[Long](error)
-      }
+    val bracketed = Observable.resource(rs.acquire)(_.release).flatMap { _ =>
+      Observable.range(1, 10) ++ Observable.raiseError[Long](error)
+    }
 
     val f = bracketed.completedL.runToFuture
     s.tick()
@@ -227,8 +231,9 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
   test("Observable.resource.flatMap(use) releases resource if `use` throws") { implicit s =>
     val rs = new Resource
     val dummy = DummyException("dummy")
-    val bracketed = Observable.resource(rs.acquire)(_.release)
-      .flatMap { _ => throw dummy }
+    val bracketed = Observable.resource(rs.acquire)(_.release).flatMap { _ =>
+      throw dummy
+    }
 
     val f = bracketed.completedL.runToFuture
     s.tick()
@@ -266,11 +271,14 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
   test("Observable.resource nesting: outer releases even if inner release fails") { implicit s =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Observable.resource(Task.unit)(_ => Task {
-      released = true
-    })
+    val bracketed = Observable
+      .resource(Task.unit)(_ =>
+        Task {
+          released = true
+        })
       .flatMap { _ =>
-        Observable.resource(Task.unit)(_ => Task.raiseError(dummy))
+        Observable
+          .resource(Task.unit)(_ => Task.raiseError(dummy))
           .flatMap(_ => Observable(1, 2, 3))
       }
 
@@ -284,9 +292,11 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
   test("Observable.resource.flatMap(child) calls release when child is broken") { implicit s =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Observable.resource(Task.unit)(_ => Task {
-      released = true
-    })
+    val bracketed = Observable
+      .resource(Task.unit)(_ =>
+        Task {
+          released = true
+        })
       .flatMap { _ =>
         Observable.suspend[Int](Observable.raiseError(dummy))
       }
@@ -301,13 +311,14 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
   test("Observable.resource nesting: inner releases even if outer release fails") { implicit s =>
     var released = false
     val dummy = DummyException("dummy")
-    val bracketed = Observable.resource(Task.unit)(_ => Task.raiseError(dummy))
-      .flatMap { _ =>
-        Observable.resource(Task.unit)(_ => Task {
-          released = true
-        })
-          .flatMap(_ => Observable(1, 2, 3))
-      }
+    val bracketed = Observable.resource(Task.unit)(_ => Task.raiseError(dummy)).flatMap { _ =>
+      Observable
+        .resource(Task.unit)(_ =>
+          Task {
+            released = true
+          })
+        .flatMap(_ => Observable(1, 2, 3))
+    }
 
     val f = bracketed.completedL.runToFuture
     s.tick()
@@ -338,7 +349,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
         _.sumL.map(_ => ())
       )
 
-    val pure = Observable.resource(rs.acquire)(_.release)
+    val pure = Observable
+      .resource(rs.acquire)(_.release)
       .flatMap(_ => Observable(1, 2, 3))
 
     for (method <- completes) {
@@ -350,7 +362,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     assertEquals(rs.released, completes.length)
 
     val dummy = DummyException("dummy")
-    val faulty = Observable.resource(rs.acquire)(_.release)
+    val faulty = Observable
+      .resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.raiseError[Int](dummy))
 
     for (method <- completes) {
@@ -362,7 +375,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     assertEquals(rs.acquired, completes.length * 2)
     assertEquals(rs.released, completes.length * 2)
 
-    val broken = Observable.resource(rs.acquire)(_.release)
+    val broken = Observable
+      .resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.suspend[Int](Observable.raiseError(dummy)))
 
     for (method <- completes) {
@@ -382,9 +396,10 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
       Observable
         .resource(Task {
           log :+= s"Start: $key"
-        })(_ => Task {
-          log :+= s"Stop: $key"
-        })
+        })(_ =>
+          Task {
+            log :+= s"Stop: $key"
+          })
         .flatMap(Observable.pure)
 
     val observable = for {

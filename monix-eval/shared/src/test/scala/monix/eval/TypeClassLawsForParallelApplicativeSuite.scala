@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +19,8 @@ package monix.eval
 
 import cats.Applicative
 import cats.laws.discipline.ApplicativeTests
+import monix.catnap.internal.ParallelApplicative
 import monix.eval.instances.CatsParallelForTask
-import monix.execution.internal.ParallelApplicative
 
 object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
   implicit val ap: Applicative[Task] =

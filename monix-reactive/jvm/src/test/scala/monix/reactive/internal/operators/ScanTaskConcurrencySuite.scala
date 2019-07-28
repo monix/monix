@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,8 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
     val expected = 3L * count * (count - 1) / 2
 
     for (_ <- 0 until 100) {
-      val sum = Observable.range(0, count)
+      val sum = Observable
+        .range(0, count)
         .scanEval(Task.now(0L))((_, x) => Task.now(x * 3))
         .sumL
         .runToFuture
@@ -48,7 +49,8 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
     val expected = 3L * count * (count - 1) / 2
 
     for (_ <- 0 until 100) {
-      val sum = Observable.range(0, count)
+      val sum = Observable
+        .range(0, count)
         .scanEval(Task.now(0L))((_, x) => Task.evalAsync(x * 3))
         .sumL
         .runToFuture
@@ -61,7 +63,8 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
   test(s"scanTask should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
     def never(): (Future[Unit], Task[Int]) = {
       val isCancelled = Promise[Unit]()
-      val ref = Task.create[Int]((_, _) => Cancelable(() => isCancelled.success(())))
+      val ref =
+        Task.create[Int]((_, _) => Cancelable(() => isCancelled.success(())))
       (isCancelled.future, ref)
     }
 

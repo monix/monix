@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,11 +31,14 @@ private[eval] object TaskStart {
       case Task.Now(_) | Task.Error(_) =>
         Task.Now(Fiber(fa, Task.unit))
       case _ =>
-        Async(new StartForked(fa), trampolineBefore = false, trampolineAfter = true)
+        Async(
+          new StartForked(fa),
+          trampolineBefore = false,
+          trampolineAfter = true
+        )
     }
 
-  private class StartForked[A](fa: Task[A])
-    extends ((Context, Callback[Throwable, Fiber[A]]) => Unit) {
+  private class StartForked[A](fa: Task[A]) extends ((Context, Callback[Throwable, Fiber[A]]) => Unit) {
 
     final def apply(ctx: Context, cb: Callback[Throwable, Fiber[A]]): Unit = {
       implicit val sc = ctx.scheduler

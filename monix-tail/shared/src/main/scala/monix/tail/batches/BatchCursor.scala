@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 package monix.tail
 package batches
 
+import monix.execution.compat.internal._
 import monix.execution.internal.Platform.recommendedBatchSize
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.reflect.ClassTag
@@ -37,11 +38,13 @@ import scala.reflect.ClassTag
   *
   * Sample:
   * {{{
-  *   try while (cursor.hasNext()) {
-  *     println(cursor.next())
-  *   }
-  *   catch {
-  *     case NonFatal(ex) => report(ex)
+  *   def sum(cursor: BatchCursor[Int]): Long = {
+  *     var sum = 0L
+  *
+  *     while (cursor.hasNext()) {
+  *       sum += cursor.next()
+  *     }
+  *     sum
   *   }
   * }}}
   *
@@ -197,7 +200,7 @@ abstract class BatchCursor[+A] extends Serializable {
     * @return a new cursor which yields each value `x` produced by this
     *         cursor for which `pf` is defined
     */
-  def collect[B](pf: PartialFunction[A,B]): BatchCursor[B]
+  def collect[B](pf: PartialFunction[A, B]): BatchCursor[B]
 
   /** Applies a binary operator to a start value and all elements
     * of this cursor, going left to right.
@@ -214,7 +217,7 @@ abstract class BatchCursor[+A] extends Serializable {
     *         `initial` on the left. Returns `initial` if the cursor
     *         is empty.
     */
-  def foldLeft[R](initial: R)(op: (R,A) => R): R = {
+  def foldLeft[R](initial: R)(op: (R, A) => R): R = {
     var result = initial
     while (hasNext()) result = op(result, next())
     result
@@ -232,7 +235,7 @@ abstract class BatchCursor[+A] extends Serializable {
   /** Converts this cursor into an `Array`,
     * consuming it in the process.
     */
-  def toArray[B >: A : ClassTag]: Array[B] = {
+  def toArray[B >: A: ClassTag]: Array[B] = {
     val buffer = ArrayBuffer.empty[B]
     while (hasNext()) buffer += next()
     buffer.toArray
@@ -282,7 +285,7 @@ object BatchCursor {
     *        to wrap in a `BatchCursor` instance
     */
   def fromIterator[A](iter: Iterator[A]): BatchCursor[A] = {
-    val bs = if (iter.hasDefiniteSize) recommendedBatchSize else 1
+    val bs = if (hasDefiniteSize(iter)) recommendedBatchSize else 1
     new IteratorCursor[A](iter, bs)
   }
 
@@ -339,7 +342,7 @@ object BatchCursor {
     * semantics on transformations.
     */
   def fromSeq[A](seq: Seq[A]): BatchCursor[A] = {
-    val bs = if (seq.hasDefiniteSize) recommendedBatchSize else 1
+    val bs = if (hasDefiniteSize(seq)) recommendedBatchSize else 1
     fromSeq(seq, bs)
   }
 

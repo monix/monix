@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,22 +24,22 @@ private[monix] object math {
   val lnOf2 = scala.math.log(2)
 
   /**
-   * Calculates the base 2 logarithm of the given argument.
-   *
-   * @return a number such that 2^nr^ is equal to our argument.
-   */
+    * Calculates the base 2 logarithm of the given argument.
+    *
+    * @return a number such that 2^nr^ is equal to our argument.
+    */
   def log2(x: Double): Double = {
     scala.math.log(x) / lnOf2
   }
 
   /**
-   * Given a positive integer, rounds it to the nearest power of two.
-   * Note that the maximum that this function can
-   * return is 2^30^ (or 1,073,741,824).
-   *
-   * @return an integer that is a power of 2 and that is "closest"
-   *         to the given argument.
-   */
+    * Given a positive integer, rounds it to the nearest power of two.
+    * Note that the maximum that this function can
+    * return is 2^30^ (or 1,073,741,824).
+    *
+    * @return an integer that is a power of 2 and that is "closest"
+    *         to the given argument.
+    */
   def roundToPowerOf2(nr: Int): Int = {
     require(nr >= 0, "nr must be positive")
     val bit = round(log2(nr))
@@ -47,13 +47,13 @@ private[monix] object math {
   }
 
   /**
-   * Given a long, rounds it to the nearest power of two.
-   * Note that the maximum that this function can
-   * return is 2^62^ (or 4,611,686,018,427,387,904).
-   *
-   * @return a long that is a power of 2 and that is "closest"
-   *         to the given argument.
-   */
+    * Given a long, rounds it to the nearest power of two.
+    * Note that the maximum that this function can
+    * return is 2^62^ (or 4,611,686,018,427,387,904).
+    *
+    * @return a long that is a power of 2 and that is "closest"
+    *         to the given argument.
+    */
   def roundToPowerOf2(nr: Long) = {
     require(nr >= 0, "nr must be positive")
     val bit = round(log2(nr))
@@ -61,13 +61,13 @@ private[monix] object math {
   }
 
   /**
-   * Given a positive integer, returns the next power of 2 that is bigger
-   * than our argument, or the maximum that this function can
-   * return which is 2^30^ (or 1,073,741,824).
-   *
-   * @return an integer that is a power of 2, that is bigger or
+    * Given a positive integer, returns the next power of 2 that is bigger
+    * than our argument, or the maximum that this function can
+    * return which is 2^30^ (or 1,073,741,824).
+    *
+    * @return an integer that is a power of 2, that is bigger or
     *        equal with our argument and that is "closest" to it.
-   */
+    */
   def nextPowerOf2(nr: Int): Int = {
     require(nr >= 0, "nr must be positive")
     val bit = ceil(log2(nr))
@@ -75,17 +75,16 @@ private[monix] object math {
   }
 
   /**
-   * Given a positive long, returns the next power of 2 that is bigger
-   * than our argument, or the maximum that this function can
-   * return which is 2^62^ (or 4,611,686,018,427,387,904).
-   *
-   * @return a long that is a power of 2 and that is "closest"
-   *         to the given argument.
-   */
+    * Given a positive long, returns the next power of 2 that is bigger
+    * than our argument, or the maximum that this function can
+    * return which is 2^62^ (or 4,611,686,018,427,387,904).
+    *
+    * @return a long that is a power of 2 and that is "closest"
+    *         to the given argument.
+    */
   def nextPowerOf2(nr: Long) = {
     require(nr >= 0, "nr must be positive")
     val bit = ceil(log2(nr))
     1L << (if (bit > 62) 62 else bit.toInt)
   }
 }
-

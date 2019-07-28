@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,23 +27,25 @@ import scala.concurrent.Promise
 object MiscFailedSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should complete") { implicit s =>
     var received = 0
     var wasCompleted = false
 
-    Observable.now(1).failed.unsafeSubscribeFn(new Observer[Throwable] {
-      def onNext(elem: Throwable) = {
-        received += 1
-        Continue
-      }
+    Observable
+      .now(1)
+      .failed
+      .unsafeSubscribeFn(new Observer[Throwable] {
+        def onNext(elem: Throwable) = {
+          received += 1
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     assertEquals(received, 0)
     assert(wasCompleted)
@@ -54,7 +56,9 @@ object MiscFailedSuite extends TestSuite[TestScheduler] {
     var thrown: Throwable = null
     val p = Promise[Continue.type]()
 
-    Observable.raiseError(DummyException("dummy")).failed
+    Observable
+      .raiseError(DummyException("dummy"))
+      .failed
       .unsafeSubscribeFn(new Observer[Throwable] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true

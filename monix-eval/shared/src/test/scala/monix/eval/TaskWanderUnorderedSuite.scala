@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,10 +28,12 @@ import scala.util.{Failure, Success, Try}
 object TaskWanderUnorderedSuite extends BaseTestSuite {
   test("Task.wanderUnordered should execute in parallel") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
-    val f = Task.wanderUnordered(seq) {
-      case (i, d) =>
-        Task.evalAsync(i + 1).delayExecution(d.seconds)
-    }.runToFuture
+    val f = Task
+      .wanderUnordered(seq) {
+        case (i, d) =>
+          Task.evalAsync(i + 1).delayExecution(d.seconds)
+      }
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -44,11 +46,14 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
   test("Task.wanderUnordered should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq((1, 3), (-1, 1), (3, 2), (3, 1))
-    val f = Task.wanderUnordered(seq) {
-      case (i, d) =>
-        Task.evalAsync(if (i < 0) throw ex else i + 1)
-          .delayExecution(d.seconds)
-    }.runToFuture
+    val f = Task
+      .wanderUnordered(seq) {
+        case (i, d) =>
+          Task
+            .evalAsync(if (i < 0) throw ex else i + 1)
+            .delayExecution(d.seconds)
+      }
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -58,9 +63,11 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
 
   test("Task.wanderUnordered should be canceled") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
-    val f = Task.wanderUnordered(seq) {
-      case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
-    }.runToFuture
+    val f = Task
+      .wanderUnordered(seq) {
+        case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
+      }
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -72,10 +79,10 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.wanderUnordered should run over an iterator") { implicit s =>
+  test("Task.wanderUnordered should run over an iterable") { implicit s =>
     val count = 10
     val seq = 0 until count
-    val sum = Task.wanderUnordered(seq.iterator)(x => Task.eval(x + 1)).map(_.sum)
+    val sum = Task.wanderUnordered(seq)(x => Task.eval(x + 1)).map(_.sum)
 
     val result = sum.runToFuture; s.tick()
     assertEquals(result.value.get, Success((count + 1) * count / 2))
@@ -116,8 +123,9 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val tasks = 0 until count
     var result = Option.empty[Try[Int]]
 
-    wanderSpecial(tasks).map(_.sum).runAsync(
-      new Callback[Throwable, Int] {
+    wanderSpecial(tasks)
+      .map(_.sum)
+      .runAsync(new Callback[Throwable, Int] {
         def onSuccess(value: Int): Unit =
           result = Some(Success(value))
 
@@ -135,9 +143,14 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val ex = DummyException("dummy1")
     var errorsThrow = 0
     val gather = Task.wanderUnordered(Seq(0, 0)) { _ =>
-      Task.raiseError[Int](ex)
+      Task
+        .raiseError[Int](ex)
         .executeAsync
-        .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
+        .doOnFinish { x =>
+          if (x.isDefined) errorsThrow += 1
+          Task.unit
+        }
+        .uncancelable
     }
 
     val result = gather.runToFutureOpt
@@ -154,7 +167,9 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
       effect += 1; 3
     }.memoize
 
-    val task2 = task1 map { x => effect += 1; x + 1 }
+    val task2 = task1 map { x =>
+      effect += 1; x + 1
+    }
 
     val task3 = Task.wanderUnordered(List(0, 0, 0)) { _ =>
       task2
@@ -178,5 +193,4 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val result1 = task1.runToFuture; s.tick()
     assertEquals(result1.value, Some(Failure(ex)))
   }
-
 }

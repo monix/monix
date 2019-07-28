@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +20,15 @@ package monix.tail
 import cats.Eq
 import cats.data.EitherT
 import cats.effect.IO
-import cats.effect.laws.discipline.AsyncTests
-import cats.laws.discipline.{CoflatMapTests, DeferTests, MonadErrorTests, MonoidKTests, SemigroupalTests}
+import cats.laws.discipline.{
+  CoflatMapTests,
+  DeferTests,
+  FunctorFilterTests,
+  MonadErrorTests,
+  MonoidKTests,
+  SemigroupalTests
+}
+import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
 import monix.execution.schedulers.TestScheduler
 
 object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
@@ -52,5 +59,9 @@ object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
 
   checkAllAsync("CoflatMap[Iterant[IO]]") { implicit ec =>
     CoflatMapTests[F].coflatMap[Int, Int, Int]
+  }
+
+  checkAllAsync("FunctorFilter[Iterant[IO]]") { implicit ec =>
+    FunctorFilterTests[F].functorFilter[Int, Int, Int]
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,19 +25,19 @@ import monix.reactive.{Observable, Observer}
 import scala.concurrent.Promise
 import scala.util.Success
 
-
 object WhileBusyDropEventsAndSignalOverflowSuite extends TestSuite[TestScheduler] {
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should not drop events for synchronous observers") { implicit s =>
-    val f = Observable.range(0, 1000)
+    val f = Observable
+      .range(0, 1000)
       .whileBusyDropEventsAndSignal(x => x)
-      .sum.runAsyncGetLast
+      .sum
+      .runAsyncGetLast
 
     s.tick()
     assertEquals(f.value, Some(Success(Some(999 * 500))))
@@ -49,7 +49,8 @@ object WhileBusyDropEventsAndSignalOverflowSuite extends TestSuite[TestScheduler
     var received = 0L
     var wasCompleted = false
 
-    source.whileBusyDropEventsAndSignal(x => x)
+    source
+      .whileBusyDropEventsAndSignal(x => x)
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = {
           received += elem
@@ -85,19 +86,20 @@ object WhileBusyDropEventsAndSignalOverflowSuite extends TestSuite[TestScheduler
     var received = 0L
     var wasCompleted = false
 
-    source.whileBusyDropEventsAndSignal(x => x * 2)
+    source
+      .whileBusyDropEventsAndSignal(x => x * 2)
       .unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) =
-        p.future.map { continue =>
-          received += elem
-          continue
-        }
+        def onNext(elem: Long) =
+          p.future.map { continue =>
+            received += elem
+            continue
+          }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = {
-        wasCompleted = true
-      }
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = {
+          wasCompleted = true
+        }
+      })
 
     source.onNext(1)
     s.tick()

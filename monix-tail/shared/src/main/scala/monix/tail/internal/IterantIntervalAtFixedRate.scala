@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,9 @@ private[tail] object IterantIntervalAtFixedRate {
   /**
     * Implementation for `Iterant.intervalAtFixedRate`
     */
-  def apply[F[_]](initialDelay: FiniteDuration, interval: FiniteDuration)
-    (implicit F: Async[F], timer: Timer[F], clock: Clock[F]): Iterant[F, Long] = {
+  def apply[F[_]](
+    initialDelay: FiniteDuration,
+    interval: FiniteDuration)(implicit F: Async[F], timer: Timer[F], clock: Clock[F]): Iterant[F, Long] = {
 
     def loop(time: F[Long], index: Long): F[Iterant[F, Long]] =
       time.map { startTime =>

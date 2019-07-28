@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,29 +26,30 @@ private[tail] object IterantDrop {
   /**
     * Implementation for `Iterant#drop`
     */
-  def apply[F[_], A](source: Iterant[F, A], n: Int)
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Sync[F]): Iterant[F, A] = {
     Suspend(F.delay(new Loop(n).apply(source)))
   }
 
-  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, A]] {
+  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
     private[this] var toDrop: Int = n
 
     def visit(ref: Next[F, A]): Iterant[F, A] =
-      if (toDrop <= 0) ref else {
+      if (toDrop <= 0) ref
+      else {
         toDrop -= 1
         Suspend(ref.rest.map(this))
       }
 
     def visit(ref: NextBatch[F, A]): Iterant[F, A] =
-      if (toDrop <= 0) ref else {
+      if (toDrop <= 0) ref
+      else {
         dropFromCursor(ref.toNextCursor())
       }
 
     def visit(ref: NextCursor[F, A]): Iterant[F, A] =
-      if (toDrop <= 0) ref else {
+      if (toDrop <= 0) ref
+      else {
         dropFromCursor(ref)
       }
 
@@ -65,7 +66,8 @@ private[tail] object IterantDrop {
       else ref.runMap(this)
 
     def visit(ref: Last[F, A]): Iterant[F, A] =
-      if (toDrop <= 0) ref else {
+      if (toDrop <= 0) ref
+      else {
         toDrop -= 1
         Iterant.empty
       }

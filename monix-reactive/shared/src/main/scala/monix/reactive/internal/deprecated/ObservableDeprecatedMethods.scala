@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -296,7 +296,7 @@ private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   @deprecated("Switch to guaranteeCaseF", "3.0.0")
   def doAfterTerminateEval[F[_]](cb: Option[Throwable] => F[Unit])(implicit F: TaskLike[F]): Observable[A] = {
     // $COVERAGE-OFF$
-    self.liftByOperator(new DoOnTerminateOperator[A](e => F.toTask(cb(e)), happensBefore = false))
+    self.liftByOperator(new DoOnTerminateOperator[A](e => F(cb(e)), happensBefore = false))
     // $COVERAGE-ON$
   }
 

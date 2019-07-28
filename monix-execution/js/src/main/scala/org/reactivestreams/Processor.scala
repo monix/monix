@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +18,10 @@
 package org.reactivestreams
 
 /**
- * Mirrors the `Subject` interface from the
- * [[http://www.reactive-streams.org/ Reactive Streams]] project.
- *
- * A Subject represents a processing stage—which is both a [[Subscriber]]
- * and a [[Publisher]] and obeys the contracts of both.
- */
-trait Processor[T,R] extends Subscriber[T] with Publisher[R]
+  * Mirrors the `Subject` interface from the
+  * [[http://www.reactive-streams.org/ Reactive Streams]] project.
+  *
+  * A Subject represents a processing stage—which is both a [[Subscriber]]
+  * and a [[Publisher]] and obeys the contracts of both.
+  */
+trait Processor[T, R] extends Subscriber[T] with Publisher[R]

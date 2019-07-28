@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,7 +39,8 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
     TaskCreate.async(k)
   override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(release: A => Task[Unit]): Task[B] =
     acquire.bracket(use)(release)
-  override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
+  override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(
+    release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     acquire.bracketCase(use)(release)
   override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
     Task.asyncF(k)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,7 @@ package monix.execution.atomic
   * Note that the equality test in `compareAndSet` is value based,
   * since `Long` is a primitive.
   */
-final class AtomicLong private[atomic]
-  (initialValue: Long) extends AtomicNumber[Long] {
+final class AtomicLong private[atomic] (initialValue: Long) extends AtomicNumber[Long] {
 
   private[this] var ref = initialValue
 
@@ -37,8 +36,7 @@ final class AtomicLong private[atomic]
     if (ref == expect) {
       ref = update
       true
-    }
-    else
+    } else
       false
   }
 

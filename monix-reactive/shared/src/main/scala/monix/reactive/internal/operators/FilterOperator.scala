@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,7 @@ import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
-private[reactive] final class FilterOperator[A](p: A => Boolean)
-  extends Operator[A,A] {
+private[reactive] final class FilterOperator[A](p: A => Boolean) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -40,11 +39,9 @@ private[reactive] final class FilterOperator[A](p: A => Boolean)
           if (p(elem)) {
             streamError = false
             out.onNext(elem)
-          }
-          else
+          } else
             Continue
-        }
-        catch {
+        } catch {
           case NonFatal(ex) if streamError =>
             onError(ex)
             Stop

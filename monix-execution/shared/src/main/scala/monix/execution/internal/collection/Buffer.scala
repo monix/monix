@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,33 +18,33 @@
 package monix.execution.internal.collection
 
 /**
- * A `Buffer` is a data-structure that can be appended in constant time
- * constant time and that can be iterated efficiently.
- */
+  * A `Buffer` is a data-structure that can be appended in constant time
+  * constant time and that can be iterated efficiently.
+  */
 private[monix] trait Buffer[A] extends Iterable[A] {
   /**
-   * Pushes a new element in the queue. Depending on
-   * implementation, on overflow it might start to evict
-   * old elements from the queue.
-   *
-   * @return the number of elements that were evicted in case of
-   *         overflow or zero otherwise
-   */
+    * Pushes a new element in the queue. Depending on
+    * implementation, on overflow it might start to evict
+    * old elements from the queue.
+    *
+    * @return the number of elements that were evicted in case of
+    *         overflow or zero otherwise
+    */
   def offer(elem: A): Int
 
   /**
-   * Pushes the given sequence on the queue. Depending on
-   * implementation, on overflow it might start to evict
-   * old elements from the queue.
-   *
-   * @return the number of elements that were evicted in case of
-   *         overflow or zero otherwise
-   */
+    * Pushes the given sequence on the queue. Depending on
+    * implementation, on overflow it might start to evict
+    * old elements from the queue.
+    *
+    * @return the number of elements that were evicted in case of
+    *         overflow or zero otherwise
+    */
   def offerMany(seq: A*): Long
 
   /**
-   * Clears all items in this buffer leaving it empty.
-   */
+    * Clears all items in this buffer leaving it empty.
+    */
   def clear(): Unit
 
   /** Returns the number of elements stored */

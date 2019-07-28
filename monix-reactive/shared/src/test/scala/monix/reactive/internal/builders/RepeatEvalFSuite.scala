@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,8 +33,7 @@ import scala.concurrent.Future
 object RepeatEvalFSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should do sync evaluation in batches") { implicit s =>
@@ -42,7 +41,7 @@ object RepeatEvalFSuite extends TestSuite[TestScheduler] {
     var received = 0
 
     var i = 0
-    val obs = Observable.repeatEvalF (IO { i += 1; i })
+    val obs = Observable.repeatEvalF(IO { i += 1; i })
 
     val c = obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] = {
@@ -68,7 +67,7 @@ object RepeatEvalFSuite extends TestSuite[TestScheduler] {
     var received = 0
 
     var i = 0
-    val obs = Observable.repeatEvalF (IO.async[Int] { cb =>
+    val obs = Observable.repeatEvalF(IO.async[Int] { cb =>
       i += 1
       cb(Right(i))
     })

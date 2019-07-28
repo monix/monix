@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,12 +60,13 @@ object CoevalGuaranteeSuite extends BaseTestSuite {
             case _ =>
               fail("Unexpected suppressed errors list: " + error.getSuppressed.toList)
           }
-        } else error match {
-          case CompositeException(Seq(`useError`, `finalizerError`)) =>
-            () // pass
-          case _ =>
-            fail(s"Unexpected error: $error")
-        }
+        } else
+          error match {
+            case CompositeException(Seq(`useError`, `finalizerError`)) =>
+              () // pass
+            case _ =>
+              fail(s"Unexpected error: $error")
+          }
 
       case other =>
         fail(s"Unexpected result: $other")

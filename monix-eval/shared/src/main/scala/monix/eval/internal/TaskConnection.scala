@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +21,7 @@ package internal
 import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.execution.atomic.{Atomic, PaddingStrategy}
-import monix.execution.schedulers.TrampolinedRunnable
-import monix.execution.{Callback, Cancelable, Scheduler}
+import monix.execution.{Cancelable, Scheduler}
 import scala.annotation.tailrec
 
 /**
@@ -133,14 +132,10 @@ private[eval] object TaskConnection {
     def isCanceled: Boolean = false
     def pop(): CancelToken[Task] = Task.unit
     def tryReactivate(): Boolean = true
-    def push(token: CancelToken[Task])
-      (implicit s: Scheduler): Unit = ()
-    def push(cancelable: Cancelable)
-      (implicit s: Scheduler): Unit = ()
-    def push(connection: CancelableF[Task])
-      (implicit s: Scheduler): Unit = ()
-    def pushConnections(seq: CancelableF[Task]*)
-      (implicit s: Scheduler): Unit = ()
+    def push(token: CancelToken[Task])(implicit s: Scheduler): Unit = ()
+    def push(cancelable: Cancelable)(implicit s: Scheduler): Unit = ()
+    def push(connection: CancelableF[Task])(implicit s: Scheduler): Unit = ()
+    def pushConnections(seq: CancelableF[Task]*)(implicit s: Scheduler): Unit = ()
     def toCancelable(implicit s: Scheduler): Cancelable =
       Cancelable.empty
   }
@@ -172,10 +167,8 @@ private[eval] object TaskConnection {
       pushAny(connection)
 
     @tailrec
-    private def pushAny(cancelable: AnyRef)
-      (implicit s: Scheduler): Unit = {
-
-      state.get match {
+    private def pushAny(cancelable: AnyRef)(implicit s: Scheduler): Unit = {
+      state.get() match {
         case null =>
           UnsafeCancelUtils.triggerCancel(cancelable)
         case list =>
@@ -192,7 +185,7 @@ private[eval] object TaskConnection {
       push(UnsafeCancelUtils.cancelAllUnsafe(seq))
 
     @tailrec def pop(): CancelToken[Task] =
-      state.get match {
+      state.get() match {
         case null | Nil => Task.unit
         case current @ (x :: xs) =>
           if (state.compareAndSet(current, xs))
@@ -212,19 +205,5 @@ private[eval] object TaskConnection {
         def cancel(): Unit =
           self.cancel.runAsyncAndForget(s)
       }
-  }
-
-  private[internal] def trampolineCallback[A](conn: TaskConnection, cb: Callback[Throwable, A])
-    (implicit s: Scheduler): Callback[Throwable, A] =
-    new TrampolinedWithConn[A](conn, cb)
-
-  private final class TrampolinedWithConn[A](conn: TaskConnection, cb: Callback[Throwable, A])
-    (implicit s: Scheduler)
-    extends Callback.Base[Throwable, A](cb)(s) with TrampolinedRunnable {
-
-    override def run(): Unit = {
-      conn.pop()
-      super.run()
-    }
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,17 +38,15 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
 
   def naiveImp[F[_], A](iter: Iterant[F, A], p: (A, Long) => Boolean)(implicit F: Sync[F]): Iterant[F, A] = {
     var continue = true
-    iter
-      .zipWithIndex
-      .flatMap {
-        case (a, idx) =>
-          if (p(a, idx) && continue) {
-            Iterant[F].pure(a)
-          } else {
-            continue = false
-            Iterant[F].empty
-          }
-      }
+    iter.zipWithIndex.flatMap {
+      case (a, idx) =>
+        if (p(a, idx) && continue) {
+          Iterant[F].pure(a)
+        } else {
+          continue = false
+          Iterant[F].empty
+        }
+    }
   }
 
   test("naiveImp smoke test") { implicit s =>
@@ -88,7 +86,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
         .guarantee(Coeval.eval(cancelable.cancel()))
 
       stream.takeWhileWithIndex((_, _) => false).toListL.value == Nil &&
-        (list.length < 2 || cancelable.isCanceled)
+      (list.length < 2 || cancelable.isCanceled)
     }
   }
 
@@ -136,7 +134,8 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
   test("Iterant.takeWhileWithIndex preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
+    val source =
+      Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.takeWhileWithIndex((_, _) => true)
     stream.completedL.value()
     assertEquals(effect, 1)

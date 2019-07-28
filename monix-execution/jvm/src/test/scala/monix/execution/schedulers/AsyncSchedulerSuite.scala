@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,8 +68,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
         value += 1
         sub.cancel()
         p.success(value)
-      }
-      else if (value < 4) {
+      } else if (value < 4) {
         value += 1
       }
     })
@@ -87,8 +86,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
         value += 1
         sub.cancel()
         p.success(value)
-      }
-      else if (value < 4) {
+      } else if (value < 4) {
         value += 1
       }
     })
@@ -116,7 +114,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     def loop(n: Int): Unit =
       s.executeTrampolined { () =>
         result += 1
-        if (n-1 > 0) loop(n-1)
+        if (n - 1 > 0) loop(n - 1)
       }
 
     val count = 100000
@@ -151,12 +149,8 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
       monix.execution.Scheduler.cached("dummy", 2, 10, -1.second)
     }
 
-    implicit val s: Scheduler = monix.execution.Scheduler.cached(
-      name = "cached-test",
-      minThreads = 0,
-      maxThreads = 2,
-      keepAliveTime = 1.second,
-      daemonic = true)
+    implicit val s: Scheduler = monix.execution.Scheduler
+      .cached(name = "cached-test", minThreads = 0, maxThreads = 2, keepAliveTime = 1.second, daemonic = true)
 
     val futureStarted = new CountDownLatch(1)
     val start = new CountDownLatch(1)

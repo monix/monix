@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,10 +32,11 @@ object TakeLastSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.range(1, 10).takeLast(1)
-      else
-        Observable.range(1, sourceCount * 2).takeLast(sourceCount)
+      val o =
+        if (sourceCount == 1)
+          Observable.range(1, 10).takeLast(1)
+        else
+          Observable.range(1, sourceCount * 2).takeLast(sourceCount)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -45,19 +46,20 @@ object TakeLastSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val o = if (sourceCount == 1)
-        createObservableEndingInError(Observable.range(1, 10), ex)
-          .takeLast(1)
-      else
-        createObservableEndingInError(Observable.range(1, sourceCount * 2), ex)
-          .takeLast(sourceCount)
+      val o =
+        if (sourceCount == 1)
+          createObservableEndingInError(Observable.range(1, 10), ex)
+            .takeLast(1)
+        else
+          createObservableEndingInError(Observable.range(1, sourceCount * 2), ex)
+            .takeLast(sourceCount)
 
       Sample(o, 0, 0, Zero, Zero)
     }
   }
 
   override def cancelableObservables() = {
-    val sample = Observable.range(0,20).delayOnNext(1.second).takeLast(10)
+    val sample = Observable.range(0, 20).delayOnNext(1.second).takeLast(10)
     Seq(Sample(sample, 0, 0, 0.second, 0.seconds))
   }
 

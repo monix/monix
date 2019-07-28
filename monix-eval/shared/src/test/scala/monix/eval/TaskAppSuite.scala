@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,7 @@
 
 package monix.eval
 
-
-import cats.effect.ExitCode
+import cats.effect.{ExitCode, IO}
 import minitest.SimpleTestSuite
 import monix.eval.Task.Options
 import monix.execution.Scheduler.Implicits.global
@@ -68,10 +67,15 @@ object TaskAppSuite extends SimpleTestSuite {
     val wasExecuted = Promise[Boolean]()
     val app = new TaskApp {
       def run(args: List[String]) = {
-        Task.fromIO(
-          Task.async[ExitCode] { cb => wasExecuted.success(true); cb.onSuccess(ExitCode.Success) }
+        Task.from(
+          Task
+            .async[ExitCode] { cb =>
+              wasExecuted.success(true)
+              cb.onSuccess(ExitCode.Success)
+            }
             .executeAsync
-            .toIO)
+            .to[IO]
+        )
       }
     }
 

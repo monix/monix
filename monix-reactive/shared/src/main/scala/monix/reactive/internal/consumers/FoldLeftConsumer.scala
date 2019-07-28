@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,9 +26,7 @@ import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber
 
 /** Implementation for [[monix.reactive.Consumer.foldLeft]]. */
-private[reactive]
-final class FoldLeftConsumer[A,R](initial: () => R, f: (R,A) => R)
-  extends Consumer.Sync[A,R] {
+private[reactive] final class FoldLeftConsumer[A, R](initial: () => R, f: (R, A) => R) extends Consumer.Sync[A, R] {
 
   def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,34 +19,35 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observer, Observable}
-import scala.concurrent.{Promise, Future}
+import monix.reactive.{Observable, Observer}
+import scala.concurrent.{Future, Promise}
 
 object NowObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "Scheduler should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
   test("should emit one value synchronously") { implicit s =>
     var received = 0
     var completed = false
 
-    Observable.now(1).unsafeSubscribeFn(new Observer[Int] {
-      def onNext(elem: Int): Future[Ack] = {
-        received += 1
-        Continue
-      }
+    Observable
+      .now(1)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          received += 1
+          Continue
+        }
 
-      def onComplete(): Unit = {
-        completed = true
-      }
+        def onComplete(): Unit = {
+          completed = true
+        }
 
-      def onError(ex: Throwable): Unit = ()
-    })
+        def onError(ex: Throwable): Unit = ()
+      })
 
     assertEquals(received, 1)
     assert(completed)
@@ -57,19 +58,21 @@ object NowObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = false
     var received = 0
 
-    Observable.now(1).unsafeSubscribeFn(new Observer[Int] {
-      def onError(ex: Throwable) = throw ex
+    Observable
+      .now(1)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onError(ex: Throwable) = throw ex
 
-      def onNext(elem: Int): Future[Ack] = {
-        received += 1
-        p.future
-      }
+        def onNext(elem: Int): Future[Ack] = {
+          received += 1
+          p.future
+        }
 
-      def onComplete() = {
-        onCompleteCalled = true
-        received += 1
-      }
-    })
+        def onComplete() = {
+          onCompleteCalled = true
+          received += 1
+        }
+      })
 
     assert(onCompleteCalled)
     assertEquals(received, 2)
@@ -80,12 +83,14 @@ object NowObservableSuite extends TestSuite[TestScheduler] {
 
   test("should still send onComplete even if canceled synchronously") { implicit s =>
     var onCompleteCalled = false
-    Observable.now(1).unsafeSubscribeFn(new Observer[Int] {
-      def onError(ex: Throwable) = throw ex
-      def onNext(elem: Int) = Stop
-      def onComplete(): Unit =
-        onCompleteCalled = true
-    })
+    Observable
+      .now(1)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onError(ex: Throwable) = throw ex
+        def onNext(elem: Int) = Stop
+        def onComplete(): Unit =
+          onCompleteCalled = true
+      })
 
     assert(onCompleteCalled)
   }
@@ -94,13 +99,15 @@ object NowObservableSuite extends TestSuite[TestScheduler] {
     val p = Promise[Ack]()
     var onCompleteCalled = false
 
-    Observable.now(1).unsafeSubscribeFn(new Observer[Int] {
-      def onError(ex: Throwable) = throw ex
-      def onNext(elem: Int) = p.future
+    Observable
+      .now(1)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onError(ex: Throwable) = throw ex
+        def onNext(elem: Int) = p.future
 
-      def onComplete() =
-        onCompleteCalled = true
-    })
+        def onComplete() =
+          onCompleteCalled = true
+      })
 
     p.success(Stop)
     s.tick()

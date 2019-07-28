@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,10 +26,12 @@ import scala.util.{Failure, Success}
 object TaskWanderSuite extends BaseTestSuite {
   test("Task.wander should execute in parallel for async tasks") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
-    val f = Task.wander(seq) {
-      case (i, d) =>
-        Task.evalAsync(i + 1).delayExecution(d.seconds)
-    }.runToFuture
+    val f = Task
+      .wander(seq) {
+        case (i, d) =>
+          Task.evalAsync(i + 1).delayExecution(d.seconds)
+      }
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -42,11 +44,14 @@ object TaskWanderSuite extends BaseTestSuite {
   test("Task.wander should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq((1, 3), (-1, 1), (3, 2), (3, 1))
-    val f = Task.wander(seq) {
-      case (i, d) =>
-        Task.evalAsync(if (i < 0) throw ex else i + 1)
-          .delayExecution(d.seconds)
-    }.runToFuture
+    val f = Task
+      .wander(seq) {
+        case (i, d) =>
+          Task
+            .evalAsync(if (i < 0) throw ex else i + 1)
+            .delayExecution(d.seconds)
+      }
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -56,9 +61,11 @@ object TaskWanderSuite extends BaseTestSuite {
 
   test("Task.wander should be canceled") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
-    val f = Task.wander(seq) {
-      case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
-    }.runToFuture
+    val f = Task
+      .wander(seq) {
+        case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
+      }
+      .runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -84,23 +91,26 @@ object TaskWanderSuite extends BaseTestSuite {
 
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
 
-    val task2 = Task.wander(Seq(0,0,0)) { _ =>
-      task1 map { x => effect += 1; x + 1 }
+    val task2 = Task.wander(Seq(0, 0, 0)) { _ =>
+      task1 map { x =>
+        effect += 1; x + 1
+      }
     }
 
     val result1 = task2.runToFuture; s.tick()
-    assertEquals(result1.value, Some(Success(List(4,4,4))))
+    assertEquals(result1.value, Some(Success(List(4, 4, 4))))
     assertEquals(effect, 1 + 3)
 
     val result2 = task2.runToFuture; s.tick()
-    assertEquals(result2.value, Some(Success(List(4,4,4))))
+    assertEquals(result2.value, Some(Success(List(4, 4, 4))))
     assertEquals(effect, 1 + 3 + 3)
   }
 
   test("Task.wander should wrap exceptions in the function") { implicit s =>
     val ex = DummyException("dummy")
-    val task1 = Task.wander(Seq(0)) { _ =>
+    val task1 = Task.wander(Seq(0)) { i =>
       throw ex
+      Task.now(i)
     }
 
     val result1 = task1.runToFuture; s.tick()

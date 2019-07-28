@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,7 +61,8 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     val array = randomByteArray()
     val in = new ByteArrayInputStream(array)
 
-    val result = Observable.fromInputStreamUnsafe(in, 40)
+    val result = Observable
+      .fromInputStreamUnsafe(in, 40)
       .foldLeft(Array.empty[Byte])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(_.toList))
@@ -76,7 +77,8 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     val array = randomByteArray()
     val in = new ByteArrayInputStream(array)
 
-    val result = Observable.fromInputStreamUnsafe(in, 40)
+    val result = Observable
+      .fromInputStreamUnsafe(in, 40)
       .foldLeft(Array.empty[Byte])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(_.toList))
@@ -111,9 +113,24 @@ object InputStreamObservableSuite extends SimpleTestSuite {
         Continue
       }
     })
+    s.tick()
 
     assertEquals(received.toList, array.toList)
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
+  }
+
+  test("fromInputStream does not block on initial execution") {
+    implicit val s = TestScheduler()
+    var didRead = false
+    val is = new InputStream {
+      def read(): Int = {
+        didRead = true
+        -1
+      }
+    }
+    // Should not fail without s.tick()
+    Observable.fromInputStreamUnsafe(is).foreach(_ => ())
+    assert(!didRead)
   }
 
   test("fromInputStream closes the file handle onComplete") {

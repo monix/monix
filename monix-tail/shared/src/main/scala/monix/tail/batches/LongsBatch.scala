@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,8 +23,7 @@ package monix.tail.batches
   * implementation, which is `@specialized`. Using `LongsBatch`
   * might be desirable instead for `isInstanceOf` checks.
   */
-final class LongsBatch(underlying: ArrayBatch[Long])
-  extends Batch[Long] {
+final class LongsBatch(underlying: ArrayBatch[Long]) extends Batch[Long] {
 
   override def cursor(): LongsCursor =
     new LongsCursor(underlying.cursor())

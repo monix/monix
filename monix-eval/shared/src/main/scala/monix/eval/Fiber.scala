@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,6 +79,5 @@ object Fiber {
   def apply[A](task: Task[A], cancel: CancelToken[Task]): Fiber[A] =
     new Tuple(task, cancel)
 
-  private final case class Tuple[A](join: Task[A], cancel: CancelToken[Task])
-    extends Fiber[A]
+  private final case class Tuple[A](join: Task[A], cancel: CancelToken[Task]) extends Fiber[A]
 }

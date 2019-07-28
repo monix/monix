@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,12 +34,12 @@ import monix.execution.atomic.Atomic
   * @param source - the observable we are wrapping
   * @param maxCapacity - the buffer capacity, or 0 for usage of an unbounded buffer
   */
-final class CachedObservable[+A] private (source: Observable[A], maxCapacity: Int)
-  extends Observable[A] {
+final class CachedObservable[+A] private (source: Observable[A], maxCapacity: Int) extends Observable[A] {
 
   private[this] val isStarted = Atomic(false)
   private[this] val subject = {
-    if (maxCapacity > 0) ReplaySubject.createLimited[A](maxCapacity) else
+    if (maxCapacity > 0) ReplaySubject.createLimited[A](maxCapacity)
+    else
       ReplaySubject[A]()
   }
 

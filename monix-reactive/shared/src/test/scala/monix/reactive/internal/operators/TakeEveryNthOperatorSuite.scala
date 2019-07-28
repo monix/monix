@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ object TakeEveryNthOperatorSuite extends BaseOperatorSuite {
     val sCount = if (sourceCount > 4) sourceCount else 4
     val count = sCount / 4
     val sum = 4L * count * (count + 1) / 2
-    val obs = Observable.range(1, sCount+1).takeEveryNth(4)
+    val obs = Observable.range(1, sCount + 1).takeEveryNth(4)
     Sample(obs, count, sum, Duration.Zero, Duration.Zero)
   }
 

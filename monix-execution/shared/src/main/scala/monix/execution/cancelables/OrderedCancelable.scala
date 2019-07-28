@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.atomic.{PaddingStrategy, AtomicAny}
+import monix.execution.atomic.{AtomicAny, PaddingStrategy}
 import scala.annotation.tailrec
 
 /** Represents a [[monix.execution.Cancelable Cancelable]] whose
@@ -62,14 +62,13 @@ import scala.annotation.tailrec
   *    `OrderedCancelable`, but simpler, without the capability of
   *    doing ordered updates and possibly more efficient
   */
-final class OrderedCancelable private (initial: Cancelable)
-  extends AssignableCancelable.Multi {
+final class OrderedCancelable private (initial: Cancelable) extends AssignableCancelable.Multi {
 
-  import OrderedCancelable.{State, Active, Cancelled}
+  import OrderedCancelable.{Active, Cancelled, State}
 
   private[this] val state = {
     val ref = if (initial != null) initial else Cancelable.empty
-    AtomicAny.withPadding(Active(ref,0) : State, PaddingStrategy.LeftRight128)
+    AtomicAny.withPadding(Active(ref, 0): State, PaddingStrategy.LeftRight128)
   }
 
   override def isCanceled: Boolean =
@@ -128,9 +127,10 @@ final class OrderedCancelable private (initial: Cancelable)
         val sameSign = (currentOrder < 0) ^ (order >= 0)
         val isOrdered =
           (sameSign && currentOrder <= order) ||
-          (currentOrder >= 0L && order < 0L) // takes overflow into account
+            (currentOrder >= 0L && order < 0L) // takes overflow into account
 
-        if (!isOrdered) this else {
+        if (!isOrdered) this
+        else {
           if (state.compareAndSet(current, Active(value, order))) {
             this
           } else {
@@ -158,14 +158,12 @@ object OrderedCancelable {
     * cancelable, along with an `order` index kept to discard
     * unordered updates.
     */
-  private final case class Active(underlying: Cancelable, order: Long)
-    extends State
+  private final case class Active(underlying: Cancelable, order: Long) extends State
 
   /** Internal [[State state]] signaling a cancellation occurred.
     *
     * After this state happens all subsequent assignments will
     * cancel the given values.
     */
-  private case object Cancelled
-    extends State
+  private case object Cancelled extends State
 }

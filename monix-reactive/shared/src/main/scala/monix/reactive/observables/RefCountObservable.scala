@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,8 +31,7 @@ import scala.concurrent.Future
   *
   * @param source - the connectable observable we are wrapping
   */
-final class RefCountObservable[+A] private (source: ConnectableObservable[A])
-  extends Observable[A] {
+final class RefCountObservable[+A] private (source: ConnectableObservable[A]) extends Observable[A] {
 
   private[this] val refs = Atomic(-1)
   private[this] lazy val connection: Cancelable =
@@ -49,8 +48,7 @@ final class RefCountObservable[+A] private (source: ConnectableObservable[A])
 
     if (update == 0) {
       source.unsafeSubscribeFn(subscriber)
-    }
-    else if (!refs.compareAndSet(current, update)) {
+    } else if (!refs.compareAndSet(current, update)) {
       // retry
       unsafeSubscribeFn(subscriber)
     } else {
@@ -62,7 +60,10 @@ final class RefCountObservable[+A] private (source: ConnectableObservable[A])
       val ret = source.unsafeSubscribeFn(wrap(subscriber, countdown))
       if (current == -1) connection // triggers connect()
       // A composite that both cancels this subscription and does the countdown
-      Cancelable { () => try ret.cancel() finally countdown.cancel() }
+      Cancelable { () =>
+        try ret.cancel()
+        finally countdown.cancel()
+      }
     }
   }
 
@@ -71,25 +72,26 @@ final class RefCountObservable[+A] private (source: ConnectableObservable[A])
       implicit val scheduler = downstream.scheduler
 
       def onNext(elem: U): Future[Ack] = {
-        downstream.onNext(elem)
+        downstream
+          .onNext(elem)
           .syncOnStopOrFailure(_ => subscription.cancel())
       }
 
       def onError(ex: Throwable): Unit = {
-        try downstream.onError(ex) finally
-          subscription.cancel()
+        try downstream.onError(ex)
+        finally subscription.cancel()
       }
 
       def onComplete(): Unit = {
-        try downstream.onComplete() finally
-          subscription.cancel()
+        try downstream.onComplete()
+        finally subscription.cancel()
       }
     }
 
   @tailrec
   private[this] def countDownToConnectionCancel(): Unit = refs.get match {
     case x if x > 0 =>
-      val update = x-1
+      val update = x - 1
       if (!refs.compareAndSet(x, update))
         countDownToConnectionCancel()
       else if (update == 0)

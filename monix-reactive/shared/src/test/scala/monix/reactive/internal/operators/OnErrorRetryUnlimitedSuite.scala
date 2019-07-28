@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,23 +30,23 @@ object OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
       def unsafeSubscribeFn(subscriber: Subscriber[Long]): Cancelable =
         if (subscriptions < maxSubscriptions) {
           subscriptions += 1
-          Observable.range(0, sourceCount)
+          Observable
+            .range(0, sourceCount)
             .endWithError(ex)
             .unsafeSubscribeFn(subscriber)
-        }
-        else {
-          Observable.range(0, sourceCount)
+        } else {
+          Observable
+            .range(0, sourceCount)
             .unsafeSubscribeFn(subscriber)
         }
     }
   }
 
   def createObservable(sourceCount: Int) = Some {
-    val o = create(sourceCount, 3, DummyException("expected"))
-      .onErrorRestartUnlimited
+    val o = create(sourceCount, 3, DummyException("expected")).onErrorRestartUnlimited
 
     val count = sourceCount * 4
-    val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4
+    val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4
     Sample(o, count, sum, Duration.Zero, Duration.Zero)
   }
 
@@ -55,8 +55,11 @@ object OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val dummy = DummyException("dummy")
-    val sample = Observable.range(0, 20).map(_ => 1L)
-      .endWithError(dummy).delayExecution(1.second)
+    val sample = Observable
+      .range(0, 20)
+      .map(_ => 1L)
+      .endWithError(dummy)
+      .delayExecution(1.second)
       .onErrorRestartUnlimited
 
     Seq(

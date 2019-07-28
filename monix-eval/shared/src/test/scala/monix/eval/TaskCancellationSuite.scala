@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,9 @@ object TaskCancellationSuite extends BaseTestSuite {
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
 
     var wasCancelled = false
-    val task = Task.eval(1).delayExecution(1.second)
+    val task = Task
+      .eval(1)
+      .delayExecution(1.second)
       .doOnCancel(Task.eval { wasCancelled = true })
       .start
       .flatMap(_.cancel)
@@ -46,8 +48,12 @@ object TaskCancellationSuite extends BaseTestSuite {
     implicit val opts = Task.defaultOptions.enableAutoCancelableRunLoops
 
     var effect = 0
-    val task = Task.evalAsync(1).flatMap(x => Task.evalAsync(2).map(_ + x))
-      .foreachL { x => effect = x }
+    val task = Task
+      .evalAsync(1)
+      .flatMap(x => Task.evalAsync(2).map(_ + x))
+      .foreachL { x =>
+        effect = x
+      }
       .start
       .flatMap(_.cancel)
 
@@ -73,8 +79,9 @@ object TaskCancellationSuite extends BaseTestSuite {
 
   test("uncancelable works for async actions") { implicit ec =>
     var effect = 0
-    val task = Task.eval(1).delayExecution(1.second)
-      .foreachL { x => effect += x }
+    val task = Task.eval(1).delayExecution(1.second).foreachL { x =>
+      effect += x
+    }
 
     val f = task.uncancelable.flatMap(_ => task).runToFuture
     ec.tick()
@@ -91,7 +98,8 @@ object TaskCancellationSuite extends BaseTestSuite {
 
   test("uncancelable works for autoCancelableRunLoops") { implicit ec =>
     val task = Task.evalAsync(1)
-    val source = task.flatMap(x => task.map(_ + x))
+    val source = task
+      .flatMap(x => task.map(_ + x))
       .executeWithOptions(_.enableAutoCancelableRunLoops)
 
     val f1 = source.uncancelable.runToFuture
@@ -171,8 +179,7 @@ object TaskCancellationSuite extends BaseTestSuite {
 
   test("cancelBoundary cancels") { implicit ec =>
     check1 { (task: Task[Int]) =>
-      (Task.cancelBoundary *> task)
-        .start
+      (Task.cancelBoundary *> task).start
         .flatMap(f => f.cancel *> f.join) <-> Task.never
     }
   }
@@ -181,7 +188,9 @@ object TaskCancellationSuite extends BaseTestSuite {
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
 
     val err = DummyException("dummy")
-    val task = Task.never[Int].onCancelRaiseError(err)
+    val task = Task
+      .never[Int]
+      .onCancelRaiseError(err)
       .onErrorRecoverWith { case `err` => Task.cancelBoundary *> Task(10) }
       .start
       .flatMap(f => f.cancel *> f.join)
@@ -194,7 +203,8 @@ object TaskCancellationSuite extends BaseTestSuite {
   test("errors raised after cancel get reported") { implicit sc =>
     val dummy = new DummyException()
     val canceled = new CancellationException()
-    val task = Task.raiseError[Int](dummy)
+    val task = Task
+      .raiseError[Int](dummy)
       .executeAsync
       .onCancelRaiseError(canceled)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,12 +24,15 @@ import scala.reflect.ClassTag
 /** [[Batch]] implementation that wraps
   * an array, based on [[ArrayCursor]].
   */
-final class ArrayBatch[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
-  (ref: Array[A], offset: Int, length: Int, newBuilder: () => ArrayBuilder[A])
+final class ArrayBatch[@specialized(Boolean, Byte, Char, Int, Long, Double) A](
+  ref: Array[A],
+  offset: Int,
+  length: Int,
+  newBuilder: () => ArrayBuilder[A])
   extends Batch[A] {
 
   def this(ref: Array[A], offset: Int, length: Int)(implicit tag: ClassTag[A]) =
-    this(ref, offset, length, () => ArrayBuilder.make[A]())
+    this(ref, offset, length, () => ArrayBuilder.make[A])
 
   override def cursor(): ArrayCursor[A] =
     new ArrayCursor[A](ref, offset, length, newBuilder)

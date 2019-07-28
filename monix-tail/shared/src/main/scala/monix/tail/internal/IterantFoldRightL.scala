@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,12 +25,10 @@ import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspe
 
 private[tail] object IterantFoldRightL {
   /** Implementation for `Iterant.foldRightL`. */
-  def apply[F[_], A, B](self: Iterant[F, A], b: F[B], f: (A, F[B]) => F[B])
-    (implicit F: Sync[F]): F[B] =
+  def apply[F[_], A, B](self: Iterant[F, A], b: F[B], f: (A, F[B]) => F[B])(implicit F: Sync[F]): F[B] =
     F.suspend(new Loop(b, f).apply(self))
 
-  private final class Loop[F[_], A, B](b: F[B], f: (A, F[B]) => F[B])
-    (implicit F: Sync[F])
+  private final class Loop[F[_], A, B](b: F[B], f: (A, F[B]) => F[B])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[B]] { self =>
 
     private[this] var remainder: Iterant[F, A] = _
@@ -96,13 +94,12 @@ private[tail] object IterantFoldRightL {
       F.raiseError(e)
 
     private def suspend(node: Iterant[F, A]): F[B] = {
-      if (suspendRef == null) suspendRef =
-        F.suspend {
-          self.remainder match {
-            case null => fail(new NullPointerException("foldRight/remainder"))
-            case rest => apply(rest)
-          }
+      if (suspendRef == null) suspendRef = F.suspend {
+        self.remainder match {
+          case null => fail(new NullPointerException("foldRight/remainder"))
+          case rest => apply(rest)
         }
+      }
       remainder = node
       suspendRef
     }

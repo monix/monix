@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,17 +27,15 @@ object MergeDelayErrorManySuite extends BaseOperatorSuite {
   case class SomeException(value: Long) extends RuntimeException
 
   def create(sourceCount: Int, ex: Throwable = null) = Some {
-    val source = if (ex == null) Observable.range(0, sourceCount)
-    else Observable.range(0, sourceCount).endWithError(ex)
+    val source =
+      if (ex == null) Observable.range(0, sourceCount)
+      else Observable.range(0, sourceCount).endWithError(ex)
 
-    val o = source.mergeMapDelayErrors(i =>
-      Observable.fromIterable(Seq(i, i, i, i)).endWithError(SomeException(10)))
+    val o = source.mergeMapDelayErrors(i => Observable.fromIterable(Seq(i, i, i, i)).endWithError(SomeException(10)))
 
     val recovered = o.onErrorHandleWith {
       case composite: CompositeException =>
-        val sum = composite
-          .errors.collect { case ex: SomeException => ex.value }
-          .sum
+        val sum = composite.errors.collect { case ex: SomeException => ex.value }.sum
 
         Observable.now(sum)
     }
@@ -57,10 +55,13 @@ object MergeDelayErrorManySuite extends BaseOperatorSuite {
   def waitNext = Duration.Zero
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample1 =  Observable.range(1, 100)
-      .mergeMapDelayErrors(_ => Observable.range(0,100).delayExecution(2.second))
-    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
-      .mergeMapDelayErrors(_ => Observable.range(0,100).delayExecution(2.second))
+    val sample1 = Observable
+      .range(1, 100)
+      .mergeMapDelayErrors(_ => Observable.range(0, 100).delayExecution(2.second))
+    val sample2 = Observable
+      .range(0, 100)
+      .delayOnNext(1.second)
+      .mergeMapDelayErrors(_ => Observable.range(0, 100).delayExecution(2.second))
 
     Seq(
       Sample(sample1, 0, 0, 0.seconds, 0.seconds),

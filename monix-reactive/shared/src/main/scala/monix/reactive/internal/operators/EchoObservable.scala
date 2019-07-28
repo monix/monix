@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,8 +29,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import scala.util.Success
 
-private[reactive] final
-class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnce: Boolean)
+private[reactive] final class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnce: Boolean)
   extends Observable[A] {
 
   private[this] val timeoutMillis = timeout.toMillis
@@ -82,14 +81,12 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
               case _ =>
                 ()
             }
-          }
-          else if (lastEvent == null || !hasValue) {
+          } else if (lastEvent == null || !hasValue) {
             // on this branch either the data source hasn't emitted anything
             // yet (lastEvent == null), or we don't have a new value since
             // the last time we've tried (!hasValue), so keep waiting
             scheduleNext(timeoutMillis)
-          }
-          else {
+          } else {
             val rightNow = scheduler.clockMonotonic(MILLISECONDS)
             val sinceLastOnNext = rightNow - lastTSInMillis
 
@@ -110,8 +107,10 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
                       // matters in this case, so we are measuring it and
                       // subtracting it from the period
                       val executionTime = scheduler.clockMonotonic(MILLISECONDS) - rightNow
-                      val delay = if (timeoutMillis > executionTime)
-                        timeoutMillis - executionTime else 0L
+                      val delay =
+                        if (timeoutMillis > executionTime)
+                          timeoutMillis - executionTime
+                        else 0L
 
                       scheduleNext(delay)
                       Continue
@@ -122,8 +121,7 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
                 case Stop =>
                   cancelMainTask()
               }
-            }
-            else {
+            } else {
               val remainingTime = timeoutMillis - sinceLastOnNext
               scheduleNext(remainingTime)
             }
@@ -143,14 +141,16 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
         def signalNext(ack: Future[Ack]): Future[Ack] =
           ack match {
             case Continue =>
-              if (isDone) Stop else
+              if (isDone) Stop
+              else
                 out.onNext(elem) match {
                   case Continue => unfreeze()
                   case Stop => Stop
-                  case async => async.flatMap {
-                    case Continue => self.synchronized(unfreeze())
-                    case Stop => Stop
-                  }
+                  case async =>
+                    async.flatMap {
+                      case Continue => self.synchronized(unfreeze())
+                      case Stop => Stop
+                    }
                 }
             case Stop => Stop
             case async =>
@@ -158,7 +158,8 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
           }
 
         self.synchronized {
-          if (isDone) Stop else {
+          if (isDone) Stop
+          else {
             lastEvent = elem
             ack = signalNext(ack.syncTryFlatten)
             ack
@@ -189,10 +190,11 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
           ack = ack.syncTryFlatten match {
             case Stop => Stop
             case Continue => signal()
-            case async => async.flatMap {
-              case Continue => self.synchronized(signal())
-              case Stop => Stop
-            }
+            case async =>
+              async.flatMap {
+                case Continue => self.synchronized(signal())
+                case Stop => Stop
+              }
           }
         }
       }

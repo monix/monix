@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +21,7 @@ package internal
 /**
   * INTERNAL API — implements [[UncaughtExceptionReporter.default]].
   */
-private[execution] object DefaultUncaughtExceptionReporter
-  extends UncaughtExceptionReporter {
+private[execution] object DefaultUncaughtExceptionReporter extends UncaughtExceptionReporter {
 
   def reportFailure(e: Throwable): Unit =
     Thread.getDefaultUncaughtExceptionHandler match {

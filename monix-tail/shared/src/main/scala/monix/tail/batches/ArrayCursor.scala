@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,15 +28,18 @@ import scala.reflect.ClassTag
   *
   * To build an instance, prefer `BatchCursor.fromArray`.
   */
-final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
-  (_array: Array[A], _offset: Int, _length: Int, newBuilder: () => ArrayBuilder[A])
+final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A](
+  _array: Array[A],
+  _offset: Int,
+  _length: Int,
+  newBuilder: () => ArrayBuilder[A])
   extends BatchCursor[A] { self =>
 
   require(_offset + _length <= _array.length, "offset + length <= array.length")
   require(0 <= _offset && _offset <= _array.length, "0 <= offset <= length")
 
   def this(array: Array[A], offset: Int, length: Int)(implicit tag: ClassTag[A]) =
-    this(array, offset, length, () => ArrayBuilder.make[A]())
+    this(array, offset, length, () => ArrayBuilder.make[A])
   def this(array: Array[A])(implicit tag: ClassTag[A]) =
     this(array, 0, array.length)
 
@@ -60,14 +63,14 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
 
   override def take(n: Int): ArrayCursor[A] = {
     val start = getNextIndex
-    val newLimit = math.min(start+n, limit)
-    new ArrayCursor(_array, start, newLimit-start, newBuilder)
+    val newLimit = math.min(start + n, limit)
+    new ArrayCursor(_array, start, newLimit - start, newBuilder)
   }
 
   override def drop(n: Int): ArrayCursor[A] = {
     val start = getNextIndex
-    val newOffset = math.min(start+n, limit)
-    val newLength = limit-newOffset
+    val newOffset = math.min(start + n, limit)
+    val newLength = limit - newOffset
     new ArrayCursor(_array, newOffset, newLength, newBuilder)
   }
 
@@ -108,7 +111,7 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
 
   override def collect[B](pf: PartialFunction[A, B]): ArrayCursor[B] = {
     val oldOffset = getNextIndex
-    val buffer = ArrayBuilder.make[AnyRef]()
+    val buffer = ArrayBuilder.make[AnyRef]
 
     var oldIndex = oldOffset
     while (oldIndex < limit) {
@@ -117,7 +120,8 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
       oldIndex += 1
     }
 
-    BatchCursor.fromArray(buffer.result())
+    BatchCursor
+      .fromArray(buffer.result())
       .asInstanceOf[ArrayCursor[B]]
   }
 
@@ -130,7 +134,8 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
   override def toIterator: Iterator[A] = {
     val newOffset = getNextIndex
     val newLength = limit - newOffset
-    if (newLength <= 0) Iterator.empty else {
+    if (newLength <= 0) Iterator.empty
+    else {
       var ref = _array.iterator
       if (newOffset > 0) ref = ref.drop(newOffset)
       if (newLength < _array.length) ref = ref.take(newLength)
@@ -139,5 +144,5 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
   }
 
   @inline private def getNextIndex: Int =
-    if (index < _offset) _offset else index+1
+    if (index < _offset) _offset else index + 1
 }

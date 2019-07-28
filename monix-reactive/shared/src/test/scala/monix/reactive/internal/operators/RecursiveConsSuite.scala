@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,10 +35,12 @@ object RecursiveConsSuite extends BaseOperatorSuite {
 
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
-    if (sourceCount <= 1) None else Some {
-      val o = range(0, sourceCount)
-      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
-    }
+    if (sourceCount <= 1) None
+    else
+      Some {
+        val o = range(0, sourceCount)
+        Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+      }
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None

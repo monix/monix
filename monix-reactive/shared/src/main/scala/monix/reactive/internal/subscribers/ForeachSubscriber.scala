@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,10 +24,7 @@ import monix.execution.{Ack, Scheduler}
 import monix.reactive.observers.Subscriber
 
 /** Subscriber implementation for `Observable.foreach` */
-private[reactive] final class ForeachSubscriber[A](
-  f: A => Unit,
-  onFinish: Callback[Throwable, Unit],
-  s: Scheduler)
+private[reactive] final class ForeachSubscriber[A](f: A => Unit, onFinish: Callback[Throwable, Unit], s: Scheduler)
   extends Subscriber.Sync[A] {
 
   implicit val scheduler: Scheduler = s
@@ -45,7 +42,11 @@ private[reactive] final class ForeachSubscriber[A](
   }
 
   def onError(ex: Throwable): Unit =
-    if (!isDone) { isDone = true; onFinish.onError(ex) }
+    if (!isDone) {
+      isDone = true; onFinish.onError(ex)
+    }
   def onComplete(): Unit =
-    if (!isDone) { isDone = true; onFinish.onSuccess(()) }
+    if (!isDone) {
+      isDone = true; onFinish.onSuccess(())
+    }
 }

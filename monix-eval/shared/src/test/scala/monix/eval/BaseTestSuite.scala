@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +21,7 @@ import minitest.TestSuite
 import minitest.laws.Checkers
 import monix.execution.schedulers.TestScheduler
 
-abstract class BaseTestSuite extends TestSuite[TestScheduler]
-  with Checkers with ArbitraryInstances {
+abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers with ArbitraryInstances {
 
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {

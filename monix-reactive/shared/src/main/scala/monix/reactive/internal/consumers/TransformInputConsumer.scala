@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,9 +24,9 @@ import monix.reactive.observers.Subscriber
 import monix.reactive.{Consumer, Observable, Pipe}
 
 /** Implementation for [[monix.reactive.Consumer.transformInput]]. */
-private[reactive]
-final class TransformInputConsumer[In2, -In, +R]
-  (source: Consumer[In, R], f: Observable[In2] => Observable[In])
+private[reactive] final class TransformInputConsumer[In2, -In, +R](
+  source: Consumer[In, R],
+  f: Observable[In2] => Observable[In])
   extends Consumer[In2, R] {
 
   def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[In2], AssignableCancelable) = {

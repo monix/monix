@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,8 @@ package monix.tail.batches
   */
 abstract class GenericCursor[+A] extends BatchCursor[A] { self =>
   def take(n: Int): BatchCursor[A] = {
-    if (n <= 0) BatchCursor.empty else
+    if (n <= 0) BatchCursor.empty
+    else
       new GenericCursor[A] {
         private[this] var taken = 0
 
@@ -42,7 +43,8 @@ abstract class GenericCursor[+A] extends BatchCursor[A] { self =>
   }
 
   def drop(n: Int): BatchCursor[A] = {
-    if (n <= 0) self else
+    if (n <= 0) self
+    else
       new GenericCursor[A] {
         private[this] var dropped = false
 

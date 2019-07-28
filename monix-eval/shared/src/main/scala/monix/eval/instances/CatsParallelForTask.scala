@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.eval.instances
 
-import cats.{Applicative, Monad, Parallel, ~>}
+import cats.{~>, Applicative, Monad, Parallel}
 import monix.eval.Task
 
 /** `cats.Parallel` type class instance for [[monix.eval.Task Task]].
@@ -36,10 +36,10 @@ class CatsParallelForTask extends Parallel[Task, Task.Par] {
   override def applicative: Applicative[Task.Par] = CatsParallelForTask.NondetApplicative
   override def monad: Monad[Task] = CatsConcurrentForTask
 
-  override val sequential: Task.Par  ~> Task = new (Task.Par ~> Task) {
+  override val sequential: Task.Par ~> Task = new (Task.Par ~> Task) {
     def apply[A](fa: Task.Par[A]): Task[A] = Task.Par.unwrap(fa)
   }
-  override val parallel: Task ~> Task.Par  = new (Task ~> Task.Par) {
+  override val parallel: Task ~> Task.Par = new (Task ~> Task.Par) {
     def apply[A](fa: Task[A]): Task.Par[A] = Task.Par.apply(fa)
   }
 }
@@ -51,7 +51,7 @@ object CatsParallelForTask extends CatsParallelForTask {
     import Task.Par.{apply => par}
 
     override def ap[A, B](ff: Task.Par[(A) => B])(fa: Task.Par[A]): Task.Par[B] =
-      par(Task.mapBoth(unwrap(ff), unwrap(fa))(_ (_)))
+      par(Task.mapBoth(unwrap(ff), unwrap(fa))(_(_)))
     override def map2[A, B, Z](fa: Task.Par[A], fb: Task.Par[B])(f: (A, B) => Z): Task.Par[Z] =
       par(Task.mapBoth(unwrap(fa), unwrap(fb))(f))
     override def product[A, B](fa: Task.Par[A], fb: Task.Par[B]): Task.Par[(A, B)] =

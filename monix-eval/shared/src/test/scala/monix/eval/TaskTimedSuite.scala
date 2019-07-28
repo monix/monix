@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -77,11 +77,12 @@ object TaskTimedSuite extends BaseTestSuite {
 
   test("Task.timed is stack safe") { implicit sc =>
     def loop(n: Int, acc: Duration): Task[Duration] =
-      Task.unit.delayResult(1.second).timed.flatMap { case (duration, _) =>
-        if (n > 0)
-          loop(n - 1, acc + duration)
-        else
-          Task.now(acc)
+      Task.unit.delayResult(1.second).timed.flatMap {
+        case (duration, _) =>
+          if (n > 0)
+            loop(n - 1, acc + duration)
+          else
+            Task.now(acc)
       }
 
     val f = loop(10000, 0.second).runToFuture; sc.tick(10001.seconds)

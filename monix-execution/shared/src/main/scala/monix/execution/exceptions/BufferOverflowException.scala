@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,7 @@ import scala.runtime.AbstractFunction1
 /** An exception emitted on buffer overflows, like when using
   * [[monix.reactive.OverflowStrategy.Fail OverflowStrategy.Fail]].
   */
-class BufferOverflowException(val message: String)
-  extends RuntimeException(message) with Serializable
+class BufferOverflowException(val message: String) extends RuntimeException(message) with Serializable
 
 object BufferOverflowException extends AbstractFunction1[String, BufferOverflowException] {
   /** Builder for [[BufferOverflowException]]. */

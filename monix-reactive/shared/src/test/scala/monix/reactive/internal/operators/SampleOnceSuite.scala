@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,7 +29,8 @@ object SampleOnceSuite extends BaseOperatorSuite {
   def waitNext = 1.second
 
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.intervalAtFixedRate(500.millis, 1.second)
+    val o = Observable
+      .intervalAtFixedRate(500.millis, 1.second)
       .sample(1.second)
       .take(sourceCount)
 
@@ -45,14 +46,12 @@ object SampleOnceSuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.intervalAtFixedRate(1.second).take(sourceCount+1)
+    val source = Observable.intervalAtFixedRate(1.second).take(sourceCount + 1)
     val o = createObservableEndingInError(source, ex).sample(500.millis)
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
-
-
 
   test("specified period should be respected if consumer is responsive") { implicit s =>
     val sub = PublishSubject[Long]()

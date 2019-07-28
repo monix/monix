@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,8 +31,7 @@ import scala.concurrent.Future
 object ExecuteOnSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
   test("it works") { implicit s =>
@@ -43,8 +42,10 @@ object ExecuteOnSuite extends TestSuite[TestScheduler] {
     var finallyReceived: Long = 0
 
     val forked =
-      Observable.range(0, nr)
-        .sum.doOnNext(sum => Task { receivedOnNext = sum })
+      Observable
+        .range(0, nr)
+        .sum
+        .doOnNext(sum => Task { receivedOnNext = sum })
         .executeOn(other)
 
     val obs =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,12 +35,14 @@ object IterantMapEvalSuite extends BaseTestSuite {
 
   test("Iterant[Task].mapEval covariant composition") { implicit s =>
     check3 { (list: List[Int], f: Int => Int, g: Int => Int) =>
-      val r1 = Iterant[Task].fromIterable(list)
+      val r1 = Iterant[Task]
+        .fromIterable(list)
         .mapEval(x => Task.evalAsync(f(x)))
         .mapEval(x => Task.evalAsync(g(x)))
         .toListL
 
-      val r2 = Iterant[Task].fromIterable(list)
+      val r2 = Iterant[Task]
+        .fromIterable(list)
         .mapEval(x => Task.evalAsync(f(x)).flatMap(y => Task.evalAsync(g(y))))
         .toListL
 
@@ -72,7 +74,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
 
   test("Iterant[Task].nextCursor.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = Iterant[Task].fromList(List(1,2,3))
+    val stream = Iterant[Task].fromList(List(1, 2, 3))
     val result = stream.mapEval[Int](_ => throw dummy).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -88,7 +90,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
 
   test("Iterant[Task].nextCursor.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = Iterant[Task].fromList(List(1,2,3))
+    val stream = Iterant[Task].fromList(List(1, 2, 3))
     val result = stream.mapEval[Int](_ => Task.raiseError(dummy)).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -104,7 +106,8 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val received = (iterant ++ Iterant[Task].of(1, 2))
         .guarantee(Task.eval { effect += 1 })
         .mapEval[Int](_ => throw dummy)
-        .completedL.map(_ => 0)
+        .completedL
+        .map(_ => 0)
         .onErrorRecover { case _: DummyException => effect }
 
       received <-> Task.pure(1)
@@ -121,7 +124,8 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val received = (iterant ++ Iterant[Task].of(1, 2))
         .guarantee(Task.eval { effect += 1 })
         .mapEval[Int](_ => Task.raiseError(dummy))
-        .completedL.map(_ => 0)
+        .completedL
+        .map(_ => 0)
         .onErrorRecover { case _: DummyException => effect }
 
       received <-> Task.pure(1)
@@ -157,12 +161,14 @@ object IterantMapEvalSuite extends BaseTestSuite {
 
   test("Iterant[Coeval].mapEval covariant composition") { implicit s =>
     check3 { (list: List[Int], f: Int => Int, g: Int => Int) =>
-      val r1 = Iterant[Coeval].fromIterable(list)
+      val r1 = Iterant[Coeval]
+        .fromIterable(list)
         .mapEval(x => Coeval(f(x)))
         .mapEval(x => Coeval(g(x)))
         .toListL
 
-      val r2 = Iterant[Coeval].fromIterable(list)
+      val r2 = Iterant[Coeval]
+        .fromIterable(list)
         .mapEval(x => Coeval(f(x)).flatMap(y => Coeval(g(y))))
         .toListL
 
@@ -186,7 +192,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
 
   test("Iterant[Coeval].nextCursor.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = Iterant[Coeval].fromList(List(1,2,3))
+    val stream = Iterant[Coeval].fromList(List(1, 2, 3))
     val result = stream.mapEval[Int](_ => throw dummy).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
@@ -200,7 +206,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
 
   test("Iterant[Coeval].nextCursor.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = Iterant[Coeval].fromList(List(1,2,3))
+    val stream = Iterant[Coeval].fromList(List(1, 2, 3))
     val result = stream.mapEval[Int](_ => Coeval.raiseError(dummy)).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
@@ -271,7 +277,9 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant.mapEval suspends the evaluation for Next") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]))
-    val state = iter.mapEval { _ => (throw dummy): Task[Int] }
+    val state = iter.mapEval { _ =>
+      (throw dummy): Task[Int]
+    }
 
     assert(state.isInstanceOf[Suspend[Task, Int]], "state.isInstanceOf[Suspend[Int]]")
     assertEquals(state.toListL.runToFuture.value, Some(Failure(dummy)))
@@ -280,7 +288,9 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant.mapEval suspends the evaluation for Last") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Task].lastS(1)
-    val state = iter.mapEval { _ => (throw dummy): Task[Int] }
+    val state = iter.mapEval { _ =>
+      (throw dummy): Task[Int]
+    }
 
     assert(state.isInstanceOf[Suspend[Task, Int]])
     assertEquals(state.toListL.runToFuture.value, Some(Failure(dummy)))
@@ -289,7 +299,8 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant.mapEval preserves resource safety") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]))
+    val source = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval.eval(effect += 1))
     val stream = source.mapEval(x => Coeval.now(x))
     stream.completedL.value()

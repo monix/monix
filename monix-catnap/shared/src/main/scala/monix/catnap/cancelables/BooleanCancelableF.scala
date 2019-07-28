@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -89,14 +89,13 @@ object BooleanCancelableF {
       def cancel = F.unit
     }
 
-  private final class Impl[F[_]](token: CancelToken[F])(implicit F: Sync[F])
-    extends BooleanCancelableF[F] {
+  private final class Impl[F[_]](token: CancelToken[F])(implicit F: Sync[F]) extends BooleanCancelableF[F] {
 
     private[this] val canceled = Atomic(false)
     private[this] var ref = token
 
     def isCanceled =
-      F.delay(canceled.get)
+      F.delay(canceled.get())
 
     def cancel: CancelToken[F] =
       F.suspend {

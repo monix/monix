@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,6 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
 object SerializableSuite extends BaseTestSuite {
@@ -56,23 +55,22 @@ object SerializableSuite extends BaseTestSuite {
   }
 
   test("Observer is serializable") { implicit s =>
-    class MyObserver(p: Promise[Int]) extends Observer.Sync[Int] {
-      def future = p.future
-
+    class MyObserver extends Observer.Sync[Int] {
       var sum = 0
+      var completed: Option[Throwable] = _
+
       override def onNext(elem: Int): Ack = {
         sum += elem
         Continue
       }
 
       override def onError(ex: Throwable): Unit =
-        p.failure(ex)
+        completed = Some(ex)
       override def onComplete(): Unit =
-        p.success(sum)
+        completed = None
     }
 
-    val p = Promise[Int]()
-    val obs = new MyObserver(p)
+    val obs = new MyObserver
     val obs2 = deserialize[MyObserver](serialize(obs)) match {
       case Success(v) => v
       case Failure(e) => throw e
@@ -83,8 +81,8 @@ object SerializableSuite extends BaseTestSuite {
     obs2.onNext(3)
     obs2.onComplete()
 
-    assertEquals(obs2.future.value, Some(Success(6)))
-    assertEquals(p.future.value, None)
+    assertEquals(obs2.sum, 6)
+    assertEquals(obs2.completed, None)
   }
 
   test("Consumer is serializable") { implicit s =>

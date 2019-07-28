@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,14 +26,14 @@ private[eval] object TaskDoOnCancel {
     * Implementation for `Task.doOnCancel`
     */
   def apply[A](self: Task[A], callback: Task[Unit]): Task[A] = {
-    if (callback eq Task.unit) self else {
+    if (callback eq Task.unit) self
+    else {
       val start = (context: Context, onFinish: Callback[Throwable, A]) => {
         implicit val s = context.scheduler
         implicit val o = context.options
 
-        val conn = context.connection
-        conn.push(callback)
-        Task.unsafeStartNow(self, context, TaskConnection.trampolineCallback(conn, onFinish))
+        context.connection.push(callback)
+        Task.unsafeStartNow(self, context, TaskCreate.protectedCallback(context, onFinish))
       }
       Async(start, trampolineBefore = false, trampolineAfter = false, restoreLocals = false)
     }

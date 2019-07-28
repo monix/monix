@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,14 +24,9 @@ package monix.execution.atomic
   * driven by implicits.
   */
 trait AtomicBuilder[A, R <: Atomic[A]] extends Serializable {
-  def buildInstance(
-    initialValue: A,
-    strategy: PaddingStrategy,
-    allowPlatformIntrinsics: Boolean): R
+  def buildInstance(initialValue: A, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean): R
 
-  def buildSafeInstance(
-    initialValue: A,
-    padding: PaddingStrategy): R
+  def buildSafeInstance(initialValue: A, padding: PaddingStrategy): R
 }
 
 private[atomic] object Implicits {
@@ -48,7 +43,7 @@ private[atomic] object Implicits {
 
   abstract class Level2 extends Level1 {
     /** Provides an [[AtomicBuilder]] instance for [[AtomicNumberAny]]. */
-    implicit def AtomicNumberBuilder[A  <: AnyRef : Numeric]: AtomicBuilder[A, AtomicNumberAny[A]] =
+    implicit def AtomicNumberBuilder[A <: AnyRef: Numeric]: AtomicBuilder[A, AtomicNumberAny[A]] =
       new AtomicBuilder[A, AtomicNumberAny[A]] {
         def buildInstance(initialValue: A, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
           AtomicNumberAny(initialValue)
@@ -125,7 +120,10 @@ object AtomicBuilder extends Implicits.Level2 {
   /** Provides an [[AtomicBuilder]] instance for [[AtomicDouble]]. */
   implicit val AtomicDoubleBuilder: AtomicBuilder[Double, AtomicDouble] =
     new AtomicBuilder[Double, AtomicDouble] {
-      def buildInstance(initialValue: Double, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicDouble =
+      def buildInstance(
+        initialValue: Double,
+        strategy: PaddingStrategy,
+        allowPlatformIntrinsics: Boolean): AtomicDouble =
         AtomicDouble(initialValue)
       def buildSafeInstance(initialValue: Double, strategy: PaddingStrategy): AtomicDouble =
         AtomicDouble(initialValue)

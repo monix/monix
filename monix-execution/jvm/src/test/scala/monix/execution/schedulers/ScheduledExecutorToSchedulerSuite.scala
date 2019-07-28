@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,19 +27,18 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
 object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
-  val lastError = Atomic(null : Throwable)
+  val lastError = Atomic(null: Throwable)
   def setup(): ExecutorScheduler = {
     val reporter = UncaughtExceptionReporter(lastError.set)
-    val executor = Executors.newScheduledThreadPool(2,
+    val executor = Executors.newScheduledThreadPool(
+      2,
       ThreadFactoryBuilder(
         "ExecutorSchedulerSuite",
         reporter,
         daemonic = true
       ))
 
-    ExecutorScheduler(executor,
-      reporter,
-      ExecModel.Default)
+    ExecutorScheduler(executor, reporter, ExecModel.Default)
   }
 
   override def tearDown(scheduler: ExecutorScheduler): Unit = {
@@ -99,8 +98,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
         value += 1
         sub.cancel()
         p.success(value)
-      }
-      else if (value < 4) {
+      } else if (value < 4) {
         value += 1
       }
     }
@@ -118,8 +116,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
         value += 1
         sub.cancel()
         p.success(value)
-      }
-      else if (value < 4) {
+      } else if (value < 4) {
         value += 1
       }
     }
@@ -132,7 +129,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
     def loop(n: Int): Unit =
       s.executeTrampolined { () =>
         result += 1
-        if (n-1 > 0) loop(n-1)
+        if (n - 1 > 0) loop(n - 1)
       }
 
     val count = 100000

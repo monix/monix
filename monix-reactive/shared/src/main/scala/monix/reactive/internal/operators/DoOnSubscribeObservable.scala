@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,16 +37,15 @@ private[reactive] object DoOnSubscribeObservable {
       implicit val s = subscriber.scheduler
       val conn = OrderedCancelable()
 
-      val c = task.runAsync(
-        new Callback[Throwable, Unit] {
-          def onSuccess(value: Unit): Unit = {
-            val c = source.unsafeSubscribeFn(subscriber)
-            conn.orderedUpdate(c, order = 2)
-          }
-          def onError(ex: Throwable): Unit = {
-            subscriber.onError(ex)
-          }
-        })
+      val c = task.runAsync(new Callback[Throwable, Unit] {
+        def onSuccess(value: Unit): Unit = {
+          val c = source.unsafeSubscribeFn(subscriber)
+          conn.orderedUpdate(c, order = 2)
+        }
+        def onError(ex: Throwable): Unit = {
+          subscriber.onError(ex)
+        }
+      })
 
       conn.orderedUpdate(c, order = 1)
       conn
@@ -80,13 +79,12 @@ private[reactive] object DoOnSubscribeObservable {
                   out.onNext(elem)
               }
             } else {
-              FutureUtils.transformWith[Unit, Ack](p.future,
-                {
-                  case Success(_) => out.onNext(elem)
-                  case Failure(e) =>
-                    finalSignal(e)
-                    Stop
-                })(immediate)
+              FutureUtils.transformWith[Unit, Ack](p.future, {
+                case Success(_) => out.onNext(elem)
+                case Failure(e) =>
+                  finalSignal(e)
+                  Stop
+              })(immediate)
             }
           }
 

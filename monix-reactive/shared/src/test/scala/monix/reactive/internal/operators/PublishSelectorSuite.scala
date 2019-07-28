@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,9 +26,12 @@ import scala.util.Success
 object PublishSelectorSuite extends BaseTestSuite {
   test("publishSelector sanity test") { implicit s =>
     val isStarted = Atomic(0)
-    val f = Observable.range(0, 1000)
+    val f = Observable
+      .range(0, 1000)
       .doOnStartF(_ => IO(isStarted.increment()))
-      .publishSelector { source => Observable(source, source, source).merge }
+      .publishSelector { source =>
+        Observable(source, source, source).merge
+      }
       .sumL
       .runToFuture
 
@@ -41,10 +44,13 @@ object PublishSelectorSuite extends BaseTestSuite {
     val isStarted = Atomic(0)
     val isCanceled = Atomic(false)
 
-    val f = Observable.range(0, 10000)
+    val f = Observable
+      .range(0, 10000)
       .doOnStartF(_ => IO(isStarted.increment()))
       .doOnSubscriptionCancelF(() => isCanceled.set(true))
-      .publishSelector { source => source.map(_ => 1) }
+      .publishSelector { source =>
+        source.map(_ => 1)
+      }
       .take(2000)
       .sumL
       .runToFuture

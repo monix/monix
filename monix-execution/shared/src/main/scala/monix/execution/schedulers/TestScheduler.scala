@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -147,12 +147,10 @@ final class TestScheduler private (
   @tailrec
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val current: State = stateRef.get
-    val (cancelable, newState) = TestScheduler.scheduleOnce(
-      current,
-      FiniteDuration(initialDelay, unit),
-      r, cancelTask)
+    val (cancelable, newState) = TestScheduler.scheduleOnce(current, FiniteDuration(initialDelay, unit), r, cancelTask)
 
-    if (stateRef.compareAndSet(current, newState)) cancelable else
+    if (stateRef.compareAndSet(current, newState)) cancelable
+    else
       scheduleOnce(initialDelay, unit, r)
   }
 
@@ -204,7 +202,8 @@ final class TestScheduler private (
           tickOne()
         else {
           // execute task
-          try head.task.run() catch {
+          try head.task.run()
+          catch {
             case ex if NonFatal(ex) =>
               reportFailure(ex)
           }
@@ -255,36 +254,47 @@ final class TestScheduler private (
     *
     * @param time is an optional parameter for simulating time passing
     *
+    * @param maxImmediateTasks is an optional parameter that specifies a maximum
+    *        number of immediate tasks to execute one after another; setting
+    *        this parameter can prevent non-termination
     */
-  def tick(time: FiniteDuration = Duration.Zero): Unit = {
+  def tick(time: FiniteDuration = Duration.Zero, maxImmediateTasks: Option[Int] = None): Unit = {
     @tailrec
-    def loop(time: FiniteDuration, result: Boolean): Unit = {
+    def loop(time: FiniteDuration, iterCount: Int, maxIterCount: Int): Unit = {
       val current: State = stateRef.get
       val currentClock = current.clock + time
 
       extractOneTask(current, currentClock) match {
         case Some((head, rest)) =>
           if (!stateRef.compareAndSet(current, current.copy(clock = head.runsAt, tasks = rest)))
-            loop(time, result)
+            loop(time, iterCount, maxIterCount)
           else {
             // execute task
-            try head.task.run() catch {
+            try head.task.run()
+            catch {
               case ex if NonFatal(ex) =>
                 reportFailure(ex)
             }
 
             // have to retry execution, as those pending tasks
             // may have registered new tasks for immediate execution
-            loop(currentClock - head.runsAt, result = true)
+            val time2 = currentClock - head.runsAt
+            if (time != time2 || maxIterCount == 0) {
+              loop(time2, 0, 0)
+            } else {
+              val iterCount2 = iterCount + 1
+              if (iterCount2 < maxIterCount)
+                loop(time2, iterCount2, maxIterCount)
+            }
           }
 
         case None =>
           if (!stateRef.compareAndSet(current, current.copy(clock = currentClock)))
-            loop(time, result)
+            loop(time, iterCount, maxIterCount)
       }
     }
 
-    loop(time, result = false)
+    loop(time, 0, maxImmediateTasks.getOrElse(0))
   }
 
   @tailrec
@@ -319,12 +329,13 @@ object TestScheduler {
 
   /** Builder for [[TestScheduler]]. */
   def apply(executionModel: ExecutionModel): TestScheduler = {
-    val state = AtomicAny(State(
-      lastID = 0,
-      clock = Duration.Zero,
-      tasks = SortedSet.empty[Task],
-      lastReportedError = null
-    ))
+    val state = AtomicAny(
+      State(
+        lastID = 0,
+        clock = Duration.Zero,
+        tasks = SortedSet.empty[Task],
+        lastReportedError = null
+      ))
 
     new TestScheduler(state, executionModel)
   }
@@ -356,16 +367,10 @@ object TestScheduler {
   /** Used internally by [[TestScheduler]], represents the internal
     * state used for task scheduling and execution.
     */
-  final case class State(
-    lastID: Long,
-    clock: FiniteDuration,
-    tasks: SortedSet[Task],
-    lastReportedError: Throwable) {
+  final case class State(lastID: Long, clock: FiniteDuration, tasks: SortedSet[Task], lastReportedError: Throwable) {
 
     // $COVERAGE-OFF$
-    assert(
-      !tasks.headOption.exists(_.runsAt < clock),
-      "The runsAt for any task must never be in the past")
+    assert(!tasks.headOption.exists(_.runsAt < clock), "The runsAt for any task must never be in the past")
     // $COVERAGE-ON$
   }
 
@@ -375,14 +380,17 @@ object TestScheduler {
     state.copy(lastID = newID, tasks = state.tasks + task)
   }
 
-  private def scheduleOnce(state: State, delay: FiniteDuration, r: Runnable, cancelTask: Task => Unit): (Cancelable, State) = {
+  private def scheduleOnce(
+    state: State,
+    delay: FiniteDuration,
+    r: Runnable,
+    cancelTask: Task => Unit): (Cancelable, State) = {
     // $COVERAGE-OFF$
     require(delay >= Duration.Zero, "The given delay must be positive")
     // $COVERAGE-ON$
 
     val newID = state.lastID + 1
     SingleAssignCancelable()
-
     val task = Task(newID, r, state.clock + delay)
     val cancelable = new Cancelable {
       def cancel(): Unit = cancelTask(task)
@@ -393,9 +401,11 @@ object TestScheduler {
       }
     }
 
-    (cancelable, state.copy(
-      lastID = newID,
-      tasks = state.tasks + task
-    ))
+    (
+      cancelable,
+      state.copy(
+        lastID = newID,
+        tasks = state.tasks + task
+      ))
   }
 }

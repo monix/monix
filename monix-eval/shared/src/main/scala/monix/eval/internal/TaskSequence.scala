@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,44 +18,48 @@
 package monix.eval.internal
 
 import monix.eval.Task
-import scala.collection.generic.CanBuildFrom
+import monix.execution.compat.BuildFrom
+import monix.execution.compat.internal._
 import scala.collection.mutable
 
 private[eval] object TaskSequence {
   /** Implementation for `Task.sequence`. */
-  def list[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
+  def list[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
 
     def loop(cursor: Iterator[Task[A]], acc: mutable.Builder[A, M[A]]): Task[M[A]] = {
       if (cursor.hasNext) {
         val next = cursor.next()
-        next.flatMap { a => loop(cursor, acc += a) }
+        next.flatMap { a =>
+          loop(cursor, acc += a)
+        }
       } else {
         Task.now(acc.result())
       }
     }
 
     Task.defer {
-      val cursor: Iterator[Task[A]] = in.toIterator
-      loop(cursor, cbf(in))
+      val cursor: Iterator[Task[A]] = toIterator(in)
+      loop(cursor, newBuilder(bf, in))
     }
   }
 
   /** Implementation for `Task.traverse`. */
-  def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A], f: A => Task[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
+  def traverse[A, B, M[X] <: Iterable[X]](in: M[A], f: A => Task[B])(
+    implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] = {
 
     def loop(cursor: Iterator[A], acc: mutable.Builder[B, M[B]]): Task[M[B]] = {
       if (cursor.hasNext) {
         val next = f(cursor.next())
-        next.flatMap { a => loop(cursor, acc += a) }
+        next.flatMap { a =>
+          loop(cursor, acc += a)
+        }
       } else {
         Task.now(acc.result())
       }
     }
 
     Task.defer {
-      loop(in.toIterator, cbf(in))
+      loop(toIterator(in), newBuilder(bf, in))
     }
   }
 }

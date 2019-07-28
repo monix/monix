@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import monix.execution.ExecutionModel
+import monix.execution.{ExecutionModel, UncaughtExceptionReporter}
 import scala.concurrent.duration.TimeUnit
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -33,8 +33,7 @@ import scala.concurrent.{ExecutionContext, Future}
   *        in charge of the actual execution and scheduling
   */
 final class TracingSchedulerService(underlying: SchedulerService)
-  extends TracingScheduler.Base(underlying)
-  with SchedulerService { self =>
+  extends TracingScheduler.Base(underlying) with SchedulerService { self =>
 
   override def isShutdown: Boolean =
     underlying.isShutdown
@@ -46,6 +45,9 @@ final class TracingSchedulerService(underlying: SchedulerService)
     underlying.awaitTermination(timeout, unit, awaitOn)
   override def withExecutionModel(em: ExecutionModel): TracingSchedulerService =
     new TracingSchedulerService(underlying.withExecutionModel(em))
+
+  def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): TracingSchedulerService =
+    new TracingSchedulerService(underlying.withUncaughtExceptionReporter(r))
 }
 
 object TracingSchedulerService {

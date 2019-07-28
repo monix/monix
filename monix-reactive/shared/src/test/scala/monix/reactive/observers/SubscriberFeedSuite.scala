@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ package monix.reactive.observers
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
+import monix.execution.compat.internal.toIterator
 import monix.reactive.BaseTestSuite
 import scala.concurrent.Future
 
@@ -39,7 +40,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
       val ack = downstream.feed(xs)
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 
@@ -59,7 +60,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
       val ack = downstream.onNextAll(xs)
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 
@@ -76,10 +77,10 @@ object SubscriberFeedSuite extends BaseTestSuite {
         }
       }
 
-      val ack = downstream.feed(xs.toIterator)
+      val ack = downstream.feed(toIterator(xs))
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 
@@ -96,10 +97,10 @@ object SubscriberFeedSuite extends BaseTestSuite {
         }
       }
 
-      val ack = downstream.feed(xs.toIterator)
+      val ack = downstream.feed(toIterator(xs))
       s.tick()
       ack.syncTryFlatten(s) == Continue &&
-        sum == xs.sum
+      sum == xs.sum
     }
   }
 

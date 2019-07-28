@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -28,8 +28,7 @@ import monix.execution.atomic.Atomic
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
 
-private[reactive] final
-class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
+private[reactive] final class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -71,7 +70,8 @@ class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
         self.synchronized {
           if (!isDone.getAndSet(true)) {
             hasError = true
-            try out.onError(ex) finally {
+            try out.onError(ex)
+            finally {
               if (ack != null) ack.trySuccess(Stop)
               task.cancel()
             }

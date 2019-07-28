@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,13 +26,13 @@ import scala.util.Failure
 object IterantDistinctUntilChangedSuite extends BaseTestSuite {
   test("suppresses duplicates") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
-      val expected = if (list.isEmpty) Nil else {
-        list.head +: list.tail.zip(list).filter { case (a, b) => a != b }.map(_._1)
-      }
+      val expected =
+        if (list.isEmpty) Nil
+        else {
+          list.head +: list.tail.zip(list).filter { case (a, b) => a != b }.map(_._1)
+        }
 
-      val received = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
-        .distinctUntilChanged
-        .toListL
+      val received = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false).distinctUntilChanged.toListL
 
       received <-> Coeval.pure(expected)
     }
@@ -40,9 +40,11 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
 
   test("suppresses duplicates by key") { implicit s =>
     check3 { (list: List[Int], idx: Int, f: Int => Int) =>
-      val expected = if (list.isEmpty) Nil else {
-        list.head +: list.tail.zip(list).filter { case (a, b) => f(a) != f(b) }.map(_._1)
-      }
+      val expected =
+        if (list.isEmpty) Nil
+        else {
+          list.head +: list.tail.zip(list).filter { case (a, b) => f(a) != f(b) }.map(_._1)
+        }
 
       val received = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
         .distinctUntilChangedByKey(f)
@@ -59,11 +61,12 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
 
       val received = (arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false) ++ Iterant[Coeval].of(1, 2))
         .guarantee(Coeval { effect += 111 })
-        .distinctUntilChangedByKey(_ => (throw dummy) : Int)
-        .completedL.map(_ => 0)
+        .distinctUntilChangedByKey(_ => (throw dummy): Int)
+        .completedL
+        .map(_ => 0)
         .onErrorRecover { case _: DummyException => effect }
 
-      received <->  Coeval.pure(111)
+      received <-> Coeval.pure(111)
     }
   }
 
@@ -71,7 +74,8 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val fa = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+    val fa = Iterant[Coeval]
+      .nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
       .guarantee(Coeval { effect += 1 })
       .distinctUntilChanged
       .completedL
@@ -102,7 +106,8 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
 
-    val fa = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+    val fa = Iterant[Coeval]
+      .nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
       .guarantee(Coeval { effect += 1 })
       .distinctUntilChanged
       .completedL

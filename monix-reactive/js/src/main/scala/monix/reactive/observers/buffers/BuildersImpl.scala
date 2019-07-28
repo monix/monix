@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,17 @@
 
 package monix.reactive.observers.buffers
 
+import monix.execution.ChannelType
+import monix.execution.ChannelType.MultiProducer
 import monix.reactive.OverflowStrategy
 import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
 private[observers] trait BuildersImpl { self: BufferedSubscriber.type =>
-  def apply[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy[A]): Subscriber[A] = {
+  def apply[A](
+    subscriber: Subscriber[A],
+    bufferPolicy: OverflowStrategy[A],
+    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A] = {
     bufferPolicy match {
       case Unbounded =>
         SyncBufferedSubscriber.unbounded(subscriber)
@@ -38,17 +43,20 @@ private[observers] trait BuildersImpl { self: BufferedSubscriber.type =>
 
       case DropOld(bufferSize) =>
         SyncBufferedSubscriber.dropOld(subscriber, bufferSize)
-      case DropOldAndSignal(bufferSize,f) =>
+      case DropOldAndSignal(bufferSize, f) =>
         SyncBufferedSubscriber.dropOldAndSignal(subscriber, bufferSize, f)
 
       case ClearBuffer(bufferSize) =>
         SyncBufferedSubscriber.clearBuffer(subscriber, bufferSize)
-      case ClearBufferAndSignal(bufferSize,f) =>
+      case ClearBufferAndSignal(bufferSize, f) =>
         SyncBufferedSubscriber.clearBufferAndSignal(subscriber, bufferSize, f)
     }
   }
 
-  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A]): Subscriber.Sync[A] = {
+  def synchronous[A](
+    subscriber: Subscriber[A],
+    bufferPolicy: OverflowStrategy.Synchronous[A],
+    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber.Sync[A] = {
     bufferPolicy match {
       case Unbounded =>
         SyncBufferedSubscriber.unbounded(subscriber)
@@ -62,16 +70,19 @@ private[observers] trait BuildersImpl { self: BufferedSubscriber.type =>
 
       case DropOld(bufferSize) =>
         SyncBufferedSubscriber.dropOld(subscriber, bufferSize)
-      case DropOldAndSignal(bufferSize,f) =>
+      case DropOldAndSignal(bufferSize, f) =>
         SyncBufferedSubscriber.dropOldAndSignal(subscriber, bufferSize, f)
 
       case ClearBuffer(bufferSize) =>
         SyncBufferedSubscriber.clearBuffer(subscriber, bufferSize)
-      case ClearBufferAndSignal(bufferSize,f) =>
+      case ClearBufferAndSignal(bufferSize, f) =>
         SyncBufferedSubscriber.clearBufferAndSignal(subscriber, bufferSize, f)
     }
   }
 
-  def batched[A](underlying: Subscriber[List[A]], bufferSize: Int): Subscriber[A] =
+  def batched[A](
+    underlying: Subscriber[List[A]],
+    bufferSize: Int,
+    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A] =
     BatchedBufferedSubscriber(underlying, bufferSize)
 }

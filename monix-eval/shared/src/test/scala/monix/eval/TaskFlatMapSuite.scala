@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,12 +31,12 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val maxCount = Platform.recommendedBatchSize * 4
 
     def loop(count: AtomicInt): Task[Unit] =
-      if (count.incrementAndGet() >= maxCount) Task.unit else
+      if (count.incrementAndGet() >= maxCount) Task.unit
+      else
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)
-    val f = loop(atomic)
-      .runToFutureOpt
+    val f = loop(atomic).runToFutureOpt
 
     f.cancel(); s.tick()
     assertEquals(atomic.get, maxCount)
@@ -48,7 +48,8 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val expected = Platform.recommendedBatchSize
 
     def loop(count: AtomicInt): Task[Unit] =
-      if (count.getAndIncrement() >= maxCount) Task.unit else
+      if (count.getAndIncrement() >= maxCount) Task.unit
+      else
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)
@@ -71,7 +72,8 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val expected = Platform.recommendedBatchSize
 
     def loop(count: AtomicInt): Task[Unit] =
-      if (count.getAndIncrement() >= maxCount) Task.unit else
+      if (count.getAndIncrement() >= maxCount) Task.unit
+      else
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)
@@ -130,5 +132,14 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val task = Task.raiseError[Int](dummy).redeem(_ => 1, identity)
     val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
+  }
+
+  test(">> is stack safe for infinite loops") { implicit s =>
+    var wasCancelled = false
+    def looped: Task[Unit] = Task.cancelBoundary >> looped
+    val future = looped.doOnCancel(Task { wasCancelled = true }).runToFuture
+    future.cancel()
+    s.tick()
+    assert(wasCancelled)
   }
 }

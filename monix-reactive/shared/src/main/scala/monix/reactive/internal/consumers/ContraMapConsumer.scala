@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,8 +28,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 /** Implementation for [[monix.reactive.Consumer.contramap]]. */
-private[reactive]
-final class ContraMapConsumer[In2, -In, +R](source: Consumer[In, R], f: In2 => In)
+private[reactive] final class ContraMapConsumer[In2, -In, +R](source: Consumer[In, R], f: In2 => In)
   extends Consumer[In2, R] {
 
   def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[In2], AssignableCancelable) = {
@@ -41,9 +40,13 @@ final class ContraMapConsumer[In2, -In, +R](source: Consumer[In, R], f: In2 => I
       private[this] var isDone = false
 
       def onError(ex: Throwable): Unit =
-        if (!isDone) { isDone = true; out.onError(ex) }
+        if (!isDone) {
+          isDone = true; out.onError(ex)
+        }
       def onComplete(): Unit =
-        if (!isDone) { isDone = true; out.onComplete() }
+        if (!isDone) {
+          isDone = true; out.onComplete()
+        }
 
       def onNext(elem2: In2): Future[Ack] = {
         // Protects calls to user code from within the operator and

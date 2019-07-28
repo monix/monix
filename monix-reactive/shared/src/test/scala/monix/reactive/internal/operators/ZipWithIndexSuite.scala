@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +25,7 @@ object ZipWithIndexSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = Observable.range(1, sourceCount + 1)
-        .zipWithIndex.map { case (elem, index) => elem + index }
+      val o = Observable.range(1, sourceCount + 1).zipWithIndex.map { case (elem, index) => elem + index }
 
       val c = sourceCount
       val sum = c * (c + 1) / 2 + c * (c - 1) / 2
@@ -37,8 +36,9 @@ object ZipWithIndexSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)
-        .zipWithIndex.map { case (elem, index) => elem + index }
+      val o = createObservableEndingInError(Observable.range(1, sourceCount + 1), ex).zipWithIndex.map {
+        case (elem, index) => elem + index
+      }
 
       val c = sourceCount
       val sum = c * (c + 1) / 2 + c * (c - 1) / 2
@@ -49,8 +49,7 @@ object ZipWithIndexSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample = Observable.range(0, 10).delayOnNext(1.second)
-      .zipWithIndex.map { case (elem, index) => elem + index }
+    val sample = Observable.range(0, 10).delayOnNext(1.second).zipWithIndex.map { case (elem, index) => elem + index }
     Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
   }
 }

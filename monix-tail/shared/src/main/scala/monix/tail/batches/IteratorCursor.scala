@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,10 +24,7 @@ package batches
   * NOTE: all transformations are delegated to the underlying
   * `Iterator` and may thus have lazy behavior.
   */
-final class IteratorCursor[+A](
-  underlying: Iterator[A],
-  override val recommendedBatchSize: Int)
-  extends BatchCursor[A] {
+final class IteratorCursor[+A](underlying: Iterator[A], override val recommendedBatchSize: Int) extends BatchCursor[A] {
 
   override def hasNext(): Boolean =
     underlying.hasNext

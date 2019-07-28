@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,9 @@ import scala.concurrent.duration._
 
 object DebounceRepeatedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.now(1L).delayOnComplete(1.day)
+    val o = Observable
+      .now(1L)
+      .delayOnComplete(1.day)
       .debounceRepeated(1.second)
       .take(sourceCount)
 
@@ -36,10 +38,14 @@ object DebounceRepeatedSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val debouncePeriod = 1.second + 200.millis
-    val sample1 = Observable.interval(2.seconds).map(_ => 1L)
+    val sample1 = Observable
+      .interval(2.seconds)
+      .map(_ => 1L)
       .debounceRepeated(debouncePeriod)
 
-    val sample2 = Observable.now(1L).delayOnComplete(1.minute)
+    val sample2 = Observable
+      .now(1L)
+      .delayOnComplete(1.minute)
       .debounceRepeated(1.second)
 
     Seq(

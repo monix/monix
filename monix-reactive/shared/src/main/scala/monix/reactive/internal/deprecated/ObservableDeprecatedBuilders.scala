@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,8 @@ package monix.reactive
 package internal
 package deprecated
 
+import cats.Eval
+import cats.effect.IO
 import monix.execution.Scheduler
 
 private[reactive] trait ObservableDeprecatedBuilders extends Any {
@@ -102,7 +104,8 @@ private[reactive] trait ObservableDeprecatedBuilders extends Any {
     * Switch to: `Observable(list).merge`
     */
   @deprecated("Switch to Observable(list).merge", "3.0.0")
-  def mergeDelayError[A](sources: Observable[A]*)(implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] = {
+  def mergeDelayError[A](sources: Observable[A]*)(
+    implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] = {
     // $COVERAGE-OFF$
     Observable.fromIterable(sources).mergeMapDelayErrors(identity)(os)
     // $COVERAGE-ON$
@@ -153,6 +156,26 @@ private[reactive] trait ObservableDeprecatedBuilders extends Any {
   def switch[A](sources: Observable[A]*): Observable[A] = {
     // $COVERAGE-OFF$
     Observable.fromIterable(sources).switch
+    // $COVERAGE-ON$
+  }
+
+  /**
+    * DEPRECATED — switch to [[Observable.from]].
+    */
+  @deprecated("Switch to Observable.from", "3.0.0")
+  def fromEval[A](fa: Eval[A]): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.from(fa)
+    // $COVERAGE-ON$
+  }
+
+  /**
+    * DEPRECATED — switch to [[Observable.from]].
+    */
+  @deprecated("Switch to Observable.from", "3.0.0")
+  def fromIO[A](fa: IO[A]): Observable[A] = {
+    // $COVERAGE-OFF$
+    Observable.from(fa)
     // $COVERAGE-ON$
   }
 }

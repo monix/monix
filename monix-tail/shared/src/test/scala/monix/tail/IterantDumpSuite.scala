@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -67,7 +67,8 @@ object IterantDumpSuite extends BaseTestSuite {
   test("Iterant.dump works for NextCursor") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
-      val out = Iterant[Task].nextCursorS(BatchCursor(el), Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
+      val out =
+        Iterant[Task].nextCursorS(BatchCursor(el), Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
       out.completedL.runToFuture
       s.tick()
 
@@ -145,7 +146,8 @@ object IterantDumpSuite extends BaseTestSuite {
   test("Iterant.dump preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
-    val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
+    val source =
+      Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(stop)
     val stream = source.dump("O", dummyOut(AtomicInt(0)))
     stream.completedL.value()
 

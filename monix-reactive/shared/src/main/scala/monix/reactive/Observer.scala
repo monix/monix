@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,6 @@ import java.io.PrintStream
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.BooleanCancelable
-import scala.util.control.NonFatal
 import monix.reactive.internal.rstreams._
 import monix.reactive.observers.Subscriber
 import org.reactivestreams.{Subscriber => RSubscriber}
@@ -30,7 +29,7 @@ import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
-
+import scala.util.control.NonFatal
 
 /** The Observer from the Rx pattern is the trio of callbacks that
   * get subscribed to an [[monix.reactive.Observable Observable]]
@@ -85,7 +84,6 @@ object Observer {
     def onNext(elem: A): Ack
   }
 
-
   /** Helper for building an empty observer that doesn't do anything,
     * besides logging errors in case they happen.
     */
@@ -113,13 +111,19 @@ object Observer {
   def dump[A](prefix: String, out: PrintStream = System.out): Observer.Sync[A] =
     new DumpObserver[A](prefix, out)
 
+  /** Given a contravariant mapping function, transform
+    * the source [[Observer]] by transforming the input.
+    */
+  def contramap[A, B](fa: Observer[A])(f: B => A): Observer[B] =
+    new ContravariantObserver(fa)(f)
+
   /** Given an `org.reactivestreams.Subscriber` as defined by the
     * [[http://www.reactive-streams.org/ Reactive Streams]] specification,
     * it builds an [[Observer]] instance compliant with the
     * Monix Rx implementation.
     */
-  def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)
-    (implicit s: Scheduler): Observer[A] =
+  def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)(
+    implicit s: Scheduler): Observer[A] =
     ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
@@ -139,8 +143,7 @@ object Observer {
     *        on each cycle when communicating demand, compliant with
     *        the reactive streams specification
     */
-  def toReactiveSubscriber[A](observer: Observer[A], requestCount: Int)
-    (implicit s: Scheduler): RSubscriber[A] = {
+  def toReactiveSubscriber[A](observer: Observer[A], requestCount: Int)(implicit s: Scheduler): RSubscriber[A] = {
 
     require(requestCount > 0, "requestCount > 0")
     SubscriberAsReactiveSubscriber(Subscriber(observer, s), requestCount)
@@ -151,8 +154,7 @@ object Observer {
     * @param target is the observer that will get the events
     * @param iterable is the collection of items to push downstream
     */
-  def feed[A](target: Observer[A], iterable: Iterable[A])
-    (implicit s: Scheduler): Future[Ack] =
+  def feed[A](target: Observer[A], iterable: Iterable[A])(implicit s: Scheduler): Future[Ack] =
     feed(target, BooleanCancelable.dummy, iterable)
 
   /** $feedCollectionDesc
@@ -161,10 +163,11 @@ object Observer {
     * @param subscription $feedCancelableDesc
     * @param iterable is the collection of items to push downstream
     */
-  def feed[A](target: Observer[A], subscription: BooleanCancelable, iterable: Iterable[A])
-    (implicit s: Scheduler): Future[Ack] = {
+  def feed[A](target: Observer[A], subscription: BooleanCancelable, iterable: Iterable[A])(
+    implicit s: Scheduler): Future[Ack] = {
 
-    try feed(target, subscription, iterable.iterator) catch {
+    try feed(target, subscription, iterable.iterator)
+    catch {
       case ex if NonFatal(ex) =>
         target.onError(ex)
         Stop
@@ -176,8 +179,7 @@ object Observer {
     * @param target is the observer that will get the events
     * @param iterator is the collection of items to push downstream
     */
-  def feed[A](target: Observer[A], iterator: Iterator[A])
-    (implicit s: Scheduler): Future[Ack] =
+  def feed[A](target: Observer[A], iterator: Iterator[A])(implicit s: Scheduler): Future[Ack] =
     feed(target, BooleanCancelable.dummy, iterator)
 
   /** $feedIteratorDesc
@@ -186,8 +188,8 @@ object Observer {
     * @param subscription $feedCancelableDesc
     * @param iterator is the collection of items to push downstream
     */
-  def feed[A](target: Observer[A], subscription: BooleanCancelable, iterator: Iterator[A])
-    (implicit s: Scheduler): Future[Ack] = {
+  def feed[A](target: Observer[A], subscription: BooleanCancelable, iterator: Iterator[A])(
+    implicit s: Scheduler): Future[Ack] = {
 
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[A]): Future[Ack] = {
       s.execute(new Runnable {
@@ -209,8 +211,7 @@ object Observer {
               ack.onComplete {
                 case Success(Continue) => run()
                 case other => promise.complete(other)
-              }
-            else
+              } else
               promise.success(Stop)
           } else {
             if ((ack eq Continue) || (ack eq Stop))
@@ -221,9 +222,11 @@ object Observer {
         }
 
         def run(): Unit = {
-          try fastLoop(0) catch {
+          try fastLoop(0)
+          catch {
             case ex if NonFatal(ex) =>
-              try target.onError(ex) finally {
+              try target.onError(ex)
+              finally {
                 promise.failure(ex)
               }
           }
@@ -283,15 +286,14 @@ object Observer {
       * @param xs the traversable object containing the elements to feed
       *        into our observer.
       */
-    def onNextAll(xs: TraversableOnce[A])(implicit s: Scheduler): Future[Ack] =
-      Observer.feed(target, xs.toIterator)(s)
+    def onNextAll(xs: Iterable[A])(implicit s: Scheduler): Future[Ack] =
+      Observer.feed(target, xs)(s)
 
     /** $feedCollectionDesc
       *
       * @param iterable is the collection of items to push downstream
       */
-    def feed(iterable: Iterable[A])
-      (implicit s: Scheduler): Future[Ack] =
+    def feed(iterable: Iterable[A])(implicit s: Scheduler): Future[Ack] =
       Observer.feed(target, iterable)
 
     /** $feedCollectionDesc
@@ -299,16 +301,14 @@ object Observer {
       * @param subscription $feedCancelableDesc
       * @param iterable is the collection of items to push downstream
       */
-    def feed(subscription: BooleanCancelable, iterable: Iterable[A])
-      (implicit s: Scheduler): Future[Ack] =
+    def feed(subscription: BooleanCancelable, iterable: Iterable[A])(implicit s: Scheduler): Future[Ack] =
       Observer.feed(target, subscription, iterable)
 
     /** $feedCollectionDesc
       *
       * @param iterator is the collection of items to push downstream
       */
-    def feed(iterator: Iterator[A])
-      (implicit s: Scheduler): Future[Ack] =
+    def feed(iterator: Iterator[A])(implicit s: Scheduler): Future[Ack] =
       Observer.feed(target, iterator)
 
     /** $feedCollectionDesc
@@ -316,13 +316,17 @@ object Observer {
       * @param subscription $feedCancelableDesc
       * @param iterator is the collection of items to push downstream
       */
-    def feed(subscription: BooleanCancelable, iterator: Iterator[A])
-      (implicit s: Scheduler): Future[Ack] =
+    def feed(subscription: BooleanCancelable, iterator: Iterator[A])(implicit s: Scheduler): Future[Ack] =
       Observer.feed(target, subscription, iterator)
+
+    /** Given a contravariant mapping function, transform
+      * the source [[Observer]] by transforming the input.
+      */
+    def contramap[B](f: B => A): Observer[B] =
+      Observer.contramap(target)(f)
   }
 
-  private[reactive] class DumpObserver[-A](prefix: String, out: PrintStream)
-    extends Observer.Sync[A] {
+  private[reactive] class DumpObserver[-A](prefix: String, out: PrintStream) extends Observer.Sync[A] {
 
     private[this] var pos = 0
 
@@ -341,5 +345,34 @@ object Observer {
       out.println(s"$pos: $prefix completed")
       pos += 1
     }
+  }
+
+  private[this] final class ContravariantObserver[A, B](source: Observer[A])(f: B => A) extends Observer[B] {
+    // For protecting the contract
+    private[this] var isDone = false
+
+    override def onNext(elem: B): Future[Ack] = {
+      if (isDone) Stop
+      else {
+        var streamError = true
+        try {
+          val b = f(elem)
+          streamError = false
+          source.onNext(b)
+        } catch {
+          case NonFatal(ex) if streamError =>
+            onError(ex)
+            Stop
+        }
+      }
+    }
+    override def onError(ex: Throwable): Unit =
+      if (!isDone) {
+        isDone = true; source.onError(ex)
+      }
+    override def onComplete(): Unit =
+      if (!isDone) {
+        isDone = true; source.onComplete()
+      }
   }
 }

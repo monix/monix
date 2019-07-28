@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,8 +31,7 @@ import scala.concurrent.{Future, Promise}
 object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should not lose events with sync subscriber, test 1") { implicit s =>
@@ -86,7 +85,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+        s.execute(RunnableAction { buffer.onNext(n); loop(n - 1) })
       else
         buffer.onComplete()
 
@@ -150,7 +149,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+        s.execute(RunnableAction { buffer.onNext(n); loop(n - 1) })
       else
         buffer.onComplete()
 
@@ -174,7 +173,9 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, Unbounded)
+      },
+      Unbounded
+    )
 
     buffer.onError(DummyException("dummy"))
     s.tickOne()
@@ -194,7 +195,9 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = Continue
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, Unbounded)
+      },
+      Unbounded
+    )
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
@@ -211,7 +214,9 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Unbounded)
+      },
+      Unbounded
+    )
 
     buffer.onComplete()
     s.tickOne()
@@ -227,7 +232,9 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
         def onNext(elem: Int) = promise.future
         def onComplete() = wasCompleted += 1
         val scheduler = s
-      }, Unbounded)
+      },
+      Unbounded
+    )
 
     buffer.onNext(1)
     buffer.onComplete()
@@ -253,7 +260,9 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Unbounded)
+      },
+      Unbounded
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -277,7 +286,9 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = throw ex
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Unbounded)
+      },
+      Unbounded
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -292,15 +303,18 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val startConsuming = Promise[Continue.type]()
 
-    val buffer = BufferedSubscriber[Long](new Subscriber[Long] {
-      def onNext(elem: Long) = {
-        sum += elem
-        startConsuming.future
-      }
-      def onError(ex: Throwable) = errorThrown = ex
-      def onComplete() = throw new IllegalStateException()
-      val scheduler = s
-    }, Unbounded)
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          startConsuming.future
+        }
+        def onError(ex: Throwable) = errorThrown = ex
+        def onComplete() = throw new IllegalStateException()
+        val scheduler = s
+      },
+      Unbounded
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -315,15 +329,18 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var errorThrown: Throwable = null
 
-    val buffer = BufferedSubscriber[Long](new Subscriber[Long] {
-      def onNext(elem: Long) = {
-        sum += elem
-        Continue
-      }
-      def onError(ex: Throwable) = errorThrown = ex
-      def onComplete() = throw new IllegalStateException()
-      val scheduler = s
-    }, Unbounded)
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          Continue
+        }
+        def onError(ex: Throwable) = errorThrown = ex
+        def onComplete() = throw new IllegalStateException()
+        val scheduler = s
+      },
+      Unbounded
+    )
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -337,16 +354,15 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer = BufferedSubscriber[Long](
-      new Subscriber[Long] {
-        def onNext(elem: Long) = {
-          received += 1
-          Continue
-        }
-        def onError(ex: Throwable) = ()
-        def onComplete() = wasCompleted = true
-        val scheduler = s
-      }, Unbounded)
+    val buffer = BufferedSubscriber[Long](new Subscriber[Long] {
+      def onNext(elem: Long) = {
+        received += 1
+        Continue
+      }
+      def onError(ex: Throwable) = ()
+      def onComplete() = wasCompleted = true
+      val scheduler = s
+    }, Unbounded)
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
@@ -375,7 +391,8 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Unbounded
+      },
+      Unbounded
     )
 
     for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) {}
@@ -401,7 +418,8 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Unbounded
+      },
+      Unbounded
     )
 
     for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) s.tick()
@@ -426,7 +444,8 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Unbounded
+      },
+      Unbounded
     )
 
     for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) {}
@@ -452,7 +471,8 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, Unbounded
+      },
+      Unbounded
     )
 
     for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) s.tick()
@@ -461,7 +481,6 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
     assert(!wasCompleted, "!wasCompleted")
     assertEquals(sum, 55)
   }
-
 
   test("subscriber STOP after a synchronous onNext") { implicit s =>
     var received = 0
@@ -700,7 +719,6 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assert(errorThrown != null, "errorThrown != null")
-    assert(errorThrown.isInstanceOf[NullPointerException],
-      "errorThrown.isInstanceOf[NullPointerException]")
+    assert(errorThrown.isInstanceOf[NullPointerException], "errorThrown.isInstanceOf[NullPointerException]")
   }
 }

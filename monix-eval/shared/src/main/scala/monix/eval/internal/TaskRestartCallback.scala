@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.Task.{Context, Error, Now}
-import monix.eval.internal.TaskRunLoop.{Bind, CallStack, startFull}
+import monix.eval.internal.TaskRunLoop.{startFull, Bind, CallStack}
 import monix.eval.Task
 import monix.execution.Callback
 import monix.execution.misc.Local
@@ -98,14 +98,7 @@ private[internal] abstract class TaskRestartCallback(contextInit: Context, callb
     val bRest = this.bRest
     this.bFirst = null
     this.bRest = null
-    startFull(
-      Now(value),
-      context,
-      wrappedCallback,
-      this,
-      bFirst,
-      bRest,
-      this.context.frameRef())
+    startFull(Now(value), context, wrappedCallback, this, bFirst, bRest, this.context.frameRef())
   }
 
   protected def syncOnError(error: Throwable): Unit = {
@@ -113,14 +106,7 @@ private[internal] abstract class TaskRestartCallback(contextInit: Context, callb
     val bRest = this.bRest
     this.bFirst = null
     this.bRest = null
-    startFull(
-      Error(error),
-      context,
-      this.wrappedCallback,
-      this,
-      bFirst,
-      bRest,
-      this.context.frameRef())
+    startFull(Error(error), context, this.wrappedCallback, this, bFirst, bRest, this.context.frameRef())
   }
 
   /** Reusable Runnable reference, to go lighter on memory allocations. */
@@ -167,8 +153,7 @@ private[internal] object TaskRestartCallback {
     private[this] var previousLocals: Local.Context = _
 
     override protected def prepareStart(task: Task.Async[_]): Unit = {
-      preparedLocals =
-        if (task.restoreLocals) Local.getContext() else null
+      preparedLocals = if (task.restoreLocals) Local.getContext() else null
     }
 
     override def prepareCallback: Callback[Throwable, Any] =

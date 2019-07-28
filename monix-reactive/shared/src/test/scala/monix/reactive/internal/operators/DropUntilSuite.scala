@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +38,8 @@ object DropUntilSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
     val signal = Task.eval(1).delayExecution(2300.millis)
-    val o = Observable.intervalAtFixedRate(500.millis)
+    val o = Observable
+      .intervalAtFixedRate(500.millis)
       .take(sourceCount + 5)
       .dropUntil(Observable.fromTask(signal))
 
@@ -48,7 +49,8 @@ object DropUntilSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val source = Observable.intervalAtFixedRate(500.millis)
+      val source = Observable
+        .intervalAtFixedRate(500.millis)
         .take(sourceCount + 5)
 
       val signal = Task.eval(1).delayExecution(2300.millis)
@@ -63,7 +65,8 @@ object DropUntilSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val signal = Task.eval(1).delayExecution(2300.millis)
-    val o = Observable.intervalAtFixedRate(500.millis)
+    val o = Observable
+      .intervalAtFixedRate(500.millis)
       .dropUntil(Observable.fromTask(signal))
 
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
@@ -76,7 +79,8 @@ object DropUntilSuite extends BaseOperatorSuite {
     val dummy = DummyException("dummy")
 
     val signal = Task.raiseError(dummy).delayExecution(2300.millis)
-    val o = Observable.intervalAtFixedRate(500.millis)
+    val o = Observable
+      .intervalAtFixedRate(500.millis)
       .take(sourceCount + 5)
       .dropUntil(Observable.fromTask(signal))
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +18,9 @@
 package monix.catnap
 package cancelables
 
-import cats.effect.{IO, util}
+import cats.effect.IO
 import minitest.SimpleTestSuite
-import monix.execution.exceptions.DummyException
-import monix.execution.internal.Platform
+import monix.execution.exceptions.{CompositeException, DummyException}
 
 object SingleAssignCancelableFSuite extends SimpleTestSuite {
   test("cancel") {
@@ -132,17 +131,10 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
       s.cancel.unsafeRunSync()
       fail("should have thrown")
     } catch {
-      case e1: DummyException =>
-        if (Platform.isJVM)
-          e1.getSuppressed.toList match {
-            case (_: DummyException) :: Nil => ()
-            case other => fail(s"unexpected suppressed: $other")
-          }
-        else
-          fail("Not on the JVM")
-
-      case util.CompositeException(_: DummyException, _: DummyException) =>
+      case CompositeException((_: DummyException) :: (_: DummyException) :: Nil) =>
         ()
+      case other: Throwable =>
+        throw other
     }
     assertEquals(effect, 2)
   }

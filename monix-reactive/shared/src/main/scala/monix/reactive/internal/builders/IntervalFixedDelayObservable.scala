@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,16 +18,15 @@
 package monix.reactive.internal.builders
 
 import monix.execution.cancelables.MultiAssignCancelable
-import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
-private[reactive] final class IntervalFixedDelayObservable
-  (initialDelay: FiniteDuration, delay: FiniteDuration)
+private[reactive] final class IntervalFixedDelayObservable(initialDelay: FiniteDuration, delay: FiniteDuration)
   extends Observable[Long] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[Long]): Cancelable = {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,7 +40,8 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
-      val o = Observable.intervalAtFixedRate(100.millis)
+      val o = Observable
+        .intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
         .bufferTimedAndCounted(1.second, maxCount = 20)
         .map(_.sum)
@@ -52,12 +53,15 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
-      val o = createObservableEndingInError(Observable
-        .intervalAtFixedRate(100.millis, 100.millis).take(sourceCount), ex)
+      val o = createObservableEndingInError(
+        Observable
+          .intervalAtFixedRate(100.millis, 100.millis)
+          .take(sourceCount),
+        ex)
         .bufferTimedAndCounted(1.second, maxCount = 20)
         .map(_.sum)
 
-      Sample(o, count(sourceCount/10), sum(sourceCount/10), waitFirst, waitNext)
+      Sample(o, count(sourceCount / 10), sum(sourceCount / 10), waitFirst, waitNext)
     }
   }
 
@@ -65,7 +69,8 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
     None
 
   override def cancelableObservables(): Seq[Sample] = {
-    val o = Observable.range(0, Platform.recommendedBatchSize)
+    val o = Observable
+      .range(0, Platform.recommendedBatchSize)
       .delayOnNext(1.second)
       .bufferTimedAndCounted(1.second, maxCount = 20)
       .map(_.sum)
@@ -76,7 +81,8 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
   test("should emit buffer onComplete") { implicit s =>
     val sourceCount = 157
 
-    val obs = Observable.intervalAtFixedRate(100.millis)
+    val obs = Observable
+      .intervalAtFixedRate(100.millis)
       .take(sourceCount * 10)
       .bufferTimedAndCounted(2.seconds, 100)
       .map(_.sum)
@@ -105,7 +111,8 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
 
   test("should throw on negative timespan") { implicit s =>
     intercept[IllegalArgumentException] {
-      Observable.intervalAtFixedRate(100.millis)
+      Observable
+        .intervalAtFixedRate(100.millis)
         .bufferTimedAndCounted(Duration.Zero - 1.second, 10)
     }
   }
@@ -115,7 +122,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     createObservable(1) match {
-      case ref@Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {

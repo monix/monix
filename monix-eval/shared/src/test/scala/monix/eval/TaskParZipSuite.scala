@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,14 +21,14 @@ import monix.execution.exceptions.DummyException
 import concurrent.duration._
 import scala.util.{Failure, Random, Success}
 
-object TaskParZipSuite extends BaseTestSuite{
+object TaskParZipSuite extends BaseTestSuite {
   test("Task.parZip2 should work if source finishes first") { implicit s =>
     val f = Task.parZip2(Task(1), Task(2).delayExecution(1.second)).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
     s.tick(1.second)
-    assertEquals(f.value, Some(Success((1,2))))
+    assertEquals(f.value, Some(Success((1, 2))))
   }
 
   test("Task.parZip2 should work if other finishes first") { implicit s =>
@@ -37,7 +37,7 @@ object TaskParZipSuite extends BaseTestSuite{
     s.tick()
     assertEquals(f.value, None)
     s.tick(1.second)
-    assertEquals(f.value, Some(Success((1,2))))
+    assertEquals(f.value, Some(Success((1, 2))))
   }
 
   test("Task.parZip2 should cancel both") { implicit s =>
@@ -107,7 +107,7 @@ object TaskParZipSuite extends BaseTestSuite{
 
   test("Task.parZip2 works") { implicit s =>
     val f1 = Task.parZip2(Task(1), Task(2)).runToFuture
-    val f2 = Task.parMap2(Task(1), Task(2))((a,b) => (a,b)).runToFuture
+    val f2 = Task.parMap2(Task(1), Task(2))((a, b) => (a, b)).runToFuture
     s.tick()
     assertEquals(f1.value.get, f2.value.get)
   }
@@ -122,7 +122,7 @@ object TaskParZipSuite extends BaseTestSuite{
     val dummy = DummyException("dummy")
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(1.second)
-    val task = Task.map2(ta, tb)((_, _) => (throw dummy) : Int)
+    val task = Task.map2(ta, tb)((_, _) => (throw dummy): Int)
 
     val f = task.runToFuture
     s.tick(2.seconds)
@@ -156,7 +156,7 @@ object TaskParZipSuite extends BaseTestSuite{
     val dummy = DummyException("dummy")
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(1.second)
-    val task = Task.parMap2(ta, tb)((_, _) => (throw dummy) : Int)
+    val task = Task.parMap2(ta, tb)((_, _) => (throw dummy): Int)
 
     val f = task.runToFuture
     s.tick(1.second)
@@ -165,105 +165,105 @@ object TaskParZipSuite extends BaseTestSuite{
 
   test("Task.parZip23 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.parZip3(n(1),n(2),n(3))
+    val t = Task.parZip3(n(1), n(2), n(3))
     val r = t.runToFuture
     s.tick(3.seconds)
-    assertEquals(r.value, Some(Success((1,2,3))))
+    assertEquals(r.value, Some(Success((1, 2, 3))))
   }
 
   test("Task#map3 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(n.seconds)
-    val t = Task.map3(n(1),n(2),n(3))((_,_,_))
+    val t = Task.map3(n(1), n(2), n(3))((_, _, _))
     val r = t.runToFuture
     s.tick(3.seconds)
     assertEquals(r.value, None)
     s.tick(3.seconds)
-    assertEquals(r.value, Some(Success((1,2,3))))
+    assertEquals(r.value, Some(Success((1, 2, 3))))
   }
 
   test("Task#parMap3 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.parMap3(n(1),n(2),n(3))((_,_,_))
+    val t = Task.parMap3(n(1), n(2), n(3))((_, _, _))
     val r = t.runToFuture
     s.tick(3.seconds)
-    assertEquals(r.value, Some(Success((1,2,3))))
+    assertEquals(r.value, Some(Success((1, 2, 3))))
   }
 
   test("Task.parZip24 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.parZip4(n(1),n(2),n(3),n(4))
+    val t = Task.parZip4(n(1), n(2), n(3), n(4))
     val r = t.runToFuture
     s.tick(4.seconds)
-    assertEquals(r.value, Some(Success((1,2,3,4))))
+    assertEquals(r.value, Some(Success((1, 2, 3, 4))))
   }
 
   test("Task#map4 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(n.seconds)
-    val t = Task.map4(n(1),n(2),n(3),n(4))((_,_,_,_))
+    val t = Task.map4(n(1), n(2), n(3), n(4))((_, _, _, _))
     val r = t.runToFuture
     s.tick(6.seconds)
     assertEquals(r.value, None)
     s.tick(4.second)
-    assertEquals(r.value, Some(Success((1,2,3,4))))
+    assertEquals(r.value, Some(Success((1, 2, 3, 4))))
   }
 
   test("Task#parMap4 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.parMap4(n(1),n(2),n(3),n(4))((_,_,_,_))
+    val t = Task.parMap4(n(1), n(2), n(3), n(4))((_, _, _, _))
     val r = t.runToFuture
     s.tick(4.seconds)
-    assertEquals(r.value, Some(Success((1,2,3,4))))
+    assertEquals(r.value, Some(Success((1, 2, 3, 4))))
   }
 
   test("Task.parZip25 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.parZip5(n(1),n(2),n(3),n(4),n(5))
+    val t = Task.parZip5(n(1), n(2), n(3), n(4), n(5))
     val r = t.runToFuture
     s.tick(5.seconds)
-    assertEquals(r.value, Some(Success((1,2,3,4,5))))
+    assertEquals(r.value, Some(Success((1, 2, 3, 4, 5))))
   }
 
   test("Task#map5 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(n.seconds)
-    val t = Task.map5(n(1),n(2),n(3),n(4),n(5))((_,_,_,_,_))
+    val t = Task.map5(n(1), n(2), n(3), n(4), n(5))((_, _, _, _, _))
     val r = t.runToFuture
     s.tick(10.seconds)
     assertEquals(r.value, None)
     s.tick(5.seconds)
-    assertEquals(r.value, Some(Success((1,2,3,4,5))))
+    assertEquals(r.value, Some(Success((1, 2, 3, 4, 5))))
   }
 
   test("Task#parMap5 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.parMap5(n(1),n(2),n(3),n(4),n(5))((_,_,_,_,_))
+    val t = Task.parMap5(n(1), n(2), n(3), n(4), n(5))((_, _, _, _, _))
     val r = t.runToFuture
     s.tick(5.seconds)
-    assertEquals(r.value, Some(Success((1,2,3,4,5))))
+    assertEquals(r.value, Some(Success((1, 2, 3, 4, 5))))
   }
 
   test("Task.parZip26 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.parZip6(n(1),n(2),n(3),n(4),n(5),n(6))
+    val t = Task.parZip6(n(1), n(2), n(3), n(4), n(5), n(6))
     val r = t.runToFuture
     s.tick(6.seconds)
-    assertEquals(r.value, Some(Success((1,2,3,4,5,6))))
+    assertEquals(r.value, Some(Success((1, 2, 3, 4, 5, 6))))
   }
 
   test("Task#map6 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(n.seconds)
-    val t = Task.map6(n(1),n(2),n(3),n(4),n(5),n(6))((_,_,_,_,_,_))
+    val t = Task.map6(n(1), n(2), n(3), n(4), n(5), n(6))((_, _, _, _, _, _))
     val r = t.runToFuture
     s.tick(20.seconds)
     assertEquals(r.value, None)
     s.tick(1.second)
-    assertEquals(r.value, Some(Success((1,2,3,4,5,6))))
+    assertEquals(r.value, Some(Success((1, 2, 3, 4, 5, 6))))
   }
 
   test("Task#parMap6 works") { implicit s =>
     def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
-    val t = Task.parMap6(n(1),n(2),n(3),n(4),n(5),n(6))((_,_,_,_,_,_))
+    val t = Task.parMap6(n(1), n(2), n(3), n(4), n(5), n(6))((_, _, _, _, _, _))
     val r = t.runToFuture
     s.tick(6.seconds)
-    assertEquals(r.value, Some(Success((1,2,3,4,5,6))))
+    assertEquals(r.value, Some(Success((1, 2, 3, 4, 5, 6))))
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,27 +29,36 @@ object WithLatestFromSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.now(1L).delayExecution(1.second)
-          .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
-      else
-        Observable.range(1, sourceCount+1, 1)
-          .delayExecution(1.second)
-          .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
+      val o =
+        if (sourceCount == 1)
+          Observable
+            .now(1L)
+            .delayExecution(1.second)
+            .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
+        else
+          Observable
+            .range(1, sourceCount + 1, 1)
+            .delayExecution(1.second)
+            .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
 
       Sample(o, count(sourceCount), sum(sourceCount), 1.second, Zero)
     }
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = if (sourceCount == 1)
-      Observable.now(1L).delayExecution(1.second).endWithError(ex)
-        .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
-    else
-      Observable.range(1, sourceCount+1, 1)
-        .delayExecution(1.second)
-        .endWithError(ex)
-        .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
+    val o =
+      if (sourceCount == 1)
+        Observable
+          .now(1L)
+          .delayExecution(1.second)
+          .endWithError(ex)
+          .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
+      else
+        Observable
+          .range(1, sourceCount + 1, 1)
+          .delayExecution(1.second)
+          .endWithError(ex)
+          .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
 
     Sample(o, count(sourceCount), sum(sourceCount), 1.second, Zero)
   }
@@ -57,26 +66,32 @@ object WithLatestFromSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = if (sourceCount == 1)
-        Observable.now(1L).delayExecution(1.second)
-            .withLatestFrom(Observable.now(1))((x,y) => throw ex)
-      else
-        Observable.range(1, sourceCount+1, 1)
-          .delayExecution(1.second)
-          .withLatestFrom(Observable.fromIterable(0 to 10)) { (x,y) =>
-            if (x == sourceCount)
-              throw ex
-            else
-              x + y
-          }
+      val o =
+        if (sourceCount == 1)
+          Observable
+            .now(1L)
+            .delayExecution(1.second)
+            .withLatestFrom(Observable.now(1))((x, y) => throw ex)
+        else
+          Observable
+            .range(1, sourceCount + 1, 1)
+            .delayExecution(1.second)
+            .withLatestFrom(Observable.fromIterable(0 to 10)) { (x, y) =>
+              if (x == sourceCount)
+                throw ex
+              else
+                x + y
+            }
 
-      Sample(o, count(sourceCount-1), sum(sourceCount-1), 1.second, Zero)
+      Sample(o, count(sourceCount - 1), sum(sourceCount - 1), 1.second, Zero)
     }
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sample = Observable.now(1L).delayExecution(2.seconds)
-      .withLatestFrom(Observable.now(1).delayExecution(1.second))(_+_)
+    val sample = Observable
+      .now(1L)
+      .delayExecution(2.seconds)
+      .withLatestFrom(Observable.now(1).delayExecution(1.second))(_ + _)
 
     Seq(
       Sample(sample, 0, 0, 0.seconds, 0.seconds),

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,16 +23,17 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests, SemigroupKTests}
 import monix.eval.instances.CatsParallelForTask
 
-object TypeClassLawsForTaskSuite extends BaseTypeClassLawsForTaskSuite()(
-  Task.defaultOptions.disableAutoCancelableRunLoops
-)
+object TypeClassLawsForTaskSuite
+  extends BaseTypeClassLawsForTaskSuite()(
+    Task.defaultOptions.disableAutoCancelableRunLoops
+  )
 
-object TypeClassLawsForTaskAutoCancelableSuite extends BaseTypeClassLawsForTaskSuite()(
-  Task.defaultOptions.disableAutoCancelableRunLoops
-)
+object TypeClassLawsForTaskAutoCancelableSuite
+  extends BaseTypeClassLawsForTaskSuite()(
+    Task.defaultOptions.enableAutoCancelableRunLoops
+  )
 
-class BaseTypeClassLawsForTaskSuite(implicit opts: Task.Options)
-  extends BaseLawsSuite {
+class BaseTypeClassLawsForTaskSuite(implicit opts: Task.Options) extends BaseLawsSuite {
 
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 

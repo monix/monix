@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.reactive.observers
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.schedulers.TestScheduler
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.exceptions.DummyException
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
@@ -122,8 +122,7 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
     })
 
     observer.onComplete()
-    assert(s.state.lastReportedError.isInstanceOf[DummyException],
-      "lastReportedError.isInstanceOf[DummyException]")
+    assert(s.state.lastReportedError.isInstanceOf[DummyException], "lastReportedError.isInstanceOf[DummyException]")
   }
 
   test("should protect against errors in onError") { implicit s =>

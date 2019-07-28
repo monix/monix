@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,8 @@ import scala.concurrent.duration.Duration.Zero
 
 object DistinctUntilChangedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .flatMap(i => Observable.fromIterable(Seq(i, i, i)))
       .distinctUntilChanged
 
@@ -33,7 +34,7 @@ object DistinctUntilChangedSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     if (sourceCount == 1) {
       val o = Observable.now(1L).endWithError(ex).distinctUntilChanged
-      Sample(o,1,1,Zero,Zero)
+      Sample(o, 1, 1, Zero, Zero)
     } else {
       val source = Observable.range(0, sourceCount).flatMap(i => Observable.fromIterable(Seq(i, i, i)))
       val o = createObservableEndingInError(source, ex).distinctUntilChanged

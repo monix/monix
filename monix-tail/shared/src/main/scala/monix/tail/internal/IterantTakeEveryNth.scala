@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,9 +37,7 @@ private[tail] object IterantTakeEveryNth {
       Suspend(F.delay(new Loop[F, A](n).apply(source)))
   }
 
-  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, A]] {
-
+  private final class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
     private[this] var index = n
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
@@ -105,9 +103,7 @@ private[tail] object IterantTakeEveryNth {
       val next: F[Iterant[F, A]] = if (cursor.hasNext()) F.pure(ref) else rest
       this.index = idx
 
-      NextCursor(
-        BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]],
-        next.map(this))
+      NextCursor(BatchCursor.fromArray(buffer.toArray[Any]).asInstanceOf[BatchCursor[A]], next.map(this))
     }
   }
 }

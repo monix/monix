@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,49 +38,49 @@ object CatsProfunctorForSubject extends Profunctor[Subject] {
   def dimap[A, B, C, D](source: Subject[A, B])(f: C => A)(g: B => D): Subject[C, D] =
     new ProfunctorSubject(source)(f)(g)
 
-}
+  private final class ProfunctorSubject[A, B, C, D](source: Subject[A, B])(f: C => A)(g: B => D) extends Subject[C, D] {
 
-class ProfunctorSubject[A, B, C, D](source: Subject[A, B])(f: C => A)(g: B => D) extends Subject[C, D] {
+    def size: Int = source.size
 
-  def size: Int = source.size
+    def unsafeSubscribeFn(subscriber: Subscriber[D]): Cancelable =
+      source.unsafeSubscribeFn(new Subscriber[B] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[D]): Cancelable =
-    source.unsafeSubscribeFn(new Subscriber[B] {
+        implicit def scheduler: Scheduler = subscriber.scheduler
 
-      implicit def scheduler: Scheduler = subscriber.scheduler
-
-      def onNext(elem: B): Future[Ack] = {
-        var streamError = true
-        try {
-          val b = g(elem)
-          streamError = false
-          subscriber.onNext(b)
-        } catch {
-          case NonFatal(ex) if streamError =>
-            onError(ex)
-            Stop
+        def onNext(elem: B): Future[Ack] = {
+          var streamError = true
+          try {
+            val b = g(elem)
+            streamError = false
+            subscriber.onNext(b)
+          } catch {
+            case NonFatal(ex) if streamError =>
+              onError(ex)
+              Stop
+          }
         }
+
+        def onError(ex: Throwable): Unit = subscriber.onError(ex)
+
+        def onComplete(): Unit = subscriber.onComplete()
+      })
+
+    def onNext(elem: C): Future[Ack] = {
+      var streamError = true
+      try {
+        val a = f(elem)
+        streamError = false
+        source.onNext(a)
+      } catch {
+        case NonFatal(ex) if streamError =>
+          onError(ex)
+          Stop
       }
-
-      def onError(ex: Throwable): Unit = subscriber.onError(ex)
-
-      def onComplete(): Unit = subscriber.onComplete()
-    })
-
-  def onNext(elem: C): Future[Ack] = {
-    var streamError = true
-    try {
-      val a = f(elem)
-      streamError = false
-      source.onNext(a)
-    } catch {
-      case NonFatal(ex) if streamError =>
-        onError(ex)
-        Stop
     }
+
+    def onError(ex: Throwable): Unit = source.onError(ex)
+
+    def onComplete(): Unit = source.onComplete()
   }
 
-  def onError(ex: Throwable): Unit = source.onError(ex)
-
-  def onComplete(): Unit = source.onComplete()
 }

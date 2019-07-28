@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,8 +29,8 @@ import scala.concurrent.ExecutionContext
   */
 @implicitNotFound(
   "No ExceptionReporter was found in context for " +
-  "reporting uncaught errors, either build one yourself or use " +
-  "an implicit Scheduler (schedulers are ExceptionReporters)")
+    "reporting uncaught errors, either build one yourself or use " +
+    "an implicit Scheduler (schedulers are ExceptionReporters)")
 trait UncaughtExceptionReporter extends Serializable {
   def reportFailure(ex: Throwable): Unit
 }
@@ -59,7 +59,7 @@ object UncaughtExceptionReporter {
   /**
     * DEPRECATED - use [[default]] instead.
     */
-  @deprecated("Use UncaughtExceptionReporter.default", since="3.0.0")
+  @deprecated("Use UncaughtExceptionReporter.default", since = "3.0.0")
   val LogExceptionsToStandardErr = {
     // $COVERAGE-OFF$
     UncaughtExceptionReporter(ExecutionContext.defaultReporter)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,14 +19,13 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
 import monix.execution.cancelables.OrderedCancelable
-import monix.execution.{Scheduler, Ack, Cancelable}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.Success
 
-private[reactive] final
-class OnErrorRetryCountedObservable[+A](source: Observable[A], maxRetries: Long)
+private[reactive] final class OnErrorRetryCountedObservable[+A](source: Observable[A], maxRetries: Long)
   extends Observable[A] {
 
   private def loop(subscriber: Subscriber[A], task: OrderedCancelable, retryIdx: Long): Unit = {
@@ -55,12 +54,11 @@ class OnErrorRetryCountedObservable[+A](source: Observable[A], maxRetries: Long)
             // blowing out the call stack
             ack.onComplete {
               case Success(Continue) =>
-                loop(subscriber, task, retryIdx+1)
+                loop(subscriber, task, retryIdx + 1)
               case _ =>
                 () // stop
             }
-          }
-          else {
+          } else {
             subscriber.onError(ex)
           }
         }

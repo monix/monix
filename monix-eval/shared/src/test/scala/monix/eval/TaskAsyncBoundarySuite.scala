@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,8 +47,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
     val s2 = TestScheduler()
 
     var effect = 0
-    val f = Task
-      .eval { effect += 1; effect }
+    val f = Task.eval { effect += 1; effect }
       .executeOn(io)
       .asyncBoundary(s2)
       .map(_ + 1)

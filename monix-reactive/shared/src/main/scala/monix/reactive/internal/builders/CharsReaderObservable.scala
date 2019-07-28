@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,12 +32,11 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
-import scala.concurrent.{Future, blocking}
+import scala.concurrent.{blocking, Future}
 import scala.util.{Failure, Success}
 
-private[reactive] final class CharsReaderObservable(
-  in: Reader, chunkSize: Int)
-  extends Observable[Array[Char]] { self =>
+private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) extends Observable[Array[Char]] {
+  self =>
 
   private[this] val wasSubscribed = Atomic(false)
 
@@ -45,39 +44,43 @@ private[reactive] final class CharsReaderObservable(
     if (wasSubscribed.getAndSet(true)) {
       out.onError(APIContractViolationException("ReaderObservable does not support multiple subscribers"))
       Cancelable.empty
-    }
-    else {
+    } else {
       val buffer = new Array[Char](chunkSize)
       // A token that will be checked for cancellation
       val cancelable = BooleanCancelable()
       val em = out.scheduler.executionModel
       // Schedule first cycle
-      if (em.isAlwaysAsync)
-        reschedule(Continue, buffer, out, cancelable, em)(out.scheduler)
-      else
-        fastLoop(buffer, out, cancelable, em, 0)(out.scheduler)
+      reschedule(Continue, buffer, out, cancelable, em)(out.scheduler)
 
       cancelable
     }
   }
 
-  private def reschedule(ack: Future[Ack], b: Array[Char], out: Subscriber[Array[Char]],
-    c: BooleanCancelable, em: ExecutionModel)(implicit s: Scheduler): Unit = {
+  private def reschedule(
+    ack: Future[Ack],
+    b: Array[Char],
+    out: Subscriber[Array[Char]],
+    c: BooleanCancelable,
+    em: ExecutionModel)(implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(next) =>
         // Should we continue, or should we close the stream?
         if (next == Continue && !c.isCanceled)
           fastLoop(b, out, c, em, 0)
-        // else stop
+      // else stop
       case Failure(ex) =>
         reportFailure(ex)
     }
   }
 
   @tailrec
-  private def fastLoop(buffer: Array[Char], out: Subscriber[Array[Char]],
-    c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(implicit s: Scheduler): Unit = {
+  private def fastLoop(
+    buffer: Array[Char],
+    out: Subscriber[Array[Char]],
+    c: BooleanCancelable,
+    em: ExecutionModel,
+    syncIndex: Int)(implicit s: Scheduler): Unit = {
 
     // Dealing with mutable status in order to keep the
     // loop tail-recursive :-(
@@ -119,8 +122,7 @@ private[reactive] final class CharsReaderObservable(
         else if (nextIndex >= 0)
           reschedule(ack, buffer, out, c, em)
       }
-    }
-    else {
+    } else {
       // Dealing with unexpected errors
       if (streamErrors)
         sendError(out, errorThrown)
@@ -142,6 +144,7 @@ private[reactive] final class CharsReaderObservable(
     s.reportFailure(e)
     // Forcefully close in case of protocol violations, because we are
     // not signaling the error downstream, which could lead to leaks
-    try in.close() catch { case NonFatal(_) => () }
+    try in.close()
+    catch { case NonFatal(_) => () }
   }
 }

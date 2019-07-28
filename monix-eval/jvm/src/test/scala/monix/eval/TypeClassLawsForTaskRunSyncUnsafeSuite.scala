@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,8 +49,7 @@ object TypeClassLawsForTaskAutoCancelableRunSyncUnsafeSuite
   )
 
 class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
-  extends monix.execution.BaseLawsSuite
-  with  ArbitraryInstancesBase {
+  extends monix.execution.BaseLawsSuite with ArbitraryInstancesBase {
 
   implicit val sc = Scheduler(global, UncaughtExceptionReporter(_ => ()))
   implicit val cs = IO.contextShift(sc)
@@ -68,7 +67,8 @@ class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
     // because they'd behave really badly with an Eq[Task] that depends on
     // blocking threads
     allowNonTerminationLaws = false,
-    stackSafeIterationsCount = 10000)
+    stackSafeIterationsCount = 10000
+  )
 
   implicit def equalityTask[A](implicit A: Eq[A]): Eq[Task[A]] =
     Eq.instance { (a, b) =>
@@ -92,21 +92,15 @@ class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
       equalityTry[A].eqv(ta, tb)
     }
 
-  checkAll("CoflatMap[Task]",
-    CoflatMapTests[Task].coflatMap[Int,Int,Int])
+  checkAll("CoflatMap[Task]", CoflatMapTests[Task].coflatMap[Int, Int, Int])
 
-  checkAll("Concurrent[Task]",
-    ConcurrentTests[Task].concurrent[Int,Int,Int])
+  checkAll("Concurrent[Task]", ConcurrentTests[Task].concurrent[Int, Int, Int])
 
-  checkAll("ConcurrentEffect[Task]",
-    ConcurrentEffectTests[Task].concurrentEffect[Int,Int,Int])
+  checkAll("ConcurrentEffect[Task]", ConcurrentEffectTests[Task].concurrentEffect[Int, Int, Int])
 
-  checkAll("Applicative[Task.Par]",
-    ApplicativeTests[Task.Par].applicative[Int, Int, Int])
+  checkAll("Applicative[Task.Par]", ApplicativeTests[Task.Par].applicative[Int, Int, Int])
 
-  checkAll("Parallel[Task, Task.Par]",
-    ParallelTests[Task, Task.Par].parallel[Int, Int])
+  checkAll("Parallel[Task, Task.Par]", ParallelTests[Task, Task.Par].parallel[Int, Int])
 
-  checkAll("Monoid[Task[Int]]",
-    MonoidTests[Task[Int]].monoid)
+  checkAll("Monoid[Task[Int]]", MonoidTests[Task[Int]].monoid)
 }

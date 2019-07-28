@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,20 +38,24 @@ private[eval] object UnsafeCancelUtils {
   /**
     * Internal API — very unsafe!
     */
-  private[internal]
-  def cancelAllUnsafe(cursor: Iterable[AnyRef/* Cancelable | Task[Unit] | CancelableF[Task] */]): CancelToken[Task] =
-    if (cursor.isEmpty) {
+  private[internal] def cancelAllUnsafe(
+    cursor: Iterable[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ]): CancelToken[Task] = {
+
+    if (cursor.isEmpty)
       Task.unit
-    } else Task.suspend {
-      val frame = new CancelAllFrame(cursor.iterator)
-      frame.loop()
-    }
+    else
+      Task.suspend {
+        val frame = new CancelAllFrame(cursor.iterator)
+        frame.loop()
+      }
+  }
 
   /**
     * Internal API — very unsafe!
     */
-  private[internal]
-  def unsafeCancel(task: AnyRef/* Cancelable | Task[Unit] | CancelableF[Task] */): CancelToken[Task] =
+  private[internal] def unsafeCancel(
+    task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ): CancelToken[Task] = {
+
     task match {
       case ref: Task[Unit] @unchecked =>
         ref
@@ -63,14 +67,14 @@ private[eval] object UnsafeCancelUtils {
       case other =>
         // $COVERAGE-OFF$
         reject(other)
-        // $COVERAGE-ON$
+      // $COVERAGE-ON$
     }
+  }
 
   /**
     * Internal API — very unsafe!
     */
-  private[internal]
-  def getToken(task: AnyRef/* Cancelable | Task[Unit] | CancelableF[Task] */): CancelToken[Task] =
+  private[internal] def getToken(task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ): CancelToken[Task] =
     task match {
       case ref: Task[Unit] @unchecked =>
         ref
@@ -81,15 +85,14 @@ private[eval] object UnsafeCancelUtils {
       case other =>
         // $COVERAGE-OFF$
         reject(other)
-        // $COVERAGE-ON$
+      // $COVERAGE-ON$
     }
 
   /**
     * Internal API — very unsafe!
     */
-  private[internal]
-  def triggerCancel(task: AnyRef/* Cancelable | Task[Unit] | CancelableF[Task] */)
-    (implicit s: Scheduler): Unit = {
+  private[internal] def triggerCancel(task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ )(
+    implicit s: Scheduler): Unit = {
 
     task match {
       case ref: Task[Unit] @unchecked =>
@@ -97,18 +100,19 @@ private[eval] object UnsafeCancelUtils {
       case ref: CancelableF[Task] @unchecked =>
         ref.cancel.runAsyncAndForget
       case ref: Cancelable =>
-        try ref.cancel() catch {
+        try ref.cancel()
+        catch {
           case NonFatal(e) => s.reportFailure(e)
         }
       case other =>
         // $COVERAGE-OFF$
         reject(other)
-        // $COVERAGE-ON$
+      // $COVERAGE-ON$
     }
   }
 
   // Optimization for `cancelAll`
-  private final class CancelAllFrame(cursor: Iterator[AnyRef/* Cancelable | Task[Unit] | CancelableF[Task] */])
+  private final class CancelAllFrame(cursor: Iterator[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ])
     extends StackFrame[Unit, Task[Unit]] {
 
     private[this] val errors = ListBuffer.empty[Throwable]
@@ -132,7 +136,7 @@ private[eval] object UnsafeCancelUtils {
           case other =>
             // $COVERAGE-OFF$
             reject(other)
-            // $COVERAGE-ON$
+          // $COVERAGE-ON$
         }
       }
 

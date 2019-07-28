@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,7 @@ import monix.execution.internal.atomic.{BoxedLong, Factory}
   * Note that the equality test in `compareAndSet` is value based,
   * since `Double` is a primitive.
   */
-final class AtomicDouble private (val ref: BoxedLong)
-  extends AtomicNumber[Double] {
+final class AtomicDouble private (val ref: BoxedLong) extends AtomicNumber[Double] {
 
   def get(): Double = longBitsToDouble(ref.volatileGet())
   def set(update: Double): Unit = ref.volatileSet(doubleToLongBits(update))
@@ -178,12 +177,13 @@ object AtomicDouble {
     *        for `getAndSet` and for `getAndAdd`
     */
   def create(initialValue: Double, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicDouble = {
-    new AtomicDouble(Factory.newBoxedLong(
-      doubleToLongBits(initialValue),
-      boxStrategyToPaddingStrategy(padding),
-      true, // allowIntrinsics
-      allowPlatformIntrinsics
-    ))
+    new AtomicDouble(
+      Factory.newBoxedLong(
+        doubleToLongBits(initialValue),
+        boxStrategyToPaddingStrategy(padding),
+        true, // allowIntrinsics
+        allowPlatformIntrinsics
+      ))
   }
 
   /** $createDesc
@@ -202,11 +202,12 @@ object AtomicDouble {
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def safe(initialValue: Double, padding: PaddingStrategy): AtomicDouble = {
-    new AtomicDouble(Factory.newBoxedLong(
-      doubleToLongBits(initialValue),
-      boxStrategyToPaddingStrategy(padding),
-      false, // allowUnsafe
-      false  // allowJava8Intrinsics
-    ))
+    new AtomicDouble(
+      Factory.newBoxedLong(
+        doubleToLongBits(initialValue),
+        boxStrategyToPaddingStrategy(padding),
+        false, // allowUnsafe
+        false // allowJava8Intrinsics
+      ))
   }
 }

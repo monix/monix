@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -63,8 +63,8 @@ object Subject {
     *                   on each cycle when communicating demand, compliant with
     *                   the reactive streams specification
     */
-  def toReactiveProcessor[I,O](source: Subject[I,O], bufferSize: Int)(implicit s: Scheduler): RProcessor[I,O] = {
-    new RProcessor[I,O] {
+  def toReactiveProcessor[I, O](source: Subject[I, O], bufferSize: Int)(implicit s: Scheduler): RProcessor[I, O] = {
+    new RProcessor[I, O] {
       private[this] val subscriber: RSubscriber[I] =
         Subscriber(source, s).toReactive(bufferSize)
 
@@ -72,7 +72,6 @@ object Subject {
         val sub = SingleAssignCancelable()
         sub := source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber, sub))
       }
-
 
       def onSubscribe(s: Subscription): Unit = {
         subscriber.onSubscribe(s)

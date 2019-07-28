@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,8 +32,7 @@ import scala.runtime.AbstractFunction2
   * is that the injected `Callback` MUST BE called after a full
   * asynchronous boundary.
   */
-private[eval] abstract class ForkedRegister[A]
-  extends AbstractFunction2[Context, Callback[Throwable, A], Unit] {
+private[eval] abstract class ForkedRegister[A] extends AbstractFunction2[Context, Callback[Throwable, A], Unit] {
 
   def apply(context: Context, cb: Callback[Throwable, A]): Unit
 }

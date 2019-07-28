@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,8 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.atomic.{PaddingStrategy, AtomicAny}
+import monix.execution.atomic.{AtomicAny, PaddingStrategy}
 import scala.annotation.tailrec
-import scala.collection.GenTraversableOnce
 
 /** Represents a composite of multiple cancelables. In case it is canceled, all
   * contained cancelables will be canceled too, e.g...
@@ -72,8 +71,8 @@ import scala.collection.GenTraversableOnce
   *         the removed references don't get canceled when the composite
   *         gets canceled. Also useful for garbage collecting purposes.
   */
-final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable.State])
-  extends BooleanCancelable { self =>
+final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable.State]) extends BooleanCancelable {
+  self =>
 
   import CompositeCancelable.{Active, Cancelled}
 
@@ -120,11 +119,11 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
     *
     * Alias for [[addAll]].
     */
-  def ++=(that: GenTraversableOnce[Cancelable]): this.type =
+  def ++=(that: Iterable[Cancelable]): this.type =
     addAll(that)
 
   /** $addAllOp */
-  def addAll(that: GenTraversableOnce[Cancelable]): this.type = {
+  def addAll(that: Iterable[Cancelable]): this.type = {
     @tailrec def loop(that: Iterable[Cancelable]): this.type =
       stateRef.get match {
         case Cancelled =>
@@ -140,7 +139,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
           }
       }
 
-    loop(that.toIterable.seq)
+    loop(that.toSeq)
   }
 
   /** $removeOp
@@ -167,11 +166,11 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
     *
     * Alias for [[removeAll]].
     */
-  def --=(that: GenTraversableOnce[Cancelable]): this.type =
+  def --=(that: Iterable[Cancelable]): this.type =
     removeAll(that)
 
   /** $removeAllOp */
-  def removeAll(that: GenTraversableOnce[Cancelable]): this.type = {
+  def removeAll(that: Iterable[Cancelable]): this.type = {
     @tailrec def loop(that: Iterable[Cancelable]): this.type =
       stateRef.get match {
         case Cancelled => this
@@ -185,7 +184,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
           }
       }
 
-    loop(that.toIterable.seq)
+    loop(that.toSeq)
   }
 
   /** Resets this composite to an empty state, if not canceled,
@@ -207,7 +206,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
   /** Replaces the underlying set of cancelables with a new one,
     * returning the old set just before the substitution happened.
     */
-  def getAndSet(that: GenTraversableOnce[Cancelable]): Set[Cancelable] = {
+  def getAndSet(that: Iterable[Cancelable]): Set[Cancelable] = {
     @tailrec def loop(that: Set[Cancelable]): Set[Cancelable] =
       stateRef.get match {
         case Cancelled =>
@@ -227,7 +226,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
       case ref: Set[_] =>
         loop(ref.asInstanceOf[Set[Cancelable]])
       case _ =>
-        loop(that.seq.toSet[Cancelable])
+        loop(that.toSet[Cancelable])
     }
   }
 }
@@ -235,7 +234,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
 object CompositeCancelable {
   /** Builder for [[CompositeCancelable]]. */
   def apply(initial: Cancelable*): CompositeCancelable =
-    withPadding(Set(initial:_*), PaddingStrategy.LeftRight128)
+    withPadding(Set(initial: _*), PaddingStrategy.LeftRight128)
 
   /** Builder for [[CompositeCancelable]]. */
   def fromSet(initial: Set[Cancelable]): CompositeCancelable =

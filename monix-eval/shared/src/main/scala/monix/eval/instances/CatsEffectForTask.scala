@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,8 +38,7 @@ import monix.execution.Scheduler
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
-  extends CatsBaseForTask with Effect[Task] {
+class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options) extends CatsBaseForTask with Effect[Task] {
 
   /** We need to mixin [[CatsAsyncForTask]], because if we
     * inherit directly from it, the implicits priorities don't
@@ -59,7 +58,8 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options)
     F.asyncF(k)
   override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(release: A => Task[Unit]): Task[B] =
     F.bracket(acquire)(use)(release)
-  override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
+  override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(
+    release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     F.bracketCase(acquire)(use)(release)
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,9 @@ object Zip2Suite extends BaseOperatorSuite {
     val o1 = Observable.range(0, sourceCount)
     val o2 = Observable.range(0, sourceCount + 2)
 
-    val o = Observable.zipMap2(o1, o2) { (x1, x2) => x1 + x2 }
+    val o = Observable.zipMap2(o1, o2) { (x1, x2) =>
+      x1 + x2
+    }
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -42,26 +44,28 @@ object Zip2Suite extends BaseOperatorSuite {
     val o1 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    val o = Observable.zipMap2(o1, o2) { (x1, x2) => x1 + x2 }
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+    val o = Observable.zipMap2(o1, o2) { (x1, x2) =>
+      x1 + x2
+    }
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o1 = Observable.range(0, sourceCount)
-    val o2 = Observable.range(0, sourceCount+100)
+    val o2 = Observable.range(0, sourceCount + 100)
 
     val o = Observable.zipMap2(o1, o2) { (x1, x2) =>
-      if (x2 < sourceCount-1) x1 + x2 else throw ex
+      if (x2 < sourceCount - 1) x1 + x2 else throw ex
     }
 
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+    Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 = {
       val o1 = Observable.range(0, 10).delayOnNext(1.second)
       val o2 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.zipMap2(o1, o2)(_+_)
+      Observable.zipMap2(o1, o2)(_ + _)
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))
@@ -74,25 +78,27 @@ object Zip2Suite extends BaseOperatorSuite {
     var received = (0, 0)
     var wasCompleted = false
 
-    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
-      def onNext(elem: (Int, Int)) = {
-        received = elem
-        Continue
-      }
+    obs1
+      .zip(obs2)
+      .unsafeSubscribeFn(new Observer[(Int, Int)] {
+        def onNext(elem: (Int, Int)) = {
+          received = elem
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     obs1.onNext(1); s.tick()
-    assertEquals(received, (0,0))
+    assertEquals(received, (0, 0))
     obs2.onNext(2); s.tick()
-    assertEquals(received, (1,2))
+    assertEquals(received, (1, 2))
 
     obs2.onNext(4); s.tick()
-    assertEquals(received, (1,2))
+    assertEquals(received, (1, 2))
     obs1.onNext(3); s.tick()
-    assertEquals(received, (3,4))
+    assertEquals(received, (3, 4))
 
     obs1.onComplete()
     s.tick()
@@ -105,9 +111,12 @@ object Zip2Suite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
     var wasCanceled = false
-    var received = (0,0)
+    var received = (0, 0)
 
-    obs1.zip(obs2.doOnEarlyStopF { () => wasCanceled = true })
+    obs1
+      .zip(obs2.doOnEarlyStopF { () =>
+        wasCanceled = true
+      })
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -118,7 +127,7 @@ object Zip2Suite extends BaseOperatorSuite {
     assertEquals(wasThrown, DummyException("dummy"))
 
     obs2.onNext(2); s.tickOne()
-    assertEquals(received, (0,0))
+    assertEquals(received, (0, 0))
     assert(wasCanceled)
   }
 
@@ -128,20 +137,22 @@ object Zip2Suite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
     var wasCanceled = false
-    var received = (0,0)
+    var received = (0, 0)
 
-    obs2.doOnEarlyStopF { () => wasCanceled = true }.zip(obs1)
+    obs2.doOnEarlyStopF { () =>
+      wasCanceled = true
+    }.zip(obs1)
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
-      def onNext(elem: (Int, Int)) = { received = elem; Continue }
-      def onError(ex: Throwable) = wasThrown = ex
-      def onComplete() = ()
-    })
+        def onNext(elem: (Int, Int)) = { received = elem; Continue }
+        def onError(ex: Throwable) = wasThrown = ex
+        def onComplete() = ()
+      })
 
     obs1.onError(DummyException("dummy"))
     assertEquals(wasThrown, DummyException("dummy"))
 
     obs2.onNext(2); s.tickOne()
-    assertEquals(received, (0,0))
+    assertEquals(received, (0, 0))
     assert(wasCanceled)
   }
 
@@ -151,13 +162,15 @@ object Zip2Suite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
 
-    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
-      def onNext(elem: (Int, Int)) =
-        Future.delayedResult(1.second)(Continue)
-      def onComplete() = ()
-      def onError(ex: Throwable) =
-        wasThrown = ex
-    })
+    obs1
+      .zip(obs2)
+      .unsafeSubscribeFn(new Observer[(Int, Int)] {
+        def onNext(elem: (Int, Int)) =
+          Future.delayedResult(1.second)(Continue)
+        def onComplete() = ()
+        def onError(ex: Throwable) =
+          wasThrown = ex
+      })
 
     obs1.onNext(1)
     obs2.onNext(2)
@@ -174,13 +187,15 @@ object Zip2Suite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
 
-    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
-      def onNext(elem: (Int, Int)) =
-        Future.delayedResult(1.second)(Continue)
-      def onComplete() = ()
-      def onError(ex: Throwable) =
-        wasThrown = ex
-    })
+    obs1
+      .zip(obs2)
+      .unsafeSubscribeFn(new Observer[(Int, Int)] {
+        def onNext(elem: (Int, Int)) =
+          Future.delayedResult(1.second)(Continue)
+        def onComplete() = ()
+        def onError(ex: Throwable) =
+          wasThrown = ex
+      })
 
     obs1.onNext(1)
     obs2.onNext(2)

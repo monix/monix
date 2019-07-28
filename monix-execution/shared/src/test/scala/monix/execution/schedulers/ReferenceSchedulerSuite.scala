@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,9 +27,7 @@ import scala.concurrent.duration._
 import scala.util.Success
 
 object ReferenceSchedulerSuite extends SimpleTestSuite {
-  class DummyScheduler(
-    val underlying: TestScheduler = TestScheduler())
-    extends ReferenceScheduler {
+  class DummyScheduler(val underlying: TestScheduler = TestScheduler()) extends ReferenceScheduler {
 
     def executionModel = monix.execution.ExecutionModel.Default
     def tick(time: FiniteDuration = Duration.Zero) = underlying.tick(time)
@@ -37,6 +35,11 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     def reportFailure(t: Throwable): Unit = underlying.reportFailure(t)
     def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
       underlying.scheduleOnce(initialDelay, unit, r)
+  }
+
+  class DummyTimeScheduler extends DummyScheduler() {
+    override def clockRealTime(unit: TimeUnit): Long = underlying.clockRealTime(unit)
+    override def clockMonotonic(unit: TimeUnit): Long = underlying.clockMonotonic(unit)
   }
 
   test("clockRealTime") {
@@ -73,7 +76,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
   }
 
   test("schedule at fixed rate") {
-    val s = new DummyScheduler
+    val s = new DummyTimeScheduler
     val ws = s.withExecutionModel(SynchronousExecution)
 
     var effect = 0
@@ -103,7 +106,9 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     val ws = s.withExecutionModel(AlwaysAsyncExecution)
 
     var effect = 0
-    ws.executeAsync { () => effect += 1 }
+    ws.executeAsync { () =>
+      effect += 1
+    }
 
     assertEquals(effect, 0)
     s.tick()
@@ -134,67 +139,11 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     val ws = s.withExecutionModel(AlwaysAsyncExecution)
 
     val dummy = new RuntimeException("dummy")
-    ws.executeAsync { () => throw dummy }
+    ws.executeAsync { () =>
+      throw dummy
+    }
 
     s.tick()
     assertEquals(s.underlying.state.lastReportedError, dummy)
-  }
-
-  test("clock.monotonic") {
-    val s = new DummyScheduler
-    val clock = s.clock[IO]
-
-    val clockMonotonic = clock.monotonic(MILLISECONDS).unsafeRunSync()
-    assert(clockMonotonic > 0)
-  }
-
-  test("clock.realTime") {
-    val s = new DummyScheduler
-    val clock = s.clock[IO]
-
-    val clockRealTime = clock.realTime(MILLISECONDS).unsafeRunSync()
-    assert(clockRealTime > 0)
-  }
-
-  test("timer.sleep") {
-    val s = new DummyScheduler
-    val timer = s.timerLiftIO[IO]
-
-    val f = timer.sleep(10.seconds).unsafeToFuture()
-    assertEquals(f.value, None)
-
-    s.tick(5.seconds)
-    assertEquals(f.value, None)
-
-    s.tick(5.seconds)
-    assertEquals(f.value, Some(Success(())))
-  }
-
-  test("contextShift.shift") {
-    val s = new DummyScheduler
-    val contextShift = s.contextShift[IO]
-
-    val f = contextShift.shift.unsafeToFuture()
-    assertEquals(f.value, None)
-
-    s.tick()
-    assertEquals(f.value, Some(Success(())))
-  }
-
-  test("contextShift.evalOn") {
-    val s = new DummyScheduler
-    val contextShift = s.contextShift[IO]
-    val s2 = new DummyScheduler()
-
-    val f = contextShift.evalOn(s2)(IO(1)).unsafeToFuture()
-    assertEquals(f.value, None)
-
-    s.tick()
-    assertEquals(f.value, None)
-
-    s2.tick()
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(1)))
   }
 }

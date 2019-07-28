@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,7 @@ private[tail] object IterantScanEval {
   /**
     * Implementation for `Iterant#scanEval`
     */
-  def apply[F[_], A, S](source: Iterant[F, A], seed: F[S], ff: (S, A) => F[S])
-    (implicit F: Sync[F]): Iterant[F, S] = {
+  def apply[F[_], A, S](source: Iterant[F, A], seed: F[S], ff: (S, A) => F[S])(implicit F: Sync[F]): Iterant[F, S] = {
 
     Suspend(seed.map { seed =>
       new Loop(seed, ff).apply(source)
@@ -83,7 +82,7 @@ private[tail] object IterantScanEval {
       stackPop() match {
         case null =>
           val fa = ff(state, ref.item)
-          Suspend(fa.map(s => lastS[F,S](s)))
+          Suspend(fa.map(s => lastS[F, S](s)))
         case some =>
           processHead(ref.item, some)
       }
@@ -105,12 +104,10 @@ private[tail] object IterantScanEval {
       Iterant.raiseError(e)
 
     private def processHead(a: A, rest: F[Iterant[F, A]]): Iterant[F, S] = {
-      val next = ff(state, a)
-        .map { s =>
-          state = s
-          nextS(s, rest.map(this))
-        }
-        .handleError(Iterant.raiseError)
+      val next = ff(state, a).map { s =>
+        state = s
+        nextS(s, rest.map(this))
+      }.handleError(Iterant.raiseError)
 
       Suspend(next)
     }

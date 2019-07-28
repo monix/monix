@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,8 +33,9 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
     val expected = 3L * count * (count - 1) / 2
 
     for (_ <- 0 until 100) {
-      val sum = Observable.range(0, count)
-        .flatMap(x => Observable(x,x,x))
+      val sum = Observable
+        .range(0, count)
+        .flatMap(x => Observable(x, x, x))
         .sumL
         .runToFuture
 
@@ -48,8 +49,9 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
     val expected = 3L * count * (count - 1) / 2
 
     for (_ <- 0 until 100) {
-      val sum = Observable.range(0, count)
-        .flatMap(x => Observable(x,x,x).executeAsync)
+      val sum = Observable
+        .range(0, count)
+        .flatMap(x => Observable(x, x, x).executeAsync)
         .sumL
         .runToFuture
 
@@ -94,7 +96,8 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
 
     for (_ <- 0 until cancelIterations) {
       val p = Promise[Unit]()
-      val c = Observable.range(0, Long.MaxValue)
+      val c = Observable
+        .range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
         .doOnError(e => Task(p.tryFailure(e)))
@@ -112,7 +115,8 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
   test(s"concatMap should be cancellable, test 3, count $cancelIterations (issue #468)") { implicit s =>
     for (_ <- 0 until cancelIterations) {
       val p = Promise[Unit]()
-      val c = Observable.range(0, Long.MaxValue)
+      val c = Observable
+        .range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
         .doOnError(e => Task(p.tryFailure(e)))

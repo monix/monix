@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -217,8 +217,8 @@ object CancelablePromise {
           if (!state.compareAndSet(queue, result)) {
             // Failed, retry...
             tryComplete(result)
-          }
-          else if (queue eq emptyMapQueue) true else {
+          } else if (queue eq emptyMapQueue) true
+          else {
             var errors: ListBuffer[Throwable] = null
             val cursor = queue.iterator
 
@@ -279,8 +279,7 @@ object CancelablePromise {
     }
   }
 
-  private final case class MapQueue[+A](map: LongMap[A], nextId: Long)
-    extends Iterable[A] {
+  private final case class MapQueue[+A](map: LongMap[A], nextId: Long) extends Iterable[A] {
 
     def enqueue[AA >: A](elem: AA): (Long, MapQueue[AA]) =
       (nextId, MapQueue(map.updated(nextId, elem), nextId + 1))

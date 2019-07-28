@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,9 +23,7 @@ import monix.execution.internal.GenericSemaphore.Listener
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
-private[monix] abstract class GenericSemaphore[CancelToken] protected (
-  provisioned: Long,
-  ps: PaddingStrategy)
+private[monix] abstract class GenericSemaphore[CancelToken] protected (provisioned: Long, ps: PaddingStrategy)
   extends Serializable {
 
   import GenericSemaphore.State
@@ -59,8 +57,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (
             await(Constants.eitherOfUnit)
             emptyCancelable
           }
-        }
-        else {
+        } else {
           val tuple = (-stillAvailable, await)
           val update = current.copy(available = 0, awaitPermits = awaitPermits.enqueue(tuple))
 
@@ -88,8 +85,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (
             await(Constants.eitherOfUnit)
             makeCancelable(cancelAcquisition(n, isAsync = true), await)
           }
-        }
-        else {
+        } else {
           val tuple = (-stillAvailable, await)
           val update = current.copy(available = 0, awaitPermits = awaitPermits.enqueue(tuple))
 
@@ -188,8 +184,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (
 
   private final def triggerAll(promises: Seq[Listener[Unit]]): Unit = {
     val cursor = promises.iterator
-    while (cursor.hasNext)
-      cursor.next().apply(Constants.eitherOfUnit)
+    while (cursor.hasNext) cursor.next().apply(Constants.eitherOfUnit)
   }
 
   private[this] val cancelAwaitRelease: (Listener[Unit] => Unit) = {
@@ -251,23 +246,25 @@ private[monix] object GenericSemaphore {
     def triggerAwaitReleases(available2: Long): Option[(List[Listener[Unit]], List[(Long, Listener[Unit])])] = {
       assert(available2 >= 0, "n >= 0")
 
-      if (available2 == 0) None else awaitReleases match {
-        case Nil => None
-        case list =>
-          val cursor = list.iterator
-          var toComplete = List.empty[Listener[Unit]]
-          var toKeep = List.empty[(Long, Listener[Unit])]
+      if (available2 == 0) None
+      else
+        awaitReleases match {
+          case Nil => None
+          case list =>
+            val cursor = list.iterator
+            var toComplete = List.empty[Listener[Unit]]
+            var toKeep = List.empty[(Long, Listener[Unit])]
 
-          while (cursor.hasNext) {
-            val ref = cursor.next()
-            val (awaits, p) = ref
-            if (awaits <= available2)
-              toComplete = p :: toComplete
-            else
-              toKeep = ref :: toKeep
-          }
-          Some((toComplete, toKeep))
-      }
+            while (cursor.hasNext) {
+              val ref = cursor.next()
+              val (awaits, p) = ref
+              if (awaits <= available2)
+                toComplete = p :: toComplete
+              else
+                toKeep = ref :: toKeep
+            }
+            Some((toComplete, toKeep))
+        }
     }
   }
 }

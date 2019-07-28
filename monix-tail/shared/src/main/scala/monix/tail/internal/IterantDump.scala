@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,8 @@ private[tail] object IterantDump {
   /**
     * Implementation for `Iterant#dump`
     */
-  def apply[F[_], A](source: Iterant[F, A], prefix: String, out: PrintStream = System.out)
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def apply[F[_], A](source: Iterant[F, A], prefix: String, out: PrintStream = System.out)(
+    implicit F: Sync[F]): Iterant[F, A] = {
     Suspend(F.delay(new Loop(prefix, out).apply(source)))
   }
 
@@ -74,15 +74,13 @@ private[tail] object IterantDump {
       out.println(s"$pos: $prefix --> concat")
       pos += 1
 
-      Concat(
-        F.suspend {
-          prefix = s"$oldPrefix --> concat-lh ($oldPos)"
-          moveNext(ref.lh)
-        },
-        F.suspend {
-          prefix = oldPrefix
-          moveNext(ref.rh)
-        })
+      Concat(F.suspend {
+        prefix = s"$oldPrefix --> concat-lh ($oldPos)"
+        moveNext(ref.lh)
+      }, F.suspend {
+        prefix = oldPrefix
+        moveNext(ref.rh)
+      })
     }
 
     def visit[S](ref: Scope[F, S, A]): Iterant[F, A] = {
@@ -97,12 +95,14 @@ private[tail] object IterantDump {
           v
         },
         AndThen(ref.use).andThen(moveNext),
-        (s, ec) => F.suspend {
-          out.println(s"$pos: $prefix --> release")
-          pos += 1
-          prefix = oldPrefix
-          ref.release(s, ec)
-        })
+        (s, ec) =>
+          F.suspend {
+            out.println(s"$pos: $prefix --> release")
+            pos += 1
+            prefix = oldPrefix
+            ref.release(s, ec)
+          }
+      )
     }
 
     def visit(ref: Last[F, A]): Iterant[F, A] = {
@@ -125,18 +125,19 @@ private[tail] object IterantDump {
 
     def moveNext(rest: F[Iterant[F, A]]): F[Iterant[F, A]] =
       F.guaranteeCase(rest) {
-        case ExitCase.Error(e) =>
-          F.delay {
-            out.println(s"$pos: $prefix --> effect error --> $e")
-            pos += 1
-          }
-        case ExitCase.Canceled =>
-          F.delay {
-            out.println(s"$pos: $prefix --> effect cancelled")
-            pos += 1
-          }
-        case ExitCase.Completed =>
-          F.unit
-      }.map(this)
+          case ExitCase.Error(e) =>
+            F.delay {
+              out.println(s"$pos: $prefix --> effect error --> $e")
+              pos += 1
+            }
+          case ExitCase.Canceled =>
+            F.delay {
+              out.println(s"$pos: $prefix --> effect cancelled")
+              pos += 1
+            }
+          case ExitCase.Completed =>
+            F.unit
+        }
+        .map(this)
   }
 }

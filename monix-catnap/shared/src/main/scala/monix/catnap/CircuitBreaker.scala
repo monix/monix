@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.{Async, Concurrent, Clock, ExitCase, Sync}
+import cats.effect.{Async, Clock, Concurrent, ExitCase, Sync}
 import cats.implicits._
 import monix.execution.CancelablePromise
 import monix.execution.annotations.UnsafeBecauseImpure
@@ -203,8 +203,7 @@ final class CircuitBreaker[F[_]] private (
   onRejected: F[Unit],
   onClosed: F[Unit],
   onHalfOpen: F[Unit],
-  onOpen: F[Unit])
-  (implicit F: Sync[F], clock: Clock[F]) {
+  onOpen: F[Unit])(implicit F: Sync[F], clock: Clock[F]) {
 
   require(_maxFailures >= 0, "maxFailures >= 0")
   require(_exponentialBackoffFactor >= 1, "exponentialBackoffFactor >= 1")
@@ -299,7 +298,8 @@ final class CircuitBreaker[F[_]] private (
           result match {
             case Right(a) =>
               // In case of success, must reset the failures counter!
-              if (failures == 0) F.pure(a) else {
+              if (failures == 0) F.pure(a)
+              else {
                 val update = Closed(0)
                 if (!stateRef.compareAndSet(current, update))
                   markFailure(result) // retry?
@@ -310,15 +310,14 @@ final class CircuitBreaker[F[_]] private (
             case Left(error) =>
               // In case of failure, we either increment the failures counter,
               // or we transition in the `Open` state.
-              if (failures+1 < maxFailures) {
+              if (failures + 1 < maxFailures) {
                 // It's fine, just increment the failures count
                 val update = Closed(failures + 1)
                 if (!stateRef.compareAndSet(current, update))
                   markFailure(result) // retry?
                 else
                   F.raiseError(error)
-              }
-              else {
+              } else {
                 // N.B. this could be canceled, however we don't care
                 clock.monotonic(MILLISECONDS).flatMap { now =>
                   // We've gone over the permitted failures threshold,
@@ -372,7 +371,7 @@ final class CircuitBreaker[F[_]] private (
           // Failed reset, which means we go back in the Open state with new expiry
           val nextTimeout = {
             val value = (resetTimeout.toMillis * exponentialBackoffFactor).millis
-            if (maxResetTimeout.isFinite() && value > maxResetTimeout)
+            if (maxResetTimeout.isFinite && value > maxResetTimeout)
               maxResetTimeout.asInstanceOf[FiniteDuration]
             else
               value
@@ -404,15 +403,15 @@ final class CircuitBreaker[F[_]] private (
               unsafeProtect(task) // retry!
             else
               attemptReset(task, timeout, await)
-          }
-          else {
+          } else {
             // Open isn't expired, so we need to fail
             val expiresInMillis = expiresAt - now
             onRejected.flatMap { _ =>
-              F.raiseError(ExecutionRejectedException(
-                "Rejected because the CircuitBreaker is in the Open state, " +
-                s"attempting to close in $expiresInMillis millis"
-              ))
+              F.raiseError(
+                ExecutionRejectedException(
+                  "Rejected because the CircuitBreaker is in the Open state, " +
+                    s"attempting to close in $expiresInMillis millis"
+                ))
             }
           }
         }
@@ -421,9 +420,10 @@ final class CircuitBreaker[F[_]] private (
         // CircuitBreaker is in HalfOpen state, which means we still reject all
         // tasks, while waiting to see if our reset attempt succeeds or fails
         onRejected.flatMap { _ =>
-          F.raiseError(ExecutionRejectedException(
-            "Rejected because the CircuitBreaker is in the HalfOpen state"
-          ))
+          F.raiseError(
+            ExecutionRejectedException(
+              "Rejected because the CircuitBreaker is in the HalfOpen state"
+            ))
         }
     }
 
@@ -615,8 +615,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
     resetTimeout: FiniteDuration,
     exponentialBackoffFactor: Double = 1.0,
     maxResetTimeout: Duration = Duration.Inf,
-    padding: PaddingStrategy = NoPadding)
-    (implicit F: Sync[F], clock: Clock[F]): F[CircuitBreaker[F]] = {
+    padding: PaddingStrategy = NoPadding
+  )(implicit F: Sync[F], clock: Clock[F]): F[CircuitBreaker[F]] = {
 
     CircuitBreaker[F].of(
       maxFailures = maxFailures,
@@ -646,8 +646,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
     resetTimeout: FiniteDuration,
     exponentialBackoffFactor: Double = 1.0,
     maxResetTimeout: Duration = Duration.Inf,
-    padding: PaddingStrategy = NoPadding)
-    (implicit F: Sync[F], clock: Clock[F]): CircuitBreaker[F] = {
+    padding: PaddingStrategy = NoPadding
+  )(implicit F: Sync[F], clock: Clock[F]): CircuitBreaker[F] = {
 
     CircuitBreaker[F].unsafe(
       maxFailures = maxFailures,
@@ -686,20 +686,21 @@ object CircuitBreaker extends CircuitBreakerDocs {
       onClosed: F[Unit] = F.unit,
       onHalfOpen: F[Unit] = F.unit,
       onOpen: F[Unit] = F.unit,
-      padding: PaddingStrategy = NoPadding)
-      (implicit clock: Clock[F]): F[CircuitBreaker[F]] = {
+      padding: PaddingStrategy = NoPadding
+    )(implicit clock: Clock[F]): F[CircuitBreaker[F]] = {
 
-      F.delay(unsafe(
-        maxFailures = maxFailures,
-        resetTimeout = resetTimeout,
-        exponentialBackoffFactor = exponentialBackoffFactor,
-        maxResetTimeout = maxResetTimeout,
-        onRejected = onRejected,
-        onClosed = onClosed,
-        onHalfOpen = onHalfOpen,
-        onOpen = onOpen,
-        padding = padding
-      ))
+      F.delay(
+        unsafe(
+          maxFailures = maxFailures,
+          resetTimeout = resetTimeout,
+          exponentialBackoffFactor = exponentialBackoffFactor,
+          maxResetTimeout = maxResetTimeout,
+          onRejected = onRejected,
+          onClosed = onClosed,
+          onHalfOpen = onHalfOpen,
+          onOpen = onOpen,
+          padding = padding
+        ))
     }
 
     /** Unsafe builder, an alternative to [[of CircuitBreaker[F].of]] for
@@ -727,10 +728,10 @@ object CircuitBreaker extends CircuitBreakerDocs {
       onClosed: F[Unit] = F.unit,
       onHalfOpen: F[Unit] = F.unit,
       onOpen: F[Unit] = F.unit,
-      padding: PaddingStrategy = NoPadding)
-      (implicit clock: Clock[F]): CircuitBreaker[F] = {
+      padding: PaddingStrategy = NoPadding
+    )(implicit clock: Clock[F]): CircuitBreaker[F] = {
 
-      val atomic = Atomic.withPadding(Closed(0) : State, padding)
+      val atomic = Atomic.withPadding(Closed(0): State, padding)
       new CircuitBreaker[F](
         _stateRef = atomic,
         _maxFailures = maxFailures,
@@ -805,7 +806,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
   final class Open private (
     val startedAt: Timestamp,
     val resetTimeout: FiniteDuration,
-    private[catnap] val awaitClose: CancelablePromise[Unit]) extends State {
+    private[catnap] val awaitClose: CancelablePromise[Unit])
+    extends State {
 
     /** The timestamp in milliseconds since the epoch, specifying
       * when the `Open` state is to transition to [[HalfOpen]].
@@ -818,8 +820,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
     override def equals(other: Any): Boolean = other match {
       case that: Open =>
         startedAt == that.startedAt &&
-        resetTimeout == that.resetTimeout &&
-        awaitClose == that.awaitClose
+          resetTimeout == that.resetTimeout &&
+          awaitClose == that.awaitClose
       case _ =>
         false
     }
@@ -832,7 +834,10 @@ object CircuitBreaker extends CircuitBreakerDocs {
 
   object Open {
     /** Private builder. */
-    private[catnap] def apply(startedAt: Timestamp, resetTimeout: FiniteDuration, awaitClose: CancelablePromise[Unit]): Open =
+    private[catnap] def apply(
+      startedAt: Timestamp,
+      resetTimeout: FiniteDuration,
+      awaitClose: CancelablePromise[Unit]): Open =
       new Open(startedAt, resetTimeout, awaitClose)
 
     /** Implements the pattern matching protocol. */
@@ -878,7 +883,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     override def equals(other: Any): Boolean = other match {
       case that: HalfOpen =>
         resetTimeout == that.resetTimeout &&
-        awaitClose == that.awaitClose
+          awaitClose == that.awaitClose
       case _ =>
         false
     }

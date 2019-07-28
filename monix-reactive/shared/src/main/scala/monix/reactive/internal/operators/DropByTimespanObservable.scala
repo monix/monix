@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,44 +25,42 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
-private[reactive] final
-class DropByTimespanObservable[A](source: Observable[A], timespan: FiniteDuration)
+private[reactive] final class DropByTimespanObservable[A](source: Observable[A], timespan: FiniteDuration)
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val trigger = SingleAssignCancelable()
     val composite = CompositeCancelable(trigger)
 
-    composite += source.unsafeSubscribeFn(
-      new Subscriber[A] with Runnable { self =>
-        implicit val scheduler = out.scheduler
-        @volatile private[this] var shouldDrop = true
+    composite += source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
+      implicit val scheduler = out.scheduler
+      @volatile private[this] var shouldDrop = true
 
-        locally {
-          trigger := scheduler.scheduleOnce(timespan.length, timespan.unit, self)
-        }
+      locally {
+        trigger := scheduler.scheduleOnce(timespan.length, timespan.unit, self)
+      }
 
-        def onNext(elem: A): Future[Ack] = {
-          if (shouldDrop)
-            Continue
-          else
-            out.onNext(elem)
-        }
+      def onNext(elem: A): Future[Ack] = {
+        if (shouldDrop)
+          Continue
+        else
+          out.onNext(elem)
+      }
 
-        def onError(ex: Throwable): Unit = {
-          trigger.cancel()
-          out.onError(ex)
-        }
+      def onError(ex: Throwable): Unit = {
+        trigger.cancel()
+        out.onError(ex)
+      }
 
-        def onComplete(): Unit = {
-          trigger.cancel()
-          out.onComplete()
-        }
+      def onComplete(): Unit = {
+        trigger.cancel()
+        out.onComplete()
+      }
 
-        def run(): Unit = {
-          shouldDrop = false
-        }
-      })
+      def run(): Unit = {
+        shouldDrop = false
+      }
+    })
 
     composite
   }

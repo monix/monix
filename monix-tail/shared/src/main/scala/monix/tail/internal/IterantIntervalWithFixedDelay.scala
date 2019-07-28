@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +25,9 @@ private[tail] object IterantIntervalWithFixedDelay {
   /**
     * Implementation for `Iterant.intervalWithFixedDelay`.
     */
-  def apply[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)
-    (implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] = {
+  def apply[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)(
+    implicit F: Async[F],
+    timer: Timer[F]): Iterant[F, Long] = {
 
     // Recursive loop
     def loop(index: Long): Iterant[F, Long] = {

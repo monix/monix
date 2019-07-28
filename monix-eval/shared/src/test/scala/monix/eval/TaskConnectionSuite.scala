@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,7 +54,9 @@ object TaskConnectionSuite extends BaseTestSuite {
 
   test("cancels Cancelable after being canceled") { implicit s =>
     var effect = 0
-    val initial = Cancelable { () => effect += 1 }
+    val initial = Cancelable { () =>
+      effect += 1
+    }
 
     val c = TaskConnection()
     c.cancel.runAsyncAndForget; s.tick()
@@ -205,7 +207,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     val tasks = (0 until count).map(_ => Task { effect += 1 })
 
     val sc = TaskConnection()
-    sc.pushConnections(connections1:_*)
+    sc.pushConnections(connections1: _*)
     for (bc <- cancelables) sc.push(bc)
     for (tk <- tasks) sc.push(tk)
     for (cn <- connections2) sc.push(cn)
@@ -217,7 +219,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 0)
 
     sc.cancel.runAsyncAndForget; s.tick()
-    for (c <- cancelables) assert(c.isCanceled, "r.isCanceled")
+    for (c   <- cancelables) assert(c.isCanceled, "r.isCanceled")
     for (cn1 <- connections1) assert(cn1.isCanceled, "cn1.isCanceled")
     for (cn2 <- connections2) assert(cn2.isCanceled, "cn2.isCanceled")
     assertEquals(effect, 100)
@@ -239,13 +241,13 @@ object TaskConnectionSuite extends BaseTestSuite {
     for (r <- connections2) assert(!r.isCanceled, "r.isCanceled")
     assertEquals(effect, 0)
 
-    sc.pushConnections(connections1:_*)
+    sc.pushConnections(connections1: _*)
     for (bc <- cancelables) sc.push(bc)
     for (tk <- tasks) sc.push(tk)
     for (cn <- connections2) sc.push(cn)
     s.tick()
 
-    for (c <- cancelables) assert(c.isCanceled, "r.isCanceled")
+    for (c   <- cancelables) assert(c.isCanceled, "r.isCanceled")
     for (cn1 <- connections1) assert(cn1.isCanceled, "cn1.isCanceled")
     for (cn2 <- connections2) assert(cn2.isCanceled, "cn2.isCanceled")
     assertEquals(effect, 100)

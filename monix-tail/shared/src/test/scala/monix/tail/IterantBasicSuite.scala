@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,7 +93,9 @@ object IterantBasicSuite extends BaseTestSuite {
 
   test("tailRecM should protect against user error") { implicit s =>
     val dummy = DummyException("dummy")
-    val fa = Iterant[Coeval].tailRecM(0) { _ => throw dummy }
+    val fa = Iterant[Coeval].tailRecM(0) { _ =>
+      throw dummy
+    }
     assertEquals(fa.completedL.runTry(), Failure(dummy))
   }
 }

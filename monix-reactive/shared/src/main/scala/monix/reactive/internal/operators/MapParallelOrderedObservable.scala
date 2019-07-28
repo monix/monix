@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,12 +18,12 @@
 package monix.reactive.internal.operators
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.locks.ReentrantLock
 
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
+import monix.execution.cancelables.CompositeCancelable
 import monix.execution.AsyncSemaphore
+import monix.execution.ChannelType.MultiProducer
 import monix.execution.{Ack, Cancelable, CancelableFuture}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
@@ -36,7 +36,8 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
   source: Observable[A],
   parallelism: Int,
   f: A => Task[B],
-  overflowStrategy: OverflowStrategy[B]) extends Observable[B] {
+  overflowStrategy: OverflowStrategy[B])
+  extends Observable[B] {
 
   override def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     if (parallelism <= 0) {
@@ -53,8 +54,8 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     }
   }
 
-  private final class MapAsyncParallelSubscription(
-    out: Subscriber[B], composite: CompositeCancelable) extends Subscriber[A] with Cancelable { self =>
+  private final class MapAsyncParallelSubscription(out: Subscriber[B], composite: CompositeCancelable)
+    extends Subscriber[A] with Cancelable { self =>
 
     implicit val scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
@@ -64,7 +65,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     // everything gets canceled at once
     private[this] val releaseTask = Task.eval(semaphore.release())
     // Buffer with the supplied  overflow strategy.
-    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy)
+    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
 
     // Flag indicating whether a final event was called, after which
     // nothing else can happen. It's a very light protection, as
@@ -79,17 +80,18 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     // elements at the same time.
     private[this] val queue = new ConcurrentLinkedQueue[CancelableFuture[B]]
     // This lock makes sure that only one thread at the time sends processed elements downstream
-    // Note that we only use `tryLock()` - we never wait for acquiring lock
-    private[this] val sendDownstreamLock = new ReentrantLock()
+    private[this] val sendDownstreamSemaphore = AsyncSemaphore(1)
 
     private def shouldStop: Boolean = isDone || lastAck == Stop
 
     private def sendDownstreamOrdered(): Unit = {
       // Only one thread should poll queue for completed tasks
-      // We can ignore it if there is one doing the work
-      if (sendDownstreamLock.tryLock()) {
+      val permit = sendDownstreamSemaphore.acquire()
+      composite += permit
+      def doSend(): Unit =
         try {
-        // Keep checking the head of a queue since we have to signal elements in order
+          composite -= permit
+          // Keep checking the head of a queue since we have to signal elements in order
           while (!shouldStop && !queue.isEmpty && queue.peek().isCompleted) {
             val head = queue.poll()
             head.value match {
@@ -116,8 +118,24 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
             }
           }
         } finally {
-          sendDownstreamLock.unlock()
+          sendDownstreamSemaphore.release()
         }
+      permit.value match {
+        case Some(Success(_)) =>
+          doSend()
+        case Some(Failure(error)) =>
+          lastAck = Stop
+          composite -= permit
+          self.onError(error)
+        case None =>
+          permit.onComplete {
+            case Success(_) =>
+              doSend()
+            case Failure(error) =>
+              lastAck = Stop
+              composite -= permit
+              self.onError(error)
+          }
       }
     }
 
@@ -127,16 +145,12 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
       // we can no longer stream errors downstream
       var streamErrors = true
       try {
-        // We need a forward reference, because of the
-        // interaction with the `composite` below
-        val subscription = SingleAssignCancelable()
-        composite += subscription
-
         val task = f(elem).doOnCancel(releaseTask)
         // No longer allowed to stream errors downstream
         streamErrors = false
-        // Start execution
-        val future = task.runToFuture
+        // Start execution (forcing an async boundary)
+        val future = task.executeAsync.runToFuture
+        composite += future.cancelable
         queue.offer(future)
         future.onComplete {
           case Success(_) =>
@@ -146,11 +160,9 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
 
           case Failure(error) =>
             lastAck = Stop
-            composite -= subscription
+            composite -= future.cancelable
             self.onError(error)
         }
-
-        subscription := future.cancelable
       } catch {
         case ex if NonFatal(ex) =>
           if (streamErrors) self.onError(ex)

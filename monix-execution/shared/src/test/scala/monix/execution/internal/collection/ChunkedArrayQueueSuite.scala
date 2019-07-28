@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -88,7 +88,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
       list = list.enqueue(queue.dequeue())
     }
 
-    assertEquals(list, (0 until 100).toList)
+    assertEquals(list.toList, (0 until 100).toList)
     assertEquals(queue.dequeue().asInstanceOf[AnyRef], null)
     assert(queue.isEmpty, "queue.isEmpty")
     assert(!queue2.isEmpty, "!stack2.isEmpty")
@@ -105,7 +105,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
       list = list.enqueue(queue.dequeue())
     }
 
-    assertEquals(list, expected)
+    assertEquals(list.toList, expected)
     assertEquals(queue.dequeue().asInstanceOf[AnyRef], null)
     assert(queue.isEmpty, "queue.isEmpty")
   }

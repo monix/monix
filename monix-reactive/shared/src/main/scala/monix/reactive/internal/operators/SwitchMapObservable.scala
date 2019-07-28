@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,8 +26,7 @@ import monix.reactive.{Observable, Observer}
 
 import scala.concurrent.Future
 
-private[reactive] final class SwitchMapObservable[A,B](
-  source: Observable[A], f: A => Observable[B])
+private[reactive] final class SwitchMapObservable[A, B](source: Observable[A], f: A => Observable[B])
   extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
@@ -43,12 +42,16 @@ private[reactive] final class SwitchMapObservable[A,B](
       private[this] var activeChildIndex: Int = -1
       // MUST BE synchronized by `self`
       private[this] var upstreamIsDone: Boolean = false
+      // MUST BE synchronized by `self`
+      private[this] var lastChildIsDone: Boolean = false
 
       def onNext(elem: A): Ack = self.synchronized {
-        if (upstreamIsDone) Stop else {
+        if (upstreamIsDone) Stop
+        else {
           // Protects calls to user code from within the operator.
           val childObservable =
-            try f(elem) catch {
+            try f(elem)
+            catch {
               case ex if NonFatal(ex) =>
                 Observable.raiseError(ex)
             }
@@ -60,7 +63,7 @@ private[reactive] final class SwitchMapObservable[A,B](
           activeChild := childObservable.unsafeSubscribeFn(new Observer[B] {
             def onNext(elem: B) =
               self.synchronized {
-                if (upstreamIsDone || myChildIndex != activeChildIndex)
+                if (myChildIndex != activeChildIndex)
                   Stop
                 else {
                   ack = out.onNext(elem).syncOnStopOrFailure(_ => cancelFromDownstream())
@@ -68,7 +71,16 @@ private[reactive] final class SwitchMapObservable[A,B](
                 }
               }
 
-            def onComplete(): Unit = ()
+            def onComplete(): Unit = self.synchronized {
+              if (myChildIndex == activeChildIndex) {
+                if (upstreamIsDone) {
+                  activeChildIndex = -1
+                  out.onComplete()
+                } else {
+                  lastChildIsDone = true
+                }
+              }
+            }
             def onError(ex: Throwable): Unit =
               self.synchronized {
                 if (myChildIndex == activeChildIndex)
@@ -81,7 +93,8 @@ private[reactive] final class SwitchMapObservable[A,B](
       }
 
       def cancelFromDownstream(): Ack = self.synchronized {
-        if (upstreamIsDone) Stop else {
+        if (upstreamIsDone) Stop
+        else {
           upstreamIsDone = true
           activeChildIndex = -1
           ack = Stop
@@ -102,9 +115,10 @@ private[reactive] final class SwitchMapObservable[A,B](
       def onComplete(): Unit = self.synchronized {
         if (!upstreamIsDone) {
           upstreamIsDone = true
-          activeChildIndex = -1
-          activeChild.cancel()
-          out.onComplete()
+          if (lastChildIsDone) {
+            activeChildIndex = -1
+            out.onComplete()
+          }
         }
       }
     })

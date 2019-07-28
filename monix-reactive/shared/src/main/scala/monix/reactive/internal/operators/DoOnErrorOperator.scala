@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,8 +24,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final
-class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] {
+private[reactive] final class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -36,7 +35,8 @@ class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] {
 
       def onError(ex: Throwable): Unit = {
         try {
-          val task = try cb(ex) catch { case err if NonFatal(err) => Task.raiseError(err) }
+          val task = try cb(ex)
+          catch { case err if NonFatal(err) => Task.raiseError(err) }
           task.attempt.map {
             case Right(()) =>
               out.onError(ex)
@@ -44,8 +44,7 @@ class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] {
               scheduler.reportFailure(err)
               out.onError(ex)
           }.runToFuture
-        }
-        catch {
+        } catch {
           case err if NonFatal(err) =>
             scheduler.reportFailure(err)
         }

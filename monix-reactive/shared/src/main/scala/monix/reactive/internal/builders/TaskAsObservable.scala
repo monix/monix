@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,8 +23,7 @@ import monix.reactive.observers.Subscriber
 import monix.execution.Callback
 import monix.eval.Task
 
-private[reactive] final
-class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {
+private[reactive] final class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
 

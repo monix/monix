@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,7 @@ object TaskStartSuite extends BaseTestSuite {
 
   test("task.start.flatMap(id) is cancelable, but the source is memoized") { implicit sc =>
     var effect = 0
-    val task = Task { effect += 1; effect } .delayExecution(1.second).start.flatMap(_.join)
+    val task = Task { effect += 1; effect }.delayExecution(1.second).start.flatMap(_.join)
     val f = task.runToFuture
     sc.tick()
     f.cancel()
@@ -52,22 +52,23 @@ object TaskStartSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  testAsync("task.start keeps current Local.Context on join") { _ =>
+  testAsync("task.start shares Local.Context with fibers") { _ =>
     import monix.execution.Scheduler.Implicits.global
     import cats.syntax.all._
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
     val task = for {
       local <- TaskLocal(0)
-      _ <- local.write(100)
-      f <- (Task.shift *> local.read <* local.write(200)).start
-      v1 <- local.read
+      _     <- local.write(100)
+      v1    <- local.read
+      f     <- (Task.shift *> local.read <* local.write(200)).start
+      // Here, before joining, reads are nondeterministic
       v2 <- f.join
       v3 <- local.read
     } yield (v1, v2, v3)
 
     for (v <- task.runToFutureOpt) yield {
-      assertEquals(v, (100, 100, 100))
+      assertEquals(v, (100, 100, 200))
     }
   }
 

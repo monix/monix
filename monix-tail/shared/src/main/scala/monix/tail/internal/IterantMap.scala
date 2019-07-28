@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,8 +26,7 @@ private[tail] object IterantMap {
   /**
     * Implementation for `Iterant#map`
     */
-  def apply[F[_], A, B](source: Iterant[F, A], f: A => B)
-    (implicit F: Sync[F]): Iterant[F, B] = {
+  def apply[F[_], A, B](source: Iterant[F, A], f: A => B)(implicit F: Sync[F]): Iterant[F, B] = {
 
     val loop = new Loop[F, A, B](f)
     source match {
@@ -41,8 +40,7 @@ private[tail] object IterantMap {
     }
   }
 
-  private final class Loop[F[_], A, B](f: A => B)(implicit F: Sync[F])
-    extends Iterant.Visitor[F, A, Iterant[F, B]] {
+  private final class Loop[F[_], A, B](f: A => B)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, B]] {
     loop =>
 
     def visit(ref: Next[F, A]): Iterant[F, B] =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,14 +19,13 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observer, Observable}
+import monix.reactive.{Observable, Observer}
 import concurrent.duration._
 
 object NeverObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty,
-      "Scheduler should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
   test("should never complete") { implicit s =>

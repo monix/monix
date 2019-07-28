@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,8 +32,7 @@ import scala.concurrent.Future
 /** `ReplaySubject` emits to any observer all of the items that were emitted
   * by the source, regardless of when the observer subscribes.
   */
-final class ReplaySubject[A] private (initialState: ReplaySubject.State[A])
-  extends Subject[A,A] { self =>
+final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) extends Subject[A, A] { self =>
 
   private[this] val stateRef = Atomic(initialState)
 
@@ -45,20 +44,22 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A])
     def streamOnDone(buffer: Iterable[A], errorThrown: Throwable): Cancelable = {
       implicit val s = subscriber.scheduler
 
-      Observable.fromIterable(buffer).unsafeSubscribeFn(new Subscriber[A] {
-        implicit val scheduler = subscriber.scheduler
+      Observable
+        .fromIterable(buffer)
+        .unsafeSubscribeFn(new Subscriber[A] {
+          implicit val scheduler = subscriber.scheduler
 
-        def onNext(elem: A) =
-          subscriber.onNext(elem)
-        def onError(ex: Throwable) =
-          subscriber.onError(ex)
+          def onNext(elem: A) =
+            subscriber.onNext(elem)
+          def onError(ex: Throwable) =
+            subscriber.onError(ex)
 
-        def onComplete() =
-          if (errorThrown != null)
-            subscriber.onError(errorThrown)
-          else
-            subscriber.onComplete()
-      })
+          def onComplete() =
+            if (errorThrown != null)
+              subscriber.onError(errorThrown)
+            else
+              subscriber.onComplete()
+        })
     }
 
     val state = stateRef.get
@@ -67,8 +68,7 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A])
     if (state.isDone) {
       // fast path
       streamOnDone(buffer, state.errorThrown)
-    }
-    else {
+    } else {
       val c = ConnectableSubscriber(subscriber)
       val newState = state.addNewSubscriber(c)
       if (stateRef.compareAndSet(state, newState)) {
@@ -93,12 +93,12 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A])
   def onNext(elem: A): Future[Ack] = {
     val state = stateRef.get
 
-    if (state.isDone) Stop else {
+    if (state.isDone) Stop
+    else {
       val newState = state.appendElem(elem)
       if (!stateRef.compareAndSet(state, newState)) {
         onNext(elem) // retry
-      }
-      else {
+      } else {
         val iterator = state.subscribers.iterator
         // counter that's only used when we go async, hence the null
         var result: PromiseCounter[Continue.type] = null
@@ -108,7 +108,8 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A])
           // using the scheduler defined by each subscriber
           import subscriber.scheduler
 
-          val ack = try subscriber.onNext(elem) catch {
+          val ack = try subscriber.onNext(elem)
+          catch {
             case ex if NonFatal(ex) => Future.failed(ex)
           }
 
@@ -117,8 +118,7 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A])
             // subscriber canceled or triggered an error? then remove
             if (ack != Continue && ack.value.get != Continue.AsSuccess)
               removeSubscriber(subscriber)
-          }
-          else {
+          } else {
             // going async, so we've got to count active futures for final Ack
             // the counter starts from 1 because zero implies isCompleted
             if (result == null) result = PromiseCounter(Continue, 1)
@@ -137,7 +137,8 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A])
         }
 
         // has fast-path for completely synchronous invocation
-        if (result == null) Continue else {
+        if (result == null) Continue
+        else {
           result.countdown()
           result.future
         }
@@ -213,7 +214,7 @@ object ReplaySubject {
   def createLimited[A](capacity: Int, initial: Seq[A]): ReplaySubject[A] = {
     require(capacity > 0, "capacity must be strictly positive")
     val elems = initial.takeRight(capacity)
-    new ReplaySubject[A](State[A](Queue(elems:_*), capacity))
+    new ReplaySubject[A](State[A](Queue(elems: _*), capacity))
   }
 
   /** Internal state for [[monix.reactive.subjects.ReplaySubject]] */

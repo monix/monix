@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,8 +24,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive]
-final class ExecuteWithModelObservable[A](source: Observable[A], em: ExecutionModel)
+private[reactive] final class ExecuteWithModelObservable[A](source: Observable[A], em: ExecutionModel)
   extends Observable[A] {
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -40,8 +39,7 @@ final class ExecuteWithModelObservable[A](source: Observable[A], em: ExecutionMo
         def onComplete(): Unit = out.onComplete()
         def onNext(elem: A): Future[Ack] = out.onNext(elem)
       })
-    }
-    catch {
+    } catch {
       case ex if NonFatal(ex) =>
         if (streamErrors) out.onError(ex)
         else out.scheduler.reportFailure(ex)

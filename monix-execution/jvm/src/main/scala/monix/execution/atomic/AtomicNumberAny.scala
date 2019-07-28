@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,8 +29,7 @@ import scala.annotation.tailrec
   * of the JVM that's the semantic of `compareAndSet`. This behavior
   * is kept consistent even on top of Scala.js / Javascript.
   */
-final class AtomicNumberAny[A <: AnyRef : Numeric] private (private[this] val ref: BoxedObject)
-  extends AtomicNumber[A] {
+final class AtomicNumberAny[A <: AnyRef: Numeric] private (private[this] val ref: BoxedObject) extends AtomicNumber[A] {
 
   private[this] val ev = implicitly[Numeric[A]]
 
@@ -155,7 +154,7 @@ object AtomicNumberAny {
     * @param initialValue is the initial value with which to
     *        initialize the Atomic reference
     */
-  def apply[A <: AnyRef : Numeric](initialValue: A): AtomicNumberAny[A] =
+  def apply[A <: AnyRef: Numeric](initialValue: A): AtomicNumberAny[A] =
     withPadding(initialValue, NoPadding)
 
   /** $createDesc
@@ -163,7 +162,7 @@ object AtomicNumberAny {
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def withPadding[A <: AnyRef : Numeric](initialValue: A, padding: PaddingStrategy): AtomicNumberAny[A] =
+  def withPadding[A <: AnyRef: Numeric](initialValue: A, padding: PaddingStrategy): AtomicNumberAny[A] =
     create(initialValue, padding, allowPlatformIntrinsics = true)
 
   /** $createDesc
@@ -178,13 +177,17 @@ object AtomicNumberAny {
     *        the instance is allowed to use the Java 8 optimized operations
     *        for `getAndSet` and for `getAndAdd`
     */
-  def create[A <: AnyRef : Numeric](initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicNumberAny[A] = {
-    new AtomicNumberAny[A](Factory.newBoxedObject(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      true, // allowUnsafe
-      allowPlatformIntrinsics
-    ))
+  def create[A <: AnyRef: Numeric](
+    initialValue: A,
+    padding: PaddingStrategy,
+    allowPlatformIntrinsics: Boolean): AtomicNumberAny[A] = {
+    new AtomicNumberAny[A](
+      Factory.newBoxedObject(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        true, // allowUnsafe
+        allowPlatformIntrinsics
+      ))
   }
 
   /** $createDesc
@@ -202,11 +205,12 @@ object AtomicNumberAny {
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def safe[A <: AnyRef : Numeric](initialValue: A, padding: PaddingStrategy): AtomicNumberAny[A] =
-    new AtomicNumberAny[A](Factory.newBoxedObject(
-      initialValue,
-      boxStrategyToPaddingStrategy(padding),
-      false, // allowUnsafe
-      false  // allowPlatformIntrinsics
-    ))
+  def safe[A <: AnyRef: Numeric](initialValue: A, padding: PaddingStrategy): AtomicNumberAny[A] =
+    new AtomicNumberAny[A](
+      Factory.newBoxedObject(
+        initialValue,
+        boxStrategyToPaddingStrategy(padding),
+        false, // allowUnsafe
+        false // allowPlatformIntrinsics
+      ))
 }

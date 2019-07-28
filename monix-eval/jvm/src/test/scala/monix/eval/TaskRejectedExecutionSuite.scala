@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,12 +26,11 @@ import scala.concurrent.duration._
 
 object TaskRejectedExecutionSuite extends SimpleTestSuite {
 
-  val limited = Scheduler(
-    new ExecutionContext {
-      def execute(runnable: Runnable): Unit = throw new RejectedExecutionException()
-      def reportFailure(cause: Throwable): Unit =
-        fail("Exceptions should not be reported using scheduler")
-    })
+  val limited = Scheduler(new ExecutionContext {
+    def execute(runnable: Runnable): Unit = throw new RejectedExecutionException()
+    def reportFailure(cause: Throwable): Unit =
+      fail("Exceptions should not be reported using scheduler")
+  })
 
   def testRejected[A](task: Task[A]): Unit =
     intercept[RejectedExecutionException] {

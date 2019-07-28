@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,8 +28,7 @@ import monix.reactive.observers.Subscriber
 /**
   * Common implementation for `minF`, `minByF`, `maxF`, `maxByF`.
   */
-private[reactive] abstract class SearchByOrderOperator[A, K]
-  (key: A => K)(implicit B: Order[K]) extends Operator[A,A] {
+private[reactive] abstract class SearchByOrderOperator[A, K](key: A => K)(implicit B: Order[K]) extends Operator[A, A] {
 
   def shouldCollect(key: K, current: K): Boolean
 
@@ -83,30 +82,26 @@ private[reactive] abstract class SearchByOrderOperator[A, K]
     }
 }
 
-private[reactive] final class MinOperator[A](implicit A: Order[A])
-  extends SearchByOrderOperator[A,A](identity)(A) {
+private[reactive] final class MinOperator[A](implicit A: Order[A]) extends SearchByOrderOperator[A, A](identity)(A) {
 
   def shouldCollect(key: A, current: A): Boolean =
     A.compare(key, current) < 0
 }
 
-private[reactive] final class MinByOperator[A, K](f: A => K)
-  (implicit K: Order[K])
+private[reactive] final class MinByOperator[A, K](f: A => K)(implicit K: Order[K])
   extends SearchByOrderOperator[A, K](f)(K) {
 
   def shouldCollect(key: K, current: K): Boolean =
     K.compare(key, current) < 0
 }
 
-private[reactive] final class MaxOperator[A](implicit A: Order[A])
-  extends SearchByOrderOperator[A,A](identity)(A) {
+private[reactive] final class MaxOperator[A](implicit A: Order[A]) extends SearchByOrderOperator[A, A](identity)(A) {
 
   def shouldCollect(key: A, current: A): Boolean =
     A.compare(key, current) > 0
 }
 
-private[reactive] final class MaxByOperator[A, K](f: A => K)
-  (implicit K: Order[K])
+private[reactive] final class MaxByOperator[A, K](f: A => K)(implicit K: Order[K])
   extends SearchByOrderOperator[A, K](f)(K) {
 
   def shouldCollect(key: K, current: K): Boolean =

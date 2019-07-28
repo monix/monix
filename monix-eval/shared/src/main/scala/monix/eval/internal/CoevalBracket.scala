@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,8 @@ private[eval] object CoevalBracket {
     release: (A, Either[Throwable, B]) => Coeval[Unit]): Coeval[B] = {
 
     acquire.flatMap { a =>
-      val next = try use(a) catch { case NonFatal(e) => Coeval.raiseError(e) }
+      val next = try use(a)
+      catch { case NonFatal(e) => Coeval.raiseError(e) }
       next.flatMap(new ReleaseFrameE(a, release))
     }
   }
@@ -46,14 +47,13 @@ private[eval] object CoevalBracket {
     release: (A, ExitCase[Throwable]) => Coeval[Unit]): Coeval[B] = {
 
     acquire.flatMap { a =>
-      val next = try use(a) catch { case NonFatal(e) => Coeval.raiseError(e) }
+      val next = try use(a)
+      catch { case NonFatal(e) => Coeval.raiseError(e) }
       next.flatMap(new ReleaseFrameCase(a, release))
     }
   }
 
-  private final class ReleaseFrameCase[A, B](
-    a: A,
-    release: (A, ExitCase[Throwable]) => Coeval[Unit])
+  private final class ReleaseFrameCase[A, B](a: A, release: (A, ExitCase[Throwable]) => Coeval[Unit])
     extends StackFrame[B, Coeval[B]] {
 
     def apply(b: B): Coeval[B] =
@@ -63,9 +63,7 @@ private[eval] object CoevalBracket {
       release(a, ExitCase.Error(e)).flatMap(new ReleaseRecover(e))
   }
 
-  private final class ReleaseFrameE[A, B](
-    a: A,
-    release: (A, Either[Throwable, B]) => Coeval[Unit])
+  private final class ReleaseFrameE[A, B](a: A, release: (A, Either[Throwable, B]) => Coeval[Unit])
     extends StackFrame[B, Coeval[B]] {
 
     def apply(b: B): Coeval[B] =
@@ -75,8 +73,7 @@ private[eval] object CoevalBracket {
       release(a, Left(e)).flatMap(new ReleaseRecover(e))
   }
 
-  private final class ReleaseRecover(e: Throwable)
-    extends StackFrame[Unit, Coeval[Nothing]] {
+  private final class ReleaseRecover(e: Throwable) extends StackFrame[Unit, Coeval[Nothing]] {
 
     def apply(a: Unit): Coeval[Nothing] =
       Coeval.raiseError(e)

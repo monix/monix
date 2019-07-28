@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,23 +30,24 @@ import scala.concurrent.duration._
 object RangeObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty,
-      "TestScheduler should not have pending tasks left")
+    assert(s.state.tasks.isEmpty, "TestScheduler should not have pending tasks left")
   }
 
   test("should do increments and synchronous observers") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
-    Observable.range(1, 10, 1).unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = {
-        sum += elem
-        Continue
-      }
+    Observable
+      .range(1, 10, 1)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          Continue
+        }
 
-      def onComplete(): Unit = wasCompleted = true
-      def onError(ex: Throwable): Unit = ()
-    })
+        def onComplete(): Unit = wasCompleted = true
+        def onError(ex: Throwable): Unit = ()
+      })
 
     assertEquals(sum, 45)
     assertEquals(wasCompleted, true)
@@ -56,15 +57,17 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0L
 
-    Observable.range(9, 0, -1).unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = {
-        sum += elem
-        Continue
-      }
+    Observable
+      .range(9, 0, -1)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          Continue
+        }
 
-      def onComplete(): Unit = wasCompleted = true
-      def onError(ex: Throwable): Unit = ()
-    })
+        def onComplete(): Unit = wasCompleted = true
+        def onError(ex: Throwable): Unit = ()
+      })
 
     assertEquals(sum, 45)
     assertEquals(wasCompleted, true)
@@ -75,18 +78,20 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var sum = 0L
 
-    Observable.range(1, 5).unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = {
-        received += 1
-        Future.delayedResult(1.second) {
-          sum += elem
-          Continue
+    Observable
+      .range(1, 5)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += 1
+          Future.delayedResult(1.second) {
+            sum += elem
+            Continue
+          }
         }
-      }
 
-      def onComplete(): Unit = wasCompleted = true
-      def onError(ex: Throwable): Unit = ()
-    })
+        def onComplete(): Unit = wasCompleted = true
+        def onError(ex: Throwable): Unit = ()
+      })
 
     assertEquals(sum, 0); assertEquals(received, 1)
     s.tick(1.second); assertEquals(sum, 1); assertEquals(received, 2)
@@ -106,8 +111,9 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     val batchSize = s.executionModel.recommendedBatchSize
     var received = 0
 
-    Observable.range(0, batchSize * 20).map(_ => 1)
-      .subscribe { x => received += 1; Continue }
+    Observable.range(0, batchSize * 20).map(_ => 1).subscribe { x =>
+      received += 1; Continue
+    }
 
     for (idx <- 1 to 20) {
       assertEquals(received, Platform.recommendedBatchSize * idx)

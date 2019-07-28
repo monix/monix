@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,11 +37,12 @@ private[eval] object TaskToReactivePublisher {
             Task.Context(s, Task.defaultOptions, conn)
 
           def request(n: Long): Unit = {
-            require(n > 0, "n must be strictly positive, according to " +
-              "the Reactive Streams contract, rule 3.9")
+            require(n > 0, "n must be strictly positive, according to the Reactive Streams contract, rule 3.9")
 
             if (isActive) {
-              Task.unsafeStartEnsureAsync[A](self, context,
+              Task.unsafeStartEnsureAsync[A](
+                self,
+                context,
                 Callback.safe(new Callback[Throwable, A] {
                   def onError(ex: Throwable): Unit =
                     out.onError(ex)
@@ -50,7 +51,8 @@ private[eval] object TaskToReactivePublisher {
                     out.onNext(value)
                     out.onComplete()
                   }
-                }))
+                })
+              )
             }
           }
 

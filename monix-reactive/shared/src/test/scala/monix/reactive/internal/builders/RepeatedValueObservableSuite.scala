@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,8 @@ object RepeatedValueObservableSuite extends SimpleTestSuite {
     implicit val s = TestScheduler()
     var received = 0
 
-    Observable.timerRepeated(0.seconds, 1.second, 1L)
+    Observable
+      .timerRepeated(0.seconds, 1.second, 1L)
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long): Future[Ack] = {
           received += 1
@@ -60,7 +61,8 @@ object RepeatedValueObservableSuite extends SimpleTestSuite {
     implicit val s = TestScheduler()
     var received = 0
 
-    val cancelable = Observable.timerRepeated(0.seconds, 1.second, 1L)
+    val cancelable = Observable
+      .timerRepeated(0.seconds, 1.second, 1L)
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long): Future[Ack] = {
           received += 1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -110,11 +110,16 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
     assert(!isPublisherActive.get, "!isPublisherActive")
   }
 
-  private def subscribeToObservable(p: Publisher[Long], requestSize: Int, ack: Atomic[Promise[Ack]], active: AtomicBoolean, received: AtomicInt)
-    (implicit s: Scheduler): Cancelable = {
+  private def subscribeToObservable(
+    p: Publisher[Long],
+    requestSize: Int,
+    ack: Atomic[Promise[Ack]],
+    active: AtomicBoolean,
+    received: AtomicInt)(implicit s: Scheduler): Cancelable = {
 
-    Observable.fromReactivePublisher(p, requestSize).unsafeSubscribeFn(
-      new Observer[Long] {
+    Observable
+      .fromReactivePublisher(p, requestSize)
+      .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long): Future[Ack] = {
           received.increment()
           ack.get.future
@@ -127,8 +132,8 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
       })
   }
 
-  private def createPublisher(isPublisherActive: AtomicBoolean, requested: AtomicInt, requestSize: Int)
-    (implicit s: Scheduler): Publisher[Long] = {
+  private def createPublisher(isPublisherActive: AtomicBoolean, requested: AtomicInt, requestSize: Int)(
+    implicit s: Scheduler): Publisher[Long] = {
 
     new Publisher[Long] {
       override def subscribe(subscriber: Subscriber[_ >: Long]): Unit =

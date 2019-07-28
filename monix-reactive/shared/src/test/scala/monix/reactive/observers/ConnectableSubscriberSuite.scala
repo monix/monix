@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -90,7 +90,6 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
   }
 
   test("should not allow pushFirst after connect") { implicit s =>
-
     val downstream = create(new Observer[Int] {
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = ()
@@ -100,13 +99,12 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     downstream.connect()
     s.tick()
 
-    intercept[IllegalStateException]{
+    intercept[IllegalStateException] {
       downstream.pushFirst(1)
     }
   }
 
   test("should not allow pushFirstAll after connect") { implicit s =>
-
     val downstream = create(new Observer[Int] {
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = ()
@@ -116,7 +114,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     downstream.connect()
     s.tick()
 
-    intercept[IllegalStateException]{
+    intercept[IllegalStateException] {
       downstream.pushFirstAll(Seq(1, 2, 3))
     }
   }
@@ -148,7 +146,6 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
   }
 
   test("should not allow pushComplete after connect") { implicit s =>
-
     val downstream = create(new Observer[Int] {
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = ()
@@ -158,7 +155,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     downstream.connect()
     s.tick()
 
-    intercept[IllegalStateException]{
+    intercept[IllegalStateException] {
       downstream.pushComplete()
     }
   }
@@ -190,7 +187,6 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
   }
 
   test("should not allow pushError after connect") { implicit s =>
-
     val downstream = create(new Observer[Int] {
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = ()

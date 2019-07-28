@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,16 @@
 package monix.execution.internal.collection.queues
 
 import java.util
-import monix.execution.internal.collection.ConcurrentQueue
+import monix.execution.internal.collection.LowLevelConcurrentQueue
 import scala.collection.mutable
 
-private[internal] class FromJavaQueue[A](queue: util.Queue[A])
-  extends ConcurrentQueue[A] {
+private[internal] class FromJavaQueue[A](queue: util.Queue[A]) extends LowLevelConcurrentQueue[A] {
+
+  final def fenceOffer(): Unit = ()
+  final def fencePoll(): Unit = ()
+
+  final def isEmpty: Boolean =
+    queue.isEmpty
 
   final def offer(elem: A): Int =
     if (queue.offer(elem)) 0 else 1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 by The Monix Project Developers.
+ * Copyright (c) 2014-2019 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,13 +30,6 @@ object IterantReduceSuite extends BaseTestSuite {
     check2 { (stream: Iterant[Coeval, Int], op: (Int, Int) => Int) =>
       val received = stream.reduceL(op)
       val expected = stream.foldLeftL(Option.empty[Int])((acc, e) => Some(acc.fold(e)(s => op(s, e))))
-
-      val l1 = received.runAttempt()
-      val l2 = expected.runAttempt()
-      if (l1 != l2) {
-        println(s"$l1 != $l2")
-      }
-
       received <-> expected
     }
   }
@@ -77,7 +70,8 @@ object IterantReduceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+    val stream = Iterant[Coeval]
+      .nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
       .guarantee(Coeval { effect += 1 })
       .reduceL(_ + _)
 
@@ -92,7 +86,7 @@ object IterantReduceSuite extends BaseTestSuite {
 
     val source =
       Iterant[Coeval].pure(1) ++
-      Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
+        Iterant[Coeval].nextCursorS[Int](ThrowExceptionCursor(dummy), Coeval(Iterant[Coeval].empty))
 
     val stream = source
       .guarantee(Coeval { effect += 1 })
@@ -107,7 +101,8 @@ object IterantReduceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+    val stream = Iterant[Coeval]
+      .nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
       .guarantee(Coeval { effect += 1 })
       .reduceL(_ + _)
 
@@ -122,7 +117,7 @@ object IterantReduceSuite extends BaseTestSuite {
 
     val source =
       Iterant[Coeval].pure(1) ++
-      Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
+        Iterant[Coeval].nextBatchS[Int](ThrowExceptionBatch(dummy), Coeval(Iterant[Coeval].empty))
 
     val stream = source
       .guarantee(Coeval { effect += 1 })
@@ -137,9 +132,10 @@ object IterantReduceSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var effect = 0
 
-    val stream = Iterant[Coeval].of(1, 2)
+    val stream = Iterant[Coeval]
+      .of(1, 2)
       .guarantee(Coeval { effect += 1 })
-      .reduceL((_, _) => (throw dummy) : Int)
+      .reduceL((_, _) => (throw dummy): Int)
 
     assertEquals(effect, 0)
     assertEquals(stream.runTry(), Failure(dummy))
@@ -198,12 +194,13 @@ object IterantReduceSuite extends BaseTestSuite {
 
     val stream = Iterant[Coeval].scopeS[Unit, Int](
       Coeval.unit,
-      _ => Coeval(2 +: Iterant[Coeval].suspend {
-        if (triggered.getAndSet(true))
-          Iterant[Coeval].raiseError[Int](fail)
-        else
-          Iterant[Coeval].empty[Int]
-      }),
+      _ =>
+        Coeval(2 +: Iterant[Coeval].suspend {
+          if (triggered.getAndSet(true))
+            Iterant[Coeval].raiseError[Int](fail)
+          else
+            Iterant[Coeval].empty[Int]
+        }),
       (_, _) => {
         Coeval(triggered.set(true))
       }
