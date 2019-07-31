@@ -30,7 +30,6 @@ private[eval] object TaskDeferAction {
       implicit val ec = context.scheduler
       var streamErrors = true
 
-      //noinspection DuplicatedCode
       try {
         val fa = f(ec)
         streamErrors = false
