@@ -51,7 +51,6 @@ private[eval] object TaskFromFuture {
       implicit val sc = ctx.scheduler
       // Prevents violations of the Callback contract
       var streamErrors = true
-      //noinspection DuplicatedCode
       try {
         val future = f(sc)
         streamErrors = false
