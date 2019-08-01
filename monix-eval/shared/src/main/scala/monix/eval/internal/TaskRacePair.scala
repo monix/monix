@@ -66,7 +66,7 @@ private[eval] object TaskRacePair {
         new Callback[Throwable, A] {
           def onSuccess(valueA: A): Unit =
             if (isActive.getAndSet(false)) {
-              val fiberB = Fiber(TaskFromFuture.strict(pb.future, allowContinueOnCallingThread = true), connB.cancel)
+              val fiberB = Fiber(TaskFromFuture.strict(pb.future), connB.cancel)
               conn.pop()
               cb.onSuccess(Left((valueA, fiberB)))
             } else {
@@ -91,7 +91,7 @@ private[eval] object TaskRacePair {
         new Callback[Throwable, B] {
           def onSuccess(valueB: B): Unit =
             if (isActive.getAndSet(false)) {
-              val fiberA = Fiber(TaskFromFuture.strict(pa.future, allowContinueOnCallingThread = true), connA.cancel)
+              val fiberA = Fiber(TaskFromFuture.strict(pa.future), connA.cancel)
               conn.pop()
               cb.onSuccess(Right((fiberA, valueB)))
             } else {

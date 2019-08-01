@@ -232,7 +232,7 @@ private[reactive] final class MapTaskObservable[A, B](source: Observable[A], f: 
       stateRef.getAndSet(WaitOnNext) match {
         case WaitActiveTask | WaitOnNext | Active(_) =>
           // Expected outcome
-          Task.fromFuture(next, allowContinueOnCallingThread = true)
+          Task.fromFuture(next)
 
         case Cancelled =>
           Task.now(Stop)

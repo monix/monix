@@ -29,11 +29,12 @@ val catsEffectVersion = "1.3.1"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
+val minitestVersion = "2.3.2"
+
 def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
   case Some((2, v)) if v >= 13 => "3.0.6-SNAP5"
   case _                       => "3.0.4"
 }
-val minitestVersion = "2.3.2"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin

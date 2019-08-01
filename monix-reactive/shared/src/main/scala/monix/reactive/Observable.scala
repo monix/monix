@@ -2597,7 +2597,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => (pf.andThen(Observable.now(_))).applyOrElse(ex, Observable.raiseError _))
+    onErrorHandleWith(ex => (pf.andThen(Observable.now)).applyOrElse(ex, Observable.raiseError))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -3615,33 +3615,30 @@ abstract class Observable[+A] extends Serializable { self =>
     * evaluated and emitted.
     */
   final def lastOrElseL[B >: A](default: => B): Task[B] =
-    Task.create(
-      { (s, cb) =>
-        unsafeSubscribeFn(new Subscriber.Sync[A] {
-          implicit val scheduler: Scheduler = s
-          private[this] var value: A = _
-          private[this] var isEmpty = true
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var value: A = _
+        private[this] var isEmpty = true
 
-          def onNext(elem: A): Ack = {
-            if (isEmpty) isEmpty = false
-            value = elem
-            Continue
-          }
+        def onNext(elem: A): Ack = {
+          if (isEmpty) isEmpty = false
+          value = elem
+          Continue
+        }
 
-          def onError(ex: Throwable): Unit = {
-            cb.onError(ex)
-          }
+        def onError(ex: Throwable): Unit = {
+          cb.onError(ex)
+        }
 
-          def onComplete(): Unit = {
-            if (isEmpty)
-              cb(Try(default))
-            else
-              cb.onSuccess(value)
-          }
-        })
-      },
-      allowContinueOnCallingThread = true
-    )
+        def onComplete(): Unit = {
+          if (isEmpty)
+            cb(Try(default))
+          else
+            cb.onSuccess(value)
+        }
+      })
+    }
 
   /** Creates a new Observable that emits the total number of `onNext`
     * events that were emitted by the source.
@@ -3869,33 +3866,30 @@ abstract class Observable[+A] extends Serializable { self =>
     * gets evaluated and emitted.
     */
   final def firstOrElseL[B >: A](default: => B): Task[B] =
-    Task.create(
-      { (s, cb) =>
-        unsafeSubscribeFn(new Subscriber.Sync[A] {
-          implicit val scheduler: Scheduler = s
-          private[this] var isDone = false
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var isDone = false
 
-          def onNext(elem: A): Ack = {
-            cb.onSuccess(elem)
+        def onNext(elem: A): Ack = {
+          cb.onSuccess(elem)
+          isDone = true
+          Stop
+        }
+
+        def onError(ex: Throwable): Unit =
+          if (!isDone) {
             isDone = true
-            Stop
+            cb.onError(ex)
           }
 
-          def onError(ex: Throwable): Unit =
-            if (!isDone) {
-              isDone = true
-              cb.onError(ex)
-            }
-
-          def onComplete(): Unit =
-            if (!isDone) {
-              isDone = true
-              cb(Try(default))
-            }
-        })
-      },
-      allowContinueOnCallingThread = true
-    )
+        def onComplete(): Unit =
+          if (!isDone) {
+            isDone = true
+            cb(Try(default))
+          }
+      })
+    }
 
   /** Returns a `Task` that emits a single boolean, either true, in
     * case the given predicate holds for all the items emitted by the
@@ -4037,27 +4031,24 @@ abstract class Observable[+A] extends Serializable { self =>
     * complete with `Unit`.
     */
   final def completedL: Task[Unit] =
-    Task.create(
-      { (s, cb) =>
-        unsafeSubscribeFn(new Subscriber.Sync[A] {
-          implicit val scheduler: Scheduler = s
-          private[this] var isDone = false
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var isDone = false
 
-          def onNext(elem: A): Ack = Continue
+        def onNext(elem: A): Ack = Continue
 
-          def onError(ex: Throwable): Unit =
-            if (!isDone) {
-              isDone = true; cb.onError(ex)
-            }
+        def onError(ex: Throwable): Unit =
+          if (!isDone) {
+            isDone = true; cb.onError(ex)
+          }
 
-          def onComplete(): Unit =
-            if (!isDone) {
-              isDone = true; cb.onSuccess(())
-            }
-        })
-      },
-      allowContinueOnCallingThread = true
-    )
+        def onComplete(): Unit =
+          if (!isDone) {
+            isDone = true; cb.onSuccess(())
+          }
+      })
+    }
 
   /** Polymorphic version of [[completedL]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLift]]
@@ -4396,9 +4387,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * source observable, executing the given callback for each element.
     */
   final def foreachL(cb: A => Unit): Task[Unit] =
-    Task.create({ (s, onFinish) =>
+    Task.create { (s, onFinish) =>
       unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
-    }, allowContinueOnCallingThread = true)
+    }
 }
 
 /** Observable builders.
