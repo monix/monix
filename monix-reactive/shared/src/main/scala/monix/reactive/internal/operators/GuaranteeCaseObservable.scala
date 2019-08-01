@@ -126,7 +126,7 @@ private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: Exi
       // We have to back-pressure the final acknowledgement, otherwise
       // the implementation is broken
       val task = Task
-        .fromFuture(ack, allowContinueOnCallingThread = true)
+        .fromFuture(ack)
         .redeemWith(
           e2 => {
             if (isActive.getAndSet(false)) {
