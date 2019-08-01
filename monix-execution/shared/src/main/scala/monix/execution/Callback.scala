@@ -17,8 +17,10 @@
 
 package monix.execution
 
-import monix.execution.exceptions.UncaughtErrorException
+import monix.execution.atomic.{AtomicInt, AtomicBoolean}
+import monix.execution.exceptions.{CallbackCalledMultipleTimesException, UncaughtErrorException}
 import monix.execution.schedulers.TrampolinedRunnable
+
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -36,19 +38,46 @@ import scala.util.{Failure, Success, Try}
   * highlighted by the usage of `Unit` as the return type. Obviously
   * callbacks are unsafe to use in pure code, but are necessary for
   * describing asynchronous processes.
+  *
+  * @define safetyIssues Can be called at most once by contract.
+  *         Not necessarily thread-safe, depends on implementation.
+  *
+  *         @throws CallbackCalledMultipleTimesException depending on
+  *                 implementation, when signaling via this callback is
+  *                 attempted multiple times.
   */
 abstract class Callback[-E, -A] extends (Either[E, A] => Unit) {
-
+  /**
+    * Signals a successful value.
+    *
+    * $safetyIssues
+    */
   def onSuccess(value: A): Unit
 
+  /**
+    * Signals an error.
+    *
+    * $safetyIssues
+    */
   def onError(e: E): Unit
 
+  /**
+    * Signals a value via Scala's `Either` (`Left` is error, `Right` is
+    * the successful value).
+    *
+    * $safetyIssues
+    */
   def apply(result: Either[E, A]): Unit =
     result match {
       case Right(a) => onSuccess(a)
       case Left(e) => onError(e)
     }
 
+  /**
+    * Signals a value via Scala's `Try`.
+    *
+    * $safetyIssues
+    */
   def apply(result: Try[A])(implicit ev: Throwable <:< E): Unit =
     result match {
       case Success(a) => onSuccess(a)
@@ -192,6 +221,44 @@ object Callback {
       Callback.fromTry(cb)
   }
 
+  /**
+    * Extension methods for [[Callback]].
+    *
+    * @define callbackCalledMultipleTimes
+    *         [[monix.execution.exceptions.CallbackCalledMultipleTimesException CallbackCalledMultipleTimesException]]
+    */
+  final class Extensions[E, A](val self: Callback[E, A]) extends AnyVal {
+    /**
+      * Attempts to call [[Callback.onSuccess]], assuming that the
+      * underlying callback implementation is thread-safe.
+      *
+      * @return `true` if the `onSuccess` invocation completes normally
+      *         or `false` in case it throws $callbackCalledMultipleTimes
+      */
+    def tryOnSuccess(value: A): Boolean =
+      try {
+        self.onSuccess(value)
+        true
+      } catch {
+        case _: CallbackCalledMultipleTimesException => false
+      }
+
+    /**
+      * Attempts to call [[Callback.onError]], assuming that the
+      * underlying callback implementation is thread-safe.
+      *
+      * @return `true` if the `onSuccess` invocation completes normally
+      *         or `false` in case it throws $callbackCalledMultipleTimes
+      */
+    def tryOnError(e: E): Boolean =
+      try {
+        self.onError(e)
+        true
+      } catch {
+        case _: CallbackCalledMultipleTimesException => false
+      }
+  }
+
   private[monix] def callSuccess[E, A](cb: Either[E, A] => Unit, value: A): Unit =
     cb match {
       case ref: Callback[E, A] @unchecked => ref.onSuccess(value)
@@ -204,7 +271,8 @@ object Callback {
       case _ => cb(Left(value))
     }
 
-  private final class AsyncFork[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext) extends Base[E, A](cb)(ec)
+  private final class AsyncFork[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
+    extends Base[E, A](cb)(ec)
 
   private final class TrampolinedCallback[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Base[E, A](cb)(ec) with TrampolinedRunnable
@@ -213,29 +281,29 @@ object Callback {
   private[monix] class Base[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Callback[E, A] with Runnable {
 
-    private[this] val state = monix.execution.atomic.AtomicInt(0)
+    private[this] val state = AtomicInt(0)
     private[this] var value: A = _
     private[this] var error: E = _
 
-    final def onSuccess(value: A): Unit = {
+    override final def onSuccess(value: A): Unit = {
       if (state.compareAndSet(0, 1)) {
         this.value = value
         ec.execute(this)
       } else {
-        throw new IllegalStateException("Callback.onSuccess signaled multiple times")
+        throw new CallbackCalledMultipleTimesException("Callback.onSuccess")
       }
     }
 
-    final def onError(e: E): Unit = {
+    override final def onError(e: E): Unit = {
       if (state.compareAndSet(0, 2)) {
         this.error = e
         ec.execute(this)
       } else {
-        ec.reportFailure(UncaughtErrorException.wrap(e))
+        throw new CallbackCalledMultipleTimesException("Callback.onError")
       }
     }
 
-    def run() = {
+    final def run() = {
       state.get match {
         case 1 =>
           val v = value
@@ -253,7 +321,6 @@ object Callback {
     * only logs exceptions `onError`.
     */
   private final class Empty(r: UncaughtExceptionReporter) extends Callback[Any, Any] {
-
     def onSuccess(value: Any): Unit = ()
     def onError(error: Any): Unit =
       r.reportFailure(UncaughtErrorException.wrap(error))
@@ -265,32 +332,42 @@ object Callback {
   private final class Safe[-E, -A](underlying: Callback[E, A])(implicit r: UncaughtExceptionReporter)
     extends Callback[E, A] {
 
-    private[this] var isActive = true
+    private[this] val isActive = AtomicBoolean(true)
 
-    def onSuccess(value: A): Unit =
-      if (isActive) {
-        isActive = false
-        try underlying.onSuccess(value)
-        catch {
-          case ex if NonFatal(ex) =>
-            r.reportFailure(ex)
+    override def onSuccess(value: A): Unit = {
+      if (isActive.compareAndSet(true, false))
+        try {
+          underlying.onSuccess(value)
+        } catch {
+          case e: CallbackCalledMultipleTimesException =>
+            throw e
+          case e if NonFatal(e) =>
+            r.reportFailure(e)
         }
+      else {
+        throw new CallbackCalledMultipleTimesException("Callback.onSuccess")
       }
+    }
 
-    def onError(error: E): Unit =
-      if (isActive) {
-        isActive = false
-        try underlying.onError(error)
-        catch {
-          case err if NonFatal(err) =>
-            r.reportFailure(UncaughtErrorException.wrap(error))
-            r.reportFailure(err)
+    override def onError(e: E): Unit = {
+      if (isActive.compareAndSet(true, false))
+        try {
+          underlying.onError(e)
+        } catch {
+          case e: CallbackCalledMultipleTimesException =>
+            throw e
+          case e2 if NonFatal(e2) =>
+            r.reportFailure(UncaughtErrorException.wrap(e))
+            r.reportFailure(e2)
         }
+      else {
+        r.reportFailure(UncaughtErrorException.wrap(e))
+        throw new CallbackCalledMultipleTimesException("Callback.onError")
       }
+    }
   }
 
   private final class Contramap[-E, -A, -B](underlying: Callback[E, A], f: B => A) extends Callback[E, B] {
-
     def onSuccess(value: B): Unit =
       underlying.onSuccess(f(value))
     def onError(error: E): Unit =

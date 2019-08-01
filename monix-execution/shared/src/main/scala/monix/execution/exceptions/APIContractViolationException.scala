@@ -28,8 +28,30 @@ class APIContractViolationException(val message: String, cause: Throwable)
 }
 
 object APIContractViolationException extends AbstractFunction1[String, APIContractViolationException] {
-
   /** Builder for [[APIContractViolationException]]. */
   def apply(message: String): APIContractViolationException =
     new APIContractViolationException(message)
+
+  def unapply(arg: APIContractViolationException): Option[(String, Throwable)] =
+    Some((arg.message, arg.getCause))
+}
+
+/**
+  * Thrown when signaling is attempted multiple times for
+  * [[monix.execution.Callback Callback]] or similar.
+  */
+class CallbackCalledMultipleTimesException(message: String, cause: Throwable)
+  extends APIContractViolationException(message, cause) {
+
+  def this(message: String) = this(message, null)
+  def this(cause: Throwable) = this(null, cause)
+}
+
+object CallbackCalledMultipleTimesException extends AbstractFunction1[String, CallbackCalledMultipleTimesException] {
+  /** Builder for [[APIContractViolationException]]. */
+  def apply(message: String): CallbackCalledMultipleTimesException =
+    new CallbackCalledMultipleTimesException(message)
+
+  def unapply(arg: CallbackCalledMultipleTimesException): Option[(String, Throwable)] =
+    Some((arg.message, arg.getCause))
 }

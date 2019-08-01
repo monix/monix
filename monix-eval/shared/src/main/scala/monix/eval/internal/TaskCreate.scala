@@ -18,10 +18,12 @@
 package monix.eval.internal
 
 import java.util.concurrent.RejectedExecutionException
+
 import cats.effect.{CancelToken, IO}
 import monix.eval.Task.{Async, Context}
 import monix.eval.{Coeval, Task}
 import monix.execution.atomic.AtomicInt
+import monix.execution.exceptions.CallbackCalledMultipleTimesException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.{StartAsyncBatchRunnable, TrampolineExecutionContext, TrampolinedRunnable}
 import monix.execution.{Callback, Cancelable, Scheduler}
@@ -188,7 +190,7 @@ private[eval] object TaskCreate {
         this.value = value
         startExecution()
       } else {
-        throw new IllegalStateException("Callback.onSuccess signaled multiple times")
+        throw new CallbackCalledMultipleTimesException("Callback.onSuccess")
       }
     }
 
@@ -197,7 +199,7 @@ private[eval] object TaskCreate {
         this.error = e
         startExecution()
       } else {
-        throw new IllegalStateException("Callback.onSuccess onError multiple times", e)
+        throw new CallbackCalledMultipleTimesException("Callback.onError", e)
       }
     }
 
