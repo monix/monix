@@ -23,7 +23,7 @@ import scala.util.control.NonFatal
 import monix.execution.{Features, Scheduler}
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
 import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
-import monix.execution.internal.{InterceptableRunnable, ScheduledExecutors, Platform}
+import monix.execution.internal.{InterceptableRunnable, Platform, ScheduledExecutors}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.duration.TimeUnit
