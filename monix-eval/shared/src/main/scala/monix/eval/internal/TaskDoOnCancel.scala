@@ -21,6 +21,7 @@ import monix.eval.Task.{Async, Context}
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.exceptions.CallbackCalledMultipleTimesException
+import monix.execution.schedulers.TrampolinedRunnable
 
 private[eval] object TaskDoOnCancel {
   /**
@@ -42,9 +43,11 @@ private[eval] object TaskDoOnCancel {
   }
 
   private final class CallbackThatPops[A](ctx: Task.Context, cb: Callback[Throwable, A])
-    extends Callback[Throwable, A] {
+    extends Callback[Throwable, A] with TrampolinedRunnable {
 
     private[this] var isActive = true
+    private[this] var value: A = _
+    private[this] var error: Throwable = _
 
     override def onSuccess(value: A): Unit =
       if (!tryOnSuccess(value)) {
@@ -60,7 +63,9 @@ private[eval] object TaskDoOnCancel {
       if (isActive) {
         isActive = false
         ctx.connection.pop()
-        cb.tryOnSuccess(value)
+        this.value = value
+        ctx.scheduler.execute(this)
+        true
       } else {
         false
       }
@@ -70,9 +75,23 @@ private[eval] object TaskDoOnCancel {
       if (isActive) {
         isActive = false
         ctx.connection.pop()
-        cb.tryOnError(e)
+        this.error = e
+        ctx.scheduler.execute(this)
+        true
       } else {
         false
+      }
+    }
+
+    override def run(): Unit = {
+      if (error != null) {
+        val e = error
+        error = null
+        cb.onError(e)
+      } else {
+        val v = value
+        value = null.asInstanceOf[A]
+        cb.onSuccess(v)
       }
     }
   }
