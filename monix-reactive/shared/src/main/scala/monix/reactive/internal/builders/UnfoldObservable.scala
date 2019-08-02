@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.operators
+package monix.reactive.internal.builders
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
