@@ -51,12 +51,12 @@ private[eval] object TaskDoOnCancel {
 
     override def onSuccess(value: A): Unit =
       if (!tryOnSuccess(value)) {
-        throw new CallbackCalledMultipleTimesException("Callback.onSuccess")
+        throw new CallbackCalledMultipleTimesException("onSuccess")
       }
 
     override def onError(e: Throwable): Unit =
       if (!tryOnError(e)) {
-        throw new CallbackCalledMultipleTimesException("Callback.onError")
+        throw new CallbackCalledMultipleTimesException("onError")
       }
 
     override def tryOnSuccess(value: A): Boolean = {

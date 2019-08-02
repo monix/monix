@@ -277,7 +277,7 @@ object Callback {
                 case Left(e) => ("onError", UncaughtErrorException.wrap(e))
                 case Right(_) => ("onSuccess", null)
               }
-              throw new CallbackCalledMultipleTimesException("Callback." + method, cause)
+              throw new CallbackCalledMultipleTimesException(method, cause)
             }
           }
         }
@@ -305,7 +305,7 @@ object Callback {
             case Failure(e) => ("onError", UncaughtErrorException.wrap(e))
             case Success(_) => ("onSuccess", null)
           }
-          throw new CallbackCalledMultipleTimesException("Callback." + method, cause)
+          throw new CallbackCalledMultipleTimesException(method, cause)
         }
       }
     }
@@ -366,7 +366,7 @@ object Callback {
 
     override final def onSuccess(value: A): Unit =
       if (!tryOnSuccess(value)) {
-        throw new CallbackCalledMultipleTimesException("Callback.onSuccess")
+        throw new CallbackCalledMultipleTimesException("onSuccess")
       }
 
     override final def tryOnSuccess(value: A): Boolean = {
@@ -439,7 +439,7 @@ object Callback {
           case e if NonFatal(e) =>
             r.reportFailure(e)
         } else {
-        throw new CallbackCalledMultipleTimesException("Callback.onSuccess")
+        throw new CallbackCalledMultipleTimesException("onSuccess")
       }
     }
 
@@ -456,7 +456,7 @@ object Callback {
         }
       } else {
         val ex = UncaughtErrorException.wrap(e)
-        throw new CallbackCalledMultipleTimesException("Callback.onError", ex)
+        throw new CallbackCalledMultipleTimesException("onError", ex)
       }
     }
   }
