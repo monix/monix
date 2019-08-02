@@ -203,8 +203,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
   def executeOnSuccessTest(
     wrap: Callback[Throwable, Int] => Callback[Throwable, Int],
     isForked: Boolean = false,
-    retries: Int = RETRIES)
-    (implicit sc: Scheduler): Unit = {
+    retries: Int = RETRIES)(implicit sc: Scheduler): Unit = {
 
     for (_ <- 0 until retries) {
       var effect = 0
@@ -230,8 +229,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
   def executeOnErrorTest(
     wrap: Callback[Throwable, String] => Callback[Throwable, String],
     isForked: Boolean = false,
-    retries: Int = RETRIES)
-    (implicit sc: Scheduler): Unit = {
+    retries: Int = RETRIES)(implicit sc: Scheduler): Unit = {
 
     for (_ <- 0 until retries) {
       var effect = 0
@@ -257,7 +255,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
     val latchWorkersFinished = new CountDownLatch(WORKERS)
 
     for (_ <- 0 until WORKERS) {
-      sc.executeAsync{ () =>
+      sc.executeAsync { () =>
         latchWorkersStart.countDown()
         try {
           f

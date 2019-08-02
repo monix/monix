@@ -20,7 +20,7 @@ package monix.eval
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.SimpleTestSuite
-import monix.execution.CallbackSafetyJVMSuite.{WORKERS, assert, await}
+import monix.execution.CallbackSafetyJVMSuite.{assert, await, WORKERS}
 import monix.execution.schedulers.SchedulerService
 import monix.execution.{Callback, Scheduler}
 
@@ -43,18 +43,26 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
   }
 
   test("Task.cancelable has a safe callback") {
-    runTest(f => Task.cancelable { cb => f(cb); Task(()) })
+    runTest(f =>
+      Task.cancelable { cb =>
+        f(cb); Task(())
+      })
   }
 
   test("Task.cancelable0 has a safe callback") {
-    runTest(f => Task.cancelable0 { (_, cb) => f(cb); Task(()) })
+    runTest(f =>
+      Task.cancelable0 { (_, cb) =>
+        f(cb); Task(())
+      })
   }
 
   def runTest(create: (Callback[Throwable, Int] => Unit) => Task[Int]): Unit = {
     implicit val sc: SchedulerService = Scheduler.io("task-callback-safety")
     try {
       for (_ <- 0 until RETRIES) {
-        val task = create { cb => runConcurrently(sc)(cb.tryOnSuccess(1)) }
+        val task = create { cb =>
+          runConcurrently(sc)(cb.tryOnSuccess(1))
+        }
         val latch = new CountDownLatch(1)
         var effect = 0
 
@@ -80,7 +88,7 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
     val latchWorkersFinished = new CountDownLatch(WORKERS)
 
     for (_ <- 0 until WORKERS) {
-      sc.executeAsync{ () =>
+      sc.executeAsync { () =>
         latchWorkersStart.countDown()
         try {
           f

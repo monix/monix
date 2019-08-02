@@ -59,7 +59,7 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
         case Empty =>
           // $COVERAGE-OFF$
           unsafeSet(ref)
-         // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }

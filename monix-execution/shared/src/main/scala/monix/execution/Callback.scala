@@ -17,7 +17,6 @@
 
 package monix.execution
 
-import monix.execution.atomic._
 import monix.execution.exceptions.{CallbackCalledMultipleTimesException, UncaughtErrorException}
 import monix.execution.schedulers.TrampolinedRunnable
 import scala.concurrent.{ExecutionContext, Promise}
@@ -164,6 +163,15 @@ abstract class Callback[-E, -A] extends (Either[E, A] => Unit) {
     }
 }
 
+/**
+  * @define isThreadSafe '''THREAD-SAFETY''': the returned callback is
+  *         thread-safe.
+  *
+  *         In case `onSuccess` and `onError` get called multiple times,
+  *         from multiple threads even, the implementation protects against
+  *         access violations and throws a
+  *         [[monix.execution.exceptions.CallbackCalledMultipleTimesException CallbackCalledMultipleTimesException]].
+  */
 object Callback {
   /**
     * For building [[Callback]] objects using the
@@ -177,8 +185,10 @@ object Callback {
   def apply[E]: Builders[E] = new Builders[E]
 
   /** Wraps any [[Callback]] into a safer implementation that
-    * protects against grammar violations (e.g. `onSuccess` or `onError`
-    * must be called at most once). For usage in `runAsync`.
+    * protects against protocol violations (e.g. `onSuccess` or `onError`
+    * must be called at most once).
+    *
+    * $isThreadSafe
     */
   def safe[E, A](cb: Callback[E, A])(implicit r: UncaughtExceptionReporter): Callback[E, A] =
     cb match {
@@ -195,11 +205,16 @@ object Callback {
 
   /** Returns a [[Callback]] instance that will complete the given
     * promise.
+    *
+    * THREAD-SAFETY: the provided instance is thread-safe by virtue
+    * of `Promise` being thread-safe.
     */
   def fromPromise[A](p: Promise[A]): Callback[Throwable, A] =
     new Callback[Throwable, A] {
-      def onSuccess(value: A): Unit = p.success(value)
-      def onError(e: Throwable): Unit = p.failure(e)
+      override def onSuccess(value: A): Unit = p.success(value)
+      override def onError(e: Throwable): Unit = p.failure(e)
+      override def tryOnSuccess(value: A): Boolean = p.trySuccess(value)
+      override def tryOnError(e: Throwable): Boolean = p.tryFailure(e)
     }
 
   /** Given a [[Callback]] wraps it into an implementation that
@@ -211,6 +226,8 @@ object Callback {
     * is used and supporting schedulers can execute these using an internal
     * trampoline, thus execution being faster and immediate, but still avoiding
     * growing the call-stack and thus avoiding stack overflows.
+    *
+    * $isThreadSafe
     *
     * @see [[Callback.trampolined]]
     */
@@ -227,6 +244,8 @@ object Callback {
     * trampoline, thus execution being faster and immediate, but still avoiding
     * growing the call-stack and thus avoiding stack overflows.
     *
+    * $isThreadSafe
+    *
     * @see [[forked]]
     */
   def trampolined[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext): Callback[E, A] =
@@ -238,8 +257,7 @@ object Callback {
     * These are common within Cats' implementation, used for
     * example in `cats.effect.IO`.
     *
-    * WARNING: the returned callback is probably NOT thread-safe!
-    * Unless the given instance is already a `Callback` instance.
+    * WARNING: the returned callback is NOT thread-safe!
     */
   def fromAttempt[E, A](cb: Either[E, A] => Unit): Callback[E, A] =
     cb match {
@@ -269,6 +287,8 @@ object Callback {
     *
     * These are common within Scala's standard library implementation,
     * due to usage with Scala's `Future`.
+    *
+    * WARNING: the returned callback is NOT thread-safe!
     */
   def fromTry[A](cb: Try[A] => Unit): Callback[Throwable, A] =
     new Callback[Throwable, A] {
@@ -340,7 +360,7 @@ object Callback {
 
   /** Base implementation for `trampolined` and `forked`. */
   private class Base[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext) extends Callback[E, A] with Runnable {
-    private[this] val state = AtomicInt(0)
+    private[this] val state = monix.execution.atomic.AtomicInt(0)
     private[this] var value: A = _
     private[this] var error: E = _
 
@@ -406,7 +426,8 @@ object Callback {
   private final class Safe[-E, -A](underlying: Callback[E, A])(implicit r: UncaughtExceptionReporter)
     extends Callback[E, A] {
 
-    private[this] val isActive = AtomicBoolean(true)
+    private[this] val isActive =
+      monix.execution.atomic.AtomicBoolean(true)
 
     override def onSuccess(value: A): Unit = {
       if (isActive.compareAndSet(true, false))
