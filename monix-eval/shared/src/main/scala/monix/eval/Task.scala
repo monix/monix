@@ -2835,8 +2835,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * @see [[Task.async0]] for a variant that also injects a
     *      [[monix.execution.Scheduler Scheduler]] into the provided callback,
@@ -2895,8 +2898,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback]] can be called at
     *    most once, either with a successful result, or with an error;
     *    calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * NOTES on the naming:
     *
@@ -3007,8 +3013,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * @see [[Task.cancelable0]] for the version that also injects a
     *      [[monix.execution.Scheduler Scheduler]] in that callback
@@ -3102,8 +3111,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * NOTES on the naming:
     *
