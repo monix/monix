@@ -36,7 +36,8 @@ private[eval] object TaskCreate {
     */
   def cancelable0[A](fn: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] = {
     val start = new Cancelable0Start[A, CancelToken[Task]](fn) {
-      def setConnection(ref: TaskConnectionRef, token: CancelToken[Task])(implicit s: Scheduler): Unit = ref := token
+      def setConnection(ref: TaskConnectionRef, token: CancelToken[Task])(implicit s: Scheduler): Unit =
+        ref := token
     }
     Async(
       start,
@@ -192,6 +193,7 @@ private[eval] object TaskCreate {
     override def tryOnSuccess(value: A): Boolean = {
       if (state.compareAndSet(0, 1)) {
         this.value = value
+        if (shouldPop) ctx.connection.pop()
         startExecution()
         true
       } else {
@@ -202,6 +204,7 @@ private[eval] object TaskCreate {
     override def tryOnError(e: Throwable): Boolean = {
       if (state.compareAndSet(0, 2)) {
         this.error = e
+        if (shouldPop) ctx.connection.pop()
         startExecution()
         true
       } else {
