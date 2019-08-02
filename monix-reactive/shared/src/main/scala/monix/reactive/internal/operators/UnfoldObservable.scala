@@ -70,6 +70,7 @@ private[reactive] final class UnfoldObservable[S, A](seed: => S, f: S => Option[
             this.seed = newState
             o.onNext(nextA)
           case None =>
+            o.onComplete()
             Stop
 
         }
