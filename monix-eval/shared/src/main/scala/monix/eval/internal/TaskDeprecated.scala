@@ -273,19 +273,6 @@ private[eval] object TaskDeprecated {
       // $COVERAGE-ON$
     }
 
-    /**
-      * DEPRECATED — subsumed by [[Task.startAndForget startAndForget]].
-      *
-      * Renamed to `startAndForget` to be consistent with `start` which
-      * also enforces an asynchronous boundary
-      */
-    @deprecated("Replaced with startAndForget", since = "3.0.0")
-    final def forkAndForget: Task[Unit] = {
-      // $COVERAGE-OFF$
-      self.startAndForget
-      // $COVERAGE-ON$
-    }
-
     /** DEPRECATED — replace with usage of [[Task.runSyncStep]]:
       *
       * `task.coeval <-> Coeval(task.runSyncStep)`
