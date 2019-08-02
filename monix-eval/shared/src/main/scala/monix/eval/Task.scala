@@ -1785,11 +1785,11 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * Similar to [[start]] after mapping result to Unit. Below law holds:
     *
-    * `task.forkAndForget <-> task.start.map(_ => ())`
+    * `task.startAndForget <-> task.start.map(_ => ())`
     *
     */
-  final def forkAndForget: Task[Unit] =
-    TaskForkAndForget(this)
+  final def startAndForget: Task[Unit] =
+    TaskStartAndForget(this)
 
   /** Returns a new `Task` in which `f` is scheduled to be run on
     * completion. This would typically be used to release any
