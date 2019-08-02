@@ -65,23 +65,20 @@ abstract class Consumer[-In, +R] extends (Observable[In] => Task[R]) with Serial
     * by piggybacking on [[createSubscriber]].
     */
   final def apply(source: Observable[In]): Task[R] =
-    Task.create(
-      { (scheduler, cb) =>
-        val (out, consumerSubscription) = createSubscriber(cb, scheduler)
-        // Start consuming the stream
-        val sourceSubscription = source.subscribe(out)
-        // Assign the observable subscription to our assignable,
-        // thus the subscriber can cancel its subscription
-        consumerSubscription := sourceSubscription
-        // We might not return the assignable returned by `createSubscriber`
-        // because it might be a dummy
-        if (consumerSubscription.isInstanceOf[Cancelable.IsDummy])
-          sourceSubscription
-        else
-          consumerSubscription
-      },
-      allowContinueOnCallingThread = true
-    )
+    Task.create { (scheduler, cb) =>
+      val (out, consumerSubscription) = createSubscriber(cb, scheduler)
+      // Start consuming the stream
+      val sourceSubscription = source.subscribe(out)
+      // Assign the observable subscription to our assignable,
+      // thus the subscriber can cancel its subscription
+      consumerSubscription := sourceSubscription
+      // We might not return the assignable returned by `createSubscriber`
+      // because it might be a dummy
+      if (consumerSubscription.isInstanceOf[Cancelable.IsDummy])
+        sourceSubscription
+      else
+        consumerSubscription
+    }
 
   /** Given a contravariant mapping function, transform
     * the source consumer by transforming the input.
