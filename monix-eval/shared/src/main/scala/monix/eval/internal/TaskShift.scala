@@ -62,9 +62,7 @@ private[eval] object TaskShift {
         })
       } catch {
         case e: RejectedExecutionException =>
-          Callback
-            .trampolined(cb)(context.scheduler)
-            .onError(e)
+          cb.onError(e)
       }
     }
   }
