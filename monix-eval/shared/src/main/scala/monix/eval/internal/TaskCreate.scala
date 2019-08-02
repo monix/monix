@@ -193,7 +193,6 @@ private[eval] object TaskCreate {
     override def tryOnSuccess(value: A): Boolean = {
       if (state.compareAndSet(0, 1)) {
         this.value = value
-        if (shouldPop) ctx.connection.pop()
         startExecution()
         true
       } else {
@@ -204,7 +203,6 @@ private[eval] object TaskCreate {
     override def tryOnError(e: Throwable): Boolean = {
       if (state.compareAndSet(0, 2)) {
         this.error = e
-        if (shouldPop) ctx.connection.pop()
         startExecution()
         true
       } else {
@@ -213,6 +211,8 @@ private[eval] object TaskCreate {
     }
 
     private def startExecution(): Unit = {
+      // Cleanup of the current finalizer
+      if (shouldPop) ctx.connection.pop()
       // Optimization — if the callback was called on the same thread
       // where it was created, then we are not going to fork
       isSameThread = Platform.currentThreadId() == threadId
@@ -242,10 +242,6 @@ private[eval] object TaskCreate {
       if (!isSameThread) {
         ctx.frameRef.reset()
       }
-      if (shouldPop) {
-        ctx.connection.pop()
-      }
-
       state.get() match {
         case 1 =>
           val v = value
