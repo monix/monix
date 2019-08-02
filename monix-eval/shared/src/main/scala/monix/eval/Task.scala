@@ -578,10 +578,12 @@ sealed abstract class Task[+A] extends Serializable {
     * @return $runAsyncToFutureReturn
     */
   @UnsafeBecauseImpure
-  def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      TaskRunLoop.startFuture(this, s, opts)
+  def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      TaskRunLoop.startFuture(this, s, opts2)
     }
+  }
 
   /** Triggers the asynchronous execution, with a provided callback
     * that's going to be called at some point in the future with
@@ -700,10 +702,12 @@ sealed abstract class Task[+A] extends Serializable {
     * @return $cancelableDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable =
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      UnsafeCancelUtils.taskToCancelable(runAsyncOptF(cb)(s, opts))
+  def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable = {
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      UnsafeCancelUtils.taskToCancelable(runAsyncOptF(cb)(s, opts2))
     }
+  }
 
   /** Triggers the asynchronous execution, returning a `Task[Unit]`
     * (aliased to `CancelToken[Task]` in Cats-Effect) which can
@@ -800,10 +804,12 @@ sealed abstract class Task[+A] extends Serializable {
     * @return $cancelTokenDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): CancelToken[Task] =
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb))
+  def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): CancelToken[Task] = {
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      TaskRunLoop.startLight(this, s, opts2, Callback.fromAttempt(cb))
     }
+  }
 
   /** Triggers the asynchronous execution of the source task
     * in a "fire and forget" fashion.
@@ -920,10 +926,12 @@ sealed abstract class Task[+A] extends Serializable {
     * @param opts $optionsDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): Unit =
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb), isCancelable = false)
+  def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): Unit = {
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      TaskRunLoop.startLight(this, s, opts2, Callback.fromAttempt(cb), isCancelable = false)
     }
+  }
 
   /** Executes the source until completion, or until the first async
     * boundary, whichever comes first.
@@ -983,10 +991,12 @@ sealed abstract class Task[+A] extends Serializable {
     * @return $runSyncStepReturn
     */
   @UnsafeBecauseImpure
-  final def runSyncStepOpt(implicit s: Scheduler, opts: Options): Either[Task[A], A] =
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      TaskRunLoop.startStep(this, s, opts)
+  final def runSyncStepOpt(implicit s: Scheduler, opts: Options): Either[Task[A], A] = {
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      TaskRunLoop.startStep(this, s, opts2)
     }
+  }
 
   /** Evaluates the source task synchronously and returns the result
     * immediately or blocks the underlying thread until the result is
@@ -1048,11 +1058,8 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  final def runSyncUnsafe(timeout: Duration = Duration.Inf)(implicit s: Scheduler, permit: CanBlock): A = {
-    /*_*/
-    TaskRunSyncUnsafe(this, timeout, s, defaultOptions)
-    /*_*/
-  }
+  final def runSyncUnsafe(timeout: Duration = Duration.Inf)(implicit s: Scheduler, permit: CanBlock): A =
+    runSyncUnsafeOpt(timeout)(s, defaultOptions, permit)
 
   /** Variant of [[runSyncUnsafe]] that takes a [[Task.Options]]
     * implicitly from the scope in order to tune the evaluation model
@@ -1083,8 +1090,9 @@ sealed abstract class Task[+A] extends Serializable {
     permit: CanBlock
   ): A = {
     /*_*/
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      TaskRunSyncUnsafe(this, timeout, s, opts)
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      TaskRunSyncUnsafe(this, timeout, s, opts2)
     }
     /*_*/
   }
@@ -4108,7 +4116,6 @@ object Task extends TaskInstancesLevel1 {
     autoCancelableRunLoops: Boolean,
     localContextPropagation: Boolean
   ) {
-
     /** Creates a new set of options from the source, but with
       * the [[autoCancelableRunLoops]] value set to `true`.
       */
@@ -4132,6 +4139,22 @@ object Task extends TaskInstancesLevel1 {
       */
     def disableLocalContextPropagation: Options =
       copy(localContextPropagation = false)
+
+    /**
+      * Enhances the options set with the features of the underlying
+      * [[monix.execution.Scheduler Scheduler]].
+      *
+      * This enables for example the [[Options.localContextPropagation]]
+      * in case the `Scheduler` is a
+      * [[monix.execution.schedulers.TracingScheduler TracingScheduler]].
+      */
+    def withSchedulerFeatures(implicit s: Scheduler): Options = {
+      val wLocals = s.features.contains(Scheduler.TRACING)
+      if (wLocals == localContextPropagation)
+        this
+      else
+        copy(localContextPropagation = wLocals || localContextPropagation)
+    }
   }
 
   /** Default [[Options]] to use for [[Task]] evaluation,
@@ -4272,7 +4295,7 @@ object Task extends TaskInstancesLevel1 {
     frameRef: FrameIndexRef) {
 
     val scheduler: Scheduler = {
-      if (options.localContextPropagation)
+      if (options.localContextPropagation && !schedulerRef.features.contains(Scheduler.TRACING))
         TracingScheduler(schedulerRef)
       else
         schedulerRef
@@ -4613,8 +4636,10 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     */
   implicit def catsEffect(
     implicit s: Scheduler,
-    opts: Task.Options = Task.defaultOptions): CatsConcurrentEffectForTask =
+    opts: Task.Options = Task.defaultOptions): CatsConcurrentEffectForTask = {
+
     new CatsConcurrentEffectForTask
+  }
 
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
     * then this provides the evidence that `Task[A]` also has

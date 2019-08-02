@@ -18,16 +18,17 @@
 package monix.eval
 
 import cats.effect.{Effect, IO}
+import monix.execution.schedulers.TracingScheduler
 
 import scala.concurrent.duration._
 
 object TaskEffectInstanceSuite extends BaseTestSuite {
-  test("Effect instance should make use of implicit TaskOptions") { implicit sc =>
-    val readOptions: Task[Task.Options] =
-      Task.Async { (ctx, cb) =>
-        cb.onSuccess(ctx.options)
-      }
+  val readOptions: Task[Task.Options] =
+    Task.Async { (ctx, cb) =>
+      cb.onSuccess(ctx.options)
+    }
 
+  test("Effect instance should make use of implicit TaskOptions") { implicit sc =>
     implicit val customOptions: Task.Options = Task.Options(
       autoCancelableRunLoops = true,
       localContextPropagation = true
@@ -46,6 +47,42 @@ object TaskEffectInstanceSuite extends BaseTestSuite {
 
     io.unsafeRunSync()
     sc.tick(1.day)
-    assert(received eq customOptions)
+    assertEquals(received, customOptions)
+  }
+
+  test("Effect instance should use Task.defaultOptions with default TestScheduler") { implicit sc =>
+    var received: Task.Options = null
+    val io = Effect[Task].runAsync(readOptions) {
+      case Right(opts) =>
+        received = opts
+        IO.unit
+      case _ =>
+        fail()
+        IO.unit
+    }
+
+    io.unsafeRunSync()
+    sc.tick(1.day)
+    assertEquals(received, Task.defaultOptions)
+    assert(!received.localContextPropagation)
+  }
+
+  test("Effect instance should use Task.defaultOptions.withSchedulerFeatures") { sc =>
+    implicit val tracing = TracingScheduler(sc)
+
+    var received: Task.Options = null
+    val io = Effect[Task].runAsync(readOptions) {
+      case Right(opts) =>
+        received = opts
+        IO.unit
+      case _ =>
+        fail()
+        IO.unit
+    }
+
+    io.unsafeRunSync()
+    sc.tick(1.day)
+    assertEquals(received, Task.defaultOptions.withSchedulerFeatures)
+    assert(received.localContextPropagation)
   }
 }
