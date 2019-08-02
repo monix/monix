@@ -20,22 +20,60 @@ package monix.eval.internal
 import monix.eval.Task.{Async, Context}
 import monix.execution.Callback
 import monix.eval.Task
+import monix.execution.exceptions.CallbackCalledMultipleTimesException
 
 private[eval] object TaskDoOnCancel {
   /**
     * Implementation for `Task.doOnCancel`
     */
   def apply[A](self: Task[A], callback: Task[Unit]): Task[A] = {
-    if (callback eq Task.unit) self
-    else {
+    if (callback eq Task.unit) {
+      self
+    } else {
       val start = (context: Context, onFinish: Callback[Throwable, A]) => {
         implicit val s = context.scheduler
         implicit val o = context.options
 
         context.connection.push(callback)
-        Task.unsafeStartNow(self, context, TaskCreate.protectedCallback(context, shouldPop = true, onFinish))
+        Task.unsafeStartNow(self, context, new CallbackThatPops(context, onFinish))
       }
       Async(start, trampolineBefore = false, trampolineAfter = false, restoreLocals = false)
+    }
+  }
+
+  private final class CallbackThatPops[A](ctx: Task.Context, cb: Callback[Throwable, A])
+    extends Callback[Throwable, A] {
+
+    private[this] var isActive = true
+
+    override def onSuccess(value: A): Unit =
+      if (!tryOnSuccess(value)) {
+        throw new CallbackCalledMultipleTimesException("Callback.onSuccess")
+      }
+
+    override def onError(e: Throwable): Unit =
+      if (!tryOnError(e)) {
+        throw new CallbackCalledMultipleTimesException("Callback.onError")
+      }
+
+    override def tryOnSuccess(value: A): Boolean = {
+      if (isActive) {
+        isActive = false
+        ctx.connection.pop()
+        cb.tryOnSuccess(value)
+      } else {
+        false
+      }
+    }
+
+    override def tryOnError(e: Throwable): Boolean = {
+      if (isActive) {
+        isActive = false
+        ctx.connection.pop()
+        cb.tryOnError(e)
+      } else {
+        false
+      }
     }
   }
 }

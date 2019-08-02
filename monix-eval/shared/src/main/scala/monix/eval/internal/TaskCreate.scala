@@ -57,7 +57,7 @@ private[eval] object TaskCreate {
       conn push cancelable.cancel
 
       try {
-        val ref = fn(s, protectedCallback(ctx, shouldPop = true, cb))
+        val ref = fn(s, new CallbackForCreate(ctx, shouldPop = true, cb))
         // Optimization to skip the assignment, as it's expensive
         if (!ref.isInstanceOf[Cancelable.IsDummy])
           setConnection(cancelable, ref)
@@ -107,7 +107,7 @@ private[eval] object TaskCreate {
     val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val s = ctx.scheduler
       try {
-        fn(s, protectedCallback(ctx, shouldPop = false, cb))
+        fn(s, new CallbackForCreate(ctx, shouldPop = false, cb))
         ()
       } catch {
         case ex if NonFatal(ex) =>
@@ -130,7 +130,7 @@ private[eval] object TaskCreate {
     val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val s = ctx.scheduler
       try {
-        k(protectedCallback(ctx, shouldPop = false, cb))
+        k(new CallbackForCreate(ctx, shouldPop = false, cb))
       } catch {
         case ex if NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
@@ -155,7 +155,7 @@ private[eval] object TaskCreate {
         val conn = ctx.connection
         conn.push(ctx2.connection.cancel)
         // Provided callback takes care of `conn.pop()`
-        val task = k(protectedCallback(ctx, shouldPop = true, cb))
+        val task = k(new CallbackForCreate(ctx, shouldPop = true, cb))
         Task.unsafeStartNow(task, ctx2, Callback.empty)
       } catch {
         case ex if NonFatal(ex) =>
@@ -168,12 +168,6 @@ private[eval] object TaskCreate {
     Async(start, trampolineBefore = false, trampolineAfter = false)
   }
 
-  private[internal] def protectedCallback[A](
-    ctx: Context,
-    shouldPop: Boolean,
-    cb: Callback[Throwable, A]): Callback[Throwable, A] =
-    new CallbackForCreate[A](ctx, shouldPop, cb)
-
   private final class CallbackForCreate[A](ctx: Context, threadId: Long, shouldPop: Boolean, cb: Callback[Throwable, A])
     extends Callback[Throwable, A] with TrampolinedRunnable {
 
@@ -185,21 +179,33 @@ private[eval] object TaskCreate {
     def this(ctx: Context, shouldPop: Boolean, cb: Callback[Throwable, A]) =
       this(ctx, Platform.currentThreadId(), shouldPop, cb)
 
-    override def onSuccess(value: A): Unit = {
+    override def onSuccess(value: A): Unit =
+      if (!tryOnSuccess(value)) {
+        throw new CallbackCalledMultipleTimesException("Callback.onSuccess")
+      }
+
+    override def onError(e: Throwable): Unit =
+      if (!tryOnError(e)) {
+        throw new CallbackCalledMultipleTimesException("Callback.onError", e)
+      }
+
+    override def tryOnSuccess(value: A): Boolean = {
       if (state.compareAndSet(0, 1)) {
         this.value = value
         startExecution()
+        true
       } else {
-        throw new CallbackCalledMultipleTimesException("Callback.onSuccess")
+        false
       }
     }
 
-    override def onError(e: Throwable): Unit = {
+    override def tryOnError(e: Throwable): Boolean = {
       if (state.compareAndSet(0, 2)) {
         this.error = e
         startExecution()
+        true
       } else {
-        throw new CallbackCalledMultipleTimesException("Callback.onError", e)
+        false
       }
     }
 
