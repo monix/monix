@@ -99,4 +99,3 @@ private[reactive] final class UnfoldObservable[S, A](seed: => S, f: S => Option[
   }
 
 }
-
