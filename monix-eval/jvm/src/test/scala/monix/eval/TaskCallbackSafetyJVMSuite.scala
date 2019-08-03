@@ -34,32 +34,32 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
   val RETRIES = if (!isTravis) 1000 else 100
 
   test("Task.async has a safe callback") {
-    runTest(Task.async)
+    runConcurrentCallbackTest(Task.async)
   }
 
   test("Task.async0 has a safe callback") {
-    runTest(f => Task.async0((_, cb) => f(cb)))
+    runConcurrentCallbackTest(f => Task.async0((_, cb) => f(cb)))
   }
 
   test("Task.asyncF has a safe callback") {
-    runTest(f => Task.asyncF(cb => Task(f(cb))))
+    runConcurrentCallbackTest(f => Task.asyncF(cb => Task(f(cb))))
   }
 
   test("Task.cancelable has a safe callback") {
-    runTest(f =>
+    runConcurrentCallbackTest(f =>
       Task.cancelable { cb =>
         f(cb); Task(())
       })
   }
 
   test("Task.cancelable0 has a safe callback") {
-    runTest(f =>
+    runConcurrentCallbackTest(f =>
       Task.cancelable0 { (_, cb) =>
         f(cb); Task(())
       })
   }
 
-  def runTest(create: (Callback[Throwable, Int] => Unit) => Task[Int]): Unit = {
+  def runConcurrentCallbackTest(create: (Callback[Throwable, Int] => Unit) => Task[Int]): Unit = {
     def run(trigger: Callback[Throwable, Int] => Unit): Unit = {
       implicit val sc: SchedulerService = Scheduler.io("task-callback-safety")
       try {
