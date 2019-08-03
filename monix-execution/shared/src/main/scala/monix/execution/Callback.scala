@@ -58,7 +58,7 @@ import scala.util.{Failure, Success, Try}
   *
   * @define callbackCalledMultipleTimes
   *         [[monix.execution.exceptions.CallbackCalledMultipleTimesException CallbackCalledMultipleTimesException]]
-  * 
+  *
   * @define tryMethodDescription In case the underlying callback
   *         implementation protects against protocol violations, then
   *         this method should return `false` in case the final result

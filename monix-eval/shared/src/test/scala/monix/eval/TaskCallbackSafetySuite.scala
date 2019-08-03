@@ -20,7 +20,7 @@ package monix.eval
 import monix.execution.Callback
 import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
 import monix.execution.schedulers.TestScheduler
-import scala.util.{Success, Failure}
+import scala.util.{Failure, Success}
 
 object TaskCallbackSafetySuite extends BaseTestSuite {
   test("Task.async's callback can be called multiple times") { implicit sc =>
@@ -36,13 +36,19 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
   }
 
   test("Task.cancelable's callback can be called multiple times") { implicit sc =>
-    runTestCanCallMultipleTimes(r => Task.cancelable { cb => r(cb); Task.unit })
+    runTestCanCallMultipleTimes(r =>
+      Task.cancelable { cb =>
+        r(cb); Task.unit
+      })
   }
 
   test("Task.cancelable0's callback can be called multiple times") { implicit sc =>
-    runTestCanCallMultipleTimes(r => Task.cancelable0 { (_, cb) => r(cb); Task.unit })
+    runTestCanCallMultipleTimes(r =>
+      Task.cancelable0 { (_, cb) =>
+        r(cb); Task.unit
+      })
   }
-  
+
   test("Task.async's register throwing is signaled as error") { implicit sc =>
     runTestRegisterCanThrow(Task.async)
   }
@@ -60,13 +66,19 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
   }
 
   test("Task.cancelable's register throwing is signaled as error") { implicit sc =>
-    runTestRegisterCanThrow(r => Task.cancelable { cb => r(cb); Task.unit })
+    runTestRegisterCanThrow(r =>
+      Task.cancelable { cb =>
+        r(cb); Task.unit
+      })
   }
 
   test("Task.cancelable0's register throwing is signaled as error") { implicit sc =>
-    runTestRegisterCanThrow(r => Task.cancelable0 { (_, cb) => r(cb); Task.unit })
+    runTestRegisterCanThrow(r =>
+      Task.cancelable0 { (_, cb) =>
+        r(cb); Task.unit
+      })
   }
-  
+
   test("Task.async's register throwing, after result, is reported") { implicit sc =>
     runTestRegisterThrowingCanBeReported(Task.async)
   }
@@ -84,18 +96,26 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
   }
 
   test("Task.cancelable's register throwing, after result, is reported") { implicit sc =>
-    runTestRegisterThrowingCanBeReported(r => Task.cancelable { cb => r(cb); Task.unit })
+    runTestRegisterThrowingCanBeReported(r =>
+      Task.cancelable { cb =>
+        r(cb); Task.unit
+      })
   }
 
   test("Task.cancelable0's register throwing, after result, is reported") { implicit sc =>
-    runTestRegisterThrowingCanBeReported(r => Task.cancelable0 { (_, cb) => r(cb); Task.unit })
+    runTestRegisterThrowingCanBeReported(r =>
+      Task.cancelable0 { (_, cb) =>
+        r(cb); Task.unit
+      })
   }
 
-  def runTestRegisterCanThrow(create: (Callback[Throwable, Int] => Unit) => Task[Int])
-    (implicit sc: TestScheduler): Unit = {
+  def runTestRegisterCanThrow(create: (Callback[Throwable, Int] => Unit) => Task[Int])(
+    implicit sc: TestScheduler): Unit = {
 
     var effect = 0
-    val task = create { _ => throw WrappedEx(10) }
+    val task = create { _ =>
+      throw WrappedEx(10)
+    }
 
     task.runAsync {
       case Right(_) => ()
@@ -108,8 +128,8 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     assertEquals(sc.state.lastReportedError, null)
   }
 
-  def runTestRegisterThrowingCanBeReported(create: (Callback[Throwable, Int] => Unit) => Task[Int])
-    (implicit sc: TestScheduler): Unit = {
+  def runTestRegisterThrowingCanBeReported(create: (Callback[Throwable, Int] => Unit) => Task[Int])(
+    implicit sc: TestScheduler): Unit = {
 
     var effect = 0
     val task = create { cb =>
@@ -128,8 +148,8 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     assertEquals(sc.state.lastReportedError, WrappedEx(10))
   }
 
-  def runTestCanCallMultipleTimes(create: (Callback[Throwable, Int] => Unit) => Task[Int])
-    (implicit sc: TestScheduler): Unit = {
+  def runTestCanCallMultipleTimes(create: (Callback[Throwable, Int] => Unit) => Task[Int])(
+    implicit sc: TestScheduler): Unit = {
 
     def run(expected: Int)(trySignal: Callback[Throwable, Int] => Boolean) = {
       var effect = 0
@@ -154,17 +174,35 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     run(1)(_.tryApply(Success(1)))
     run(1)(_.tryApply(Right(1)))
 
-    run(1)(cb => try { cb.onSuccess(1); true } catch { case _: CallbackCalledMultipleTimesException => false })
-    run(1)(cb => try { cb(Right(1)); true } catch { case _: CallbackCalledMultipleTimesException => false })
-    run(1)(cb => try { cb(Success(1)); true } catch { case _: CallbackCalledMultipleTimesException => false })
+    run(1)(cb =>
+      try {
+        cb.onSuccess(1); true
+      } catch { case _: CallbackCalledMultipleTimesException => false })
+    run(1)(cb =>
+      try {
+        cb(Right(1)); true
+      } catch { case _: CallbackCalledMultipleTimesException => false })
+    run(1)(cb =>
+      try {
+        cb(Success(1)); true
+      } catch { case _: CallbackCalledMultipleTimesException => false })
 
     run(10)(_.tryOnError(WrappedEx(10)))
     run(10)(_.tryApply(Failure(WrappedEx(10))))
     run(10)(_.tryApply(Left(WrappedEx(10))))
 
-    run(10)(cb => try { cb.onError(WrappedEx(10)); true } catch { case _: CallbackCalledMultipleTimesException => false })
-    run(10)(cb => try { cb(Left(WrappedEx(10))); true } catch { case _: CallbackCalledMultipleTimesException => false })
-    run(10)(cb => try { cb(Failure(WrappedEx(10))); true } catch { case _: CallbackCalledMultipleTimesException => false })
+    run(10)(cb =>
+      try {
+        cb.onError(WrappedEx(10)); true
+      } catch { case _: CallbackCalledMultipleTimesException => false })
+    run(10)(cb =>
+      try {
+        cb(Left(WrappedEx(10))); true
+      } catch { case _: CallbackCalledMultipleTimesException => false })
+    run(10)(cb =>
+      try {
+        cb(Failure(WrappedEx(10))); true
+      } catch { case _: CallbackCalledMultipleTimesException => false })
   }
 
   case class WrappedEx(nr: Int) extends RuntimeException

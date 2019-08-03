@@ -170,12 +170,14 @@ private[eval] object TaskCreate {
     }
   }
 
-  private final class ForwardErrorReporter(cb: Callback[Throwable, _])(implicit r: UncaughtExceptionReporter)
+  private final class ForwardErrorCallback(cb: Callback[Throwable, _])(implicit r: UncaughtExceptionReporter)
     extends Callback[Throwable, Unit] {
 
     override def onSuccess(value: Unit): Unit = ()
     override def onError(e: Throwable): Unit =
-      if (!cb.tryOnError(e)) { r.reportFailure(e) }
+      if (!cb.tryOnError(e)) {
+        r.reportFailure(e)
+      }
   }
 
   private final class CallbackForCreate[A](ctx: Context, threadId: Long, shouldPop: Boolean, cb: Callback[Throwable, A])
