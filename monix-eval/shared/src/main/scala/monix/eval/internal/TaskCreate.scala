@@ -236,13 +236,7 @@ private[eval] object TaskCreate {
         )
       } catch {
         case e: RejectedExecutionException =>
-          value = null.asInstanceOf[A]
-          if (error != null) {
-            val e = error
-            error = null
-            ctx.scheduler.reportFailure(e)
-          }
-          Callback.signalErrorTrampolined(cb, e)
+          forceErrorReport(e)
       }
     }
 
@@ -260,6 +254,16 @@ private[eval] object TaskCreate {
           error = null
           cb.onError(e)
       }
+    }
+
+    private def forceErrorReport(e: RejectedExecutionException): Unit = {
+      value = null.asInstanceOf[A]
+      if (error != null) {
+        val e = error
+        error = null
+        ctx.scheduler.reportFailure(e)
+      }
+      Callback.signalErrorTrampolined(cb, e)
     }
   }
 }
