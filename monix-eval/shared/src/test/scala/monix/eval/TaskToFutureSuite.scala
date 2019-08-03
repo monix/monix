@@ -18,6 +18,7 @@
 package monix.eval
 
 import monix.execution.exceptions.DummyException
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -28,6 +29,8 @@ object TaskToFutureSuite extends BaseTestSuite {
       Task.fromFuture(Future.successful(list.sum))
 
     val f = sum((0 until 100).toList).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Success(99 * 50)))
   }
 
@@ -36,6 +39,8 @@ object TaskToFutureSuite extends BaseTestSuite {
       Task.deferFuture(Future.successful(list.sum))
 
     val f = sum((0 until 100).toList).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Success(99 * 50)))
   }
 
@@ -44,24 +49,32 @@ object TaskToFutureSuite extends BaseTestSuite {
       Task.deferFutureAction(implicit s => Future.successful(list.sum))
 
     val f = sum((0 until 100).toList).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Success(99 * 50)))
   }
 
   test("Task.fromFuture(error) for already completed references") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Task.fromFuture(Future.failed(dummy)).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("Task.deferFuture(error) for already completed references") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Task.deferFuture(Future.failed(dummy)).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
   test("Task.deferFutureAction(error) for already completed references") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Task.deferFutureAction(_ => Future.failed(dummy)).runToFuture
+
+    s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 

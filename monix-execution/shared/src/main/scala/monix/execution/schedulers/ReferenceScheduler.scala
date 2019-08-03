@@ -19,9 +19,8 @@ package monix.execution.schedulers
 
 import monix.execution.cancelables.OrderedCancelable
 import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
-import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter}
 import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
-
 import monix.execution.internal.InterceptableRunnable
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
@@ -125,6 +124,8 @@ object ReferenceScheduler {
       s.clockMonotonic(unit)
     override def withExecutionModel(em: ExecModel): Scheduler =
       copy(s, em)
+    override def features: Features =
+      s.features
     override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
       copy(reporter = r)
   }

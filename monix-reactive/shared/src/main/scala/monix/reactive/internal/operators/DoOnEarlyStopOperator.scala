@@ -46,7 +46,10 @@ private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit]) exten
           .onErrorHandle { ex =>
             onError(ex); Stop
           }
-          .flatMap { case Continue => ContinueTask; case Stop => onStop.map(_ => Stop) }
+          .flatMap {
+            case Continue => ContinueTask
+            case Stop => onStop.map(_ => Stop)
+          }
 
         val future = task.runToFuture
         // Execution might be immediate

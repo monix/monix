@@ -15,53 +15,45 @@
  * limitations under the License.
  */
 
-package monix.tail.internal
+package monix.tail
+package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.Platform
-import monix.tail.Iterant
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
-import monix.tail.batches.{BatchCursor, GenericBatch, GenericCursor}
 
-private[tail] object IterantRepeat {
+object IterantRetryIfEmpty {
   /**
-    * Implementation for `Iterant.repeat`.
+    * Implementation for `Iterant.retryIfEmpty`.
     */
-  def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
+  def apply[F[_], A](source: Iterant[F, A], maxRetries: Option[Int])(implicit F: Sync[F]): Iterant[F, A] =
     source match {
-      case Halt(_) => source
-      case Last(item) => repeatOne(item)
+      case Last(_) | Next(_, _) =>
+        source
+      case Halt(_) if maxRetries.exists(_ > 0) =>
+        source
       case _ =>
-        Suspend(F.delay { new Loop[F, A](source).cycle() })
+        Suspend(F.delay {
+          new Loop[F, A](source, maxRetries).cycle()
+        })
     }
 
-  private def repeatOne[F[_], A](item: A)(implicit F: Sync[F]): Iterant[F, A] = {
-    val batch = new GenericBatch[A] {
-      def cursor(): BatchCursor[A] =
-        new GenericCursor[A] {
-          def hasNext(): Boolean = true
-          def next(): A = item
-          def recommendedBatchSize: Int =
-            Platform.recommendedBatchSize
-        }
-    }
-    NextBatch(batch, F.pure(Iterant.empty))
-  }
-
-  private final class Loop[F[_], A](source: Iterant[F, A])(implicit F: Sync[F])
+  private final class Loop[F[_], A](source: Iterant[F, A], maxRetries: Option[Int])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
     private[this] var hasElements = false
-    private[this] val repeatTask = F.delay {
-      if (hasElements)
-        cycle()
-      else
+    private[this] var retriesRemaining = maxRetries.getOrElse(-1)
+    private[this] val retryTask = F.delay {
+      if (hasElements || retriesRemaining == 0)
         Iterant.empty[F, A]
+      else {
+        if (retriesRemaining > 0) retriesRemaining -= 1
+        cycle()
+      }
     }
 
     def cycle(): Iterant[F, A] = {
-      Concat(F.pure(apply(source)), repeatTask)
+      Concat(F.pure(apply(source)), retryTask)
     }
 
     override def visit(ref: Next[F, A]): Iterant[F, A] = {
@@ -78,27 +70,21 @@ private[tail] object IterantRepeat {
 
     override def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
       hasElements = hasElements || !ref.cursor.isEmpty
-      if (hasElements)
-        ref
-      else
-        Suspend(ref.rest.map(this))
+      if (hasElements) ref
+      else Suspend(ref.rest.map(this))
     }
 
     override def visit(ref: Suspend[F, A]): Iterant[F, A] =
       Suspend(ref.rest.map(this))
 
     override def visit(ref: Concat[F, A]): Iterant[F, A] = {
-      if (hasElements)
-        ref
-      else
-        Concat(ref.lh.map(this), ref.rh.map(this))
+      if (hasElements) ref
+      else Concat(ref.lh.map(this), ref.rh.map(this))
     }
 
     override def visit[S](ref: Scope[F, S, A]): Iterant[F, A] = {
-      if (hasElements)
-        ref
-      else
-        ref.runMap(this)
+      if (hasElements) ref
+      else ref.runMap(this)
     }
 
     override def visit(ref: Last[F, A]): Iterant[F, A] = {

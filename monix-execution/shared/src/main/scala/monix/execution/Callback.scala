@@ -213,34 +213,38 @@ object Callback {
   private[monix] class Base[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Callback[E, A] with Runnable {
 
-    private[this] var state = 0
+    private[this] val state = monix.execution.atomic.AtomicInt(0)
     private[this] var value: A = _
     private[this] var error: E = _
 
     final def onSuccess(value: A): Unit = {
-      if (state == 0) {
-        state = 1
+      if (state.compareAndSet(0, 1)) {
         this.value = value
         ec.execute(this)
+      } else {
+        throw new IllegalStateException("Callback.onSuccess signaled multiple times")
       }
     }
+
     final def onError(e: E): Unit = {
-      if (state == 0) {
-        state = 2
+      if (state.compareAndSet(0, 2)) {
         this.error = e
         ec.execute(this)
       } else {
         ec.reportFailure(UncaughtErrorException.wrap(e))
       }
     }
+
     def run() = {
-      val e = error
-      if (state == 1) {
-        cb.onSuccess(value)
-        value = null.asInstanceOf[A]
-      } else {
-        cb.onError(e)
-        error = null.asInstanceOf[E]
+      state.get match {
+        case 1 =>
+          val v = value
+          value = null.asInstanceOf[A]
+          cb.onSuccess(v)
+        case 2 =>
+          val e = error
+          error = null.asInstanceOf[E]
+          cb.onError(e)
       }
     }
   }

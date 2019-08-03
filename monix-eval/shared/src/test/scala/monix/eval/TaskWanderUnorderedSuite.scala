@@ -147,7 +147,8 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
         .raiseError[Int](ex)
         .executeAsync
         .doOnFinish { x =>
-          if (x.isDefined) errorsThrow += 1; Task.unit
+          if (x.isDefined) errorsThrow += 1
+          Task.unit
         }
         .uncancelable
     }
@@ -192,5 +193,4 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     val result1 = task1.runToFuture; s.tick()
     assertEquals(result1.value, Some(Failure(ex)))
   }
-
 }

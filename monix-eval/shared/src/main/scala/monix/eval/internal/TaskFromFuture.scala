@@ -22,7 +22,6 @@ import monix.execution._
 import monix.eval.Task
 import monix.execution.cancelables.SingleAssignCancelable
 import scala.util.control.NonFatal
-import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.schedulers.TrampolinedRunnable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -48,8 +47,8 @@ private[eval] object TaskFromFuture {
 
   /** Implementation for `Task.deferFutureAction`. */
   def deferAction[A](f: Scheduler => Future[A]): Task[A] =
-    rawAsync[A] { (context, callback) =>
-      implicit val sc = context.scheduler
+    rawAsync[A] { (ctx, cb) =>
+      implicit val sc = ctx.scheduler
       // Prevents violations of the Callback contract
       var streamErrors = true
       try {
@@ -58,21 +57,18 @@ private[eval] object TaskFromFuture {
 
         future.value match {
           case Some(value) =>
-            // Already completed future, streaming value immediately,
-            // but with light async boundary to prevent stack overflows
-            callback(value)
-
+            cb(value)
           case None =>
             future match {
               case cf: CancelableFuture[A] @unchecked =>
-                startCancelable(context, callback, cf, cf.cancelable)
+                startCancelable(ctx, cb, cf, cf.cancelable)
               case _ =>
-                startSimple(context, callback, future)
+                startSimple(ctx, cb, future)
             }
         }
       } catch {
         case ex if NonFatal(ex) =>
-          if (streamErrors) callback.onError(ex)
+          if (streamErrors) cb.onError(ex)
           else sc.reportFailure(ex)
       }
     }
@@ -107,21 +103,22 @@ private[eval] object TaskFromFuture {
     )
 
   private def startSimple[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {
+
     f.value match {
       case Some(value) =>
-        // Short-circuit the processing, as future is already complete
         cb(value)
       case None =>
-        f.onComplete(cb(_))(immediate)
+        f.onComplete { result =>
+          cb(result)
+        }(ctx.scheduler)
     }
   }
 
   private def startCancelable[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A], c: Cancelable): Unit = {
+
     f.value match {
       case Some(value) =>
-        // Short-circuit the processing, as future is already complete
         cb(value)
-
       case None =>
         // Given a cancelable future, we should use it
         val conn = ctx.connection
@@ -130,7 +127,7 @@ private[eval] object TaskFromFuture {
         f.onComplete { result =>
           conn.pop()
           cb(result)
-        }(immediate)
+        }(ctx.scheduler)
     }
   }
 

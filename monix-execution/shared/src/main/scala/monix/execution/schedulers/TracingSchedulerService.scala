@@ -45,8 +45,7 @@ final class TracingSchedulerService(underlying: SchedulerService)
     underlying.awaitTermination(timeout, unit, awaitOn)
   override def withExecutionModel(em: ExecutionModel): TracingSchedulerService =
     new TracingSchedulerService(underlying.withExecutionModel(em))
-
-  def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): TracingSchedulerService =
+  override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): TracingSchedulerService =
     new TracingSchedulerService(underlying.withUncaughtExceptionReporter(r))
 }
 
@@ -55,5 +54,8 @@ object TracingSchedulerService {
     * `underlying` scheduler given.
     */
   def apply(underlying: SchedulerService): TracingSchedulerService =
-    new TracingSchedulerService(underlying)
+    underlying match {
+      case ref: TracingSchedulerService => ref
+      case _ => new TracingSchedulerService(underlying)
+    }
 }

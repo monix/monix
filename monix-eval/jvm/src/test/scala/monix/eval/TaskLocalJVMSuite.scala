@@ -33,9 +33,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     }
 
   test("locals get transported with executeOn and shift") {
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-    import Scheduler.Implicits.global
-
+    import Scheduler.Implicits.traced
     val ec = Scheduler.computation(4, "ec1")
     val ec2 = Scheduler.computation(4, "ec2")
 
@@ -54,7 +52,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           v5    <- local.read.executeOn(ec)
         } yield v1 :: v2 :: v3 :: v4 :: v5 :: Nil
 
-      val r = task.runSyncUnsafeOpt(Duration.Inf)
+      val r = task.runSyncUnsafe(Duration.Inf)
       assertEquals(r, List(100, 100, 100, 100, 100))
     } finally {
       ec.shutdown()
@@ -63,8 +61,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
   }
 
   test("locals get transported with executeWithModel") {
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-    import Scheduler.Implicits.global
+    import Scheduler.Implicits.traced
 
     val task =
       for {
@@ -74,13 +71,12 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
         v     <- local.read
       } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
   test("locals get transported with executeWithOptions") {
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-    import Scheduler.Implicits.global
+    import Scheduler.Implicits.traced
 
     val task =
       for {
@@ -90,13 +86,12 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
         v     <- local.read
       } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
   test("local.write.executeOn(forceAsync = false) works") {
-    import Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    import Scheduler.Implicits.traced
     val ec = Scheduler.computation(4, "ec1")
 
     val task = for {
@@ -106,13 +101,12 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       v <- l.read
     } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
   test("local.write.executeOn(forceAsync = true) works") {
-    import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    import monix.execution.Scheduler.Implicits.traced
     val ec = Scheduler.computation(4, "ec1")
 
     val task = for {
@@ -122,11 +116,38 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       v <- l.read
     } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
-  test("local state is encapsulated by Task run loop") {
+  test("local state is encapsulated by Task run loop with TracingScheduler") {
+    import monix.execution.Scheduler.Implicits.traced
+    val local = TaskLocal(0).memoize
+
+    val task = for {
+      l <- local
+      x <- l.read
+      _ <- l.write(x + 1)
+    } yield x
+
+    val runMethods: List[Task[Int] => Int] = List(
+      _.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe(),
+      _.executeAsync.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe(),
+      _.runSyncUnsafe(),
+      _.executeWithOptions(_.enableLocalContextPropagation).to[IO].unsafeRunSync(),
+      t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).runToFuture, 1.second),
+      t => Await.result(t.runToFuture, 1.second),
+      t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).to[IO].unsafeToFuture(), 1.second)
+    )
+
+    for (method <- runMethods) {
+      for (_ <- 1 to 10) method(task)
+      val r = method(task)
+      assertEquals(r, 0)
+    }
+  }
+
+  test("local state is encapsulated by Task run loop without TracingScheduler") {
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     val local = TaskLocal(0).memoize

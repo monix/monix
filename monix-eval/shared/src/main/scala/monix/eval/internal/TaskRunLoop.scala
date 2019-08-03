@@ -131,10 +131,11 @@ private[eval] object TaskRunLoop {
               if (context ne old) {
                 em = context.scheduler.executionModel
                 if (rcb ne null) rcb.contextSwitch(context)
-                if (restore ne null)
+                if (restore ne null) {
                   /*_*/
                   current = FlatMap(next, new RestoreContext(old, restore))
-                /*_*/
+                  /*_*/
+                }
               }
               // If LCP has changed to "enable", encapsulate local context
               val useLCP = context.options.localContextPropagation
