@@ -24,16 +24,18 @@ import minitest.api.{AssertionException, MiniTestException}
 import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
 import monix.execution.schedulers.SchedulerService
 
+import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
-  val WORKERS = 10
-  val RETRIES = 1000
-
   val isTravis = {
     System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
   }
+
+  val WORKERS = 10
+  val RETRIES = if (!isTravis) 1000 else 100
+  val DUMMY = DummyException("dummy")
 
   override def setup(): SchedulerService =
     Scheduler.io("test-callback")
@@ -67,60 +69,70 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
     executeOnErrorTest(Callback[Throwable].forked, isForked = true)
   }
 
-  test("Normal callback is not thread-safe via onSuccess") { implicit sc =>
-    intercept[AssertionException] {
-      executeOnSuccessTest(x => x)
+  test("Callback.fromPromise is thread-safe onSuccess") { implicit sc =>
+    val wrap = { (cb: Callback[Throwable, Int]) =>
+      val p = Promise[Int]()
+      p.future.onComplete(cb.apply)
+      Callback[Throwable].fromPromise(p)
     }
+    executeOnSuccessTest(wrap, isForked = true)
+  }
+
+  test("Callback.fromPromise is thread-safe onError") { implicit sc =>
+    val wrap = { (cb: Callback[Throwable, String]) =>
+      val p = Promise[String]()
+      p.future.onComplete(cb.apply)
+      Callback[Throwable].fromPromise(p)
+    }
+    executeOnErrorTest(wrap, isForked = true)
+  }
+
+  test("Normal callback is not thread-safe via onSuccess") { implicit sc =>
+    intercept[AssertionException] { executeOnSuccessTest(x => x) }
   }
 
   test("Normal callback is not thread-safe via onError") { implicit sc =>
-    intercept[AssertionException] {
-      executeOnErrorTest(x => x)
-    }
+    intercept[AssertionException] { executeOnErrorTest(x => x) }
   }
 
   test("Callback.fromAttempt is not thread-safe via onSuccess") { implicit sc =>
     if (isTravis) ignore()
 
-    intercept[AssertionException] {
-      executeOnSuccessTest({ cb =>
-        val f = (r: Either[Throwable, Int]) => cb(r)
-        Callback.fromAttempt(f)
-      }, retries = RETRIES * 10)
+    val wrap = { (cb: Callback[Throwable, Int]) =>
+      val f = (r: Either[Throwable, Int]) => cb(r)
+      Callback.fromAttempt(f)
     }
+    intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
   }
 
   test("Callback.fromAttempt is not thread-safe via onError") { implicit sc =>
     if (isTravis) ignore()
 
-    intercept[AssertionException] {
-      executeOnErrorTest({ cb =>
-        val f = (r: Either[Throwable, String]) => cb(r)
-        Callback.fromAttempt(f)
-      }, retries = RETRIES * 10)
+    val wrap = { (cb: Callback[Throwable, String]) =>
+      val f = (r: Either[Throwable, String]) => cb(r)
+      Callback.fromAttempt(f)
     }
+    intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
   }
 
   test("Callback.fromTry is not thread-safe via onSuccess") { implicit sc =>
     if (isTravis) ignore()
 
-    intercept[AssertionException] {
-      executeOnSuccessTest({ cb =>
-        val f = (r: Try[Int]) => cb(r)
-        Callback.fromTry(f)
-      }, retries = RETRIES * 10)
+    val wrap = { (cb: Callback[Throwable, Int]) =>
+      val f = (r: Try[Int]) => cb(r)
+      Callback[Throwable].fromTry(f)
     }
+    intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
   }
 
   test("Callback.fromTry is not thread-safe via onError") { implicit sc =>
     if (isTravis) ignore()
 
-    intercept[AssertionException] {
-      executeOnErrorTest({ cb =>
-        val f = (r: Try[String]) => cb(r)
-        Callback.fromTry(f)
-      }, retries = RETRIES * 10)
+    val wrap = { (cb: Callback[Throwable, String]) =>
+      val f = (r: Try[String]) => cb(r)
+      Callback[Throwable].fromTry(f)
     }
+    intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
   }
 
   test("Callback.fromAttempt is quasi-safe via onSuccess") { implicit sc =>
@@ -164,40 +176,52 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
   }
 
   def executeQuasiSafeOnSuccessTest(wrap: Callback[Throwable, Int] => Callback[Throwable, Int]): Unit = {
-    var effect = 0
-    val cb = wrap(new Callback[Throwable, Int] {
-      override def onSuccess(value: Int): Unit =
-        effect += value
-      override def onError(e: Throwable): Unit =
-        ()
-    })
+    def run(
+      trigger: Callback[Throwable, Int] => Unit,
+      tryTrigger: Callback[Throwable, Int] => Boolean): Unit = {
 
-    assert(cb.tryOnSuccess(1), "cb.tryOnSuccess(1)")
-    assert(!cb.tryOnSuccess(1), "!cb.tryOnSuccess(1)")
+      var effect = 0
+      val cb = wrap(new Callback[Throwable, Int] {
+        override def onSuccess(value: Int): Unit =
+          effect += value
+        override def onError(e: Throwable): Unit =
+          ()
+      })
 
-    intercept[CallbackCalledMultipleTimesException] {
-      cb.onSuccess(1)
+      assert(tryTrigger(cb), "cb.tryOnSuccess(1)")
+      assert(!tryTrigger(cb), "!cb.tryOnSuccess(1)")
+
+      intercept[CallbackCalledMultipleTimesException] { trigger(cb) }
+      assertEquals(effect, 1)
     }
-    assertEquals(effect, 1)
+   
+    run(_.onSuccess(1), _.tryOnSuccess(1))
+    run(_.apply(Right(1)), _.tryApply(Right(1)))
+    run(_.apply(Success(1)), _.tryApply(Success(1)))
   }
 
   def executeQuasiSafeOnFailureTest(wrap: Callback[Throwable, Int] => Callback[Throwable, Int]): Unit = {
-    var effect = 0
-    val cb = wrap(new Callback[Throwable, Int] {
-      override def onSuccess(value: Int): Unit =
-        ()
-      override def onError(e: Throwable): Unit =
-        effect += 1
-    })
+    def run(
+      trigger: Callback[Throwable, Int] => Unit,
+      tryTrigger: Callback[Throwable, Int] => Boolean): Unit = {
 
-    val dummy = DummyException("dummy")
-    assert(cb.tryOnError(dummy), "cb.tryOnError(1)")
-    assert(!cb.tryOnError(dummy), "!cb.tryOnError(1)")
+      var effect = 0
+      val cb = wrap(new Callback[Throwable, Int] {
+        override def onSuccess(value: Int): Unit =
+          ()
+        override def onError(e: Throwable): Unit =
+          effect += 1
+      })
 
-    intercept[CallbackCalledMultipleTimesException] {
-      cb.onError(dummy)
+      assert(tryTrigger(cb), "cb.tryOnError(1)")
+      assert(!tryTrigger(cb), "!cb.tryOnError(1)")
+      intercept[CallbackCalledMultipleTimesException] { trigger(cb) }
+      assertEquals(effect, 1)
     }
-    assertEquals(effect, 1)
+
+    run(_.onError(DUMMY), _.tryOnError(DUMMY))
+    run(_.apply(Left(DUMMY)), _.tryApply(Left(DUMMY)))
+    run(_.apply(Failure(DUMMY)), _.tryApply(Failure(DUMMY)))
   }
 
   def executeOnSuccessTest(
@@ -205,25 +229,35 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
     isForked: Boolean = false,
     retries: Int = RETRIES)(implicit sc: Scheduler): Unit = {
 
-    for (_ <- 0 until retries) {
-      var effect = 0
-      val awaitCallbacks = if (isForked) new CountDownLatch(1) else null
+    def run(trigger: Callback[Throwable, Int] => Unit): Unit = {
+      for (_ <- 0 until retries) {
+        var effect = 0
+        val awaitCallbacks = if (isForked) new CountDownLatch(1) else null
 
-      val cb = wrap(new Callback[Throwable, Int] {
-        override def onSuccess(value: Int): Unit = {
-          effect += value
-          if (isForked) {
-            awaitCallbacks.countDown()
+        val cb = wrap(new Callback[Throwable, Int] {
+          override def onSuccess(value: Int): Unit = {
+            effect += value
+            if (isForked) {
+              awaitCallbacks.countDown()
+            }
           }
-        }
-        override def onError(e: Throwable): Unit =
-          throw e
-      })
+          override def onError(e: Throwable): Unit =
+            throw e
+        })
 
-      runConcurrently(sc)(cb.tryOnSuccess(1))
-      if (isForked) await(awaitCallbacks)
-      assertEquals(effect, 1)
+        runConcurrently(sc)(trigger(cb))
+        if (isForked) await(awaitCallbacks)
+        assertEquals(effect, 1)
+      }
     }
+
+    run(_.tryOnSuccess(1))
+    run(_.tryApply(Right(1)))
+    run(_.tryApply(Success(1)))
+
+    run(cb => try cb.onSuccess(1) catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb => try cb(Right(1)) catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb => try cb(Success(1)) catch { case _: CallbackCalledMultipleTimesException => () })
   }
 
   def executeOnErrorTest(
@@ -231,23 +265,32 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
     isForked: Boolean = false,
     retries: Int = RETRIES)(implicit sc: Scheduler): Unit = {
 
-    for (_ <- 0 until retries) {
-      var effect = 0
-      val awaitCallbacks = if (isForked) new CountDownLatch(1) else null
+    def run(trigger: Callback[Throwable, String] => Unit): Unit = {
+      for (_ <- 0 until retries) {
+        var effect = 0
+        val awaitCallbacks = if (isForked) new CountDownLatch(1) else null
 
-      val cb = wrap(new Callback[Throwable, String] {
-        override def onSuccess(value: String): Unit = ()
-        override def onError(e: Throwable): Unit = {
-          effect += 1
-          if (isForked) awaitCallbacks.countDown()
-        }
-      })
+        val cb = wrap(new Callback[Throwable, String] {
+          override def onSuccess(value: String): Unit = ()
+          override def onError(e: Throwable): Unit = {
+            effect += 1
+            if (isForked) awaitCallbacks.countDown()
+          }
+        })
 
-      val e = DummyException("dummy")
-      runConcurrently(sc)(cb.tryOnError(e))
-      if (isForked) await(awaitCallbacks)
-      assertEquals(effect, 1)
+        runConcurrently(sc)(trigger(cb))
+        if (isForked) await(awaitCallbacks)
+        assertEquals(effect, 1)
+      }
     }
+
+    run(_.tryOnError(DUMMY))
+    run(_.tryApply(Left(DUMMY)))
+    run(_.tryApply(Failure(DUMMY)))
+
+    run(cb => try cb.onError(DUMMY) catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb => try cb.tryApply(Left(DUMMY)) catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb => try cb.tryApply(Failure(DUMMY)) catch { case _: CallbackCalledMultipleTimesException => () })
   }
 
   def runConcurrently(sc: Scheduler)(f: => Unit): Unit = {

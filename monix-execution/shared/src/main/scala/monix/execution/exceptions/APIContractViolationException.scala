@@ -22,7 +22,7 @@ import scala.util.Try
 
 /** Generic exception thrown on API contract violations. */
 class APIContractViolationException(val message: String, cause: Throwable)
-  extends RuntimeException(message, cause) with Serializable {
+  extends IllegalStateException(message, cause) with Serializable {
 
   def this(message: String) = this(message, null)
   def this(cause: Throwable) = this(null, cause)

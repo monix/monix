@@ -18,8 +18,9 @@
 package monix.execution
 
 import minitest.TestSuite
-import monix.execution.exceptions.DummyException
+import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
 import monix.execution.schedulers.TestScheduler
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -92,6 +93,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     cb.onSuccess(1)
     assertEquals(p.future.value, Some(Success(1)))
     intercept[IllegalStateException] { cb.onSuccess(2) }
+    intercept[CallbackCalledMultipleTimesException] { cb.onSuccess(2) }
   }
 
   test("Callback.fromPromise (failure)") { _ =>
@@ -103,6 +105,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
     assertEquals(p.future.value, Some(Failure(dummy)))
     intercept[IllegalStateException] { cb.onSuccess(1) }
+    intercept[CallbackCalledMultipleTimesException] { cb.onSuccess(1) }
   }
 
   test("Callback.empty reports errors") { implicit s =>
