@@ -18,17 +18,20 @@
 package monix.eval
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 import minitest.SimpleTestSuite
-import monix.execution.CallbackSafetyJVMSuite.{assert, await, WORKERS}
+import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
 import monix.execution.schedulers.SchedulerService
 import monix.execution.{Callback, Scheduler}
-
 import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
+  val isTravis = {
+    System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
+  }
+
   val WORKERS = 10
-  val RETRIES = 1000
+  val RETRIES = if (!isTravis) 1000 else 100
 
   test("Task.async has a safe callback") {
     runTest(Task.async)
@@ -57,30 +60,49 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
   }
 
   def runTest(create: (Callback[Throwable, Int] => Unit) => Task[Int]): Unit = {
-    implicit val sc: SchedulerService = Scheduler.io("task-callback-safety")
-    try {
-      for (_ <- 0 until RETRIES) {
-        val task = create { cb =>
-          runConcurrently(sc)(cb.tryOnSuccess(1))
-        }
-        val latch = new CountDownLatch(1)
-        var effect = 0
+    def run(trigger: Callback[Throwable, Int] => Unit): Unit = {
+      implicit val sc: SchedulerService = Scheduler.io("task-callback-safety")
+      try {
+        for (_ <- 0 until RETRIES) {
+          val task = create { cb => runConcurrently(sc)(trigger(cb)) }
+          val latch = new CountDownLatch(1)
+          var effect = 0
 
-        task.runAsync {
-          case Right(a) =>
-            effect += a
-            latch.countDown()
-          case Left(_) =>
-            latch.countDown()
-        }
+          task.runAsync {
+            case Right(_) =>
+              effect += 1
+              latch.countDown()
+            case Left(_) =>
+              effect += 1
+              latch.countDown()
+          }
 
-        await(latch)
-        assertEquals(effect, 1)
+          await(latch)
+          assertEquals(effect, 1)
+        }
+      } finally {
+        sc.shutdown()
+        assert(sc.awaitTermination(10.seconds), "io.awaitTermination")
       }
-    } finally {
-      sc.shutdown()
-      assert(sc.awaitTermination(10.seconds), "io.awaitTermination")
     }
+
+    run(_.tryOnSuccess(1))
+    run(_.tryApply(Right(1)))
+    run(_.tryApply(Success(1)))
+
+    run(cb => try cb.onSuccess(1) catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb => try cb(Right(1)) catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb => try cb(Success(1)) catch { case _: CallbackCalledMultipleTimesException => () })
+
+    val dummy = DummyException("dummy")
+
+    run(_.tryOnError(dummy))
+    run(_.tryApply(Left(dummy)))
+    run(_.tryApply(Failure(dummy)))
+
+    run(cb => try cb.onError(dummy) catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb => try cb(Left(dummy)) catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb => try cb(Failure(dummy)) catch { case _: CallbackCalledMultipleTimesException => () })
   }
 
   def runConcurrently(sc: Scheduler)(f: => Unit): Unit = {
