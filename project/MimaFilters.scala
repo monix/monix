@@ -3,6 +3,9 @@ import com.typesafe.tools.mima.core._
 
 object MimaFilters {
   lazy val changesFor_3_0_0: Seq[ProblemFilter] = Seq(
+    // https://github.com/monix/monix/pull/971
+    // Should not be a problem, but I'm not absolutely sure
+    exclude[MissingTypesProblem]("monix.execution.exceptions.APIContractViolationException"),
     // Breaking changes for https://github.com/monix/monix/pull/960
     exclude[ReversedMissingMethodProblem]("monix.execution.Scheduler.features"),
     // Local changes :-(

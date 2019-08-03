@@ -74,7 +74,7 @@ private[eval] object TaskExecuteOn {
         )
       } catch {
         case e: RejectedExecutionException =>
-          ctx2.scheduler.executeTrampolined(() => cb.onError(e))
+          Callback.signalErrorTrampolined(cb, e)
       }
     }
   }
@@ -88,7 +88,7 @@ private[eval] object TaskExecuteOn {
         Task.unsafeStartNow(source, ctx2, cb)
       } catch {
         case e: RejectedExecutionException =>
-          ctx2.scheduler.executeTrampolined(() => cb.onError(e))
+          Callback.signalErrorTrampolined(cb, e)
       }
     }
   }

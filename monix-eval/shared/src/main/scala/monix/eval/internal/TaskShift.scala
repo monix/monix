@@ -17,12 +17,11 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context}
-import monix.execution.{Callback, Scheduler}
-import monix.eval.Task
-import monix.execution.schedulers.TracingScheduler
 import java.util.concurrent.RejectedExecutionException
-
+import monix.eval.Task
+import monix.eval.Task.{Async, Context}
+import monix.execution.schedulers.TracingScheduler
+import monix.execution.{Callback, Scheduler}
 import scala.concurrent.ExecutionContext
 
 private[eval] object TaskShift {
@@ -68,7 +67,7 @@ private[eval] object TaskShift {
         })
       } catch {
         case e: RejectedExecutionException =>
-          cb.onError(e)
+          Callback.signalErrorTrampolined(cb, e)
       }
     }
   }

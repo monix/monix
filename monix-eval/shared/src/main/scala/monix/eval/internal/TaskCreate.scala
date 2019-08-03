@@ -25,7 +25,7 @@ import monix.eval.{Coeval, Task}
 import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.CallbackCalledMultipleTimesException
 import monix.execution.internal.Platform
-import monix.execution.schedulers.{StartAsyncBatchRunnable, TrampolineExecutionContext, TrampolinedRunnable}
+import monix.execution.schedulers.{StartAsyncBatchRunnable, TrampolinedRunnable}
 import monix.execution.{Callback, Cancelable, Scheduler, UncaughtExceptionReporter}
 
 import scala.util.control.NonFatal
@@ -236,16 +236,9 @@ private[eval] object TaskCreate {
         )
       } catch {
         case e: RejectedExecutionException =>
-          if (error != null) {
-            val e2 = error
-            error = null
-            ctx.scheduler.reportFailure(e2)
-          }
-          state.set(2)
-          this.value = null.asInstanceOf[A]
-          this.error = e
-          isSameThread = true
-          TrampolineExecutionContext.immediate.execute(this)
+          value = null.asInstanceOf[A]
+          if (error != null) ctx.scheduler.reportFailure(error)
+          Callback.signalErrorTrampolined(cb, e)
       }
     }
 

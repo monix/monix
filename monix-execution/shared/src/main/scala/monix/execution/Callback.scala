@@ -18,7 +18,7 @@
 package monix.execution
 
 import monix.execution.exceptions.{CallbackCalledMultipleTimesException, UncaughtErrorException}
-import monix.execution.schedulers.TrampolinedRunnable
+import monix.execution.schedulers.{TrampolineExecutionContext, TrampolinedRunnable}
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -341,6 +341,12 @@ object Callback {
       case ref: Callback[E, A] @unchecked => ref.onError(value)
       case _ => cb(Left(value))
     }
+
+  private[monix] def signalErrorTrampolined[E, A](cb: Callback[E, A], e: E): Unit =
+    TrampolineExecutionContext.immediate.execute(new Runnable {
+      override def run(): Unit =
+        cb.onError(e)
+    })
 
   /** Functions exposed via [[apply]]. */
   final class Builders[E](val ev: Boolean = true) extends AnyVal {
