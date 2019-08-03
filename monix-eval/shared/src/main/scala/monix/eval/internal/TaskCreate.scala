@@ -237,7 +237,11 @@ private[eval] object TaskCreate {
       } catch {
         case e: RejectedExecutionException =>
           value = null.asInstanceOf[A]
-          if (error != null) ctx.scheduler.reportFailure(error)
+          if (error != null) {
+            val e = error
+            error = null
+            ctx.scheduler.reportFailure(e)
+          }
           Callback.signalErrorTrampolined(cb, e)
       }
     }
