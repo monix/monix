@@ -53,10 +53,31 @@ import scala.util.{Failure, Success, Try}
   *
   *         @throws CallbackCalledMultipleTimesException depending on
   *                 implementation, when signaling via this callback is
-  *                 attempted multiple times.
+  *                 attempted multiple times and the protocol violation
+  *                 is detected.
   *
   * @define callbackCalledMultipleTimes
   *         [[monix.execution.exceptions.CallbackCalledMultipleTimesException CallbackCalledMultipleTimesException]]
+  * 
+  * @define tryMethodDescription In case the underlying callback
+  *         implementation protects against protocol violations, then
+  *         this method should return `false` in case the final result
+  *         was already signaled once via [[onSuccess]] or
+  *         [[onError]].
+  *
+  *         The default implementation relies on catching
+  *         $callbackCalledMultipleTimes in case of violations, which
+  *         is what thread-safe implementations of `onSuccess` or
+  *         `onError` are usually throwing.
+  *
+  *         WARNING: this method is only provided as a
+  *         convenience. The presence of this method does not
+  *         guarantee that the underlying callback is thread-safe or
+  *         that it protects against protocol violations.
+  *
+  *         @return `true` if the invocation completes normally or
+  *                 `false` in case another concurrent call succeeded
+  *                 first in signaling a result
   */
 abstract class Callback[-E, -A] extends (Either[E, A] => Unit) {
   /**
@@ -105,24 +126,7 @@ abstract class Callback[-E, -A] extends (Either[E, A] => Unit) {
   /**
     * Attempts to call [[Callback.onSuccess]].
     *
-    * In case the underlying callback implementation protects
-    * against protocol violations, then this method should return
-    * `false` in case the final result was already signaled once
-    * via [[onSuccess]] or [[onError]].
-    *
-    * The default implementation relies on catching
-    * $callbackCalledMultipleTimes in case of violations, which
-    * is what thread-safe implementations of `onSuccess` or `onError`
-    * are usually throwing.
-    *
-    * WARNING: this method is only provided as a convenience. The
-    * presence of this method does not guarantee that the underlying
-    * callback is thread-safe or that it protects against protocol
-    * violations.
-    *
-    * @return `true` if the [[onSuccess]] invocation completes normally
-    *         or `false` in case another concurrent call succeeded
-    *         first in signaling a result
+    * $tryMethodDescription
     */
   def tryOnSuccess(value: A): Boolean =
     try {
@@ -135,24 +139,7 @@ abstract class Callback[-E, -A] extends (Either[E, A] => Unit) {
   /**
     * Attempts to call [[Callback.onError]].
     *
-    * In case the underlying callback implementation protects
-    * against protocol violations, then this method should return
-    * `false` in case the final result was already signaled once
-    * via [[onSuccess]] or [[onError]].
-    *
-    * The default implementation relies on catching
-    * $callbackCalledMultipleTimes in case of violations, which
-    * is what thread-safe implementations of `onSuccess` or `onError`
-    * are usually throwing.
-    *
-    * WARNING: this method is only provided as a convenience. The
-    * presence of this method does not guarantee that the underlying
-    * callback is thread-safe or that it protects against protocol
-    * violations.
-    *
-    * @return `true` if the [[onError]] invocation completes normally
-    *         or `false` in case another concurrent call succeeded
-    *         first in signaling a result
+    * $tryMethodDescription
     */
   def tryOnError(e: E): Boolean =
     try {
@@ -160,6 +147,28 @@ abstract class Callback[-E, -A] extends (Either[E, A] => Unit) {
       true
     } catch {
       case _: CallbackCalledMultipleTimesException => false
+    }
+
+  /**
+    * Attempts to call [[Callback.apply(result:scala\.util\.Try* Callback.apply]].
+    *
+    * $tryMethodDescription
+    */
+  def tryApply(result: Try[A])(implicit ev: Throwable <:< E): Boolean =
+    result match {
+      case Success(a) => tryOnSuccess(a)
+      case Failure(e) => tryOnError(e)
+    }
+
+  /**
+    * Attempts to call [[Callback.apply(result:Either* Callback.apply]].
+    *
+    * $tryMethodDescription
+    */
+  def tryApply(result: Either[E, A]): Boolean =
+    result match {
+      case Right(a) => tryOnSuccess(a)
+      case Left(e) => tryOnError(e)
     }
 }
 
@@ -211,10 +220,18 @@ object Callback {
     */
   def fromPromise[A](p: Promise[A]): Callback[Throwable, A] =
     new Callback[Throwable, A] {
-      override def onSuccess(value: A): Unit = p.success(value)
-      override def onError(e: Throwable): Unit = p.failure(e)
-      override def tryOnSuccess(value: A): Boolean = p.trySuccess(value)
-      override def tryOnError(e: Throwable): Boolean = p.tryFailure(e)
+      override def tryApply(result: Try[A])(implicit ev: Throwable <:< Throwable): Boolean =
+        p.tryComplete(result)
+      override def tryOnSuccess(value: A): Boolean =
+        p.trySuccess(value)
+      override def tryOnError(e: Throwable): Boolean =
+        p.tryFailure(e)
+      override def onSuccess(value: A): Unit =
+        if (!tryOnSuccess(value)) throw new CallbackCalledMultipleTimesException("onSuccess")
+      override def onError(e: Throwable): Unit =
+        if (!tryOnError(e)) throw new CallbackCalledMultipleTimesException("onError", e)
+      override def apply(result: Try[A])(implicit ev: Throwable <:< Throwable): Unit =
+        if (!tryApply(result)) throw CallbackCalledMultipleTimesException.forResult(result)
     }
 
   /** Given a [[Callback]] wraps it into an implementation that
@@ -268,18 +285,19 @@ object Callback {
           override def onSuccess(value: A): Unit = apply(Right(value))
           override def onError(e: E): Unit = apply(Left(e))
 
-          override def apply(result: Either[E, A]): Unit = {
+          override def apply(result: Either[E, A]): Unit =
+            if (!tryApply(result)) {
+              throw CallbackCalledMultipleTimesException.forResult(result)
+            }
+
+          override def tryApply(result: Either[E, A]): Boolean =
             if (isActive) {
               isActive = false
               cb(result)
+              true
             } else {
-              val (method, cause) = result match {
-                case Left(e) => ("onError", UncaughtErrorException.wrap(e))
-                case Right(_) => ("onSuccess", null)
-              }
-              throw new CallbackCalledMultipleTimesException(method, cause)
+              false
             }
-          }
         }
     }
 
@@ -296,16 +314,18 @@ object Callback {
       override def onSuccess(value: A): Unit = apply(Success(value))
       override def onError(e: Throwable): Unit = apply(Failure(e))
 
-      override def apply(result: Try[A])(implicit ev: Throwable <:< Throwable): Unit = {
+      override def apply(result: Try[A])(implicit ev: Throwable <:< Throwable): Unit =
+        if (!tryApply(result)) {
+          throw CallbackCalledMultipleTimesException.forResult(result)
+        }
+
+      override def tryApply(result: Try[A])(implicit ev: Throwable <:< Throwable): Boolean = {
         if (isActive) {
           isActive = false
           cb(result)
+          true
         } else {
-          val (method, cause) = result match {
-            case Failure(e) => ("onError", UncaughtErrorException.wrap(e))
-            case Success(_) => ("onSuccess", null)
-          }
-          throw new CallbackCalledMultipleTimesException(method, cause)
+          false
         }
       }
     }
