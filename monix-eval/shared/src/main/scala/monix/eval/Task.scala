@@ -2425,7 +2425,6 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     */
   final def void: Task[Unit] =
     this.map(_ => ())
-
 }
 
 /** Builders for [[Task]].
