@@ -468,7 +468,7 @@ import scala.util.{Failure, Success, Try}
   *         it might be better to pass such a reference around as
   *         a parameter.
   */
-sealed abstract class Task[+A] extends Serializable {
+sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompat[A] {
   import cats.effect.Async
   import monix.eval.Task._
 
@@ -2426,19 +2426,6 @@ sealed abstract class Task[+A] extends Serializable {
   final def void: Task[Unit] =
     this.map(_ => ())
 
-  // Deprecation directly in `Task` to avoid binary breakage just before the release
-  /**
-    * DEPRECATED — subsumed by [[Task.startAndForget startAndForget]].
-    *
-    * Renamed to `startAndForget` to be consistent with `start` which
-    * also enforces an asynchronous boundary
-    */
-  @deprecated("Replaced with startAndForget", since = "3.0.0")
-  def forkAndForget: Task[Unit] = {
-    // $COVERAGE-OFF$
-    startAndForget
-    // $COVERAGE-ON$
-  }
 }
 
 /** Builders for [[Task]].

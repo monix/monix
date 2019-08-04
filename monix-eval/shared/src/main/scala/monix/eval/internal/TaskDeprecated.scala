@@ -27,6 +27,24 @@ import scala.util.{Failure, Success, Try}
 
 private[eval] object TaskDeprecated {
   /**
+    * BinCompat trait describing deprecated `Task` operations.
+    */
+  private[eval] trait BinCompat[+A] { self: Task[A] =>
+    /**
+      * DEPRECATED — subsumed by [[Task.startAndForget startAndForget]].
+      *
+      * Renamed to `startAndForget` to be consistent with `start` which
+      * also enforces an asynchronous boundary
+      */
+    @deprecated("Replaced with startAndForget", since = "3.0.0")
+    def forkAndForget: Task[Unit] = {
+      // $COVERAGE-OFF$
+      self.startAndForget
+      // $COVERAGE-ON$
+    }
+  }
+
+  /**
     * Extension methods describing deprecated `Task` operations.
     */
   private[eval] trait Extensions[+A] extends Any {
