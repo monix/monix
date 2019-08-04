@@ -17,13 +17,17 @@
 
 package monix.reactive.internal.builders
 
+import cats.laws._
+import cats.laws.discipline._
 import monix.execution.Ack.Continue
-import monix.reactive.internal.builders.StateActionObservableSuite.{assert, assertEquals, int, test}
+import monix.execution.internal.Platform
 import monix.reactive.observers.Subscriber
 import monix.reactive.{BaseTestSuite, Observable}
+import org.scalacheck.Gen
+import org.scalacheck.Prop._
 
 import scala.concurrent.duration.MILLISECONDS
-import scala.util.Success
+
 object UnfoldObservableSuite extends BaseTestSuite {
 
   test("should be exception-proof") { implicit s =>
@@ -58,12 +62,14 @@ object UnfoldObservableSuite extends BaseTestSuite {
       .unfold(s.clockMonotonic(MILLISECONDS))(intOption)
       .unsafeSubscribeFn(new Subscriber[Int] {
         implicit val scheduler = s
+
         def onNext(elem: Int) = {
           sum += 1
           Continue
         }
 
         def onComplete() = wasCompleted = true
+
         def onError(ex: Throwable) = wasCompleted = true
       })
 
@@ -75,7 +81,20 @@ object UnfoldObservableSuite extends BaseTestSuite {
     assert(!wasCompleted)
   }
 
+  test("unfold and fromStateAction results should be equal given generated inputs") { implicit s =>
+    check {
+      forAll(Gen.choose(0, Platform.recommendedBatchSize * 2), Gen.choose(0, Platform.recommendedBatchSize * 2)) {
+        (seed, max) =>
+          val f: Int => Option[(Int, Int)] = i => if (i < max) Some((i, i + 1)) else None
+          val f2: Int => (Int, Int) = i => (i, i + 1)
+
+          Observable.unfold(seed)(f).toListL <-> Observable.fromStateAction(f2)(seed).takeWhile(_ < max).toListL
+      }
+    }
+  }
+
   def intOption(seed: Long): Option[(Int, Long)] = Option(int(seed))
+
   def int(seed: Long): (Int, Long) = {
     // `&` is bitwise AND. We use the current seed to generate a new seed.
     val newSeed = (seed * 0X5DEECE66DL + 0XBL) & 0XFFFFFFFFFFFFL
