@@ -16,6 +16,8 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.eval.Task$DoOnFinish"),
     exclude[MissingClassProblem]("monix.eval.internal.TaskConnection$TrampolinedWithConn"),
     exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskConnection.trampolineCallback"),
-    exclude[FinalMethodProblem]("monix.execution.Callback#Base.run")
+    exclude[FinalMethodProblem]("monix.execution.Callback#Base.run"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskForkAndForget$"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskForkAndForget")
   )
 }
