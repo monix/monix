@@ -125,7 +125,6 @@ object TrampolineExecutionContext {
   }
 
   private final class JVMOptimalTrampoline(underlying: ExecutionContext) extends Trampoline(underlying) {
-
     private[this] val trampolineContext: BlockContext =
       new BlockContext {
         def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
@@ -148,7 +147,6 @@ object TrampolineExecutionContext {
   }
 
   private class JVMNormalTrampoline(underlying: ExecutionContext) extends Trampoline(underlying) {
-
     private[this] val trampolineContext: BlockContext =
       new BlockContext {
         def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {

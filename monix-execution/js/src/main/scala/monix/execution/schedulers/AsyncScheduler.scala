@@ -56,6 +56,9 @@ final class AsyncScheduler private (
 
   override def withExecutionModel(em: ExecModel): AsyncScheduler =
     new AsyncScheduler(context, em, reporter)
+
+  override val features: Features =
+    Features(Scheduler.BATCHING)
 }
 
 object AsyncScheduler {
