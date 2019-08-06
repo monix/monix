@@ -189,7 +189,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
       run(task)
 
-      val f = Local.isolate(p.future)
+      val f = p.future
 
       f.map(_ => {
         assert(local() == 0, s"received ${local()} != expected 0 in $method")
