@@ -185,7 +185,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     def runAssertion(run: Task[Unit] => Any, method: String): Future[Unit] = {
       val p = Promise[Unit]
       val local = Local(0)
-      val task = Task.evalAsync(local := 50).flatMap(_ => Task { p.success(()); () })
+      val task = Task.evalAsync(local := 50).guarantee(Task(p.success(())).void)
 
       run(task)
 
@@ -197,7 +197,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     }
 
     for {
-      _ <- runAssertion(_.runSyncUnsafeOpt(), "runSyncUnsafe")
+//      _ <- runAssertion(_.runSyncUnsafeOpt(), "runSyncUnsafe")
       _ <- runAssertion(_.runToFutureOpt, "runToFuture")
       _ <- runAssertion(_.runAsyncOpt(_ => ()), "runAsync")
       _ <- runAssertion(_.runAsyncOptF(_ => ()), "runAsyncF")

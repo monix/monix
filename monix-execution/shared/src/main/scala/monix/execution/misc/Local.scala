@@ -22,7 +22,6 @@ import monix.execution.schedulers.TrampolineExecutionContext
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.reflect.macros.whitebox
-import scala.util.Try
 
 object Local {
   /** Builds a new [[Local]] with the given `default` to be returned
@@ -79,10 +78,13 @@ object Local {
     Local.setContext(current)
 
     try {
-      f.transform { result: Try[R] =>
+      f.transform(result => {
         Local.setContext(prev)
         result
-      }(TrampolineExecutionContext.immediate)
+      }, ex => {
+        Local.setContext(prev)
+        ex
+      })(TrampolineExecutionContext.immediate)
     } finally {
       Local.setContext(prev)
     }
@@ -325,10 +327,15 @@ final class Local[A](default: () => A) {
 
     f match {
       case future: Future[_] =>
-        future.transform { result =>
-          Local.setContext(parent)
-          result
-        }(TrampolineExecutionContext.immediate).asInstanceOf[R]
+        future
+          .transform(result => {
+            Local.setContext(parent)
+            result
+          }, ex => {
+            Local.setContext(parent)
+            ex
+          })(TrampolineExecutionContext.immediate)
+          .asInstanceOf[R]
 
       case _ =>
         try f
@@ -346,10 +353,15 @@ final class Local[A](default: () => A) {
 
     f match {
       case future: Future[_] =>
-        future.transform { result =>
-          Local.setContext(parent)
-          result
-        }(TrampolineExecutionContext.immediate).asInstanceOf[R]
+        future
+          .transform(result => {
+            Local.setContext(parent)
+            result
+          }, ex => {
+            Local.setContext(parent)
+            ex
+          })(TrampolineExecutionContext.immediate)
+          .asInstanceOf[R]
 
       case _ =>
         try f
