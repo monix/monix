@@ -18,8 +18,11 @@
 package monix.execution.misc
 
 import monix.execution.atomic.AtomicAny
+import monix.execution.schedulers.TrampolineExecutionContext
 import scala.annotation.tailrec
+import scala.concurrent.Future
 import scala.reflect.macros.whitebox
+import scala.util.Try
 
 object Local {
   /** Builds a new [[Local]] with the given `default` to be returned
@@ -60,11 +63,25 @@ object Local {
   def clearContext(): Unit =
     localContext.set(defaultContext())
 
-  /** Execute a block of code without propagating any `Local.Context`
+  /** Execute a synchronous block of code without propagating any `Local.Context`
     * changes outside.
     */
   def isolate[R](f: => R): R =
     macro Macros.isolate
+
+  /** Execute an asynchronous block of code without propagating any `Local.Context`
+    * changes outside.
+    */
+  def isolate[R](f: => Future[R]): Future[R] = {
+    // TODO: rewrite as macro
+    val prev = Local.getContext()
+    val current = Local.getContext().mkIsolated
+    Local.setContext(current)
+    f.transform { result: Try[R] =>
+      Local.setContext(prev)
+      result
+    }(TrampolineExecutionContext.immediate)
+  }
 
   /** Execute a block of code using the specified state of
     * `Local.Context` and restore the current state when complete.
@@ -78,11 +95,17 @@ object Local {
   def bindClear[R](f: => R): R =
     macro Macros.localLetClear
 
-  /** If `b` evaluates to `true`, execute a block of code using a current
+  /** If `b` evaluates to `true`, execute a synchronous block of code using a current
     * state of `Local.Context` and restore the current state when complete.
     */
   def bindCurrentIf[R](b: => Boolean)(f: => R): R =
     macro Macros.localLetCurrentIf
+
+  /** If `b` evaluates to `true`, execute an asynchronous block of code using a current
+    * state of `Local.Context` and restore the current state when complete.
+    */
+  def bindCurrentAsyncIf[R](b: => Boolean)(f: => Future[R]): Future[R] =
+    if (b) isolate(f) else f
 
   /** Convert a closure `() => R` into another closure of the same
     * type whose [[Local.Context]] is saved when calling closed
@@ -232,7 +255,7 @@ object Local {
     final def bind(key: Key, value: Option[Any]): Context =
       new Bound(key, value.orNull, value.isDefined, this)
   }
-  private final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
+  final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
 
   private final class Bound(
     val key: Key,
@@ -294,8 +317,19 @@ final class Local[A](default: () => A) {
   def bind[R](value: A)(f: => R): R = {
     val parent = Local.getContext()
     Local.setContext(parent.bind(key, Some(value)))
-    try f
-    finally Local.setContext(parent)
+
+    f match {
+      case future: Future[_] =>
+        future.transform { result =>
+          Local.setContext(parent)
+          result
+        }(TrampolineExecutionContext.immediate).asInstanceOf[R]
+
+      case _ =>
+        try f
+        finally Local.setContext(parent)
+
+    }
   }
 
   /** Execute a block with the `Local` cleared, restoring the current
@@ -304,8 +338,18 @@ final class Local[A](default: () => A) {
   def bindClear[R](f: => R): R = {
     val parent = Local.getContext()
     Local.setContext(parent.bind(key, None))
-    try f
-    finally Local.setContext(parent)
+
+    f match {
+      case future: Future[_] =>
+        future.transform { result =>
+          Local.setContext(parent)
+          result
+        }(TrampolineExecutionContext.immediate).asInstanceOf[R]
+
+      case _ =>
+        try f
+        finally Local.setContext(parent)
+    }
   }
 
   /** Clear the Local's value. Other [[Local Locals]] are not modified.

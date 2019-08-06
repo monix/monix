@@ -579,9 +579,9 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
-    Local.bindCurrentIf(opts.localContextPropagation) {
+    Local.bindCurrentAsyncIf(opts.localContextPropagation) {
       TaskRunLoop.startFuture(this, s, opts)
-    }
+    }.asInstanceOf[CancelableFuture[A]]
 
   /** Triggers the asynchronous execution, with a provided callback
     * that's going to be called at some point in the future with
