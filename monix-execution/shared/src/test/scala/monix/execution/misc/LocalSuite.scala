@@ -196,8 +196,8 @@ object LocalSuite extends SimpleTestSuite {
     val f = for {
       _ <- Future { local := 50 }
       _ <- Local.bindCurrentAsyncIf(true)(Future {
-          local := 100
-        })
+        local := 100
+      })
       v <- Future { local() }
     } yield v
 
@@ -220,19 +220,19 @@ object LocalSuite extends SimpleTestSuite {
     for (v <- f) yield assertEquals(v, 50)
   }
 
-    testAsync("local.bind should properly restore context during async boundaries") {
-      implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+  testAsync("local.bind should properly restore context during async boundaries") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
-      val local = Local(0)
+    val local = Local(0)
 
-      val f = for {
-        _ <- Future { local := 50 }
-        _ <- local.bind(100)(Future { () })
-        v <- Future { local() }
-      } yield v
+    val f = for {
+      _ <- Future { local := 50 }
+      _ <- local.bind(100)(Future { () })
+      v <- Future { local() }
+    } yield v
 
-      for (v <- f) yield assertEquals(v, 50)
-    }
+    for (v <- f) yield assertEquals(v, 50)
+  }
 
   testAsync("local.bindClear should properly restore context during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))

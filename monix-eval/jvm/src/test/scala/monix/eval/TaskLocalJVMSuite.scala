@@ -20,9 +20,11 @@ package monix.eval
 import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.Scheduler
+import monix.execution.{ExecutionModel, Scheduler}
+import monix.execution.misc.Local
+import monix.execution.schedulers.TracingScheduler
 
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 
 object TaskLocalJVMSuite extends SimpleTestSuite {
@@ -173,5 +175,35 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       val r = method(task)
       assertEquals(r, 0)
     }
+  }
+
+  testAsync("local state is encapsulated by Task run loop on single thread") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+
+    def runAssertion(run: Task[Unit] => Any, method: String): Future[Unit] = {
+      val p = Promise[Unit]
+      val local = Local(0)
+      val task = Task.evalAsync(local := 50).flatMap(_ => Task { p.success(()); () })
+
+      run(task)
+
+      val f = Local.isolate(p.future)
+
+      f.map(_ => {
+        assert(local() == 0, s"received ${local()} != expected 0 in $method")
+      })
+    }
+
+    for {
+      _ <- runAssertion(_.runSyncUnsafeOpt(), "runSyncUnsafe")
+      _ <- runAssertion(_.runToFutureOpt, "runToFuture")
+      _ <- runAssertion(_.runAsyncOpt(_ => ()), "runAsync")
+      _ <- runAssertion(_.runAsyncOptF(_ => ()), "runAsyncF")
+      _ <- runAssertion(_.runAsyncAndForgetOpt, "runAsyncAndForget")
+      _ <- runAssertion(_.runAsyncUncancelableOpt(_ => ()), "runAsyncUncancelable")
+    } yield ()
+
   }
 }

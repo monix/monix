@@ -77,10 +77,15 @@ object Local {
     val prev = Local.getContext()
     val current = Local.getContext().mkIsolated
     Local.setContext(current)
-    f.transform { result: Try[R] =>
+
+    try {
+      f.transform { result: Try[R] =>
+        Local.setContext(prev)
+        result
+      }(TrampolineExecutionContext.immediate)
+    } finally {
       Local.setContext(prev)
-      result
-    }(TrampolineExecutionContext.immediate)
+    }
   }
 
   /** Execute a block of code using the specified state of

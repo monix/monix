@@ -319,37 +319,4 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     test.runToFutureOpt
   }
-
-  testAsync("Running task isolates locals") {
-    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
-      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
-
-    def runAssertion(run: Task[Unit] => Any, method: String): Future[Unit] = {
-      val p = Promise[Unit]
-      val local = Local(0)
-      val task =
-        for {
-          _ <- Task.evalAsync(local := 50)
-          _ <- TaskLocal.isolate {
-            Task.evalAsync(local := 100)
-          }
-          v <- Task.evalAsync(local())
-          _ <- Task.now(assertEquals(v, 50))
-        } yield ()
-
-      run(task.doOnFinish(_ => Task { p.success(()); () }))
-      for (_ <- p.future) yield assert(local() == 0, s"received ${local()} != expected 0 in $method")
-    }
-
-    for {
-//    _ <- runAssertion(_.runSyncUnsafeOpt()) TODO: check in JVM suite
-//    _ <- runAssertion(_.runSyncStepOpt)
-      _ <- runAssertion(_.runToFutureOpt, "runToFuture")
-      _ <- runAssertion(_.runAsyncOpt(_ => ()), "runAsyncOpt")
-      _ <- runAssertion(_.runAsyncOptF(_ => ()), "runAsyncOptF")
-      _ <- runAssertion(_.runAsyncAndForgetOpt, "runAsyncAndForget")
-      _ <- runAssertion(_.runAsyncUncancelableOpt(_ => ()), "runAsyncUncancelable")
-    } yield ()
-
-  }
 }
