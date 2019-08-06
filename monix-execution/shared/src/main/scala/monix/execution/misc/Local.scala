@@ -255,7 +255,7 @@ object Local {
     final def bind(key: Key, value: Option[Any]): Context =
       new Bound(key, value.orNull, value.isDefined, this)
   }
-  final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
+  private final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
 
   private final class Bound(
     val key: Key,

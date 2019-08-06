@@ -271,8 +271,7 @@ object TaskLocal {
       val current = Local.getContext()
       Local.setContext(current.mkIsolated)
       current
-    }.bracket(_ => task)(backup => Task(println(s"backing up from ${Local.getContext()} to ${backup}"))
-      .flatMap(_ => Task(Local.setContext(backup))))
+    }.bracket(_ => task)(backup => Task(Local.setContext(backup)))
   }
 
   private def checkPropagation[A](fa: Task[A]): Task[A] =
