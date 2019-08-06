@@ -224,7 +224,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       _ <- Task.now(assertEquals(v, 50))
     } yield ()
 
-    test.runToFutureOpt
+    test.runToFuture
   }
 
   testAsync("TaskLocal.isolate should properly isolate during async boundaries on error") {
@@ -241,7 +241,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       _ <- Task.now(assertEquals(v, 50))
     } yield ()
 
-    test.runToFutureOpt
+    test.runToFuture
   }
 
   testAsync("TaskLocal.isolate should properly isolate during async boundaries on cancelation") {
@@ -258,6 +258,6 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       _ <- Task.now(assertEquals(v, 50))
     } yield ()
 
-    test.runToFutureOpt
+    test.runToFuture
   }
 }
