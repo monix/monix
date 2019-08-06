@@ -20,6 +20,7 @@ package monix.eval
 import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.exceptions.DummyException
 import monix.execution.{ExecutionModel, Scheduler}
 import monix.execution.misc.Local
 import monix.execution.schedulers.TracingScheduler
@@ -207,5 +208,56 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       _ <- runAssertion(_.runAsyncUncancelableOpt(_ => ()), "runAsyncUncancelable")
     } yield ()
 
+  }
+
+  testAsync("TaskLocal.isolate should properly isolate during async boundaries") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+
+    val local = Local(0)
+    val test = for {
+      _ <- Task.evalAsync(local := 50)
+      _ <- TaskLocal.isolate {
+        Task.evalAsync(local := 100)
+      }
+      v <- Task.evalAsync(local())
+      _ <- Task.now(assertEquals(v, 50))
+    } yield ()
+
+    test.runToFutureOpt
+  }
+
+  testAsync("TaskLocal.isolate should properly isolate during async boundaries on error") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+
+    val local = Local(0)
+    val test = for {
+      _ <- Task.evalAsync(local := 50)
+      _ <- TaskLocal.isolate {
+        Task.evalAsync(local := 100).flatMap(_ => Task.raiseError(DummyException("boom")))
+      }.attempt
+      v <- Task.evalAsync(local())
+      _ <- Task.now(assertEquals(v, 50))
+    } yield ()
+
+    test.runToFutureOpt
+  }
+
+  testAsync("TaskLocal.isolate should properly isolate during async boundaries on cancelation") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+
+    val local = Local(0)
+    val test = for {
+      _ <- Task.evalAsync(local := 50)
+      _ <- TaskLocal.isolate {
+        Task.evalAsync(local := 100).start.flatMap(_.cancel)
+      }
+      v <- Task.evalAsync(local())
+      _ <- Task.now(assertEquals(v, 50))
+    } yield ()
+
+    test.runToFutureOpt
   }
 }
