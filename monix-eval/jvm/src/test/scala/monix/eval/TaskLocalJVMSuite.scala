@@ -189,7 +189,9 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
       run(task)
 
-      val f = p.future
+      // Future could still carry isolated local
+      // because it was created inside isolated block
+      val f = Local.isolate(p.future)
 
       f.map(_ => {
         assert(local() == 0, s"received ${local()} != expected 0 in $method")
@@ -197,7 +199,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     }
 
     for {
-//      _ <- runAssertion(_.runSyncUnsafeOpt(), "runSyncUnsafe")
+      _ <- runAssertion(_.runSyncUnsafeOpt(), "runSyncUnsafe")
       _ <- runAssertion(_.runToFutureOpt, "runToFuture")
       _ <- runAssertion(_.runAsyncOpt(_ => ()), "runAsync")
       _ <- runAssertion(_.runAsyncOptF(_ => ()), "runAsyncF")
