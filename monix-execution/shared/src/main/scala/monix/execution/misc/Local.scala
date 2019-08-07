@@ -371,7 +371,7 @@ final class Local[A](default: () => A) {
 
   /** Clear the Local's value. Other [[Local Locals]] are not modified.
     *
-    * General usage should be in [[Local.isolate[R](f: => R) Local.isolate]] to avoid leaks.
+    * General usage should be in [[Local.isolate[R](f:=>R* Local.isolate]] to avoid leaks.
     */
   def clear(): Unit =
     Local.clearKey(key)
