@@ -17,9 +17,11 @@
 
 package monix.eval
 
+import cats.effect.{CancelToken, ExitCase}
 import monix.execution.Callback
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
+
 import scala.util.{Failure, Success, Try}
 
 object TaskCancelableSuite extends BaseTestSuite {
@@ -127,5 +129,33 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     assert(c.isCanceled)
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("Task.cancelable pops the connection after it's done") { implicit sc =>
+    import scala.concurrent.duration._
+
+    var effect = 0
+    val cancel1 = Task(effect += 1)
+    val cancel2 = Task(effect += 10)
+
+    val task = Task.cancelable[Unit] { cb =>
+      sc.scheduleOnce(1.second)(cb.onSuccess(()))
+      cancel1
+    }
+
+    val f = task
+      .flatMap(_ => Task.sleep(10.seconds))
+      .guaranteeCase {
+        case ExitCase.Canceled => cancel2
+        case _ => Task.unit
+      }
+      .runToFuture
+
+    sc.tick(1.second)
+    assertEquals(effect, 0)
+
+    f.cancel()
+    sc.tick()
+    assertEquals(effect, 10)
   }
 }

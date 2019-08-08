@@ -5191,6 +5191,19 @@ object Observable extends ObservableDeprecatedBuilders {
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
     * observable that keeps generating elements produced by our
+    * generator function until `None` is returned.
+    * @example {{{
+    *  Observable.unfold(0)(i => if (i < 10) Some((i, i + 1)) else None).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    *  }}}
+    */
+  def unfold[S, A](seed: => S)(f: S => Option[(A, S)]): Observable[A] =
+    new UnfoldObservable(seed, f)
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * observable that keeps generating elements produced by our
     * generator function.
     */
   def fromAsyncStateAction[S, A](f: S => Task[(A, S)])(seed: => S): Observable[A] =

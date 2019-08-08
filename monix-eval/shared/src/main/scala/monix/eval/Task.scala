@@ -468,7 +468,7 @@ import scala.util.{Failure, Success, Try}
   *         it might be better to pass such a reference around as
   *         a parameter.
   */
-sealed abstract class Task[+A] extends Serializable {
+sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompat[A] {
   import cats.effect.Async
   import monix.eval.Task._
 
@@ -1793,11 +1793,11 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * Similar to [[start]] after mapping result to Unit. Below law holds:
     *
-    * `task.forkAndForget <-> task.start.map(_ => ())`
+    * `task.startAndForget <-> task.start.map(_ => ())`
     *
     */
-  final def forkAndForget: Task[Unit] =
-    TaskForkAndForget(this)
+  final def startAndForget: Task[Unit] =
+    TaskStartAndForget(this)
 
   /** Returns a new `Task` in which `f` is scheduled to be run on
     * completion. This would typically be used to release any
@@ -2843,8 +2843,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * @see [[Task.async0]] for a variant that also injects a
     *      [[monix.execution.Scheduler Scheduler]] into the provided callback,
@@ -2903,8 +2906,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback]] can be called at
     *    most once, either with a successful result, or with an error;
     *    calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * NOTES on the naming:
     *
@@ -3015,8 +3021,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * @see [[Task.cancelable0]] for the version that also injects a
     *      [[monix.execution.Scheduler Scheduler]] in that callback
@@ -3110,8 +3119,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * NOTES on the naming:
     *
