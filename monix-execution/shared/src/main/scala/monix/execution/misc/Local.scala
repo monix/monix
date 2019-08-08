@@ -17,11 +17,13 @@
 
 package monix.execution.misc
 
+import monix.execution.{CancelableFuture, FutureUtils}
 import monix.execution.atomic.AtomicAny
 import monix.execution.schedulers.TrampolineExecutionContext
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.reflect.macros.whitebox
+import scala.util.Try
 
 object Local {
   /** Builds a new [[Local]] with the given `default` to be returned
@@ -78,12 +80,9 @@ object Local {
     Local.setContext(current)
 
     try {
-      f.transform(result => {
+      FutureUtils.transform[R, R](f, result => {
         Local.setContext(prev)
         result
-      }, ex => {
-        Local.setContext(prev)
-        ex
       })(TrampolineExecutionContext.immediate)
     } finally {
       Local.setContext(prev)
@@ -101,18 +100,6 @@ object Local {
     */
   def bindClear[R](f: => R): R =
     macro Macros.localLetClear
-
-  /** If `b` evaluates to `true`, execute a synchronous block of code using a current
-    * state of `Local.Context` and restore the current state when complete.
-    */
-  def bindCurrentIf[R](b: => Boolean)(f: => R): R =
-    macro Macros.localLetCurrentIf
-
-  /** If `b` evaluates to `true`, execute an asynchronous block of code using a current
-    * state of `Local.Context` and restore the current state when complete.
-    */
-  def bindCurrentAsyncIf[R](b: => Boolean)(f: => Future[R]): Future[R] =
-    if (b) isolate(f) else f
 
   /** Convert a closure `() => R` into another closure of the same
     * type whose [[Local.Context]] is saved when calling closed
@@ -148,6 +135,33 @@ object Local {
       case None => clearKey(key)
       case Some(v) => saveKey(key, v)
     }
+
+  /** If `b` evaluates to `true`, execute a block of code using a current
+    * state of `Local.Context` and restore the current state when complete.
+    */
+  private[monix] def bindCurrentIf[R](b: Boolean)(f: => R): R =
+    macro Macros.localLetCurrentIf
+
+  /** If `b` evaluates to `true`, execute an asynchronous block of code using a current
+    * state of `Local.Context` and restore the current state when complete.
+    */
+  private[monix] def bindCurrentAsyncIf[R](b: Boolean)(f: => CancelableFuture[R]): CancelableFuture[R] = {
+    if (b) {
+      // inlined implementation of `isolate` for `CancelableFuture`
+      val prev = Local.getContext()
+      val current = Local.getContext().mkIsolated
+      Local.setContext(current)
+
+      try {
+        f.transform(result => {
+          Local.setContext(prev)
+          result
+        })(TrampolineExecutionContext.immediate)
+      } finally {
+        Local.setContext(prev)
+      }
+    } else f
+  }
 
   /** Macros implementations for [[bind]] and [[bindClear]]. */
   private class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
@@ -327,13 +341,10 @@ final class Local[A](default: () => A) {
 
     f match {
       case future: Future[_] =>
-        future
-          .transform(result => {
+        FutureUtils
+          .transform(future, (result: Try[_]) => {
             Local.setContext(parent)
             result
-          }, ex => {
-            Local.setContext(parent)
-            ex
           })(TrampolineExecutionContext.immediate)
           .asInstanceOf[R]
 
@@ -353,13 +364,10 @@ final class Local[A](default: () => A) {
 
     f match {
       case future: Future[_] =>
-        future
-          .transform(result => {
+        FutureUtils
+          .transform(future, (result: Try[_]) => {
             Local.setContext(parent)
             result
-          }, ex => {
-            Local.setContext(parent)
-            ex
           })(TrampolineExecutionContext.immediate)
           .asInstanceOf[R]
 

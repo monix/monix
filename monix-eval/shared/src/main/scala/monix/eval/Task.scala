@@ -584,7 +584,6 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
       .bindCurrentAsyncIf(opts2.localContextPropagation) {
         TaskRunLoop.startFuture(this, s, opts2)
       }
-      .asInstanceOf[CancelableFuture[A]]
   }
 
   /** Triggers the asynchronous execution, with a provided callback

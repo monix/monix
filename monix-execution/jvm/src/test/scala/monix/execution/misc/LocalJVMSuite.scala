@@ -18,7 +18,7 @@
 package monix.execution.misc
 
 import minitest.SimpleTestSuite
-import monix.execution.Scheduler
+import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TracingScheduler
 
@@ -68,25 +68,9 @@ object LocalJVMSuite extends SimpleTestSuite {
 
     val f = for {
       _ <- Future { local := 50 }
-      _ <- Local.bindCurrentAsyncIf(true)(Future {
+      _ <- Local.bindCurrentAsyncIf(true)(CancelableFuture(Future {
         local := 100
-      })
-      v <- Future { local() }
-    } yield v
-
-    for (v <- f) yield assertEquals(v, 50)
-  }
-
-  testAsync("Local.bindCurrentAsyncIf should properly restore context during async boundaries") {
-    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
-
-    val local = Local(0)
-
-    val f = for {
-      _ <- Future { local := 50 }
-      _ <- Local.bindCurrentAsyncIf(true)(Future {
-        local := 100
-      })
+      }, Cancelable.empty))
       v <- Future { local() }
     } yield v
 
