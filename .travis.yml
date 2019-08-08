@@ -15,11 +15,11 @@ matrix:
       env: COMMAND=ci-js
     # Scala 2.12, JVM
     - jdk: oraclejdk8
-      scala: 2.12.8
+      scala: 2.12.9
       env: COMMAND=ci-jvm-all
     # Scala 2.12, JavaScript
     - jdk: oraclejdk8
-      scala: 2.12.8
+      scala: 2.12.9
       env: COMMAND=ci-js
     # Scala 2.13, JVM
     - jdk: oraclejdk8
