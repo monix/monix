@@ -17,14 +17,13 @@
 
 package monix.eval
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import minitest.SimpleTestSuite
-import monix.execution.{ExecutionModel, Scheduler}
+import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.misc.Local
 import cats.implicits._
-import monix.execution.schedulers.TracingScheduler
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
