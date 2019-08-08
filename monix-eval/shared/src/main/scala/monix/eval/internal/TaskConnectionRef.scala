@@ -39,11 +39,12 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
   def `:=`(conn: CancelableF[Task])(implicit s: Scheduler): Unit =
     unsafeSet(conn.cancel)
 
+  @tailrec
   private def unsafeSet(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(
     implicit s: Scheduler): Unit = {
 
     if (!state.compareAndSet(Empty, IsActive(ref))) {
-      state.get match {
+      state.get() match {
         case IsEmptyCanceled =>
           state.getAndSet(IsCanceled) match {
             case IsEmptyCanceled =>
@@ -65,7 +66,7 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
 
   val cancel: CancelToken[Task] = {
     @tailrec def loop(): CancelToken[Task] =
-      state.get match {
+      state.get() match {
         case IsCanceled | IsEmptyCanceled =>
           Task.unit
         case IsActive(task) =>
