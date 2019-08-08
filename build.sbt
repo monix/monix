@@ -27,17 +27,13 @@ addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
 addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc; scalafmtCheck; test:scalafmtCheck; scalafmtSbtCheck")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
-val catsVersion = "2.0.0-M4"
-val catsEffectVersion = "2.0.0-M4"
+val catsVersion = "2.0.0-RC1"
+val catsEffectVersion = "2.0.0-RC1"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
 val minitestVersion = "2.5.0"
-
-def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
-  case Some((2, v)) if v >= 13 => "3.0.6-SNAP5"
-  case _                       => "3.0.4"
-}
+val scalaTestVersion = "3.0.8"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -510,7 +506,7 @@ lazy val reactiveTests = project.in(file("reactiveTests"))
   .settings(
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams-tck" % reactiveStreamsVersion % Test,
-      "org.scalatest" %% "scalatest" % scalaTestVersion(scalaVersion.value) % Test
+      "org.scalatest" %% "scalatest" % scalaTestVersion % Test
     ))
 
 lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
