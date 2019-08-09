@@ -3502,8 +3502,8 @@ object Task extends TaskInstancesLevel1 {
     *     Task(1 + 1).delayExecution(1.second),
     *     Task(2 + 2).delayExecution(2.second),
     *     Task(3 + 3).delayExecution(3.second),
-    *     Task(4 + 4).delayExecution(4.second),
-    *     )
+    *     Task(4 + 4).delayExecution(4.second)
+    *    )
     *
     *   // Yields 2, 4, 6, 8 after around 6 seconds
     *   Task.gatherN(2)(tasks)
