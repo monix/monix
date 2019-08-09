@@ -21,6 +21,7 @@ import cats.effect.ExitCase
 import cats.effect.concurrent.Deferred
 import monix.catnap.ConcurrentQueue
 import monix.eval.Task
+import monix.execution.{BufferCapacity, ChannelType}
 
 private[eval] object TaskGatherN {
 
@@ -37,7 +38,8 @@ private[eval] object TaskGatherN {
     } else {
       for {
         error <- Deferred[Task, Throwable]
-        queue <- ConcurrentQueue.bounded[Task, (Deferred[Task, A], Task[A])](itemSize)
+        queue <- ConcurrentQueue
+          .withConfig[Task, (Deferred[Task, A], Task[A])](BufferCapacity(itemSize), ChannelType.SPMC)
         pairs <- Task.traverse(in.toList)(task => Deferred[Task, A].map(p => (p, task)))
         _     <- queue.offerMany(pairs)
         workers = Task.gather(List.fill(parallelism.min(itemSize)) {
