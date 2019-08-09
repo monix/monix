@@ -580,9 +580,10 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   @UnsafeBecauseImpure
   def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
     val opts2 = opts.withSchedulerFeatures
-    Local.bindCurrentIf(opts2.localContextPropagation) {
-      TaskRunLoop.startFuture(this, s, opts2)
-    }
+    Local
+      .bindCurrentAsyncIf(opts2.localContextPropagation) {
+        TaskRunLoop.startFuture(this, s, opts2)
+      }
   }
 
   /** Triggers the asynchronous execution, with a provided callback
