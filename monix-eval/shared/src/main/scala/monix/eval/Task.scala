@@ -3559,7 +3559,7 @@ object Task extends TaskInstancesLevel1 {
     *   val numbers = List(1, 2, 3, 4)
     *
     *   // Yields 2, 4, 6, 8 after around 6 seconds
-    *   Task.wanderN(2)(numbers)(n => Task(n + n).delayExecution(n))
+    *   Task.wanderN(2)(numbers)(n => Task(n + n).delayExecution(n.second))
     * }}}
     *
     * $parallelismAdvice
