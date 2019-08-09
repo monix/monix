@@ -339,20 +339,21 @@ final class Local[A](default: () => A) {
     val parent = Local.getContext()
     Local.setContext(parent.bind(key, Some(value)))
 
-    f match {
-      case future: Future[_] =>
-        FutureUtils
-          .transform(future, (result: Try[_]) => {
-            Local.setContext(parent)
-            result
-          })(TrampolineExecutionContext.immediate)
-          .asInstanceOf[R]
+    var restoreContext = true
+    try {
+      f match {
+        case future: Future[_] =>
+          restoreContext = false
+          FutureUtils
+            .transform(future, (result: Try[_]) => {
+              Local.setContext(parent)
+              result
+            })(TrampolineExecutionContext.immediate)
+            .asInstanceOf[R]
 
-      case _ =>
-        try f
-        finally Local.setContext(parent)
-
-    }
+        case other => other
+      }
+    } finally if (restoreContext) Local.setContext(parent)
   }
 
   /** Execute a block with the `Local` cleared, restoring the current
@@ -362,19 +363,21 @@ final class Local[A](default: () => A) {
     val parent = Local.getContext()
     Local.setContext(parent.bind(key, None))
 
-    f match {
-      case future: Future[_] =>
-        FutureUtils
-          .transform(future, (result: Try[_]) => {
-            Local.setContext(parent)
-            result
-          })(TrampolineExecutionContext.immediate)
-          .asInstanceOf[R]
+    var restoreContext = true
+    try {
+      f match {
+        case future: Future[_] =>
+          restoreContext = false
+          FutureUtils
+            .transform(future, (result: Try[_]) => {
+              Local.setContext(parent)
+              result
+            })(TrampolineExecutionContext.immediate)
+            .asInstanceOf[R]
 
-      case _ =>
-        try f
-        finally Local.setContext(parent)
-    }
+        case other => other
+      }
+    } finally if (restoreContext) Local.setContext(parent)
   }
 
   /** Clear the Local's value. Other [[Local Locals]] are not modified.
