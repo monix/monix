@@ -39,7 +39,7 @@ private[eval] object TaskGatherN {
       for {
         error <- Deferred[Task, Throwable]
         queue <- ConcurrentQueue
-          .withConfig[Task, (Deferred[Task, A], Task[A])](BufferCapacity(itemSize), ChannelType.SPMC)
+          .withConfig[Task, (Deferred[Task, A], Task[A])](BufferCapacity.Bounded(itemSize), ChannelType.SPMC)
         pairs <- Task.traverse(in.toList)(task => Deferred[Task, A].map(p => (p, task)))
         _     <- queue.offerMany(pairs)
         workers = Task.gather(List.fill(parallelism.min(itemSize)) {
