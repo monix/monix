@@ -61,16 +61,16 @@ private[misc] abstract class CanIsolateInstancesLevel1 extends CanIsolateInstanc
   }
 
   implicit def future[R]: CanIsolate[Future[R]] = new CanIsolate[Future[R]] {
-    override def bind(ctx: Local.Context)(f: => Future[R]): Future[R]  = {
+    override def bind(ctx: Local.Context)(f: => Future[R]): Future[R] = {
       val prev = Local.getContext()
       Local.setContext(ctx)
 
       try {
         FutureUtils
           .transform[R, R](f, result => {
-          Local.setContext(prev)
-          result
-        })(TrampolineExecutionContext.immediate)
+            Local.setContext(prev)
+            result
+          })(TrampolineExecutionContext.immediate)
       } finally {
         Local.setContext(prev)
       }
@@ -78,7 +78,7 @@ private[misc] abstract class CanIsolateInstancesLevel1 extends CanIsolateInstanc
   }
 }
 
-private[misc] abstract class CanIsolateInstancesLevel0  {
+private[misc] abstract class CanIsolateInstancesLevel0 {
   implicit def default[R]: CanIsolate[R] = new CanIsolate[R] {
     override def bind(ctx: Local.Context)(f: => R): R = {
       val prev = Local.getContext()
