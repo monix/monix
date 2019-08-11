@@ -218,7 +218,7 @@ object Local {
   * Note: the implementation is optimized for situations in which save
   * and restore optimizations are dominant.
   */
-final class Local[A](default: () => A) {
+final class Local[A](default: () => A) extends LocalDeprecated[A] {
   import Local.Key
   val key: Key = new Key
 

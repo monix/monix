@@ -12,8 +12,6 @@ object MimaFilters {
     exclude[IncompatibleResultTypeProblem]("monix.execution.misc.Local.defaultContext"),
     exclude[IncompatibleResultTypeProblem]("monix.execution.misc.Local.defaultContext"),
     exclude[IncompatibleResultTypeProblem]("monix.execution.misc.Local#Context.mkIsolated"),
-    exclude[DirectMissingMethodProblem]("monix.execution.misc.Local.bindClear"),
-    exclude[DirectMissingMethodProblem]("monix.execution.misc.Local.bind"),
     exclude[MissingClassProblem]("monix.execution.misc.Local$Macros"),
     // Internals
     exclude[MissingClassProblem]("monix.eval.Task$DoOnFinish"),
