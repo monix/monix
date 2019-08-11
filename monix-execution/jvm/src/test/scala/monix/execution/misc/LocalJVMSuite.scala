@@ -84,7 +84,7 @@ object LocalJVMSuite extends SimpleTestSuite {
 
     val f = for {
       _ <- Future { local := 50 }
-      _ <- Local.bind(Local.defaultContext()) { Future { local := 100 } }
+      _ <- Local.bind(Local.newContext()) { Future { local := 100 } }
       v <- Future { local() }
     } yield v
 

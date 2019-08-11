@@ -18,9 +18,11 @@
 package monix.execution.misc
 
 import monix.execution.atomic.AtomicAny
-import scala.annotation.tailrec
 
-object Local {
+import scala.annotation.tailrec
+import scala.reflect.macros.whitebox
+
+object Local extends LocalCompanionDeprecated {
   /** Builds a new [[Local]] with the given `default` to be returned
     * if a value hasn't been set, or after the local gets cleared.
     *
@@ -41,11 +43,14 @@ object Local {
   /** Internal — key type used in [[Context]]. */
   final class Key extends Serializable
 
-  def defaultContext(): Local.Context = new Unbound(AtomicAny(Map()))
+  /**
+    * Creates a new, empty [[Context]].
+    */
+  def newContext(): Context = new Unbound(AtomicAny(Map()))
 
   /** Current [[Context]] kept in a `ThreadLocal`. */
   private[this] val localContext: ThreadLocal[Context] =
-    ThreadLocal(defaultContext())
+    ThreadLocal(newContext())
 
   /** Return the state of the current Local state. */
   def getContext(): Context =
@@ -57,28 +62,25 @@ object Local {
 
   /** Clear the Local state. */
   def clearContext(): Unit =
-    localContext.set(defaultContext())
+    localContext.set(newContext())
 
   /** Execute a  block of code without propagating any `Local.Context`
     * changes outside.
     */
-  def isolate[R: CanIsolate](f: => R): R = {
-    CanIsolate[R].isolate(f)
-  }
+  def isolate[R](f: => R)(implicit R: CanBindLocals[R]): R =
+    R.isolate(f)
 
   /** Execute a block of code using the specified state of
     * `Local.Context` and restore the current state when complete.
     */
-  def bind[R: CanIsolate](ctx: Context)(f: => R): R = {
-    CanIsolate[R].bind(ctx)(f)
-  }
+  def bind[R](ctx: Context)(f: => R)(implicit R: CanBindLocals[R]): R =
+    R.withContext(ctx)(f)
 
   /** Execute a block of code with a clear state of `Local.Context`
     * and restore the current state when complete.
     */
-  def bindClear[R: CanIsolate](f: => R): R = {
-    CanIsolate[R].bind(Local.defaultContext())(f)
-  }
+  def bindClear[R](f: => R)(implicit R: CanBindLocals[R]): R =
+    CanBindLocals[R].withContext(Local.newContext())(f)
 
   /** Convert a closure `() => R` into another closure of the same
     * type whose [[Local.Context]] is saved when calling closed
@@ -118,8 +120,25 @@ object Local {
   /** If `b` evaluates to `true`, execute a block of code using a current
     * state of `Local.Context` and restore the current state when complete.
     */
-  private[monix] def bindCurrentIf[R: CanIsolate](b: Boolean)(f: => R): R =
-    if (b) CanIsolate[R].isolate(f) else f
+  private[monix] def bindCurrentIf[R](b: Boolean)(f: => R): R =
+    macro Macros.localLetCurrentIf
+
+  /** Macros implementations for [[bind]] and [[bindClear]]. */
+  private class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
+    import c.universe._
+
+    def localLet(ctx: Tree)(f: Tree): Tree =
+      c.abort(c.macroApplication.pos, "Macro no longer implemented!")
+    def localLetClear(f: Tree): Tree =
+      c.abort(c.macroApplication.pos, "Macro no longer implemented!")
+    def isolate(f: Tree): Tree =
+      c.abort(c.macroApplication.pos, "Macro no longer implemented!")
+
+    def localLetCurrentIf(b: Tree)(f: Tree): Tree = {
+      val Local = symbolOf[Local[_]].companion
+      resetTree(q"if (!$b) { $f } else { $Local.isolate($f) }")
+    }
+  }
 
   /** Represents the current state of all [[Local locals]] for a given
     * execution context.
@@ -163,7 +182,23 @@ object Local {
       r
     }
 
-    final def mkIsolated: Context = {
+    final def bind(key: Key, value: Option[Any]): Context =
+      new Bound(key, value.orNull, value.isDefined, this)
+
+    final def isolate(): Context =
+      isolateLoop()
+
+    /**
+      * DEPRECATED — renamed to [[isolate]].
+      */
+    @deprecated("Renamed to isolate()", "3.0.0")
+    private[misc] def mkIsolated(): Unbound = {
+      // $COVERAGE-OFF$
+      isolateLoop()
+      // $COVERAGE-ON$
+    }
+
+    private[this] final def isolateLoop(): Unbound =
       this match {
         case unbound: Unbound =>
           val map = unbound.ref.get()
@@ -191,14 +226,12 @@ object Local {
           }
           new Unbound(AtomicAny(map))
       }
-    }
-
-    final def bind(key: Key, value: Option[Any]): Context =
-      new Bound(key, value.orNull, value.isDefined, this)
   }
-  private final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
 
-  private final class Bound(
+  private[execution] final class Unbound(val ref: AtomicAny[Map[Key, Any]])
+    extends Context
+
+  private[execution] final class Bound(
     val key: Key,
     @volatile var value: Any,
     @volatile var hasValue: Boolean,
@@ -255,18 +288,14 @@ final class Local[A](default: () => A) extends LocalDeprecated[A] {
   /** Execute a block with a specific local value, restoring the
     * current state upon completion.
     */
-  def bind[R: CanIsolate](value: A)(f: => R): R = {
-    val parent = Local.getContext()
-    CanIsolate[R].bind(parent.bind(key, Some(value)))(f)
-  }
+  def bind[R](value: A)(f: => R)(implicit R: CanBindLocals[R]): R =
+    R.bind(this, Some(value))(f)
 
   /** Execute a block with the `Local` cleared, restoring the current
     * state upon completion.
     */
-  def bindClear[R: CanIsolate](f: => R): R = {
-    val parent = Local.getContext()
-    CanIsolate[R].bind(parent.bind(key, None))(f)
-  }
+  def bindClear[R](f: => R)(implicit R: CanBindLocals[R]): R =
+    R.bind(this, None)(f)
 
   /** Clear the Local's value. Other [[Local Locals]] are not modified.
     *
