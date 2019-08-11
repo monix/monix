@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect.{Fiber => _, _}
-import cats.{~>, Monoid, Semigroup}
+import cats.{Monoid, Semigroup, ~>}
 import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
@@ -27,7 +27,7 @@ import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseBlocking, UnsafeBecauseImpure}
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
-import monix.execution.misc.Local
+import monix.execution.misc.{CanBindLocals, Local}
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
@@ -4727,6 +4727,12 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     */
   implicit def catsSemigroup[A](implicit A: Semigroup[A]): Semigroup[Task[A]] =
     new CatsMonadToSemigroup[Task, A]()(CatsConcurrentForTask, A)
+
+  /**
+    * Instance of [[monix.execution.misc.CanBindLocals]] meant for [[Task]].
+    */
+  implicit def canBindLocals[A]: CanBindLocals[Task[A]] =
+    CanBindLocalsForTask[A]
 }
 
 private[eval] abstract class TaskParallelNewtype extends TaskContextShift {

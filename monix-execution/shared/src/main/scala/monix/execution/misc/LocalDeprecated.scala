@@ -17,24 +17,39 @@
 
 package monix.execution.misc
 
-private[misc] trait LocalDeprecated[A] { self: Local[A] =>
+import monix.execution.atomic.AtomicAny
 
-  /** DEPRECATED — switch to `local.bind[R: CanIsolate]`. */
+private[execution] trait LocalDeprecated[A] { self: Local[A] =>
+  /**
+    * DEPRECATED — switch to `local.bind[R: CanIsolate]`.
+    */
   @deprecated("Switch to local.bind[R: CanIsolate]", since = "3.0.0")
-  protected def bind[R](value: A)(f: => R): R = {
+  private[misc] def bind[R](value: A)(f: => R): R = {
     // $COVERAGE-OFF$
-    val parent = Local.getContext()
-    CanIsolate[R].bind(parent.bind(key, Some(value)))(f)
+    CanBindLocals.synchronous[R].bind(self, Some(value))(f)
     // $COVERAGE-ON$
   }
 
-  /** DEPRECATED — switch to `local.bindClear[R: CanIsolate]`. */
+  /**
+    * DEPRECATED — switch to `local.bindClear[R: CanIsolate]`.
+    */
   @deprecated("Switch to local.bindClear[R: CanIsolate]", since = "3.0.0")
-  protected def bindClear[R](f: => R): R = {
+  private[misc] def bindClear[R](f: => R): R = {
     // $COVERAGE-OFF$
     val parent = Local.getContext()
-    CanIsolate[R].bind(parent.bind(key, None))(f)
+    CanBindLocals.synchronous[R].withContext(parent.bind(key, None))(f)
     // $COVERAGE-ON$
   }
+}
 
+private[execution] trait LocalCompanionDeprecated { self: Local.type =>
+  /**
+    * DEPRECATED — switch to [[Local.newContext]].
+    */
+  @deprecated("Renamed to Local.newContext", "3.0.0")
+  def defaultContext(): Local.Unbound = {
+    // $COVERAGE-OFF$
+    new Unbound(AtomicAny(Map.empty))
+    // $COVERAGE-ON$
+  }
 }

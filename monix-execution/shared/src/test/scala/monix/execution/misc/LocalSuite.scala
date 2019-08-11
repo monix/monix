@@ -22,7 +22,6 @@ import minitest.SimpleTestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.{TestScheduler, TracingScheduler}
-
 import scala.concurrent.Future
 import scala.util.Success
 
