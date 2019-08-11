@@ -51,8 +51,7 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
   * @param underlying is the `ExecutionContext` to which the it defers
   *        to in case real asynchronous is needed
   */
-final class TrampolineExecutionContext private (underlying: ExecutionContext)
-  extends ExecutionContextExecutor {
+final class TrampolineExecutionContext private (underlying: ExecutionContext) extends ExecutionContextExecutor {
 
   private[this] val trampoline = new Trampoline(underlying)
 

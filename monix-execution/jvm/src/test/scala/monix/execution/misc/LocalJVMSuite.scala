@@ -17,8 +17,11 @@
 
 package monix.execution.misc
 
+import java.util.concurrent.CompletableFuture
+import java.util.function.{BiFunction, Supplier}
+
 import minitest.SimpleTestSuite
-import monix.execution.{Cancelable, CancelableFuture, Scheduler}
+import monix.execution.{Cancelable, CancelableFuture, FutureUtils, Scheduler}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TracingScheduler
 
@@ -41,6 +44,50 @@ object LocalJVMSuite extends SimpleTestSuite {
     } yield v
 
     for (v <- f) yield assertEquals(v, 50)
+  }
+
+  testAsync("Local.isolate(CancelableFuture) should properly isolate during async boundaries") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+
+    val local = Local(0)
+
+    val f = for {
+      _ <- CancelableFuture(Future { local := 50 }, Cancelable())
+      _ <- Local.isolate {
+        CancelableFuture(Future {
+          local := 100
+        }, Cancelable())
+      }
+      v <- CancelableFuture(Future { local() }, Cancelable())
+    } yield v
+
+    for (v <- f) yield assertEquals(v, 50)
+  }
+
+  testAsync("Local.isolate(CompletableFuture) should properly isolate during async boundaries") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+
+    val local = Local(0)
+
+    val cf = CompletableFuture
+      .supplyAsync(new Supplier[Any] {
+        override def get(): Any = local := 50
+      }, s)
+
+    val cf2 =
+      Local.isolate {
+        cf.handleAsync(new BiFunction[Any, Throwable, Any] {
+          def apply(r: Any, error: Throwable): Any = {
+            local := 100
+          }
+        }, s)
+      }.handleAsync(new BiFunction[Any, Throwable, Any] {
+        def apply(r: Any, error: Throwable): Any = {
+          local()
+        }
+      }, s)
+
+    for (v <- FutureUtils.fromJavaCompletable(cf2)) yield assertEquals(v.asInstanceOf[Int], 50)
   }
 
   testAsync("Local.isolate should properly isolate during async boundaries on error") {

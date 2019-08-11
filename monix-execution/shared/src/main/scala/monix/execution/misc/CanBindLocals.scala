@@ -53,7 +53,7 @@ object CanBindLocals extends CanIsolateInstancesLevel1 {
 
 private[misc] abstract class CanIsolateInstancesLevel1 extends CanIsolateInstancesLevel0 {
   /**
-    * Instance for `scala.concurrent.Future`.
+    * Instance for `monix.execution.CancelableFuture`.
     */
   implicit def cancelableFuture[R]: CanBindLocals[CancelableFuture[R]] =
     FutureInstance.asInstanceOf[CanBindLocals[CancelableFuture[R]]]
@@ -111,7 +111,8 @@ private[misc] abstract class CanIsolateInstancesLevel0 {
       }
     }
 
-    override def bind[A](local: Local[A], value: Option[A])(f: => Future[Any]): Future[Any] = super.bind(local, value)(f)
+    override def bind[A](local: Local[A], value: Option[A])(f: => Future[Any]): Future[Any] =
+      super.bind(local, value)(f)
 
     override def isolate(f: => Future[Any]): Future[Any] = super.isolate(f)
   }
@@ -126,13 +127,16 @@ private[misc] abstract class CanIsolateInstancesLevel0 {
       Local.setContext(ctx)
 
       try {
-        f.handleAsync(new BiFunction[Any, Throwable, Any] {
-          def apply(r: Any, error: Throwable): Any = {
-            Local.setContext(prev)
-            if (error != null) throw error
-            else r
-          }
-        }, TrampolineExecutionContext.immediate)
+        f.handleAsync(
+          new BiFunction[Any, Throwable, Any] {
+            def apply(r: Any, error: Throwable): Any = {
+              Local.setContext(prev)
+              if (error != null) throw error
+              else r
+            }
+          },
+          TrampolineExecutionContext.immediate
+        )
       } finally {
         Local.setContext(prev)
       }

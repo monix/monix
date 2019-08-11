@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect.{Fiber => _, _}
-import cats.{Monoid, Semigroup, ~>}
+import cats.{~>, Monoid, Semigroup}
 import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
