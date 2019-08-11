@@ -75,8 +75,8 @@ object LocalSuite extends SimpleTestSuite {
     local2 := 100
 
     val f = Local.isolate {
+      local1 := 100
       Future {
-        local1 := 100
         local1.get + local2.get
       }
     }

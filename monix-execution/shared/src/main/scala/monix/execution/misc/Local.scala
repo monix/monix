@@ -17,13 +17,8 @@
 
 package monix.execution.misc
 
-import monix.execution.{CancelableFuture, FutureUtils}
 import monix.execution.atomic.AtomicAny
-import monix.execution.schedulers.TrampolineExecutionContext
 import scala.annotation.tailrec
-import scala.concurrent.Future
-import scala.reflect.macros.whitebox
-import scala.util.Try
 
 object Local {
   /** Builds a new [[Local]] with the given `default` to be returned
@@ -64,42 +59,26 @@ object Local {
   def clearContext(): Unit =
     localContext.set(defaultContext())
 
-  /** Execute a synchronous block of code without propagating any `Local.Context`
+  /** Execute a  block of code without propagating any `Local.Context`
     * changes outside.
     */
-  def isolate[R](f: => R): R =
-    macro Macros.isolate
-
-  /** Execute an asynchronous block of code without propagating any `Local.Context`
-    * changes outside.
-    */
-  def isolate[R](f: => Future[R]): Future[R] = {
-    // TODO: rewrite as macro
-    val prev = Local.getContext()
-    val current = Local.getContext().mkIsolated
-    Local.setContext(current)
-
-    try {
-      FutureUtils.transform[R, R](f, result => {
-        Local.setContext(prev)
-        result
-      })(TrampolineExecutionContext.immediate)
-    } finally {
-      Local.setContext(prev)
-    }
+  def isolate[R: CanIsolate](f: => R): R = {
+    CanIsolate[R].isolate(f)
   }
 
   /** Execute a block of code using the specified state of
     * `Local.Context` and restore the current state when complete.
     */
-  def bind[R](ctx: Context)(f: => R): R =
-    macro Macros.localLet
+  def bind[R: CanIsolate](ctx: Context)(f: => R): R = {
+    CanIsolate[R].bind(ctx)(f)
+  }
 
   /** Execute a block of code with a clear state of `Local.Context`
     * and restore the current state when complete.
     */
-  def bindClear[R](f: => R): R =
-    macro Macros.localLetClear
+  def bindClear[R: CanIsolate](f: => R): R = {
+    CanIsolate[R].bind(Local.defaultContext())(f)
+  }
 
   /** Convert a closure `() => R` into another closure of the same
     * type whose [[Local.Context]] is saved when calling closed
@@ -139,68 +118,9 @@ object Local {
   /** If `b` evaluates to `true`, execute a block of code using a current
     * state of `Local.Context` and restore the current state when complete.
     */
-  private[monix] def bindCurrentIf[R](b: Boolean)(f: => R): R =
-    macro Macros.localLetCurrentIf
+  private[monix] def bindCurrentIf[R: CanIsolate](b: Boolean)(f: => R): R =
+    if (b) CanIsolate[R].isolate(f) else f
 
-  /** If `b` evaluates to `true`, execute an asynchronous block of code using a current
-    * state of `Local.Context` and restore the current state when complete.
-    */
-  private[monix] def bindCurrentAsyncIf[R](b: Boolean)(f: => CancelableFuture[R]): CancelableFuture[R] = {
-    if (b) {
-      // inlined implementation of `isolate` for `CancelableFuture`
-      val prev = Local.getContext()
-      val current = Local.getContext().mkIsolated
-      Local.setContext(current)
-
-      try {
-        f.transform(result => {
-          Local.setContext(prev)
-          result
-        })(TrampolineExecutionContext.immediate)
-      } finally {
-        Local.setContext(prev)
-      }
-    } else f
-  }
-
-  /** Macros implementations for [[bind]] and [[bindClear]]. */
-  private class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
-    import c.universe._
-
-    def localLet(ctx: Tree)(f: Tree): Tree = {
-      // TODO - reduce copy-paste in localLetXXX macros
-      val ctxRef = util.name("ctx")
-      val saved = util.name("saved")
-      val Local = symbolOf[Local[_]].companion
-      val AnyRefSym = symbolOf[AnyRef]
-
-      resetTree(q"""
-       val $ctxRef = ($ctx)
-       if (($ctxRef : $AnyRefSym) eq null) {
-         $f
-       } else {
-         val $saved = $Local.getContext()
-         $Local.setContext($ctxRef)
-         try { $f } finally { $Local.setContext($saved) }
-       }
-       """)
-    }
-
-    def localLetClear(f: Tree): Tree = {
-      val Local = symbolOf[Local[_]].companion
-      localLet(q"$Local.defaultContext()")(f)
-    }
-
-    def isolate(f: Tree): Tree =
-      localLet(q"${symbolOf[Local[_]].companion}.getContext().mkIsolated")(f)
-
-    def localLetCurrentIf(b: Tree)(f: Tree): Tree = {
-      resetTree(q"""
-           if (!$b) { $f }
-           else ${isolate(f)}
-         """)
-    }
-  }
   /** Represents the current state of all [[Local locals]] for a given
     * execution context.
     *
@@ -298,7 +218,7 @@ object Local {
   * Note: the implementation is optimized for situations in which save
   * and restore optimizations are dominant.
   */
-final class Local[A](default: () => A) {
+final class Local[A](default: () => A) extends LocalDeprecated[A] {
   import Local.Key
   val key: Key = new Key
 
@@ -335,46 +255,17 @@ final class Local[A](default: () => A) {
   /** Execute a block with a specific local value, restoring the
     * current state upon completion.
     */
-  def bind[R](value: A)(f: => R): R = {
+  def bind[R: CanIsolate](value: A)(f: => R): R = {
     val parent = Local.getContext()
-    Local.setContext(parent.bind(key, Some(value)))
-
-    f match {
-      case future: Future[_] =>
-        FutureUtils
-          .transform(future, (result: Try[_]) => {
-            Local.setContext(parent)
-            result
-          })(TrampolineExecutionContext.immediate)
-          .asInstanceOf[R]
-
-      case _ =>
-        try f
-        finally Local.setContext(parent)
-
-    }
+    CanIsolate[R].bind(parent.bind(key, Some(value)))(f)
   }
 
   /** Execute a block with the `Local` cleared, restoring the current
     * state upon completion.
     */
-  def bindClear[R](f: => R): R = {
+  def bindClear[R: CanIsolate](f: => R): R = {
     val parent = Local.getContext()
-    Local.setContext(parent.bind(key, None))
-
-    f match {
-      case future: Future[_] =>
-        FutureUtils
-          .transform(future, (result: Try[_]) => {
-            Local.setContext(parent)
-            result
-          })(TrampolineExecutionContext.immediate)
-          .asInstanceOf[R]
-
-      case _ =>
-        try f
-        finally Local.setContext(parent)
-    }
+    CanIsolate[R].bind(parent.bind(key, None))(f)
   }
 
   /** Clear the Local's value. Other [[Local Locals]] are not modified.
