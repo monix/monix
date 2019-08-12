@@ -21,13 +21,12 @@ import cats.Monoid
 import cats.~>
 import cats.effect.{ExitCase, Sync}
 import cats.kernel.Semigroup
-import monix.eval.instances.{CanBindLocalsForCoeval, CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
+import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal.{CoevalBracket, CoevalDeprecated, CoevalRunLoop, LazyVal, StackFrame}
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
 import monix.execution.internal.Platform.fusionMaxStackDepth
-import monix.execution.misc.CanBindLocals
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.mutable
@@ -1474,12 +1473,6 @@ object Coeval extends CoevalInstancesLevel0 {
     */
   implicit def catsMonoid[A](implicit A: Monoid[A]): Monoid[Coeval[A]] =
     new CatsMonadToMonoid[Coeval, A]()(CatsSyncForCoeval, A)
-
-  /**
-    * Instance of [[monix.execution.misc.CanBindLocals]] meant for [[Coeval]].
-    */
-  implicit def canBindLocals[A]: CanBindLocals[Coeval[A]] =
-    CanBindLocalsForCoeval[A]
 }
 
 private[eval] abstract class CoevalInstancesLevel0 extends CoevalDeprecated.Companion {
