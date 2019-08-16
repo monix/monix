@@ -53,15 +53,14 @@ private[execution] trait LocalCompanionDeprecated { self: Local.type =>
     // $COVERAGE-ON$
   }
 
-
   /**
     * DEPRECATED — switch to `local.closed[R: CanIsolate]`.
     */
   @deprecated("Switch to local.closed[R: CanIsolate]", since = "3.0.0")
   def closed[R](fn: () => R): () => R = {
     // $COVERAGE-OFF$
-    implicit val ev = CanBindLocals.synchronous[R]
-    Local.closed(fn)(ev)
+    import CanBindLocals.Implicits.synchronousAsDefault
+    Local.closed(fn)(implicitly[CanBindLocals[R]])
     // $COVERAGE-ON$
   }
 }

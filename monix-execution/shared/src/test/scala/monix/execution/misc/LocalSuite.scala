@@ -19,9 +19,8 @@ package monix.execution.misc
 
 import cats.Eval
 import minitest.SimpleTestSuite
-import monix.execution.Scheduler
-import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.{TestScheduler, TracingScheduler}
+import monix.execution.misc.CanBindLocals.Implicits.synchronousAsDefault
 import scala.concurrent.Future
 import scala.util.Success
 

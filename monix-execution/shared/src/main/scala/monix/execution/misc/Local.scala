@@ -18,7 +18,6 @@
 package monix.execution.misc
 
 import monix.execution.atomic.AtomicAny
-
 import scala.annotation.tailrec
 import scala.reflect.macros.whitebox
 
@@ -28,6 +27,13 @@ import scala.reflect.macros.whitebox
   *         should be waited on, like `Future` or `CompletableFuture`,
   *         then the locals context also needs to be cleared on the
   *         future's completion, for correctness.
+  *
+  *         There's no default instance for synchronous actions available
+  *         in scope. If you need to work with synchronous actions, you
+  *         need to import it explicitly:
+  *         {{{
+  *           import monix.execution.misc.CanBindLocals.Implicits.synchronousAsDefault
+  *         }}}
   */
 object Local extends LocalCompanionDeprecated {
   /** Builds a new [[Local]] with the given `default` to be returned
@@ -144,7 +150,14 @@ object Local extends LocalCompanionDeprecated {
 
     def localLetCurrentIf(b: Tree)(f: Tree): Tree = {
       val Local = symbolOf[Local[_]].companion
-      resetTree(q"if (!$b) { $f } else { $Local.isolate($f) }")
+      val CanBindLocals = symbolOf[CanBindLocals[_]].companion
+
+      resetTree(
+        q"""if (!$b) { $f } else {
+           import $CanBindLocals.Implicits.synchronousAsDefault
+           $Local.isolate($f)
+        }"""
+      )
     }
   }
 

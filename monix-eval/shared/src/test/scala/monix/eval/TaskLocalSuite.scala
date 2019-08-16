@@ -267,30 +267,4 @@ object TaskLocalSuite extends SimpleTestSuite {
 
     t.runToFutureOpt
   }
-
-  testAsync("Local.isolate should use correct Task instance") {
-    val local = Local(0)
-
-    val t = for {
-      _ <- Task(local := 100)
-      _ <- Task(assertEquals(local.get, 100))
-      _ <- Task.parZip2(Local.isolate(Task(local := 200)), Local.isolate(Task(local := 300)))
-      _ <- Task(assertEquals(local.get, 100))
-    } yield ()
-
-    t.runToFutureOpt
-  }
-
-  test("Local.isolate should use correct Coeval instance") {
-    val local = Local(0)
-
-    val t = for {
-      _ <- Coeval(local := 100)
-      _ <- Coeval(assertEquals(local.get, 100))
-      _ <- Local.isolate(Coeval(local := 200))
-      _ <- Coeval(assertEquals(local.get, 100))
-    } yield ()
-
-    t.run().value()
-  }
 }
