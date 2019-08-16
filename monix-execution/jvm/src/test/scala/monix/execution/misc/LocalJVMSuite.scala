@@ -21,7 +21,6 @@ import minitest.SimpleTestSuite
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TracingScheduler
-
 import scala.concurrent.Future
 
 object LocalJVMSuite extends SimpleTestSuite {

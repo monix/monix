@@ -19,36 +19,46 @@ package monix.execution.misc
 
 import java.util.concurrent.CompletableFuture
 import java.util.function.BiFunction
+
+import implicitbox.Not
 import monix.execution.{CancelableFuture, FutureUtils}
 import monix.execution.schedulers.TrampolineExecutionContext
+
+import scala.annotation.implicitNotFound
 import scala.concurrent.Future
 
 /**
-  * Type class for describing how isolation work for specific data types.
-  * There is a default instance for any type but some of them (e.g. `Future`) require
-  * special handling and using type class is an alternative to overloads and `asInstanceOf` calls.
+  * Type class describing how [[Local]] binding works for specific data types.
+  *
+  * This is needed because asynchronous data types, like `Future`,
+  * that can be waited on, should also clear the modified context
+  * after completion.
+  *
+  * NOTE: this type class does not work for data types that suspend the
+  * execution, like `Coeval` or `Task`, because [[Local]] is meant to
+  * be used in a side effectful way. Instances of this type class
+  * can't be implemented for data types like `Task`, as a technical
+  * limitation, because `Task` would also need a suspended `Context`
+  * evaluation in `bindContext`.
   */
+@implicitNotFound("""Cannot find an implicit value for CanBindLocals[${R}].
+If ${R} is the result of a synchronous action, either build an implicit with
+CanBindLocals.synchronous or import CanBindLocals.Implicits.synchronousAsDefault.""")
 trait CanBindLocals[R] {
-  def withSuspendedContext(ctx: () => Local.Context)(f: => R): R
+  /** See [[monix.execution.misc.Local.bind[R](ctx* Local.bind]]. */
+  def bindContext(ctx: Local.Context)(f: => R): R
 
-  def withContext(ctx: Local.Context)(f: => R): R =
-    withSuspendedContext(() => ctx)(f)
+  /** See [[monix.execution.misc.Local.bind[R](value* Local.bind]]. */
+  def bindKey[A](local: Local[A], value: Option[A])(f: => R): R =
+    bindContext(Local.getContext().bind(local.key, value))(f)
 
-  def bind[A](local: Local[A], value: Option[A])(f: => R): R =
-    withSuspendedContext(() => Local.getContext().bind(local.key, value))(f)
-
-  /** Execute a  block of code without propagating any `Local.Context`
-    * changes outside.
-    */
+  /** See [[Local.isolate]]. */
   def isolate(f: => R): R =
-    withSuspendedContext(CanBindLocals.mkIsolatedRef)(f)
+    bindContext(Local.getContext().isolate())(f)
 }
 
 object CanBindLocals extends CanIsolateInstancesLevel1 {
   def apply[R](implicit R: CanBindLocals[R]): CanBindLocals[R] = R
-
-  private val mkIsolatedRef =
-    () => Local.getContext().isolate()
 }
 
 private[misc] abstract class CanIsolateInstancesLevel1 extends CanIsolateInstancesLevel0 {
@@ -56,7 +66,7 @@ private[misc] abstract class CanIsolateInstancesLevel1 extends CanIsolateInstanc
     * Instance for `monix.execution.CancelableFuture`.
     */
   implicit def cancelableFuture[R]: CanBindLocals[CancelableFuture[R]] =
-    FutureInstance.asInstanceOf[CanBindLocals[CancelableFuture[R]]]
+    CancelableFutureInstance.asInstanceOf[CanBindLocals[CancelableFuture[R]]]
 
   /**
     * Instance for `java.util.concurrent.CompletableFuture`.
@@ -64,26 +74,51 @@ private[misc] abstract class CanIsolateInstancesLevel1 extends CanIsolateInstanc
   implicit def completableFuture[R]: CanBindLocals[CompletableFuture[R]] =
     CompletableFutureInstance.asInstanceOf[CanBindLocals[CompletableFuture[R]]]
 
+  object Implicits {
+    /**
+      * Implicit instance for all things synchronous.
+      *
+      * Needs to be imported explicitly in scope. Will NOT override
+      * other `CanBindLocals` implicits that are already visible.
+      */
+    @inline implicit def synchronousAsDefault[R](implicit ev: Not[CanBindLocals[R]]): CanBindLocals[R] =
+      CanBindLocals.synchronous[R]
+  }
+}
+
+private[misc] abstract class CanIsolateInstancesLevel0 {
   /**
     * Instance for `scala.concurrent.Future`.
     */
   implicit def future[R]: CanBindLocals[Future[R]] =
     FutureInstance.asInstanceOf[CanBindLocals[Future[R]]]
-}
 
-private[misc] abstract class CanIsolateInstancesLevel0 {
   /**
-    * Instance for `scala.Unit`.
+    * Instance for `Unit`.
     */
-  implicit def synchronous[R]: CanBindLocals[R] =
+  @inline implicit def forUnit: CanBindLocals[Unit] =
+    synchronous[Unit]
+
+  /**
+    * Builds an instance for synchronous execution.
+    *
+    * {{{
+    *   import monix.execution.misc._
+    *   implicit val ev = CanBindLocals.synchronous[String]
+    *
+    *   // If not provided explicitly, it might trigger compilation error
+    *   // due to requirement for CanBindLocals[String]
+    *   Local.bindClear {
+    *     "Hello!"
+    *   }
+    * }}}
+    */
+  def synchronous[R]: CanBindLocals[R] =
     SynchronousInstance.asInstanceOf[CanBindLocals[R]]
 
   /** Implementation for [[CanBindLocals.synchronous]]. */
   protected object SynchronousInstance extends CanBindLocals[Any] {
-    override def withSuspendedContext(ctx: () => Local.Context)(f: => Any): Any =
-      withContext(ctx())(f)
-
-    override def withContext(ctx: Local.Context)(f: => Any): Any = {
+    override def bindContext(ctx: Local.Context)(f: => Any): Any = {
       val prev = Local.getContext()
       Local.setContext(ctx)
       try f
@@ -91,12 +126,26 @@ private[misc] abstract class CanIsolateInstancesLevel0 {
     }
   }
 
+  /** Implementation for [[CanBindLocals.cancelableFuture]]. */
+  protected object CancelableFutureInstance extends CanBindLocals[CancelableFuture[Any]] {
+    override def bindContext(ctx: Local.Context)(f: => CancelableFuture[Any]): CancelableFuture[Any] = {
+      val prev = Local.getContext()
+      Local.setContext(ctx)
+
+      try {
+        f.transform { result =>
+          Local.setContext(prev)
+          result
+        }(TrampolineExecutionContext.immediate)
+      } finally {
+        Local.setContext(prev)
+      }
+    }
+  }
+
   /** Implementation for [[CanBindLocals.future]]. */
   protected object FutureInstance extends CanBindLocals[Future[Any]] {
-    def withSuspendedContext(ctx: () => Local.Context)(f: => Future[Any]): Future[Any] =
-      withContext(ctx())(f)
-
-    override def withContext(ctx: Local.Context)(f: => Future[Any]): Future[Any] = {
+    override def bindContext(ctx: Local.Context)(f: => Future[Any]): Future[Any] = {
       val prev = Local.getContext()
       Local.setContext(ctx)
 
@@ -110,19 +159,11 @@ private[misc] abstract class CanIsolateInstancesLevel0 {
         Local.setContext(prev)
       }
     }
-
-    override def bind[A](local: Local[A], value: Option[A])(f: => Future[Any]): Future[Any] =
-      super.bind(local, value)(f)
-
-    override def isolate(f: => Future[Any]): Future[Any] = super.isolate(f)
   }
 
   /** Implementation for [[CanBindLocals.completableFuture]]. */
   protected object CompletableFutureInstance extends CanBindLocals[CompletableFuture[Any]] {
-    def withSuspendedContext(ctx: () => Local.Context)(f: => CompletableFuture[Any]): CompletableFuture[Any] =
-      withContext(ctx())(f)
-
-    override def withContext(ctx: Local.Context)(f: => CompletableFuture[Any]): CompletableFuture[Any] = {
+    override def bindContext(ctx: Local.Context)(f: => CompletableFuture[Any]): CompletableFuture[Any] = {
       val prev = Local.getContext()
       Local.setContext(ctx)
 

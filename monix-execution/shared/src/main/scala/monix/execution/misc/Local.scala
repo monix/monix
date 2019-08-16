@@ -18,10 +18,23 @@
 package monix.execution.misc
 
 import monix.execution.atomic.AtomicAny
-
 import scala.annotation.tailrec
 import scala.reflect.macros.whitebox
 
+/**
+  * @define canBindLocalsDesc The implementation uses the [[CanBindLocals]]
+  *         type class because in case of asynchronous data types that
+  *         should be waited on, like `Future` or `CompletableFuture`,
+  *         then the locals context also needs to be cleared on the
+  *         future's completion, for correctness.
+  *
+  *         There's no default instance for synchronous actions available
+  *         in scope. If you need to work with synchronous actions, you
+  *         need to import it explicitly:
+  *         {{{
+  *           import monix.execution.misc.CanBindLocals.Implicits.synchronousAsDefault
+  *         }}}
+  */
 object Local extends LocalCompanionDeprecated {
   /** Builds a new [[Local]] with the given `default` to be returned
     * if a value hasn't been set, or after the local gets cleared.
@@ -66,34 +79,35 @@ object Local extends LocalCompanionDeprecated {
 
   /** Execute a  block of code without propagating any `Local.Context`
     * changes outside.
+    *
+    * $canBindLocalsDesc
     */
   def isolate[R](f: => R)(implicit R: CanBindLocals[R]): R =
     R.isolate(f)
 
   /** Execute a block of code using the specified state of
     * `Local.Context` and restore the current state when complete.
+    *
+    * $canBindLocalsDesc
     */
   def bind[R](ctx: Context)(f: => R)(implicit R: CanBindLocals[R]): R =
-    R.withContext(ctx)(f)
+    R.bindContext(ctx)(f)
 
   /** Execute a block of code with a clear state of `Local.Context`
     * and restore the current state when complete.
+    *
+    * $canBindLocalsDesc
     */
   def bindClear[R](f: => R)(implicit R: CanBindLocals[R]): R =
-    CanBindLocals[R].withContext(Local.newContext())(f)
+    CanBindLocals[R].bindContext(Local.newContext())(f)
 
   /** Convert a closure `() => R` into another closure of the same
     * type whose [[Local.Context]] is saved when calling closed
     * and restored upon invocation.
     */
-  def closed[R](fn: () => R): () => R = {
+  def closed[R](fn: () => R)(implicit R: CanBindLocals[R]): () => R = {
     val closure = Local.getContext()
-    () => {
-      val save = Local.getContext()
-      Local.setContext(closure)
-      try fn()
-      finally Local.setContext(save)
-    }
+    () => Local.bind(closure)(fn())
   }
 
   private def getKey[A](key: Key): Option[A] =
@@ -136,7 +150,14 @@ object Local extends LocalCompanionDeprecated {
 
     def localLetCurrentIf(b: Tree)(f: Tree): Tree = {
       val Local = symbolOf[Local[_]].companion
-      resetTree(q"if (!$b) { $f } else { $Local.isolate($f) }")
+      val CanBindLocals = symbolOf[CanBindLocals[_]].companion
+
+      resetTree(
+        q"""if (!$b) { $f } else {
+           import $CanBindLocals.Implicits.synchronousAsDefault
+           $Local.isolate($f)
+        }"""
+      )
     }
   }
 
@@ -249,6 +270,12 @@ object Local extends LocalCompanionDeprecated {
   *
   * Note: the implementation is optimized for situations in which save
   * and restore optimizations are dominant.
+  *
+  * @define canBindLocalsDesc The implementation uses the [[CanBindLocals]]
+  *         type class because in case of asynchronous data types that
+  *         should be waited on, like `Future` or `CompletableFuture`,
+  *         then the locals context also needs to be cleared on the
+  *         future's completion, for correctness.
   */
 final class Local[A](default: () => A) extends LocalDeprecated[A] {
   import Local.Key
@@ -286,15 +313,19 @@ final class Local[A](default: () => A) extends LocalDeprecated[A] {
 
   /** Execute a block with a specific local value, restoring the
     * current state upon completion.
+    *
+    * $canBindLocalsDesc
     */
   def bind[R](value: A)(f: => R)(implicit R: CanBindLocals[R]): R =
-    R.bind(this, Some(value))(f)
+    R.bindKey(this, Some(value))(f)
 
   /** Execute a block with the `Local` cleared, restoring the current
     * state upon completion.
+    *
+    * $canBindLocalsDesc
     */
   def bindClear[R](f: => R)(implicit R: CanBindLocals[R]): R =
-    R.bind(this, None)(f)
+    R.bindKey(this, None)(f)
 
   /** Clear the Local's value. Other [[Local Locals]] are not modified.
     *

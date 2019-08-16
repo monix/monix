@@ -26,7 +26,7 @@ private[execution] trait LocalDeprecated[A] { self: Local[A] =>
   @deprecated("Switch to local.bind[R: CanIsolate]", since = "3.0.0")
   private[misc] def bind[R](value: A)(f: => R): R = {
     // $COVERAGE-OFF$
-    CanBindLocals.synchronous[R].bind(self, Some(value))(f)
+    CanBindLocals.synchronous[R].bindKey(self, Some(value))(f)
     // $COVERAGE-ON$
   }
 
@@ -37,7 +37,7 @@ private[execution] trait LocalDeprecated[A] { self: Local[A] =>
   private[misc] def bindClear[R](f: => R): R = {
     // $COVERAGE-OFF$
     val parent = Local.getContext()
-    CanBindLocals.synchronous[R].withContext(parent.bind(key, None))(f)
+    CanBindLocals.synchronous[R].bindContext(parent.bind(key, None))(f)
     // $COVERAGE-ON$
   }
 }
@@ -50,6 +50,17 @@ private[execution] trait LocalCompanionDeprecated { self: Local.type =>
   def defaultContext(): Local.Unbound = {
     // $COVERAGE-OFF$
     new Unbound(AtomicAny(Map.empty))
+    // $COVERAGE-ON$
+  }
+
+  /**
+    * DEPRECATED — switch to `local.closed[R: CanIsolate]`.
+    */
+  @deprecated("Switch to local.closed[R: CanIsolate]", since = "3.0.0")
+  def closed[R](fn: () => R): () => R = {
+    // $COVERAGE-OFF$
+    import CanBindLocals.Implicits.synchronousAsDefault
+    Local.closed(fn)(implicitly[CanBindLocals[R]])
     // $COVERAGE-ON$
   }
 }
