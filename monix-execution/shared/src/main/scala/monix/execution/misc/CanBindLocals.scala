@@ -76,8 +76,10 @@ private[misc] abstract class CanIsolateInstancesLevel1 extends CanIsolateInstanc
 
   object Implicits {
     /**
-      * Implicit instance for all things synchronous that
-      * should be explicitly imported in scope.
+      * Implicit instance for all things synchronous.
+      *
+      * Needs to be imported explicitly in scope. Will NOT override
+      * other `CanBuildFrom` implicits that are already visible.
       */
     @inline implicit def synchronousAsDefault[R](implicit ev: Not[CanBindLocals[R]]): CanBindLocals[R] =
       CanBindLocals.synchronous[R]
