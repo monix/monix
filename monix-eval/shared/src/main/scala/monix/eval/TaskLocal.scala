@@ -269,7 +269,7 @@ object TaskLocal {
   def isolate[A](task: Task[A]): Task[A] = checkPropagation {
     Task {
       val current = Local.getContext()
-      Local.setContext(current.mkIsolated)
+      Local.setContext(current.isolate())
       current
     }.bracket(_ => task)(backup => Task(Local.setContext(backup)))
   }

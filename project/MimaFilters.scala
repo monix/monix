@@ -7,11 +7,8 @@ object MimaFilters {
     // Should not be a problem, but I'm not absolutely sure
     exclude[MissingTypesProblem]("monix.execution.exceptions.APIContractViolationException"),
     // Breaking changes for https://github.com/monix/monix/pull/960
+    // Should only be a problem for Scala 2.11
     exclude[ReversedMissingMethodProblem]("monix.execution.Scheduler.features"),
-    // Local changes :-(
-    exclude[IncompatibleResultTypeProblem]("monix.execution.misc.Local.defaultContext"),
-    exclude[IncompatibleResultTypeProblem]("monix.execution.misc.Local.defaultContext"),
-    exclude[IncompatibleResultTypeProblem]("monix.execution.misc.Local#Context.mkIsolated"),
     // Internals
     exclude[MissingClassProblem]("monix.eval.Task$DoOnFinish"),
     exclude[MissingClassProblem]("monix.eval.internal.TaskConnection$TrampolinedWithConn"),
