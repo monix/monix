@@ -32,7 +32,7 @@ val catsEffectVersion = "2.0.0-RC1"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
-val minitestVersion = "2.5.0"
+val minitestVersion = "2.6.0"
 val scalaTestVersion = "3.0.8"
 
 // The Monix version with which we must keep binary compatibility.
