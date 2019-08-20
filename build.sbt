@@ -32,7 +32,8 @@ val catsEffectVersion = "1.4.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
-val minitestVersion = "2.3.2"
+val minitestVersion = "2.6.0"
+val implicitBoxVersion = "0.1.0"
 
 def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
   case Some((2, v)) if v >= 13 => "3.0.6-SNAP5"
@@ -65,8 +66,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.9",
-  crossScalaVersions := Seq("2.11.12", "2.12.9", "2.13.0-M5"),
+  scalaVersion := "2.12.8",
+  crossScalaVersions := Seq("2.11.12", "2.12.9"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -397,7 +398,8 @@ lazy val coreJS = project.in(file("monix/js"))
   .settings(name := "monix")
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution"
+  name := "monix-execution",
+  libraryDependencies += "io.monix" %%% "implicitbox" % implicitBoxVersion
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))

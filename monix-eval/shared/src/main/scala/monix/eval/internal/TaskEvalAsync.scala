@@ -30,7 +30,7 @@ private[eval] object TaskEvalAsync {
       new EvalAsyncRegister[A](a),
       trampolineAfter = false,
       trampolineBefore = false,
-      restoreLocals = true
+      restoreLocals = false
     )
 
   // Implementing Async's "start" via `ForkedStart` in order to signal

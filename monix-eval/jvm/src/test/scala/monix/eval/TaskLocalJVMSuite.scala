@@ -20,9 +20,12 @@ package monix.eval
 import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.Scheduler
+import monix.execution.exceptions.DummyException
+import monix.execution.{ExecutionModel, Scheduler}
+import monix.execution.misc.Local
+import monix.execution.schedulers.TracingScheduler
 
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 
 object TaskLocalJVMSuite extends SimpleTestSuite {
@@ -173,5 +176,88 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       val r = method(task)
       assertEquals(r, 0)
     }
+  }
+
+  testAsync("local state is encapsulated by Task run loop on single thread") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+
+    def runAssertion(run: Task[Unit] => Any, method: String): Future[Unit] = {
+      val p = Promise[Unit]
+      val local = Local(0)
+      val task = Task.evalAsync(local := 50).guarantee(Task(p.success(())).void)
+
+      run(task)
+
+      // Future could still carry isolated local
+      // because it was created inside isolated block
+      val f = Local.isolate(p.future)
+
+      f.map(_ => {
+        assert(local() == 0, s"received ${local()} != expected 0 in $method")
+      })
+    }
+
+    for {
+      _ <- runAssertion(_.runSyncUnsafeOpt(), "runSyncUnsafe")
+      _ <- runAssertion(_.runToFutureOpt, "runToFuture")
+      _ <- runAssertion(_.runAsyncOpt(_ => ()), "runAsync")
+      _ <- runAssertion(_.runAsyncOptF(_ => ()), "runAsyncF")
+      _ <- runAssertion(_.runAsyncAndForgetOpt, "runAsyncAndForget")
+      _ <- runAssertion(_.runAsyncUncancelableOpt(_ => ()), "runAsyncUncancelable")
+    } yield ()
+
+  }
+
+  testAsync("TaskLocal.isolate should properly isolate during async boundaries") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+
+    val local = Local(0)
+    val test = for {
+      _ <- Task.evalAsync(local := 50)
+      _ <- TaskLocal.isolate {
+        Task.evalAsync(local := 100)
+      }
+      v <- Task.evalAsync(local())
+      _ <- Task.now(assertEquals(v, 50))
+    } yield ()
+
+    test.runToFuture
+  }
+
+  testAsync("TaskLocal.isolate should properly isolate during async boundaries on error") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+
+    val local = Local(0)
+    val test = for {
+      _ <- Task.evalAsync(local := 50)
+      _ <- TaskLocal.isolate {
+        Task.evalAsync(local := 100).flatMap(_ => Task.raiseError(DummyException("boom")))
+      }.attempt
+      v <- Task.evalAsync(local())
+      _ <- Task.now(assertEquals(v, 50))
+    } yield ()
+
+    test.runToFuture
+  }
+
+  testAsync("TaskLocal.isolate should properly isolate during async boundaries on cancelation") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+
+    val local = Local(0)
+    val test = for {
+      _ <- Task.evalAsync(local := 50)
+      _ <- TaskLocal.isolate {
+        Task.evalAsync(local := 100).start.flatMap(_.cancel)
+      }
+      v <- Task.evalAsync(local())
+      _ <- Task.now(assertEquals(v, 50))
+    } yield ()
+
+    test.runToFuture
   }
 }

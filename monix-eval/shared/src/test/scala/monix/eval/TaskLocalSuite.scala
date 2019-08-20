@@ -19,7 +19,6 @@ package monix.eval
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
