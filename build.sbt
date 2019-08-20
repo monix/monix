@@ -34,6 +34,8 @@ val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.2"
 val minitestVersion = "2.6.0"
 val scalaTestVersion = "3.0.8"
+val minitestVersion = "2.6.0"
+val implicitBoxVersion = "0.1.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -388,7 +390,8 @@ lazy val coreJS = project.in(file("monix/js"))
   .settings(name := "monix")
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution"
+  name := "monix-execution",
+  libraryDependencies += "io.monix" %%% "implicitbox" % implicitBoxVersion
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))

@@ -21,7 +21,6 @@ import minitest.SimpleTestSuite
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TracingScheduler
-
 import scala.concurrent.Future
 
 object LocalJVMSuite extends SimpleTestSuite {
@@ -38,6 +37,24 @@ object LocalJVMSuite extends SimpleTestSuite {
         }
       }
       v <- Future { local() }
+    } yield v
+
+    for (v <- f) yield assertEquals(v, 50)
+  }
+
+  testAsync("Local.isolate(CancelableFuture) should properly isolate during async boundaries") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+
+    val local = Local(0)
+
+    val f = for {
+      _ <- CancelableFuture(Future { local := 50 }, Cancelable())
+      _ <- Local.isolate {
+        CancelableFuture(Future {
+          local := 100
+        }, Cancelable())
+      }
+      v <- CancelableFuture(Future { local() }, Cancelable())
     } yield v
 
     for (v <- f) yield assertEquals(v, 50)
@@ -61,16 +78,44 @@ object LocalJVMSuite extends SimpleTestSuite {
     for (v <- f) yield assertEquals(v, 50)
   }
 
-  testAsync("Local.bindCurrentIf should properly restore context during async boundaries") {
+  testAsync("Local.bindCurrentIf(CancelableFuture) should properly restore context during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
     val local = Local(0)
 
     val f = for {
       _ <- Future { local := 50 }
-      _ <- Local.bindCurrentAsyncIf(true)(CancelableFuture(Future {
+      _ <- Local.bindCurrentIf(true)(CancelableFuture(Future {
         local := 100
       }, Cancelable.empty))
+      v <- Future { local() }
+    } yield v
+
+    for (v <- f) yield assertEquals(v, 50)
+  }
+
+  testAsync("Local.bind(Local.defaultContext()) should restore context during async boundaries") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+
+    val local = Local(0)
+
+    val f = for {
+      _ <- Future { local := 50 }
+      _ <- Local.bind(Local.newContext()) { Future { local := 100 } }
+      v <- Future { local() }
+    } yield v
+
+    for (v <- f) yield assertEquals(v, 50)
+  }
+
+  testAsync("Local.bindClear should restore context during async boundaries") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+
+    val local = Local(0)
+
+    val f = for {
+      _ <- Future { local := 50 }
+      _ <- Local.bindClear { Future { local := 100 } }
       v <- Future { local() }
     } yield v
 
