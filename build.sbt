@@ -160,7 +160,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     if (scalaVersion.value == "2.13.0-M5")
       compilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary)
     else
-      compilerPlugin("org.typelevel" % "kind-projector" % "0.10.0" cross CrossVersion.binary)
+      compilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary)
   },
 
   // ScalaDoc settings
