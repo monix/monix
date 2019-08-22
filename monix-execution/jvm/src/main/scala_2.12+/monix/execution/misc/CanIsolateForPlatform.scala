@@ -20,8 +20,6 @@ package monix.execution.misc
 import java.util.concurrent.CompletableFuture
 import java.util.function.BiFunction
 
-import monix.execution.schedulers.TrampolineExecutionContext
-
 private[execution] trait CanIsolateForPlatform {
   /**
     * Instance for `java.util.concurrent.CompletableFuture`.
@@ -36,15 +34,14 @@ private[execution] trait CanIsolateForPlatform {
       Local.setContext(ctx)
 
       try {
-        f.handleAsync(
+        f.handle(
           new BiFunction[Any, Throwable, Any] {
             def apply(r: Any, error: Throwable): Any = {
               Local.setContext(prev)
               if (error != null) throw error
               else r
             }
-          },
-          TrampolineExecutionContext.immediate
+          }
         )
       } finally {
         Local.setContext(prev)
