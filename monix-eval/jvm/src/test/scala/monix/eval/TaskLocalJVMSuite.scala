@@ -264,16 +264,17 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
   testAsync("TaskLocal.isolate should isolate contexts from Future") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
-    val local: Local[Int] = Local[Int](-1)
-    val test = (i: Int) => {
-      for {
-        _ <- Task(local.update(i))
-        _ <- TaskLocal.isolate(Task.deferFuture(Future {
+    val local = Local(0)
+    val test = for {
+      _ <- Task(local := 50)
+      _ <- TaskLocal.isolate {
+        Task.deferFuture(Future {
           local.clear()
-        }))
-        _ <- Task.now(assertEquals(local.get, i))
-      } yield ()
-    }
-    TaskLocal.isolate(test(1).executeAsync).runToFuture
+        })
+      }
+      _ <- Task.now(assertEquals(local.get, 100))
+    } yield ()
+
+    test.runToFuture
   }
 }
