@@ -266,7 +266,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
     val local = Local(0)
     val test = for {
-      _ <- Task(local := 50)
+      _ <- Task(local := 100)
       _ <- TaskLocal.isolate {
         Task.deferFuture(Future {
           local.clear()
