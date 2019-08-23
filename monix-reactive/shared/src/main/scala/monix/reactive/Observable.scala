@@ -5201,6 +5201,16 @@ object Observable extends ObservableDeprecatedBuilders {
   def unfold[S, A](seed: => S)(f: S => Option[(A, S)]): Observable[A] =
     new UnfoldObservable(seed, f)
 
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * observable that keeps generating elements produced by our
+    * generator function until `None` is returned.
+    * @example {{{
+    *  Observable.unfoldEval(0)(i => if (i < 10) Task.now(Some((i, i + 1))) else Task.now(None)).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    *  }}}
+    */
   def unfoldEval[S, A](seed: => S)(f: S => Task[Option[(A, S)]]): Observable[A] =
     new UnfoldEvalObservable(seed, f)
 
