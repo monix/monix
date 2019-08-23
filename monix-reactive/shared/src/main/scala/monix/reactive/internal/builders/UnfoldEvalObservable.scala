@@ -25,7 +25,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.util.control.NonFatal
 
-private[reactive] final class UnfoldEvalObservable[S,A](seed: S, f: S => Task[Option[(A, S)]]) extends Observable[A] {
+private[reactive] final class UnfoldEvalObservable[S, A](seed: S, f: S => Task[Option[(A, S)]]) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler

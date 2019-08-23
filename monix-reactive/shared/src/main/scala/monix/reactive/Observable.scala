@@ -5214,7 +5214,6 @@ object Observable extends ObservableDeprecatedBuilders {
   def unfoldEval[S, A](seed: => S)(f: S => Task[Option[(A, S)]]): Observable[A] =
     new UnfoldEvalObservable(seed, f)
 
-
   /** Version of [[unfoldEval]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
@@ -5230,7 +5229,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *      [[monix.eval.Task Task]]
     */
   def unfoldEvalF[F[_], S, A](seed: => S)(f: S => F[Option[(A, S)]])(implicit F: TaskLike[F]): Observable[A] =
-    unfoldEval(seed)(a =>  Task.from(f(a)))
+    unfoldEval(seed)(a => Task.from(f(a)))
 
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an

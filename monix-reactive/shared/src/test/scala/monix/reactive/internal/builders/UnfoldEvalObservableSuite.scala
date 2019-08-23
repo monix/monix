@@ -44,7 +44,6 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-
   test("unfoldEval and fromAsyncStateAction results should be equal given generated inputs") { implicit s =>
     check2 { (s: Int, i: Int) =>
       val seed = s % (recommendedBatchSize * 2)
@@ -96,7 +95,6 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     assertEquals((0 until received).toList, (0 to 19).toList)
     assertEquals(s.state.lastReportedError, dummy)
   }
-
 
   test("unfoldEvalF and fromAsyncStateActionF results should be equal given generated inputs") { implicit s =>
     check2 { (s: Int, i: Int) =>
