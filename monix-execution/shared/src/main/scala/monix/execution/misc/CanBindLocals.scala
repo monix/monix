@@ -54,7 +54,7 @@ trait CanBindLocals[R] {
     bindContext(Local.getContext().isolate())(f)
 }
 
-object CanBindLocals extends CanIsolateInstancesLevel1 with CanIsolateForPlatform {
+object CanBindLocals extends CanIsolateInstancesLevel1 {
   def apply[R](implicit R: CanBindLocals[R]): CanBindLocals[R] = R
 }
 
