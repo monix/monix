@@ -42,12 +42,12 @@ object TaskAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.async should log errors") { implicit s =>
+  test("Task.async should signal errors in register") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.async0[Int]((_, _) => throw ex)
     val result = task.runToFuture; s.tick()
-    assertEquals(result.value, None)
-    assertEquals(s.state.lastReportedError, ex)
+    assertEquals(result.value, Some(Failure(ex)))
+    assertEquals(s.state.lastReportedError, null)
   }
 
   test("Task.async should be stack safe") { implicit s =>

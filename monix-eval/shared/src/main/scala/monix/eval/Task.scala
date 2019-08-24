@@ -580,9 +580,10 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   @UnsafeBecauseImpure
   def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
     val opts2 = opts.withSchedulerFeatures
-    Local.bindCurrentIf(opts2.localContextPropagation) {
-      TaskRunLoop.startFuture(this, s, opts2)
-    }
+    Local
+      .bindCurrentIf(opts2.localContextPropagation) {
+        TaskRunLoop.startFuture(this, s, opts2)
+      }
   }
 
   /** Triggers the asynchronous execution, with a provided callback
@@ -2843,8 +2844,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * @see [[Task.async0]] for a variant that also injects a
     *      [[monix.execution.Scheduler Scheduler]] into the provided callback,
@@ -2903,8 +2907,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback]] can be called at
     *    most once, either with a successful result, or with an error;
     *    calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * NOTES on the naming:
     *
@@ -3015,8 +3022,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * @see [[Task.cancelable0]] for the version that also injects a
     *      [[monix.execution.Scheduler Scheduler]] in that callback
@@ -3110,8 +3120,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * NOTES on the naming:
     *
@@ -3468,9 +3481,42 @@ object Task extends TaskInstancesLevel1 {
     * $parallelismAdvice
     *
     * $parallelismNote
+    *
+    * @see [[gatherN]] for a version that limits parallelism.
     */
   def gather[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
     TaskGather[A, M](in, () => newBuilder(bf, in))
+
+  /** Executes the given sequence of tasks in parallel, non-deterministically
+    * gathering their results, returning a task that will signal the sequence
+    * of results once all tasks are finished.
+    *
+    * Implementation ensure there are at most `n` (= `parallelism` parameter) tasks
+    * running concurrently and the results are returned in order.
+    *
+    * Example:
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   val tasks = List(
+    *     Task(1 + 1).delayExecution(1.second),
+    *     Task(2 + 2).delayExecution(2.second),
+    *     Task(3 + 3).delayExecution(3.second),
+    *     Task(4 + 4).delayExecution(4.second)
+    *    )
+    *
+    *   // Yields 2, 4, 6, 8 after around 6 seconds
+    *   Task.gatherN(2)(tasks)
+    * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
+    *
+    * @see [[gather]] for a version that does not limit parallelism.
+    */
+  def gatherN[A](parallelism: Int)(in: Iterable[Task[A]]): Task[List[A]] =
+    TaskGatherN[A](parallelism, in)
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`,
     * nondeterministically apply the function to each element of the collection
@@ -3492,9 +3538,40 @@ object Task extends TaskInstancesLevel1 {
     * $parallelismAdvice
     *
     * $parallelismNote
+    *
+    * @see [[wanderN]] for a version that limits parallelism.
     */
   def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     Task.eval(in.map(f)).flatMap(col => TaskGather[B, M](col, () => newBuilder(bf, in)))
+
+  /** Given a `Iterable[A]` and a function `A => Task[B]`,
+    * nondeterministically apply the function to each element of the collection
+    * and return a task that will signal a collection of the results once all
+    * tasks are finished.
+    *
+    * Implementation ensure there are at most `n` (= `parallelism` parameter) tasks
+    * running concurrently and the results are returned in order.
+    *
+    * Example:
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   val numbers = List(1, 2, 3, 4)
+    *
+    *   // Yields 2, 4, 6, 8 after around 6 seconds
+    *   Task.wanderN(2)(numbers)(n => Task(n + n).delayExecution(n.second))
+    * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
+    *
+    * @see [[wander]] for a version that does not limit parallelism.
+    */
+  def wanderN[A, B](parallelism: Int)(in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
+    Task.suspend {
+      TaskGatherN(parallelism, in.map(f))
+    }
 
   /** Processes the given collection of tasks in parallel and
     * nondeterministically gather the results without keeping the original

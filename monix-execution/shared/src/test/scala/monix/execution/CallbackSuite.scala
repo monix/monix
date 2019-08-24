@@ -17,10 +17,10 @@
 
 package monix.execution
 
-import cats.Contravariant
 import minitest.TestSuite
-import monix.execution.exceptions.DummyException
+import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
 import monix.execution.schedulers.TestScheduler
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -93,6 +93,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     cb.onSuccess(1)
     assertEquals(p.future.value, Some(Success(1)))
     intercept[IllegalStateException] { cb.onSuccess(2) }
+    intercept[CallbackCalledMultipleTimesException] { cb.onSuccess(2) }
   }
 
   test("Callback.fromPromise (failure)") { _ =>
@@ -104,6 +105,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
     assertEquals(p.future.value, Some(Failure(dummy)))
     intercept[IllegalStateException] { cb.onSuccess(1) }
+    intercept[CallbackCalledMultipleTimesException] { cb.onSuccess(1) }
   }
 
   test("Callback.empty reports errors") { implicit s =>
@@ -114,7 +116,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("SafeCallback protects against errors in onSuccess") { implicit s =>
+  test("Callback.safe protects against errors in onSuccess") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -127,17 +129,17 @@ object CallbackSuite extends TestSuite[TestScheduler] {
         throw new IllegalStateException("onError")
     }
 
-    val safe = Callback.safe(cb)
-    safe.onSuccess(1)
+    val safe = Callback[Throwable].safe(cb)
+    assert(safe.tryOnSuccess(1), "safe.tryOnSuccess(1)")
 
     assertEquals(effect, 1)
     assertEquals(s.state.lastReportedError, dummy)
 
-    safe.onSuccess(1)
+    assert(!safe.tryOnSuccess(1))
     assertEquals(effect, 1)
   }
 
-  test("SafeCallback protects against errors in onError") { implicit s =>
+  test("Callback.safe protects against errors in onError") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
     var effect = 0
@@ -152,13 +154,13 @@ object CallbackSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val safe = Callback.safe(cb)
-    safe.onError(dummy2)
+    val safe = Callback[Throwable].safe(cb)
+    assert(safe.tryOnError(dummy2), "safe.onError(dummy2)")
 
     assertEquals(effect, 1)
     assertEquals(s.state.lastReportedError, dummy1)
 
-    safe.onError(dummy2)
+    assert(!safe.tryOnError(dummy2), "!safe.onError(dummy2)")
     assertEquals(effect, 1)
   }
 

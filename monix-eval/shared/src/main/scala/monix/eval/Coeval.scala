@@ -27,6 +27,7 @@ import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
 import monix.execution.internal.Platform.fusionMaxStackDepth
+
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.mutable
 import scala.util.control.NonFatal
