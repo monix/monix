@@ -57,7 +57,6 @@ private[reactive] final class UnfoldEvalObservable[S, A](seed: S, f: S => Task[O
             case Continue =>
               loop(subscriber, newState)
             case Stop =>
-              subscriber.onComplete()
               Task.unit
           }
         case None =>
