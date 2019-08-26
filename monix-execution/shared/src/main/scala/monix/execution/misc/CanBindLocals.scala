@@ -17,9 +17,6 @@
 
 package monix.execution.misc
 
-import java.util.concurrent.CompletableFuture
-import java.util.function.BiFunction
-
 import implicitbox.Not
 import monix.execution.{CancelableFuture, FutureUtils}
 import monix.execution.schedulers.TrampolineExecutionContext
@@ -67,12 +64,6 @@ private[misc] abstract class CanIsolateInstancesLevel1 extends CanIsolateInstanc
     */
   implicit def cancelableFuture[R]: CanBindLocals[CancelableFuture[R]] =
     CancelableFutureInstance.asInstanceOf[CanBindLocals[CancelableFuture[R]]]
-
-  /**
-    * Instance for `java.util.concurrent.CompletableFuture`.
-    */
-  implicit def completableFuture[R]: CanBindLocals[CompletableFuture[R]] =
-    CompletableFutureInstance.asInstanceOf[CanBindLocals[CompletableFuture[R]]]
 
   object Implicits {
     /**
@@ -155,29 +146,6 @@ private[misc] abstract class CanIsolateInstancesLevel0 {
             Local.setContext(prev)
             result
           })(TrampolineExecutionContext.immediate)
-      } finally {
-        Local.setContext(prev)
-      }
-    }
-  }
-
-  /** Implementation for [[CanBindLocals.completableFuture]]. */
-  protected object CompletableFutureInstance extends CanBindLocals[CompletableFuture[Any]] {
-    override def bindContext(ctx: Local.Context)(f: => CompletableFuture[Any]): CompletableFuture[Any] = {
-      val prev = Local.getContext()
-      Local.setContext(ctx)
-
-      try {
-        f.handleAsync(
-          new BiFunction[Any, Throwable, Any] {
-            def apply(r: Any, error: Throwable): Any = {
-              Local.setContext(prev)
-              if (error != null) throw error
-              else r
-            }
-          },
-          TrampolineExecutionContext.immediate
-        )
       } finally {
         Local.setContext(prev)
       }

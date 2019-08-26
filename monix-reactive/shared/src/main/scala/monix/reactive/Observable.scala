@@ -5204,6 +5204,36 @@ object Observable extends ObservableDeprecatedBuilders {
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
     * observable that keeps generating elements produced by our
+    * generator function until `None` is returned.
+    * @example {{{
+    *  Observable.unfoldEval(0)(i => if (i < 10) Task.now(Some((i, i + 1))) else Task.now(None)).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    *  }}}
+    */
+  def unfoldEval[S, A](seed: => S)(f: S => Task[Option[(A, S)]]): Observable[A] =
+    new UnfoldEvalObservable(seed, f)
+
+  /** Version of [[unfoldEval]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * @see [[unfoldEval]] for a version specialized for
+    *      [[monix.eval.Task Task]]
+    */
+  def unfoldEvalF[F[_], S, A](seed: => S)(f: S => F[Option[(A, S)]])(implicit F: TaskLike[F]): Observable[A] =
+    unfoldEval(seed)(a => Task.from(f(a)))
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * observable that keeps generating elements produced by our
     * generator function.
     */
   def fromAsyncStateAction[S, A](f: S => Task[(A, S)])(seed: => S): Observable[A] =
