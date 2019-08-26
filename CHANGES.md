@@ -3,18 +3,14 @@
 Last release before `3.0.0` which will be released as soon as Cats-Effect 2.0.0 is available. At the time of writing release notes,
 it is only waiting on Cats 2.0.0 which is about to release next RC which will become stable version if no critical issues are discovered.
 
-Any other development for this release is now frozen except if we discover critical bugs like memory leaks. All other
-changes will target `3.1.0`. 
+Any other development for this release is now frozen except if we discover critical bugs like memory leaks. All other changes will target `3.1.0`. 
 
 `3.0.0` will be binary and source compatible with `3.0.0-RC4` for Scala 2.12. Monix itself will be also binary compatible
 for 2.11 but it will have a dependency on Cats-Effect which is not. [See Cats-Effect release notes](https://github.com/typelevel/cats-effect/releases/tag/v2.0.0-RC1) for more details.
 
-We're very sorry for such a long wait. We wish we could release `3.0.0` already but if we released now, we would have to 
-release `4.0.0` for Cats-Effect 2.0 because of 2.11 incompatibility there so we decided to hold on. 
-We hope you can understand and wait a little longer. It was a rough road but currently we have 3 active maintainers instead
-of just Alex so I hope it can give you a confidence for the future! :)
-Note that Cats-Effect 2.0 is very small release and mostly targeted at support for Scala 2.13 and bug fixes - the upgrade should be limited to bumping version without
-changing a single line of code.
+We wish we could release `3.0.0` already but if we released now, we would have to release `4.0.0` for Cats-Effect 2.0 because of 2.11 incompatibility there so we decided to hold on. 
+It was a rough road but currently we have multiple active maintainers that can do releases going forward, instead of just Alex so we hope it can give you a confidence for the future! :)
+Note that Cats-Effect 2.0 is very small release and mostly targeted at support for Scala 2.13 and bug fixes - the upgrade should be limited to bumping version without changing a single line of code.
 
 This release depends on Cats-Effect 1.4.0 and Cats 1.6.1
 
