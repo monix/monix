@@ -37,10 +37,6 @@ In case of `Task`, there is a `TaskLocal.isolate` version. It is automatically c
 so if your use case is setting `correlationId` or similar, it probably won't require any explicit isolation because
 your HTTP library will most likely run the `Task` per request.
 
-NOTE: We are still looking for improvements for `Local` and it is likely that it will see additional changes in subsequent releases.
-We would like to make interop with MDC, OpenTracing and others as convenient as possible, 
-keeping both `Future` and `Task` (and possibly other types in the future) support available. Any feedback will be extra valuable.
-
 #### Task Builders
 
 There are two major improvements:
