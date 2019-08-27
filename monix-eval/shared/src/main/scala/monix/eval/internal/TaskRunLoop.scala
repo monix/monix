@@ -212,9 +212,16 @@ private[eval] object TaskRunLoop {
         context.frameRef.reset()
 
         // Transporting the current context if localContextPropagation == true.
-        Local.bind(savedLocals) {
-          // Using frameIndex = 1 to ensure at least one cycle gets executed
+        var prevLocals: Local.Context = null
+        if (savedLocals != null) {
+          prevLocals = Local.getContext()
+          Local.setContext(savedLocals)
+        }
+        try {
           startFull(source, context, cb, rcb, bindCurrent, bindRest, 1)
+        } finally {
+          if (prevLocals != null)
+            Local.setContext(prevLocals)
         }
       }
     }
