@@ -218,6 +218,7 @@ private[eval] object TaskRunLoop {
           Local.setContext(savedLocals)
         }
         try {
+          // Using frameIndex = 1 to ensure at least one cycle gets executed
           startFull(source, context, cb, rcb, bindCurrent, bindRest, 1)
         } finally {
           if (prevLocals != null)
