@@ -31,7 +31,7 @@ object TaskIssue993Suite extends SimpleTestSuite {
   def loop[A, S](self: Task[A], initial: S)(f: (A, S, S => Task[S]) => Task[S]): Task[S] =
     self.flatMap { a => f(a, initial, loop(self, _)(f)) }
 
-  test("should work when forcing an async boundary") {
+  test("should not throw NullPointerException (issue #993)") {
     import monix.execution.misc.CanBindLocals.Implicits.synchronousAsDefault
     implicit val sc: SchedulerService =
       Scheduler
@@ -54,7 +54,9 @@ object TaskIssue993Suite extends SimpleTestSuite {
         r2 <- Task(Local.isolate {
           local.bind(200)(local.get)
         })
-      } yield r0 + r1 + r2
+      } yield {
+        r0 + r1 + r2
+      }
 
       val f = task.runToFuture
       val r = Await.result(f, 3.minutes)
