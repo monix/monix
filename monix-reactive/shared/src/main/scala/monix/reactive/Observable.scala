@@ -2695,10 +2695,10 @@ abstract class Observable[+A] extends Serializable { self =>
     *  import scala.concurrent.duration._
     *
     *  val obs = Observable(1, 2, 3)
-    *    .doOnNext(i => Task(println(s"Produced $i")).delayExecution(1.second))
+    *    .doOnNext(i => Task(println(s"Produced $$i")).delayExecution(1.second))
     *
     *  def consume(name: String, obs: Observable[Int]): Observable[Unit] =
-    *    obs.mapEval(i => Task(println(s"$name: got $i")))
+    *    obs.mapEval(i => Task(println(s"$$name: got $$i")))
     *
     *  obs.publishSelector { hot =>
     *    Observable(
@@ -2750,10 +2750,10 @@ abstract class Observable[+A] extends Serializable { self =>
     *  import scala.concurrent.duration._
     *
     *  val obs = Observable(1, 2, 3)
-    *    .doOnNext(i => Task(println(s"Produced $i")).delayExecution(1.second))
+    *    .doOnNext(i => Task(println(s"Produced $$i")).delayExecution(1.second))
     *
     *  def consume(name: String, obs: Observable[Int]): Observable[Unit] =
-    *    obs.mapEval(i => Task(println(s"$name: got $i")))
+    *    obs.mapEval(i => Task(println(s"$$name: got $$i")))
     *
     *  obs.pipeThroughSelector(Pipe.replay[Int], { hot: Observable[Int] =>
     *    Observable(
