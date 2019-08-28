@@ -2679,14 +2679,55 @@ abstract class Observable[+A] extends Serializable { self =>
 
   /** Returns an observable that emits the results of invoking a
     * specified selector on items emitted by a
-    * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]],
+    * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
+    * backed by [[monix.reactive.subjects.PublishSubject PublishSubject]]
     * which shares a single subscription to the underlying sequence.
+    *
+    * This operators takes a possibly pure Observable, transforms it to
+    * Hot Observable in the scope of supplied function and then returns
+    * a pure Observable again.
+    *
+    * ==Example==
+    *
+    * {{{
+    *  import monix.reactive._
+    *  import monix.eval.Task
+    *  import scala.concurrent.duration._
+    *
+    *  val obs = Observable(1, 2, 3)
+    *    .doOnNext(i => Task(println(s"Produced $i")).delayExecution(1.second))
+    *
+    *  def consume(name: String, obs: Observable[Int]): Observable[Unit] =
+    *    obs.mapEval(i => Task(println(s"$name: got $i")))
+    *
+    *  obs.publishSelector { hot =>
+    *    Observable(
+    *      consume("Consumer 1", hot),
+    *      consume("Consumer 2", hot).delayExecution(2.second)
+    *    ).merge
+    *  }
+    *
+    * }}}
+    *
+    *  ==Output==
+    *
+    *   Produced 1
+    *   Consumer 1: got 1
+    *   Produced 2
+    *   Consumer 1: got 2
+    *   Consumer 2: got 2
+    *   Produced 3
+    *   Consumer 1: got 3
+    *   Consumer 2: got 3
+    *
+    *   Note how Consumer 2 received less elements because it subscribed later.
     *
     * @param f is a selector function that can use the multicasted source sequence
     *        as many times as needed, without causing multiple subscriptions
     *        to the source sequence. Observers to the given source will
     *        receive all notifications of the source from the time of the
     *        subscription forward.
+    * @see [[pipeThroughSelector]] for a version that allows specifying a type of underlying Subject.
     */
   final def publishSelector[R](f: Observable[A] => Observable[R]): Observable[R] =
     pipeThroughSelector(Pipe.publish[A], f)
@@ -2696,9 +2737,50 @@ abstract class Observable[+A] extends Serializable { self =>
     * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]],
     * which shares a single subscription to the underlying sequence.
     *
+    * This operators takes a possibly pure Observable, transforms it to
+    * Hot Observable in the scope of supplied function and then returns
+    * a pure Observable again. The function allows specyfing underlying
+    * [[monix.reactive.subjects.Subject]] by means of [[monix.reactive.Pipe]].
+    *
+    * ==Example==
+    *
+    * {{{
+    *  import monix.reactive._
+    *  import monix.eval.Task
+    *  import scala.concurrent.duration._
+    *
+    *  val obs = Observable(1, 2, 3)
+    *    .doOnNext(i => Task(println(s"Produced $i")).delayExecution(1.second))
+    *
+    *  def consume(name: String, obs: Observable[Int]): Observable[Unit] =
+    *    obs.mapEval(i => Task(println(s"$name: got $i")))
+    *
+    *  obs.pipeThroughSelector(Pipe.replay[Int], { hot: Observable[Int] =>
+    *    Observable(
+    *      consume("Consumer 1", hot),
+    *      consume("Consumer 2", hot).delayExecution(2.second)
+    *    ).merge
+    *  })
+    *
+    * }}}
+    *
+    *  ==Output==
+    *
+    *   Produced 1
+    *   Consumer 1: got 1
+    *   Consumer 2: got 1
+    *   Produced 2
+    *   Consumer 1: got 2
+    *   Consumer 2: got 2
+    *   Produced 3
+    *   Consumer 1: got 3
+    *   Consumer 2: got 3
+    *
+    *   Note how Consumer 2 received the same amount of elements as
+    *   Consumer 1 despite subscribing later because of underlying ReplaySubject.
+    *
     * @param pipe is the [[Pipe]] used to transform the source into a multicast
     *        (hot) observable that can be shared in the selector function
-    *
     * @param f is a selector function that can use the multicasted source sequence
     *        as many times as needed, without causing multiple subscriptions
     *        to the source sequence. Observers to the given source will
