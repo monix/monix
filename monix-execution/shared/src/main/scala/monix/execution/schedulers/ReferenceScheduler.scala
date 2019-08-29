@@ -21,7 +21,7 @@ import monix.execution.cancelables.OrderedCancelable
 import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
 import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter}
 import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
-import monix.execution.internal.InterceptableRunnable
+import monix.execution.internal.InterceptRunnable
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 
@@ -109,7 +109,7 @@ object ReferenceScheduler {
     private[this] val reporterRef = if (reporter eq null) s else reporter
 
     override def execute(runnable: Runnable): Unit =
-      s.execute(InterceptableRunnable(runnable, reporter))
+      s.execute(InterceptRunnable(runnable, reporter))
     override def reportFailure(t: Throwable): Unit =
       reporterRef.reportFailure(t)
     override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =

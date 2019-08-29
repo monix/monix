@@ -22,7 +22,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
 
-object IterantRetryIfEmpty {
+private[tail] object IterantRetryIfEmpty {
   /**
     * Implementation for `Iterant.retryIfEmpty`.
     */

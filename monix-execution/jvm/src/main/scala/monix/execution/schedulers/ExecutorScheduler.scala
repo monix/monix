@@ -23,7 +23,7 @@ import scala.util.control.NonFatal
 import monix.execution.{Features, Scheduler}
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
 import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
-import monix.execution.internal.{InterceptableRunnable, Platform, ScheduledExecutors}
+import monix.execution.internal.{InterceptRunnable, Platform, ScheduledExecutors}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.duration.TimeUnit
@@ -39,7 +39,7 @@ abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporte
   def executor: ExecutorService = e
 
   override final protected def executeAsync(runnable: Runnable): Unit =
-    e.execute(if (r eq null) runnable else InterceptableRunnable(runnable, r))
+    e.execute(if (r eq null) runnable else InterceptRunnable(runnable, r))
   override final def reportFailure(t: Throwable): Unit =
     if (r ne null) r.reportFailure(t) else Platform.reportFailure(t)
   override final def isShutdown: Boolean =
