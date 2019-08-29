@@ -4,6 +4,7 @@ Bug fix release:
 
 - [#991](https://github.com/monix/monix/issues/991) ([PR #993](https://github.com/monix/monix/pull/993)): `NullPointerException` in `Task` when used in combination with `Local`
 - [#992](https://github.com/monix/monix/issues/992) ([PR #998](https://github.com/monix/monix/pull/998)): hide `InterceptableRunnable` exposed accidentally, refactor it for efficiency
+- [#997](https://github.com/monix/monix/pull/997): bumped Scala version to 2.12.9 and Scala.js to 0.6.28
 
 This release is binary compatible with `3.0.0-RC4`.
 
