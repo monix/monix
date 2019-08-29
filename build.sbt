@@ -42,7 +42,7 @@ def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVe
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0-RC3"
+val monixSeries = "3.0.0-RC4"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -561,7 +561,7 @@ enablePlugins(GitVersioning)
 /* The BaseVersion setting represents the in-development (upcoming) version,
  * as an alternative to SNAPSHOTS.
  */
-git.baseVersion := "3.0.0-RC3"
+git.baseVersion := "3.0.0-RC4"
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {

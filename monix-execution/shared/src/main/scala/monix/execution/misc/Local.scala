@@ -91,7 +91,7 @@ object Local extends LocalCompanionDeprecated {
     * $canBindLocalsDesc
     */
   def bind[R](ctx: Context)(f: => R)(implicit R: CanBindLocals[R]): R =
-    R.bindContext(ctx)(f)
+    if (ctx != null) R.bindContext(ctx)(f) else f
 
   /** Execute a block of code with a clear state of `Local.Context`
     * and restore the current state when complete.
