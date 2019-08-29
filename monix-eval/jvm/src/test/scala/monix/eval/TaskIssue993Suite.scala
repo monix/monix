@@ -29,13 +29,15 @@ import scala.concurrent.duration._
   */
 object TaskIssue993Suite extends SimpleTestSuite {
   def loop[A, S](self: Task[A], initial: S)(f: (A, S, S => Task[S]) => Task[S]): Task[S] =
-    self.flatMap { a => f(a, initial, loop(self, _)(f)) }
+    self.flatMap { a =>
+      f(a, initial, loop(self, _)(f))
+    }
 
   test("should not throw NullPointerException (issue #993)") {
     import monix.execution.misc.CanBindLocals.Implicits.synchronousAsDefault
     implicit val sc: SchedulerService =
       Scheduler
-        .computation(parallelism=4)
+        .computation(parallelism = 4)
         .withExecutionModel(ExecutionModel.BatchedExecution(128))
 
     try {
