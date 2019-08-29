@@ -66,8 +66,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", "2.12.8"),
+  scalaVersion := "2.12.9",
+  crossScalaVersions := Seq("2.11.12", "2.12.9"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -160,7 +160,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     if (scalaVersion.value == "2.13.0-M5")
       compilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary)
     else
-      compilerPlugin("org.typelevel" % "kind-projector" % "0.10.0" cross CrossVersion.binary)
+      compilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary)
   },
 
   // ScalaDoc settings
