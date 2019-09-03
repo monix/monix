@@ -22,7 +22,7 @@ import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 
 import scala.concurrent.ExecutionContext
-import monix.execution.internal.{InterceptableRunnable, ScheduledExecutors}
+import monix.execution.internal.{InterceptRunnable, ScheduledExecutors}
 
 /** An `AsyncScheduler` schedules tasks to happen in the future with the
   * given `ScheduledExecutorService` and the tasks themselves are executed on
@@ -37,7 +37,7 @@ final class AsyncScheduler private (
 
   protected def executeAsync(runnable: Runnable): Unit = {
     if (((r: AnyRef) eq ec) || (r eq null)) ec.execute(runnable)
-    else ec.execute(InterceptableRunnable(runnable, this))
+    else ec.execute(InterceptRunnable(runnable, this))
   }
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =

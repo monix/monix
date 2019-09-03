@@ -27,8 +27,8 @@ addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
 addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc; scalafmtCheck; test:scalafmtCheck; scalafmtSbtCheck")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
-val catsVersion = "2.0.0-RC1"
-val catsEffectVersion = "2.0.0-RC1"
+val catsVersion = "2.0.0-RC2"
+val catsEffectVersion = "2.0.0-RC2"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.3"
@@ -38,7 +38,7 @@ val implicitBoxVersion = "0.1.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0-RC3"
+val monixSeries = "3.0.0-RC4"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -62,8 +62,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0"),
+  scalaVersion := "2.12.9",
+  crossScalaVersions := Seq("2.11.12", "2.12.9", "2.13.0"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -345,7 +345,7 @@ lazy val cmdlineProfile =
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0__RC4
 )
 // https://github.com/lightbend/mima/pull/289
 mimaFailOnNoPrevious in ThisBuild := false
@@ -536,7 +536,7 @@ enablePlugins(GitVersioning)
 /* The BaseVersion setting represents the in-development (upcoming) version,
  * as an alternative to SNAPSHOTS.
  */
-git.baseVersion := "3.0.0-RC3"
+git.baseVersion := "3.0.0-RC4"
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {
