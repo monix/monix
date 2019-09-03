@@ -5952,10 +5952,12 @@ object Observable extends ObservableDeprecatedBuilders {
   }
 
   /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
-  implicit val observableNonEmptyParallel: NonEmptyParallel[Observable, CombineObservable.Type] =
-    new NonEmptyParallel[Observable, CombineObservable.Type] {
+  implicit val observableNonEmptyParallel: NonEmptyParallel.Aux[Observable, CombineObservable.Type] =
+    new NonEmptyParallel[Observable] {
       import CombineObservable.unwrap
       import CombineObservable.{apply => wrap}
+
+      type F[x] = CombineObservable.Type[x]
 
       override def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
       override def apply: Apply[CombineObservable.Type] = CombineObservable.combineObservableApplicative

@@ -38,7 +38,7 @@ val implicitBoxVersion = "0.1.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0-RC4"
+val monixSeries = "3.0.0-RC5"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -345,7 +345,7 @@ lazy val cmdlineProfile =
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0__RC4
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0__RC5
 )
 // https://github.com/lightbend/mima/pull/289
 mimaFailOnNoPrevious in ThisBuild := false
