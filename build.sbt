@@ -27,6 +27,12 @@ addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
 addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc; scalafmtCheck; test:scalafmtCheck; scalafmtSbtCheck")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
+addCommandAlias("ci-execution",      s";clean ;executionJVM/test:compile ;executionJVM/test")
+addCommandAlias("ci-catnap",      s";clean ;catnapJVM/test:compile ;catnapJVM/test")
+addCommandAlias("ci-eval",      s";clean ;evalJVM/test:compile ;evalJVM/test")
+addCommandAlias("ci-tail",      s";clean ;tailJVM/test:compile ;tailJVM/test")
+addCommandAlias("ci-reactive",      s";clean ;reactiveJVM/test:compile ;reactiveJVM/test")
+
 val catsVersion = "2.0.0-RC2"
 val catsEffectVersion = "2.0.0-RC2"
 val catsEffectLawsVersion = catsEffectVersion

@@ -6,29 +6,41 @@ group: edge
 matrix:
   include:
     # Scala 2.11, JVM
-    - jdk: oraclejdk8
-      scala: 2.11.12
-      env: COMMAND=ci-jvm-mima
-    # Scala 2.11, JavaScript
-    - jdk: oraclejdk8
-      scala: 2.11.12
-      env: COMMAND=ci-js
-    # Scala 2.12, JVM
-    - jdk: oraclejdk8
-      scala: 2.12.9
-      env: COMMAND=ci-jvm-all
-    # Scala 2.12, JavaScript
-    - jdk: oraclejdk8
-      scala: 2.12.9
-      env: COMMAND=ci-js
+#    - jdk: oraclejdk8
+#      scala: 2.11.12
+#      env: COMMAND=ci-jvm-mima
+#    # Scala 2.11, JavaScript
+#    - jdk: oraclejdk8
+#      scala: 2.11.12
+#      env: COMMAND=ci-js
+#    # Scala 2.12, JVM
+#    - jdk: oraclejdk8
+#      scala: 2.12.9
+#      env: COMMAND=ci-jvm-all
+#    # Scala 2.12, JavaScript
+#    - jdk: oraclejdk8
+#      scala: 2.12.9
+#      env: COMMAND=ci-js
     # Scala 2.13, JVM
     - jdk: oraclejdk8
       scala: 2.13.0
-      env: COMMAND=ci-jvm
-    # Scala 2.13, JavaScript
+      env: COMMAND=ci-execution
     - jdk: oraclejdk8
       scala: 2.13.0
-      env: COMMAND=ci-js
+      env: COMMAND=ci-catnap
+    - jdk: oraclejdk8
+      scala: 2.13.0
+      env: COMMAND=ci-eval
+    - jdk: oraclejdk8
+      scala: 2.13.0
+      env: COMMAND=ci-tail
+    - jdk: oraclejdk8
+      scala: 2.13.0
+      env: COMMAND=ci-reactive
+    # Scala 2.13, JavaScript
+#    - jdk: oraclejdk8
+#      scala: 2.13.0
+#      env: COMMAND=ci-js
 
 env:
   global:
