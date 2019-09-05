@@ -29,8 +29,7 @@ import scala.util.Success
 import scala.util.control.NonFatal
 
 /** Only used in [[Observable.combineLatestList()]]. Is tested by `CombineLatestListSuite`. */
-private[reactive] final class CombineLatestListObservable[A, +R](obss: Seq[Observable[A]])(
-  f: Seq[A] => R)
+private[reactive] final class CombineLatestListObservable[A, +R](obss: Seq[Observable[A]])(f: Seq[A] => R)
   extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
@@ -45,14 +44,18 @@ private[reactive] final class CombineLatestListObservable[A, +R](obss: Seq[Obser
 
     // MUST BE synchronized by `lock`
     val observables: Array[Observable[(A, Int)]] = new Array(numberOfObservables)
-    observables.indices.foreach { i => observables(i) = obss(i).map(x => (x, i)) }
+    observables.indices.foreach { i =>
+      observables(i) = obss(i).map(x => (x, i))
+    }
     // MUST BE synchronized by `lock`
     var lastAck = Continue: Future[Ack]
     // MUST BE synchronized by `lock`
     val elems: mutable.ArraySeq[A] = new mutable.ArraySeq(numberOfObservables)
     // MUST BE synchronized by `lock`
     val hasElems: Array[Boolean] = new Array(numberOfObservables)
-    hasElems.indices.foreach { i => hasElems(i) = false }
+    hasElems.indices.foreach { i =>
+      hasElems(i) = false
+    }
     // MUST BE synchronized by `lock`
     var completedCount = 0
 
