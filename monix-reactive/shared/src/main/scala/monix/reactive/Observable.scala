@@ -5859,14 +5859,10 @@ object Observable extends ObservableDeprecatedBuilders {
     * returning a new observable that generates sequences.
     */
   def combineLatestList[A](sources: Observable[A]*): Observable[Seq[A]] = {
-    if (sources.isEmpty) Observable.empty
-    else {
-      val seed = sources.head.map(t => Vector(t))
-      sources.tail.foldLeft(seed) { (acc, obs) =>
-        acc.combineLatestMap(obs) { (seq, elem) =>
-          seq :+ elem
-        }
-      }
+    if (sources.isEmpty) {
+      Observable.empty
+    } else {
+      new CombineLatestListObservable[A, Seq[A]](sources)(identity)
     }
   }
 
