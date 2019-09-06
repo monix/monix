@@ -1741,6 +1741,11 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   final def flatMap[B](f: A => Task[B]): Task[B] =
     FlatMap(this, f)
 
+  /** Loops
+    */
+  final def flatMapLoop[S](seed: S)(f: (A, S, S => Task[S]) => Task[S]): Task[S] =
+    this.flatMap { a => f(a, seed, flatMapLoop(_)(f)) }
+
   /** Given a source Task that emits another Task, this function
     * flattens the result, returning a Task equivalent to the emitted
     * Task by the source.

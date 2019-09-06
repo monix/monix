@@ -585,6 +585,11 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   final def flatMap[B](f: A => Coeval[B]): Coeval[B] =
     FlatMap(this, f)
 
+  /** Loops
+    */
+  final def flatMapLoop[S](seed: S)(f: (A, S, S => Coeval[S]) => Coeval[S]): Coeval[S] =
+    this.flatMap { a => f(a, seed, flatMapLoop(_)(f)) }
+
   /** Given a source Coeval that emits another Coeval, this function
     * flattens the result, returning a Coeval equivalent to the emitted
     * Coeval by the source.
