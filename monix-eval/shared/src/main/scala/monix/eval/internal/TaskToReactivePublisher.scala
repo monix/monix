@@ -17,10 +17,9 @@
 
 package monix.eval.internal
 
-import monix.execution.Callback
 import monix.eval.Task
-import monix.execution.Scheduler
 import monix.execution.rstreams.Subscription
+import monix.execution.{Callback, Scheduler, UncaughtExceptionReporter}
 import org.reactivestreams.Subscriber
 
 private[eval] object TaskToReactivePublisher {
@@ -34,25 +33,12 @@ private[eval] object TaskToReactivePublisher {
           private[this] var isActive = true
           private[this] val conn = TaskConnection()
           private[this] val context =
-            Task.Context(s, Task.defaultOptions, conn)
+            Task.Context(s, Task.defaultOptions.withSchedulerFeatures, conn)
 
           def request(n: Long): Unit = {
             require(n > 0, "n must be strictly positive, according to the Reactive Streams contract, rule 3.9")
-
             if (isActive) {
-              Task.unsafeStartEnsureAsync[A](
-                self,
-                context,
-                Callback.safe(new Callback[Throwable, A] {
-                  def onError(ex: Throwable): Unit =
-                    out.onError(ex)
-
-                  def onSuccess(value: A): Unit = {
-                    out.onNext(value)
-                    out.onComplete()
-                  }
-                })
-              )
+              Task.unsafeStartEnsureAsync[A](self, context, new PublisherCallback(out))
             }
           }
 
@@ -63,4 +49,24 @@ private[eval] object TaskToReactivePublisher {
         })
       }
     }
+
+  private final class PublisherCallback[A](out: Subscriber[_ >: A])(implicit s: UncaughtExceptionReporter)
+    extends Callback[Throwable, A] {
+    private[this] var isActive = true
+
+    def onError(e: Throwable): Unit =
+      if (isActive) {
+        isActive = false
+        out.onError(e)
+      } else {
+        s.reportFailure(e)
+      }
+
+    def onSuccess(value: A): Unit =
+      if (isActive) {
+        isActive = false
+        out.onNext(value)
+        out.onComplete()
+      }
+  }
 }

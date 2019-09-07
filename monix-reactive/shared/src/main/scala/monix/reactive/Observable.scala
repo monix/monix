@@ -570,7 +570,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   @UnsafeBecauseImpure
   final def runAsyncGetFirst(implicit s: Scheduler, opts: Task.Options = defaultOptions): CancelableFuture[Option[A]] =
-    firstOptionL.runToFutureOpt
+    firstOptionL.runToFutureOpt(s, opts)
 
   /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
     * that upon execution will signal the last generated element of the
@@ -580,7 +580,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   @UnsafeBecauseImpure
   final def runAsyncGetLast(implicit s: Scheduler, opts: Task.Options = defaultOptions): CancelableFuture[Option[A]] =
-    lastOptionL.runToFutureOpt
+    lastOptionL.runToFutureOpt(s, opts)
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
@@ -2597,7 +2597,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => (pf.andThen(Observable.now(_))).applyOrElse(ex, Observable.raiseError _))
+    onErrorHandleWith(ex => (pf.andThen(Observable.now)).applyOrElse(ex, Observable.raiseError))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -2679,14 +2679,55 @@ abstract class Observable[+A] extends Serializable { self =>
 
   /** Returns an observable that emits the results of invoking a
     * specified selector on items emitted by a
-    * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]],
+    * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
+    * backed by [[monix.reactive.subjects.PublishSubject PublishSubject]]
     * which shares a single subscription to the underlying sequence.
+    *
+    * This operators takes a possibly pure Observable, transforms it to
+    * Hot Observable in the scope of supplied function and then returns
+    * a pure Observable again.
+    *
+    * ==Example==
+    *
+    * {{{
+    *  import monix.reactive._
+    *  import monix.eval.Task
+    *  import scala.concurrent.duration._
+    *
+    *  val obs = Observable(1, 2, 3)
+    *    .doOnNext(i => Task(println(s"Produced $$i")).delayExecution(1.second))
+    *
+    *  def consume(name: String, obs: Observable[Int]): Observable[Unit] =
+    *    obs.mapEval(i => Task(println(s"$$name: got $$i")))
+    *
+    *  obs.publishSelector { hot =>
+    *    Observable(
+    *      consume("Consumer 1", hot),
+    *      consume("Consumer 2", hot).delayExecution(2.second)
+    *    ).merge
+    *  }
+    *
+    * }}}
+    *
+    *  ==Output==
+    *
+    *   Produced 1
+    *   Consumer 1: got 1
+    *   Produced 2
+    *   Consumer 1: got 2
+    *   Consumer 2: got 2
+    *   Produced 3
+    *   Consumer 1: got 3
+    *   Consumer 2: got 3
+    *
+    *   Note how Consumer 2 received less elements because it subscribed later.
     *
     * @param f is a selector function that can use the multicasted source sequence
     *        as many times as needed, without causing multiple subscriptions
     *        to the source sequence. Observers to the given source will
     *        receive all notifications of the source from the time of the
     *        subscription forward.
+    * @see [[pipeThroughSelector]] for a version that allows specifying a type of underlying Subject.
     */
   final def publishSelector[R](f: Observable[A] => Observable[R]): Observable[R] =
     pipeThroughSelector(Pipe.publish[A], f)
@@ -2696,9 +2737,50 @@ abstract class Observable[+A] extends Serializable { self =>
     * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]],
     * which shares a single subscription to the underlying sequence.
     *
+    * This operators takes a possibly pure Observable, transforms it to
+    * Hot Observable in the scope of supplied function and then returns
+    * a pure Observable again. The function allows specyfing underlying
+    * [[monix.reactive.subjects.Subject]] by means of [[monix.reactive.Pipe]].
+    *
+    * ==Example==
+    *
+    * {{{
+    *  import monix.reactive._
+    *  import monix.eval.Task
+    *  import scala.concurrent.duration._
+    *
+    *  val obs = Observable(1, 2, 3)
+    *    .doOnNext(i => Task(println(s"Produced $$i")).delayExecution(1.second))
+    *
+    *  def consume(name: String, obs: Observable[Int]): Observable[Unit] =
+    *    obs.mapEval(i => Task(println(s"$$name: got $$i")))
+    *
+    *  obs.pipeThroughSelector(Pipe.replay[Int], { hot: Observable[Int] =>
+    *    Observable(
+    *      consume("Consumer 1", hot),
+    *      consume("Consumer 2", hot).delayExecution(2.second)
+    *    ).merge
+    *  })
+    *
+    * }}}
+    *
+    *  ==Output==
+    *
+    *   Produced 1
+    *   Consumer 1: got 1
+    *   Consumer 2: got 1
+    *   Produced 2
+    *   Consumer 1: got 2
+    *   Consumer 2: got 2
+    *   Produced 3
+    *   Consumer 1: got 3
+    *   Consumer 2: got 3
+    *
+    *   Note how Consumer 2 received the same amount of elements as
+    *   Consumer 1 despite subscribing later because of underlying ReplaySubject.
+    *
     * @param pipe is the [[Pipe]] used to transform the source into a multicast
     *        (hot) observable that can be shared in the selector function
-    *
     * @param f is a selector function that can use the multicasted source sequence
     *        as many times as needed, without causing multiple subscriptions
     *        to the source sequence. Observers to the given source will
@@ -3615,33 +3697,30 @@ abstract class Observable[+A] extends Serializable { self =>
     * evaluated and emitted.
     */
   final def lastOrElseL[B >: A](default: => B): Task[B] =
-    Task.create(
-      { (s, cb) =>
-        unsafeSubscribeFn(new Subscriber.Sync[A] {
-          implicit val scheduler: Scheduler = s
-          private[this] var value: A = _
-          private[this] var isEmpty = true
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var value: A = _
+        private[this] var isEmpty = true
 
-          def onNext(elem: A): Ack = {
-            if (isEmpty) isEmpty = false
-            value = elem
-            Continue
-          }
+        def onNext(elem: A): Ack = {
+          if (isEmpty) isEmpty = false
+          value = elem
+          Continue
+        }
 
-          def onError(ex: Throwable): Unit = {
-            cb.onError(ex)
-          }
+        def onError(ex: Throwable): Unit = {
+          cb.onError(ex)
+        }
 
-          def onComplete(): Unit = {
-            if (isEmpty)
-              cb(Try(default))
-            else
-              cb.onSuccess(value)
-          }
-        })
-      },
-      allowContinueOnCallingThread = true
-    )
+        def onComplete(): Unit = {
+          if (isEmpty)
+            cb(Try(default))
+          else
+            cb.onSuccess(value)
+        }
+      })
+    }
 
   /** Creates a new Observable that emits the total number of `onNext`
     * events that were emitted by the source.
@@ -3869,33 +3948,30 @@ abstract class Observable[+A] extends Serializable { self =>
     * gets evaluated and emitted.
     */
   final def firstOrElseL[B >: A](default: => B): Task[B] =
-    Task.create(
-      { (s, cb) =>
-        unsafeSubscribeFn(new Subscriber.Sync[A] {
-          implicit val scheduler: Scheduler = s
-          private[this] var isDone = false
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var isDone = false
 
-          def onNext(elem: A): Ack = {
-            cb.onSuccess(elem)
+        def onNext(elem: A): Ack = {
+          cb.onSuccess(elem)
+          isDone = true
+          Stop
+        }
+
+        def onError(ex: Throwable): Unit =
+          if (!isDone) {
             isDone = true
-            Stop
+            cb.onError(ex)
           }
 
-          def onError(ex: Throwable): Unit =
-            if (!isDone) {
-              isDone = true
-              cb.onError(ex)
-            }
-
-          def onComplete(): Unit =
-            if (!isDone) {
-              isDone = true
-              cb(Try(default))
-            }
-        })
-      },
-      allowContinueOnCallingThread = true
-    )
+        def onComplete(): Unit =
+          if (!isDone) {
+            isDone = true
+            cb(Try(default))
+          }
+      })
+    }
 
   /** Returns a `Task` that emits a single boolean, either true, in
     * case the given predicate holds for all the items emitted by the
@@ -4037,27 +4113,24 @@ abstract class Observable[+A] extends Serializable { self =>
     * complete with `Unit`.
     */
   final def completedL: Task[Unit] =
-    Task.create(
-      { (s, cb) =>
-        unsafeSubscribeFn(new Subscriber.Sync[A] {
-          implicit val scheduler: Scheduler = s
-          private[this] var isDone = false
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var isDone = false
 
-          def onNext(elem: A): Ack = Continue
+        def onNext(elem: A): Ack = Continue
 
-          def onError(ex: Throwable): Unit =
-            if (!isDone) {
-              isDone = true; cb.onError(ex)
-            }
+        def onError(ex: Throwable): Unit =
+          if (!isDone) {
+            isDone = true; cb.onError(ex)
+          }
 
-          def onComplete(): Unit =
-            if (!isDone) {
-              isDone = true; cb.onSuccess(())
-            }
-        })
-      },
-      allowContinueOnCallingThread = true
-    )
+        def onComplete(): Unit =
+          if (!isDone) {
+            isDone = true; cb.onSuccess(())
+          }
+      })
+    }
 
   /** Polymorphic version of [[completedL]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLift]]
@@ -4396,9 +4469,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * source observable, executing the given callback for each element.
     */
   final def foreachL(cb: A => Unit): Task[Unit] =
-    Task.create({ (s, onFinish) =>
+    Task.create { (s, onFinish) =>
       unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
-    }, allowContinueOnCallingThread = true)
+    }
 }
 
 /** Observable builders.
@@ -5200,10 +5273,70 @@ object Observable extends ObservableDeprecatedBuilders {
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
     * observable that keeps generating elements produced by our
+    * generator function until `None` is returned.
+    * @example {{{
+    *  Observable.unfold(0)(i => if (i < 10) Some((i, i + 1)) else None).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    *  }}}
+    */
+  def unfold[S, A](seed: => S)(f: S => Option[(A, S)]): Observable[A] =
+    new UnfoldObservable(seed, f)
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * observable that keeps generating elements produced by our
+    * generator function until `None` is returned.
+    * @example {{{
+    *  Observable.unfoldEval(0)(i => if (i < 10) Task.now(Some((i, i + 1))) else Task.now(None)).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    *  }}}
+    */
+  def unfoldEval[S, A](seed: => S)(f: S => Task[Option[(A, S)]]): Observable[A] =
+    new UnfoldEvalObservable(seed, f)
+
+  /** Version of [[unfoldEval]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * @see [[unfoldEval]] for a version specialized for
+    *      [[monix.eval.Task Task]]
+    */
+  def unfoldEvalF[F[_], S, A](seed: => S)(f: S => F[Option[(A, S)]])(implicit F: TaskLike[F]): Observable[A] =
+    unfoldEval(seed)(a => Task.from(f(a)))
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * observable that keeps generating elements produced by our
     * generator function.
     */
   def fromAsyncStateAction[S, A](f: S => Task[(A, S)])(seed: => S): Observable[A] =
     new builders.AsyncStateActionObservable(seed, f)
+
+  /** Version of [[fromAsyncStateAction]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * @see [[fromAsyncStateAction]] for a version specialized for
+    *      [[monix.eval.Task Task]]
+    */
+  def fromAsyncStateActionF[F[_], S, A](f: S => F[(A, S)])(seed: => S)(implicit F: TaskLike[F]): Observable[A] =
+    fromAsyncStateAction[S, A](a => Task.from(f(a)))(seed)
 
   /** Wraps this Observable into a `org.reactivestreams.Publisher`.
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]

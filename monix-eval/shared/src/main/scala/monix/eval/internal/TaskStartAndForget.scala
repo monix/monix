@@ -21,7 +21,7 @@ package internal
 import monix.execution.Callback
 import monix.eval.Task.Context
 
-private[eval] object TaskForkAndForget {
+private[eval] object TaskStartAndForget {
   /**
     * Implementation for `Task.startAndForget`.
     */

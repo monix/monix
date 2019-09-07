@@ -17,11 +17,11 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context}
-import monix.execution.Callback
-import monix.eval.Task
-import monix.execution.schedulers.TracingScheduler
 import java.util.concurrent.RejectedExecutionException
+import monix.eval.Task
+import monix.eval.Task.{Async, Context}
+import monix.execution.schedulers.TracingScheduler
+import monix.execution.{Callback, Scheduler}
 import scala.concurrent.ExecutionContext
 
 private[eval] object TaskShift {
@@ -43,15 +43,20 @@ private[eval] object TaskShift {
   // N.B. the contract is that the injected callback gets called after
   // a full async boundary!
   private final class Register(ec: ExecutionContext) extends ForkedRegister[Unit] {
-
     def apply(context: Context, cb: Callback[Throwable, Unit]): Unit = {
       val ec2 =
-        if (ec eq null)
+        if (ec eq null) {
           context.scheduler
-        else if (context.options.localContextPropagation)
-          TracingScheduler(ec)
-        else
+        } else if (context.options.localContextPropagation) {
+          ec match {
+            case sc: Scheduler if sc.features.contains(Scheduler.TRACING) =>
+              sc
+            case _ =>
+              TracingScheduler(ec)
+          }
+        } else {
           ec
+        }
 
       try {
         ec2.execute(new Runnable {
@@ -62,9 +67,7 @@ private[eval] object TaskShift {
         })
       } catch {
         case e: RejectedExecutionException =>
-          Callback
-            .trampolined(cb)(context.scheduler)
-            .onError(e)
+          Callback.signalErrorTrampolined(cb, e)
       }
     }
   }

@@ -37,7 +37,7 @@ private[monix] object TaskBracket {
       new ReleaseStart(task, finalizer),
       trampolineBefore = true,
       trampolineAfter = true,
-      restoreLocals = false
+      restoreLocals = true
     )
 
   private final class ReleaseStart[A](source: Task[A], release: ExitCase[Throwable] => Task[Unit])
@@ -92,7 +92,7 @@ private[monix] object TaskBracket {
       new StartE(acquire, use, release),
       trampolineBefore = true,
       trampolineAfter = true,
-      restoreLocals = false
+      restoreLocals = true
     )
   }
 
@@ -131,7 +131,7 @@ private[monix] object TaskBracket {
       new StartCase(acquire, use, release),
       trampolineBefore = true,
       trampolineAfter = true,
-      restoreLocals = false
+      restoreLocals = true
     )
 
   private final class StartCase[A, B](

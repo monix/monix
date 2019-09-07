@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import cats.effect.{CancelToken, ExitCase}
 import monix.execution.Callback
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
@@ -69,17 +70,15 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.cancelable0 should work when executed as future") { implicit s =>
+  test("Task.cancelable0 should execute immediately when executed as future") { implicit s =>
     val t = Task.cancelable0[Int] { (_, cb) =>
       cb.onSuccess(100); Task.unit
     }
     val result = t.runToFuture
-
-    s.tick()
     assertEquals(result.value, Some(Success(100)))
   }
 
-  test("Task.cancelable0 should work when executed with callback") { implicit s =>
+  test("Task.cancelable0 should execute immediately when executed with callback") { implicit s =>
     var result = Option.empty[Try[Int]]
     val t = Task.cancelable0[Int] { (_, cb) =>
       cb.onSuccess(100); Task.unit
@@ -87,8 +86,6 @@ object TaskCancelableSuite extends BaseTestSuite {
     t.runAsync(Callback.fromTry[Int]({ r =>
       result = Some(r)
     }))
-
-    s.tick()
     assertEquals(result, Some(Success(100)))
   }
 
@@ -96,10 +93,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     val task = Task.cancelable[Int] { cb =>
       cb.onSuccess(1); Task.unit
     }
-    val f = task.runToFuture
-
-    sc.tick()
-    assertEquals(f.value, Some(Success(1)))
+    assertEquals(task.runToFuture.value, Some(Success(1)))
   }
 
   test("Task.cancelable works for immediate error") { implicit sc =>
@@ -107,10 +101,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     val task = Task.cancelable[Int] { cb =>
       cb.onError(e); Task.unit
     }
-    val f = task.runToFuture
-
-    sc.tick()
-    assertEquals(f.value, Some(Failure(e)))
+    assertEquals(task.runToFuture.value, Some(Failure(e)))
   }
 
   test("Task.cancelable is memory safe in flatMap loops") { implicit sc =>
@@ -140,111 +131,31 @@ object TaskCancelableSuite extends BaseTestSuite {
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.cancelable0(allowContinueOnCallingThread = true) should be stack safe on repeated, right-associated binds") {
-    implicit s =>
-      def signal[A](a: A): Task[A] =
-        Task.cancelable0[A]({ (_, cb) =>
-          cb.onSuccess(a)
-          Task.unit
-        }, allowContinueOnCallingThread = true)
+  test("Task.cancelable pops the connection after it's done") { implicit sc =>
+    import scala.concurrent.duration._
 
-      val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => acc.flatMap(x => signal(x + 1)))
-      val f = task.runToFuture
-      s.tick()
+    var effect = 0
+    val cancel1 = Task(effect += 1)
+    val cancel2 = Task(effect += 10)
 
-      assertEquals(f.value, Some(Success(10000)))
-  }
+    val task = Task.cancelable[Unit] { cb =>
+      sc.scheduleOnce(1.second)(cb.onSuccess(()))
+      cancel1
+    }
 
-  test("Task.cancelable0(allowContinueOnCallingThread = true) should be stack safe on repeated, left-associated binds") {
-    implicit s =>
-      def signal[A](a: A): Task[A] =
-        Task.cancelable0[A]({ (_, cb) =>
-          cb.onSuccess(a)
-          Task.unit
-        }, allowContinueOnCallingThread = true)
-
-      val task = (0 until 10000).foldLeft(Task.now(0))((acc, _) => signal(1).flatMap(x => acc.map(y => x + y)))
-      val f = task.runToFuture
-      s.tick()
-
-      assertEquals(f.value, Some(Success(10000)))
-  }
-
-  test("Task.cancelable0(allowContinueOnCallingThread = true) should work onSuccess") { implicit s =>
-    val t = Task.cancelable0[Int]({ (_, cb) =>
-      cb.onSuccess(10); Task.unit
-    }, allowContinueOnCallingThread = true)
-    val f = t.runToFuture
-    s.tick()
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.cancelable0(allowContinueOnCallingThread = true) should work onError") { implicit s =>
-    val dummy = DummyException("dummy")
-    val t = Task.cancelable0[Int]({ (_, cb) =>
-      cb.onError(dummy); Task.unit
-    }, allowContinueOnCallingThread = true)
-    val f = t.runToFuture
-    s.tick()
-    assertEquals(f.value, Some(Failure(dummy)))
-  }
-
-  test("Task.cancelable0(allowContinueOnCallingThread = true) should execute immediately when executed as future") {
-    implicit s =>
-      val t = Task.cancelable0[Int]({ (_, cb) =>
-        cb.onSuccess(100); Task.unit
-      }, allowContinueOnCallingThread = true)
-      val result = t.runToFuture
-      assertEquals(result.value, Some(Success(100)))
-  }
-
-  test("Task.cancelable0(allowContinueOnCallingThread = true) should execute immediately when executed with callback") {
-    implicit s =>
-      var result = Option.empty[Try[Int]]
-      val t = Task.cancelable0[Int]({ (_, cb) =>
-        cb.onSuccess(100); Task.unit
-      }, allowContinueOnCallingThread = true)
-      t.runAsync(Callback.fromTry[Int]({ r =>
-        result = Some(r)
-      }))
-      assertEquals(result, Some(Success(100)))
-  }
-
-  test("Task.cancelable(allowContinueOnCallingThread = true) works for immediate successful value") { implicit sc =>
-    val task = Task.cancelable[Int]({ cb =>
-      cb.onSuccess(1); Task.unit
-    }, allowContinueOnCallingThread = true)
-    assertEquals(task.runToFuture.value, Some(Success(1)))
-  }
-
-  test("Task.cancelable(allowContinueOnCallingThread = true) works for immediate error") { implicit sc =>
-    val e = DummyException("dummy")
-    val task = Task.cancelable[Int](cb => { cb.onError(e); Task.unit }, allowContinueOnCallingThread = true)
-    assertEquals(task.runToFuture.value, Some(Failure(e)))
-  }
-
-  test("Task.cancelable(allowContinueOnCallingThread = true) is memory safe in flatMap loops") { implicit sc =>
-    def signal(n: Int): Task[Int] =
-      Task.cancelable(cb => { cb.onSuccess(n); Task.unit }, allowContinueOnCallingThread = true)
-
-    def loop(n: Int, acc: Int): Task[Int] =
-      signal(n).flatMap { n =>
-        if (n > 0) loop(n - 1, acc + 1)
-        else Task.now(acc)
+    val f = task
+      .flatMap(_ => Task.sleep(10.seconds))
+      .guaranteeCase {
+        case ExitCase.Canceled => cancel2
+        case _ => Task.unit
       }
+      .runToFuture
 
-    val f = loop(10000, 0).runToFuture; sc.tick()
-    assertEquals(f.value, Some(Success(10000)))
-  }
+    sc.tick(1.second)
+    assertEquals(effect, 0)
 
-  test("Task.cancelable(allowContinueOnCallingThread = true) is cancelable") { implicit sc =>
-    val c = BooleanCancelable()
-    val f = Task.cancelable[Int](_ => Task(c.cancel()), allowContinueOnCallingThread = true).runToFuture
-
-    assertEquals(f.value, None)
     f.cancel()
-    assertEquals(f.value, None)
-    assert(c.isCanceled)
-    assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
+    sc.tick()
+    assertEquals(effect, 10)
   }
 }

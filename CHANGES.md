@@ -1,3 +1,146 @@
+## Version 3.0.0-RC5 (August 29, 2019)
+
+Bug fix release:
+
+- [#991](https://github.com/monix/monix/issues/991) ([PR #993](https://github.com/monix/monix/pull/993)): `NullPointerException` in `Task` when used in combination with `Local`
+- [#992](https://github.com/monix/monix/issues/992) ([PR #998](https://github.com/monix/monix/pull/998)): hide `InterceptableRunnable` exposed accidentally, refactor it for efficiency
+- [#997](https://github.com/monix/monix/pull/997): bumped Scala version to 2.12.9 and Scala.js to 0.6.28
+
+This release is binary compatible with `3.0.0-RC4`.
+
+## Version 3.0.0-RC4 (August 25, 2019)
+
+Last release before `3.0.0` which will be released as soon as Cats-Effect 2.0.0 is available. At the time of writing release notes,
+it is only waiting on Cats 2.0.0 which is about to release next RC which will become stable version if no critical issues are discovered.
+
+Any other development for this release is now frozen except if we discover critical bugs like memory leaks. All other changes will target `3.1.0`.
+
+`3.0.0` will be binary and source compatible with `3.0.0-RC4` for Scala 2.12. Monix itself will be also binary compatible
+for 2.11 but it will have a dependency on Cats-Effect which is not. [See Cats-Effect release notes](https://github.com/typelevel/cats-effect/releases/tag/v2.0.0-RC1) for more details.
+
+We wish we could release `3.0.0` already but if we released now, we would have to release `4.0.0` for Cats-Effect 2.0 because of 2.11 incompatibility there so we decided to hold on.
+It was a rough road but currently we have multiple active maintainers that can do releases going forward, instead of just Alex so we hope it can give you a confidence for the future! :)
+Note that Cats-Effect 2.0 is very small release and mostly targeted at support for Scala 2.13 and bug fixes - the upgrade should be limited to bumping version without changing a single line of code.
+
+This release depends on Cats-Effect 1.4.0 and Cats 1.6.1
+
+This release is binary compatible with `3.0.0-RC3` on Scala 2.12.
+On Scala 2.11 there is an incompatibility caused by introduction of `Scheduler.features`:
+
+```
+exclude[ReversedMissingMethodProblem]("monix.execution.Scheduler.features")
+```
+
+### Main changes
+
+#### Local
+
+There are several fixes related to `Local` usage.
+- Using `TracingScheduler` will also automatically enable local context propagation in `Task` so
+running it with `runToFutureOpt` or setting env variable is no longer a necessity.
+- `Local.isolate` has a overload for isolating `Future` which is safer than regular `Local.isolate`.
+
+The `Local` model since `3.0.0-RC3` shares by default. To isolate modifications of `Local` by
+other concurrently running `Future`, you have to call `Local.isolate`.
+
+In case of `Task`, there is a `TaskLocal.isolate` version. It is automatically called whenever you run `Task`
+so if your use case is setting `correlationId` or similar, it probably won't require any explicit isolation because
+your HTTP library will most likely run the `Task` per request.
+
+#### Task Builders
+
+There are two major improvements:
+- Now all `Task` builders (`Task.create`, `Task.async`, `Task.fromFuture` etc.) will return a `Task` that continues on default `Scheduler` which is
+the one supplied during execution unless overriden by `executeOn`.
+- Callback in `Task.create` is now thread-safe against contract violation (calling it more than once) so does not require synchronization on the user side.
+
+
+### Sub-project: monix-execution
+
+- [PR #946](https://github.com/monix/monix/pull/946): Expose less implementation details in Local
+
+- [PR #948](https://github.com/monix/monix/pull/948): Make Task.memoize play well with Local
+
+- [PR #953](https://github.com/monix/monix/pull/953): Make default scheduler remove cancelled tasks
+
+- [PR #960](https://github.com/monix/monix/pull/960): Scheduler.features
+
+- [PR #971](https://github.com/monix/monix/pull/971): Callback tryOnSuccess/tryOnFailure
+
+- [PR #973](https://github.com/monix/monix/pull/973): Fix Local.isolate corner case
+
+- [PR #977](https://github.com/monix/monix/pull/977): Use type classes instead of overloads in Local.isolate/bind
+
+### Sub-project: monix-eval
+
+- [PR #913](https://github.com/monix/monix/pull/913): Optimize Task.guarantee
+
+- [PR #921](https://github.com/monix/monix/pull/921) & [PR #917](https://github.com/monix/monix/pull/917): Callbacks in Task.create are now thread-safe and
+always return to the main Scheduler.
+
+- [PR #933](https://github.com/monix/monix/pull/933): Adds >> syntax to Task
+
+- [PR #935](https://github.com/monix/monix/pull/935): Adds >> syntax to Coeval
+
+- [PR #934](https://github.com/monix/monix/pull/934): Implement doOnFinish in terms of guaranteeCase
+
+- [PR #951](https://github.com/monix/monix/pull/951): Add void to Task + Coeval
+
+- [PR #952](https://github.com/monix/monix/pull/952): Implement ContextShift.evalOn in terms of Task.executeOn
+
+- [PR #954](https://github.com/monix/monix/pull/954): Add gatherN + wanderN
+
+- [PR #972](https://github.com/monix/monix/pull/972): Rename `Task.forkAndForget` to `Task.startAndForget`
+
+### Sub-project: monix-reactive
+
+- [PR #906](https://github.com/monix/monix/pull/906): Fix race in MapParallelOrderedObservable
+
+- [PR #918](https://github.com/monix/monix/pull/918): switchMap should wait for last child to complete
+
+- [PR #919](https://github.com/monix/monix/pull/919): propagate cancellation to tasks in async Consumers
+
+- [PR #932](https://github.com/monix/monix/pull/932): Remove try-catch for EvalOnceObservable implementation
+
+- [PR #941](https://github.com/monix/monix/pull/941): Added some polymorphic methods for Observable
+
+- [PR #945](https://github.com/monix/monix/pull/945): Add collectWhile observable
+
+- [PR #958](https://github.com/monix/monix/pull/958): Add Observable.throttle
+
+- [PR #963](https://github.com/monix/monix/pull/963): Added fromAsyncStateActionF
+
+- [PR #970](https://github.com/monix/monix/pull/970): Observable.unfold
+
+- [PR #989](https://github.com/monix/monix/pull/989): Observable.unfoldEval and Observable.unfoldEvalF
+
+### Sub-project: monix-tail
+
+- [PR #965](https://github.com/monix/monix/pull/965): fixes resource handling in Iterant.repeat, adds Iterant.retryIfEmpty
+
+### Chores
+
+- [PR #936](https://github.com/monix/monix/pull/936): Add defaults values for benchmarking
+
+- Tons of updates by https://github.com/fthomas/scala-steward
+
+### Thanks
+
+People that made this release possible, in alphabetical order:
+
+- Alexandru Nedelcu (@alexandru)
+- Allan Timothy Leong (@allantl)
+- BambooTuna (@BambooTuna)
+- Carlo (@entangled90)
+- Oleg Pyzhcov (@oleg-py)
+- Paul K (@pk044)
+- Piotr Gawryś (@Avasil)
+- Rahil Bohra (@rahilb)
+- Richard Tarczaly (@arlequin-nyc)
+- Ryo Fukumuro (@rfkm)
+- TapanVaishnav (@TapanVaishnav)
+- Valentin Willscher (@valenterry)
+
 ## Version 3.0.0-RC3 (June 16, 2019)
 
 This release depends on Cats-Effect 1.3.1 and Cats 1.6.1.
@@ -12,252 +155,173 @@ This sub-project no longer depends on cats-effect and there are various
 improvement to `Local` aimed at fixing interop with `Future`. Note that
 you might have to call `Local.isolate` to disable any sharing between tasks.
 
-- [PR #775](https://github.com/monix/monix/pull/775):
-Simplified FutureUtils materialize & dematerialize
+- [PR #775](https://github.com/monix/monix/pull/775): Simplified FutureUtils materialize & dematerialize
 
-- [PR #790](https://github.com/monix/monix/pull/790):
-improve fixed rate scheduling on JS
+- [PR #790](https://github.com/monix/monix/pull/790): improve fixed rate scheduling on JS
 
-- [PR #803](https://github.com/monix/monix/pull/803):
-Eagerly null out dequeued elements in ChunkedArrayQueue
+- [PR #803](https://github.com/monix/monix/pull/803): Eagerly null out dequeued elements in ChunkedArrayQueue
 
-- [PR #822](https://github.com/monix/monix/pull/822):
-remove dependency on cats-effect from monix-execution
+- [PR #822](https://github.com/monix/monix/pull/822): remove dependency on cats-effect from monix-execution
 
-- [PR #773](https://github.com/monix/monix/pull/773):
-change Cancelable.empty type to Cancelable
+- [PR #773](https://github.com/monix/monix/pull/773): change Cancelable.empty type to Cancelable
 
-- [PR #887](https://github.com/monix/monix/pull/887):
-Shared locals with binds
+- [PR #887](https://github.com/monix/monix/pull/887): Shared locals with binds
 
-- [PR #888](https://github.com/monix/monix/pull/888):
-Fix uncaught exception reporting for Scheduler
+- [PR #888](https://github.com/monix/monix/pull/888): Fix uncaught exception reporting for Scheduler
 
 ### Sub-project: monix-catnap
 
-- [PR #778](https://github.com/monix/monix/pull/778):
-Adds ConcurrentChannel
+- [PR #778](https://github.com/monix/monix/pull/778): Adds ConcurrentChannel
 
-- [PR #784](https://github.com/monix/monix/pull/784):
-More concurrent tests for MVar/Semaphore
+- [PR #784](https://github.com/monix/monix/pull/784): More concurrent tests for MVar/Semaphore
 
-- [PR #865](https://github.com/monix/monix/pull/865):
-Adding FunctionK values for Task, Coeval
+- [PR #865](https://github.com/monix/monix/pull/865): Adding FunctionK values for Task, Coeval
 
 ### Sub-project: monix-eval
 
-- [PR #802](https://github.com/monix/monix/pull/802):
-encapsulate local ctx on task execution
+- [PR #802](https://github.com/monix/monix/pull/802): encapsulate local ctx on task execution
 
-- [PR #807](https://github.com/monix/monix/pull/807):
-Improve encapsulation test, encapsulate locals on ContextShift
+- [PR #807](https://github.com/monix/monix/pull/807): Improve encapsulation test, encapsulate locals on ContextShift
 
-- [PR #838](https://github.com/monix/monix/pull/838):
-Add taskified variants of timeout combinators
+- [PR #838](https://github.com/monix/monix/pull/838): Add taskified variants of timeout combinators
 
-- [PR #839](https://github.com/monix/monix/pull/839):
-TaskLocal should propagate when used with Bracket Methods
+- [PR #839](https://github.com/monix/monix/pull/839): TaskLocal should propagate when used with Bracket Methods
 
-- [PR #849](https://github.com/monix/monix/pull/849):
-Specify exception on timeout
+- [PR #849](https://github.com/monix/monix/pull/849): Specify exception on timeout
 
-- [PR #887](https://github.com/monix/monix/pull/887):
-Shared locals with binds
+- [PR #887](https://github.com/monix/monix/pull/887): Shared locals with binds
 
-- [PR #865](https://github.com/monix/monix/pull/865):
-Adding FunctionK values for Task, Coeval
+- [PR #865](https://github.com/monix/monix/pull/865): Adding FunctionK values for Task, Coeval
 
 ### Sub-project: monix-reactive
 
-- [PR #759](https://github.com/monix/monix/pull/759):
-Add Contravariant Observer and Subscriber 
+- [PR #759](https://github.com/monix/monix/pull/759): Add Contravariant Observer and Subscriber
 
-- [PR #760](https://github.com/monix/monix/pull/760):
-add Observable.filterEval
+- [PR #760](https://github.com/monix/monix/pull/760): add Observable.filterEval
 
-- [PR #774](https://github.com/monix/monix/pull/774):
-Add FunctorFilter instances for Iterant&Observable
+- [PR #774](https://github.com/monix/monix/pull/774): Add FunctorFilter instances for Iterant&Observable
 
-- [PR #779](https://github.com/monix/monix/pull/779):
-fork blocking i/o observable ops
+- [PR #779](https://github.com/monix/monix/pull/779): fork blocking i/o observable ops
 
-- [PR #794](https://github.com/monix/monix/pull/794):
-Acquire lock per subscription instead of observable-wide lock
+- [PR #794](https://github.com/monix/monix/pull/794): Acquire lock per subscription instead of observable-wide lock
 
-- [PR #801](https://github.com/monix/monix/pull/801):
-Observable buffers refactoring
+- [PR #801](https://github.com/monix/monix/pull/801): Observable buffers refactoring
 
-- [PR #819](https://github.com/monix/monix/pull/819):
-Extend ObservableLike with filterNot method
+- [PR #819](https://github.com/monix/monix/pull/819): Extend ObservableLike with filterNot method
 
-- [PR #831](https://github.com/monix/monix/pull/831):
-SerializableSuite to no longer test Future for serializability
+- [PR #831](https://github.com/monix/monix/pull/831): SerializableSuite to no longer test Future for serializability
 
-- [PR #834](https://github.com/monix/monix/pull/834):
-Observable.reduce should emit for single item source
+- [PR #834](https://github.com/monix/monix/pull/834): Observable.reduce should emit for single item source
 
-- [PR #846](https://github.com/monix/monix/pull/846):
-Ensure mapParallelOrdered runs in parallel
+- [PR #846](https://github.com/monix/monix/pull/846): Ensure mapParallelOrdered runs in parallel
 
-- [PR #872](https://github.com/monix/monix/pull/872):
-Add observable take while inclusive 
+- [PR #872](https://github.com/monix/monix/pull/872): Add observable take while inclusive
 
-- [PR #895](https://github.com/monix/monix/pull/895):
-Fix memory leak in MapParallelOrderedObservable
+- [PR #895](https://github.com/monix/monix/pull/895): Fix memory leak in MapParallelOrderedObservable
 
 ### Sub-project: monix-tail
 
-- [PR #778](https://github.com/monix/monix/pull/778):
-Adds Iterant.channel, Iterant#consume
+- [PR #778](https://github.com/monix/monix/pull/778): Adds Iterant.channel, Iterant#consume
 
-- [PR #826](https://github.com/monix/monix/pull/826):
-add Iterant.uncons operation
+- [PR #826](https://github.com/monix/monix/pull/826): add Iterant.uncons operation
 
 ### Chores
 
-- [PR #766](https://github.com/monix/monix/pull/766):
-Update sbt-unidoc to 0.4.2
+- [PR #766](https://github.com/monix/monix/pull/766): Update sbt-unidoc to 0.4.2
 
-- [PR #766](https://github.com/monix/monix/pull/766):
-Update sbt-pgp to 1.1.2
+- [PR #766](https://github.com/monix/monix/pull/766): Update sbt-pgp to 1.1.2
 
-- [PR #768](https://github.com/monix/monix/pull/768):
-Update sbt-mima-plugin to 0.3.0
+- [PR #768](https://github.com/monix/monix/pull/768): Update sbt-mima-plugin to 0.3.0
 
-- [PR #769](https://github.com/monix/monix/pull/769):
-Update sbt-git to 1.0.0
+- [PR #769](https://github.com/monix/monix/pull/769): Update sbt-git to 1.0.0
 
-- [PR #770](https://github.com/monix/monix/pull/770):
-Update jctools-core to 2.1.2
+- [PR #770](https://github.com/monix/monix/pull/770): Update jctools-core to 2.1.2
 
-- [PR #771](https://github.com/monix/monix/pull/771):
-Update kind-projector to 0.9.8
+- [PR #771](https://github.com/monix/monix/pull/771): Update kind-projector to 0.9.8
 
-- [PR #772](https://github.com/monix/monix/pull/772):
-Update sbt-jmh to 0.3.4
+- [PR #772](https://github.com/monix/monix/pull/772): Update sbt-jmh to 0.3.4
 
-- [PR #771](https://github.com/monix/monix/pull/771):
-Update kind-projector to 0.9.9
+- [PR #771](https://github.com/monix/monix/pull/771): Update kind-projector to 0.9.9
 
-- [PR #783](https://github.com/monix/monix/pull/783):
-Use globally accessible (rather than local) source paths in JS source maps (#781)
+- [PR #783](https://github.com/monix/monix/pull/783): Use globally accessible (rather than local) source paths in JS source maps (#781)
 
-- [PR #785](https://github.com/monix/monix/pull/785):
-Update sbt-scalajs, scalajs-compiler, scalajs-library... to 0.6.26
+- [PR #785](https://github.com/monix/monix/pull/785): Update sbt-scalajs, scalajs-compiler, scalajs-library... to 0.6.26
 
-- [PR #788](https://github.com/monix/monix/pull/788):
-Update cats-effect, cats-effect-laws to 1.1.0
+- [PR #788](https://github.com/monix/monix/pull/788): Update cats-effect, cats-effect-laws to 1.1.0
 
-- [PR #796](https://github.com/monix/monix/pull/796):
-fix scalacOptions
+- [PR #796](https://github.com/monix/monix/pull/796): fix scalacOptions
 
-- [PR #797](https://github.com/monix/monix/pull/797):
-Scala 2.12.8
+- [PR #797](https://github.com/monix/monix/pull/797): Scala 2.12.8
 
-- [PR #798](https://github.com/monix/monix/pull/798):
-Update intervalWithFixedDelay scaladoc
+- [PR #798](https://github.com/monix/monix/pull/798): Update intervalWithFixedDelay scaladoc
 
-- [PR #805](https://github.com/monix/monix/pull/805):
-Rename keysBuffer to os in groupBy's parameters
+- [PR #805](https://github.com/monix/monix/pull/805): Rename keysBuffer to os in groupBy's parameters
 
-- [PR #808](https://github.com/monix/monix/pull/808):
-Update Copyright to 2019
+- [PR #808](https://github.com/monix/monix/pull/808): Update Copyright to 2019
 
-- [PR #810](https://github.com/monix/monix/pull/810):
-sbt 1.2.8 (was 1.1.0)
+- [PR #810](https://github.com/monix/monix/pull/810): sbt 1.2.8 (was 1.1.0)
 
-- [PR #812](https://github.com/monix/monix/pull/812):
-Update Minitest to 2.3.2
+- [PR #812](https://github.com/monix/monix/pull/812): Update Minitest to 2.3.2
 
-- [PR #813](https://github.com/monix/monix/pull/813):
-Disable code coverage
+- [PR #813](https://github.com/monix/monix/pull/813): Disable code coverage
 
-- [PR #818](https://github.com/monix/monix/pull/818):
-Update Cats-Effect to 1.2.0
+- [PR #818](https://github.com/monix/monix/pull/818): Update Cats-Effect to 1.2.0
 
-- [PR #820](https://github.com/monix/monix/pull/820):
-Update cats-laws to 1.5.0 
+- [PR #820](https://github.com/monix/monix/pull/820): Update cats-laws to 1.5.0
 
-- [PR #821](https://github.com/monix/monix/pull/821):
-Update cats-laws to 1.6.0
+- [PR #821](https://github.com/monix/monix/pull/821): Update cats-laws to 1.6.0
 
-- [PR #823](https://github.com/monix/monix/pull/823):
-Scala 2.13 support
+- [PR #823](https://github.com/monix/monix/pull/823): Scala 2.13 support
 
-- [PR #821](https://github.com/monix/monix/pull/821):
-Update sbt-header to 5.1.0
+- [PR #821](https://github.com/monix/monix/pull/821): Update sbt-header to 5.1.0
 
-- [PR #827](https://github.com/monix/monix/pull/827):
-Remove comments from .jvmopts
+- [PR #827](https://github.com/monix/monix/pull/827): Remove comments from .jvmopts
 
-- [PR #833](https://github.com/monix/monix/pull/833):
-Fix build for 2.13.0-M5 by deactivating Mima for it
+- [PR #833](https://github.com/monix/monix/pull/833): Fix build for 2.13.0-M5 by deactivating Mima for it
 
-- [PR #840](https://github.com/monix/monix/pull/840):
-Add adopters list seed
+- [PR #840](https://github.com/monix/monix/pull/840): Add adopters list seed
 
-- [PR #842](https://github.com/monix/monix/pull/842):
-Fixed deprecation docs for Task#coeval
+- [PR #842](https://github.com/monix/monix/pull/842): Fixed deprecation docs for Task#coeval
 
-- [PR #843](https://github.com/monix/monix/pull/843):
-Remove dead code from tests
+- [PR #843](https://github.com/monix/monix/pull/843): Remove dead code from tests
 
-- [PR #844](https://github.com/monix/monix/pull/844):
-Update sbt-header to 5.2.0
+- [PR #844](https://github.com/monix/monix/pull/844): Update sbt-header to 5.2.0
 
-- [PR #847](https://github.com/monix/monix/pull/847):
-Update ExecutionModel.scala
+- [PR #847](https://github.com/monix/monix/pull/847): Update ExecutionModel.scala
 
-- [PR #850](https://github.com/monix/monix/pull/850):
-Increase rate in AsyncSchedulerSuite
+- [PR #850](https://github.com/monix/monix/pull/850): Increase rate in AsyncSchedulerSuite
 
-- [PR #854](https://github.com/monix/monix/pull/854):
-fix apparently erronous code involving Unit companion
+- [PR #854](https://github.com/monix/monix/pull/854): fix apparently erronous code involving Unit companion
 
-- [PR #855](https://github.com/monix/monix/pull/855):
-Update sbt-jmh to 0.3.5 
+- [PR #855](https://github.com/monix/monix/pull/855): Update sbt-jmh to 0.3.5
 
-- [PR #857](https://github.com/monix/monix/pull/857):
-Make benchmarks compile
+- [PR #857](https://github.com/monix/monix/pull/857): Make benchmarks compile
 
-- [PR #859](https://github.com/monix/monix/pull/859):
-Update sbt-scalajs, scalajs-compiler to 0.6.27
+- [PR #859](https://github.com/monix/monix/pull/859): Update sbt-scalajs, scalajs-compiler to 0.6.27
 
-- [PR #867](https://github.com/monix/monix/pull/867):
-Update kind-projector to 0.10.0
+- [PR #867](https://github.com/monix/monix/pull/867): Update kind-projector to 0.10.0
 
-- [PR #869](https://github.com/monix/monix/pull/869):
-fix compile errors with latest Scala 2.13 
+- [PR #869](https://github.com/monix/monix/pull/869): fix compile errors with latest Scala 2.13
 
-- [PR #874](https://github.com/monix/monix/pull/874):
-Update cats-effect, cats-effect-laws to 1.3.0
+- [PR #874](https://github.com/monix/monix/pull/874): Update cats-effect, cats-effect-laws to 1.3.0
 
-- [PR #878](https://github.com/monix/monix/pull/878):
-Compile Benchmarks in CI
+- [PR #878](https://github.com/monix/monix/pull/878): Compile Benchmarks in CI
 
-- [PR #879](https://github.com/monix/monix/pull/879):
-Do on subscription cancel scaladoc fix
+- [PR #879](https://github.com/monix/monix/pull/879): Do on subscription cancel scaladoc fix
 
-- [PR #889](https://github.com/monix/monix/pull/889):
-Update cats-effect, cats-effect-laws to 1.3.1
+- [PR #889](https://github.com/monix/monix/pull/889): Update cats-effect, cats-effect-laws to 1.3.1
 
-- [PR #894](https://github.com/monix/monix/pull/894):
-Add UnsafeBecauseImpure Annotation to foreach.
+- [PR #894](https://github.com/monix/monix/pull/894): Add UnsafeBecauseImpure Annotation to foreach.
 
-- [PR #896](https://github.com/monix/monix/pull/896):
-Update cats-laws to 1.6.1
+- [PR #896](https://github.com/monix/monix/pull/896): Update cats-laws to 1.6.1
 
-- [PR #898](https://github.com/monix/monix/pull/898):
-Reformating via Scalafmt
+- [PR #898](https://github.com/monix/monix/pull/898): Reformating via Scalafmt
 
-- [PR #899](https://github.com/monix/monix/pull/899):
-Fix autoCancelableRunLoops comment.
+- [PR #899](https://github.com/monix/monix/pull/899): Fix autoCancelableRunLoops comment.
 
-- [PR #901](https://github.com/monix/monix/pull/901):
-avoid deprecated unicode arrow chars 
+- [PR #901](https://github.com/monix/monix/pull/901): avoid deprecated unicode arrow chars
 
-- [PR #902](https://github.com/monix/monix/pull/902):
-reformat build files
+- [PR #902](https://github.com/monix/monix/pull/902): reformat build files
 
 ### Thanks
 
@@ -285,7 +349,7 @@ People that made this release possible, in alphabetical order:
 - Tanaka Takaya (@takayahilton)
 - Yann Simon (@yanns)
 
-And special thanks to our top contributor in this release: 
+And special thanks to our top contributor in this release:
 https://github.com/fthomas/scala-steward :)
 
 ## Version 3.0.0-RC2 (Nov 6, 2018)
@@ -302,14 +366,14 @@ Supporting Cats-Effect `1.0.0` has been a massive amount of work:
   Cats-Effect `1.0.0-RC3` update, `Task` conversions
 - [PR #716](https://github.com/monix/monix/pull/716):
   Updates to Cats-Effect `1.0.0`
-  
+
 Also related, but mentioned below:
 
 - `Iterant`'s encoding had to change due to the new contract of
   Cats-Effect's type classes, in a massive change of internals that
   also improved its performance and safety
   ([#683](https://github.com/monix/monix/pull/683))
-  
+
 ### Sub-project: monix-execution
 
 Several features, deprecations and refactorings happened in
@@ -326,12 +390,12 @@ below:
 - `monix.execution.AsyncQueue` was added
   ([#757](https://github.com/monix/monix/pull/757))
 - `monix.execution.Callback` was added
-  ([#740](https://github.com/monix/monix/pull/740))  
+  ([#740](https://github.com/monix/monix/pull/740))
 - `monix.execution.FutureUtils` and `CancelableFuture` can now take
   care of the conversions of Scala's `Future` to and from Java's
-  `CompletableFuture` 
+  `CompletableFuture`
   ([#761](https://github.com/monix/monix/pull/761))
-  
+
 Other features:
 
 - [PR #675](https://github.com/monix/monix/pull/675):
@@ -339,8 +403,8 @@ Other features:
 - [PR #738](https://github.com/monix/monix/pull/738):
   Adds `CancelablePromise`
 - [PR #765](https://github.com/monix/monix/pull/765):
-  Changes `TrampolineScheduler`'s internal stack back to a queue 
-  
+  Changes `TrampolineScheduler`'s internal stack back to a queue
+
 ### Sub-project: monix-catnap
 
 This is a new project introduced that currently depends on only
@@ -362,7 +426,7 @@ abstractions built on top of Cats-Effect's type classes.
 - [PR #762](https://github.com/monix/monix/pull/762):
   Fixes issue [typelevel/cats-effect#403](https://github.com/typelevel/cats-effect/pull/403),
   also added `monix.catnap.cancelables.SingleAssignCancelableF`
-  
+
 Also mentioned below, as part of other features:
 
 - Added `monix.catnap.CancelableF` and
@@ -391,7 +455,7 @@ Features:
 - [PR #636](https://github.com/monix/monix/pull/636):
   Adds `join` to the `fork` documentation
 - [PR #639](https://github.com/monix/monix/pull/639):
-  Makes `Coeval.value` empty-parens to indicate side effects 
+  Makes `Coeval.value` empty-parens to indicate side effects
 - [PR #638](https://github.com/monix/monix/pull/638):
   Fixes `Task.foreach` waiting / error reporting
 - [PR #634](https://github.com/monix/monix/pull/634):
@@ -403,7 +467,7 @@ Features:
 - [PR #664](https://github.com/monix/monix/pull/664):
   Fixes `Task.map2` not executing things in sequence
 - [PR #661](https://github.com/monix/monix/pull/661):
-  Makes `mapBoth` always execute tasks in parallel 
+  Makes `mapBoth` always execute tasks in parallel
 - [PR #669](https://github.com/monix/monix/pull/669)
   Adds `uncancelable` to example
 - [PR #647](https://github.com/monix/monix/pull/647):
@@ -443,12 +507,12 @@ operators that take `Task` or `F[_] : Effect` values as arguments:
 - the `F` suffixed operators previously signalled operators that kept
   the `Observable` context (e.g. `findF`), however all of them have
   been renamed
-  
+
 See [PR #729](https://github.com/monix/monix/pull/729) for details.
 
 Features:
 
-- [PR #610](https://github.com/monix/monix/pull/610): 
+- [PR #610](https://github.com/monix/monix/pull/610):
   Adds `scan0`, `flatScan0`, `flatScan0DelayErrors`,
   `scanEval0`, `scanMap0` on `Observable`
 - [PR #641](https://github.com/monix/monix/pull/641):
@@ -468,18 +532,18 @@ Features:
 - [PR #729](https://github.com/monix/monix/pull/729):
   Adds `Observable.bracket`, Iterant/Task API refactorings, fixes (major!)
 - [PR #741](https://github.com/monix/monix/pull/741):
-  Adds cats `Profunctor` instance for `Subject` 
+  Adds cats `Profunctor` instance for `Subject`
 - [PR #739](https://github.com/monix/monix/pull/739):
   Adds operator `bufferTimedWithPressure` with `sizeOf` on `Observable`
 - [PR #743](https://github.com/monix/monix/pull/743):
   Improvs `Observable.collect` to avoid double evaluation
 - [PR #749](https://github.com/monix/monix/pull/749):
-  Adds `Profunctor` and `Contravariant` instance for `Consumer` 
+  Adds `Profunctor` and `Contravariant` instance for `Consumer`
 - [PR #750](https://github.com/monix/monix/pull/750):
   Fixes handling start/end of `Long` range in `RangeObservable`
 - [PR #558](https://github.com/monix/monix/pull/558):
   Adds `Observable.mapParallelOrdered`
-  
+
 ### Sub-project: monix-tail
 
 The `Iterant` encoding suffered a major change, with all operators
@@ -498,7 +562,7 @@ Features:
 - [PR #622](https://github.com/monix/monix/pull/622):
   Adds `mapBatch` for `Iterant`
 - [PR #629](https://github.com/monix/monix/pull/629):
-  Fixes `IterantBuildersSync` methods to not require 
+  Fixes `IterantBuildersSync` methods to not require
   `implicit F: Sync[F]`
 - [PR #631](https://github.com/monix/monix/pull/631):
   Renames `toGenerator` to `toBatch` in `Cursor`
@@ -537,7 +601,7 @@ will soon be removed.
 - [PR #671](https://github.com/monix/monix/pull/671):
   Optionally allow forcing a build on Java 9+
 - [PR #677](https://github.com/monix/monix/pull/677):
-  Add Starting Point section to CONTRIBUTING.md 
+  Add Starting Point section to CONTRIBUTING.md
 - [PR #693](https://github.com/monix/monix/pull/693):
   Fix micro doc typo in `monix.execution.misc.InlineMacros`
 - [PR #699](https://github.com/monix/monix/pull/699):
@@ -562,7 +626,7 @@ will soon be removed.
 People that made this release possible, in alphabetical order:
 
 - Alexandru Nedelcu (@alexandru)
-- Eduardo Barrientos (@kdoomsday) 
+- Eduardo Barrientos (@kdoomsday)
 - Eugene Platonov (@jozic)
 - Jakub Kozłowski (@kubukoz)
 - Jamie Wilson (@jfwilson)
@@ -647,7 +711,7 @@ Features for `monix-eval`:
 
 Features for `monix-reactive`:
 
-- [PR #511](https://github.com/monix/monix/pull/511) 
+- [PR #511](https://github.com/monix/monix/pull/511)
   ([#269](https://github.com/monix/monix/issues/279)):
   add `monix.reactive.subjects.Var` type
 - [PR #528](https://github.com/monix/monix/pull/528):
@@ -659,10 +723,10 @@ Features for `monix-reactive`:
 Features for `monix-tail`:
 
 - [PR #503](https://github.com/monix/monix/pull/503)
-  ([#487](https://github.com/monix/monix/issues/487)): 
+  ([#487](https://github.com/monix/monix/issues/487)):
   add `Iterant.liftF` builder for lifting monadic values
 - [PR #510](https://github.com/monix/monix/pull/510)
-  ([#500](https://github.com/monix/monix/issues/500)): 
+  ([#500](https://github.com/monix/monix/issues/500)):
   add `Iterant.takeEveryNth` operator
 - [PR #504](https://github.com/monix/monix/pull/504)
   ([#499](https://github.com/monix/monix/issues/499)):
@@ -677,7 +741,7 @@ Features for `monix-tail`:
   ([#496](https://github.com/monix/monix/issues/496)):
   add `Iterant.dropWhileWithIndex` operator
 - [PR #514](https://github.com/monix/monix/pull/514)
-  ([#497](https://github.com/monix/monix/issues/497)): 
+  ([#497](https://github.com/monix/monix/issues/497)):
   add `Iterant.takeWhileWithIndex` operator
 - [PR #523](https://github.com/monix/monix/pull/523)
   ([#519](https://github.com/monix/monix/issues/519)):
@@ -696,7 +760,7 @@ Features for `monix-tail`:
   `completedL` should handle `F[_]` errors, `mapEval` should not
 - [PR #569](https://github.com/monix/monix/pull/569)
   (related to [#563](https://github.com/monix/monix/issues/563)):
-  `Iterant` fold left operators (yielding `F[_]`) need to handle errors 
+  `Iterant` fold left operators (yielding `F[_]`) need to handle errors
   thrown in `F[_]`
 - [PR #566](https://github.com/monix/monix/pull/566)
   ([#562](https://github.com/monix/monix/issues/562)):
@@ -706,7 +770,7 @@ Features for `monix-tail`:
   add `Iterant#sumL` method
 - [PR #579](https://github.com/monix/monix/pull/579)
   ([#577](https://github.com/monix/monix/issues/577)):
-  make `Iterant#reduceL` and `headOptionL` left folds handle errors 
+  make `Iterant#reduceL` and `headOptionL` left folds handle errors
   from `F[_]` context
 - [PR #575](https://github.com/monix/monix/pull/575)
   ([##571](https://github.com/monix/monix/issues/571) and
@@ -718,7 +782,7 @@ Features for `monix-tail`:
 - [PR #582](https://github.com/monix/monix/pull/582)
   ([#573](https://github.com/monix/monix/issues/573) and
   [#574](https://github.com/monix/monix/issues/574)):
-  add `repeatEval`/`repeatEvalF` for `Iterant` & `repeatEvalF` 
+  add `repeatEval`/`repeatEvalF` for `Iterant` & `repeatEvalF`
   for `Observable`
 - [PR #554](https://github.com/monix/monix/pull/554)
   ([#479](https://github.com/monix/monix/issues/479)):
@@ -730,11 +794,11 @@ Features for `monix-tail`:
   improve handling of broken batches/cursors in `Iterant.attempt`
 - [PR #591](https://github.com/monix/monix/pull/591)
   ([#580](https://github.com/monix/monix/issues/580)):
-  improve strictness of `Eq` of `Iterant`, fix `doOnFinish` on `Last` 
+  improve strictness of `Eq` of `Iterant`, fix `doOnFinish` on `Last`
 
 Bug fixes:
 
-- [PR #552](https://github.com/monix/monix/pull/552) 
+- [PR #552](https://github.com/monix/monix/pull/552)
   ([#483](https://github.com/monix/monix/issues/483)):
   `MVar` is stack unsafe, triggering stack overflow on `put`
 - [PR #543](https://github.com/monix/monix/pull/543)
@@ -744,7 +808,7 @@ Bug fixes:
   ([#468](https://github.com/monix/monix/issues/468)):
   race condition for `Observable` in concatenation operators
 - [PR #568](https://github.com/monix/monix/pull/568):
-  in `Iterant.toReactivePublisher` the `cancel` should be made 
+  in `Iterant.toReactivePublisher` the `cancel` should be made
   by `request()`
 - [PR #592](https://github.com/monix/monix/pull/592)
   ([#590](https://github.com/monix/monix/issues/590)):
@@ -764,13 +828,13 @@ Chores:
   (related to [#513](https://github.com/monix/monix/issues/513)):
   add `scalafmt.conf` configuration
 - [PR #565](https://github.com/monix/monix/pull/565):
-  correct small typo in doc of `Task#executeOn`  
+  correct small typo in doc of `Task#executeOn`
 - [PR #576](https://github.com/monix/monix/pull/576):
   fix comment mentioning Akka instead of Monix
 - [PR #588](https://github.com/monix/monix/pull/588):
   update copyright headers for Scala 2.11 source files
 - [PR #605](https://github.com/monix/monix/pull/605):
-  Make concurrent Atomic tests more resilient to timeouts 
+  Make concurrent Atomic tests more resilient to timeouts
 
 ## Version 2.3.3 (Jan 21, 2018)
 
@@ -800,18 +864,18 @@ Upgrade to `2.3.3` is recommended!
 Final milestone release before the RC and the final and stable `3.0.0`.
 
 Special thanks to Leandro Bolivar for implementing propagation of
-"local vars" (aka `Local` and `TaskLocal`, the equivalents of 
+"local vars" (aka `Local` and `TaskLocal`, the equivalents of
 `ThreadLocal`, but for usage with `Future` and `Task`).
 
-This release also lands a long awaited feature for `Task`: pure 
+This release also lands a long awaited feature for `Task`: pure
 cancellation, aka `Task.cancel`. It's building on top of the current
-`Task` implementation, however it changes the API — e.g. in order to 
+`Task` implementation, however it changes the API — e.g. in order to
 keep `Task` pure, the `chooseFirstOf` operator is now gone, being
 replaced with an equivalent `racePair` that operates with tasks and
 pure functions.
 
 The other highlight of the release are the performance improvements
-for `Task`, an on-going process to make sure that Monix's `Task` 
+for `Task`, an on-going process to make sure that Monix's `Task`
 remains the best implementation in Scala's ecosystem.
 
 We now depend on Cats `1.0.1` and cats-effect `0.8`.
@@ -819,18 +883,18 @@ We now depend on Cats `1.0.1` and cats-effect `0.8`.
 Full list of PRs:
 
 - [PR #464](https://github.com/monix/monix/pull/464):
-  updates dependencies, Scala to `2.12.4` and `2.11.12`, JCTools to 
+  updates dependencies, Scala to `2.12.4` and `2.11.12`, JCTools to
   `2.1.1`, Minitest to `2.0.0`, Scala.js to `0.6.21`
 - [PR #462](https://github.com/monix/monix/pull/462):
   Fix for `timeoutTo` to cancel source task directly after timeout
 - [PR #444](https://github.com/monix/monix/pull/444):
-  Add `localContextPropagation` to `Task.Options`, implement tracing 
+  Add `localContextPropagation` to `Task.Options`, implement tracing
   `Local` vars
 - [PR 470](https://github.com/monix/monix/pull/470):
   increase test coverage
 - [PR #473](https://github.com/monix/monix/pull/473):
   Fix issue where `fromAsyncStateAction` is not safe for user code
-- [PR #485](https://github.com/monix/monix/pull/485) and 
+- [PR #485](https://github.com/monix/monix/pull/485) and
   [PR #489](https://github.com/monix/monix/pull/489):
   Updates Cats to `1.0.1` and cats-effect to `0.8`
 - [PR #474](https://github.com/monix/monix/pull/474):
@@ -838,7 +902,7 @@ Full list of PRs:
 - [PR #492](https://github.com/monix/monix/pull/492):
   Second batch of optimizations
 - [PR #494](https://github.com/monix/monix/pull/494):
-  `Task.cancel` as a pure action, along with `.start`, 
+  `Task.cancel` as a pure action, along with `.start`,
   `.race` and `.uncancelable`
 
 ## Version 3.0.0-M2 (Nov 9, 2017)
@@ -849,7 +913,7 @@ the need for `Task.nondeterminism`, now removed.
 
 List of changes:
 
-- [PR #437](https://github.com/monix/monix/pull/437): 
+- [PR #437](https://github.com/monix/monix/pull/437):
   Added `Iterant.zipWithIndex`
 - [PR #439](https://github.com/monix/monix/pull/439):
   Added `Iterant.dump`
@@ -870,7 +934,7 @@ List of changes:
 
 ## Version 3.0.0-M1 (Sep 15, 2017)
 
-This is a major release that breaks both binary and source 
+This is a major release that breaks both binary and source
 compatibility. The major themes of this release:
 
 1. deep integration with [Typelevel Cats](https://typelevel.org/cats)
@@ -885,7 +949,7 @@ Typelevel Cats integration:
 - [PR #377](https://github.com/monix/monix/pull/377): added
   Cats related conversions, along with naming changes for consistency
   (e.g. renamed `Coeval.Attempt` to `Coeval.Eager`)
-- [PR #387](https://github.com/monix/monix/pull/387): updated Cats to 
+- [PR #387](https://github.com/monix/monix/pull/387): updated Cats to
   `1.0.0-MF`, removed deprecated functions and classes
 - [PR #397](https://github.com/monix/monix/pull/397): standardizes
   on Cats-related naming, removes `Coeval`'s `Comonad` implementation
@@ -893,7 +957,7 @@ Typelevel Cats integration:
   instances for `CoflatMap`
 - [PR #427](https://github.com/monix/monix/pull/427): adds
   conversions from Cats to Observable
-  
+
 New `monix-tail` sub-project, exposing `monix.tail.Iterant[F[_], A]`:
 
 - [PR #280](https://github.com/monix/monix/pull/280): introduces
@@ -911,12 +975,12 @@ New `monix-tail` sub-project, exposing `monix.tail.Iterant[F[_], A]`:
 - [PR #405](https://github.com/monix/monix/pull/405):
   adds `Iterant` ops - `findL`, `foldL`, `maxL`, `minL`, `reduceL`
 - [PR #407](https://github.com/monix/monix/pull/407):
-  adds `Iterant` ops - `countL`, `distinctUntilChanged`, 
+  adds `Iterant` ops - `countL`, `distinctUntilChanged`,
   `distinctUntilChangedByKey`
 - [PR #412](https://github.com/monix/monix/pull/412):
   adds `scanEval` on both `Iterant` and `Observable`
 - [PR #411](https://github.com/monix/monix/pull/411):
-  another naming consistency change between `Observable` 
+  another naming consistency change between `Observable`
   and `Iterant`
 - [PR #413](https://github.com/monix/monix/pull/413):
   `Iterant.bufferSliding`, `bufferTumbling` and `batched`
@@ -924,24 +988,24 @@ New `monix-tail` sub-project, exposing `monix.tail.Iterant[F[_], A]`:
 - [PR #417](https://github.com/monix/monix/pull/417) and
   [PR #418](https://github.com/monix/monix/pull/418):
   Reactive Streams implementation for `Iterant`
-  
+
 Improvements for `monix-execution` and `CancelableFuture`:
 
 - [PR #390](https://github.com/monix/monix/pull/390): changes for
   `flatMap` on `CancelableFuture` to cancel all involved futures
   (thanks to [@larsrh](https://github.com/larsrh))
-- [PR #395](https://github.com/monix/monix/pull/395): adds 
+- [PR #395](https://github.com/monix/monix/pull/395): adds
   Cats type class implementations for `CancelableFuture`
 - [PR #431](https://github.com/monix/monix/pull/431): improvements
   to `CancelableFuture` to get rid of memory leak, also adding utils
   like `CancelableFuture.async`
-- [PR #432](https://github.com/monix/monix/pull/432): further 
+- [PR #432](https://github.com/monix/monix/pull/432): further
   fixes to `CancelableFuture`, since describing a cancellable `flatMap`
   is a hard problem
 - [PR #418](https://github.com/monix/monix/pull/418):
   adds flip convenience method to `AtomicBoolean`
-  (thanks to `@Wogan`) 
-  
+  (thanks to `@Wogan`)
+
 Improvements for `monix-reactive` and `Observable`:
 
 - [PR #391](https://github.com/monix/monix/pull/391):
@@ -950,16 +1014,16 @@ Improvements for `monix-reactive` and `Observable`:
   changes for `Iterant` and Cats consistency (make use of `Eq` and
   `Order` type classes, add `foldF` and `foldL`, remove `distinct`
   and `distinctByKey`)
-- [PR #368](https://github.com/monix/monix/pull/368): added 
-  the `Observable.intersperse` operator (thanks to 
+- [PR #368](https://github.com/monix/monix/pull/368): added
+  the `Observable.intersperse` operator (thanks to
   [@omainegra](https://github.com/omainegra))
-- [PR #384](https://github.com/monix/monix/pull/384): added `contramap` 
-  method to Callback (thanks to [@Wogan](https://github.com/Wogan))  
-- [PR #425](https://github.com/monix/monix/pull/425): gets rid of 
+- [PR #384](https://github.com/monix/monix/pull/384): added `contramap`
+  method to Callback (thanks to [@Wogan](https://github.com/Wogan))
+- [PR #425](https://github.com/monix/monix/pull/425): gets rid of
   `ObservableLike`, makes `Observable` an `abstract class` where
-  the operators are final, `Pipe` no longer has `Observable`'s 
+  the operators are final, `Pipe` no longer has `Observable`'s
   operators, just `transform`
-  
+
 Improvements for `monix-eval`, `Task` and `Coeval`:
 
 - [PR #410](https://github.com/monix/monix/pull/410): `Task` and
@@ -981,7 +1045,7 @@ Administrative and build changes:
 - [PR #378](https://github.com/monix/monix/pull/378):
   dropped Scala 2.10 support
 - enabled automatic deployments through Travis-ci, wrote a blog post
-  documenting the necessarily steps, see 
+  documenting the necessarily steps, see
   [Automatic Releases to Maven Central with Travis and SBT](https://alexn.org/blog/2017/08/16/automatic-releases-sbt-travis.html)
 - [PR #423](https://github.com/monix/monix/pull/423): updates Scala.js
   to 0.6.20, the final in the series before 1.0.0
@@ -1016,7 +1080,7 @@ Release is binary backwards compatible with series `2.2.x`.
 
 List of changes:
 
-- [Issue #340](https://github.com/monix/monix/issues/340): 
+- [Issue #340](https://github.com/monix/monix/issues/340):
   Optimization of `TaskSemaphore`
 - [Issue #349](https://github.com/monix/monix/issues/349):
   Replace usage of `scala.util.control.NonFatal` in handling
@@ -1033,7 +1097,7 @@ List of changes:
   and ensure that it doesn't lose events
 - [Issue #353](https://github.com/monix/monix/pull/353):
   Refactor `Coeval` / `Task` run-loop to introduce optimized
-  `attempt` / `materialize` implementations and add 
+  `attempt` / `materialize` implementations and add
   `transform` / `transformWith` methods making use of this
 - [Issue #355](https://github.com/monix/monix/issues/355):
   Add `Coeval.run` method
@@ -1046,21 +1110,21 @@ List of changes:
   Rename `Coeval.Attempt#isFailure` to `Coeval.Attempt#isError`
 - [Issue #348](https://github.com/monix/monix/issues/348):
   Add `Consumer#transformInput` method
-- [Issue #352](https://github.com/monix/monix/issues/352) / 
+- [Issue #352](https://github.com/monix/monix/issues/352) /
   [PR #361](https://github.com/monix/monix/pull/361):
-  No back-pressure when converting from `org.reactivestreams.Publisher` 
+  No back-pressure when converting from `org.reactivestreams.Publisher`
   to `Observable`
 - [Issue #362](https://github.com/monix/monix/pull/362):
-  Replace `[T]` generic param to `[A]`, as a convention, 
+  Replace `[T]` generic param to `[A]`, as a convention,
   everywhere
-- [PR #341](https://github.com/monix/monix/pull/341), 
+- [PR #341](https://github.com/monix/monix/pull/341),
   [PR #344](https://github.com/monix/monix/pull/344),
   [PR #346](https://github.com/monix/monix/pull/346),
   [Commit 9357ba](https://github.com/monix/monix/commit/9357ba4e5632c605623157343247054e338d42f0),
   etc:
-  Update dependencies (Scalaz 7.2.11, Scala 2.11.11, 
-  Scala 2.12.2, Scala.js 0.6.16)  
-  
+  Update dependencies (Scalaz 7.2.11, Scala 2.11.11,
+  Scala 2.12.2, Scala.js 0.6.16)
+
 Administrative:
 
 - [Issue #354](https://github.com/monix/monix/issues/354):
@@ -1068,18 +1132,18 @@ Administrative:
 - [PR #351](https://github.com/monix/monix/pull/351):
   Specify that Monix is now a Typelevel project with
   full membership
-  
+
 ## Version 2.2.3 (Mar 10, 2017)
 
 Critical bug fix release related to Scala 2.12:
 
 - [Bug #330](https://github.com/monix/monix/issues/330):
-  `Ack.Continue.transformWith` and `Ack.Stop.transformWith` 
+  `Ack.Continue.transformWith` and `Ack.Stop.transformWith`
   are not stack-safe
-  
-Most (probably all) functionality in Monix is not affected, because Monix 
-rarely flatMaps `Continue` references and we have had extensive tests for it. 
-However this bug can be dangerous for people that have implemented the 
+
+Most (probably all) functionality in Monix is not affected, because Monix
+rarely flatMaps `Continue` references and we have had extensive tests for it.
+However this bug can be dangerous for people that have implemented the
 communication protocol (as described in the docs) by themselves.
 
 ## Version 2.2.2 (Feb 22, 2017)
@@ -1097,9 +1161,9 @@ New Features:
 - [Issue #319](https://github.com/monix/monix/issues/319):
   Move and redesign exceptions in `monix.execution`
 - [Issue #314](https://github.com/monix/monix/issues/314):
-  `Task.sequence` should have lazy behavior in evaluating 
+  `Task.sequence` should have lazy behavior in evaluating
   the given sequence
-  
+
 Bug fixes:
 
 - [Bug #268](https://github.com/monix/monix/issues/268):
@@ -1111,20 +1175,20 @@ Bug fixes:
 - [Bug #321](https://github.com/monix/monix/issues/321):
   `Observable.concatMap` and `mapTask` cannot be canceled if
   the source has already completed
-- Documentation fixes: 
-  [#307](https://github.com/monix/monix/pull/307), 
+- Documentation fixes:
+  [#307](https://github.com/monix/monix/pull/307),
   [#309](https://github.com/monix/monix/pull/309),
   [#311](https://github.com/monix/monix/issues/311),
   [#316](https://github.com/monix/monix/issues/316) and
   [#317](https://github.com/monix/monix/issues/317)
-  
+
 Build:
 
-- enabled the Scala 
-  [Migration Manager](https://github.com/typesafehub/migration-manager) 
+- enabled the Scala
+  [Migration Manager](https://github.com/typesafehub/migration-manager)
   (MiMa) in `build.sbt` to check for backwards compatibility problems
 - [Issue #322](https://github.com/monix/monix/issues/322):
-  Switch projects which use `CrossVersion.full/"org.scala-lang"` 
+  Switch projects which use `CrossVersion.full/"org.scala-lang"`
   to `CrossVersion.patch/scalaOrganization.value`
 
 ## Version 2.2.1 (Jan 27, 2017)
@@ -1149,7 +1213,7 @@ In addition to the changes from the `2.2.0-M1` milestone:
 
 ## Version 2.2.0-M1 (Jan 4, 2017)
 
-Version `2.2.0-M1` is a milestone release, released for feedback 
+Version `2.2.0-M1` is a milestone release, released for feedback
 and testing purposes.
 
 - [Issue #281](https://github.com/monix/monix/issues/281):
@@ -1193,7 +1257,7 @@ Version `2.1.1` is a minor release, binary compatible with `2.1.0`,
 fixing the compatibility with older Android versions.
 
 The gist is that older Android versions are incompatible with our
-usage of `sun.misc.Unsafe`. And this might also be true of other 
+usage of `sun.misc.Unsafe`. And this might also be true of other
 platforms as well, like the upcoming Java 9.
 
 Therefore we are doing two things:
@@ -1205,9 +1269,9 @@ Therefore we are doing two things:
    https://shipilev.net/blog/2015/faster-atomic-fu/\
 2. in our usage of [JCTools](https://github.com/JCTools/JCTools/),
    since these rely heavily on `sun.misc.Unsafe`, we fallback to
-   implementations from `org.jctools.queues.atomic`, as these are 
+   implementations from `org.jctools.queues.atomic`, as these are
    safe to use
-   
+
 The issues being addressed:
 
 - [Bug #269](https://github.com/monix/monix/issues/269): Observable
@@ -1225,36 +1289,36 @@ Issues addressed:
 
 - [Issue #226](https://github.com/monix/monix/issues/226):
   Add `Task.Options` with an `autoCancelableRunLoops` property
-- [Issue #227](https://github.com/monix/monix/issues/227): 
-  Add `executeWithFork`, `executeWithModel` and `asyncBoundary` 
+- [Issue #227](https://github.com/monix/monix/issues/227):
+  Add `executeWithFork`, `executeWithModel` and `asyncBoundary`
   operators on `Task`
 - [Issue #232](https://github.com/monix/monix/issues/232):
-  Async `Task` instances should execute with `TrampolinedRunnable` 
-  everywhere we can 
-- [Issue #236](https://github.com/monix/monix/issues/236): 
+  Async `Task` instances should execute with `TrampolinedRunnable`
+  everywhere we can
+- [Issue #236](https://github.com/monix/monix/issues/236):
   `Task` and `Coeval` need `foreach` and `foreachL`
-- [Issue #237](https://github.com/monix/monix/issues/237): 
+- [Issue #237](https://github.com/monix/monix/issues/237):
   Introduce `monix.execution.misc.ThreadLocal`
 - [Issue #238](https://github.com/monix/monix/issues/238):
   Add `Coeval.Attempt.get`
-- [Issue #239](https://github.com/monix/monix/issues/239):  
+- [Issue #239](https://github.com/monix/monix/issues/239):
   `Task.flatMap` loops should not be auto-cancelable by default
 - [Issue #240](https://github.com/monix/monix/pull/240):
   Change type class encoding, provide optimal `Observable.tailRecM`,
-  upgrade Cats to `0.8.x` 
+  upgrade Cats to `0.8.x`
 - [Issue #251](https://github.com/monix/monix/issues/251):
   Provide instances for Scalaz `Catchable`
-- [Issue #241](https://github.com/monix/monix/issues/241): `TestScheduler`'s 
+- [Issue #241](https://github.com/monix/monix/issues/241): `TestScheduler`'s
   exposed `state` should return the `State` and not `Atomic[State]`
-- [Issue #243](https://github.com/monix/monix/issues/243): 
-  Add the `TrampolineScheduler` for the JVM, in addition to Javascript  
+- [Issue #243](https://github.com/monix/monix/issues/243):
+  Add the `TrampolineScheduler` for the JVM, in addition to Javascript
 - [Issue #256](https://github.com/monix/monix/issues/256):
   Refine extension methods on `Scheduler`
 - [Issue #264](https://github.com/monix/monix/issues/264):
   `AtomicNumber` classes need `getAndAdd` optimisation
 - [Issue #262](https://github.com/monix/monix/issues/262):
   Add `TaskSemaphore` and `AsyncSemaphore`
-- [Issue #263](https://github.com/monix/monix/issues/263): 
+- [Issue #263](https://github.com/monix/monix/issues/263):
   Add `Observable.mapTask` and `Observable.mapFuture`
 - [Issue #205](https://github.com/monix/monix/issues/205):
   Add `Observable.mapAsync` for parallel mapping over `Observable`
@@ -1275,14 +1339,14 @@ Issues addressed:
 
 - [Bug #247](https://github.com/monix/monix/issues/247):
   Avoid runtime reflection
-- [Bug #248](https://github.com/monix/monix/pull/248): 
+- [Bug #248](https://github.com/monix/monix/pull/248):
   Reset overflow counter on None onOverflow result
 - Updates Scala.js to 0.6.13 and Scala to 2.12.0-RC2
 
 ## Version 2.0.4 (Oct 10, 2016)
 
 - [Bug #244](https://github.com/monix/monix/issues/244):
-  AsyncScheduler.scheduleAtFixedRate and scheduleWithFixedDelay 
+  AsyncScheduler.scheduleAtFixedRate and scheduleWithFixedDelay
   (on the JVM) have incorrect behavior
 
 ## Version 2.0.3 (Oct 3, 2016)
@@ -1290,13 +1354,13 @@ Issues addressed:
 - [Bug #230](https://github.com/monix/monix/issues/230):
   Deadlock when blocking threads due to `LocalBatchingExecutor`
   (affects `Task` usage)
-      
+
 ## Version 2.0.2 (Sat 25, 2016)
 
 - [Issue #224](https://github.com/monix/monix/issues/224):
-  `IllegalStateException` logged in parallel consumer, 
-  when streaming gets canceled due to a subscriber triggering 
-  an error          
+  `IllegalStateException` logged in parallel consumer,
+  when streaming gets canceled due to a subscriber triggering
+  an error
 
 ## Version 2.0.1 (Sat 10, 2016)
 
@@ -1310,18 +1374,18 @@ Issues addressed:
   Change type class design in `monix.types` to an encoding
   inspired by the [Scato](https://github.com/aloiscochard/scato) and
   [Scalaz 8](https://github.com/scalaz/scalaz/tree/series/8.0.x),
-  cleaning up the available types; also enable 2.12.0-M5 support, 
-  although releases are not automatic, because Cats doesn't yet 
+  cleaning up the available types; also enable 2.12.0-M5 support,
+  although releases are not automatic, because Cats doesn't yet
   support Scala 2.12
 
 ## Version 2.0-RC13 (Aug 19, 2016)
 
 Emergency bug fix:
 
-- [Issue #215](https://github.com/monix/monix/issues/215): 
+- [Issue #215](https://github.com/monix/monix/issues/215):
   the instance created by `Task.gatherUnordered` keeps state and
   has problems running (with `runAsync`) a second time
-  
+
 
 ## Version 2.0-RC12 (Aug 19, 2016)
 
@@ -1332,7 +1396,7 @@ Bug fixes:
   RC10, fixed it in RC11 and now added some more tests
 - [Issue #213](https://github.com/monix/monix/pull/213): Fixes
   `Task` / `Coeval` memoize operation
-  
+
 Enhancements:
 
 - [Issue #212](https://github.com/monix/monix/issues/212): Upgraded
@@ -1349,7 +1413,7 @@ Details on [PR #214](https://github.com/monix/monix/pull/214):
 - Renamed `eval` to `evalAlways` across the board (in `Task`, `Coeval`
   and `Observable`), but kept `evalAlways` with the `@deprecated`
   sign, so upgrade should be smooth. The reason is that `evalAlways`
-  is an often used operation and deserves a shorter name  
+  is an often used operation and deserves a shorter name
 - For Scalaz converts introduced `Task.delay` as an alias of
   `Task.eval`, `Task.suspend` as an alias of `Task.defer` and
   `Task.async` as an alias of `Task.create`
@@ -1360,11 +1424,11 @@ Details on [PR #214](https://github.com/monix/monix/pull/214):
   in retrospective, we probably should've added it a `@deprecated` warning
   instead; on the other hand `both` and `mapBoth` are so close that the IDE
   will probably suggest `mapBoth` (at least IntelliJ IDEA does)
-- Refactor the `Task` internals again, for optimizations and simplifications:  
+- Refactor the `Task` internals again, for optimizations and simplifications:
   - Simplified the internal states, e.g. instead of having `Now`,
     `Error`, `Always` and `Once`, we now have a single
     `Delay(coeval)`, thus reusing the `Coeval` type for computing
-    asynchronous values  
+    asynchronous values
   - Get rid of the `Task.Attempt` type, it never made any sense that
     one. People can use `Coeval.Attempt` if they need a `Try`
     alternative (and convert to `Task` if they end up needing a
@@ -1373,7 +1437,7 @@ Details on [PR #214](https://github.com/monix/monix/pull/214):
     as extension methods powered by macros, for zero-overhead, because
     building `Runnable` instances is too annoying
   - Used `Scheduler.executeLocal` and `LocalRunnable` in key points in
-    the `Task` implementation to reduce forking    
+    the `Task` implementation to reduce forking
   - Made `Task.gather` be based on `Task.gatherUnordered` and it is
     now way faster
 - Moved everything from `monix.types.shims` to `monix.types`
@@ -1383,7 +1447,7 @@ Details on [PR #214](https://github.com/monix/monix/pull/214):
 Bug fixes:
 
 - [Issue #207](https://github.com/monix/monix/issues/207): Task
-  flatMap loop isn't cancelable  
+  flatMap loop isn't cancelable
 - [Issue #210](https://github.com/monix/monix/pull/210): Fixed
   `CompositeCancelable.remove`, a bug introduced in the last release
   (RC10)
@@ -1428,7 +1492,7 @@ Issue #210 changes for the `monix-eval` sub-project:
 Issue #210 changes for the `monix-types` sub-project:
 
 - moved all shims to `monix.types.shims`, in order to differentiate
-  them from type classes that are not shims  
+  them from type classes that are not shims
 - added the `Deferrable` type class, to express lazy evaluation
   concerns (e.g. `evalOnce`, `evalAlways`, `defer`, `memoize`)
 - added the `Evaluable` type class, for computations that will
@@ -1519,7 +1583,7 @@ New Features:
   the initial integration
 - [Issue #177](https://github.com/monix/monix/issues/177) reviews exposed
   traits and abstract classes, making sure they inherit from `Serializable`
-- [Issue #85](https://github.com/monix/monix/issues/85): small change,  
+- [Issue #85](https://github.com/monix/monix/issues/85): small change,
   clarifies the ScalaDoc on the `RefCountCancelable` type
 - [Issue #162](https://github.com/monix/monix/issues/162): implements
   the `Observable.takeUntil(trigger: Observable[Any])` operator, an operator
@@ -1549,7 +1613,7 @@ New Features:
 
 - [Issue #171](https://github.com/monix/monix/issues/171):
    Add Scheduler builder on the JVM that allows specifying
-   just the `ExecutionModel`, falling back `global` otherwise   
+   just the `ExecutionModel`, falling back `global` otherwise
 - [Issue #174](https://github.com/monix/monix/issues/174):
   [Scalaz](https://github.com/scalaz/scalaz) integration (in addition to the
   Cats integration) for FP goddess
@@ -1623,7 +1687,7 @@ Critical bug fix:
   ordered in both execution and effects
 - [Issue #152](https://github.com/monix/monix/issues/152) - introduce `Task.gather` which
   behaves like the previous `sequence` and `Task.gatherUnordered` which doesn't do ordering
-  for results either.  
+  for results either.
 
 ## Version 2.0-RC3
 

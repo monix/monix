@@ -63,7 +63,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
     def never(): (Future[Unit], Task[Int]) = {
       val isCancelled = Promise[Unit]()
       val ref =
-        Task.create[Int]((_, _) => Cancelable(() => isCancelled.success(())), allowContinueOnCallingThread = true)
+        Task.create[Int]((_, _) => Cancelable(() => isCancelled.success(())))
       (isCancelled.future, ref)
     }
 

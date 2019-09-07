@@ -18,11 +18,11 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
-import monix.execution.{Cancelable, UncaughtExceptionReporter}
-import monix.execution.{ExecutionModel => ExecModel}
-import scala.concurrent.ExecutionContext
 
-import monix.execution.internal.InterceptableRunnable
+import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+
+import scala.concurrent.ExecutionContext
+import monix.execution.internal.{InterceptRunnable, ScheduledExecutors}
 
 /** An `AsyncScheduler` schedules tasks to happen in the future with the
   * given `ScheduledExecutorService` and the tasks themselves are executed on
@@ -37,19 +37,11 @@ final class AsyncScheduler private (
 
   protected def executeAsync(runnable: Runnable): Unit = {
     if (((r: AnyRef) eq ec) || (r eq null)) ec.execute(runnable)
-    else ec.execute(InterceptableRunnable(runnable, this))
+    else ec.execute(InterceptRunnable(runnable, this))
   }
 
-  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    if (initialDelay <= 0) {
-      ec.execute(r)
-      Cancelable.empty
-    } else {
-      val deferred = new ShiftedRunnable(r, this)
-      val task = scheduler.schedule(deferred, initialDelay, unit)
-      Cancelable(() => task.cancel(true))
-    }
-  }
+  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
+    ScheduledExecutors.scheduleOnce(this, scheduler)(initialDelay, unit, r)
 
   override def reportFailure(t: Throwable): Unit =
     if (r eq null) ec.reportFailure(t)
@@ -57,6 +49,9 @@ final class AsyncScheduler private (
 
   override def withExecutionModel(em: ExecModel): AsyncScheduler =
     new AsyncScheduler(scheduler, ec, em, r)
+
+  override val features: Features =
+    Features(Scheduler.BATCHING)
 }
 
 object AsyncScheduler {

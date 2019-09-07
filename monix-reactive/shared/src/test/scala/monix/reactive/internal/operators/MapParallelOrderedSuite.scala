@@ -305,7 +305,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     var isComplete = false
     val p = Promise[Int]()
 
-    val tasks = List.fill(8)(Task.fromFuture(p.future, allowContinueOnCallingThread = true))
+    val tasks = List.fill(8)(Task.fromFuture(p.future))
     Observable(tasks: _*)
       .doOnNext(_ => Task(initiated += 1))
       .mapParallelOrdered(parallelism = 4)(x => x)

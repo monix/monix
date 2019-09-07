@@ -1,5 +1,8 @@
 import com.typesafe.sbt.GitVersioning
 import sbt.Keys.version
+// For getting Scoverage out of the generated POM
+import scala.xml.Elem
+import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 val allProjects = List(
   "execution",
@@ -25,19 +28,21 @@ addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc; scalafmtCheck; test:scala
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
 val catsVersion = "1.6.1"
-val catsEffectVersion = "1.3.1"
+val catsEffectVersion = "1.4.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
-val reactiveStreamsVersion = "1.0.2"
+val reactiveStreamsVersion = "1.0.3"
+val minitestVersion = "2.6.0"
+val implicitBoxVersion = "0.1.0"
+
 def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
   case Some((2, v)) if v >= 13 => "3.0.6-SNAP5"
   case _                       => "3.0.4"
 }
-val minitestVersion = "2.3.2"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0-RC2"
+val monixSeries = "3.0.0-RC4"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -61,8 +66,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-M5"),
+  scalaVersion := "2.12.9",
+  crossScalaVersions := Seq("2.11.12", "2.12.9"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -155,7 +160,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     if (scalaVersion.value == "2.13.0-M5")
       compilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary)
     else
-      compilerPlugin("org.typelevel" % "kind-projector" % "0.10.0" cross CrossVersion.binary)
+      compilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary)
   },
 
   // ScalaDoc settings
@@ -206,6 +211,18 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   isSnapshot := version.value endsWith "SNAPSHOT",
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
+
+  // For evicting Scoverage out of the generated POM
+  // See: https://github.com/scoverage/sbt-scoverage/issues/153
+  pomPostProcess := { (node: xml.Node) =>
+    new RuleTransformer(new RewriteRule {
+      override def transform(node: xml.Node): Seq[xml.Node] = node match {
+        case e: Elem
+          if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
+        case _ => Seq(node)
+      }
+    }).transform(node).head
+  },
 
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
@@ -320,6 +337,7 @@ lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
 )
 
 lazy val scalaJSSettings = Seq(
+  coverageExcludedFiles := ".*",
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions += {
     val tagOrHash =
@@ -336,14 +354,17 @@ lazy val cmdlineProfile =
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0__RC4
 )
 // https://github.com/lightbend/mima/pull/289
 mimaFailOnNoPrevious in ThisBuild := false
 
-def profile: Project ⇒ Project = pr => cmdlineProfile match {
-  case _ =>
-    pr.enablePlugins(AutomateHeaderPlugin)
+def profile: Project ⇒ Project = pr => {
+  val withCoverage = cmdlineProfile match {
+    case "coverage" => pr
+    case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
+  }
+  withCoverage.enablePlugins(AutomateHeaderPlugin)
 }
 
 lazy val doctestTestSettings = Seq(
@@ -377,7 +398,8 @@ lazy val coreJS = project.in(file("monix/js"))
   .settings(name := "monix")
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution"
+  name := "monix-execution",
+  libraryDependencies += "io.monix" %%% "implicitbox" % implicitBoxVersion
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
@@ -539,7 +561,7 @@ enablePlugins(GitVersioning)
 /* The BaseVersion setting represents the in-development (upcoming) version,
  * as an alternative to SNAPSHOTS.
  */
-git.baseVersion := "3.0.0-RC3"
+git.baseVersion := "3.0.0-RC4"
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {

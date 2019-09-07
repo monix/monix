@@ -468,7 +468,7 @@ import scala.util.{Failure, Success, Try}
   *         it might be better to pass such a reference around as
   *         a parameter.
   */
-sealed abstract class Task[+A] extends Serializable {
+sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompat[A] {
   import cats.effect.Async
   import monix.eval.Task._
 
@@ -578,10 +578,13 @@ sealed abstract class Task[+A] extends Serializable {
     * @return $runAsyncToFutureReturn
     */
   @UnsafeBecauseImpure
-  def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] =
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      TaskRunLoop.startFuture(this, s, opts)
-    }
+  def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
+    val opts2 = opts.withSchedulerFeatures
+    Local
+      .bindCurrentIf(opts2.localContextPropagation) {
+        TaskRunLoop.startFuture(this, s, opts2)
+      }
+  }
 
   /** Triggers the asynchronous execution, with a provided callback
     * that's going to be called at some point in the future with
@@ -700,10 +703,12 @@ sealed abstract class Task[+A] extends Serializable {
     * @return $cancelableDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable =
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      UnsafeCancelUtils.taskToCancelable(runAsyncOptF(cb)(s, opts))
+  def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable = {
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      UnsafeCancelUtils.taskToCancelable(runAsyncOptF(cb)(s, opts2))
     }
+  }
 
   /** Triggers the asynchronous execution, returning a `Task[Unit]`
     * (aliased to `CancelToken[Task]` in Cats-Effect) which can
@@ -800,10 +805,12 @@ sealed abstract class Task[+A] extends Serializable {
     * @return $cancelTokenDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): CancelToken[Task] =
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb))
+  def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): CancelToken[Task] = {
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      TaskRunLoop.startLight(this, s, opts2, Callback.fromAttempt(cb))
     }
+  }
 
   /** Triggers the asynchronous execution of the source task
     * in a "fire and forget" fashion.
@@ -920,10 +927,12 @@ sealed abstract class Task[+A] extends Serializable {
     * @param opts $optionsDesc
     */
   @UnsafeBecauseImpure
-  def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): Unit =
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      TaskRunLoop.startLight(this, s, opts, Callback.fromAttempt(cb), isCancelable = false)
+  def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): Unit = {
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      TaskRunLoop.startLight(this, s, opts2, Callback.fromAttempt(cb), isCancelable = false)
     }
+  }
 
   /** Executes the source until completion, or until the first async
     * boundary, whichever comes first.
@@ -983,10 +992,12 @@ sealed abstract class Task[+A] extends Serializable {
     * @return $runSyncStepReturn
     */
   @UnsafeBecauseImpure
-  final def runSyncStepOpt(implicit s: Scheduler, opts: Options): Either[Task[A], A] =
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      TaskRunLoop.startStep(this, s, opts)
+  final def runSyncStepOpt(implicit s: Scheduler, opts: Options): Either[Task[A], A] = {
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      TaskRunLoop.startStep(this, s, opts2)
     }
+  }
 
   /** Evaluates the source task synchronously and returns the result
     * immediately or blocks the underlying thread until the result is
@@ -1048,11 +1059,8 @@ sealed abstract class Task[+A] extends Serializable {
     */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  final def runSyncUnsafe(timeout: Duration = Duration.Inf)(implicit s: Scheduler, permit: CanBlock): A = {
-    /*_*/
-    TaskRunSyncUnsafe(this, timeout, s, defaultOptions)
-    /*_*/
-  }
+  final def runSyncUnsafe(timeout: Duration = Duration.Inf)(implicit s: Scheduler, permit: CanBlock): A =
+    runSyncUnsafeOpt(timeout)(s, defaultOptions, permit)
 
   /** Variant of [[runSyncUnsafe]] that takes a [[Task.Options]]
     * implicitly from the scope in order to tune the evaluation model
@@ -1083,8 +1091,9 @@ sealed abstract class Task[+A] extends Serializable {
     permit: CanBlock
   ): A = {
     /*_*/
-    Local.bindCurrentIf(opts.localContextPropagation) {
-      TaskRunSyncUnsafe(this, timeout, s, opts)
+    val opts2 = opts.withSchedulerFeatures
+    Local.bindCurrentIf(opts2.localContextPropagation) {
+      TaskRunSyncUnsafe(this, timeout, s, opts2)
     }
     /*_*/
   }
@@ -1785,11 +1794,11 @@ sealed abstract class Task[+A] extends Serializable {
     *
     * Similar to [[start]] after mapping result to Unit. Below law holds:
     *
-    * `task.forkAndForget <-> task.start.map(_ => ())`
+    * `task.startAndForget <-> task.start.map(_ => ())`
     *
     */
-  final def forkAndForget: Task[Unit] =
-    TaskForkAndForget(this)
+  final def startAndForget: Task[Unit] =
+    TaskStartAndForget(this)
 
   /** Returns a new `Task` in which `f` is scheduled to be run on
     * completion. This would typically be used to release any
@@ -2479,34 +2488,6 @@ sealed abstract class Task[+A] extends Serializable {
   *         doesn't magically speed up the code - it's usually fine for I/O-bound
   *         tasks, however for CPU-bound tasks it can make things worse.
   *         Performance improvements need to be verified.
-  *
-  * @define allowContinueOnCallingThreadParamDesc is a flag that tells
-  *         whether a `Task` should continue on the same thread where
-  *         [[monix.execution.Callback]] was called or insert extra
-  *         asynchronous boundary to go back to the main [[monix.execution.Scheduler]]
-  *
-  *         For example:
-  *         {{{
-  *           import scala.concurrent.ExecutionContext
-  *           import monix.execution.Scheduler
-  *
-  *           val foreignEC: ExecutionContext = ExecutionContext.global
-  *           val scheduler: Scheduler = Scheduler.io()
-  *
-  *           val t: Task[Unit] =
-  *             Task.async[Unit]({ cb =>
-  *               foreignEC.execute(new Runnable {
-  *                 override def run(): Unit = {
-  *                   cb(Right(()))
-  *                 }
-  *               })}, allowContinueOnCallingThread = true
-  *             )
-  *
-  *           t.runToFuture(scheduler)
-  *         }}}
-  *
-  *         In the above example, the resulting Task will continue on the `foreignEC`
-  *         instead of `scheduler` until the next asynchronous boundary.
   */
 object Task extends TaskInstancesLevel1 {
   /** Lifts the given thunk in the `Task` context, processing it synchronously
@@ -2586,11 +2567,9 @@ object Task extends TaskInstancesLevel1 {
     *
     *   Task.defer(Task.fromFuture(mkFuture))
     * }}}
-    *
-    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def deferFuture[A](fa: => Future[A], allowContinueOnCallingThread: Boolean = false): Task[A] =
-    defer(fromFuture(fa, allowContinueOnCallingThread))
+  def deferFuture[A](fa: => Future[A]): Task[A] =
+    defer(fromFuture(fa))
 
   /** Wraps calls that generate `Future` results into [[Task]], provided
     * a callback with an injected [[monix.execution.Scheduler Scheduler]]
@@ -2632,10 +2611,9 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param f is the function that's going to be executed when the task
     *        gets evaluated, generating the wrapped `Future`
-    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def deferFutureAction[A](f: Scheduler => Future[A], allowContinueOnCallingThread: Boolean = false): Task[A] =
-    TaskFromFuture.deferAction(f, allowContinueOnCallingThread)
+  def deferFutureAction[A](f: Scheduler => Future[A]): Task[A] =
+    TaskFromFuture.deferAction(f)
 
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Task[A]): Task[A] =
@@ -2866,8 +2844,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * @see [[Task.async0]] for a variant that also injects a
     *      [[monix.execution.Scheduler Scheduler]] into the provided callback,
@@ -2877,11 +2858,9 @@ object Task extends TaskInstancesLevel1 {
     *      for creating cancelable tasks
     *
     * @see [[Task.create]] for the builder that does it all
-    *
-    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def async[A](register: Callback[Throwable, A] => Unit, allowContinueOnCallingThread: Boolean = false): Task[A] =
-    TaskCreate.async(register, allowContinueOnCallingThread)
+  def async[A](register: Callback[Throwable, A] => Unit): Task[A] =
+    TaskCreate.async(register)
 
   /** Create a non-cancelable `Task` from an asynchronous computation,
     * which takes the form of a function with which we can register a
@@ -2928,8 +2907,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback]] can be called at
     *    most once, either with a successful result, or with an error;
     *    calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * NOTES on the naming:
     *
@@ -2944,14 +2926,9 @@ object Task extends TaskInstancesLevel1 {
     *      for creating cancelable tasks
     *
     * @see [[Task.create]] for the builder that does it all
-    *
-    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def async0[A](
-    register: (Scheduler, Callback[Throwable, A]) => Unit,
-    allowContinueOnCallingThread: Boolean = false
-  ): Task[A] =
-    TaskCreate.async0(register, allowContinueOnCallingThread)
+  def async0[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
+    TaskCreate.async0(register)
 
   /** Suspends an asynchronous side effect in `Task`, this being a
     * variant of [[async]] that takes a pure registration function.
@@ -2979,14 +2956,9 @@ object Task extends TaskInstancesLevel1 {
     *
     * @see [[Task.cancelable[A](register* Task.cancelable]] and
     *      [[Task.cancelable0]] for creating cancelable tasks
-    *
-    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def asyncF[A](
-    register: Callback[Throwable, A] => Task[Unit],
-    allowContinueOnCallingThread: Boolean = false
-  ): Task[A] =
-    TaskCreate.asyncF(register, allowContinueOnCallingThread)
+  def asyncF[A](register: Callback[Throwable, A] => Task[Unit]): Task[A] =
+    TaskCreate.asyncF(register)
 
   /** Create a cancelable `Task` from an asynchronous computation that
     * can be canceled, taking the form of a function with which we can
@@ -3050,8 +3022,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * @see [[Task.cancelable0]] for the version that also injects a
     *      [[monix.execution.Scheduler Scheduler]] in that callback
@@ -3063,13 +3038,9 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.create]] for the builder that does it all
     *
     * @param register $registerParamDesc
-    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def cancelable[A](
-    register: Callback[Throwable, A] => CancelToken[Task],
-    allowContinueOnCallingThread: Boolean = false
-  ): Task[A] =
-    cancelable0((_, cb) => register(cb), allowContinueOnCallingThread)
+  def cancelable[A](register: Callback[Throwable, A] => CancelToken[Task]): Task[A] =
+    cancelable0((_, cb) => register(cb))
 
   /** Create a cancelable `Task` from an asynchronous computation,
     * which takes the form of a function with which we can register a
@@ -3149,8 +3120,11 @@ object Task extends TaskInstancesLevel1 {
     *  - the injected [[monix.execution.Callback Callback]] can be
     *    called at most once, either with a successful result, or with
     *    an error; calling it more than once is a contract violation
-    *  - it can be assumed that the callback provides no protection when called
-    *    multiple times, the behavior being undefined
+    *  - the injected callback is thread-safe and in case it gets called
+    *    multiple times it will throw a
+    *    [[monix.execution.exceptions.CallbackCalledMultipleTimesException]];
+    *    also see [[monix.execution.Callback.tryOnSuccess Callback.tryOnSuccess]]
+    *    and [[monix.execution.Callback.tryOnError Callback.tryOnError]]
     *
     * NOTES on the naming:
     *
@@ -3168,13 +3142,9 @@ object Task extends TaskInstancesLevel1 {
     * @see [[Task.create]] for the builder that does it all
     *
     * @param register $registerParamDesc
-    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def cancelable0[A](
-    register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task],
-    allowContinueOnCallingThread: Boolean = false
-  ): Task[A] =
-    TaskCreate.cancelable0(register, allowContinueOnCallingThread)
+  def cancelable0[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
+    TaskCreate.cancelable0(register)
 
   /** Returns a cancelable boundary — a `Task` that checks for the
     * cancellation status of the run-loop and does not allow for the
@@ -3301,8 +3271,6 @@ object Task extends TaskInstancesLevel1 {
     *    [[https://typelevel.org/cats-effect/datatypes/io.html IO docs]]
     *
     * Support for more might be added in the future.
-    *
-    * `allowContinueOnCallingThread` $allowContinueOnCallingThreadParamDesc
     */
   def create[A]: AsyncBuilder.CreatePartiallyApplied[A] = new AsyncBuilder.CreatePartiallyApplied[A]
 
@@ -3312,11 +3280,9 @@ object Task extends TaskInstancesLevel1 {
     *
     * NOTE: if you want to defer the creation of the future, use
     * in combination with [[defer]].
-    *
-    * @param allowContinueOnCallingThread $allowContinueOnCallingThreadParamDesc
     */
-  def fromFuture[A](f: Future[A], allowContinueOnCallingThread: Boolean = false): Task[A] =
-    TaskFromFuture.strict(f, allowContinueOnCallingThread)
+  def fromFuture[A](f: Future[A]): Task[A] =
+    TaskFromFuture.strict(f)
 
   /** Wraps a [[monix.execution.CancelablePromise]] into `Task`. */
   def fromCancelablePromise[A](p: CancelablePromise[A]) =
@@ -3515,9 +3481,42 @@ object Task extends TaskInstancesLevel1 {
     * $parallelismAdvice
     *
     * $parallelismNote
+    *
+    * @see [[gatherN]] for a version that limits parallelism.
     */
   def gather[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
     TaskGather[A, M](in, () => newBuilder(bf, in))
+
+  /** Executes the given sequence of tasks in parallel, non-deterministically
+    * gathering their results, returning a task that will signal the sequence
+    * of results once all tasks are finished.
+    *
+    * Implementation ensure there are at most `n` (= `parallelism` parameter) tasks
+    * running concurrently and the results are returned in order.
+    *
+    * Example:
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   val tasks = List(
+    *     Task(1 + 1).delayExecution(1.second),
+    *     Task(2 + 2).delayExecution(2.second),
+    *     Task(3 + 3).delayExecution(3.second),
+    *     Task(4 + 4).delayExecution(4.second)
+    *    )
+    *
+    *   // Yields 2, 4, 6, 8 after around 6 seconds
+    *   Task.gatherN(2)(tasks)
+    * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
+    *
+    * @see [[gather]] for a version that does not limit parallelism.
+    */
+  def gatherN[A](parallelism: Int)(in: Iterable[Task[A]]): Task[List[A]] =
+    TaskGatherN[A](parallelism, in)
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`,
     * nondeterministically apply the function to each element of the collection
@@ -3539,9 +3538,40 @@ object Task extends TaskInstancesLevel1 {
     * $parallelismAdvice
     *
     * $parallelismNote
+    *
+    * @see [[wanderN]] for a version that limits parallelism.
     */
   def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     Task.eval(in.map(f)).flatMap(col => TaskGather[B, M](col, () => newBuilder(bf, in)))
+
+  /** Given a `Iterable[A]` and a function `A => Task[B]`,
+    * nondeterministically apply the function to each element of the collection
+    * and return a task that will signal a collection of the results once all
+    * tasks are finished.
+    *
+    * Implementation ensure there are at most `n` (= `parallelism` parameter) tasks
+    * running concurrently and the results are returned in order.
+    *
+    * Example:
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   val numbers = List(1, 2, 3, 4)
+    *
+    *   // Yields 2, 4, 6, 8 after around 6 seconds
+    *   Task.wanderN(2)(numbers)(n => Task(n + n).delayExecution(n.second))
+    * }}}
+    *
+    * $parallelismAdvice
+    *
+    * $parallelismNote
+    *
+    * @see [[wander]] for a version that does not limit parallelism.
+    */
+  def wanderN[A, B](parallelism: Int)(in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
+    Task.suspend {
+      TaskGatherN(parallelism, in.map(f))
+    }
 
   /** Processes the given collection of tasks in parallel and
     * nondeterministically gather the results without keeping the original
@@ -4163,7 +4193,6 @@ object Task extends TaskInstancesLevel1 {
     autoCancelableRunLoops: Boolean,
     localContextPropagation: Boolean
   ) {
-
     /** Creates a new set of options from the source, but with
       * the [[autoCancelableRunLoops]] value set to `true`.
       */
@@ -4187,6 +4216,22 @@ object Task extends TaskInstancesLevel1 {
       */
     def disableLocalContextPropagation: Options =
       copy(localContextPropagation = false)
+
+    /**
+      * Enhances the options set with the features of the underlying
+      * [[monix.execution.Scheduler Scheduler]].
+      *
+      * This enables for example the [[Options.localContextPropagation]]
+      * in case the `Scheduler` is a
+      * [[monix.execution.schedulers.TracingScheduler TracingScheduler]].
+      */
+    def withSchedulerFeatures(implicit s: Scheduler): Options = {
+      val wLocals = s.features.contains(Scheduler.TRACING)
+      if (wLocals == localContextPropagation)
+        this
+      else
+        copy(localContextPropagation = wLocals || localContextPropagation)
+    }
   }
 
   /** Default [[Options]] to use for [[Task]] evaluation,
@@ -4227,10 +4272,7 @@ object Task extends TaskInstancesLevel1 {
     * increasing performance.
     */
   abstract class AsyncBuilder[CancelationToken] {
-    def create[A](
-      register: (Scheduler, Callback[Throwable, A]) => CancelationToken,
-      allowContinueOnCallingThread: Boolean = false
-    ): Task[A]
+    def create[A](register: (Scheduler, Callback[Throwable, A]) => CancelationToken): Task[A]
   }
 
   object AsyncBuilder extends AsyncBuilder0 {
@@ -4245,20 +4287,16 @@ object Task extends TaskInstancesLevel1 {
       * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type Technique]].
       */
     private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true) extends AnyVal {
-
-      def apply[CancelationToken](
-        register: (Scheduler, Callback[Throwable, A]) => CancelationToken,
-        allowContinueOnCallingThread: Boolean = false)(implicit B: AsyncBuilder[CancelationToken]): Task[A] =
-        B.create(register, allowContinueOnCallingThread)
+      def apply[CancelationToken](register: (Scheduler, Callback[Throwable, A]) => CancelationToken)(
+        implicit B: AsyncBuilder[CancelationToken]): Task[A] =
+        B.create(register)
     }
 
     /** Implicit `AsyncBuilder` for non-cancelable tasks. */
     implicit val forUnit: AsyncBuilder[Unit] =
       new AsyncBuilder[Unit] {
-        def create[A](
-          register: (Scheduler, Callback[Throwable, A]) => Unit,
-          allowContinueOnCallingThread: Boolean = false): Task[A] =
-          TaskCreate.async0(register, allowContinueOnCallingThread)
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
+          TaskCreate.async0(register)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -4267,10 +4305,8 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forIO: AsyncBuilder[IO[Unit]] =
       new AsyncBuilder[IO[Unit]] {
-        def create[A](
-          register: (Scheduler, Callback[Throwable, A]) => CancelToken[IO],
-          allowContinueOnCallingThread: Boolean = false): Task[A] =
-          TaskCreate.cancelableIO(register, allowContinueOnCallingThread)
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
+          TaskCreate.cancelableIO(register)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -4278,10 +4314,8 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forTask: AsyncBuilder[Task[Unit]] =
       new AsyncBuilder[Task[Unit]] {
-        def create[A](
-          register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task],
-          allowContinueOnCallingThread: Boolean = false): Task[A] =
-          TaskCreate.cancelable0(register, allowContinueOnCallingThread)
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
+          TaskCreate.cancelable0(register)
       }
 
     /** Implicit `AsyncBuilder` for cancelable tasks, using
@@ -4289,10 +4323,8 @@ object Task extends TaskInstancesLevel1 {
       */
     implicit val forCoeval: AsyncBuilder[Coeval[Unit]] =
       new AsyncBuilder[Coeval[Unit]] {
-        def create[A](
-          register: (Scheduler, Callback[Throwable, A]) => Coeval[Unit],
-          allowContinueOnCallingThread: Boolean = false): Task[A] =
-          TaskCreate.cancelableCoeval(register, allowContinueOnCallingThread)
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => Coeval[Unit]): Task[A] =
+          TaskCreate.cancelableCoeval(register)
       }
 
     /** Implicit `AsyncBuilder` for non-cancelable tasks built by a function
@@ -4307,10 +4339,8 @@ object Task extends TaskInstancesLevel1 {
 
     private[this] val forCancelableDummyRef: AsyncBuilder[Cancelable.Empty] =
       new AsyncBuilder[Cancelable.Empty] {
-        def create[A](
-          register: (Scheduler, Callback[Throwable, A]) => Cancelable.Empty,
-          allowContinueOnCallingThread: Boolean = false): Task[A] =
-          TaskCreate.async0(register, allowContinueOnCallingThread)
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable.Empty): Task[A] =
+          TaskCreate.async0(register)
       }
   }
 
@@ -4325,10 +4355,8 @@ object Task extends TaskInstancesLevel1 {
 
     private[this] val forCancelableRef =
       new AsyncBuilder[Cancelable] {
-        def create[A](
-          register: (Scheduler, Callback[Throwable, A]) => Cancelable,
-          allowContinueOnCallingThread: Boolean = false): Task[A] =
-          TaskCreate.cancelableCancelable(register, allowContinueOnCallingThread)
+        def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] =
+          TaskCreate.cancelableCancelable(register)
       }
   }
 
@@ -4344,7 +4372,7 @@ object Task extends TaskInstancesLevel1 {
     frameRef: FrameIndexRef) {
 
     val scheduler: Scheduler = {
-      if (options.localContextPropagation)
+      if (options.localContextPropagation && !schedulerRef.features.contains(Scheduler.TRACING))
         TracingScheduler(schedulerRef)
       else
         schedulerRef
@@ -4685,8 +4713,10 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     */
   implicit def catsEffect(
     implicit s: Scheduler,
-    opts: Task.Options = Task.defaultOptions): CatsConcurrentEffectForTask =
+    opts: Task.Options = Task.defaultOptions): CatsConcurrentEffectForTask = {
+
     new CatsConcurrentEffectForTask
+  }
 
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
     * then this provides the evidence that `Task[A]` also has

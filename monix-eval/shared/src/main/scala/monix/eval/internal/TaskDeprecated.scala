@@ -27,6 +27,24 @@ import scala.util.{Failure, Success, Try}
 
 private[eval] object TaskDeprecated {
   /**
+    * BinCompat trait describing deprecated `Task` operations.
+    */
+  private[eval] trait BinCompat[+A] { self: Task[A] =>
+    /**
+      * DEPRECATED — subsumed by [[Task.startAndForget startAndForget]].
+      *
+      * Renamed to `startAndForget` to be consistent with `start` which
+      * also enforces an asynchronous boundary
+      */
+    @deprecated("Replaced with startAndForget", since = "3.0.0")
+    def forkAndForget: Task[Unit] = {
+      // $COVERAGE-OFF$
+      self.startAndForget
+      // $COVERAGE-ON$
+    }
+  }
+
+  /**
     * Extension methods describing deprecated `Task` operations.
     */
   private[eval] trait Extensions[+A] extends Any {
@@ -78,7 +96,7 @@ private[eval] object TaskDeprecated {
     @deprecated("Please use `Task.runSyncStep`", since = "3.0.0")
     def runSyncMaybe(implicit s: Scheduler): Either[CancelableFuture[A], A] = {
       // $COVERAGE-OFF$
-      runSyncMaybeOptPrv(s, Task.defaultOptions)
+      runSyncMaybeOptPrv(s, Task.defaultOptions.withSchedulerFeatures)
       // $COVERAGE-ON$
     }
 
@@ -280,7 +298,7 @@ private[eval] object TaskDeprecated {
     @deprecated("Replaced with Coeval(task.runSyncStep)", since = "3.0.0-RC2")
     def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] = {
       // $COVERAGE-OFF$
-      Coeval.eval(runSyncMaybeOptPrv(s, Task.defaultOptions))
+      Coeval.eval(runSyncMaybeOptPrv(s, Task.defaultOptions.withSchedulerFeatures))
       // $COVERAGE-ON$
     }
 

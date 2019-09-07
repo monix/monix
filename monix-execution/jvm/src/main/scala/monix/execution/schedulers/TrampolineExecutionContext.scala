@@ -18,8 +18,9 @@
 package monix.execution.schedulers
 
 import monix.execution.internal.Trampoline
+
 import scala.util.control.NonFatal
-import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
+import scala.concurrent.{BlockContext, CanAwait, ExecutionContext, ExecutionContextExecutor}
 
 /** A `scala.concurrentExecutionContext` implementation
   * that executes runnables immediately, on the current thread,
@@ -51,7 +52,7 @@ import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
   * @param underlying is the `ExecutionContext` to which the it defers
   *        to in case real asynchronous is needed
   */
-final class TrampolineExecutionContext private (underlying: ExecutionContext) extends ExecutionContext {
+final class TrampolineExecutionContext private (underlying: ExecutionContext) extends ExecutionContextExecutor {
 
   private[this] val trampoline =
     new ThreadLocal[Trampoline]() {
@@ -125,7 +126,6 @@ object TrampolineExecutionContext {
   }
 
   private final class JVMOptimalTrampoline(underlying: ExecutionContext) extends Trampoline(underlying) {
-
     private[this] val trampolineContext: BlockContext =
       new BlockContext {
         def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
@@ -148,7 +148,6 @@ object TrampolineExecutionContext {
   }
 
   private class JVMNormalTrampoline(underlying: ExecutionContext) extends Trampoline(underlying) {
-
     private[this] val trampolineContext: BlockContext =
       new BlockContext {
         def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
