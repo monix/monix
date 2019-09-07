@@ -277,6 +277,15 @@ final class ConcurrentQueue[F[_], A] private (
     notifyProducers()
   }
 
+  /** Checks if the queue is empty.
+    *
+    * '''UNSAFE PROTOCOL:''' Concurrent shared state changes very frequently, therefore this function might yield nondeterministic results.
+    */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
+  def isEmpty: F[Boolean] =
+    F.delay(queue.isEmpty)
+
   private def tryOfferUnsafe(a: A): Boolean = {
     if (queue.offer(a) == 0) {
       notifyConsumers()
