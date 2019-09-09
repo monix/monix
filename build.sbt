@@ -186,7 +186,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   logBuffered in IntegrationTest := false,
 
   resolvers ++= Seq(
-    "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
+    "Typesafe Releases" at "https://repo.typesafe.com/typesafe/releases",
     Resolver.sonatypeRepo("releases")
   ),
 
