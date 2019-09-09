@@ -6,29 +6,37 @@ group: edge
 matrix:
   include:
     # Scala 2.11, JVM
+#    - jdk: oraclejdk8
+#      scala: 2.11.12
+#      env: COMMAND=ci-jvm-mima
+#    # Scala 2.11, JavaScript
+#    - jdk: oraclejdk8
+#      scala: 2.11.12
+#      env: COMMAND=ci-js
+#    # Scala 2.12, JVM
+#    - jdk: oraclejdk8
+#      scala: 2.12.9
+#      env: COMMAND=ci-jvm-all
+#    # Scala 2.12, JavaScript
+#    - jdk: oraclejdk8
+#      scala: 2.12.9
+#      env: COMMAND=ci-js
+    # Scala 2.13, JVM
     - jdk: oraclejdk8
-      scala: 2.11.12
-      env: COMMAND=ci-jvm-mima
-    # Scala 2.11, JavaScript
+      scala: 2.13.0
+      env: COMMAND=ci-eval
     - jdk: oraclejdk8
-      scala: 2.11.12
-      env: COMMAND=ci-js
-    # Scala 2.12, JVM
+      scala: 2.13.0
+      env: COMMAND=ci-reactive
     - jdk: oraclejdk8
       scala: 2.12.9
-      env: COMMAND=ci-jvm-all
-    # Scala 2.12, JavaScript
+      env: COMMAND=ci-eval
     - jdk: oraclejdk8
       scala: 2.12.9
-      env: COMMAND=ci-js
-#      TODO: Upgrade to 2.13.0 when possible
-#    # Scala 2.13, JVM
+      env: COMMAND=ci-reactive
+    # Scala 2.13, JavaScript
 #    - jdk: oraclejdk8
-#      scala: 2.13.0-M5
-#      env: COMMAND=ci-jvm
-#    # Scala 2.13, JavaScript
-#    - jdk: oraclejdk8
-#      scala: 2.13.0-M5
+#      scala: 2.13.0
 #      env: COMMAND=ci-js
 
 env:

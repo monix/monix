@@ -2597,7 +2597,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => (pf.andThen(Observable.now)).applyOrElse(ex, Observable.raiseError))
+    onErrorHandleWith(ex => pf.andThen(Observable.now(_)).applyOrElse(ex, Observable.raiseError _))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -2616,7 +2616,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Observable[B]]): Observable[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError _))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -5599,7 +5599,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
     *       .fromIterator(Task(Iterator.from(1)))
-    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *       .mapEval(i => Task { writer.println(s"Line #\\$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file, closing the writer
@@ -5653,7 +5653,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
     *       .fromIterator(Task(Iterator.from(1)))
-    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *       .mapEval(i => Task { writer.println(s"Line #\\$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file, closing the writer
@@ -5952,10 +5952,12 @@ object Observable extends ObservableDeprecatedBuilders {
   }
 
   /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
-  implicit val observableNonEmptyParallel: NonEmptyParallel[Observable, CombineObservable.Type] =
-    new NonEmptyParallel[Observable, CombineObservable.Type] {
+  implicit val observableNonEmptyParallel: NonEmptyParallel.Aux[Observable, CombineObservable.Type] =
+    new NonEmptyParallel[Observable] {
       import CombineObservable.unwrap
       import CombineObservable.{apply => wrap}
+
+      type F[x] = CombineObservable.Type[x]
 
       override def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
       override def apply: Apply[CombineObservable.Type] = CombineObservable.combineObservableApplicative

@@ -31,7 +31,8 @@ import monix.eval.Task
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsParallelForTask extends Parallel[Task, Task.Par] {
+class CatsParallelForTask extends Parallel[Task] {
+  type F[x] = Task.Par[x]
 
   override def applicative: Applicative[Task.Par] = CatsParallelForTask.NondetApplicative
   override def monad: Monad[Task] = CatsConcurrentForTask
