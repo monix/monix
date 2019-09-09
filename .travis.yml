@@ -24,18 +24,15 @@ matrix:
     # Scala 2.13, JVM
     - jdk: oraclejdk8
       scala: 2.13.0
-      env: COMMAND=ci-execution
-    - jdk: oraclejdk8
-      scala: 2.13.0
-      env: COMMAND=ci-catnap
-    - jdk: oraclejdk8
-      scala: 2.13.0
       env: COMMAND=ci-eval
     - jdk: oraclejdk8
       scala: 2.13.0
-      env: COMMAND=ci-tail
+      env: COMMAND=ci-reactive
     - jdk: oraclejdk8
-      scala: 2.13.0
+      scala: 2.12.9
+      env: COMMAND=ci-eval
+    - jdk: oraclejdk8
+      scala: 2.12.9
       env: COMMAND=ci-reactive
     # Scala 2.13, JavaScript
 #    - jdk: oraclejdk8
