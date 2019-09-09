@@ -180,7 +180,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
   resolvers ++= Seq(
-    "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
+    "Typesafe Releases" at "https://repo.typesafe.com/typesafe/releases",
     Resolver.sonatypeRepo("releases")
   ),
 
