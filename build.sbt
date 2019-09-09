@@ -24,7 +24,7 @@ addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-js",       s";clean ;coreJS/test:compile ;${(allProjects.filter(_ != "java").map(_ + "JS/test") ++ benchmarkProjects).mkString(" ;")}")
 addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;${(allProjects.map(_ + "JVM/test") ++ benchmarkProjects).mkString(" ;")}")
 addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
-addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc; scalafmtCheck; test:scalafmtCheck; scalafmtSbtCheck")
+addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
 val catsVersion = "1.6.1"
@@ -32,7 +32,7 @@ val catsEffectVersion = "1.4.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.3"
-val minitestVersion = "2.6.0"
+val minitestVersion = "2.7.0"
 val implicitBoxVersion = "0.1.0"
 
 def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
@@ -182,8 +182,11 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   testForkedParallel in ThisBuild := false,
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
+  logBuffered in Test := false,
+  logBuffered in IntegrationTest := false,
+
   resolvers ++= Seq(
-    "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
+    "Typesafe Releases" at "https://repo.typesafe.com/typesafe/releases",
     Resolver.sonatypeRepo("releases")
   ),
 
