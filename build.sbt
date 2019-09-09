@@ -32,7 +32,7 @@ val catsEffectVersion = "1.4.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.3"
-val minitestVersion = "2.6.0"
+val minitestVersion = "2.7.0"
 val implicitBoxVersion = "0.1.0"
 
 def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
@@ -181,6 +181,9 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   testForkedParallel in IntegrationTest := false,
   testForkedParallel in ThisBuild := false,
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
+
+  logBuffered in Test := false,
+  logBuffered in IntegrationTest := false,
 
   resolvers ++= Seq(
     "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
