@@ -260,6 +260,17 @@ final class AsyncQueue[A] private[monix] (
     notifyProducers()
   }
 
+  /** Checks if the queue is empty.
+    *
+    * '''UNSAFE PROTOCOL:'''
+    * Concurrent shared state changes very frequently, therefore this function might yield nondeterministic results.
+    * Should be used carefully since some usecases might require a deeper insight into concurrent programming.
+    */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
+  def isEmpty: Boolean =
+    queue.isEmpty
+
   private[this] val queue: LowLevelConcurrentQueue[A] =
     LowLevelConcurrentQueue(capacity, channelType, fenced = true)
 
