@@ -282,7 +282,6 @@ final class ConcurrentQueue[F[_], A] private (
     * '''UNSAFE PROTOCOL:''' Concurrent shared state changes very frequently, therefore this function might yield nondeterministic results.
     */
   @UnsafeProtocol
-  @UnsafeBecauseImpure
   def isEmpty: F[Boolean] =
     F.delay(queue.isEmpty)
 
