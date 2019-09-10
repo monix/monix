@@ -25,7 +25,7 @@ import monix.execution.schedulers.SchedulerService
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{blocking, ExecutionContext, Future}
 
 object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
   private val ThreadName = "test-thread"
@@ -35,7 +35,9 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
 
   override def tearDown(env: SchedulerService): Unit = {
     env.shutdown()
-    assert(env.awaitTermination(10.seconds), "env.awaitTermination")
+    blocking {
+      assert(env.awaitTermination(10.seconds), "env.awaitTermination")
+    }
   }
 
   def createFuture[A](ec: ExecutionContext)(r: => A): (Future[A], CountDownLatch) = {
@@ -43,11 +45,11 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     val latch = new CountDownLatch(1)
     val f = Future {
       started.countDown()
-      latch.await()
+      blocking(latch.await())
       r
     }(ec)
 
-    started.await()
+    blocking(started.await())
     (f, latch)
   }
 
@@ -57,11 +59,11 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
 
     val f = Future {
       started.countDown()
-      latch.await()
+      blocking(latch.await())
       r
     }(ec)
 
-    started.await()
+    blocking(started.await())
     (CancelableFuture(f, Cancelable.empty), latch)
   }
 

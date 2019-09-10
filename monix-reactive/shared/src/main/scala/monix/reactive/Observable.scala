@@ -2616,7 +2616,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Observable[B]]): Observable[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError _))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -5599,7 +5599,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
     *       .fromIterator(Task(Iterator.from(1)))
-    *       .mapEval(i => Task { writer.println("Line #" + i.toString) })
+    *       .mapEval(i => Task { writer.println(s"Line #\\$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file, closing the writer
@@ -5653,7 +5653,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
     *       .fromIterator(Task(Iterator.from(1)))
-    *       .mapEval(i => Task { writer.println("Line #" + i.toString) })
+    *       .mapEval(i => Task { writer.println(s"Line #\\$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file, closing the writer
