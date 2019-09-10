@@ -17,7 +17,7 @@
 
 package monix.tail
 
-import catalysts.Platform
+import monix.execution.internal.Platform
 import monix.tail.internal.AndThen
 
 object AndThenSuite extends BaseTestSuite {
@@ -40,7 +40,7 @@ object AndThenSuite extends BaseTestSuite {
   }
 
   test("andThen is stack safe") { _ =>
-    val count = if (Platform.isJvm) 500000 else 1000
+    val count = if (Platform.isJVM) 500000 else 1000
     val fs = (0 until count).map(_ => { i: Int => i + 1 })
     val result = fs.foldLeft(AndThen((x: Int) => x))(_.andThen(_))(42)
 
@@ -48,7 +48,7 @@ object AndThenSuite extends BaseTestSuite {
   }
 
   test("compose is stack safe") { _ =>
-    val count = if (Platform.isJvm) 500000 else 1000
+    val count = if (Platform.isJVM) 500000 else 1000
     val fs = (0 until count).map(_ => { i: Int => i + 1 })
     val result = fs.foldLeft(AndThen((x: Int) => x))(_.compose(_))(42)
 
@@ -56,7 +56,7 @@ object AndThenSuite extends BaseTestSuite {
   }
 
   test("Function1 andThen is stack safe") { _ =>
-    val count = if (Platform.isJvm) 50000 else 1000
+    val count = if (Platform.isJVM) 50000 else 1000
     val start: (Int => Int) = AndThen((x: Int) => x)
     val fs = (0 until count).foldLeft(start) { (acc, _) =>
       acc.andThen(_ + 1)
