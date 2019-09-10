@@ -55,6 +55,8 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.from(IO)") { implicit s =>
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
+
     val p = Promise[Int]()
     val f = Task.from(IO.fromFuture(IO.pure(p.future))).runToFuture
 
@@ -67,6 +69,8 @@ object TaskLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.from(IO) for errors") { implicit s =>
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
+
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
     val f = Task.from(IO.fromFuture(IO.pure(p.future))).runToFuture
