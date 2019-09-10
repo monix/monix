@@ -2597,7 +2597,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => pf.andThen(Observable.now(_)).applyOrElse(ex, Observable.raiseError _))
+    onErrorHandleWith(ex => (pf.andThen(Observable.now _).applyOrElse(ex, Observable.raiseError _)))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -5957,7 +5957,7 @@ object Observable extends ObservableDeprecatedBuilders {
       import CombineObservable.unwrap
       import CombineObservable.{apply => wrap}
 
-      type F[x] = CombineObservable.Type[x]
+      override type F[A] = CombineObservable.Type[A]
 
       override def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
       override def apply: Apply[CombineObservable.Type] = CombineObservable.combineObservableApplicative

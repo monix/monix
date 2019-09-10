@@ -27,8 +27,8 @@ addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
 addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
-val catsVersion = "2.0.0-RC2"
-val catsEffectVersion = "2.0.0-RC2"
+val catsVersion = "2.0.0"
+val catsEffectVersion = "2.0.0"
 val catsEffectLawsVersion = catsEffectVersion
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.3"
@@ -62,7 +62,7 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.9",
+  scalaVersion := "2.13.0",
   crossScalaVersions := Seq("2.11.12", "2.12.9", "2.13.0"),
 
   scalacOptions ++= Seq(
@@ -320,7 +320,7 @@ lazy val unidocSettings = Seq(
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies ++= Seq(
-    "io.monix" %%% "minitest-laws-legacy" % minitestVersion % Test,
+    "io.monix" %%% "minitest-laws" % minitestVersion % Test,
     "org.typelevel" %%% "cats-laws" % catsVersion % Test,
     "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion % Test
   )

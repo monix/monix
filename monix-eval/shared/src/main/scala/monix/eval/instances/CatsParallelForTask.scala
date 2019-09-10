@@ -32,7 +32,7 @@ import monix.eval.Task
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
 class CatsParallelForTask extends Parallel[Task] {
-  type F[x] = Task.Par[x]
+  override type F[A] = Task.Par[A]
 
   override def applicative: Applicative[Task.Par] = CatsParallelForTask.NondetApplicative
   override def monad: Monad[Task] = CatsConcurrentForTask
@@ -51,7 +51,7 @@ object CatsParallelForTask extends CatsParallelForTask {
     import Task.Par.unwrap
     import Task.Par.{apply => par}
 
-    override def ap[A, B](ff: Task.Par[(A) => B])(fa: Task.Par[A]): Task.Par[B] =
+    override def ap[A, B](ff: Task.Par[A => B])(fa: Task.Par[A]): Task.Par[B] =
       par(Task.mapBoth(unwrap(ff), unwrap(fa))(_(_)))
     override def map2[A, B, Z](fa: Task.Par[A], fb: Task.Par[B])(f: (A, B) => Z): Task.Par[Z] =
       par(Task.mapBoth(unwrap(fa), unwrap(fb))(f))
@@ -61,7 +61,7 @@ object CatsParallelForTask extends CatsParallelForTask {
       par(Task.now(a))
     override val unit: Task.Par[Unit] =
       par(Task.now(()))
-    override def map[A, B](fa: Task.Par[A])(f: (A) => B): Task.Par[B] =
+    override def map[A, B](fa: Task.Par[A])(f: A => B): Task.Par[B] =
       par(unwrap(fa).map(f))
   }
 }
