@@ -2597,7 +2597,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => (pf.andThen(Observable.now)).applyOrElse(ex, Observable.raiseError))
+    onErrorHandleWith(ex => (pf.andThen(Observable.now(_))).applyOrElse(ex, Observable.raiseError(_)))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -5952,7 +5952,7 @@ object Observable extends ObservableDeprecatedBuilders {
   }
 
   /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
-  implicit val observableNonEmptyParallel: NonEmptyParallel[Observable] =
+  implicit val observableNonEmptyParallel: NonEmptyParallel.Aux[Observable, CombineObservable.Type] =
     new NonEmptyParallel[Observable] {
       import CombineObservable.unwrap
       import CombineObservable.{apply => wrap}

@@ -50,9 +50,7 @@ object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
   }
 
   checkAllAsync("NonEmptyParallel[Observable, CombineObservable.Type]") { implicit ec =>
-    NonEmptyParallelTests[Observable]
-      //.asInstanceOf[Aux[Observable, CombineObservable.Type]]
-      .nonEmptyParallel[Int, Int]
+    NonEmptyParallelTests[Observable].nonEmptyParallel[Int, Int]
   }
 
   checkAllAsync("FunctorFilter[Observable]") { implicit ec =>
