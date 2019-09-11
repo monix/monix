@@ -90,35 +90,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
       )
   }),
 
-//  // Force building with Java 8
-//  initialize := {
-//    if (sys.props("monix.requireJava8") != "false") {
-//      val required = "1.8"
-//      val current  = sys.props("java.specification.version")
-//      assert(current == required, s"Unsupported build JDK: java.specification.version $current != $required")
-//    }
-//  },
-//
-//  // Targeting Java 6, but only for Scala <= 2.11
-//  javacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-//    case Some((2, majorVersion)) if majorVersion <= 11 =>
-//      // generates code with the Java 6 class format
-//      Seq("-source", "1.6", "-target", "1.6")
-//    case _ =>
-//      // For 2.12 we are targeting the Java 8 class format
-//      Seq("-source", "1.8", "-target", "1.8")
-//  }),
-//
-//  // Targeting Java 6, but only for Scala <= 2.11
-//  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-//    case Some((2, majorVersion)) if majorVersion <= 11 =>
-//      // generates code with the Java 6 class format
-//      Seq("-target:jvm-1.6")
-//    case _ =>
-//      // For 2.12 we are targeting the Java 8 class format
-//      Seq.empty
-//  }),
-
   // Linter
   scalacOptions ++= Seq(
     // Turns all warnings into errors ;-)
