@@ -590,6 +590,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * Sample:
     *
     * {{{
+    *   import scala.util.Random
+    * 
     *   val random = Coeval(Random.nextInt())
     *   val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
     *     val newList = list :+ a

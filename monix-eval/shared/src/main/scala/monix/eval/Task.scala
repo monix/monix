@@ -1746,6 +1746,8 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * Sample:
     *
     * {{{
+    *   import scala.util.Random
+    * 
     *   val random = Task(Random.nextInt())
     *   val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
     *     val newList = list :+ a
