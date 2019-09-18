@@ -1741,10 +1741,30 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   final def flatMap[B](f: A => Task[B]): Task[B] =
     FlatMap(this, f)
 
-  /** Loops
+  /**  Describes flatMap-driven loops, as an alternative to recursive functions.
+    *
+    * Sample:
+    *
+    * {{{
+    *   val random = Task(Random.nextInt())
+    *   val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
+    *     val newList = list :+ a
+    *     if (newList.length < 5)
+    *       continue(newList)
+    *     else
+    *       Task.now(newList)
+    *   }
+    * }}}
+    *
+    * @param seed initializes the result of the loop
+    * @param f is the function that updates the result
+    *        on each iteration, returning a `Task`.
+    * @return a new [[Task]] that contains the result of the loop.
     */
   final def flatMapLoop[S](seed: S)(f: (A, S, S => Task[S]) => Task[S]): Task[S] =
-    this.flatMap { a => f(a, seed, flatMapLoop(_)(f)) }
+    this.flatMap { a =>
+      f(a, seed, flatMapLoop(_)(f))
+    }
 
   /** Given a source Task that emits another Task, this function
     * flattens the result, returning a Task equivalent to the emitted
