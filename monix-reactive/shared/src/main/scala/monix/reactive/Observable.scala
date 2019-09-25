@@ -41,7 +41,7 @@ import monix.execution.ChannelType.MultiProducer
 import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
-import monix.execution.exceptions.UpstreamTimeoutException
+import monix.execution.exceptions.{DownstreamTimeoutException, UpstreamTimeoutException}
 import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.internal.builders
@@ -3307,6 +3307,23 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def debounce(timeout: FiniteDuration): Observable[A] =
     new DebounceObservable(self, timeout, repeat = false)
+
+  /** Returns an observable that mirrors the source but applies a timeout
+    * for each `onNext` message. If downstream subscriber takes more time than the given
+    * timespan to process an `onNext` message, the source is terminated and downstream gets
+    * subscribed to the given backup.
+    *
+    * Note that this ignores the time it takes for the upstream to send
+    * `onNext` messages. For detecting slow producers see [[timeoutOnSlowUpstream]].
+    *
+    * @param timeout maximum duration for `onNext`.
+    * @param backup alternative data source to subscribe to on timeout.
+    */
+  final def timeoutOnSlowDownstreamTo[B >: A](timeout: FiniteDuration, backup: Observable[B]): Observable[B] =
+    self.timeoutOnSlowDownstream(timeout).onErrorHandleWith {
+      case DownstreamTimeoutException(`timeout`) => backup
+      case other => Observable.raiseError(other)
+    }
 
   /** Returns an observable that mirrors the source but that will trigger a
     * [[monix.execution.exceptions.DownstreamTimeoutException DownstreamTimeoutException]]
