@@ -1618,8 +1618,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param f is the mapping function to transform the zipped
     *        `(A, B)` elements
     */
-  final def parZipMap[B, C](rhs: Iterant[F, B])(f: (A, B) => C)(
-    implicit F: Sync[F], P: Parallel[F]): Iterant[F, C] =
+  final def parZipMap[B, C](rhs: Iterant[F, B])(f: (A, B) => C)(implicit F: Sync[F], P: Parallel[F]): Iterant[F, C] =
     IterantZipMap.par(this, rhs, f)
 
   /** Applies the function to the elements of the source and
