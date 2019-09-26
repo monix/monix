@@ -41,7 +41,7 @@ import monix.execution.ChannelType.MultiProducer
 import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
-import monix.execution.exceptions.UpstreamTimeoutException
+import monix.execution.exceptions.{DownstreamTimeoutException, UpstreamTimeoutException}
 import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.internal.builders
@@ -2597,7 +2597,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => (pf.andThen(Observable.now)).applyOrElse(ex, Observable.raiseError))
+    onErrorHandleWith(ex => (pf.andThen(Observable.now _).applyOrElse(ex, Observable.raiseError _)))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -2616,7 +2616,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Observable[B]]): Observable[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError _))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -3307,6 +3307,23 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def debounce(timeout: FiniteDuration): Observable[A] =
     new DebounceObservable(self, timeout, repeat = false)
+
+  /** Returns an observable that mirrors the source but applies a timeout
+    * for each `onNext` message. If downstream subscriber takes more time than the given
+    * timespan to process an `onNext` message, the source is terminated and downstream gets
+    * subscribed to the given backup.
+    *
+    * Note that this ignores the time it takes for the upstream to send
+    * `onNext` messages. For detecting slow producers see [[timeoutOnSlowUpstream]].
+    *
+    * @param timeout maximum duration for `onNext`.
+    * @param backup alternative data source to subscribe to on timeout.
+    */
+  final def timeoutOnSlowDownstreamTo[B >: A](timeout: FiniteDuration, backup: Observable[B]): Observable[B] =
+    self.timeoutOnSlowDownstream(timeout).onErrorHandleWith {
+      case DownstreamTimeoutException(`timeout`) => backup
+      case other => Observable.raiseError(other)
+    }
 
   /** Returns an observable that mirrors the source but that will trigger a
     * [[monix.execution.exceptions.DownstreamTimeoutException DownstreamTimeoutException]]
@@ -5599,7 +5616,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
     *       .fromIterator(Task(Iterator.from(1)))
-    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *       .mapEval(i => Task { writer.println(s"Line #\\$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file, closing the writer
@@ -5653,7 +5670,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
     *       .fromIterator(Task(Iterator.from(1)))
-    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *       .mapEval(i => Task { writer.println(s"Line #\\$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file, closing the writer
@@ -5952,10 +5969,12 @@ object Observable extends ObservableDeprecatedBuilders {
   }
 
   /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
-  implicit val observableNonEmptyParallel: NonEmptyParallel[Observable, CombineObservable.Type] =
-    new NonEmptyParallel[Observable, CombineObservable.Type] {
+  implicit val observableNonEmptyParallel: NonEmptyParallel.Aux[Observable, CombineObservable.Type] =
+    new NonEmptyParallel[Observable] {
       import CombineObservable.unwrap
       import CombineObservable.{apply => wrap}
+
+      override type F[A] = CombineObservable.Type[A]
 
       override def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
       override def apply: Apply[CombineObservable.Type] = CombineObservable.combineObservableApplicative

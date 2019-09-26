@@ -4730,9 +4730,9 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
 }
 
 private[eval] abstract class TaskParallelNewtype extends TaskContextShift {
-  /** Newtype encoding for an `Task` data type that has a [[cats.Applicative]]
+  /** Newtype encoding for a `Task` data type that has a [[cats.Applicative]]
     * capable of doing parallel processing in `ap` and `map2`, needed
-    * for implementing [[cats.Parallel]].
+    * for implementing `cats.Parallel`.
     *
     * Helpers are provided for converting back and forth in `Par.apply`
     * for wrapping any `Task` value and `Par.unwrap` for unwrapping.

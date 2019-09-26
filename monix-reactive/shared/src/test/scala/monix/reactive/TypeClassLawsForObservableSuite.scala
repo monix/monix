@@ -17,15 +17,10 @@
 
 package monix.reactive
 
+import cats.NonEmptyParallel
 import cats.effect.laws.discipline.BracketTests
-import cats.laws.discipline.{
-  AlternativeTests,
-  ApplyTests,
-  CoflatMapTests,
-  FunctorFilterTests,
-  MonoidKTests,
-  NonEmptyParallelTests
-}
+import cats.laws.discipline.NonEmptyParallelTests.Aux
+import cats.laws.discipline.{AlternativeTests, ApplyTests, CoflatMapTests, FunctorFilterTests, MonoidKTests, NonEmptyParallelTests}
 import monix.reactive.observables.CombineObservable
 import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
 
@@ -55,7 +50,7 @@ object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
   }
 
   checkAllAsync("NonEmptyParallel[Observable, CombineObservable.Type]") { implicit ec =>
-    NonEmptyParallelTests[Observable, CombineObservable.Type].nonEmptyParallel[Int, Int]
+    NonEmptyParallelTests[Observable].nonEmptyParallel[Int, Int]
   }
 
   checkAllAsync("FunctorFilter[Observable]") { implicit ec =>

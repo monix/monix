@@ -1,3 +1,24 @@
+## Version 3.0.0 (September 11, 2019)
+
+Important updates:
+
+- [#875](https://github.com/monix/monix/pull/875) and [#1022](https://github.com/monix/monix/pull/1022): Update to Cats and Cats-Effect 2.0.0
+- [#1018](https://github.com/monix/monix/pull/1018): Update Minitest to 2.7.0
+
+Chores:
+
+- [#996](https://github.com/monix/monix/pull/996): improve Observable.publishSelector scaladoc
+- [#1017](https://github.com/monix/monix/pull/1017): disable Scalafmt checks in build
+- [#1006](https://github.com/monix/monix/pull/1006): Update sbt to 1.3.0
+- [#1013](https://github.com/monix/monix/pull/1013): Update sbt-sonatype to 3.6
+
+People that made this release possible:
+
+- Alexandru Nedelcu (@alexandru)
+- Oleg Pyzhcov (@oleg-py)
+- Piotr Gawryś (@Avasil)
+- The Cats and Cats-Effect contributors that worked on and released 2.0.0
+
 ## Version 3.0.0-RC5 (August 29, 2019)
 
 Bug fix release:

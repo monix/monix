@@ -2,6 +2,16 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 import com.typesafe.tools.mima.core._
 
 object MimaFilters {
+  lazy val changesFor_3_0_0__RC5: Seq[ProblemFilter] = Seq(
+    // Incompatible signatures should not cause linking problems.
+    exclude[IncompatibleSignatureProblem]("monix.reactive.Observable.observableNonEmptyParallel"),
+    exclude[IncompatibleSignatureProblem]("monix.tail.internal.IterantZipMap.par"),
+    exclude[IncompatibleSignatureProblem]("monix.tail.Iterant.parZipMap"),
+    exclude[IncompatibleSignatureProblem]("monix.tail.Iterant.parZip"),
+    exclude[IncompatibleSignatureProblem]("monix.catnap.internal.ParallelApplicative.this"),
+    exclude[IncompatibleSignatureProblem]("monix.catnap.internal.ParallelApplicative.apply")
+  )
+
   lazy val changesFor_3_0_0__RC4: Seq[ProblemFilter] = Seq(
     // Internals — accidentally exposed
     exclude[MissingClassProblem]("monix.execution.internal.InterceptableRunnable$Wrapped"),
