@@ -141,30 +141,6 @@ import scala.util.{Failure, Success, Try}
   * @define mergeReturn an observable containing the merged events of all
   *         streams created by the source
   *
-  * @define asyncBoundaryDescription Forces a buffered asynchronous boundary.
-  *
-  *         Internally it wraps the observer implementation given to
-  *         `onSubscribe` into a
-  *         [[monix.reactive.observers.BufferedSubscriber BufferedSubscriber]].
-  *
-  *         Normally Monix's implementation guarantees that events are
-  *         not emitted concurrently, and that the publisher MUST NOT
-  *         emit the next event without acknowledgement from the
-  *         consumer that it may proceed, however for badly behaved
-  *         publishers, this wrapper provides the guarantee that the
-  *         downstream [[monix.reactive.Observer Observer]] given in
-  *         `subscribe` will not receive concurrent events.
-  *
-  *         WARNING: if the buffer created by this operator is
-  *         unbounded, it can blow up the process if the data source
-  *         is pushing events faster than what the observer can
-  *         consume, as it introduces an asynchronous boundary that
-  *         eliminates the back-pressure requirements of the data
-  *         source. Unbounded is the default
-  *         [[monix.reactive.OverflowStrategy overflowStrategy]], see
-  *         [[monix.reactive.OverflowStrategy OverflowStrategy]] for
-  *         options.
-  *
   * @define onOverflowParam a function that is used for signaling a special
   *         event used to inform the consumers that an overflow event
   *         happened, function that receives the number of dropped
@@ -658,6 +634,14 @@ abstract class Observable[+A] extends Serializable { self =>
     * current buffer is being dropped and the error gets propagated
     * immediately.
     *
+    * Usage:
+    *
+    * {{{
+    *   // Emits [2, 3], [4, 5], [6]
+    *   Observable.range(2, 7)
+    *     .bufferTumbling(count = 2)
+    * }}}
+    *
     * @param count the maximum size of each buffer before it should
     *        be emitted
     */
@@ -682,6 +666,20 @@ abstract class Observable[+A] extends Serializable { self =>
     *     `count - skip`
     *  1. in case `skip > count`, then `skip - count` elements start
     *     getting dropped between windows
+    *
+    * Usage:
+    *
+    * {{{
+    *   // Emits [2, 3], [5, 6]
+    *   Observable.range(2, 7)
+    *     .bufferSliding(count = 2, skip = 3)
+    * }}}
+    *
+    * {{{
+    *   // Emits [2, 3, 4], [4, 5, 6]
+    *   Observable.range(2, 7)
+    *     .bufferSliding(count = 3, skip = 2)
+    * }}}
     *
     * @param count the maximum size of each buffer before it should
     *        be emitted
@@ -808,6 +806,31 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * This operator starts applying back-pressure when the
     * underlying buffer's size is exceeded.
+    *
+    * Usage:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *   import scala.concurrent.duration._
+    *
+    *   Observable.range(1, 6)
+    *     .doOnNext(l => Task(println(s"Started $l")))
+    *     .bufferIntrospective(maxSize = 2)
+    *     .doOnNext(l => Task(println(s"Emitted batch $l")))
+    *     .mapEval(l => Task(println(s"Processed batch $l")).delayExecution(500.millis))
+    *
+    *   // Started 1
+    *   // Emitted batch List(1)
+    *   // Started 2
+    *   // Started 3
+    *   // Processed batch List(1)
+    *   // Emitted batch List(2, 3)
+    *   // Started 4
+    *   // Started 5
+    *   // Processed batch List(2, 3)
+    *   // Emitted batch List(4, 5)
+    *   // Processed batch List(4, 5)
+    * }}}
     */
   final def bufferIntrospective(maxSize: Int): Observable[List[A]] =
     new BufferIntrospectiveObservable[A](self, maxSize)
@@ -3298,6 +3321,20 @@ abstract class Observable[+A] extends Serializable { self =>
     * frequently than the length of the time window, then no items will
     * be emitted by the resulting observable.
     *
+    * Usage:
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   (Observable("M", "O", "N", "I", "X") ++ Observable.never)
+    *     .delayOnNext(100.millis)
+    *     .scan("")(_ ++ _)
+    *     .debounce(200.millis)
+    *     .dump("O")
+    *
+    *   // Output:
+    *   // 0: O --> MONIX
+    * }}}
+    *
     * @param timeout the length of the window of time that must pass after
     *        the emission of an item from the source observable in
     *        which that observable emits no items in order for the
@@ -3380,7 +3417,54 @@ abstract class Observable[+A] extends Serializable { self =>
   final def whileBusyBuffer[B >: A](overflowStrategy: OverflowStrategy.Synchronous[B]): Observable[B] =
     asyncBoundary(overflowStrategy)
 
-  /** $asyncBoundaryDescription
+  /** Forces a buffered asynchronous boundary.
+    * Asynchronous boundary refers to an independent processing
+    * of an upstream and a downstream - producer does not have to wait
+    * for consumer to acknowledge a new event.
+    *
+    * Internally it wraps the observer implementation given to
+    * `onSubscribe` into a
+    * [[monix.reactive.observers.BufferedSubscriber BufferedSubscriber]].
+    *
+    * Normally Monix's implementation guarantees that events are
+    * not emitted concurrently, and that the publisher MUST NOT
+    * emit the next event without acknowledgement from the
+    * consumer that it may proceed, however for badly behaved
+    * publishers, this wrapper provides the guarantee that the
+    * downstream [[monix.reactive.Observer Observer]] given in
+    * `subscribe` will not receive concurrent events.
+    *
+    * WARNING: if the buffer created by this operator is
+    * unbounded, it can blow up the process if the data source
+    * is pushing events faster than what the observer can
+    * consume, as it introduces an asynchronous boundary that
+    * eliminates the back-pressure requirements of the data
+    * source. Unbounded is the default
+    * [[monix.reactive.OverflowStrategy overflowStrategy]], see
+    * [[monix.reactive.OverflowStrategy OverflowStrategy]] for
+    * options.
+    *
+    * Usage:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *   import scala.concurrent.duration._
+    *
+    *   Observable("A", "B", "C", "D")
+    *     .mapEval(i => Task { println(s"1: Processing $i"); i ++ i })
+    *     .asyncBoundary(OverflowStrategy.Unbounded)
+    *     .mapEval(i => Task { println(s"2: Processing $i") }.delayExecution(100.millis))
+    *
+    *   // Without asyncBoundary it would process A, AA, B, BB, ...
+    *   // 1: Processing A
+    *   // 1: Processing B
+    *   // 1: Processing C
+    *   // 1: Processing D
+    *   // 2: Processing AA
+    *   // 2: Processing BB
+    *   // 2: Processing CC
+    *   // 2: Processing DD
+    * }}}
     *
     * @param overflowStrategy - $overflowStrategyParam
     */
