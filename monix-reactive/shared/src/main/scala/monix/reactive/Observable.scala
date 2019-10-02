@@ -3125,6 +3125,27 @@ abstract class Observable[+A] extends Serializable { self =>
   final def takeUntil(trigger: Observable[Any]): Observable[A] =
     new TakeUntilObservable[A](self, trigger)
 
+  /** Version of [[takeUntil]] that can work with a trigger expressed by a [[monix.eval.Task]]
+    *
+    * @see [[takeUntil]] for version that works with Observable.
+    * @see [[takeUntilEvalF]] for version that works with generic `F[_]` powered by [[monix.eval.TaskLike]].
+    *
+    * @param trigger task that will cancel the stream as soon as it completes.
+    */
+  final def takeUntilEval(trigger: Task[_]): Observable[A] =
+    self.takeUntil(Observable.fromTask(trigger))
+
+  /** Version of [[takeUntil]] that can work with a trigger expressed by a generic `F[_]`
+    * provided an implicit [[monix.eval.TaskLike]] exists.
+    *
+    * @see [[takeUntil]] for version that works with Observable.
+    * @see [[takeUntilEval]] for version that works with [[monix.eval.Task]].
+    *
+    * @param trigger operation that will cancel the stream as soon as it completes.
+    */
+  final def takeUntilEvalF[F[_]](trigger: F[_])(implicit taskLike: TaskLike[F]): Observable[A] =
+    self.takeUntil(Observable.fromTaskLike(trigger))
+
   /** Takes longest prefix of elements that satisfy the given predicate
     * and returns a new Observable that emits those elements.
     */

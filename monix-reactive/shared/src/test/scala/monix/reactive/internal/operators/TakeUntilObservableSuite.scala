@@ -19,10 +19,11 @@ package monix.reactive.internal.operators
 
 import cats.laws._
 import cats.laws.discipline._
-
+import monix.eval.{Task, TaskLike}
 import monix.reactive.Observable
 
 import concurrent.duration._
+import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
 object TakeUntilObservableSuite extends BaseOperatorSuite {
@@ -72,5 +73,42 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
 
     assertEquals(f.value, Some(Success(Some(1))))
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("takeUntilEval should only take until task completes") { implicit s =>
+    val obs = Observable
+      .intervalAtFixedRate(2.seconds, 2.seconds)
+      .takeUntilEval(Task.unit.delayExecution(3.seconds))
+      .toListL
+      .runToFuture
+
+    s.tick(3.seconds)
+
+    assertEquals(obs.value, Some(Success(List(0))))
+  }
+
+  test("takeUntilEvalF should only take until future completes") { implicit s =>
+    case class FutureIO[A](value: () => Future[A]) {
+      def run: Future[A] = value()
+    }
+
+    implicit val taskLike = new TaskLike[FutureIO] {
+      override def apply[A](fa: FutureIO[A]): Task[A] = Task.deferFuture(fa.run)
+    }
+
+    val promise = Promise[Unit]()
+    val future = FutureIO(() => promise.future)
+
+    s.scheduleOnce(3.seconds)(promise.complete(Success(())))
+
+    val obs = Observable
+      .intervalAtFixedRate(2.seconds, 2.seconds)
+      .takeUntilEvalF[FutureIO](future)
+      .toListL
+      .runToFuture
+
+    s.tick(3.seconds)
+
+    assertEquals(obs.value, Some(Success(List(0))))
   }
 }
