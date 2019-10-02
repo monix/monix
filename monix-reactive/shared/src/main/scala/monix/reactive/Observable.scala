@@ -814,10 +814,10 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import scala.concurrent.duration._
     *
     *   Observable.range(1, 6)
-    *     .doOnNext(l => Task(println(s"Started $l")))
+    *     .doOnNext(l => Task(println(s"Started $$l")))
     *     .bufferIntrospective(maxSize = 2)
-    *     .doOnNext(l => Task(println(s"Emitted batch $l")))
-    *     .mapEval(l => Task(println(s"Processed batch $l")).delayExecution(500.millis))
+    *     .doOnNext(l => Task(println(s"Emitted batch $$l")))
+    *     .mapEval(l => Task(println(s"Processed batch $$l")).delayExecution(500.millis))
     *
     *   // Started 1
     *   // Emitted batch List(1)
@@ -3451,9 +3451,9 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import scala.concurrent.duration._
     *
     *   Observable("A", "B", "C", "D")
-    *     .mapEval(i => Task { println(s"1: Processing $i"); i ++ i })
+    *     .mapEval(i => Task { println(s"1: Processing $$i"); i ++ i })
     *     .asyncBoundary(OverflowStrategy.Unbounded)
-    *     .mapEval(i => Task { println(s"2: Processing $i") }.delayExecution(100.millis))
+    *     .mapEval(i => Task { println(s"2: Processing $$i") }.delayExecution(100.millis))
     *
     *   // Without asyncBoundary it would process A, AA, B, BB, ...
     *   // 1: Processing A
