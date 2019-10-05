@@ -27,7 +27,7 @@ import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.{Observable, Observer}
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise, blocking}
+import scala.concurrent.{blocking, Await, Future, Promise}
 import scala.util.Random
 
 object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerService] {
