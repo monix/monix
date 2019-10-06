@@ -56,7 +56,7 @@ libraryDependencies += "io.monix" %% "monix" % "3.0.0"
 Monix 3.x is modular by design, so you can pick and choose:
 
 - `monix-catnap` exposes pure abstractions built on top of
-   the [Cats-Effect](https://typelevel.org/cats-effect/ Cats-Effect) type classes;
+   the [Cats-Effect](https://typelevel.org/cats-effect/) type classes;
    depends on `monix-execution`, Cats 1.x and Cats-Effect
 - `monix-execution` exposes the low-level execution environment, or
   more precisely `Scheduler`, `Cancelable`, `Atomic`, `Local`, `CancelableFuture`
