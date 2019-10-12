@@ -39,9 +39,10 @@ import monix.eval.Task.defaultOptions
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.ChannelType.MultiProducer
 import monix.execution._
-import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
+import monix.execution.annotations.{UnsafeBecauseBlocking, UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
 import monix.execution.exceptions.{DownstreamTimeoutException, UpstreamTimeoutException}
+import monix.execution.schedulers.CanBlock
 import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.internal.builders
@@ -4991,6 +4992,21 @@ object Observable extends ObservableDeprecatedBuilders {
   @UnsafeBecauseImpure
   def fromInputStreamUnsafe(in: InputStream, chunkSize: Int = 4096): Observable[Array[Byte]] =
     new builders.InputStreamObservable(in, chunkSize)
+
+  /**
+   * The method transforms an Observable of bytes into an InputStream.
+   *
+   * '''UNSAFE WARNING:''' The underlying implementation uses thread blocking to wait for Observable to produce values.
+   * The InputStream is not synchronized, a single-threaded usage is recommended.
+   *
+   * @param observable Observable that produces byte arrays
+   * @param canBlock
+   * @return Task with InputStream which can be used to read bytes from `observable`
+   */
+  @UnsafeBecauseImpure
+  @UnsafeBecauseBlocking
+  def toInputStream(observable: Observable[Array[Byte]])(implicit canBlock: CanBlock): Task[InputStream] =
+    new builders.InputStreamResource(observable).toTask
 
   /** Safely converts a `java.io.Reader` into an observable that will
     * emit `Array[Char]` elements.
