@@ -18,19 +18,21 @@
 package monix.eval
 
 import cats.effect.{Fiber => _, _}
-import cats.{~>, Monoid, Semigroup}
+import cats.{Monoid, Semigroup, ~>}
 import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseBlocking, UnsafeBecauseImpure}
+import monix.execution.compat.BuildFrom
+import monix.execution.compat.internal.newBuilder
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.Local
+import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
-import monix.execution.compat.BuildFrom
-import monix.execution.compat.internal.newBuilder
+import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
@@ -2696,6 +2698,46 @@ object Task extends TaskInstancesLevel1 {
     */
   def from[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Task[A] =
     F(fa)
+
+  def fromPublisher[A](source: Publisher[A]): Task[Option[A]] =
+    Task.cancelable0 { (scheduler, cb) =>
+      val sub = SingleAssignSubscription()
+
+      source.subscribe(new Subscriber[A] {
+        private[this] var isActive = true
+
+        def onSubscribe(s: org.reactivestreams.Subscription): Unit = {
+          sub := s
+          sub.request(1)
+        }
+
+        def onNext(a: A): Unit = {
+          if (isActive) {
+            isActive = false
+            sub.cancel()
+            cb.onSuccess(Some(a))
+          }
+        }
+
+        def onError(e: Throwable): Unit = {
+          if (isActive) {
+            isActive = false
+            cb.onError(e)
+          } else {
+            scheduler.reportFailure(e)
+          }
+        }
+
+        def onComplete(): Unit = {
+          if (isActive) {
+            isActive = false
+            cb.onSuccess(None)
+          }
+        }
+      })
+
+      Task(sub.cancel())
+    }
 
   /** Builds a [[Task]] instance out of any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]] and
