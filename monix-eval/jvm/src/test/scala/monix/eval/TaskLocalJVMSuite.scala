@@ -20,9 +20,12 @@ package monix.eval
 import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.Scheduler
+import monix.execution.exceptions.DummyException
+import monix.execution.{ExecutionModel, Scheduler}
+import monix.execution.misc.Local
+import monix.execution.schedulers.TracingScheduler
 
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 
 object TaskLocalJVMSuite extends SimpleTestSuite {
@@ -33,9 +36,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     }
 
   test("locals get transported with executeOn and shift") {
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-    import Scheduler.Implicits.global
-
+    import Scheduler.Implicits.traced
     val ec = Scheduler.computation(4, "ec1")
     val ec2 = Scheduler.computation(4, "ec2")
 
@@ -54,7 +55,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           v5    <- local.read.executeOn(ec)
         } yield v1 :: v2 :: v3 :: v4 :: v5 :: Nil
 
-      val r = task.runSyncUnsafeOpt(Duration.Inf)
+      val r = task.runSyncUnsafe(Duration.Inf)
       assertEquals(r, List(100, 100, 100, 100, 100))
     } finally {
       ec.shutdown()
@@ -63,8 +64,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
   }
 
   test("locals get transported with executeWithModel") {
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-    import Scheduler.Implicits.global
+    import Scheduler.Implicits.traced
 
     val task =
       for {
@@ -74,13 +74,12 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
         v     <- local.read
       } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
   test("locals get transported with executeWithOptions") {
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-    import Scheduler.Implicits.global
+    import Scheduler.Implicits.traced
 
     val task =
       for {
@@ -90,13 +89,12 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
         v     <- local.read
       } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
   test("local.write.executeOn(forceAsync = false) works") {
-    import Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    import Scheduler.Implicits.traced
     val ec = Scheduler.computation(4, "ec1")
 
     val task = for {
@@ -106,13 +104,12 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       v <- l.read
     } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
   test("local.write.executeOn(forceAsync = true) works") {
-    import monix.execution.Scheduler.Implicits.global
-    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+    import monix.execution.Scheduler.Implicits.traced
     val ec = Scheduler.computation(4, "ec1")
 
     val task = for {
@@ -122,11 +119,38 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       v <- l.read
     } yield v
 
-    val r = task.runSyncUnsafeOpt(Duration.Inf)
+    val r = task.runSyncUnsafe(Duration.Inf)
     assertEquals(r, 100)
   }
 
-  test("local state is encapsulated by Task run loop") {
+  test("local state is encapsulated by Task run loop with TracingScheduler") {
+    import monix.execution.Scheduler.Implicits.traced
+    val local = TaskLocal(0).memoize
+
+    val task = for {
+      l <- local
+      x <- l.read
+      _ <- l.write(x + 1)
+    } yield x
+
+    val runMethods: List[Task[Int] => Int] = List(
+      _.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe(),
+      _.executeAsync.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe(),
+      _.runSyncUnsafe(),
+      _.executeWithOptions(_.enableLocalContextPropagation).to[IO].unsafeRunSync(),
+      t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).runToFuture, 1.second),
+      t => Await.result(t.runToFuture, 1.second),
+      t => Await.result(t.executeWithOptions(_.enableLocalContextPropagation).to[IO].unsafeToFuture(), 1.second)
+    )
+
+    for (method <- runMethods) {
+      for (_ <- 1 to 10) method(task)
+      val r = method(task)
+      assertEquals(r, 0)
+    }
+  }
+
+  test("local state is encapsulated by Task run loop without TracingScheduler") {
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     val local = TaskLocal(0).memoize
@@ -152,5 +176,105 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       val r = method(task)
       assertEquals(r, 0)
     }
+  }
+
+  testAsync("local state is encapsulated by Task run loop on single thread") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+    implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+
+    def runAssertion(run: Task[Unit] => Any, method: String): Future[Unit] = {
+      val p = Promise[Unit]
+      val local = Local(0)
+      val task = Task.evalAsync(local := 50).guarantee(Task(p.success(())).void)
+
+      run(task)
+
+      // Future could still carry isolated local
+      // because it was created inside isolated block
+      val f = Local.isolate(p.future)
+
+      f.map(_ => {
+        assert(local() == 0, s"received ${local()} != expected 0 in $method")
+      })
+    }
+
+    for {
+      _ <- runAssertion(_.runSyncUnsafeOpt(), "runSyncUnsafe")
+      _ <- runAssertion(_.runToFutureOpt, "runToFuture")
+      _ <- runAssertion(_.runAsyncOpt(_ => ()), "runAsync")
+      _ <- runAssertion(_.runAsyncOptF(_ => ()), "runAsyncF")
+      _ <- runAssertion(_.runAsyncAndForgetOpt, "runAsyncAndForget")
+      _ <- runAssertion(_.runAsyncUncancelableOpt(_ => ()), "runAsyncUncancelable")
+    } yield ()
+
+  }
+
+  testAsync("TaskLocal.isolate should properly isolate during async boundaries") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+
+    val local = Local(0)
+    val test = for {
+      _ <- Task.evalAsync(local := 50)
+      _ <- TaskLocal.isolate {
+        Task.evalAsync(local := 100)
+      }
+      v <- Task.evalAsync(local())
+      _ <- Task.now(assertEquals(v, 50))
+    } yield ()
+
+    test.runToFuture
+  }
+
+  testAsync("TaskLocal.isolate should properly isolate during async boundaries on error") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+
+    val local = Local(0)
+    val test = for {
+      _ <- Task.evalAsync(local := 50)
+      _ <- TaskLocal.isolate {
+        Task.evalAsync(local := 100).flatMap(_ => Task.raiseError(DummyException("boom")))
+      }.attempt
+      v <- Task.evalAsync(local())
+      _ <- Task.now(assertEquals(v, 50))
+    } yield ()
+
+    test.runToFuture
+  }
+
+  testAsync("TaskLocal.isolate should properly isolate during async boundaries on cancelation") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+
+    val local = Local(0)
+    val test = for {
+      _ <- Task.evalAsync(local := 50)
+      _ <- TaskLocal.isolate {
+        Task.evalAsync(local := 100).start.flatMap(_.cancel)
+      }
+      v <- Task.evalAsync(local())
+      _ <- Task.now(assertEquals(v, 50))
+    } yield ()
+
+    test.runToFuture
+  }
+
+  testAsync("TaskLocal.isolate should isolate contexts from Future") {
+    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
+
+    val local = Local(0)
+    val test = for {
+      _ <- Task(local := 100)
+      _ <- TaskLocal.isolate {
+        Task.deferFuture(Future {
+          local.clear()
+        })
+      }
+      _ <- Task.now(assertEquals(local.get, 100))
+    } yield ()
+
+    test.runToFuture
   }
 }

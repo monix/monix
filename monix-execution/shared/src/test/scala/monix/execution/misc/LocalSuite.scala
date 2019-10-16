@@ -20,7 +20,7 @@ package monix.execution.misc
 import cats.Eval
 import minitest.SimpleTestSuite
 import monix.execution.schedulers.{TestScheduler, TracingScheduler}
-
+import monix.execution.misc.CanBindLocals.Implicits.synchronousAsDefault
 import scala.concurrent.Future
 import scala.util.Success
 
@@ -74,7 +74,9 @@ object LocalSuite extends SimpleTestSuite {
 
     val f = Local.isolate {
       local1 := 100
-      Future(local1.get + local2.get)
+      Future {
+        local1.get + local2.get
+      }
     }
     local1 := 999
     local2 := 999
@@ -92,8 +94,10 @@ object LocalSuite extends SimpleTestSuite {
     local2 := 100
 
     val f = Local.isolate {
-      local1 := 100
-      Future(local1.get + local2.get)
+      Future {
+        local1 := 100
+        local1.get + local2.get
+      }
     }
     local1 := 999
     local2 := 999

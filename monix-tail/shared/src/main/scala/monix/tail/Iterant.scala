@@ -1405,9 +1405,55 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Repeats the items emitted by the source continuously
     *
     * It terminates either on error or if the source is empty.
+    *
+    * In case repetition on empty streams is desired, then combine with
+    * [[retryIfEmpty]]:
+    *
+    * {{{
+    *   import monix.eval.Coeval
+    *   import scala.util.Random
+    *
+    *   val stream = Iterant[Coeval].suspend(Coeval {
+    *     val nr = Random.nextInt()
+    *     if (nr % 10 != 0)
+    *       Iterant[Coeval].empty[Int]
+    *     else
+    *       Iterant[Coeval].of(1, 2, 3)
+    *   })
+    *
+    *   // Will eventually repeat elements 1, 2, 3
+    *   stream.retryIfEmpty(None).repeat
+    * }}}
     */
   final def repeat(implicit F: Sync[F]): Iterant[F, A] =
     IterantRepeat(self)
+
+  /**
+    * Retries processing the source stream after the search is
+    * detected as being empty.
+    *
+    * {{{
+    *   import monix.eval.Coeval
+    *   import scala.util.Random
+    *
+    *   val stream = Iterant[Coeval].suspend(Coeval {
+    *     val nr = Random.nextInt()
+    *     if (nr % 10 != 0)
+    *       Iterant[Coeval].empty[Int]
+    *     else
+    *       Iterant[Coeval].of(1, 2, 3)
+    *   })
+    *
+    *   // Will eventually stream elements 1, 2, 3
+    *   stream.retryIfEmpty(None)
+    * }}}
+    *
+    * @param maxRetries is an optional integer specifying a maximum
+    *        number of retries before it gives up and returns an
+    *        empty stream
+    */
+  final def retryIfEmpty(maxRetries: Option[Int])(implicit F: Sync[F]): Iterant[F, A] =
+    IterantRetryIfEmpty(self, maxRetries)
 
   /** Returns an `Iterant` that mirrors the behavior of the source,
     * unless the source is terminated with an error, in which case
@@ -1556,7 +1602,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param rhs is the other iterant to zip the source with (the
     *        right hand side)
     */
-  final def parZip[G[_], B](rhs: Iterant[F, B])(implicit F: Sync[F], P: Parallel[F, G]): Iterant[F, (A, B)] =
+  final def parZip[B](rhs: Iterant[F, B])(implicit F: Sync[F], P: Parallel[F]): Iterant[F, (A, B)] =
     (self parZipMap rhs)((a, b) => (a, b))
 
   /** Lazily zip two iterants together, in parallel, using the given
@@ -1572,8 +1618,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param f is the mapping function to transform the zipped
     *        `(A, B)` elements
     */
-  final def parZipMap[G[_], B, C](rhs: Iterant[F, B])(
-    f: (A, B) => C)(implicit F: Sync[F], P: Parallel[F, G]): Iterant[F, C] =
+  final def parZipMap[B, C](rhs: Iterant[F, B])(f: (A, B) => C)(implicit F: Sync[F], P: Parallel[F]): Iterant[F, C] =
     IterantZipMap.par(this, rhs, f)
 
   /** Applies the function to the elements of the source and

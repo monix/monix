@@ -23,15 +23,15 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.Success
 
-object TaskForkAndForgetSuite extends BaseTestSuite {
+object TaskStartAndForgetSuite extends BaseTestSuite {
 
-  test("Task.forkAndForget triggers execution in background thread") { implicit sc =>
+  test("Task.startAndForget triggers execution in background thread") { implicit sc =>
     var counter = 0
     val task = Task.eval { counter += 1; counter }
 
     val main = for {
-      _ <- task.delayExecution(1.second).forkAndForget
-      _ <- task.delayExecution(1.second).forkAndForget
+      _ <- task.delayExecution(1.second).startAndForget
+      _ <- task.delayExecution(1.second).startAndForget
     } yield ()
 
     val f = main.runToFuture
@@ -42,13 +42,13 @@ object TaskForkAndForgetSuite extends BaseTestSuite {
     assertEquals(counter, 2)
   }
 
-  test("Task.forkAndForget triggers exceptions in background thread") { implicit sc =>
+  test("Task.startAndForget triggers exceptions in background thread") { implicit sc =>
     val dummy = new DummyException()
     val task = Task.now(20)
     val errorTask = Task.raiseError(dummy)
 
     val result = for {
-      _     <- errorTask.forkAndForget
+      _     <- errorTask.startAndForget
       value <- task
     } yield value
 
@@ -58,11 +58,11 @@ object TaskForkAndForgetSuite extends BaseTestSuite {
     assertEquals(sc.state.lastReportedError, dummy)
   }
 
-  test("Task.forkAndForget is stack safe") { implicit sc =>
+  test("Task.startAndForget is stack safe") { implicit sc =>
     val count = if (Platform.isJVM) 100000 else 5000
 
     var task: Task[Any] = Task.evalAsync(1)
-    for (_ <- 0 until count) task = task.forkAndForget
+    for (_ <- 0 until count) task = task.startAndForget
     for (_ <- 0 until count) task = task.flatMap(_ => Task.unit)
 
     val f = task.runToFuture

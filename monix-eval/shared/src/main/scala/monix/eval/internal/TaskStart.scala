@@ -34,7 +34,8 @@ private[eval] object TaskStart {
         Async(
           new StartForked(fa),
           trampolineBefore = false,
-          trampolineAfter = true
+          trampolineAfter = true,
+          restoreLocals = false
         )
     }
 

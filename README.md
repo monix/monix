@@ -45,29 +45,22 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Stable release: `2.3.3`
-- Current release candidate: `3.0.0-RC3`
-  (compatible with Cats-Effect 1.3.1)
-
-For the 3.x series (that works with Cats `1.x` and Cats-Effect `1.0.0`):
+For the stable release (compatible with Cats and Cats-Effect 2.x):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC3"
-```
-
-For the 2.x series:
-
-```scala
-libraryDependencies += "io.monix" %% "monix" % "2.3.3"
+libraryDependencies += "io.monix" %% "monix" % "3.0.0"
 ```
 
 ### Sub-projects
 
 Monix 3.x is modular by design, so you can pick and choose:
 
+- `monix-catnap` exposes pure abstractions built on top of
+   the [Cats-Effect](https://typelevel.org/cats-effect/) type classes;
+   depends on `monix-execution`, Cats 1.x and Cats-Effect
 - `monix-execution` exposes the low-level execution environment, or
-  more precisely `Scheduler`, `Cancelable`, `Atomic` and
-  `CancelableFuture`; depends on Cats 1.x and Cats-Effect
+  more precisely `Scheduler`, `Cancelable`, `Atomic`, `Local`, `CancelableFuture`
+  and `Future` based abstractions from `monix-catnap`.
 - `monix-eval` exposes `Task`, `Coeval`;
   depends on `monix-execution`
 - `monix-reactive` exposes `Observable` for modeling reactive,
