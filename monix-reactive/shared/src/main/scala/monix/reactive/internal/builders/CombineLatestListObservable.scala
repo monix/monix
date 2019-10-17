@@ -43,19 +43,19 @@ private[reactive] final class CombineLatestListObservable[A, +R](obss: Seq[Obser
     // NOTE: We use arrays and other mutable structures here to be as performant as possible.
 
     // MUST BE synchronized by `lock`
-    val observables: Array[Observable[(A, Int)]] = new Array(numberOfObservables)
+    val observables: Array[(Int, Observable[A])] = new Array(numberOfObservables)
     observables.indices.foreach { i =>
-      observables(i) = obss(i).map(x => (x, i))
+      observables(i) = (i, obss(i))
     }
     // MUST BE synchronized by `lock`
     var lastAck = Continue: Future[Ack]
     // MUST BE synchronized by `lock`
     val elems: mutable.ArraySeq[A] = new mutable.ArraySeq(numberOfObservables)
     // MUST BE synchronized by `lock`
-    val hasElems: Array[Boolean] = new Array(numberOfObservables)
-    hasElems.indices.foreach { i =>
-      hasElems(i) = false
-    }
+    val hasElems: Array[Boolean] = Array.fill(numberOfObservables)(false)
+
+    var hasElemsCount: Int = 0
+
     // MUST BE synchronized by `lock`
     var completedCount = 0
 
@@ -130,22 +130,21 @@ private[reactive] final class CombineLatestListObservable[A, +R](obss: Seq[Obser
 
     val composite = CompositeCancelable()
 
-    observables.foreach { obs =>
-      composite += obs.unsafeSubscribeFn(new Subscriber[(A, Int)] {
+    observables.foreach { case (index, obs) =>
+      composite += obs.unsafeSubscribeFn(new Subscriber[A] {
         implicit val scheduler: Scheduler = out.scheduler
 
-        def onNext(elemAndIndex: (A, Int)): Future[Ack] = lock.synchronized {
-          val elem: A = elemAndIndex._1
-          val index: Int = elemAndIndex._2
+        def onNext(elem: A): Future[Ack] = lock.synchronized {
           if (isDone) {
             Stop
           } else {
             elems(index) = elem
             if (!hasElems(index)) {
               hasElems(index) = true
+              hasElemsCount += 1
             }
 
-            if (hasElems.forall(identity)) {
+            if (hasElemsCount == numberOfObservables) {
               signalOnNext(Vector(elems: _*))
             } else {
               Continue
