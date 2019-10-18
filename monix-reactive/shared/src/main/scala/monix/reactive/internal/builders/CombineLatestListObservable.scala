@@ -50,7 +50,7 @@ private[reactive] final class CombineLatestListObservable[A, +R](obss: Seq[Obser
     // MUST BE synchronized by `lock`
     var lastAck = Continue: Future[Ack]
     // MUST BE synchronized by `lock`
-    val elems: mutable.ArraySeq[A] = new mutable.ArraySeq(numberOfObservables)
+    val elems: mutable.IndexedSeq[A] = mutable.IndexedSeq.fill(numberOfObservables)(null.asInstanceOf[A])
     // MUST BE synchronized by `lock`
     val hasElems: Array[Boolean] = Array.fill(numberOfObservables)(false)
 
@@ -145,7 +145,7 @@ private[reactive] final class CombineLatestListObservable[A, +R](obss: Seq[Obser
             }
 
             if (hasElemsCount == numberOfObservables) {
-              signalOnNext(Vector(elems: _*))
+              signalOnNext(elems.toVector)
             } else {
               Continue
             }
