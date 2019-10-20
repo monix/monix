@@ -30,9 +30,8 @@ import monix.execution.compat.internal.newBuilder
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.Local
-import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
-import org.reactivestreams.{Publisher, Subscriber}
+import org.reactivestreams.Publisher
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
@@ -2678,44 +2677,7 @@ object Task extends TaskInstancesLevel1 {
     F(fa)
 
   def fromPublisher[A](source: Publisher[A]): Task[Option[A]] =
-    Task.cancelable0 { (scheduler, cb) =>
-      val sub = SingleAssignSubscription()
-
-      source.subscribe(new Subscriber[A] {
-        private[this] var isActive = true
-
-        def onSubscribe(s: org.reactivestreams.Subscription): Unit = {
-          sub := s
-          sub.request(1)
-        }
-
-        def onNext(a: A): Unit = {
-          if (isActive) {
-            isActive = false
-            sub.cancel()
-            cb.onSuccess(Some(a))
-          }
-        }
-
-        def onError(e: Throwable): Unit = {
-          if (isActive) {
-            isActive = false
-            cb.onError(e)
-          } else {
-            scheduler.reportFailure(e)
-          }
-        }
-
-        def onComplete(): Unit = {
-          if (isActive) {
-            isActive = false
-            cb.onSuccess(None)
-          }
-        }
-      })
-
-      Task(sub.cancel())
-    }
+    TaskConversions.fromPublisher(source)
 
   /** Builds a [[Task]] instance out of any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]] and

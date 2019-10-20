@@ -18,11 +18,13 @@
 package monix.eval.internal
 
 import cats.effect._
-import monix.eval.Task.Context
-import monix.execution.Callback
 import monix.eval.Task
-import monix.execution.Scheduler
+import monix.eval.Task.Context
+import monix.execution.{Callback, Scheduler}
+import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.TrampolinedRunnable
+import org.reactivestreams.{Publisher, Subscriber}
+
 import scala.util.control.NonFatal
 
 private[eval] object TaskConversions {
@@ -105,6 +107,49 @@ private[eval] object TaskConversions {
       case ref: Task[A] @unchecked => ref
       case io: IO[A] @unchecked => io.to[Task]
       case _ => fromConcurrentEffect0(fa)
+    }
+
+  /**
+    * Implementation for `Task.fromPublisher`.
+    */
+  def fromPublisher[A](source: Publisher[A]): Task[Option[A]] =
+    Task.cancelable0 { (scheduler, cb) =>
+      val sub = SingleAssignSubscription()
+
+      source.subscribe(new Subscriber[A] {
+        private[this] var isActive = true
+
+        def onSubscribe(s: org.reactivestreams.Subscription): Unit = {
+          sub := s
+          sub.request(1)
+        }
+
+        def onNext(a: A): Unit = {
+          if (isActive) {
+            isActive = false
+            sub.cancel()
+            cb.onSuccess(Some(a))
+          }
+        }
+
+        def onError(e: Throwable): Unit = {
+          if (isActive) {
+            isActive = false
+            cb.onError(e)
+          } else {
+            scheduler.reportFailure(e)
+          }
+        }
+
+        def onComplete(): Unit = {
+          if (isActive) {
+            isActive = false
+            cb.onSuccess(None)
+          }
+        }
+      })
+
+      Task(sub.cancel())
     }
 
   private def fromConcurrentEffect0[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] = {
