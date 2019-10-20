@@ -24,6 +24,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.schedulers.TrampolinedRunnable
 import org.reactivestreams.{Publisher, Subscriber}
+import monix.execution.rstreams.SingleAssignSubscription
 
 import scala.util.control.NonFatal
 

@@ -27,7 +27,6 @@ import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
-import monix.execution.rstreams.SingleAssignSubscription
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
