@@ -21,11 +21,12 @@ import cats.effect._
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
-import cats.{effect, Eval}
+import cats.{Eval, effect}
 import monix.catnap.SchedulerEffect
 import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -377,6 +378,23 @@ object TaskConversionsSuite extends BaseTestSuite {
     s.tick()
     assertEquals(f2.value, Some(Success(99)))
   }
+
+  test("Task.fromPublisher protects against user error") { implicit s =>
+
+    val dummy = DummyException("dummy")
+
+    val pub = new Publisher[Int] {
+      def subscribe(s: Subscriber[_ >: Int]): Unit = {
+        s.onSubscribe(new Subscription {
+          def request(n: Long): Unit = throw dummy
+          def cancel(): Unit = throw dummy
+        })
+      }
+    }
+
+    assertEquals(Task.fromPublisher(pub).runToFuture.value, Some(Failure(dummy)))
+  }
+
 
   final case class CIO[+A](io: IO[A])
 
