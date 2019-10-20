@@ -18,10 +18,10 @@
 package monix.eval.internal
 
 import cats.effect._
-import monix.eval.Task
 import monix.eval.Task.Context
-import monix.execution.{Callback, Scheduler}
-import monix.execution.rstreams.SingleAssignSubscription
+import monix.execution.Callback
+import monix.eval.Task
+import monix.execution.Scheduler
 import monix.execution.schedulers.TrampolinedRunnable
 import org.reactivestreams.{Publisher, Subscriber}
 
