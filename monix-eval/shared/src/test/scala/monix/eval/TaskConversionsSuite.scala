@@ -395,6 +395,28 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(Task.fromPublisher(pub).runToFuture.value, Some(Failure(dummy)))
   }
 
+  test("Task.fromPublisher yields expected input") { implicit s =>
+
+    val pub = new Publisher[Int] {
+      def subscribe(s: Subscriber[_ >: Int]): Unit = {
+        s.onSubscribe(new Subscription {
+          var isActive = true
+          def request(n: Long): Unit = {
+            if (n > 0 && isActive) {
+              isActive = false
+              s.onNext(1)
+              s.onComplete()
+            }
+          }
+          def cancel(): Unit = {
+            isActive = false
+          }
+        })
+      }
+    }
+
+    assertEquals(Task.fromPublisher(pub).runToFuture.value, Some(Success(Some(1))))
+  }
 
   final case class CIO[+A](io: IO[A])
 
