@@ -28,14 +28,17 @@ private[execution] object ScheduledExecutors {
     * an underlying Java `ScheduledExecutorService`.
     */
   def scheduleOnce(
-    self: Scheduler,
-    executor: ScheduledExecutorService)(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
+    executor: Scheduler,
+    scheduler: ScheduledExecutorService
+  )(
+    initialDelay: Long, unit: TimeUnit, r: Runnable
+  ): Cancelable = {
     if (initialDelay <= 0) {
       executor.execute(r)
       Cancelable.empty
     } else {
-      val deferred = new ShiftedRunnable(r, self)
-      val task = executor.schedule(deferred, initialDelay, unit)
+      val deferred = new ShiftedRunnable(r, executor)
+      val task = scheduler.schedule(deferred, initialDelay, unit)
       Cancelable(() => task.cancel(true))
     }
   }
