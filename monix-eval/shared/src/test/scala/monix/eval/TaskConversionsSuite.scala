@@ -392,7 +392,7 @@ object TaskConversionsSuite extends BaseTestSuite {
       }
     }
 
-    assertEquals(Task.fromPublisher(pub).runToFuture.value, Some(Failure(dummy)))
+    assertEquals(Task.fromReactivePublisher(pub).runToFuture.value, Some(Failure(dummy)))
   }
 
   test("Task.fromPublisher yields expected input") { implicit s =>
@@ -415,12 +415,12 @@ object TaskConversionsSuite extends BaseTestSuite {
       }
     }
 
-    assertEquals(Task.fromPublisher(pub).runToFuture.value, Some(Success(Some(1))))
+    assertEquals(Task.fromReactivePublisher(pub).runToFuture.value, Some(Success(Some(1))))
   }
 
   test("Task.fromPublisher <-> task") { implicit s =>
     check1 { task: Task[Int] =>
-      Task.fromPublisher(task.toReactivePublisher) <-> task.map(Some(_))
+      Task.fromReactivePublisher(task.toReactivePublisher) <-> task.map(Some(_))
     }
   }
 

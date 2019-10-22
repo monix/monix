@@ -2715,7 +2715,7 @@ object Task extends TaskInstancesLevel1 {
     * @param source is the `org.reactivestreams.Publisher` reference to
     *        wrap into a [[Task]].
     */
-  def fromPublisher[A](source: Publisher[A]): Task[Option[A]] =
+  def fromReactivePublisher[A](source: Publisher[A]): Task[Option[A]] =
     TaskConversions.fromPublisher(source)
 
   /** Builds a [[Task]] instance out of any data type that implements
