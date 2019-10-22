@@ -103,12 +103,14 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
           assertEquals(r4, Left(0))
         }
       }
-      _ <- consume.start
+      fiber <- consume.start
+      _ <- chan.awaitConsumers(1)
       _ <- chan.push(1)
       _ <- chan.push(2)
       _ <- chan.push(3)
       _ <- chan.halt(0)
-    } yield ()
+      r <- fiber.join
+    } yield r
   }
 
   testIO("consumers can receive push", times = repeatForFastTests) { implicit ec =>
