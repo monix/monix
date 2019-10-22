@@ -418,6 +418,12 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(Task.fromPublisher(pub).runToFuture.value, Some(Success(Some(1))))
   }
 
+  test("Task.fromPublisher <-> task") { implicit s =>
+    check1 { task: Task[Int] =>
+      Task.fromPublisher(task.toReactivePublisher) <-> task.map(Some(_))
+    }
+  }
+
   final case class CIO[+A](io: IO[A])
 
   class CustomEffect(implicit cs: ContextShift[IO]) extends Effect[CIO] {
