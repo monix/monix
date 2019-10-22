@@ -19,9 +19,9 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
-
 import monix.execution.exceptions.DummyException
-import scala.util.Success
+
+import scala.util.{Random, Success}
 
 object CoevalFlatMapSuite extends BaseTestSuite {
   test("transformWith equivalence with flatMap") { implicit s =>
@@ -52,5 +52,17 @@ object CoevalFlatMapSuite extends BaseTestSuite {
     def looped: Coeval[Unit] = Coeval.unit >> looped
     val _ = looped
     assert(true)
+  }
+
+  test("flatMapLoop enables loops") { implicit s =>
+    val random = Coeval(Random.nextInt())
+    val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
+      val newList = list :+ a
+      if (newList.length < 5)
+        continue(newList)
+      else
+        Coeval.now(newList)
+    }
+    assertEquals(loop.apply().size, 5)
   }
 }
