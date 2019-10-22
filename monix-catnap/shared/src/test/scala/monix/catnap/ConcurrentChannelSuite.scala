@@ -113,6 +113,41 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
     } yield r
   }
 
+  testIO("consumer queue is empty after pulling all messages", times = repeatForFastTests) { implicit ec =>
+    for {
+      chan <- ConcurrentChannel[IO].withConfig[Int, Int](boundedConfig)
+      consume = chan.consume.use { consumer =>
+        for {
+          _ <- consumer.pull
+        } yield {
+          assertEquals(consumer.isEmpty.unsafeRunSync(), true)
+        }
+      }
+      fiber <- consume.start
+      _ <- chan.awaitConsumers(1)
+      _ <- chan.push(1)
+      _ <- chan.halt(0)
+      r <- fiber.join
+    } yield r
+  }
+
+  testIO("consumer queue should not be empty when not all messages are pulled", times = repeatForFastTests) { implicit ec =>
+    for {
+      chan <- ConcurrentChannel[IO].withConfig[Int, Int](boundedConfig)
+      consume = chan.consume.use { consumer =>
+        for {
+          _ <- consumer.pullMany(1, 2)
+        } yield {
+          assertEquals(consumer.isEmpty.unsafeRunSync(), false)
+        }
+      }
+      fiber <- consume.start
+      _ <- chan.awaitConsumers(1)
+      _ <- chan.pushMany(1 to 10)
+      r <- fiber.join
+    } yield r
+  }
+
   testIO("consumers can receive push", times = repeatForFastTests) { implicit ec =>
     for {
       chan  <- ConcurrentChannel[IO].withConfig[Int, Int](boundedConfig)

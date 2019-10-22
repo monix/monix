@@ -16,6 +16,7 @@
  */
 
 package monix.catnap
+import monix.execution.annotations.UnsafeProtocol
 import monix.execution.{BufferCapacity, ChannelType}
 import monix.execution.atomic.PaddingStrategy
 
@@ -89,6 +90,13 @@ trait ConsumerF[F[_], E, A] extends Serializable {
     */
   def pullMany(minLength: Int, maxLength: Int): F[Either[E, Seq[A]]]
 
+  /** Checks if the queue is empty.
+    *
+    * '''UNSAFE PROTOCOL:'''
+    * Concurrent shared state changes very frequently, therefore this function might yield nondeterministic results.
+    * Should be used carefully since some usecases might require a deeper insight into concurrent programming.
+    */
+  @UnsafeProtocol
   def isEmpty: F[Boolean]
 }
 
