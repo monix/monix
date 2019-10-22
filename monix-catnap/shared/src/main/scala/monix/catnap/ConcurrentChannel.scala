@@ -926,7 +926,7 @@ object ConcurrentChannel {
     }
 
     override def isEmpty: F[Boolean] =
-      F.pure(queue.isEmpty)
+      F.delay(queue.isEmpty)
 
   }
 
