@@ -924,6 +924,10 @@ object ConcurrentChannel {
           }
       }
     }
+
+    override def isEmpty: F[Boolean] =
+      F.pure(queue.isEmpty)
+
   }
 
   private final class Helpers[F[_]](implicit F: Concurrent[F], cs: ContextShift[F]) extends QueueHelpers[F] {

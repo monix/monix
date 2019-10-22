@@ -88,6 +88,8 @@ trait ConsumerF[F[_], E, A] extends Serializable {
     *         no larger than `maxLength`
     */
   def pullMany(minLength: Int, maxLength: Int): F[Either[E, Seq[A]]]
+
+  def isEmpty: F[Boolean]
 }
 
 object ConsumerF {
