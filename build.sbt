@@ -38,7 +38,7 @@ val implicitBoxVersion = "0.1.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0-RC5"
+val monixSeries = "3.0.0"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -123,7 +123,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
 
   // For working with partially-applied types
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary),
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.0" cross CrossVersion.full),
 
   // ScalaDoc settings
   autoAPIMappings := true,
@@ -510,7 +510,7 @@ enablePlugins(GitVersioning)
 /* The BaseVersion setting represents the in-development (upcoming) version,
  * as an alternative to SNAPSHOTS.
  */
-git.baseVersion := "3.0.0"
+git.baseVersion := "3.1.0"
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {
