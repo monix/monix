@@ -379,7 +379,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(99)))
   }
 
-  test("Task.fromPublisher protects against user error") { implicit s =>
+  test("Task.fromReactivePublisher protects against user error") { implicit s =>
 
     val dummy = DummyException("dummy")
 
@@ -395,7 +395,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(Task.fromReactivePublisher(pub).runToFuture.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromPublisher yields expected input") { implicit s =>
+  test("Task.fromReactivePublisher yields expected input") { implicit s =>
 
     val pub = new Publisher[Int] {
       def subscribe(s: Subscriber[_ >: Int]): Unit = {
@@ -418,7 +418,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(Task.fromReactivePublisher(pub).runToFuture.value, Some(Success(Some(1))))
   }
 
-  test("Task.fromPublisher <-> task") { implicit s =>
+  test("Task.fromReactivePublisher <-> task") { implicit s =>
     check1 { task: Task[Int] =>
       Task.fromReactivePublisher(task.toReactivePublisher) <-> task.map(Some(_))
     }

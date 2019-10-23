@@ -111,9 +111,9 @@ private[eval] object TaskConversions {
     }
 
   /**
-    * Implementation for `Task.fromPublisher`.
+    * Implementation for `Task.fromReactivePublisher`.
     */
-  def fromPublisher[A](source: Publisher[A]): Task[Option[A]] =
+  def fromReactivePublisher[A](source: Publisher[A]): Task[Option[A]] =
     Task.cancelable0 { (scheduler, cb) =>
       val sub = SingleAssignSubscription()
 

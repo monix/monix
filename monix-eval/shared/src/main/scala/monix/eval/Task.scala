@@ -2716,7 +2716,7 @@ object Task extends TaskInstancesLevel1 {
     *        wrap into a [[Task]].
     */
   def fromReactivePublisher[A](source: Publisher[A]): Task[Option[A]] =
-    TaskConversions.fromPublisher(source)
+    TaskConversions.fromReactivePublisher(source)
 
   /** Builds a [[Task]] instance out of any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]] and
