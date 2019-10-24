@@ -264,6 +264,18 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
     }
   }
 
+  testIO("queue should be empty") { implicit s =>
+    for {
+      queue <- ConcurrentQueue[IO].bounded[Int](10)
+      _     <- queue.offer(1)
+      _     <- queue.clear
+      value <- queue.tryPoll
+    } yield {
+      assertEquals(value, None)
+      assertEquals(queue.isEmpty.unsafeRunSync(), true)
+    }
+  }
+
   testIO("concurrent producer - consumer; MPMC; bounded") { implicit ec =>
     val count = if (Platform.isJVM) 10000 else 1000
     val queue = ConcurrentQueue[IO].unsafe[Int](Bounded(128), MPMC)

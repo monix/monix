@@ -22,7 +22,7 @@ import cats.{Applicative, Parallel}
 /** Given a `cats.Parallel` instance for a type `F[_]`, builds
   * a parallel `cats.Applicative[F]` out of it.
   */
-private[monix] final class ParallelApplicative[F[_], G[_]](implicit P: Parallel[F, G]) extends Applicative[F] {
+private[monix] final class ParallelApplicative[F[_]](implicit P: Parallel[F]) extends Applicative[F] {
 
   override def pure[A](x: A): F[A] =
     P.monad.pure(x)
@@ -43,6 +43,6 @@ private[monix] object ParallelApplicative {
   /** Given a `cats.Parallel` instance, builds a parallel `cats.Applicative`
     * out of it.
     */
-  def apply[F[_], G[_]](implicit P: Parallel[F, G]): Applicative[F] =
-    new ParallelApplicative[F, G]()
+  def apply[F[_]](implicit P: Parallel[F]): Applicative[F] =
+    new ParallelApplicative[F]()
 }

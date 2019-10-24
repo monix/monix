@@ -50,15 +50,10 @@ object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
   }
 
   test("Task.foreach reports exceptions using scheduler") { implicit s =>
-    // https://github.com/monix/monix/issues/786#issuecomment-460300517
-    if (monix.eval.internal.ScalaVersion.Full == "2.13.0-M5") {
-      ignore("Fails due to regression in 2.13.0-M5")
-    } else {
-      val dummy = DummyException("dummy")
-      Task.evalAsync(1).foreach(_ => throw dummy)
-      s.tick()
-      assertEquals(s.state.lastReportedError, dummy)
-    }
+    val dummy = DummyException("dummy")
+    Task.evalAsync(1).foreach(_ => throw dummy)
+    s.tick()
+    assertEquals(s.state.lastReportedError, dummy)
   }
 
   test("Coeval.foreachL") { _ =>

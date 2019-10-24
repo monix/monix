@@ -1741,6 +1741,33 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   final def flatMap[B](f: A => Task[B]): Task[B] =
     FlatMap(this, f)
 
+  /**  Describes flatMap-driven loops, as an alternative to recursive functions.
+    *
+    * Sample:
+    *
+    * {{{
+    *   import scala.util.Random
+    * 
+    *   val random = Task(Random.nextInt())
+    *   val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
+    *     val newList = list :+ a
+    *     if (newList.length < 5)
+    *       continue(newList)
+    *     else
+    *       Task.now(newList)
+    *   }
+    * }}}
+    *
+    * @param seed initializes the result of the loop
+    * @param f is the function that updates the result
+    *        on each iteration, returning a `Task`.
+    * @return a new [[Task]] that contains the result of the loop.
+    */
+  final def flatMapLoop[S](seed: S)(f: (A, S, S => Task[S]) => Task[S]): Task[S] =
+    this.flatMap { a =>
+      f(a, seed, flatMapLoop(_)(f))
+    }
+
   /** Given a source Task that emits another Task, this function
     * flattens the result, returning a Task equivalent to the emitted
     * Task by the source.
@@ -4730,9 +4757,9 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
 }
 
 private[eval] abstract class TaskParallelNewtype extends TaskContextShift {
-  /** Newtype encoding for an `Task` data type that has a [[cats.Applicative]]
+  /** Newtype encoding for a `Task` data type that has a [[cats.Applicative]]
     * capable of doing parallel processing in `ap` and `map2`, needed
-    * for implementing [[cats.Parallel]].
+    * for implementing `cats.Parallel`.
     *
     * Helpers are provided for converting back and forth in `Par.apply`
     * for wrapping any `Task` value and `Par.unwrap` for unwrapping.
