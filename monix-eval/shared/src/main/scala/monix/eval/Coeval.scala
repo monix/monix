@@ -585,6 +585,33 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   final def flatMap[B](f: A => Coeval[B]): Coeval[B] =
     FlatMap(this, f)
 
+  /** Describes flatMap-driven loops, as an alternative to recursive functions.
+    *
+    * Sample:
+    *
+    * {{{
+    *   import scala.util.Random
+    * 
+    *   val random = Coeval(Random.nextInt())
+    *   val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
+    *     val newList = list :+ a
+    *     if (newList.length < 5)
+    *       continue(newList)
+    *     else
+    *       Coeval.now(newList)
+    *   }
+    * }}}
+    *
+    * @param seed initializes the result of the loop
+    * @param f is the function that updates the result
+    *        on each iteration, returning a `Coeval`.
+    * @return a new [[Coeval]] that contains the result of the loop.
+    */
+  final def flatMapLoop[S](seed: S)(f: (A, S, S => Coeval[S]) => Coeval[S]): Coeval[S] =
+    this.flatMap { a =>
+      f(a, seed, flatMapLoop(_)(f))
+    }
+
   /** Given a source Coeval that emits another Coeval, this function
     * flattens the result, returning a Coeval equivalent to the emitted
     * Coeval by the source.
