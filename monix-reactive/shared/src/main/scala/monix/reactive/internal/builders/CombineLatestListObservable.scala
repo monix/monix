@@ -43,9 +43,9 @@ private[reactive] final class CombineLatestListObservable[A, +R](obss: Seq[Obser
     // NOTE: We use arrays and other mutable structures here to be as performant as possible.
 
     // MUST BE synchronized by `lock`
-    val observables: Array[(Int, Observable[A])] = new Array(numberOfObservables)
-    observables.indices.foreach { i =>
-      observables(i) = (i, obss(i))
+    val observables: Array[(Observable[A], Int)] = new Array(numberOfObservables)
+    obss.zipWithIndex.foreach { obsAndIndex =>
+      observables(obsAndIndex._2) = obsAndIndex
     }
     // MUST BE synchronized by `lock`
     var lastAck = Continue: Future[Ack]
@@ -130,7 +130,7 @@ private[reactive] final class CombineLatestListObservable[A, +R](obss: Seq[Obser
 
     val composite = CompositeCancelable()
 
-    observables.foreach { case (index, obs) =>
+    observables.foreach { case (obs, index) =>
       composite += obs.unsafeSubscribeFn(new Subscriber[A] {
         implicit val scheduler: Scheduler = out.scheduler
 
