@@ -2,6 +2,12 @@ import com.typesafe.tools.mima.core.ProblemFilters.exclude
 import com.typesafe.tools.mima.core._
 
 object MimaFilters {
+  lazy val changesFor_3_0_1: Seq[ProblemFilter] = Seq(
+    // Signature changes in internal classes
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.Trampoline.*"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.TrampolineExecutionContext#JVMNormalTrampoline.*"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.TrampolineExecutionContext#JVMOptimalTrampoline.*")
+  )
   lazy val changesFor_3_0_0__RC5: Seq[ProblemFilter] = Seq(
     // Incompatible signatures should not cause linking problems.
     exclude[IncompatibleSignatureProblem]("monix.reactive.Observable.observableNonEmptyParallel"),
