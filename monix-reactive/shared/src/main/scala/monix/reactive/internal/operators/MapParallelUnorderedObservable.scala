@@ -101,6 +101,7 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
             error => {
               lastAck = Stop
               composite -= subscription
+              composite.cancel()
               self.onError(error)
             },
             value =>
