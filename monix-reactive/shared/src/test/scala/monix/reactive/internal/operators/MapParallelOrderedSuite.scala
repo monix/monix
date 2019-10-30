@@ -461,8 +461,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     assert(error)
   }
 
-    test("should cancel the whole stream when if one fails") { implicit s =>
-
+  test("should cancel the whole stream when if one fails") { implicit s =>
     val wasThrown: Throwable = null
     var received = 0
 
@@ -473,6 +472,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
       .toListL.runToFuture
 
     s.tick(1.second)
+
     assertEquals(received, 3)
   }
 }
