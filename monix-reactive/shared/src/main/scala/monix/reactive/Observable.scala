@@ -5977,18 +5977,13 @@ object Observable extends ObservableDeprecatedBuilders {
     new builders.CombineLatest6Observable[A1, A2, A3, A4, A5, A6, R](a1, a2, a3, a4, a5, a6)(f)
 
   /** Given an observable sequence, it combines them together
-    * (using [[combineLatestMap2 combineLatest]])
     * returning a new observable that generates sequences.
     */
   def combineLatestList[A](sources: Observable[A]*): Observable[Seq[A]] = {
-    if (sources.isEmpty) Observable.empty
-    else {
-      val seed = sources.head.map(t => Vector(t))
-      sources.tail.foldLeft(seed) { (acc, obs) =>
-        acc.combineLatestMap(obs) { (seq, elem) =>
-          seq :+ elem
-        }
-      }
+    if (sources.isEmpty) {
+      Observable.empty
+    } else {
+      new CombineLatestListObservable[A](sources)
     }
   }
 

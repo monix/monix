@@ -18,19 +18,23 @@
 package monix.reactive.internal.operators
 
 import monix.reactive.Observable
-import monix.reactive.Observable.now
+
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
 object CombineLatestListSuite extends BaseOperatorSuite {
+
+  val NumberOfObservables: Int = 10000 // We want to test with MANY observables to ensure it is stack-safe.
+
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.range(0, sourceCount)
+    val sources = (1 to NumberOfObservables).map(_ => Observable.now(1L))
     val o: Observable[Long] =
-      Observable.combineLatestList(now(1L), now(2L), now(3L), now(4L), now(5L), source).map { seq =>
+      Observable.combineLatestList((sources :+ source): _*).map { seq =>
         seq.sum
       }
 
-    val sum = (0 until sourceCount).map(_ + 15).sum
+    val sum = (0 until sourceCount).map(_ + NumberOfObservables).sum
     Sample(o, sourceCount, sum, Zero, Zero)
   }
 
@@ -39,13 +43,9 @@ object CombineLatestListSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 = {
-      val o1 = Observable.range(0, 10).delayOnNext(1.second)
-      val o2 = Observable.range(0, 10).delayOnNext(1.second)
-      val o3 = Observable.range(0, 10).delayOnNext(1.second)
-      val o4 = Observable.range(0, 10).delayOnNext(1.second)
-      val o5 = Observable.range(0, 10).delayOnNext(1.second)
-      val o6 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.combineLatestList(o1, o2, o3, o4, o5, o6).map { seq =>
+      val sources =
+        (0 until NumberOfObservables).map(_ => Observable.range(0, 10).delayOnNext(1.second))
+      Observable.combineLatestList(sources: _*).map { seq =>
         seq.sum
       }
     }
