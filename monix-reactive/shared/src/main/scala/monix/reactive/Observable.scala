@@ -2875,6 +2875,19 @@ abstract class Observable[+A] extends Serializable { self =>
   final def scan[S](seed: => S)(op: (S, A) => S): Observable[S] =
     new ScanObservable[A, S](self, seed _, op)
 
+  /**
+    * Applies a binary operator to a start value and all elements of
+    * this Observable, going left to right and returns a new
+    * Observable that emits on each step the result element of
+    * the applied function.
+    *
+    * Similar to [[scan]], but the supplied function returns a tuple
+    * of the next accumulator state and the result type emitted by
+    * the returned observable.
+    */
+  final def scanAccumulate[S, R](seed: => S)(op: (S, A) => (S, R)): Observable[R] =
+    new ScanAccumulateObservable[A, S, R](self, seed _, op)
+
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
     * Observable that emits on each step the result of the applied
