@@ -5983,7 +5983,7 @@ object Observable extends ObservableDeprecatedBuilders {
     if (sources.isEmpty) {
       Observable.empty
     } else {
-      new CombineLatestListObservable[A, Seq[A]](sources)(identity)
+      new CombineLatestListObservable[A](sources)
     }
   }
 

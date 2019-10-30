@@ -26,13 +26,12 @@ import monix.reactive.observers.Subscriber
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.util.Success
-import scala.util.control.NonFatal
 
-/** Only used in [[Observable.combineLatestList()]]. Is tested by `CombineLatestListSuite`. */
-private[reactive] final class CombineLatestListObservable[A, +R](observables: Seq[Observable[A]])(f: Seq[A] => R)
-  extends Observable[R] {
+/** Only used in [[Observable.combineLatestList()]]. */
+private[reactive] final class CombineLatestListObservable[A](observables: Seq[Observable[A]])
+  extends Observable[Seq[A]] {
 
-  def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
+  def unsafeSubscribeFn(out: Subscriber[Seq[A]]): Cancelable = {
     import out.scheduler
 
     val numberOfObservables = observables.size
@@ -55,21 +54,9 @@ private[reactive] final class CombineLatestListObservable[A, +R](observables: Se
     var completedCount = 0
 
     // MUST BE synchronized by `lock`
-    def rawOnNext(as: Seq[A]): Future[Ack] =
-      if (isDone) Stop
-      else {
-        var streamError = true
-        try {
-          val c = f(as)
-          streamError = false
-          out.onNext(c)
-        } catch {
-          case NonFatal(ex) if streamError =>
-            isDone = true
-            out.onError(ex)
-            Stop
-        }
-      }
+    def rawOnNext(as: Seq[A]): Future[Ack] = {
+      if (isDone) Stop else out.onNext(as)
+    }
 
     // MUST BE synchronized by `lock`
     def signalOnNext(as: Seq[A]): Future[Ack] = {
