@@ -69,13 +69,8 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
     implicit val scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
     private[this] val semaphore = AsyncSemaphore(parallelism)
-    // Reusable instance for releasing permits on cancel, but
-    // it's debatable whether this is needed, since on cancel
-    // everything gets canceled at once
-    private[this] val releaseTask = Task.eval(semaphore.release())
     // Buffer with the supplied  overflow strategy.
     private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
-
     // Flag indicating whether a final event was called, after which
     // nothing else can happen. It's a very light protection, as
     // access to it is concurrent and not synchronized
@@ -84,6 +79,8 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
     // coming from the `buffer` - this indicates that the downstream
     // no longer wants any events, so we must cancel
     private[this] var lastAck: Ack = Continue
+    // everything gets canceled at once
+    private[this] val cancelComposite = Task.eval(composite.cancel())
 
     private def process(elem: A) = {
       // For protecting against user code, without violating the
@@ -118,8 +115,7 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
                   self.onError(ex)
               }
           )
-
-          ref.doOnCancel(releaseTask)
+          ref.doOnCancel(cancelComposite)
         }
 
         // No longer allowed to stream errors downstream
