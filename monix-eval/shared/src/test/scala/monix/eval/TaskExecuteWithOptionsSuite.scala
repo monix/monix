@@ -17,7 +17,6 @@
 
 package monix.eval
 
-import cats.implicits._
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
@@ -68,16 +67,6 @@ object TaskExecuteWithOptionsSuite extends BaseTestSuite {
 
     val f = loop(10000, 0).runToFuture; sc.tick()
     assertEquals(f.value, Some(Success(10000)))
-  }
-
-  test("cats' parSequence with LCP is stack safe") { implicit sc =>
-    val f = List.fill(2000)(Task.unit).parSequence_
-      .executeWithOptions(_.enableLocalContextPropagation)
-      .runToFuture
-
-    sc.tick()
-
-    assertEquals(f.value, Some(Success(())))
   }
 
 }
