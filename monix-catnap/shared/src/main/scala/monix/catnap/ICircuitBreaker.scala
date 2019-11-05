@@ -61,25 +61,6 @@ trait ICircuitBreaker[F[_]] {
     */
   def state: F[CircuitBreaker.State]
 
-  /**
-    * Awaits for this `CircuitBreaker` to be [[CircuitBreaker.Closed closed]].
-    *
-    * This only works if the type class instance used is implementing
-    * [[https://typelevel.org/cats-effect/typeclasses/async.html cats.effect.Async]].
-    *
-    * If this `CircuitBreaker` is already in a closed state, then
-    * it returns immediately, otherwise it will wait (asynchronously) until
-    * the `CircuitBreaker` switches to the [[CircuitBreaker.Closed Closed]]
-    * state again.
-    *
-    * @param F is a restriction for `F[_]` to implement
-    *        `Concurrent[F]` or `Async[F]` (from Cats-Effect). If it
-    *        implements `Concurrent`, then the resulting instance will
-    *        be cancelable, to properly dispose of the registered
-    *        listener in case of cancellation.
-    */
-  def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit]
-
   /** Returns a new circuit breaker that wraps the state of the source
     * and that will fire the given callback upon the circuit breaker
     * transitioning to the [[CircuitBreaker.Closed Closed]] state.
