@@ -60,10 +60,8 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     implicit val scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
     private[this] val semaphore = AsyncSemaphore(parallelism)
-    // Reusable instance for releasing permits on cancel, but
-    // it's debatable whether this is needed, since on cancel
     // everything gets canceled at once
-    private[this] val releaseTask = Task.eval(semaphore.release())
+    private[this] val cancelComposite = Task.eval(composite.cancel())
     // Buffer with the supplied  overflow strategy.
     private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
 
@@ -145,7 +143,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
       // we can no longer stream errors downstream
       var streamErrors = true
       try {
-        val task = f(elem).doOnCancel(releaseTask)
+        val task = f(elem).doOnCancel(cancelComposite)
         // No longer allowed to stream errors downstream
         streamErrors = false
         // Start execution (forcing an async boundary)
