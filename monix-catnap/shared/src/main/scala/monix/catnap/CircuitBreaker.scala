@@ -25,6 +25,7 @@ import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
 import monix.execution.exceptions.ExecutionRejectedException
 import monix.execution.internal.Constants
+
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
@@ -203,8 +204,8 @@ final class CircuitBreaker[F[_]] private (
   onRejected: F[Unit],
   onClosed: F[Unit],
   onHalfOpen: F[Unit],
-  onOpen: F[Unit])(implicit F: Sync[F], clock: Clock[F]) {
-
+  onOpen: F[Unit])(implicit F: Sync[F], clock: Clock[F])
+  extends ICircuitBreaker[F] {
   require(_maxFailures >= 0, "maxFailures >= 0")
   require(_exponentialBackoffFactor >= 1, "exponentialBackoffFactor >= 1")
   require(_resetTimeout > Duration.Zero, "resetTimeout > 0")
@@ -216,7 +217,7 @@ final class CircuitBreaker[F[_]] private (
   /**
     * The maximum count for allowed failures before opening the circuit breaker.
     */
-  val maxFailures = _maxFailures
+  override val maxFailures = _maxFailures
 
   /** The timespan to wait in the `Open` state before attempting
     * a close of the circuit breaker (but without the backoff
@@ -227,28 +228,28 @@ final class CircuitBreaker[F[_]] private (
     * repeatedly with that factor, a value that can be found by
     * querying the [[state]].
     */
-  val resetTimeout = _resetTimeout
+  override val resetTimeout = _resetTimeout
 
   /** A factor to use for resetting the [[resetTimeout]] when in the
     * `HalfOpen` state, in case the attempt for `Close` fails.
     */
-  val exponentialBackoffFactor = _exponentialBackoffFactor
+  override val exponentialBackoffFactor = _exponentialBackoffFactor
 
   /** The maximum timespan the circuit breaker is allowed to use
     * as a [[resetTimeout]] when applying the [[exponentialBackoffFactor]].
     */
-  val maxResetTimeout = _maxResetTimeout
+  override val maxResetTimeout = _maxResetTimeout
 
   /** Returns the current [[CircuitBreaker.State]], meant for
     * debugging purposes.
     */
-  val state: F[CircuitBreaker.State] =
+  override val state: F[CircuitBreaker.State] =
     F.delay(stateRef.get)
 
   /** Returns a new task that upon execution will execute the given
     * task, but with the protection of this circuit breaker.
     */
-  def protect[A](task: F[A]): F[A] =
+  override def protect[A](task: F[A]): F[A] =
     F.suspend(unsafeProtect(task))
 
   /**
@@ -268,7 +269,7 @@ final class CircuitBreaker[F[_]] private (
     *        be cancelable, to properly dispose of the registered
     *        listener in case of cancellation.
     */
-  def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
+  override def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
     val F0 = F.unify
     F0.suspend {
       stateRef.get match {
@@ -440,7 +441,7 @@ final class CircuitBreaker[F[_]] private (
     * @param callback is to be executed when tasks get rejected
     * @return a new circuit breaker wrapping the state of the source
     */
-  def doOnRejectedTask(callback: F[Unit]): CircuitBreaker[F] = {
+  override def doOnRejectedTask(callback: F[Unit]): CircuitBreaker[F] = {
     val onRejected = this.onRejected.flatMap(_ => callback)
     new CircuitBreaker(
       _stateRef = stateRef,
@@ -467,7 +468,7 @@ final class CircuitBreaker[F[_]] private (
     * @param callback is to be executed when the state evolves into `Closed`
     * @return a new circuit breaker wrapping the state of the source
     */
-  def doOnClosed(callback: F[Unit]): CircuitBreaker[F] = {
+  override def doOnClosed(callback: F[Unit]): CircuitBreaker[F] = {
     val onClosed = this.onClosed.flatMap(_ => callback)
     new CircuitBreaker(
       _stateRef = stateRef,
@@ -495,7 +496,7 @@ final class CircuitBreaker[F[_]] private (
     * @param callback is to be executed when the state evolves into `HalfOpen`
     * @return a new circuit breaker wrapping the state of the source
     */
-  def doOnHalfOpen(callback: F[Unit]): CircuitBreaker[F] = {
+  override def doOnHalfOpen(callback: F[Unit]): CircuitBreaker[F] = {
     val onHalfOpen = this.onHalfOpen.flatMap(_ => callback)
     new CircuitBreaker(
       _stateRef = stateRef,
@@ -522,7 +523,7 @@ final class CircuitBreaker[F[_]] private (
     * @param callback is to be executed when the state evolves into `Open`
     * @return a new circuit breaker wrapping the state of the source
     */
-  def doOnOpen(callback: F[Unit]): CircuitBreaker[F] = {
+  override def doOnOpen(callback: F[Unit]): CircuitBreaker[F] = {
     val onOpen = this.onOpen.flatMap(_ => callback)
     new CircuitBreaker(
       _stateRef = stateRef,
@@ -617,7 +618,6 @@ object CircuitBreaker extends CircuitBreakerDocs {
     maxResetTimeout: Duration = Duration.Inf,
     padding: PaddingStrategy = NoPadding
   )(implicit F: Sync[F], clock: Clock[F]): F[CircuitBreaker[F]] = {
-
     CircuitBreaker[F].of(
       maxFailures = maxFailures,
       resetTimeout = resetTimeout,
@@ -648,7 +648,6 @@ object CircuitBreaker extends CircuitBreakerDocs {
     maxResetTimeout: Duration = Duration.Inf,
     padding: PaddingStrategy = NoPadding
   )(implicit F: Sync[F], clock: Clock[F]): CircuitBreaker[F] = {
-
     CircuitBreaker[F].unsafe(
       maxFailures = maxFailures,
       resetTimeout = resetTimeout,
@@ -688,7 +687,6 @@ object CircuitBreaker extends CircuitBreakerDocs {
       onOpen: F[Unit] = F.unit,
       padding: PaddingStrategy = NoPadding
     )(implicit clock: Clock[F]): F[CircuitBreaker[F]] = {
-
       F.delay(
         unsafe(
           maxFailures = maxFailures,
@@ -730,7 +728,6 @@ object CircuitBreaker extends CircuitBreakerDocs {
       onOpen: F[Unit] = F.unit,
       padding: PaddingStrategy = NoPadding
     )(implicit clock: Clock[F]): CircuitBreaker[F] = {
-
       val atomic = Atomic.withPadding(Closed(0): State, padding)
       new CircuitBreaker[F](
         _stateRef = atomic,
@@ -808,7 +805,6 @@ object CircuitBreaker extends CircuitBreakerDocs {
     val resetTimeout: FiniteDuration,
     private[catnap] val awaitClose: CancelablePromise[Unit])
     extends State {
-
     /** The timestamp in milliseconds since the epoch, specifying
       * when the `Open` state is to transition to [[HalfOpen]].
       *
@@ -879,7 +875,6 @@ object CircuitBreaker extends CircuitBreakerDocs {
     val resetTimeout: FiniteDuration,
     private[catnap] val awaitClose: CancelablePromise[Unit])
     extends State {
-
     override def equals(other: Any): Boolean = other match {
       case that: HalfOpen =>
         resetTimeout == that.resetTimeout &&
