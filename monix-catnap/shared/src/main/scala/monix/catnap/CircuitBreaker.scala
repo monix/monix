@@ -269,7 +269,7 @@ final class CircuitBreaker[F[_]] private (
     *        be cancelable, to properly dispose of the registered
     *        listener in case of cancellation.
     */
-  override def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
+  def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
     val F0 = F.unify
     F0.suspend {
       stateRef.get match {
