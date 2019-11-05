@@ -17,8 +17,6 @@
 
 package monix.catnap
 
-import cats.effect.{Async, Concurrent}
-
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /** The circuit breaker is used to provide stability and prevent
