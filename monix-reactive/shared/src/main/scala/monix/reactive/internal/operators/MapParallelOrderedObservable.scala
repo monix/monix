@@ -103,7 +103,6 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
                     composite -= head.cancelable
                   case Failure(ex) =>
                     lastAck = Stop
-                    composite.cancel() // cancel the whole downstream on error
                     self.onError(ex)
                 }
 
