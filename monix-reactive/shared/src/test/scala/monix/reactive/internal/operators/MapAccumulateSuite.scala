@@ -25,10 +25,10 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 import scala.util.Failure
 
-object ScanAccumulateSuite extends BaseOperatorSuite {
+object MapAccumulateSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
-      .scanAccumulate(0L)((acc, elem) => (acc + elem, acc * elem))
+      .mapAccumulate(0L)((acc, elem) => (acc + elem, acc * elem))
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -37,7 +37,7 @@ object ScanAccumulateSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-      .scan(0L)(_ + _)
+      .mapAccumulate(0L)((acc, elem) => (acc + elem, acc * elem))
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
@@ -49,7 +49,7 @@ object ScanAccumulateSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).scanAccumulate(0L) { (acc, elem) =>
+    val o = Observable.range(0, sourceCount).mapAccumulate(0L) { (acc, elem) =>
       if (elem == sourceCount - 1)
         throw ex
       else
@@ -63,14 +63,14 @@ object ScanAccumulateSuite extends BaseOperatorSuite {
     val sample = Observable
       .range(1, 100)
       .delayOnNext(1.second)
-      .scanAccumulate(0L)((acc, elem) => (acc + elem, acc * elem))
+      .mapAccumulate(0L)((acc, elem) => (acc + elem, acc * elem))
 
     Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
   }
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1, 2, 3, 4).scanAccumulate[Int, Int](throw ex)((acc, elem) => (acc + elem, acc * elem))
+    val obs = Observable(1, 2, 3, 4).mapAccumulate[Int, Int](throw ex)((acc, elem) => (acc + elem, acc * elem))
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }

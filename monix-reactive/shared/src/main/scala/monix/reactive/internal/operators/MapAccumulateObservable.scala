@@ -25,7 +25,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-private[reactive] final class ScanAccumulateObservable[A, S, R](
+private[reactive] final class MapAccumulateObservable[A, S, R](
   source: Observable[A],
   initial: () => S,
   f: (S, A) => (S, R))

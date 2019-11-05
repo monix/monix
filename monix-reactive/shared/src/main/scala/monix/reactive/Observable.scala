@@ -2885,8 +2885,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * of the next accumulator state and the result type emitted by
     * the returned observable.
     */
-  final def scanAccumulate[S, R](seed: => S)(op: (S, A) => (S, R)): Observable[R] =
-    new ScanAccumulateObservable[A, S, R](self, seed _, op)
+  final def mapAccumulate[S, R](seed: => S)(op: (S, A) => (S, R)): Observable[R] =
+    new MapAccumulateObservable[A, S, R](self, seed _, op)
 
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
