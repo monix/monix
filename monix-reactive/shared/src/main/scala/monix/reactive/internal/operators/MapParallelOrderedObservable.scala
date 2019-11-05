@@ -160,6 +160,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
 
           case Failure(error) =>
             lastAck = Stop
+            composite.cancel()
             composite -= future.cancelable
             self.onError(error)
         }
