@@ -71,8 +71,6 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
     private[this] val semaphore = AsyncSemaphore(parallelism)
     // Buffer with the supplied  overflow strategy.
     private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
-    // everything gets canceled at once
-    private[this] val cancelComposite = Task.eval(composite.cancel())
 
     // Flag indicating whether a final event was called, after which
     // nothing else can happen. It's a very light protection, as
@@ -95,7 +93,7 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
         composite += subscription
 
         val task = {
-          val ref = f(elem).redeem(
+          f(elem).redeem(
             error => {
               lastAck = Stop
               composite -= subscription
@@ -116,8 +114,6 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
                   self.onError(ex)
               }
           )
-
-          ref.doOnCancel(cancelComposite)
         }
 
         // No longer allowed to stream errors downstream
