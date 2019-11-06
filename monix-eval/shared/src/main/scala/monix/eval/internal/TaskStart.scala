@@ -18,7 +18,10 @@
 package monix.eval
 package internal
 
+import scala.concurrent.Promise
+
 import monix.eval.Task.{Async, Context}
+import monix.execution.misc.Local
 import monix.execution.{Callback, CancelablePromise}
 
 private[eval] object TaskStart {
@@ -50,10 +53,32 @@ private[eval] object TaskStart {
       // It needs its own context, its own cancelable
       val ctx2 = Task.Context(ctx.scheduler, ctx.options)
       // Starting actual execution of our newly created task;
-      Task.unsafeStartEnsureAsync(fa, ctx2, Callback.fromPromise(p))
+      val (fa2, pCtx) =
+        if (ctx.options.contextIsolationOnFork) {
+          val pCtx = Promise[Local.Context]()
+          TaskLocal.isolate(fa.map(a => { pCtx.success(Local.getContext()); a })) -> pCtx
+        } else {
+          fa -> null
+        }
+      Task.unsafeStartEnsureAsync(fa2, ctx2, Callback.fromPromise(p))
       // Signal the created fiber
       val task = Task.fromCancelablePromise(p)
-      cb.onSuccess(Fiber(task, ctx2.connection.cancel))
+      val join =
+        if (pCtx eq null) task
+        else
+          task.flatMap { a =>
+            if (pCtx ne null)
+              Task
+                .fromFuture(pCtx.future)
+                .flatMap(ctx =>
+                  Task {
+                    Local.setContext(ctx)
+                    a
+                  })
+            else Task.pure(a)
+          }
+
+      cb.onSuccess(Fiber(join, ctx2.connection.cancel))
     }
   }
 }

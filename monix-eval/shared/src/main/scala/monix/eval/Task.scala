@@ -31,10 +31,10 @@ import monix.execution.misc.Local
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
-
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
+import scala.runtime.AbstractFunction2
 import scala.util.{Failure, Success, Try}
 
 /** `Task` represents a specification for a possibly lazy or
@@ -4218,8 +4218,11 @@ object Task extends TaskInstancesLevel1 {
     */
   final case class Options(
     autoCancelableRunLoops: Boolean,
-    localContextPropagation: Boolean
+    localContextPropagation: Boolean,
+    contextIsolationOnFork: Boolean
   ) {
+    def this(autoCancelableRunLoops: Boolean, localContextPropagation: Boolean) =
+      this(autoCancelableRunLoops, localContextPropagation, false)
     /** Creates a new set of options from the source, but with
       * the [[autoCancelableRunLoops]] value set to `true`.
       */
@@ -4244,6 +4247,9 @@ object Task extends TaskInstancesLevel1 {
     def disableLocalContextPropagation: Options =
       copy(localContextPropagation = false)
 
+    def enableContextIsolationOnFork: Options =
+      new Options(autoCancelableRunLoops, localContextPropagation, true)
+
     /**
       * Enhances the options set with the features of the underlying
       * [[monix.execution.Scheduler Scheduler]].
@@ -4259,6 +4265,25 @@ object Task extends TaskInstancesLevel1 {
       else
         copy(localContextPropagation = wLocals || localContextPropagation)
     }
+
+    def copy(
+      autoCancelableRunLoops: Boolean = this.autoCancelableRunLoops,
+      localContextPropagation: Boolean = this.localContextPropagation): Options =
+      new Options(autoCancelableRunLoops, localContextPropagation, this.contextIsolationOnFork)
+  }
+
+  object Options extends AbstractFunction2[Boolean, Boolean, Options] {
+    def apply(
+      autoCancelableRunLoops: Boolean,
+      localContextPropagation: Boolean,
+      contextIsolationOnFork: Boolean
+    ) = new Options(autoCancelableRunLoops, localContextPropagation, contextIsolationOnFork)
+
+    def apply(autoCancelableRunLoops: Boolean, localContextPropagation: Boolean) =
+      new Options(autoCancelableRunLoops, localContextPropagation)
+
+    def unapply(options: Options): Option[(Boolean, Boolean)] =
+      Some((options.autoCancelableRunLoops, options.localContextPropagation))
   }
 
   /** Default [[Options]] to use for [[Task]] evaluation,

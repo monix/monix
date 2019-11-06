@@ -19,6 +19,8 @@ package monix.eval
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+
+import cats.effect.concurrent.Deferred
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
@@ -266,5 +268,24 @@ object TaskLocalSuite extends SimpleTestSuite {
     } yield ()
 
     t.runToFutureOpt
+  }
+
+  testAsync("Auto-isolation on start") {
+    val t = for {
+      l <- TaskLocal(0)
+      d1 <- Deferred[Task, Unit]
+      d2 <- Deferred[Task, Unit]
+      f <- (l.write(1) >> d1.complete(()) >> d2.get).start
+      _ <- d1.get
+      _ <- d2.complete(())
+      v1 <- l.read
+      _ = assertEquals(v1, 0)
+      _  <- f.join
+      v2 <- l.read
+      _ = assertEquals(v2, 1)
+    } yield ()
+
+    t.executeWithOptions(_.enableContextIsolationOnFork)
+      .runToFutureOpt
   }
 }
