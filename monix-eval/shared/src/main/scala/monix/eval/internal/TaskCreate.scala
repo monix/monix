@@ -226,10 +226,11 @@ private[eval] object TaskCreate {
       if (shouldPop) ctx.connection.pop()
       // Optimization — if the callback was called on the same thread
       // where it was created, then we are not going to fork
+      // This is not safe to do when localContextPropagation enabled
       isSameThread = Platform.currentThreadId() == threadId
       try {
         ctx.scheduler.execute(
-          if (isSameThread)
+          if (isSameThread && !ctx.options.localContextPropagation)
             this
           else
             StartAsyncBatchRunnable(this, ctx.scheduler)
