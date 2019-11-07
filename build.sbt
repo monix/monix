@@ -14,8 +14,7 @@ val allProjects = List(
 )
 
 val benchmarkProjects = List(
-  // Enable after 2.13 version is released for previous version
-  // "benchmarksPrev",
+  "benchmarksPrev",
   "benchmarksNext"
 ).map(_ + "/compile")
 
@@ -493,7 +492,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    libraryDependencies += "io.monix" %% "monix" % "3.0.0"
+    libraryDependencies += "io.monix" %% "monix" % "3.1.0"
   )
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
@@ -511,7 +510,7 @@ enablePlugins(GitVersioning)
 /* The BaseVersion setting represents the in-development (upcoming) version,
  * as an alternative to SNAPSHOTS.
  */
-git.baseVersion := "3.1.0"
+git.baseVersion := "3.2.0"
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {
