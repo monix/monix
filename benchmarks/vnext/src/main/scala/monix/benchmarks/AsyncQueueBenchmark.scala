@@ -72,7 +72,7 @@ class AsyncQueueBenchmark {
 
   def test(producers: Int, workers: Int, channelType: ChannelType): Long = {
     val capacity = BufferCapacity.Bounded(1024)
-    val queue = new AsyncQueue[Int](capacity, channelType = channelType)
+    val queue = AsyncQueue.withConfig[Int](capacity, channelType = channelType)
     val workers = 1
 
     def producer(n: Int): Future[Long] =

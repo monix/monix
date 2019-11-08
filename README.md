@@ -48,7 +48,7 @@ The packages are published on Maven Central.
 For the stable release (compatible with Cats and Cats-Effect 2.x):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.0.0"
+libraryDependencies += "io.monix" %% "monix" % "3.1.0"
 ```
 
 ### Sub-projects
@@ -103,7 +103,7 @@ See:
 
 API Documentation:
 
-- [3.0](https://monix.io/api/3.0/)
+- [3.1](https://monix.io/api/3.1/)
 - [2.3](https://monix.io/api/2.3/)
 - [1.2](https://monix.io/api/1.2/)
 
