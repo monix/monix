@@ -28,7 +28,7 @@ import scala.annotation.tailrec
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-class InputStreamResource(observable: Observable[Array[Byte]]) {
+class InputStreamResource(observable: Observable[Array[Byte]], waitForNextElement: Duration) {
 
   private type Bytes = Array[Byte]
 
@@ -102,7 +102,7 @@ class InputStreamResource(observable: Observable[Array[Byte]]) {
       if (buffer.length >= requiredLength) {
         requiredLength
       } else {
-        Await.result(queue.take(), Duration.Inf) match {
+        Await.result(queue.take(), waitForNextElement) match {
           case Some(polledArray) =>
             buffer ++= polledArray
             ensureBufferSize(requiredLength)

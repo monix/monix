@@ -23,7 +23,7 @@ import minitest.SimpleTestSuite
 import monix.eval.Task
 import monix.reactive.Observable
 
-import scala.concurrent.blocking
+import scala.concurrent.{TimeoutException, blocking}
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -156,21 +156,17 @@ object ToInputStreamSuite extends SimpleTestSuite {
       .runToFuture(monix.execution.Scheduler.global)
   }
 
-  test("InputStream reads all bytes one until error occurs") {
-    val latch = new CountDownLatch(1)
+  testAsync("InputStream reads all bytes one until error occurs") {
     val observable = Observable
       .fromIterable(
         Seq(
           Task.eval(Array(1.toByte)),
           Task.eval(Array(2.toByte)),
-          Task.raiseError(new RuntimeException("Expected exception")),
+          Task.raiseError(new IllegalArgumentException("Expected exception")),
           Task.eval(Array(3.toByte))
         )
       )
       .mapEvalF(identity)
-      .doOnError(_ => Task {
-        latch.countDown()
-      })
 
     Observable.toInputStream(observable)
       .map { inputStream =>
@@ -178,10 +174,30 @@ object ToInputStreamSuite extends SimpleTestSuite {
         assertEquals(inputStream.read(), 2.toByte)
         assertEquals(inputStream.read(), -1.toByte)
       }
+      .onErrorRecover {
+        case _: IllegalArgumentException =>
+          fail()
+        case _: Throwable => fail()
+      }
       .runToFuture(monix.execution.Scheduler.global)
+  }
 
-    blocking(latch.await(1, TimeUnit.SECONDS))
-    assertEquals(latch.getCount, 0)
+  testAsync("InputStream should throw an exception if element does not array before timeout") {
+    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+      .map(Array(_))
+      .delayOnNext(100.millis)
+
+    Observable.toInputStream(observable, 10.millis)
+      .map { inputStream =>
+        try {
+          inputStream.read()
+          ()
+        } catch {
+          case _: TimeoutException => ()
+          case _: Throwable => fail()
+        }
+      }
+      .runToFuture(monix.execution.Scheduler.global)
   }
 
   def randomByteArrayOfSize(size: Int): Array[Byte] = {
