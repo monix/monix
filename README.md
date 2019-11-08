@@ -103,7 +103,7 @@ See:
 
 API Documentation:
 
-- [3.0](https://monix.io/api/3.0/)
+- [3.1](https://monix.io/api/3.1/)
 - [2.3](https://monix.io/api/2.3/)
 - [1.2](https://monix.io/api/1.2/)
 
