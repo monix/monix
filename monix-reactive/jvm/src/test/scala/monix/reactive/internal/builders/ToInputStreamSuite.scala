@@ -17,104 +17,147 @@
 
 package monix.reactive.internal.builders
 
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import minitest.SimpleTestSuite
-import monix.eval.{Coeval, Task}
-import monix.execution.schedulers.TestScheduler
+import monix.eval.Task
 import monix.reactive.Observable
 
+import scala.concurrent.blocking
 import scala.concurrent.duration._
 import scala.util.Random
 
 object ToInputStreamSuite extends SimpleTestSuite {
 
-  test("InputStream reads all bytes one by one") {
-    implicit val s = TestScheduler()
-    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte)).map(Array(_))
+  testAsync("InputStream reads all bytes one by one") {
+    var completed = false
+    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+      .map(Array(_))
+      .doOnComplete(Task {
+        completed = true
+      })
 
-    s.tick()
-    val inputStream = Observable.toInputStream(observable).runToFuture.value.get.get
-    s.tick()
+    Observable.toInputStream(observable)
+      .map { inputStream =>
+        assertEquals(inputStream.read(), 1.toByte)
+        assertEquals(inputStream.read(), 2.toByte)
+        assertEquals(inputStream.read(), 3.toByte)
 
-    assertEquals(inputStream.read(), 1.toByte)
-    assertEquals(inputStream.read(), 2.toByte)
-    assertEquals(inputStream.read(), 3.toByte)
-    assertEquals(inputStream.read(), -1.toByte)
-    assertEquals(inputStream.read(), -1.toByte)
+        assertEquals(inputStream.read(), -1.toByte)
+        assertEquals(inputStream.read(), -1.toByte)
+
+        assert(completed)
+      }
+      .runToFuture(monix.execution.Scheduler.global)
   }
 
-  test("InputStream reads delayed bytes one by one") {
-    import monix.execution.Scheduler.Implicits.global
-
-    val observable = Observable
-      .fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+  testAsync("InputStream reads delayed bytes one by one") {
+    var completed = false
+    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
       .map(Array(_))
       .delayOnNext(100.millis)
+      .doOnComplete(Task {
+        completed = true
+      })
 
-    val inputStream = Observable.toInputStream(observable).runToFuture.value.get.get
+    Observable.toInputStream(observable)
+      .map { inputStream =>
+        assertEquals(inputStream.read(), 1.toByte)
+        assertEquals(inputStream.read(), 2.toByte)
+        assertEquals(inputStream.read(), 3.toByte)
 
-    assertEquals(inputStream.read(), 1.toByte)
-    assertEquals(inputStream.read(), 2.toByte)
-    assertEquals(inputStream.read(), 3.toByte)
-    assertEquals(inputStream.read(), -1.toByte)
-    assertEquals(inputStream.read(), -1.toByte)
+        assertEquals(inputStream.read(), -1.toByte)
+        assertEquals(inputStream.read(), -1.toByte)
+
+        assert(completed)
+      }
+      .runToFuture(monix.execution.Scheduler.global)
   }
 
-  test("InputStream waits until enough bytes are available") {
-    implicit val s = TestScheduler()
+  testAsync("InputStream waits until enough bytes are available") {
     val array1 = randomByteArrayOfSize(10)
     val array2 = randomByteArrayOfSize(5)
     val array3 = randomByteArrayOfSize(5)
-    val observable = Observable.fromIterable(Seq(array1, array2, array3))
-    val result = new Array[Byte](20)
-
-    s.tick()
-    val inputStream = Observable.toInputStream(observable).runToFuture.value.get.get
-    s.tick()
-    inputStream.read(result)
-
-    assertEquals(result.toList, (array1 ++ array2 ++ array3).toList)
-    assertEquals(inputStream.read(), -1.toByte)
-  }
-
-  test("InputStream reads the amount of bytes that is available") {
-    implicit val s = TestScheduler()
-    val array1 = randomByteArrayOfSize(10)
-    val array2 = randomByteArrayOfSize(5)
-    val array3 = randomByteArrayOfSize(5)
-    val observable = Observable.fromIterable(Seq(array1, array2, array3))
-    val result = new Array[Byte](200)
-
-    s.tick()
-    val inputStream = Observable.toInputStream(observable).runToFuture.value.get.get
-    s.tick()
-    inputStream.read(result, 0, 30)
-
-    val (filledBytes, emptyBytes) = result.splitAt(20)
-    assertEquals(filledBytes.toList, (array1 ++ array2 ++ array3).toList)
-    assertEquals(emptyBytes.toList, List.fill(180)(0))
-    assertEquals(inputStream.read(), -1.toByte)
-  }
-
-  test("Observable completes when the input stream is closed") {
-    implicit val s = TestScheduler()
     var completed = false
-    val observable = Observable
-      .fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+    val observable = Observable.fromIterable(Seq(array1, array2, array3))
+      .doOnComplete(Task {
+        completed = true
+      })
+
+    Observable.toInputStream(observable)
+      .map { inputStream =>
+        val result = new Array[Byte](20)
+        inputStream.read(result)
+
+        assertEquals(result.toList, (array1 ++ array2 ++ array3).toList)
+        assertEquals(inputStream.read(), -1.toByte)
+        assert(completed)
+      }
+      .runToFuture(monix.execution.Scheduler.global)
+  }
+
+  testAsync("InputStream reads the amount of bytes that is available") {
+    val array1 = randomByteArrayOfSize(10)
+    val array2 = randomByteArrayOfSize(5)
+    val array3 = randomByteArrayOfSize(5)
+    var completed = false
+    val observable = Observable.fromIterable(Seq(array1, array2, array3))
+      .doOnComplete(Task {
+        completed = true
+      })
+
+    Observable.toInputStream(observable)
+      .map { inputStream =>
+        val result = new Array[Byte](200)
+        inputStream.read(result, 0, 30)
+
+        val (filledBytes, emptyBytes) = result.splitAt(20)
+        assertEquals(filledBytes.toList, (array1 ++ array2 ++ array3).toList)
+        assertEquals(emptyBytes.toList, List.fill(180)(0))
+        assertEquals(inputStream.read(), -1.toByte)
+        assert(completed)
+      }
+      .runToFuture(monix.execution.Scheduler.global)
+  }
+
+  testAsync("Observable cancels when the input stream is closed") {
+    val latch = new CountDownLatch(1)
+    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
       .map(Array(_))
-      .doOnCompleteF(Coeval { completed = true })
+      .doOnSubscriptionCancel(Task {
+        latch.countDown()
+      })
 
-    s.tick()
-    val inputStream = Observable.toInputStream(observable).runToFuture.value.get.get
-    s.tick()
+    Observable.toInputStream(observable)
+      .map { inputStream =>
+        assertEquals(inputStream.read(), 1.toByte)
+        inputStream.close()
+        blocking(latch.await(1, TimeUnit.SECONDS))
+        assertEquals(latch.getCount, 0)
+      }
+      .runToFuture(monix.execution.Scheduler.global)
+  }
 
-    assertEquals(inputStream.read(), 1.toByte)
-    inputStream.close()
-    assert(completed, "The Observable is not completed")
-    assertEquals(inputStream.read(), -1.toByte)
+  testAsync("Observable cancels when the input stream is closed without reading anything") {
+    val latch = new CountDownLatch(1)
+    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+      .map(Array(_))
+      .doOnSubscriptionCancel(Task {
+        latch.countDown()
+      })
+
+    Observable.toInputStream(observable)
+      .map { inputStream =>
+        inputStream.close()
+        blocking(latch.await(1, TimeUnit.SECONDS))
+        assertEquals(latch.getCount, 0)
+        assertEquals(inputStream.read(), -1.toByte)
+      }
+      .runToFuture(monix.execution.Scheduler.global)
   }
 
   test("InputStream reads all bytes one until error occurs") {
-    implicit val s = TestScheduler()
+    val latch = new CountDownLatch(1)
     val observable = Observable
       .fromIterable(
         Seq(
@@ -125,14 +168,20 @@ object ToInputStreamSuite extends SimpleTestSuite {
         )
       )
       .mapEvalF(identity)
+      .doOnError(_ => Task {
+        latch.countDown()
+      })
 
-    s.tick()
-    val inputStream = Observable.toInputStream(observable).runToFuture.value.get.get
-    s.tick()
+    Observable.toInputStream(observable)
+      .map { inputStream =>
+        assertEquals(inputStream.read(), 1.toByte)
+        assertEquals(inputStream.read(), 2.toByte)
+        assertEquals(inputStream.read(), -1.toByte)
+      }
+      .runToFuture(monix.execution.Scheduler.global)
 
-    assertEquals(inputStream.read(), 1.toByte)
-    assertEquals(inputStream.read(), 2.toByte)
-    assertEquals(inputStream.read(), -1.toByte)
+    blocking(latch.await(1, TimeUnit.SECONDS))
+    assertEquals(latch.getCount, 0)
   }
 
   def randomByteArrayOfSize(size: Int): Array[Byte] = {
