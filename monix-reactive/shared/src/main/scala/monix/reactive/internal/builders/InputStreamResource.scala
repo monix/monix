@@ -20,15 +20,13 @@ package monix.reactive.internal.builders
 import java.io.InputStream
 
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.atomic.AtomicBoolean
-import monix.execution.{Ack, AsyncVar, Cancelable, Scheduler}
+import monix.execution.Ack.Continue
+import monix.execution.{AsyncVar, Cancelable, Scheduler}
 import monix.reactive.Observable
-import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
 
 class InputStreamResource(observable: Observable[Array[Byte]]) {
 
@@ -41,40 +39,27 @@ class InputStreamResource(observable: Observable[Array[Byte]]) {
     }
   }
 
-  private def subscribe(s: Scheduler): (AsyncVar[Option[Bytes]], Cancelable) = {
+  private def subscribe(implicit s: Scheduler): (AsyncVar[Option[Bytes]], Cancelable) = {
     val state = AsyncVar.empty[Option[Bytes]]()
 
-    val cancelable = observable.executeAsync.unsafeSubscribeFn(new Subscriber[Array[Byte]] with Cancelable {
-      implicit val scheduler = s
-      private val shouldContinue = AtomicBoolean(true)
-
-      override def onNext(elem: Array[Byte]): Future[Ack] = {
-        if (shouldContinue.get()) {
-          state.put(Some(elem)).map { _ => Continue }
-        } else {
-          Stop
+    val cancelable = observable
+      .executeAsync
+      .doOnError { _ =>
+        Task.deferFuture {
+          state.put(None)
         }
       }
-
-      def onComplete(): Unit = {
-        state.put(None)
+      .doOnComplete {
+        Task.deferFuture {
+          state.put(None)
+        }
       }
-
-      def onError(ex: Throwable): Unit = {
-        state.put(None)
-      }
-
-      def cancel(): Unit = {
-        shouldContinue.set(false)
-        state.take()
-      }
-    })
+      .subscribe(array => state.put(Some(array)).map(_ => Continue))
 
     (state, cancelable)
   }
 
-  private[this] class ObservableInputStream(queue: AsyncVar[Option[Bytes]], cancelable: Cancelable)
-    extends InputStream {
+  private[this] class ObservableInputStream(queue: AsyncVar[Option[Bytes]], cancelable: Cancelable) extends InputStream {
     private[this] var buffer: Array[Byte] = new Array[Byte](0)
     private[this] var isClosed: Boolean = false
 
