@@ -57,11 +57,11 @@ import scala.concurrent.{Await, Promise}
 @Fork(2)
 @Threads(1)
 class MapParallelObservableBenchmark {
-  @Param(Array("100000"))
+  @Param(Array("10000"))
   var size: Int = _
 
-  @Param(Array("1", "4"))
-  var parallelism= 0
+  @Param(Array("4", "6"))
+  var parallelism = 0
 
   @Benchmark
   def mapOrdered(): Long = {
