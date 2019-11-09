@@ -31,19 +31,19 @@ import scala.concurrent.{Await, Promise}
 
 /** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark MapParallelOrderedBenchmark
+  *     benchmarks/run-benchmark MapParallelObservableBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run monix.benchmarks.MapParallelOrderedBenchmark
+  *     jmh:run monix.benchmarks.MapParallelObservableBenchmark
   *     The above test will take default values as "10 iterations", "10 warm-up iterations",
   *     "2 forks", "1 thread".
   *
   *     Or to specify custom values use below format:
   *
-  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.MapParallelOrderedBenchmark
+  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.MapParallelObservableBenchmark
   *
   * Which means "20 iterations", "20 warm-up iterations", "4 forks", "2 thread".
   * Please note that benchmarks should be usually executed at least in
@@ -56,26 +56,22 @@ import scala.concurrent.{Await, Promise}
 @Warmup(iterations = 10)
 @Fork(2)
 @Threads(1)
-class MapParallelOrderedBenchmark {
+class MapParallelObservableBenchmark {
   @Param(Array("100000"))
   var size: Int = _
 
+  @Param(Array("1", "4"))
+  var parallelism= 0
+
   @Benchmark
-  def onePerCycle(): Long = {
-    val stream = Observable.range(0, size).mapParallelOrdered(parallelism = 1)(x =>  Task.now(x + 1))
+  def mapOrdered(): Long = {
+    val stream = Observable.range(0, size).mapParallelOrdered(parallelism)(x =>  Task.eval(x + 1))
     sum(stream)
   }
 
   @Benchmark
-  def morePerCycle(): Long = {
-    val stream = Observable.range(0, size).mapParallelOrdered(parallelism = 4)(x =>  Task.now(x))
-    sum(stream)
-  }
-
-  @Benchmark
-  def filtered(): Long = {
-    val stream = Observable.range(0, size).mapParallelOrdered(parallelism = 4)(x =>  Task.now(x))
-      .filter(_ % 2 == 0)
+  def mapUnordered(): Long = {
+    val stream = Observable.range(0, size).mapParallelUnordered(parallelism)(x =>  Task.eval(x + 1))
     sum(stream)
   }
 
