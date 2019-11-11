@@ -173,12 +173,8 @@ object ToInputStreamSuite extends SimpleTestSuite {
       .map { inputStream =>
         assertEquals(inputStream.read(), 1.toByte)
         assertEquals(inputStream.read(), 2.toByte)
-        try {
+        intercept[IOException] {
           inputStream.read()
-          ()
-        } catch {
-          case _: IOException => ()
-          case _: Throwable => fail()
         }
       }
       .runToFuture(monix.execution.Scheduler.global)
@@ -191,12 +187,8 @@ object ToInputStreamSuite extends SimpleTestSuite {
 
     Observable.toInputStream(observable, 10.millis)
       .map { inputStream =>
-        try {
+        intercept {
           inputStream.read()
-          ()
-        } catch {
-          case _: IOException => ()
-          case _: Throwable => fail()
         }
       }
       .runToFuture(monix.execution.Scheduler.global)
