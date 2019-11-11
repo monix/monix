@@ -17,20 +17,19 @@
 
 package monix.reactive.internal.builders
 
-import java.io.InputStream
+import java.io.{IOException, InputStream}
 
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.{AsyncVar, Cancelable, Scheduler}
 import monix.reactive.Observable
+import monix.reactive.internal.builders.InputStreamResource.{Bytes, Completed, Failed, ObservableMessage}
 
 import scala.annotation.tailrec
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-class InputStreamResource(observable: Observable[Array[Byte]], waitForNextElement: Duration) {
-
-  private type Bytes = Array[Byte]
+private[reactive] class InputStreamResource(observable: Observable[Array[Byte]], waitForNextElement: Duration) {
 
   def toTask: Task[InputStream] = {
     Task.create[InputStream] { (s, cb) =>
@@ -39,27 +38,27 @@ class InputStreamResource(observable: Observable[Array[Byte]], waitForNextElemen
     }
   }
 
-  private def subscribe(implicit s: Scheduler): (AsyncVar[Option[Bytes]], Cancelable) = {
-    val state = AsyncVar.empty[Option[Bytes]]()
+  private def subscribe(implicit s: Scheduler): (AsyncVar[ObservableMessage], Cancelable) = {
+    val state = AsyncVar.empty[ObservableMessage]()
 
     val cancelable = observable
       .executeAsync
-      .doOnError { _ =>
+      .doOnError { e =>
         Task.deferFuture {
-          state.put(None)
+          state.put(Failed(e))
         }
       }
       .doOnComplete {
         Task.deferFuture {
-          state.put(None)
+          state.put(Completed)
         }
       }
-      .subscribe(array => state.put(Some(array)).map(_ => Continue))
+      .subscribe(array => state.put(Bytes(array)).map(_ => Continue))
 
     (state, cancelable)
   }
 
-  private[this] class ObservableInputStream(queue: AsyncVar[Option[Bytes]], cancelable: Cancelable) extends InputStream {
+  private[this] class ObservableInputStream(queue: AsyncVar[ObservableMessage], cancelable: Cancelable) extends InputStream {
     private[this] var buffer: Array[Byte] = new Array[Byte](0)
     private[this] var isClosed: Boolean = false
 
@@ -102,13 +101,23 @@ class InputStreamResource(observable: Observable[Array[Byte]], waitForNextElemen
       if (buffer.length >= requiredLength) {
         requiredLength
       } else {
-        Await.result(queue.take(), waitForNextElement) match {
-          case Some(polledArray) =>
+        takeNextElement() match {
+          case Bytes(polledArray) =>
             buffer ++= polledArray
             ensureBufferSize(requiredLength)
-          case _ =>
+          case Completed =>
             buffer.length
+          case Failed(e) =>
+            throw new IOException(e)
         }
+      }
+    }
+
+    private def takeNextElement(): ObservableMessage = {
+      try {
+        Await.result(queue.take(), waitForNextElement)
+      } catch {
+        case e: Throwable => throw new IOException(e)
       }
     }
 
@@ -118,5 +127,17 @@ class InputStreamResource(observable: Observable[Array[Byte]], waitForNextElemen
     }
 
   }
+
+}
+
+private[builders] object InputStreamResource {
+
+  sealed trait ObservableMessage
+
+  final case class Bytes(array: Array[Byte]) extends ObservableMessage
+
+  final case object Completed extends ObservableMessage
+
+  final case class Failed(e: Throwable) extends ObservableMessage
 
 }

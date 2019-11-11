@@ -17,13 +17,14 @@
 
 package monix.reactive.internal.builders
 
+import java.io.IOException
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.SimpleTestSuite
 import monix.eval.Task
 import monix.reactive.Observable
 
-import scala.concurrent.{TimeoutException, blocking}
+import scala.concurrent.blocking
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -172,12 +173,13 @@ object ToInputStreamSuite extends SimpleTestSuite {
       .map { inputStream =>
         assertEquals(inputStream.read(), 1.toByte)
         assertEquals(inputStream.read(), 2.toByte)
-        assertEquals(inputStream.read(), -1.toByte)
-      }
-      .onErrorRecover {
-        case _: IllegalArgumentException =>
-          fail()
-        case _: Throwable => fail()
+        try {
+          inputStream.read()
+          ()
+        } catch {
+          case _: IOException => ()
+          case _: Throwable => fail()
+        }
       }
       .runToFuture(monix.execution.Scheduler.global)
   }
@@ -193,7 +195,7 @@ object ToInputStreamSuite extends SimpleTestSuite {
           inputStream.read()
           ()
         } catch {
-          case _: TimeoutException => ()
+          case _: IOException => ()
           case _: Throwable => fail()
         }
       }
