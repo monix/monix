@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import java.io.{IOException, InputStream}
 
+import cats.effect.Resource
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.{AsyncVar, Cancelable, Scheduler}
@@ -31,11 +32,13 @@ import scala.concurrent.duration.Duration
 
 private[reactive] class InputStreamResource(observable: Observable[Array[Byte]], waitForNextElement: Duration) {
 
-  def toTask: Task[InputStream] = {
-    Task.create[InputStream] { (s, cb) =>
-      val (state, cancelable) = subscribe(s)
-      cb.onSuccess(new ObservableInputStream(state, cancelable))
-    }
+  def toResource: Resource[Task, InputStream] = {
+    Resource.fromAutoCloseable(
+      Task.create[InputStream] { (s, cb) =>
+        val (state, cancelable) = subscribe(s)
+        cb.onSuccess(new ObservableInputStream(state, cancelable))
+      }
+    )
   }
 
   private def subscribe(implicit s: Scheduler): (AsyncVar[ObservableMessage], Cancelable) = {

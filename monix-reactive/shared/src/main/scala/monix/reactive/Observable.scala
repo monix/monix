@@ -5001,15 +5001,16 @@ object Observable extends ObservableDeprecatedBuilders {
    *
    * @param observable Observable that produces byte arrays
    * @param waitForNextElement How much time to wait in `InputStream.read` method until an element of Observable arrives.
-   *                           Throws [[scala.concurrent.TimeoutException]] if exceeded.
+   *                           Throws [[java.io.IOException]] with the cause [[scala.concurrent.TimeoutException]] if exceeded.
    *                           Default: Inf.
    * @param canBlock
-   * @return Task with InputStream which can be used to read bytes from `observable`
+   * @return Resource with InputStream which can be used to read bytes from `observable`
    */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  def toInputStream(observable: Observable[Array[Byte]], waitForNextElement: Duration = Duration.Inf)(implicit canBlock: CanBlock): Task[InputStream] =
-    new builders.InputStreamResource(observable, waitForNextElement).toTask
+  def toInputStream(observable: Observable[Array[Byte]], waitForNextElement: Duration = Duration.Inf)
+                   (implicit canBlock: CanBlock): Resource[Task, InputStream] =
+    new builders.InputStreamResource(observable, waitForNextElement).toResource
 
   /** Safely converts a `java.io.Reader` into an observable that will
     * emit `Array[Char]` elements.

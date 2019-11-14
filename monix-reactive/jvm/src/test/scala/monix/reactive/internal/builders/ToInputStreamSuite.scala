@@ -34,45 +34,53 @@ object ToInputStreamSuite extends SimpleTestSuite {
 
   testAsync("InputStream reads all bytes one by one") {
     var completed = false
-    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+    val observable = Observable
+      .fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
       .map(Array(_))
       .doOnComplete(Task {
         completed = true
       })
 
-    Observable.toInputStream(observable)
-      .map { inputStream =>
-        assertEquals(inputStream.read(), 1.toByte)
-        assertEquals(inputStream.read(), 2.toByte)
-        assertEquals(inputStream.read(), 3.toByte)
+    Observable
+      .toInputStream(observable)
+      .use { inputStream =>
+        Task {
+          assertEquals(inputStream.read(), 1.toByte)
+          assertEquals(inputStream.read(), 2.toByte)
+          assertEquals(inputStream.read(), 3.toByte)
 
-        assertEquals(inputStream.read(), -1.toByte)
-        assertEquals(inputStream.read(), -1.toByte)
+          assertEquals(inputStream.read(), -1.toByte)
+          assertEquals(inputStream.read(), -1.toByte)
 
-        assert(completed)
+          assert(completed)
+        }
       }
       .runToFuture
   }
 
   testAsync("InputStream reads delayed bytes one by one") {
     var completed = false
-    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+    val observable = Observable
+      .fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
       .map(Array(_))
       .delayOnNext(100.millis)
       .doOnComplete(Task {
         completed = true
       })
 
-    Observable.toInputStream(observable)
-      .map { inputStream =>
-        assertEquals(inputStream.read(), 1.toByte)
-        assertEquals(inputStream.read(), 2.toByte)
-        assertEquals(inputStream.read(), 3.toByte)
+    Observable
+      .toInputStream(observable)
+      .use { inputStream =>
+        Task {
+          assertEquals(inputStream.read(), 1.toByte)
+          assertEquals(inputStream.read(), 2.toByte)
+          assertEquals(inputStream.read(), 3.toByte)
 
-        assertEquals(inputStream.read(), -1.toByte)
-        assertEquals(inputStream.read(), -1.toByte)
+          assertEquals(inputStream.read(), -1.toByte)
+          assertEquals(inputStream.read(), -1.toByte)
 
-        assert(completed)
+          assert(completed)
+        }
       }
       .runToFuture
   }
@@ -82,19 +90,23 @@ object ToInputStreamSuite extends SimpleTestSuite {
     val array2 = randomByteArrayOfSize(5)
     val array3 = randomByteArrayOfSize(5)
     var completed = false
-    val observable = Observable.fromIterable(Seq(array1, array2, array3))
+    val observable = Observable
+      .fromIterable(Seq(array1, array2, array3))
       .doOnComplete(Task {
         completed = true
       })
 
-    Observable.toInputStream(observable)
-      .map { inputStream =>
-        val result = new Array[Byte](20)
-        inputStream.read(result)
+    Observable
+      .toInputStream(observable)
+      .use { inputStream =>
+        Task {
+          val result = new Array[Byte](20)
+          inputStream.read(result)
 
-        assertEquals(result.toList, (array1 ++ array2 ++ array3).toList)
-        assertEquals(inputStream.read(), -1.toByte)
-        assert(completed)
+          assertEquals(result.toList, (array1 ++ array2 ++ array3).toList)
+          assertEquals(inputStream.read(), -1.toByte)
+          assert(completed)
+        }
       }
       .runToFuture
   }
@@ -104,57 +116,69 @@ object ToInputStreamSuite extends SimpleTestSuite {
     val array2 = randomByteArrayOfSize(5)
     val array3 = randomByteArrayOfSize(5)
     var completed = false
-    val observable = Observable.fromIterable(Seq(array1, array2, array3))
+    val observable = Observable
+      .fromIterable(Seq(array1, array2, array3))
       .doOnComplete(Task {
         completed = true
       })
 
-    Observable.toInputStream(observable)
-      .map { inputStream =>
-        val result = new Array[Byte](200)
-        inputStream.read(result, 0, 30)
+    Observable
+      .toInputStream(observable)
+      .use { inputStream =>
+        Task {
+          val result = new Array[Byte](200)
+          inputStream.read(result, 0, 30)
 
-        val (filledBytes, emptyBytes) = result.splitAt(20)
-        assertEquals(filledBytes.toList, (array1 ++ array2 ++ array3).toList)
-        assertEquals(emptyBytes.toList, List.fill(180)(0))
-        assertEquals(inputStream.read(), -1.toByte)
-        assert(completed)
+          val (filledBytes, emptyBytes) = result.splitAt(20)
+          assertEquals(filledBytes.toList, (array1 ++ array2 ++ array3).toList)
+          assertEquals(emptyBytes.toList, List.fill(180)(0))
+          assertEquals(inputStream.read(), -1.toByte)
+          assert(completed)
+        }
       }
       .runToFuture
   }
 
   testAsync("Observable cancels when the input stream is closed") {
     val latch = new CountDownLatch(1)
-    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+    val observable = Observable
+      .fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
       .map(Array(_))
       .doOnSubscriptionCancel(Task {
         latch.countDown()
       })
 
-    Observable.toInputStream(observable)
-      .map { inputStream =>
-        assertEquals(inputStream.read(), 1.toByte)
-        inputStream.close()
-        blocking(latch.await(1, TimeUnit.SECONDS))
-        assertEquals(latch.getCount, 0)
+    Observable
+      .toInputStream(observable)
+      .use { inputStream =>
+        Task {
+          assertEquals(inputStream.read(), 1.toByte)
+          inputStream.close()
+          assert(blocking(latch.await(1, TimeUnit.SECONDS)))
+          assertEquals(latch.getCount, 0)
+        }
       }
       .runToFuture
   }
 
   testAsync("Observable cancels when the input stream is closed without reading anything") {
     val latch = new CountDownLatch(1)
-    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+    val observable = Observable
+      .fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
       .map(Array(_))
       .doOnSubscriptionCancel(Task {
         latch.countDown()
       })
 
-    Observable.toInputStream(observable)
-      .map { inputStream =>
-        inputStream.close()
-        blocking(latch.await(1, TimeUnit.SECONDS))
-        assertEquals(latch.getCount, 0)
-        assertEquals(inputStream.read(), -1.toByte)
+    Observable
+      .toInputStream(observable)
+      .use { inputStream =>
+        Task {
+          inputStream.close()
+          assert(blocking(latch.await(1, TimeUnit.SECONDS)))
+          assertEquals(latch.getCount, 0)
+          assertEquals(inputStream.read(), -1.toByte)
+        }
       }
       .runToFuture
   }
@@ -171,27 +195,56 @@ object ToInputStreamSuite extends SimpleTestSuite {
       )
       .mapEvalF(identity)
 
-    Observable.toInputStream(observable)
-      .map { inputStream =>
-        assertEquals(inputStream.read(), 1.toByte)
-        assertEquals(inputStream.read(), 2.toByte)
-        intercept[IOException] {
-          inputStream.read()
+    Observable
+      .toInputStream(observable)
+      .use { inputStream =>
+        Task {
+          assertEquals(inputStream.read(), 1.toByte)
+          assertEquals(inputStream.read(), 2.toByte)
+          intercept[IOException] {
+            inputStream.read()
+          }
         }
       }
       .runToFuture
   }
 
-  testAsync("InputStream should throw an exception if element does not array before timeout") {
-    val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+  testAsync("InputStream should throw an exception if element does not arrive before timeout") {
+    val observable = Observable
+      .fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
       .map(Array(_))
       .delayOnNext(100.millis)
 
-    Observable.toInputStream(observable, 10.millis)
-      .map { inputStream =>
-        intercept[IOException] {
-          inputStream.read()
+    Observable
+      .toInputStream(observable, 10.millis)
+      .use { inputStream =>
+        Task {
+          intercept[IOException] {
+            inputStream.read()
+          }
         }
+      }
+      .runToFuture
+  }
+
+  testAsync("InputStream resource should stop the observable after the .use method") {
+    val latch = new CountDownLatch(1)
+    val observable = Observable
+      .fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
+      .map(Array(_))
+      .doOnSubscriptionCancel(Task {
+        latch.countDown()
+      })
+
+    Observable
+      .toInputStream(observable, 10.millis)
+      .use { inputStream =>
+        Task {
+          assertEquals(inputStream.read(), 1.toByte)
+        }
+      }
+      .map { _ =>
+        assert(blocking(latch.await(1, TimeUnit.SECONDS)))
       }
       .runToFuture
   }
