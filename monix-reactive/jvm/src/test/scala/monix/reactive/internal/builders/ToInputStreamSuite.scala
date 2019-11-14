@@ -30,6 +30,8 @@ import scala.util.Random
 
 object ToInputStreamSuite extends SimpleTestSuite {
 
+  implicit val s = monix.execution.Scheduler.io()
+
   testAsync("InputStream reads all bytes one by one") {
     var completed = false
     val observable = Observable.fromIterable(Seq(1.toByte, 2.toByte, 3.toByte))
@@ -49,7 +51,7 @@ object ToInputStreamSuite extends SimpleTestSuite {
 
         assert(completed)
       }
-      .runToFuture(monix.execution.Scheduler.global)
+      .runToFuture
   }
 
   testAsync("InputStream reads delayed bytes one by one") {
@@ -72,7 +74,7 @@ object ToInputStreamSuite extends SimpleTestSuite {
 
         assert(completed)
       }
-      .runToFuture(monix.execution.Scheduler.global)
+      .runToFuture
   }
 
   testAsync("InputStream waits until enough bytes are available") {
@@ -94,7 +96,7 @@ object ToInputStreamSuite extends SimpleTestSuite {
         assertEquals(inputStream.read(), -1.toByte)
         assert(completed)
       }
-      .runToFuture(monix.execution.Scheduler.global)
+      .runToFuture
   }
 
   testAsync("InputStream reads the amount of bytes that is available") {
@@ -118,7 +120,7 @@ object ToInputStreamSuite extends SimpleTestSuite {
         assertEquals(inputStream.read(), -1.toByte)
         assert(completed)
       }
-      .runToFuture(monix.execution.Scheduler.global)
+      .runToFuture
   }
 
   testAsync("Observable cancels when the input stream is closed") {
@@ -136,7 +138,7 @@ object ToInputStreamSuite extends SimpleTestSuite {
         blocking(latch.await(1, TimeUnit.SECONDS))
         assertEquals(latch.getCount, 0)
       }
-      .runToFuture(monix.execution.Scheduler.global)
+      .runToFuture
   }
 
   testAsync("Observable cancels when the input stream is closed without reading anything") {
@@ -154,7 +156,7 @@ object ToInputStreamSuite extends SimpleTestSuite {
         assertEquals(latch.getCount, 0)
         assertEquals(inputStream.read(), -1.toByte)
       }
-      .runToFuture(monix.execution.Scheduler.global)
+      .runToFuture
   }
 
   testAsync("InputStream reads all bytes one until error occurs") {
@@ -177,7 +179,7 @@ object ToInputStreamSuite extends SimpleTestSuite {
           inputStream.read()
         }
       }
-      .runToFuture(monix.execution.Scheduler.global)
+      .runToFuture
   }
 
   testAsync("InputStream should throw an exception if element does not array before timeout") {
@@ -187,11 +189,11 @@ object ToInputStreamSuite extends SimpleTestSuite {
 
     Observable.toInputStream(observable, 10.millis)
       .map { inputStream =>
-        intercept {
+        intercept[IOException] {
           inputStream.read()
         }
       }
-      .runToFuture(monix.execution.Scheduler.global)
+      .runToFuture
   }
 
   def randomByteArrayOfSize(size: Int): Array[Byte] = {

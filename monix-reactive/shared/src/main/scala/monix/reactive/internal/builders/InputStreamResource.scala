@@ -26,7 +26,7 @@ import monix.reactive.Observable
 import monix.reactive.internal.builders.InputStreamResource.{Bytes, Completed, Failed, ObservableMessage}
 
 import scala.annotation.tailrec
-import scala.concurrent.Await
+import scala.concurrent.{Await, blocking}
 import scala.concurrent.duration.Duration
 
 private[reactive] class InputStreamResource(observable: Observable[Array[Byte]], waitForNextElement: Duration) {
@@ -115,7 +115,9 @@ private[reactive] class InputStreamResource(observable: Observable[Array[Byte]],
 
     private def takeNextElement(): ObservableMessage = {
       try {
-        Await.result(queue.take(), waitForNextElement)
+        blocking {
+          Await.result(queue.take(), waitForNextElement)
+        }
       } catch {
         case e: Throwable => throw new IOException(e)
       }
