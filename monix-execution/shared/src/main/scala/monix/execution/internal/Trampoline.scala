@@ -20,35 +20,35 @@ package monix.execution.internal
 import monix.execution.internal.collection.ChunkedArrayQueue
 import scala.util.control.NonFatal
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
 
-private[execution] class Trampoline(underlying: ExecutionContext) {
+private[execution] class Trampoline {
   private def makeQueue(): ChunkedArrayQueue[Runnable] = ChunkedArrayQueue[Runnable](chunkSize = 16)
   private[this] var immediateQueue = makeQueue()
   private[this] var withinLoop = false
 
-  def startLoop(runnable: Runnable): Unit = {
+  def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
     withinLoop = true
-    try immediateLoop(runnable)
+    try immediateLoop(runnable, ec)
     finally {
       withinLoop = false
     }
   }
 
-  final def execute(runnable: Runnable): Unit = {
+  final def execute(runnable: Runnable, ec: ExecutionContext): Unit = {
     if (!withinLoop) {
-      startLoop(runnable)
+      startLoop(runnable, ec)
     } else {
       immediateQueue.enqueue(runnable)
     }
   }
 
-  protected final def forkTheRest(): Unit = {
+  protected final def forkTheRest(ec: ExecutionContext): Unit = {
     final class ResumeRun(head: Runnable, rest: ChunkedArrayQueue[Runnable]) extends Runnable {
 
       def run(): Unit = {
         immediateQueue.enqueueAll(rest)
-        immediateLoop(head)
+        immediateLoop(head, ec)
       }
     }
 
@@ -56,22 +56,32 @@ private[execution] class Trampoline(underlying: ExecutionContext) {
     if (head ne null) {
       val rest = immediateQueue
       immediateQueue = makeQueue()
-      underlying.execute(new ResumeRun(head, rest))
+      ec.execute(new ResumeRun(head, rest))
     }
   }
 
   @tailrec
-  private final def immediateLoop(task: Runnable): Unit = {
+  private final def immediateLoop(task: Runnable, ec: ExecutionContext): Unit = {
     try {
       task.run()
     } catch {
       case ex: Throwable =>
-        forkTheRest()
-        if (NonFatal(ex)) underlying.reportFailure(ex)
+        forkTheRest(ec)
+        if (NonFatal(ex)) ec.reportFailure(ex)
         else throw ex
     }
 
     val next = immediateQueue.dequeue()
-    if (next ne null) immediateLoop(next)
+    if (next ne null) immediateLoop(next, ec)
   }
+
+  protected final def trampolineContext(ec: ExecutionContext): BlockContext =
+    new BlockContext {
+      def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+        // In case of blocking, execute all scheduled local tasks on
+        // a separate thread, otherwise we could end up with a dead-lock
+        forkTheRest(ec)
+        thunk
+      }
+    }
 }

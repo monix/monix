@@ -31,6 +31,7 @@ import monix.execution.misc.Local
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
+import org.reactivestreams.Publisher
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
@@ -2701,6 +2702,21 @@ object Task extends TaskInstancesLevel1 {
     */
   def from[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Task[A] =
     F(fa)
+
+  /** Given a `org.reactivestreams.Publisher`, converts it into a
+    * Monix Task.
+    *
+    * See the [[http://www.reactive-streams.org/ Reactive Streams]]
+    * protocol that Monix implements.
+    *
+    * @see [[Task.toReactivePublisher]] for converting a `Task` to
+    *      a reactive publisher.
+    *
+    * @param source is the `org.reactivestreams.Publisher` reference to
+    *        wrap into a [[Task]].
+    */
+  def fromReactivePublisher[A](source: Publisher[A]): Task[Option[A]] =
+    TaskConversions.fromReactivePublisher(source)
 
   /** Builds a [[Task]] instance out of any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]] and

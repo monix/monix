@@ -53,10 +53,10 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
   */
 final class TrampolineExecutionContext private (underlying: ExecutionContext) extends ExecutionContextExecutor {
 
-  private[this] val trampoline = new Trampoline(underlying)
+  private[this] val trampoline = new Trampoline
 
   override def execute(runnable: Runnable): Unit =
-    trampoline.execute(runnable)
+    trampoline.execute(runnable, underlying)
   override def reportFailure(t: Throwable): Unit =
     underlying.reportFailure(t)
 }

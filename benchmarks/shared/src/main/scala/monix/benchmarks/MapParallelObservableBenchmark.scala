@@ -18,27 +18,32 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-import monix.execution.CancelableFuture
-import monix.execution.AsyncQueue
+
+import monix.eval.Task
+import monix.execution.Ack.Continue
+import monix.execution.Scheduler.Implicits.global
+import monix.reactive.Observable
+import monix.reactive.observers.Subscriber
 import org.openjdk.jmh.annotations._
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Promise}
 
 /** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark AsyncQueueBenchmark
+  *     benchmarks/run-benchmark MapParallelObservableBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run monix.benchmarks.TaskShiftBenchmark
+  *     jmh:run monix.benchmarks.MapParallelObservableBenchmark
   *     The above test will take default values as "10 iterations", "10 warm-up iterations",
   *     "2 forks", "1 thread".
   *
   *     Or to specify custom values use below format:
   *
-  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.TaskShiftBenchmark
+  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.MapParallelObservableBenchmark
   *
   * Which means "20 iterations", "20 warm-up iterations", "4 forks", "2 thread".
   * Please note that benchmarks should be usually executed at least in
@@ -51,45 +56,40 @@ import scala.concurrent.{Await, Future}
 @Warmup(iterations = 10)
 @Fork(2)
 @Threads(1)
-class AsyncQueueBenchmark {
+class MapParallelObservableBenchmark {
   @Param(Array("10000"))
   var size: Int = _
 
+  @Param(Array("4", "6"))
+  var parallelism = 0
+
   @Benchmark
-  def spsc(): Long = {
-    test(producers = 1, workers = 1)
+  def mapOrdered(): Long = {
+    val stream = Observable.range(0, size).mapParallelOrdered(parallelism)(x =>  Task.eval(x + 1))
+    sum(stream)
   }
 
   @Benchmark
-  def spmc(): Long = {
-    test(producers = 1, workers = 4)
+  def mapUnordered(): Long = {
+    val stream = Observable.range(0, size).mapParallelUnordered(parallelism)(x =>  Task.eval(x + 1))
+    sum(stream)
   }
 
-  @Benchmark
-  def mpmc(): Long = {
-    test(producers = 4, workers = 4)
-  }
+  def sum(stream: Observable[Long]): Long = {
+    val p = Promise[Long]()
+    stream.unsafeSubscribeFn(new Subscriber.Sync[Long] {
+      val scheduler = global
+      private[this] var sum: Long = 0
 
-  def test(producers: Int, workers: Int): Long = {
-    val queue = AsyncQueue.unbounded[Int]()
-    val workers = 1
-
-    def producer(n: Int): Future[Long] =
-      if (n > 0)
-        CancelableFuture.successful(queue.offer(1)).flatMap(_ => producer(n - 1))
-      else
-        CancelableFuture.successful(0L)
-
-    def consumer(n: Int, acc: Long): Future[Long] =
-      if (n > 0) queue.poll().flatMap(i => consumer(n - 1, acc + i))
-      else CancelableFuture.successful(acc)
-
-    val producerTasks = (0 until producers).map(_ => producer(size / producers))
-    val workerTasks = (0 until workers).map(_ => consumer(size / workers, 0))
-
-    val futures = producerTasks ++ workerTasks
-    val r = for (l <- Future.sequence(futures)) yield l.sum
-    Await.result(r, Duration.Inf)
+      def onError(ex: Throwable): Unit =
+        p.failure(ex)
+      def onComplete(): Unit =
+        p.success(sum)
+      def onNext(elem: Long) = {
+        sum += elem
+        Continue
+      }
+    })
+    Await.result(p.future, Duration.Inf)
   }
 }
-

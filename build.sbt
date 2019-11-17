@@ -14,8 +14,7 @@ val allProjects = List(
 )
 
 val benchmarkProjects = List(
-  // Enable after 2.13 version is released for previous version
-  // "benchmarksPrev",
+  "benchmarksPrev",
   "benchmarksNext"
 ).map(_ + "/compile")
 
@@ -62,8 +61,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.13.0",
-  crossScalaVersions := Seq("2.11.12", "2.12.9", "2.13.0"),
+  scalaVersion := "2.13.1",
+  crossScalaVersions := Seq("2.11.12", "2.12.10", "2.13.1"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -319,7 +318,8 @@ lazy val cmdlineProfile =
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0__RC5
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0__RC5,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1
 )
 // https://github.com/lightbend/mima/pull/289
 mimaFailOnNoPrevious in ThisBuild := false
@@ -492,7 +492,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    libraryDependencies += "io.monix" %% "monix" % "3.0.0"
+    libraryDependencies += "io.monix" %% "monix" % "3.1.0"
   )
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
@@ -510,7 +510,7 @@ enablePlugins(GitVersioning)
 /* The BaseVersion setting represents the in-development (upcoming) version,
  * as an alternative to SNAPSHOTS.
  */
-git.baseVersion := "3.1.0"
+git.baseVersion := "3.2.0"
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {
