@@ -19,12 +19,17 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 import cats.effect.IO
 import cats.implicits._
 import monix.eval.Task
 import org.openjdk.jmh.annotations._
 import cats.effect.implicits._
 import zio.ZIO
+
+import scala.concurrent.Future
 
 /** To do comparative benchmarks between versions:
   *
@@ -57,8 +62,7 @@ class TaskSequenceBenchmark {
   @Param(Array("100", "1000"))
   var count: Int = _
 
-  @Param(Array("10"))
-  var parallelism: Int = _
+  val parallelism: Int = 10
 
   @Benchmark
   def catsSequence(): Long = {
@@ -88,12 +92,14 @@ class TaskSequenceBenchmark {
     result.runSyncUnsafe()
   }
 
+
   @Benchmark
   def monixGather(): Long = {
     val tasks = (0 until count).map(_ => Task.eval(1)).toList
     val result = Task.gather(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
+
 
   @Benchmark
   def monixGatherUnordered(): Long = {
@@ -128,6 +134,13 @@ class TaskSequenceBenchmark {
     val tasks = (0 until count).map(_ => ZIO.effectTotal(1)).toList
     val result = ZIO.collectAllParN(parallelism)(tasks).map(_.sum.toLong)
     zioUntracedRuntime.unsafeRun(result)
+  }
+
+  @Benchmark
+  def futureSequence(): Long = {
+    val futures = (0 until count).map(_ => Future(1)).toList
+    val f: Future[Long] = Future.sequence(futures).map(_.sum.toLong)
+    Await.result(f, Duration.Inf)
   }
 
 }
