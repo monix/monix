@@ -17,12 +17,24 @@
 
 package monix
 
+import cats.effect.{ContextShift, IO}
 import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.Scheduler
 import monix.execution.Scheduler.Implicits.global
+import zio.DefaultRuntime
+import zio.internal.PlatformLive
+
+import scala.concurrent.ExecutionContext
 
 package object benchmarks {
   /** Scheduler used for all testing, avoiding forced async boundaries. */
   implicit val scheduler: Scheduler =
     global.withExecutionModel(SynchronousExecution)
+
+  implicit val contextShift: ContextShift[IO] =
+    IO.contextShift(ExecutionContext.global)
+
+  val zioUntracedRuntime = new DefaultRuntime {
+    override val platform = PlatformLive.Benchmark
+  }
 }

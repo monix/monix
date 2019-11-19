@@ -492,8 +492,10 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    libraryDependencies += "io.monix" %% "monix" % "3.1.0"
-  )
+    libraryDependencies ++= Seq(
+      "io.monix" %% "monix" % "3.1.0",
+      "dev.zio" %% "zio" % "1.0.0-RC17"
+  ))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .configure(profile)
@@ -502,6 +504,10 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .settings(crossSettings)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.zio" %% "zio" % "1.0.0-RC17"
+    ))
 
 //------------- For Release
 
