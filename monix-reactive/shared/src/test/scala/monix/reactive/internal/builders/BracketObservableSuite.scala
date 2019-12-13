@@ -131,6 +131,26 @@ object BracketObservableSuite extends BaseTestSuite {
     }
   }
 
+  test("bracket use is not evaluated on cancel") { implicit sc =>
+    import scala.concurrent.duration._
+    var use = false
+    var release = false
+
+    val task = Observable
+      .evalDelayed(2.second, ())
+      .bracket(_ => Observable.eval { use = true })(_ => Task { release = true })
+
+    val f = task.completedL.runToFuture
+    sc.tick()
+
+    f.cancel()
+    sc.tick(2.second)
+
+    assertEquals(f.value, None)
+    assertEquals(use, false)
+    assertEquals(release, true)
+  }
+
   class Semaphore(var acquired: Int = 0, var released: Int = 0) {
     def acquire: Task[Handle] =
       Task { acquired += 1 }.map(_ => Handle(this))
