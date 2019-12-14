@@ -2286,7 +2286,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *   def call(): Unit = ()
     *
     *   val remoteCall = Task(call())
-    *     .timeoutToL(actualTimeout, Task.unit)
+    *     .timeoutL(actualTimeout)
     *     .onErrorRestart(100)
     *     .timeout(deadline.time)
     * }}}
@@ -2320,7 +2320,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *   def call(): Unit = ()
     *
     *   val remoteCall = Task(call())
-    *     .timeoutL(actualTimeout)
+    *     .timeoutToL(actualTimeout, Task.unit)
     *     .onErrorRestart(100)
     *     .timeout(deadline.time)
     * }}}
