@@ -20,8 +20,8 @@ package monix.catnap
 import cats.effect._
 import cats.implicits._
 import minitest.TestSuite
-import monix.catnap.CircuitBreaker.Open
-import monix.execution.exceptions.{APIContractViolationException, DummyException, ExecutionRejectedException}
+import monix.catnap.CircuitBreaker.{Closed, Open}
+import monix.execution.exceptions.{DummyException, ExecutionRejectedException}
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
@@ -442,6 +442,43 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     s.tick()
 
     assertEquals(cb.state.unsafeRunSync(), CircuitBreaker.Closed(0))
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("canceled tasks in half-open state should open with old timeout") { implicit s =>
+    import scala.concurrent.duration._
+
+    val scenario = for {
+      cb       <- CircuitBreaker.of[IO](0, 5.second)
+      _        <- cb.protect(IO.raiseError(DummyException("boom"))).attempt
+      _        <- IO.sleep(5.second)
+      state1   <- cb.state
+      _        <- cb.protect(IO.sleep(2.second)).timeoutTo(1.second, IO.unit)
+      state2   <- cb.state
+      _        <- cb.protect(IO.unit)
+      state3   <- cb.state
+    } yield {
+      state1 match {
+        case Open(startedAt, resetTimeout) =>
+          assertEquals(startedAt, 0L)
+          assertEquals(resetTimeout, 5.second)
+        case _ =>
+          fail("CircuitBreaker should be in Open state")
+      }
+
+      state2 match {
+        case Open(startedAt, resetTimeout) =>
+          assertEquals(startedAt, 0L)
+          assertEquals(resetTimeout, 5.second)
+        case _ =>
+          fail("CircuitBreaker should be in Open state")
+      }
+
+      assertEquals(state3, Closed(0))
+    }
+
+    val f = scenario.unsafeToFuture()
+    s.tick(1.day)
     assertEquals(f.value, Some(Success(())))
   }
 }

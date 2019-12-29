@@ -353,12 +353,14 @@ final class CircuitBreaker[F[_]] private (
     *        case the attempt fails and it needs to transition to
     *        `Open` again
     */
-  private def attemptReset[A](task: F[A], resetTimeout: FiniteDuration, await: CancelablePromise[Unit]): F[A] =
+  private def attemptReset[A](task: F[A], resetTimeout: FiniteDuration, await: CancelablePromise[Unit], lastStartedAt: Timestamp): F[A] =
     F.bracketCase(onHalfOpen)(_ => task) { (_, exit) =>
       exit match {
         case ExitCase.Canceled =>
-          // A canceled task isn't interesting, ignoring:
-          F.unit
+          // We need to return to Open state
+          // otherwise we get stuck in Half-Open (see https://github.com/monix/monix/issues/1080 )
+          stateRef.set(Open(lastStartedAt, resetTimeout, await))
+          onOpen
 
         case ExitCase.Completed =>
           // While in HalfOpen only a reset attempt is allowed to update
@@ -402,7 +404,7 @@ final class CircuitBreaker[F[_]] private (
             if (!stateRef.compareAndSet(current, HalfOpen(timeout, await)))
               unsafeProtect(task) // retry!
             else
-              attemptReset(task, timeout, await)
+              attemptReset(task, timeout, await, current.startedAt)
           } else {
             // Open isn't expired, so we need to fail
             val expiresInMillis = expiresAt - now
