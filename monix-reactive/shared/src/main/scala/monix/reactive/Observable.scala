@@ -3120,15 +3120,24 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Drops the first element of the source observable,
     * emitting the rest.
     */
-  final def tail: Observable[A] = drop(1)
+  final def tail: Observable[A] = drop(1L)
 
   /** Drops the first `n` elements (from the start).
     *
-    * @param n the number of elements to drop
+    * @param n the number (Int) of elements to drop
     * @return a new Observable that drops the first ''n'' elements
     *         emitted by the source
     */
   final def drop(n: Int): Observable[A] =
+    self.liftByOperator(new DropFirstOperator(n))
+
+  /** Drops the first `n` elements (from the start).
+    *
+    * @param n the number (Long) of elements to drop
+    * @return a new Observable that drops the first ''n'' elements
+    *         emitted by the source
+    */
+  final def drop(n: Long): Observable[A] =
     self.liftByOperator(new DropFirstOperator(n))
 
   /** Creates a new Observable that emits the events of the source, only
