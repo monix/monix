@@ -17,7 +17,7 @@
 
 package monix.eval.instances
 
-import cats.{~>, Applicative, Monad, Parallel}
+import cats.{CommutativeApplicative, Monad, Parallel, ~>}
 import monix.eval.Task
 
 /** `cats.Parallel` type class instance for [[monix.eval.Task Task]].
@@ -34,7 +34,7 @@ import monix.eval.Task
 class CatsParallelForTask extends Parallel[Task] {
   override type F[A] = Task.Par[A]
 
-  override def applicative: Applicative[Task.Par] = CatsParallelForTask.NondetApplicative
+  override def applicative: CommutativeApplicative[Task.Par] = CatsParallelForTask.NondetApplicative
   override def monad: Monad[Task] = CatsConcurrentForTask
 
   override val sequential: Task.Par ~> Task = new (Task.Par ~> Task) {
@@ -46,7 +46,7 @@ class CatsParallelForTask extends Parallel[Task] {
 }
 
 object CatsParallelForTask extends CatsParallelForTask {
-  private object NondetApplicative extends Applicative[Task.Par] {
+  private object NondetApplicative extends CommutativeApplicative[Task.Par] {
 
     import Task.Par.unwrap
     import Task.Par.{apply => par}
