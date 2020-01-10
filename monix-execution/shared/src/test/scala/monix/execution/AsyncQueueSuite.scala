@@ -143,7 +143,8 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
           producer(n - 1)
         case false =>
           FutureUtils.delayedResult(10.millis)(()).flatMap(_ => producer(n))
-      } else {
+      }
+      else {
         Future.successful(())
       }
 
@@ -153,7 +154,8 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
           case Some(a) => consumer(n - 1, acc.enqueue(a))
           case None =>
             FutureUtils.delayedResult(10.millis)(()).flatMap(_ => consumer(n, acc))
-        } else
+        }
+      else
         Future.successful(acc.sum)
 
     val c = consumer(count)

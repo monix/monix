@@ -54,10 +54,11 @@ private[reactive] final class FromObserverConsumer[In](f: Scheduler => Observer[
             }
 
           def onNext(elem: In): Future[Ack] = {
-            val ack = try out.onNext(elem)
-            catch {
-              case ex if NonFatal(ex) => Future.failed(ex)
-            }
+            val ack =
+              try out.onNext(elem)
+              catch {
+                case ex if NonFatal(ex) => Future.failed(ex)
+              }
 
             ack.syncOnComplete {
               case Success(result) =>

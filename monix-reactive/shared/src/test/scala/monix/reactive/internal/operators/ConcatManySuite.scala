@@ -67,12 +67,11 @@ object ConcatManySuite extends BaseOperatorSuite {
     val sourceCount = Platform.recommendedBatchSize * 3
     val o = Observable
       .range(0, sourceCount)
-      .flatMap(
-        i =>
-          Observable
-            .range(0, sourceCount)
-            .map(_ => 1L)
-            .delayExecution(1.second))
+      .flatMap(i =>
+        Observable
+          .range(0, sourceCount)
+          .map(_ => 1L)
+          .delayExecution(1.second))
 
     val count = Platform.recommendedBatchSize * 3
     Seq(Sample(o, count, count, 1.seconds, 0.seconds))

@@ -114,12 +114,10 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     val task = Task.unit
       .guarantee(Task.sleep(10.seconds) *> Task(effect.set(true)))
       .flatMap(_ =>
-        Task.Async[Unit](
-          (ctx, cb) => {
-            println(ctx.connection)
-            cb.onSuccess(())
-          }
-        ))
+        Task.Async[Unit]((ctx, cb) => {
+          println(ctx.connection)
+          cb.onSuccess(())
+        }))
       .flatMap(_ => Task.sleep(10.seconds))
 
     val f = task.runToFuture

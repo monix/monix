@@ -108,10 +108,11 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
           // using the scheduler defined by each subscriber
           import subscriber.scheduler
 
-          val ack = try subscriber.onNext(elem)
-          catch {
-            case ex if NonFatal(ex) => Future.failed(ex)
-          }
+          val ack =
+            try subscriber.onNext(elem)
+            catch {
+              case ex if NonFatal(ex) => Future.failed(ex)
+            }
 
           // if execution is synchronous, takes the fast-path
           if (ack.isCompleted) {

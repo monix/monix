@@ -31,7 +31,9 @@ private[execution] object ScheduledExecutors {
     executor: Scheduler,
     scheduler: ScheduledExecutorService
   )(
-    initialDelay: Long, unit: TimeUnit, r: Runnable
+    initialDelay: Long,
+    unit: TimeUnit,
+    r: Runnable
   ): Cancelable = {
     if (initialDelay <= 0) {
       executor.execute(r)

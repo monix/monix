@@ -62,15 +62,16 @@ private[reactive] final class StateActionObservable[S, A](seed: => S, f: S => (A
 
     @tailrec
     def fastLoop(syncIndex: Int): Unit = {
-      val ack = try {
-        val (nextA, newState) = f(seed)
-        this.seed = newState
-        o.onNext(nextA)
-      } catch {
-        case ex if NonFatal(ex) =>
-          o.onError(ex)
-          Stop
-      }
+      val ack =
+        try {
+          val (nextA, newState) = f(seed)
+          this.seed = newState
+          o.onNext(nextA)
+        } catch {
+          case ex if NonFatal(ex) =>
+            o.onError(ex)
+            Stop
+        }
 
       val nextIndex =
         if (ack == Continue) em.nextFrameIndex(syncIndex)

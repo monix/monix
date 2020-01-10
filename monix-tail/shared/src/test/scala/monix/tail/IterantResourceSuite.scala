@@ -44,13 +44,12 @@ object IterantResourceSuite extends BaseTestSuite {
     var earlyStopDone = false
     val bracketed = Iterant
       .resource(Coeval.unit)(_ => Coeval.unit)
-      .flatMap(
-        _ =>
-          Iterant[Coeval]
-            .of(1, 2, 3)
-            .guarantee(Coeval {
-              earlyStopDone = true
-            }))
+      .flatMap(_ =>
+        Iterant[Coeval]
+          .of(1, 2, 3)
+          .guarantee(Coeval {
+            earlyStopDone = true
+          }))
 
     bracketed.take(1).completedL.value()
     assert(earlyStopDone)

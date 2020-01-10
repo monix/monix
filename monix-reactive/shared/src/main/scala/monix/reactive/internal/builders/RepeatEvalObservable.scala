@@ -52,11 +52,12 @@ private[reactive] final class RepeatEvalObservable[+A](eval: => A) extends Obser
   def fastLoop(o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(
     implicit s: Scheduler): Unit = {
 
-    val ack = try o.onNext(eval)
-    catch {
-      case ex if NonFatal(ex) =>
-        Future.failed(ex)
-    }
+    val ack =
+      try o.onNext(eval)
+      catch {
+        case ex if NonFatal(ex) =>
+          Future.failed(ex)
+      }
 
     val nextIndex =
       if (ack == Continue) em.nextFrameIndex(syncIndex)

@@ -64,21 +64,22 @@ private[reactive] final class UnfoldObservable[S, A](seed: => S, f: S => Option[
 
     @tailrec
     def fastLoop(syncIndex: Int): Unit = {
-      val ack = try {
-        f(seed) match {
-          case Some((nextA, newState)) =>
-            this.seed = newState
-            o.onNext(nextA)
-          case None =>
-            o.onComplete()
-            Stop
+      val ack =
+        try {
+          f(seed) match {
+            case Some((nextA, newState)) =>
+              this.seed = newState
+              o.onNext(nextA)
+            case None =>
+              o.onComplete()
+              Stop
 
+          }
+        } catch {
+          case ex if NonFatal(ex) =>
+            o.onError(ex)
+            Stop
         }
-      } catch {
-        case ex if NonFatal(ex) =>
-          o.onError(ex)
-          Stop
-      }
 
       val nextIndex =
         if (ack == Continue) em.nextFrameIndex(syncIndex)

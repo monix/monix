@@ -279,9 +279,11 @@ object TaskLocalSuite extends SimpleTestSuite {
       ch: ConcurrentChannel[Task, Unit, Int]
     ) {
       private[this] def produceLoop(n: Int): Task[Unit] =
-        if (n == 0) Task.unit else ch.push(n) >> l.read.flatMap { s =>
-          Task(assertEquals(s, "producer"))
-        } >> produceLoop(n - 1)
+        if (n == 0) Task.unit
+        else
+          ch.push(n) >> l.read.flatMap { s =>
+            Task(assertEquals(s, "producer"))
+          } >> produceLoop(n - 1)
 
       def produce: Task[Unit] =
         for {
@@ -292,19 +294,24 @@ object TaskLocalSuite extends SimpleTestSuite {
         } yield ()
 
       def consume: Task[Unit] = ch.consume.use { c =>
-        c.pull.delayResult(1.milli).flatMap { x =>
-          l.write(x.toString).as(x)
-        }.iterateWhile(_.isRight).void
+        c.pull
+          .delayResult(1.milli)
+          .flatMap { x =>
+            l.write(x.toString).as(x)
+          }
+          .iterateWhile(_.isRight)
+          .void
       }
     }
 
     val t = for {
       tl <- TaskLocal("undefined")
-      ch <- ConcurrentChannel[Task].withConfig[Unit, Int](ConsumerF.Config(
-        capacity = BufferCapacity.Bounded(bufferSize).some
-      ))
+      ch <- ConcurrentChannel[Task].withConfig[Unit, Int](
+        ConsumerF.Config(
+          capacity = BufferCapacity.Bounded(bufferSize).some
+        ))
       test = new Test(tl, ch)
-      _  <- TaskLocal.isolate(test.produce) &> TaskLocal.isolate(test.consume)
+      _ <- TaskLocal.isolate(test.produce) &> TaskLocal.isolate(test.consume)
     } yield ()
 
     t.runToFutureOpt

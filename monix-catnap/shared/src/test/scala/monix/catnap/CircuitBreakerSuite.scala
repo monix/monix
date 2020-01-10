@@ -449,14 +449,14 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     import scala.concurrent.duration._
 
     val scenario = for {
-      cb       <- CircuitBreaker.of[IO](0, 5.second)
-      _        <- cb.protect(IO.raiseError(DummyException("boom"))).attempt
-      _        <- IO.sleep(5.second)
-      state1   <- cb.state
-      _        <- cb.protect(IO.sleep(2.second)).timeoutTo(1.second, IO.unit)
-      state2   <- cb.state
-      _        <- cb.protect(IO.unit)
-      state3   <- cb.state
+      cb     <- CircuitBreaker.of[IO](0, 5.second)
+      _      <- cb.protect(IO.raiseError(DummyException("boom"))).attempt
+      _      <- IO.sleep(5.second)
+      state1 <- cb.state
+      _      <- cb.protect(IO.sleep(2.second)).timeoutTo(1.second, IO.unit)
+      state2 <- cb.state
+      _      <- cb.protect(IO.unit)
+      state3 <- cb.state
     } yield {
       state1 match {
         case Open(startedAt, resetTimeout) =>

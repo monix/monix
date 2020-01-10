@@ -35,8 +35,9 @@ private[reactive] final class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) 
 
       def onError(ex: Throwable): Unit = {
         try {
-          val task = try cb(ex)
-          catch { case err if NonFatal(err) => Task.raiseError(err) }
+          val task =
+            try cb(ex)
+            catch { case err if NonFatal(err) => Task.raiseError(err) }
           task.attempt.map {
             case Right(()) =>
               out.onError(ex)

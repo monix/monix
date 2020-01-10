@@ -179,17 +179,18 @@ private[monix] object TaskBracket {
             val releaseFrame = makeReleaseFrame(ctx, value)
             conn.push(releaseFrame.cancel)
 
-              // Check if Task wasn't already cancelled in acquire
-              if (!conn.isCanceled) {
-                val onNext = {
-                  val fb = try use(value)
+            // Check if Task wasn't already cancelled in acquire
+            if (!conn.isCanceled) {
+              val onNext = {
+                val fb =
+                  try use(value)
                   catch { case NonFatal(e) => Task.raiseError(e) }
-                  fb.flatMap(releaseFrame)
-                }
-
-                Task.unsafeStartNow(onNext, ctx, cb)
+                fb.flatMap(releaseFrame)
               }
+
+              Task.unsafeStartNow(onNext, ctx, cb)
             }
+          }
 
           def onError(ex: Throwable): Unit =
             cb.onError(ex)

@@ -50,12 +50,13 @@ private[reactive] object UnsafeCreateObservable {
     def onNext(elem: A): Future[Ack] =
       if (isDone) Stop
       else {
-        val ack = try underlying.onNext(elem)
-        catch {
-          case ex if NonFatal(ex) =>
-            self.onError(ex)
-            Stop
-        }
+        val ack =
+          try underlying.onNext(elem)
+          catch {
+            case ex if NonFatal(ex) =>
+              self.onError(ex)
+              Stop
+          }
 
         if (ack eq Continue)
           Continue

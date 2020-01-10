@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect.{Fiber => _, _}
-import cats.{CommutativeApplicative, Monoid, Semigroup, ~>}
+import cats.{~>, CommutativeApplicative, Monoid, Semigroup}
 import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
@@ -1748,7 +1748,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *
     * {{{
     *   import scala.util.Random
-    * 
+    *
     *   val random = Task(Random.nextInt())
     *   val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
     *     val newList = list :+ a

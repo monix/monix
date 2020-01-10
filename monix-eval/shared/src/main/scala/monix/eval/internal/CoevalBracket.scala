@@ -32,8 +32,9 @@ private[eval] object CoevalBracket {
     release: (A, Either[Throwable, B]) => Coeval[Unit]): Coeval[B] = {
 
     acquire.flatMap { a =>
-      val next = try use(a)
-      catch { case NonFatal(e) => Coeval.raiseError(e) }
+      val next =
+        try use(a)
+        catch { case NonFatal(e) => Coeval.raiseError(e) }
       next.flatMap(new ReleaseFrameE(a, release))
     }
   }
@@ -47,8 +48,9 @@ private[eval] object CoevalBracket {
     release: (A, ExitCase[Throwable]) => Coeval[Unit]): Coeval[B] = {
 
     acquire.flatMap { a =>
-      val next = try use(a)
-      catch { case NonFatal(e) => Coeval.raiseError(e) }
+      val next =
+        try use(a)
+        catch { case NonFatal(e) => Coeval.raiseError(e) }
       next.flatMap(new ReleaseFrameCase(a, release))
     }
   }

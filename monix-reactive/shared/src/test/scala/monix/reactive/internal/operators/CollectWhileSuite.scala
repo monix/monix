@@ -40,7 +40,8 @@ object CollectWhileSuite extends BaseOperatorSuite {
     Some {
       val o =
         if (sourceCount == 1)
-          Observable.range(1, 10).collectWhile { case x if x <= 1 => x } else
+          Observable.range(1, 10).collectWhile { case x if x <= 1 => x }
+        else
           Observable.range(1, sourceCount * 2 + 1).collectWhile { case x if x <= sourceCount => x }
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

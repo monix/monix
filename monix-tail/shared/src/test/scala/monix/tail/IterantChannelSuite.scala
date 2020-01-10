@@ -117,7 +117,8 @@ object IterantChannelSuite extends SimpleTestSuite {
         if (n > 0) channel.push(n).flatMap {
           case true => loop(channel, n - 1)
           case false => IO.unit
-        } else {
+        }
+        else {
           IO.unit
         }
 

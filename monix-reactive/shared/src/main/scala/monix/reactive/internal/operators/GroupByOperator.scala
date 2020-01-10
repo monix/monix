@@ -58,43 +58,45 @@ private[reactive] final class GroupByOperator[A, K](
           val cache = cacheRef.get()
           var streamError = true
 
-          val result = try {
-            val key = keyFn(elem)
-            streamError = false
+          val result =
+            try {
+              val key = keyFn(elem)
+              streamError = false
 
-            if (cache.contains(key)) {
-              // If downstream cancels, it only canceled the current group,
-              // so we should recreate the group. The call is concurrent with
-              // `recycleKey`, so we'll keep retrying until either the downstream
-              // returns `Continue` or the cache no longer has our key.
-              cache(key).onNext(elem).syncFlatMap {
-                case Continue => Continue
-                case Stop => retryOnNext(elem)
+              if (cache.contains(key)) {
+                // If downstream cancels, it only canceled the current group,
+                // so we should recreate the group. The call is concurrent with
+                // `recycleKey`, so we'll keep retrying until either the downstream
+                // returns `Continue` or the cache no longer has our key.
+                cache(key).onNext(elem).syncFlatMap {
+                  case Continue => Continue
+                  case Stop => retryOnNext(elem)
+                }
+              } else {
+                val onCancel = Cancelable(() => recycleKey(key))
+                val (observer, observable) =
+                  GroupedObservable.broadcast[K, A](key, onCancel)
+
+                if (cacheRef.compareAndSet(cache, cache.updated(key, observer)))
+                  downstream.onNext(observable).syncFlatMap {
+                    case Continue =>
+                      // pushing the first element
+                      observer.onNext(elem).syncMap(_ => Continue)
+
+                    case Stop =>
+                      val errors = completeAll()
+                      if (errors.nonEmpty)
+                        self.onError(CompositeException(errors))
+                      Stop
+                  }
+                else
+                  null // this will trigger a tailrec retry
               }
-            } else {
-              val onCancel = Cancelable(() => recycleKey(key))
-              val (observer, observable) =
-                GroupedObservable.broadcast[K, A](key, onCancel)
-
-              if (cacheRef.compareAndSet(cache, cache.updated(key, observer)))
-                downstream.onNext(observable).syncFlatMap {
-                  case Continue =>
-                    // pushing the first element
-                    observer.onNext(elem).syncMap(_ => Continue)
-
-                  case Stop =>
-                    val errors = completeAll()
-                    if (errors.nonEmpty)
-                      self.onError(CompositeException(errors))
-                    Stop
-                } else
-                null // this will trigger a tailrec retry
+            } catch {
+              case NonFatal(ex) if streamError =>
+                self.onError(ex)
+                Stop
             }
-          } catch {
-            case NonFatal(ex) if streamError =>
-              self.onError(ex)
-              Stop
-          }
 
           if (result == null)
             onNext(elem)

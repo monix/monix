@@ -251,18 +251,15 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
     run(_.tryApply(Right(1)))
     run(_.tryApply(Success(1)))
 
-    run(
-      cb =>
-        try cb.onSuccess(1)
-        catch { case _: CallbackCalledMultipleTimesException => () })
-    run(
-      cb =>
-        try cb(Right(1))
-        catch { case _: CallbackCalledMultipleTimesException => () })
-    run(
-      cb =>
-        try cb(Success(1))
-        catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb =>
+      try cb.onSuccess(1)
+      catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb =>
+      try cb(Right(1))
+      catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb =>
+      try cb(Success(1))
+      catch { case _: CallbackCalledMultipleTimesException => () })
   }
 
   def executeOnErrorTest(
@@ -293,18 +290,15 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
     run(_.tryApply(Left(DUMMY)))
     run(_.tryApply(Failure(DUMMY)))
 
-    run(
-      cb =>
-        try cb.onError(DUMMY)
-        catch { case _: CallbackCalledMultipleTimesException => () })
-    run(
-      cb =>
-        try cb.tryApply(Left(DUMMY))
-        catch { case _: CallbackCalledMultipleTimesException => () })
-    run(
-      cb =>
-        try cb.tryApply(Failure(DUMMY))
-        catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb =>
+      try cb.onError(DUMMY)
+      catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb =>
+      try cb.tryApply(Left(DUMMY))
+      catch { case _: CallbackCalledMultipleTimesException => () })
+    run(cb =>
+      try cb.tryApply(Failure(DUMMY))
+      catch { case _: CallbackCalledMultipleTimesException => () })
   }
 
   def runConcurrently(sc: Scheduler)(f: => Unit): Unit = {

@@ -617,7 +617,8 @@ private[eval] object TaskRunLoop {
         executeAsyncTask(async, context, cb, null, bFirst, bRest, 1)
       case _ =>
         startFull(source, context, cb, null, bFirst, bRest, nextFrame)
-    } else {
+    }
+    else {
       restartAsync(source, context, cb, null, bFirst, bRest)
     }
     context.connection.cancel
@@ -643,7 +644,8 @@ private[eval] object TaskRunLoop {
         executeAsyncTask(async, context, cb, null, bFirst, bRest, 1)
       case _ =>
         startFull(source, context, cb, null, bFirst, bRest, nextFrame)
-    } else {
+    }
+    else {
       restartAsync(current, context, cb, null, bFirst, bRest)
     }
 
