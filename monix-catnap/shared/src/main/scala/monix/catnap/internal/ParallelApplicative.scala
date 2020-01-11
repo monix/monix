@@ -20,7 +20,7 @@ package monix.catnap.internal
 import cats.{CommutativeApplicative, Parallel}
 
 /** Given a `cats.Parallel` instance for a type `F[_]`, builds
-  * a parallel `cats.Applicative[F]` out of it.
+  * a parallel `cats.CommutativeApplicative[F]` out of it.
   */
 private[monix] final class ParallelApplicative[F[_]](implicit P: Parallel[F]) extends CommutativeApplicative[F] {
 
@@ -40,7 +40,7 @@ private[monix] final class ParallelApplicative[F[_]](implicit P: Parallel[F]) ex
 }
 
 private[monix] object ParallelApplicative {
-  /** Given a `cats.Parallel` instance, builds a parallel `cats.Applicative`
+  /** Given a `cats.Parallel` instance, builds a parallel `cats.CommutativeApplicative`
     * out of it.
     */
   def apply[F[_]](implicit P: Parallel[F]): CommutativeApplicative[F] =

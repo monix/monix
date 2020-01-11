@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect.{Fiber => _, _}
-import cats.{~>, CommutativeApplicative, Monoid, Semigroup}
+import cats.{CommutativeApplicative, Monoid, Semigroup, ~>}
 import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
@@ -4720,7 +4720,7 @@ private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
   /** Global instance for `cats.CommutativeApplicative`
     */
   implicit def commutativeApplicative: CommutativeApplicative[Task.Par] =
-    catsParallel.applicative
+    CatsParallelForTask.NondetApplicative
 
   /** Given an `A` type that has a `cats.Monoid[A]` implementation,
     * then this provides the evidence that `Task[A]` also has

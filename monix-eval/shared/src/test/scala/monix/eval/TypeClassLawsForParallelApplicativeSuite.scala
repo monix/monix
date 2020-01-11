@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.{Applicative, CommutativeApplicative}
+import cats.CommutativeApplicative
 import cats.laws.discipline.CommutativeApplicativeTests
 import monix.catnap.internal.ParallelApplicative
 import monix.eval.instances.CatsParallelForTask
@@ -27,7 +27,7 @@ object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
     ParallelApplicative(new CatsParallelForTask)
 
   test("instance is valid") {
-    val ev = implicitly[Applicative[Task]]
+    val ev = implicitly[CommutativeApplicative[Task]]
     assertEquals(ev, ap)
   }
 
