@@ -1759,7 +1759,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * ==Example==
     * {{{
-    *   Observable(1, 2, 3).mapConcat( x => Seq(x, x * 10, x * 100))
+    *   Observable(1, 2, 3).mapConcat( x => List(x, x * 10, x * 100))
     * }}}
     *
     * == Visual Example ==
