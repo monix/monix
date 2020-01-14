@@ -55,6 +55,7 @@ import monix.reactive.subjects._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 
 import scala.collection.mutable
+import scala.collection.immutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -1750,6 +1751,28 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def map[B](f: A => B): Observable[B] =
     self.liftByOperator(new MapOperator(f))
+
+  /** Applies a function that you supply to each item emitted by the
+    * source observable, where that function returns a sequence of elements, and
+    * then concatenating those resulting sequences and emitting the
+    * results of this concatenation.
+    *
+    * ==Example==
+    * {{{
+    *   Observable(1, 2, 3).mapConcat( x => List(x, x * 10, x * 100))
+    * }}}
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream: 1 -- -- 2 -- -- 3 -- --
+    * result: 1, 10, 100, 2, 20, 200, 3, 30, 300
+    * </pre>
+    *
+    * @param f is a generator for the sequences being concatenated
+    */
+  final def mapConcat[B](f: A => immutable.Iterable[B]): Observable[B] =
+    self.liftByOperator(new MapConcatOperator(f))
 
   /** Alias for [[concatMap]].
     *
