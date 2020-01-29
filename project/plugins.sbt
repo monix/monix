@@ -1,6 +1,6 @@
 addSbtPlugin("org.scala-js"         % "sbt-scalajs"     % "0.6.32")
 addSbtPlugin("com.jsuereth"         % "sbt-pgp"         % "2.0.1")
-addSbtPlugin("com.eed3si9n"         % "sbt-unidoc"      % "0.4.2")
+addSbtPlugin("com.eed3si9n"         % "sbt-unidoc"      % "0.4.3")
 addSbtPlugin("pl.project13.scala"   % "sbt-jmh"         % "0.3.7")
 addSbtPlugin("com.typesafe"         % "sbt-mima-plugin" % "0.6.1")
 addSbtPlugin("com.typesafe.sbt"     % "sbt-git"         % "1.0.0")
