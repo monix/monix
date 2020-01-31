@@ -17,11 +17,9 @@
 
 package monix.eval
 
-import cats.Applicative
 import cats.effect.laws.discipline.{ConcurrentEffectTests, ConcurrentTests}
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests, SemigroupKTests}
-import monix.eval.instances.CatsParallelForTask
+import cats.laws.discipline.{CoflatMapTests, CommutativeApplicativeTests, ParallelTests, SemigroupKTests}
 
 object TypeClassLawsForTaskSuite
   extends BaseTypeClassLawsForTaskSuite()(
@@ -35,8 +33,6 @@ object TypeClassLawsForTaskAutoCancelableSuite
 
 class BaseTypeClassLawsForTaskSuite(implicit opts: Task.Options) extends BaseLawsSuite {
 
-  implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
-
   checkAllAsync("CoflatMap[Task]") { implicit ec =>
     CoflatMapTests[Task].coflatMap[Int, Int, Int]
   }
@@ -49,8 +45,8 @@ class BaseTypeClassLawsForTaskSuite(implicit opts: Task.Options) extends BaseLaw
     ConcurrentEffectTests[Task].concurrentEffect[Int, Int, Int]
   }
 
-  checkAllAsync("Applicative[Task.Par]") { implicit ec =>
-    ApplicativeTests[Task.Par].applicative[Int, Int, Int]
+  checkAllAsync("CommutativeApplicative[Task.Par]") { implicit ec =>
+    CommutativeApplicativeTests[Task.Par].commutativeApplicative[Int, Int, Int]
   }
 
   checkAllAsync("Parallel[Task, Task.Par]") { implicit ec =>

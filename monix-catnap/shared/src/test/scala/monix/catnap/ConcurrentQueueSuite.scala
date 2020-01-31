@@ -151,7 +151,8 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
           producer(n - 1)
         case false =>
           IO.shift *> producer(n)
-      } else {
+      }
+      else {
         IO.unit
       }
 
@@ -160,7 +161,8 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
         queue.tryPoll.flatMap {
           case Some(a) => consumer(n - 1, acc.enqueue(a))
           case None => IO.shift *> consumer(n, acc)
-        } else
+        }
+      else
         IO.pure(acc.sum)
 
     for {

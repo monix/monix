@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect.{Fiber => _, _}
-import cats.{~>, Monoid, Semigroup}
+import cats.{CommutativeApplicative, Monoid, Semigroup, ~>}
 import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
@@ -1748,7 +1748,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *
     * {{{
     *   import scala.util.Random
-    * 
+    *
     *   val random = Task(Random.nextInt())
     *   val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
     *     val newList = list :+ a
@@ -4716,6 +4716,11 @@ private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
     */
   implicit def catsParallel: CatsParallelForTask =
     CatsParallelForTask
+
+  /** Global instance for `cats.CommutativeApplicative`
+    */
+  implicit def commutativeApplicative: CommutativeApplicative[Task.Par] =
+    CatsParallelForTask.NondetApplicative
 
   /** Given an `A` type that has a `cats.Monoid[A]` implementation,
     * then this provides the evidence that `Task[A]` also has

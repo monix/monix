@@ -318,8 +318,8 @@ lazy val cmdlineProfile =
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0__RC5,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0
 )
 // https://github.com/lightbend/mima/pull/289
 mimaFailOnNoPrevious in ThisBuild := false

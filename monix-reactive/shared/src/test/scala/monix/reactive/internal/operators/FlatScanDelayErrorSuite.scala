@@ -34,12 +34,11 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
       if (ex == null) Observable.range(0, sourceCount)
       else Observable.range(0, sourceCount).endWithError(ex)
 
-    val o = source.flatScanDelayErrors(1L)(
-      (acc, elem) =>
-        Observable
-          .repeat(acc + elem)
-          .take(3)
-          .endWithError(SomeException(10)))
+    val o = source.flatScanDelayErrors(1L)((acc, elem) =>
+      Observable
+        .repeat(acc + elem)
+        .take(3)
+        .endWithError(SomeException(10)))
 
     val recovered = o.onErrorHandleWith {
       case composite: CompositeException =>

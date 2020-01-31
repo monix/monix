@@ -42,13 +42,14 @@ final class SafeSubscriber[-A] private (subscriber: Subscriber[A]) extends Subsc
 
   def onNext(elem: A): Future[Ack] = {
     if (!isDone) {
-      ack = try {
-        flattenAndCatchFailures(subscriber.onNext(elem))
-      } catch {
-        case ex if NonFatal(ex) =>
-          onError(ex)
-          Stop
-      }
+      ack =
+        try {
+          flattenAndCatchFailures(subscriber.onNext(elem))
+        } catch {
+          case ex if NonFatal(ex) =>
+            onError(ex)
+            Stop
+        }
 
       ack
     } else {

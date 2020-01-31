@@ -211,7 +211,8 @@ object Observer {
               ack.onComplete {
                 case Success(Continue) => run()
                 case other => promise.complete(other)
-              } else
+              }
+            else
               promise.success(Stop)
           } else {
             if ((ack eq Continue) || (ack eq Stop))
