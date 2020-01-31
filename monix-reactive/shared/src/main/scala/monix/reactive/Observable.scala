@@ -4914,17 +4914,17 @@ object Observable extends ObservableDeprecatedBuilders {
     */
   def fromResource[F[_], A](resource: Resource[F, A])(implicit F: TaskLike[F]): Observable[A] =
     resource match {
-      case Resource.Allocate(fa) =>
+      case ra: Resource.Allocate[F, A] @unchecked =>
         Observable
-          .resourceCase(F(fa)) { case ((a, release), exitCase) => F(release(exitCase)) }
+          .resourceCase(F(ra.resource)) { case ((_, release), exitCase) => F(release(exitCase)) }
           .map(_._1)
-      case Resource.Suspend(fa) =>
-        Observable.from(fa).flatMap { res =>
+      case ra: Resource.Suspend[F, A] @unchecked =>
+        Observable.from(ra.resource).flatMap { res =>
           fromResource(res)
         }
-      case Resource.Bind(source, fs) =>
-        fromResource(source).flatMap { s =>
-          fromResource(fs(s))
+      case ra: Resource.Bind[F, Any, A] @unchecked =>
+        fromResource(ra.source).flatMap { s =>
+          fromResource(ra.fs(s))
         }
     }
 
