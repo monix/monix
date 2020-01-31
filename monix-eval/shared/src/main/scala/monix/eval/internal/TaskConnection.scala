@@ -156,9 +156,6 @@ private[eval] object TaskConnection {
         case Nil => Task.unit
         case null => TaskFromFuture.strict(p.future)
         case list =>
-          // cancel in progress, state is null
-          // tryReactivate called, state is Nil
-          // new cancel ? -> doesn't wait - should be fine though
           UnsafeCancelUtils.cancelAllUnsafe(list)
             .redeemWith(ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)), _ => Task(p.success(())))
       }
