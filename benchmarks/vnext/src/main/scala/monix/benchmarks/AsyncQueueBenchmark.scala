@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -72,7 +72,7 @@ class AsyncQueueBenchmark {
 
   def test(producers: Int, workers: Int, channelType: ChannelType): Long = {
     val capacity = BufferCapacity.Bounded(1024)
-    val queue = new AsyncQueue[Int](capacity, channelType = channelType)
+    val queue = AsyncQueue.withConfig[Int](capacity, channelType = channelType)
     val workers = 1
 
     def producer(n: Int): Future[Long] =

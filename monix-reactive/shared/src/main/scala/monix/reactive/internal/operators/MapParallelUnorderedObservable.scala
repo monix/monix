@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -69,10 +69,6 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
     implicit val scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
     private[this] val semaphore = AsyncSemaphore(parallelism)
-    // Reusable instance for releasing permits on cancel, but
-    // it's debatable whether this is needed, since on cancel
-    // everything gets canceled at once
-    private[this] val releaseTask = Task.eval(semaphore.release())
     // Buffer with the supplied  overflow strategy.
     private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
 
@@ -97,10 +93,11 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
         composite += subscription
 
         val task = {
-          val ref = f(elem).redeem(
+          f(elem).redeem(
             error => {
               lastAck = Stop
               composite -= subscription
+              composite.cancel()
               self.onError(error)
             },
             value =>
@@ -117,8 +114,6 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
                   self.onError(ex)
               }
           )
-
-          ref.doOnCancel(releaseTask)
         }
 
         // No longer allowed to stream errors downstream

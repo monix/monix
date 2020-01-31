@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect.{Fiber => _, _}
-import cats.{~>, Monoid, Semigroup}
+import cats.{CommutativeApplicative, Monoid, Semigroup, ~>}
 import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
@@ -31,6 +31,7 @@ import monix.execution.misc.Local
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
+import org.reactivestreams.Publisher
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
@@ -1747,7 +1748,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *
     * {{{
     *   import scala.util.Random
-    * 
+    *
     *   val random = Task(Random.nextInt())
     *   val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
     *     val newList = list :+ a
@@ -2285,7 +2286,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *   def call(): Unit = ()
     *
     *   val remoteCall = Task(call())
-    *     .timeoutToL(actualTimeout, Task.unit)
+    *     .timeoutL(actualTimeout)
     *     .onErrorRestart(100)
     *     .timeout(deadline.time)
     * }}}
@@ -2319,7 +2320,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *   def call(): Unit = ()
     *
     *   val remoteCall = Task(call())
-    *     .timeoutL(actualTimeout)
+    *     .timeoutToL(actualTimeout, Task.unit)
     *     .onErrorRestart(100)
     *     .timeout(deadline.time)
     * }}}
@@ -2701,6 +2702,21 @@ object Task extends TaskInstancesLevel1 {
     */
   def from[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Task[A] =
     F(fa)
+
+  /** Given a `org.reactivestreams.Publisher`, converts it into a
+    * Monix Task.
+    *
+    * See the [[http://www.reactive-streams.org/ Reactive Streams]]
+    * protocol that Monix implements.
+    *
+    * @see [[Task.toReactivePublisher]] for converting a `Task` to
+    *      a reactive publisher.
+    *
+    * @param source is the `org.reactivestreams.Publisher` reference to
+    *        wrap into a [[Task]].
+    */
+  def fromReactivePublisher[A](source: Publisher[A]): Task[Option[A]] =
+    TaskConversions.fromReactivePublisher(source)
 
   /** Builds a [[Task]] instance out of any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent.html Concurrent]] and
@@ -4700,6 +4716,11 @@ private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
     */
   implicit def catsParallel: CatsParallelForTask =
     CatsParallelForTask
+
+  /** Global instance for `cats.CommutativeApplicative`
+    */
+  implicit def commutativeApplicative: CommutativeApplicative[Task.Par] =
+    CatsParallelForTask.NondetApplicative
 
   /** Given an `A` type that has a `cats.Monoid[A]` implementation,
     * then this provides the evidence that `Task[A]` also has

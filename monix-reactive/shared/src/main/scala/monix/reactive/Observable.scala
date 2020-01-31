@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,6 +55,7 @@ import monix.reactive.subjects._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 
 import scala.collection.mutable
+import scala.collection.immutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -1751,6 +1752,28 @@ abstract class Observable[+A] extends Serializable { self =>
   final def map[B](f: A => B): Observable[B] =
     self.liftByOperator(new MapOperator(f))
 
+  /** Applies a function that you supply to each item emitted by the
+    * source observable, where that function returns a sequence of elements, and
+    * then concatenating those resulting sequences and emitting the
+    * results of this concatenation.
+    *
+    * ==Example==
+    * {{{
+    *   Observable(1, 2, 3).mapConcat( x => List(x, x * 10, x * 100))
+    * }}}
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream: 1 -- -- 2 -- -- 3 -- --
+    * result: 1, 10, 100, 2, 20, 200, 3, 30, 300
+    * </pre>
+    *
+    * @param f is a generator for the sequences being concatenated
+    */
+  final def mapConcat[B](f: A => immutable.Iterable[B]): Observable[B] =
+    self.liftByOperator(new MapConcatOperator(f))
+
   /** Alias for [[concatMap]].
     *
     * NOTE: one primary difference between Monix and other Rx /
@@ -2875,6 +2898,19 @@ abstract class Observable[+A] extends Serializable { self =>
   final def scan[S](seed: => S)(op: (S, A) => S): Observable[S] =
     new ScanObservable[A, S](self, seed _, op)
 
+  /**
+    * Applies a binary operator to a start value and all elements of
+    * this Observable, going left to right and returns a new
+    * Observable that emits on each step the result element of
+    * the applied function.
+    *
+    * Similar to [[scan]], but the supplied function returns a tuple
+    * of the next accumulator state and the result type emitted by
+    * the returned observable.
+    */
+  final def mapAccumulate[S, R](seed: => S)(op: (S, A) => (S, R)): Observable[R] =
+    new MapAccumulateObservable[A, S, R](self, seed _, op)
+
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
     * Observable that emits on each step the result of the applied
@@ -3107,15 +3143,24 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Drops the first element of the source observable,
     * emitting the rest.
     */
-  final def tail: Observable[A] = drop(1)
+  final def tail: Observable[A] = drop(1L)
 
   /** Drops the first `n` elements (from the start).
     *
-    * @param n the number of elements to drop
+    * @param n the number (Int) of elements to drop
     * @return a new Observable that drops the first ''n'' elements
     *         emitted by the source
     */
   final def drop(n: Int): Observable[A] =
+    self.liftByOperator(new DropFirstOperator(n))
+
+  /** Drops the first `n` elements (from the start).
+    *
+    * @param n the number (Long) of elements to drop
+    * @return a new Observable that drops the first ''n'' elements
+    *         emitted by the source
+    */
+  final def drop(n: Long): Observable[A] =
     self.liftByOperator(new DropFirstOperator(n))
 
   /** Creates a new Observable that emits the events of the source, only
@@ -5977,18 +6022,13 @@ object Observable extends ObservableDeprecatedBuilders {
     new builders.CombineLatest6Observable[A1, A2, A3, A4, A5, A6, R](a1, a2, a3, a4, a5, a6)(f)
 
   /** Given an observable sequence, it combines them together
-    * (using [[combineLatestMap2 combineLatest]])
     * returning a new observable that generates sequences.
     */
   def combineLatestList[A](sources: Observable[A]*): Observable[Seq[A]] = {
-    if (sources.isEmpty) Observable.empty
-    else {
-      val seed = sources.head.map(t => Vector(t))
-      sources.tail.foldLeft(seed) { (acc, obs) =>
-        acc.combineLatestMap(obs) { (seq, elem) =>
-          seq :+ elem
-        }
-      }
+    if (sources.isEmpty) {
+      Observable.empty
+    } else {
+      new CombineLatestListObservable[A](sources)
     }
   }
 

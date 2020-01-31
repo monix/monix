@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -104,12 +104,12 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
         }
       }
       fiber <- consume.start
-      _ <- chan.awaitConsumers(1)
-      _ <- chan.push(1)
-      _ <- chan.push(2)
-      _ <- chan.push(3)
-      _ <- chan.halt(0)
-      r <- fiber.join
+      _     <- chan.awaitConsumers(1)
+      _     <- chan.push(1)
+      _     <- chan.push(2)
+      _     <- chan.push(3)
+      _     <- chan.halt(0)
+      r     <- fiber.join
     } yield r
   }
 
@@ -674,7 +674,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
             case Right(seq) =>
               assert(seq.length <= 16, s"seq.length (${seq.length}) <= 16")
               worker(acc + seq.sum)
-          } else
+          }
+        else
           consumer.pull.flatMap {
             case Left(i) => IO.pure(acc + i)
             case Right(i) => worker(acc + i)

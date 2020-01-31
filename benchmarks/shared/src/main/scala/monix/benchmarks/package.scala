@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,24 @@
 
 package monix
 
+import cats.effect.{ContextShift, IO}
 import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.Scheduler
 import monix.execution.Scheduler.Implicits.global
+import zio.DefaultRuntime
+import zio.internal.PlatformLive
+
+import scala.concurrent.ExecutionContext
 
 package object benchmarks {
   /** Scheduler used for all testing, avoiding forced async boundaries. */
   implicit val scheduler: Scheduler =
     global.withExecutionModel(SynchronousExecution)
+
+  implicit val contextShift: ContextShift[IO] =
+    IO.contextShift(ExecutionContext.global)
+
+  val zioUntracedRuntime = new DefaultRuntime {
+    override val platform = PlatformLive.Benchmark
+  }
 }

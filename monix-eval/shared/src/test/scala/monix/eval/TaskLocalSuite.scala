@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +19,14 @@ package monix.eval
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+
 import minitest.SimpleTestSuite
-import monix.execution.Scheduler
+import monix.execution.{BufferCapacity, CancelablePromise, Scheduler}
 import monix.execution.exceptions.DummyException
 import monix.execution.misc.Local
 import cats.implicits._
+import monix.catnap.{ConcurrentChannel, ConsumerF}
+import monix.execution.ExecutionModel.SynchronousExecution
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
@@ -263,6 +266,52 @@ object TaskLocalSuite extends SimpleTestSuite {
       r  <- f.join
       _ = assertEquals(r._1, 0)
       _ = assertEquals(r._2, 5)
+    } yield ()
+
+    t.runToFutureOpt
+  }
+
+  testAsync("TaskLocal.isolate with ConcurrentChannel") {
+    val bufferSize = 16
+
+    class Test(
+      l: TaskLocal[String],
+      ch: ConcurrentChannel[Task, Unit, Int]
+    ) {
+      private[this] def produceLoop(n: Int): Task[Unit] =
+        if (n == 0) Task.unit
+        else
+          ch.push(n) >> l.read.flatMap { s =>
+            Task(assertEquals(s, "producer"))
+          } >> produceLoop(n - 1)
+
+      def produce: Task[Unit] =
+        for {
+          _ <- ch.awaitConsumers(1)
+          _ <- l.write("producer")
+          _ <- produceLoop(bufferSize * 2)
+          _ <- ch.halt(())
+        } yield ()
+
+      def consume: Task[Unit] = ch.consume.use { c =>
+        c.pull
+          .delayResult(1.milli)
+          .flatMap { x =>
+            l.write(x.toString).as(x)
+          }
+          .iterateWhile(_.isRight)
+          .void
+      }
+    }
+
+    val t = for {
+      tl <- TaskLocal("undefined")
+      ch <- ConcurrentChannel[Task].withConfig[Unit, Int](
+        ConsumerF.Config(
+          capacity = BufferCapacity.Bounded(bufferSize).some
+        ))
+      test = new Test(tl, ch)
+      _ <- TaskLocal.isolate(test.produce) &> TaskLocal.isolate(test.consume)
     } yield ()
 
     t.runToFutureOpt

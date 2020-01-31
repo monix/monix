@@ -1,3 +1,34 @@
+## Version 3.1.0 (November 8, 2019)
+
+The release is binary and source compatible with 3.0.0.
+
+Important updates:
+
+- [#1008](https://github.com/monix/monix/pull/1008): Fixed stack safety issue of Observable.combineLatestList for big lists
+- [#1010](https://github.com/monix/monix/pull/1010): flatMapLoop for Task and Coeval
+- [#1012](https://github.com/monix/monix/pull/1012): ConcurrentQueue.isEmpty
+- [#1014](https://github.com/monix/monix/pull/1014): Observable.timeoutOnSlowDownstreamTo
+- [#1016](https://github.com/monix/monix/pull/1016): Observable.takeUntilEval
+- [#1057](https://github.com/monix/monix/pull/1057): Fix default scheduleOnce implementation
+- [#1062](https://github.com/monix/monix/pull/1062): Solves a memory leak which sometimes occurred when using Task with localContextPropagation and non-TracingScheduler
+- [#1063](https://github.com/monix/monix/pull/1063): Ensure async boundary in TaskCreate if LCP is enabled
+- [#1064](https://github.com/monix/monix/pull/1064) and [#1070](https://github.com/monix/monix/pull/1070): Earlier cancelation in Observable.mapParallel if any task fails
+- [#1065](https://github.com/monix/monix/pull/1065): Add mapAccumulate to Observable 
+
+People that made this release possible:
+
+- Alexandru Nedelcu (@alexandru)
+- Allan Timothy Leong (@allantl)
+- fdilg (@fdilg)
+- Jan Bracker (@jbracker)
+- Moritz Bust (@busti)
+- mudsam (@mudsam)
+- Oleg Pyzhcov (@oleg-py)
+- Paweł Kiersznowski (@pk044)
+- Piotr Gawryś (@Avasil)
+- tanaka takaya (@takayahilton)
+- TapanVaishnav (@TapanVaishnav)
+
 ## Version 3.0.0 (September 11, 2019)
 
 Important updates:

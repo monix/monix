@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,11 +41,12 @@ private[reactive] final class DoOnStartOperator[A](cb: A => Task[Unit]) extends 
           // stream the error downstream if it happens, but if the
           // error happens because of calls to `onNext` or other
           // protocol calls, then the behavior should be undefined.
-          val t = try {
-            cb(elem)
-          } catch {
-            case NonFatal(ex) => Task.raiseError(ex)
-          }
+          val t =
+            try {
+              cb(elem)
+            } catch {
+              case NonFatal(ex) => Task.raiseError(ex)
+            }
 
           val ack = t
             .redeemWith(

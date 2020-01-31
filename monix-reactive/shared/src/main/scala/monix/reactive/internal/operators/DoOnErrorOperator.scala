@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,8 +35,9 @@ private[reactive] final class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) 
 
       def onError(ex: Throwable): Unit = {
         try {
-          val task = try cb(ex)
-          catch { case err if NonFatal(err) => Task.raiseError(err) }
+          val task =
+            try cb(ex)
+            catch { case err if NonFatal(err) => Task.raiseError(err) }
           task.attempt.map {
             case Right(()) =>
               out.onError(ex)

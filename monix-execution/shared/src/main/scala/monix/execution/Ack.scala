@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,9 +32,9 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
   // For Scala 2.12 compatibility
   final def transform[S](f: (Try[Ack]) => Try[S])(implicit executor: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    onComplete(
-      r =>
-        p.complete(try f(r)
+    onComplete(r =>
+      p.complete(
+        try f(r)
         catch { case t if NonFatal(t) => Failure(t) }))
     p.future
   }
@@ -42,9 +42,9 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
   // For Scala 2.12 compatibility
   final def transformWith[S](f: (Try[Ack]) => Future[S])(implicit executor: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    onComplete(
-      r =>
-        p.completeWith(try f(r)
+    onComplete(r =>
+      p.completeWith(
+        try f(r)
         catch { case t if NonFatal(t) => Future.failed(t) }))
     p.future
   }
@@ -117,7 +117,8 @@ object Ack {
         try thunk
         catch {
           case e if NonFatal(e) => r.reportFailure(e)
-        } else if (source ne Stop)
+        }
+      else if (source ne Stop)
         source.onComplete {
           case Success(Continue) =>
             try thunk
@@ -140,7 +141,8 @@ object Ack {
         try cb(None)
         catch {
           case e if NonFatal(e) => r.reportFailure(e)
-        } else if (source ne Continue)
+        }
+      else if (source ne Continue)
         source.onComplete { ack =>
           try ack match {
             case Success(Stop) => cb(None)
@@ -181,7 +183,8 @@ object Ack {
           case e if NonFatal(e) =>
             r.reportFailure(e)
             Stop
-        } else
+        }
+      else
         source.flatMap(_.syncFlatMap(f)(r))(immediate)
     }
 
@@ -197,7 +200,8 @@ object Ack {
         try f(Success(source.asInstanceOf[Ack]))
         catch {
           case e if NonFatal(e) => r.reportFailure(e)
-        } else
+        }
+      else
         source.onComplete { ack =>
           try f(ack)
           catch { case e if NonFatal(e) => r.reportFailure(e) }
@@ -245,7 +249,8 @@ object Ack {
             case Failure(ex) =>
               r.reportFailure(ex)
               Stop
-          } else
+          }
+        else
           source
       }
   }

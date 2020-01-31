@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,10 +53,10 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
   */
 final class TrampolineExecutionContext private (underlying: ExecutionContext) extends ExecutionContextExecutor {
 
-  private[this] val trampoline = new Trampoline(underlying)
+  private[this] val trampoline = new Trampoline
 
   override def execute(runnable: Runnable): Unit =
-    trampoline.execute(runnable)
+    trampoline.execute(runnable, underlying)
   override def reportFailure(t: Throwable): Unit =
     underlying.reportFailure(t)
 }

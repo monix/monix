@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -215,5 +215,25 @@ object TaskBracketSuite extends BaseTestSuite {
     val f = task.runToFuture
     sc.tick()
     assertEquals(f.value, Some(Success(())))
+  }
+
+  test("use is not evaluated on cancel") { implicit sc =>
+    import scala.concurrent.duration._
+    var use = false
+    var release = false
+
+    val task = Task
+      .sleep(2.second)
+      .bracket(_ => Task { use = true })(_ => Task { release = true })
+
+    val f = task.runToFuture
+    sc.tick()
+
+    f.cancel()
+    sc.tick(2.second)
+
+    assertEquals(f.value, None)
+    assertEquals(use, false)
+    assertEquals(release, true)
   }
 }

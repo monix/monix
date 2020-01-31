@@ -6,7 +6,7 @@ license that Monix is licensed with (Apache 2.0, see LICENSE.txt).
 
 ## Code of Conduct
 
-People are expected to follow the [Typelevel Code of Conduct](https://typelevel.org/conduct.html)
+People are expected to follow the [Scala Code of Conduct](https://www.scala-lang.org/conduct/)
 when discussing Monix on the Github page, Gitter channel, or other venues.
 
 We hope that our community will be respectful, helpful, and kind. If you find 

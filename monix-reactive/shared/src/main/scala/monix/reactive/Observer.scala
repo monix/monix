@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -211,7 +211,8 @@ object Observer {
               ack.onComplete {
                 case Success(Continue) => run()
                 case other => promise.complete(other)
-              } else
+              }
+            else
               promise.success(Stop)
           } else {
             if ((ack eq Continue) || (ack eq Stop))
