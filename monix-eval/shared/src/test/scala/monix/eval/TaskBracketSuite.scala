@@ -17,12 +17,13 @@
 
 package monix.eval
 
+import cats.effect.concurrent.Deferred
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
 import monix.execution.exceptions.{CompositeException, DummyException}
 import monix.execution.internal.Platform
-
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object TaskBracketSuite extends BaseTestSuite {
@@ -235,5 +236,130 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     assertEquals(use, false)
     assertEquals(release, true)
+  }
+
+  test("cancel should wait for already started finalizers on success") { implicit sc =>
+
+    val fa = for {
+      pa <- Deferred[Task, Unit]
+      fiber <- Task.unit.guarantee(pa.complete(()) >> Task.sleep(1.second)).start
+      _ <- pa.get
+      _ <- fiber.cancel
+    } yield ()
+
+    val f = fa.runToFuture
+
+    sc.tick()
+    assertEquals(f.value, None)
+
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("cancel should wait for already started finalizers on failure") { implicit sc =>
+    val dummy = new RuntimeException("dummy")
+
+    val fa = for {
+      pa <- Deferred[Task, Unit]
+      fiber <- Task.unit.guarantee(pa.complete(()) >> Task.sleep(1.second) >> Task.raiseError(dummy)).start
+      _ <- pa.get
+      _ <- fiber.cancel
+    } yield ()
+
+    val f = fa.runToFuture
+
+    sc.tick()
+    assertEquals(f.value, None)
+
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("cancel should wait for already started use finalizers") { implicit sc =>
+
+    val fa = for {
+      pa <- Deferred[Task, Unit]
+      fibA <- Task.unit
+        .bracket(
+          _ => Task.unit.guarantee(pa.complete(()) >> Task.sleep(2.second))
+        )(_ => Task.unit)
+        .start
+      _ <- pa.get
+      _ <- fibA.cancel
+    } yield ()
+
+    val f = fa.runToFuture
+
+    sc.tick()
+    assertEquals(f.value, None)
+
+    sc.tick(2.second)
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("second cancel should wait for use finalizers") { implicit sc =>
+
+    val fa = for {
+      pa <- Deferred[Task, Unit]
+      fiber <- Task.unit
+        .bracket(
+          _ => (pa.complete(()) >> Task.never).guarantee(Task.sleep(2.second))
+        )(_ => Task.unit)
+        .start
+      _ <- pa.get
+      _ <- Task.race(fiber.cancel, fiber.cancel)
+    } yield ()
+
+    val f = fa.runToFuture
+
+    sc.tick()
+    assertEquals(f.value, None)
+
+    sc.tick(2.second)
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("second cancel during acquire should wait for it and finalizers to complete") { implicit sc =>
+
+    val fa = for {
+      pa <- Deferred[Task, Unit]
+      fiber <- (pa.complete(()) >> Task.sleep(1.second))
+        .bracket(_ => Task.unit)(_ => Task.sleep(1.second))
+        .start
+      _ <- pa.get
+      _ <- Task.race(fiber.cancel, fiber.cancel)
+    } yield ()
+
+    val f = fa.runToFuture
+
+    sc.tick()
+    assertEquals(f.value, None)
+
+    sc.tick(1.second)
+    assertEquals(f.value, None)
+
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success(())))
+  }
+
+  test("second cancel during acquire should wait for it and finalizers to complete (non-terminating)") {
+    implicit sc =>
+
+      val fa = for {
+        pa <- Deferred[Task, Unit]
+        fiber <- (pa.complete(()) >> Task.sleep(1.second))
+          .bracket(_ => Task.unit)(_ => Task.never)
+          .start
+        _ <- pa.get
+        _ <- Task.race(fiber.cancel, fiber.cancel)
+      } yield ()
+
+      val f = fa.runToFuture
+
+      sc.tick()
+      assertEquals(f.value, None)
+
+      sc.tick(1.day)
+      assertEquals(f.value, None)
   }
 }

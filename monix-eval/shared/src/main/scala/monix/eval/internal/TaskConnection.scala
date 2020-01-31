@@ -22,7 +22,9 @@ import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.execution.atomic.{Atomic, PaddingStrategy}
 import monix.execution.{Cancelable, Scheduler}
+
 import scala.annotation.tailrec
+import scala.concurrent.Promise
 
 /**
   * INTERNAL API — Represents a composite of functions
@@ -147,12 +149,18 @@ private[eval] object TaskConnection {
         PaddingStrategy.LeftRight128
       )
 
+    private[this] val p: Promise[Unit] = Promise()
+
     val cancel = Task.suspend {
       state.getAndSet(null) match {
-        case null | Nil =>
-          Task.unit
+        case Nil => Task.unit
+        case null => TaskFromFuture.strict(p.future)
         case list =>
+          // cancel in progress, state is null
+          // tryReactivate called, state is Nil
+          // new cancel ? -> doesn't wait - should be fine though
           UnsafeCancelUtils.cancelAllUnsafe(list)
+            .redeemWith(ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)), _ => Task(p.success(())))
       }
     }
 
