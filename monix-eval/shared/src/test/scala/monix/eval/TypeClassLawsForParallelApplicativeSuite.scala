@@ -17,21 +17,21 @@
 
 package monix.eval
 
-import cats.Applicative
-import cats.laws.discipline.ApplicativeTests
+import cats.CommutativeApplicative
+import cats.laws.discipline.CommutativeApplicativeTests
 import monix.catnap.internal.ParallelApplicative
 import monix.eval.instances.CatsParallelForTask
 
 object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
-  implicit val ap: Applicative[Task] =
+  implicit val ap: CommutativeApplicative[Task] =
     ParallelApplicative(new CatsParallelForTask)
 
   test("instance is valid") {
-    val ev = implicitly[Applicative[Task]]
+    val ev = implicitly[CommutativeApplicative[Task]]
     assertEquals(ev, ap)
   }
 
   checkAllAsync("ParallelApplicative[Task]") { implicit ec =>
-    ApplicativeTests[Task].applicative[Int, Int, Int]
+    CommutativeApplicativeTests[Task].commutativeApplicative[Int, Int, Int]
   }
 }

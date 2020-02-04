@@ -60,11 +60,10 @@ object IterantScanEvalSuite extends BaseTestSuite {
       val expected = source
         .take(20)
         .toListL
-        .map(
-          ls =>
-            ls.take(19)
-              .map(x => requestPersonDetails(x).value())
-              .collect { case Some(p) => p.name })
+        .map(ls =>
+          ls.take(19)
+            .map(x => requestPersonDetails(x).value())
+            .collect { case Some(p) => p.name })
 
       fa <-> expected
     }

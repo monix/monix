@@ -399,7 +399,8 @@ private[reactive] final class FlatScanObservable[A, R](
             if (!isStop) exOpt match {
               case None => sendOnComplete()
               case Some(ex) => out.onError(ex)
-            } else
+            }
+            else
               ack.value match {
                 case Some(Failure(ex)) =>
                   // An error happened and we need to report it somewhere

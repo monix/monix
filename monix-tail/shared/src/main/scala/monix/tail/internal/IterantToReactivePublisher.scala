@@ -149,11 +149,10 @@ private[tail] object IterantToReactivePublisher {
           case Left(error) => Logger.reportFailure(error)
           case _ => ()
         })
-      cancelable := Cancelable(
-        () =>
-          token.unsafeRunAsync(
-            AttemptCallback.empty(UncaughtExceptionReporter.default)
-          ))
+      cancelable := Cancelable(() =>
+        token.unsafeRunAsync(
+          AttemptCallback.empty(UncaughtExceptionReporter.default)
+        ))
     }
 
     private final class Loop extends Iterant.Visitor[F, A, F[Unit]] {

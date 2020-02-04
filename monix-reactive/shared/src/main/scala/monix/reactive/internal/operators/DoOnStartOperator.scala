@@ -41,11 +41,12 @@ private[reactive] final class DoOnStartOperator[A](cb: A => Task[Unit]) extends 
           // stream the error downstream if it happens, but if the
           // error happens because of calls to `onNext` or other
           // protocol calls, then the behavior should be undefined.
-          val t = try {
-            cb(elem)
-          } catch {
-            case NonFatal(ex) => Task.raiseError(ex)
-          }
+          val t =
+            try {
+              cb(elem)
+            } catch {
+              case NonFatal(ex) => Task.raiseError(ex)
+            }
 
           val ack = t
             .redeemWith(

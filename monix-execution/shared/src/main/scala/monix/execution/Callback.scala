@@ -464,7 +464,8 @@ object Callback {
             throw e
           case e if NonFatal(e) =>
             r.reportFailure(e)
-        } else {
+        }
+      else {
         throw new CallbackCalledMultipleTimesException("onSuccess")
       }
     }

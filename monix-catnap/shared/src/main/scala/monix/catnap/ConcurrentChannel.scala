@@ -847,15 +847,14 @@ object ConcurrentChannel {
       F.suspend {
         task() match {
           case null =>
-            F.asyncF(
-              cb =>
-                helpers.sleepThenRepeat(
-                  consumersAwait,
-                  task,
-                  pullFilter,
-                  pullMap.asInstanceOf[Either[E, A] => Either[E, A]],
-                  cb
-                ))
+            F.asyncF(cb =>
+              helpers.sleepThenRepeat(
+                consumersAwait,
+                task,
+                pullFilter,
+                pullMap.asInstanceOf[Either[E, A] => Either[E, A]],
+                cb
+              ))
           case value =>
             F.pure(value)
         }
@@ -912,15 +911,14 @@ object ConcurrentChannel {
             case Some(e) =>
               F.pure(end(buffer, maxLength, e))
             case _ =>
-              F.asyncF(
-                cb =>
-                  helpers.sleepThenRepeat(
-                    consumersAwait,
-                    () => task(buffer, minLength, maxLength),
-                    pullFilter,
-                    pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
-                    cb
-                  ))
+              F.asyncF(cb =>
+                helpers.sleepThenRepeat(
+                  consumersAwait,
+                  () => task(buffer, minLength, maxLength),
+                  pullFilter,
+                  pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
+                  cb
+                ))
           }
       }
     }

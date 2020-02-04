@@ -60,7 +60,8 @@ private[reactive] final class RepeatSourceObservable[A](source: Observable[A]) e
               loop(subject, out, task, index + 1)
             case _ =>
               () // do nothing
-          } else {
+          }
+          else {
             out.onComplete()
           }
         }

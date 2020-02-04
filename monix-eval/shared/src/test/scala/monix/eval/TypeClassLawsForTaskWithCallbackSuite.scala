@@ -17,14 +17,14 @@
 
 package monix.eval
 
+import cats.Eq
 import cats.effect.laws.discipline.{ConcurrentEffectTests, ConcurrentTests}
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
-import cats.{Applicative, Eq}
+import cats.laws.discipline.{CoflatMapTests, CommutativeApplicativeTests, ParallelTests}
 import monix.eval.Task.Options
-import monix.eval.instances.CatsParallelForTask
 import monix.execution.Callback
 import monix.execution.schedulers.TestScheduler
+
 import scala.concurrent.Promise
 
 /**
@@ -47,9 +47,6 @@ object TypeClassLawsForTaskAutoCancelableWithCallbackSuite
   )
 
 class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) extends BaseLawsSuite {
-
-  implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
-
   override implicit def equalityTask[A](
     implicit
     A: Eq[A],
@@ -89,8 +86,8 @@ class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) ext
     ConcurrentEffectTests[Task].effect[Int, Int, Int]
   }
 
-  checkAllAsync("Applicative[Task.Par]") { implicit ec =>
-    ApplicativeTests[Task.Par].applicative[Int, Int, Int]
+  checkAllAsync("CommutativeApplicative[Task.Par]") { implicit ec =>
+    CommutativeApplicativeTests[Task.Par].commutativeApplicative[Int, Int, Int]
   }
 
   checkAllAsync("Parallel[Task, Task]") { implicit ec =>
