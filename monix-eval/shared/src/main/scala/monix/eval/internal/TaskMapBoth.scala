@@ -78,8 +78,7 @@ private[eval] object TaskMapBoth {
           if (!state.compareAndSet(other, Stop))
             sendError(mainConn, state, cb, ex)(s) // retry
           else {
-            mainConn.pop().runAsyncAndForget
-            cb.onError(ex)
+            mainConn.pop().map(_ => cb.onError(ex)).runAsyncAndForget
           }
       }
     }

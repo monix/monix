@@ -75,9 +75,10 @@ private[eval] object TaskRacePair {
 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
-              conn.pop()
-              connB.cancel.runAsyncAndForget
-              cb.onError(ex)
+              connB.cancel.map { _ =>
+                conn.pop()
+                cb.onError(ex)
+              }.runAsyncAndForget
             } else {
               pa.failure(ex)
             }
@@ -100,9 +101,10 @@ private[eval] object TaskRacePair {
 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
-              conn.pop()
-              connA.cancel.runAsyncAndForget
-              cb.onError(ex)
+              connA.cancel.map { _ =>
+                conn.pop()
+                cb.onError(ex)
+              }.runAsyncAndForget
             } else {
               pb.failure(ex)
             }

@@ -92,10 +92,11 @@ private[eval] object TaskGather {
         if (isActive) {
           isActive = false
           // This should cancel our CompositeCancelable
-          mainConn.pop().runAsyncAndForget
-          tasks = null // GC relief
-          results = null // GC relief
-          finalCallback.onError(ex)
+          mainConn.pop().map { _ =>
+            tasks = null // GC relief
+            results = null // GC relief
+            finalCallback.onError(ex)
+          }.runAsyncAndForget
         } else {
           s.reportFailure(ex)
         }
