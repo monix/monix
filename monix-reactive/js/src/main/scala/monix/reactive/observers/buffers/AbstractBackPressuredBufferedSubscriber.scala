@@ -143,8 +143,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
 
         case Success(Stop) =>
           // ending loop
-          downstreamIsComplete = true
-          isLoopActive = false
+          stopStreaming()
 
         case Failure(ex) =>
           // ending loop
