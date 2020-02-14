@@ -28,7 +28,7 @@ import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 
-object MapConcatSuite extends BaseOperatorSuite {
+object ConcatMapIterableSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long = (1 to sourceCount).flatMap(i => List(i, i * 10)).sum
   def count(sourceCount: Int) = 2 * sourceCount
 
@@ -37,9 +37,9 @@ object MapConcatSuite extends BaseOperatorSuite {
     Some {
       val o =
         if (sourceCount == 1)
-          Observable.now(1L).mapConcat(i => List(i, i * 10))
+          Observable.now(1L).concatMapIterable(i => List(i, i * 10))
         else
-          Observable.range(1, sourceCount + 1, 1).mapConcat(i => List(i, i * 10))
+          Observable.range(1, sourceCount + 1, 1).concatMapIterable(i => List(i, i * 10))
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -52,10 +52,10 @@ object MapConcatSuite extends BaseOperatorSuite {
       val o =
         if (sourceCount == 1)
           createObservableEndingInError(Observable.now(1L), ex)
-            .mapConcat(i => List(i, i * 10))
+            .concatMapIterable(i => List(i, i * 10))
         else
           createObservableEndingInError(Observable.range(1, sourceCount + 1, 1), ex)
-            .mapConcat(i => List(i, i * 10))
+            .concatMapIterable(i => List(i, i * 10))
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -66,9 +66,9 @@ object MapConcatSuite extends BaseOperatorSuite {
     Some {
       val o =
         if (sourceCount == 1)
-          Observable.now(1).mapConcat(_ => throw ex)
+          Observable.now(1).concatMapIterable(_ => throw ex)
         else
-          Observable.range(1, sourceCount + 1, 1).mapConcat { x =>
+          Observable.range(1, sourceCount + 1, 1).concatMapIterable { x =>
             if (x == sourceCount)
               throw ex
             else
@@ -80,7 +80,7 @@ object MapConcatSuite extends BaseOperatorSuite {
   }
 
   override def cancelableObservables(): Seq[Sample] = {
-    val obs = Observable.range(0, 1000).delayOnNext(1.second).mapConcat(i => List(i, i * 10))
+    val obs = Observable.range(0, 1000).delayOnNext(1.second).concatMapIterable(i => List(i, i * 10))
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
@@ -110,10 +110,10 @@ object MapConcatSuite extends BaseOperatorSuite {
     }
   }
 
-  test("Observable.mapConcat is equivalent with Observable.flatMap + Observable.fromIterable") { implicit s =>
+  test("Observable.concatMapIterable is equivalent with Observable.flatMap + Observable.fromIterable") { implicit s =>
     check1 { list: List[List[Int]] =>
       val obs = Observable.fromIterable(list)
-      val resultViaMapConcat = obs.mapConcat(identity).reduce(_ + _).lastL
+      val resultViaMapConcat = obs.concatMapIterable(identity).reduce(_ + _).lastL
       val resultViaFlatMap = obs.flatMap(Observable.fromIterable).reduce(_ + _).lastL
 
       resultViaMapConcat <-> resultViaFlatMap

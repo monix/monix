@@ -26,7 +26,7 @@ import scala.collection.immutable
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-private[reactive] final class MapConcatOperator[-A, +B](f: A => immutable.Iterable[B]) extends Operator[A, B] {
+private[reactive] final class ConcatMapIterableOperator[-A, +B](f: A => immutable.Iterable[B]) extends Operator[A, B] {
 
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {
