@@ -362,4 +362,18 @@ object TaskBracketSuite extends BaseTestSuite {
       sc.tick(1.day)
       assertEquals(f.value, None)
   }
+
+  test("Multiple cancel should not hang") { implicit sc =>
+
+    val fa = for {
+      fiber <- Task.sleep(1.second).start
+      _ <- fiber.cancel
+      _ <- fiber.cancel
+    } yield ()
+
+    val f = fa.runToFuture
+
+    sc.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
 }
