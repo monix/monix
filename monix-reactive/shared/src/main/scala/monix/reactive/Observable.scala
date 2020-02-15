@@ -1759,7 +1759,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * ==Example==
     * {{{
-    *   Observable(1, 2, 3).mapConcat( x => List(x, x * 10, x * 100))
+    *   Observable(1, 2, 3).concatMapIterable( x => List(x, x * 10, x * 100))
     * }}}
     *
     * == Visual Example ==
@@ -1771,8 +1771,17 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * @param f is a generator for the sequences being concatenated
     */
-  final def mapConcat[B](f: A => immutable.Iterable[B]): Observable[B] =
-    self.liftByOperator(new MapConcatOperator(f))
+  final def concatMapIterable[B](f: A => immutable.Iterable[B]): Observable[B] =
+    self.liftByOperator(new ConcatMapIterableOperator(f))
+
+  /** Alias for [[concatMapIterable]]
+    *
+    * NOTE: one primary difference between Monix and other Rx /
+    * ReactiveX implementations is that in Monix `flatMap` is an alias
+    * for `concatMap` and NOT `mergeMap`.
+    */
+  final def flatMapIterable[B](f: A => immutable.Iterable[B]): Observable[B] =
+    self.flatMapIterable(f)
 
   /** Alias for [[concatMap]].
     *
