@@ -152,8 +152,7 @@ private[eval] object TaskConnection {
     val cancel = Task.suspend {
       state.transformAndExtract {
         case (Nil, p) =>
-          p.success(())
-          (Task.unit, (null, p))
+          (Task(p.success(())), (null, p))
         case (null, p) => (TaskFromFuture.strict(p.future), (null, p))
         case (list, p) =>
           val task = UnsafeCancelUtils
