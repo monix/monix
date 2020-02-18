@@ -121,6 +121,7 @@ object FilterSuite extends BaseOperatorSuite {
 
     val f = filtered.toListL.runToFuture
 
+    s.tick()
     assertEquals(f.value, Some(Success(List.range(1, 1000, 2))))
   }
 }
