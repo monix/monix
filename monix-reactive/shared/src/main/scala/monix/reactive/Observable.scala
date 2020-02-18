@@ -4188,6 +4188,21 @@ abstract class Observable[+A] extends Serializable { self =>
   final def filter(p: A => Boolean): Observable[A] =
     self.liftByOperator(new FilterOperator(p))
 
+  /** Alias to [[filter]] to support syntax in for comprehension, i.e.
+    *
+    * {{{
+    *   case class Person(age: Int)
+    *
+    *   val peopleObservable: Observable[Person] = ???
+    *
+    *   for {
+    *     adult <- peopleObservable if adult.age >= 18
+    *   } yield adult
+    * }}}
+    */
+  final def withFilter(p: A => Boolean): Observable[A] =
+    filter(p)
+
   /** Only emits those items for which the given predicate doesn't hold.
     *
     * @param p a function that evaluates the items emitted by the source
