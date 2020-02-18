@@ -4191,9 +4191,10 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Alias to [[filter]] to support syntax in for comprehension, i.e.
     *
     * {{{
-    *   case class Person(age: Int)
+    *   case class Person(age: Long)
     *
-    *   val peopleObservable: Observable[Person] = ???
+    *   val peopleObservable: Observable[Person] =
+    *     Observable.range(1, 100).map(Person.apply)
     *
     *   for {
     *     adult <- peopleObservable if adult.age >= 18
