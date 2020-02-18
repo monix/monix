@@ -816,6 +816,25 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def filter(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantFilter(this, p)(F)
 
+  /** Filters the iterant by the given predicate function, returning
+    * only those elements that match.
+    *
+    * Example: {{{
+    *   import monix.eval.Task
+    *
+    *   // Yields 2, 4, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).withFilter(_ % 2 == 0)
+    * }}}
+    *
+    * @param p the predicate used to test elements.
+    *
+    * @return a new iterant consisting of all elements that satisfy
+    *         the given predicate. The order of the elements is
+    *         preserved.
+    */
+  final def withFilter(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
+    filter(p)
+
   /** Returns `true` in case the given predicate is satisfied by all
     * of the emitted items, or `false` in case the given predicate
     * fails for any of those items.
