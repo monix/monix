@@ -120,4 +120,15 @@ object IterantFilterSuite extends BaseTestSuite {
     stream.completedL.value()
     assertEquals(effect, 1)
   }
+
+  test("Iterant.withFilter applies filtering in for-comprehension") { implicit s =>
+    val source = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3, 4, 5), Coeval.now(Iterant[Coeval].empty[Int]))
+
+    val evenValues = (for {
+      value <- source if value % 2 == 0
+    } yield value).toListL.value()
+
+    assertEquals(evenValues, List(2, 4))
+  }
 }
