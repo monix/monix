@@ -25,6 +25,7 @@ import monix.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.{Future, Promise}
+import scala.util.Success
 
 object FilterSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) = {
@@ -109,5 +110,18 @@ object FilterSuite extends BaseOperatorSuite {
         p.success(Continue)
         s.tick(waitForNext)
     }
+  }
+
+  test("withFilter syntax works") { implicit s =>
+    val source = Observable.range(1, 1000)
+
+    val filtered = for {
+      element <- source if element % 2 == 1
+    } yield element
+
+    val f = filtered.toListL.runToFuture
+
+    s.tick()
+    assertEquals(f.value, Some(Success(List.range(1, 1000, 2))))
   }
 }
