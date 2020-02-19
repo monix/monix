@@ -823,7 +823,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     *   case class Person(age: Int)
     *
-    *   val peopleSource: Iterant[Person] =
+    *   val peopleSource: Iterant[Task, Person] =
     *     Iterant.range[Task](1, 100).map(Person.apply)
     *
     *   for {
