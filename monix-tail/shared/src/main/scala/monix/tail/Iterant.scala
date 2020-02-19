@@ -821,7 +821,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example: {{{
     *   import monix.eval.Task
     *
-    *   case class Person(age: Long)
+    *   case class Person(age: Int)
     *
     *   val peopleSource: Iterant[Person] =
     *     Iterant.range[Task](1, 100).map(Person.apply)
