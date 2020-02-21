@@ -2226,8 +2226,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * ==Example==
     * {{{
-    * import monix.eval.Task
-    * import scala.concurrent.duration._
+    *   import monix.eval.Task
+    *   import scala.concurrent.duration._
     *   Observable(1, 2, 3).concatMapIterable( x => Task(List(x, x * 10, x * 100)).delayExecution(1.second))
     * }}}
     *
@@ -2244,6 +2244,37 @@ abstract class Observable[+A] extends Serializable { self =>
     mapEval(f)
       .liftByOperator(new ConcatMapIterableOperator(identity))
 
+  /** Version of [[concatMapEvalIterable]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * Example:
+    * {{{
+    *   import cats.implicits._
+    *   import cats.effect.IO
+    *   import scala.concurrent.duration._
+    *   import monix.execution.Scheduler.Implicits.global
+    *   import monix.catnap.SchedulerEffect
+    *   // Needed for IO.sleep
+    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *
+    *   Observable(1, 2, 3)
+    *    .concatMapIterableF( x => IO.sleep(1.second) *> IO(List(x, x * 10, x * 100)))
+    * }}}
+    *
+    * @see [[concatMapEvalIterable]] for a version specialized for
+    *      [[monix.eval.Task Task]]
+    */
+  final def concatMapEvalIterableF[F[_], B](f: A => F[immutable.Iterable[B]])(implicit F: TaskLike[F]): Observable[B] =
+    concatMapEvalIterable(a => Task.from(f(a))(F))
+
   /** Alias for [[concatMapEvalIterable]]
     *
     * NOTE: one primary difference between Monix and other Rx /
@@ -2252,6 +2283,15 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def flatMapEvalIterable[B](f: A => Task[immutable.Iterable[B]]): Observable[B] =
     concatMapEvalIterable(f)
+
+  /** Alias for [[concatMapEvalIterableF]]
+    *
+    * NOTE: one primary difference between Monix and other Rx /
+    * ReactiveX implementations is that in Monix `flatMap` is an alias
+    * for `concatMap` and NOT `mergeMap`.
+    */
+  final def flatMapEvalIterableF[F[_], B](f: A => F[immutable.Iterable[B]])(implicit F: TaskLike[F]): Observable[B] =
+    concatMapEvalIterableF(f)
 
   /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
     * applies it in parallel on the source, but with a specified
