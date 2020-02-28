@@ -2228,7 +2228,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   import monix.eval.Task
     *   import scala.concurrent.duration._
-    *   Observable(1, 2, 3).concatMapIterable( x => Task(List(x, x * 10, x * 100)).delayExecution(1.second))
+    *   Observable(1, 2, 3).concatMapEvalIterable( x => Task(List(x, x * 10, x * 100)).delayExecution(1.second))
     * }}}
     *
     * == Visual Example ==
@@ -2266,7 +2266,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable(1, 2, 3)
-    *    .concatMapIterableF( x => IO.sleep(1.second) *> IO(List(x, x * 10, x * 100)))
+    *    .concatMapEvalIterableF( x => IO.sleep(1.second) *> IO(List(x, x * 10, x * 100)))
     * }}}
     *
     * @see [[concatMapEvalIterable]] for a version specialized for
