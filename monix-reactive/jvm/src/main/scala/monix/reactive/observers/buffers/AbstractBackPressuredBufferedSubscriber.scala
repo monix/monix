@@ -180,7 +180,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
 
         case Success(Stop) =>
           // ending loop
-          downstreamIsComplete = true
+          stopStreaming()
 
         case Failure(ex) =>
           // ending loop
@@ -188,13 +188,13 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
           signalError(ex)
       }
 
-    private final def fastLoop(prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
-      def stopStreaming(): Unit = {
-        downstreamIsComplete = true
-        val bp = backPressured.get()
-        if (bp != null) bp.success(Stop)
-      }
+    private def stopStreaming(): Unit = {
+      downstreamIsComplete = true
+      val bp = backPressured.get()
+      if (bp != null) bp.success(Stop)
+    }
 
+    private final def fastLoop(prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
       var ack = if (prevAck == null) Continue else prevAck
       var isFirstIteration = ack == Continue
       var processed = lastProcessed

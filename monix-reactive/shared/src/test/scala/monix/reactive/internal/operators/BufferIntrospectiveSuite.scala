@@ -18,13 +18,18 @@
 package monix.reactive.internal.operators
 
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject
 import monix.execution.atomic.Atomic
+import monix.reactive.Observable
+
+import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
+import scala.util.Success
 
 object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -81,5 +86,25 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
 
     assertEquals(sum, 16)
     assertEquals(wasCompleted, 1)
+  }
+
+  test("it should signal Stop upstream when it is back-pressured") { implicit s =>
+    var wasFinalized = false
+    var wasEarlyStopped = false
+
+    val f = Observable.range(0, 100)
+      .guarantee(Task { wasFinalized = true })
+      .doOnEarlyStop(Task { wasEarlyStopped = true })
+      .bufferIntrospective(3)
+      .delayOnNext(1.second)
+      .take(3)
+      .completedL
+      .runToFuture
+
+    s.tick(1000.days)
+
+    assertEquals(wasFinalized, true)
+    assertEquals(wasEarlyStopped, true)
+    assertEquals(f.value, Some(Success(())))
   }
 }
