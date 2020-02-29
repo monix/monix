@@ -1199,31 +1199,53 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   /** Introduces an asynchronous boundary at the current stage in the
     * asynchronous processing pipeline.
     *
+    * The `Task` will be returned to the default `Scheduler` to
+    * reschedule the rest of its execution.
+    *
     * Consider the following example:
     *
     * {{{
+    *   import monix.execution.ExecutionModel.SynchronousExecution
     *   import monix.execution.Scheduler
-    *   val io = Scheduler.io()
     *
-    *   val source = Task(1).executeOn(io).map(_ + 1)
+    *   val s = Scheduler.singleThread("example-scheduler").withExecutionModel(SynchronousExecution)
+    *
+    *   val source1 = Task(println("task 1")).loopForever
+    *   val source2 = Task(println("task 2")).loopForever
+    *
+    *   // Will keep printing only "task 1" or "task 2"
+    *   // depending on which one was scheduled first
+    *   Task.parZip2(source1, source2)
     * }}}
     *
-    * That task is being forced to execute on the `io` scheduler,
-    * including the `map` transformation that follows after
-    * `executeOn`. But what if we want to jump with the execution
-    * run-loop on the default scheduler for the following
-    * transformations?
+    * We might expect that both `source1` and `source2` would execute
+    * concurrently but since we are using only 1 thread with
+    * [[monix.execution.ExecutionModel.SynchronousExecution SynchronousExecution]]
+    * execution model, one of them will be scheduled first and then run forever.
     *
-    * Then we can do:
+    * To prevent this behavior we could introduce asynchronous boundary
+    * after each iteration, i.e.:
     *
     * {{{
-    *   source.asyncBoundary.map(_ + 2)
+    *   import monix.execution.ExecutionModel.SynchronousExecution
+    *   import monix.execution.Scheduler
+    *
+    *   val s = Scheduler.singleThread("example-scheduler").withExecutionModel(SynchronousExecution)
+    *
+    *   val source1 = Task(println("task 1")).asyncBoundary.loopForever
+    *   val source2 = Task(println("task 2")).asyncBoundary.loopForever
+    *
+    *   // Will keep printing "task 1" and "task 2" alternately.
+    *   Task.parZip2(source1, source2)
     * }}}
     *
-    * In this sample, whatever gets evaluated by the `source` will
-    * happen on the `io` scheduler, however the `asyncBoundary` call
-    * will make all subsequent operations to happen on the default
-    * scheduler.
+    * A lot of asynchronous boundaries can lead to unnecessary overhead so in the
+    * majority of cases it is enough to use the default `ExecutionModel` which
+    * introduces asynchronous boundaries between `flatMap` periodically on its own.
+    *
+    * Likelihood that different tasks are able to advance is called `fairness`.
+    *
+    * @see [[Task.executeOn]] for a way to override the default `Scheduler`
     */
   final def asyncBoundary: Task[A] =
     flatMap(a => Task.shift.map(_ => a))
@@ -1234,29 +1256,26 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * next async boundary).
     *
     * Consider the following example:
+    *
     * {{{
+    *   import monix.execution.ExecutionModel.SynchronousExecution
     *   import monix.execution.Scheduler
+    *
+    *   implicit val s = Scheduler.global
     *   val io = Scheduler.io()
     *
-    *   val source = Task(1).executeOn(io).map(_ + 1)
+    *   val source = Task(1) // s
+    *     .asyncBoundary(io)
+    *     .flatMap(_ => Task(2)) // io
+    *     .flatMap(_ => Task(3)) // io
+    *     .asyncBoundary
+    *     .flatMap(_ => Task(4)  // s
     * }}}
     *
-    * That task is being forced to execute on the `io` scheduler,
-    * including the `map` transformation that follows after
-    * `executeOn`. But what if we want to jump with the execution
-    * run-loop on another scheduler for the following transformations?
-    *
-    * Then we can do:
-    * {{{
-    *   import monix.execution.Scheduler.global
-    *
-    *   source.asyncBoundary(global).map(_ + 2)
-    * }}}
-    *
-    * In this sample, whatever gets evaluated by the `source` will
-    * happen on the `io` scheduler, however the `asyncBoundary` call
-    * will make all subsequent operations to happen on the specified
-    * `global` scheduler.
+    * If `Scheduler s` is passed implicitly when running the `Task`, `Task(1)`
+    * will be executed there. Then it will switch to `io` for `Task(2)` and `Task(3)`.
+    * `asyncBoundary` without any arguments returns to the default `Scheduler` so `Task(4)`
+    * will be executed there.
     *
     * @param s is the scheduler triggering the asynchronous boundary
     */
@@ -1533,6 +1552,9 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * possibly forcing an asynchronous boundary before execution
     * (if `forceAsync` is set to `true`, the default).
     *
+    * The `Task` will return to the previously default `Scheduler`
+    * after `fa.executeOn(s)` is completed.
+    *
     * When a `Task` is executed with [[Task.runAsync]] or [[Task.runToFuture]],
     * it needs a `Scheduler`, which is going to be injected in all
     * asynchronous tasks processed within the `flatMap` chain,
@@ -1600,13 +1622,13 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * [[monix.execution.ExecutionModel ExecutionModel]]) and the
     * given scheduler will probably not be used at all.
     *
-    * However in case we would use [[Task.apply]], which ensures
+    * However in case we would use [[Task.evalAsync]], which ensures
     * that execution of the provided thunk will be async, then
     * by using `executeOn` we'll indeed get a logical fork on
     * the `io` scheduler:
     *
     * {{{
-    *   Task("Hello, " + "World!").executeOn(io, forceAsync = false)
+    *   Task.evalAsync("Hello, " + "World!").executeOn(io, forceAsync = false)
     * }}}
     *
     * Also note that overriding the "default" scheduler can only
@@ -3438,6 +3460,8 @@ object Task extends TaskInstancesLevel1 {
     * responsible for the "shift".
     *
     * $shiftDesc
+    *
+    * @see [[Task.executeOn]] for a way to override the default `Scheduler`
     */
   val shift: Task[Unit] =
     shift(null)
