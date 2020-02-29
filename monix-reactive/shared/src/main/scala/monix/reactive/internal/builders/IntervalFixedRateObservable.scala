@@ -38,21 +38,21 @@ private[reactive] final class IntervalFixedRateObservable(initialDelay: FiniteDu
     val task = MultiAssignCancelable()
 
     val runnable = new Runnable { self =>
-      private[this] val periodMillis = period.toMillis
+      private[this] val periodNanos = period.toNanos
       private[this] var counter = 0L
       private[this] var startedAt = 0L
 
       def scheduleNext(): Unit = {
         counter += 1
         val delay = {
-          val durationMillis = s.clockMonotonic(MILLISECONDS) - startedAt
-          val d = periodMillis - durationMillis
+          val durationNanos = s.clockMonotonic(NANOSECONDS) - startedAt
+          val d = periodNanos - durationNanos
           if (d >= 0L) d else 0L
         }
 
         // No need to synchronize, since we have a happens-before
         // relationship between scheduleOnce invocations.
-        task := s.scheduleOnce(delay, TimeUnit.MILLISECONDS, self)
+        task := s.scheduleOnce(delay, TimeUnit.NANOSECONDS, self)
       }
 
       def asyncScheduleNext(r: Future[Ack]): Unit =
@@ -64,7 +64,7 @@ private[reactive] final class IntervalFixedRateObservable(initialDelay: FiniteDu
         }
 
       def run(): Unit = {
-        startedAt = s.clockMonotonic(MILLISECONDS)
+        startedAt = s.clockMonotonic(NANOSECONDS)
         val ack = o.onNext(counter)
 
         if (ack == Continue)
