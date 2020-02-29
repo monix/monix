@@ -1227,16 +1227,11 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * after each iteration, i.e.:
     *
     * {{{
-    *   import monix.execution.ExecutionModel.SynchronousExecution
-    *   import monix.execution.Scheduler
-    *
-    *   val s = Scheduler.singleThread("example-scheduler").withExecutionModel(SynchronousExecution)
-    *
-    *   val source1 = Task(println("task 1")).asyncBoundary.loopForever
-    *   val source2 = Task(println("task 2")).asyncBoundary.loopForever
+    *   val source3 = Task(println("task 1")).asyncBoundary.loopForever
+    *   val source4 = Task(println("task 2")).asyncBoundary.loopForever
     *
     *   // Will keep printing "task 1" and "task 2" alternately.
-    *   Task.parZip2(source1, source2)
+    *   Task.parZip2(source3, source4)
     * }}}
     *
     * A lot of asynchronous boundaries can lead to unnecessary overhead so in the
@@ -1258,7 +1253,6 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * Consider the following example:
     *
     * {{{
-    *   import monix.execution.ExecutionModel.SynchronousExecution
     *   import monix.execution.Scheduler
     *
     *   implicit val s = Scheduler.global
@@ -1269,7 +1263,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *     .flatMap(_ => Task(2)) // io
     *     .flatMap(_ => Task(3)) // io
     *     .asyncBoundary
-    *     .flatMap(_ => Task(4)  // s
+    *     .flatMap(_ => Task(4))  // s
     * }}}
     *
     * If `Scheduler s` is passed implicitly when running the `Task`, `Task(1)`
