@@ -2797,20 +2797,20 @@ object Iterant extends IterantInstances {
     */
   def fromResource[F[_], A](r: Resource[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     r match {
-      case Resource.Allocate(fa) =>
+      case fa: Resource.Allocate[F, A] @unchecked =>
         Iterant
-          .resourceCase(fa) { (a, ec) =>
+          .resourceCase(fa.resource) { (a, ec) =>
             a._2(ec)
           }
           .map(_._1)
-      case Resource.Bind(source, f) =>
+      case fa: Resource.Bind[F, Any, A] @unchecked =>
         Iterant.suspendS(F.delay {
-          Iterant.fromResource(source).flatMap { a =>
-            Iterant.fromResource(f(a))
+          Iterant.fromResource(fa.source).flatMap { a =>
+            Iterant.fromResource(fa.fs(a))
           }
         })
-      case Resource.Suspend(fr) =>
-        Iterant.suspendS(F.map(fr)(fromResource(_)))
+      case fa: Resource.Suspend[F, A] @unchecked =>
+        Iterant.suspendS(F.map(fa.resource)(fromResource(_)))
     }
 
   /**

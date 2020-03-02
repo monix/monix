@@ -1487,7 +1487,7 @@ object Coeval extends CoevalInstancesLevel0 {
   }
 
   /** Instance of Cats type classes for [[Coeval]], implementing
-    * `cats.effect.Sync` (which implies `Applicative`, `Monad`, `MonadError`)
+    * `cats.effect.SyncEffect` (which implies `Applicative`, `Monad`, `MonadError`, `Sync`)
     * and `cats.CoflatMap`.
     */
   implicit def catsSync: CatsSyncForCoeval =

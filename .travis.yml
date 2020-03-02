@@ -20,7 +20,7 @@ matrix:
     # Scala 2.12, JVM
     - jdk: oraclejdk8
       scala: 2.12.10
-      env: COMMAND=ci-jvm-all
+      env: COMMAND=ci-jvm
     # Scala 2.12, JVM, JDK 11
     - jdk: openjdk11
       scala: 2.12.10
@@ -32,7 +32,7 @@ matrix:
     # Scala 2.13, JVM
     - jdk: oraclejdk8
       scala: 2.13.1
-      env: COMMAND=ci-jvm
+      env: COMMAND=ci-jvm-all
     # Scala 2.13, JVM, JDK 11
     - jdk: openjdk11
       scala: 2.13.1
