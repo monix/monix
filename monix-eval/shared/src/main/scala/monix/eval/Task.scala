@@ -28,7 +28,7 @@ import monix.execution.annotations.{UnsafeBecauseBlocking, UnsafeBecauseImpure}
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.Local
-import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
+import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolineExecutionContext, TrampolinedRunnable}
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
 import org.reactivestreams.Publisher
@@ -581,10 +581,22 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   @UnsafeBecauseImpure
   def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
     val opts2 = opts.withSchedulerFeatures
-    Local
-      .bindCurrentIf(opts2.localContextPropagation) {
-        TaskRunLoop.startFuture(this, s, opts2)
-      }
+
+    if(opts2.localContextPropagation) {
+      var prev: Local.Context = null
+
+      Local.isolate {
+        TaskRunLoop.startFuture(this, s, opts2).transform { result =>
+          prev = Local.getContext()
+          result
+        }(TrampolineExecutionContext.immediate)
+
+      }.transform { result =>
+        Local.setContext(prev)
+        result
+      }(TrampolineExecutionContext.immediate)
+
+    } else TaskRunLoop.startFuture(this, s, opts2)
   }
 
   /** Triggers the asynchronous execution, with a provided callback

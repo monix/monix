@@ -277,4 +277,22 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
     test.runToFuture
   }
+
+  testAsync("Task.runToFuture isolates but preserves context for Future continuation") {
+    implicit val s: Scheduler = Scheduler.Implicits.traced
+    val local = Local(0)
+
+    def test(i: Int, isAsync: Boolean): Future[Unit] = {
+      for {
+        prev <- Future(local.get)
+        _ <- (if (isAsync) Task.evalAsync(local.update(prev + i)) else Task(local.update(i))).runToFuture
+        next <- Future(local.get)
+      } yield assertEquals(next, i)
+    }
+
+    val futures = List.range(0, 20).map(i => test(i, true)) ++
+      List.range(20, 40).map(i => test(i, false))
+
+    Future.sequence(futures).map(_ => ())
+  }
 }

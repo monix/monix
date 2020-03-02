@@ -249,7 +249,7 @@ object Local extends LocalCompanionDeprecated {
       }
   }
 
-  private[execution] final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
+   final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
 
   private[execution] final class Bound(
     val key: Key,
