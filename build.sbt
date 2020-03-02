@@ -31,7 +31,7 @@ lazy val catsEffectVersion = settingKey[String]("cats-effect version")
 ThisBuild/catsEffectVersion := {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 11)) => "2.0.0"
-    case _ => "2.1.0"
+    case _ => "2.1.2"
   }
 }
 
