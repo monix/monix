@@ -2216,6 +2216,83 @@ abstract class Observable[+A] extends Serializable { self =>
   final def mapEvalF[F[_], B](f: A => F[B])(implicit F: TaskLike[F]): Observable[B] =
     mapEval(a => Task.from(f(a))(F))
 
+  /** Maps elements from the source using a function that can do
+    * asynchronous processing by means of [[monix.eval.Task Task]].
+    *
+    * Applies a function that you supply to each item emitted by the
+    * source observable, where that function asynchronously returns a sequence of elements by means of [[monix.eval.Task Task]].
+    * Each resulting sequences are concatenated and results of this concatenation is emitted.
+    *
+    *
+    * ==Example==
+    * {{{
+    *   import monix.eval.Task
+    *   import scala.concurrent.duration._
+    *   Observable(1, 2, 3).concatMapEvalIterable( x => Task(List(x, x * 10, x * 100)).delayExecution(1.second))
+    * }}}
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream: 1 -- -- 2 -- -- 3 -- --
+    * result: 1, 10, 100, 2, 20, 200, 3, 30, 300
+    * </pre>
+    *
+    * @param f is a generator for the sequences being concatenated
+    */
+  final def concatMapEvalIterable[B](f: A => Task[immutable.Iterable[B]]): Observable[B] =
+    mapEval(f)
+      .liftByOperator(new ConcatMapIterableOperator(identity))
+
+  /** Version of [[concatMapEvalIterable]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * Example:
+    * {{{
+    *   import cats.implicits._
+    *   import cats.effect.IO
+    *   import scala.concurrent.duration._
+    *   import monix.execution.Scheduler.Implicits.global
+    *   import monix.catnap.SchedulerEffect
+    *   // Needed for IO.sleep
+    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *
+    *   Observable(1, 2, 3)
+    *    .concatMapEvalIterableF( x => IO.sleep(1.second) *> IO(List(x, x * 10, x * 100)))
+    * }}}
+    *
+    * @see [[concatMapEvalIterable]] for a version specialized for
+    *      [[monix.eval.Task Task]]
+    */
+  final def concatMapEvalIterableF[F[_], B](f: A => F[immutable.Iterable[B]])(implicit F: TaskLike[F]): Observable[B] =
+    concatMapEvalIterable(a => Task.from(f(a))(F))
+
+  /** Alias for [[concatMapEvalIterable]]
+    *
+    * NOTE: one primary difference between Monix and other Rx /
+    * ReactiveX implementations is that in Monix `flatMap` is an alias
+    * for `concatMap` and NOT `mergeMap`.
+    */
+  final def flatMapEvalIterable[B](f: A => Task[immutable.Iterable[B]]): Observable[B] =
+    concatMapEvalIterable(f)
+
+  /** Alias for [[concatMapEvalIterableF]]
+    *
+    * NOTE: one primary difference between Monix and other Rx /
+    * ReactiveX implementations is that in Monix `flatMap` is an alias
+    * for `concatMap` and NOT `mergeMap`.
+    */
+  final def flatMapEvalIterableF[F[_], B](f: A => F[immutable.Iterable[B]])(implicit F: TaskLike[F]): Observable[B] =
+    concatMapEvalIterableF(f)
+
   /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
     * applies it in parallel on the source, but with a specified
     * `parallelism`, which indicates the maximum number of tasks that
@@ -2631,9 +2708,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorHandle[B >: A](f: Throwable => B): Observable[B] =
-    onErrorHandleWith { elem =>
-      Observable.now(f(elem))
-    }
+    onErrorHandleWith { elem => Observable.now(f(elem)) }
 
   /** Returns an observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which
@@ -3595,9 +3670,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param f is a mapping function over the generated pairs
     */
   final def withLatestFrom2[B1, B2, R](o1: Observable[B1], o2: Observable[B2])(f: (A, B1, B2) => R): Observable[R] =
-    self.withLatestFrom(Observable.combineLatest2(o1, o2)) { (a, tuple) =>
-      f(a, tuple._1, tuple._2)
-    }
+    self.withLatestFrom(Observable.combineLatest2(o1, o2)) { (a, tuple) => f(a, tuple._1, tuple._2) }
 
   /** Combines the elements emitted by the source with the latest elements
     * emitted by three observables.
@@ -3614,9 +3687,7 @@ abstract class Observable[+A] extends Serializable { self =>
   final def withLatestFrom3[B1, B2, B3, R](o1: Observable[B1], o2: Observable[B2], o3: Observable[B3])(
     f: (A, B1, B2, B3) => R): Observable[R] = {
 
-    self.withLatestFrom(Observable.combineLatest3(o1, o2, o3)) { (a, o) =>
-      f(a, o._1, o._2, o._3)
-    }
+    self.withLatestFrom(Observable.combineLatest3(o1, o2, o3)) { (a, o) => f(a, o._1, o._2, o._3) }
   }
 
   /** Combines the elements emitted by the source with the latest elements
@@ -3638,9 +3709,7 @@ abstract class Observable[+A] extends Serializable { self =>
     o3: Observable[B3],
     o4: Observable[B4])(f: (A, B1, B2, B3, B4) => R): Observable[R] = {
 
-    self.withLatestFrom(Observable.combineLatest4(o1, o2, o3, o4)) { (a, o) =>
-      f(a, o._1, o._2, o._3, o._4)
-    }
+    self.withLatestFrom(Observable.combineLatest4(o1, o2, o3, o4)) { (a, o) => f(a, o._1, o._2, o._3, o._4) }
   }
 
   /** Combines the elements emitted by the source with the latest elements
@@ -3664,9 +3733,7 @@ abstract class Observable[+A] extends Serializable { self =>
     o4: Observable[B4],
     o5: Observable[B5])(f: (A, B1, B2, B3, B4, B5) => R): Observable[R] = {
 
-    self.withLatestFrom(Observable.combineLatest5(o1, o2, o3, o4, o5)) { (a, o) =>
-      f(a, o._1, o._2, o._3, o._4, o._5)
-    }
+    self.withLatestFrom(Observable.combineLatest5(o1, o2, o3, o4, o5)) { (a, o) => f(a, o._1, o._2, o._3, o._4, o._5) }
   }
 
   /** Combines the elements emitted by the source with the latest elements
@@ -4661,9 +4728,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * source observable, executing the given callback for each element.
     */
   final def foreachL(cb: A => Unit): Task[Unit] =
-    Task.create { (s, onFinish) =>
-      unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
-    }
+    Task.create { (s, onFinish) => unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s)) }
 }
 
 /** Observable builders.
@@ -4989,13 +5054,9 @@ object Observable extends ObservableDeprecatedBuilders {
           .resourceCase(F(fa)) { case ((a, release), exitCase) => F(release(exitCase)) }
           .map(_._1)
       case Resource.Suspend(fa) =>
-        Observable.from(fa).flatMap { res =>
-          fromResource(res)
-        }
+        Observable.from(fa).flatMap { res => fromResource(res) }
       case Resource.Bind(source, fs) =>
-        fromResource(source).flatMap { s =>
-          fromResource(fs(s))
-        }
+        fromResource(source).flatMap { s => fromResource(fs(s)) }
     }
 
   /** Safely converts a `java.io.InputStream` into an observable that will
@@ -5756,9 +5817,7 @@ object Observable extends ObservableDeprecatedBuilders {
     if (sources.isEmpty) Observable.empty
     else {
       val seed = sources.head.map(t => Vector(t))
-      sources.tail.foldLeft(seed) { (acc, obs) =>
-        acc.zipMap(obs)((seq, elem) => seq :+ elem)
-      }
+      sources.tail.foldLeft(seed) { (acc, obs) => acc.zipMap(obs)((seq, elem) => seq :+ elem) }
     }
   }
 
@@ -6025,8 +6084,8 @@ object Observable extends ObservableDeprecatedBuilders {
     oa4: Observable[A4],
     oa5: Observable[A5],
     oa6: Observable[A6]): Observable[(A1, A2, A3, A4, A5, A6)] =
-    new builders.CombineLatest6Observable(oa1, oa2, oa3, oa4, oa5, oa6)(
-      (a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
+    new builders.CombineLatest6Observable(oa1, oa2, oa3, oa4, oa5, oa6)((a1, a2, a3, a4, a5, a6) =>
+      (a1, a2, a3, a4, a5, a6))
 
   /** Creates a combined observable from 6 source observables.
     *
