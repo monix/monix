@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -847,15 +847,14 @@ object ConcurrentChannel {
       F.suspend {
         task() match {
           case null =>
-            F.asyncF(
-              cb =>
-                helpers.sleepThenRepeat(
-                  consumersAwait,
-                  task,
-                  pullFilter,
-                  pullMap.asInstanceOf[Either[E, A] => Either[E, A]],
-                  cb
-                ))
+            F.asyncF(cb =>
+              helpers.sleepThenRepeat(
+                consumersAwait,
+                task,
+                pullFilter,
+                pullMap.asInstanceOf[Either[E, A] => Either[E, A]],
+                cb
+              ))
           case value =>
             F.pure(value)
         }
@@ -912,15 +911,14 @@ object ConcurrentChannel {
             case Some(e) =>
               F.pure(end(buffer, maxLength, e))
             case _ =>
-              F.asyncF(
-                cb =>
-                  helpers.sleepThenRepeat(
-                    consumersAwait,
-                    () => task(buffer, minLength, maxLength),
-                    pullFilter,
-                    pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
-                    cb
-                  ))
+              F.asyncF(cb =>
+                helpers.sleepThenRepeat(
+                  consumersAwait,
+                  () => task(buffer, minLength, maxLength),
+                  pullFilter,
+                  pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
+                  cb
+                ))
           }
       }
     }

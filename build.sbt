@@ -27,9 +27,15 @@ addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
 val catsVersion = "2.0.0"
-val catsEffectVersion = "2.0.0"
-val catsEffectLawsVersion = catsEffectVersion
-val jcToolsVersion = "3.0.0"
+lazy val catsEffectVersion = settingKey[String]("cats-effect version")
+ThisBuild/catsEffectVersion := {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 11)) => "2.0.0"
+    case _ => "2.1.2"
+  }
+}
+
+val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.3"
 val minitestVersion = "2.7.0"
 val scalaTestVersion = "3.0.8"
@@ -191,7 +197,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
   headerLicense := Some(HeaderLicense.Custom(
-    """|Copyright (c) 2014-2019 by The Monix Project Developers.
+    """|Copyright (c) 2014-2020 by The Monix Project Developers.
        |See the project homepage at: https://monix.io
        |
        |Licensed under the Apache License, Version 2.0 (the "License");
@@ -292,7 +298,7 @@ lazy val testSettings = Seq(
   libraryDependencies ++= Seq(
     "io.monix" %%% "minitest-laws" % minitestVersion % Test,
     "org.typelevel" %%% "cats-laws" % catsVersion % Test,
-    "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion % Test
+    "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion.value % Test
   )
 )
 
@@ -318,8 +324,8 @@ lazy val cmdlineProfile =
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0__RC5,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0
 )
 // https://github.com/lightbend/mima/pull/289
 mimaFailOnNoPrevious in ThisBuild := false
@@ -389,7 +395,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 lazy val catnapCommon =
   crossSettings ++ crossVersionSharedSources ++ testSettings ++ Seq(
     name := "monix-catnap",
-    libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion
+    libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion.value
 )
 
 lazy val catnapJVM = project.in(file("monix-catnap/jvm"))

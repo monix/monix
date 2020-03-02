@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,7 +42,8 @@ object CollectSuite extends BaseOperatorSuite {
     Some {
       val o =
         if (sourceCount == 1)
-          Observable.now(2L).collect { case x if x                          % 2 == 0 => x } else
+          Observable.now(2L).collect { case x if x % 2 == 0 => x }
+        else
           Observable.range(1, sourceCount * 2 + 1, 1).collect { case x if x % 2 == 0 => x }
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -55,7 +56,8 @@ object CollectSuite extends BaseOperatorSuite {
       val ex = DummyException("dummy")
       val o =
         if (sourceCount == 1)
-          createObservableEndingInError(Observable.now(2L), ex).collect { case x if x % 2 == 0 => x } else
+          createObservableEndingInError(Observable.now(2L), ex).collect { case x if x % 2 == 0 => x }
+        else
           createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex).collect {
             case x if x % 2 == 0 => x
           }
@@ -69,7 +71,8 @@ object CollectSuite extends BaseOperatorSuite {
     Some {
       val o =
         if (sourceCount == 1)
-          Observable.now(1L).collect { case _ => throw ex } else
+          Observable.now(1L).collect { case _ => throw ex }
+        else
           Observable.range(1, sourceCount * 2 + 1, 1).collect {
             case x if x % 2 == 0 =>
               if (x == sourceCount * 2)

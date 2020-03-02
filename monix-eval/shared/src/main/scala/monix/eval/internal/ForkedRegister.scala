@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,7 +49,8 @@ private[eval] object ForkedRegister {
       case Map(other, _, _) => detect(other, limit - 1)
       case ContextSwitch(other, _, _) => detect(other, limit - 1)
       case _ => false
-    } else {
+    }
+    else {
       false
     }
   }

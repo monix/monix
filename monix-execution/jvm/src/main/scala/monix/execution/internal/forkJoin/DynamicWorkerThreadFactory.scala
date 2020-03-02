@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -82,13 +82,14 @@ private[monix] final class DynamicWorkerThreadFactory(
             def isReleasable = isDone
 
             def block(): Boolean = {
-              result = try {
-                // When we block, switch out the BlockContext temporarily so that nested
-                // blocking does not created N new Threads
-                BlockContext.withBlockContext(EmptyBlockContext) { thunk }
-              } finally {
-                isDone = true
-              }
+              result =
+                try {
+                  // When we block, switch out the BlockContext temporarily so that nested
+                  // blocking does not created N new Threads
+                  BlockContext.withBlockContext(EmptyBlockContext) { thunk }
+                } finally {
+                  isDone = true
+                }
               true
             }
           })

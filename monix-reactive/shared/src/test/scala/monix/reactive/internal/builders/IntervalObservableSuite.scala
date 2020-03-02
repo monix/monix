@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -111,6 +111,37 @@ object IntervalObservableSuite extends SimpleTestSuite {
     assertEquals(received, 2)
 
     s.tick(100.millis)
+    assertEquals(received, 3)
+  }
+
+  test("should do intervalAtFixedRate with nanosecond period") {
+    implicit val s = TestScheduler()
+    var received = 0
+
+    Observable
+      .intervalAtFixedRate(100.nanos)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long): Future[Ack] = {
+          received += 1
+          Future.delayedResult(10.nanos)(Continue)
+        }
+
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = ()
+      })
+
+    assertEquals(received, 1)
+
+    s.tick(90.nanos)
+    assertEquals(received, 1)
+
+    s.tick(10.nanos)
+    assertEquals(received, 2)
+
+    s.tick(90.nanos)
+    assertEquals(received, 2)
+
+    s.tick(10.nanos)
     assertEquals(received, 3)
   }
 }

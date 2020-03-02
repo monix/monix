@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.eval.instances
 
-import cats.{~>, Applicative, Monad, Parallel}
+import cats.{Applicative, CommutativeApplicative, Monad, Parallel, ~>}
 import monix.eval.Task
 
 /** `cats.Parallel` type class instance for [[monix.eval.Task Task]].
@@ -46,7 +46,7 @@ class CatsParallelForTask extends Parallel[Task] {
 }
 
 object CatsParallelForTask extends CatsParallelForTask {
-  private object NondetApplicative extends Applicative[Task.Par] {
+  private[eval] object NondetApplicative extends CommutativeApplicative[Task.Par] {
 
     import Task.Par.unwrap
     import Task.Par.{apply => par}

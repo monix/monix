@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,12 +34,11 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
       if (ex == null) Observable.range(0, sourceCount)
       else Observable.range(0, sourceCount).endWithError(ex)
 
-    val o = source.flatScanDelayErrors(1L)(
-      (acc, elem) =>
-        Observable
-          .repeat(acc + elem)
-          .take(3)
-          .endWithError(SomeException(10)))
+    val o = source.flatScanDelayErrors(1L)((acc, elem) =>
+      Observable
+        .repeat(acc + elem)
+        .take(3)
+        .endWithError(SomeException(10)))
 
     val recovered = o.onErrorHandleWith {
       case composite: CompositeException =>

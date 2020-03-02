@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -353,7 +353,11 @@ final class CircuitBreaker[F[_]] private (
     *        case the attempt fails and it needs to transition to
     *        `Open` again
     */
-  private def attemptReset[A](task: F[A], resetTimeout: FiniteDuration, await: CancelablePromise[Unit], lastStartedAt: Timestamp): F[A] =
+  private def attemptReset[A](
+    task: F[A],
+    resetTimeout: FiniteDuration,
+    await: CancelablePromise[Unit],
+    lastStartedAt: Timestamp): F[A] =
     F.bracketCase(onHalfOpen)(_ => task) { (_, exit) =>
       exit match {
         case ExitCase.Canceled =>

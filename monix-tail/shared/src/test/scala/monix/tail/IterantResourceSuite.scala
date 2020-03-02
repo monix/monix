@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,13 +44,12 @@ object IterantResourceSuite extends BaseTestSuite {
     var earlyStopDone = false
     val bracketed = Iterant
       .resource(Coeval.unit)(_ => Coeval.unit)
-      .flatMap(
-        _ =>
-          Iterant[Coeval]
-            .of(1, 2, 3)
-            .guarantee(Coeval {
-              earlyStopDone = true
-            }))
+      .flatMap(_ =>
+        Iterant[Coeval]
+          .of(1, 2, 3)
+          .guarantee(Coeval {
+            earlyStopDone = true
+          }))
 
     bracketed.take(1).completedL.value()
     assert(earlyStopDone)

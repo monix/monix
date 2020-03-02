@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -75,9 +75,10 @@ private[eval] object TaskRacePair {
 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
-              conn.pop()
-              connB.cancel.runAsyncAndForget
-              cb.onError(ex)
+              connB.cancel.map { _ =>
+                conn.pop()
+                cb.onError(ex)
+              }.runAsyncAndForget
             } else {
               pa.failure(ex)
             }
@@ -100,9 +101,10 @@ private[eval] object TaskRacePair {
 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
-              conn.pop()
-              connA.cancel.runAsyncAndForget
-              cb.onError(ex)
+              connA.cancel.map { _ =>
+                conn.pop()
+                cb.onError(ex)
+              }.runAsyncAndForget
             } else {
               pb.failure(ex)
             }

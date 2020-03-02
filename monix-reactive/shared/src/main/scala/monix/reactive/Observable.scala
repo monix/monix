@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,6 +55,7 @@ import monix.reactive.subjects._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 
 import scala.collection.mutable
+import scala.collection.immutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -1751,6 +1752,37 @@ abstract class Observable[+A] extends Serializable { self =>
   final def map[B](f: A => B): Observable[B] =
     self.liftByOperator(new MapOperator(f))
 
+  /** Applies a function that you supply to each item emitted by the
+    * source observable, where that function returns a sequence of elements, and
+    * then concatenating those resulting sequences and emitting the
+    * results of this concatenation.
+    *
+    * ==Example==
+    * {{{
+    *   Observable(1, 2, 3).concatMapIterable( x => List(x, x * 10, x * 100))
+    * }}}
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream: 1 -- -- 2 -- -- 3 -- --
+    * result: 1, 10, 100, 2, 20, 200, 3, 30, 300
+    * </pre>
+    *
+    * @param f is a generator for the sequences being concatenated
+    */
+  final def concatMapIterable[B](f: A => immutable.Iterable[B]): Observable[B] =
+    self.liftByOperator(new ConcatMapIterableOperator(f))
+
+  /** Alias for [[concatMapIterable]]
+    *
+    * NOTE: one primary difference between Monix and other Rx /
+    * ReactiveX implementations is that in Monix `flatMap` is an alias
+    * for `concatMap` and NOT `mergeMap`.
+    */
+  final def flatMapIterable[B](f: A => immutable.Iterable[B]): Observable[B] =
+    self.flatMapIterable(f)
+
   /** Alias for [[concatMap]].
     *
     * NOTE: one primary difference between Monix and other Rx /
@@ -3120,15 +3152,24 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Drops the first element of the source observable,
     * emitting the rest.
     */
-  final def tail: Observable[A] = drop(1)
+  final def tail: Observable[A] = drop(1L)
 
   /** Drops the first `n` elements (from the start).
     *
-    * @param n the number of elements to drop
+    * @param n the number (Int) of elements to drop
     * @return a new Observable that drops the first ''n'' elements
     *         emitted by the source
     */
   final def drop(n: Int): Observable[A] =
+    self.liftByOperator(new DropFirstOperator(n))
+
+  /** Drops the first `n` elements (from the start).
+    *
+    * @param n the number (Long) of elements to drop
+    * @return a new Observable that drops the first ''n'' elements
+    *         emitted by the source
+    */
+  final def drop(n: Long): Observable[A] =
     self.liftByOperator(new DropFirstOperator(n))
 
   /** Creates a new Observable that emits the events of the source, only
@@ -4147,6 +4188,22 @@ abstract class Observable[+A] extends Serializable { self =>
   final def filter(p: A => Boolean): Observable[A] =
     self.liftByOperator(new FilterOperator(p))
 
+  /** Alias to [[filter]] to support syntax in for comprehension, i.e.
+    *
+    * Example: {{{
+    *   case class Person(age: Long)
+    *
+    *   val peopleObservable: Observable[Person] =
+    *     Observable.range(1, 100).map(Person.apply)
+    *
+    *   for {
+    *     adult <- peopleObservable if adult.age >= 18
+    *   } yield adult
+    * }}}
+    */
+  final def withFilter(p: A => Boolean): Observable[A] =
+    filter(p)
+
   /** Only emits those items for which the given predicate doesn't hold.
     *
     * @param p a function that evaluates the items emitted by the source
@@ -4927,17 +4984,17 @@ object Observable extends ObservableDeprecatedBuilders {
     */
   def fromResource[F[_], A](resource: Resource[F, A])(implicit F: TaskLike[F]): Observable[A] =
     resource match {
-      case Resource.Allocate(fa) =>
+      case ra: Resource.Allocate[F, A] @unchecked =>
         Observable
-          .resourceCase(F(fa)) { case ((a, release), exitCase) => F(release(exitCase)) }
+          .resourceCase(F(ra.resource)) { case ((_, release), exitCase) => F(release(exitCase)) }
           .map(_._1)
-      case Resource.Suspend(fa) =>
-        Observable.from(fa).flatMap { res =>
+      case ra: Resource.Suspend[F, A] @unchecked =>
+        Observable.from(ra.resource).flatMap { res =>
           fromResource(res)
         }
-      case Resource.Bind(source, fs) =>
-        fromResource(source).flatMap { s =>
-          fromResource(fs(s))
+      case ra: Resource.Bind[F, Any, A] @unchecked =>
+        fromResource(ra.source).flatMap { s =>
+          fromResource(ra.fs(s))
         }
     }
 

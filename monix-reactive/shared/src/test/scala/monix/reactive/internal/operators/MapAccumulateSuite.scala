@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,8 @@ import scala.util.Failure
 
 object MapAccumulateSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable
+      .range(0, sourceCount)
       .mapAccumulate(0L)((acc, elem) => (acc + elem, acc * elem))
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }

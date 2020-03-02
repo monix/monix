@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -380,7 +380,6 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromReactivePublisher protects against user error") { implicit s =>
-
     val dummy = DummyException("dummy")
 
     val pub = new Publisher[Int] {
@@ -396,7 +395,6 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromReactivePublisher yields expected input") { implicit s =>
-
     val pub = new Publisher[Int] {
       def subscribe(s: Subscriber[_ >: Int]): Unit = {
         s.onSubscribe(new Subscription {

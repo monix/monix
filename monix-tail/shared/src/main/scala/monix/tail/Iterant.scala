@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -815,6 +815,24 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def filter(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantFilter(this, p)(F)
+
+  /** Alias to [[filter]] to support syntax in for comprehension, i.e.
+    *
+    * Example: {{{
+    *   import monix.eval.Task
+    *
+    *   case class Person(age: Int)
+    *
+    *   val peopleSource: Iterant[Task, Person] =
+    *     Iterant.range[Task](1, 100).map(Person.apply)
+    *
+    *   for {
+    *     adult <- peopleSource if adult.age >= 18
+    *   } yield adult
+    * }}}
+    */
+  final def withFilter(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
+    filter(p)
 
   /** Returns `true` in case the given predicate is satisfied by all
     * of the emitted items, or `false` in case the given predicate
@@ -2779,20 +2797,20 @@ object Iterant extends IterantInstances {
     */
   def fromResource[F[_], A](r: Resource[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     r match {
-      case Resource.Allocate(fa) =>
+      case fa: Resource.Allocate[F, A] @unchecked =>
         Iterant
-          .resourceCase(fa) { (a, ec) =>
+          .resourceCase(fa.resource) { (a, ec) =>
             a._2(ec)
           }
           .map(_._1)
-      case Resource.Bind(source, f) =>
+      case fa: Resource.Bind[F, Any, A] @unchecked =>
         Iterant.suspendS(F.delay {
-          Iterant.fromResource(source).flatMap { a =>
-            Iterant.fromResource(f(a))
+          Iterant.fromResource(fa.source).flatMap { a =>
+            Iterant.fromResource(fa.fs(a))
           }
         })
-      case Resource.Suspend(fr) =>
-        Iterant.suspendS(F.map(fr)(fromResource(_)))
+      case fa: Resource.Suspend[F, A] @unchecked =>
+        Iterant.suspendS(F.map(fa.resource)(fromResource(_)))
     }
 
   /**

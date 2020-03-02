@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -591,7 +591,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * {{{
     *   import scala.util.Random
-    * 
+    *
     *   val random = Coeval(Random.nextInt())
     *   val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
     *     val newList = list :+ a
@@ -819,10 +819,9 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * will be `maxRetries + 1`.
     */
   final def onErrorRestart(maxRetries: Long): Coeval[A] =
-    self.onErrorHandleWith(
-      ex =>
-        if (maxRetries > 0) self.onErrorRestart(maxRetries - 1)
-        else Error(ex))
+    self.onErrorHandleWith(ex =>
+      if (maxRetries > 0) self.onErrorRestart(maxRetries - 1)
+      else Error(ex))
 
   /** Creates a new coeval that in case of error will retry executing the
     * source again and again, until it succeeds.
@@ -1488,7 +1487,7 @@ object Coeval extends CoevalInstancesLevel0 {
   }
 
   /** Instance of Cats type classes for [[Coeval]], implementing
-    * `cats.effect.Sync` (which implies `Applicative`, `Monad`, `MonadError`)
+    * `cats.effect.SyncEffect` (which implies `Applicative`, `Monad`, `MonadError`, `Sync`)
     * and `cats.CoflatMap`.
     */
   implicit def catsSync: CatsSyncForCoeval =

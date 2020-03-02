@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +22,7 @@ import monix.execution.Cancelable
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.{CompositeException, DummyException}
 import monix.execution.internal.Platform
+import scala.concurrent.duration._
 
 object TaskConnectionSuite extends BaseTestSuite {
   test("initial push") { implicit s =>
@@ -253,7 +254,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 100)
   }
 
-  test("tryReactive ") { implicit s =>
+  test("tryReactivate") { implicit s =>
     val ref = TaskConnection()
     val c1 = BooleanCancelable()
     ref.push(c1)
@@ -270,7 +271,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     ref.push(c2)
     assert(!ref.isCanceled, "!ref.isCanceled")
     ref.cancel.runAsyncAndForget; s.tick()
-    assert(c2.isCanceled, "c1.isCanceled")
+    assert(c2.isCanceled, "c2.isCanceled")
     assert(ref.isCanceled, "ref.isCanceled")
 
     assert(TaskConnection.uncancelable.tryReactivate())

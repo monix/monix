@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -78,8 +78,9 @@ private[tail] object IterantMapEval {
         Suspend[F, B](rest.map(this))
       } else {
         val head = cursor.next()
-        val fb = try ff(head)
-        catch { case NonFatal(e) => F.raiseError[B](e) }
+        val fb =
+          try ff(head)
+          catch { case NonFatal(e) => F.raiseError[B](e) }
         // If the iterator is empty, then we can skip a beat
         val tail = if (cursor.hasNext()) F.pure(ref: Iterant[F, A]) else rest
         val suspended = fb.map(continue(tail))
