@@ -8,39 +8,45 @@ matrix:
     # Scala 2.11, JVM
     - jdk: oraclejdk8
       scala: 2.11.12
-      env: COMMAND=ci-jvm-mima
-    # Scala 2.11, JVM, JDK 11
-    - jdk: openjdk11
-      scala: 2.11.12
-      env: COMMAND=ci-jvm
+      env:
+        - COMMAND=ci-jvm-mima
+        - SCALAJS_VERSION=
     # Scala 2.11, JavaScript
     - jdk: oraclejdk8
       scala: 2.11.12
-      env: COMMAND=ci-js
+      env:
+        - COMMAND=ci-js
+        - SCALAJS_VERSION=0.6.32
     # Scala 2.12, JVM
     - jdk: oraclejdk8
       scala: 2.12.10
-      env: COMMAND=ci-jvm
-    # Scala 2.12, JVM, JDK 11
-    - jdk: openjdk11
-      scala: 2.12.10
-      env: COMMAND=ci-jvm
+      env:
+        - COMMAND=ci-jvm
+        - SCALAJS_VERSION=
     # Scala 2.12, JavaScript
     - jdk: oraclejdk8
       scala: 2.12.10
-      env: COMMAND=ci-js
+      env:
+        - COMMAND=ci-js
+        - SCALAJS_VERSION=1.0.0
     # Scala 2.13, JVM
     - jdk: oraclejdk8
       scala: 2.13.1
-      env: COMMAND=ci-jvm-all
+      env:
+        - COMMAND=ci-jvm-all
+        - SCALAJS_VERSION=
     # Scala 2.13, JVM, JDK 11
     - jdk: openjdk11
       scala: 2.13.1
-      env: COMMAND=ci-jvm
+      env:
+        - COMMAND=ci-jvm
+        - SCALAJS_VERSION=
     # Scala 2.13, JavaScript
     - jdk: oraclejdk8
       scala: 2.13.1
-      env: COMMAND=ci-js
+      env:
+        - COMMAND=ci-js
+        - SCALAJS_VERSION=1.0.0
 
 env:
   global:
@@ -51,7 +57,7 @@ install:
   - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
 
 script:
-  - sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COMMAND
+  - sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COMMAND $SCALAJS_VERSION
 
 notifications:
   webhooks:
