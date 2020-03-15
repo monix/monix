@@ -142,4 +142,16 @@ object TaskFlatMapSuite extends BaseTestSuite {
     s.tick()
     assert(wasCancelled)
   }
+
+  test("fa *> fb <-> fa.flatMap(_ => fb)") { implicit s =>
+    check2 { (fa: Task[Int], fb: Task[Int]) =>
+      fa *> fb <-> fa.flatMap(_ => fb)
+    }
+  }
+
+  test("fa <* fb <-> fa.flatMap(a => fb.map(_ => a))") { implicit s =>
+    check2 { (fa: Task[Int], fb: Task[Int]) =>
+      fa <* fb <-> fa.flatMap(a => fb.map(_ => a))
+    }
+  }
 }
