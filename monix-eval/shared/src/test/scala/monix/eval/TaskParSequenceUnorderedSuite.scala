@@ -25,13 +25,13 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-object TaskGatherUnorderedSuite extends BaseTestSuite {
-  test("Task.gatherUnordered should execute in parallel") { implicit s =>
+object TaskParSequenceUnorderedSuite extends BaseTestSuite {
+  test("Task.parSequenceUnordered should execute in parallel") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
       Task.evalAsync(3).delayExecution(3.seconds))
-    val f = Task.gatherUnordered(seq).runToFuture
+    val f = Task.parSequenceUnordered(seq).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -41,7 +41,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(List(3, 1, 2))))
   }
 
-  test("Task.gatherUnordered should onError if one of the tasks terminates in error") { implicit s =>
+  test("Task.parSequenceUnordered should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq(
       Task.evalAsync(3).delayExecution(3.seconds),
@@ -50,7 +50,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
       Task.evalAsync(3).delayExecution(1.seconds)
     )
 
-    val f = Task.gatherUnordered(seq).runToFuture
+    val f = Task.parSequenceUnordered(seq).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -58,12 +58,12 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.gatherUnordered should be canceled") { implicit s =>
+  test("Task.parSequenceUnordered should be canceled") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
       Task.evalAsync(3).delayExecution(3.seconds))
-    val f = Task.gatherUnordered(seq).runToFuture
+    val f = Task.parSequenceUnordered(seq).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -75,28 +75,28 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.gatherUnordered should run over an iterable") { implicit s =>
+  test("Task.parSequenceUnordered should run over an iterable") { implicit s =>
     val count = 10
     val seq = 0 until count
     val it = seq.map(x => Task.eval(x + 1))
-    val sum = Task.gatherUnordered(it).map(_.sum)
+    val sum = Task.parSequenceUnordered(it).map(_.sum)
 
     val result = sum.runToFuture; s.tick()
     assertEquals(result.value.get, Success((count + 1) * count / 2))
   }
 
-  test("Task.gatherUnordered should be stack-safe on handling many tasks") { implicit s =>
+  test("Task.parSequenceUnordered should be stack-safe on handling many tasks") { implicit s =>
     val count = 10000
     val tasks = (0 until count).map(x => Task.eval(x))
-    val sum = Task.gatherUnordered(tasks).map(_.sum)
+    val sum = Task.parSequenceUnordered(tasks).map(_.sum)
 
     val result = sum.runToFuture; s.tick()
     assertEquals(result.value.get, Success(count * (count - 1) / 2))
   }
 
-  test("Task.gatherUnordered should be stack safe on success") { implicit s =>
+  test("Task.parSequenceUnordered should be stack safe on success") { implicit s =>
     def fold[A, B](ta: Task[ListBuffer[A]], tb: Task[A]): Task[ListBuffer[A]] =
-      Task.gatherUnordered(List(ta, tb)).map {
+      Task.parSequenceUnordered(List(ta, tb)).map {
         case a :: b :: Nil =>
           val (accR, valueR) = if (a.isInstanceOf[ListBuffer[_]]) (a, b) else (b, a)
           val acc = accR.asInstanceOf[ListBuffer[A]]
@@ -129,7 +129,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     assertEquals(result, Some(Success(count * (count - 1) / 2)))
   }
 
-  test("Task.gatherUnordered should log errors if multiple errors happen") { implicit s =>
+  test("Task.parSequenceUnordered should log errors if multiple errors happen") { implicit s =>
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
 
     val ex = DummyException("dummy1")
@@ -153,7 +153,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
       }
       .uncancelable
 
-    val gather = Task.gatherUnordered(Seq(task1, task2))
+    val gather = Task.parSequenceUnordered(Seq(task1, task2))
     val result = gather.runToFutureOpt
     s.tick()
 
@@ -162,13 +162,13 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     assertEquals(errorsThrow, 2)
   }
 
-  test("Task.gatherUnordered runAsync multiple times") { implicit s =>
+  test("Task.parSequenceUnordered runAsync multiple times") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
     val task2 = task1 map { x =>
       effect += 1; x + 1
     }
-    val task3 = Task.gatherUnordered(List(task2, task2, task2))
+    val task3 = Task.parSequenceUnordered(List(task2, task2, task2))
 
     val result1 = task3.runToFuture; s.tick()
     assertEquals(result1.value, Some(Success(List(4, 4, 4))))

@@ -23,8 +23,10 @@ import monix.catnap.ConcurrentQueue
 import monix.eval.Task
 import monix.execution.{BufferCapacity, ChannelType}
 
-private[eval] object TaskGatherN {
-
+private[eval] object TaskParSequenceN {
+  /**
+    * Implementation for [[Task.parSequenceN]]
+    */
   def apply[A](
     parallelism: Int,
     in: Iterable[Task[A]]
@@ -42,7 +44,7 @@ private[eval] object TaskGatherN {
           .withConfig[Task, (Deferred[Task, A], Task[A])](BufferCapacity.Bounded(itemSize), ChannelType.SPMC)
         pairs <- Task.traverse(in.toList)(task => Deferred[Task, A].map(p => (p, task)))
         _     <- queue.offerMany(pairs)
-        workers = Task.gather(List.fill(parallelism.min(itemSize)) {
+        workers = Task.parSequence(List.fill(parallelism.min(itemSize)) {
           queue.poll.flatMap {
             case (p, task) =>
               task.redeemWith(

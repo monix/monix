@@ -45,7 +45,7 @@ import scala.concurrent.Future
   *
   *     Or to specify custom values use below format:
   *
-  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.TaskGatherBenchmark
+  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.TaskSequenceBenchmark
   *
   * Which means "20 iterations", "20 warm-up iterations", "4 forks", "2 thread".
   * Please note that benchmarks should be usually executed at least in
@@ -94,24 +94,24 @@ class TaskSequenceBenchmark {
 
 
   @Benchmark
-  def monixGather(): Long = {
+  def monixParSequence(): Long = {
     val tasks = (0 until count).map(_ => Task.eval(1)).toList
-    val result = Task.gather(tasks).map(_.sum.toLong)
+    val result = Task.parSequence(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
 
 
   @Benchmark
-  def monixGatherUnordered(): Long = {
+  def monixParSequenceUnordered(): Long = {
     val tasks = (0 until count).map(_ => Task.eval(1)).toList
-    val result = Task.gatherUnordered(tasks).map(_.sum.toLong)
+    val result = Task.parSequenceUnordered(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
 
   @Benchmark
-  def monixGatherN(): Long = {
+  def monixParSequenceN(): Long = {
     val tasks = (0 until count).map(_ => Task.eval(1)).toList
-    val result = Task.gatherN(parallelism)(tasks).map(_.sum.toLong)
+    val result = Task.parSequenceN(parallelism)(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
 

@@ -21,7 +21,9 @@ package internal
 import cats.effect.{ConcurrentEffect, IO}
 import monix.eval.Task.Options
 import monix.execution.annotations.UnsafeBecauseImpure
+import monix.execution.compat.BuildFrom
 import monix.execution.{Callback, Cancelable, CancelableFuture, Scheduler}
+
 import scala.annotation.unchecked.uncheckedVariance
 import scala.util.{Failure, Success, Try}
 
@@ -412,6 +414,30 @@ private[eval] object TaskDeprecated {
     def fromIO[A](ioa: IO[A]): Task[A] = {
       // $COVERAGE-OFF$
       Task.from(ioa)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Task.parSequence]]. */
+    @deprecated("Use parSequence", "3.2.0")
+    def gather[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
+      // $COVERAGE-OFF$
+      Task.parSequence(in)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Task.parSequenceN]] */
+    @deprecated("Use parSequenceN", "3.2.0")
+    def gatherN[A](parallelism: Int)(in: Iterable[Task[A]]): Task[List[A]] = {
+      // $COVERAGE-OFF$
+      Task.parSequenceN(parallelism)(in)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Task.parSequenceUnordered]] */
+    @deprecated("Use parSequenceUnordered", "3.2.0")
+    def gatherUnordered[A](in: Iterable[Task[A]]): Task[List[A]] = {
+      // $COVERAGE-OFF$
+      Task.parSequenceUnordered(in)
       // $COVERAGE-ON$
     }
   }

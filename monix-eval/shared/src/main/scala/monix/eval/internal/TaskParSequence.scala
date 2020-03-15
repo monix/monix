@@ -26,9 +26,9 @@ import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-private[eval] object TaskGather {
+private[eval] object TaskParSequence {
   /**
-    * Implementation for `Task.gather`
+    * Implementation for [[Task.parSequence]]
     */
   def apply[A, M[X] <: Iterable[X]](in: Iterable[Task[A]], makeBuilder: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
     Async(
