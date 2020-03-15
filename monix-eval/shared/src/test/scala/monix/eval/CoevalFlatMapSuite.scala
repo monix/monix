@@ -53,4 +53,16 @@ object CoevalFlatMapSuite extends BaseTestSuite {
     val _ = looped
     assert(true)
   }
+
+  test("fa *> fb <-> fa.flatMap(_ => fb)") { implicit s =>
+    check2 { (fa: Coeval[Int], fb: Coeval[Int]) =>
+      fa *> fb <-> fa.flatMap(_ => fb)
+    }
+  }
+
+  test("fa <* fb <-> fa.flatMap(a => fb.map(_ => a))") { implicit s =>
+    check2 { (fa: Coeval[Int], fb: Coeval[Int]) =>
+      fa <* fb <-> fa.flatMap(a => fb.map(_ => a))
+    }
+  }
 }
