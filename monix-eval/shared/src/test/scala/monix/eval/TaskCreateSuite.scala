@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.effect.IO
 import monix.execution.Cancelable
 import monix.execution.exceptions.DummyException
 
-import scala.util.Success
+import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
 object TaskCreateSuite extends BaseTestSuite {
@@ -174,7 +174,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("throwing error when returning Unit reports it") { implicit sc =>
+  test("throwing error when returning Unit") { implicit sc =>
     val dummy = DummyException("dummy")
     val task = Task.create[Int] { (_, _) =>
       (throw dummy): Unit
@@ -183,11 +183,11 @@ object TaskCreateSuite extends BaseTestSuite {
     val f = task.runToFuture
     sc.tick()
 
-    assertEquals(f.value, None)
-    assertEquals(sc.state.lastReportedError, dummy)
+    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(sc.state.lastReportedError, null)
   }
 
-  test("throwing error when returning Cancelable reports it") { implicit sc =>
+  test("throwing error when returning Cancelable") { implicit sc =>
     val dummy = DummyException("dummy")
     val task = Task.create[Int] { (_, _) =>
       (throw dummy): Cancelable
@@ -196,7 +196,7 @@ object TaskCreateSuite extends BaseTestSuite {
     val f = task.runToFuture
     sc.tick()
 
-    assertEquals(f.value, None)
-    assertEquals(sc.state.lastReportedError, dummy)
+    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(sc.state.lastReportedError, null)
   }
 }

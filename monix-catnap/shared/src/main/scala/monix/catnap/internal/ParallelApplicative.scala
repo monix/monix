@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,12 @@
 
 package monix.catnap.internal
 
-import cats.{Applicative, Parallel}
+import cats.{CommutativeApplicative, Parallel}
 
 /** Given a `cats.Parallel` instance for a type `F[_]`, builds
-  * a parallel `cats.Applicative[F]` out of it.
+  * a parallel `cats.CommutativeApplicative[F]` out of it.
   */
-private[monix] final class ParallelApplicative[F[_], G[_]](implicit P: Parallel[F, G]) extends Applicative[F] {
+private[monix] final class ParallelApplicative[F[_]](implicit P: Parallel[F]) extends CommutativeApplicative[F] {
 
   override def pure[A](x: A): F[A] =
     P.monad.pure(x)
@@ -40,9 +40,9 @@ private[monix] final class ParallelApplicative[F[_], G[_]](implicit P: Parallel[
 }
 
 private[monix] object ParallelApplicative {
-  /** Given a `cats.Parallel` instance, builds a parallel `cats.Applicative`
+  /** Given a `cats.Parallel` instance, builds a parallel `cats.CommutativeApplicative`
     * out of it.
     */
-  def apply[F[_], G[_]](implicit P: Parallel[F, G]): Applicative[F] =
-    new ParallelApplicative[F, G]()
+  def apply[F[_]](implicit P: Parallel[F]): CommutativeApplicative[F] =
+    new ParallelApplicative[F]()
 }

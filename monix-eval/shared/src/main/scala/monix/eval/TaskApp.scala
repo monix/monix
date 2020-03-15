@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,7 +74,7 @@ trait TaskApp {
     * [[monix.eval.Task.defaultOptions defaultOptions]],
     * but can be overridden.
     */
-  protected def options: Task.Options = Task.defaultOptions
+  protected def options: Task.Options = Task.defaultOptions.withSchedulerFeatures(scheduler)
 
   /** Provides the
     * [[https://typelevel.org/cats-effect/typeclasses/concurrent-effect.html cats.effect.ConcurrentEffect]]

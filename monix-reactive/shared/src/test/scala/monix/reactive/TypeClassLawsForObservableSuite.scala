@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,9 @@
 
 package monix.reactive
 
+import cats.NonEmptyParallel
 import cats.effect.laws.discipline.BracketTests
+import cats.laws.discipline.NonEmptyParallelTests.Aux
 import cats.laws.discipline.{
   AlternativeTests,
   ApplyTests,
@@ -55,7 +57,7 @@ object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
   }
 
   checkAllAsync("NonEmptyParallel[Observable, CombineObservable.Type]") { implicit ec =>
-    NonEmptyParallelTests[Observable, CombineObservable.Type].nonEmptyParallel[Int, Int]
+    NonEmptyParallelTests[Observable].nonEmptyParallel[Int, Int]
   }
 
   checkAllAsync("FunctorFilter[Observable]") { implicit ec =>

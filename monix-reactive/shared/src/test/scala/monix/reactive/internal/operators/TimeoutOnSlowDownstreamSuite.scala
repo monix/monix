@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,8 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
+import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DownstreamTimeoutException
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
@@ -51,5 +53,33 @@ object TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {
       .timeoutOnSlowDownstream(1.second)
 
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
+  }
+
+  test("Observable.timeoutOnSlowDownstreamTo should timeout on slow downstream") { implicit sc =>
+    val backup = AtomicInt(0)
+
+    Observable
+      .fromIterable(List(1, 2))
+      .timeoutOnSlowDownstreamTo(1.second, Observable.fromTask(Task.eval(backup.increment())))
+      .delayOnNext(2.seconds)
+      .completedL
+      .runToFuture
+
+    sc.tick(4.seconds)
+    assertEquals(backup.get(), 1)
+  }
+
+  test("Observable.timeoutOnSlowDownstreamTo should complete successfully") { implicit sc =>
+    val backup = AtomicInt(0)
+
+    Observable
+      .fromIterable(List(1, 2))
+      .timeoutOnSlowDownstreamTo(2.seconds, Observable.fromTask(Task.eval(backup.increment())))
+      .delayOnNext(1.second)
+      .completedL
+      .runToFuture
+
+    sc.tick(2.seconds)
+    assertEquals(backup.get(), 0)
   }
 }

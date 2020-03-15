@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,7 +41,7 @@ import monix.execution.ChannelType.MultiProducer
 import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
-import monix.execution.exceptions.UpstreamTimeoutException
+import monix.execution.exceptions.{DownstreamTimeoutException, UpstreamTimeoutException}
 import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.internal.builders
@@ -55,6 +55,7 @@ import monix.reactive.subjects._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 
 import scala.collection.mutable
+import scala.collection.immutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -140,30 +141,6 @@ import scala.util.{Failure, Success, Try}
   *
   * @define mergeReturn an observable containing the merged events of all
   *         streams created by the source
-  *
-  * @define asyncBoundaryDescription Forces a buffered asynchronous boundary.
-  *
-  *         Internally it wraps the observer implementation given to
-  *         `onSubscribe` into a
-  *         [[monix.reactive.observers.BufferedSubscriber BufferedSubscriber]].
-  *
-  *         Normally Monix's implementation guarantees that events are
-  *         not emitted concurrently, and that the publisher MUST NOT
-  *         emit the next event without acknowledgement from the
-  *         consumer that it may proceed, however for badly behaved
-  *         publishers, this wrapper provides the guarantee that the
-  *         downstream [[monix.reactive.Observer Observer]] given in
-  *         `subscribe` will not receive concurrent events.
-  *
-  *         WARNING: if the buffer created by this operator is
-  *         unbounded, it can blow up the process if the data source
-  *         is pushing events faster than what the observer can
-  *         consume, as it introduces an asynchronous boundary that
-  *         eliminates the back-pressure requirements of the data
-  *         source. Unbounded is the default
-  *         [[monix.reactive.OverflowStrategy overflowStrategy]], see
-  *         [[monix.reactive.OverflowStrategy OverflowStrategy]] for
-  *         options.
   *
   * @define onOverflowParam a function that is used for signaling a special
   *         event used to inform the consumers that an overflow event
@@ -570,7 +547,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   @UnsafeBecauseImpure
   final def runAsyncGetFirst(implicit s: Scheduler, opts: Task.Options = defaultOptions): CancelableFuture[Option[A]] =
-    firstOptionL.runToFutureOpt
+    firstOptionL.runToFutureOpt(s, opts)
 
   /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
     * that upon execution will signal the last generated element of the
@@ -580,7 +557,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   @UnsafeBecauseImpure
   final def runAsyncGetLast(implicit s: Scheduler, opts: Task.Options = defaultOptions): CancelableFuture[Option[A]] =
-    lastOptionL.runToFutureOpt
+    lastOptionL.runToFutureOpt(s, opts)
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
@@ -658,6 +635,14 @@ abstract class Observable[+A] extends Serializable { self =>
     * current buffer is being dropped and the error gets propagated
     * immediately.
     *
+    * Usage:
+    *
+    * {{{
+    *   // Emits [2, 3], [4, 5], [6]
+    *   Observable.range(2, 7)
+    *     .bufferTumbling(count = 2)
+    * }}}
+    *
     * @param count the maximum size of each buffer before it should
     *        be emitted
     */
@@ -682,6 +667,20 @@ abstract class Observable[+A] extends Serializable { self =>
     *     `count - skip`
     *  1. in case `skip > count`, then `skip - count` elements start
     *     getting dropped between windows
+    *
+    * Usage:
+    *
+    * {{{
+    *   // Emits [2, 3], [5, 6]
+    *   Observable.range(2, 7)
+    *     .bufferSliding(count = 2, skip = 3)
+    * }}}
+    *
+    * {{{
+    *   // Emits [2, 3, 4], [4, 5, 6]
+    *   Observable.range(2, 7)
+    *     .bufferSliding(count = 3, skip = 2)
+    * }}}
     *
     * @param count the maximum size of each buffer before it should
     *        be emitted
@@ -808,6 +807,31 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * This operator starts applying back-pressure when the
     * underlying buffer's size is exceeded.
+    *
+    * Usage:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *   import scala.concurrent.duration._
+    *
+    *   Observable.range(1, 6)
+    *     .doOnNext(l => Task(println(s"Started $$l")))
+    *     .bufferIntrospective(maxSize = 2)
+    *     .doOnNext(l => Task(println(s"Emitted batch $$l")))
+    *     .mapEval(l => Task(println(s"Processed batch $$l")).delayExecution(500.millis))
+    *
+    *   // Started 1
+    *   // Emitted batch List(1)
+    *   // Started 2
+    *   // Started 3
+    *   // Processed batch List(1)
+    *   // Emitted batch List(2, 3)
+    *   // Started 4
+    *   // Started 5
+    *   // Processed batch List(2, 3)
+    *   // Emitted batch List(4, 5)
+    *   // Processed batch List(4, 5)
+    * }}}
     */
   final def bufferIntrospective(maxSize: Int): Observable[List[A]] =
     new BufferIntrospectiveObservable[A](self, maxSize)
@@ -1728,6 +1752,37 @@ abstract class Observable[+A] extends Serializable { self =>
   final def map[B](f: A => B): Observable[B] =
     self.liftByOperator(new MapOperator(f))
 
+  /** Applies a function that you supply to each item emitted by the
+    * source observable, where that function returns a sequence of elements, and
+    * then concatenating those resulting sequences and emitting the
+    * results of this concatenation.
+    *
+    * ==Example==
+    * {{{
+    *   Observable(1, 2, 3).concatMapIterable( x => List(x, x * 10, x * 100))
+    * }}}
+    *
+    * == Visual Example ==
+    *
+    * <pre>
+    * stream: 1 -- -- 2 -- -- 3 -- --
+    * result: 1, 10, 100, 2, 20, 200, 3, 30, 300
+    * </pre>
+    *
+    * @param f is a generator for the sequences being concatenated
+    */
+  final def concatMapIterable[B](f: A => immutable.Iterable[B]): Observable[B] =
+    self.liftByOperator(new ConcatMapIterableOperator(f))
+
+  /** Alias for [[concatMapIterable]]
+    *
+    * NOTE: one primary difference between Monix and other Rx /
+    * ReactiveX implementations is that in Monix `flatMap` is an alias
+    * for `concatMap` and NOT `mergeMap`.
+    */
+  final def flatMapIterable[B](f: A => immutable.Iterable[B]): Observable[B] =
+    self.flatMapIterable(f)
+
   /** Alias for [[concatMap]].
     *
     * NOTE: one primary difference between Monix and other Rx /
@@ -2597,7 +2652,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => (pf.andThen(Observable.now(_))).applyOrElse(ex, Observable.raiseError _))
+    onErrorHandleWith(ex => (pf.andThen(Observable.now _).applyOrElse(ex, Observable.raiseError _)))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -2616,7 +2671,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Observable[B]]): Observable[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError _))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -2679,14 +2734,55 @@ abstract class Observable[+A] extends Serializable { self =>
 
   /** Returns an observable that emits the results of invoking a
     * specified selector on items emitted by a
-    * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]],
+    * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
+    * backed by [[monix.reactive.subjects.PublishSubject PublishSubject]]
     * which shares a single subscription to the underlying sequence.
+    *
+    * This operators takes a possibly pure Observable, transforms it to
+    * Hot Observable in the scope of supplied function and then returns
+    * a pure Observable again.
+    *
+    * ==Example==
+    *
+    * {{{
+    *  import monix.reactive._
+    *  import monix.eval.Task
+    *  import scala.concurrent.duration._
+    *
+    *  val obs = Observable(1, 2, 3)
+    *    .doOnNext(i => Task(println(s"Produced $$i")).delayExecution(1.second))
+    *
+    *  def consume(name: String, obs: Observable[Int]): Observable[Unit] =
+    *    obs.mapEval(i => Task(println(s"$$name: got $$i")))
+    *
+    *  obs.publishSelector { hot =>
+    *    Observable(
+    *      consume("Consumer 1", hot),
+    *      consume("Consumer 2", hot).delayExecution(2.second)
+    *    ).merge
+    *  }
+    *
+    * }}}
+    *
+    *  ==Output==
+    *
+    *   Produced 1
+    *   Consumer 1: got 1
+    *   Produced 2
+    *   Consumer 1: got 2
+    *   Consumer 2: got 2
+    *   Produced 3
+    *   Consumer 1: got 3
+    *   Consumer 2: got 3
+    *
+    *   Note how Consumer 2 received less elements because it subscribed later.
     *
     * @param f is a selector function that can use the multicasted source sequence
     *        as many times as needed, without causing multiple subscriptions
     *        to the source sequence. Observers to the given source will
     *        receive all notifications of the source from the time of the
     *        subscription forward.
+    * @see [[pipeThroughSelector]] for a version that allows specifying a type of underlying Subject.
     */
   final def publishSelector[R](f: Observable[A] => Observable[R]): Observable[R] =
     pipeThroughSelector(Pipe.publish[A], f)
@@ -2696,9 +2792,50 @@ abstract class Observable[+A] extends Serializable { self =>
     * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]],
     * which shares a single subscription to the underlying sequence.
     *
+    * This operators takes a possibly pure Observable, transforms it to
+    * Hot Observable in the scope of supplied function and then returns
+    * a pure Observable again. The function allows specyfing underlying
+    * [[monix.reactive.subjects.Subject]] by means of [[monix.reactive.Pipe]].
+    *
+    * ==Example==
+    *
+    * {{{
+    *  import monix.reactive._
+    *  import monix.eval.Task
+    *  import scala.concurrent.duration._
+    *
+    *  val obs = Observable(1, 2, 3)
+    *    .doOnNext(i => Task(println(s"Produced $$i")).delayExecution(1.second))
+    *
+    *  def consume(name: String, obs: Observable[Int]): Observable[Unit] =
+    *    obs.mapEval(i => Task(println(s"$$name: got $$i")))
+    *
+    *  obs.pipeThroughSelector(Pipe.replay[Int], { hot: Observable[Int] =>
+    *    Observable(
+    *      consume("Consumer 1", hot),
+    *      consume("Consumer 2", hot).delayExecution(2.second)
+    *    ).merge
+    *  })
+    *
+    * }}}
+    *
+    *  ==Output==
+    *
+    *   Produced 1
+    *   Consumer 1: got 1
+    *   Consumer 2: got 1
+    *   Produced 2
+    *   Consumer 1: got 2
+    *   Consumer 2: got 2
+    *   Produced 3
+    *   Consumer 1: got 3
+    *   Consumer 2: got 3
+    *
+    *   Note how Consumer 2 received the same amount of elements as
+    *   Consumer 1 despite subscribing later because of underlying ReplaySubject.
+    *
     * @param pipe is the [[Pipe]] used to transform the source into a multicast
     *        (hot) observable that can be shared in the selector function
-    *
     * @param f is a selector function that can use the multicasted source sequence
     *        as many times as needed, without causing multiple subscriptions
     *        to the source sequence. Observers to the given source will
@@ -2769,6 +2906,19 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def scan[S](seed: => S)(op: (S, A) => S): Observable[S] =
     new ScanObservable[A, S](self, seed _, op)
+
+  /**
+    * Applies a binary operator to a start value and all elements of
+    * this Observable, going left to right and returns a new
+    * Observable that emits on each step the result element of
+    * the applied function.
+    *
+    * Similar to [[scan]], but the supplied function returns a tuple
+    * of the next accumulator state and the result type emitted by
+    * the returned observable.
+    */
+  final def mapAccumulate[S, R](seed: => S)(op: (S, A) => (S, R)): Observable[R] =
+    new MapAccumulateObservable[A, S, R](self, seed _, op)
 
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
@@ -3002,15 +3152,24 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Drops the first element of the source observable,
     * emitting the rest.
     */
-  final def tail: Observable[A] = drop(1)
+  final def tail: Observable[A] = drop(1L)
 
   /** Drops the first `n` elements (from the start).
     *
-    * @param n the number of elements to drop
+    * @param n the number (Int) of elements to drop
     * @return a new Observable that drops the first ''n'' elements
     *         emitted by the source
     */
   final def drop(n: Int): Observable[A] =
+    self.liftByOperator(new DropFirstOperator(n))
+
+  /** Drops the first `n` elements (from the start).
+    *
+    * @param n the number (Long) of elements to drop
+    * @return a new Observable that drops the first ''n'' elements
+    *         emitted by the source
+    */
+  final def drop(n: Long): Observable[A] =
     self.liftByOperator(new DropFirstOperator(n))
 
   /** Creates a new Observable that emits the events of the source, only
@@ -3042,6 +3201,27 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def takeUntil(trigger: Observable[Any]): Observable[A] =
     new TakeUntilObservable[A](self, trigger)
+
+  /** Version of [[takeUntil]] that can work with a trigger expressed by a [[monix.eval.Task]]
+    *
+    * @see [[takeUntil]] for version that works with Observable.
+    * @see [[takeUntilEvalF]] for version that works with generic `F[_]` powered by [[monix.eval.TaskLike]].
+    *
+    * @param trigger task that will cancel the stream as soon as it completes.
+    */
+  final def takeUntilEval(trigger: Task[_]): Observable[A] =
+    self.takeUntil(Observable.fromTask(trigger))
+
+  /** Version of [[takeUntil]] that can work with a trigger expressed by a generic `F[_]`
+    * provided an implicit [[monix.eval.TaskLike]] exists.
+    *
+    * @see [[takeUntil]] for version that works with Observable.
+    * @see [[takeUntilEval]] for version that works with [[monix.eval.Task]].
+    *
+    * @param trigger operation that will cancel the stream as soon as it completes.
+    */
+  final def takeUntilEvalF[F[_]](trigger: F[_])(implicit taskLike: TaskLike[F]): Observable[A] =
+    self.takeUntil(Observable.fromTaskLike(trigger))
 
   /** Takes longest prefix of elements that satisfy the given predicate
     * and returns a new Observable that emits those elements.
@@ -3216,6 +3396,20 @@ abstract class Observable[+A] extends Serializable { self =>
     * frequently than the length of the time window, then no items will
     * be emitted by the resulting observable.
     *
+    * Usage:
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   (Observable("M", "O", "N", "I", "X") ++ Observable.never)
+    *     .delayOnNext(100.millis)
+    *     .scan("")(_ ++ _)
+    *     .debounce(200.millis)
+    *     .dump("O")
+    *
+    *   // Output:
+    *   // 0: O --> MONIX
+    * }}}
+    *
     * @param timeout the length of the window of time that must pass after
     *        the emission of an item from the source observable in
     *        which that observable emits no items in order for the
@@ -3225,6 +3419,23 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def debounce(timeout: FiniteDuration): Observable[A] =
     new DebounceObservable(self, timeout, repeat = false)
+
+  /** Returns an observable that mirrors the source but applies a timeout
+    * for each `onNext` message. If downstream subscriber takes more time than the given
+    * timespan to process an `onNext` message, the source is terminated and downstream gets
+    * subscribed to the given backup.
+    *
+    * Note that this ignores the time it takes for the upstream to send
+    * `onNext` messages. For detecting slow producers see [[timeoutOnSlowUpstream]].
+    *
+    * @param timeout maximum duration for `onNext`.
+    * @param backup alternative data source to subscribe to on timeout.
+    */
+  final def timeoutOnSlowDownstreamTo[B >: A](timeout: FiniteDuration, backup: Observable[B]): Observable[B] =
+    self.timeoutOnSlowDownstream(timeout).onErrorHandleWith {
+      case DownstreamTimeoutException(`timeout`) => backup
+      case other => Observable.raiseError(other)
+    }
 
   /** Returns an observable that mirrors the source but that will trigger a
     * [[monix.execution.exceptions.DownstreamTimeoutException DownstreamTimeoutException]]
@@ -3281,7 +3492,54 @@ abstract class Observable[+A] extends Serializable { self =>
   final def whileBusyBuffer[B >: A](overflowStrategy: OverflowStrategy.Synchronous[B]): Observable[B] =
     asyncBoundary(overflowStrategy)
 
-  /** $asyncBoundaryDescription
+  /** Forces a buffered asynchronous boundary.
+    * Asynchronous boundary refers to an independent processing
+    * of an upstream and a downstream - producer does not have to wait
+    * for consumer to acknowledge a new event.
+    *
+    * Internally it wraps the observer implementation given to
+    * `onSubscribe` into a
+    * [[monix.reactive.observers.BufferedSubscriber BufferedSubscriber]].
+    *
+    * Normally Monix's implementation guarantees that events are
+    * not emitted concurrently, and that the publisher MUST NOT
+    * emit the next event without acknowledgement from the
+    * consumer that it may proceed, however for badly behaved
+    * publishers, this wrapper provides the guarantee that the
+    * downstream [[monix.reactive.Observer Observer]] given in
+    * `subscribe` will not receive concurrent events.
+    *
+    * WARNING: if the buffer created by this operator is
+    * unbounded, it can blow up the process if the data source
+    * is pushing events faster than what the observer can
+    * consume, as it introduces an asynchronous boundary that
+    * eliminates the back-pressure requirements of the data
+    * source. Unbounded is the default
+    * [[monix.reactive.OverflowStrategy overflowStrategy]], see
+    * [[monix.reactive.OverflowStrategy OverflowStrategy]] for
+    * options.
+    *
+    * Usage:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *   import scala.concurrent.duration._
+    *
+    *   Observable("A", "B", "C", "D")
+    *     .mapEval(i => Task { println(s"1: Processing $$i"); i ++ i })
+    *     .asyncBoundary(OverflowStrategy.Unbounded)
+    *     .mapEval(i => Task { println(s"2: Processing $$i") }.delayExecution(100.millis))
+    *
+    *   // Without asyncBoundary it would process A, AA, B, BB, ...
+    *   // 1: Processing A
+    *   // 1: Processing B
+    *   // 1: Processing C
+    *   // 1: Processing D
+    *   // 2: Processing AA
+    *   // 2: Processing BB
+    *   // 2: Processing CC
+    *   // 2: Processing DD
+    * }}}
     *
     * @param overflowStrategy - $overflowStrategyParam
     */
@@ -3615,33 +3873,30 @@ abstract class Observable[+A] extends Serializable { self =>
     * evaluated and emitted.
     */
   final def lastOrElseL[B >: A](default: => B): Task[B] =
-    Task.create(
-      { (s, cb) =>
-        unsafeSubscribeFn(new Subscriber.Sync[A] {
-          implicit val scheduler: Scheduler = s
-          private[this] var value: A = _
-          private[this] var isEmpty = true
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var value: A = _
+        private[this] var isEmpty = true
 
-          def onNext(elem: A): Ack = {
-            if (isEmpty) isEmpty = false
-            value = elem
-            Continue
-          }
+        def onNext(elem: A): Ack = {
+          if (isEmpty) isEmpty = false
+          value = elem
+          Continue
+        }
 
-          def onError(ex: Throwable): Unit = {
-            cb.onError(ex)
-          }
+        def onError(ex: Throwable): Unit = {
+          cb.onError(ex)
+        }
 
-          def onComplete(): Unit = {
-            if (isEmpty)
-              cb(Try(default))
-            else
-              cb.onSuccess(value)
-          }
-        })
-      },
-      allowContinueOnCallingThread = true
-    )
+        def onComplete(): Unit = {
+          if (isEmpty)
+            cb(Try(default))
+          else
+            cb.onSuccess(value)
+        }
+      })
+    }
 
   /** Creates a new Observable that emits the total number of `onNext`
     * events that were emitted by the source.
@@ -3869,33 +4124,30 @@ abstract class Observable[+A] extends Serializable { self =>
     * gets evaluated and emitted.
     */
   final def firstOrElseL[B >: A](default: => B): Task[B] =
-    Task.create(
-      { (s, cb) =>
-        unsafeSubscribeFn(new Subscriber.Sync[A] {
-          implicit val scheduler: Scheduler = s
-          private[this] var isDone = false
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var isDone = false
 
-          def onNext(elem: A): Ack = {
-            cb.onSuccess(elem)
+        def onNext(elem: A): Ack = {
+          cb.onSuccess(elem)
+          isDone = true
+          Stop
+        }
+
+        def onError(ex: Throwable): Unit =
+          if (!isDone) {
             isDone = true
-            Stop
+            cb.onError(ex)
           }
 
-          def onError(ex: Throwable): Unit =
-            if (!isDone) {
-              isDone = true
-              cb.onError(ex)
-            }
-
-          def onComplete(): Unit =
-            if (!isDone) {
-              isDone = true
-              cb(Try(default))
-            }
-        })
-      },
-      allowContinueOnCallingThread = true
-    )
+        def onComplete(): Unit =
+          if (!isDone) {
+            isDone = true
+            cb(Try(default))
+          }
+      })
+    }
 
   /** Returns a `Task` that emits a single boolean, either true, in
     * case the given predicate holds for all the items emitted by the
@@ -3935,6 +4187,22 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def filter(p: A => Boolean): Observable[A] =
     self.liftByOperator(new FilterOperator(p))
+
+  /** Alias to [[filter]] to support syntax in for comprehension, i.e.
+    *
+    * Example: {{{
+    *   case class Person(age: Long)
+    *
+    *   val peopleObservable: Observable[Person] =
+    *     Observable.range(1, 100).map(Person.apply)
+    *
+    *   for {
+    *     adult <- peopleObservable if adult.age >= 18
+    *   } yield adult
+    * }}}
+    */
+  final def withFilter(p: A => Boolean): Observable[A] =
+    filter(p)
 
   /** Only emits those items for which the given predicate doesn't hold.
     *
@@ -4037,27 +4305,24 @@ abstract class Observable[+A] extends Serializable { self =>
     * complete with `Unit`.
     */
   final def completedL: Task[Unit] =
-    Task.create(
-      { (s, cb) =>
-        unsafeSubscribeFn(new Subscriber.Sync[A] {
-          implicit val scheduler: Scheduler = s
-          private[this] var isDone = false
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var isDone = false
 
-          def onNext(elem: A): Ack = Continue
+        def onNext(elem: A): Ack = Continue
 
-          def onError(ex: Throwable): Unit =
-            if (!isDone) {
-              isDone = true; cb.onError(ex)
-            }
+        def onError(ex: Throwable): Unit =
+          if (!isDone) {
+            isDone = true; cb.onError(ex)
+          }
 
-          def onComplete(): Unit =
-            if (!isDone) {
-              isDone = true; cb.onSuccess(())
-            }
-        })
-      },
-      allowContinueOnCallingThread = true
-    )
+        def onComplete(): Unit =
+          if (!isDone) {
+            isDone = true; cb.onSuccess(())
+          }
+      })
+    }
 
   /** Polymorphic version of [[completedL]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLift]]
@@ -4396,9 +4661,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * source observable, executing the given callback for each element.
     */
   final def foreachL(cb: A => Unit): Task[Unit] =
-    Task.create({ (s, onFinish) =>
+    Task.create { (s, onFinish) =>
       unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
-    }, allowContinueOnCallingThread = true)
+    }
 }
 
 /** Observable builders.
@@ -4719,17 +4984,17 @@ object Observable extends ObservableDeprecatedBuilders {
     */
   def fromResource[F[_], A](resource: Resource[F, A])(implicit F: TaskLike[F]): Observable[A] =
     resource match {
-      case Resource.Allocate(fa) =>
+      case ra: Resource.Allocate[F, A] @unchecked =>
         Observable
-          .resourceCase(F(fa)) { case ((a, release), exitCase) => F(release(exitCase)) }
+          .resourceCase(F(ra.resource)) { case ((_, release), exitCase) => F(release(exitCase)) }
           .map(_._1)
-      case Resource.Suspend(fa) =>
-        Observable.from(fa).flatMap { res =>
+      case ra: Resource.Suspend[F, A] @unchecked =>
+        Observable.from(ra.resource).flatMap { res =>
           fromResource(res)
         }
-      case Resource.Bind(source, fs) =>
-        fromResource(source).flatMap { s =>
-          fromResource(fs(s))
+      case ra: Resource.Bind[F, Any, A] @unchecked =>
+        fromResource(ra.source).flatMap { s =>
+          fromResource(ra.fs(s))
         }
     }
 
@@ -5200,6 +5465,49 @@ object Observable extends ObservableDeprecatedBuilders {
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
     * observable that keeps generating elements produced by our
+    * generator function until `None` is returned.
+    * @example {{{
+    *  Observable.unfold(0)(i => if (i < 10) Some((i, i + 1)) else None).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    *  }}}
+    */
+  def unfold[S, A](seed: => S)(f: S => Option[(A, S)]): Observable[A] =
+    new UnfoldObservable(seed, f)
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * observable that keeps generating elements produced by our
+    * generator function until `None` is returned.
+    * @example {{{
+    *  Observable.unfoldEval(0)(i => if (i < 10) Task.now(Some((i, i + 1))) else Task.now(None)).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    *  }}}
+    */
+  def unfoldEval[S, A](seed: => S)(f: S => Task[Option[(A, S)]]): Observable[A] =
+    new UnfoldEvalObservable(seed, f)
+
+  /** Version of [[unfoldEval]] that can work with generic
+    * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
+    * conversions.
+    *
+    * So you can work among others with:
+    *
+    *  - `cats.effect.IO`
+    *  - `monix.eval.Coeval`
+    *  - `scala.concurrent.Future`
+    *  - ...
+    *
+    * @see [[unfoldEval]] for a version specialized for
+    *      [[monix.eval.Task Task]]
+    */
+  def unfoldEvalF[F[_], S, A](seed: => S)(f: S => F[Option[(A, S)]])(implicit F: TaskLike[F]): Observable[A] =
+    unfoldEval(seed)(a => Task.from(f(a)))
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * observable that keeps generating elements produced by our
     * generator function.
     */
   def fromAsyncStateAction[S, A](f: S => Task[(A, S)])(seed: => S): Observable[A] =
@@ -5483,7 +5791,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
     *       .fromIterator(Task(Iterator.from(1)))
-    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *       .mapEval(i => Task { writer.println(s"Line #\\$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file, closing the writer
@@ -5537,7 +5845,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *   val writeLines = printer.flatMap { writer =>
     *     Observable
     *       .fromIterator(Task(Iterator.from(1)))
-    *       .mapEval(i => Task { writer.println(s"Line #\$i") })
+    *       .mapEval(i => Task { writer.println(s"Line #\\$i") })
     *   }
     *
     *   // Write 100 numbered lines to the file, closing the writer
@@ -5739,18 +6047,13 @@ object Observable extends ObservableDeprecatedBuilders {
     new builders.CombineLatest6Observable[A1, A2, A3, A4, A5, A6, R](a1, a2, a3, a4, a5, a6)(f)
 
   /** Given an observable sequence, it combines them together
-    * (using [[combineLatestMap2 combineLatest]])
     * returning a new observable that generates sequences.
     */
   def combineLatestList[A](sources: Observable[A]*): Observable[Seq[A]] = {
-    if (sources.isEmpty) Observable.empty
-    else {
-      val seed = sources.head.map(t => Vector(t))
-      sources.tail.foldLeft(seed) { (acc, obs) =>
-        acc.combineLatestMap(obs) { (seq, elem) =>
-          seq :+ elem
-        }
-      }
+    if (sources.isEmpty) {
+      Observable.empty
+    } else {
+      new CombineLatestListObservable[A](sources)
     }
   }
 
@@ -5836,10 +6139,12 @@ object Observable extends ObservableDeprecatedBuilders {
   }
 
   /** [[cats.NonEmptyParallel]] instance for [[Observable]]. */
-  implicit val observableNonEmptyParallel: NonEmptyParallel[Observable, CombineObservable.Type] =
-    new NonEmptyParallel[Observable, CombineObservable.Type] {
+  implicit val observableNonEmptyParallel: NonEmptyParallel.Aux[Observable, CombineObservable.Type] =
+    new NonEmptyParallel[Observable] {
       import CombineObservable.unwrap
       import CombineObservable.{apply => wrap}
+
+      override type F[A] = CombineObservable.Type[A]
 
       override def flatMap: FlatMap[Observable] = implicitly[FlatMap[Observable]]
       override def apply: Apply[CombineObservable.Type] = CombineObservable.combineObservableApplicative

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -163,6 +163,6 @@ object CoevalCatsConversions extends BaseTestSuite {
   test("Coeval().toSync[Coeval]") { _ =>
     val ref1 = Coeval { 1 + 1 }
     val ref2 = ref1.toSync[Coeval]
-    assertEquals(ref1, ref2)
+    assertEquals(ref1.value(), ref2.value())
   }
 }

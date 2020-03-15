@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -97,10 +97,11 @@ final class BehaviorSubject[A] private (initialValue: A) extends Subject[A, A] {
           // using the scheduler defined by each subscriber
           import subscriber.scheduler
 
-          val ack = try subscriber.onNext(elem)
-          catch {
-            case ex if NonFatal(ex) => Future.failed(ex)
-          }
+          val ack =
+            try subscriber.onNext(elem)
+            catch {
+              case ex if NonFatal(ex) => Future.failed(ex)
+            }
 
           // if execution is synchronous, takes the fast-path
           if (ack.isCompleted) {

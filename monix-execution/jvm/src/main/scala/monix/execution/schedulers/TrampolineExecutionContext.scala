@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,9 @@
 package monix.execution.schedulers
 
 import monix.execution.internal.Trampoline
+
 import scala.util.control.NonFatal
-import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
+import scala.concurrent.{BlockContext, ExecutionContext, ExecutionContextExecutor}
 
 /** A `scala.concurrentExecutionContext` implementation
   * that executes runnables immediately, on the current thread,
@@ -51,16 +52,9 @@ import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
   * @param underlying is the `ExecutionContext` to which the it defers
   *        to in case real asynchronous is needed
   */
-final class TrampolineExecutionContext private (underlying: ExecutionContext) extends ExecutionContext {
-
-  private[this] val trampoline =
-    new ThreadLocal[Trampoline]() {
-      override def initialValue(): Trampoline =
-        TrampolineExecutionContext.buildTrampoline(underlying)
-    }
-
+final class TrampolineExecutionContext private (underlying: ExecutionContext) extends ExecutionContextExecutor {
   override def execute(runnable: Runnable): Unit =
-    trampoline.get().execute(runnable)
+    TrampolineExecutionContext.trampoline.get().execute(runnable, underlying)
   override def reportFailure(t: Throwable): Unit =
     underlying.reportFailure(t)
 }
@@ -117,51 +111,35 @@ object TrampolineExecutionContext {
     }
   }
 
-  private def buildTrampoline(underlying: ExecutionContext): Trampoline = {
+  private val trampoline =
+    new ThreadLocal[Trampoline]() {
+      override def initialValue(): Trampoline =
+        TrampolineExecutionContext.buildTrampoline()
+    }
+
+  private def buildTrampoline(): Trampoline = {
     if (localContext ne null)
-      new JVMOptimalTrampoline(underlying)
+      new JVMOptimalTrampoline()
     else
-      new JVMNormalTrampoline(underlying)
+      new JVMNormalTrampoline()
   }
 
-  private final class JVMOptimalTrampoline(underlying: ExecutionContext) extends Trampoline(underlying) {
-
-    private[this] val trampolineContext: BlockContext =
-      new BlockContext {
-        def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-          // In case of blocking, execute all scheduled local tasks on
-          // a separate thread, otherwise we could end up with a dead-lock
-          forkTheRest()
-          thunk
-        }
-      }
-
-    override def startLoop(runnable: Runnable): Unit = {
+  private final class JVMOptimalTrampoline extends Trampoline {
+    override def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
       val parentContext = localContext.get()
-      localContext.set(trampolineContext)
+      localContext.set(trampolineContext(ec))
       try {
-        super.startLoop(runnable)
+        super.startLoop(runnable, ec)
       } finally {
         localContext.set(parentContext)
       }
     }
   }
 
-  private class JVMNormalTrampoline(underlying: ExecutionContext) extends Trampoline(underlying) {
-
-    private[this] val trampolineContext: BlockContext =
-      new BlockContext {
-        def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-          // In case of blocking, execute all scheduled local tasks on
-          // a separate thread, otherwise we could end up with a dead-lock
-          forkTheRest()
-          thunk
-        }
-      }
-
-    override def startLoop(runnable: Runnable): Unit = {
-      BlockContext.withBlockContext(trampolineContext) {
-        super.startLoop(runnable)
+  private class JVMNormalTrampoline extends Trampoline {
+    override def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
+      BlockContext.withBlockContext(trampolineContext(ec)) {
+        super.startLoop(runnable, ec)
       }
     }
   }

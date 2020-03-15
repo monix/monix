@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,16 +18,19 @@
 package monix.execution.schedulers
 
 import java.util.concurrent._
+
 import minitest.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{Features, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
 object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
   val lastError = Atomic(null: Throwable)
+
   def setup(): ExecutorScheduler = {
     val reporter = UncaughtExceptionReporter(lastError.set)
     val executor = Executors.newScheduledThreadPool(
@@ -38,7 +41,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
         daemonic = true
       ))
 
-    ExecutorScheduler(executor, reporter, ExecModel.Default)
+    ExecutorScheduler(executor, reporter, ExecModel.Default, Features.empty)
   }
 
   override def tearDown(scheduler: ExecutorScheduler): Unit = {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,9 +38,6 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     * [[Scheduler]] implementation.
     */
   def execute(command: Runnable): Unit
-
-  /** Reports that an asynchronous computation failed. */
-  def reportFailure(t: Throwable): Unit
 
   /** Schedules a task to run in the future, after `initialDelay`.
     *
@@ -198,6 +195,9 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     */
   def clockMonotonic(unit: TimeUnit): Long
 
+  /** Reports that an asynchronous computation failed. */
+  def reportFailure(t: Throwable): Unit
+
   /** The [[ExecutionModel]] is a specification of how run-loops
     * and producers should behave in regards to executing tasks
     * either synchronously or asynchronously.
@@ -234,7 +234,33 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     */
   def withExecutionModel(em: ExecutionModel): Scheduler
 
+  /**
+    * Returns a new `Scheduler` that piggybacks on this, but uses
+    * the given exception reporter for reporting uncaught errors.
+    *
+    * Sample:
+    * {{{
+    *   import monix.execution.Scheduler.global
+    *   import monix.execution.UncaughtExceptionReporter
+    *
+    *   implicit val scheduler = {
+    *     val r = UncaughtExceptionReporter { e =>
+    *       e.printStackTrace()
+    *     }
+    *     global.withUncaughtExceptionReporter(r)
+    *   }
+    * }}}
+    */
   def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler
+
+  /**
+    * Exposes a set of flags that describes the [[Scheduler]]'s features.
+    */
+  def features: Features = {
+    // $COVERAGE-OFF$
+    Features.empty
+    // $COVERAGE-ON$
+  }
 }
 
 private[monix] trait SchedulerCompanion {
@@ -250,6 +276,30 @@ private[monix] trait SchedulerCompanion {
 
 object Scheduler extends SchedulerCompanionImpl {
   self: SchedulerCompanion =>
+
+  /** The [[Scheduler]] supports processing in batches via an internal
+    * trampoline.
+    *
+    * Schedulers that implement the batching behavior will recognize
+    * [[monix.execution.schedulers.TrampolinedRunnable]] instances
+    * (via `instanceOf` checks) and make an effort to execute them on
+    * the current thread.
+    *
+    * This flag is exposed via [[Scheduler.features]].
+    *
+    * @see [[monix.execution.schedulers.BatchingScheduler BatchingScheduler]]
+    *      for an implementation.
+    */
+  val BATCHING = Features.flag(1)
+
+  /** Flag signaling that the [[Scheduler]] implementation can transport
+    * [[monix.execution.misc.Local Local]] variables over async boundaries.
+    *
+    * @see [[monix.execution.schedulers.TracingScheduler TracingScheduler]] and
+    *      [[monix.execution.schedulers.TracingSchedulerService TracingSchedulerService]]
+    *      for implementations.
+    */
+  val TRACING = Features.flag(2)
 
   /** Utilities complementing the `Scheduler` interface. */
   implicit final class Extensions(val source: Scheduler) extends AnyVal with schedulers.ExecuteExtensions {
@@ -298,7 +348,6 @@ object Scheduler extends SchedulerCompanionImpl {
       *         this repeated task at any time.
       */
     def scheduleWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(action: => Unit): Cancelable = {
-
       source.scheduleWithFixedDelay(initialDelay.toMillis, delay.toMillis, MILLISECONDS, RunnableAction(action))
     }
 
@@ -331,7 +380,6 @@ object Scheduler extends SchedulerCompanionImpl {
       *         this repeated task at any time.
       */
     def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(action: => Unit): Cancelable = {
-
       source.scheduleAtFixedRate(initialDelay.toMillis, period.toMillis, MILLISECONDS, RunnableAction(action))
     }
 

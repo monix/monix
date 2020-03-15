@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +21,9 @@ import java.util.concurrent.TimeUnit
 
 import cats.effect.IO
 import minitest.SimpleTestSuite
-import monix.execution.Cancelable
+import monix.execution.{Cancelable, Features}
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
+
 import scala.concurrent.duration._
 import scala.util.Success
 
@@ -35,6 +36,8 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     def reportFailure(t: Throwable): Unit = underlying.reportFailure(t)
     def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
       underlying.scheduleOnce(initialDelay, unit, r)
+    override def features: Features =
+      underlying.features
   }
 
   class DummyTimeScheduler extends DummyScheduler() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,17 +19,17 @@ package monix.execution.schedulers
 
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.concurrent.duration._
-
 import minitest.TestSuite
+import monix.execution.exceptions.DummyException
 import monix.execution.{ExecutionModel, FutureUtils, Scheduler, UncaughtExceptionReporter}
 
 class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
+  protected val immediateEC = TrampolineExecutionContext.immediate
+
   object Dummy extends Throwable
   private[this] val throwRunnable: Runnable = new Runnable {
     def run(): Unit = throw Dummy
   }
-
-  private[this] val immediateEC = TrampolineExecutionContext.immediate
 
   def setup() = Promise[Throwable]
 
@@ -50,14 +50,24 @@ class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
       FutureUtils.timeout(p.future.collect { case Dummy => }(immediateEC), 500.millis)(Scheduler.global)
     }
   }
-
 }
 
 object UncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
-
   testReports("Scheduler(_, ExecModel)")(Scheduler(_, ExecutionModel.Default))
   testReports("Scheduler(global, _)")(Scheduler(Scheduler.global, _))
   testReports("Scheduler(ExecutionContext, _)")(Scheduler(ExecutionContext.global, _))
   testReports("trampoline(Scheduler(_, ExecModel))")(r => Scheduler.trampoline(Scheduler(r, ExecutionModel.Default)))
   testReports("TracingScheduler(Scheduler(_, ExecModel))")(r => TracingScheduler(Scheduler(r, ExecutionModel.Default)))
+
+  testAsync("UncaughtExceptionReporter.asJava") { p =>
+    import Scheduler.Implicits.global
+
+    val e = DummyException("dummy")
+    val r = UncaughtExceptionReporter(e => p.success(e)).asJava
+    r.uncaughtException(null, e)
+
+    for (thrown <- p.future) yield {
+      assertEquals(thrown, e)
+    }
+  }
 }

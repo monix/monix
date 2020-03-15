@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,6 +26,7 @@ import monix.catnap.SchedulerEffect
 import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -376,6 +377,49 @@ object TaskConversionsSuite extends BaseTestSuite {
     val f2 = loop(count).runToFuture
     s.tick()
     assertEquals(f2.value, Some(Success(99)))
+  }
+
+  test("Task.fromReactivePublisher protects against user error") { implicit s =>
+    val dummy = DummyException("dummy")
+
+    val pub = new Publisher[Int] {
+      def subscribe(s: Subscriber[_ >: Int]): Unit = {
+        s.onSubscribe(new Subscription {
+          def request(n: Long): Unit = throw dummy
+          def cancel(): Unit = throw dummy
+        })
+      }
+    }
+
+    assertEquals(Task.fromReactivePublisher(pub).runToFuture.value, Some(Failure(dummy)))
+  }
+
+  test("Task.fromReactivePublisher yields expected input") { implicit s =>
+    val pub = new Publisher[Int] {
+      def subscribe(s: Subscriber[_ >: Int]): Unit = {
+        s.onSubscribe(new Subscription {
+          var isActive = true
+          def request(n: Long): Unit = {
+            if (n > 0 && isActive) {
+              isActive = false
+              s.onNext(1)
+              s.onComplete()
+            }
+          }
+          def cancel(): Unit = {
+            isActive = false
+          }
+        })
+      }
+    }
+
+    assertEquals(Task.fromReactivePublisher(pub).runToFuture.value, Some(Success(Some(1))))
+  }
+
+  test("Task.fromReactivePublisher <-> task") { implicit s =>
+    check1 { task: Task[Int] =>
+      Task.fromReactivePublisher(task.toReactivePublisher) <-> task.map(Some(_))
+    }
   }
 
   final case class CIO[+A](io: IO[A])

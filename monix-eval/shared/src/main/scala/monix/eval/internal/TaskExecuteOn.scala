@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,7 +44,6 @@ private[eval] object TaskExecuteOn {
   // Implementing Async's "start" via `ForkedStart` in order to signal
   // that this is task that forks on evaluation
   private final class AsyncRegister[A](source: Task[A], s: Scheduler) extends ForkedRegister[A] {
-
     def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
       val oldS = ctx.scheduler
       val ctx2 = ctx.withScheduler(s)
@@ -75,9 +74,7 @@ private[eval] object TaskExecuteOn {
         )
       } catch {
         case e: RejectedExecutionException =>
-          Callback
-            .trampolined(cb)(oldS)
-            .onError(e)
+          Callback.signalErrorTrampolined(cb, e)
       }
     }
   }
@@ -91,9 +88,7 @@ private[eval] object TaskExecuteOn {
         Task.unsafeStartNow(source, ctx2, cb)
       } catch {
         case e: RejectedExecutionException =>
-          Callback
-            .trampolined(cb)(ctx.scheduler)
-            .onError(e)
+          Callback.signalErrorTrampolined(cb, e)
       }
     }
   }

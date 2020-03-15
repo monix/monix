@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -92,10 +92,11 @@ private[eval] object TaskGather {
         if (isActive) {
           isActive = false
           // This should cancel our CompositeCancelable
-          mainConn.pop().runAsyncAndForget
-          tasks = null // GC relief
-          results = null // GC relief
-          finalCallback.onError(ex)
+          mainConn.pop().map { _ =>
+            tasks = null // GC relief
+            results = null // GC relief
+            finalCallback.onError(ex)
+          }.runAsyncAndForget
         } else {
           s.reportFailure(ex)
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,8 @@
  */
 
 package monix.execution
+
+import java.lang.Thread.UncaughtExceptionHandler
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -64,5 +66,17 @@ object UncaughtExceptionReporter {
     // $COVERAGE-OFF$
     UncaughtExceptionReporter(ExecutionContext.defaultReporter)
     // $COVERAGE-ON$
+  }
+
+  implicit final class Extensions(val r: UncaughtExceptionReporter) extends AnyVal {
+    /**
+      * Converts [[UncaughtExceptionReporter]] to Java's
+      * [[https://docs.oracle.com/javase/8/docs/api/java/lang/Thread.UncaughtExceptionHandler.html UncaughtExceptionHandler]].
+      */
+    def asJava: UncaughtExceptionHandler =
+      new UncaughtExceptionHandler {
+        override def uncaughtException(t: Thread, e: Throwable): Unit =
+          r.reportFailure(e)
+      }
   }
 }

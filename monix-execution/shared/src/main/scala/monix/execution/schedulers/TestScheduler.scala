@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -170,6 +170,9 @@ final class TestScheduler private (
 
   override def withExecutionModel(em: ExecutionModel): TestScheduler =
     new TestScheduler(stateRef, em)
+
+  override val features: Features =
+    Features(Scheduler.BATCHING)
 
   /**
     * Executes just one tick, one task, from the internal queue, useful

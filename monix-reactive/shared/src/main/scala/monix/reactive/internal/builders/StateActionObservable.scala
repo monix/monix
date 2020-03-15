@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -62,15 +62,16 @@ private[reactive] final class StateActionObservable[S, A](seed: => S, f: S => (A
 
     @tailrec
     def fastLoop(syncIndex: Int): Unit = {
-      val ack = try {
-        val (nextA, newState) = f(seed)
-        this.seed = newState
-        o.onNext(nextA)
-      } catch {
-        case ex if NonFatal(ex) =>
-          o.onError(ex)
-          Stop
-      }
+      val ack =
+        try {
+          val (nextA, newState) = f(seed)
+          this.seed = newState
+          o.onNext(nextA)
+        } catch {
+          case ex if NonFatal(ex) =>
+            o.onError(ex)
+            Stop
+        }
 
       val nextIndex =
         if (ack == Continue) em.nextFrameIndex(syncIndex)

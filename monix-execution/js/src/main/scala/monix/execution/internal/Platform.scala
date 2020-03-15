@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,10 @@
 
 package monix.execution.internal
 
+import monix.execution.UncaughtExceptionReporter
 import monix.execution.exceptions.CompositeException
 import monix.execution.schedulers.CanBlock
+
 import scala.concurrent.Awaitable
 import scala.concurrent.duration.Duration
 
@@ -120,4 +122,20 @@ private[monix] object Platform {
       case Left(e2) => composeErrors(first, e2)
       case _ => first
     }
+
+  /**
+    * Returns the current thread's ID.
+    *
+    * To be used for multi-threading optimizations. Note that
+    * in JavaScript this always returns the same value.
+    */
+  def currentThreadId(): Long = 1L
+
+  /**
+    * For reporting errors when we don't have access to
+    * an error handler.
+    */
+  def reportFailure(e: Throwable): Unit = {
+    UncaughtExceptionReporter.default.reportFailure(e)
+  }
 }

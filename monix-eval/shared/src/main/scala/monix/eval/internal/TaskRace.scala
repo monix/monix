@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -58,16 +58,18 @@ private[eval] object TaskRace {
         new Callback[Throwable, A] {
           def onSuccess(valueA: A): Unit =
             if (isActive.getAndSet(false)) {
-              connB.cancel.runAsyncAndForget
-              conn.pop()
-              cb.onSuccess(Left(valueA))
+              connB.cancel.map { _ =>
+                conn.pop()
+                cb.onSuccess(Left(valueA))
+              }.runAsyncAndForget
             }
 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
-              conn.pop()
-              connB.cancel.runAsyncAndForget
-              cb.onError(ex)
+              connB.cancel.map { _ =>
+                conn.pop()
+                cb.onError(ex)
+              }.runAsyncAndForget
             } else {
               sc.reportFailure(ex)
             }
@@ -81,16 +83,18 @@ private[eval] object TaskRace {
         new Callback[Throwable, B] {
           def onSuccess(valueB: B): Unit =
             if (isActive.getAndSet(false)) {
-              connA.cancel.runAsyncAndForget
-              conn.pop()
-              cb.onSuccess(Right(valueB))
+              connA.cancel.map { _ =>
+                conn.pop()
+                cb.onSuccess(Right(valueB))
+              }.runAsyncAndForget
             }
 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
-              conn.pop()
-              connA.cancel.runAsyncAndForget
-              cb.onError(ex)
+              connA.cancel.map { _ =>
+                conn.pop()
+                cb.onError(ex)
+              }.runAsyncAndForget
             } else {
               sc.reportFailure(ex)
             }

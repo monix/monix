@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.eval.instances
 
-import cats.{~>, Applicative, Monad, Parallel}
+import cats.{Applicative, CommutativeApplicative, Monad, Parallel, ~>}
 import monix.eval.Task
 
 /** `cats.Parallel` type class instance for [[monix.eval.Task Task]].
@@ -31,7 +31,8 @@ import monix.eval.Task
   *  - [[https://typelevel.org/cats/ typelevel/cats]]
   *  - [[https://github.com/typelevel/cats-effect typelevel/cats-effect]]
   */
-class CatsParallelForTask extends Parallel[Task, Task.Par] {
+class CatsParallelForTask extends Parallel[Task] {
+  override type F[A] = Task.Par[A]
 
   override def applicative: Applicative[Task.Par] = CatsParallelForTask.NondetApplicative
   override def monad: Monad[Task] = CatsConcurrentForTask
@@ -45,12 +46,12 @@ class CatsParallelForTask extends Parallel[Task, Task.Par] {
 }
 
 object CatsParallelForTask extends CatsParallelForTask {
-  private object NondetApplicative extends Applicative[Task.Par] {
+  private[eval] object NondetApplicative extends CommutativeApplicative[Task.Par] {
 
     import Task.Par.unwrap
     import Task.Par.{apply => par}
 
-    override def ap[A, B](ff: Task.Par[(A) => B])(fa: Task.Par[A]): Task.Par[B] =
+    override def ap[A, B](ff: Task.Par[A => B])(fa: Task.Par[A]): Task.Par[B] =
       par(Task.mapBoth(unwrap(ff), unwrap(fa))(_(_)))
     override def map2[A, B, Z](fa: Task.Par[A], fb: Task.Par[B])(f: (A, B) => Z): Task.Par[Z] =
       par(Task.mapBoth(unwrap(fa), unwrap(fb))(f))
@@ -60,7 +61,7 @@ object CatsParallelForTask extends CatsParallelForTask {
       par(Task.now(a))
     override val unit: Task.Par[Unit] =
       par(Task.now(()))
-    override def map[A, B](fa: Task.Par[A])(f: (A) => B): Task.Par[B] =
+    override def map[A, B](fa: Task.Par[A])(f: A => B): Task.Par[B] =
       par(unwrap(fa).map(f))
   }
 }

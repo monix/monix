@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -212,9 +212,17 @@ private[eval] object TaskRunLoop {
         context.frameRef.reset()
 
         // Transporting the current context if localContextPropagation == true.
-        Local.bind(savedLocals) {
+        var prevLocals: Local.Context = null
+        if (savedLocals != null) {
+          prevLocals = Local.getContext()
+          Local.setContext(savedLocals)
+        }
+        try {
           // Using frameIndex = 1 to ensure at least one cycle gets executed
           startFull(source, context, cb, rcb, bindCurrent, bindRest, 1)
+        } finally {
+          if (prevLocals != null)
+            Local.setContext(prevLocals)
         }
       }
     }
@@ -609,7 +617,8 @@ private[eval] object TaskRunLoop {
         executeAsyncTask(async, context, cb, null, bFirst, bRest, 1)
       case _ =>
         startFull(source, context, cb, null, bFirst, bRest, nextFrame)
-    } else {
+    }
+    else {
       restartAsync(source, context, cb, null, bFirst, bRest)
     }
     context.connection.cancel
@@ -635,7 +644,8 @@ private[eval] object TaskRunLoop {
         executeAsyncTask(async, context, cb, null, bFirst, bRest, 1)
       case _ =>
         startFull(source, context, cb, null, bFirst, bRest, nextFrame)
-    } else {
+    }
+    else {
       restartAsync(current, context, cb, null, bFirst, bRest)
     }
 

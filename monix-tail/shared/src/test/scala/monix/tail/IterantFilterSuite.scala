@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -119,5 +119,16 @@ object IterantFilterSuite extends BaseTestSuite {
     val stream = source.filter(_ => true)
     stream.completedL.value()
     assertEquals(effect, 1)
+  }
+
+  test("Iterant.withFilter applies filtering in for-comprehension") { implicit s =>
+    val source = Iterant[Coeval]
+      .nextCursorS(BatchCursor(1, 2, 3, 4, 5), Coeval.now(Iterant[Coeval].empty[Int]))
+
+    val evenValues = (for {
+      value <- source if value % 2 == 0
+    } yield value).toListL.value()
+
+    assertEquals(evenValues, List(2, 4))
   }
 }

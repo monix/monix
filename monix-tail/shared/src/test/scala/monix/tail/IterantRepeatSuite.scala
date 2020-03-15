@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +21,7 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.eq._
 import monix.eval.{Coeval, Task}
+import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.tail.batches.{Batch, BatchCursor}
@@ -111,6 +112,18 @@ object IterantRepeatSuite extends BaseTestSuite {
     assertEquals(source2.repeat.toListL.value(), List.empty[Int])
     assertEquals(source3.repeat.toListL.value(), List.empty[Int])
     assertEquals(source4.repeat.toListL.value(), List.empty[Int])
+  }
+
+  test("Iterant.repeat discards Scopes properly") { implicit s =>
+    val acquired = Atomic(0)
+    val sum = Iterant
+      .resource(Coeval(acquired.incrementAndGet()))(_ => Coeval(acquired.decrement()))
+      .repeat
+      .take(10)
+      .sumL
+      .value()
+
+    assertEquals(sum, 10)
   }
 
   test("Iterant.repeatEval captures effects") { _ =>

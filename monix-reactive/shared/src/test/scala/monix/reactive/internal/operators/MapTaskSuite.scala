@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -158,7 +158,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     val p1 = Promise[Long]()
-    val task1 = Task.fromFuture(p1.future, allowContinueOnCallingThread = true)
+    val task1 = Task.fromFuture(p1.future)
     val task2 = Task.eval(100L)
 
     Observable
@@ -198,9 +198,9 @@ object MapTaskSuite extends BaseOperatorSuite {
     var received = 0L
 
     val p1 = Promise[Long]()
-    val task1 = Task.fromFuture(p1.future, allowContinueOnCallingThread = true)
+    val task1 = Task.fromFuture(p1.future)
     val p2 = Promise[Long]()
-    val task2 = Task.fromFuture(p2.future, allowContinueOnCallingThread = true)
+    val task2 = Task.fromFuture(p2.future)
     val task3 = Task.eval(100L)
 
     Observable

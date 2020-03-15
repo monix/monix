@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,15 +35,12 @@ import monix.execution.Scheduler
   * @param s is the scheduler that gets used for execution.
   */
 final case class StartAsyncBatchRunnable(start: TrampolinedRunnable, s: Scheduler) extends Runnable with Serializable {
-
   def run(): Unit = {
     // Scheduler might not be an actual `BatchingScheduler`, in which case
     // we don't want to create an extra asynchronous boundary.
-    s match {
-      case _: BatchingScheduler =>
-        s.execute(start)
-      case _ =>
-        start.run()
-    }
+    if (s.features.contains(Scheduler.BATCHING))
+      s.execute(start)
+    else
+      start.run()
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,11 +42,14 @@ private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit]) exten
           catch { case ex if NonFatal(ex) => Future.failed(ex) }
 
         val task = Task
-          .fromFuture(result, allowContinueOnCallingThread = true)
+          .fromFuture(result)
           .onErrorHandle { ex =>
             onError(ex); Stop
           }
-          .flatMap { case Continue => ContinueTask; case Stop => onStop.map(_ => Stop) }
+          .flatMap {
+            case Continue => ContinueTask
+            case Stop => onStop.map(_ => Stop)
+          }
 
         val future = task.runToFuture
         // Execution might be immediate

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,10 +60,6 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
     implicit val scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
     private[this] val semaphore = AsyncSemaphore(parallelism)
-    // Reusable instance for releasing permits on cancel, but
-    // it's debatable whether this is needed, since on cancel
-    // everything gets canceled at once
-    private[this] val releaseTask = Task.eval(semaphore.release())
     // Buffer with the supplied  overflow strategy.
     private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
 
@@ -105,7 +101,6 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
                     composite -= head.cancelable
                   case Failure(ex) =>
                     lastAck = Stop
-                    composite -= head.cancelable
                     self.onError(ex)
                 }
 
@@ -145,7 +140,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
       // we can no longer stream errors downstream
       var streamErrors = true
       try {
-        val task = f(elem).doOnCancel(releaseTask)
+        val task = f(elem)
         // No longer allowed to stream errors downstream
         streamErrors = false
         // Start execution (forcing an async boundary)
@@ -161,6 +156,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
           case Failure(error) =>
             lastAck = Stop
             composite -= future.cancelable
+            composite.cancel()
             self.onError(error)
         }
       } catch {
@@ -238,5 +234,4 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
       composite.cancel()
     }
   }
-
 }

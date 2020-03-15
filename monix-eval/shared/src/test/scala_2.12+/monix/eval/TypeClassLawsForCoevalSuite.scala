@@ -16,24 +16,17 @@
  */
 
 package monix.eval
-package internal
 
-import monix.execution.Callback
-import monix.eval.Task.Context
+import cats.effect.laws.discipline.SyncEffectTests
+import cats.kernel.laws.discipline.MonoidTests
+import cats.laws.discipline.{CoflatMapTests, SemigroupKTests}
 
-private[eval] object TaskForkAndForget {
-  /**
-    * Implementation for `Task.startAndForget`.
-    */
-  def apply[A](fa: Task[A]): Task[Unit] = {
-    val start = (ctx: Context, cb: Callback[Throwable, Unit]) => {
-      implicit val sc = ctx.scheduler
-      // It needs its own context, its own cancelable
-      val ctx2 = Task.Context(sc, ctx.options)
-      // Starting actual execution of our newly created task forcing new async boundary
-      Task.unsafeStartEnsureAsync(fa, ctx2, Callback.empty)
-      cb.onSuccess(())
-    }
-    Task.Async[Unit](start, trampolineBefore = false, trampolineAfter = true)
-  }
+object TypeClassLawsForCoevalSuite extends BaseLawsSuite {
+  checkAll("SyncEffect[Coeval]", SyncEffectTests[Coeval].syncEffect[Int, Int, Int])
+
+  checkAll("CoflatMap[Coeval]", CoflatMapTests[Coeval].coflatMap[Int, Int, Int])
+
+  checkAll("Monoid[Coeval[Int]]", MonoidTests[Coeval[Int]].monoid)
+
+  checkAll("SemigroupK[Coeval[Int]]", SemigroupKTests[Coeval].semigroupK[Int])
 }

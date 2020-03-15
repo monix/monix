@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,6 +27,7 @@ import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
 import monix.execution.internal.Platform.fusionMaxStackDepth
+
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -610,6 +611,33 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   final def flatMap[B](f: A => Coeval[B]): Coeval[B] =
     FlatMap(this, f)
 
+  /** Describes flatMap-driven loops, as an alternative to recursive functions.
+    *
+    * Sample:
+    *
+    * {{{
+    *   import scala.util.Random
+    *
+    *   val random = Coeval(Random.nextInt())
+    *   val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
+    *     val newList = list :+ a
+    *     if (newList.length < 5)
+    *       continue(newList)
+    *     else
+    *       Coeval.now(newList)
+    *   }
+    * }}}
+    *
+    * @param seed initializes the result of the loop
+    * @param f is the function that updates the result
+    *        on each iteration, returning a `Coeval`.
+    * @return a new [[Coeval]] that contains the result of the loop.
+    */
+  final def flatMapLoop[S](seed: S)(f: (A, S, S => Coeval[S]) => Coeval[S]): Coeval[S] =
+    this.flatMap { a =>
+      f(a, seed, flatMapLoop(_)(f))
+    }
+
   /** Given a source Coeval that emits another Coeval, this function
     * flattens the result, returning a Coeval equivalent to the emitted
     * Coeval by the source.
@@ -817,10 +845,9 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * will be `maxRetries + 1`.
     */
   final def onErrorRestart(maxRetries: Long): Coeval[A] =
-    self.onErrorHandleWith(
-      ex =>
-        if (maxRetries > 0) self.onErrorRestart(maxRetries - 1)
-        else Error(ex))
+    self.onErrorHandleWith(ex =>
+      if (maxRetries > 0) self.onErrorRestart(maxRetries - 1)
+      else Error(ex))
 
   /** Creates a new coeval that in case of error will retry executing the
     * source again and again, until it succeeds.
@@ -1486,7 +1513,7 @@ object Coeval extends CoevalInstancesLevel0 {
   }
 
   /** Instance of Cats type classes for [[Coeval]], implementing
-    * `cats.effect.Sync` (which implies `Applicative`, `Monad`, `MonadError`)
+    * `cats.effect.SyncEffect` (which implies `Applicative`, `Monad`, `MonadError`, `Sync`)
     * and `cats.CoflatMap`.
     */
   implicit def catsSync: CatsSyncForCoeval =

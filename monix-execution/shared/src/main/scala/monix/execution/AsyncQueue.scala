@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -259,6 +259,17 @@ final class AsyncQueue[A] private[monix] (
     queue.clear()
     notifyProducers()
   }
+
+  /** Checks if the queue is empty.
+    *
+    * '''UNSAFE PROTOCOL:'''
+    * Concurrent shared state changes very frequently, therefore this function might yield nondeterministic results.
+    * Should be used carefully since some usecases might require a deeper insight into concurrent programming.
+    */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
+  def isEmpty: Boolean =
+    queue.isEmpty
 
   private[this] val queue: LowLevelConcurrentQueue[A] =
     LowLevelConcurrentQueue(capacity, channelType, fenced = true)

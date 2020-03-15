@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -262,7 +262,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     var isComplete = false
     val p = Promise[Int]()
 
-    val tasks = List.fill(8)(Task.fromFuture(p.future, allowContinueOnCallingThread = true))
+    val tasks = List.fill(8)(Task.fromFuture(p.future))
     Observable(tasks: _*)
       .doOnNext(_ => Task { initiated += 1 })
       .mapParallelUnordered(parallelism = 4)(x => x)
@@ -412,5 +412,19 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     s.tick()
 
     assert(error)
+  }
+
+  test("should cancel the whole stream when if one fails") { implicit s =>
+    val wasThrown: Throwable = null
+    var received = 0
+
+    val failedTask = Task.raiseError(wasThrown).delayExecution(1.second)
+    val otherTask = Task.sleep(2.second).doOnCancel(Task(received += 1))
+
+    Observable(0, 1, 2, 3, 4, 5,
+      6).mapParallelUnordered(4)(i => if (i == 0) failedTask else otherTask).toListL.runToFuture
+
+    s.tick(1.second)
+    assertEquals(received, 3)
   }
 }

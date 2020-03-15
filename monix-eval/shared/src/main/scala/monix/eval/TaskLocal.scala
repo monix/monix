@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -269,7 +269,7 @@ object TaskLocal {
   def isolate[A](task: Task[A]): Task[A] = checkPropagation {
     Task {
       val current = Local.getContext()
-      Local.setContext(current.mkIsolated)
+      Local.setContext(current.isolate())
       current
     }.bracket(_ => task)(backup => Task(Local.setContext(backup)))
   }

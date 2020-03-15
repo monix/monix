@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -194,4 +194,26 @@ private[monix] object Platform {
       case _ =>
         first
     }
+
+  /**
+    * Returns the current thread's ID.
+    *
+    * To be used for multi-threading optimizations. Note that
+    * in JavaScript this always returns the same value.
+    */
+  def currentThreadId(): Long = {
+    Thread.currentThread().getId
+  }
+
+  /**
+    * For reporting errors when we don't have access to
+    * an error handler.
+    */
+  def reportFailure(e: Throwable): Unit = {
+    val t = Thread.currentThread()
+    t.getUncaughtExceptionHandler match {
+      case null => DefaultUncaughtExceptionReporter.reportFailure(e)
+      case ref => ref.uncaughtException(t, e)
+    }
+  }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -114,12 +114,10 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     val task = Task.unit
       .guarantee(Task.sleep(10.seconds) *> Task(effect.set(true)))
       .flatMap(_ =>
-        Task.Async[Unit](
-          (ctx, cb) => {
-            println(ctx.connection)
-            cb.onSuccess(())
-          }
-        ))
+        Task.Async[Unit]((ctx, cb) => {
+          println(ctx.connection)
+          cb.onSuccess(())
+        }))
       .flatMap(_ => Task.sleep(10.seconds))
 
     val f = task.runToFuture

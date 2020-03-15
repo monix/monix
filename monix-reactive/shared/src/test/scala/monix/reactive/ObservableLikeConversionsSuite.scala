@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,6 +54,8 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(IO)") { implicit s =>
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
+
     val p = Promise[Int]()
     val f = Observable.from(IO.fromFuture(IO.pure(p.future))).runAsyncGetFirst
 
@@ -66,6 +68,8 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(IO) for errors") { implicit s =>
+    implicit val cs = SchedulerEffect.contextShift[IO](s)
+
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
     val f = Observable.from(IO.fromFuture(IO.pure(p.future))).runAsyncGetFirst
@@ -80,7 +84,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
 
   test("Observable.from(Task)") { implicit s =>
     val p = Promise[Int]()
-    val f = Observable.from(Task.fromFuture(p.future, allowContinueOnCallingThread = true)).runAsyncGetFirst
+    val f = Observable.from(Task.fromFuture(p.future)).runAsyncGetFirst
 
     s.tick()
     assertEquals(f.value, None)
@@ -93,7 +97,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   test("Observable.from(Task) for errors") { implicit s =>
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
-    val f = Observable.from(Task.fromFuture(p.future, allowContinueOnCallingThread = true)).runAsyncGetFirst
+    val f = Observable.from(Task.fromFuture(p.future)).runAsyncGetFirst
 
     s.tick()
     assertEquals(f.value, None)

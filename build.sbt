@@ -1,5 +1,8 @@
 import com.typesafe.sbt.GitVersioning
 import sbt.Keys.version
+// For getting Scoverage out of the generated POM
+import scala.xml.Elem
+import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 val allProjects = List(
   "execution",
@@ -11,8 +14,7 @@ val allProjects = List(
 )
 
 val benchmarkProjects = List(
-  // Enable after 2.13 version is released for previous version
-  // "benchmarksPrev",
+  "benchmarksPrev",
   "benchmarksNext"
 ).map(_ + "/compile")
 
@@ -21,23 +23,27 @@ addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-js",       s";clean ;coreJS/test:compile ;${(allProjects.filter(_ != "java").map(_ + "JS/test") ++ benchmarkProjects).mkString(" ;")}")
 addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;${(allProjects.map(_ + "JVM/test") ++ benchmarkProjects).mkString(" ;")}")
 addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
-addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc; scalafmtCheck; test:scalafmtCheck; scalafmtSbtCheck")
+addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
-val catsVersion = "1.6.1"
-val catsEffectVersion = "1.3.1"
-val catsEffectLawsVersion = catsEffectVersion
-val jcToolsVersion = "2.1.2"
-val reactiveStreamsVersion = "1.0.2"
-def scalaTestVersion(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
-  case Some((2, v)) if v >= 13 => "3.0.6-SNAP5"
-  case _                       => "3.0.4"
+val catsVersion = "2.0.0"
+lazy val catsEffectVersion = settingKey[String]("cats-effect version")
+ThisBuild/catsEffectVersion := {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 11)) => "2.0.0"
+    case _ => "2.1.2"
+  }
 }
-val minitestVersion = "2.3.2"
+
+val jcToolsVersion = "2.1.2"
+val reactiveStreamsVersion = "1.0.3"
+val minitestVersion = "2.7.0"
+val scalaTestVersion = "3.0.8"
+val implicitBoxVersion = "0.1.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0-RC3"
+val monixSeries = "3.0.0"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -61,8 +67,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-M5"),
+  scalaVersion := "2.13.1",
+  crossScalaVersions := Seq("2.11.12", "2.12.10", "2.13.1"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -87,35 +93,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
       Seq(
         "-Ymacro-annotations",
       )
-  }),
-
-  // Force building with Java 8
-  initialize := {
-    if (sys.props("monix.requireJava8") != "false") {
-      val required = "1.8"
-      val current  = sys.props("java.specification.version")
-      assert(current == required, s"Unsupported build JDK: java.specification.version $current != $required")
-    }
-  },
-
-  // Targeting Java 6, but only for Scala <= 2.11
-  javacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion <= 11 =>
-      // generates code with the Java 6 class format
-      Seq("-source", "1.6", "-target", "1.6")
-    case _ =>
-      // For 2.12 we are targeting the Java 8 class format
-      Seq("-source", "1.8", "-target", "1.8")
-  }),
-
-  // Targeting Java 6, but only for Scala <= 2.11
-  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion <= 11 =>
-      // generates code with the Java 6 class format
-      Seq("-target:jvm-1.6")
-    case _ =>
-      // For 2.12 we are targeting the Java 8 class format
-      Seq.empty
   }),
 
   // Linter
@@ -151,12 +128,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
 
   // For working with partially-applied types
-  libraryDependencies += {
-    if (scalaVersion.value == "2.13.0-M5")
-      compilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary)
-    else
-      compilerPlugin("org.typelevel" % "kind-projector" % "0.10.0" cross CrossVersion.binary)
-  },
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.0" cross CrossVersion.full),
 
   // ScalaDoc settings
   autoAPIMappings := true,
@@ -177,8 +149,11 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   testForkedParallel in ThisBuild := false,
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
+  logBuffered in Test := false,
+  logBuffered in IntegrationTest := false,
+
   resolvers ++= Seq(
-    "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
+    "Typesafe Releases" at "https://repo.typesafe.com/typesafe/releases",
     Resolver.sonatypeRepo("releases")
   ),
 
@@ -207,10 +182,22 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
 
+  // For evicting Scoverage out of the generated POM
+  // See: https://github.com/scoverage/sbt-scoverage/issues/153
+  pomPostProcess := { (node: xml.Node) =>
+    new RuleTransformer(new RewriteRule {
+      override def transform(node: xml.Node): Seq[xml.Node] = node match {
+        case e: Elem
+          if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
+        case _ => Seq(node)
+      }
+    }).transform(node).head
+  },
+
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
   headerLicense := Some(HeaderLicense.Custom(
-    """|Copyright (c) 2014-2019 by The Monix Project Developers.
+    """|Copyright (c) 2014-2020 by The Monix Project Developers.
        |See the project homepage at: https://monix.io
        |
        |Licensed under the Apache License, Version 2.0 (the "License");
@@ -309,9 +296,9 @@ lazy val unidocSettings = Seq(
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies ++= Seq(
-    "io.monix" %%% "minitest-laws-legacy" % minitestVersion % Test,
+    "io.monix" %%% "minitest-laws" % minitestVersion % Test,
     "org.typelevel" %%% "cats-laws" % catsVersion % Test,
-    "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion % Test
+    "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion.value % Test
   )
 )
 
@@ -320,6 +307,7 @@ lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
 )
 
 lazy val scalaJSSettings = Seq(
+  coverageExcludedFiles := ".*",
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions += {
     val tagOrHash =
@@ -336,14 +324,18 @@ lazy val cmdlineProfile =
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_0
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0
 )
 // https://github.com/lightbend/mima/pull/289
 mimaFailOnNoPrevious in ThisBuild := false
 
-def profile: Project ⇒ Project = pr => cmdlineProfile match {
-  case _ =>
-    pr.enablePlugins(AutomateHeaderPlugin)
+def profile: Project ⇒ Project = pr => {
+  val withCoverage = cmdlineProfile match {
+    case "coverage" => pr
+    case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
+  }
+  withCoverage.enablePlugins(AutomateHeaderPlugin)
 }
 
 lazy val doctestTestSettings = Seq(
@@ -377,7 +369,8 @@ lazy val coreJS = project.in(file("monix/js"))
   .settings(name := "monix")
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution"
+  name := "monix-execution",
+  libraryDependencies += "io.monix" %%% "implicitbox" % implicitBoxVersion
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
@@ -402,7 +395,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 lazy val catnapCommon =
   crossSettings ++ crossVersionSharedSources ++ testSettings ++ Seq(
     name := "monix-catnap",
-    libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion
+    libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion.value
 )
 
 lazy val catnapJVM = project.in(file("monix-catnap/jvm"))
@@ -422,23 +415,7 @@ lazy val catnapJS = project.in(file("monix-catnap/js"))
 lazy val evalCommon =
   crossSettings ++ crossVersionSharedSources ++ testSettings ++
     Seq(
-      name := "monix-eval",
-
-      // used to skip a test in 2.13.0-M5, remove when upgrading
-      // from https://stackoverflow.com/a/48518559/4094860
-      sourceGenerators in Test += Def.task {
-        val file = (sourceManaged in Test).value / "monix" / "eval" / "internal" / "ScalaVersion.scala"
-        val scalaV = scalaVersion.value
-        IO.write(file,
-          s"""package monix.eval.internal
-             |
-             |object ScalaVersion {
-             |  val Full = "$scalaV"
-             |}
-           """.stripMargin
-        )
-        Seq(file)
-      }.taskValue
+      name := "monix-eval"
     )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -511,7 +488,7 @@ lazy val reactiveTests = project.in(file("reactiveTests"))
   .settings(
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams-tck" % reactiveStreamsVersion % Test,
-      "org.scalatest" %% "scalatest" % scalaTestVersion(scalaVersion.value) % Test
+      "org.scalatest" %% "scalatest" % scalaTestVersion % Test
     ))
 
 lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
@@ -521,8 +498,10 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    libraryDependencies += "io.monix" %% "monix" % "3.0.0-RC1"
-  )
+    libraryDependencies ++= Seq(
+      "io.monix" %% "monix" % "3.1.0",
+      "dev.zio" %% "zio" % "1.0.0-RC17"
+  ))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .configure(profile)
@@ -531,6 +510,10 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .settings(crossSettings)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.zio" %% "zio" % "1.0.0-RC17"
+    ))
 
 //------------- For Release
 
@@ -539,7 +522,7 @@ enablePlugins(GitVersioning)
 /* The BaseVersion setting represents the in-development (upcoming) version,
  * as an alternative to SNAPSHOTS.
  */
-git.baseVersion := "3.0.0-RC3"
+git.baseVersion := "3.2.0"
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {

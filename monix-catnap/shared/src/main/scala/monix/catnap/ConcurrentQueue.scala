@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -276,6 +276,16 @@ final class ConcurrentQueue[F[_], A] private (
     queue.clear()
     notifyProducers()
   }
+
+  /** Checks if the queue is empty.
+    *
+    * '''UNSAFE PROTOCOL:'''
+    * Concurrent shared state changes very frequently, therefore this function might yield nondeterministic results.
+    * Should be used carefully since some usecases might require a deeper insight into concurrent programming.
+    */
+  @UnsafeProtocol
+  def isEmpty: F[Boolean] =
+    F.delay(queue.isEmpty)
 
   private def tryOfferUnsafe(a: A): Boolean = {
     if (queue.offer(a) == 0) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,11 +39,12 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
   def `:=`(conn: CancelableF[Task])(implicit s: Scheduler): Unit =
     unsafeSet(conn.cancel)
 
+  @tailrec
   private def unsafeSet(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(
     implicit s: Scheduler): Unit = {
 
     if (!state.compareAndSet(Empty, IsActive(ref))) {
-      state.get match {
+      state.get() match {
         case IsEmptyCanceled =>
           state.getAndSet(IsCanceled) match {
             case IsEmptyCanceled =>
@@ -65,7 +66,7 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
 
   val cancel: CancelToken[Task] = {
     @tailrec def loop(): CancelToken[Task] =
-      state.get match {
+      state.get() match {
         case IsCanceled | IsEmptyCanceled =>
           Task.unit
         case IsActive(task) =>

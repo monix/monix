@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -277,5 +277,33 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
 
     s.tick()
     assert(wasCompleted)
+  }
+
+  test("should signal Stop upstream when it is back-pressured") { implicit s =>
+    val promise = Promise[Ack]()
+
+    val buffer = BufferedSubscriber.batched[Int](
+      bufferSize = 2,
+      producerType = MultiProducer,
+      underlying = new Subscriber[List[Int]] {
+        def onNext(elem: List[Int]) = promise.future
+        def onError(ex: Throwable) = throw new IllegalStateException()
+        def onComplete() = ()
+        val scheduler = s
+      }
+    )
+
+    assertEquals(buffer.onNext(1), Continue)
+    assertEquals(buffer.onNext(2), Continue)
+    s.tick()
+    assertEquals(buffer.onNext(3), Continue)
+    assertEquals(buffer.onNext(4), Continue)
+
+    val async = buffer.onNext(5)
+    assertEquals(async.value, None)
+    promise.success(Stop)
+
+    s.tick()
+    assertEquals(async.value, Some(Success(Stop)))
   }
 }

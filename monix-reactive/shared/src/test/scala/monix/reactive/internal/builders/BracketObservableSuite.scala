@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -129,6 +129,26 @@ object BracketObservableSuite extends BaseTestSuite {
       assertEquals(f.value, Some(Success(())))
       assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     }
+  }
+
+  test("bracket use is not evaluated on cancel") { implicit sc =>
+    import scala.concurrent.duration._
+    var use = false
+    var release = false
+
+    val task = Observable
+      .evalDelayed(2.second, ())
+      .bracket(_ => Observable.eval { use = true })(_ => Task { release = true })
+
+    val f = task.completedL.runToFuture
+    sc.tick()
+
+    f.cancel()
+    sc.tick(2.second)
+
+    assertEquals(f.value, None)
+    assertEquals(use, false)
+    assertEquals(release, true)
   }
 
   class Semaphore(var acquired: Int = 0, var released: Int = 0) {

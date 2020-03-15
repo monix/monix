@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,6 @@
 
 package monix.execution.schedulers
 
-import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.ThreadFactory
 import monix.execution.UncaughtExceptionReporter
 
@@ -35,11 +34,7 @@ private[schedulers] object ThreadFactoryBuilder {
         val thread = new Thread(r)
         thread.setName(name + "-" + thread.getId)
         thread.setDaemon(daemonic)
-        thread.setUncaughtExceptionHandler(new UncaughtExceptionHandler {
-          override def uncaughtException(t: Thread, e: Throwable): Unit =
-            reporter.reportFailure(e)
-        })
-
+        thread.setUncaughtExceptionHandler(reporter.asJava)
         thread
       }
     }

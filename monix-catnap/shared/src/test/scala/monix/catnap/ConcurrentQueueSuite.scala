@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -151,7 +151,8 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
           producer(n - 1)
         case false =>
           IO.shift *> producer(n)
-      } else {
+      }
+      else {
         IO.unit
       }
 
@@ -160,7 +161,8 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
         queue.tryPoll.flatMap {
           case Some(a) => consumer(n - 1, acc.enqueue(a))
           case None => IO.shift *> consumer(n, acc)
-        } else
+        }
+      else
         IO.pure(acc.sum)
 
     for {
@@ -261,6 +263,18 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
       r     <- consume(queue)
     } yield {
       assert(r <= 500)
+    }
+  }
+
+  testIO("queue should be empty") { implicit s =>
+    for {
+      queue <- ConcurrentQueue[IO].bounded[Int](10)
+      _     <- queue.offer(1)
+      _     <- queue.clear
+      value <- queue.tryPoll
+    } yield {
+      assertEquals(value, None)
+      assertEquals(queue.isEmpty.unsafeRunSync(), true)
     }
   }
 

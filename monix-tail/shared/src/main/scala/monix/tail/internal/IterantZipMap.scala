@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,7 +43,7 @@ private[tail] object IterantZipMap {
     */
   def par[F[_], G[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)(
     implicit F: Sync[F],
-    P: Parallel[F, G]): Iterant[F, C] = {
+    P: Parallel[F]): Iterant[F, C] = {
 
     val A = ParallelApplicative(P)
     Suspend(F.delay(new Loop[F, A, B, C](f)(F, A).apply(lh, rh)))

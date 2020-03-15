@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 by The Monix Project Developers.
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ private[eval] object TaskEvalAsync {
       new EvalAsyncRegister[A](a),
       trampolineAfter = false,
       trampolineBefore = false,
-      restoreLocals = true
+      restoreLocals = false
     )
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
