@@ -75,6 +75,12 @@ private[monix] object Platform {
   final val localContextPropagation: Boolean = false
 
   /**
+    * Isolating local context when running to Future is
+    * set to `true` by default.
+    */
+  final val localContextIsolateOnRun: Boolean = true
+
+  /**
     * Establishes the maximum stack depth for fused `.map` operations
     * for JavaScript.
     *

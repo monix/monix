@@ -36,6 +36,7 @@ import org.reactivestreams.Publisher
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.concurrent.duration.{Duration, FiniteDuration, NANOSECONDS, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
+import scala.runtime.AbstractFunction2
 import scala.util.{Failure, Success, Try}
 
 /** `Task` represents a specification for a possibly lazy or
@@ -582,7 +583,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   def runToFutureOpt(implicit s: Scheduler, opts: Options): CancelableFuture[A] = {
     val opts2 = opts.withSchedulerFeatures
     Local
-      .bindCurrentIf(opts2.localContextPropagation) {
+      .bindCurrentIf(opts2.localContextPropagation && opts2.localContextIsolateOnRun) {
         TaskRunLoop.startFuture(this, s, opts2)
       }
   }
@@ -706,7 +707,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   @UnsafeBecauseImpure
   def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable = {
     val opts2 = opts.withSchedulerFeatures
-    Local.bindCurrentIf(opts2.localContextPropagation) {
+    Local.bindCurrentIf(opts2.localContextPropagation && opts2.localContextIsolateOnRun) {
       UnsafeCancelUtils.taskToCancelable(runAsyncOptF(cb)(s, opts2))
     }
   }
@@ -808,7 +809,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   @UnsafeBecauseImpure
   def runAsyncOptF(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): CancelToken[Task] = {
     val opts2 = opts.withSchedulerFeatures
-    Local.bindCurrentIf(opts2.localContextPropagation) {
+    Local.bindCurrentIf(opts2.localContextPropagation && opts2.localContextIsolateOnRun) {
       TaskRunLoop.startLight(this, s, opts2, Callback.fromAttempt(cb))
     }
   }
@@ -930,7 +931,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   @UnsafeBecauseImpure
   def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): Unit = {
     val opts2 = opts.withSchedulerFeatures
-    Local.bindCurrentIf(opts2.localContextPropagation) {
+    Local.bindCurrentIf(opts2.localContextPropagation && opts2.localContextIsolateOnRun) {
       TaskRunLoop.startLight(this, s, opts2, Callback.fromAttempt(cb), isCancelable = false)
     }
   }
@@ -995,7 +996,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   @UnsafeBecauseImpure
   final def runSyncStepOpt(implicit s: Scheduler, opts: Options): Either[Task[A], A] = {
     val opts2 = opts.withSchedulerFeatures
-    Local.bindCurrentIf(opts2.localContextPropagation) {
+    Local.bindCurrentIf(opts2.localContextPropagation && opts2.localContextIsolateOnRun) {
       TaskRunLoop.startStep(this, s, opts2)
     }
   }
@@ -1093,7 +1094,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   ): A = {
     /*_*/
     val opts2 = opts.withSchedulerFeatures
-    Local.bindCurrentIf(opts2.localContextPropagation) {
+    Local.bindCurrentIf(opts2.localContextPropagation && opts2.localContextIsolateOnRun) {
       TaskRunSyncUnsafe(this, timeout, s, opts2)
     }
     /*_*/
@@ -4247,11 +4248,23 @@ object Task extends TaskInstancesLevel1 {
     *        case you want the [[monix.execution.misc.Local Local]]
     *        variables to be propagated on async boundaries.
     *        Defaults to `false`.
+    *
+    * @param localContextIsolateOnRun should be set to
+    *        `true` if when using `localContextPropagation` you
+    *        want the [[monix.execution.misc.Local Local]] to be
+    *        isolated when running the task otherwise the
+    *        [[monix.execution.misc.Local Local]] will be visible after
+    *        running to a Future. Defaults to `true`.
     */
   final case class Options(
     autoCancelableRunLoops: Boolean,
-    localContextPropagation: Boolean
+    localContextPropagation: Boolean,
+    localContextIsolateOnRun: Boolean
   ) {
+    def this(autoCancelableRunLoops: Boolean,
+             localContextPropagation: Boolean) =
+      this(autoCancelableRunLoops, localContextPropagation, true)
+
     /** Creates a new set of options from the source, but with
       * the [[autoCancelableRunLoops]] value set to `true`.
       */
@@ -4276,6 +4289,18 @@ object Task extends TaskInstancesLevel1 {
     def disableLocalContextPropagation: Options =
       copy(localContextPropagation = false)
 
+    /** Creates a new set of options from the source, but with
+      * the [[localContextIsolateOnRun]] value set to `true`.
+      */
+    def enableLocalContextIsolateOnRun: Options =
+      new Options(autoCancelableRunLoops, localContextPropagation, localContextIsolateOnRun = true)
+
+    /** Creates a new set of options from the source, but with
+      * the [[localContextIsolateOnRun]] value set to `false`.
+      */
+    def disableLocalContextIsolateOnRun: Options =
+      new Options(autoCancelableRunLoops, localContextPropagation, localContextIsolateOnRun = false)
+
     /**
       * Enhances the options set with the features of the underlying
       * [[monix.execution.Scheduler Scheduler]].
@@ -4291,6 +4316,16 @@ object Task extends TaskInstancesLevel1 {
       else
         copy(localContextPropagation = wLocals || localContextPropagation)
     }
+
+    def copy(autoCancelableRunLoops: Boolean = this.autoCancelableRunLoops,
+             localContextPropagation: Boolean = this.localContextPropagation): Options =
+      new Options(autoCancelableRunLoops, localContextPropagation, this.localContextIsolateOnRun)
+  }
+
+  object Options extends AbstractFunction2[Boolean, Boolean, Options] {
+    def apply(autoCancelableRunLoops: Boolean,
+              localContextPropagation: Boolean): Options =
+      new Options(autoCancelableRunLoops, localContextPropagation)
   }
 
   /** Default [[Options]] to use for [[Task]] evaluation,
@@ -4308,12 +4343,15 @@ object Task extends TaskInstancesLevel1 {
     *  - `monix.environment.localContextPropagation`
     *    (`true`, `yes` or `1` for enabling)
     *
+    *  - `monix.environment.localContextIsolateOnRun`
+    *    (`false`, `no` or `0` for disabling)
     * @see [[Task.Options]]
     */
   val defaultOptions: Options =
     Options(
       autoCancelableRunLoops = Platform.autoCancelableRunLoops,
-      localContextPropagation = Platform.localContextPropagation
+      localContextPropagation = Platform.localContextPropagation,
+      localContextIsolateOnRun = Platform.localContextIsolateOnRun
     )
 
   /** The `AsyncBuilder` is a type used by the [[Task.create]] builder,

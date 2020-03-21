@@ -132,6 +132,19 @@ private[monix] object Platform {
       .exists(v => v == "yes" || v == "true" || v == "1")
 
   /**
+    * Default value for isolating local context when running to a Future
+    * is set to true. On top of the JVM the default can be overridden by
+    * setting the following system property:
+    *
+    *  - `monix.environment.localContextIsolateOnRun`
+    *    (`true`, `yes` or `1` for enabling)
+    */
+  val localContextIsolateOnRun: Boolean =
+    Option(System.getProperty("monix.environment.localContextIsolateOnRun", ""))
+      .map(_.toLowerCase)
+      .forall(v => v != "no" && v != "false" && v != "0")
+
+  /**
     * Establishes the maximum stack depth for fused `.map` operations.
     *
     * The default is `128`, from which we subtract one as an

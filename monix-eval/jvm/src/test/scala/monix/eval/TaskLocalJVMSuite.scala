@@ -277,4 +277,18 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
     test.runToFuture
   }
+
+    testAsync("With disableLocalContextIsolateOnRun and enableLocalContextPropagation a Task local should retain its context when running the Task") {
+      import monix.execution.Scheduler.Implicits.global
+      implicit val opts = Task.defaultOptions.enableLocalContextPropagation.disableLocalContextIsolateOnRun
+
+      val local = Local(0)
+
+      val f = for {
+        _ <- Task { local := 50}.asyncBoundary.runToFutureOpt
+        v <- Future { local() }
+      } yield v
+
+      for (v <- f) yield assertEquals(v, 50)
+  }
 }

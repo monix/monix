@@ -31,7 +31,8 @@ object TaskEffectInstanceSuite extends BaseTestSuite {
   test("Effect instance should make use of implicit TaskOptions") { implicit sc =>
     implicit val customOptions: Task.Options = Task.Options(
       autoCancelableRunLoops = true,
-      localContextPropagation = true
+      localContextPropagation = true,
+      localContextIsolateOnRun = true
     )
 
     var received: Task.Options = null
