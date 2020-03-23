@@ -25,11 +25,11 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-object TaskWanderUnorderedSuite extends BaseTestSuite {
-  test("Task.wanderUnordered should execute in parallel") { implicit s =>
+object TaskParTraverseUnorderedSuite extends BaseTestSuite {
+  test("Task.parTraverseUnordered should execute in parallel") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task
-      .wanderUnordered(seq) {
+      .parTraverseUnordered(seq) {
         case (i, d) =>
           Task.evalAsync(i + 1).delayExecution(d.seconds)
       }
@@ -43,11 +43,11 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Seq(4, 2, 3))))
   }
 
-  test("Task.wanderUnordered should onError if one of the tasks terminates in error") { implicit s =>
+  test("Task.parTraverseUnordered should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq((1, 3), (-1, 1), (3, 2), (3, 1))
     val f = Task
-      .wanderUnordered(seq) {
+      .parTraverseUnordered(seq) {
         case (i, d) =>
           Task
             .evalAsync(if (i < 0) throw ex else i + 1)
@@ -61,10 +61,10 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.wanderUnordered should be canceled") { implicit s =>
+  test("Task.parTraverseUnordered should be canceled") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task
-      .wanderUnordered(seq) {
+      .parTraverseUnordered(seq) {
         case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
       }
       .runToFuture
@@ -79,28 +79,28 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.wanderUnordered should run over an iterable") { implicit s =>
+  test("Task.parTraverseUnordered should run over an iterable") { implicit s =>
     val count = 10
     val seq = 0 until count
-    val sum = Task.wanderUnordered(seq)(x => Task.eval(x + 1)).map(_.sum)
+    val sum = Task.parTraverseUnordered(seq)(x => Task.eval(x + 1)).map(_.sum)
 
     val result = sum.runToFuture; s.tick()
     assertEquals(result.value.get, Success((count + 1) * count / 2))
   }
 
-  test("Task.wanderUnordered should be stack-safe on handling many tasks") { implicit s =>
+  test("Task.parTraverseUnordered should be stack-safe on handling many tasks") { implicit s =>
     val count = 10000
     val seq = for (i <- 0 until count) yield i
-    val sum = Task.wanderUnordered(seq)(x => Task.eval(x)).map(_.sum)
+    val sum = Task.parTraverseUnordered(seq)(x => Task.eval(x)).map(_.sum)
 
     val result = sum.runToFuture; s.tick()
     assertEquals(result.value.get, Success(count * (count - 1) / 2))
   }
 
-  test("Task.wanderUnordered should be stack safe on success") { implicit s =>
+  test("Task.parTraverseUnordered should be stack safe on success") { implicit s =>
     def fold[A](ta: Task[ListBuffer[A]], next: A): Task[ListBuffer[A]] =
       ta flatMap { acc =>
-        Task.wanderUnordered(Seq(acc, next)) { v =>
+        Task.parTraverseUnordered(Seq(acc, next)) { v =>
           Task.eval(v)
         }
       } map {
@@ -137,12 +137,12 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     assertEquals(result, Some(Success(count * (count - 1) / 2)))
   }
 
-  test("Task.wanderUnordered should log errors if multiple errors happen") { implicit s =>
+  test("Task.parTraverseUnordered should log errors if multiple errors happen") { implicit s =>
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
 
     val ex = DummyException("dummy1")
     var errorsThrow = 0
-    val gather = Task.wanderUnordered(Seq(0, 0)) { _ =>
+    val gather = Task.parTraverseUnordered(Seq(0, 0)) { _ =>
       Task
         .raiseError[Int](ex)
         .executeAsync
@@ -161,7 +161,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     assertEquals(errorsThrow, 2)
   }
 
-  test("Task.wanderUnordered runAsync multiple times") { implicit s =>
+  test("Task.parTraverseUnordered runAsync multiple times") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync {
       effect += 1; 3
@@ -171,7 +171,7 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
       effect += 1; x + 1
     }
 
-    val task3 = Task.wanderUnordered(List(0, 0, 0)) { _ =>
+    val task3 = Task.parTraverseUnordered(List(0, 0, 0)) { _ =>
       task2
     }
 
@@ -184,9 +184,9 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     assertEquals(effect, 1 + 3 + 3)
   }
 
-  test("Task.wanderUnordered should wrap exceptions in the function") { implicit s =>
+  test("Task.parTraverseUnordered should wrap exceptions in the function") { implicit s =>
     val ex = DummyException("dummy")
-    val task1 = Task.wanderUnordered(Seq(0)) { _ =>
+    val task1 = Task.parTraverseUnordered(Seq(0)) { _ =>
       throw ex
     }
 

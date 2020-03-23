@@ -440,5 +440,29 @@ private[eval] object TaskDeprecated {
       Task.parSequenceUnordered(in)
       // $COVERAGE-ON$
     }
+
+    /** DEPRECATED — renamed to [[Task.parTraverse]] */
+    @deprecated("Use parTraverse", "3.2.0")
+    def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] = {
+      // $COVERAGE-OFF$
+      Task.parTraverse(in)(f)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Task.parTraverseN]] */
+    @deprecated("Use parTraverseN", "3.2.0")
+    def wanderN[A, B](parallelism: Int)(in: Iterable[A])(f: A => Task[B]): Task[List[B]] = {
+      // $COVERAGE-OFF$
+      Task.parTraverseN(parallelism)(in)(f)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — renamed to [[Task.parTraverseUnordered]] */
+    @deprecated("Use parTraverseUnordered", "3.2.0")
+    def wanderUnordered[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B]): Task[List[B]] = {
+      // $COVERAGE-OFF$
+      Task.parTraverseUnordered(in)(f)
+      // $COVERAGE-ON$
+    }
   }
 }

@@ -3587,11 +3587,11 @@ object Task extends TaskInstancesLevel1 {
     * This function is the nondeterministic analogue of `traverse` and should
     * behave identically to `traverse` so long as there is no interaction between
     * the effects being gathered. However, unlike `traverse`, which decides on
-    * a total order of effects, the effects in a `wander` are unordered with
+    * a total order of effects, the effects in a `parTraverse` are unordered with
     * respect to each other.
     *
     * Although the effects are unordered, we ensure the order of results
-    * matches the order of the input sequence. Also see [[wanderUnordered]]
+    * matches the order of the input sequence. Also see [[parTraverseUnordered]]
     * for the more efficient alternative.
     *
     * It's a generalized version of [[parSequence]].
@@ -3600,9 +3600,9 @@ object Task extends TaskInstancesLevel1 {
     *
     * $parallelismNote
     *
-    * @see [[wanderN]] for a version that limits parallelism.
+    * @see [[parTraverseN]] for a version that limits parallelism.
     */
-  def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
+  def parTraverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     Task.eval(in.map(f)).flatMap(col => TaskParSequence[B, M](col, () => newBuilder(bf, in)))
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`,
@@ -3620,19 +3620,17 @@ object Task extends TaskInstancesLevel1 {
     *   val numbers = List(1, 2, 3, 4)
     *
     *   // Yields 2, 4, 6, 8 after around 6 seconds
-    *   Task.wanderN(2)(numbers)(n => Task(n + n).delayExecution(n.second))
+    *   Task.parTraverseN(2)(numbers)(n => Task(n + n).delayExecution(n.second))
     * }}}
     *
     * $parallelismAdvice
     *
     * $parallelismNote
     *
-    * @see [[wander]] for a version that does not limit parallelism.
+    * @see [[parTraverse]] for a version that does not limit parallelism.
     */
-  def wanderN[A, B](parallelism: Int)(in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
-    Task.suspend {
-      TaskParSequenceN(parallelism, in.map(f))
-    }
+  def parTraverseN[A, B](parallelism: Int)(in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
+    Task.suspend(TaskParSequenceN(parallelism, in.map(f)))
 
   /** Processes the given collection of tasks in parallel and
     * nondeterministically gather the results without keeping the original
@@ -3666,11 +3664,11 @@ object Task extends TaskInstancesLevel1 {
     * nondeterministically apply the function to each element of the collection
     * without keeping the original ordering of the results.
     *
-    * This function is similar to [[wander]], but neither the effects nor the
+    * This function is similar to [[parTraverse]], but neither the effects nor the
     * results will be ordered. Useful when you don't need ordering because:
     *
     *  - it has non-blocking behavior (but not wait-free)
-    *  - it can be more efficient (compared with [[wander]]), but not
+    *  - it can be more efficient (compared with [[parTraverse]]), but not
     *    necessarily (if you care about performance, then test)
     *
     * It's a generalized version of [[parSequenceUnordered]].
@@ -3679,7 +3677,7 @@ object Task extends TaskInstancesLevel1 {
     *
     * $parallelismNote
     */
-  def wanderUnordered[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B]): Task[List[B]] =
+  def parTraverseUnordered[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B]): Task[List[B]] =
     Task.eval(in.map(f)).flatMap(parSequenceUnordered)
 
   /** Yields a task that on evaluation will process the given tasks
