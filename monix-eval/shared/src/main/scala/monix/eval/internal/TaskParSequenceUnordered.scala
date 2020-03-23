@@ -30,9 +30,9 @@ import scala.util.control.NonFatal
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-private[eval] object TaskGatherUnordered {
+private[eval] object TaskParSequenceUnordered {
   /**
-    * Implementation for `Task.gatherUnordered`
+    * Implementation for [[Task.parSequenceUnordered]]
     */
   def apply[A](in: Iterable[Task[A]]): Task[List[A]] = {
     Async(

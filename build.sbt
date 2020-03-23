@@ -14,7 +14,7 @@ val allProjects = List(
 )
 
 val benchmarkProjects = List(
-  "benchmarksPrev",
+  //  "benchmarksPrev", // TODO: temporarily disabling to avoid deprecation errors, enable after 3.2.0 release
   "benchmarksNext"
 ).map(_ + "/compile")
 
