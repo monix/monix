@@ -1196,6 +1196,37 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   final def >>[B](tb: => Task[B]): Task[B] =
     this.flatMap(_ => tb)
 
+  /** Runs this task first and then, when successful, the given task.
+    * Returns the result of the given task.
+    *
+    * Example:
+    * {{{
+    *   val combined = Task{println("first"); "first"} *> Task{println("second"); "second"}
+    *   // Prints "first" and then "second"
+    *   // Result value will be "second"
+    * }}}
+    *
+    * As this method is strict, it can lead to an infinite loop / stack overflow for self-referring tasks.
+    * @see [[>>]] for the version with a non-strict parameter
+    */
+  @inline final def *>[B](tb: Task[B]): Task[B] =
+    this.flatMap(_ => tb)
+
+  /** Runs this task first and then, when successful, the given task.
+    * Returns the result of this task.
+    *
+    * Example:
+    * {{{
+    *   val combined = Task{println("first"); "first"} <* Task{println("second"); "second"}
+    *   // Prints "first" and then "second"
+    *   // Result value will be "first"
+    * }}}
+    *
+    * As this method is strict, it can lead to an infinite loop / stack overflow for self-referring tasks.
+    */
+  @inline final def <*[B](tb: Task[B]): Task[A] =
+    this.flatMap(a => tb.map(_ => a))
+
   /** Introduces an asynchronous boundary at the current stage in the
     * asynchronous processing pipeline.
     *

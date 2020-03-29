@@ -161,4 +161,16 @@ object TaskFlatMapSuite extends BaseTestSuite {
     assert(f.value.get.isSuccess)
     assertEquals(f.value.get.get.size, 5)
   }
+
+  test("fa *> fb <-> fa.flatMap(_ => fb)") { implicit s =>
+    check2 { (fa: Task[Int], fb: Task[Int]) =>
+      fa *> fb <-> fa.flatMap(_ => fb)
+    }
+  }
+
+  test("fa <* fb <-> fa.flatMap(a => fb.map(_ => a))") { implicit s =>
+    check2 { (fa: Task[Int], fb: Task[Int]) =>
+      fa <* fb <-> fa.flatMap(a => fb.map(_ => a))
+    }
+  }
 }
