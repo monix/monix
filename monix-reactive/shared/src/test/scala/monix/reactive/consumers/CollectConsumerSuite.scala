@@ -28,13 +28,13 @@ import scala.util.{Failure, Success}
 object CollectConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending taskas")
+    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   test("should return the same all consumed elements as a sequence") { implicit s =>
     val l = List("a", "b", "c", "d")
-    val obs: Observable[String] = Observable.fromIterable(l)
-    val f: CancelableFuture[List[String]] = obs.consumeWith(Consumer.collect).runToFuture
+    val ob: Observable[String] = Observable.fromIterable(l)
+    val f: CancelableFuture[List[String]] = ob.consumeWith(Consumer.collect).runToFuture
 
     assertEquals(Some(Success(l)), f.value)
   }

@@ -230,13 +230,13 @@ object Consumer {
   /** A consumer that will return a collection of all the streamed
    * values as a Scala `List`.
    *
-   * Note: This function is functionally equal as the `.toListL` from Observable
+   * Note that this method is functionally the same as the `.toListL` from [[Observable]]
    *
-   * WARNING: for infinite streams the process will eventually
+   * WARNING: For infinite streams the process will eventually
    * blow up with an out of memory error.
    */
-  def collect[S]: Consumer.Sync[S, List[S]] =
-    new FoldLeftConsumer[S, List[S]](() => List.empty[S], (l: List[S], e: S) => l :+ e)
+  def collect[A]: Consumer.Sync[A, List[A]] =
+    new FoldLeftConsumer[A, List[A]](() => List.empty[A], (l: List[A], elem: A) => l :+ elem)
 
   /** Given a fold function and an initial state value, applies the
     * fold function to every element of the stream and finally signaling
