@@ -25,7 +25,7 @@ import monix.reactive.{Consumer, Observable}
 
 import scala.util.{Failure, Success}
 
-object CollectConsumerSuite extends TestSuite[TestScheduler] {
+object ListConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
@@ -34,7 +34,7 @@ object CollectConsumerSuite extends TestSuite[TestScheduler] {
   test("should return the same all consumed elements as a sequence") { implicit s =>
     val l = List("a", "b", "c", "d")
     val ob: Observable[String] = Observable.fromIterable(l)
-    val f: CancelableFuture[List[String]] = ob.consumeWith(Consumer.collect).runToFuture
+    val f: CancelableFuture[List[String]] = ob.consumeWith(Consumer.toListL).runToFuture
 
     assertEquals(Some(Success(l)), f.value)
   }
@@ -42,7 +42,7 @@ object CollectConsumerSuite extends TestSuite[TestScheduler] {
   test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 100).endWithError(ex)
-    val f = obs.consumeWith(Consumer.collect).runToFuture
+    val f = obs.consumeWith(Consumer.toListL).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))

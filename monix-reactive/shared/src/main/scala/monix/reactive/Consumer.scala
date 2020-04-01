@@ -25,6 +25,8 @@ import monix.execution.{Callback, Cancelable, Scheduler}
 import monix.reactive.internal.consumers._
 import monix.reactive.observers.Subscriber
 
+import scala.collection.mutable
+
 /** The `Consumer` is a specification of how to consume an observable.
   *
   * It is a factory of subscribers with a completion callback attached,
@@ -230,13 +232,13 @@ object Consumer {
   /** A consumer that will return a collection of all the streamed
    * values as a Scala `List`.
    *
-   * Note that this method is functionally the same as the `.toListL` from [[Observable]]
+   * Note that this method is functionally the same as the [[Observable.toListL]]
    *
    * WARNING: For infinite streams the process will eventually
    * blow up with an out of memory error.
    */
-  def collect[A]: Consumer.Sync[A, List[A]] =
-    new FoldLeftConsumer[A, List[A]](() => List.empty[A], (l: List[A], elem: A) => l :+ elem)
+  def toListL[A]: Consumer[A, List[A]] =
+    new FoldLeftConsumer[A, mutable.ListBuffer[A]](() => mutable.ListBuffer.empty[A], _ += _).map(_.toList)
 
   /** Given a fold function and an initial state value, applies the
     * fold function to every element of the stream and finally signaling
