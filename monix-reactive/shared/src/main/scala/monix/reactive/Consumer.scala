@@ -237,7 +237,7 @@ object Consumer {
    * WARNING: For infinite streams the process will eventually
    * blow up with an out of memory error.
    */
-  def toListL[A]: Consumer[A, List[A]] =
+  def toList[A]: Consumer[A, List[A]] =
     new FoldLeftConsumer[A, mutable.ListBuffer[A]](() => mutable.ListBuffer.empty[A], _ += _).map(_.toList)
 
   /** Given a fold function and an initial state value, applies the

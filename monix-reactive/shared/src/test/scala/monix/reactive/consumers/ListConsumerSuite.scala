@@ -34,7 +34,7 @@ object ListConsumerSuite extends TestSuite[TestScheduler] {
   test("should return the same all consumed elements as a sequence") { implicit s =>
     val l = List("a", "b", "c", "d")
     val ob: Observable[String] = Observable.fromIterable(l)
-    val f: CancelableFuture[List[String]] = ob.consumeWith(Consumer.toListL).runToFuture
+    val f: CancelableFuture[List[String]] = ob.consumeWith(Consumer.toList).runToFuture
 
     assertEquals(Some(Success(l)), f.value)
   }
@@ -42,7 +42,7 @@ object ListConsumerSuite extends TestSuite[TestScheduler] {
   test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 100).endWithError(ex)
-    val f = obs.consumeWith(Consumer.toListL).runToFuture
+    val f = obs.consumeWith(Consumer.toList).runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
