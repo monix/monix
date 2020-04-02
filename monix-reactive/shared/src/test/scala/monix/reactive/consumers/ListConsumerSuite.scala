@@ -31,11 +31,12 @@ object ListConsumerSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should return the same all consumed elements as a sequence") { implicit s =>
+  test("should return the same all consumed elements as a list") { implicit s =>
     val l = List("a", "b", "c", "d")
     val ob: Observable[String] = Observable.fromIterable(l)
     val f: CancelableFuture[List[String]] = ob.consumeWith(Consumer.toList).runToFuture
 
+    s.tick()
     assertEquals(Some(Success(l)), f.value)
   }
 
