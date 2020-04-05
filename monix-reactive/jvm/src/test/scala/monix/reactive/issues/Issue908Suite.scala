@@ -102,7 +102,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
         subject.firstL.timeoutTo(1.millis, Task(1))
       }
 
-      val await = Task.gatherUnordered(tasks).map(_.sum)
+      val await = Task.parSequenceUnordered(tasks).map(_.sum)
       val f = Await.result(await.runToFuture, 30.seconds)
 
       assertEquals(f, CONCURRENT_TASKS)
@@ -118,7 +118,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
       }
 
       val await = for {
-        fiber <- Task.gatherUnordered(tasks).map(_.sum).start
+        fiber <- Task.parSequenceUnordered(tasks).map(_.sum).start
         _     <- awaitSubscribers(subject, CONCURRENT_TASKS)
         _ <- Task {
           subject.onNext(2)

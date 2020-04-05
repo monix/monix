@@ -24,14 +24,14 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-object TaskGatherNSuite extends BaseTestSuite {
+object TaskParSequenceNSuite extends BaseTestSuite {
 
-  test("Task.gatherN should execute in parallel bounded by parallelism") { implicit s =>
+  test("Task.parSequenceN should execute in parallel bounded by parallelism") { implicit s =>
     val num = AtomicInt(0)
     val task = Task.evalAsync(num.increment()) >> Task.sleep(2.seconds)
     val seq = List.fill(100)(task)
 
-    Task.gatherN(5)(seq).runToFuture
+    Task.parSequenceN(5)(seq).runToFuture
 
     s.tick()
     assertEquals(num.get(), 5)
@@ -43,38 +43,38 @@ object TaskGatherNSuite extends BaseTestSuite {
     assertEquals(num.get(), 100)
   }
 
-  test("Task.gatherN should return result in order") { implicit s =>
+  test("Task.parSequenceN should return result in order") { implicit s =>
     val task = 1.until(10).toList.map(Task.eval(_))
-    val res = Task.gatherN(2)(task).runToFuture
+    val res = Task.parSequenceN(2)(task).runToFuture
 
     s.tick()
     assertEquals(res.value, Some(Success(List(1, 2, 3, 4, 5, 6, 7, 8, 9))))
   }
 
-  test("Task.gatherN should return empty list") { implicit s =>
-    val res = Task.gatherN(2)(List.empty).runToFuture
+  test("Task.parSequenceN should return empty list") { implicit s =>
+    val res = Task.parSequenceN(2)(List.empty).runToFuture
 
     s.tick()
     assertEquals(res.value, Some(Success(List.empty)))
   }
 
-  test("Task.gatherN should handle single item") { implicit s =>
+  test("Task.parSequenceN should handle single item") { implicit s =>
     val task = List(Task.eval(1))
-    val res = Task.gatherN(2)(task).runToFuture
+    val res = Task.parSequenceN(2)(task).runToFuture
 
     s.tick()
     assertEquals(res.value, Some(Success(List(1))))
   }
 
-  test("Task.gatherN should handle parallelism bigger than list") { implicit s =>
+  test("Task.parSequenceN should handle parallelism bigger than list") { implicit s =>
     val task = 1.until(5).toList.map(Task.eval(_))
-    val res = Task.gatherN(10)(task).runToFuture
+    val res = Task.parSequenceN(10)(task).runToFuture
 
     s.tick()
     assertEquals(res.value, Some(Success(List(1, 2, 3, 4))))
   }
 
-  test("Task.gatherN should onError if one of the tasks terminates in error") { implicit s =>
+  test("Task.parSequenceN should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq(
       Task.evalAsync(3).delayExecution(2.seconds),
@@ -83,7 +83,7 @@ object TaskGatherNSuite extends BaseTestSuite {
       Task.evalAsync(3).delayExecution(1.seconds)
     )
 
-    val f = Task.gatherN(2)(seq).runToFuture
+    val f = Task.parSequenceN(2)(seq).runToFuture
 
     s.tick()
     assertEquals(f.value, None)
@@ -93,13 +93,13 @@ object TaskGatherNSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.gatherN should be canceled") { implicit s =>
+  test("Task.parSequenceN should be canceled") { implicit s =>
     val num = AtomicInt(0)
     val seq = Seq(
       Task.unit.delayExecution(3.seconds).doOnCancel(Task.eval(num.increment())),
       Task.evalAsync(num.increment(10))
     )
-    val f = Task.gatherN(1)(seq).runToFuture
+    val f = Task.parSequenceN(1)(seq).runToFuture
 
     s.tick(2.seconds)
     f.cancel()
@@ -109,22 +109,22 @@ object TaskGatherNSuite extends BaseTestSuite {
     assertEquals(num.get(), 1)
   }
 
-  test("Task.gatherN should be stack safe for synchronous tasks") { implicit s =>
+  test("Task.parSequenceN should be stack safe for synchronous tasks") { implicit s =>
     val count = if (Platform.isJVM) 200000 else 5000
     val tasks = for (_ <- 0 until count) yield Task.now(1)
-    val composite = Task.gatherN(count)(tasks).map(_.sum)
+    val composite = Task.parSequenceN(count)(tasks).map(_.sum)
     val result = composite.runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(count)))
   }
 
-  test("Task.gatherN runAsync multiple times") { implicit s =>
+  test("Task.parSequenceN runAsync multiple times") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
     val task2 = task1 map { x =>
       effect += 1; x + 1
     }
-    val task3 = Task.gatherN(2)(List(task2, task2, task2))
+    val task3 = Task.parSequenceN(2)(List(task2, task2, task2))
 
     val result1 = task3.runToFuture; s.tick()
     assertEquals(result1.value, Some(Success(List(4, 4, 4))))

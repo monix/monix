@@ -197,6 +197,32 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   final def >>[B](that: => Coeval[B]): Coeval[B] =
     this.flatMap(_ => that)
 
+  /** Runs this coeval first and then, when successful, the given coeval.
+    * Returns the result of the given coeval.
+    *
+    * Example:
+    * {{{
+    *   val combined = Coeval{println("first"); "first"} *> Coeval{println("second"); "second"}
+    *   // Prints "first" and then "second"
+    *   // Result value will be "second"
+    * }}}
+    */
+  @inline final def *>[B](that: Coeval[B]): Coeval[B] =
+    this.flatMap(_ => that)
+
+  /** Runs this coeval first and then, when successful, the given coeval.
+    * Returns the result of this coeval.
+    *
+    * Example:
+    * {{{
+    *   val combined = Coeval{println("first"); "first"} <* Coeval{println("second"); "second"}
+    *   // Prints "first" and then "second"
+    *   // Result value will be "first"
+    * }}}
+    */
+  @inline final def <*[B](that: Coeval[B]): Coeval[A] =
+    this.flatMap(a => that.map(_ => a))
+
   /** Evaluates the underlying computation and returns the result.
     *
     * NOTE: this can throw exceptions.
