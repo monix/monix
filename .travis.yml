@@ -63,7 +63,7 @@ install:
   - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
 
 script:
-  - sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COMMAND $SCALAJS_VERSION
+  - sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COMMAND
 
 notifications:
   webhooks:
